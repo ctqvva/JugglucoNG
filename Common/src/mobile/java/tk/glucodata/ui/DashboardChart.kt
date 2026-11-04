@@ -193,7 +193,6 @@ import tk.glucodata.data.prediction.StateDoseHint
 import tk.glucodata.data.prediction.StateDoseHintKind
 import tk.glucodata.ui.getDisplayValues
 import tk.glucodata.ui.journal.journalMarkerAmountText
-import tk.glucodata.ui.journal.journalTypeColor
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.SensorColors
@@ -2559,9 +2558,6 @@ fun InteractiveGlucoseChart(
                 kotlinx.coroutines.delay(350L)
                 journalChipLayoutZoom = visibleDuration
             }
-            // Zoomed out, a labelled chip per entry buries the curve: entries move to rails
-            // along the chart's edges instead, merged and totalled. See [JournalOverviewLayout].
-            val journalOverview = isJournalOverviewZoom(journalChipLayoutZoom, constraints.maxWidth / density)
             // Carbs sit on the curve at the time they were eaten, so their label hangs a fixed
             // height above the glucose rather than at a height that stands for the amount.
             fun journalTraceValue(marker: JournalChartMarker): Float? {
@@ -2570,7 +2566,6 @@ fun InteractiveGlucoseChart(
                     ?.lineValueNear(marker.timestamp, JOURNAL_TRACE_MAX_GAP_MILLIS)
                     ?.takeIf { it.isFinite() && it > 0.1f }
             }
-            val journalDotHaloColor = MaterialTheme.colorScheme.surface
             val journalActionIndicatorProgress by animateFloatAsState(
                 targetValue = if (journalActionTimestamp != null && selectedPoint == null) 1f else 0f,
                 animationSpec = spring(
@@ -3879,13 +3874,6 @@ fun InteractiveGlucoseChart(
                                     center = Offset(markerX, markerY)
                                 )
                             } else {
-                                // A ring in the background colour lifts the dot off the curve
-                                // it sits on, whatever colour either is.
-                                drawCircle(
-                                    color = journalDotHaloColor,
-                                    radius = 6.5.dp.toPx(),
-                                    center = Offset(markerX, markerY)
-                                )
                                 drawCircle(
                                     color = tint,
                                     radius = 4.5.dp.toPx(),
@@ -4059,7 +4047,7 @@ fun InteractiveGlucoseChart(
             val journalChipReachMillis = (journalChipReachPx * overlayDuration / overlayDataWidthPx).toLong()
             // Temp basal is drawn only as its icicle: AAPS sets one every few minutes, and a
             // chip for each would bury the curve.
-            val chipMarkers = if (journalOverview) emptyList() else journalMarkers
+            val chipMarkers = journalMarkers
                 .filter { marker ->
                     marker.type != JournalEntryType.TEMP_BASAL &&
                         marker.timestamp in (overlayViewportStart - journalChipReachMillis)..(overlayViewportEnd + journalChipReachMillis)
@@ -4098,19 +4086,47 @@ fun InteractiveGlucoseChart(
                 // A pixel of slack so a chip laid out at its measured width never ellipsizes.
                 journalChipChromePx + journalChipTextWidth(label).coerceAtMost(journalChipMaxTextPx) + 1f
             }
+            // Compact only locally crowded labels, using their measured area rather than a
+            // 12/24-hour zoom cutoff. Keep the ordinary icon chips and their existing totals,
+            // counts and tap-to-spread interaction; there is no separate rail or dot legend.
+            val densityPileOfEntry = remember(
+                journalMarkers, journalChipLayoutZoom, overlayDataWidthPx, chartHeightPx,
+                journalChipTextStyle, journalChipDensity
+            ) {
+                val entries = journalMarkers
+                    .filter { it.type != JournalEntryType.TEMP_BASAL }
+                    .sortedWith(compareBy({ it.timestamp }, { it.entryId }))
+                val leaders = JournalChipDensity.leaders(
+                    entries.map { marker ->
+                        val label = marker.detailText.ifBlank { marker.title.take(10) }
+                        val mergeKey = when {
+                            marker.amount == null || !marker.amount.isFinite() -> null
+                            marker.type == JournalEntryType.CARBS || marker.type == JournalEntryType.INSULIN -> journalChipKind(marker)
+                            else -> null
+                        }
+                        JournalChipDensity.Entry(
+                            marker.timestamp,
+                            journalChipChromePx + journalChipTextWidth(label).coerceAtMost(journalChipMaxTextPx) + 1f,
+                            mergeKey
+                        )
+                    },
+                    journalChipLayoutZoom, overlayDataWidthPx, chartHeightPx, journalChipPillHeightPx
+                )
+                entries.indices.associate { entries[it].entryId to entries[leaders[it]].entryId }
+            }
             // Entries showing the same thing closer together than a few dp can't be told apart on
             // screen, as with a loop's equal doses on a wide zoom; the later ones fold behind the
-            // first instead of each claiming a spot. A different value never folds, so every
-            // dose stays readable. The steps are fixed in time, so panning never regroups them,
+            // first instead of each claiming a spot. Different values fold only in the dense
+            // additive piles above. The steps are fixed in time, so panning never regroups them,
             // except that an entry still on screen never folds into one that has left it.
             val journalChipFoldMillis = (with(LocalDensity.current) { 4.dp.toPx() } * journalChipLayoutZoom / overlayDataWidthPx.coerceAtLeast(1f))
                 .toLong()
                 .coerceAtLeast(1L)
             val chipFoldInto = arrayOfNulls<Int>(chipMarkers.size)
             run {
-                val firstInStep = HashMap<Triple<JournalEntryType, String, Long>, Int>()
+                val firstInStep = HashMap<Triple<Any, String, Long>, Int>()
                 chipMarkers.forEachIndexed { index, marker ->
-                    val step = Triple(marker.type, chipLabels[index], Math.floorDiv(marker.timestamp, journalChipFoldMillis))
+                    val step = Triple(journalChipKind(marker), chipLabels[index], Math.floorDiv(marker.timestamp, journalChipFoldMillis))
                     val first = firstInStep[step]
                     if (first == null || (chipAnchorXs[first] < 0f && chipAnchorXs[index] >= 0f)) {
                         firstInStep[step] = index
@@ -4119,6 +4135,11 @@ fun InteractiveGlucoseChart(
                     }
                 }
             }
+            // Rebase a pile onto its first on-screen member when its original leader leaves
+            // the viewport, so visible totals never hide behind an off-screen chip.
+            JournalChipDensity.foldInViewport(
+                chipMarkers.map { densityPileOfEntry[it.entryId] ?: it.entryId }, chipAnchorXs, chipFoldInto
+            )
             val chipIndexOfEntry = HashMap<Long, Int>(chipMarkers.size * 2)
             chipMarkers.forEachIndexed { index, marker -> chipIndexOfEntry[marker.entryId] = index }
             val chipPlacements = JournalChipLayout.place(
@@ -4129,13 +4150,13 @@ fun InteractiveGlucoseChart(
                         width = maxOf(chipWidths[index], journalChipLastTotalWidths[marker.entryId] ?: 0f),
                         previous = journalChipLastSlots[marker.entryId],
                         // Chips showing the same thing may tuck behind one another.
-                        stackKey = marker.type to chipLabels[index],
+                        stackKey = journalChipKind(marker) to chipLabels[index],
                         foldInto = chipFoldInto[index],
                         previousTuck = journalChipLastTucks[marker.entryId]
                             ?.let(chipIndexOfEntry::get)
                             ?.let(::JournalChipTuck),
-                        // Insulin never piles with carbs or a note, so a pile always reads as one thing.
-                        kind = marker.type
+                        // Keep each insulin, carbs and notes in separate piles.
+                        kind = journalChipKind(marker)
                     )
                 },
                 journalChipLayoutSpec,
@@ -4491,164 +4512,6 @@ fun InteractiveGlucoseChart(
                             } else {
                                 expandedJournalChipId = null
                                 onJournalMarkerClick?.invoke(marker.entryId)
-                            }
-                        }
-                    )
-                }
-            }
-
-            // --- JOURNAL OVERVIEW ---
-            // Zoomed out, each entry is a small mark on a rail instead of a chip beside its dot:
-            // carbs along the top, out of the curve's way, insulin along the bottom over its
-            // activity. Nearby entries of one kind merge into one mark with their total, and
-            // tapping that zooms in on them, where each has room for its own chip.
-            val journalOverviewTextStyle = MaterialTheme.typography.labelSmall
-            val journalOverviewDensity = LocalDensity.current
-            val journalOverviewMarkHeightPx = with(journalOverviewDensity) { JournalOverviewMarkHeight.toPx() }
-            val journalOverviewTouchPx = with(journalOverviewDensity) { 48.dp.toPx() }
-            val journalOverviewEdgePx = with(journalOverviewDensity) { 4.dp.toPx() }
-            val journalOverviewRowStepPx = journalOverviewMarkHeightPx + journalOverviewEdgePx
-            val journalOverviewWidthKey = overlayDataWidthPx.roundToInt()
-            val journalOverviewMarks = remember(
-                journalOverview, journalMarkers, journalChipLayoutZoom, journalOverviewWidthKey,
-                journalOverviewTextStyle, journalOverviewDensity
-            ) {
-                if (!journalOverview) return@remember emptyList()
-                val railed = journalMarkers
-                    .filter { it.type == JournalEntryType.CARBS || it.type == JournalEntryType.INSULIN }
-                    .sortedWith(compareBy({ it.timestamp }, { it.entryId }))
-                if (railed.isEmpty()) return@remember emptyList()
-                val millisPerPx = journalChipLayoutZoom.toFloat() / journalOverviewWidthKey.coerceAtLeast(1)
-                fun widthOf(label: String, count: Int): Float = with(journalOverviewDensity) {
-                    val text = journalChipTextMeasurer.measure(label, style = journalOverviewTextStyle, maxLines = 1).size.width
-                    val countText = if (count > 1) {
-                        journalChipTextMeasurer.measure("×$count", style = journalOverviewTextStyle, maxLines = 1).size.width +
-                            JournalOverviewMarkGap.toPx()
-                    } else {
-                        0f
-                    }
-                    // A pixel of slack so a mark laid out at its measured width never ellipsizes.
-                    JournalOverviewMarkChrome.toPx() + text + countText + 1f
-                }
-                val labels = HashMap<Int, Pair<String, Float>>()
-                val marks = JournalOverviewLayout.layout(
-                    entries = railed.map { marker ->
-                        JournalOverviewLayout.Entry(
-                            timestamp = marker.timestamp,
-                            rail = if (marker.type == JournalEntryType.CARBS) JOURNAL_RAIL_TOP else JOURNAL_RAIL_BOTTOM,
-                            // Carbs all add up; insulin only with doses of the same insulin.
-                            mergeKey = if (marker.type == JournalEntryType.CARBS) marker.type else marker.title to marker.accentColor
-                        )
-                    },
-                    mergeMillis = (with(journalOverviewDensity) { JournalOverviewMergeDistance.toPx() } * millisPerPx).toLong(),
-                    gapMillis = (journalOverviewEdgePx * millisPerPx).toLong(),
-                    rows = 2
-                ) { members ->
-                    val label = journalOverviewLabel(members.map(railed::get))
-                    val width = widthOf(label, members.size)
-                    labels[members[0]] = label to width
-                    (width * millisPerPx).toLong()
-                }
-                marks.map { mark ->
-                    val members = mark.members.map(railed::get)
-                    val (label, width) = labels.getValue(mark.first)
-                    val lead = members.first()
-                    JournalOverviewMarkModel(
-                        mark = mark,
-                        members = members,
-                        label = label,
-                        widthPx = width,
-                        // Mixed foods take the carbs colour; one food or one insulin keeps its own.
-                        tint = if (members.all { it.accentColor == lead.accentColor }) {
-                            Color(lead.accentColor)
-                        } else {
-                            journalTypeColor(lead.type)
-                        }
-                    )
-                }
-            }
-            val journalOverviewAlpha by animateFloatAsState(
-                targetValue = if (journalOverview) 1f else 0f,
-                animationSpec = ExpressiveMotion.defaultEffects(),
-                label = "JournalOverviewAlpha"
-            )
-            val journalOverviewCenters = FloatArray(journalOverviewMarks.size) { index ->
-                overlayDataWidthPx * ((journalOverviewMarks[index].mark.centerMillis - overlayViewportStart).toFloat() / overlayDuration)
-            }
-            // A mark whose entries are on screen is pulled inside the chart, but only as far as
-            // the next mark in its row allows: the layout spaced them at their own positions.
-            val journalOverviewLefts = FloatArray(journalOverviewMarks.size) { index ->
-                journalOverviewCenters[index] - journalOverviewMarks[index].widthPx / 2f
-            }
-            journalOverviewMarks.indices
-                .groupBy { journalOverviewMarks[it].mark.rail to journalOverviewMarks[it].mark.row }
-                .values
-                .forEach { lane ->
-                    val ordered = lane.sortedBy { journalOverviewCenters[it] }
-                    // Left to right, so a mark held back at the right edge sees where the one
-                    // before it actually ended up.
-                    ordered.forEachIndexed { position, index ->
-                        if (journalOverviewCenters[index] !in 0f..overlayDataWidthPx) return@forEachIndexed
-                        val widthPx = journalOverviewMarks[index].widthPx
-                        val raw = journalOverviewLefts[index]
-                        val maxLeft = (overlayDataWidthPx - widthPx).coerceAtLeast(0f)
-                        journalOverviewLefts[index] = when {
-                            raw < 0f -> {
-                                val nextLeft = ordered.getOrNull(position + 1)?.let { journalOverviewLefts[it] - journalOverviewEdgePx }
-                                minOf(0f, (nextLeft ?: Float.POSITIVE_INFINITY) - widthPx).coerceAtLeast(raw)
-                            }
-                            raw > maxLeft -> {
-                                val previousRight = ordered.getOrNull(position - 1)
-                                    ?.let { journalOverviewLefts[it] + journalOverviewMarks[it].widthPx + journalOverviewEdgePx }
-                                maxOf(maxLeft, previousRight ?: Float.NEGATIVE_INFINITY).coerceAtMost(raw)
-                            }
-                            else -> raw
-                        }
-                    }
-                }
-            journalOverviewMarks.forEachIndexed { index, model ->
-                val centerX = journalOverviewCenters[index]
-                val widthPx = model.widthPx
-                if (centerX + widthPx < 0f || centerX - widthPx > overlayDataWidthPx) return@forEachIndexed
-                val left = journalOverviewLefts[index]
-                val top = if (model.mark.rail == JOURNAL_RAIL_TOP) {
-                    journalOverviewEdgePx + model.mark.row * journalOverviewRowStepPx
-                } else {
-                    chartHeightPx - journalOverviewEdgePx - journalOverviewMarkHeightPx - model.mark.row * journalOverviewRowStepPx
-                }
-                val touchInsetX = ((journalOverviewTouchPx - widthPx) / 2f).coerceAtLeast(0f)
-                val touchInsetY = ((journalOverviewTouchPx - journalOverviewMarkHeightPx) / 2f).coerceAtLeast(0f)
-                val lead = model.members.first()
-                key("overview", lead.entryId) {
-                    JournalOverviewMark(
-                        label = model.label,
-                        count = model.members.size,
-                        tint = model.tint,
-                        title = lead.title.ifBlank {
-                            stringResource(
-                                if (lead.type == JournalEntryType.CARBS) R.string.journal_type_food else R.string.journal_type_insulin
-                            )
-                        },
-                        widthPx = widthPx,
-                        activePointerIds = activeJournalMarkerPointers,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            // Under the active-insulin pill, which stays readable over the rail.
-                            .zIndex(1.5f)
-                            .offset {
-                                androidx.compose.ui.unit.IntOffset(
-                                    x = (left - touchInsetX).roundToInt(),
-                                    y = (top - touchInsetY).roundToInt()
-                                )
-                            }
-                            .graphicsLayer { alpha = journalOverviewAlpha },
-                        onClick = {
-                            if (model.members.size == 1) {
-                                onJournalMarkerClick?.invoke(lead.entryId)
-                            } else if (visibleDuration > minDuration) {
-                                zoomChartOnto(model.members.first().timestamp, model.members.last().timestamp)
-                            } else {
-                                onJournalMarkerClick?.invoke(lead.entryId)
                             }
                         }
                     )
@@ -6079,115 +5942,6 @@ private fun insulinDosesOf(
 /** The insulin band's full height: a fifth of the chart, kept between 40 and 88 dp. */
 private fun androidx.compose.ui.unit.Density.insulinBandHeightFor(chartHeightPx: Float): Float =
     (chartHeightPx * 0.2f).coerceIn(40.dp.toPx(), 88.dp.toPx())
-
-/** The rails [JournalOverviewLayout] puts journal marks on. */
-private const val JOURNAL_RAIL_TOP = 0
-private const val JOURNAL_RAIL_BOTTOM = 1
-
-// ui-guardrails: allow-begin offgrid_spacing - overview mark metrics; the chart measures marks with them
-private val JournalOverviewMarkHeight = 20.dp
-private val JournalOverviewMarkGap = 4.dp
-/** Padding either side, the colour dot and the gap after it. */
-private val JournalOverviewMarkChrome = 8.dp + 8.dp + 4.dp + 8.dp
-/** Entries of one kind closer than this, on screen, share a mark. */
-private val JournalOverviewMergeDistance = 40.dp
-// ui-guardrails: allow-end
-
-/** One overview mark, laid out: the entries it stands for and how it reads. */
-private class JournalOverviewMarkModel(
-    val mark: JournalOverviewLayout.Mark,
-    val members: List<JournalChartMarker>,
-    val label: String,
-    val widthPx: Float,
-    val tint: Color
-)
-
-/** An overview mark's text: one entry's own label, or the total of several where they add up. */
-private fun journalOverviewLabel(members: List<JournalChartMarker>): String {
-    val lead = members.first()
-    val own = lead.detailText.ifBlank { lead.title.take(10) }
-    if (members.size == 1) return own
-    var total = 0.0
-    for (marker in members) total += marker.amount ?: return own
-    return journalMarkerAmountText(lead.type, total.toFloat()) ?: own
-}
-
-/**
- * A journal mark on the zoomed-out chart: a colour dot and the amount, with a count when it
- * stands for several entries. Quieter and smaller than a chip, so a day of meals and doses
- * reads as a row of totals along the edge rather than a crowd over the curve.
- */
-@Composable
-private fun JournalOverviewMark(
-    label: String,
-    count: Int,
-    tint: Color,
-    title: String,
-    widthPx: Float,
-    activePointerIds: MutableSet<PointerId>,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val currentOnClick by rememberUpdatedState(onClick)
-    val activate = remember { { currentOnClick() } }
-    val widthDp = with(LocalDensity.current) { widthPx.toDp() }
-    val description = if (count > 1) {
-        "$title, $label, " + pluralStringResource(R.plurals.journal_chart_marker_count_description, count, count)
-    } else {
-        "$title, $label"
-    }
-    Box(
-        modifier = modifier
-            .journalMarkerInput(activePointerIds, activate)
-            .clearAndSetSemantics {
-                contentDescription = description
-                role = Role.Button
-                onClick(action = {
-                    activate()
-                    true
-                })
-            }
-    ) {
-        Surface(
-            modifier = Modifier
-                .width(widthDp)
-                .height(JournalOverviewMarkHeight),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-            border = BorderStroke(1.dp, tint.copy(alpha = 0.45f)),
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(tint, CircleShape)
-                )
-                Spacer(modifier = Modifier.width(JournalOverviewMarkGap))
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    softWrap = false
-                )
-                if (count > 1) {
-                    Spacer(modifier = Modifier.width(JournalOverviewMarkGap))
-                    Text(
-                        text = stringResource(R.string.journal_chart_marker_count, count),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
-            }
-        }
-    }
-}
 
 private fun Modifier.journalMarkerInput(
     activePointerIds: MutableSet<PointerId>,
