@@ -38,6 +38,7 @@ base_methods = '\n'.join(method(base, signature) for signature in [
     'public synchronized void setPause(', 'public void onConnectionStateChange(',
     'public void close()', 'protected boolean useAutoConnect(',
     'protected void onConnectionAttemptTimeout(',
+    'public final boolean hasLocallyConnectedGatt(',
 ])
 libre_methods = '\n'.join(method(libre, signature) for signature in [
     'protected boolean useAutoConnect(', 'protected long connectionAttemptTimeoutMillis(',
@@ -88,7 +89,8 @@ class SuperGattCallback {
     static class Build { static class VERSION { static int SDK_INT=37; } static class VERSION_CODES { static int M=23; } }
     static class R { static class string { static int turn_on_nearby_devices_permission=0; } }
     static class Log {
-        static void i(String a,String b){} static void d(String a,String b){} static void e(String a,String b){}
+        static List<String> lines=new ArrayList<>();
+        static void i(String a,String b){lines.add(b);} static void d(String a,String b){} static void e(String a,String b){}
         static void stack(String a,String b,Throwable t){throw new AssertionError(b,t);}
     }
     static class BluetoothGatt {
@@ -181,6 +183,7 @@ java += libre_methods
 java += r'''
     static Libre2GattCallback fresh(){
         Applic.scheduler=new Scheduler();CloneSensorRegistry.clone=false;SensorOwnershipRuntime.blocked=false;
+        Log.lines.clear();
         Natives.resets=0;WearSensorClaim.releases=0;
         Libre2GattCallback cb=new Libre2GattCallback();cb.connectDevice(0);Applic.scheduler.advance(0);
         check(cb.mActiveBluetoothDevice.calls==1,"initial connect");
@@ -232,6 +235,23 @@ java += r'''
         cb.charcha[0]=cb.charcha[1]=alarmNow-cb.showtime-1_000L;cb.reconnect(alarmNow);
         check(current.disconnected==1,"stale stream no longer gets periodic recovery");
 
+        // Ownership's idle nudge unpauses and calls reconnect directly. A recent
+        // reading from the retired session must not keep a disconnected driver idle.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        long nudgeNow=cb.connectTime+90_000L;
+        cb.charcha[0]=nudgeNow-6_000L;
+        cb.setPause(true);cb.close();cb.setPause(false);
+        check(!cb.hasLocallyConnectedGatt(),"closed handoff retained a local connection");
+        cb.reconnect(nudgeNow);Applic.scheduler.advance(0);
+        check(cb.mActiveBluetoothDevice.calls==2,
+                "recent glucose suppressed idle ownership nudge after unpause");
+        // A GATT reference whose attempt never connected is not a healthy link either.
+        cb=fresh();current=cb.mBluetoothGatt;
+        nudgeNow=cb.connectTime+90_000L;cb.charcha[0]=nudgeNow-6_000L;
+        cb.reconnect(nudgeNow);Applic.scheduler.advance(2_000);
+        check(current.closed==1&&cb.mActiveBluetoothDevice.calls==2,
+                "recent glucose suppressed recovery of a never-connected GATT");
+
         // #773: a real status-8 loss ten seconds after glucose must still recover.
         // Short CONNECTED/status-19 links can fail before discovery for many attempts.
         cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
@@ -258,14 +278,19 @@ java += r'''
         int startedLogins=cb.logins;
         cb.mBLELoginHandler=cb.forCurrentGatt(()->{});
         Runnable pendingLogin=cb.mBLELoginHandler;
+        doLog=true;
         Applic.scheduler.advance(1_000);cb.onConnectionStateChange(current,0,2);
         check(current.discoveries==1,"duplicate CONNECTED restarted service discovery");
         check(cb.mBLELoginHandler==pendingLogin&&cb.conphase==2,
                 "duplicate CONNECTED cancelled an in-flight login retry");
         // Independently duplicate service results must not reset phase 2 back to phase 1.
         cb.onServicesDiscovered(current,0);
+        doLog=false;
         check(cb.logins==startedLogins&&cb.conphase==2,
                 "duplicate discovery restarted the security handshake");
+        check(Log.lines.stream().anyMatch(s->s.contains("ignoring duplicate CONNECTED"))
+                &&Log.lines.stream().anyMatch(s->s.contains("ignoring duplicate service discovery, phase=2")),
+                "ignored duplicate callbacks disappeared from recorded diagnostics");
         // A duplicate must not move the original silence deadline later.
         Applic.scheduler.advance(149_000);
         check(current.disconnected==1,"duplicate CONNECTED extended the handshake deadline");
