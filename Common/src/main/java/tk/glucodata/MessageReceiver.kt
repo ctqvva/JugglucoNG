@@ -54,17 +54,22 @@ class MessageReceiver: WearableListenerService() {
         when(WearMessagePath.fromWire(path)) {
             WearMessagePath.ALERT_ACK -> WearAlertSync.onMessage(data)
             WearMessagePath.DEFAULTS ->  {
-                val sender = tk.glucodata.MessageSender.getMessageSender()
-                if (sender == null) {
-                    Log.d(LOG_ID, "messagesender==null")
-                    return
+                MessageSender.scope.launch(nativeOps) {
+                    if (!isWearable && !MessageSender.outgoingAllowed()) return@launch
+                    val sender = tk.glucodata.MessageSender.getMessageSender()
+                    if (sender == null) {
+                        Log.d(LOG_ID, "messagesender==null")
+                        return@launch
                     }
-                val source=  sender.localnode
-                 if(doLog) {Log.i(LOG_ID,"path==WearMessagePath.DEFAULTS "+source );}
-                  setWearosdefaults(source,true);
-                   val context=if(MainActivity.thisone==null)Applic.app;else MainActivity.thisone;
-                   Applic.setbluetooth(context,false)
-                 }
+                    val source = sender.localnode
+                    if (doLog) {
+                        Log.i(LOG_ID, "path==WearMessagePath.DEFAULTS " + source)
+                    }
+                    setWearosdefaults(source, true)
+                    val context = if (MainActivity.thisone == null) Applic.app else MainActivity.thisone
+                    Applic.setbluetooth(context, false)
+                }
+            }
             WearMessagePath.WAKE -> {
                 Natives.wakehereonly()
                 }
@@ -187,6 +192,7 @@ class MessageReceiver: WearableListenerService() {
                 }
                 val sourceId = messageEvent.getSourceNodeId()
                 MessageSender.scope.launch(nativeOps) {
+                    if (!isWearable && !MessageSender.outgoingAllowed()) return@launch
                     val name: String
                     val galaxy: Boolean
                     if (isWearable) {
