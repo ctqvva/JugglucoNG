@@ -1362,6 +1362,9 @@ public class Natives {
 
         public static native byte[] getDexbackfillcmd(long dataptr);
 
+        /** {last reading received without a gap before it, newest reading}, as stream indices. */
+        public static native int[] dexBackfillState(long dataptr);
+
         public static native boolean dexbackfill(long dataptr, byte[] bluetoothdata);
 
         public static native byte[] makeRound3bytes(long dataptr);
