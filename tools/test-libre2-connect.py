@@ -232,6 +232,25 @@ java += r'''
         cb.charcha[0]=cb.charcha[1]=alarmNow-cb.showtime-1_000L;cb.reconnect(alarmNow);
         check(current.disconnected==1,"stale stream no longer gets periodic recovery");
 
+        // #773: a real status-8 loss ten seconds after glucose must still recover.
+        // Short CONNECTED/status-19 links can fail before discovery for many attempts.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        cb.charcha[0]=System.currentTimeMillis()-10_000L;
+        cb.onConnectionStateChange(current,8,0);Applic.scheduler.advance(0);
+        check(current.closed==1&&cb.mActiveBluetoothDevice.calls==2,
+                "recent glucose suppressed recovery from a real link loss");
+        for(int attempt=0;attempt<24;attempt++){
+            old=cb.mBluetoothGatt;Applic.scheduler.advance(30_000);
+            cb.onConnectionStateChange(old,147,0);Applic.scheduler.advance(0);
+            check(old.closed==1,"pre-discovery timeout retained the old GATT");
+            old=cb.mBluetoothGatt;Applic.scheduler.advance(26_000);
+            cb.onConnectionStateChange(old,0,2);Applic.scheduler.advance(3_000);
+            cb.onConnectionStateChange(old,19,0);Applic.scheduler.advance(0);
+            check(old.closed==1,"short connected link retained the old GATT");
+        }
+        check(cb.mActiveBluetoothDevice.calls==50&&cb.logins==0&&cb.frames==0,
+                "pre-discovery retry sequence fabricated login or packet progress");
+
         // ColorOS delivered CONNECTED twice for one GATT, causing two discoveries.
         cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
         cb.sensorgen=2;cb.onServicesDiscovered(current,0);cb.onDescriptorWrite(current,null,0);

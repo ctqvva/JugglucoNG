@@ -7,8 +7,8 @@ below adds focused recovery fixes. Raw diagnostic logs are not included.
 
 The evidence supports a mixture of application defects and unresolved Bluetooth
 failures. The November 4 capture identifies a healthy-link disconnect and a
-duplicate-callback login reset, both addressed by the follow-up patch. A status
-presentation defect remains separate. The evidence does not establish
+duplicate-callback login reset, both addressed by the follow-up patch. The
+Connected-status defect is also addressed in the final patch. The evidence does not establish
 that Libre 2 glucose noise causes the current connection failures, or that the
 remaining failures are all caused by the application or the phone.
 
@@ -75,6 +75,40 @@ streaming-enabled flag and propagates it to backups. The subsequent NFC path
 uses that flag to request enabling streaming. Calling it on every failed retry
 does not itself refresh Bluetooth authentication or send an NFC command.
 
+### Later November 4 #773 captures: the initial loss is now recorded
+
+The [diagnostic excerpt](https://github.com/ctqvva/JugglucoNG/issues/773#issuecomment-6626020328)
+and [healthy-to-failed transition](https://github.com/ctqvva/JugglucoNG/issues/773#issuecomment-6627811406)
+supersede the earlier absence of a current failure trace. Both attachments are
+selected, redacted timelines rather than complete raw traces.
+
+- The morning excerpt shows 40 status-147 failures and 38 status-19 terminations.
+  At 08:41:03 a Gen1 passcode write returns false. The existing code records that
+  failure and requests disconnect; a local rejected write is not proof the
+  sensor rejected the passcode. Most other short links never report discovery
+  completion, so that single write failure cannot explain all of the outage.
+- At 09:02:00 a local disconnect and fresh connection precede the recorded NFC
+  tag callback at 09:02:01. Discovery and glucose resume at 09:02:02. These
+  timestamps do not isolate whether NFC, retry timing or stack state caused
+  recovery. The reporter also says earlier NFC scans did not restore streaming.
+- The later trace records 80 packets over 4,749 seconds, ending at 10:21:10 with
+  status 8, ten seconds after the last packet. This is an actual link-loss
+  callback, distinct from #798's alarm-initiated healthy disconnect.
+- Through 10:45:38 it records 25 status-147 failures and 24 short connected links
+  ending with status 19, zero packets and no service-discovery completion. There
+  is no subsequent NFC scan. No duplicate discovery sequence is exposed here.
+- The reporter says power-saving options were already disabled. That statement
+  alone does not identify the radio/stack cause, but sleep restrictions cannot
+  be treated as the established explanation.
+
+The current excerpt shows requests reaching CONNECTED but generally failing
+before discovery completes. It does not establish an additional faulty login
+operation, prove that immediate direct retries cause the loop, or measure an
+alternative retry mode. The patch therefore retains the existing direct-connect
+policy. An Android Bluetooth HCI capture spanning healthy reception, the first
+status-8 loss and retries would help determine connection/discovery traffic and
+link termination reasons; app callbacks alone cannot establish those details.
+
 ### #798: mainly nighttime signal loss on OPPO / ColorOS 15
 
 [Issue #798](https://github.com/ctqvva/JugglucoNG/issues/798) identifies 1.2.7 Alpha.
@@ -109,7 +143,7 @@ dates them, hides them after an hour and suppresses that detail for Clone source
 Keeping historical errors is intentional. Explaining the route and current
 reception separately is still important.
 
-## Current source defect: enabled streaming can be shown as Connected
+## Reviewed source defect: enabled streaming can be shown as Connected
 
 In the legacy branch of `SensorViewModel.kt`, `isActivelyReceiving` is calculated
 from `!isPaused && (nativeStatus.isNotEmpty() || gatt.streamingEnabled())`.
@@ -123,7 +157,12 @@ to **Connected**, even when the current local GATT has disconnected. The same
 boolean feeds the `streaming` property. This source path is a presentation bug;
 it does not explain why Android or the sensor broke the link. A proper change
 must distinguish local transport, receipt of fresh readings, and Clone/watch
-delivery, preserving warmup, sensor-error and NFC-only behavior.
+delivery, preserving warmup, sensor-error and NFC-only behavior. The final patch
+uses `hasLocallyConnectedGatt()` for Libre 2's receiving/Connected predicate,
+while retaining pause, native warmup/error text, separate Clone/watch status
+paths and other legacy drivers' existing native-status rules. A connected GATT
+still does not prove that glucose packets are arriving; the packet watchdog
+continues to check that separately.
 
 ## Other related reports and fixes
 
@@ -138,19 +177,17 @@ delivery, preserving warmup, sensor-error and NFC-only behavior.
 
 ## Concrete next work
 
-1. Correct the Connected/reception status path described above with route-aware
-   regression coverage. Keep last-error history separately labeled.
+1. **Completed:** correct the Libre 2 Connected/reception predicate described
+   above, with regressions for disconnected, connected-before-flag and paused
+   states. Keep last-error history separately labeled.
 2. Make the diagnostics export state the recording switch, actual trace time
    range, build identity and retention limits. Add a bounded per-sensor sequence
    of connect/disconnect, service-discovery, login phase, first complete packet
    and recovery reason that is useful even with full trace recording off.
    Avoid authentication payloads and glucose/account data in that sequence.
-3. For #773, enable **Debug logs → Trace log → Record diagnostics** before the
-   failure. Capture from healthy minute reception through the retry loop and an
-   explicitly timed NFC scan, exporting immediately afterward. The critical
-   distinction is whether each status-19 link reaches service discovery, starts
-   login, enables notifications, or delivers a complete packet. Include the
-   sensor security generation without keys or challenge bytes.
+3. **New app trace received:** #773's later capture now contains the transition.
+   An HCI capture is the useful next step for its pre-discovery failure loop.
+   Pair it with the app trace and explicitly timed NFC/recovery actions.
 4. On ColorOS/OxygenOS, repeat with Sleep standby optimization disabled, then
    compare screen-off/unplugged operation with charging. Change one setting at a
    time, record its state and confirm returned readings, not just a Connected
@@ -221,8 +258,9 @@ nighttime-only report and is distinct from #773's recorded 147/19 failure loop.
 - A repeated successful service-discovery result is ignored once the handshake
   has started. Non-success results still trigger bounded recovery.
 
-The production changes are confined to Libre 2. The earlier Connected-label
-defect and diagnostics-export improvements remain separate work.
+The recovery changes are confined to Libre 2. The final patch also corrects the
+phone's Libre 2 Connected predicate; diagnostics-export improvements remain
+separate work.
 
 ### Regression evidence
 
@@ -249,5 +287,15 @@ Validation after the fixes:
   compilation succeeded as prerequisites.
 - `git diff --check`: PASS.
 
-No physical sensor retest, APK/R8 validation, push, PR or issue reply was performed
-for this follow-up.
+The three `LegacySensorReceptionTests` additionally exercise the phone's
+receiving predicate. Before its fix, the disconnected-but-enabled case and the
+connected-before-flag case failed; the existing other-driver rules passed.
+Final targeted Gradle validation includes these tests: 9 phone and 6 Wear tests,
+zero failures/errors/skips, with both production variants compiling. The updated
+standalone lifecycle harness also replays the new #773 pattern: a real link loss
+after recent glucose followed by 24 timeout/short-connection pairs. It verifies
+that every transport retires and the healthy-alarm guard does not block recovery
+from an actual disconnection; it does not model the cause of those failures.
+
+Validation does not include physical sensor retests, APK/R8 validation or HCI
+packet analysis. The patch does not claim to resolve every outage in #773.
