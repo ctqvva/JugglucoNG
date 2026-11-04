@@ -24,7 +24,8 @@ public:
     void setAcceptedRemoteDescription(std::string_view description);
     void publishCandidate(std::string_view candidate);
     void publishGatheringDone();
-    // remoteAddress: the peer side of the selected ICE pair ("ip:port").
+    // remoteAddress: the peer side of the selected ICE pair ("ip:port"), empty
+    // while not known yet, anything else when no direct IPv4 route exists.
     void markConnected(std::string_view remoteAddress = {});
     bool requestPromotionProbe();
     bool hasAuthenticatedPeer() const;

@@ -366,9 +366,10 @@ static void connectedPeerDropsMulticastLockButStaysReachable() {
         require(answerer->multicastLockHeld,
                 "dropped the lock with no direct way to reach the peer");
 
-        // Connected to the peer at .7 before hearing it on the LAN: ask it once.
-        link.sessions[1]->markConnected("192.0.2.7:47560");
+        // Connected to the peer at .7 before hearing it on the LAN: ask it.
+        link.sessions[1]->markConnected("192.0.2.7:47560 Host");
         require(answerer->multicastLockHeld, "dropped the lock before the peer answered");
+        answerer->probeRoute(std::chrono::steady_clock::now());
         require(sentTo(link, peerAddress), "no Hello sent to the ICE-verified peer");
 
         // An authenticated, current packet replayed from elsewhere is not the peer.
@@ -426,6 +427,109 @@ static void connectedPeerDropsMulticastLockButStaysReachable() {
     require(selectedIPv4("::ffff:192.0.2.7:1") == peerAddress, "v4-mapped address not read");
     require(!selectedIPv4("[fe80::1]:1") && !selectedIPv4("?") && !selectedIPv4(""),
             "non-IPv4 selected address accepted");
+    const auto path = peerAddressPath(label);
+    unlink(path.c_str());
+    rmdir(directory);
+    globalbasedir = {};
+}
+
+// The selected address can come late or change between connected and completed,
+// and a confirming reply can be lost: none of it may leave a phone stuck.
+static void connectedRouteIsConfirmedAndFollowed() {
+    char directory[] = "/tmp/juggluco-local-ice-XXXXXX";
+    if (!mkdtemp(directory)) throw std::runtime_error("mkdtemp failed");
+    globalbasedir = directory;
+    const char *label = "route-follow-test";
+    const in_addr_t first = htonl(0xC0000207);  // 192.0.2.7
+    const in_addr_t second = htonl(0xC0000208); // 192.0.2.8
+    Link link(true, false, label);
+    auto *answerer = link.sessions[1]->impl.get();
+    answerer->multicastLockHeld = true;
+    auto echoFrom = [&](in_addr_t address) {
+        sockaddr_storage source{};
+        auto &ipv4 = reinterpret_cast<sockaddr_in &>(source);
+        ipv4.sin_family = AF_INET;
+        ipv4.sin_addr.s_addr = address;
+        auto packet = link.sessions[0]->impl->makePacket(
+            MessageType::Hello, {}, std::string(32, 'b'));
+        answerer->handlePacket(packet.data(), packet.size(), &source);
+    };
+    auto clearSent = [&] {
+        std::lock_guard lock(link.mutex);
+        link.ipv4Destinations.clear();
+    };
+    auto sends = [&](in_addr_t address) {
+        std::lock_guard lock(link.mutex);
+        return std::count(link.ipv4Destinations.begin(), link.ipv4Destinations.end(), address);
+    };
+
+    // The address arrives after connected: the echo already heard counts.
+    echoFrom(first);
+    link.sessions[1]->markConnected();
+    require(answerer->multicastLockHeld, "lock dropped with no selected address");
+    link.sessions[1]->markConnected("192.0.2.7:47560");
+    require(!answerer->multicastLockHeld, "late selected address kept the lock");
+
+    // A failed lookup says nothing about the confirmed route.
+    link.sessions[1]->markConnected();
+    require(!answerer->multicastLockHeld && answerer->peerConfirmedHere(),
+            "an unknown address undid the confirmation");
+
+    // The route moves: confirmation goes with it, and the lock comes back.
+    link.sessions[1]->markConnected("192.0.2.8:47560");
+    require(!answerer->peerConfirmedHere(), "confirmation outlived its route");
+    require(answerer->multicastLockHeld, "unconfirmed route without the lock");
+    require(loadPeerAddress(label)->s_addr == first, "saved an unconfirmed route");
+
+    // Probes keep the reply limit in mind, stop when spent, and need no echo...
+    clearSent();
+    auto now = std::chrono::steady_clock::now();
+    answerer->probeRoute(now);
+    answerer->probeRoute(now + routeProbeInterval / 2);
+    require(sends(second) == 2, "probe not paced");
+    require(sends(first) == 2, "previous address no longer tried");
+    for (int probe = 0; probe != routeProbes * 2; ++probe) {
+        now += routeProbeInterval;
+        answerer->probeRoute(now);
+    }
+    require(sends(second) == 2 * routeProbes, "probing is not bounded");
+
+    // ...but the same route reported again does not restart them.
+    link.sessions[1]->markConnected("192.0.2.8:47560");
+    answerer->probeRoute(now + routeProbeInterval);
+    require(sends(second) == 2 * routeProbes, "completed restarted spent probes");
+
+    echoFrom(second);
+    require(answerer->peerConfirmedHere() && !answerer->multicastLockHeld,
+            "new route not confirmed by its echo");
+    require(loadPeerAddress(label)->s_addr == second, "new route not saved");
+
+    // Over TURN nothing direct is left to confirm.
+    link.sessions[1]->markConnected("relay");
+    require(!answerer->peerConfirmedHere() && answerer->multicastLockHeld,
+            "a relayed route kept the confirmation");
+    clearSent();
+    answerer->probeRoute(now + routeProbeInterval * 2);
+    require(sends(first) == 0 && sends(second) == 0, "probing a relayed route");
+
+    // Back on an address already heard from: no need to ask.
+    link.sessions[1]->markConnected("192.0.2.7:47560");
+    require(answerer->peerConfirmedHere() && !answerer->multicastLockHeld,
+            "known echo source not confirmed on the route back");
+    clearSent();
+    answerer->probeRoute(now + routeProbeInterval * 3);
+    require(sends(first) == 0, "probing a confirmed route");
+
+    // An answered probe ends the remaining ones.
+    const in_addr_t third = htonl(0xC0000209); // 192.0.2.9
+    link.sessions[1]->markConnected("192.0.2.9:47560");
+    answerer->probeRoute(now + routeProbeInterval * 4);
+    require(sends(third) == 2, "new route not probed");
+    echoFrom(third);
+    require(answerer->peerConfirmedHere(), "answered probe did not confirm");
+    answerer->probeRoute(now + routeProbeInterval * 5);
+    require(sends(third) == 2, "kept probing after the answer");
+
     const auto path = peerAddressPath(label);
     unlink(path.c_str());
     rmdir(directory);
@@ -860,6 +964,7 @@ int main() {
         {"connected peer repairs lost snapshot", recoverSnapshotFromConnectedPeer},
         {"both connected stop broadcasts", noTrafficAfterBothConnected},
         {"connected peer drops multicast lock but stays reachable", connectedPeerDropsMulticastLockButStaysReachable},
+        {"connected route is confirmed and followed", connectedRouteIsConfirmedAndFollowed},
         {"Rendezvous winner remains authoritative", [] { rendezvousWinnerIsPreserved(); }},
         {"late Hello cannot start a connected reply loop", [] { lateHelloDoesNotStartAReplyLoop(); }},
         {"existing Rendezvous connection is not renegotiated", [] { lateHelloDoesNotStartAReplyLoop(true); }},

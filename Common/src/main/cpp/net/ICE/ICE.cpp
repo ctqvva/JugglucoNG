@@ -780,6 +780,21 @@ static void refreshSelectedCloneTransport(ICEConnect *connection,
         connection->selectedCloneTransport.store(transport);
 }
 
+static void reportConnectedRoute(ICEConnect *connection,juice_agent *agent) {
+    auto local=connection->currentLocalSignal();
+    if(!local)
+        return;
+    char localAddr[JUICE_MAX_ADDRESS_STRING_LEN];
+    char remoteAddr[JUICE_MAX_ADDRESS_STRING_LEN];
+    if(juice_get_selected_addresses_inc_type(agent,localAddr,sizeof(localAddr),
+                                             remoteAddr,sizeof(remoteAddr))!=0)
+        local->markConnected();
+    else if(strstr(localAddr," Relay")||strstr(remoteAddr," Relay"))
+        local->markConnected("relay");
+    else
+        local->markConnected(remoteAddr);
+}
+
 static void wakeCloneSender(const passhost_t &host,uintptr_t reason) {
     if(!backup||host.index<0||
        static_cast<size_t>(host.index)>=backup->con_vars.size())
@@ -862,11 +877,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
                 LOGGERICE("allindex=%d rendezvous: primary server recovered\n",allindex);
             con->connectTime=time(nullptr);
             refreshSelectedCloneTransport(con,agent);
-            if(auto local=con->currentLocalSignal()) {
-                char remoteAddr[JUICE_MAX_ADDRESS_STRING_LEN];
-                local->markConnected(juice_get_selected_addresses(agent,nullptr,0,
-                        remoteAddr,sizeof(remoteAddr))==0?remoteAddr:"");
-                }
+            reportConnectedRoute(con,agent);
             const uint64_t generation=con->currentAgentGeneration();
             struct CONNECTED {
                 static void thread(juice_agent_t *agent,int allindex,uint64_t generation) {
@@ -905,6 +916,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             // queryable between those callbacks, so refresh the route from
             // the final authoritative state as well.
             refreshSelectedCloneTransport(con,agent);
+            reportConnectedRoute(con,agent);
             break;
         case JUICE_STATE_FAILED: {
             con->turnRelayRotation.failedAttempt(con->currentAgentGeneration());

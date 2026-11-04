@@ -60,7 +60,7 @@ extern "C" void initializeLocalICEMulticast(JNIEnv *env) {
     if (env->ExceptionCheck()) env->ExceptionClear();
 }
 #else
-namespace { bool multicastLease(bool) { return false; } }
+namespace { bool multicastLease(bool acquire) { return acquire; } }
 #endif
 
 #include <ascon.h>
@@ -99,6 +99,9 @@ constexpr size_t maximumPayloadLength = 6144;
 constexpr uint16_t firstLocalPort = 20000;
 constexpr uint16_t localPortCount = 10000;
 constexpr auto snapshotRetryInterval = std::chrono::seconds(1);
+// Longer than snapshotRetryInterval, or the peer's reply limit swallows a retry.
+constexpr auto routeProbeInterval = std::chrono::seconds(2);
+constexpr int routeProbes = 5;
 
 enum class SnapshotKind { Handshake, Retry, Reply };
 
@@ -321,16 +324,19 @@ struct LocalICESignalSession::Impl {
     int socketFd{-1};
     int multicastFd{-1};
     std::vector<unsigned> joinedInterfaces; // Protected by sendMutex.
-    // Held while discovering. Once connected and the peer's address is confirmed,
-    // it is dropped: it lets every multicast on the LAN wake the phone.
+    // Held unless the connected route is confirmed: it lets every multicast on
+    // the LAN wake the phone. Changes only under leaseMutex.
     std::atomic_bool multicastLockHeld{false};
+    std::mutex leaseMutex;
     // Where signaling also goes by unicast. Starts as the last confirmed
     // address, so a restarted app reaches a peer that dropped its lock.
     std::optional<sockaddr_in> peerAddress; // Protected by stateMutex.
     // Below: protected by stateMutex; 0 means none.
     in_addr_t savedPeer{};       // What is persisted.
     in_addr_t connectedRemote{}; // Peer side of the connected ICE pair.
-    bool peerConfirmed{false};   // Confirmed in this session, not just loaded.
+    in_addr_t confirmedPeer{};   // Confirmed in this session, not just loaded.
+    int probesLeft{};
+    std::chrono::steady_clock::time_point nextProbe{};
     // IPv4 sources of packets echoing our generation. Unconfirmed: a replay of
     // an authenticated packet can arrive from any address.
     std::array<in_addr_t, 8> echoSources{};
@@ -360,10 +366,18 @@ struct LocalICESignalSession::Impl {
     }
 
     void releaseMulticastLock() {
+        const std::lock_guard<std::mutex> lock(leaseMutex);
         if (multicastLockHeld.exchange(false)) {
             multicastLease(false);
             LOGARLOCALICE("connected; multicast lock released");
         }
+    }
+
+    void holdMulticastLock() {
+        const std::lock_guard<std::mutex> lock(leaseMutex);
+        if (stopping.load(std::memory_order_acquire) || multicastLockHeld) return;
+        multicastLockHeld = multicastLease(true);
+        LOGARLOCALICE("connected route changed; multicast lock held again");
     }
 
     bool echoedFromLocked(in_addr_t address) const {
@@ -384,7 +398,7 @@ struct LocalICESignalSession::Impl {
                 nextEchoSource = (nextEchoSource + 1) % echoSources.size();
                 echoSourceCount = std::min(echoSourceCount + 1, echoSources.size());
             }
-            connectedThere = address == connectedRemote;
+            connectedThere = address == connectedRemote && address != confirmedPeer;
         }
         if (connectedThere) confirmPeer(address);
     }
@@ -397,8 +411,10 @@ struct LocalICESignalSession::Impl {
         bool store;
         {
             const std::lock_guard<std::mutex> lock(stateMutex);
+            if (address != connectedRemote) return; // The route moved on.
             peerAddress = signalDestination(port, address);
-            peerConfirmed = true;
+            confirmedPeer = address;
+            probesLeft = 0;
             store = savedPeer != address;
             savedPeer = address;
         }
@@ -410,28 +426,43 @@ struct LocalICESignalSession::Impl {
             releaseMulticastLock();
     }
 
-    void connectedTo(std::optional<in_addr_t> remote) {
-        if (!remote) return; // e.g. IPv6 only: keep the lock.
-        bool seen, probe;
+    // route: the peer's IPv4 on the selected ICE pair, 0 when there is none
+    // (TURN, IPv6). Reported on connected and again on completed, as the pair
+    // can settle on another address in between.
+    void connectedTo(in_addr_t route) {
+        bool seen;
         {
             const std::lock_guard<std::mutex> lock(stateMutex);
-            connectedRemote = *remote;
-            seen = echoedFromLocked(*remote);
-            probe = !seen && !peerConfirmed;
-            // ICE verified it, so it is safe to send to, just not yet to save.
-            if (probe) peerAddress = signalDestination(port, *remote);
+            if (route && route == confirmedPeer) return;
+            confirmedPeer = 0;
+            seen = route && echoedFromLocked(route);
+            if (route != connectedRemote) {
+                connectedRemote = route;
+                // Connected without hearing the peer on the LAN (say the saved
+                // address went stale): ask for the echo that confirms it.
+                probesLeft = route && !seen ? routeProbes : 0;
+                nextProbe = {};
+            }
         }
         if (seen)
-            confirmPeer(*remote);
-        else if (probe)
-            // Connected without hearing the peer on the LAN (say the saved
-            // address went stale). One Hello asks for the echo that confirms it.
-            sendPacket(MessageType::Hello);
+            confirmPeer(route);
+        else
+            holdMulticastLock();
+    }
+
+    void probeRoute(std::chrono::steady_clock::time_point now) {
+        {
+            const std::lock_guard<std::mutex> lock(stateMutex);
+            if (!probesLeft || now < nextProbe) return;
+            --probesLeft;
+            nextProbe = now + routeProbeInterval;
+        }
+        sendPacket(MessageType::Hello);
     }
 
     bool peerConfirmedHere() {
         const std::lock_guard<std::mutex> lock(stateMutex);
-        return peerConfirmed;
+        return confirmedPeer != 0;
     }
 
     bool createIPv4Socket() {
@@ -568,12 +599,15 @@ struct LocalICESignalSession::Impl {
         if (stopping.load(std::memory_order_acquire))
             return;
         std::string echo;
-        std::optional<sockaddr_in> peer;
+        std::optional<sockaddr_in> peer, route;
         {
             const std::lock_guard<std::mutex> lock(stateMutex);
             echo = explicitEcho.empty() ? peerGeneration
                                         : std::string(explicitEcho);
             peer = peerAddress;
+            // ICE verified it, so it can be sent to before it is confirmed.
+            if (connectedRemote && (!peer || peer->sin_addr.s_addr != connectedRemote))
+                route = signalDestination(port, connectedRemote);
         }
         auto packet = makePacket(type, data, echo);
         if (packet.empty())
@@ -588,11 +622,12 @@ struct LocalICESignalSession::Impl {
                            reinterpret_cast<const sockaddr *>(&destination),
                            sizeof(destination));
             }
-            if (peer) {
+            for (const auto &direct : {peer, route}) {
+                if (!direct) continue;
                 for (int attempt = 0; attempt < 2; ++attempt)
                     sendto(socketFd, packet.data(), packet.size(), MSG_NOSIGNAL,
-                           reinterpret_cast<const sockaddr *>(&*peer),
-                           sizeof(*peer));
+                           reinterpret_cast<const sockaddr *>(&*direct),
+                           sizeof(*direct));
             }
         }
         if (multicastFd >= 0) {
@@ -854,6 +889,7 @@ struct LocalICESignalSession::Impl {
                 sendSnapshot({}, SnapshotKind::Retry);
                 nextHello = now + snapshotRetryInterval;
             }
+            probeRoute(now);
             pollfd descriptors[]{{socketFd, POLLIN, 0}, {multicastFd, POLLIN, 0}};
             const int result = poll(descriptors, 2, 250);
             if (result <= 0) continue;
@@ -916,6 +952,7 @@ void LocalICESignalSession::stop() {
         close(impl->multicastFd);
         impl->multicastFd = -1;
     }
+    const std::lock_guard<std::mutex> leaseLock(impl->leaseMutex);
     if (impl->multicastLockHeld.exchange(false))
         multicastLease(false);
 }
@@ -957,7 +994,8 @@ void LocalICESignalSession::publishGatheringDone() {
 // needed. Unconfirmed (TURN, IPv6 only, another network) the lock stays.
 void LocalICESignalSession::markConnected(std::string_view remoteAddress) {
     impl->connected = true;
-    impl->connectedTo(selectedIPv4(remoteAddress));
+    if (!remoteAddress.empty())
+        impl->connectedTo(selectedIPv4(remoteAddress).value_or(0));
 }
 
 bool LocalICESignalSession::requestPromotionProbe() {
