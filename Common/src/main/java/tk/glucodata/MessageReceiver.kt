@@ -24,6 +24,7 @@ package tk.glucodata
 import android.content.Intent
 import com.google.android.gms.wearable.*
 import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import tk.glucodata.Applic.isWearable
 import tk.glucodata.Log.doLog
@@ -53,17 +54,22 @@ class MessageReceiver: WearableListenerService() {
         when(WearMessagePath.fromWire(path)) {
             WearMessagePath.ALERT_ACK -> WearAlertSync.onMessage(data)
             WearMessagePath.DEFAULTS ->  {
-                val sender = tk.glucodata.MessageSender.getMessageSender()
-                if (sender == null) {
-                    Log.d(LOG_ID, "messagesender==null")
-                    return
+                MessageSender.scope.launch(nativeOps) {
+                    if (!isWearable && !MessageSender.outgoingAllowed()) return@launch
+                    val sender = tk.glucodata.MessageSender.getMessageSender()
+                    if (sender == null) {
+                        Log.d(LOG_ID, "messagesender==null")
+                        return@launch
                     }
-                val source=  sender.localnode
-                 if(doLog) {Log.i(LOG_ID,"path==WearMessagePath.DEFAULTS "+source );}
-                  setWearosdefaults(source,true);
-                   val context=if(MainActivity.thisone==null)Applic.app;else MainActivity.thisone;
-                   Applic.setbluetooth(context,false)
-                 }
+                    val source = sender.localnode
+                    if (doLog) {
+                        Log.i(LOG_ID, "path==WearMessagePath.DEFAULTS " + source)
+                    }
+                    setWearosdefaults(source, true)
+                    val context = if (MainActivity.thisone == null) Applic.app else MainActivity.thisone
+                    Applic.setbluetooth(context, false)
+                }
+            }
             WearMessagePath.WAKE -> {
                 Natives.wakehereonly()
                 }
@@ -185,37 +191,42 @@ class MessageReceiver: WearableListenerService() {
                     return
                 }
                 val sourceId = messageEvent.getSourceNodeId()
-                val name: String
-                val galaxy: Boolean
-                if (isWearable) {
-                    name = sender.localnode
-                    galaxy = true;
-                } else {
-                    name = sourceId
-                    val it = sender.findnodeid(sourceId)
-                    if (it < 0)
-                        return
-                    val node: Node = nodes.elementAt(it)
-                    galaxy = isGalaxy(node)
-                }
-
-
-
-                if(Natives.setmynetinfo(name, data, galaxy)) {
-                    sendnetinfo(sourceId)
+                MessageSender.scope.launch(nativeOps) {
+                    if (!isWearable && !MessageSender.outgoingAllowed()) return@launch
+                    val name: String
+                    val galaxy: Boolean
                     if (isWearable) {
-                        MessageSender.sendSensorClaimStatus()
+                        name = sender.localnode
+                        galaxy = true;
+                    } else {
+                        name = sourceId
+                        val node = nodes.firstOrNull { it.id == sourceId }
+                        if (node == null) {
+                            Log.e(LOG_ID, "Can't find $sourceId")
+                            return@launch
+                        }
+                        galaxy = isGalaxy(node)
+                    }
+
+                    if(Natives.setmynetinfo(name, data, galaxy)) {
+                        sendnetinfo(sourceId)
+                        if (isWearable) {
+                            MessageSender.sendSensorClaimStatus()
+                        }
                     }
                 }
             }
             WearMessagePath.START ->  {
-               if(isWearable)
-                  UseWifi.usewifi()
-               val context=Applic.getContext()
-               Applic.setinittext(context.getString(R.string.connected));
-               Applic.initStarted=Natives.ontbytesettings(data)
-               Notify.mkunitstr(context,Natives.getunit())
-               sendnetinfo(messageEvent.getSourceNodeId())
+                val sourceId = messageEvent.getSourceNodeId()
+                MessageSender.scope.launch(nativeOps) {
+                    if(isWearable)
+                        UseWifi.usewifi()
+                    val context=Applic.getContext()
+                    Applic.setinittext(context.getString(R.string.connected));
+                    Applic.initStarted=Natives.ontbytesettings(data)
+                    Notify.mkunitstr(context,Natives.getunit())
+                    sendnetinfo(sourceId)
+                }
             }
              WearMessagePath.TOGGLES_REQ -> {
                  if (!isWearable) WearToggleSync.pushTo(messageEvent.sourceNodeId)
@@ -356,6 +367,10 @@ class MessageReceiver: WearableListenerService() {
  companion object {
    private const val LOG_ID = "MessageReceiver"
    private val unknownPaths = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+   // setmynetinfo tears down and rebuilds native host state and is not re-entrant; the
+   // service used to run these handlers serially on the main thread. One IO slot keeps
+   // that serialization without keeping the work on main.
+   private val nativeOps = Dispatchers.IO.limitedParallelism(1)
    private const val DISABLED_MESSAGE_LOG_INTERVAL_MS = 60_000L
    private val lastDisabledMessageLogMs = AtomicLong(0L)
     private const val offbyte:Byte=0
