@@ -31,9 +31,14 @@ def extract(source, signature):
 
 helpers = '\n'.join(extract(header, s) for s in [
     'bool validPollIndex(int64_t index) const', 'bool hasStreamID(const int id) const',
+    'bool dexTimeFitsSlot(const int id, const int64_t t) const',
     'bool dexSlotTimeFits(const int id) const', 'int dexSlotFor(const uint32_t tim) const',
-    'void repairDexcomMinuteSlots()',
+    'void repairDexcomMinuteSlots()', 'void consecutivelifecount()',
+    'std::span<const ScanData> getPolldata() const',
 ])
+backfill = extract((root / 'Common/src/main/cpp/dexcom/java.cpp').read_text(),
+                   'fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr)')
+backfill = 'jbyteArray ' + backfill.replace('fromjava(getDexbackfillcmd)', 'getDexbackfillcmd')
 
 # The mirror writer must take Dexcom slots from the snapping helper, and the
 # store must be repaired when it is opened.
@@ -43,10 +48,15 @@ assert re.search(r'if \(isDexcom\(\)\)\s*repairDexcomMinuteSlots\(\);', header),
 fixture = r'''
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <ctime>
+#include <span>
 #include <vector>
-#define LOGGER(...) do{}while(0)
+#define NOLOG
+#define LOGGER(...) do{if(false)printf(__VA_ARGS__);}while(0)
+#define LOGAR(...) do{}while(0)
 using namespace std;
 struct RawData { uint16_t raw; };
 struct ScanData { uint32_t t; int32_t id; int32_t g; int32_t tr; float ch; uint32_t gettime() const { return t; } };
@@ -60,6 +70,8 @@ struct SensorGlucoseData {
     vector<ScanData> polls = vector<ScanData>(4000);
     vector<RawData> rawpolls = vector<RawData>(4000);
     vector<uint16_t> temppolls = vector<uint16_t>(4000);
+    int getDexMaxSecs() const { return 10 * 86400; }
+    int getmaxdexcount() const { return 2880; }
     Info *getinfo() { return &metadata; }
     const Info *getinfo() const { return &metadata; }
     uint32_t getstarttime() const { return metadata.starttime; }
@@ -92,8 +104,103 @@ struct SensorGlucoseData {
         return -1;
     }
 };
+// The production getDexbackfillcmd, with the JNI layer faked.
+constexpr int DEXSECONDS = 300;
+struct JNIEnv {};
+using jclass = int; using jlong = long long;
+struct jbyteArray {
+    int first = 0, second = 0; bool asked = false;
+    jbyteArray(nullptr_t) {}
+    jbyteArray(int start, int end) : first(start), second(end), asked(true) {}
+    explicit operator bool() const { return asked; }
+    const jbyteArray *operator->() const { return this; }
+};
+struct dexcomstream { SensorGlucoseData *hist; };
+static jbyteArray mkbackfillcmd(JNIEnv *, int start, int end) { return {start, end}; }
+/* BACKFILL */
+static jbyteArray ask(SensorGlucoseData &d) {
+    dexcomstream stream{&d}; JNIEnv env;
+    return getDexbackfillcmd(&env, 0, reinterpret_cast<jlong>(&stream));
+}
 int main() {
     const uint32_t S = 1790000000u;
+    {   // A cursor left past the repaired end must not hide a missed slot.
+        SensorGlucoseData d; d.metadata.starttime = uint32_t(time(nullptr)) - 369 * 300;
+        const uint32_t start = d.metadata.starttime; const int phase = 200;
+        for (int k = 300; k <= 365; ++k) d.driver(k, phase, 110);
+        d.metadata.pollstart = 300;
+        d.driver(367, phase, 120);
+        d.oldMirror(start + 367 * 300 + phase - 120, 100);
+        d.driver(368, phase, 121);
+        d.metadata.lastLifeCountReceived = uint16_t(d.pollcount() - 1);
+        assert(d.pollcount() > 1800 && d.metadata.lastLifeCountReceived > 1800);
+        d.repairDexcomMinuteSlots();
+        assert(d.pollcount() == 369 && d.metadata.lastLifeCountReceived == 365);
+        const auto cmd = ask(d);
+        assert(cmd && cmd->first <= 366 * 300 && cmd->second >= 366 * 300 + phase);
+    }
+    {   // Copies recovered below pollstart stay in the range getPolldata shows,
+        // whether pollstart was past the repaired end or just above the copies.
+        for (int stored : {300, 1900}) {
+            SensorGlucoseData d; d.metadata.starttime = S;
+            for (int k = 340; k <= 345; ++k) d.driver(k, 200, 110);
+            d.metadata.lastLifeCountReceived = 345;
+            for (int k = 335; k <= 339; ++k) d.oldMirror(S + k * 300 + 80, 90 + k % 7);
+            d.metadata.pollstart = stored == 300 ? 340 : stored;
+            d.repairDexcomMinuteSlots();
+            assert(d.pollcount() == 346 && d.metadata.pollstart == 335);
+            const auto shown = d.getPolldata();
+            assert(shown.size() == 11 && shown.front().id == 335 && shown.back().id == 345);
+            for (int k = 335; k <= 339; ++k) assert(shown[k - 335].g == 90 + k % 7);
+        }
+        // No copy to recover: pollstart goes to the first reading kept.
+        SensorGlucoseData d; d.metadata.starttime = S;
+        for (int k = 40; k <= 50; ++k) d.driver(k, 200, 110);
+        d.metadata.pollstart = 1900; d.metadata.lastLifeCountReceived = 50;
+        d.repairDexcomMinuteSlots();
+        assert(d.metadata.pollstart == 40 && d.getPolldata().size() == 11);
+    }
+    {   // Interrupted runs. Copies already cleared, the count not yet cut:
+        SensorGlucoseData d; d.metadata.starttime = S;
+        for (int k = 300; k <= 368; ++k) d.driver(k, 200, 110);
+        d.metadata.lastLifeCountReceived = 368;
+        for (int k = 360; k <= 368; ++k) d.oldMirror(S + k * 300 + 80, 100);
+        d.metadata.update[0].streamstart = d.pollcount();
+        const int inflated = d.pollcount();
+        for (int i = 369; i < inflated; ++i)
+            if (d.polls[i].g) d.polls[i] = {uint32_t(S + i * 300), i, 0, 0, 0};
+        assert(d.pollcount() == inflated);
+        d.repairDexcomMinuteSlots();
+        assert(d.pollcount() == 369 && d.newest() == 368 && d.metadata.update[0].streamstart == 369);
+        // Stopped between copying a reading and clearing it: no double, no loss.
+        SensorGlucoseData half; half.metadata.starttime = S;
+        for (int k = 300; k <= 365; ++k) half.driver(k, 200, 110);
+        half.driver(367, 200, 120);
+        half.metadata.lastLifeCountReceived = 365;
+        half.oldMirror(S + 366 * 300 + 80, 99);
+        const int copy = (366 * 300 + 80) / 60;
+        half.polls[366] = {half.polls[copy].t, 366, 99, 0, 0};
+        half.repairDexcomMinuteSlots();
+        assert(half.pollcount() == 368 && half.polls[366].g == 99 && !half.polls[copy].g);
+        // Stopped after the count was cut, before the rest of the metadata:
+        SensorGlucoseData meta; meta.metadata.starttime = S;
+        for (int k = 300; k <= 365; ++k) meta.driver(k, 200, 110);
+        meta.driver(367, 200, 120);
+        meta.metadata.pollstart = 300;
+        meta.metadata.lastLifeCountReceived = 1850; meta.metadata.update[0].streamstart = 1851;
+        meta.repairDexcomMinuteSlots();
+        assert(meta.metadata.lastLifeCountReceived == 365 && meta.metadata.update[0].streamstart == 368);
+    }
+    {   // Padding the sensor's own readings overtook stays as empty slots, but
+        // must not keep minute times: lookups by time need the stream in order.
+        SensorGlucoseData d; d.metadata.starttime = S;
+        for (int k = 300; k <= 310; ++k) d.driver(k, 200, 110);
+        d.oldMirror(S + 310 * 300 + 80, 100);
+        for (int k = 311; k <= 320; ++k) if (k != 315) d.driver(k, 200, 110);
+        d.repairDexcomMinuteSlots();
+        assert(d.pollcount() == 321 && !d.polls[315].g);
+        for (int k = 301; k <= 320; ++k) assert(d.polls[k].t > d.polls[k - 1].t);
+    }
     {   // The #767 trace: phone has 300..365, 367, 368 (366 missed); the watch's
         // copies, two minutes earlier and 5 mg/dL lower, sit at minute indices.
         SensorGlucoseData d; d.metadata.starttime = S;
@@ -167,7 +274,7 @@ int main() {
     }
     puts("PASS: Dexcom minute-indexed copies are moved to their slots or dropped, the stream ends at the newest reading, and skewed copies keep their slot");
 }
-'''.replace('/* HELPERS */', helpers)
+'''.replace('/* HELPERS */', helpers).replace('/* BACKFILL */', backfill)
 
 with tempfile.TemporaryDirectory(prefix='dexcom-slot-repair-') as directory:
     directory = Path(directory)

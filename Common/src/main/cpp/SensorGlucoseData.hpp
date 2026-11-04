@@ -2151,13 +2151,13 @@ uint32_t getlastpolltime() const {
   // A Dexcom slot is (sensor seconds)/300, so a reading stored at id was taken
   // in [start+id*300, start+id*300+300); allow some clock drift either side.
   // Readings written at minute indices (#767) do not fit their slot.
-  bool dexSlotTimeFits(const int id) const {
-    if (!hasStreamID(id))
-      return false;
-    const int64_t t = getstream(id)->gettime();
+  bool dexTimeFitsSlot(const int id, const int64_t t) const {
     const int64_t slotstart =
         static_cast<int64_t>(getstarttime()) + static_cast<int64_t>(id) * 300;
     return t && t >= slotstart - 300 && t < slotstart + 600;
+  }
+  bool dexSlotTimeFits(const int id) const {
+    return hasStreamID(id) && dexTimeFitsSlot(id, getstream(id)->gettime());
   }
   // Slot of a Dexcom reading taken at tim. The sensor reads on a fixed
   // 5-minute grid, so a copy timed by another device's clock (the watch) goes
@@ -2187,6 +2187,9 @@ uint32_t getlastpolltime() const {
   // the sensor left that slot empty, drop it when the slot has the sensor's
   // own reading, and end the stream at the newest reading left. Entries
   // timed neither by slot nor by minute are kept as they are.
+  // Every step can be repeated: a copy is cleared only after it has moved, and
+  // the metadata is checked on each load, so an interrupted run finishes on
+  // the next one.
   void repairDexcomMinuteSlots() {
     auto *info = getinfo();
     const int64_t start = getstarttime();
@@ -2194,19 +2197,29 @@ uint32_t getlastpolltime() const {
         std::min<int64_t>(pollcount(), static_cast<int64_t>(pollStorageCapacity()));
     if (!info || !start || count <= 0)
       return;
-    int moved = 0, dropped = 0, end = 0;
+    int moved = 0, dropped = 0, first = -1, end = 0;
+    const auto keep = [&first, &end](const int i) {
+      end = std::max(end, i + 1);
+      if (first < 0 || i < first)
+        first = i;
+    };
     for (int i = 0; i < count; ++i) {
       const ScanData el = polls[i];
-      if (!el.g)
-        continue;
-      if (el.id == i && dexSlotTimeFits(i)) {
-        end = i + 1;
+      const int64_t secs = static_cast<int64_t>(el.t) - start;
+      const bool slotTimed = dexTimeFitsSlot(i, el.t);
+      const bool minuteTimed = i >= 5 && secs >= int64_t{i} * 60 - 300 &&
+                               secs <= int64_t{i} * 60 + 300;
+      if (!el.g) {
+        if (el.t && !slotTimed) {
+          if (minuteTimed) // padding; lookups by time need it in order
+            polls[i].t = static_cast<uint32_t>(start + int64_t{i} * 300);
+          else
+            end = i + 1;
+        }
         continue;
       }
-      const int64_t secs = static_cast<int64_t>(el.t) - start;
-      if (el.id != i || i < 5 || secs < int64_t{i} * 60 - 300 ||
-          secs > int64_t{i} * 60 + 300) {
-        end = i + 1;
+      if (el.id != i || slotTimed || !minuteTimed) {
+        keep(i);
         continue;
       }
       const int slot = dexSlotFor(el.t);
@@ -2214,7 +2227,9 @@ uint32_t getlastpolltime() const {
         polls[slot] = {el.t, slot, el.g, el.tr, el.ch};
         rawpolls[slot] = rawpolls[i];
         temppolls[slot] = temppolls[i];
-        end = std::max(end, slot + 1);
+        if (slot < info->pollstart)
+          info->pollstart = slot;
+        keep(slot);
         ++moved;
       } else
         ++dropped;
@@ -2222,17 +2237,19 @@ uint32_t getlastpolltime() const {
       rawpolls[i] = {0};
       temppolls[i] = 0;
     }
-    if (!moved && !dropped)
-      return;
-    LOGGER("repairDexcomMinuteSlots moved=%d dropped=%d count=%d->%d\n", moved,
-           dropped, count, std::min(end, count));
-    if (end >= count)
-      return;
-    info->pollcount = end;
+    if (moved || dropped || end < count)
+      LOGGER("repairDexcomMinuteSlots moved=%d dropped=%d count=%d->%d\n", moved,
+             dropped, count, end);
+    if (end < count)
+      info->pollcount = end;
     if (info->pollstart >= end)
-      info->pollstart = std::max(end - 1, 0);
-    if (info->lastLifeCountReceived >= end)
-      info->lastLifeCountReceived = std::max(end - 1, 0);
+      info->pollstart = std::max(first, 0);
+    // A cursor past the end says nothing about what was received: walk it up
+    // again from the first reading, so missed slots are still asked for.
+    if (info->lastLifeCountReceived >= end) {
+      info->lastLifeCountReceived = std::max(first, 0);
+      consecutivelifecount();
+    }
     for (auto &up : info->update) {
       up.streamstart = std::min<uint32_t>(up.streamstart, end);
       up.rawstreamstart = std::min<uint32_t>(up.rawstreamstart, end);
