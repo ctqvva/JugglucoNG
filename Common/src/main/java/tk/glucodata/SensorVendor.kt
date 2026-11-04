@@ -33,6 +33,7 @@ enum class SensorVendor(
             ManagedSensorUiFamily.SIBIONICS -> SIBIONICS
             ManagedSensorUiFamily.NIGHTSCOUT -> NIGHTSCOUT
             ManagedSensorUiFamily.MEDTRUM -> MEDTRUM
+            ManagedSensorUiFamily.LIBRE3 -> ABBOTT
             ManagedSensorUiFamily.GENERIC -> UNKNOWN
         }
 
@@ -173,6 +174,7 @@ enum class SensorTypeName(
             }
             ManagedSensorUiFamily.NIGHTSCOUT -> NIGHTSCOUT
             ManagedSensorUiFamily.MEDTRUM -> MEDTRUM_EASYSENSE
+            ManagedSensorUiFamily.LIBRE3 -> LIBRE_3
             ManagedSensorUiFamily.GENERIC -> UNKNOWN
         }
 
