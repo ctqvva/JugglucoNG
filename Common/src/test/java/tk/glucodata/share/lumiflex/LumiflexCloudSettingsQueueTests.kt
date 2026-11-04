@@ -47,6 +47,17 @@ class LumiflexCloudSettingsQueueTests {
         queue.remove(listOf(record))
         assertEquals(0, LumiflexCloudQueue(context).size())
     }
+
+    @Test
+    fun enqueueingForANewAccountDropsThePreviousAccountRecords() {
+        val context = RuntimeEnvironment.getApplication() as LumiflexCloudTestApplication
+        val queue = LumiflexCloudQueue(context)
+        queue.remove(queue.peek())
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, 1_700_000_000_000L, 100, 0), owner = "a0")
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 2, 1_700_000_120_000L, 101, 0), owner = "a1")
+        assertEquals(1, queue.size())
+        assertEquals("a1", queue.owner())
+    }
 }
 
 class LumiflexCloudTestApplication : Applic() {

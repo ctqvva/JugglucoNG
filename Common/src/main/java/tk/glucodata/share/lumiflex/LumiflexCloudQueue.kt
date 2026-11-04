@@ -18,24 +18,29 @@ class LumiflexCloudQueue(context: Context) {
 
     fun enqueue(record: CgmRecord, owner: String = ""): Boolean {
         synchronized(lock) {
+            adoptOwner(owner)
             var added = false
             append(record) { added = true }
-            if (added) {
-                if (owner.isNotBlank()) ownerAccount = owner
-                persist()
-            }
+            if (added) persist()
             return added
         }
     }
 
     fun enqueueAll(records: List<CgmRecord>, owner: String = "") {
         synchronized(lock) {
+            adoptOwner(owner)
             var changed = false
             records.forEach { record -> append(record) { changed = true } }
-            if (changed) {
-                if (owner.isNotBlank()) ownerAccount = owner
-                persist()
-            }
+            if (changed) persist()
+        }
+    }
+
+    /** Records for a different account must not be appended to the previous account's backlog. */
+    private fun adoptOwner(owner: String) {
+        if (owner.isBlank()) return
+        if (ownerAccount != owner) {
+            items.clear()
+            ownerAccount = owner
         }
     }
 
