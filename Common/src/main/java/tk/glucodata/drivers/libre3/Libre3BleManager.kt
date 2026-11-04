@@ -143,7 +143,6 @@ class Libre3BleManager(sensorId: String) :
     private val historicBackfill = ArrayList<VirtualGlucoseSensorBridge.Reading>()
 
     @Volatile private var linkUp = false
-    private var directConnectUnreachable = false
 
     // ---- authorization bookkeeping ----
 
@@ -296,8 +295,6 @@ class Libre3BleManager(sensorId: String) :
 
     override fun connectionAttemptTimeoutMillis(): Long = 120_000L
 
-    override fun useAutoConnect(): Boolean = super.useAutoConnect() || directConnectUnreachable
-
     @Synchronized
     override fun connectDevice(delayMillis: Long): Boolean {
         if (stop || ended) return false
@@ -338,7 +335,6 @@ class Libre3BleManager(sensorId: String) :
         if (stop || mBluetoothGatt !== gatt) return
         Log.i(TAG, "$sensorId: connected to ${gatt.device?.address}")
         linkUp = true
-        directConnectUnreachable = false
         connectTime = System.currentTimeMillis()
         handler.removeCallbacks(reconnectRunnable)
         armSetupDeadline()
@@ -353,16 +349,11 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun onLinkDisconnected(gatt: BluetoothGatt, status: Int) {
-        val reachedSensor = linkUp
         linkUp = false
         runCatching { gatt.close() }
         if (mBluetoothGatt === gatt) mBluetoothGatt = null
-        if (!reachedSensor && !directConnectUnreachable && (status == BluetoothGatt.GATT_CONNECTION_TIMEOUT || status == 133)) {
-            // Same recovery the legacy callback learned (#728): a direct connect that never reached
-            // the sensor hands the address to the stack's autoConnect from then on.
-            directConnectUnreachable = true
-            Log.i(TAG, "$sensorId: direct connect timed out (status=$status); using autoConnect")
-        }
+        // The connect mode stays the user's setting: the legacy driver's autoConnect fallback
+        // (#728) was measured for that driver only, and this one has no field data yet.
         classifyLinkLossDuringHandshake()
         Log.i(TAG, "$sensorId: disconnected status=$status in $phase")
         noteLossOfSignal(System.currentTimeMillis())
@@ -671,10 +662,6 @@ class Libre3BleManager(sensorId: String) :
                 lastNote = "Warming up (${(record?.warmupMinutes ?: 60) - r.lifeCount} min left)"
                 noteLiveFrameWithoutReading(now)
             }
-            pastWear(r.lifeCount) -> {
-                lastNote = "Sensor ended"
-                noteLiveFrameWithoutReading(now)
-            }
             mgdl == null -> {
                 lastNote = when {
                     r.dataQualityError -> "No reading (data quality)"
@@ -687,11 +674,12 @@ class Libre3BleManager(sensorId: String) :
                 Log.i(TAG, "$sensorId: life ${r.lifeCount} word=%04x: $lastNote".format(r.currentWord))
             }
             else -> {
-                lastNote = ""
+                // No wear-duration cut-off: like the legacy native driver, a value the sensor still
+                // marks valid after its nominal wear time is published; the sensor decides when it stops.
+                lastNote = if (pastWear(r.lifeCount)) "Past nominal wear time" else ""
                 publishCurrent(now, mgdl.toFloat(), r.rateMgdlPerMinute)
             }
         }
-        persistMarks()
         scheduleBackfillFlush()
         UiRefreshBus.requestStatusRefresh()
     }
@@ -751,7 +739,7 @@ class Libre3BleManager(sensorId: String) :
         markMinuteReceived(rec.lifeCount)
         val time = lifeCountTimeMs(rec.lifeCount)
         val mgdl = rec.currentMgdl
-        if (time > 0L && mgdl != null && !inWarmup(rec.lifeCount) && !pastWear(rec.lifeCount)) {
+        if (time > 0L && mgdl != null && !inWarmup(rec.lifeCount)) {
             minuteBackfill += VirtualGlucoseSensorBridge.Reading(timestampMs = time, glucoseMgdl = mgdl.toFloat())
         }
         val histLife = rec.estimatedHistoricalLifeCount
@@ -766,7 +754,7 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun addHistoric(lifeCount: Int, mgdl: Int) {
-        if (inWarmup(lifeCount) || pastWear(lifeCount)) return
+        if (inWarmup(lifeCount)) return
         val time = lifeCountTimeMs(lifeCount)
         if (time <= 0L) return
         historicBackfill += VirtualGlucoseSensorBridge.Reading(timestampMs = time, glucoseMgdl = mgdl.toFloat())
@@ -812,14 +800,17 @@ class Libre3BleManager(sensorId: String) :
     private val controlTimeoutRunnable = Runnable {
         if (controlInFlight != null) {
             Log.w(TAG, "$sensorId: no response to ${controlInFlight} backfill request")
-            onControlResponse()
+            onControlResponse(timedOut = true)
         }
     }
 
     /** The sensor answers on patchControl once a requested backfill has been delivered. */
-    private fun onControlResponse() {
+    private fun onControlResponse(timedOut: Boolean = false) {
         handler.removeCallbacks(controlTimeoutRunnable)
-        when (controlInFlight) {
+        // Only a real completion settles the marks. A timeout says nothing about what the sensor
+        // still holds, so the unreplayed range must stay requestable on the next status.
+        val settled = if (timedOut) null else controlInFlight
+        when (settled) {
             // Whatever the sensor did not replay is gone; settle the mark so the request is not repeated.
             ControlKind.CLINICAL -> {
                 if (highestClinicalSeen > lastLifeCount) {
@@ -832,7 +823,6 @@ class Libre3BleManager(sensorId: String) :
             null -> Unit
         }
         controlInFlight = null
-        persistMarks()
         flushBackfill()
         sendNextControl()
     }
@@ -851,11 +841,33 @@ class Libre3BleManager(sensorId: String) :
     /** Runs on the driver thread: the Room import blocks. */
     private fun flushBackfill() {
         handler.removeCallbacks(flushRunnable)
-        if (minuteBackfill.isEmpty() && historicBackfill.isEmpty()) return
+        if (minuteBackfill.isEmpty() && historicBackfill.isEmpty()) {
+            persistMarks()
+            return
+        }
         val minutes = ArrayList(minuteBackfill).also { minuteBackfill.clear() }
         val history = ArrayList(historicBackfill).also { historicBackfill.clear() }
+        // Marks are persisted only after the readings they cover were handed to Room, so a process
+        // death between receiving a backfill and storing it re-requests the range instead of losing it.
+        val stored = runCatching { storeBackfill(minutes, history) }
+            .onFailure { Log.stack(TAG, "$sensorId flushBackfill", it) }
+            .getOrDefault(false)
+        if (stored) {
+            persistMarks()
+        } else if (!stop) {
+            minuteBackfill.addAll(0, minutes)
+            historicBackfill.addAll(0, history)
+            scheduleBackfillFlush()
+        }
+        UiRefreshBus.requestDataRefresh()
+    }
+
+    private fun storeBackfill(
+        minutes: List<VirtualGlucoseSensorBridge.Reading>,
+        history: List<VirtualGlucoseSensorBridge.Reading>,
+    ): Boolean {
         synchronized(readingLock) {
-            if (stop) return
+            if (stop) return false
             if (minutes.isNotEmpty()) {
                 VirtualGlucoseSensorBridge.importHistory(
                     sensorId, minutes, "$LOG_LABEL clinical",
@@ -877,7 +889,7 @@ class Libre3BleManager(sensorId: String) :
                 )
             }
         }
-        UiRefreshBus.requestDataRefresh()
+        return true
     }
 
     // ---- deadlines / reconnect ----

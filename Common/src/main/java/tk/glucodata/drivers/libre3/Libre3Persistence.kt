@@ -85,7 +85,9 @@ data class Libre3SensorRecord(
 }
 
 object Libre3Persistence {
-    private const val PREFS = "tk.glucodata_libre3_managed"
+    /** Excluded from settings export and import (SettingsExporter.DEVICE_LOCAL_PREFERENCES). */
+    const val PREFS_NAME = "tk.glucodata_libre3_managed"
+    private const val PREFS = PREFS_NAME
     private const val KEY_SENSORS = "sensors"
     private const val KEY_ENABLED = "enabled"
     private const val KEY_RECEIVER_ID = "receiver_id"
