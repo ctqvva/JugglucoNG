@@ -210,7 +210,7 @@ private fun nameSendMessage(name:String, messagePath: WearMessagePath, data:Byte
             }
         }
     }
-private fun nameSendMessageResult(name:String, messagePath: WearMessagePath, data:ByteArray):Boolean {
+private fun nameSendMessageResult(name:String, messagePath: WearMessagePath, data:ByteArray, timeoutSeconds: Long = 60L):Boolean {
         val path = messagePath.wire
         if (!outgoingAllowed()) {
             if (doLog) { Log.i(LOG_ID, "nameSendMessageResult($messagePath) skipped: companion disabled") }
@@ -219,7 +219,7 @@ private fun nameSendMessageResult(name:String, messagePath: WearMessagePath, dat
         try {
 //            val len=data.size
 //            val timeout:Long= (len / 20L).coerceAtMost(1L)
-            val timeout:Long= 60L
+            val timeout:Long= timeoutSeconds
         val res=Tasks.await(messageClient.sendMessage(name, path, data),timeout,TimeUnit.SECONDS)
         Log.i(LOG_ID,"nameSendMessageResult "+res)
         return true
@@ -581,16 +581,25 @@ companion object {
      * of concurrent best-effort sends that arrive out of order or disappear.
      */
     @JvmStatic
-    public fun sendSyncMessageAwait(messagePath: WearMessagePath, data: ByteArray): Boolean {
+    public fun sendSyncMessageAwait(messagePath: WearMessagePath, data: ByteArray, timeoutSeconds: Long = 60L): Boolean {
         if (!outgoingAllowed()) return false
         val sender = messagesender ?: return false
         val targets = sender.nodes?.takeIf { it.isNotEmpty() } ?: return false
-        return targets.all { node -> sender.nameSendMessageResult(node.id, messagePath, data) }
+        return targets.all { node -> sender.nameSendMessageResult(node.id, messagePath, data, timeoutSeconds = timeoutSeconds) }
     }
 
     @Keep
     @JvmStatic
     public fun sendDatawithName(ident: String, data: ByteArray): Boolean {
+        if (!Applic.isWearable) {
+            // Wear v2 (d12ce176b): the watch ingests nothing over /data; WearSync2 owns the
+            // companion's store. Every byte that would leave here for a wear peer is a dead
+            // letter, so drop it before it reaches the radio. Report success: the native
+            // sender must keep treating the tunnel as healthy, or a "failure" turns into
+            // reconnect churn (see the open→teardown note in netinfo.cpp).
+            if (doLog) Log.i(LOG_ID, "dropped /data for $ident: dead letter (Wear v2)")
+            return true
+        }
         val sender = messagesender ?: return false
     if(doLog) {Log.i(LOG_ID,"start sendDatawithName $ident");}
         val res=sender.nameSendMessageResult(ident, WearMessagePath.DATA, data)

@@ -460,6 +460,9 @@ public class Natives {
 
         public static native void wakehereonly();
 
+        /** A new reading for Clone, without reconnecting; see wakebackup() for that. */
+        public static native void wakestreamonly();
+
         public static native void resetbackuphost(int pos);
 
         public static native void deletebackuphost(int pos);
@@ -1358,6 +1361,9 @@ public class Natives {
         public static native boolean dexcomProcessData(long dataptr, byte[] bluetoothdata, long[] timeres);
 
         public static native byte[] getDexbackfillcmd(long dataptr);
+
+        /** {last reading received without a gap before it, newest reading}, as stream indices. */
+        public static native int[] dexBackfillState(long dataptr);
 
         public static native boolean dexbackfill(long dataptr, byte[] bluetoothdata);
 

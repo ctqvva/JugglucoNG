@@ -27,6 +27,7 @@
 // Created by jka on 27-11-20.
 //
 #include <algorithm>
+#include <cmath>
 #include <cinttypes>
 #include <future>
 #include <jni.h>
@@ -1296,7 +1297,14 @@ static jlong glucoselong(uint32_t nu, uint32_t glval, float drate,
                          const SensorGlucoseData *hist) {
   if (!glval)
     return 0LL;
-  const jlong rate = roundl(((long double)drate) * 1000LL);
+  // Rate x1000 in 16 bits; 0x8000 means no rate, which
+  // SuperGattCallback.packedRate reads back as NaN. Converting a NaN rate
+  // directly is undefined, so it never reaches roundl.
+  const jlong rate =
+      std::isnan(drate)
+          ? jlong{0x8000}
+          : std::clamp<jlong>(roundl(((long double)drate) * 1000LL), -0x7FFF,
+                              0x7FFF);
 
   const double cali = calibrateNow(hist, nu, glval);
   uint32_t mgL;
