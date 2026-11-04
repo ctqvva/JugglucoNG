@@ -18,10 +18,11 @@ Brief CGM records only: sensor serial, minutes since sensor start, glucose, stat
 version.
 
 Uploads go through a persistent queue: readings are batched, retried with exponential backoff, and a
-401 clears the session so the settings screen asks for a new sign-in. Readings are only queued for
-AiDex sensors JNG itself is driving, and only while the channel is switched on: history mirrored in
-through phone-to-phone Clone is never uploaded, and a reading enqueued for one account is dropped
-when the signed-in account changes.
+401 or the vendor's `802` ("this account has been logged in from other equipments") clears the
+session so the settings screen asks for a new sign-in. Readings are only queued for AiDex sensors JNG
+itself is driving, and only while the channel is switched on: history mirrored in through
+phone-to-phone Clone is never uploaded, and a reading enqueued for one account is dropped when the
+signed-in account changes.
 
 ## Followers
 

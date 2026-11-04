@@ -251,4 +251,35 @@ class LumiflexCloudUploaderTests {
         assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Success)
         assertEquals(0, queue.size())
     }
+
+    @Test
+    fun lateReplyDoesNotDeleteReadingsQueuedForANewAccount() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = LumiflexCloudSettings(context)
+        settings.enabled = true
+        settings.token = "t0"
+        settings.userId = "u0"
+        settings.account = "a0"
+        val queue = LumiflexCloudQueue(context)
+        queue.remove(queue.peek())
+        val oldRecord = CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0)
+        queue.enqueue(oldRecord, owner = "a0")
+        val newAccountRecord = CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 102, 0)
+        val transport = CapturingTransport()
+        transport.onPost = {
+            settings.startSession("a1", "t1", "u1")
+            queue.enqueue(newAccountRecord, owner = "a1")
+        }
+        val up = LumiflexCloudUploader(
+            LumiflexCloudClient(transport, encrypt = { it }, decrypt = { it }),
+            settings,
+            queue,
+            sleep = {},
+            sensorIds = { _ -> LumiflexCloudClient.DeviceList.Ok(mapOf("SN1" to "SID1")) },
+        )
+        up.flush()
+        assertEquals(1, queue.size())
+        assertEquals("a1", queue.owner())
+        assertEquals(102, queue.peek().single().mgdl)
+    }
 }

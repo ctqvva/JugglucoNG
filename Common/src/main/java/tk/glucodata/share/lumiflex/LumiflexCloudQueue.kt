@@ -59,12 +59,19 @@ class LumiflexCloudQueue(context: Context) {
 
     fun peek(): List<CgmRecord> = synchronized(lock) { items.toList() }
 
-    fun remove(records: Collection<CgmRecord>) {
+    /**
+     * Removes matching records. When [owner] is given, the removal only happens while the queue
+     * still belongs to that account, so a late reply from a previous session cannot delete the
+     * backlog of the session that replaced it.
+     */
+    fun remove(records: Collection<CgmRecord>, owner: String? = null): Boolean {
         synchronized(lock) {
-            if (records.isEmpty()) return
+            if (records.isEmpty()) return false
+            if (owner != null && ownerAccount != owner) return false
             val keys = records.map { it.serial to it.timeOffsetMinutes }.toSet()
             items.removeAll { keys.contains(it.serial to it.timeOffsetMinutes) }
             persist()
+            return true
         }
     }
 

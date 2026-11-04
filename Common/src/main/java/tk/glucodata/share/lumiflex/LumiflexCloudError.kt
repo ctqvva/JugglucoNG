@@ -18,8 +18,16 @@ object LumiflexCloudError {
     private const val TRANSPORT_FAILURE_CODE = -1
     private const val MESSAGE_LIMIT = 160
 
+    /**
+     * Vendor application code for "this account has been logged in from other equipment":
+     * another login displaced the session, so the stored token is dead.
+     */
+    private const val VENDOR_SESSION_REPLACED = 802
+
     fun classify(code: Int, body: String?): Kind = when {
-        code == HTTP_UNAUTHORIZED || bodyCode(body) == 401 -> Kind.UNAUTHORIZED
+        code == HTTP_UNAUTHORIZED || code == VENDOR_SESSION_REPLACED -> Kind.UNAUTHORIZED
+        bodyCode(body) == HTTP_UNAUTHORIZED || bodyCode(body) == VENDOR_SESSION_REPLACED ->
+            Kind.UNAUTHORIZED
         code == TRANSPORT_FAILURE_CODE -> Kind.TRANSIENT
         code in HTTP_SERVER_ERROR..599 -> Kind.TRANSIENT
         code == HTTP_TIMEOUT || code == HTTP_TOO_MANY_REQUESTS -> Kind.TRANSIENT

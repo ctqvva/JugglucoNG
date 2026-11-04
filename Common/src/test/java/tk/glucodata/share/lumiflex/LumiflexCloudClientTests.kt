@@ -190,11 +190,67 @@ class LumiflexCloudClientTests {
     @Test
     fun devicesBySensorSerialReportsBusinessErrorAsFailure() {
         val transport = FakeTransport { _, _ ->
-            LumiflexCloudClient.HttpResult(200, envelope("{\"code\":802,\"message\":\"expired\"}"))
+            LumiflexCloudClient.HttpResult(200, envelope("{\"code\":300003,\"message\":\"bad device\"}"))
         }
         val result = newClient(transport).devicesBySensorSerial("tok")
         assertTrue(result is LumiflexCloudClient.DeviceList.Failed)
-        assertEquals(802, (result as LumiflexCloudClient.DeviceList.Failed).code)
+        assertEquals(300003, (result as LumiflexCloudClient.DeviceList.Failed).code)
+    }
+
+    @Test
+    fun devicesBySensorSerialTreatsMissingDataAsFailure() {
+        val transport = FakeTransport { _, _ ->
+            LumiflexCloudClient.HttpResult(200, envelope("{\"code\":200}"))
+        }
+        assertTrue(
+            newClient(transport).devicesBySensorSerial("tok") is LumiflexCloudClient.DeviceList.Failed,
+        )
+    }
+
+    @Test
+    fun devicesBySensorSerialTreatsExplicitlyEmptyDataAsEmptyList() {
+        val transport = FakeTransport { _, _ ->
+            LumiflexCloudClient.HttpResult(200, envelope("{\"code\":200,\"data\":null}"))
+        }
+        val result = newClient(transport).devicesBySensorSerial("tok")
+        assertEquals(
+            LumiflexCloudClient.DeviceList.Ok(emptyMap()),
+            result,
+        )
+    }
+
+    @Test
+    fun devicesBySensorSerialTreatsSessionReplacedCodeAsUnauthorized() {
+        val transport = FakeTransport { _, _ ->
+            LumiflexCloudClient.HttpResult(
+                200,
+                envelope("{\"code\":802,\"message\":\"logged in from other equipments\"}"),
+            )
+        }
+        assertEquals(
+            LumiflexCloudClient.DeviceList.Unauthorized,
+            newClient(transport).devicesBySensorSerial("tok"),
+        )
+    }
+
+    @Test
+    fun uploadTreatsSessionReplacedCodeAsUnauthorized() {
+        val transport = FakeTransport { _, _ ->
+            LumiflexCloudClient.HttpResult(
+                200,
+                envelope("{\"code\":802,\"message\":\"logged in from other equipments\"}"),
+            )
+        }
+        val result = newClient(transport).uploadGlucose(
+            "tok",
+            "u1",
+            listOf(CgmRecord("SN1", "SN1", 0, 5, 1_700_000_300_000L, 100, 1)),
+            1_700_000_300_000L,
+        )
+        assertEquals(
+            LumiflexCloudError.Kind.UNAUTHORIZED,
+            (result as LumiflexCloudClient.SyncResult.Failed).kind,
+        )
     }
 
     @Test

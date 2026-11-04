@@ -48,7 +48,9 @@ class LumiflexCloudUploader(
 
         val pending = queue.peek()
         val unusable = pending.filter { it.mgdl <= 0 }
-        if (unusable.isNotEmpty()) queue.remove(unusable)
+        if (unusable.isNotEmpty() && !queue.remove(unusable, session.account)) {
+            return FlushResult.Success(0)
+        }
         val usable = pending.filter { it.mgdl > 0 }
         if (usable.isEmpty()) return FlushResult.Success(0)
 
@@ -100,7 +102,8 @@ class LumiflexCloudUploader(
                     }
                 }
                 if (!success) return FlushResult.Failed(uploaded, lastCode, lastMessage)
-                queue.remove(batch)
+                // A late reply must not delete the backlog of a session that replaced this one.
+                if (!queue.remove(batch, session.account)) return FlushResult.Success(uploaded)
                 uploaded += batch.size
                 index = end
             }
