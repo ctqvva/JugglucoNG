@@ -68,7 +68,13 @@ class SibionicsGs3BleManager(
         private const val TAG = "SibionicsGs3"
         private const val RECONNECT_DELAY_MS = 8_000L
         private const val FAILED_RECONNECT_DELAY_MS = 60_000L
-        private const val IDENTITY_RECOVERY_SCAN_MS = 25_000L
+        // Connection handling follows SibionicsBleManager rather than the vendor notes: these
+        // values carry field fixes the vendor driver does not have.
+        private const val CONNECT_CALLBACK_TIMEOUT_MS = 20_000L
+        private const val ADVERTISEMENT_RECOVERY_TIMEOUT_MS = 25_000L
+        /** Upper bound on CONNECTION_PRIORITY_HIGH; see [armHighPriorityCap]. */
+        private const val HIGH_PRIORITY_MAX_MS = 3_000L
+        private const val PRIORITY_SETTLE_DELAY_MS = 2_000L
 
         // Timers from the vendor driver.
         private const val DISCOVERY_RETRY_MS = 3_000L
@@ -78,8 +84,6 @@ class SibionicsGs3BleManager(
         private const val WRITE_RETRY_MAX_ATTEMPTS = 25
         private const val STALE_DATA_CHECK_MS = 90_000L
         private const val STALE_DATA_DISCONNECT_MS = 180_000L
-        private const val CONNECT_BACKOFF_BASE_MS = 90_000L
-        private const val CONNECT_BACKOFF_MAX_SHIFT = 3
 
         /** max(180 s, 3 x reading interval + 15 s). */
         private val LINK_WATCHDOG_MS = maxOf(180_000L, 3L * SibionicsGs3Protocol.RECORD_INTERVAL_MS + 15_000L)
@@ -108,7 +112,7 @@ class SibionicsGs3BleManager(
     private val advertisementRecovery = SibionicsAdvertisementRecovery(
         context = Applic.getContext(),
         handler = handler,
-        onFinished = ::finishIdentityRecovery,
+        onFinished = ::finishAdvertisementRecovery,
     )
     private val mirrorLock = Any()
 
@@ -121,7 +125,11 @@ class SibionicsGs3BleManager(
     private var session: SibionicsGs3Session? = null
     private var stepTimeoutKey: String = ""
     private var discoveryRetries = 0
-    @Volatile private var connectFailures = 0
+    private enum class RecoveryPurpose { CONNECT, IDENTITY }
+
+    private var recoveryPurpose = RecoveryPurpose.CONNECT
+    private var connectionPrioritySettled = false
+    private var highPriorityCapArmed = false
     @Volatile private var mtu = 23
 
     /** MAC read from 0x2A25 (this or an earlier connection); persisted with the record. */
@@ -234,7 +242,7 @@ class SibionicsGs3BleManager(
         setStatus(connectingStatus())
         val scheduled = super.connectDevice(delayMillis)
         if (scheduled) {
-            armConnectWatchdog(delayMillis)
+            armConnectCallbackTimeout(delayMillis)
         } else if (phase == Phase.CONNECTING) {
             phase = Phase.IDLE
         }
@@ -385,13 +393,15 @@ class SibionicsGs3BleManager(
         }
         when (newState) {
             BluetoothProfile.STATE_CONNECTED -> {
-                handler.removeCallbacks(connectWatchdogRunnable)
-                connectFailures = 0
+                advertisementRecovery.stop()
+                handler.removeCallbacks(connectCallbackTimeoutRunnable)
                 mBluetoothGatt = gatt
                 mActiveBluetoothDevice = gatt.device
                 gatt.device?.address?.let { setDeviceAddress(it) }
                 connectTime = System.currentTimeMillis()
                 resetConnectionState()
+                connectionPrioritySettled = false
+                highPriorityCapArmed = false
                 lastFrameMs = System.currentTimeMillis()
                 armLinkWatchdog()
                 phase = Phase.DISCOVERING
@@ -404,15 +414,16 @@ class SibionicsGs3BleManager(
             BluetoothProfile.STATE_DISCONNECTED -> {
                 val failedDuringConnect = phase == Phase.CONNECTING
                 Log.i(TAG, "disconnected status=$status phase=$phase serial=$SerialNumber")
-                handler.removeCallbacks(connectWatchdogRunnable)
+                handler.removeCallbacks(connectCallbackTimeoutRunnable)
                 resetConnectionState()
                 phase = Phase.IDLE
                 runCatching { gatt.close() }
                 mBluetoothGatt = null
                 mActiveBluetoothDevice = null
                 setStatus(lastFailure.ifBlank { disconnectedStatus() })
-                if (failedDuringConnect) connectFailures++
-                if (!stop) scheduleReconnect("disconnect status=$status")
+                if (!stop && !beginAdvertisementRecovery("connect failed status=$status", failedDuringConnect)) {
+                    scheduleReconnect("disconnect status=$status")
+                }
                 UiRefreshBus.requestStatusRefresh()
             }
         }
@@ -638,6 +649,7 @@ class SibionicsGs3BleManager(
         val current = session ?: return
         if (stop) return
         lastFrameMs = System.currentTimeMillis()
+        armHighPriorityCap()
         apply(current.onNotification(bytes))
     }
 
@@ -719,24 +731,64 @@ class SibionicsGs3BleManager(
     private fun beginIdentityRecovery() {
         val address = knownBleAddress()
         prepareForReconnect()
-        if (address != null && advertisementRecovery.start(address, IDENTITY_RECOVERY_SCAN_MS)) {
+        recoveryPurpose = RecoveryPurpose.IDENTITY
+        if (address != null && advertisementRecovery.start(address, ADVERTISEMENT_RECOVERY_TIMEOUT_MS)) {
             Log.i(TAG, "scanning advertisements for the GS3 identity serial=$SerialNumber")
         } else {
             scheduleReconnect("identity unavailable", FAILED_RECONNECT_DELAY_MS)
         }
     }
 
-    private fun finishIdentityRecovery(advertisement: SibionicsAdvertisement?) {
-        if (stop) return
-        val mac = advertisement?.identityMac
-        if (advertisement != null && mac != null) {
-            Log.i(TAG, "identity ${SibionicsGs3Identity.format(mac)} recovered from advertisement serial=$SerialNumber")
-            advertisedIdentityMac = mac
-            setDevice(advertisement.device)
-            scheduleReconnect("identity recovered", 0L)
-        } else {
-            scheduleReconnect("identity not advertised", FAILED_RECONNECT_DELAY_MS)
+    /**
+     * After Android accepted connectGatt() but the link failed or never called back, scan once
+     * for the saved address: some post-boot Bluetooth stacks will not connect to it until its
+     * advertisement has been seen again. Same rule and timeout as [SibionicsBleManager].
+     */
+    private fun beginAdvertisementRecovery(reason: String, failedDuringConnect: Boolean = true): Boolean {
+        val address = knownBleAddress()
+        if (!SibionicsSessionPolicy.shouldUseAdvertisementRecovery(
+                failedDuringConnect = failedDuringConnect,
+                isStopped = stop,
+                isPaused = false,
+                hasKnownAddress = address != null,
+                recoveryAlreadyActive = advertisementRecovery.isActive,
+            )
+        ) {
+            return advertisementRecovery.isActive
         }
+        handler.removeCallbacks(reconnectRunnable)
+        phase = Phase.IDLE
+        setStatus(connectingStatus())
+        recoveryPurpose = RecoveryPurpose.CONNECT
+        Log.i(TAG, "scan for saved sensor after $reason serial=$SerialNumber")
+        return advertisementRecovery.start(address!!, ADVERTISEMENT_RECOVERY_TIMEOUT_MS)
+    }
+
+    private fun finishAdvertisementRecovery(advertisement: SibionicsAdvertisement?) {
+        if (stop) return
+        val purpose = recoveryPurpose
+        recoveryPurpose = RecoveryPurpose.CONNECT
+        if (advertisement == null) {
+            Log.w(TAG, "saved sensor advertisement not seen ($purpose) serial=$SerialNumber")
+            phase = Phase.IDLE
+            scheduleReconnect(
+                "advertisement not seen",
+                if (purpose == RecoveryPurpose.IDENTITY) FAILED_RECONNECT_DELAY_MS else RECONNECT_DELAY_MS,
+            )
+            return
+        }
+        advertisement.identityMac?.let { mac ->
+            Log.i(TAG, "identity ${SibionicsGs3Identity.format(mac)} seen in advertisement serial=$SerialNumber")
+            advertisedIdentityMac = mac
+        }
+        setDevice(advertisement.device)
+        phase = Phase.IDLE
+        if (purpose == RecoveryPurpose.IDENTITY && identityMac == null && advertisedIdentityMac == null) {
+            scheduleReconnect("identity not advertised", FAILED_RECONNECT_DELAY_MS)
+            return
+        }
+        Log.i(TAG, "saved sensor advertisement recovered ($purpose) serial=$SerialNumber")
+        connectDevice(0)
     }
 
     // ---- writes ----
@@ -922,6 +974,7 @@ class SibionicsGs3BleManager(
     }
 
     private fun publishLiveReading(reading: Reading) {
+        settleConnectionPriority()
         val previousTime = latestReadingTimeMs
         val previousValue = latestGlucoseMgdl
         latestReadingTimeMs = reading.sampleMs
@@ -996,19 +1049,65 @@ class SibionicsGs3BleManager(
         }
     }
 
-    /** CONNECTING is stale after 90 s x 2^n consecutive connect failures. */
-    private fun armConnectWatchdog(requestedDelayMs: Long) {
-        handler.removeCallbacks(connectWatchdogRunnable)
-        val shift = connectFailures.coerceIn(0, CONNECT_BACKOFF_MAX_SHIFT)
-        handler.postDelayed(connectWatchdogRunnable, requestedDelayMs + (CONNECT_BACKOFF_BASE_MS shl shift))
+    /**
+     * The vendor waits 90 s x 2^n before calling CONNECTING stale; SibionicsBleManager gives up
+     * after 20 s and scans for the advertisement, which is what recovers the post-boot stacks.
+     */
+    private fun armConnectCallbackTimeout(requestedDelayMs: Long) {
+        handler.removeCallbacks(connectCallbackTimeoutRunnable)
+        handler.postDelayed(
+            connectCallbackTimeoutRunnable,
+            SibionicsSessionPolicy.connectCallbackTimeoutDelayMs(
+                requestedDelayMs = requestedDelayMs,
+                callbackTimeoutMs = CONNECT_CALLBACK_TIMEOUT_MS,
+            ),
+        )
     }
 
-    private val connectWatchdogRunnable = Runnable {
-        if (stop || phase != Phase.CONNECTING) return@Runnable
-        connectFailures++
-        Log.w(TAG, "connect stale (failures=$connectFailures) serial=$SerialNumber")
+    private val connectCallbackTimeoutRunnable = Runnable {
+        if (!SibionicsSessionPolicy.shouldRecoverSetupTimeout(
+                isPending = phase == Phase.CONNECTING,
+                isStopped = stop,
+                isPaused = false,
+            )
+        ) {
+            return@Runnable
+        }
+        Log.w(TAG, "connectGatt callback timeout serial=$SerialNumber")
         prepareForReconnect()
-        scheduleReconnect("connect stale", 0L)
+        setStatus(connectingStatus())
+        if (!beginAdvertisementRecovery("connectGatt callback timeout")) {
+            scheduleReconnect("connectGatt callback timeout")
+        }
+    }
+
+    /**
+     * Raised to CONNECTION_PRIORITY_HIGH on connect, relaxed once a live reading lands or at
+     * most [HIGH_PRIORITY_MAX_MS] after the sensor first answers. SibionicsBleManager found that
+     * holding the 7.5 ms interval through a long transfer drops the link with status 147 about
+     * nine seconds in, on every connection.
+     */
+    private fun armHighPriorityCap() {
+        if (connectionPrioritySettled || highPriorityCapArmed) return
+        highPriorityCapArmed = true
+        handler.postDelayed(highPriorityCapRunnable, HIGH_PRIORITY_MAX_MS)
+    }
+
+    private val highPriorityCapRunnable = Runnable {
+        if (!stop && mBluetoothGatt != null) settleConnectionPriority()
+    }
+
+    private fun settleConnectionPriority() {
+        handler.removeCallbacks(highPriorityCapRunnable)
+        if (connectionPrioritySettled) return
+        connectionPrioritySettled = true
+        val connectedGatt = mBluetoothGatt ?: return
+        handler.postDelayed({
+            if (!stop && mBluetoothGatt === connectedGatt) {
+                runCatching { connectedGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED) }
+                Log.d(TAG, "settled BLE priority serial=$SerialNumber")
+            }
+        }, PRIORITY_SETTLE_DELAY_MS)
     }
 
     private val reconnectRunnable = Runnable {
@@ -1048,12 +1147,13 @@ class SibionicsGs3BleManager(
         handler.removeCallbacks(linkWatchdogRunnable)
         handler.removeCallbacks(writeRetryRunnable)
         handler.removeCallbacks(writeCallbackTimeoutRunnable)
+        handler.removeCallbacks(highPriorityCapRunnable)
     }
 
     @Synchronized
     private fun prepareForReconnect() {
         notificationDispatcher.invalidateSession()
-        handler.removeCallbacks(connectWatchdogRunnable)
+        handler.removeCallbacks(connectCallbackTimeoutRunnable)
         resetConnectionState()
         retiredGatt = mBluetoothGatt
         mActiveBluetoothDevice = null

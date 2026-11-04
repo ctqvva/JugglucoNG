@@ -165,10 +165,19 @@ vendor-side `isLive` flag could not be read reliably.
 | Write callback | 4 s | reconnect (see below) |
 | Write retry | 120 ms (25 attempts) | retry a write the stack refused |
 | Stale data | 90 s | > 180 s without a page: disconnect; else request the next page |
-| Connect watchdog | 90 s × 2ⁿ (n ≤ 3) | `CONNECTING` is stale; reconnect |
+| Connect callback | 20 s | scan for the saved address's advertisement, then connect (`SibionicsBleManager` value; replaces the vendor's 90 s × 2ⁿ) |
+| Advertisement scan | 25 s | after a failed or silent connect, and when no identity is known |
+| High priority cap | 3 s after the first notification (+2 s settle) | relax to `BALANCED`; a live reading relaxes it sooner |
 | Link watchdog | max(180 s, 3 × 60 s + 15 s) | no notification at all: reconnect |
 | Auth step | 5 s | next auth fallback |
 | Handshake step | 15 s | fail the connection |
+
+Connection handling deliberately follows `SibionicsBleManager`, not the vendor notes, where they
+differ: those values carry fixes learned on real Sibionics sensors that the vendor driver lacks.
+Holding `CONNECTION_PRIORITY_HIGH` through a long transfer dropped the link with status 147 about
+nine seconds into every connection, and some post-boot Bluetooth stacks will not connect to a saved
+address until its advertisement has been seen again. The policy helpers are shared
+(`SibionicsSessionPolicy`), and a unit test keeps the three constants equal across both drivers.
 
 Writes are serialised: one in flight, the next after its `onCharacteristicWrite`. The vendor
 unblocks the queue after 4 s without a callback; here the connection is restarted instead, because

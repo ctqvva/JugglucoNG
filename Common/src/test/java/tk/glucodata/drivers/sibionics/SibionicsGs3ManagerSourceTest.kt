@@ -10,15 +10,22 @@ import org.junit.Test
  * approach as ManagedSensorCloneOwnershipTests: they pin a boundary, not behaviour.
  */
 class SibionicsGs3ManagerSourceTest {
-    private val source: String by lazy {
+    private fun read(name: String): String {
         var dir: File? = File(System.getProperty("user.dir") ?: ".").absoluteFile
         while (dir != null) {
-            val file = File(dir, "Common/src/main/java/tk/glucodata/drivers/sibionics/SibionicsGs3BleManager.kt")
-            if (file.isFile) return@lazy file.readText().replace(Regex("\\s+"), " ")
+            val file = File(dir, "Common/src/main/java/tk/glucodata/drivers/sibionics/$name")
+            if (file.isFile) return file.readText().replace(Regex("\\s+"), " ")
             dir = dir.parentFile
         }
-        throw AssertionError("SibionicsGs3BleManager.kt not found from ${System.getProperty("user.dir")}")
+        throw AssertionError("$name not found from ${System.getProperty("user.dir")}")
     }
+
+    private val source: String by lazy { read("SibionicsGs3BleManager.kt") }
+    private val gs1Source: String by lazy { read("SibionicsBleManager.kt") }
+
+    private fun constant(text: String, name: String): String =
+        Regex("const val $name = ([0-9_L]+)").find(text)?.groupValues?.get(1)
+            ?: throw AssertionError("$name not declared")
 
     /** From [startMarker] to the next private declaration. */
     private fun body(startMarker: String): String {
@@ -48,6 +55,29 @@ class SibionicsGs3ManagerSourceTest {
         assertTrue(source.contains("write \$label bytes=\${loggable(bytes, pending.sensitive)}"))
         assertTrue(source.contains("plain=\${loggable(send.plain, send.sensitive)}"))
         assertFalse(Regex("toHex\\((send\\.)?(plain|wire)\\)").containsMatchIn(source))
+    }
+
+    @Test
+    fun `connection handling keeps the field-tested sibionics values`() {
+        // These carry fixes SibionicsBleManager learned on real sensors; keep them in step.
+        listOf("CONNECT_CALLBACK_TIMEOUT_MS", "ADVERTISEMENT_RECOVERY_TIMEOUT_MS", "HIGH_PRIORITY_MAX_MS").forEach {
+            assertTrue(it, constant(source, it) == constant(gs1Source, it))
+        }
+    }
+
+    @Test
+    fun `high priority is capped and relaxed`() {
+        assertTrue(source.contains("requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED)"))
+        assertTrue(body("private fun handleIncoming").contains("armHighPriorityCap()"))
+        assertTrue(body("private fun publishLiveReading").contains("settleConnectionPriority()"))
+    }
+
+    @Test
+    fun `a failed connect scans for the advertisement like the other sibionics driver`() {
+        assertTrue(body("private val connectCallbackTimeoutRunnable").contains("beginAdvertisementRecovery("))
+        assertTrue(source.contains("SibionicsSessionPolicy.shouldUseAdvertisementRecovery("))
+        assertTrue(source.contains("SibionicsSessionPolicy.connectCallbackTimeoutDelayMs("))
+        assertTrue(source.contains("!beginAdvertisementRecovery(\"connect failed status=\$status\", failedDuringConnect)"))
     }
 
     @Test
