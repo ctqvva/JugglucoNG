@@ -1633,7 +1633,7 @@ private fun DashboardHeroValueCluster(
 }
 
 @Composable
-internal fun CustomCalendarIcon(
+private fun CustomCalendarIcon(
     color: androidx.compose.ui.graphics.Color,
     modifier: Modifier = Modifier,
     currentDay: Int = 0
@@ -1748,7 +1748,7 @@ internal fun CustomCalendarIcon(
 }
 
 @Composable
-internal fun AnimatedHourglassIcon(
+private fun AnimatedHourglassIcon(
     color: androidx.compose.ui.graphics.Color,
     modifier: Modifier = Modifier,
     cycleDuration: Int = 10000

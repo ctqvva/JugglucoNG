@@ -3370,7 +3370,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="restricted_unlock_desc">Тохиргоо болон мэдрэгчийн бүх удирдлага нээгдэнэ. Хязгаарлагдмал горим аппаас гарснаас нэг минутын дараа буцаж ирнэ.</string>
     <string name="restricted_unlock_desc_pin">Тохиргоо болон мэдрэгчийн бүх удирдлагыг нээхийн тулд PIN кодоо оруулна уу. Хязгаарлагдмал горим аппаас гарснаас нэг минутын дараа буцаж ирнэ.</string>
     <string name="restricted_needs_full_mode">Эхлээд Тохиргоонд бүрэн горимд шилжинэ үү.</string>
-    <string name="restricted_sensor_ends">Дуусах: %1$s</string>
     <string name="restricted_wrong_pin">PIN код буруу</string>
     <string name="restricted_pin_locked_out">Хэт олон оролдлого · %1$s хүлээнэ үү</string>
     <string name="restricted_choose_pin">PIN код сонгох</string>
@@ -3379,7 +3378,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="restricted_pin_mismatch">PIN кодууд таарсангүй. Дахин PIN код сонгоно уу.</string>
     <string name="restricted_delete_digit">Цифр устгах</string>
     <string name="restricted_disconnect_desc">Энэ утас мэдрэгчийг уншихаа болино. Одоог хүртэлх хэмжилт хадгалагдана.</string>
-    <string name="restricted_sensor_ended">Дууссан</string>
     <string name="restricted_sensors_locked">Мэдрэгч нэмэхэд бүрэн горим хэрэгтэй.</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d цифр оруулсан</item>

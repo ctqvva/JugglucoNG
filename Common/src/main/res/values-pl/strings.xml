@@ -3323,7 +3323,6 @@
     <string name="restricted_unlock_desc">Otworzą się ustawienia i całe sterowanie czujnikiem. Tryb ograniczony wróci minutę po wyjściu z aplikacji.</string>
     <string name="restricted_unlock_desc_pin">Wpisz PIN, aby otworzyć ustawienia i całe sterowanie czujnikiem. Tryb ograniczony wróci minutę po wyjściu z aplikacji.</string>
     <string name="restricted_needs_full_mode">Najpierw przejdź do trybu pełnego w ustawieniach.</string>
-    <string name="restricted_sensor_ends">Kończy się: %1$s</string>
     <string name="restricted_wrong_pin">Błędny PIN</string>
     <string name="restricted_pin_locked_out">Za dużo prób · odczekaj %1$s</string>
     <string name="restricted_choose_pin">Ustaw PIN</string>
@@ -3332,7 +3331,6 @@
     <string name="restricted_pin_mismatch">Kody PIN się nie zgadzają. Ustaw PIN ponownie.</string>
     <string name="restricted_delete_digit">Usuń cyfrę</string>
     <string name="restricted_disconnect_desc">Ten telefon przestanie odczytywać czujnik. Dotychczasowe odczyty zostaną zachowane.</string>
-    <string name="restricted_sensor_ended">Zakończony</string>
     <string name="restricted_sensors_locked">Dodanie czujnika wymaga trybu pełnego.</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">wpisano %d cyfrę</item>

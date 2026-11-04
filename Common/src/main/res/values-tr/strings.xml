@@ -3297,7 +3297,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="restricted_unlock_desc">Ayarlar ve tüm sensör denetimleri açılır. Kısıtlı mod, uygulamadan çıktıktan bir dakika sonra geri gelir.</string>
     <string name="restricted_unlock_desc_pin">Ayarları ve tüm sensör denetimlerini açmak için PIN\'i girin. Kısıtlı mod, uygulamadan çıktıktan bir dakika sonra geri gelir.</string>
     <string name="restricted_needs_full_mode">Önce Ayarlar\'dan tam moda geçin.</string>
-    <string name="restricted_sensor_ends">Bitiş: %1$s</string>
     <string name="restricted_wrong_pin">Yanlış PIN</string>
     <string name="restricted_pin_locked_out">Çok fazla deneme · %1$s bekleyin</string>
     <string name="restricted_choose_pin">PIN seçin</string>
@@ -3306,7 +3305,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="restricted_pin_mismatch">PIN\'ler eşleşmedi. Yeniden PIN seçin.</string>
     <string name="restricted_delete_digit">Basamağı sil</string>
     <string name="restricted_disconnect_desc">Bu telefon sensörü okumayı bırakır. Şimdiye kadarki ölçümler saklanır.</string>
-    <string name="restricted_sensor_ended">Bitti</string>
     <string name="restricted_sensors_locked">Sensör eklemek için tam mod gerekir.</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d basamak girildi</item>

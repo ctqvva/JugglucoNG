@@ -1171,8 +1171,7 @@ private fun NavGraphBuilder.appDestinations(
     gatedComposable("sensors") {
         SensorScreen(
             onNavigateToMqAccount = { navController.navigate("settings/mq-account") },
-            onNavigateToReadiness = { navController.navigate("settings/cgm-readiness") },
-            dashboardViewModel = dashboardViewModel,
+            onNavigateToReadiness = { navController.navigate("settings/cgm-readiness") }
         )
     }
     gatedComposable("settings") { ExpressiveSettingsScreen(navController, themeMode, onThemeChanged, dashboardViewModel) }

@@ -3353,7 +3353,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_unlock_desc">Адкрыюцца налады і ўсё кіраванне датчыкам. Абмежаваны рэжым вернецца праз хвіліну пасля выхаду з праграмы.</string>
     <string name="restricted_unlock_desc_pin">Увядзіце PIN-код, каб адкрыць налады і ўсё кіраванне датчыкам. Абмежаваны рэжым вернецца праз хвіліну пасля выхаду з праграмы.</string>
     <string name="restricted_needs_full_mode">Спачатку перайдзіце ў поўны рэжым у наладах.</string>
-    <string name="restricted_sensor_ends">Сканчаецца: %1$s</string>
     <string name="restricted_wrong_pin">Няправільны PIN-код</string>
     <string name="restricted_pin_locked_out">Занадта шмат спроб · пачакайце %1$s</string>
     <string name="restricted_choose_pin">Задайце PIN-код</string>
@@ -3362,7 +3361,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_pin_mismatch">PIN-коды не супалі. Задайце PIN-код зноў.</string>
     <string name="restricted_delete_digit">Выдаліць лічбу</string>
     <string name="restricted_disconnect_desc">Тэлефон перастане чытаць датчык. Атрыманыя паказанні захаваюцца.</string>
-    <string name="restricted_sensor_ended">Скончыўся</string>
     <string name="restricted_sensors_locked">Каб дадаць датчык, патрэбны поўны рэжым.</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">уведзена %d лічба</item>

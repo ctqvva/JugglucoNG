@@ -3338,7 +3338,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="restricted_unlock_desc">Megnyílnak a beállítások és az összes szenzorvezérlő. A korlátozott mód egy perccel az alkalmazás elhagyása után visszatér.</string>
     <string name="restricted_unlock_desc_pin">Add meg a PIN-kódot a beállítások és az összes szenzorvezérlő megnyitásához. A korlátozott mód egy perccel az alkalmazás elhagyása után visszatér.</string>
     <string name="restricted_needs_full_mode">Előbb válts teljes módra a Beállításokban.</string>
-    <string name="restricted_sensor_ends">Lejár: %1$s</string>
     <string name="restricted_wrong_pin">Hibás PIN-kód</string>
     <string name="restricted_pin_locked_out">Túl sok próbálkozás · várj %1$s</string>
     <string name="restricted_choose_pin">Válassz PIN-kódot</string>
@@ -3347,7 +3346,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="restricted_pin_mismatch">A PIN-kódok nem egyeznek. Válassz újra PIN-kódot.</string>
     <string name="restricted_delete_digit">Számjegy törlése</string>
     <string name="restricted_disconnect_desc">A telefon nem olvassa tovább a szenzort. Az eddigi mérések megmaradnak.</string>
-    <string name="restricted_sensor_ended">Lejárt</string>
     <string name="restricted_sensors_locked">Szenzor hozzáadásához teljes mód kell.</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d számjegy megadva</item>

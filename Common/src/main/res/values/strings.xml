@@ -3531,7 +3531,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_unlock_desc">Settings and all sensor controls open. Restricted mode comes back a minute after you leave the app.</string>
     <string name="restricted_unlock_desc_pin">Enter the PIN to open settings and all sensor controls. Restricted mode comes back a minute after you leave the app.</string>
     <string name="restricted_needs_full_mode">Switch to full mode in Settings first.</string>
-    <string name="restricted_sensor_ends">Ends %1$s</string>
     <string name="restricted_wrong_pin">Wrong PIN</string>
     <string name="restricted_pin_locked_out">Too many tries · wait %1$s</string>
     <string name="restricted_choose_pin">Choose a PIN</string>
@@ -3540,7 +3539,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_pin_mismatch">The PINs didn\'t match. Choose a PIN again.</string>
     <string name="restricted_delete_digit">Delete digit</string>
     <string name="restricted_disconnect_desc">This phone stops reading the sensor. Its readings so far are kept.</string>
-    <string name="restricted_sensor_ended">Ended</string>
     <string name="restricted_sensors_locked">Adding a sensor needs full mode.</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d digit entered</item>

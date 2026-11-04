@@ -222,10 +222,12 @@ private fun SensorIdentityControl(
     color: Color,
     onToggle: () -> Unit,
     onPickColor: () -> Unit,
+    colorPickable: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
-        val leadShape = ConnectedButtonShapes.Leading
+        // Alone (no colour segment beside it) the name is a whole pill.
+        val leadShape = if (colorPickable) ConnectedButtonShapes.Leading else RoundedCornerShape(percent = 50)
         Row(
             modifier = Modifier
                 .weight(1f)
@@ -275,22 +277,24 @@ private fun SensorIdentityControl(
                 modifier = Modifier.weight(1f, fill = false),
             )
         }
-        Spacer(modifier = Modifier.width(2.dp))
-        Box(
-            modifier = Modifier
-                .width(40.dp)
-                .fillMaxHeight()
-                .clip(ConnectedButtonShapes.Trailing)
-                .background(color.copy(alpha = 0.12f))
-                .clickable(onClick = onPickColor),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Default.ShowChart,
-                contentDescription = stringResource(R.string.sensor_color_title),
-                tint = color,
-                modifier = Modifier.size(18.dp),
-            )
+        if (colorPickable) {
+            Spacer(modifier = Modifier.width(2.dp))
+            Box(
+                modifier = Modifier
+                    .width(40.dp)
+                    .fillMaxHeight()
+                    .clip(ConnectedButtonShapes.Trailing)
+                    .background(color.copy(alpha = 0.12f))
+                    .clickable(onClick = onPickColor),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ShowChart,
+                    contentDescription = stringResource(R.string.sensor_color_title),
+                    tint = color,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }
@@ -398,49 +402,6 @@ private fun SensorCurrentValueChip(
 }
 
 /**
- * The sensor's newest reading for its card: the live current value when it is fresh, or the
- * newest stored reading, whichever is later. Shared by the full card and the restricted one.
- */
-@Composable
-internal fun rememberSensorCurrentSnapshot(
-    sensor: tk.glucodata.ui.viewmodel.SensorInfo,
-): CurrentDisplaySource.Snapshot? {
-    val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
-    val latestPersistedReading by remember(sensor.serial) {
-        HistoryRepository().getLatestReadingFlowForSensor(sensor.serial)
-    }.collectAsStateWithLifecycle(initialValue = null)
-    return remember(
-        refreshRevision,
-        sensor.serial,
-        sensor.viewMode,
-        latestPersistedReading,
-    ) {
-        val freshSnapshot = CurrentDisplaySource.resolveCurrent(
-            maxAgeMillis = Notify.glucosetimeout,
-            preferredSensorId = sensor.serial
-        )?.takeIf { snapshot ->
-            abs(System.currentTimeMillis() - snapshot.timeMillis) <= Notify.glucosetimeout &&
-                snapshot.primaryStr.isNotBlank()
-        }
-        // Room holds mg/dL; resolveIncomingReading() takes display units. Unconverted,
-        // a mmol/L user saw "66,0" or "118,8" whenever this was the newest source.
-        val persistedSnapshot = latestPersistedReading?.inDisplayUnit(tk.glucodata.ui.util.GlucoseFormatter.isMmolApp())?.let { point ->
-            val value = point.value.takeIf { it.isFinite() && it > 0.1f }
-                ?: point.rawValue.takeIf { it.isFinite() && it > 0.1f }
-                ?: return@let null
-            CurrentDisplaySource.resolveIncomingReading(
-                liveNumericValue = value,
-                rate = point.rate ?: Float.NaN,
-                targetTimeMillis = point.timestamp,
-                preferredSensorId = sensor.serial,
-                source = "sensor-card-history",
-            )?.takeIf { it.primaryStr.isNotBlank() }
-        }
-        listOfNotNull(freshSnapshot, persistedSnapshot).maxByOrNull { it.timeMillis }
-    }
-}
-
-/**
  * When the sensor's wear ends, for the lifetime fill and the restricted card's dates: AiDex
  * trusts its official end, the others their expected end, and without either the rated
  * wear (AiDex by model, 15 days) or 14 days from the start.
@@ -463,6 +424,13 @@ fun SensorCard(
     viewModel: tk.glucodata.ui.viewmodel.SensorViewModel,
     sensorCount: Int = 1,
     onNavigateToMqAccount: () -> Unit = {},
+    /**
+     * Restricted mode: the same card with only what describes the sensor — name, status,
+     * newest reading, day of wear, start and end — and no controls, except Disconnect when
+     * [allowDisconnect] (the adult allowed sensor changes).
+     */
+    restricted: Boolean = false,
+    allowDisconnect: Boolean = false,
 ) {
     val context = LocalContext.current
     var showTerminateDialog by remember { mutableStateOf(false) }
@@ -1829,7 +1797,39 @@ fun SensorCard(
     val isLocallyStreaming = sensor.streaming
     val isLocallyEnabled = isSensorLocallyEnabled(sensor.streaming, sensor.paused)
     val isHandedOff = sensor.handoffUiState != SensorHandoffUiState.NONE
-    val currentSnapshot = rememberSensorCurrentSnapshot(sensor)
+    val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
+    val latestPersistedReading by remember(sensor.serial) {
+        HistoryRepository().getLatestReadingFlowForSensor(sensor.serial)
+    }.collectAsStateWithLifecycle(initialValue = null)
+    val currentSnapshot = remember(
+        refreshRevision,
+        sensor.serial,
+        sensor.viewMode,
+        latestPersistedReading,
+    ) {
+        val freshSnapshot = CurrentDisplaySource.resolveCurrent(
+            maxAgeMillis = Notify.glucosetimeout,
+            preferredSensorId = sensor.serial
+        )?.takeIf { snapshot ->
+            abs(System.currentTimeMillis() - snapshot.timeMillis) <= Notify.glucosetimeout &&
+                snapshot.primaryStr.isNotBlank()
+        }
+        // Room holds mg/dL; resolveIncomingReading() takes display units. Unconverted,
+        // a mmol/L user saw "66,0" or "118,8" whenever this was the newest source.
+        val persistedSnapshot = latestPersistedReading?.inDisplayUnit(tk.glucodata.ui.util.GlucoseFormatter.isMmolApp())?.let { point ->
+            val value = point.value.takeIf { it.isFinite() && it > 0.1f }
+                ?: point.rawValue.takeIf { it.isFinite() && it > 0.1f }
+                ?: return@let null
+            CurrentDisplaySource.resolveIncomingReading(
+                liveNumericValue = value,
+                rate = point.rate ?: Float.NaN,
+                targetTimeMillis = point.timestamp,
+                preferredSensorId = sensor.serial,
+                source = "sensor-card-history",
+            )?.takeIf { it.primaryStr.isNotBlank() }
+        }
+        listOfNotNull(freshSnapshot, persistedSnapshot).maxByOrNull { it.timeMillis }
+    }
     var cloneHealthNowMillis by remember(sensor.serial) {
         mutableStateOf(System.currentTimeMillis())
     }
@@ -1958,10 +1958,11 @@ fun SensorCard(
                         SensorIdentityControl(
                             name = displayName,
                             selected = sensor.isSelectedForDisplay,
-                            selectable = canToggleEnabled,
+                            selectable = canToggleEnabled && !restricted,
                             color = sensorTint,
                             onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
                             onPickColor = { showColorSheet = true },
+                            colorPickable = !restricted,
                             modifier = Modifier.weight(1f),
                         )
                         val cloneWithoutControl = sensor.isCloneSource && !sensor.canTakeOverClone
@@ -1969,7 +1970,10 @@ fun SensorCard(
                             Spacer(modifier = Modifier.width(8.dp))
                         }
 
-                        if (isHandedOff && !sensor.isCloneSource) {
+                        if (restricted) {
+                            // In the pause button's place: the day of wear, "7 / 28".
+                            tk.glucodata.ui.restricted.RestrictedSensorDay(sensor)
+                        } else if (isHandedOff && !sensor.isCloneSource) {
                             IconButtonTooltip(stringResource(R.string.return_sensor_to_phone)) {
                                 // A filled icon button, not a background behind a plain one: the
                                 // container itself takes the press shape.
@@ -2131,6 +2135,7 @@ fun SensorCard(
 //                } // Close Column (content)
 //            } // Close Row (color indicator wrapper)
 //            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            if (!restricted) {
             Spacer(modifier = Modifier.height(16.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -3432,6 +3437,13 @@ fun SensorCard(
                         }
                     }
                 }
+            }
+            } else {
+                tk.glucodata.ui.restricted.RestrictedSensorDetails(
+                    sensor = sensor,
+                    viewModel = viewModel,
+                    allowDisconnect = allowDisconnect,
+                )
             }
             }
         }

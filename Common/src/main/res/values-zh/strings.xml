@@ -3278,7 +3278,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_unlock_desc">将打开设置和全部传感器控制。离开应用一分钟后恢复受限模式。</string>
     <string name="restricted_unlock_desc_pin">输入 PIN 码以打开设置和全部传感器控制。离开应用一分钟后恢复受限模式。</string>
     <string name="restricted_needs_full_mode">请先在设置中切换到完整模式。</string>
-    <string name="restricted_sensor_ends">结束于 %1$s</string>
     <string name="restricted_wrong_pin">PIN 码错误</string>
     <string name="restricted_pin_locked_out">尝试次数过多 · 请等待 %1$s</string>
     <string name="restricted_choose_pin">设置 PIN 码</string>
@@ -3287,7 +3286,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_pin_mismatch">两次 PIN 码不一致，请重新设置。</string>
     <string name="restricted_delete_digit">删除数字</string>
     <string name="restricted_disconnect_desc">此手机将停止读取该传感器。已有读数会保留。</string>
-    <string name="restricted_sensor_ended">已结束</string>
     <string name="restricted_sensors_locked">添加传感器需要完整模式。</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="other">已输入 %d 位数字</item>

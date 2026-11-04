@@ -3382,7 +3382,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="restricted_unlock_desc">Einstellungen und alle Sensorsteuerungen werden geöffnet. Der eingeschränkte Modus kehrt eine Minute nach Verlassen der App zurück.</string>
     <string name="restricted_unlock_desc_pin">Gib die PIN ein, um Einstellungen und alle Sensorsteuerungen zu öffnen. Der eingeschränkte Modus kehrt eine Minute nach Verlassen der App zurück.</string>
     <string name="restricted_needs_full_mode">Wechsle zuerst in den Einstellungen in den Vollmodus.</string>
-    <string name="restricted_sensor_ends">Endet %1$s</string>
     <string name="restricted_wrong_pin">Falsche PIN</string>
     <string name="restricted_pin_locked_out">Zu viele Versuche · warte %1$s</string>
     <string name="restricted_choose_pin">PIN festlegen</string>
@@ -3391,7 +3390,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="restricted_pin_mismatch">Die PINs stimmen nicht überein. Lege die PIN erneut fest.</string>
     <string name="restricted_delete_digit">Ziffer löschen</string>
     <string name="restricted_disconnect_desc">Dieses Telefon liest den Sensor nicht mehr. Bisherige Messwerte bleiben erhalten.</string>
-    <string name="restricted_sensor_ended">Beendet</string>
     <string name="restricted_sensors_locked">Zum Hinzufügen eines Sensors ist der Vollmodus nötig.</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d Ziffer eingegeben</item>
