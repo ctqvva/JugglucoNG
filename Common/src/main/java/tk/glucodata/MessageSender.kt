@@ -581,11 +581,11 @@ companion object {
      * of concurrent best-effort sends that arrive out of order or disappear.
      */
     @JvmStatic
-    public fun sendSyncMessageAwait(messagePath: WearMessagePath, data: ByteArray): Boolean {
+    public fun sendSyncMessageAwait(messagePath: WearMessagePath, data: ByteArray, timeoutSeconds: Long = 60L): Boolean {
         if (!outgoingAllowed()) return false
         val sender = messagesender ?: return false
         val targets = sender.nodes?.takeIf { it.isNotEmpty() } ?: return false
-        return targets.all { node -> sender.nameSendMessageResult(node.id, messagePath, data, timeoutSeconds = 5L) }
+        return targets.all { node -> sender.nameSendMessageResult(node.id, messagePath, data, timeoutSeconds = timeoutSeconds) }
     }
 
     @Keep
