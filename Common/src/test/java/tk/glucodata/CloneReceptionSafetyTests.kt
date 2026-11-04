@@ -429,6 +429,28 @@ class CloneReceptionSafetyTests {
         assertTrue(jni.contains("host.startsensors <= lastsensor"))
         assertTrue(jni.contains("backup->wakeeach([data, lastsensor](int h)"))
         assertTrue(jni.contains("? Backup::wakeall : Backup::wakestream;"))
+    /** A web request asks only the phones this one mirrors from to send; it reconnected every peer. */
+    @Test
+    fun webRequestsWakeOnlyTheHostsThisPhoneReceivesFrom() {
+        val backup = source("Common/src/main/cpp/datbackup.cpp").replace(Regex("\\s+"), " ")
+
+        assertTrue(backup.contains("else if(sourcesOnly&&!host.receivedatafrom()) {"))
+        assertTrue(backup.contains("void wakesender() { backup->getupdatedata()->wakesender(8 /*wakeall*/,true); }"))
+    /**
+     * 2026-11-02: after overlapping reconnects the sender sat in s_recvni for hours waiting
+     * for a handshake reply the receiver had already given up on. Its reads end like a TCP
+     * socket's 60 s SO_RCVTIMEO; the receiver's stay open, since it idles between readings.
+     */
+    @Test
+    fun senderReadsEndWhileReceiverReadsWait() {
+        val transport = source("Common/src/main/cpp/net/ICE/ICE_data.cpp")
+            .replace(Regex("\\s+"), " ")
+        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(connection.contains("icedata[0].receive(agent.load(),(char *)buf, len,60)"))
+        assertTrue(connection.contains("icedata[1].receive(agent.load(),(char *)buf, len)"))
+        assertTrue(transport.contains("std::chrono::steady_clock::now()+std::chrono::seconds(timeoutSecs)"))
     }
 
     @Test
