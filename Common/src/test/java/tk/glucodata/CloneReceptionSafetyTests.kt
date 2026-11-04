@@ -419,14 +419,16 @@ class CloneReceptionSafetyTests {
 
     /**
      * Managed-driver readings wake the stream without reconnecting, but the stream carries polls
-     * only: a sensor no host has in sensors.dat yet gets one full update first.
+     * only: a host lacking a sensor in sensors.dat gets one full update first, and
+     * only that host, so one that stays offline costs the others nothing.
      */
     @Test
     fun streamOnlyWakeSendsANewSensorFirst() {
         val jni = source("Common/src/main/cpp/backupjava.cpp").replace(Regex("\\s+"), " ")
 
         assertTrue(jni.contains("host.startsensors <= lastsensor"))
-        assertTrue(jni.contains("backup->wakebackup(unsentsensor ? Backup::wakeall : Backup::wakestream);"))
+        assertTrue(jni.contains("backup->wakeeach([data, lastsensor](int h)"))
+        assertTrue(jni.contains("? Backup::wakeall : Backup::wakestream;"))
     }
 
     @Test
