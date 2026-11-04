@@ -96,6 +96,49 @@ void lateBackfillIsUploaded() {
     assert(sent.size() == all.size() - 1 && "older backfill must not be skipped");
 }
 
+// GlucoseRecord values in a pending post: PublicDataContent is a wrapped,
+// gzipped and base64-encoded list of entries whose Records are JSON text.
+std::vector<int> uploadedGlucose(std::string_view body) {
+    const auto post = Json::parse(body).at("DataPost");
+    const auto wrapped = Json::parse(post.at("PublicDataContent").get<std::string>());
+    const auto content = Json::parse(text(gunzip(unbase64(wrapped.at("Content").get<std::string>()))));
+    std::vector<int> values;
+    for (const auto &entry : content.at("Entries"))
+        if (entry.at("RecordType") == "GlucoseRecord")
+            for (const auto &record : Json::parse(entry.at("Records").get<std::string>()))
+                values.push_back(record.at("Value").get<int>());
+    return values;
+}
+
+// The upload value comes from Snapshot::exported, which is asked only about
+// readings going into a batch: never for the whole history, never when up to date.
+void exportedValueOnlyForSentReadings() {
+    const int64_t start = base - 14 * day;
+    std::vector<Reading> readings;
+    for (int64_t t = start + 60 * minute; t <= base; t += minute) // a Libre 3 minute stream
+        readings.push_back({"LIBRE3PLUS", t, start, 120, 0.0, int(15 * day), 0, false});
+    auto s = snapshotOf(readings);
+    size_t calls = 0;
+    s.exported = [&](const Reading &r) { ++calls; return r.mgdl + 7; };
+    Outbox box(fresh("exported"), account, installation);
+    size_t sent = 0, batches = 0;
+    for (; box.prepare(s, start, base, false); ++batches) {
+        const auto values = uploadedGlucose(box.pendingBody());
+        assert(values.size() == box.pending().times.size());
+        for (int v : values) assert(v == 127 && "the exported value is uploaded, not the stored one");
+        sent += box.pending().times.size();
+        char receipt[37];
+        std::snprintf(receipt, sizeof receipt, "00000000-0000-4000-8000-%012zu", batches);
+        box.acknowledge(receipt);
+    }
+    std::printf("exported: %zu calls for %zu sent of %zu readings in %zu batches\n",
+                calls, sent, readings.size(), batches);
+    assert(calls == sent && "only readings in a batch are resolved");
+    const auto before = calls;
+    assert(!box.prepare(s, start, base, false));
+    assert(calls == before && "an up-to-date scan resolves nothing");
+}
+
 struct Small { uint64_t value; };
 
 // A creation interrupted before its first checkpoint was published reopens.
@@ -144,7 +187,25 @@ void interruptedCreationRecovers() {
     try { MappedCheckpoint<Small> c(damaged, "TESTCKP1", Small{1}); }
     catch (const Error &) { refused = true; }
     assert(refused && "a damaged file with saved data must not be reset");
-    std::printf("interrupted creation: recovered; damaged saved data refused\n");
+    // Truncated files that saved data: never mistaken for an unfinished creation.
+    // The last save is the 5th (slot 0), or the 2nd (slot 1) so that slot 0 still
+    // holds generation 1 and only the truncation hides the later save.
+    auto truncatedRefused = [&](const char *name, int saves, size_t length) {
+        const auto path = (dir / name).string();
+        {
+            MappedCheckpoint<Small> c(path, "TESTCKP1", Small{1});
+            for (int i = 2; i <= saves; ++i) c.save(Small{uint64_t(i)});
+        }
+        fs::resize_file(path, length);
+        bool stopped = false;
+        try { MappedCheckpoint<Small> c(path, "TESTCKP1", Small{1}); }
+        catch (const Error &) { stopped = true; }
+        return stopped;
+    };
+    assert(truncatedRefused("t128.map", 5, 128) && "128-byte truncation must not reset saved state");
+    assert(truncatedRefused("t4096.map", 2, 4096) && "4096-byte truncation must not reset saved state");
+    assert(truncatedRefused("tslot.map", 2, 65536) && "one-slot truncation must not reset saved state");
+    std::printf("interrupted creation: recovered; damaged or truncated saved data refused\n");
 }
 
 // selectReadings follows the same rules as the outbox.
@@ -170,10 +231,11 @@ void selectReadingsMatchesOutbox() {
 int main() {
     scratch = fs::temp_directory_path() / ("clarity-native-" + std::to_string(::getpid()));
     fs::create_directories(scratch);
-    // shorterReplacementTakesOver();
-    // lateBackfillIsUploaded();
+    shorterReplacementTakesOver();
+    lateBackfillIsUploaded();
+    exportedValueOnlyForSentReadings();
     interruptedCreationRecovers();
-    // selectReadingsMatchesOutbox();
+    selectReadingsMatchesOutbox();
     fs::remove_all(scratch);
     std::puts("PASS: Clarity outbox and mapped storage");
 }

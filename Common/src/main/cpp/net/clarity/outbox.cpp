@@ -345,7 +345,11 @@ struct Outbox::Impl {
         PendingBatch p;
         std::set<std::string> newSessions;
         std::string tx;
-        for(const auto &v:readings) {
+        for(auto &v:readings) {
+            // Selection used the stored value; send the one the app shows. An
+            // out-of-range result keeps the stored value that passed selection.
+            if (s.exported)
+                if (const int value = s.exported(v); value >= 20 && value <= 600) v.mgdl = value;
             tx=transmitterId(installation,v.sensor);
             if(!index.findString(r.sessionIndex, v.sensor) && newSessions.insert(v.sensor).second) {
                 auto session=sessionRecord(v,tx); add("SensorSessionRecord",session);
