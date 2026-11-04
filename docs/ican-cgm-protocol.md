@@ -13,8 +13,12 @@ independent sources:
 Written 2026-10-19; §6 and §7 were corrected the same day after a field report from a user whose
 `iCGM-t3` stopped serving glucose — the two claims those sections used to make ("byte 7 is a
 constant", "a sensor without a code refuses history") turned out to be wider than the evidence. The
-calibration fix for this driver is PR #635; the follow-ups that are *not* implemented yet are
-tracked in issue #676.
+calibration fix for this driver is PR #635. The follow-ups first listed in issue #676 were moved
+to issue #679 (provisioning) and have since landed: the `F6` warning (#687), live CBC (#694), the
+backfill decision (#688) and our own `correctCode` write (#711, retried in #749) — see §6.
+
+**Updated 2026-11-03** for what has landed since: §5, §6, §8, §9 and §11 now reflect the merged
+driver instead of the plans of 2026-10-19.
 
 **Conventions.** `TX` = phone → sensor, `RX` = sensor → phone. Handles are the ones the sensors in
 those captures actually used, not spec defaults. All multi-byte integers are little-endian unless
@@ -141,7 +145,8 @@ known holes behind the live edge: when a live notification exposes a sequence ga
 covers requesting 303 after the live counter reaches 312). What it does **not** do is reconstruct a
 session it has no stored records for: with no history at all it asks from offset 3, which is far
 behind the live edge of any session that has been running for a while — see §6 for why those
-requests come back `0x0A`. See issue #676 for the decision.
+requests come back `0x0A`. The policy was decided in PR #688: no blind overlap; only an observed
+live gap is re-read.
 
 ## 5. Live notifications
 
@@ -181,8 +186,8 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   wrong — in range and plausible at low glucose, out of range and discarded at higher glucose.
 * The driver used to decrypt this frame with AES/ECB — that happened to preserve the glucose field
   (the IV only touches bytes 1/6/10/15) but corrupted the parsed `statusByte` and `currentValue`, and
-  made the logged "flags" byte `0x80 ⊕ challenge[0]`. Fixed to CBC/PKCS7 in PR #683, with captured
-  vectors as regression tests (see also the semantics note below).
+  made the logged "flags" byte `0x80 ⊕ challenge[0]`. Fixed to CBC/PKCS7 in PR #694, with captured
+  vectors as regression tests (`ICanHealthLiveCbcVectorTests`).
 
 ## 6. Provisioning: `correctCode`, and what a refused history request means
 
@@ -190,8 +195,11 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   a sensor serial and written into the sensor during the vendor app's activation/binding. Whether
   the **sensor** itself requires it for history is not established — see the confound below. The
   state is readable: `TX 0x0024 F6` → `RX 1C F6 01 <lo> <hi>`; `0xFFFF` means "no code written".
-  Observed written values: 500, 510, 530, 600 — and 570 on a provisioned `iCGM-t3`
-  (`1C F6 01 3A 02`); treat any value other than `0xFFFF` as provisioned.
+  Observed written values: 500, 510, 530, 600, 570 on a provisioned `iCGM-t3` (`1C F6 01 3A 02`),
+  590 after the vendor CE activation of 2026-10-20, and 400 after our own write
+  (#744); treat any value other than `0xFFFF` as provisioned. The value is the installed
+  table's `x13` × 1000 (590 ↔ `x13 = 0.59` in the vendor SDK log, 400 ↔ the `0.40` our driver wrote); the
+  sensor details show it as `F6 0x…, x13 …` (`ICanHealthConstants.formatCalibrationMarker`).
 * The vendor app never asks for history before that code has been written — the gate is in the SDK
   (`hasWriteCorrectCode`, `onPrepareReadHistoryData`, `onWriteCorrectCodeCompleted`) — and the write
   happens during activation/binding, never during normal sync: the iOS capture contains no `F6` read
@@ -210,7 +218,10 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
      does not gate on the code, and the failures are a request-range/driver-policy matter;
   2. on a provisioned sensor request a *very old* offset (offset 3 in a session that is days old) —
      refused ⇒ the sensor limits how far back it will serve.
-  Until then, read `0x0A` as "the sensor would not serve that range" and do not treat `0xFFFF` as
+  Experiment 1 has since been answered by accident, and more strongly than asked: in the 2026-10-27
+  trace of #744 an `F6 == 0xFFFF` `iCGM-t3` served a **full** pull from offset 3 (3171 records) on a
+  seven-day-old session. So `0xFFFF` does not by itself make the sensor refuse history, old ranges
+  included. Read `0x0A` as "the sensor would not serve that range" and do not treat `0xFFFF` as
   proof of the reason. A driver that retried from the live edge after `0x0A` — instead of repeating
   the same old offset, which is what produced the 59-attempt run in the logs — is both the experiment
   and, if experiment 1 wins, the fix: filed in issue #676 and implemented in PR #678 (one live-edge
@@ -223,10 +234,19 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   passes the whole 7-byte notification into its native chunker, and how that expands into a 16-byte
   key is not statically readable — the write sequence is
   visible in Java with `F6` readable afterwards as an on-hardware check of each attempt, and the
-  native pieces can be invoked rather than reimplemented. The plan is therefore that the driver
-  fetches and writes the table itself during its own activation — tracked in issue #679. Pointing the
-  vendor app at an unknown sensor remains a non-repair (its lifecycle operations act on the account's
-  bound device), and a log line when `F6 == 0xFFFF` is proposed in #676.
+  native pieces can be invoked rather than reimplemented. Pointing the vendor app at an unknown
+  sensor remains a non-repair (its lifecycle operations act on the account's bound device).
+* **What the driver does now.** It reads `F6` after auth and warns when it is `0xFFFF` (#687). For a
+  fresh sensor with the full 13-character box serial it looks up the per-serial table
+  (`ICanHealthCloudCode`), builds the three `F2 10 <16 B>` chunks itself (`ICanHealthCorrectCode`,
+  `x13` from the box serial as the vendor SDK does) and writes them, each acked `1C F2 01` (#711).
+  A lookup that returns the vendor's generic fallback table is never written. A sensor that already
+  holds a table is not touched, except for the stall rescue below. Unprovisioned sensors stop
+  producing after about seven days, and writing a table into a stalled one has revived it, so the
+  driver retries the write (at most three times per app run, 20 min apart) while a sensor with a table stays
+  silent for 10 min (#744, #749; `ICanHealthProvisioningPolicy.repairDecision`). That the factory
+  `x13` gives correct glucose is not established: on the one sensor with a confirmed match the
+  readings still ran high (see `ICanHealthProvisioningPolicyTests`).
 * The cloud half of that plan is mapped as of 2026-10-19 (tracked in #679). All of the SDK's endpoints
   are plain `GET`s; `sino-deviceaccess/sdk/cgm-code-encrypt` takes `deviceSn`, `key`, `timestamp`,
   `sign`, and the server rejects the call without `deviceSn` and then `sign`. `sign` is an MD5-family
@@ -237,7 +257,10 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   first 16 characters as the IV; the plaintext is `{"code":200,"data":{"code":"<25-float JSON>"}}`.
   Auth-family requests sign with `lowercaseHex(MD5(joined fields + "&salt=" + nonce + millis))` and
   carry an `appSignature` that is the uppercase-hex SHA1 of the APK signing certificate. None of this
-  gates the write path: the hardware test writes a table directly and reads `F6` back.
+  gates the write path: the hardware test writes a table directly and reads `F6` back. The vendor CE
+  activation capture (2026-10-20) shows the order `1A` → session start time → three `F2` → RACP,
+  with no `F7`, and `F6` first reads the new value at the next bind ~64 s later; an `F6` of `0xFFFF`
+  read straight after the last `F2` ack is therefore not proof that the write failed.
 
 ## 7. Session clock
 
@@ -282,19 +305,26 @@ original-history key and an auth key (`DEFAULT_{OLD,NEW}_{GLUCOSE,ORIGINAL_HISTO
 * The IV layout is why an ECB decrypt still yielded the right glucose (bytes 2–5 of the record are
   unaffected) — do not read that as evidence that ECB is correct anywhere in this protocol.
   `ICanHealthConstants` carried an outdated header comment claiming "glucose payloads:
-  AES-128-ECB"; corrected to CBC/PKCS7 in PR #683 (tracked in #676).
-* Encryption direction (auth token, F2/F7 writes) is CBC/PKCS7 too
-  (`ICanHealthCrypto.encryptCbcPkcs7`).
+  AES-128-ECB"; corrected to CBC/PKCS7 in PR #694.
+* Encryption direction: the auth token is CBC/PKCS7 too (`ICanHealthCrypto.encryptCbcPkcs7`). The
+  `F2` calibration chunks are different: one AES-128-ECB block per chunk under a fixed key
+  (`DEFAULT_CORRECT_CODE_AES_KEY_ASCII`), with the challenge mixed into the plaintext rather than
+  the IV (`ICanHealthCorrectCode`).
 
 ## 9. Lifecycle opcodes
 
-Not implemented here, and none of them appear in steady-state traffic from either app:
+None of these appear in steady-state traffic from either app:
 
 * `0x1A` — start/session command (the byte our onboarding writes, `CMD_START_SENSOR`; earlier notes
   called it `F5`),
-* `F2` — write the calibration table in chunks, `F7` — commit it,
-* `F6` — read the code state (see §6),
-* terminate flows reachable from the vendor app's sensor management, not from syncing.
+* `F2` — write the calibration table in chunks (three `F2 10 <16 B>` on the captured CE device, five on
+  the vendor's "new launcher" variant), each acked `1C F2 01`; completion is the last ack, there is
+  no commit frame. Implemented (§6),
+* `F7` — the vendor's separate `writeInitParameter` path (ack `1C F7 01`), **not** a commit after
+  `F2`; never seen in a capture and not implemented,
+* `F6` — read the code state (see §6); requested after every successful auth,
+* terminate flows reachable from the vendor app's sensor management, not from syncing; not
+  implemented.
 
 ## 10. How the evidence was produced
 
@@ -317,11 +347,12 @@ Not implemented here, and none of them appear in steady-state traffic from eithe
 
 1. Whether the `iCGM-t3` live value field matches history after warm-up as it does during warm-up
    (§5); every captured `iCGM-t3` live frame so far falls inside warm-up.
-2. Exact meaning of the non-`0xFFFF` code-state values, and of RACP `0x0A` — which is confounded
-   between "no correct code" and "range not served" (§6); two one-line experiments settle it.
+2. The meaning of RACP `0x0A`. "No correct code" is ruled out as the whole story (§6, experiment 1);
+   whether a provisioned sensor limits how far back it serves (experiment 2) is still open. The
+   non-`0xFFFF` code states are the table's `x13` × 1000 (§6).
 3. The 4 bytes after the time offset in `0x2AA9` (the byte our driver calls `launcherState`; `0x01`
    was seen on a stopped sensor and on the live `iCGM-t3`, `0x00` on working `iCGM-t6`s).
 4. The vendor's `0x0035` read.
-5. Whether the sensor serves arbitrarily old history ranges. This is now one half of the §6
-   experiment — and the driver's "timezone repair" re-read (offset 3 on a long-running session) is
-   already an accidental instance of it, which has failed every time.
+5. Whether the sensor serves arbitrarily old history ranges. The `0xFFFF` sensor of #744 served
+   offset 3 on a seven-day session, so at least some sensors do. The earlier refusals of the
+   driver's "timezone repair" re-read (offset 3, §6) are not explained yet.

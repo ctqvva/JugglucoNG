@@ -6,7 +6,7 @@
 // NCall/VMP-protected) and validated byte-for-byte against two independent device
 // encode sessions (different BLE challenges), the full value-perturbation sweep and
 // all challenge-slot probes — 69 recorded encode lines in total. See
-// docs/superpowers/plans/2026-10-19-ican-calibration-plan.md §7.8.
+// PR #711 (the calibration plan document was kept out of the tree).
 //
 // Each chunk is one 18-byte write: `[F2][0x10][16-byte ciphertext]`, acknowledged by
 // `1C F2 01`. The three chunks share one 48-byte plaintext:
