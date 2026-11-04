@@ -868,6 +868,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_meters_none">Inga mätare konfigurerade</string>
     <string name="glucose_meters_none_desc">Hitta en mätare i närheten för att börja importera mätvärden.</string>
     <string name="glucose_meters_nearby">Mätare i närheten</string>
+    <string name="glucose_meter_recheck">Kontrollera mätaren igen efter</string>
+    <string name="glucose_meter_recheck_now">Direkt</string>
+    <string name="glucose_meter_recheck_hint">För mätare som förblir påslagna, som Satellite. En ny mätning kan komma så här mycket senare</string>
     <string name="glucose_meter_last_reading">Senaste mätning: %1$s</string>
     <string name="glucose_meter_no_readings">Inga mätvärden har importerats ännu</string>
     <string name="satellite_meter_code_missing">Satellite-mätare: ange först mätarkoden i inställningarna för blodsockermätare</string>
@@ -1896,15 +1899,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_qr_turn_message">Denna hybrid-QR ersätter även enhetens hybridkonfiguration.</string>
     <string name="mirror_connect_action">Anslut</string>
     <string name="mirror_connect_nearby_title">Anslut till %1$s?</string>
-    <string name="mirror_connect_nearby_message">Hittad på %1$s:%2$d.\nDen här enheten tar emot glukosdata från %3$s.</string>
     <string name="mirror_connection_data_missing">Anslutningsdata saknas</string>
     <string name="mirror_reconnect_all">Återanslut alla</string>
-    <string name="mirror_quick_pair">Snabb parkoppling</string>
-    <string name="mirror_share_my_qr">Dela lokal QR</string>
-    <string name="mirror_share_my_qr_desc">Endast samma lokala nätverk</string>
-    <string name="mirror_share_relay_qr">Dela hybrid-QR</string>
-    <string name="mirror_share_relay_qr_desc">Försöker först direkt, sedan TURN vid behov</string>
-    <string name="mirror_scan_qr_desc">Skanna en annan enhets QR för att ansluta</string>
     <string name="mirror_broadcast_network">Sänd i nätverket</string>
     <string name="mirror_broadcast_network_desc">Låt enheter i närheten hitta den här enheten</string>
     <string name="mirror_relay">Relay</string>
@@ -2488,6 +2484,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Kunde inte starta anslutningen. Försök igen.</string>
     <string name="ottai_offline_hint">Du kan också importera en fil med inloggningsuppgifter under Sparade sensorer.</string>
     <string name="ottai_already_binding_hint">Ditt konto har fortfarande en annan sensor kopplad. Koppla från den under Sparade sensorer och försök igen.</string>
+    <string name="ottai_ota_upgrade_required">Ottai-tjänsten begärde en firmwareuppdatering när sensorn skulle kopplas. Försök med firmwareinställningen igen eller importera sparade inloggningsuppgifter. Du kan också prova den officiella Ottai-appen.</string>
+    <string name="ottai_retry">Försök igen</string>
+    <string name="ottai_setup_failed">Inställningen stoppades. Försök igen eller stäng och importera sparade inloggningsuppgifter.</string>
     <string name="ottai_region_cn_full">Ottai Kina</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Landsnummer</string>
@@ -2904,11 +2903,21 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_server_edit_hint">Serverändringar återansluter Clone. Använd samma inställningar på båda enheterna.</string>
     <string name="clone_use_default_server">Använd appens server</string>
     <string name="clone_custom_server">Egen server</string>
-    <string name="clone_add_first">Parkoppla en enhet för att börja</string>
-    <string name="clone_visible_nearby">Synlig i närheten</string>
-    <string name="clone_visible_nearby_desc">Nya enheter kan hitta den här telefonen</string>
+    <string name="clone_qr_instruction">Öppna %1$s på den andra telefonen och tryck på %2$s.</string>
+    <string name="clone_connect_title">Anslut en annan telefon</string>
+    <string name="clone_scan_code">Skanna kod</string>
+    <string name="clone_get_readings">Ta emot värden</string>
+    <string name="clone_code_any_network">Alla nätverk</string>
+    <string name="clone_code_wifi_only">Bara det här wifi-nätverket</string>
+    <string name="clone_pairing_waiting">Väntar på den andra telefonen…</string>
+    <string name="clone_pairing_announced">Syns även på det här wifi-nätverket som %1$s</string>
+    <string name="clone_pairing_connected">Ansluten</string>
+    <string name="clone_add_manually_desc">Ange adress och alternativ själv</string>
+    <string name="clone_send_readings">Skicka värden</string>
+    <string name="clone_on_this_wifi">På det här wifi-nätverket</string>
+    <string name="clone_nearby_empty">Telefoner som skickar värden på det här wifi-nätverket visas här</string>
+    <string name="clone_sharing_readings">Skickar värden</string>
     <string name="clone_network_summary">Servrar och lokal sökning</string>
-    <string name="clone_connections_empty">Inga parkopplade enheter ännu.</string>
     <string name="clone_background_desc">Ökar batteriförbrukningen</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
@@ -3106,6 +3115,51 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Sök i inställningar</string>
     <string name="settings_search_no_results">Inga inställningar matchar ”%1$s”</string>
     <string name="settings_search_clear">Rensa sökning</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Experimentellt firmwaretest</string>
+    <string name="ottai_ota_warning">En misslyckad uppdatering kan göra sensorn obrukbar. Håll skärmen öppen och telefonen nära sensorn.</string>
+    <string name="ottai_ota_connecting">Ansluter utan aktivering…</string>
+    <string name="ottai_ota_authenticating">Verifierar sensorns identitet…</string>
+    <string name="ottai_ota_checking">Kontrollerar och hämtar firmware…</string>
+    <string name="ottai_ota_recovery">Återställningspaket klart. Installationen börjar om från det sparade paketets början.</string>
+    <string name="ottai_ota_ready">Firmwarepaket klart. Sensorn är inte aktiverad.</string>
+    <string name="ottai_ota_no_update">Ingen firmwareuppdatering erbjuds</string>
+    <string name="ottai_ota_installing">Installerar firmware…</string>
+    <string name="ottai_ota_reconnecting">Återansluter och kontrollerar installerad version…</string>
+    <string name="ottai_ota_preparing">Uppdaterar inloggningsuppgifter och skriver fabriksparametrar…</string>
+    <string name="ottai_ota_complete">Förberedelsen är klar. Stäng dialogrutan och anslut normalt för att aktivera sensorn.</string>
+    <string name="ottai_ota_failed">Inställningen stoppades. Försök igen eller kontrollera spårloggen. Ofullständig inställning blockerar aktivering.</string>
+    <string name="ottai_ota_version">Sensor: %1$s · Uppdatering: %2$s</string>
+    <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Diagnostikkod: %1$s</string>
+    <string name="ottai_ota_install">Installera firmware</string>
+    <string name="ottai_ota_parameters">Skriv endast fabriksparametrar</string>
+    <string name="ottai_ota_confirm">Installera denna experimentella uppdatering? Sensorn kan sluta fungera permanent. Aktivering sker separat efter kontroll av version och fabriksparametrar.</string>
+    <string name="ottai_ota_parameters_confirm">Skriva de fabrikskoefficienter och kalibreringsvärden som stöds? Detta ändrar konfigurationen utan firmwareuppdatering eller start av sensorns livslängd.</string>
+    <string name="ottai_ota_check">Kontrollera firmware (experimentellt)</string>
+    <string name="ottai_ota_cloud_recheck">Kontrollera igen med V3-molnautentisering</string>
+    <string name="ottai_ota_cloud_authenticating">Autentiserar via ditt Ottai-konto…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Kontrollera firmware igen med serverbaserad sensorautentisering. Detta aktiverar inte sensorn och kopplar den inte till kontot.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Koppla först bort sensorn från övervakningen. Uppdatering av en startad sensor kan radera mätvärden, återställa livslängden eller avsluta sensorn.</string>
+    <string name="ottai_ota_fresh_mode">Ny sensor</string>
+    <string name="ottai_ota_started_mode">Startad sensor</string>
+    <string name="ottai_ota_started_ready">Uppdatering för startad sensor klar. Kontrollera utgångsvärdena före installation.</string>
+    <string name="ottai_ota_result_active">Firmware uppdaterad. Sensorn rapporterar aktiv; kontrollera spårningsloggen innan övervakningen ansluts igen.</string>
+    <string name="ottai_ota_result_ended">Firmware uppdaterad. Sensorn rapporterar avslutad; kontrollera spårningsloggen.</string>
+    <string name="ottai_ota_result_reset">Firmware uppdaterad. Sensorn rapporterar inte aktiverad; ingen återaktivering har försökts.</string>
+    <string name="ottai_ota_started_confirm">Installera på denna startade sensor? Mätvärden och driftstatus kan raderas eller återställas. Testet registrerar resultatet utan återaktivering eller skrivning av fabriksparametrar.</string>
+    <string name="ottai_ota_observation">%1$s · status %2$d · livslängd %3$s s · senaste post %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Före</string>
+    <string name="ottai_ota_after">Efter</string>
+
+    <string name="ottai_ota_discard">Kasta ofullständig inställning</string>
+    <string name="ottai_ota_discard_confirm">Radera sparat uppdaterings- och förberedelseläge för att tillåta anslutning? Firmware och inställningar återställs inte. En avbruten uppdatering kan fortfarande kräva återställning.</string>
+    <string name="ottai_ota_pending">Sensorinställningen är ofullständig. Anslut igen eller öppna återställning för att slutföra eller kasta den.</string>
+    <string name="ottai_ota_finish_preparation">Firmware verifierad. Bekräfta fabriksparametrarna för att slutföra inställningen.</string>
+    <string name="ottai_ota_discard_failed">Firmwaretestet kunde inte kastas. Försök igen.</string>
     <string name="prediction_analysis_section">Prognosanalys</string>
     <string name="prediction_analysis_record">Spara prognoser</string>
     <string name="prediction_analysis_record_summary">Spara varje prognos på den här telefonen för att jämföra med vad som hände</string>
@@ -3171,4 +3225,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_sensor_start">Skicka sensorstart</string>
     <string name="nightscout_upload_sensor_start_desc">Skicka en Sensor Start-händelse per sensor (ålder, typ och serienummer)</string>
     <string name="ican_calibration_marker">Kalibrering (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">stabilt</string>
+    <string name="tts_trend_increasing">stigande</string>
+    <string name="tts_trend_decreasing">sjunkande</string>
+    <string name="tts_trend_rising_quickly">snabbt stigande</string>
+    <string name="tts_trend_falling_quickly">snabbt sjunkande</string>
 </resources>

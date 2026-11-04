@@ -50,6 +50,7 @@ public:
         std::lock_guard<std::mutex> lock(receiverCommandsMutex);
     }
 
+virtual bool isICE() const { return false; }
 virtual int setindex(int index) {
         allindex=index; 
         return 1;

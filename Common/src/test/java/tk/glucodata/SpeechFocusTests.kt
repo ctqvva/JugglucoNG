@@ -77,4 +77,44 @@ class SpeechFocusTests {
         focus.release(null)
         assertTrue(audio.held)
     }
+    @Test fun deferredAlarmSpeechTakesFocusBeforeAlarmRelease() {
+        focus.claim("alarm#1", false)
+        assertFalse(audio.held)
+        val pending = focus.handoff(false) { assertTrue(audio.held) }
+        assertEquals(null, pending)
+        focus.release("alarm#1")
+        assertFalse(audio.held)
+    }
+
+    @Test fun closingReservationBridgesTheDelayAndOldCompletion() {
+        focus.claim("opening#1", false)
+        val pending = focus.handoff(true) { assertTrue(audio.held) }!!
+        focus.release("opening#1")
+        assertTrue(audio.held)
+        focus.claim("closing#2")
+        pending.close()
+        pending.close()
+        assertTrue(audio.held)
+        focus.release("closing#2")
+        assertFalse(audio.held)
+        assertEquals(1, audio.abandons)
+    }
+
+    @Test fun missingOrRejectedClosingSpeechReleasesOnlyItsReservation() {
+        val pending = focus.handoff(true) { assertTrue(audio.held) }!!
+        pending.close()
+        assertFalse(audio.held)
+        val stale = focus.handoff(true) {}!!
+        focus.claim("newer#1")
+        stale.close()
+        assertTrue(audio.held)
+        focus.release("newer#1")
+        assertFalse(audio.held)
+    }
+
+    @Test fun noSpeechAndNoClosingAnnouncementDoNotTakeSpeechFocus() {
+        focus.handoff(false) { assertFalse(audio.held) }
+        assertFalse(audio.held)
+    }
+
 }

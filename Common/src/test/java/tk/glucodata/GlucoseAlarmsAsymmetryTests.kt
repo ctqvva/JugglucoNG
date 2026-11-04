@@ -24,7 +24,9 @@ import org.junit.Test
  * - the watch recomputes the complication views, the phone does not;
  * - only the phone relays the loss alarm to WearInt, and only behind `doWearInt`;
  * - only the phone pushes the stale value to the home-screen widget;
- * - the phone's wake is conditional on `shouldwakesender()`, the watch's is unconditional;
+ * - the phone's wake is conditional on `shouldwakesender()`; the watch no longer sends
+ *   `/wakestream` (it ingests nothing over `/data` since Wear v2), but keeps its own
+ *   `wakestreamsender()`;
  * - the watch asks for a sync afterwards, the phone does not;
  * - the phone calls `ensureCurrentSensorSelection()` on reconnect, the watch does not;
  * - and the one that looks like a bug rather than a decision: with no loss alarm the phone
@@ -72,10 +74,17 @@ class GlucoseAlarmsAsymmetryTests {
     }
 
     @Test
-    fun theWakeIsConditionalOnThePhoneAndUnconditionalOnTheWatch() {
+    fun thePhoneGatesTheWakeAndTheWatchNoLongerPokesTheStreamSender() {
         assertTrue("the phone must gate the wake", phone.contains("Natives.shouldwakesender()"))
         assertTrue(phone, phone.contains("if (shouldwake)"))
-        assertTrue("the watch wakes unconditionally", watch.contains("MessageSender.sendwakestream()"))
+        // The watch used to wake the phone unconditionally. It stops doing that because the
+        // watch ingests nothing over /data (Wear v2) and the same tick already requests a
+        // WearSync2 sync. The watch keeps its own wakestreamsender.
+        assertFalse(
+            "the watch must not poke the phone's stream sender",
+            watch.contains("MessageSender.sendwakestream()"),
+        )
+        assertTrue("the watch keeps its own stream sender", watch.contains("Natives.wakestreamsender()"))
         assertFalse(watch, watch.contains("shouldwakesender()"))
     }
 

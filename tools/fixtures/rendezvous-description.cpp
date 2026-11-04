@@ -22,6 +22,7 @@ struct ICEConnect {
 };
 ICEConnect connection;
 ICEConnect *connections[] = {&connection};
+ICEConnect *iceConnectionAt(int allindex) { return connections[allindex]; }
 int restartCalls = 0, requests = 0, failures = 0;
 bool restartRejectedNegotiation(ICEConnect *con, juice_agent *, uint64_t, int, const char *) {
     ++restartCalls;

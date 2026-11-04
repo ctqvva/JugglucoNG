@@ -279,6 +279,26 @@ internal fun buildSmoothedConsumerHistory(
     return processed
 }
 
+/**
+ * The peer sensors as the reading rows show them: through the same window as the main
+ * sensor's rows ([buildSmoothedConsumerHistory] over [evaluationSmoothingMinutes]), so a
+ * row never pairs a smoothed main value with an as-measured peer value — and the newest
+ * row agrees with the hero's peer chip, which resolves through the same window.
+ *
+ * Never thinned, even when the main rows are: rows look their peers up by the main
+ * reading's minute, and thinning only selects points, so the unthinned series carries the
+ * same value at every minute a thinned one would have kept.
+ */
+internal fun buildSmoothedPeerReadings(
+    display: MultiSensorDisplayData,
+    evaluationSmoothingMinutes: Int
+): MultiSensorDisplayData {
+    if (display.isEmpty || evaluationSmoothingMinutes <= 0) return display
+    return MultiSensorDisplay.mapSeriesPoints(display) { points ->
+        buildSmoothedConsumerHistory(points, evaluationSmoothingMinutes, evaluationCollapseMinutes = 0)
+    }
+}
+
 internal fun buildDisplayReadings(
     consumerHistory: List<GlucosePoint>,
     limit: Int = 10

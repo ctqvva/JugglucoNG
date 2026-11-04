@@ -460,6 +460,9 @@ public class Natives {
 
         public static native void wakehereonly();
 
+        /** A new reading for Clone, without reconnecting; see wakebackup() for that. */
+        public static native void wakestreamonly();
+
         public static native void resetbackuphost(int pos);
 
         public static native void deletebackuphost(int pos);

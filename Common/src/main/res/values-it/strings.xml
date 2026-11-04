@@ -788,6 +788,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_meters_none">Nessun glucometro configurato</string>
     <string name="glucose_meters_none_desc">Trova un glucometro nelle vicinanze per iniziare a importare le misurazioni.</string>
     <string name="glucose_meters_nearby">Glucometri nelle vicinanze</string>
+    <string name="glucose_meter_recheck">Ricontrolla il glucometro dopo</string>
+    <string name="glucose_meter_recheck_now">Subito</string>
+    <string name="glucose_meter_recheck_hint">Per i glucometri che restano accesi, come Satellite. Una nuova misura può arrivare con questo ritardo</string>
     <string name="glucose_meter_last_reading">Ultima misurazione: %1$s</string>
     <string name="glucose_meter_no_readings">Nessuna misurazione ancora importata</string>
     <string name="satellite_meter_code_missing">Glucometro Satellite: imposta prima il codice del glucometro nelle impostazioni dei glucometri</string>
@@ -1886,15 +1889,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_qr_turn_message">Questo QR ibrido sostituisce anche la configurazione ibrida di questo dispositivo.</string>
     <string name="mirror_connect_action">Connetti</string>
     <string name="mirror_connect_nearby_title">Connettersi a %1$s?</string>
-    <string name="mirror_connect_nearby_message">Trovato su %1$s:%2$d.\nQuesto dispositivo riceverà dati glicemici da %3$s.</string>
     <string name="mirror_connection_data_missing">Dati di connessione mancanti</string>
     <string name="mirror_reconnect_all">Riconnetti tutto</string>
-    <string name="mirror_quick_pair">Associazione rapida</string>
-    <string name="mirror_share_my_qr">Condividi QR locale</string>
-    <string name="mirror_share_my_qr_desc">Solo sulla stessa rete locale</string>
-    <string name="mirror_share_relay_qr">Condividi QR ibrido</string>
-    <string name="mirror_share_relay_qr_desc">Prova prima la connessione diretta, poi TURN se necessario</string>
-    <string name="mirror_scan_qr_desc">Scansiona il QR di un altro dispositivo per connetterti</string>
     <string name="mirror_broadcast_network">Trasmetti sulla rete</string>
     <string name="mirror_broadcast_network_desc">Consenti ai dispositivi vicini di trovare questo dispositivo</string>
     <string name="mirror_relay">Relay</string>
@@ -2478,6 +2474,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
     <string name="ottai_offline_hint">Puoi anche importare un file di credenziali in Sensori salvati.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
+    <string name="ottai_ota_upgrade_required">Il servizio Ottai ha richiesto un aggiornamento del firmware durante l’associazione del sensore. Riprova la configurazione o importa le credenziali salvate. Puoi anche provare l’app ufficiale Ottai.</string>
+    <string name="ottai_retry">Riprova</string>
+    <string name="ottai_setup_failed">Configurazione interrotta. Riprova oppure chiudi e importa le credenziali salvate.</string>
     <string name="ottai_region_cn_full">Ottai Cina</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Prefisso internazionale</string>
@@ -2894,11 +2893,21 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_server_edit_hint">Le modifiche al server riconnettono Clone. Usa le stesse impostazioni su entrambi i dispositivi.</string>
     <string name="clone_use_default_server">Usa il server predefinito</string>
     <string name="clone_custom_server">Server personalizzato</string>
-    <string name="clone_add_first">Associa un dispositivo per iniziare</string>
-    <string name="clone_visible_nearby">Visibile nelle vicinanze</string>
-    <string name="clone_visible_nearby_desc">I nuovi dispositivi possono trovare questo telefono</string>
+    <string name="clone_qr_instruction">Sull’altro telefono apri %1$s e tocca %2$s.</string>
+    <string name="clone_connect_title">Collega un altro telefono</string>
+    <string name="clone_scan_code">Scansiona codice</string>
+    <string name="clone_get_readings">Ricevi i valori</string>
+    <string name="clone_code_any_network">Qualsiasi rete</string>
+    <string name="clone_code_wifi_only">Solo questa rete Wi-Fi</string>
+    <string name="clone_pairing_waiting">In attesa dell’altro telefono…</string>
+    <string name="clone_pairing_announced">Visibile anche su questa rete Wi-Fi come %1$s</string>
+    <string name="clone_pairing_connected">Connesso</string>
+    <string name="clone_add_manually_desc">Inserisci tu indirizzo e opzioni</string>
+    <string name="clone_send_readings">Invia i valori</string>
+    <string name="clone_on_this_wifi">Su questa rete Wi-Fi</string>
+    <string name="clone_nearby_empty">Qui compaiono i telefoni che inviano valori su questa rete Wi-Fi</string>
+    <string name="clone_sharing_readings">Invia valori</string>
     <string name="clone_network_summary">Server e ricerca locale</string>
-    <string name="clone_connections_empty">Nessun dispositivo associato.</string>
     <string name="clone_background_desc">Consuma più batteria</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
@@ -3097,6 +3106,51 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Cerca nelle impostazioni</string>
     <string name="settings_search_no_results">Nessuna impostazione corrisponde a “%1$s”</string>
     <string name="settings_search_clear">Cancella ricerca</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Test firmware sperimentale</string>
+    <string name="ottai_ota_warning">Un aggiornamento non riuscito può rendere il sensore inutilizzabile. Tieni aperta questa schermata e il telefono vicino al sensore.</string>
+    <string name="ottai_ota_connecting">Connessione senza attivazione…</string>
+    <string name="ottai_ota_authenticating">Verifica dell’identità del sensore…</string>
+    <string name="ottai_ota_checking">Verifica e download del firmware…</string>
+    <string name="ottai_ota_recovery">Pacchetto di ripristino pronto. L’installazione riparte dall’inizio del pacchetto salvato.</string>
+    <string name="ottai_ota_ready">Firmware pronto. Il sensore non è attivato.</string>
+    <string name="ottai_ota_no_update">Nessun aggiornamento firmware disponibile</string>
+    <string name="ottai_ota_installing">Installazione del firmware…</string>
+    <string name="ottai_ota_reconnecting">Riconnessione e verifica della versione installata…</string>
+    <string name="ottai_ota_preparing">Aggiornamento delle credenziali e scrittura dei parametri di fabbrica…</string>
+    <string name="ottai_ota_complete">Preparazione completata. Chiudi questa finestra e connettiti normalmente per attivare il sensore.</string>
+    <string name="ottai_ota_failed">Configurazione interrotta. Riprova o controlla il registro di traccia. La configurazione incompleta blocca l’attivazione.</string>
+    <string name="ottai_ota_version">Sensore: %1$s · Aggiornamento: %2$s</string>
+    <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Codice diagnostico: %1$s</string>
+    <string name="ottai_ota_install">Installa firmware</string>
+    <string name="ottai_ota_parameters">Scrivi solo i parametri di fabbrica</string>
+    <string name="ottai_ota_confirm">Installare questo aggiornamento sperimentale? Il sensore potrebbe diventare inutilizzabile in modo permanente. L’attivazione avviene separatamente dopo la verifica della versione e dei parametri di fabbrica.</string>
+    <string name="ottai_ota_parameters_confirm">Scrivere i coefficienti e la calibrazione di fabbrica supportati? Questo modifica la configurazione senza aggiornare il firmware o avviare la durata del sensore.</string>
+    <string name="ottai_ota_check">Controlla firmware (sperimentale)</string>
+    <string name="ottai_ota_cloud_recheck">Ricontrolla con autenticazione cloud V3</string>
+    <string name="ottai_ota_cloud_authenticating">Autenticazione tramite il tuo account Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Ricontrolla la disponibilità del firmware con l’autenticazione del sensore tramite server. Il sensore non viene attivato né associato all’account.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Scollega prima questo sensore dal monitoraggio. L’aggiornamento di un sensore avviato può cancellare le letture, azzerare la durata o terminare il sensore.</string>
+    <string name="ottai_ota_fresh_mode">Sensore nuovo</string>
+    <string name="ottai_ota_started_mode">Sensore già avviato</string>
+    <string name="ottai_ota_started_ready">Aggiornamento pronto per il sensore avviato. Controlla i dati iniziali prima dell’installazione.</string>
+    <string name="ottai_ota_result_active">Firmware aggiornato. Il sensore risulta attivo; controlla il registro prima di riconnettere il monitoraggio.</string>
+    <string name="ottai_ota_result_ended">Firmware aggiornato. Il sensore risulta terminato; controlla il registro.</string>
+    <string name="ottai_ota_result_reset">Firmware aggiornato. Il sensore risulta non attivato; non è stata tentata la riattivazione.</string>
+    <string name="ottai_ota_started_confirm">Installare su questo sensore già avviato? Letture e stato operativo potrebbero essere cancellati o azzerati. Il test registra il risultato senza riattivare o scrivere parametri di fabbrica.</string>
+    <string name="ottai_ota_observation">%1$s · stato %2$d · durata %3$s s · ultima registrazione %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Prima</string>
+    <string name="ottai_ota_after">Dopo</string>
+
+    <string name="ottai_ota_discard">Annulla configurazione incompleta</string>
+    <string name="ottai_ota_discard_confirm">Eliminare lo stato salvato di aggiornamento e preparazione per consentire la connessione? Firmware e impostazioni non verranno ripristinati. Un aggiornamento interrotto potrebbe richiedere il recupero.</string>
+    <string name="ottai_ota_pending">La configurazione del sensore è incompleta. Connetti di nuovo o apri il recupero per completarla o annullarla.</string>
+    <string name="ottai_ota_finish_preparation">Firmware verificato. Conferma i parametri di fabbrica per completare la configurazione.</string>
+    <string name="ottai_ota_discard_failed">Impossibile abbandonare il test firmware. Riprova.</string>
     <string name="prediction_analysis_section">Analisi delle previsioni</string>
     <string name="prediction_analysis_record">Registra le previsioni</string>
     <string name="prediction_analysis_record_summary">Conserva ogni previsione su questo telefono per confrontarla con ciò che è successo</string>
@@ -3162,4 +3216,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_sensor_start">Invia avvio sensore</string>
     <string name="nightscout_upload_sensor_start_desc">Invia un evento Sensor Start per ogni sensore (età, tipo e numero di serie)</string>
     <string name="ican_calibration_marker">Calibrazione (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">stabile</string>
+    <string name="tts_trend_increasing">in aumento</string>
+    <string name="tts_trend_decreasing">in diminuzione</string>
+    <string name="tts_trend_rising_quickly">in rapido aumento</string>
+    <string name="tts_trend_falling_quickly">in rapida diminuzione</string>
 </resources>

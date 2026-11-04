@@ -2014,7 +2014,12 @@ fun InteractiveGlucoseChart(
     // How far the range picker reaches up into the plot when expanded, to sit close to the
     // axis labels. Laid out rather than offset: an offset only moved the picker's paint,
     // and left the space it was measured into as a hole underneath it.
-    val pickerLift = chartUnderlayBottomDp + (8.dp * safeExpandedProgress)
+    // Above a shown preview strip it reaches 4 dp further: the drag handle's slot over the
+    // picker is empty until the chart is pulled taller, and with that slot counted the strip
+    // stood 16 dp off the picker while the picker stands 12 dp off the stats below it.
+    val previewOverHiddenHandle = previewRevealProgress * (1f - chartBoostProgress.coerceIn(0f, 1f))
+    val pickerLift = chartUnderlayBottomDp + (8.dp * safeExpandedProgress) +
+        (4.dp * safeExpandedProgress * previewOverHiddenHandle)
     Layout(
         modifier = Modifier.fillMaxSize(),
         content = {
@@ -4535,6 +4540,21 @@ fun InteractiveGlucoseChart(
                     }
                 }
 
+            // --- DATE HEADER OVERLAY ---
+            // Show only if NOT today AND not "recent" (to avoid showing date when day just started)
+            val now = System.currentTimeMillis()
+            // Bucketed to a local day so panning within one day neither reformats the label
+            // nor restarts the transition below — centerTime itself changes every frame.
+            val headerDay = localDayIndex(centerTime)
+            val isToday = headerDay == localDayIndex(now)
+            val isRecent = abs(now - centerTime) < 4 * 60 * 60 * 1000L // 4 Hour buffer for "just started" days
+            val showHeaderDate = !isToday && !isRecent
+            val headerDate = remember(headerDay) {
+                java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).format(java.util.Date(centerTime))
+            }
+
+            val dateTextBaselinePx = chartHeaderTextBaseline(headerDate, backdropAlpha)
+
             if (activeInsulinSummary != null || activeCarbsGrams != null || stateDoseHint != null) {
                 val summary = activeInsulinSummary
                 val unitsLabel = { units: Float ->
@@ -4626,7 +4646,8 @@ fun InteractiveGlucoseChart(
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(start = 12.dp, top = 12.dp)
+                        .padding(start = 12.dp)
+                        .chartHeaderBaseline(dateTextBaselinePx.roundToInt())
                         .widthIn(max = activeInsulinMaxWidth)
                         .zIndex(1.6f)
                         .clip(activeInsulinShape)
@@ -5077,19 +5098,6 @@ fun InteractiveGlucoseChart(
             }
             // Brace removed here to keep subsequent elements inside BoxWithConstraints
 
-            // --- DATE HEADER OVERLAY ---
-            // Show only if NOT today AND not "recent" (to avoid showing date when day just started)
-            val now = System.currentTimeMillis()
-            // Bucketed to a local day so panning within one day neither reformats the label
-            // nor restarts the transition below — centerTime itself changes every frame.
-            val headerDay = localDayIndex(centerTime)
-            val isToday = headerDay == localDayIndex(now)
-            val isRecent = abs(now - centerTime) < 4 * 60 * 60 * 1000L // 4 Hour buffer for "just started" days
-            val showHeaderDate = !isToday && !isRecent
-            val headerDate = remember(headerDay) {
-                java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).format(java.util.Date(centerTime))
-            }
-
             // --- CALIBRATION TOOLTIPS ---
             // Show permanent tooltips for calibration points in visible range (respects mode)
             // Keep the timestamp glyph on the same baseline as the Canvas-drawn x-axis labels.
@@ -5105,18 +5113,6 @@ fun InteractiveGlucoseChart(
             val calibrationTimestampTextMeasurer = rememberTextMeasurer()
             val calibrationTimestampTextStyle = MaterialTheme.typography.labelSmall
             val calibrationTimestampChipHeightPx = with(LocalDensity.current) { 24.dp.toPx() }
-            // Align only the value text baseline with the existing date label.
-            val dateChipHeightPx = with(LocalDensity.current) { 32.dp.roundToPx() }
-            val dateTextLayout = calibrationTimestampTextMeasurer.measure(
-                text = headerDate,
-                style = MaterialTheme.typography.labelLarge,
-                constraints = androidx.compose.ui.unit.Constraints(maxHeight = dateChipHeightPx),
-                maxLines = 1,
-                softWrap = false
-            )
-            val dateTextBaselinePx = with(LocalDensity.current) {
-                androidx.compose.ui.unit.lerp(16.dp, 0.dp, backdropAlpha).toPx()
-            } + (dateChipHeightPx - dateTextLayout.size.height) / 2 + dateTextLayout.firstBaseline
             val viewportStartTooltip = overlayViewportStart
             val viewportEndTooltip = overlayViewportEnd
             val visibleCalibrationsTooltip = visibleCalibrations.filter {
