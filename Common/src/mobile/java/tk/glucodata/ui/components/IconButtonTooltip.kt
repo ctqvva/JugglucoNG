@@ -14,7 +14,12 @@ import androidx.compose.runtime.Composable
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun IconButtonTooltip(label: String?, content: @Composable () -> Unit) {
+fun IconButtonTooltip(
+    label: String?,
+    // Off for a button that gives holding its own meaning.
+    showOnLongPress: Boolean = true,
+    content: @Composable () -> Unit
+) {
     if (label.isNullOrBlank()) {
         content()
         return
@@ -23,6 +28,7 @@ fun IconButtonTooltip(label: String?, content: @Composable () -> Unit) {
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
         tooltip = { PlainTooltip { Text(label) } },
         state = rememberTooltipState(),
+        enableUserInput = showOnLongPress,
         content = content,
     )
 }

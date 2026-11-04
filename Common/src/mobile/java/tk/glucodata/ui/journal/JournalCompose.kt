@@ -25,6 +25,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -94,6 +96,7 @@ import androidx.compose.ui.focus.FocusState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -137,6 +140,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import tk.glucodata.Applic
 import tk.glucodata.R
+import tk.glucodata.data.journal.JournalAmountAssist
 import tk.glucodata.data.journal.JournalChartMarker
 import tk.glucodata.data.journal.JournalCurvePoint
 import tk.glucodata.data.journal.JournalDoseCalculator
@@ -149,6 +153,8 @@ import tk.glucodata.data.journal.JournalFoodInput
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalIntensity
 import tk.glucodata.data.prediction.PredictionModelProfile
+import tk.glucodata.data.prediction.StateDoseHint
+import tk.glucodata.data.prediction.StateDoseHintKind
 import tk.glucodata.data.journal.LegacyJournalFoodDatabase
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.components.CompactSheetDragHandle
@@ -159,6 +165,9 @@ import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.GlucoseFormatter
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class JournalEntryDraft(
@@ -167,6 +176,8 @@ data class JournalEntryDraft(
     val timestamp: Long,
     val title: String = "",
     val amountText: String = "",
+    /** [amountText] came from a suggestion and nobody has touched it since. */
+    val amountSuggested: Boolean = false,
     val glucoseText: String = "",
     val durationText: String = "",
     val note: String = "",
@@ -375,6 +386,8 @@ fun JournalEntrySheet(
     suggestedGlucoseMgDl: Float? = null,
     suggestedChartAnchorGlucoseMgDl: Float? = null,
     suggestedAmountFraction: Float? = null,
+    /** The dashboard's dose hint, for a sheet opened from it. */
+    suggestedDose: StateDoseHint? = null,
     insulinPresets: List<JournalInsulinPreset>,
     foods: List<JournalFood> = emptyList(),
     foodMacrosEnabled: Boolean = false,
@@ -449,6 +462,63 @@ fun JournalEntrySheet(
             atMillis = draft.timestamp
         )
     }
+    // The hint is about the moment the sheet opened: a new reading must not change a number
+    // under the person's finger, and a dose dated hours away is not what it was computed for.
+    val openedAtMillis = remember(existingEntry?.id, initialType, selectedTimestamp) { System.currentTimeMillis() }
+    val openingHint = remember(existingEntry?.id, initialType, selectedTimestamp) { suggestedDose }
+        ?.takeIf { abs(draft.timestamp - openedAtMillis) <= JOURNAL_HINT_MAX_AGE_MILLIS }
+    val insulinHabit = remember(doseJournalEntries, draft.insulinPresetId, draft.timestamp) {
+        JournalAmountAssist.insulinHabit(doseJournalEntries, draft.insulinPresetId, draft.timestamp)
+    }
+    val carbHabit = remember(doseJournalEntries, draft.timestamp) {
+        JournalAmountAssist.carbHabit(doseJournalEntries, draft.timestamp)
+    }
+    val usesCalculation = selectedInsulinPreset?.useForCalculation == true
+    val uncoveredMealDose = remember(
+        doseJournalEntries,
+        presetsById,
+        draft.timestamp,
+        draft.doseGlucoseMgDl,
+        calculatorProfile,
+        activeInsulinUnits,
+        usesCalculation
+    ) {
+        val profile = calculatorProfile?.takeIf { usesCalculation } ?: return@remember null
+        val meal = JournalAmountAssist.uncoveredMeal(doseJournalEntries, presetsById, draft.timestamp)
+            ?: return@remember null
+        calculateInsulinForCarbs(
+            carbs = meal.carbsGrams,
+            protein = meal.proteinGrams,
+            fat = meal.fatGrams,
+            glucoseMgDl = draft.doseGlucoseMgDl,
+            profile = profile,
+            activeInsulinUnits = activeInsulinUnits
+        )?.totalInsulinUnits
+    }
+    // Computed for this moment, so it goes into the field and can be saved as it stands.
+    val suggestedAmount = when {
+        existingEntry != null -> null
+        draft.type == JournalEntryType.INSULIN && usesCalculation ->
+            openingHint?.takeIf { it.kind == StateDoseHintKind.INSULIN }?.amount
+        draft.type == JournalEntryType.CARBS ->
+            openingHint?.takeIf { it.kind == StateDoseHintKind.CARBS }?.amount
+        else -> null
+    }
+    // Only a guess: it sits dim in the empty field and takes a press of the stepper to become
+    // an amount. The meal case stays here too, because it can't tell a meal from a hypo
+    // treatment, and no dose is offered at all while the hint is asking for carbs.
+    val amountStart = when {
+        existingEntry != null -> null
+        draft.type == JournalEntryType.CARBS -> carbHabit.usual
+        draft.type != JournalEntryType.INSULIN -> null
+        openingHint?.kind == StateDoseHintKind.CARBS -> null
+        else -> uncoveredMealDose ?: insulinHabit.usual
+    }
+    LaunchedEffect(existingEntry?.id, draft.type, suggestedAmount) {
+        if (existingEntry == null) {
+            draft = draft.withSuggestedAmount(suggestedAmount?.let(::formatFloatForEditor))
+        }
+    }
     LaunchedEffect(existingEntry?.id, draft.type, draft.pairWithDose, calculationInsulinPresets) {
         if (
             existingEntry != null ||
@@ -519,384 +589,409 @@ fun JournalEntrySheet(
         contentKey = draft.type,
         contentHeight = sheetContentHeight,
     ) {
-        LazyColumn(
+        // Save stays out of the list so that it rests on the keyboard, with the list scrolling
+        // behind it, rather than being scrolled away under the keyboard.
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // The sheet's top edge follows the list's height. Without this a type switch
-                // jumps the whole sheet to its new height in one frame.
-                .animateSheetContentHeight(sheetContentHeight, ExpressiveMotion.defaultSpatial())
-                .padding(horizontal = 20.dp)
-                .navigationBarsPadding(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 20.dp)
+                .navigationBarsPadding()
         ) {
-            journalSheetItem(key = "header") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        AnimatedContent(
-                            targetState = draft.type,
-                            transitionSpec = {
-                                fadeIn(animationSpec = ExpressiveMotion.defaultEffects())
-                                    .togetherWith(fadeOut(animationSpec = ExpressiveMotion.fastEffects()))
-                            },
-                            label = "journalSheetTitle"
-                        ) { type ->
-                            Text(
-                                text = type.journalActionLabel(),
-                                style = MaterialTheme.typography.headlineSmallEmphasized
-                            )
-                        }
-                        existingEntry?.source?.presentation()?.let { source ->
-                            // The icon on the row only explains itself for NFC; here the
-                            // origin is spelled out.
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = source.icon,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = stringResource(source.labelRes),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-//                        Text(
-//                            text = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-//                                .format(Date(draft.timestamp)),
-//                            style = MaterialTheme.typography.bodyMedium,
-//                            color = MaterialTheme.colorScheme.onSurfaceVariant
-//                        )
-                    }
-                    existingEntry?.id?.let { entryId ->
-                        IconButtonTooltip(stringResource(R.string.delete)) {
-                            IconButton(onClick = { onDelete?.invoke(entryId) }, shapes = IconButtonDefaults.shapes()) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = stringResource(R.string.delete),
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            journalSheetItem(key = "type_selector") {
-                JournalTypeSelector(
-                    selectedType = draft.type,
-                    onTypeSelected = {
-                        draft = draft.copy(type = it).normalizedForType(unit, suggestedGlucoseMgDl, suggestedAmountFraction)
-                    }
-                )
-            }
-
-            journalSheetItem(key = "date_time") {
-                JournalDateTimeCard(
-                    date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
-                    time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
-                    onDateClick = { showDatePicker = true },
-                    onTimeClick = { showTimePicker = true },
-                    onTimeLongClick = { draft = draft.copy(timestamp = System.currentTimeMillis()) }
-                )
-            }
-
-            when (draft.type) {
-                JournalEntryType.INSULIN -> {
-                    journalSheetItem(key = "insulin_presets") {
-                        JournalInsulinPresetSelector(
-                            presets = activeInsulinPresets,
-                            selectedPresetId = draft.insulinPresetId,
-                            onPresetSelected = { preset ->
-                                draft = draft.copy(
-                                    insulinPresetId = preset.id,
-                                    title = preset.displayName,
-                                    pairWithDose = draft.pairWithDose && preset.useForCalculation,
-                                    pairedAmountText = draft.pairedAmountText.takeIf {
-                                        preset.useForCalculation
-                                    }.orEmpty()
-                                )
-                            }
-                        )
-                    }
-                    val windowPresets = when {
-                        // Two pills: both windows stay visible, each under its own pill.
-                        activeInsulinPresets.size == 2 && (
-                            selectedInsulinPreset == null ||
-                                activeInsulinPresets.any { it.id == selectedInsulinPreset.id }
-                            ) -> activeInsulinPresets
-                        selectedInsulinPreset != null -> listOf(selectedInsulinPreset)
-                        else -> emptyList()
-                    }
-                    if (windowPresets.isNotEmpty()) {
-                        journalSheetItem(key = "insulin_window") {
-                            JournalInsulinWindowCard(presets = windowPresets)
-                        }
-                    }
-                    journalSheetItem(key = "insulin_amount") {
-                        JournalStepperField(
-                            value = draft.amountText,
-                            onValueChange = { draft = draft.copy(amountText = it) },
-                            onStep = { delta ->
-                                draft = draft.copy(amountText = adjustDecimalDraft(draft.amountText, delta, step = 0.5f))
-                            },
-                            label = stringResource(R.string.journal_type_insulin),
-                            suffix = stringResource(R.string.unit_insulin_short),
-                            prominent = true
-                        )
-                    }
-                    if (
-                        existingEntry == null &&
-                        calculatorProfile != null &&
-                        selectedInsulinPreset?.useForCalculation == true
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    // The sheet's top edge follows the list's height. Without this a type switch
+                    // jumps the whole sheet to its new height in one frame.
+                    .animateSheetContentHeight(sheetContentHeight, ExpressiveMotion.defaultSpatial()),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                journalSheetItem(key = "header") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        journalSheetItem(key = "insulin_dose_assist") {
-                            JournalDoseAssistCard(
-                                draft = draft,
-                                profile = calculatorProfile,
-                                calculationInsulinPresets = calculationInsulinPresets,
-                                activeInsulinUnits = activeInsulinUnits,
-                                unit = unit,
-                                onDraftChange = { draft = it }
-                            )
+                        Column(modifier = Modifier.weight(1f)) {
+                            AnimatedContent(
+                                targetState = draft.type,
+                                transitionSpec = {
+                                    fadeIn(animationSpec = ExpressiveMotion.defaultEffects())
+                                        .togetherWith(fadeOut(animationSpec = ExpressiveMotion.fastEffects()))
+                                },
+                                label = "journalSheetTitle"
+                            ) { type ->
+                                Text(
+                                    text = type.journalActionLabel(),
+                                    style = MaterialTheme.typography.headlineSmallEmphasized
+                                )
+                            }
+                            existingEntry?.source?.presentation()?.let { source ->
+                                // The icon on the row only explains itself for NFC; here the
+                                // origin is spelled out.
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = source.icon,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(source.labelRes),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+    //                        Text(
+    //                            text = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+    //                                .format(Date(draft.timestamp)),
+    //                            style = MaterialTheme.typography.bodyMedium,
+    //                            color = MaterialTheme.colorScheme.onSurfaceVariant
+    //                        )
+                        }
+                        existingEntry?.id?.let { entryId ->
+                            IconButtonTooltip(stringResource(R.string.delete)) {
+                                IconButton(onClick = { onDelete?.invoke(entryId) }, shapes = IconButtonDefaults.shapes()) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = stringResource(R.string.delete),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
                         }
                     }
                 }
 
-                JournalEntryType.CARBS -> {
-                    if (activeFoods.isNotEmpty()) {
-                        journalSheetItem(key = "carbs_foods") {
-                            JournalFoodLibrarySelector(
-                                foods = activeFoods,
-                                selectedFoodId = draft.foodId,
-                                selectedItems = draft.foodItems,
-                                foodMacrosEnabled = foodMacrosEnabled,
-                                onFoodSelected = { food -> draft = draft.withFood(food, foodMacrosEnabled) },
-                                onFoodAdded = { food -> draft = draft.plusFood(food, foodMacrosEnabled) },
-                                onFoodRemoved = { index -> draft = draft.removeFoodAt(index, foodMacrosEnabled) },
-                                onFoodImported = onSaveFood,
-                                onManualSelected = {
+                journalSheetItem(key = "type_selector") {
+                    JournalTypeSelector(
+                        selectedType = draft.type,
+                        onTypeSelected = {
+                            draft = draft.withoutSuggestedAmount()
+                                .copy(type = it)
+                                .normalizedForType(unit, suggestedGlucoseMgDl, suggestedAmountFraction)
+                        }
+                    )
+                }
+
+                journalSheetItem(key = "date_time") {
+                    JournalDateTimeCard(
+                        date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
+                        time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
+                        onDateClick = { showDatePicker = true },
+                        onTimeClick = { showTimePicker = true },
+                        onTimeLongClick = { draft = draft.copy(timestamp = System.currentTimeMillis()) }
+                    )
+                }
+
+                when (draft.type) {
+                    JournalEntryType.INSULIN -> {
+                        journalSheetItem(key = "insulin_presets") {
+                            JournalInsulinPresetSelector(
+                                presets = activeInsulinPresets,
+                                selectedPresetId = draft.insulinPresetId,
+                                onPresetSelected = { preset ->
                                     draft = draft.copy(
-                                        foodId = null,
-                                        title = "",
-                                        foodItems = emptyList(),
-                                        proteinText = if (foodMacrosEnabled) draft.proteinText else "",
-                                        fatText = if (foodMacrosEnabled) draft.fatText else ""
+                                        insulinPresetId = preset.id,
+                                        title = preset.displayName,
+                                        pairWithDose = draft.pairWithDose && preset.useForCalculation,
+                                        pairedAmountText = draft.pairedAmountText.takeIf {
+                                            preset.useForCalculation
+                                        }.orEmpty()
                                     )
                                 }
                             )
                         }
-                    }
-                    journalSheetItem(key = "carbs_amount") {
-                        JournalStepperField(
-                            value = draft.amountText,
-                            onValueChange = { draft = draft.copy(amountText = it) },
-                            onStep = { delta ->
-                                draft = draft.copy(amountText = adjustDecimalDraft(draft.amountText, delta, step = 5f))
-                            },
-                            label = stringResource(R.string.journal_type_food),
-                            suffix = stringResource(R.string.unit_carbs_short),
-                            prominent = true
-                        )
-                    }
-                    journalSheetItem(key = "carbs_meal_shape") {
-                        JournalMealShapeSelector(
-                            durationText = draft.durationText,
-                            onShapeSelected = { shape ->
-                                draft = draft.copy(durationText = shape.durationMinutes.toString())
+                        val windowPresets = when {
+                            // Two pills: both windows stay visible, each under its own pill.
+                            activeInsulinPresets.size == 2 && (
+                                selectedInsulinPreset == null ||
+                                    activeInsulinPresets.any { it.id == selectedInsulinPreset.id }
+                                ) -> activeInsulinPresets
+                            selectedInsulinPreset != null -> listOf(selectedInsulinPreset)
+                            else -> emptyList()
+                        }
+                        if (windowPresets.isNotEmpty()) {
+                            journalSheetItem(key = "insulin_window") {
+                                JournalInsulinWindowCard(presets = windowPresets)
                             }
-                        )
+                        }
+                        journalSheetItem(key = "insulin_amount") {
+                            JournalStepperField(
+                                value = draft.amountText,
+                                onValueChange = { draft = draft.copy(amountText = it, amountSuggested = false) },
+                                onStep = { delta ->
+                                    draft = draft.copy(
+                                        amountText = adjustDecimalDraft(draft.amountText, delta, insulinHabit.step, amountStart),
+                                        amountSuggested = false
+                                    )
+                                },
+                                label = stringResource(R.string.journal_type_insulin),
+                                suffix = stringResource(R.string.unit_insulin_short),
+                                prominent = true,
+                                placeholder = amountStart?.let(::formatFloatForEditor),
+                                caption = stringResource(R.string.journal_amount_suggested),
+                                showCaption = draft.amountSuggested
+                            )
+                        }
+                        if (
+                            existingEntry == null &&
+                            calculatorProfile != null &&
+                            selectedInsulinPreset?.useForCalculation == true
+                        ) {
+                            journalSheetItem(key = "insulin_dose_assist") {
+                                JournalDoseAssistCard(
+                                    draft = draft,
+                                    profile = calculatorProfile,
+                                    calculationInsulinPresets = calculationInsulinPresets,
+                                    activeInsulinUnits = activeInsulinUnits,
+                                    unit = unit,
+                                    insulinStep = insulinHabit.step,
+                                    carbStep = carbHabit.step,
+                                    onDraftChange = { draft = it }
+                                )
+                            }
+                        }
                     }
-                    if (foodMacrosEnabled) {
-                        journalSheetItem(key = "carbs_macros") {
-                            JournalMacroFields(
-                                proteinText = draft.proteinText,
-                                fatText = draft.fatText,
-                                onProteinChange = { draft = draft.copy(proteinText = it) },
-                                onFatChange = { draft = draft.copy(fatText = it) }
+
+                    JournalEntryType.CARBS -> {
+                        if (activeFoods.isNotEmpty()) {
+                            journalSheetItem(key = "carbs_foods") {
+                                JournalFoodLibrarySelector(
+                                    foods = activeFoods,
+                                    selectedFoodId = draft.foodId,
+                                    selectedItems = draft.foodItems,
+                                    foodMacrosEnabled = foodMacrosEnabled,
+                                    onFoodSelected = { food -> draft = draft.withFood(food, foodMacrosEnabled) },
+                                    onFoodAdded = { food -> draft = draft.plusFood(food, foodMacrosEnabled) },
+                                    onFoodRemoved = { index -> draft = draft.removeFoodAt(index, foodMacrosEnabled) },
+                                    onFoodImported = onSaveFood,
+                                    onManualSelected = {
+                                        draft = draft.copy(
+                                            foodId = null,
+                                            title = "",
+                                            foodItems = emptyList(),
+                                            proteinText = if (foodMacrosEnabled) draft.proteinText else "",
+                                            fatText = if (foodMacrosEnabled) draft.fatText else ""
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                        journalSheetItem(key = "carbs_amount") {
+                            JournalStepperField(
+                                value = draft.amountText,
+                                onValueChange = { draft = draft.copy(amountText = it, amountSuggested = false) },
+                                onStep = { delta ->
+                                    draft = draft.copy(
+                                        amountText = adjustDecimalDraft(draft.amountText, delta, carbHabit.step, amountStart),
+                                        amountSuggested = false
+                                    )
+                                },
+                                label = stringResource(R.string.journal_type_food),
+                                suffix = stringResource(R.string.unit_carbs_short),
+                                prominent = true,
+                                placeholder = amountStart?.let(::formatFloatForEditor),
+                                caption = stringResource(R.string.journal_amount_suggested),
+                                showCaption = draft.amountSuggested
+                            )
+                        }
+                        journalSheetItem(key = "carbs_meal_shape") {
+                            JournalMealShapeSelector(
+                                durationText = draft.durationText,
+                                onShapeSelected = { shape ->
+                                    draft = draft.copy(durationText = shape.durationMinutes.toString())
+                                }
+                            )
+                        }
+                        if (foodMacrosEnabled) {
+                            journalSheetItem(key = "carbs_macros") {
+                                JournalMacroFields(
+                                    proteinText = draft.proteinText,
+                                    fatText = draft.fatText,
+                                    onProteinChange = { draft = draft.copy(proteinText = it) },
+                                    onFatChange = { draft = draft.copy(fatText = it) }
+                                )
+                            }
+                        }
+                        if (
+                            existingEntry == null &&
+                            calculatorProfile != null &&
+                            calculationInsulinPresets.isNotEmpty()
+                        ) {
+                            journalSheetItem(key = "carbs_dose_assist") {
+                                JournalDoseAssistCard(
+                                    draft = draft,
+                                    profile = calculatorProfile,
+                                    calculationInsulinPresets = calculationInsulinPresets,
+                                    activeInsulinUnits = activeInsulinUnits,
+                                    unit = unit,
+                                    insulinStep = insulinHabit.step,
+                                    carbStep = carbHabit.step,
+                                    onDraftChange = { draft = it }
+                                )
+                            }
+                        }
+                    }
+
+                    JournalEntryType.FINGERSTICK -> {
+                        journalSheetItem(key = "fingerstick_amount") {
+                            JournalStepperField(
+                                value = draft.glucoseText,
+                                onValueChange = { draft = draft.copy(glucoseText = it) },
+                                onStep = { delta ->
+                                    val step = if (GlucoseFormatter.isMmol(unit)) 0.1f else 5f
+                                    draft = draft.copy(glucoseText = adjustDecimalDraft(draft.glucoseText, delta, step))
+                                },
+                                label = stringResource(R.string.glucose_with_unit, unit),
+                                suffix = null,
+                                prominent = true
                             )
                         }
                     }
-                    if (
-                        existingEntry == null &&
-                        calculatorProfile != null &&
-                        calculationInsulinPresets.isNotEmpty()
-                    ) {
-                        journalSheetItem(key = "carbs_dose_assist") {
-                            JournalDoseAssistCard(
-                                draft = draft,
-                                profile = calculatorProfile,
-                                calculationInsulinPresets = calculationInsulinPresets,
-                                activeInsulinUnits = activeInsulinUnits,
-                                unit = unit,
-                                onDraftChange = { draft = it }
+
+                    JournalEntryType.ACTIVITY -> {
+                        journalSheetItem(key = "activity_name") {
+                            OutlinedTextField(
+                                value = draft.title,
+                                onValueChange = { draft = draft.copy(title = it) },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text(text = stringResource(R.string.name).trimTrailingLabel()) },
+                                singleLine = true
+                            )
+                        }
+                        journalSheetItem(key = "activity_duration") {
+                            JournalStepperField(
+                                value = draft.durationText,
+                                onValueChange = { draft = draft.copy(durationText = it.filter(Char::isDigit)) },
+                                onStep = { delta ->
+                                    draft = draft.copy(durationText = adjustIntegerDraft(draft.durationText, delta * 5, minValue = 0))
+                                },
+                                label = stringResource(R.string.duration_label),
+                                suffix = stringResource(R.string.minutes),
+                                keyboardType = KeyboardType.Number
+                            )
+                        }
+                        journalSheetItem(key = "activity_intensity") {
+                            JournalIntensitySelector(
+                                selectedIntensity = draft.intensity,
+                                onIntensitySelected = { draft = draft.copy(intensity = it) }
                             )
                         }
                     }
-                }
 
-                JournalEntryType.FINGERSTICK -> {
-                    journalSheetItem(key = "fingerstick_amount") {
-                        JournalStepperField(
-                            value = draft.glucoseText,
-                            onValueChange = { draft = draft.copy(glucoseText = it) },
-                            onStep = { delta ->
-                                val step = if (GlucoseFormatter.isMmol(unit)) 0.1f else 5f
-                                draft = draft.copy(glucoseText = adjustDecimalDraft(draft.glucoseText, delta, step))
-                            },
-                            label = stringResource(R.string.glucose_with_unit, unit),
-                            suffix = null,
-                            prominent = true
-                        )
-                    }
-                }
-
-                JournalEntryType.ACTIVITY -> {
-                    journalSheetItem(key = "activity_name") {
-                        OutlinedTextField(
-                            value = draft.title,
-                            onValueChange = { draft = draft.copy(title = it) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(text = stringResource(R.string.name).trimTrailingLabel()) },
-                            singleLine = true
-                        )
-                    }
-                    journalSheetItem(key = "activity_duration") {
-                        JournalStepperField(
-                            value = draft.durationText,
-                            onValueChange = { draft = draft.copy(durationText = it.filter(Char::isDigit)) },
-                            onStep = { delta ->
-                                draft = draft.copy(durationText = adjustIntegerDraft(draft.durationText, delta * 5, minValue = 0))
-                            },
-                            label = stringResource(R.string.duration_label),
-                            suffix = stringResource(R.string.minutes),
-                            keyboardType = KeyboardType.Number
-                        )
-                    }
-                    journalSheetItem(key = "activity_intensity") {
-                        JournalIntensitySelector(
-                            selectedIntensity = draft.intensity,
-                            onIntensitySelected = { draft = draft.copy(intensity = it) }
-                        )
-                    }
-                }
-
-                JournalEntryType.NOTE -> {
-                    journalSheetItem(key = "note_title") {
-                        OutlinedTextField(
-                            value = draft.title,
-                            onValueChange = { draft = draft.copy(title = it) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(text = stringResource(R.string.name).trimTrailingLabel()) },
-                            singleLine = true
-                        )
-                    }
-                }
-
-                // Imported from AAPS; no editor fields.
-                JournalEntryType.TEMP_BASAL -> Unit
-            }
-
-            journalSheetItem(key = "note_field") {
-                val noteFieldExpanded = draft.type == JournalEntryType.NOTE ||
-                        noteFieldFocused ||
-                        draft.note.contains('\n')
-                val noteFieldMinHeight by animateDpAsState(
-                    targetValue = when {
-                        draft.type == JournalEntryType.NOTE -> 132.dp
-                        noteFieldExpanded -> 96.dp
-                        else -> 56.dp
-                    },
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "journalNoteFieldHeight"
-                )
-                TextField(
-                    value = draft.note,
-                    onValueChange = { draft = draft.copy(note = it) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = noteFieldMinHeight)
-                        .onFocusChanged { noteFieldFocused = it.isFocused },
-                    label = { Text(stringResource(R.string.journal_note_label)) },
-                    singleLine = !noteFieldExpanded,
-                    maxLines = when {
-                        draft.type == JournalEntryType.NOTE -> 5
-                        noteFieldExpanded -> 3
-                        else -> 1
-                    },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
-                        errorIndicatorColor = Color.Transparent
-                    )
-                )
-            }
-
-            journalSheetItem(key = "save_button") {
-                // Switching type often flips Save between enabled and disabled; fade the fill
-                // instead of letting it blink.
-                val defaultSaveColors = ButtonDefaults.buttonColors()
-                val saveContainerColor by animateColorAsState(
-                    targetValue = if (canSave) defaultSaveColors.containerColor else defaultSaveColors.disabledContainerColor,
-                    animationSpec = ExpressiveMotion.defaultEffects(),
-                    label = "journalSaveContainer"
-                )
-                val saveContentColor by animateColorAsState(
-                    targetValue = if (canSave) defaultSaveColors.contentColor else defaultSaveColors.disabledContentColor,
-                    animationSpec = ExpressiveMotion.defaultEffects(),
-                    label = "journalSaveContent"
-                )
-                Button(
-                    onClick = {
-                        if (canSave) {
-                            if (saveInputs.size > 1) {
-                                onSaveEntries?.invoke(saveInputs) ?: saveInputs.forEach(onSave)
-                            } else {
-                                saveInputs.firstOrNull()?.let(onSave)
-                            }
+                    JournalEntryType.NOTE -> {
+                        journalSheetItem(key = "note_title") {
+                            OutlinedTextField(
+                                value = draft.title,
+                                onValueChange = { draft = draft.copy(title = it) },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text(text = stringResource(R.string.name).trimTrailingLabel()) },
+                                singleLine = true
+                            )
                         }
-                    },
-                    enabled = canSave,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp),
-                    shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = saveContainerColor,
-                        contentColor = saveContentColor,
-                        disabledContainerColor = saveContainerColor,
-                        disabledContentColor = saveContentColor
-                    ),
-                    contentPadding = ButtonDefaults.ContentPadding
-                ) {
-                    AnimatedContent(
-                        targetState = draft.type,
-                        transitionSpec = {
-                            fadeIn(animationSpec = ExpressiveMotion.defaultEffects())
-                                .togetherWith(fadeOut(animationSpec = ExpressiveMotion.fastEffects()))
+                    }
+
+                    // Imported from AAPS; no editor fields.
+                    JournalEntryType.TEMP_BASAL -> Unit
+                }
+
+                journalSheetItem(key = "note_field") {
+                    val noteFieldExpanded = draft.type == JournalEntryType.NOTE ||
+                            noteFieldFocused ||
+                            draft.note.contains('\n')
+                    val noteFieldMinHeight by animateDpAsState(
+                        targetValue = when {
+                            draft.type == JournalEntryType.NOTE -> 132.dp
+                            noteFieldExpanded -> 96.dp
+                            else -> 56.dp
                         },
-                        label = "journalSaveIcon"
-                    ) { type ->
-                        Icon(
-                            imageVector = journalTypeIcon(type),
-                            contentDescription = null
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "journalNoteFieldHeight"
+                    )
+                    TextField(
+                        value = draft.note,
+                        onValueChange = { draft = draft.copy(note = it) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = noteFieldMinHeight)
+                            .onFocusChanged { noteFieldFocused = it.isFocused },
+                        label = { Text(stringResource(R.string.journal_note_label)) },
+                        singleLine = !noteFieldExpanded,
+                        maxLines = when {
+                            draft.type == JournalEntryType.NOTE -> 5
+                            noteFieldExpanded -> 3
+                            else -> 1
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
+                            errorIndicatorColor = Color.Transparent
                         )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.save))
+                    )
                 }
+            }
+            // Switching type often flips Save between enabled and disabled; fade the fill
+            // instead of letting it blink.
+            val defaultSaveColors = ButtonDefaults.buttonColors()
+            val saveContainerColor by animateColorAsState(
+                targetValue = if (canSave) defaultSaveColors.containerColor else defaultSaveColors.disabledContainerColor,
+                animationSpec = ExpressiveMotion.defaultEffects(),
+                label = "journalSaveContainer"
+            )
+            val saveContentColor by animateColorAsState(
+                targetValue = if (canSave) defaultSaveColors.contentColor else defaultSaveColors.disabledContentColor,
+                animationSpec = ExpressiveMotion.defaultEffects(),
+                label = "journalSaveContent"
+            )
+            Button(
+                onClick = {
+                    if (canSave) {
+                        if (saveInputs.size > 1) {
+                            onSaveEntries?.invoke(saveInputs) ?: saveInputs.forEach(onSave)
+                        } else {
+                            saveInputs.firstOrNull()?.let(onSave)
+                        }
+                    }
+                },
+                enabled = canSave,
+                modifier = Modifier
+                    // Outside the list, so a scrolled row stops short of the button.
+                    .padding(top = 12.dp)
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+                shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = saveContainerColor,
+                    contentColor = saveContentColor,
+                    disabledContainerColor = saveContainerColor,
+                    disabledContentColor = saveContentColor
+                ),
+                contentPadding = ButtonDefaults.ContentPadding
+            ) {
+                AnimatedContent(
+                    targetState = draft.type,
+                    transitionSpec = {
+                        fadeIn(animationSpec = ExpressiveMotion.defaultEffects())
+                            .togetherWith(fadeOut(animationSpec = ExpressiveMotion.fastEffects()))
+                    },
+                    label = "journalSaveIcon"
+                ) { type ->
+                    Icon(
+                        imageVector = journalTypeIcon(type),
+                        contentDescription = null
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = stringResource(R.string.save))
             }
         }
     }
@@ -1056,6 +1151,21 @@ private fun buildDraft(
     )
 }
 
+/**
+ * Puts [suggestion] in an amount nobody has entered, and keeps an earlier suggestion in step with
+ * it. Anything the person typed, stepped or picked stays.
+ */
+private fun JournalEntryDraft.withSuggestedAmount(suggestion: String?): JournalEntryDraft = when {
+    amountSuggested || amountText.isBlank() -> copy(
+        amountText = suggestion.orEmpty(),
+        amountSuggested = suggestion != null
+    )
+    else -> this
+}
+
+private fun JournalEntryDraft.withoutSuggestedAmount(): JournalEntryDraft =
+    if (amountSuggested) copy(amountText = "", amountSuggested = false) else this
+
 private fun JournalEntryDraft.withFood(
     food: JournalFood,
     foodMacrosEnabled: Boolean
@@ -1065,6 +1175,7 @@ private fun JournalEntryDraft.withFood(
         foodId = food.id.takeIf { it > 0L },
         title = food.displayName,
         amountText = formatFloatForEditor(item.carbsGrams),
+        amountSuggested = false,
         proteinText = if (foodMacrosEnabled) item.proteinGrams?.let(::formatFloatForEditor).orEmpty() else "",
         fatText = if (foodMacrosEnabled) item.fatGrams?.let(::formatFloatForEditor).orEmpty() else "",
         durationText = item.absorptionMinutes.toString(),
@@ -1097,6 +1208,7 @@ private fun JournalEntryDraft.copyWithFoodItems(
             foodId = null,
             title = "",
             amountText = "",
+            amountSuggested = false,
             proteinText = "",
             fatText = "",
             durationText = JournalMealShape.MIXED.durationMinutes.toString(),
@@ -1111,6 +1223,7 @@ private fun JournalEntryDraft.copyWithFoodItems(
         foodId = items.singleOrNull()?.sourceFoodId,
         title = items.joinToString(" + ") { it.displayName }.take(80),
         amountText = formatFloatForEditor(carbs),
+        amountSuggested = false,
         proteinText = if (foodMacrosEnabled) formatFloatForEditor(protein) else "",
         fatText = if (foodMacrosEnabled) formatFloatForEditor(fat) else "",
         durationText = duration.coerceIn(15, 480).toString(),
@@ -1385,6 +1498,8 @@ private fun JournalDoseAssistCard(
     calculationInsulinPresets: List<JournalInsulinPreset>,
     activeInsulinUnits: Float,
     unit: String,
+    insulinStep: Float,
+    carbStep: Float,
     onDraftChange: (JournalEntryDraft) -> Unit
 ) {
     val insulinSuggestion = remember(
@@ -1580,7 +1695,7 @@ private fun JournalDoseAssistCard(
                     value = draft.pairedAmountText,
                     onValueChange = { onDraftChange(draft.copy(pairedAmountText = it)) },
                     onStep = { delta ->
-                        val step = if (draft.type == JournalEntryType.CARBS) 0.5f else 5f
+                        val step = if (draft.type == JournalEntryType.CARBS) insulinStep else carbStep
                         onDraftChange(
                             draft.copy(
                                 pairedAmountText = adjustDecimalDraft(draft.pairedAmountText, delta, step)
@@ -3242,7 +3357,8 @@ private fun JournalInsulinWindowHeader(
         label = "journalInsulinWindowHeader"
     )
     val infoTint by animateColorAsState(
-        targetValue = if (showing) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+        // At rest the range is the content; the icon only has to be findable.
+        targetValue = if (showing) accent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
         animationSpec = tween(durationMillis = 180),
         label = "journalInsulinWindowInfo"
     )
@@ -3460,14 +3576,19 @@ private fun JournalInsulinActivityCurve(
 }
 
 @Composable
-private fun JournalStepperField(
+internal fun JournalStepperField(
     value: String,
     onValueChange: (String) -> Unit,
     onStep: (Int) -> Unit,
     label: String,
     suffix: String?,
     keyboardType: KeyboardType = KeyboardType.Decimal,
-    prominent: Boolean = false
+    prominent: Boolean = false,
+    /** Shown dim in an empty prominent field, in place of 0. */
+    placeholder: String? = null,
+    /** A word under a prominent field's value, saying where the value came from. */
+    caption: String = "",
+    showCaption: Boolean = false
 ) {
     val haptics = LocalHapticFeedback.current
     val stepWithFeedback: (Int) -> Unit = { delta ->
@@ -3493,18 +3614,12 @@ private fun JournalStepperField(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
-                FilledTonalIconButton(
-                    onClick = { stepWithFeedback(-1) },
-                    modifier = if (prominent) Modifier.size(56.dp) else Modifier,
-                    shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Remove,
-                        contentDescription = stringResource(R.string.outbound_api_decrease_value)
-                    )
-                }
-            }
+            JournalStepButton(
+                icon = Icons.Default.Remove,
+                description = stringResource(R.string.outbound_api_decrease_value),
+                prominent = prominent,
+                onStep = { stepWithFeedback(-1) }
+            )
             if (prominent) {
                 BasicTextField(
                     value = field.value,
@@ -3525,22 +3640,40 @@ private fun JournalStepperField(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            Box(
+                            Column(
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(horizontal = 8.dp),
-                                contentAlignment = Alignment.Center
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                if (value.isEmpty()) {
-                                    Text(
-                                        text = "0",
-                                        style = MaterialTheme.typography.displaySmallEmphasized.copy(
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                            textAlign = TextAlign.Center
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (value.isEmpty()) {
+                                        Text(
+                                            text = placeholder ?: "0",
+                                            style = MaterialTheme.typography.displaySmallEmphasized.copy(
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                                textAlign = TextAlign.Center
+                                            )
                                         )
+                                    }
+                                    innerTextField()
+                                }
+                                AnimatedVisibility(
+                                    visible = showCaption,
+                                    enter = fadeIn(ExpressiveMotion.defaultEffects()) + expandVertically(),
+                                    exit = fadeOut(ExpressiveMotion.fastEffects()) + shrinkVertically()
+                                ) {
+                                    Text(
+                                        text = caption,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
-                                innerTextField()
                             }
                             suffix?.let {
                                 Text(
@@ -3620,21 +3753,82 @@ private fun JournalStepperField(
                     )
                 }
             }
-            IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
-                FilledTonalIconButton(
-                    onClick = { stepWithFeedback(1) },
-                    modifier = if (prominent) Modifier.size(56.dp) else Modifier,
-                    shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(R.string.outbound_api_increase_value)
-                    )
+            JournalStepButton(
+                icon = Icons.Default.Add,
+                description = stringResource(R.string.outbound_api_increase_value),
+                prominent = prominent,
+                onStep = { stepWithFeedback(1) }
+            )
+        }
+    }
+}
+
+/**
+ * A stepper button. Tapping steps once; holding steps on its own, quicker the longer it is held.
+ * Holding is the button's own gesture here, so the usual long-press tooltip stays out of it.
+ */
+@Composable
+private fun JournalStepButton(
+    icon: ImageVector,
+    description: String,
+    prominent: Boolean,
+    onStep: () -> Unit
+) {
+    val step by rememberUpdatedState(onStep)
+    val interactionSource = remember { MutableInteractionSource() }
+    // Lifting the finger still reports a click, which must not add one more to a hold.
+    val holdStepped = remember { booleanArrayOf(false) }
+    LaunchedEffect(interactionSource) {
+        var hold: Job? = null
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> {
+                    holdStepped[0] = false
+                    hold?.cancel()
+                    hold = launch {
+                        delay(JOURNAL_STEP_HOLD_MILLIS)
+                        var repeats = 0
+                        while (true) {
+                            holdStepped[0] = true
+                            step()
+                            delay(journalStepRepeatMillis(repeats++))
+                        }
+                    }
+                }
+                is PressInteraction.Release -> hold?.cancel()
+                is PressInteraction.Cancel -> {
+                    hold?.cancel()
+                    holdStepped[0] = false
                 }
             }
         }
     }
+    IconButtonTooltip(description, showOnLongPress = false) {
+        FilledTonalIconButton(
+            onClick = {
+                if (holdStepped[0]) holdStepped[0] = false else step()
+            },
+            modifier = if (prominent) Modifier.size(56.dp) else Modifier,
+            shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp)),
+            interactionSource = interactionSource
+        ) {
+            Icon(imageVector = icon, contentDescription = description)
+        }
+    }
 }
+
+private const val JOURNAL_STEP_HOLD_MILLIS = 400L
+private const val JOURNAL_STEP_SLOWEST_MILLIS = 180L
+private const val JOURNAL_STEP_FASTEST_MILLIS = 60L
+private const val JOURNAL_STEP_RAMP_MILLIS = 10L
+
+/** Slow enough at first to stop on the value next door, then about 16 steps a second. */
+private fun journalStepRepeatMillis(repeats: Int): Long =
+    (JOURNAL_STEP_SLOWEST_MILLIS - repeats * JOURNAL_STEP_RAMP_MILLIS)
+        .coerceAtLeast(JOURNAL_STEP_FASTEST_MILLIS)
+
+/** The dashboard hint is about now; a dose dated further away than this isn't what it computed. */
+private const val JOURNAL_HINT_MAX_AGE_MILLIS = 15L * 60 * 1000
 
 private fun describeJournalEntry(
     entry: JournalEntry,
@@ -3808,10 +4002,13 @@ private fun JournalIntensity.labelRes(): Int {
     }
 }
 
-private fun adjustDecimalDraft(value: String, direction: Int, step: Float): String {
-    val current = value.parseFloatOrNull() ?: 0f
-    val next = (current + (direction * step)).coerceAtLeast(0f)
-    return formatFloatForEditor(next)
+/** [start] is where an empty field begins: plus lands on it, minus one step below it. */
+private fun adjustDecimalDraft(value: String, direction: Int, step: Float, start: Float? = null): String {
+    val current = value.parseFloatOrNull()
+    if (current == null && start != null) {
+        return formatFloatForEditor(if (direction > 0) start else JournalAmountAssist.stepped(start, direction, step))
+    }
+    return formatFloatForEditor(JournalAmountAssist.stepped(current ?: 0f, direction, step))
 }
 
 private fun suggestedInsulinAmountForFraction(fraction: Float): String {

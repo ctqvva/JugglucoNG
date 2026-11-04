@@ -960,6 +960,7 @@ fun DashboardScreen(
             suggestedGlucoseMgDl = request.suggestedGlucoseMgDl,
             suggestedChartAnchorGlucoseMgDl = request.suggestedChartAnchorGlucoseMgDl,
             suggestedAmountFraction = request.suggestedAmountFraction,
+            suggestedDose = stateDoseHint,
             insulinPresets = if (request.existingEntry != null) journalInsulinPresets else activeJournalPresets,
             foods = if (journalFoodLibraryEnabled) journalFoods else emptyList(),
             foodMacrosEnabled = journalFoodMacrosEnabled,

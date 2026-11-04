@@ -1707,6 +1707,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_dose_pair_insulin">Pair insulin</string>
     <string name="journal_dose_pair_carbs">Pair carbs</string>
     <string name="journal_dose_suggested_insulin">%1$s U suggested</string>
+    <string name="journal_amount_suggested">Санал болгосон</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s г</string>
