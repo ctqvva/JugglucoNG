@@ -9,8 +9,9 @@ Needs numpy only.
         --azt1d '/path/AZT1D 2025/CGM Records' \
         --hupa '/path/HUPA-UCM Diabetes Dataset'
 
-Everything is retrospective: training days always come before the days scored, and each
-candidate gets its coefficients from the training days alone. The model is the app's own
+Everything is retrospective. In the held-out studies training days come before the days
+scored, and every input comes from the training days alone: fitted values, pump settings read
+back from boluses, daily insulin and usual basal. The model is the app's own
 arithmetic: glucose moves by -ISF x insulin acted + (ISF / ICR) x carbs absorbed, with carbs
 absorbed on the app's smoothstep at 35 g/h. Only the insulin curve differs, because the
 datasets do not say which insulin was used; --peak sets it.
@@ -71,13 +72,18 @@ class Person:
         self.bolus = defaultdict(float)  # bin -> U
         self.carbs = defaultdict(float)  # bin -> g
         self.basal = {}  # bin -> U/h
-        self.food_ratio = []  # carbs / food insulin, as the pump computed it
+        self.food_ratio = []  # (bin, carbs / food insulin), as the pump computed it
         self.correction_bins = set()
         self.daily_insulin = defaultdict(float)  # day -> U
         self.daily_basal = {}
         self.pump_corrections = []  # (bin, units, glucose): boluses the pump's calculator sized
 
-    def pump_correction_factor(self):
+    def carb_ratio(self, before=None):
+        """The pump's carb ratio as read from boluses before bin `before`, or None."""
+        values = [r for b, r in self.food_ratio if before is None or b < before]
+        return float(np.median(values)) if values else None
+
+    def pump_correction_factor(self, before=None):
         """The correction factor the pump was set to, read back from what it delivered.
 
         A Tandem bolus sizes its correction as (glucose - target) / factor - insulin on board,
@@ -87,6 +93,8 @@ class Person:
         doses = sorted(self.bolus.items())
         values = []
         for b, units, glucose in self.pump_corrections:
+            if before is not None and b >= before:
+                continue
             on_board = sum(u * remaining_fraction((b - d) * STEP) for d, u in doses if 0 < b - d < 60)
             values.append((glucose - 110.0) / (units + on_board))
         if len(values) < 8:
@@ -106,8 +114,11 @@ class Person:
             if 0 <= b - self.first < n:
                 insulin[b - self.first] += u
         # Basal away from the person's usual rate is insulin the loop added or held back.
-        self.median_basal = float(np.median(list(self.basal.values()))) if self.basal else 0.0
-        if self.basal:
+        # "Usual" comes from the training days, so scored days cannot shape the features.
+        cut = self.first + int(n * TRAIN_FRACTION)
+        usual = [r for b, r in self.basal.items() if b < cut]
+        self.median_basal = float(np.median(usual)) if usual else 0.0
+        if usual:
             rate, last = self.median_basal, -10**9
             sorted_basal = dict(sorted(self.basal.items()))
             for i in range(n):
@@ -203,19 +214,25 @@ class Person:
         bins = minutes // STEP
         return [w for i in range(0, len(self.g) - bins, bins) if (w := self.window(i, bins))]
 
-    def tdd(self, before_bin=None):
-        days = [d for d in self.daily_insulin if before_bin is None or d * 288 < before_bin]
-        if not days:
+    def tdd(self, before=None):
+        """Median daily insulin from whole days ending by bin `before`, basal included."""
+        boluses = self.daily_values(self.daily_insulin, before)
+        if not boluses:
             return math.nan
-        return float(np.median([self.daily_insulin[d] for d in days])) + self.basal_per_day()
+        return float(np.median(boluses)) + self.basal_per_day(before, boluses)
 
-    def basal_per_day(self):
-        if self.median_basal > 0:
-            return self.median_basal * 24
-        if self.daily_basal:
-            return float(np.median(list(self.daily_basal.values())))
-        days = list(self.daily_insulin.values())
-        return float(np.median(days)) if days else 0.0
+    @staticmethod
+    def daily_values(by_day, before):
+        return [v for d, v in by_day.items() if before is None or (d + 1) * 288 <= before]
+
+    def basal_per_day(self, before, boluses):
+        rates = [r for b, r in self.basal.items() if before is None or b < before]
+        if rates:
+            return float(np.median(rates)) * 24
+        long_acting = self.daily_values(self.daily_basal, before)
+        if long_acting:
+            return float(np.median(long_acting))
+        return float(np.median(boluses))  # basal unknown: assume half of the day's insulin
 
 
 def load_azt1d(root):
@@ -257,7 +274,7 @@ def load_azt1d(root):
                         if grams >= 5:
                             person.carbs[b] += grams
                         if food > 0 and grams >= 5:
-                            person.food_ratio.append(grams / food)
+                            person.food_ratio.append((b, grams / food))
                         if correction > 0 and grams < 5:
                             person.correction_bins.add(b)
                         bolus_type = row.get("BolusType") or ""
@@ -378,6 +395,20 @@ def fit_two_stage(windows, isf):
     return beta
 
 
+def saved_values(isf, csf):
+    """What the app would hold: both numbers inside its limits, carb slope as ISF / ICR."""
+    isf = min(max(isf, ISF_RANGE[0]), ISF_RANGE[1])
+    icr = min(max(isf / csf, ICR_RANGE[0]), ICR_RANGE[1]) if csf > 0 else ICR_RANGE[1]
+    return isf, isf / icr
+
+
+def carb_slope_alone(windows, isf):
+    """ISF held, carbs fitted with nothing else: the slope the app's arithmetic can use."""
+    y, x = design(windows)
+    target = y + isf * x[:, 0]
+    return float(x[:, 1] @ target / (x[:, 1] @ x[:, 1]))
+
+
 def fit_baseline_only(windows):
     y, x = design(windows)
     b = baseline(windows)
@@ -449,17 +480,23 @@ def median_iqr(values):
     return f"{q[1]:.2f} (IQR {q[0]:.2f}-{q[2]:.2f})"
 
 
-def references(person, last_train_bin):
-    """Starting values a person could have, before any fitting."""
-    tdd = person.tdd(last_train_bin + person.first)
+def references(person, end_bin):
+    """Starting values a person could have before bin `end_bin`, before any fitting.
+
+    Held-out studies pass their training cut, and then nothing here reads a later day.
+    Studies of a whole record pass its length.
+    """
+    before = end_bin + person.first
+    tdd = person.tdd(before)
+    ratio = person.carb_ratio(before)
+    factor = person.pump_correction_factor(before)
     out = {"app defaults": (DEFAULT_ISF, DEFAULT_ISF / DEFAULT_ICR)}
     if math.isfinite(tdd) and tdd > 0:
         out["500/1800 rule"] = (1800 / tdd, (1800 / tdd) / (500 / tdd))
-        if person.food_ratio:
-            out["pump ratio + 1800 rule"] = (1800 / tdd, (1800 / tdd) / float(np.median(person.food_ratio)))
-    factor = person.pump_correction_factor()
-    if factor and person.food_ratio:
-        out["pump's own settings"] = (factor, factor / float(np.median(person.food_ratio)))
+        if ratio:
+            out["pump ratio + 1800 rule"] = (1800 / tdd, (1800 / tdd) / ratio)
+    if factor and ratio:
+        out["pump's own settings"] = (factor, factor / ratio)
     return out
 
 
@@ -482,6 +519,56 @@ def composition_study(people, label):
         print(f"Carbs push +{r[1]:.0f} mg/dL, insulin pushes {r[2]:.0f} mg/dL, sum {r[1] + r[2]:+.0f}; "
               f"glucose actually moved {r[0]:+.0f}. Starting values: ISF {r[3]:.0f}, ICR {r[4]:.1f}. "
               f"Insulin acted {r[5]:.1f} U where the logged carbs need {r[6]:.1f} U.")
+
+
+def tuning_gain_study(people, label):
+    """What saving a tuned ICR buys one person, against the values they started from."""
+    print(f"\n### {label}: saving a fitted ICR against keeping the starting values, held-out meals")
+    print("| Starting values | People | Error before | Error after | Median change | People improved |")
+    print("|---|---:|---:|---:|---:|---:|")
+    for start in ("app defaults", "pump ratio + 1800 rule", "pump's own settings"):
+        before, after = [], []
+        for person in people:
+            last_train = int(len(person.g) * TRAIN_FRACTION)
+            train, test = split(person.meal_windows(), last_train)
+            refs = references(person, last_train)
+            if len(train) < MIN_MEALS or len(test) < 8 or start not in refs:
+                continue
+            yt, xt = design(test)
+            isf, csf = refs[start]
+            before.append(mae(yt, predict(xt, isf, csf)))
+            after.append(mae(yt, predict(xt, *saved_values(isf, carb_slope_alone(train, isf)))))
+        if before:
+            b, a = np.array(before), np.array(after)
+            print(f"| {start} | {len(b)} | {np.median(b):.1f} | {np.median(a):.1f} | "
+                  f"{np.median(a / b - 1) * 100:+.0f} % | {int(np.sum(a < b))}/{len(b)} |")
+
+
+def drawing_layer_study(people, label):
+    """A fitted correction used only to draw the what-if: are its pictures repeatable?
+
+    The free fit's coefficients are unstable, but a drawn curve needs stable predictions, not
+    stable parts. Two fits from alternate weeks draw the same held-back meals; this is how far
+    apart their curves end.
+    """
+    gaps, spread = [], []
+    for person in people:
+        windows = person.meal_windows()
+        if len(windows) < 3 * MIN_MEALS:
+            continue
+        third = [w for w in windows if (w[5] // 2016) % 3 == 2]
+        halves = [[w for w in windows if (w[5] // 2016) % 3 == h] for h in (0, 1)]
+        if min(len(h) for h in halves) < MIN_MEALS or len(third) < 8:
+            continue
+        _, x = design(third)
+        y = np.array([w[0] for w in third])
+        a, b = (predict(x, *fit_ols(*design(h))) for h in halves)
+        gaps.append(float(np.median(np.abs(a - b))))
+        spread.append(float(np.median(np.abs(y - np.median(y)))))
+    if gaps:
+        print(f"\n{label}: what-if drawn by fits from two separate sets of weeks, on meals neither saw: curves end "
+              f"{np.median(gaps):.0f} mg/dL apart (median, {len(gaps)} people), against {np.median(spread):.0f} mg/dL "
+              f"of ordinary spread in those meals")
 
 
 def outcome_study(people, label):
@@ -507,7 +594,17 @@ def outcome_study(people, label):
             rows[name + " + drift"][person.name] = mae(yt, predict(xt, isf, csf, drift))
         rows["drift alone"][person.name] = mae(yt, np.mean(y / x[:, 2]) * xt[:, 2])
         beta = fit_ols(y, x)
-        rows["free fit"][person.name] = mae(yt, predict(xt, *beta))
+        rows["free fit, with drift (not savable)"][person.name] = mae(yt, predict(xt, *beta))
+        # What PR 4 would hand a person: ISF kept, ICR fitted, and only those two numbers
+        # reach the what-if, inside the app's limits. The fit's own drift and baseline terms
+        # have nowhere to live in a profile, so they are dropped before scoring.
+        for name, (isf, _) in refs.items():
+            if name not in ("app defaults", "pump ratio + 1800 rule", "pump's own settings"):
+                continue
+            kept = saved_values(isf, fit_two_stage(train, isf)[0])
+            rows[f"saved: ICR fitted with baseline, ISF from {name}"][person.name] = mae(yt, predict(xt, *kept))
+            kept = saved_values(isf, carb_slope_alone(train, isf))
+            rows[f"saved: ICR fitted alone, ISF from {name}"][person.name] = mae(yt, predict(xt, *kept))
         test_windows = test
         cgm = fit_baseline_only(train)
         rows["CGM baseline alone"][person.name] = mae(yt, predict_baseline_only(test_windows, cgm))
@@ -550,8 +647,9 @@ def circularity_study(people, label):
         if icrs is None:
             continue
         habit = float(np.sum(x[:, 1]) / np.sum(x[:, 0]))  # grams absorbed per unit acted
+        alone = carb_slope_alone(windows, isf)
         rows.append((icrs[0], icrs[1], icrs[2], habit,
-                     float(np.median(person.food_ratio)) if person.food_ratio else math.nan))
+                     person.carb_ratio() or math.nan, isf / alone if alone > 0 else math.nan))
     if not rows:
         return
     r = np.array(rows)
@@ -563,6 +661,10 @@ def circularity_study(people, label):
         print(f"Habit against the pump's ratio: x{math.exp(np.median(np.abs(np.log(r[known, 3] / r[known, 4])))):.2f}, "
               f"median habit/pump {np.median(r[known, 3] / r[known, 4]):.2f}; "
               f"fit against pump x{math.exp(np.median(np.abs(np.log(r[known, 1] / r[known, 4])))):.2f}")
+        both = known & np.isfinite(r[:, 5])
+        ratio = np.log(r[both, 5] / r[both, 4])
+        print(f"ICR fitted alone, with no baseline, against pump: median {math.exp(np.median(ratio)):.2f}, "
+              f"x{math.exp(np.median(np.abs(ratio))):.2f}")
 
 
 def recovery_study(people, label):
@@ -913,7 +1015,7 @@ def partial_logging_study(people, label, repeats=30):
         for person in people:
             if not person.food_ratio:
                 continue
-            pump = float(np.median(person.food_ratio))
+            pump = person.carb_ratio()
             isf = 1800 / person.tdd()
             if not math.isfinite(isf) or isf <= 0:
                 continue
@@ -957,14 +1059,14 @@ def partial_logging_study(people, label, repeats=30):
 
 def ratio_link_study(people, label):
     """Without any grams logged, can the ratio be read off the sensitivity?"""
-    pairs = [(p.pump_correction_factor(), float(np.median(p.food_ratio)))
+    pairs = [(p.pump_correction_factor(), p.carb_ratio())
              for p in people if p.food_ratio and p.pump_correction_factor()]
     if len(pairs) >= 5:
         r = np.array(pairs)
         k = r[:, 0] / r[:, 1]
         print(f"\n{label}: pump factor / pump ratio: {median_iqr(k)} over {len(k)} people (the 1800/500 rules assume 3.6); "
               f"reading ICR as factor / median misses by x{math.exp(np.median(np.abs(np.log((r[:, 0] / np.median(k)) / r[:, 1])))):.2f}")
-        rule = [(500 / p.tdd(), float(np.median(p.food_ratio))) for p in people if p.food_ratio]
+        rule = [(500 / p.tdd(), p.carb_ratio()) for p in people if p.food_ratio]
         q = np.array(rule)
         ratio = np.log(q[:, 0] / q[:, 1])
         print(f"500 rule against the pump's ratio, no meal logged: median {math.exp(np.median(ratio)):.2f}, typical miss "
@@ -988,7 +1090,8 @@ def forecast_study(people, label):
         pooled = []  # (forecast by ridge, forecast with the insulin term, what happened)
         for person in people:
             rows, targets, order, near, fixed_effect = [], [], [], [], []
-            refs = references(person, len(person.g))
+            cut = int(len(person.g) * TRAIN_FRACTION)
+            refs = references(person, cut - bins)
             start = refs.get("pump ratio + 1800 rule") or refs.get("500/1800 rule")
             if not start:
                 continue
@@ -1012,7 +1115,6 @@ def forecast_study(people, label):
                 continue
             a, t = np.array(rows), np.array(targets)
             order, near, fixed_effect = np.array(order), np.array(near), np.array(fixed_effect)
-            cut = int(len(person.g) * TRAIN_FRACTION)
             train, test = order < cut - bins, order >= cut
             if test.sum() < 100:
                 continue
@@ -1080,7 +1182,7 @@ def reliability_study(people, label):
         ratio_icr.append(abs(math.log((fits[0][0] / fits[0][1]) / (fits[1][0] / fits[1][1]))))
         whole = fit_ols(*design(windows))
         if person.food_ratio and whole[0] > 0 and whole[1] > 0:
-            cfg.append(float(np.median(person.food_ratio)))
+            cfg.append(person.carb_ratio())
             est.append(whole[0] / whole[1])
     print(f"\n### {label}: free fit, alternate weeks against each other")
     print(f"{kept} people with enough meals in both halves; {bad} gave a negative coefficient in a half")
@@ -1183,12 +1285,14 @@ def main():
         print(f"\n## {label}: {len(people)} people, median {np.median(days):.0f} days and "
               f"{np.median(meals):.0f} isolated meals each")
         if label == "AZT1D":
-            ratios = [float(np.median(p.food_ratio)) for p in people if p.food_ratio]
+            ratios = [p.carb_ratio() for p in people if p.food_ratio]
             print(f"Pump carb ratios: {median_iqr(ratios)} g/U")
         collinearity_study(people, label)
         composition_study(people, label)
         net_outcome_study(people, label)
         outcome_study(people, label)
+        tuning_gain_study(people, label)
+        drawing_layer_study(people, label)
         reliability_study(people, label)
         circularity_study(people, label)
         recovery_study(people, label)

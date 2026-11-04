@@ -36,40 +36,50 @@ The adaptive forecast is the exception: it reads none of them. Measured LOW and 
 - **AZT1D**: 25 people on Control-IQ pumps, about 44 days each. It carries the pump's real settings, which gives something to measure against. The carb ratio comes from `CarbSize / FoodDelivered`. The correction factor comes from `(glucose − 110) / (correction + IOB)` on user-started boluses, and it comes back in tight clusters for 19 people, ranging from 3 to 117 mg/dL per unit.
 - **HUPA-UCM**: 12 people on injections, a median of 14 days each. Only 3 of them have enough meals for the held-out test, so it cannot confirm anything by itself.
 
-Training days always come before the days scored. "x1.25" means typically off by a factor of 1.25 in either direction.
+In the held-out tables, training days come before the days scored, and every input comes from the training days alone: pump ratio, pump factor, daily insulin and usual basal. Comparisons against the pump use the whole record, because they score no later days. "x1.25" means typically off by a factor of 1.25 in either direction.
 
-### Tuned coefficients fix the what-if, not the forecast
+### Better coefficients help the what-if a little, and the forecast not at all
 
-A meal's what-if is a small difference between two large numbers. On a typical meal, carbs push +196 mg/dL and insulin pushes −252, which sums to −56, while glucose actually moved +2. A 10 % error in either side is a 20–25 mg/dL error in the answer.
+A meal's what-if is a small difference between two large numbers. On a typical meal, carbs push +196 mg/dL and insulin pushes −253, which sums to −57, while glucose actually moved +2. A 10 % error in either side is a 20–25 mg/dL error in the answer.
 
-So the starting coefficients matter a lot. Mean error of the change 4 hours after a meal on held-out days, as the median across 22 people:
+Mean error of the change 4 hours after a meal on held-out days, as the median across 22 people:
 
-| Coefficients | Error, mg/dL | Against "no change" |
+| What draws the what-if | Error, mg/dL | Against "no change" |
 |---|---:|---:|
-| App defaults | 123 | +177 % |
-| The pump's own settings (18 people) | 73 | +37 % |
-| Pump ratio and 1800 rule | 63 | +43 % |
-| Fitted to the person | 40 | −8 % |
+| App defaults | 117 | +187 % |
+| The pump's own settings (17 people) | 75 | +51 % |
+| Pump ratio and 1800 rule | 67 | +52 % |
 | No change at all | 43 | |
+| Experimental fit: ISF, carbs and a drift term, all free | 40 | −8 % |
 | CGM level and trend only, no coefficients | 31 | −23 % |
 
-Fitting cuts the what-if's error by about 40 % against the numbers people really use, and by two thirds against the app's defaults. This is why the issue is worth doing: today's what-if is worse than drawing a flat line, and tuned coefficients take that away.
+So today's what-if is worse than drawing a flat line. The experimental fit is not something a person can save, though. A profile holds an ISF and an ICR, with nowhere to put a drift term, and drift alone scores 38. Here is what saving a fitted ICR delivers, with the person's ISF kept and both values inside the app's limits:
 
-Two limits come with it. Fitted coefficients still lose to a model that knows nothing about the meal. And they do not improve the forecast itself:
+| Starting values | Error before | Error after | Median change | People improved |
+|---|---:|---:|---:|---:|
+| App defaults | 117 | 80 | −33 % | 18 of 22 |
+| Pump ratio and 1800 rule | 67 | 64 | −9 % | 15 of 22 |
+| The pump's own settings | 75 | 64 | −10 % | 11 of 17 |
+
+That is a real gain for someone still on the defaults and a small one for anyone else, and the result still loses to a flat line for most people.
+
+It also comes at a price. This ICR is fitted with nothing else in the model, and it reads 0.75 of the pump's ratio (x1.33), close to the person's own grams per unit of all insulin given. Saving it would raise meal doses by about a third. The ICR that stays nearest the pump is the one fitted with a CGM baseline (next section), and it does not help the what-if: 72 mg/dL from the same starting point. **The number that fits the what-if and the number fit for dosing are different numbers.** Because one profile feeds doses, PR 4 offers the second, and fixes the what-if separately with a correction used only for drawing, which is the experimental fit above. Its parts are unstable but its curves are usable: fits from separate weeks end 19 mg/dL apart on meals neither saw, against 29 mg/dL of ordinary spread.
+
+Better coefficients do not improve the forecast either:
 
 | Horizon | CGM only | + fitted insulin and carbs | + fixed coefficients |
 |---:|---:|---:|---:|
-| 30 min | 14.3 | 14.3 | 22.0 |
-| 60 min | 23.2 | 23.1 | 35.8 |
-| 120 min | 31.2 | 30.5 | 50.3 |
+| 30 min | 14.3 | 14.3 | 22.2 |
+| 60 min | 23.2 | 23.1 | 36.1 |
+| 120 min | 31.2 | 30.5 | 49.8 |
 
 This fits #774's finding that logged treatments hurt the forecast. Wrong coefficients look like the reason, but even well-fitted ones only reach parity with CGM alone.
 
-**So this work improves what-ifs, dosing arithmetic and the person's understanding of their insulin. It should not be sold as better forecasts.**
+**So this work gives a person a sensible ICR, an honest ISF, a clearer view of how their insulin behaves, and a what-if that stops misleading them. It should not be sold as better forecasts, and saving coefficients alone does not fix the what-if.**
 
 ### ICR can be estimated when meals are logged
 
-Fitting ICR with ISF held at its current value lands x1.20 from the pump's ratio, with a median ratio of 1.00. The result depends little on the ISF chosen: moving ISF across a fourfold range moves ICR by only x1.16. It is also not just the person's dosing habit, because raw grams per unit sits further from the pump (x1.36) than the fit does.
+Fitting ICR with ISF held at its current value lands x1.20 from the pump's ratio, with a median ratio of 1.00. The result depends little on the ISF chosen: moving ISF across a fourfold range moves ICR by only x1.16. It is also not just the person's dosing habit, because raw grams per unit sits further from the pump (x1.35) than the fit does. This is the dosing figure, not the what-if figure, as the previous section explains.
 
 Logging only some meals costs precision, but less than expected. Hiding meals at random, over 30 draws:
 
@@ -77,7 +87,7 @@ Logging only some meals costs precision, but less than expected. Hiding meals at
 |---:|---:|---:|
 | All | 1.00 | x1.20 |
 | Half | 1.14 | x1.28 |
-| A quarter | 1.16 | x1.34 |
+| A quarter | 1.17 | x1.34 |
 
 Even a quarter of meals beats logging none (x1.60, below), so partial logging is worth supporting. The estimate does lean about 15 % high, which means too little insulin per gram, and single draws range from 0.88 to 1.49. Real logging is not random either: people skip certain meals, not arbitrary ones.
 
@@ -95,7 +105,7 @@ Every attempt to measure ISF was compared against the pump's factor, with carbs 
 
 | Estimator | Median estimate / pump | Typical miss |
 |---|---:|---:|
-| Naive: drop per unit after corrections, away from logged meals | 0.41 | x2.44 |
+| Naive: drop per unit after corrections, away from logged meals | 0.41 | x2.45 |
 | Fitted jointly with ICR from meals | 0.34 | x2.91 |
 | Envelope: top 10 % of drop per unit, 60 min | 0.92 | x1.25 |
 | The same, with drops paired to random insulin (placebo) | 0.81 | x1.38 |
@@ -103,8 +113,8 @@ Every attempt to measure ISF was compared against the pump's factor, with carbs 
 
 - **The bias is in the dangerous direction.** A naive reading of 0.41 of the real factor would make corrections about 2.5 times too large. An ISF estimate from outcomes must not reach dosing until it clears this.
 - **More data will not fix it.** Rebuilding glucose from real treatment logs with a known ISF recovers it to x1.10 from 20 meals and x1.04 from 80. So the limit is not sample size. The failure looks structural: insulin is given because of what glucose is doing, and food, the loop and changing sensitivity all move with it.
-- **The envelope looks like the answer and mostly is not.** It removes the bias (0.41 to 0.92) and survives cross-validation at x1.25. But pairing each drop with insulin from a random other time still gives x1.38, and real and shuffled estimates correlate 0.94 across people. Most of its accuracy is ordinary glucose swing divided by a typical dose, which scales with daily insulin, which is the 1800 rule in disguise. A faint real signal remains: real beats shuffled for 18 of 25 people, and it tracks the pump's distance from the rule at +0.62 against about +0.3 for the placebo. With 19 people that gap is suggestive, not established.
-- **Better-designed tests could not run on this data.** A counterfactual trained on insulin-free windows and quiet corrections reached 3–4 people, because a closed loop almost never leaves insulin alone. Seven people have enough quiet corrections, at about 1.7 a week.
+- **The envelope looks like the answer and mostly is not.** It removes the bias (0.41 to 0.92) and survives cross-validation at x1.26. But pairing each drop with insulin from a random other time still gives x1.38, and real and shuffled estimates correlate 0.95 across people. Most of its accuracy is ordinary glucose swing divided by a typical dose, which scales with daily insulin, which is the 1800 rule in disguise. A faint real signal remains: real beats shuffled for 19 of 25 people, and it tracks the pump's distance from the rule at +0.63 against about +0.3 for the placebo. With 19 people that gap is suggestive, not established.
+- **Better-designed tests could not run on this data.** A counterfactual trained on insulin-free windows and quiet corrections reached 3–4 people, because a closed loop almost never leaves insulin alone. Seven people have enough quiet corrections, at about 1.9 a week.
 
 The 1800 rule's agreement has a caveat of its own: pump factors may have been set from that rule, so agreement shows it matches what clinicians set, not that it is true for the person.
 
@@ -115,7 +125,7 @@ The rule needs only logged insulin, and it holds up when the logging is thin:
 | Input | Median estimate / pump | Typical miss |
 |---|---:|---:|
 | All insulin, whole history | 1.04 | x1.23 |
-| First 14 days only | 1.08 | x1.28 |
+| First 14 days only | 1.11 | x1.22 |
 | Boluses only, doubled because basal is not logged | 1.06 | x1.24 |
 
 It is personal, it follows the person as their insulin use changes, and it needs no meals. It cannot see differences between time blocks.
@@ -144,12 +154,16 @@ Taken by the project owner on this evidence:
 | Saving | One profile, a confirm sheet, a dated history, undo | PR 4 |
 | Insulin in adaptive prediction | A switch under the Adaptive prediction toggle, shown when that is on | PR 6 |
 | Alerts on the new curve | Wanted, as separate work | PR 7 |
+| Closed-loop users | The feature is optional, so nothing is tailored to them | No notes, checks or separate paths for AAPS |
+| Rough ICR with no food logged | Show it | PR 4 shows it and it can be saved like any other estimate |
+| The 1800 constant | Adjustable | PR 4, in Model profile |
 
 ## Rules for all of it
 
 - **Nothing changes a coefficient without the person confirming it.** Estimates are shown and refreshed on their own, and only the confirm sheet writes to the profile. This keeps the project's standing rule of no automatic treatment adjustment.
 - **Trial values stay inside the screen.** They reach no reader in the table above.
-- **Each estimate says how it was reached.** A figure from logged meals and a figure from insulin totals are labelled differently, and each carries a range.
+- **The what-if correction only draws.** It reaches no reader in the table above and is not a coefficient.
+- **Each estimate says how it was reached.** A figure from logged meals and a figure from insulin totals are labelled differently, and each carries a range. That is the whole of the copy: this is an optional experiment, so no warnings or advice around it.
 - **An outcome-based ISF never reaches dosing until PR 5's gate passes.** The bias runs toward bigger doses.
 - **Nothing leaves the phone.** All of this runs locally. Personal data is not committed or uploaded, and any run on real exports stays on the machine of the person who owns the data.
 
@@ -191,11 +205,12 @@ Keeps what the app said at the time, which replay cannot do, and puts the line o
 
 - **ICR per block**: fitted from logged meals with the block's current ISF and a CGM level and trend baseline, shown with its range. Needs 15 isolated meals in the block.
 - **Partial logging**: fewer logged meals widen the range rather than block the estimate, since even a quarter of meals beats none. The share of boluses with carbs logged nearby feeds that range, so a person who logs little sees it.
-- **ISF**: from the last 14 days of insulin, doubling boluses if basal is not logged. One value for the whole day, labelled as coming from insulin totals.
-- **No food logging**: the same ISF, with ICR shown as a rough figure from ISF and a wide range, and not offered for saving. Logging 15 meals in a block replaces it with a real estimate.
+- **ISF**: from the last 14 days of insulin, doubling boluses if basal is not logged. One value for the whole day, labelled as coming from insulin totals. The constant defaults to 1800 mg/dL and is adjustable in Model profile, shown in the person's unit.
+- **No food logging**: the same ISF, with ICR as a rough figure from ISF and a wide range, labelled as rough and savable like the rest. Logging 15 meals in a block replaces it with a real estimate.
+- **What-if correction**: a free fit of ISF, carbs and drift on past meals, used only to draw the what-if once 15 meals exist. Replay shows the line with and without it.
 - **Use these values**: a confirm sheet showing the effect in concrete terms, such as "a 60 g meal: 6.0 U → 7.1 U", and naming what follows: doses, hints and alert gates. Saving writes to the one profile and to `coefficient_history`. Undo restores the previous entry.
 
-**Done when** a test proves no path writes the profile without the sheet, and the Kotlin benchmark reproduces the ICR table within its intervals.
+**Done when** a test proves no path writes the profile without the sheet, a test proves the what-if correction reaches no reader in the table above, and the Kotlin benchmark reproduces the ICR and held-out tables within their intervals.
 
 ### 5. Measuring ISF
 
@@ -226,14 +241,6 @@ The largest safety change here, so it comes last and stands alone. PRE_LOW and P
 
 **Done when** the benchmark shows more lows caught at no more alarms on both datasets, and the fallback has tests. This needs its own sign-off.
 
-## Questions still open
-
-None of these blocks PR 1:
-
-1. **Closed-loop users.** A loop muddies the outcomes: should estimates from AAPS users carry a note, or be hidden?
-2. **Rough ICR with no food logged.** PR 4 shows it but does not offer it for saving. Is showing it useful, or does it invite use?
-3. **The rule's constant.** 1800 is standard for mg/dL, and the data agrees with it (1.04). Should it stay fixed, or be settable for people who know theirs differs?
-
 ## Reproducing the numbers
 
 Download AZT1D (doi:10.17632/gk9m674wcx.1) and HUPA-UCM (doi:10.17632/3hbcscwz44.1), both CC BY 4.0 on Mendeley Data. Neither is committed. Then, with numpy installed:
@@ -245,4 +252,4 @@ python3 tools/coefficient_feasibility.py \
     --peak 75
 ```
 
-It takes under a minute and prints every table above. The random seeds are fixed. `--peak` sets the assumed insulin peak.
+It takes under a minute and prints the figures above. The random seeds are fixed. `--peak` sets the assumed insulin peak.
