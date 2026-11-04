@@ -13,7 +13,7 @@ class LumiflexCloudUploader(
     private val settings: LumiflexCloudSettings,
     private val queue: LumiflexCloudQueue,
     private val sleep: (Long) -> Unit = { Thread.sleep(it) },
-    private val sensorIds: () -> LumiflexCloudClient.DeviceList = {
+    private val sensorIds: (String) -> LumiflexCloudClient.DeviceList = {
         LumiflexCloudClient.DeviceList.Ok(emptyMap())
     },
 ) {
@@ -25,6 +25,13 @@ class LumiflexCloudUploader(
         val trendIndex: Int,
     )
 
+    private data class Session(
+        val token: String,
+        val userId: String,
+        val account: String,
+        val generation: Long,
+    )
+
     sealed class FlushResult {
         data class Success(val uploaded: Int) : FlushResult()
         data class Unauthorized(val uploaded: Int) : FlushResult()
@@ -34,8 +41,10 @@ class LumiflexCloudUploader(
     @Synchronized
     fun flush(): FlushResult {
         if (!settings.enabled) return FlushResult.Success(0)
-        val token = settings.token
-        if (token.isBlank()) return FlushResult.Unauthorized(0)
+        val session = Session(settings.token, settings.userId, settings.account, settings.sessionGeneration)
+        if (session.token.isBlank()) return FlushResult.Unauthorized(0)
+
+        queue.clearIfOwnerMismatch(session.account)
 
         val pending = queue.peek()
         val unusable = pending.filter { it.mgdl <= 0 }
@@ -44,10 +53,10 @@ class LumiflexCloudUploader(
         if (usable.isEmpty()) return FlushResult.Success(0)
 
         var uploaded = 0
-        val sensorIdBySerial = when (val devices = sensorIds()) {
+        val sensorIdBySerial = when (val devices = sensorIds(session.token)) {
             is LumiflexCloudClient.DeviceList.Ok -> devices.sensorIdBySerial
             LumiflexCloudClient.DeviceList.Unauthorized -> {
-                clearTokenIfCurrent(token)
+                if (isCurrent(session)) clearTokenIfCurrent(session.token)
                 return FlushResult.Unauthorized(0)
             }
             is LumiflexCloudClient.DeviceList.Failed -> {
@@ -67,10 +76,11 @@ class LumiflexCloudUploader(
                 var lastMessage = ""
                 while (attempt < LumiflexCloudConstants.RETRY_LIMIT && !success) {
                     if (!settings.enabled) return FlushResult.Success(uploaded)
+                    if (!isCurrent(session)) return FlushResult.Success(uploaded)
                     attempt++
                     val result = client.uploadGlucose(
-                        token = token,
-                        userId = settings.userId,
+                        token = session.token,
+                        userId = session.userId,
                         records = batch.map { it.copy(sensorId = sensorId) },
                         nowMs = System.currentTimeMillis(),
                     )
@@ -80,7 +90,7 @@ class LumiflexCloudUploader(
                             lastCode = result.code
                             lastMessage = result.message
                             if (result.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
-                                clearTokenIfCurrent(token)
+                                if (isCurrent(session)) clearTokenIfCurrent(session.token)
                                 return FlushResult.Unauthorized(uploaded)
                             }
                             if (attempt < LumiflexCloudConstants.RETRY_LIMIT) {
@@ -98,6 +108,13 @@ class LumiflexCloudUploader(
         if (uploaded > 0) settings.lastSyncMs = System.currentTimeMillis()
         return FlushResult.Success(uploaded)
     }
+
+    /** True while the stored session is still the one this flush started with. */
+    private fun isCurrent(session: Session): Boolean =
+        settings.token == session.token &&
+            settings.userId == session.userId &&
+            settings.account == session.account &&
+            settings.sessionGeneration == session.generation
 
     /** A 401 that belongs to a session the patient has already replaced must not sign them out. */
     private fun clearTokenIfCurrent(session: String) {
@@ -144,7 +161,7 @@ class LumiflexCloudUploader(
                 val start = sensorStartProvider(sensorSerial)
                 val records = toRecords(rows, start)
                 if (records.isEmpty()) return
-                current.queue.enqueueAll(records)
+                current.queue.enqueueAll(records, current.settings.account)
                 requestFlush(context)
             } catch (error: Throwable) {
                 tk.glucodata.Log.stack(LOG_ID, "onHistoryStored", error)
@@ -164,13 +181,18 @@ class LumiflexCloudUploader(
             }.getOrDefault(SensorSourceResolver.SENSOR_KIND_UNKNOWN)
         }
 
+        internal var cloneOwnerProvider: (String) -> Boolean = { serial ->
+            tk.glucodata.CloneSensorRegistry.isCloneSensor(serial)
+        }
+
         internal fun sensorIdFor(bySerial: Map<String, String>, serial: String): String? {
             val bare = AiDexSerialIdentity.bareSerial(serial)
             return bySerial[serial] ?: bySerial[bare] ?: bySerial["X-$bare"]
         }
 
         internal fun shouldUpload(serial: String): Boolean =
-            sensorKindProvider(serial) == SensorSourceResolver.SENSOR_KIND_AIDEX
+            sensorKindProvider(serial) == SensorSourceResolver.SENSOR_KIND_AIDEX &&
+                !cloneOwnerProvider(serial)
 
         private fun stateFor(context: Context): State {
             synchronized(lock) {
@@ -199,7 +221,7 @@ class LumiflexCloudUploader(
                     client = current.client,
                     settings = current.settings,
                     queue = current.queue,
-                    sensorIds = { current.client.devicesBySensorSerial(current.settings.token) },
+                    sensorIds = { token -> current.client.devicesBySensorSerial(token) },
                 )
                 uploader.flush()
             } catch (error: Throwable) {

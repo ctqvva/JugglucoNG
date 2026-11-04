@@ -68,19 +68,21 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
 
     var enabled by remember { mutableStateOf(initial.enabled) }
     var account by remember { mutableStateOf(initial.account) }
+    var authenticatedAccount by remember {
+        mutableStateOf(if (initial.isSignedIn()) initial.account else "")
+    }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf(initial.lastSyncMs) }
     var testing by remember { mutableStateOf(false) }
     var testMessage by remember { mutableStateOf<String?>(null) }
-    var signedIn by remember { mutableStateOf(initial.token.isNotBlank()) }
+    var signedIn by remember { mutableStateOf(initial.isSignedIn()) }
     var signInGeneration by remember { mutableIntStateOf(0) }
     val hasCredentials = account.isNotBlank() && password.isNotBlank()
 
     fun save() {
         val settings = LumiflexCloudSettings(context)
         settings.enabled = enabled
-        settings.account = account
         status = settings.lastSyncMs
     }
 
@@ -102,17 +104,18 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
                 when (result) {
                     is LumiflexCloudClient.LoginResult.Ok -> {
                         val settings = LumiflexCloudSettings(context)
-                        settings.account = result.account
-                        settings.token = result.token
-                        settings.userId = result.userId
+                        settings.startSession(result.account, result.token, result.userId)
                         enabled = true
                         save()
                         signedIn = true
+                        authenticatedAccount = result.account
+                        account = result.account
                         testMessage = context.getString(R.string.lumiflex_status_signed_in)
                         password = ""
                     }
                     is LumiflexCloudClient.LoginResult.Failed -> {
-                        signedIn = false
+                        // Keep the previous session intact: a failed attempt must not leave a
+                        // mixed state where the token belongs to one account and the field to another.
                         testMessage = context.getString(
                             R.string.lumiflex_status_sign_in_failed,
                             result.message.ifBlank { result.kind.name },
@@ -127,22 +130,25 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
         signInGeneration++
         testing = false
         val settings = LumiflexCloudSettings(context)
-        settings.token = ""
+        settings.endSession()
         settings.enabled = false
         enabled = false
         signedIn = false
+        authenticatedAccount = ""
         testMessage = context.getString(R.string.lumiflex_status_signed_out)
         save()
     }
 
     DisposableEffect(Unit) {
-        onDispose { if (account != initial.account || enabled != initial.enabled) save() }
+        onDispose { if (enabled != initial.enabled) save() }
     }
 
     LaunchedEffect(Unit) {
         while (true) {
-            status = LumiflexCloudSettings(context).lastSyncMs
-            signedIn = LumiflexCloudSettings(context).token.isNotBlank()
+            val settings = LumiflexCloudSettings(context)
+            status = settings.lastSyncMs
+            signedIn = settings.isSignedIn()
+            if (!signedIn) authenticatedAccount = ""
             delay(1_000)
         }
     }
@@ -250,6 +256,20 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+
+            if (signedIn) {
+                Text(
+                    text = stringResource(R.string.lumiflex_signed_in_as, authenticatedAccount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Text(
+                text = stringResource(R.string.lumiflex_session_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             Text(
                 text = stringResource(

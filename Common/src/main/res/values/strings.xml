@@ -3482,4 +3482,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_status_signed_in">Signed in</string>
     <string name="lumiflex_status_signed_out">Signed out</string>
     <string name="lumiflex_status_sign_in_failed">Sign-in failed: %1$s</string>
+    <string name="lumiflex_signed_in_as">Signed in as %1$s</string>
+    <string name="lumiflex_session_note">Signing in here signs the official Lumiflex app out, and vice versa: one session per account.</string>
 </resources>

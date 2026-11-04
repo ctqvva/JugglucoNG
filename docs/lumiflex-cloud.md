@@ -19,7 +19,9 @@ version.
 
 Uploads go through a persistent queue: readings are batched, retried with exponential backoff, and a
 401 clears the session so the settings screen asks for a new sign-in. Readings are only queued for
-sensors JNG itself is driving, and only while the channel is switched on.
+AiDex sensors JNG itself is driving, and only while the channel is switched on: history mirrored in
+through phone-to-phone Clone is never uploaded, and a reading enqueued for one account is dropped
+when the signed-in account changes.
 
 ## Followers
 
@@ -31,6 +33,9 @@ offers: *Switch display*, *Regular reminders*, *Urgent low*, *Extreme high*.
 
 - The Lumiflex cloud keeps **one session per account**: signing in from JNG signs the official app
   out, and vice versa. Use it as a replacement for the official upload, not alongside it.
+- The account, token and user id are stored as one session and only replaced after a successful
+  sign-in; a failed attempt keeps the previous session, and the pending queue is bound to the account
+  that produced it.
 - A sensor must already be registered on the account (paired in the official app) — JNG resolves the
   server-side `sensorId` from the device list by `deviceSn`; readings for an unknown serial stay
   queued instead of being sent.

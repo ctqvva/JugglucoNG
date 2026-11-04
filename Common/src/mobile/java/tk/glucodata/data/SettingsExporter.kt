@@ -300,7 +300,7 @@ object SettingsExporter {
             } else editor.clear()
             return editor
         }
-        val importedNames = exportedPreferences.keySet()
+        val importedNames = exportedPreferences.keySet().filterNot(::isSecretPreferenceFile)
         discoverSharedPreferenceNames(context)
             .filterNot { it in importedNames }
             .forEach { name ->
