@@ -17,9 +17,8 @@ class JournalChipDensityTests {
         entries: List<JournalChipDensity.Entry>,
         hours: Long = 24,
         width: Float = 360f,
-        height: Float = 240f,
         chipHeight: Float = 26f
-    ) = JournalChipDensity.leaders(entries, hours * hour, width, height, chipHeight)
+    ) = JournalChipDensity.leaders(entries, hours * hour, width, chipHeight, 4f)
 
     @Test fun sparseThreeDayViewKeepsIndividualLabels() {
         assertArrayEquals(intArrayOf(0, 1, 2), leaders(listOf(entry(0), entry(1440), entry(2880)), hours = 72))
@@ -30,16 +29,18 @@ class JournalChipDensityTests {
     }
 
     @Test fun largerScreenRetainsLabelsAtTheSameZoom() {
-        val entries = (0L..3L).map { entry(it * 30) }
-        assertArrayEquals(intArrayOf(0, 0, 0, 0), leaders(entries))
-        assertArrayEquals(intArrayOf(0, 1, 2, 3), leaders(entries, width = 1200f))
+        val entries = listOf(entry(0), entry(120))
+        assertArrayEquals(intArrayOf(0, 0), leaders(entries))
+        assertArrayEquals(intArrayOf(0, 1), leaders(entries, width = 1200f))
     }
 
-    @Test fun measuredTextSizeAndAvailableHeightAffectCrowding() {
-        val entries = (0L..2L).map { entry(it * 15) }
-        assertArrayEquals(intArrayOf(0, 1, 2), leaders(entries))
-        assertArrayEquals(intArrayOf(0, 0, 0), leaders(entries.map { it.copy(width = 120f) }, chipHeight = 40f))
-        assertArrayEquals(intArrayOf(0, 0, 0), leaders(entries, height = 160f))
+    @Test fun measuredTextSizeAndPreferredHeightAffectOverlap() {
+        val entries = listOf(entry(0), entry(360))
+        assertArrayEquals(intArrayOf(0, 1), leaders(entries))
+        assertArrayEquals(intArrayOf(0, 0), leaders(entries.map { it.copy(width = 120f) }))
+        val separateHeights = listOf(entry(0), entry(30).copy(top = 36f))
+        assertArrayEquals(intArrayOf(0, 1), leaders(separateHeights))
+        assertArrayEquals(intArrayOf(0, 0), leaders(separateHeights, chipHeight = 40f))
     }
 
     @Test fun onlyAdditiveEntriesOfTheSameIdentityShareTotals() {
@@ -56,7 +57,7 @@ class JournalChipDensityTests {
         assertTrue(result.toSet().size > 1)
         result.indices.groupBy { result[it] }.values.forEach { members ->
             val spanPx = (entries[members.last()].timestamp - entries[members.first()].timestamp) * 360.0 / (24 * hour)
-            assertTrue(spanPx <= 80.0)
+            assertTrue(spanPx < 84.0)
         }
     }
 
@@ -65,6 +66,17 @@ class JournalChipDensityTests {
         val result = leaders(entries)
         assertEquals(6, result[6])
         assertEquals(7, result[7])
+    }
+
+    @Test fun emptySpaceAboveTheInsulinBandDoesNotPreventCompaction() {
+        val entries = (0L..5L).map { entry(it * 30, "rapid") }
+        assertArrayEquals(leaders(entries), leaders(entries.map { it.copy(top = 900f) }))
+        assertEquals(1, leaders(entries).toSet().size)
+    }
+
+    @Test fun densePilesCanCrossAnUnrelatedEntryWithoutChangingIdentity() {
+        val entries = listOf(entry(0, "rapid"), entry(60, "basal"), entry(120, "rapid"))
+        assertArrayEquals(intArrayOf(0, 1, 0), leaders(entries))
     }
 
     @Test fun panDoesNotRegroupTheJournal() {

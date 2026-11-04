@@ -8,52 +8,40 @@ internal fun journalChipKind(marker: JournalChartMarker): Any =
     if (marker.type == JournalEntryType.INSULIN) marker.title to marker.accentColor else marker.type
 
 /**
- * Folds additive labels only where their measured footprint would crowd the chart.
+ * Folds additive labels whose preferred rectangles overlap.
  * No time-range cutoff: sparse days keep their chips, busy hours can share a pile.
  */
 internal object JournalChipDensity {
-    internal data class Entry(val timestamp: Long, val width: Float, val mergeKey: Any?)
+    internal data class Entry(val timestamp: Long, val width: Float, val mergeKey: Any?, val top: Float = 0f)
 
     /**
-     * Entries are in time order. Each local neighbourhood spans at most one label's width
-     * from its first entry, so a continuous run of doses cannot chain into one huge total.
-     * Labels may occupy 30% of that neighbourhood's chart area before additive entries
-     * share a pile. Notes and fingersticks contribute to crowding but never fold here.
+     * Entries are in time order. Compare the measured labels where they would actually sit,
+     * before the chip solver spreads them across the glucose curve. Empty chart space above
+     * a busy insulin band cannot make that band less crowded. Different insulins and labels
+     * at separate heights remain independent. Each group is bounded by its first label's
+     * rectangle, so a continuous run of doses cannot chain into one huge total.
      *
-     * Run over the whole journal at the settled zoom: neither membership nor the density
-     * calculation depends on the viewport's pan position. Returns each entry's pile leader.
+     * Run over the whole journal at the settled zoom. Horizontal membership does not depend
+     * on the viewport's pan position. Returns each entry's pile leader.
      */
     fun leaders(
         entries: List<Entry>,
         durationMillis: Long,
         chartWidth: Float,
-        chartHeight: Float,
-        chipHeight: Float
+        chipHeight: Float,
+        gap: Float
     ): IntArray {
         val leaders = IntArray(entries.size) { it }
-        if (entries.isEmpty() || durationMillis <= 0 || chartWidth <= 0f ||
-            chartHeight <= 0f || chipHeight <= 0f) return leaders
-        val maxWidth = entries.maxOf { it.width }.coerceAtLeast(1f)
-        val reachMillis = (maxWidth * durationMillis.toDouble() / chartWidth).toLong().coerceAtLeast(1L)
-        var first = 0
-        while (first < entries.size) {
-            var end = first + 1
-            var widthSum = entries[first].width
-            while (end < entries.size && entries[end].timestamp - entries[first].timestamp <= reachMillis) {
-                widthSum += entries[end].width
-                end++
-            }
-            val span = (entries[end - 1].timestamp - entries[first].timestamp).toDouble() * chartWidth / durationMillis
-            val footprint = widthSum * chipHeight
-            val budget = (span + maxWidth) * chartHeight * 0.30
-            if (footprint > budget) {
-                val firstByKey = HashMap<Any, Int>()
-                for (index in first until end) {
-                    val key = entries[index].mergeKey ?: continue
-                    leaders[index] = firstByKey.getOrPut(key) { index }
-                }
-            }
-            first = end
+        if (entries.isEmpty() || durationMillis <= 0 || chartWidth <= 0f || chipHeight <= 0f) return leaders
+        val openByKey = HashMap<Any, MutableList<Int>>()
+        entries.forEachIndexed { index, entry ->
+            val key = entry.mergeKey ?: return@forEachIndexed
+            val open = openByKey.getOrPut(key) { ArrayList() }
+            fun distanceX(first: Int) = (entry.timestamp - entries[first].timestamp).toDouble() * chartWidth / durationMillis
+            open.removeAll { distanceX(it) >= entries[it].width + gap }
+            val host = open.filter { kotlin.math.abs(entry.top - entries[it].top) < chipHeight + gap }
+                .minByOrNull { kotlin.math.abs(entry.top - entries[it].top) }
+            if (host == null) open += index else leaders[index] = host
         }
         return leaders
     }
