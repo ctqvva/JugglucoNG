@@ -417,6 +417,13 @@ class CloneReceptionSafetyTests {
         }
     }
 
+    /** A web request asks only the phones this one mirrors from to send; it reconnected every peer. */
+    @Test
+    fun webRequestsWakeOnlyTheHostsThisPhoneReceivesFrom() {
+        val backup = source("Common/src/main/cpp/datbackup.cpp").replace(Regex("\\s+"), " ")
+
+        assertTrue(backup.contains("else if(sourcesOnly&&!host.receivedatafrom()) {"))
+        assertTrue(backup.contains("void wakesender() { backup->getupdatedata()->wakesender(8 /*wakeall*/,true); }"))
     /**
      * 2026-11-02: after overlapping reconnects the sender sat in s_recvni for hours waiting
      * for a handshake reply the receiver had already given up on. Its reads end like a TCP
