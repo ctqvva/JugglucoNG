@@ -471,6 +471,8 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     position = CardPosition.BOTTOM
                 )
             }
+
+            Libre3ManagedDriverSection()
         }
     }
 }

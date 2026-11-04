@@ -148,6 +148,17 @@ public class ScanNfcV {
     }
 
     static private int[] libre3scan(GlucoseCurve curve, MainActivity main, Vibrator vibrator, Tag tag) {
+        if (tk.glucodata.drivers.libre3.Libre3ManagedNfc.isEnabled()) {
+            // Kotlin-managed Libre 3 driver: no native Libre 3 code on this path.
+            final int[] managed = tk.glucodata.drivers.libre3.Libre3ManagedNfc.scanForUi(tag);
+            vibrator.cancel();
+            if (managed[0] == tk.glucodata.drivers.libre3.Libre3ManagedNfc.RESULT_PAIRED)
+                askpermission = true;
+            else
+                failure(vibrator);
+            curve.requestRender();
+            return managed;
+        }
         int value = 0;
         int ret = 0x100000;
         if (android.os.Build.VERSION.SDK_INT >= 26) {
@@ -297,7 +308,10 @@ public class ScanNfcV {
         startvibration(vibrator);
         curve.render.stepresult = GlucoseCurve.STEPBACK;
         {
-            if (!Natives.gethaslibrary()) {
+            // The legacy library is not needed when the Kotlin Libre 3 driver takes the scan.
+            final boolean managedLibre3 = tk.glucodata.drivers.libre3.Libre3ManagedNfc.isEnabled()
+                    && tk.glucodata.drivers.libre3.Libre3ManagedNfc.isLibre3Tag(tag);
+            if (!managedLibre3 && !Natives.gethaslibrary()) {
                 vibrator.cancel();
                 failure(vibrator);
                 if (main.openfile != null)
