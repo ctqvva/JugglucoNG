@@ -321,11 +321,6 @@ class MessageReceiver: WearableListenerService() {
                          return
                      }
                      val sourceId = messageEvent.sourceNodeId
-                     val it = sender.findnodeid(sourceId)
-                     if (it < 0) {
-                         Log.e(LOG_ID, "sender.findnodeid(sourceId)<0")
-                         return
-                     }
                      val nodes = sender.nodes
                      if (nodes.isNullOrEmpty()) {
                          Log.e(LOG_ID, "3: no nodes")
@@ -334,7 +329,11 @@ class MessageReceiver: WearableListenerService() {
                          }
                          return;
                      }
-                     val node: Node = nodes.elementAt(it)
+                     val node = nodes.firstOrNull { it.id == sourceId }
+                     if (node == null) {
+                         Log.e(LOG_ID, "Can't find $sourceId")
+                         return
+                     }
                      Wearos.sendinitwatchapp(node);
                      MessageSender.sendProtocol(messageEvent.sourceNodeId)
                  }
