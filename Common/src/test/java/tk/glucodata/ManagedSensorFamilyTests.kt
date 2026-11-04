@@ -36,6 +36,7 @@ class ManagedSensorFamilyTests {
         assertEquals(7, ManagedSensorUiFamily.NIGHTSCOUT.nativeCode)
         // Code 8 is the first that needs the formerly reserved fourth bit.
         assertEquals(8, ManagedSensorUiFamily.MEDTRUM.nativeCode)
+        assertEquals(9, ManagedSensorUiFamily.LIBRE3.nativeCode)
         assertTrue(ManagedSensorUiFamily.entries.all { it.nativeCode in 0..15 })
         assertEquals(ManagedSensorUiFamily.entries.size, ManagedSensorUiFamily.entries.map { it.nativeCode }.toSet().size)
         for (family in ManagedSensorUiFamily.entries) {
