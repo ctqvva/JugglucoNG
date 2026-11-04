@@ -14,6 +14,9 @@ struct Reading {
     double rate = std::numeric_limits<double>::quiet_NaN();
     int sessionLength = 0, warmup = 0;
     bool history = false; // Libre 3 history is already sampled every five sensor minutes.
+    // Where the snapshot found it (sensor index and poll/history position), so
+    // Snapshot::exported can find the stored record again. -1: not set.
+    int source = -1, position = -1;
 };
 struct Number {
     std::string key, label;

@@ -19,18 +19,22 @@ requested in [issue 790](https://github.com/ctqvva/JugglucoNG/issues/790).
   outbox under `<app data>/clarity-indexed/<account>/`, and posts batches over mutual TLS.
   It wakes on every new reading (`wakewithcurrent`), on network changes and every
   five minutes, and backs off exponentially on errors with the batch kept.
-- **Values** are the ones the app shows: each reading goes through
+- **Values** are the ones the app shows: each uploaded reading goes through
   `resolveExportedMgdl()` (calibration and chosen lane), like Nightscout,
   the webserver and LibreView. Libre 3 history records have no raw value, so
-  they use the auto lane there too.
+  they use the auto lane there too. The snapshot keeps stored values and where
+  each reading lives; only the readings `Outbox::prepare` puts in a batch (at
+  most 256) are resolved, so an up-to-date scan makes no Java calls.
 - **Which sensor** a reading may come from: the one activated last, from its
   first usable reading on. Upstream ordered sensors by planned wear end, which
   blocked a 10-day G7 that replaced a 15-day Libre early. A sensor's first
   reading moves earlier when backfill arrives after it was first seen.
 - **Storage** maps through its own file descriptor and logs only the operation
   and errno, never a path: outbox paths contain the Dexcom account ID. A
-  checkpoint whose creation was interrupted before its first save restarts;
-  one that saved data and is damaged still stops uploads.
+  checkpoint restarts only when it provably holds an unfinished first creation
+  (4096 zero bytes, or two slots with slot 1 untouched and slot 0 empty or at
+  generation 1). Any other damaged or truncated checkpoint stops uploads rather
+  than forget acknowledgments.
 - **Options** live at the end of `Tings` (`settings->data()->clarity`): enabled,
   start date (default: 14 days before first start), Libre 3 history instead of
   stream, and amounts.
@@ -81,5 +85,5 @@ report "not built" rather than failing to link.
 certificate for that one connection) and `location` (the `Location` header of the
 final response; redirects are still the caller's decision).
 `tools/test-context-https.py` covers both. `tools/test-clarity-native.py` runs the
-outbox and storage on the host: sensor replacement, late backfill and interrupted
-checkpoint creation.
+outbox and storage on the host: sensor replacement, late backfill, which readings
+are resolved, interrupted checkpoint creation and truncated saved checkpoints.

@@ -60,6 +60,31 @@ class Worker {
     Json config, loginAttempt;
     GlucoseProgress glucoseProgress;
     using Options = Tings::ClaritySettingsData;
+    // The value every other export sends for a reading `snapshot` collected.
+    // Sensor storage only grows, so the position still names that record; the
+    // time check catches anything else, which then keeps the stored value.
+    static int exportedValue(const Reading &v) {
+        if (!sensors || v.source < 0 || v.position < 0)
+            return 0;
+        const auto *s = sensors->getSensorData(v.source);
+        if (!s)
+            return 0;
+        if (v.history) {
+            // History records have no raw counterpart (rawCurrent 0), as in LibreView.
+            if (v.position >= s->getScanendhistory())
+                return 0;
+            const auto *g = s->getglucose(v.position);
+            if (!g || !g->valid() || int64_t(g->gettime()) != v.time)
+                return 0;
+            return resolveExportedMgdlAt(s, s->shortsensorname(), g->gettime(), g->getmgdL(), 0);
+        }
+        const auto rows = s->getPolldata();
+        const auto *r = s->beginpolls() + v.position;
+        if (rows.empty() || r < rows.data() || r >= rows.data() + rows.size() ||
+            int64_t(r->gettime()) != v.time || !r->valid(0))
+            return 0;
+        return resolveExportedMgdl(s, r, s->shortsensorname());
+    }
     Snapshot snapshot(const Options &o) {
         Snapshot result;
         if (sensors)
@@ -79,25 +104,20 @@ class Worker {
                     if (!first && time >= start && time <= now && mgdl >= 20 && mgdl <= 600)
                         first = time;
                 };
-                // `resolve` is only called for readings that will be sent: it can
-                // call into Java, and older readings are never uploaded.
-                auto add = [&](int64_t time, int mgdl, double rate, auto resolve) {
+                // Stored values only: Outbox::prepare asks `exported` (below) for
+                // the few readings it actually sends.
+                auto add = [&](int64_t time, int mgdl, double rate, int position) {
                     noteFirst(time, mgdl);
-                    if (time >= o.since) {
-                        const int exported = resolve();
-                        result.readings.push_back({name, time, start, exported > 0 ? exported : mgdl, rate,
-                                                   wear, warmup, history});
-                    }
+                    if (time >= o.since)
+                        result.readings.push_back({name, time, start, mgdl, rate, wear, warmup, history,
+                                                   i, position});
                 };
                 if (history) {
                     const int end = receivedHistoryEnd(*s);
                     for (int p = s->getstarthistory(); p < end; ++p) {
                         auto *r = s->getglucose(p);
                         if (r->valid())
-                            // History records have no raw counterpart (rawCurrent 0), as in LibreView.
-                            add(r->gettime(), r->getmgdL(), std::numeric_limits<double>::quiet_NaN(),
-                                [&] { return resolveExportedMgdlAt(s, s->shortsensorname(), r->gettime(),
-                                                                   r->getmgdL(), 0); });
+                            add(r->gettime(), r->getmgdL(), std::numeric_limits<double>::quiet_NaN(), p);
                     }
                     // A newly active source still supersedes an older one
                     // while its first upload is waiting for backfill.
@@ -112,8 +132,7 @@ class Worker {
                     const auto rows = receivedStream(*s);
                     for (const auto &r : rows)
                         if (r.valid(0))
-                            add(r.gettime(), r.getmgdL(), r.getchange(),
-                                [&] { return resolveExportedMgdl(s, &r, s->shortsensorname()); });
+                            add(r.gettime(), r.getmgdL(), r.getchange(), int(&r - s->beginpolls()));
                     if (!first)
                         for (const auto &r : s->getPolldata()) {
                             if (r.valid(0))
@@ -126,6 +145,7 @@ class Worker {
                     result.sensors.push_back({name, start, int64_t(start) + wear, first});
                 mergeReadingRun(result.readings, runBegin);
             }
+        result.exported = exportedValue;
         struct Category { NumberKind kind; double weight; std::string label; };
         std::vector<Category> categories;
         bool mmol = false;

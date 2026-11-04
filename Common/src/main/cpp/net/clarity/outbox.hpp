@@ -2,6 +2,7 @@
 #pragma once
 #include "records.hpp"
 #include "number_inventory.hpp"
+#include <functional>
 #include <map>
 #include <memory>
 namespace clarity {
@@ -14,6 +15,10 @@ struct Snapshot {
     // Separate from eligible numbers: category/date filters must not delete
     // existing Clarity events. Only a complete retained source can do that.
     std::vector<NumberInventory> numberInventories;
+    // The value to upload for a reading (the app's calibrated, chosen lane),
+    // or <= 0 to keep Reading::mgdl. Called only for readings that go into a
+    // new batch, never for the whole snapshot: it can call into Java.
+    std::function<int(const Reading &)> exported;
 };
 struct GlucoseRange { int64_t count = 0, first = 0, last = 0; };
 struct GlucoseProgress { GlucoseRange acknowledged, pending; };
