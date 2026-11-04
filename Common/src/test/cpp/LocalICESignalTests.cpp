@@ -536,6 +536,56 @@ static void connectedRouteIsConfirmedAndFollowed() {
     globalbasedir = {};
 }
 
+// The route is reported on libjuice's thread while echoes arrive on the receive
+// thread. Whatever the order, the lock must end up matching the confirmation.
+static void multicastLockFollowsConcurrentRouteChanges() {
+    Link link;
+    auto *answerer = link.sessions[1]->impl.get();
+    answerer->multicastLockHeld = true;
+    std::atomic_int started{0}, ready{0}, finished{0}, delay{0};
+    std::atomic_bool done{false};
+    sockaddr_storage source{};
+    auto spin = [](int count) {
+        for (volatile int i = 0; i < count; i = i + 1) {}
+    };
+    std::thread receiver([&] {
+        for (int seen = 1;; ++seen) {
+            while (started < seen)
+                if (done) return;
+            ++ready;
+            while (ready < 2) {}
+            spin(delay);
+            answerer->noteEchoSource(source);
+            ++finished;
+        }
+    });
+    bool agreed = true;
+    for (int round = 1; agreed && round <= 300000; ++round) {
+        const in_addr_t host = htonl(0x0A000000 | (round * 2 + 1));
+        const in_addr_t next = htonl(0x0A000000 | (round * 2 + 2));
+        // Even rounds race an echo with its route being reported. Odd rounds
+        // race the echo confirming a route with the route moving on.
+        const bool moveOn = round % 2 != 0;
+        if (moveOn) answerer->connectedTo(host);
+        source = {};
+        auto &ipv4 = reinterpret_cast<sockaddr_in &>(source);
+        ipv4.sin_family = AF_INET;
+        ipv4.sin_addr.s_addr = host;
+        delay = (round / 2) % 64;
+        ready = 0;
+        finished = 0;
+        ++started;
+        ++ready;
+        while (ready < 2) {}
+        answerer->connectedTo(moveOn ? next : host);
+        while (finished < 1) {}
+        agreed = answerer->multicastLockHeld == !answerer->peerConfirmedHere();
+    }
+    done = true;
+    receiver.join();
+    require(agreed, "multicast lock disagrees with the confirmed route");
+}
+
 static void noTrafficAfterBothConnected() {
     Link link;
     link.start();
@@ -965,6 +1015,7 @@ int main() {
         {"both connected stop broadcasts", noTrafficAfterBothConnected},
         {"connected peer drops multicast lock but stays reachable", connectedPeerDropsMulticastLockButStaysReachable},
         {"connected route is confirmed and followed", connectedRouteIsConfirmedAndFollowed},
+        {"multicast lock follows concurrent route changes", multicastLockFollowsConcurrentRouteChanges},
         {"Rendezvous winner remains authoritative", [] { rendezvousWinnerIsPreserved(); }},
         {"late Hello cannot start a connected reply loop", [] { lateHelloDoesNotStartAReplyLoop(); }},
         {"existing Rendezvous connection is not renegotiated", [] { lateHelloDoesNotStartAReplyLoop(true); }},

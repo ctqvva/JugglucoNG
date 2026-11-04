@@ -365,19 +365,23 @@ struct LocalICESignalSession::Impl {
         }
     }
 
-    void releaseMulticastLock() {
+    // Route changes and confirmations come from different threads, and each
+    // calls this afterwards. Reading the state and changing the lease under one
+    // lock means the last caller settles it from the final state.
+    // Lock order: leaseMutex, then stateMutex.
+    void reconcileMulticastLock() {
         const std::lock_guard<std::mutex> lock(leaseMutex);
-        if (multicastLockHeld.exchange(false)) {
+        if (stopping.load(std::memory_order_acquire)) return; // stop() gives it back.
+        const bool confirmed = peerConfirmedHere();
+        if (confirmed != multicastLockHeld) return;
+        if (confirmed) {
+            multicastLockHeld = false;
             multicastLease(false);
             LOGARLOCALICE("connected; multicast lock released");
+        } else {
+            multicastLockHeld = multicastLease(true);
+            LOGARLOCALICE("connected route changed; multicast lock held again");
         }
-    }
-
-    void holdMulticastLock() {
-        const std::lock_guard<std::mutex> lock(leaseMutex);
-        if (stopping.load(std::memory_order_acquire) || multicastLockHeld) return;
-        multicastLockHeld = multicastLease(true);
-        LOGARLOCALICE("connected route changed; multicast lock held again");
     }
 
     bool echoedFromLocked(in_addr_t address) const {
@@ -422,8 +426,7 @@ struct LocalICESignalSession::Impl {
             storePeerAddress(label, in_addr{address});
             LOGARLOCALICE("remembered peer LAN address");
         }
-        if (connected.load(std::memory_order_acquire))
-            releaseMulticastLock();
+        reconcileMulticastLock();
     }
 
     // route: the peer's IPv4 on the selected ICE pair, 0 when there is none
@@ -447,7 +450,7 @@ struct LocalICESignalSession::Impl {
         if (seen)
             confirmPeer(route);
         else
-            holdMulticastLock();
+            reconcileMulticastLock();
     }
 
     void probeRoute(std::chrono::steady_clock::time_point now) {
