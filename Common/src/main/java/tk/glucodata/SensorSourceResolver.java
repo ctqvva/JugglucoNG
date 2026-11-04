@@ -150,6 +150,7 @@ public final class SensorSourceResolver {
             case OTTAI -> SENSOR_KIND_OTTAI;
             case NIGHTSCOUT -> SENSOR_KIND_NIGHTSCOUT;
             case MEDTRUM -> SENSOR_KIND_MEDTRUM;
+            case LIBRE3 -> SENSOR_KIND_LIBRE3;
             case GENERIC -> SENSOR_KIND_UNKNOWN;
         };
     }

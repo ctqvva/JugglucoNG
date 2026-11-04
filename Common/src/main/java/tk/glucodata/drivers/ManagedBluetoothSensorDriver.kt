@@ -50,7 +50,8 @@ enum class ManagedSensorUiFamily(
     OTTAI(5),
     SIBIONICS(6),
     NIGHTSCOUT(7),
-    MEDTRUM(8);
+    MEDTRUM(8),
+    LIBRE3(9);
 
     companion object {
         fun fromNativeCode(code: Int): ManagedSensorUiFamily =
