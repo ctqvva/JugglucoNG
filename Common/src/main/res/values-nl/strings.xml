@@ -3275,4 +3275,43 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="tts_trend_decreasing">dalend</string>
     <string name="tts_trend_rising_quickly">snel stijgend</string>
     <string name="tts_trend_falling_quickly">snel dalend</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Waarden uploaden naar je Dexcom Clarity-account</string>
+    <string name="clarity_active_desc">Uploadt sensorwaarden zodat je kliniek ze in Clarity ziet</string>
+    <string name="clarity_send_enabled">Naar Clarity sturen</string>
+    <string name="clarity_section_upload">Uploaden</string>
+    <string name="clarity_section_account">Dexcom-account</string>
+    <string name="clarity_change_start">Startdatum wijzigen</string>
+    <string name="clarity_start_date">Begin: %1$s</string>
+    <string name="clarity_change_start_title">Clarity-startdatum wijzigen?</string>
+    <string name="clarity_change_start_confirm">%1$s gebruiken? Een eerdere datum stuurt oudere gegevens die nog niet bevestigd zijn. Een latere datum slaat oudere, niet verzonden gegevens over. Bevestigde gegevens en wachtende batches blijven bewaard; de Clarity-geschiedenis wordt niet gewist of gereset.</string>
+    <string name="clarity_use_history">Libre 3-geschiedenis gebruiken</string>
+    <string name="clarity_use_history_desc">De Libre 3-geschiedenis sturen in plaats van de minuutwaarden</string>
+    <string name="clarity_not_signed_in">Niet aangemeld</string>
+    <string name="clarity_signed_in_as">Aangemeld (account %1$s)</string>
+    <string name="clarity_login_country">Landcode (2 letters)</string>
+    <string name="clarity_sign_in">Aanmelden bij Dexcom</string>
+    <string name="clarity_change_account_hint">Zet „Naar Clarity sturen” uit om met een ander account aan te melden.</string>
+    <string name="clarity_login_pending_hint">Een aanmelding werd onderbroken nadat Dexcom haar had geaccepteerd. Rond haar af om haar te behouden, of meld opnieuw aan.</string>
+    <string name="clarity_login_finish_pending">Onderbroken aanmelding afronden</string>
+    <string name="clarity_try_again">Opnieuw proberen</string>
+    <string name="clarity_login_tls_error">De beveiligde verbinding met Dexcom kon niet worden geverifieerd.</string>
+    <string name="clarity_login_load_error">De aanmeldpagina van Dexcom kon niet worden geladen.</string>
+    <string name="clarity_login_http_error">De aanmeldpagina van Dexcom gaf HTTP %1$d.</string>
+    <string name="clarity_login_destination_error">De aanmeldpagina vroeg om een niet-ondersteunde bestemming.</string>
+    <string name="clarity_login_start_error">Kan de Dexcom-aanmelding niet starten.</string>
+    <string name="clarity_login_in_progress">Een aanmelding wordt nog afgerond. Wacht en probeer dan „Onderbroken aanmelding afronden”.</string>
+    <string name="clarity_login_completing">Dexcom-aanmelding wordt afgerond…</string>
+    <string name="clarity_login_complete_error">Kan de Dexcom-aanmelding niet afronden.</string>
+    <string name="clarity_login_retry_error">%1$s\nAls Dexcom je aanmelding heeft geaccepteerd, probeer „Onderbroken aanmelding afronden”; meld anders opnieuw aan.</string>
+    <string name="clarity_last_ack">Laatste bevestiging: %1$s</string>
+    <string name="clarity_ack_count">Bevestigde sensorwaarden: %1$d</string>
+    <string name="clarity_ack_latest">Laatst bevestigde waarde: %1$s</string>
+    <string name="clarity_pending_glucose">Wachtende waarden: %1$d, %2$s tot %3$s</string>
+    <string name="clarity_read_settings_error">Kan de Clarity-instellingen niet lezen</string>
+    <string name="clarity_save_settings_error">Kan de Clarity-instellingen niet opslaan</string>
+    <string name="clarity_unavailable">Clarity-upload is niet beschikbaar in deze versie</string>
+    <string name="clarity_warning">Onofficieel: JugglucoNG meldt zich aan en uploadt zoals de app van Dexcom zelf. Dexcom kan dit op elk moment wijzigen of blokkeren.</string>
 </resources>

@@ -127,6 +127,10 @@ fun ExpressiveSettingsScreen(
         runCatching { DexcomShareSettings.isSetUp(context) }.getOrDefault(false) ||
             hasActiveDexcomSensor()
     }
+    // Dexcom Clarity: shown while a Dexcom sensor is active, or once an account is signed in.
+    val showClarity = remember {
+        hasActiveDexcomSensor() || runCatching { tk.glucodata.share.Clarity.isSignedIn() }.getOrDefault(false)
+    }
     val showOttaiSettings = remember {
         SensorBluetooth.mygatts().any { callback ->
             (callback as? tk.glucodata.drivers.ottai.OttaiDriver)?.isUiEnabled() == true
@@ -219,13 +223,14 @@ fun ExpressiveSettingsScreen(
         xdripEnabled, patchedLibreEnabled, glucodataBroadcastEnabled, broadcastComputedTrend, otherTrendConsumer
     )
     val searchCandidates = remember(
-        context, searchLocales, showLibreView, showDexcomShare, showMqAccount, showOttaiSettings,
+        context, searchLocales, showLibreView, showDexcomShare, showClarity, showMqAccount, showOttaiSettings,
         showLibre2Identity, showAppTrend
     ) {
         SettingsSearchIndex.resolve(context) { condition ->
             when (condition) {
                 SettingsSearchCondition.LIBREVIEW -> showLibreView
                 SettingsSearchCondition.DEXCOM_SHARE -> showDexcomShare
+                SettingsSearchCondition.CLARITY -> showClarity
                 SettingsSearchCondition.MQ_ACCOUNT -> showMqAccount
                 SettingsSearchCondition.OTTAI -> showOttaiSettings
                 SettingsSearchCondition.HEALTH_CONNECT -> PhoneAppsSettings.healthConnectSupported
@@ -582,6 +587,16 @@ fun ExpressiveSettingsScreen(
                         iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
                         onClick = { navController.navigate("settings/dexcom-share") }
+                    )
+                }
+                if (showClarity) {
+                    SettingsItem(
+                        title = stringResource(R.string.clarity_title),
+                        subtitle = stringResource(R.string.clarity_desc),
+                        icon = Icons.Default.CloudUpload,
+                        iconTint = sharingColor,
+                        position = CardPosition.MIDDLE,
+                        onClick = { navController.navigate("settings/clarity") }
                     )
                 }
                 if (showMqAccount) {

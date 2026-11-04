@@ -408,6 +408,17 @@ struct Tings {
   uint32_t glucoseMeterNR;
   uint32_t reserved4;
   GlucoseMeter glucosemeters[maxglucosemeters];
+  // Keep new persistent fields at the end to preserve existing mmap offsets.
+  // Dexcom Clarity upload options (net/clarity). Zero in older files; the
+  // uploader initialises them on first start (version 0 -> 1).
+  struct ClaritySettingsData {
+    uint32_t version;
+    uint32_t since;
+    uint8_t enabled;
+    uint8_t libre3History;
+    uint8_t numbers;
+    uint8_t reserved;
+  } clarity;
 
   template <typename Self> auto *getGlucoseMeter(this Self &&self, int index) {
     decltype(&self.glucosemeters[0]) meter = nullptr;

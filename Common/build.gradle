@@ -136,6 +136,11 @@ android {
             dimension = 'wearos'
             versionNameSuffix = '-phone'
             buildConfigField 'int', 'isWear', '0'
+            // Dexcom Clarity upload (native, ARM only). Without the provider library
+            // the uploader stays built in but reports itself unavailable.
+            externalNativeBuild.cmake {
+                arguments "-DCLARITY=ON"
+            }
         }
         wear {
             dimension = 'wearos'

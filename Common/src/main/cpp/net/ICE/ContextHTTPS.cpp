@@ -581,6 +581,47 @@ std::pair<std::vector<char>,int> ContextHTTPS::request(const std::string_view ho
     SSL_set_fd(ssl, sock);
     const std::string hostName(host);
     SSL_set_tlsext_host_name2(ssl, hostName.c_str());  // SNI
+    if(options.location)
+        options.location->clear();
+    if(const auto *client=options.client) {
+       // Mutual TLS for one connection (Dexcom Clarity). Never set on the shared ctx.
+       if(!client->certificate||!client->privateKey||!client->issuer) {
+          LOGARHTTPS("Incomplete client certificate identity");
+          return {uit,-1};
+          }
+#ifdef DLSYMS_SSL
+       static auto useCert=reinterpret_cast<int (*)(SSL *,X509 *)>(dlsym(openssl(),"SSL_use_certificate"));
+       static auto useKey=reinterpret_cast<int (*)(SSL *,EVP_PKEY *)>(dlsym(openssl(),"SSL_use_PrivateKey"));
+       static auto checkKey=reinterpret_cast<int (*)(const SSL *)>(dlsym(openssl(),"SSL_check_private_key"));
+       static auto addChain=reinterpret_cast<int (*)(SSL *,X509 *)>(dlsym(openssl(),"SSL_add1_chain_cert"));
+       if(!useCert||!useKey||!checkKey||(!addChain&&!SSL_ctrlptr)) {
+          LOGARHTTPS("Client certificate TLS functions unavailable");
+          return {uit,-1};
+          }
+#else
+       auto useCert=SSL_use_certificate;
+       auto useKey=SSL_use_PrivateKey;
+       auto checkKey=SSL_check_private_key;
+       auto addChain=[](SSL *s,X509 *cert) { return static_cast<int>(SSL_add1_chain_cert(s,cert)); };
+#endif
+       if(useCert(ssl,client->certificate)!=1) {
+          LOGARHTTPS("SSL_use_certificate failed");
+          return {uit,-1};
+          }
+       if(useKey(ssl,client->privateKey)!=1||checkKey(ssl)!=1) {
+          LOGARHTTPS("Client certificate/private key mismatch");
+          return {uit,-1};
+          }
+#ifdef DLSYMS_SSL
+       const auto added=addChain?addChain(ssl,client->issuer):SSL_ctrl(ssl,SSL_CTRL_CHAIN_CERT,1,client->issuer);
+#else
+       const auto added=addChain(ssl,client->issuer);
+#endif
+       if(added!=1) {
+          LOGARHTTPS("Cannot add client certificate issuer");
+          return {uit,-1};
+          }
+       }
     if(!options.verifyCertificate) {
        #ifdef DLSYMS_SSL
        if(!SSL_set_verifyptr) {
@@ -640,15 +681,20 @@ std::pair<std::vector<char>,int> ContextHTTPS::request(const std::string_view ho
        if(count>0) {
            if(!response.append({dataptr,static_cast<size_t>(count)}))
                return {{},-1};
-           if(response.complete())
+           if(response.complete()) {
+               if(options.location) *options.location=response.takeLocation();
                return {response.takeBody(),response.status()};
+               }
            continue;
        }
        // Only a TLS close-notify completes a close-delimited response. A
        // timeout, cancellation, truncated body, or abrupt TLS failure must
        // not expose partial JSON / signaling with a successful HTTP code.
        if(SSL_get_error(ssl,count)==SSL_ERROR_ZERO_RETURN) {
-           if(response.closed()) return {response.takeBody(),response.status()};
+           if(response.closed()) {
+               if(options.location) *options.location=response.takeLocation();
+               return {response.takeBody(),response.status()};
+               }
            return {{},-1};
        }
        if(SSLwait(ssl,count,sock,deadline)<0) return {{},-1};

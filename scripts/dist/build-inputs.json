@@ -51,6 +51,11 @@
       "sha256": "1e1c6ef4a723fcde932f2cff36cdc3461cb946b4e0892a075634e0fcd8119dac"
     },
     {
+      "path": "Common/src/main/jniLibs/arm64-v8a/liblibre_receiver_skb.so",
+      "size": 4468408,
+      "sha256": "7b946a3012ad278a74c9cccfc7da615582a494ae963439e8c9f0b6931b7fa038"
+    },
+    {
       "path": "Common/src/main/jniLibs/arm64-v8a/libmarsxlog.so",
       "size": 649560,
       "sha256": "8020ced28dbf3eca9d7b558a2d6dada3de2dc2fd90e66ccd6fd5263362c2384f"
@@ -141,6 +146,11 @@
       "sha256": "034a45892828a4bf8fb9ee64b545f4ec215ab9a5f31598a55faa9ec9a26270b1"
     },
     {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/liblibre_receiver_skb.so",
+      "size": 4819728,
+      "sha256": "b8b2fad33c68e46762a11b6e08fa0e2e38a3f60d5acdae165af0097109877492"
+    },
+    {
       "path": "Common/src/main/jniLibs/armeabi-v7a/libmarsxlog.so",
       "size": 333844,
       "sha256": "9647e92627366c2f851d88c0b35bd61c5681abe9f4b8d0044f5e5753088b5a8d"
@@ -175,5 +185,6 @@
       "size": 1570684,
       "sha256": "19c1eb554c1bcfc9aad389d62b40f8f5d60d8e3457f0fb17100eb7c7c267a307"
     }
-  ]
+  ],
+  "bootstrapRequired": true
 }

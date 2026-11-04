@@ -3286,4 +3286,43 @@
     <string name="tts_trend_decreasing">spada</string>
     <string name="tts_trend_rising_quickly">szybko rośnie</string>
     <string name="tts_trend_falling_quickly">szybko spada</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Przesyłaj odczyty na swoje konto Dexcom Clarity</string>
+    <string name="clarity_active_desc">Przesyła odczyty sensora, aby Twoja poradnia widziała je w Clarity</string>
+    <string name="clarity_send_enabled">Wysyłaj do Clarity</string>
+    <string name="clarity_section_upload">Przesyłanie</string>
+    <string name="clarity_section_account">Konto Dexcom</string>
+    <string name="clarity_change_start">Zmień datę początkową</string>
+    <string name="clarity_start_date">Początek: %1$s</string>
+    <string name="clarity_change_start_title">Zmienić datę początkową Clarity?</string>
+    <string name="clarity_change_start_confirm">Użyć %1$s? Wcześniejsza data wysyła starsze dane, które nie zostały jeszcze potwierdzone. Późniejsza data pomija starsze, niewysłane dane. Potwierdzone dane i oczekujące pakiety zostają zachowane; historia Clarity nie jest usuwana ani resetowana.</string>
+    <string name="clarity_use_history">Używaj historii Libre 3</string>
+    <string name="clarity_use_history_desc">Wysyłaj historię Libre 3 zamiast wartości minutowych</string>
+    <string name="clarity_not_signed_in">Nie zalogowano</string>
+    <string name="clarity_signed_in_as">Zalogowano (konto %1$s)</string>
+    <string name="clarity_login_country">Kod kraju (2 litery)</string>
+    <string name="clarity_sign_in">Zaloguj się do Dexcom</string>
+    <string name="clarity_change_account_hint">Wyłącz „Wysyłaj do Clarity”, aby zalogować się na inne konto.</string>
+    <string name="clarity_login_pending_hint">Logowanie zostało przerwane po zaakceptowaniu przez Dexcom. Dokończ je, aby je zachować, albo zaloguj się ponownie.</string>
+    <string name="clarity_login_finish_pending">Dokończ przerwane logowanie</string>
+    <string name="clarity_try_again">Spróbuj ponownie</string>
+    <string name="clarity_login_tls_error">Nie udało się zweryfikować bezpiecznego połączenia z Dexcom.</string>
+    <string name="clarity_login_load_error">Nie udało się wczytać strony logowania Dexcom.</string>
+    <string name="clarity_login_http_error">Strona logowania Dexcom zwróciła HTTP %1$d.</string>
+    <string name="clarity_login_destination_error">Strona logowania zażądała nieobsługiwanego celu.</string>
+    <string name="clarity_login_start_error">Nie można rozpocząć logowania do Dexcom.</string>
+    <string name="clarity_login_in_progress">Logowanie wciąż się kończy. Zaczekaj, a potem użyj „Dokończ przerwane logowanie”.</string>
+    <string name="clarity_login_completing">Kończenie logowania do Dexcom…</string>
+    <string name="clarity_login_complete_error">Nie można dokończyć logowania do Dexcom.</string>
+    <string name="clarity_login_retry_error">%1$s\nJeśli Dexcom zaakceptował logowanie, użyj „Dokończ przerwane logowanie”; w przeciwnym razie zaloguj się ponownie.</string>
+    <string name="clarity_last_ack">Ostatnie potwierdzenie: %1$s</string>
+    <string name="clarity_ack_count">Potwierdzone odczyty sensora: %1$d</string>
+    <string name="clarity_ack_latest">Ostatni potwierdzony odczyt: %1$s</string>
+    <string name="clarity_pending_glucose">Oczekujące odczyty: %1$d, od %2$s do %3$s</string>
+    <string name="clarity_read_settings_error">Nie można odczytać ustawień Clarity</string>
+    <string name="clarity_save_settings_error">Nie można zapisać ustawień Clarity</string>
+    <string name="clarity_unavailable">Przesyłanie do Clarity jest niedostępne w tej wersji</string>
+    <string name="clarity_warning">Nieoficjalne: JugglucoNG loguje się i przesyła dane tak jak aplikacja Dexcom. Dexcom może to w każdej chwili zmienić lub zablokować.</string>
 </resources>

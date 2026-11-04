@@ -3241,4 +3241,43 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">下降</string>
     <string name="tts_trend_rising_quickly">快速上升</string>
     <string name="tts_trend_falling_quickly">快速下降</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">将读数上传到您的 Dexcom Clarity 账户</string>
+    <string name="clarity_active_desc">上传传感器读数，让您的诊所在 Clarity 中查看</string>
+    <string name="clarity_send_enabled">发送到 Clarity</string>
+    <string name="clarity_section_upload">上传</string>
+    <string name="clarity_section_account">Dexcom 账户</string>
+    <string name="clarity_change_start">更改开始日期</string>
+    <string name="clarity_start_date">开始：%1$s</string>
+    <string name="clarity_change_start_title">更改 Clarity 开始日期？</string>
+    <string name="clarity_change_start_confirm">使用 %1$s？较早的日期会发送尚未确认的较旧数据。较晚的日期会跳过未发送的较旧数据。已确认的数据和待发送批次会保留；不会清除或重置 Clarity 历史记录。</string>
+    <string name="clarity_use_history">使用 Libre 3 历史数据</string>
+    <string name="clarity_use_history_desc">发送 Libre 3 历史数据，而不是每分钟数值</string>
+    <string name="clarity_not_signed_in">未登录</string>
+    <string name="clarity_signed_in_as">已登录（账户 %1$s）</string>
+    <string name="clarity_login_country">国家代码（2 个字母）</string>
+    <string name="clarity_sign_in">登录 Dexcom</string>
+    <string name="clarity_change_account_hint">关闭“发送到 Clarity”后才能登录其他账户。</string>
+    <string name="clarity_login_pending_hint">一次登录在 Dexcom 接受后被中断。完成它以保留此登录，或重新登录。</string>
+    <string name="clarity_login_finish_pending">完成待处理的登录</string>
+    <string name="clarity_try_again">重试</string>
+    <string name="clarity_login_tls_error">无法验证与 Dexcom 的安全连接。</string>
+    <string name="clarity_login_load_error">无法加载 Dexcom 登录页面。</string>
+    <string name="clarity_login_http_error">Dexcom 登录页面返回 HTTP %1$d。</string>
+    <string name="clarity_login_destination_error">登录页面请求了不受支持的目标。</string>
+    <string name="clarity_login_start_error">无法开始 Dexcom 登录。</string>
+    <string name="clarity_login_in_progress">仍有登录正在完成。请稍候，然后尝试“完成待处理的登录”。</string>
+    <string name="clarity_login_completing">正在完成 Dexcom 登录…</string>
+    <string name="clarity_login_complete_error">无法完成 Dexcom 登录。</string>
+    <string name="clarity_login_retry_error">%1$s\n如果 Dexcom 已接受您的登录，请尝试“完成待处理的登录”；否则请重新登录。</string>
+    <string name="clarity_last_ack">上次确认：%1$s</string>
+    <string name="clarity_ack_count">已确认的传感器读数：%1$d</string>
+    <string name="clarity_ack_latest">最新确认的读数：%1$s</string>
+    <string name="clarity_pending_glucose">待发送读数：%1$d，%2$s 至 %3$s</string>
+    <string name="clarity_read_settings_error">无法读取 Clarity 设置</string>
+    <string name="clarity_save_settings_error">无法保存 Clarity 设置</string>
+    <string name="clarity_unavailable">此版本不提供 Clarity 上传</string>
+    <string name="clarity_warning">非官方：JugglucoNG 以 Dexcom 自家应用的方式登录和上传。Dexcom 可能随时更改或封锁此功能。</string>
 </resources>

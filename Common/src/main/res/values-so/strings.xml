@@ -3417,4 +3417,43 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="tts_trend_decreasing">hoos u dhacaya</string>
     <string name="tts_trend_rising_quickly">si degdeg ah kor ugu kacaya</string>
     <string name="tts_trend_falling_quickly">si degdeg ah hoos ugu dhacaya</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">U soo rar akhrisyada akoonkaaga Dexcom Clarity</string>
+    <string name="clarity_active_desc">Wuxuu soo raraa akhrisyada dareemaha si rugtaada caafimaadku ugu aragto Clarity</string>
+    <string name="clarity_send_enabled">U dir Clarity</string>
+    <string name="clarity_section_upload">Soo rarid</string>
+    <string name="clarity_section_account">Akoonka Dexcom</string>
+    <string name="clarity_change_start">Beddel taariikhda bilowga</string>
+    <string name="clarity_start_date">Bilow: %1$s</string>
+    <string name="clarity_change_start_title">Ma beddelaysaa taariikhda bilowga Clarity?</string>
+    <string name="clarity_change_start_confirm">Ma isticmaashaa %1$s? Taariikh hore waxay diraysaa xog hore oo aan weli la xaqiijin. Taariikh dambe waxay ka boodaysaa xog hore oo aan la dirin. Xogta la xaqiijiyay iyo dufcadaha sugaya waa la hayaa; taariikhda Clarity lama tirtiro dibna looma dejiyo.</string>
+    <string name="clarity_use_history">Isticmaal taariikhda Libre 3</string>
+    <string name="clarity_use_history_desc">U dir taariikhda Libre 3 halkii qiimayaasha daqiiqad kasta</string>
+    <string name="clarity_not_signed_in">Lama gelin</string>
+    <string name="clarity_signed_in_as">Waa la galay (akoon %1$s)</string>
+    <string name="clarity_login_country">Koodhka dalka (2 xaraf)</string>
+    <string name="clarity_sign_in">Gal Dexcom</string>
+    <string name="clarity_change_account_hint">Dami \"U dir Clarity\" si aad ugu gasho akoon kale.</string>
+    <string name="clarity_login_pending_hint">Galitaan ayaa go\'ay ka dib markii Dexcom aqbalay. Dhammee si aad u haysato, ama mar kale gal.</string>
+    <string name="clarity_login_finish_pending">Dhammee galitaanka sugaya</string>
+    <string name="clarity_try_again">Isku day mar kale</string>
+    <string name="clarity_login_tls_error">Xiriirka sugan ee Dexcom lama xaqiijin karin.</string>
+    <string name="clarity_login_load_error">Bogga galitaanka Dexcom lama soo gelin karin.</string>
+    <string name="clarity_login_http_error">Bogga galitaanka Dexcom wuxuu soo celiyay HTTP %1$d.</string>
+    <string name="clarity_login_destination_error">Bogga galitaanku wuxuu codsaday meel aan la taageerin.</string>
+    <string name="clarity_login_start_error">Lama bilaabi karo galitaanka Dexcom.</string>
+    <string name="clarity_login_in_progress">Galitaan ayaa weli dhammaanaya. Sug, kadibna isku day \"Dhammee galitaanka sugaya\".</string>
+    <string name="clarity_login_completing">Waa la dhammaynayaa galitaanka Dexcom…</string>
+    <string name="clarity_login_complete_error">Lama dhammayn karo galitaanka Dexcom.</string>
+    <string name="clarity_login_retry_error">%1$s\nHaddii Dexcom aqbalay galitaankaaga, isku day \"Dhammee galitaanka sugaya\"; haddii kale mar kale gal.</string>
+    <string name="clarity_last_ack">Xaqiijintii u dambeysay: %1$s</string>
+    <string name="clarity_ack_count">Akhrisyada dareemaha ee la xaqiijiyay: %1$d</string>
+    <string name="clarity_ack_latest">Akhriskii ugu dambeeyay ee la xaqiijiyay: %1$s</string>
+    <string name="clarity_pending_glucose">Akhrisyada sugaya: %1$d, %2$s ilaa %3$s</string>
+    <string name="clarity_read_settings_error">Lama akhrin karo dejinta Clarity</string>
+    <string name="clarity_save_settings_error">Lama kaydin karo dejinta Clarity</string>
+    <string name="clarity_unavailable">Soo raridda Clarity lagama heli karo noocan</string>
+    <string name="clarity_warning">Aan rasmi ahayn: JugglucoNG wuxuu u galaa oo u soo raraa sida app-ka Dexcom laftiisa. Dexcom wuu beddeli karaa ama xannibi karaa wakhti kasta.</string>
 </resources>

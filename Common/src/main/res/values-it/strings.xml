@@ -3223,4 +3223,43 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">in diminuzione</string>
     <string name="tts_trend_rising_quickly">in rapido aumento</string>
     <string name="tts_trend_falling_quickly">in rapida diminuzione</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Carica le letture sul tuo account Dexcom Clarity</string>
+    <string name="clarity_active_desc">Carica le letture del sensore così la tua clinica le vede in Clarity</string>
+    <string name="clarity_send_enabled">Invia a Clarity</string>
+    <string name="clarity_section_upload">Caricamento</string>
+    <string name="clarity_section_account">Account Dexcom</string>
+    <string name="clarity_change_start">Cambia data di inizio</string>
+    <string name="clarity_start_date">Inizio: %1$s</string>
+    <string name="clarity_change_start_title">Cambiare la data di inizio di Clarity?</string>
+    <string name="clarity_change_start_confirm">Usare %1$s? Una data precedente invia i dati più vecchi non ancora confermati. Una data successiva salta i dati più vecchi non inviati. I dati confermati e i lotti in attesa vengono mantenuti; la cronologia di Clarity non viene cancellata né azzerata.</string>
+    <string name="clarity_use_history">Usa la cronologia Libre 3</string>
+    <string name="clarity_use_history_desc">Invia la cronologia Libre 3 invece dei valori al minuto</string>
+    <string name="clarity_not_signed_in">Accesso non effettuato</string>
+    <string name="clarity_signed_in_as">Accesso effettuato (account %1$s)</string>
+    <string name="clarity_login_country">Codice paese (2 lettere)</string>
+    <string name="clarity_sign_in">Accedi a Dexcom</string>
+    <string name="clarity_change_account_hint">Disattiva «Invia a Clarity» per accedere con un altro account.</string>
+    <string name="clarity_login_pending_hint">Un accesso è stato interrotto dopo che Dexcom l\'aveva accettato. Completalo per mantenerlo, oppure accedi di nuovo.</string>
+    <string name="clarity_login_finish_pending">Completa l\'accesso in sospeso</string>
+    <string name="clarity_try_again">Riprova</string>
+    <string name="clarity_login_tls_error">Impossibile verificare la connessione sicura con Dexcom.</string>
+    <string name="clarity_login_load_error">Impossibile caricare la pagina di accesso di Dexcom.</string>
+    <string name="clarity_login_http_error">La pagina di accesso di Dexcom ha restituito HTTP %1$d.</string>
+    <string name="clarity_login_destination_error">La pagina di accesso ha richiesto una destinazione non supportata.</string>
+    <string name="clarity_login_start_error">Impossibile avviare l\'accesso a Dexcom.</string>
+    <string name="clarity_login_in_progress">Un accesso è ancora in corso. Attendi, poi prova «Completa l\'accesso in sospeso».</string>
+    <string name="clarity_login_completing">Completamento dell\'accesso a Dexcom…</string>
+    <string name="clarity_login_complete_error">Impossibile completare l\'accesso a Dexcom.</string>
+    <string name="clarity_login_retry_error">%1$s\nSe Dexcom ha accettato l\'accesso, prova «Completa l\'accesso in sospeso»; altrimenti accedi di nuovo.</string>
+    <string name="clarity_last_ack">Ultima conferma: %1$s</string>
+    <string name="clarity_ack_count">Letture del sensore confermate: %1$d</string>
+    <string name="clarity_ack_latest">Ultima lettura confermata: %1$s</string>
+    <string name="clarity_pending_glucose">Letture in attesa: %1$d, da %2$s a %3$s</string>
+    <string name="clarity_read_settings_error">Impossibile leggere le impostazioni di Clarity</string>
+    <string name="clarity_save_settings_error">Impossibile salvare le impostazioni di Clarity</string>
+    <string name="clarity_unavailable">Il caricamento su Clarity non è disponibile in questa versione</string>
+    <string name="clarity_warning">Non ufficiale: JugglucoNG accede e carica i dati come l\'app di Dexcom stessa. Dexcom può modificarlo o bloccarlo in qualsiasi momento.</string>
 </resources>
