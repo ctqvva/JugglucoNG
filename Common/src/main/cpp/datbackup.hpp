@@ -1418,6 +1418,10 @@ sendindex); extern bool doend(int sendindex); */
   }
   void wakebackup(myuintptr_t kind = wakeall) {
     LOGGER("start wakebackup %lx\n", kind);
+    wakeeach([kind](int) { return kind; });
+  }
+  // kindfor(i): what to wake sender i with.
+  template <typename KindFor> void wakeeach(KindFor kindfor) {
     int nr;
     if (getupdatedata()->sendnr > con_vars.size()) {
       nr = con_vars.size();
@@ -1445,7 +1449,7 @@ sendindex); extern bool doend(int sendindex); */
         }
         if (doe) {
           LOGGER("host %d wake\n", i);
-          el->wakebackup(kind);
+          el->wakebackup(kindfor(i));
         }
       }
     }
