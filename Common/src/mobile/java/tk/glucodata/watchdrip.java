@@ -85,8 +85,7 @@ private static final double MGDL_PER_MMOLL=18.0182;
 			int glumgL = (int) (res & 0xFFFFFFFFL);
 			if (glumgL != 0) {
 				int alarm = (int) ((res >> 48) & 0xFFL);
-				short ratein = (short) ((res >> 32) & 0xFFFFL);
-				float rate = ratein / 1000.0f;
+				float rate = SuperGattCallback.packedRate(res);
 				var newintent=WearInt.mksendglucoseintent(settings,glumgL/10.0,rate,alarm,  gl[0]*1000L);
 				newintent.putExtra( "FUNCTION","update_bg_force");
 				newintent.setPackage(key);
