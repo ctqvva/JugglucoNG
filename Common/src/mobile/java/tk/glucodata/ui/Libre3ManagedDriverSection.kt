@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Nfc
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -141,14 +142,20 @@ fun Libre3ManagedDriverSection() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }) {
+                FilledTonalButton(
+                    onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
+                    shapes = ButtonDefaults.shapes(),
+                ) {
                     Text(stringResource(R.string.libre3_managed_identity_import))
                 }
                 if (labels.isNotEmpty()) {
-                    OutlinedButton(onClick = {
-                        Libre3Persistence.clearIdentities(context)
-                        labels = emptyList()
-                    }) {
+                    OutlinedButton(
+                        onClick = {
+                            Libre3Persistence.clearIdentities(context)
+                            labels = emptyList()
+                        },
+                        shapes = ButtonDefaults.shapes(),
+                    ) {
                         Text(stringResource(R.string.libre3_managed_identity_remove))
                     }
                 }

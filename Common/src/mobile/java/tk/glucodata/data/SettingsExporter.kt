@@ -264,6 +264,7 @@ object SettingsExporter {
                 file.isFile && file.extension == "xml" &&
                     !isSecretPreferenceFile(file.name.removeSuffix(".xml"))
             }
+            ?.filterNot { it.name.removeSuffix(".xml") in DEVICE_LOCAL_PREFERENCES }
             ?.sortedBy { it.name }
             .orEmpty()
 
@@ -315,7 +316,7 @@ object SettingsExporter {
             }
 
         var importedValueCount = 0
-        importedNames.sorted().forEach { name ->
+        importedNames.filterNot { it in DEVICE_LOCAL_PREFERENCES }.sorted().forEach { name ->
             val entry = exportedPreferences.optJSONObject(name) ?: return@forEach
             val values = entry.optJSONObject("values") ?: JSONObject()
             val editor = importEditor(name)
@@ -767,7 +768,16 @@ object SettingsExporter {
             ?.filterNot(::isSecretPreferenceFile)
             ?.toMutableSet()
             .orEmpty()
+            .filterNotTo(mutableSetOf()) { it in DEVICE_LOCAL_PREFERENCES }
     }
+
+    /**
+     * Preference files that never leave the phone and are never overwritten by an import: they hold
+     * per-sensor pairing material (the Libre 3 BLE PIN, Keystore-sealed identity and kAuth) that is
+     * useless or harmful anywhere else. A restored phone re-pairs the sensor with an NFC scan.
+     */
+    internal val DEVICE_LOCAL_PREFERENCES: Set<String> =
+        setOf(tk.glucodata.drivers.libre3.Libre3Persistence.PREFS_NAME)
 
     private fun JSONObject.keySet(): Set<String> {
         val keys = mutableSetOf<String>()
