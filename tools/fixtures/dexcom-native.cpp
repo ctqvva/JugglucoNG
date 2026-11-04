@@ -1,6 +1,7 @@
 // Android/JNI/storage stand-ins for the production methods injected by the runner.
 #include "dexcom/ScanIdentity.hpp"
 #include <cassert>
+#include <cmath>
 #include <cstring>
 #include <ctime>
 #include <functional>
@@ -15,6 +16,7 @@ using namespace std;
 #define LOGAR(...) ((void)0)
 constexpr int maxdays=46, maxminutes=45*24*60, maxSIhours=24*24,youngsensorsecs=7200;
 constexpr int DEXSECONDS=300, maxbluetoothage=300, interval5=300;
+constexpr int8_t DEXNOTREND=0x7F;
 struct pathconcat : string {
     pathconcat(string_view base, string_view leaf):string(string(base)+"/"+string(leaf)){}
     pathconcat(string_view base,const array<char,16>& leaf):pathconcat(base,string_view(leaf.data(),16)){}
@@ -224,6 +226,15 @@ void batchedBackfill(){
         auto partial=make_shared<Cmd>();partial->bytes=multiple->bytes;partial->bytes.resize(length);
         assert(!dexbackfillInput(&env,0,ptr,partial)&&d.saved==5);
     }
+    // Flag bits are not glucose, 0xFFFF is no glucose and trend 0x7F is no trend.
+    auto flagged=backfillPacket({{2400,0x1000|106,6,0x7F}});
+    assert(dexbackfillInput(&env,0,ptr,flagged)&&d.saved==6&&d.readings[8].first==106&&std::isnan(d.readings[8].second));
+    auto none=backfillPacket({{2700,0xFFFF,6,0}});
+    assert(!dexbackfillInput(&env,0,ptr,none)&&d.saved==6);
+    glucoseinput current{};current.secsSinceStart=3000;current.mgdL=107;current.trend=DEXNOTREND;current.predictedmgdL=110;
+    jlong timeres[]{(jlong(d.getstarttime())+3000)*1000,0};
+    current.actual(&d,timeres,0);
+    assert(d.readings[10].first==107&&std::isnan(d.readings[10].second));
     assert(!dexbackfillInput(&env,0,0,single));
     assert(!dexbackfillInput(&env,0,ptr,nullptr));
     transport.hist=nullptr;assert(!dexbackfillInput(&env,0,ptr,single));

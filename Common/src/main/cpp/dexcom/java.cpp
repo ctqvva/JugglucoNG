@@ -26,6 +26,7 @@
 #include "jniclass.hpp"
 #include "streamdata.hpp"
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <string_view>
 #include <time.h>
@@ -55,6 +56,8 @@ Composed(19,19,0,11,[
 int rate2changeindex(float rate) { return ratetolegacytrendindex(rate); }
 
 constexpr const int DEXSECONDS = 5 * 60;
+// Trend byte meaning "no trend available" (as xDrip4iOS reads it); not +12.7 mg/dL/min.
+constexpr const int8_t DEXNOTREND = 0x7F;
 
 extern jlong glucoseback(uint32_t nu, uint32_t glval, float drate,
                          SensorGlucoseData *hist);
@@ -101,7 +104,9 @@ struct glucoseinput {
   };
 #endif
 
-  float getRateofChange() const { return (float)trend / 10.0f; }
+  float getRateofChange() const {
+    return trend == DEXNOTREND ? NAN : (float)trend / 10.0f;
+  }
 
   void save(SensorGlucoseData *sens, uint32_t wastime, int index) const {
     const auto rate = getRateofChange();
@@ -328,15 +333,20 @@ fromjava(dexBackfillState)(JNIEnv *envin, jclass _cl, jlong dataptr) {
 
 struct dexbackfill {
   int32_t secsSinceStart;
-  int16_t mgdL;
+  // Glucose in the low 12 bits, flags in the top 4, 0xFFFF when there is none,
+  // as in the live reading's mgdL:12/donly:4.
+  uint16_t mgdL;
   uint8_t type;
   uint8_t extra;
   int8_t trend;
 
   [[nodiscard]] int getpredictedmgdL() const { return 0; }
   [[nodiscard]] int getindex() const { return secsSinceStart / DEXSECONDS; }
+  [[nodiscard]] int glucose() const { return mgdL & 0x0FFF; }
   [[nodiscard]] bool usable() const {
-    return type == 0x6 || type == 0x7 || type == 0xe;
+    // Same value range the live reading must pass in actual().
+    return (type == 0x6 || type == 0x7 || type == 0xe) && mgdL != 0xFFFF &&
+           glucose() >= 39 && glucose() <= 501;
   }
   [[nodiscard]] uint32_t gettime(const uint32_t sensorstarttime) const {
     return sensorstarttime + secsSinceStart;
@@ -349,11 +359,13 @@ void showdata(const uint32_t sensorstart) const {
 %s",secsSinceStart,mgdL,(float)mgdL/18.0,gettrend(),ctime(&was));
   }; */
 
-  float getRateofChange() const { return (float)trend / 10.0f; }
+  float getRateofChange() const {
+    return trend == DEXNOTREND ? NAN : (float)trend / 10.0f;
+  }
 
   void save(SensorGlucoseData *sens, uint32_t wastime, int index) const {
     const auto rate = getRateofChange();
-    sens->savepollallIDs<DEXSECONDS>(wastime, index, mgdL,
+    sens->savepollallIDs<DEXSECONDS>(wastime, index, glucose(),
                                      rate2changeindex(rate), rate);
   }
   void backfill(SensorGlucoseData *sens) const {
