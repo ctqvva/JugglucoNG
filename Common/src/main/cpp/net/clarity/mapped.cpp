@@ -23,6 +23,7 @@ namespace {
 struct MappedFile::Impl {
     int fd = -1;
     bool created = false;
+    size_t opened = 0; // on-disk size before this mapping grew the file
     unsigned char *memory = nullptr;
     size_t length = 0;
     void unmap() {
@@ -55,6 +56,7 @@ MappedFile::MappedFile(const std::string &path, bool exclusive):impl(std::make_u
     if (!S_ISREG(st.st_mode) || st.st_size < 0 || st.st_size > 1024LL * 1024 * 1024)
         throw Error("Invalid Clarity mapped file size or type");
     impl->created = !st.st_size;
+    impl->opened = size_t(st.st_size);
     impl->map(std::max<size_t>(4096, size_t(st.st_size)));
     if (impl->created) {
         if (fsync(impl->fd)) mappingError("sync new file");
@@ -69,6 +71,7 @@ MappedFile::MappedFile(const std::string &path, bool exclusive):impl(std::make_u
 }
 MappedFile::~MappedFile() = default;
 bool MappedFile::created() const { return impl->created; }
+size_t MappedFile::openedSize() const { return impl->opened; }
 size_t MappedFile::size() const { return impl->length; }
 unsigned char *MappedFile::data() {
     if (!impl->memory) throw Error("Clarity file mapping is unavailable; reopen required");
