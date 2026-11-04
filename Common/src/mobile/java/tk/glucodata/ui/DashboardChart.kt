@@ -2551,6 +2551,21 @@ fun InteractiveGlucoseChart(
                 animationSpec = spring<Float>(stiffness = Spring.StiffnessMedium),
                 label = "ChartZoomAnimation"
             )
+            // The zoom the journal's marks are laid out for. It follows the chart's own 350 ms
+            // after a zoom settles, so a pinch doesn't relayout them on every frame.
+            var journalChipLayoutZoom by remember { mutableLongStateOf(visibleDuration) }
+            LaunchedEffect(visibleDuration) {
+                kotlinx.coroutines.delay(350L)
+                journalChipLayoutZoom = visibleDuration
+            }
+            // Carbs sit on the curve at the time they were eaten, so their label hangs a fixed
+            // height above the glucose rather than at a height that stands for the amount.
+            fun journalTraceValue(marker: JournalChartMarker): Float? {
+                if (marker.type != JournalEntryType.CARBS) return null
+                return chartModel.primary
+                    ?.lineValueNear(marker.timestamp, JOURNAL_TRACE_MAX_GAP_MILLIS)
+                    ?.takeIf { it.isFinite() && it > 0.1f }
+            }
             val journalActionIndicatorProgress by animateFloatAsState(
                 targetValue = if (journalActionTimestamp != null && selectedPoint == null) 1f else 0f,
                 animationSpec = spring(
@@ -3680,21 +3695,16 @@ fun InteractiveGlucoseChart(
 
                     if (insulinStyle == InsulinChartStyle.SEPARATE && visibleInsulinMarkers.isNotEmpty()) {
                         // Each dose's own curve, sized by its dose, as before the band.
-                        val baseCurveHeight = (chartHeight * 0.018f).coerceIn(5.dp.toPx(), 12.dp.toPx())
-                        val extraCurveHeight = (chartHeight * 0.20f).coerceIn(72.dp.toPx(), 156.dp.toPx())
                         val strokeWidth = 1.8.dp.toPx()
                         val offscreenPaddingPx = 32.dp.toPx()
                         val curveBottomInset = 0.5.dp.toPx()
                         val curveReferenceY = chartHeight - curveBottomInset
-                        val referenceDoseUnits = 18f
 
                         visibleInsulinMarkers.forEach { marker ->
                             val tint = Color(marker.accentColor)
                             val startTime = marker.timestamp
                             val endTime = marker.activeEndMillis ?: marker.timestamp
-                            val doseUnits = (marker.amount ?: 0.5f).coerceAtLeast(0.05f)
-                            val amountFactor = (ln(1f + doseUnits) / ln(1f + referenceDoseUnits)).coerceIn(0.08f, 1f)
-                            val curveHeight = baseCurveHeight + (extraCurveHeight * amountFactor)
+                            val curveHeight = insulinSeparateCurveHeight(marker.amount, chartHeight)
                             val curveBaseY = curveReferenceY.coerceAtLeast(curveHeight + 1.dp.toPx())
                             val markerX = timeToDataX(marker.timestamp)
 
@@ -3827,7 +3837,7 @@ fun InteractiveGlucoseChart(
                             val markerX = timeToDataX(marker.timestamp)
                             if (markerX !in 0f..dataWidth) return@forEach
                             val tint = Color(marker.accentColor)
-                            val markerY = marker.chartGlucoseValue
+                            val markerY = (marker.chartGlucoseValue ?: journalTraceValue(marker))
                                 ?.let(::valToY)
                                 ?.takeIf { it.isFinite() }
                                 ?.let { coerceChartYToDrawableRange(it, chartHeight, markerEdgeInset) }
@@ -3956,7 +3966,7 @@ fun InteractiveGlucoseChart(
                 (chartHeightPx - ((value - renderedYMin) / range) * chartHeightPx).coerceIn(0f, chartHeightPx)
             }
             fun markerOverlayY(marker: JournalChartMarker): Float? {
-                return marker.chartGlucoseValue
+                return (marker.chartGlucoseValue ?: journalTraceValue(marker))
                     ?.let(overlayValueToY)
                     ?.takeIf { it.isFinite() }
                     ?: marker.chartYFraction
@@ -3971,22 +3981,11 @@ fun InteractiveGlucoseChart(
                 .coerceAtLeast(with(LocalDensity.current) { 8.dp.toPx() })
             val insulinLabelGapPx = with(LocalDensity.current) { 34.dp.toPx() }
             val insulinBandHeightPx = with(LocalDensity.current) { insulinBandHeightFor(chartHeightPx) }
-            val insulinBaseCurveHeightPx = (chartHeightPx * 0.018f).coerceIn(
-                with(LocalDensity.current) { 5.dp.toPx() },
-                with(LocalDensity.current) { 12.dp.toPx() }
-            )
-            val insulinExtraCurveHeightPx = (chartHeightPx * 0.20f).coerceIn(
-                with(LocalDensity.current) { 72.dp.toPx() },
-                with(LocalDensity.current) { 156.dp.toPx() }
-            )
-            // How tall a dose's own curve is drawn in the separate style.
-            fun insulinCurveHeightFor(amount: Float?): Float {
-                val doseUnits = (amount ?: 0.5f).coerceAtLeast(0.05f)
-                val amountFactor = (ln(1f + doseUnits) / ln(1f + 18f)).coerceIn(0.08f, 1f)
-                return insulinBaseCurveHeightPx + (insulinExtraCurveHeightPx * amountFactor)
-            }
+            val journalCurveDensity = LocalDensity.current
+            fun insulinCurveHeightFor(amount: Float?): Float =
+                with(journalCurveDensity) { insulinSeparateCurveHeight(amount, chartHeightPx) }
             val journalChipMaxTopPx = (chartHeightPx - with(LocalDensity.current) { 34.dp.toPx() }).coerceAtLeast(journalChipMinTopPx)
-            val connectorStrokePx = with(LocalDensity.current) { 0.85.dp.toPx() }
+            val connectorStrokePx = with(LocalDensity.current) { 1.5.dp.toPx() }
             val connectorUnderlapPx = with(LocalDensity.current) { 8.dp.toPx() }
             val insulinConnectorY = chartHeightPx - with(LocalDensity.current) { 1.dp.toPx() }
 
@@ -4061,11 +4060,6 @@ fun InteractiveGlucoseChart(
             // last frame's spot while it stays free, so panning never reshuffles them. Those
             // spots are forgotten once a zoom settles, so the layout then tidies up for the
             // new scale in one animated step.
-            var journalChipLayoutZoom by remember { mutableLongStateOf(visibleDuration) }
-            LaunchedEffect(visibleDuration) {
-                kotlinx.coroutines.delay(350L)
-                journalChipLayoutZoom = visibleDuration
-            }
             val journalChipLastSlots = remember(journalChipLayoutZoom) { HashMap<Long, JournalChipSlot>() }
             // Which chip's pile each chip joined, so fronts and layers hold still from frame to frame.
             val journalChipLastTucks = remember(journalChipLayoutZoom) { HashMap<Long, Long>() }
@@ -4076,19 +4070,48 @@ fun InteractiveGlucoseChart(
                 // A pixel of slack so a chip laid out at its measured width never ellipsizes.
                 journalChipChromePx + journalChipTextWidth(label).coerceAtMost(journalChipMaxTextPx) + 1f
             }
+            // Compact overlapping preferred label rectangles before the solver spreads them
+            // across the curve. Keep the ordinary icon chips and their existing totals,
+            // counts and tap-to-spread interaction; there is no separate rail or dot legend.
+            val densityPileOfEntry = remember(
+                journalMarkers, journalChipLayoutZoom, overlayDataWidthPx, chartHeightPx,
+                journalChipTextStyle, journalChipDensity, renderedYMin, renderedYMax, chartModel, insulinStyle
+            ) {
+                val entries = journalMarkers
+                    .filter { it.type != JournalEntryType.TEMP_BASAL }
+                    .sortedWith(compareBy({ it.timestamp }, { it.entryId }))
+                val leaders = JournalChipDensity.leaders(
+                    entries.map { marker ->
+                        val label = marker.detailText.ifBlank { marker.title.take(10) }
+                        val mergeKey = when {
+                            marker.amount == null || !marker.amount.isFinite() -> null
+                            marker.type == JournalEntryType.CARBS || marker.type == JournalEntryType.INSULIN -> journalChipKind(marker)
+                            else -> null
+                        }
+                        JournalChipDensity.Entry(
+                            marker.timestamp,
+                            journalChipChromePx + journalChipTextWidth(label).coerceAtMost(journalChipMaxTextPx) + 1f,
+                            mergeKey,
+                            journalChipBaseTop(marker) + journalChipPillInsetYPx
+                        )
+                    },
+                    journalChipLayoutZoom, overlayDataWidthPx, journalChipPillHeightPx, journalChipGapPx
+                )
+                entries.indices.associate { entries[it].entryId to entries[leaders[it]].entryId }
+            }
             // Entries showing the same thing closer together than a few dp can't be told apart on
             // screen, as with a loop's equal doses on a wide zoom; the later ones fold behind the
-            // first instead of each claiming a spot. A different value never folds, so every
-            // dose stays readable. The steps are fixed in time, so panning never regroups them,
+            // first instead of each claiming a spot. Different values fold only in the dense
+            // additive piles above. The steps are fixed in time, so panning never regroups them,
             // except that an entry still on screen never folds into one that has left it.
             val journalChipFoldMillis = (with(LocalDensity.current) { 4.dp.toPx() } * journalChipLayoutZoom / overlayDataWidthPx.coerceAtLeast(1f))
                 .toLong()
                 .coerceAtLeast(1L)
             val chipFoldInto = arrayOfNulls<Int>(chipMarkers.size)
             run {
-                val firstInStep = HashMap<Triple<JournalEntryType, String, Long>, Int>()
+                val firstInStep = HashMap<Triple<Any, String, Long>, Int>()
                 chipMarkers.forEachIndexed { index, marker ->
-                    val step = Triple(marker.type, chipLabels[index], Math.floorDiv(marker.timestamp, journalChipFoldMillis))
+                    val step = Triple(journalChipKind(marker), chipLabels[index], Math.floorDiv(marker.timestamp, journalChipFoldMillis))
                     val first = firstInStep[step]
                     if (first == null || (chipAnchorXs[first] < 0f && chipAnchorXs[index] >= 0f)) {
                         firstInStep[step] = index
@@ -4097,6 +4120,11 @@ fun InteractiveGlucoseChart(
                     }
                 }
             }
+            // Rebase a pile onto its first on-screen member when its original leader leaves
+            // the viewport, so visible totals never hide behind an off-screen chip.
+            JournalChipDensity.foldInViewport(
+                chipMarkers.map { densityPileOfEntry[it.entryId] ?: it.entryId }, chipAnchorXs, chipFoldInto
+            )
             val chipIndexOfEntry = HashMap<Long, Int>(chipMarkers.size * 2)
             chipMarkers.forEachIndexed { index, marker -> chipIndexOfEntry[marker.entryId] = index }
             val chipPlacements = JournalChipLayout.place(
@@ -4107,13 +4135,13 @@ fun InteractiveGlucoseChart(
                         width = maxOf(chipWidths[index], journalChipLastTotalWidths[marker.entryId] ?: 0f),
                         previous = journalChipLastSlots[marker.entryId],
                         // Chips showing the same thing may tuck behind one another.
-                        stackKey = marker.type to chipLabels[index],
+                        stackKey = journalChipKind(marker) to chipLabels[index],
                         foldInto = chipFoldInto[index],
                         previousTuck = journalChipLastTucks[marker.entryId]
                             ?.let(chipIndexOfEntry::get)
                             ?.let(::JournalChipTuck),
-                        // Insulin never piles with carbs or a note, so a pile always reads as one thing.
-                        kind = marker.type
+                        // Keep each insulin, carbs and notes in separate piles.
+                        kind = journalChipKind(marker)
                     )
                 },
                 journalChipLayoutSpec,
@@ -4236,12 +4264,17 @@ fun InteractiveGlucoseChart(
             // While a pile is closed, the chips behind its front peek out dimmed, part of the way
             // toward where they go when it opens, so the pile shows which way it will spread.
             // A folded chip can't be told apart from its front, so it stays wholly behind.
+            val compactChipFronts = chipGroups.filter { group -> group.any { chipPlacements[it].folded } }
+                .mapTo(HashSet()) { it[0] }
             val chipPeeks = JournalChipLayout.peeks(
                 chipBoxes,
                 chipGroups.filter { openChipGroup == null || it[0] != openChipGroup[0] },
                 journalChipLayoutSpec.visibleLayers,
                 journalChipLayoutSpec.peek,
-                mayPeek = { !chipPlacements[it].folded }
+                // A compact total is one label. Do not rebuild a fan of dose labels behind it.
+                mayPeek = { index ->
+                    !chipPlacements[index].folded && chipPlacements[index].front !in compactChipFronts
+                }
             ) { spreadOf(it, keep = true, peeking = true) }
             val chipPilePosition = IntArray(chipMarkers.size)
             chipGroups.forEach { group -> group.forEachIndexed { position, index -> chipPilePosition[index] = position } }
@@ -4364,7 +4397,7 @@ fun InteractiveGlucoseChart(
                     } else {
                         chipRight - connectorUnderlapPx
                     }
-                    val connectorColor = Color(marker.accentColor).copy(alpha = 0.22f)
+                    val connectorColor = Color(marker.accentColor).copy(alpha = 0.55f)
                     val chipY = (position.y + journalChipPillHeightPx / 2f).coerceIn(0f, chartHeightPx)
                     val anchorY = sourceY.coerceIn(0f, chartHeightPx)
                     val bandTop = bandTopAt[marker.timestamp]?.takeIf { marker.type == JournalEntryType.INSULIN }
@@ -5766,7 +5799,7 @@ private class JournalChipMotion(private var spot: JournalChipSpot, private var t
 }
 
 @Composable
-private fun JournalMarkerChip(
+internal fun JournalMarkerChip(
     marker: JournalChartMarker,
     label: String,
     activePointerIds: MutableSet<PointerId>,
@@ -5899,6 +5932,15 @@ private fun insulinDosesOf(
 /** The insulin band's full height: a fifth of the chart, kept between 40 and 88 dp. */
 private fun androidx.compose.ui.unit.Density.insulinBandHeightFor(chartHeightPx: Float): Float =
     (chartHeightPx * 0.2f).coerceIn(40.dp.toPx(), 88.dp.toPx())
+
+/** The separate dose curve's height, shared by its drawing and label anchor. */
+internal fun Density.insulinSeparateCurveHeight(amount: Float?, chartHeight: Float): Float {
+    val base = (chartHeight * 0.018f).coerceIn(5.dp.toPx(), 12.dp.toPx())
+    val extra = (chartHeight * 0.20f).coerceIn(72.dp.toPx(), 156.dp.toPx())
+    val doseUnits = (amount ?: 0.5f).coerceAtLeast(0.05f)
+    val amountFactor = (ln(1f + doseUnits) / ln(1f + 18f)).coerceIn(0.08f, 1f)
+    return base + extra * amountFactor
+}
 
 private fun Modifier.journalMarkerInput(
     activePointerIds: MutableSet<PointerId>,
