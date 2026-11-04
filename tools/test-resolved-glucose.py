@@ -96,6 +96,8 @@ struct SensorGlucoseData {
     const RawData *getRawPollsData() const { return rawpolls; }
     int getTempForPoll(int) const { return 0; }
     bool validPollIndex(int i) const { return i >= 0 && i < 12; }
+    bool isDexcom() const { return false; }
+    int dexSlotFor(uint32_t) const { return -1; }
     bool hasStreamID(int i) const { return polls[i].getmgdL() > 0; }
     int getRawForPoll(const ScanData *) const { return 0; }
     size_t pollStorageCapacity() const { return 12; }
