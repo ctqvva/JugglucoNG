@@ -171,8 +171,8 @@ java += r'''
     BluetoothGattCharacteristic BLELogincharacteristic, CompositeRawDatacharacteristic, characteristic;
     static UUID mADCCustomServiceUUID=UUID.randomUUID(), mCharacteristicConfigDescriptor=UUID.randomUUID();
     static UUID mCharacteristicUUID_CompositeRawData=BluetoothGattCharacteristic.RAW, mCharacteristicUUID_BLELogin=UUID.randomUUID();
-    boolean m2831x(){logins++;return true;}
-    void writeBLELogin(){logins++;}
+    boolean m2831x(){logins++;conphase=1;return true;}
+    void writeBLELogin(){logins++;conphase=2;}
     void phase2(byte[] value){logins++;} void phase3(byte[] value){logins++;}
     void oldonCharacteristicChanged(byte[] value){frames++;streamPacketReceived();}
     static void showCharacter(String s,BluetoothGattCharacteristic c){}
@@ -215,6 +215,44 @@ java += r'''
         check(current.discoveries==1&&cb.logins==1&&cb.frames==1,"healthy streaming did not resume");
         for(int minute=0;minute<6;minute++){Applic.scheduler.advance(60_000);cb.onCharacteristicChanged(current,new BluetoothGattCharacteristic());}
         check(cb.mBluetoothGatt==current&&current.disconnected==0,"healthy connection expired");
+
+        // #798: an old loss alarm ran six seconds after a successful minute reading.
+        // reconnectall calls reconnect(now) directly, without shouldreconnect's glucose guard.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        long alarmNow=cb.connectTime+3_000_000L;
+        cb.charcha[0]=alarmNow-6_000L;
+        cb.reconnect(alarmNow);
+        check(current.disconnected==0&&cb.mBluetoothGatt==current,
+                "loss alarm disconnected a healthy stream six seconds after glucose");
+        check(!"Loss of signal".equals(cb.constatstatusstr),"healthy stream recorded a false loss");
+        // A recent frame without glucose also keeps the existing no-reading protection.
+        cb.charcha[0]=0;cb.charcha[1]=alarmNow-6_000L;cb.reconnect(alarmNow);
+        check(current.disconnected==0,"loss alarm disconnected a sensor reporting no glucose");
+        // Both kinds of progress must become stale before the periodic fallback recovers it.
+        cb.charcha[0]=cb.charcha[1]=alarmNow-cb.showtime-1_000L;cb.reconnect(alarmNow);
+        check(current.disconnected==1,"stale stream no longer gets periodic recovery");
+
+        // ColorOS delivered CONNECTED twice for one GATT, causing two discoveries.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        cb.sensorgen=2;cb.onServicesDiscovered(current,0);cb.onDescriptorWrite(current,null,0);
+        check(cb.conphase==2,"test handshake did not reach challenge phase");
+        int startedLogins=cb.logins;
+        cb.mBLELoginHandler=cb.forCurrentGatt(()->{});
+        Runnable pendingLogin=cb.mBLELoginHandler;
+        Applic.scheduler.advance(1_000);cb.onConnectionStateChange(current,0,2);
+        check(current.discoveries==1,"duplicate CONNECTED restarted service discovery");
+        check(cb.mBLELoginHandler==pendingLogin&&cb.conphase==2,
+                "duplicate CONNECTED cancelled an in-flight login retry");
+        // Independently duplicate service results must not reset phase 2 back to phase 1.
+        cb.onServicesDiscovered(current,0);
+        check(cb.logins==startedLogins&&cb.conphase==2,
+                "duplicate discovery restarted the security handshake");
+        // A duplicate must not move the original silence deadline later.
+        Applic.scheduler.advance(149_000);
+        check(current.disconnected==1,"duplicate CONNECTED extended the handshake deadline");
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        cb.sensorgen=2;cb.onServicesDiscovered(current,0);cb.onServicesDiscovered(current,133);
+        check(current.disconnected==1,"active handshake hid a service-discovery failure");
 
         // A CONNECTED link that stops streaming is retired through the same fresh-GATT path.
         cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
@@ -332,7 +370,7 @@ java += r'''
         login=cb.forCurrentGatt(()->retries[0]++);Runnable replacement=cb.forCurrentGatt(()->retries[0]++);
         login.run();check(retries[0]==1,"superseded login ran on the same GATT");
         replacement.run();check(retries[0]==2,"replacement login rejected");
-        System.out.println("PASS: Libre 2 fresh-GATT recovery, stream watchdog, callback isolation, deadlines, cancellation, ownership and login retries");
+        System.out.println("PASS: Libre 2 fresh-GATT recovery, healthy-alarm guard, duplicate callbacks, stream watchdog, callback isolation, deadlines, cancellation, ownership and login retries");
     }
 }
 '''

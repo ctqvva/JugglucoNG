@@ -191,7 +191,9 @@ public class Libre2GattCallback extends SuperGattCallback {
 	@Override
 	public synchronized boolean reconnect(long now) {
 		final long old = now - showtime + 20;
-		if (charcha[1] < old && connectTime < now - 60_000L) {
+		// Loss alarms call reconnect directly and may already be queued when a new
+		// reading rearms the alarm. Recent successful glucose must keep that link alive.
+		if (charcha[0] < old && charcha[1] < old && connectTime < now - 60_000L) {
 			noteLossOfSignal(now);
 			return connectDevice(0L);
 		}
@@ -289,6 +291,9 @@ private boolean connected=false;
 		}
 		if (disconnectingGatt != null && newState != BluetoothProfile.STATE_DISCONNECTED) return;
 		if (!acceptConnectionAttemptCallback(bluetoothGatt, newState)) return;
+		// Some stacks repeat CONNECTED for the same GATT. Starting discovery again
+		// duplicates the login and can reset a security challenge already in flight.
+		if (newState == BluetoothProfile.STATE_CONNECTED && status == GATT_SUCCESS && connected) return;
 		noteFirstGattCallback("onConnectionStateChange", bluetoothGatt);
 		super.onConnectionStateChange(bluetoothGatt, status, newState);
 		endBLEHandler();
@@ -417,6 +422,8 @@ private boolean connected=false;
     @Override // android.bluetooth.BluetoothGattCallback
 	public synchronized void onServicesDiscovered(BluetoothGatt bluetoothGatt, int status) {
 		if (!acceptGattCallback(bluetoothGatt)) return;
+		// A repeated successful discovery must not move an active login back to phase 1.
+		if (status == GATT_SUCCESS && conphase != 0) return;
 		{if(doLog) {Log.i(LOG_ID, "BLE onServicesDiscovered invoked, status: " + status);};};
 //		readrssi=9999; mBluetoothGatt.readRemoteRssi();
 		if(status != GATT_SUCCESS||! m2831x()) {

@@ -2,10 +2,13 @@
 
 Reviewed GitHub issue bodies, discussions and current attachments against main
 `86470fba8817a19eb9f2dff654dcf7d733d3a961`, verified against GitHub's main ref.
-This review changes no application behavior. Raw diagnostic logs are not included.
+The initial review changed no application behavior. The November 4 follow-up
+below adds focused recovery fixes. Raw diagnostic logs are not included.
 
-The evidence supports a mixture of past application defects, a remaining status
-presentation defect, and unresolved Bluetooth failures. It does not establish
+The evidence supports a mixture of application defects and unresolved Bluetooth
+failures. The November 4 capture identifies a healthy-link disconnect and a
+duplicate-callback login reset, both addressed by the follow-up patch. A status
+presentation defect remains separate. The evidence does not establish
 that Libre 2 glucose noise causes the current connection failures, or that the
 remaining failures are all caused by the application or the phone.
 
@@ -87,6 +90,11 @@ process suspension or identify it as the cause. A Redmi user also reports loss
 in NG and, less often, original Juggluco. Sleep standby optimization should be
 tested separately from the ordinary background-activity permission.
 
+**November 4 update:** the [new comment and attachments](https://github.com/ctqvva/JugglucoNG/issues/798#issuecomment-6625368607)
+capture the actual failure on 1.2.8 Alpha and establish two application defects.
+This supersedes the earlier lack of evidence for this particular event; see the
+follow-up below.
+
 ### #804: an error label while readings continue
 
 [Issue #804](https://github.com/ctqvva/JugglucoNG/issues/804) identifies 1.2.7 Alpha.
@@ -163,4 +171,83 @@ Executed on the reviewed main source:
 
 These tests do not exercise a real Android stack, proprietary authentication,
 sensor firmware, OS sleep behavior or radio coexistence. No physical sensor
-test, application patch, issue reply, push or PR was performed by this review.
+test, application patch, issue reply, push or PR was performed in the initial
+November 3 review.
+
+## November 4 follow-up: alarm disconnect and duplicate Gen2 login
+
+The new trace covers a working stream and its failure. Times below use the
+reporter's UTC+03:00 timezone. The logcat independently confirms the duplicate
+Android callbacks; these are not duplicated lines from our trace exporter.
+
+1. **05:04:54:** a complete packet is processed successfully and glucose is
+   published. The loss alarm is rearmed for 05:10:44.
+2. **05:05:01:** `LossOfSensorAlarm.onReceive` calls `reconnectall`, which calls
+   `Libre2GattCallback.reconnect(now)` directly. Our driver requests disconnect.
+   Its link summary reports 45 packets and the last packet six seconds earlier.
+   The driver checked only the last failed-glucose time, not the successful
+   reading, so the alarm could disconnect a healthy sensor.
+3. **05:05:01:** the replacement GATT connects successfully. Android delivers two
+   CONNECTED callbacks about 17 ms apart; our driver calls `discoverServices`
+   twice. This repeats on subsequent retries.
+4. **05:05:14:** Android delivers both successful discovery results. The first
+   starts Gen2 security notification setup; its descriptor completion sends the
+   security challenge and advances `conphase` to 2. The second discovery calls
+   `m2831x` again, resetting `conphase` to 1. Its overlapping descriptor write
+   fails. There is then a successful challenge-write completion but no complete
+   glucose packet. The unexpected phase reset can prevent the normal challenge
+   response from progressing; the capture does not expose a full response.
+5. **05:07:31 onward:** the 150-second watchdog is active and repeatedly requests
+   fresh GATT recovery. Subsequent links connect and discover services, repeat
+   the duplicate-login sequence, and report zero complete packets. There is no
+   returned glucose in the capture through export at 05:36.
+
+The initial healthy disconnect is directly demonstrated by source and trace.
+The repeated discovery resets are also demonstrated. Hardware confirmation is
+still needed to establish that preventing these defects restores this user's
+stream, and the logs do not establish the cause of the duplicate Android events.
+This is materially stronger evidence for application defects than the original
+nighttime-only report and is distinct from #773's recorded 147/19 failure loop.
+
+### Focused changes
+
+- `Libre2GattCallback.reconnect` now requires both successful and unsuccessful
+  glucose timestamps to be stale. An already dispatched loss alarm cannot
+  disconnect a link that has just delivered glucose. The existing recent-connect
+  guard and stale-stream recovery remain in place.
+- A repeated successful CONNECTED callback for the current connected GATT is
+  ignored before it can cancel a login retry, repeat discovery, reset packet
+  counters or extend the stream deadline.
+- A repeated successful service-discovery result is ignored once the handshake
+  has started. Non-success results still trigger bounded recovery.
+
+The production changes are confined to Libre 2. The earlier Connected-label
+defect and diagnostics-export improvements remain separate work.
+
+### Regression evidence
+
+Added cases to `tools/test-libre2-connect.py`, exercising the production recovery
+and callback methods with fake Bluetooth/scheduler/authentication boundaries.
+Before their corresponding fixes, the cases failed with:
+
+- `loss alarm disconnected a healthy stream six seconds after glucose`;
+- `duplicate CONNECTED restarted service discovery`;
+- `duplicate discovery restarted the security handshake`.
+
+The harness also checks recent no-glucose frames, genuinely stale streams,
+preserved in-flight login retries, the original silence deadline, and failed
+discovery during an active handshake. These tests model login phase transitions;
+they do not execute proprietary authentication or a physical Android stack.
+
+Validation after the fixes:
+
+- Standalone `python3 tools/test-libre2-connect.py`: PASS.
+- Java 21, isolated Gradle home, `--no-daemon --offline`:
+  `:Common:testMobileDebugUnitTest :Common:testWearDebugUnitTest` filtered to
+  `Libre2RecoveryTests` and `ConnectModeLeverTests`: BUILD SUCCESSFUL, 6 tests per
+  variant, zero failures/errors/skips. Both variants' production Java and Kotlin
+  compilation succeeded as prerequisites.
+- `git diff --check`: PASS.
+
+No physical sensor retest, APK/R8 validation, push, PR or issue reply was performed
+for this follow-up.
