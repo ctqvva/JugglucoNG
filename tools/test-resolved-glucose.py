@@ -8,6 +8,7 @@ partial page rewrite and a byte-for-byte Clone-style copy.
 import argparse
 import os
 from pathlib import Path
+import re
 import shlex
 import subprocess
 import tempfile
@@ -23,11 +24,17 @@ def extract(path, signature, ref=None):
         )
     else:
         source = (CPP / path).read_text()
+    # Upload functions contain braces in JSON/raw strings and comments.
+    masked = re.sub(
+        r'R"([^ ()\\\t\r\n]{0,16})\(.*?\)\1"|"(?:\\.|[^"\\])*"|'
+        r"'(?:\\.|[^'\\])*'|//[^\n]*|/\*.*?\*/",
+        lambda match: " " * len(match.group()), source, flags=re.DOTALL,
+    )
     start = source.index(signature)
-    end = source.index("{", start) + 1
+    end = masked.index("{", start) + 1
     depth = 1
     while depth:
-        depth += (source[end] == "{") - (source[end] == "}")
+        depth += (masked[end] == "{") - (masked[end] == "}")
         end += 1
     return source[start:end]
 
@@ -35,6 +42,8 @@ def extract(path, signature, ref=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--consumer-ref")
+    parser.add_argument("--trend-ref", help="Negative control for native rate derivation")
+    parser.add_argument("--smoothing-ref", help="Negative control for resolved upload smoothing")
     args = parser.parse_args()
     code = r'''
 #include <algorithm>
@@ -43,6 +52,7 @@ def main():
 #include <cmath>
 #include <cstdint>
 #include <climits>
+#include <charconv>
 #include <span>
 #include <cstdio>
 #include <cstring>
@@ -78,17 +88,17 @@ struct SensorGlucoseData {
     bool error() const { return false; }
     sensorname_t alias{};
     const sensorname_t *shortsensorname() const { return &alias; }
-    ScanData polls[3]{};
+    ScanData polls[12]{};
     ScanData *getPollsData() { return polls; }
     const ScanData *getPollsData() const { return polls; }
-    struct RawData { uint16_t raw; } rawpolls[3]{};
-    uint16_t temppolls[3]{};
+    struct RawData { uint16_t raw; } rawpolls[12]{};
+    uint16_t temppolls[12]{};
     const RawData *getRawPollsData() const { return rawpolls; }
     int getTempForPoll(int) const { return 0; }
-    bool validPollIndex(int i) const { return i >= 0 && i < 3; }
+    bool validPollIndex(int i) const { return i >= 0 && i < 12; }
     bool hasStreamID(int i) const { return polls[i].getmgdL() > 0; }
     int getRawForPoll(const ScanData *) const { return 0; }
-    size_t pollStorageCapacity() const { return 3; }
+    size_t pollStorageCapacity() const { return 12; }
     int pollcount() const { return info.pollcount; }
     void backstream(int) {}
     void backhistory(int) {}
@@ -144,8 +154,17 @@ using RawData = SensorGlucoseData::RawData;
 bool backup = false;
 void syncListStarttime(SensorGlucoseData *, uint32_t) {}
 int compactRawMgdl(float) { return 0; }
-float derivechangeforsample(const ScanData *, int, int, int, jlong) { return 0; }
 """
+    trend = (CPP / "exchangetrend.hpp").read_text() if not args.trend_ref else subprocess.check_output(
+        ["git", "show", f"{args.trend_ref}:Common/src/main/cpp/exchangetrend.hpp"], cwd=ROOT, text=True,
+    )
+    trend = trend[trend.index("static constexpr const uint32_t minderivegapsecs"):]
+    if args.trend_ref:
+        # Keep an older helper callable from the new ingest path. Its original
+        # predecessor selection still runs, ignoring the supplied representation.
+        trend = trend.replace("const int curmgdl, const uint32_t curtime) {\n  if (!polls",
+                              "const int curmgdl, const uint32_t curtime, bool resolved = false) {\n  if (!polls")
+    code += trend
     code = code.replace("/* CLASSIFICATION */",
         extract("SensorGlucoseData.hpp", "bool hasResolvedGlucose()", args.consumer_ref)
         if args.consumer_ref else "")
@@ -166,6 +185,7 @@ float derivechangeforsample(const ScanData *, int, int, int, jlong) { return 0; 
         "double     calibrateONE(const SensorGlucoseData *sens,const uint32_t time,",
         "double     calibrateNowNoCheck(const SensorGlucoseData *sens,const ScanData &value) {",
         "double     calibrateONE(const SensorGlucoseData *sens,const ScanData &value) {",
+        "double     calibrateONEtest(",
         "std::pair<const ScanData*,const ScanData*>      makecalibrated(",
         "std::pair<const ScanData*,const ScanData*>      makecalibratedback(",
     ]:
@@ -175,7 +195,30 @@ float derivechangeforsample(const ScanData *, int, int, int, jlong) { return 0; 
     code += reader("net/watchserver/uploader.cpp", "static int getNightscoutCalibrationOverrideForItem(").replace("nightscoutcalibrationclass", "exportvalueclass")
     code += "\nstatic int uploadSmoothingSeconds=600;\n"
     code += "template <class Getvalue>\n" + extract("net/watchserver/uploader.cpp", "static int smoothPollWindow(")
-    code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadMgdl(")
+    code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadMgdl(", args.smoothing_ref)
+    code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadRaw(")
+    code += "\ntemplate <class T, size_t N>\n" + extract("net/watchserver/common.hpp", "inline static constexpr void addar(")
+    for signature in ["inline double getdelta(", "inline std::string_view fixedsensorview(",
+                      "inline void addjsonuint(", "inline void addjsonint(",
+                      "inline void addjsonpadded2(", "inline void addjsonpadded3(",
+                      "inline void addjsonfixed3(", "inline int addNightscoutDateString(",
+                      "inline void addjsonescaped("]:
+        code += extract("net/watchserver/common.hpp", signature)
+    code += extract("net/watchserver/common.cpp", "int mksgvidentifier(")
+    code += '\n#define DOUBLETHRESHOLD 3.0f\n#define NOT_DETERMINED ""\n'
+    for signature in ["int getdeltaindex(float rate) {", "std::string_view getdeltanamefromindex(int index) {",
+                      "std::string_view getdeltaname(float rate) {"]:
+        code += extract("glucose.cpp", signature)
+    code += "\ntemplate <class T>\n" + extract("net/watchserver/uploader.cpp", "int mkuploaditem(")
+    code += r'''
+ScanData serializedV3;
+char *writev3entry(char *out, const ScanData *value, const sensorname_t *, bool,
+                   const std::string_view &) {
+    serializedV3 = *value;
+    return out;
+}
+'''
+    code += extract("net/watchserver/uploader.cpp", "static const char *writeNightscoutV3UploadEntry(")
     code += r'''
 int main() {
     static_assert(sizeof(ScanData) == 20);
@@ -229,7 +272,7 @@ int main() {
     assert(!receiver.polls[0].hasResolvedGlucose() && receiver.polls[2].hasResolvedGlucose());
     env.javaOffset = 15;
     storage.DoCalibrate = false;
-    for (const auto &sample : receiver.polls)
+    for (const auto &sample : span<const ScanData>(receiver.polls, 3))
         assert(resolveExportedMgdl(&receiver, &sample, receiver.shortsensorname()) == 130);
     assert(smoothedUploadMgdl(span<const ScanData>(source.polls), 0) == 115);
     assert(smoothedUploadMgdl(span<const ScanData>(source.polls), 2) == 0);
@@ -243,8 +286,74 @@ int main() {
     assert(storeGlucoseStreamSample(&source, source.id.c_str(), start+120, 11.5, 0, 0,
                                    true, true, true, nullptr, false));
     assert(!source.polls[2].hasResolvedGlucose() && source.polls[2].getmgdL() == 115);
+
+    // A partial API page changes representation, not glucose. Never save +3/min
+    // by comparing final 130 to the legacy automatic 115 five minutes earlier.
+    SensorGlucoseData rateSource{"API-rate"};
+    rateSource.info.pollcount = 1;
+    rateSource.polls[0] = {start, 0, 115, 0, NAN};
+    assert(storeGlucoseStreamSample(&rateSource, rateSource.id.c_str(), start+300, 13, 0, 0,
+                                   true, true, true, nullptr, true));
+    assert(isnan(rateSource.polls[5].getchange()));
+    auto rateData = span<const ScanData>(rateSource.polls, 12);
+    assert(isnan(derivechangefrompolls(rateData, 5)));
+    assert(isnan(effectivechange(rateData, 5, rateSource.polls[5])));
+    char payload[2048]{};
+    auto size = mkuploaditem(&rateSource, payload, rateSource.shortsensorname(), rateSource.polls[5], rateData, 5, false);
+    string firstPayload(payload, size);
+    assert(firstPayload.find("\"direction\":\"\"") != string::npos);
+    assert(firstPayload.find("\"delta\":0.000") != string::npos);
+    // Once a final predecessor is old enough, a stable final feed is flat.
+    assert(storeGlucoseStreamSample(&rateSource, rateSource.id.c_str(), start+600, 13, 0, 0,
+                                   true, true, true, nullptr, true));
+    assert(rateSource.polls[10].getchange() == 0);
+    assert(derivechangefrompolls(rateData, 10) == 0);
+    // The same rule applies when stock values arrive after resolved values.
+    assert(storeGlucoseStreamSample(&rateSource, rateSource.id.c_str(), start+660, 11.5, 0, 0,
+                                   true, true, true, nullptr, false));
+    assert(rateSource.polls[11].getchange() == 0);
+    SensorGlucoseData stockSource{"BLE-stock-rate"};
+    stockSource.info.pollcount = 1;
+    stockSource.polls[0] = {start, 0, 115, 0, NAN};
+    assert(storeGlucoseStreamSample(&stockSource, stockSource.id.c_str(), start+300, 13, 0, 0,
+                                   true, true, true, nullptr, false));
+    assert(stockSource.polls[5].getchange() == 3);
+    // A nearer point of the wrong representation cannot hide a matching one.
+    rateSource.polls[0].g = 130 | ScanData::resolvedGlucoseFlag;
+    rateSource.polls[5].g = 115;
+    rateSource.polls[10].ch = NAN;
+    assert(derivechangefrompolls(rateData, 10) == 0);
+
+    // Supplied final glucose must stay 130 even when its 100/130/100
+    // neighbourhood would smooth to 110. Exercise both production upload paths.
+    SensorGlucoseData uploadSource{"API-upload"};
+    for (int i = 0; i < 3; ++i)
+        uploadSource.polls[i] = {start + uint32_t(i)*300, i,
+            (i == 1 ? 130 : 100) | ScanData::resolvedGlucoseFlag, 0, NAN};
+    auto uploadData = span<const ScanData>(uploadSource.polls, 3);
+    assert(smoothedUploadMgdl(uploadData, 1) == 0);
+    for (bool nativeEnabled : {false, true}) {
+        storage.DoCalibrate = nativeEnabled;
+        env.javaCalls = nativeCalls = 0;
+        size = mkuploaditem(&uploadSource, payload, uploadSource.shortsensorname(), uploadSource.polls[1], uploadData, 1, false);
+        assert(string(payload, size).find("\"sgv\":130,") != string::npos);
+        writeNightscoutV3UploadEntry(payload, &uploadSource, uploadSource.shortsensorname(), &uploadSource.polls[1], uploadData, 1);
+        assert(serializedV3.getmgdL() == 130);
+        assert(env.javaCalls == 0 && nativeCalls == 0);
+    }
+    // Stock readings still use the configured exchange smoother.
+    for (auto &sample : uploadSource.polls) sample.g &= 0xffff;
+    assert(smoothedUploadMgdl(uploadData, 1) == 110);
+    for (bool nativeEnabled : {false, true}) {
+        storage.DoCalibrate = nativeEnabled;
+        env.javaOffset = nativeEnabled ? 0 : 15;
+        size = mkuploaditem(&uploadSource, payload, uploadSource.shortsensorname(), uploadSource.polls[1], uploadData, 1, false);
+        assert(string(payload, size).find("\"sgv\":125,") != string::npos);
+        writeNightscoutV3UploadEntry(payload, &uploadSource, uploadSource.shortsensorname(), &uploadSource.polls[1], uploadData, 1);
+        assert(serializedV3.getmgdL() == 125);
+    }
     remove(filename);
-    puts("Persisted legacy/final mirror, partial rewrite, Clone bytes, export and calibration checks passed");
+    puts("Persisted mirror, representation-safe trend, final V1/V3 export and calibration checks passed");
 }
 '''
     with tempfile.TemporaryDirectory(prefix="resolved-glucose-") as directory:

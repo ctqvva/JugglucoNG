@@ -52,9 +52,12 @@ inline int ratetolegacytrendindex(const float rate) {
 // Rate for a sample at index pos whose value/time are given explicitly, so ingest paths can call
 // this before polls[pos] has been written. Searches back from pos-1 for the newest usable
 // predecessor rather than taking polls[pos-1] outright, so a 1-minute grid still measures over a
-// useful span and gaps (g==0) are skipped instead of poisoning the result.
+// useful span and gaps (g==0) are skipped instead of poisoning the result. Stock
+// and resolved values can coexist after a partial mirror rewrite; compare only
+// predecessors with the incoming sample's representation.
 inline float derivechangeforsample(const ScanData *polls, const int first, const int pos,
-                                   const int curmgdl, const uint32_t curtime) {
+                                   const int curmgdl, const uint32_t curtime,
+                                   const bool primaryIsResolved) {
   if (!polls || pos <= first || !curtime || curmgdl <= 0)
     return NAN;
   for (int i = pos - 1; i >= first; --i) {
@@ -64,6 +67,8 @@ inline float derivechangeforsample(const ScanData *polls, const int first, const
       continue;
     if ((curtime - prevtime) > maxderivegapsecs) // only gets worse going further back
       return NAN;
+    if (prev.hasResolvedGlucose() != primaryIsResolved)
+      continue;
     const float rate = deriveChangeMgdlPerMinute(prev.getmgdL(), prevtime, curmgdl, curtime);
     if (!isnan(rate))
       return rate;
@@ -76,7 +81,8 @@ inline float derivechangefrompolls(std::span<const ScanData> gdata, const int po
   if (pos <= 0 || pos >= (int)gdata.size())
     return NAN;
   const ScanData &item = gdata[pos];
-  return derivechangeforsample(gdata.data(), 0, pos, item.getmgdL(), item.gettime());
+  return derivechangeforsample(gdata.data(), 0, pos, item.getmgdL(), item.gettime(),
+                               item.hasResolvedGlucose());
 }
 
 // Driver-reported rate when there is one, otherwise a derived fallback.

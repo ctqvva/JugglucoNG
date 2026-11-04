@@ -752,6 +752,10 @@ static int smoothPollWindow(std::span<const ScanData> gdata,const int pos,Getval
 //Deliberately never calls ScanData::valid(): that patches a zero timestamp from the
 //preceding entry as a side effect, which a read-only averaging pass must not do.
 static int smoothedUploadMgdl(std::span<const ScanData> gdata,const int pos) {
+    // A resolved primary already matches live publishing. Keep the upstream
+    // final value in both upload paths, even when stock history is smoothed.
+    if(pos<0||pos>=(int)gdata.size()||gdata[pos].hasResolvedGlucose())
+        return 0;
     return smoothPollWindow(gdata,pos,[gdata,pos](const int i) {
         // An upgrade can leave both stock and final samples in this window.
         // Average only the representation to which the caller's calibration applies.

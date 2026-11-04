@@ -1529,7 +1529,7 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
     preservedTemp = static_cast<uint16_t>(temperatureC * 10.0f);
 
   const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
-                                             mgVal, timestamp);
+                                             mgVal, timestamp, primaryIsResolved);
   const int storedGlucose = mgVal | (primaryIsResolved ? ScanData::resolvedGlucoseFlag : 0);
   const bool stored = quiet
                           ? hist->savepollallIDsQuiet<60>(
@@ -1947,7 +1947,8 @@ fromjava(addRawGlucoseStream)(JNIEnv *env, jclass cl, jlong timestamp,
       }
 
       if (hist->validPollIndex(lifeCount) && hist->hasStreamID(lifeCount)) {
-        int preservedAuto = hist->getPollsData()[lifeCount].g;
+        const ScanData &preserved = hist->getPollsData()[lifeCount];
+        int preservedAuto = preserved.g;
         uint16_t preservedTemp = hist->getTempForPoll(lifeCount);
         int rawVal = 0;
         if (rawGlucose > 0) {
@@ -1960,7 +1961,8 @@ fromjava(addRawGlucoseStream)(JNIEnv *env, jclass cl, jlong timestamp,
         }
         // See addGlucoseStreamInternal(): derive rather than storing a fake flat 0.0f.
         const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
-                                                   (preservedAuto & 0xffff), timestamp);
+                                                   preserved.getmgdL(), timestamp,
+                                                   preserved.hasResolvedGlucose());
         hist->savepollallIDs<60>(timestamp, lifeCount, preservedAuto, 0, change,
                                  rawVal, preservedTemp);
         if (backup) {
