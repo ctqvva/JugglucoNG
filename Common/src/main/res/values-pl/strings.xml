@@ -1735,6 +1735,7 @@
     <string name="journal_dose_pair_insulin">Połącz insulinę</string>
     <string name="journal_dose_pair_carbs">Połącz węglowodany</string>
     <string name="journal_dose_suggested_insulin">Sugerowane %1$s j.</string>
+    <string name="journal_amount_suggested">Sugerowane</string>
     <string name="unit_insulin_value">%1$s j.</string>
     <string name="unit_insulin_short">j.</string>
     <string name="unit_carbs_value">%1$s g</string>

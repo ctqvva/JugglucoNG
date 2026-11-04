@@ -2068,6 +2068,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_dose_pair_insulin">Inzulin társítása</string>
     <string name="journal_dose_pair_carbs">Szénhidrát társítása</string>
     <string name="journal_dose_suggested_insulin">Javasolt: %1$s U</string>
+    <string name="journal_amount_suggested">Javasolt</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>

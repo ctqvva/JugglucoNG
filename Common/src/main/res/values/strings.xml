@@ -2233,6 +2233,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_dose_pair_insulin">Pair insulin</string>
     <string name="journal_dose_pair_carbs">Pair carbs</string>
     <string name="journal_dose_suggested_insulin">%1$s U suggested</string>
+    <string name="journal_amount_suggested">Suggested</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>
