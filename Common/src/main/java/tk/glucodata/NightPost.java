@@ -594,6 +594,12 @@ static public long getSensorStartTime(String sensorId, long nativeStartTime, int
     if(managedFamilyCode==ManagedSensorUiFamily.GENERIC.getNativeCode() &&
             ApiGlucoseSourceIdentityAdapter.INSTANCE.resolveCanonicalSensorId(sensorId)!=null)
         return 0L;
+    if(managedFamilyCode==ManagedSensorUiFamily.LIBRE3.getNativeCode()) {
+        final Context context=Applic.getContext();
+        final tk.glucodata.drivers.libre3.Libre3SensorRecord record=(context==null||sensorId==null)?null:
+                tk.glucodata.drivers.libre3.Libre3Persistence.INSTANCE.loadSensor(context,sensorId);
+        return record==null?nativeStartTime:record.getStartTimeMs()/1000L;
+        }
     if(managedFamilyCode!=ManagedSensorUiFamily.MEDTRUM.getNativeCode())
         return nativeStartTime;
     final Context context=Applic.getContext();
