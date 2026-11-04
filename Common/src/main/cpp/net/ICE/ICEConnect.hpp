@@ -522,7 +522,11 @@ virtual ssize_t  s_recvni(void *buf, size_t len) override {
            LOGGERICE("ICEConnect::s_recvni(%p,%d) not connected\n",buf,len);
            return -1;
            }
-        auto ret= icedata[0].receive(agent.load(),(char *)buf, len);
+        // The sender only reads handshake replies and acks. Once a reconnect
+        // left the two sides' transaction ids one apart, each waited for the
+        // other forever with the link up; TCP's 60 s SO_RCVTIMEO ends that wait,
+        // so give ICE the same and let the sender reconnect.
+        auto ret= icedata[0].receive(agent.load(),(char *)buf, len,60);
         LOGGERICE("ICEConnect::s_recvni(%p,%d)=%d\n",buf,len,ret);
         return ret;
         }
