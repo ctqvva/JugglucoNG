@@ -3452,8 +3452,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="restricted_use_biometric">Isticmaal faraha ama wejiga</string>
     <string name="restricted_unlock_title">U gudub habka buuxa</string>
     <string name="restricted_unlock_desc">Dejimaha iyo dhammaan kontaroolada dareemaha ayaa furmaya. Habka xaddidan wuxuu soo laabanayaa daqiiqad kadib markaad ka baxdo app-ka.</string>
-    <string name="restricted_enter_pin">Geli PIN</string>
-    <string name="restricted_enter_pin_desc">Si aad ugu gudubto habka buuxa</string>
+    <string name="restricted_unlock_desc_pin">Geli PIN-ka si aad u furto dejimaha iyo dhammaan kontaroolada dareemaha. Habka xaddidan wuxuu soo laabanayaa daqiiqad kadib markaad ka baxdo app-ka.</string>
+    <string name="restricted_needs_full_mode">Marka hore u gudub habka buuxa ee Dejimaha.</string>
+    <string name="restricted_sensor_ends">Wuxuu dhammaanayaa %1$s</string>
     <string name="restricted_wrong_pin">PIN khaldan</string>
     <string name="restricted_pin_locked_out">Isku day badan · sug %1$s</string>
     <string name="restricted_choose_pin">Dooro PIN</string>
@@ -3463,15 +3464,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="restricted_delete_digit">Tirtir godka</string>
     <string name="restricted_disconnect_desc">Taleefankani wuu joojinayaa akhrinta dareemaha. Akhrisyadii hore waa la hayaa.</string>
     <string name="restricted_sensor_ended">Dhammaaday</string>
-    <string name="restricted_sensor_ends_today">Maanta ayuu dhammaanayaa</string>
     <string name="restricted_sensors_locked">Ku darista dareeme waxay u baahan tahay habka buuxa.</string>
-    <string name="restricted_tab_locked">Waxay u baahan tahay habka buuxa</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d god ayaa la geliyay</item>
         <item quantity="other">%d god ayaa la geliyay</item>
-    </plurals>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d maalin ayaa haray</item>
-        <item quantity="other">%d maalmood ayaa haray</item>
     </plurals>
 </resources>

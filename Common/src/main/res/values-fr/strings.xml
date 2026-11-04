@@ -3274,8 +3274,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_use_biometric">Utiliser l\'empreinte ou le visage</string>
     <string name="restricted_unlock_title">Passer en mode complet</string>
     <string name="restricted_unlock_desc">Les réglages et toutes les commandes du capteur s\'ouvrent. Le mode restreint revient une minute après avoir quitté l\'app.</string>
-    <string name="restricted_enter_pin">Saisir le code PIN</string>
-    <string name="restricted_enter_pin_desc">Pour passer en mode complet</string>
+    <string name="restricted_unlock_desc_pin">Saisissez le code PIN pour ouvrir les réglages et toutes les commandes du capteur. Le mode restreint revient une minute après avoir quitté l\'app.</string>
+    <string name="restricted_needs_full_mode">Passez d\'abord en mode complet dans les réglages.</string>
+    <string name="restricted_sensor_ends">Se termine %1$s</string>
     <string name="restricted_wrong_pin">Code PIN incorrect</string>
     <string name="restricted_pin_locked_out">Trop d\'essais · attendez %1$s</string>
     <string name="restricted_choose_pin">Choisir un code PIN</string>
@@ -3285,15 +3286,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_delete_digit">Effacer le chiffre</string>
     <string name="restricted_disconnect_desc">Ce téléphone arrête de lire le capteur. Les mesures déjà reçues sont conservées.</string>
     <string name="restricted_sensor_ended">Terminé</string>
-    <string name="restricted_sensor_ends_today">Se termine aujourd\'hui</string>
     <string name="restricted_sensors_locked">Ajouter un capteur nécessite le mode complet.</string>
-    <string name="restricted_tab_locked">Mode complet requis</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d chiffre saisi</item>
         <item quantity="other">%d chiffres saisis</item>
-    </plurals>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d jour restant</item>
-        <item quantity="other">%d jours restants</item>
     </plurals>
 </resources>

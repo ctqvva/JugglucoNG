@@ -3258,8 +3258,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_use_biometric">Usa impronta o volto</string>
     <string name="restricted_unlock_title">Passa alla modalità completa</string>
     <string name="restricted_unlock_desc">Si aprono le impostazioni e tutti i controlli del sensore. La modalità limitata torna un minuto dopo che esci dall\'app.</string>
-    <string name="restricted_enter_pin">Inserisci il PIN</string>
-    <string name="restricted_enter_pin_desc">Per passare alla modalità completa</string>
+    <string name="restricted_unlock_desc_pin">Inserisci il PIN per aprire le impostazioni e tutti i controlli del sensore. La modalità limitata torna un minuto dopo che esci dall\'app.</string>
+    <string name="restricted_needs_full_mode">Passa prima alla modalità completa nelle impostazioni.</string>
+    <string name="restricted_sensor_ends">Termina %1$s</string>
     <string name="restricted_wrong_pin">PIN errato</string>
     <string name="restricted_pin_locked_out">Troppi tentativi · attendi %1$s</string>
     <string name="restricted_choose_pin">Scegli un PIN</string>
@@ -3269,15 +3270,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_delete_digit">Cancella cifra</string>
     <string name="restricted_disconnect_desc">Questo telefono smette di leggere il sensore. Le letture ricevute finora restano.</string>
     <string name="restricted_sensor_ended">Terminato</string>
-    <string name="restricted_sensor_ends_today">Termina oggi</string>
     <string name="restricted_sensors_locked">Per aggiungere un sensore serve la modalità completa.</string>
-    <string name="restricted_tab_locked">Serve la modalità completa</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d cifra inserita</item>
         <item quantity="other">%d cifre inserite</item>
-    </plurals>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d giorno rimasto</item>
-        <item quantity="other">%d giorni rimasti</item>
     </plurals>
 </resources>

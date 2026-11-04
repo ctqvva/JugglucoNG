@@ -74,7 +74,6 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val state by RestrictedMode.state.collectAsStateWithLifecycle()
     val config = state.config
-    var showPinSetup by remember { mutableStateOf(false) }
     var showPinOptions by remember { mutableStateOf(false) }
     var handoverEnabled by remember { mutableStateOf(SensorConnectionSettings.handoverEnabled(context)) }
     val biometricsAvailable = remember(context) { RestrictedBiometrics.isAvailable(context) }
@@ -129,7 +128,8 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                         iconTint = color,
                         position = if (biometricsAvailable) CardPosition.TOP else CardPosition.SINGLE,
                         onClick = {
-                            if (config.hasPin) showPinOptions = true else showPinSetup = true
+                            if (config.hasPin) showPinOptions = true
+                            else navController.navigate("settings/restricted-mode/pin")
                         },
                     )
                     if (biometricsAvailable) {
@@ -225,16 +225,6 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
         }
     }
 
-    if (showPinSetup) {
-        RestrictedPinSetupSheet(
-            onChosen = { pin ->
-                RestrictedMode.setPin(context, pin)
-                showPinSetup = false
-            },
-            onDismiss = { showPinSetup = false },
-        )
-    }
-
     if (showPinOptions) {
         AlertDialog(
             onDismissRequest = { showPinOptions = false },
@@ -244,7 +234,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                 TextButton(
                     onClick = {
                         showPinOptions = false
-                        showPinSetup = true
+                        navController.navigate("settings/restricted-mode/pin")
                     },
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.TextButtonContentPadding,

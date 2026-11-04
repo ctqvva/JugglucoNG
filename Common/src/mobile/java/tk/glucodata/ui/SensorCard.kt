@@ -398,6 +398,49 @@ private fun SensorCurrentValueChip(
 }
 
 /**
+ * The sensor's newest reading for its card: the live current value when it is fresh, or the
+ * newest stored reading, whichever is later. Shared by the full card and the restricted one.
+ */
+@Composable
+internal fun rememberSensorCurrentSnapshot(
+    sensor: tk.glucodata.ui.viewmodel.SensorInfo,
+): CurrentDisplaySource.Snapshot? {
+    val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
+    val latestPersistedReading by remember(sensor.serial) {
+        HistoryRepository().getLatestReadingFlowForSensor(sensor.serial)
+    }.collectAsStateWithLifecycle(initialValue = null)
+    return remember(
+        refreshRevision,
+        sensor.serial,
+        sensor.viewMode,
+        latestPersistedReading,
+    ) {
+        val freshSnapshot = CurrentDisplaySource.resolveCurrent(
+            maxAgeMillis = Notify.glucosetimeout,
+            preferredSensorId = sensor.serial
+        )?.takeIf { snapshot ->
+            abs(System.currentTimeMillis() - snapshot.timeMillis) <= Notify.glucosetimeout &&
+                snapshot.primaryStr.isNotBlank()
+        }
+        // Room holds mg/dL; resolveIncomingReading() takes display units. Unconverted,
+        // a mmol/L user saw "66,0" or "118,8" whenever this was the newest source.
+        val persistedSnapshot = latestPersistedReading?.inDisplayUnit(tk.glucodata.ui.util.GlucoseFormatter.isMmolApp())?.let { point ->
+            val value = point.value.takeIf { it.isFinite() && it > 0.1f }
+                ?: point.rawValue.takeIf { it.isFinite() && it > 0.1f }
+                ?: return@let null
+            CurrentDisplaySource.resolveIncomingReading(
+                liveNumericValue = value,
+                rate = point.rate ?: Float.NaN,
+                targetTimeMillis = point.timestamp,
+                preferredSensorId = sensor.serial,
+                source = "sensor-card-history",
+            )?.takeIf { it.primaryStr.isNotBlank() }
+        }
+        listOfNotNull(freshSnapshot, persistedSnapshot).maxByOrNull { it.timeMillis }
+    }
+}
+
+/**
  * When the sensor's wear ends, for the lifetime fill and the restricted card's dates: AiDex
  * trusts its official end, the others their expected end, and without either the rated
  * wear (AiDex by model, 15 days) or 14 days from the start.
@@ -1786,39 +1829,7 @@ fun SensorCard(
     val isLocallyStreaming = sensor.streaming
     val isLocallyEnabled = isSensorLocallyEnabled(sensor.streaming, sensor.paused)
     val isHandedOff = sensor.handoffUiState != SensorHandoffUiState.NONE
-    val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
-    val latestPersistedReading by remember(sensor.serial) {
-        HistoryRepository().getLatestReadingFlowForSensor(sensor.serial)
-    }.collectAsStateWithLifecycle(initialValue = null)
-    val currentSnapshot = remember(
-        refreshRevision,
-        sensor.serial,
-        sensor.viewMode,
-        latestPersistedReading,
-    ) {
-        val freshSnapshot = CurrentDisplaySource.resolveCurrent(
-            maxAgeMillis = Notify.glucosetimeout,
-            preferredSensorId = sensor.serial
-        )?.takeIf { snapshot ->
-            abs(System.currentTimeMillis() - snapshot.timeMillis) <= Notify.glucosetimeout &&
-                snapshot.primaryStr.isNotBlank()
-        }
-        // Room holds mg/dL; resolveIncomingReading() takes display units. Unconverted,
-        // a mmol/L user saw "66,0" or "118,8" whenever this was the newest source.
-        val persistedSnapshot = latestPersistedReading?.inDisplayUnit(tk.glucodata.ui.util.GlucoseFormatter.isMmolApp())?.let { point ->
-            val value = point.value.takeIf { it.isFinite() && it > 0.1f }
-                ?: point.rawValue.takeIf { it.isFinite() && it > 0.1f }
-                ?: return@let null
-            CurrentDisplaySource.resolveIncomingReading(
-                liveNumericValue = value,
-                rate = point.rate ?: Float.NaN,
-                targetTimeMillis = point.timestamp,
-                preferredSensorId = sensor.serial,
-                source = "sensor-card-history",
-            )?.takeIf { it.primaryStr.isNotBlank() }
-        }
-        listOfNotNull(freshSnapshot, persistedSnapshot).maxByOrNull { it.timeMillis }
-    }
+    val currentSnapshot = rememberSensorCurrentSnapshot(sensor)
     var cloneHealthNowMillis by remember(sensor.serial) {
         mutableStateOf(System.currentTimeMillis())
     }

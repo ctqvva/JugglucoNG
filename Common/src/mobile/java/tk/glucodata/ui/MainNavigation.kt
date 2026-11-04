@@ -83,7 +83,7 @@ import tk.glucodata.RestrictedMode
 import tk.glucodata.ui.restricted.LocalRequestFullMode
 import tk.glucodata.ui.restricted.RestrictedModeRoutes
 import tk.glucodata.ui.restricted.RestrictedModeSettingsScreen
-import tk.glucodata.ui.restricted.RestrictedUnlockSheet
+import tk.glucodata.ui.restricted.RestrictedPinSetupScreen
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.journal.JournalEntry
@@ -200,7 +200,7 @@ private fun HistoryRoute(
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
     val restricted by RestrictedMode.state.collectAsStateWithLifecycle()
-    val requestFullMode = LocalRequestFullMode.current
+    val fullModeGuard = tk.glucodata.ui.restricted.rememberFullModeGuard()
     val journalGuard = tk.glucodata.ui.restricted.rememberRestrictedJournalGuard()
     // Restricted again with the editor open (an adult left it a minute): close it.
     LaunchedEffect(restricted.canEditJournal) {
@@ -263,7 +263,7 @@ private fun HistoryRoute(
                 lastJournalType = entry.type
                 journalEditorRequest = JournalEditorRequest(entry.type, entry.timestamp, entry)
             }
-            if (restricted.canEditJournal) open() else requestFullMode(open)
+            if (restricted.canEditJournal) open() else fullModeGuard(open)
         },
         onAddJournalEntry = if (!restricted.canEditJournal) null else { timestamp, suggestedType, suggestedDisplayGlucose ->
             val type = suggestedType ?: lastJournalType
@@ -735,11 +735,23 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     // Hoisted Calibration Sheet State
     var calibrationSheetState by remember { mutableStateOf<CalibrationSheetState>(CalibrationSheetState.Hidden) }
 
-    // Restricted mode: what is closed asks for full mode first, then carries on.
+    // Restricted mode: the switch to full mode lives on the Settings tab. Something closed
+    // that was reached by navigating (a locked screen, calibration) opens Settings and carries
+    // on, back where it was asked from, once full mode is on.
     val restricted by RestrictedMode.state.collectAsStateWithLifecycle()
     var pendingFullModeAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var fullModeReturnRoute by remember { mutableStateOf<String?>(null) }
     val requestFullMode: (() -> Unit) -> Unit = { action ->
-        if (RestrictedMode.isLocked()) pendingFullModeAction = action else action()
+        if (!RestrictedMode.isLocked()) {
+            action()
+        } else {
+            fullModeReturnRoute = navController.currentDestination?.route
+            pendingFullModeAction = action
+            navController.navigate("settings") {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+            }
+        }
     }
 
     val onTriggerCalibration: (CalibrationSheetState) -> Unit = { state ->
@@ -798,8 +810,8 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { RestrictedMode.onAppBackgrounded() }
 
     // The one gate for every way a screen opens — tabs, dashboard links, notification taps.
-    // A closed screen reached while restricted goes back to the dashboard and asks for full
-    // mode; one left open when the session locks again just closes, without asking.
+    // A closed screen reached while restricted goes to Settings, where full mode is switched
+    // on, and opens once it is; one left open when the session locks again just closes.
     var gateWasLocked by remember { mutableStateOf(restricted.locked) }
     LaunchedEffect(restricted, currentRoute) {
         // The live state, not the collected one: unlocking and navigating happen in one
@@ -813,6 +825,34 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
             if (!justLocked && blocked != null) {
                 requestFullMode { navController.navigate(blocked) { launchSingleTop = true } }
             }
+        }
+    }
+
+    // Full mode switched on from Settings: back to where it was asked for, then carry on.
+    LaunchedEffect(restricted.locked) {
+        if (restricted.locked) return@LaunchedEffect
+        val action = pendingFullModeAction ?: return@LaunchedEffect
+        val back = fullModeReturnRoute
+        pendingFullModeAction = null
+        fullModeReturnRoute = null
+        if (back != null && back != "settings" && navController.currentDestination?.route == "settings") {
+            navController.navigate(back) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+        action()
+    }
+    // Left Settings without switching: what was waiting is dropped, so unlocking later from
+    // the tab does not suddenly run it.
+    // The live destination, not the captured one: the gate above runs in the same frame for
+    // a closed route and has already moved on to Settings.
+    LaunchedEffect(currentRoute) {
+        val live = navController.currentDestination?.route
+        if (live != null && live != "settings") {
+            pendingFullModeAction = null
+            fullModeReturnRoute = null
         }
     }
 
@@ -926,10 +966,9 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
             onNavigate(route)
         }
     }
-    // The Settings tab carries a small lock while it needs unlocking.
-    val tabLocked = { route: String ->
-        restricted.locked && !RestrictedModeRoutes.isOpenWhileLocked(route, restricted.config)
-    }
+    // The Settings tab carries a small lock while the phone is restricted: it opens to the
+    // restricted page, where full mode is switched on.
+    val tabLocked = { route: String -> restricted.locked && route == "settings" }
 
     // One NavHost in one place for both orientations. Rotation is handled by this activity
     // (configChanges), so the composition survives it; two NavHosts — one beside a rail, one
@@ -1054,17 +1093,6 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
         onDismiss = { calibrationSheetState = CalibrationSheetState.Hidden },
         onNavigateToCalibrations = { navController.navigate("calibrations") }
     )
-
-    // --- RESTRICTED MODE: switch to full mode (Global) ---
-    pendingFullModeAction?.let { action ->
-        RestrictedUnlockSheet(
-            onUnlocked = {
-                pendingFullModeAction = null
-                action()
-            },
-            onDismiss = { pendingFullModeAction = null },
-        )
-    }
 }
 
 /**
@@ -1083,7 +1111,7 @@ private fun LockableTabIcon(locked: Boolean, icon: @Composable () -> Unit) {
                 ) {
                     Icon(
                         Icons.Filled.Lock,
-                        contentDescription = stringResource(R.string.restricted_tab_locked),
+                        contentDescription = stringResource(R.string.restricted_mode_title),
                         modifier = Modifier.size(12.dp),
                     )
                 }
@@ -1143,11 +1171,13 @@ private fun NavGraphBuilder.appDestinations(
     gatedComposable("sensors") {
         SensorScreen(
             onNavigateToMqAccount = { navController.navigate("settings/mq-account") },
-            onNavigateToReadiness = { navController.navigate("settings/cgm-readiness") }
+            onNavigateToReadiness = { navController.navigate("settings/cgm-readiness") },
+            dashboardViewModel = dashboardViewModel,
         )
     }
     gatedComposable("settings") { ExpressiveSettingsScreen(navController, themeMode, onThemeChanged, dashboardViewModel) }
     gatedComposable("settings/restricted-mode") { RestrictedModeSettingsScreen(navController) }
+    gatedComposable("settings/restricted-mode/pin") { RestrictedPinSetupScreen(navController) }
     gatedComposable("settings/nightscout") { NightscoutSettingsScreen(navController) }
     gatedComposable("settings/libreview") { LibreViewSettingsScreen(navController) }
     gatedComposable("settings/mq-account") { MQAccountSettingsScreen(navController) }

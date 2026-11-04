@@ -46,7 +46,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,6 +54,15 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.navigation.NavController
+import tk.glucodata.ui.components.AppTopBar
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -74,120 +82,115 @@ import tk.glucodata.R
 import tk.glucodata.RestrictedMode
 import tk.glucodata.RestrictedModePin
 import tk.glucodata.ui.components.IconButtonTooltip
-import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.util.findActivity
 
 /**
- * The way from restricted to full mode. Without a PIN it is one tap — the point is that a
- * child does not wander into the settings by accident, not that an adult has to prove
- * anything. With a PIN it is a keypad, and biometrics when the adult turned them on.
+ * The way from restricted to full mode, at the top of the Settings tab while restricted.
+ * Without a PIN it is one tap: the point is that a child does not wander into the settings
+ * by accident, not that an adult has to prove anything. With a PIN the button opens the
+ * keypad in place, and offers the fingerprint first when the adult turned that on.
  */
 @Composable
-internal fun RestrictedUnlockSheet(
-    onUnlocked: () -> Unit,
-    onDismiss: () -> Unit,
-) {
+internal fun RestrictedFullModeCard(modifier: Modifier = Modifier) {
     val state by RestrictedMode.state.collectAsStateWithLifecycle()
     val config = state.config
     val context = LocalContext.current
-    StableModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) {
-        if (!config.hasPin) {
-            NoPinUnlock(onUnlock = {
-                RestrictedMode.unlock()
-                onUnlocked()
-            })
-        } else {
-            val biometricLabel = stringResource(R.string.restricted_use_biometric)
-            val title = stringResource(R.string.restricted_unlock_title)
-            val cancel = stringResource(R.string.cancel)
-            val biometricsReady = config.biometricUnlock && RestrictedBiometrics.isAvailable(context)
-            val launchBiometrics: () -> Unit = {
-                val activity = context.findActivity()
-                if (activity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    RestrictedBiometrics.authenticate(activity, title, cancel) {
-                        RestrictedMode.unlock()
-                        onUnlocked()
-                    }
-                }
-            }
-            // Offer the fingerprint straight away; the keypad stays underneath as the
-            // fallback for when the prompt is cancelled.
-            LaunchedEffect(biometricsReady) {
-                if (biometricsReady) launchBiometrics()
-            }
-            PinUnlock(
-                onAccepted = {
-                    RestrictedMode.unlock()
-                    onUnlocked()
-                },
-                biometricAction = if (biometricsReady) {
-                    {
-                        TextButton(
-                            onClick = launchBiometrics,
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.TextButtonContentPadding,
-                        ) {
-                            Icon(
-                                Icons.Default.Fingerprint,
-                                contentDescription = null,
-                                modifier = Modifier.size(ButtonDefaults.IconSize),
-                            )
-                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text(biometricLabel)
-                        }
-                    }
-                } else null,
-            )
+    var showKeypad by rememberSaveable { mutableStateOf(false) }
+    val title = stringResource(R.string.restricted_unlock_title)
+    val cancel = stringResource(R.string.cancel)
+    val biometricsReady = config.hasPin && config.biometricUnlock && RestrictedBiometrics.isAvailable(context)
+    val launchBiometrics: () -> Unit = {
+        val activity = context.findActivity()
+        if (activity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            RestrictedBiometrics.authenticate(activity, title, cancel) { RestrictedMode.unlock() }
         }
     }
-}
 
-@Composable
-private fun NoPinUnlock(onUnlock: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Default.LockOpen,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.restricted_unlock_title),
-            style = MaterialTheme.typography.headlineSmallEmphasized,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.semantics { heading() },
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.restricted_unlock_desc),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = onUnlock,
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 56.dp),
-            shapes = ButtonDefaults.shapes(),
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(stringResource(R.string.restricted_unlock_title))
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Default.LockOpen,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmallEmphasized,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { heading() },
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(
+                    if (config.hasPin) R.string.restricted_unlock_desc_pin else R.string.restricted_unlock_desc
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            if (!config.hasPin || !showKeypad) {
+                Spacer(Modifier.height(24.dp))
+                Button(
+                    onClick = {
+                        when {
+                            !config.hasPin -> RestrictedMode.unlock()
+                            else -> {
+                                showKeypad = true
+                                // The fingerprint first; the keypad stays as the fallback.
+                                if (biometricsReady) launchBiometrics()
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp),
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(title)
+                }
+            }
+            AnimatedVisibility(visible = config.hasPin && showKeypad) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(Modifier.height(24.dp))
+                    PinUnlock(
+                        onAccepted = { RestrictedMode.unlock() },
+                        biometricAction = if (biometricsReady) {
+                            {
+                                TextButton(
+                                    onClick = launchBiometrics,
+                                    shapes = ButtonDefaults.shapes(),
+                                    contentPadding = ButtonDefaults.TextButtonContentPadding,
+                                ) {
+                                    Icon(
+                                        Icons.Default.Fingerprint,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                                    )
+                                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                                    Text(stringResource(R.string.restricted_use_biometric))
+                                }
+                            }
+                        } else null,
+                    )
+                }
+            }
         }
     }
 }
@@ -207,8 +210,6 @@ private fun PinUnlock(
     }
     val wrongPin = stringResource(R.string.restricted_wrong_pin)
     PinPad(
-        title = stringResource(R.string.restricted_enter_pin),
-        supporting = stringResource(R.string.restricted_enter_pin_desc),
         error = error,
         lockedOutUntil = lockedOutUntil,
         onLockoutEnded = { lockedOutUntil = 0L },
@@ -232,51 +233,79 @@ private fun PinUnlock(
 }
 
 /**
- * Choosing a PIN: once, then again to confirm. [onChosen] receives the confirmed digits.
+ * Settings → Advanced → Restricted mode → PIN: choosing a PIN, once and then again to
+ * confirm. A pushed screen rather than a sheet, like the app's other settings pages.
  */
 @Composable
-internal fun RestrictedPinSetupSheet(
-    onChosen: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
+internal fun RestrictedPinSetupScreen(navController: NavController) {
+    val context = LocalContext.current
     var first by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
     val mismatch = stringResource(R.string.restricted_pin_mismatch)
-    StableModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) {
-        PinPad(
-            title = stringResource(
-                if (first == null) R.string.restricted_choose_pin else R.string.restricted_confirm_pin
-            ),
-            supporting = stringResource(
-                R.string.restricted_choose_pin_desc,
-                RestrictedModePin.MIN_LENGTH,
-                RestrictedModePin.MAX_LENGTH,
-            ),
-            error = error,
-            lockedOutUntil = 0L,
-            onLockoutEnded = {},
-            resetKey = attempt,
-            onSubmit = { pin ->
-                val chosen = first
-                when {
-                    chosen == null -> {
-                        first = pin
-                        error = null
+    Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
+        topBar = {
+            AppTopBar(
+                title = stringResource(R.string.restricted_pin_title),
+                onNavigateBack = { navController.popBackStack() },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(
+                    if (first == null) R.string.restricted_choose_pin else R.string.restricted_confirm_pin
+                ),
+                style = MaterialTheme.typography.headlineSmallEmphasized,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { heading() },
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(
+                    R.string.restricted_choose_pin_desc,
+                    RestrictedModePin.MIN_LENGTH,
+                    RestrictedModePin.MAX_LENGTH,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(24.dp))
+            PinPad(
+                error = error,
+                lockedOutUntil = 0L,
+                onLockoutEnded = {},
+                resetKey = attempt,
+                onSubmit = { pin ->
+                    val chosen = first
+                    when {
+                        chosen == null -> {
+                            first = pin
+                            error = null
+                        }
+                        chosen == pin -> {
+                            RestrictedMode.setPin(context, pin)
+                            navController.popBackStack()
+                        }
+                        else -> {
+                            first = null
+                            error = mismatch
+                        }
                     }
-                    chosen == pin -> onChosen(pin)
-                    else -> {
-                        first = null
-                        error = mismatch
-                    }
-                }
-                attempt++
-            },
-            footer = null,
-        )
+                    attempt++
+                },
+                footer = null,
+            )
+        }
     }
 }
 
@@ -286,8 +315,6 @@ private val CompactKeySize = 56.dp
 
 @Composable
 private fun PinPad(
-    title: String,
-    supporting: String,
     error: String?,
     lockedOutUntil: Long,
     onLockoutEnded: () -> Unit,
@@ -319,28 +346,12 @@ private fun PinPad(
         else -> error
     }
 
-    // Scrolls when even the compact keypad does not fit, so OK is always reachable.
+    // The keypad itself; its host scrolls (the Settings list, or the PIN screen), so a short
+    // window can always reach OK.
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmallEmphasized,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.semantics { heading() },
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = supporting,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(24.dp))
         PinDots(length = pin.length)
         Spacer(Modifier.height(12.dp))
         // Always laid out, so a message appearing does not push the keypad down.

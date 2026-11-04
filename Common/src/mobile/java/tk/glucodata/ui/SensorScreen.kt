@@ -252,6 +252,8 @@ fun SensorScreen(
     onNavigateToMqAccount: () -> Unit = {},
     onNavigateToReadiness: () -> Unit = {},
     viewModel: tk.glucodata.ui.viewmodel.SensorViewModel = viewModel(),
+    /** The app's shared one, for the glucose ranges the restricted cards colour readings by. */
+    dashboardViewModel: DashboardViewModel? = null,
 ) {
     val context = LocalContext.current
     val sensors by viewModel.sensors.collectAsStateWithLifecycle()
@@ -331,6 +333,7 @@ fun SensorScreen(
         if (allowed.isEmpty()) showSensorPicker = false
     }
     val canAddSensor = allowedSensorTypes == null || allowedSensorTypes.isNotEmpty()
+    val readingRange = rememberRestrictedReadingRange(dashboardViewModel)
     val requestFullMode = tk.glucodata.ui.restricted.LocalRequestFullMode.current
     val onAddSensor: () -> Unit = {
         // One allowed family: straight to its setup, no picker with a single row.
@@ -552,6 +555,7 @@ fun SensorScreen(
                                 sensor = sensor,
                                 viewModel = viewModel,
                                 allowDisconnect = restricted.config.allowSensorChange,
+                                range = readingRange,
                             )
                         } else {
                             SensorCard(
@@ -584,4 +588,36 @@ fun SensorScreen(
             }
         }
     }
+}
+
+/** The user's ranges from the shared dashboard model, with the app defaults without one. */
+@Composable
+private fun rememberRestrictedReadingRange(
+    dashboardViewModel: DashboardViewModel?,
+): tk.glucodata.ui.restricted.RestrictedReadingRange {
+    if (dashboardViewModel == null) {
+        val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmolApp()
+        return tk.glucodata.ui.restricted.RestrictedReadingRange(
+            isMmol = isMmol,
+            targetLow = tk.glucodata.GlucoseRangeColors.defaultLow(isMmol),
+            targetHigh = tk.glucodata.GlucoseRangeColors.defaultHigh(isMmol),
+            veryLow = tk.glucodata.GlucoseRangeColors.defaultVeryLow(isMmol),
+            veryHigh = tk.glucodata.GlucoseRangeColors.defaultVeryHigh(isMmol),
+            valueRangeColors = false,
+        )
+    }
+    val unit by dashboardViewModel.unit.collectAsStateWithLifecycle()
+    val targetLow by dashboardViewModel.targetLow.collectAsStateWithLifecycle()
+    val targetHigh by dashboardViewModel.targetHigh.collectAsStateWithLifecycle()
+    val veryLow by dashboardViewModel.veryLowThreshold.collectAsStateWithLifecycle()
+    val veryHigh by dashboardViewModel.veryHighThreshold.collectAsStateWithLifecycle()
+    val valueColors by dashboardViewModel.glucoseValueRangeColorsEnabled.collectAsStateWithLifecycle()
+    return tk.glucodata.ui.restricted.RestrictedReadingRange(
+        isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
+        targetLow = targetLow,
+        targetHigh = targetHigh,
+        veryLow = veryLow,
+        veryHigh = veryHigh,
+        valueRangeColors = valueColors,
+    )
 }

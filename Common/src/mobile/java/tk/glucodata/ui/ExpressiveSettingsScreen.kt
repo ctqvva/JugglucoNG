@@ -310,6 +310,9 @@ fun ExpressiveSettingsScreen(
         }
     )
 
+    // Restricted mode: the tab opens to the switch to full mode and a few safe settings.
+    val restrictedState by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
+
     fun openSearchResult(entry: SettingsSearchEntry) {
         focusManager.clearFocus()
         when (val target = entry.target) {
@@ -341,6 +344,47 @@ fun ExpressiveSettingsScreen(
     ) {
         item(key = "title") {
             TabScreenHeader(title = stringResource(R.string.settings))
+        }
+
+        if (restrictedState.locked) {
+            item(key = "restricted_full_mode") {
+                tk.glucodata.ui.restricted.RestrictedFullModeCard()
+            }
+            item(key = "restricted_allowed_label") {
+                SectionLabel(stringResource(R.string.restricted_section_allowed))
+            }
+            // Only what cannot change a reading, an alarm or the data: how the app looks and
+            // speaks, and the readiness checks that keep a sensor connected.
+            item(key = "restricted_allowed_group") {
+                val generalColor = MaterialTheme.colorScheme.primary
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsItem(
+                        title = stringResource(R.string.theme_title),
+                        subtitle = themeLabel,
+                        icon = if (themeMode == ThemeMode.LIGHT) Icons.Default.LightMode else Icons.Default.DarkMode,
+                        iconTint = generalColor,
+                        position = CardPosition.TOP,
+                        onClick = { showThemeDialog = true }
+                    )
+                    SettingsItem(
+                        title = stringResource(R.string.languagename),
+                        subtitle = currentLangName,
+                        icon = Icons.Default.Language,
+                        iconTint = generalColor,
+                        position = CardPosition.MIDDLE,
+                        onClick = { showLanguageDialog = true }
+                    )
+                    SettingsItem(
+                        title = stringResource(R.string.cgm_readiness_title),
+                        subtitle = stringResource(R.string.cgm_readiness_settings_desc),
+                        icon = Icons.Default.Security,
+                        iconTint = generalColor,
+                        position = CardPosition.BOTTOM,
+                        onClick = { navController.navigate("settings/cgm-readiness") }
+                    )
+                }
+            }
+            return@LazyColumn
         }
 
         item(key = "search") {

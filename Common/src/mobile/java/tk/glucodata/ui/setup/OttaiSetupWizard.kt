@@ -511,9 +511,9 @@ fun OttaiSetupWizard(
     val ui = rememberWizardUiMetrics()
     // Restricted mode: adding the sensor works as usual, including the cloud unbind a new
     // sensor needs before it will connect (it releases the account binding and deletes
-    // nothing here). Deleting or exporting saved keys and the manual firmware entry ask for
-    // full mode first.
-    val requestFullMode = tk.glucodata.ui.restricted.LocalRequestFullMode.current
+    // nothing here). Deleting or exporting saved keys and the manual firmware entry need full
+    // mode: while restricted they say so, and the setup stays where it is.
+    val fullModeGuard = tk.glucodata.ui.restricted.rememberFullModeGuard()
     val restrictedLocked = tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle().value.locked
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1408,7 +1408,7 @@ fun OttaiSetupWizard(
                 OttaiCloudClient.loadOtaSession(context),
                 OttaiConstants.normalizeBleAddress(bleAddress) != null,
                 OttaiFirmwareSession.hasPendingSetup(context, cloudId))) ({
-                requestFullMode {
+                fullModeGuard {
                     setupAfterFirmware = false
                     firmwareLaunchId++
                     OttaiSetupScanHold.stopPanelScans()
@@ -1468,12 +1468,12 @@ fun OttaiSetupWizard(
                     },
                     onSelectSaved = selectSaved,
                     onExport = { sensor ->
-                        requestFullMode {
+                        fullModeGuard {
                             exportTargetId = sensor.sensorId
                             exportLauncher.launch("ottai_${sensor.sensorId}.json")
                         }
                     },
-                    onDelete = { sensor -> requestFullMode { pendingDelete = sensor } },
+                    onDelete = { sensor -> fullModeGuard { pendingDelete = sensor } },
                     onSelectAccountDevice = selectAccountDevice,
                     onUnbind = { pendingCloudUnbind = it },
                     onImport = launchImport,

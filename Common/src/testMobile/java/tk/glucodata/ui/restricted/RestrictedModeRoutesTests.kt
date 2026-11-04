@@ -15,15 +15,15 @@ class RestrictedModeRoutesTests {
     private val open = RestrictedModeConfig(enabled = true, allowJournal = true, allowCalibration = true)
 
     @Test fun everydayScreensStayOpen() {
-        for (route in listOf(null, "dashboard", "stats", "sensors", "history")) {
+        for (route in listOf(null, "dashboard", "stats", "sensors", "history", "settings", "settings/cgm-readiness")) {
             assertTrue(route.toString(), RestrictedModeRoutes.isOpenWhileLocked(route, closed))
         }
     }
 
-    @Test fun settingsAndEverythingUnderThemNeedFullMode() {
+    @Test fun everythingUnderSettingsButReadinessNeedsFullMode() {
         for (route in listOf(
-            "settings",
             "settings/restricted-mode",
+            "settings/restricted-mode/pin",
             "settings/alerts",
             "settings/data-smoothing",
             "settings/calibrations",
@@ -50,15 +50,6 @@ class RestrictedModeRoutesTests {
 
     @Test fun anUnknownRouteIsClosed() {
         assertFalse(RestrictedModeRoutes.isOpenWhileLocked("some/new-screen", open))
-    }
-
-    @Test fun daysLeftRoundDown() {
-        val day = 24L * 60L * 60L * 1000L
-        assertEquals(0, restrictedSensorDaysLeft(-1L))
-        assertEquals(0, restrictedSensorDaysLeft(0L))
-        assertEquals(0, restrictedSensorDaysLeft(day - 1))
-        assertEquals(1, restrictedSensorDaysLeft(day))
-        assertEquals(13, restrictedSensorDaysLeft(14 * day - 1))
     }
 
     @Test fun libreFamilyNameMatchesThePicker() {

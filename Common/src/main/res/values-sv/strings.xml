@@ -3267,8 +3267,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_use_biometric">Använd fingeravtryck eller ansikte</string>
     <string name="restricted_unlock_title">Byt till fullt läge</string>
     <string name="restricted_unlock_desc">Inställningar och all sensorstyrning öppnas. Begränsat läge kommer tillbaka en minut efter att du lämnat appen.</string>
-    <string name="restricted_enter_pin">Ange PIN-kod</string>
-    <string name="restricted_enter_pin_desc">För att byta till fullt läge</string>
+    <string name="restricted_unlock_desc_pin">Ange PIN-koden för att öppna inställningarna och all sensorstyrning. Begränsat läge kommer tillbaka en minut efter att du lämnat appen.</string>
+    <string name="restricted_needs_full_mode">Byt först till fullt läge i Inställningar.</string>
+    <string name="restricted_sensor_ends">Slutar %1$s</string>
     <string name="restricted_wrong_pin">Fel PIN-kod</string>
     <string name="restricted_pin_locked_out">För många försök · vänta %1$s</string>
     <string name="restricted_choose_pin">Välj en PIN-kod</string>
@@ -3278,15 +3279,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_delete_digit">Radera siffra</string>
     <string name="restricted_disconnect_desc">Telefonen slutar läsa sensorn. Värdena hittills sparas.</string>
     <string name="restricted_sensor_ended">Slut</string>
-    <string name="restricted_sensor_ends_today">Tar slut i dag</string>
     <string name="restricted_sensors_locked">Att lägga till en sensor kräver fullt läge.</string>
-    <string name="restricted_tab_locked">Kräver fullt läge</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d siffra angiven</item>
         <item quantity="other">%d siffror angivna</item>
-    </plurals>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d dag kvar</item>
-        <item quantity="other">%d dagar kvar</item>
     </plurals>
 </resources>

@@ -3310,8 +3310,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="restricted_use_biometric">Vingerafdruk of gezicht gebruiken</string>
     <string name="restricted_unlock_title">Naar volledige modus</string>
     <string name="restricted_unlock_desc">Instellingen en alle sensorbediening gaan open. De beperkte modus keert een minuut nadat je de app verlaat terug.</string>
-    <string name="restricted_enter_pin">Pincode invoeren</string>
-    <string name="restricted_enter_pin_desc">Om naar de volledige modus te gaan</string>
+    <string name="restricted_unlock_desc_pin">Voer de pincode in om de instellingen en alle sensorbediening te openen. De beperkte modus keert een minuut nadat je de app verlaat terug.</string>
+    <string name="restricted_needs_full_mode">Schakel eerst naar de volledige modus in Instellingen.</string>
+    <string name="restricted_sensor_ends">Eindigt %1$s</string>
     <string name="restricted_wrong_pin">Onjuiste pincode</string>
     <string name="restricted_pin_locked_out">Te veel pogingen · wacht %1$s</string>
     <string name="restricted_choose_pin">Kies een pincode</string>
@@ -3321,15 +3322,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="restricted_delete_digit">Cijfer wissen</string>
     <string name="restricted_disconnect_desc">Deze telefoon stopt met het uitlezen van de sensor. De metingen tot nu toe blijven bewaard.</string>
     <string name="restricted_sensor_ended">Afgelopen</string>
-    <string name="restricted_sensor_ends_today">Eindigt vandaag</string>
     <string name="restricted_sensors_locked">Voor het toevoegen van een sensor is de volledige modus nodig.</string>
-    <string name="restricted_tab_locked">Volledige modus nodig</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d cijfer ingevoerd</item>
         <item quantity="other">%d cijfers ingevoerd</item>
-    </plurals>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">nog %d dag</item>
-        <item quantity="other">nog %d dagen</item>
     </plurals>
 </resources>

@@ -3351,8 +3351,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_use_biometric">Адбітак або твар</string>
     <string name="restricted_unlock_title">Перайсці ў поўны рэжым</string>
     <string name="restricted_unlock_desc">Адкрыюцца налады і ўсё кіраванне датчыкам. Абмежаваны рэжым вернецца праз хвіліну пасля выхаду з праграмы.</string>
-    <string name="restricted_enter_pin">Увядзіце PIN-код</string>
-    <string name="restricted_enter_pin_desc">Каб перайсці ў поўны рэжым</string>
+    <string name="restricted_unlock_desc_pin">Увядзіце PIN-код, каб адкрыць налады і ўсё кіраванне датчыкам. Абмежаваны рэжым вернецца праз хвіліну пасля выхаду з праграмы.</string>
+    <string name="restricted_needs_full_mode">Спачатку перайдзіце ў поўны рэжым у наладах.</string>
+    <string name="restricted_sensor_ends">Сканчаецца: %1$s</string>
     <string name="restricted_wrong_pin">Няправільны PIN-код</string>
     <string name="restricted_pin_locked_out">Занадта шмат спроб · пачакайце %1$s</string>
     <string name="restricted_choose_pin">Задайце PIN-код</string>
@@ -3362,19 +3363,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_delete_digit">Выдаліць лічбу</string>
     <string name="restricted_disconnect_desc">Тэлефон перастане чытаць датчык. Атрыманыя паказанні захаваюцца.</string>
     <string name="restricted_sensor_ended">Скончыўся</string>
-    <string name="restricted_sensor_ends_today">Сканчаецца сёння</string>
     <string name="restricted_sensors_locked">Каб дадаць датчык, патрэбны поўны рэжым.</string>
-    <string name="restricted_tab_locked">Патрэбны поўны рэжым</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">уведзена %d лічба</item>
         <item quantity="few">уведзена %d лічбы</item>
         <item quantity="many">уведзена %d лічбаў</item>
         <item quantity="other">уведзена %d лічбы</item>
-    </plurals>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">застаўся %d дзень</item>
-        <item quantity="few">засталося %d дні</item>
-        <item quantity="many">засталося %d дзён</item>
-        <item quantity="other">засталося %d дня</item>
     </plurals>
 </resources>

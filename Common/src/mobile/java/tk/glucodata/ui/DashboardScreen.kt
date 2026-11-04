@@ -378,7 +378,7 @@ fun DashboardScreen(
     // ask for full mode.
     val restrictedMode by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
     val journalEditable = restrictedMode.canEditJournal
-    val requestFullMode = tk.glucodata.ui.restricted.LocalRequestFullMode.current
+    val fullModeGuard = tk.glucodata.ui.restricted.rememberFullModeGuard()
     val journalGuard = tk.glucodata.ui.restricted.rememberRestrictedJournalGuard()
     val glucoseRangeColorsDisplayEnabled by viewModel.glucoseValueRangeColorsEnabled.collectAsStateWithLifecycle()
     val glucoseArrowForecastEnabled by viewModel.glucoseArrowForecastColorsEnabled.collectAsStateWithLifecycle()
@@ -766,8 +766,8 @@ fun DashboardScreen(
         }
     }
     // Every way into the editor (markers, rows, menus) sets journalEditorRequest. Opened
-    // while the journal is closed, the request waits for full mode; an editor left open when
-    // the session locks again just closes, without asking.
+    // while the journal is closed, it says full mode is in Settings; an editor left open when
+    // the session locks again just closes, without a message.
     var journalWasEditable by remember { mutableStateOf(journalEditable) }
     LaunchedEffect(journalEditorRequest, journalEditable) {
         val justClosed = journalWasEditable && !journalEditable
@@ -776,7 +776,7 @@ fun DashboardScreen(
         val request = journalEditorRequest
         if (request != null && !journalEditable) {
             journalEditorRequest = null
-            if (!justClosed) requestFullMode { journalEditorRequest = request }
+            if (!justClosed) fullModeGuard { journalEditorRequest = request }
         }
     }
 
