@@ -199,6 +199,9 @@ object SensorIdentity {
         // managed driver answer "Room owns this" left both sources empty and the
         // screen showing "No data" over a full store.
         if (Applic.isWearable) return true
+        // A Clone receiver imports native files even when the sender's driver
+        // owns Room. Receiver ownership takes precedence over that local policy.
+        if (CloneSensorRegistry.isCloneSensor(raw)) return true
         managedDriverHistorySync(raw)?.let { return it }
         // Native current exposes a short name. Recover its full identity before
         // asking adapters such as API/NSF, which recognize their prefixed ids.
