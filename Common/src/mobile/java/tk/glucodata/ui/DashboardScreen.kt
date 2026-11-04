@@ -451,7 +451,6 @@ fun DashboardScreen(
     val coroutineScope = rememberCoroutineScope()
     val journalPresetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
     val journalFoodsById = remember(journalFoods) { journalFoods.associateBy { it.id } }
-    val activeJournalPresets = remember(journalInsulinPresets) { journalInsulinPresets.filter { !it.isArchived } }
     // Mirror the History route: journal entries are time-bound, not
     // sensor-bound. Scoping them by the active sensor would silently hide
     // entries logged before a sensor swap.
@@ -961,7 +960,7 @@ fun DashboardScreen(
             suggestedChartAnchorGlucoseMgDl = request.suggestedChartAnchorGlucoseMgDl,
             suggestedAmountFraction = request.suggestedAmountFraction,
             suggestedDose = stateDoseHint,
-            insulinPresets = if (request.existingEntry != null) journalInsulinPresets else activeJournalPresets,
+            insulinPresets = journalInsulinPresets,
             foods = if (journalFoodLibraryEnabled) journalFoods else emptyList(),
             foodMacrosEnabled = journalFoodMacrosEnabled,
             doseJournalEntries = scopedJournalEntries,

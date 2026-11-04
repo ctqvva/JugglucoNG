@@ -249,6 +249,35 @@ class JournalAmountAssistTests {
     }
 
     @Test
+    fun aDoseOfAnArchivedInsulinCoversFood() {
+        val archived = preset(id = 3L, useForCalculation = true).copy(isArchived = true)
+        val meal = JournalAmountAssist.uncoveredMeal(
+            entries = listOf(
+                food(amount = 60f, millisAgo = hour),
+                dose(amount = 6f, millisAgo = hour / 2, presetId = archived.id)
+            ),
+            presetsById = presets + (archived.id to archived),
+            atMillis = now
+        )
+
+        assertNull(meal)
+    }
+
+    @Test
+    fun aDoseOfADeletedInsulinCoversFood() {
+        val meal = JournalAmountAssist.uncoveredMeal(
+            entries = listOf(
+                food(amount = 60f, millisAgo = hour),
+                dose(amount = 6f, millisAgo = hour / 2, presetId = 99L)
+            ),
+            presetsById = presets,
+            atMillis = now
+        )
+
+        assertNull(meal)
+    }
+
+    @Test
     fun foodOutsideTheWindowIsNotAMeal() {
         val meal = JournalAmountAssist.uncoveredMeal(
             entries = listOf(food(amount = 60f, millisAgo = 2 * hour)),

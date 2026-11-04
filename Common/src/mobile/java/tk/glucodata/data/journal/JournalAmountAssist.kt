@@ -87,8 +87,10 @@ object JournalAmountAssist {
     )
 
     /**
-     * Food from the last 90 minutes with no dose after it. Any dose counts, however small,
-     * so a split bolus reads as covered: the worst this can do is say nothing.
+     * Food from the last 90 minutes with no dose after it. Any dose counts, however small, so
+     * a split bolus reads as covered, and so does one whose insulin is gone from [presetsById]:
+     * only an insulin known not to count for meals is left out. The worst this can do is say
+     * nothing, where the opposite offers a second dose for food already dosed.
      */
     fun uncoveredMeal(
         entries: List<JournalEntry>,
@@ -98,7 +100,7 @@ object JournalAmountAssist {
         val lastDose = entries.asSequence()
             .filter { it.type == JournalEntryType.INSULIN && it.timestamp <= atMillis }
             .filter { entry ->
-                entry.insulinPresetId?.let(presetsById::get)?.useForCalculation == true &&
+                entry.insulinPresetId?.let(presetsById::get)?.useForCalculation != false &&
                     (entry.amount ?: 0f) > 0f
             }
             .maxOfOrNull { it.timestamp }
