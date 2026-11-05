@@ -3539,7 +3539,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Restricted mode</string>
-    <string name="restricted_mode_desc">A simpler app for a child, or anyone who only needs to follow their glucose</string>
+    <string name="restricted_mode_desc">Hides settings and controls</string>
     <string name="restricted_full_mode_title">Full mode, for now</string>
     <string name="restricted_full_mode_desc">Restricted mode comes back a minute after you leave the app, or when you lock it.</string>
     <string name="restricted_lock_now">Lock now</string>
@@ -3551,6 +3551,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_biometric_desc">Also unlock with the phone\'s biometrics</string>
     <string name="restricted_biometric_needs_pin">Set a PIN first</string>
     <string name="restricted_section_allowed">Allowed while restricted</string>
+    <string name="restricted_section_available">Available now</string>
     <string name="restricted_allow_sensor_change">Change sensors</string>
     <string name="restricted_allow_sensor_change_desc">Add a new sensor and disconnect the old one</string>
     <string name="restricted_sensor_types_label">Sensors that can be added</string>
@@ -3569,8 +3570,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_remove_pin">Remove PIN</string>
     <string name="restricted_use_biometric">Use fingerprint or face</string>
     <string name="restricted_unlock_title">Switch to full mode</string>
-    <string name="restricted_unlock_desc">Settings and all sensor controls open. Restricted mode comes back a minute after you leave the app.</string>
-    <string name="restricted_unlock_desc_pin">Enter the PIN to open settings and all sensor controls. Restricted mode comes back a minute after you leave the app.</string>
+    <string name="restricted_unlock_desc">Settings and all sensor controls open. They close a minute after you leave the app.</string>
+    <string name="restricted_unlock_desc_pin">Enter the PIN to open settings and all sensor controls. They close a minute after you leave the app.</string>
     <string name="restricted_needs_full_mode">Switch to full mode in Settings first.</string>
     <string name="restricted_wrong_pin">Wrong PIN</string>
     <string name="restricted_pin_locked_out">Too many tries · wait %1$s</string>
@@ -3584,6 +3585,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d digit entered</item>
         <item quantity="other">%d digits entered</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">Less than an hour left</string>
+    <string name="restricted_sensor_end_passed">End date passed</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d day left</item>
+        <item quantity="other">%d days left</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d hour left</item>
+        <item quantity="other">%d hours left</item>
     </plurals>
     <string name="restricted_section_settings">Settings open while restricted</string>
     <string name="restricted_allow_alarm_settings_desc">Change levels and sounds, or turn alerts off</string>

@@ -3279,7 +3279,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Beperkte modus</string>
-    <string name="restricted_mode_desc">Een eenvoudigere app voor een kind of iedereen die alleen de glucose wil volgen</string>
+    <string name="restricted_mode_desc">Verbergt instellingen en bediening</string>
     <string name="restricted_full_mode_title">Voorlopig volledige modus</string>
     <string name="restricted_full_mode_desc">De beperkte modus keert een minuut nadat je de app verlaat terug, of wanneer je hem vergrendelt.</string>
     <string name="restricted_lock_now">Nu vergrendelen</string>
@@ -3291,6 +3291,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="restricted_biometric_desc">Ook ontgrendelen met de biometrie van de telefoon</string>
     <string name="restricted_biometric_needs_pin">Stel eerst een pincode in</string>
     <string name="restricted_section_allowed">Toegestaan in beperkte modus</string>
+    <string name="restricted_section_available">Nu beschikbaar</string>
     <string name="restricted_allow_sensor_change">Sensoren wisselen</string>
     <string name="restricted_allow_sensor_change_desc">Een nieuwe sensor toevoegen en de oude loskoppelen</string>
     <string name="restricted_sensor_types_label">Sensoren die toegevoegd kunnen worden</string>
@@ -3309,8 +3310,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="restricted_remove_pin">Pincode verwijderen</string>
     <string name="restricted_use_biometric">Vingerafdruk of gezicht gebruiken</string>
     <string name="restricted_unlock_title">Naar volledige modus</string>
-    <string name="restricted_unlock_desc">Instellingen en alle sensorbediening gaan open. De beperkte modus keert een minuut nadat je de app verlaat terug.</string>
-    <string name="restricted_unlock_desc_pin">Voer de pincode in om de instellingen en alle sensorbediening te openen. De beperkte modus keert een minuut nadat je de app verlaat terug.</string>
+    <string name="restricted_unlock_desc">Instellingen en alle sensorbediening gaan open. Ze sluiten een minuut nadat je de app verlaat.</string>
+    <string name="restricted_unlock_desc_pin">Voer de pincode in om de instellingen en alle sensorbediening te openen. Ze sluiten een minuut nadat je de app verlaat.</string>
     <string name="restricted_needs_full_mode">Schakel eerst naar de volledige modus in Instellingen.</string>
     <string name="restricted_wrong_pin">Onjuiste pincode</string>
     <string name="restricted_pin_locked_out">Te veel pogingen · wacht %1$s</string>
@@ -3324,6 +3325,16 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d cijfer ingevoerd</item>
         <item quantity="other">%d cijfers ingevoerd</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">Minder dan een uur over</string>
+    <string name="restricted_sensor_end_passed">Einddatum voorbij</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">Nog %d dag</item>
+        <item quantity="other">Nog %d dagen</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">Nog %d uur</item>
+        <item quantity="other">Nog %d uur</item>
     </plurals>
     <string name="restricted_section_settings">Instellingen open in beperkte modus</string>
     <string name="restricted_allow_alarm_settings_desc">Niveaus en geluiden wijzigen, of meldingen uitzetten</string>

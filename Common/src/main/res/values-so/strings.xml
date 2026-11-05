@@ -3421,7 +3421,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Habka xaddidan</string>
-    <string name="restricted_mode_desc">App fudud oo loogu talagalay ilmo ama qof kaliya la socda gluukooskiisa</string>
+    <string name="restricted_mode_desc">Qarinaya dejimaha iyo kontaroolada</string>
     <string name="restricted_full_mode_title">Hadda habka buuxa</string>
     <string name="restricted_full_mode_desc">Habka xaddidan wuxuu soo laabanayaa daqiiqad kadib markaad ka baxdo app-ka, ama markaad xirto.</string>
     <string name="restricted_lock_now">Hadda xir</string>
@@ -3433,6 +3433,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="restricted_biometric_desc">Sidoo kale ku fur biometric-ka taleefanka</string>
     <string name="restricted_biometric_needs_pin">Marka hore deji PIN</string>
     <string name="restricted_section_allowed">Waa la oggol yahay xilliga xaddidan</string>
+    <string name="restricted_section_available">Hadda la heli karo</string>
     <string name="restricted_allow_sensor_change">Beddel dareemayaasha</string>
     <string name="restricted_allow_sensor_change_desc">Ku dar dareeme cusub oo ka saar kii hore</string>
     <string name="restricted_sensor_types_label">Dareemayaasha lagu dari karo</string>
@@ -3451,8 +3452,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="restricted_remove_pin">Ka saar PIN</string>
     <string name="restricted_use_biometric">Isticmaal faraha ama wejiga</string>
     <string name="restricted_unlock_title">U gudub habka buuxa</string>
-    <string name="restricted_unlock_desc">Dejimaha iyo dhammaan kontaroolada dareemaha ayaa furmaya. Habka xaddidan wuxuu soo laabanayaa daqiiqad kadib markaad ka baxdo app-ka.</string>
-    <string name="restricted_unlock_desc_pin">Geli PIN-ka si aad u furto dejimaha iyo dhammaan kontaroolada dareemaha. Habka xaddidan wuxuu soo laabanayaa daqiiqad kadib markaad ka baxdo app-ka.</string>
+    <string name="restricted_unlock_desc">Dejimaha iyo dhammaan kontaroolada dareemaha ayaa furmaya. Waxay xirmayaan hal daqiiqo ka dib markaad ka baxdo app-ka.</string>
+    <string name="restricted_unlock_desc_pin">Geli PIN-ka si aad u furto dejimaha iyo dhammaan kontaroolada dareemaha. Waxay xirmayaan hal daqiiqo ka dib markaad ka baxdo app-ka.</string>
     <string name="restricted_needs_full_mode">Marka hore u gudub habka buuxa ee Dejimaha.</string>
     <string name="restricted_wrong_pin">PIN khaldan</string>
     <string name="restricted_pin_locked_out">Isku day badan · sug %1$s</string>
@@ -3466,6 +3467,16 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d god ayaa la geliyay</item>
         <item quantity="other">%d god ayaa la geliyay</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">In ka yar saacad ayaa hartay</string>
+    <string name="restricted_sensor_end_passed">Taariikhda dhammaadku way dhaaftay</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d maalin ayaa hartay</item>
+        <item quantity="other">%d maalmood ayaa hartay</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d saac ayaa hartay</item>
+        <item quantity="other">%d saacadood ayaa hartay</item>
     </plurals>
     <string name="restricted_section_settings">Dejimaha furan inta la xaddidan yahay</string>
     <string name="restricted_allow_alarm_settings_desc">Beddel heerarka iyo codadka, ama dami digniinaha</string>

@@ -3325,7 +3325,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Обмежений режим</string>
-    <string name="restricted_mode_desc">Простіший застосунок для дитини або для тих, кому треба лише стежити за глюкозою</string>
+    <string name="restricted_mode_desc">Приховує налаштування й керування</string>
     <string name="restricted_full_mode_title">Поки що повний режим</string>
     <string name="restricted_full_mode_desc">Обмежений режим повернеться за хвилину після виходу із застосунку або коли ви його заблокуєте.</string>
     <string name="restricted_lock_now">Заблокувати</string>
@@ -3337,6 +3337,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_biometric_desc">Розблоковувати також біометрією телефона</string>
     <string name="restricted_biometric_needs_pin">Спершу задайте PIN-код</string>
     <string name="restricted_section_allowed">Дозволено в обмеженому режимі</string>
+    <string name="restricted_section_available">Доступно зараз</string>
     <string name="restricted_allow_sensor_change">Зміна сенсорів</string>
     <string name="restricted_allow_sensor_change_desc">Додати новий сенсор і від\'єднати старий</string>
     <string name="restricted_sensor_types_label">Сенсори, які можна додати</string>
@@ -3355,8 +3356,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_remove_pin">Видалити PIN-код</string>
     <string name="restricted_use_biometric">Відбиток або обличчя</string>
     <string name="restricted_unlock_title">Перейти в повний режим</string>
-    <string name="restricted_unlock_desc">Відкриються налаштування й усе керування сенсором. Обмежений режим повернеться за хвилину після виходу із застосунку.</string>
-    <string name="restricted_unlock_desc_pin">Введіть PIN-код, щоб відкрити налаштування й усе керування сенсором. Обмежений режим повернеться за хвилину після виходу із застосунку.</string>
+    <string name="restricted_unlock_desc">Відкриються налаштування й усе керування сенсором. Вони закриються через хвилину після виходу із застосунку.</string>
+    <string name="restricted_unlock_desc_pin">Введіть PIN-код, щоб відкрити налаштування й усе керування сенсором. Вони закриються через хвилину після виходу із застосунку.</string>
     <string name="restricted_needs_full_mode">Спершу перейдіть у повний режим у налаштуваннях.</string>
     <string name="restricted_wrong_pin">Неправильний PIN-код</string>
     <string name="restricted_pin_locked_out">Забагато спроб · зачекайте %1$s</string>
@@ -3372,6 +3373,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="few">введено %d цифри</item>
         <item quantity="many">введено %d цифр</item>
         <item quantity="other">введено %d цифри</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">Залишилося менше години</string>
+    <string name="restricted_sensor_end_passed">Дата завершення минула</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">Залишився %d день</item>
+        <item quantity="few">Залишилося %d дні</item>
+        <item quantity="many">Залишилося %d днів</item>
+        <item quantity="other">Залишилося %d дня</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">Залишилася %d година</item>
+        <item quantity="few">Залишилося %d години</item>
+        <item quantity="many">Залишилося %d годин</item>
+        <item quantity="other">Залишилося %d години</item>
     </plurals>
     <string name="restricted_section_settings">Налаштування, відкриті в обмеженому режимі</string>
     <string name="restricted_allow_alarm_settings_desc">Змінювати рівні та звуки або вимикати сповіщення</string>

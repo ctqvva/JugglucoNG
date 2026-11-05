@@ -3349,7 +3349,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Eingeschränkter Modus</string>
-    <string name="restricted_mode_desc">Eine einfachere App für ein Kind oder alle, die nur ihren Glukosewert verfolgen</string>
+    <string name="restricted_mode_desc">Verbirgt Einstellungen und Steuerung</string>
     <string name="restricted_full_mode_title">Vorerst Vollmodus</string>
     <string name="restricted_full_mode_desc">Der eingeschränkte Modus kehrt eine Minute nach Verlassen der App zurück oder wenn du ihn sperrst.</string>
     <string name="restricted_lock_now">Jetzt sperren</string>
@@ -3361,6 +3361,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="restricted_biometric_desc">Auch mit der Biometrie des Telefons entsperren</string>
     <string name="restricted_biometric_needs_pin">Lege zuerst eine PIN fest</string>
     <string name="restricted_section_allowed">Im eingeschränkten Modus erlaubt</string>
+    <string name="restricted_section_available">Jetzt verfügbar</string>
     <string name="restricted_allow_sensor_change">Sensoren wechseln</string>
     <string name="restricted_allow_sensor_change_desc">Neuen Sensor hinzufügen und den alten trennen</string>
     <string name="restricted_sensor_types_label">Sensoren, die hinzugefügt werden können</string>
@@ -3379,8 +3380,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="restricted_remove_pin">PIN entfernen</string>
     <string name="restricted_use_biometric">Fingerabdruck oder Gesicht verwenden</string>
     <string name="restricted_unlock_title">In den Vollmodus wechseln</string>
-    <string name="restricted_unlock_desc">Einstellungen und alle Sensorsteuerungen werden geöffnet. Der eingeschränkte Modus kehrt eine Minute nach Verlassen der App zurück.</string>
-    <string name="restricted_unlock_desc_pin">Gib die PIN ein, um Einstellungen und alle Sensorsteuerungen zu öffnen. Der eingeschränkte Modus kehrt eine Minute nach Verlassen der App zurück.</string>
+    <string name="restricted_unlock_desc">Einstellungen und alle Sensorsteuerungen werden geöffnet. Sie schließen sich eine Minute nach dem Verlassen der App.</string>
+    <string name="restricted_unlock_desc_pin">Gib die PIN ein, um Einstellungen und alle Sensorsteuerungen zu öffnen. Sie schließen sich eine Minute nach dem Verlassen der App.</string>
     <string name="restricted_needs_full_mode">Wechsle zuerst in den Einstellungen in den Vollmodus.</string>
     <string name="restricted_wrong_pin">Falsche PIN</string>
     <string name="restricted_pin_locked_out">Zu viele Versuche · warte %1$s</string>
@@ -3394,6 +3395,16 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d Ziffer eingegeben</item>
         <item quantity="other">%d Ziffern eingegeben</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">Weniger als eine Stunde übrig</string>
+    <string name="restricted_sensor_end_passed">Enddatum überschritten</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">Noch %d Tag</item>
+        <item quantity="other">Noch %d Tage</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">Noch %d Stunde</item>
+        <item quantity="other">Noch %d Stunden</item>
     </plurals>
     <string name="restricted_section_settings">Im eingeschränkten Modus offene Einstellungen</string>
     <string name="restricted_allow_alarm_settings_desc">Grenzwerte und Töne ändern oder Alarme ausschalten</string>

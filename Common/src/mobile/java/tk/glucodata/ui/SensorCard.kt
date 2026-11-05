@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import tk.glucodata.ui.restricted.sensorLifeFill
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -223,6 +224,7 @@ private fun SensorIdentityControl(
     onToggle: () -> Unit,
     onPickColor: () -> Unit,
     colorPickable: Boolean = true,
+    life: tk.glucodata.ui.restricted.SensorLife? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -235,6 +237,7 @@ private fun SensorIdentityControl(
                 .clip(leadShape)
                 .background(
                     when {
+                        life != null -> life.containerColor
                         // Nothing to toggle with one sensor, so the name sits on the same
                         // quiet surface as the reading chip instead of looking pressable.
                         !selectable -> MaterialTheme.colorScheme.surfaceContainer
@@ -242,6 +245,7 @@ private fun SensorIdentityControl(
                         else -> MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
                     }
                 )
+                .then(if (life != null) Modifier.sensorLifeFill(life) else Modifier)
                 .then(
                     if (selectable) {
                         Modifier.toggleable(
@@ -253,7 +257,7 @@ private fun SensorIdentityControl(
                         Modifier
                     }
                 )
-                .padding(start = 12.dp, end = 12.dp),
+                .padding(start = 12.dp, end = if (life != null) 16.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (selectable) {
@@ -274,8 +278,12 @@ private fun SensorIdentityControl(
             SensorNameText(
                 name = name,
                 muted = selectable && !selected,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f, fill = life != null),
             )
+            if (life != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                tk.glucodata.ui.restricted.SensorLifeDays(life)
+            }
         }
         if (colorPickable) {
             Spacer(modifier = Modifier.width(2.dp))
@@ -426,7 +434,7 @@ fun SensorCard(
     onNavigateToMqAccount: () -> Unit = {},
     /**
      * Restricted mode: the same card with only what describes the sensor — name, status,
-     * newest reading, day of wear, start and end — and no controls, except Disconnect when
+     * newest reading, the dashboard's day of wear and fill, time left — and no controls, except Disconnect when
      * [allowDisconnect] (the adult allowed sensor changes).
      */
     restricted: Boolean = false,
@@ -1907,7 +1915,8 @@ fun SensorCard(
             // 1. Dynamic Fill Layer
             // FIX: Only show fill if start date is valid (> Jan 1 2020)
             // Prevents "100% Red Fill" bug when startMs is 0 or invalid (1970).
-            if (sensor.startMs > 1577836800000L) {
+            // Restricted, the fill lives in the name's pill instead.
+            if (sensor.startMs > 1577836800000L && !restricted) {
                  Box(
                     modifier = Modifier
                         .fillMaxHeight()
@@ -1937,6 +1946,7 @@ fun SensorCard(
                         sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand)
                     }
                     val canToggleEnabled = sensorCount > 1
+                    val restrictedLife = if (restricted) tk.glucodata.ui.restricted.sensorLife(sensor) else null
 
                     // Identity and the controls that belong to it stay together on the left; the
                     // pause button is the one thing pinned to the far edge.
@@ -1963,16 +1973,16 @@ fun SensorCard(
                             onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
                             onPickColor = { showColorSheet = true },
                             colorPickable = !restricted,
+                            life = restrictedLife,
                             modifier = Modifier.weight(1f),
                         )
                         val cloneWithoutControl = sensor.isCloneSource && !sensor.canTakeOverClone
-                        if (!cloneWithoutControl) {
+                        if (!cloneWithoutControl && !restricted) {
                             Spacer(modifier = Modifier.width(8.dp))
                         }
 
                         if (restricted) {
-                            // In the pause button's place: the day of wear, "7 / 28".
-                            tk.glucodata.ui.restricted.RestrictedSensorDay(sensor)
+                            // No controls here: the day of wear is inside the name's pill.
                         } else if (isHandedOff && !sensor.isCloneSource) {
                             IconButtonTooltip(stringResource(R.string.return_sensor_to_phone)) {
                                 // A filled icon button, not a background behind a plain one: the
@@ -3441,6 +3451,7 @@ fun SensorCard(
             } else {
                 tk.glucodata.ui.restricted.RestrictedSensorDetails(
                     sensor = sensor,
+                    life = restrictedLife,
                     viewModel = viewModel,
                     allowDisconnect = allowDisconnect,
                 )

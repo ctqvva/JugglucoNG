@@ -3337,7 +3337,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Ограниченный режим</string>
-    <string name="restricted_mode_desc">Упрощённое приложение для ребёнка или для тех, кому нужно только следить за глюкозой</string>
+    <string name="restricted_mode_desc">Скрывает настройки и управление</string>
     <string name="restricted_full_mode_title">Пока полный режим</string>
     <string name="restricted_full_mode_desc">Ограниченный режим вернётся через минуту после выхода из приложения или когда вы его заблокируете.</string>
     <string name="restricted_lock_now">Заблокировать</string>
@@ -3349,6 +3349,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_biometric_desc">Разблокировать также биометрией телефона</string>
     <string name="restricted_biometric_needs_pin">Сначала задайте PIN-код</string>
     <string name="restricted_section_allowed">Разрешено в ограниченном режиме</string>
+    <string name="restricted_section_available">Доступно сейчас</string>
     <string name="restricted_allow_sensor_change">Смена датчиков</string>
     <string name="restricted_allow_sensor_change_desc">Добавить новый датчик и отключить старый</string>
     <string name="restricted_sensor_types_label">Датчики, которые можно добавить</string>
@@ -3367,8 +3368,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_remove_pin">Удалить PIN-код</string>
     <string name="restricted_use_biometric">Отпечаток или лицо</string>
     <string name="restricted_unlock_title">Перейти в полный режим</string>
-    <string name="restricted_unlock_desc">Откроются настройки и всё управление датчиком. Ограниченный режим вернётся через минуту после выхода из приложения.</string>
-    <string name="restricted_unlock_desc_pin">Введите PIN-код, чтобы открыть настройки и всё управление датчиком. Ограниченный режим вернётся через минуту после выхода из приложения.</string>
+    <string name="restricted_unlock_desc">Откроются настройки и всё управление датчиком. Они закроются через минуту после выхода из приложения.</string>
+    <string name="restricted_unlock_desc_pin">Введите PIN-код, чтобы открыть настройки и всё управление датчиком. Они закроются через минуту после выхода из приложения.</string>
     <string name="restricted_needs_full_mode">Сначала перейдите в полный режим в настройках.</string>
     <string name="restricted_wrong_pin">Неверный PIN-код</string>
     <string name="restricted_pin_locked_out">Слишком много попыток · подождите %1$s</string>
@@ -3384,6 +3385,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="few">введено %d цифры</item>
         <item quantity="many">введено %d цифр</item>
         <item quantity="other">введено %d цифры</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">Осталось меньше часа</string>
+    <string name="restricted_sensor_end_passed">Дата окончания прошла</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">Остался %d день</item>
+        <item quantity="few">Осталось %d дня</item>
+        <item quantity="many">Осталось %d дней</item>
+        <item quantity="other">Осталось %d дня</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">Остался %d час</item>
+        <item quantity="few">Осталось %d часа</item>
+        <item quantity="many">Осталось %d часов</item>
+        <item quantity="other">Осталось %d часа</item>
     </plurals>
     <string name="restricted_section_settings">Настройки, открытые в ограниченном режиме</string>
     <string name="restricted_allow_alarm_settings_desc">Менять уровни и звуки или выключать оповещения</string>

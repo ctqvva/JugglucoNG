@@ -3227,7 +3227,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Modalità limitata</string>
-    <string name="restricted_mode_desc">Un\'app più semplice per un bambino o per chi deve solo seguire la glicemia</string>
+    <string name="restricted_mode_desc">Nasconde impostazioni e controlli</string>
     <string name="restricted_full_mode_title">Per ora modalità completa</string>
     <string name="restricted_full_mode_desc">La modalità limitata torna un minuto dopo che esci dall\'app, o quando la blocchi.</string>
     <string name="restricted_lock_now">Blocca ora</string>
@@ -3239,6 +3239,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_biometric_desc">Sblocca anche con la biometria del telefono</string>
     <string name="restricted_biometric_needs_pin">Imposta prima un PIN</string>
     <string name="restricted_section_allowed">Consentito in modalità limitata</string>
+    <string name="restricted_section_available">Disponibile ora</string>
     <string name="restricted_allow_sensor_change">Cambiare sensore</string>
     <string name="restricted_allow_sensor_change_desc">Aggiungi un nuovo sensore e scollega il vecchio</string>
     <string name="restricted_sensor_types_label">Sensori che si possono aggiungere</string>
@@ -3257,8 +3258,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_remove_pin">Rimuovi PIN</string>
     <string name="restricted_use_biometric">Usa impronta o volto</string>
     <string name="restricted_unlock_title">Passa alla modalità completa</string>
-    <string name="restricted_unlock_desc">Si aprono le impostazioni e tutti i controlli del sensore. La modalità limitata torna un minuto dopo che esci dall\'app.</string>
-    <string name="restricted_unlock_desc_pin">Inserisci il PIN per aprire le impostazioni e tutti i controlli del sensore. La modalità limitata torna un minuto dopo che esci dall\'app.</string>
+    <string name="restricted_unlock_desc">Si aprono le impostazioni e tutti i controlli del sensore. Si richiudono un minuto dopo aver lasciato l\'app.</string>
+    <string name="restricted_unlock_desc_pin">Inserisci il PIN per aprire le impostazioni e tutti i controlli del sensore. Si richiudono un minuto dopo aver lasciato l\'app.</string>
     <string name="restricted_needs_full_mode">Passa prima alla modalità completa nelle impostazioni.</string>
     <string name="restricted_wrong_pin">PIN errato</string>
     <string name="restricted_pin_locked_out">Troppi tentativi · attendi %1$s</string>
@@ -3272,6 +3273,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d cifra inserita</item>
         <item quantity="other">%d cifre inserite</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">Meno di un\'ora rimasta</string>
+    <string name="restricted_sensor_end_passed">Data di fine superata</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d giorno rimasto</item>
+        <item quantity="other">%d giorni rimasti</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d ora rimasta</item>
+        <item quantity="other">%d ore rimaste</item>
     </plurals>
     <string name="restricted_section_settings">Impostazioni aperte in modalità limitata</string>
     <string name="restricted_allow_alarm_settings_desc">Cambia soglie e suoni, o disattiva gli avvisi</string>

@@ -33,7 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -124,7 +124,7 @@ internal fun RestrictedFullModeCard(modifier: Modifier = Modifier) {
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    Icons.Default.LockOpen,
+                    Icons.Default.OpenInFull,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 )

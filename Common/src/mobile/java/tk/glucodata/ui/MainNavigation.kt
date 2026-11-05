@@ -73,7 +73,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.animation.AnimatedContentScope
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -966,8 +966,8 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
             onNavigate(route)
         }
     }
-    // The Settings tab carries a small lock while the phone is restricted: it opens to the
-    // restricted page, where full mode is switched on.
+    // The Settings tab carries a small "open in full" mark while the phone is restricted: it
+    // opens to the page where full mode is switched on.
     val tabLocked = { route: String -> restricted.locked && route == "settings" }
 
     // One NavHost in one place for both orientations. Rotation is handled by this activity
@@ -1096,8 +1096,8 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
 }
 
 /**
- * The tab icon, with a small lock while its screen needs full mode. Always inside the
- * BadgedBox, so the icon keeps its state (and its one-shot glyph motion) when the lock
+ * The tab icon, with a small "open in full" mark while its screen needs full mode. Always inside the
+ * BadgedBox, so the icon keeps its state (and its one-shot glyph motion) when the mark
  * comes and goes.
  */
 @Composable
@@ -1110,8 +1110,8 @@ private fun LockableTabIcon(locked: Boolean, icon: @Composable () -> Unit) {
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
                     Icon(
-                        Icons.Filled.Lock,
-                        contentDescription = stringResource(R.string.restricted_mode_title),
+                        Icons.Filled.OpenInFull,
+                        contentDescription = stringResource(R.string.restricted_unlock_title),
                         modifier = Modifier.size(12.dp),
                     )
                 }

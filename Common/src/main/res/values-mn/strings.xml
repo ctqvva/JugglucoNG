@@ -3337,7 +3337,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Хязгаарлагдмал горим</string>
-    <string name="restricted_mode_desc">Хүүхэд эсвэл зөвхөн глюкозоо хянах хүнд зориулсан энгийн апп</string>
+    <string name="restricted_mode_desc">Тохиргоо, удирдлагыг нууна</string>
     <string name="restricted_full_mode_title">Одоогоор бүрэн горим</string>
     <string name="restricted_full_mode_desc">Хязгаарлагдмал горим аппаас гарснаас нэг минутын дараа эсвэл түгжихэд буцаж ирнэ.</string>
     <string name="restricted_lock_now">Одоо түгжих</string>
@@ -3349,6 +3349,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="restricted_biometric_desc">Утасны биометрээр бас түгжээ тайлах</string>
     <string name="restricted_biometric_needs_pin">Эхлээд PIN код тохируулна уу</string>
     <string name="restricted_section_allowed">Хязгаарлагдмал горимд зөвшөөрөгдсөн</string>
+    <string name="restricted_section_available">Одоо боломжтой</string>
     <string name="restricted_allow_sensor_change">Мэдрэгч солих</string>
     <string name="restricted_allow_sensor_change_desc">Шинэ мэдрэгч нэмж, хуучныг салгах</string>
     <string name="restricted_sensor_types_label">Нэмж болох мэдрэгчүүд</string>
@@ -3367,8 +3368,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="restricted_remove_pin">PIN код устгах</string>
     <string name="restricted_use_biometric">Хурууны хээ эсвэл царай ашиглах</string>
     <string name="restricted_unlock_title">Бүрэн горимд шилжих</string>
-    <string name="restricted_unlock_desc">Тохиргоо болон мэдрэгчийн бүх удирдлага нээгдэнэ. Хязгаарлагдмал горим аппаас гарснаас нэг минутын дараа буцаж ирнэ.</string>
-    <string name="restricted_unlock_desc_pin">Тохиргоо болон мэдрэгчийн бүх удирдлагыг нээхийн тулд PIN кодоо оруулна уу. Хязгаарлагдмал горим аппаас гарснаас нэг минутын дараа буцаж ирнэ.</string>
+    <string name="restricted_unlock_desc">Тохиргоо болон мэдрэгчийн бүх удирдлага нээгдэнэ. Аппаас гарснаас хойш нэг минутын дараа хаагдана.</string>
+    <string name="restricted_unlock_desc_pin">Тохиргоо болон мэдрэгчийн бүх удирдлагыг нээхийн тулд PIN кодоо оруулна уу. Аппаас гарснаас хойш нэг минутын дараа хаагдана.</string>
     <string name="restricted_needs_full_mode">Эхлээд Тохиргоонд бүрэн горимд шилжинэ үү.</string>
     <string name="restricted_wrong_pin">PIN код буруу</string>
     <string name="restricted_pin_locked_out">Хэт олон оролдлого · %1$s хүлээнэ үү</string>
@@ -3382,6 +3383,16 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d цифр оруулсан</item>
         <item quantity="other">%d цифр оруулсан</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">Нэг цаг хүрэхгүй үлдсэн</string>
+    <string name="restricted_sensor_end_passed">Дуусах огноо өнгөрсөн</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d өдөр үлдсэн</item>
+        <item quantity="other">%d өдөр үлдсэн</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d цаг үлдсэн</item>
+        <item quantity="other">%d цаг үлдсэн</item>
     </plurals>
     <string name="restricted_section_settings">Хязгаарлагдмал горимд нээлттэй тохиргоо</string>
     <string name="restricted_allow_alarm_settings_desc">Түвшин, дуу өөрчлөх эсвэл сэрэмжлүүлгийг унтраах</string>

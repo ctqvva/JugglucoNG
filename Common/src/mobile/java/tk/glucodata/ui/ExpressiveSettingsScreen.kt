@@ -356,7 +356,7 @@ fun ExpressiveSettingsScreen(
                 tk.glucodata.ui.restricted.RestrictedFullModeCard()
             }
             item(key = "restricted_allowed_label") {
-                SectionLabel(stringResource(R.string.restricted_section_allowed))
+                SectionLabel(stringResource(R.string.restricted_section_available))
             }
             item(key = "restricted_allowed_group") {
                 tk.glucodata.ui.restricted.RestrictedAllowedSettings(

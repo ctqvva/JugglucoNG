@@ -3305,7 +3305,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Korlátozott mód</string>
-    <string name="restricted_mode_desc">Egyszerűbb alkalmazás gyereknek vagy bárkinek, aki csak a glükózát követi</string>
+    <string name="restricted_mode_desc">Elrejti a beállításokat</string>
     <string name="restricted_full_mode_title">Egyelőre teljes mód</string>
     <string name="restricted_full_mode_desc">A korlátozott mód egy perccel az alkalmazás elhagyása után visszatér, vagy amikor lezárod.</string>
     <string name="restricted_lock_now">Lezárás most</string>
@@ -3317,6 +3317,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="restricted_biometric_desc">Feloldás a telefon biometriájával is</string>
     <string name="restricted_biometric_needs_pin">Először állíts be PIN-kódot</string>
     <string name="restricted_section_allowed">Korlátozott módban engedélyezett</string>
+    <string name="restricted_section_available">Most elérhető</string>
     <string name="restricted_allow_sensor_change">Szenzorcsere</string>
     <string name="restricted_allow_sensor_change_desc">Új szenzor hozzáadása és a régi leválasztása</string>
     <string name="restricted_sensor_types_label">Hozzáadható szenzorok</string>
@@ -3335,8 +3336,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="restricted_remove_pin">PIN-kód törlése</string>
     <string name="restricted_use_biometric">Ujjlenyomat vagy arc használata</string>
     <string name="restricted_unlock_title">Váltás teljes módra</string>
-    <string name="restricted_unlock_desc">Megnyílnak a beállítások és az összes szenzorvezérlő. A korlátozott mód egy perccel az alkalmazás elhagyása után visszatér.</string>
-    <string name="restricted_unlock_desc_pin">Add meg a PIN-kódot a beállítások és az összes szenzorvezérlő megnyitásához. A korlátozott mód egy perccel az alkalmazás elhagyása után visszatér.</string>
+    <string name="restricted_unlock_desc">Megnyílnak a beállítások és az összes szenzorvezérlő. Egy perccel az alkalmazásból való kilépés után bezárulnak.</string>
+    <string name="restricted_unlock_desc_pin">Add meg a PIN-kódot a beállítások és az összes szenzorvezérlő megnyitásához. Egy perccel az alkalmazásból való kilépés után bezárulnak.</string>
     <string name="restricted_needs_full_mode">Előbb válts teljes módra a Beállításokban.</string>
     <string name="restricted_wrong_pin">Hibás PIN-kód</string>
     <string name="restricted_pin_locked_out">Túl sok próbálkozás · várj %1$s</string>
@@ -3350,6 +3351,16 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d számjegy megadva</item>
         <item quantity="other">%d számjegy megadva</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">Kevesebb mint egy óra van hátra</string>
+    <string name="restricted_sensor_end_passed">A záró dátum elmúlt</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d nap van hátra</item>
+        <item quantity="other">%d nap van hátra</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d óra van hátra</item>
+        <item quantity="other">%d óra van hátra</item>
     </plurals>
     <string name="restricted_section_settings">Korlátozott módban nyitva maradó beállítások</string>
     <string name="restricted_allow_alarm_settings_desc">Szintek és hangok módosítása, riasztások kikapcsolása</string>

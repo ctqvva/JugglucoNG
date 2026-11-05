@@ -3245,7 +3245,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">受限模式</string>
-    <string name="restricted_mode_desc">为孩子或只需查看血糖的人提供更简单的应用</string>
+    <string name="restricted_mode_desc">隐藏设置和控制项</string>
     <string name="restricted_full_mode_title">暂时处于完整模式</string>
     <string name="restricted_full_mode_desc">离开应用一分钟后或锁定时，将恢复受限模式。</string>
     <string name="restricted_lock_now">立即锁定</string>
@@ -3257,6 +3257,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_biometric_desc">也可使用手机生物识别解锁</string>
     <string name="restricted_biometric_needs_pin">请先设置 PIN 码</string>
     <string name="restricted_section_allowed">受限模式下允许</string>
+    <string name="restricted_section_available">现在可用</string>
     <string name="restricted_allow_sensor_change">更换传感器</string>
     <string name="restricted_allow_sensor_change_desc">添加新传感器并断开旧传感器</string>
     <string name="restricted_sensor_types_label">可添加的传感器</string>
@@ -3275,8 +3276,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_remove_pin">移除 PIN 码</string>
     <string name="restricted_use_biometric">使用指纹或面容</string>
     <string name="restricted_unlock_title">切换到完整模式</string>
-    <string name="restricted_unlock_desc">将打开设置和全部传感器控制。离开应用一分钟后恢复受限模式。</string>
-    <string name="restricted_unlock_desc_pin">输入 PIN 码以打开设置和全部传感器控制。离开应用一分钟后恢复受限模式。</string>
+    <string name="restricted_unlock_desc">将打开设置和全部传感器控制。离开应用一分钟后会再次关闭。</string>
+    <string name="restricted_unlock_desc_pin">输入 PIN 码以打开设置和全部传感器控制。离开应用一分钟后会再次关闭。</string>
     <string name="restricted_needs_full_mode">请先在设置中切换到完整模式。</string>
     <string name="restricted_wrong_pin">PIN 码错误</string>
     <string name="restricted_pin_locked_out">尝试次数过多 · 请等待 %1$s</string>
@@ -3289,6 +3290,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_sensors_locked">添加传感器需要完整模式。</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="other">已输入 %d 位数字</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">剩余不到一小时</string>
+    <string name="restricted_sensor_end_passed">已过结束日期</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="other">剩余 %d 天</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="other">剩余 %d 小时</item>
     </plurals>
     <string name="restricted_section_settings">受限模式下开放的设置</string>
     <string name="restricted_allow_alarm_settings_desc">更改阈值和声音，或关闭提醒</string>

@@ -3236,7 +3236,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Begränsat läge</string>
-    <string name="restricted_mode_desc">En enklare app för ett barn eller för den som bara vill följa sitt glukosvärde</string>
+    <string name="restricted_mode_desc">Döljer inställningar och styrning</string>
     <string name="restricted_full_mode_title">Fullt läge, för tillfället</string>
     <string name="restricted_full_mode_desc">Begränsat läge kommer tillbaka en minut efter att du lämnat appen, eller när du låser det.</string>
     <string name="restricted_lock_now">Lås nu</string>
@@ -3248,6 +3248,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_biometric_desc">Lås även upp med telefonens biometri</string>
     <string name="restricted_biometric_needs_pin">Ange en PIN-kod först</string>
     <string name="restricted_section_allowed">Tillåtet i begränsat läge</string>
+    <string name="restricted_section_available">Tillgängligt nu</string>
     <string name="restricted_allow_sensor_change">Byta sensorer</string>
     <string name="restricted_allow_sensor_change_desc">Lägg till en ny sensor och koppla från den gamla</string>
     <string name="restricted_sensor_types_label">Sensorer som kan läggas till</string>
@@ -3266,8 +3267,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_remove_pin">Ta bort PIN-kod</string>
     <string name="restricted_use_biometric">Använd fingeravtryck eller ansikte</string>
     <string name="restricted_unlock_title">Byt till fullt läge</string>
-    <string name="restricted_unlock_desc">Inställningar och all sensorstyrning öppnas. Begränsat läge kommer tillbaka en minut efter att du lämnat appen.</string>
-    <string name="restricted_unlock_desc_pin">Ange PIN-koden för att öppna inställningarna och all sensorstyrning. Begränsat läge kommer tillbaka en minut efter att du lämnat appen.</string>
+    <string name="restricted_unlock_desc">Inställningar och all sensorstyrning öppnas. De stängs en minut efter att du lämnat appen.</string>
+    <string name="restricted_unlock_desc_pin">Ange PIN-koden för att öppna inställningarna och all sensorstyrning. De stängs en minut efter att du lämnat appen.</string>
     <string name="restricted_needs_full_mode">Byt först till fullt läge i Inställningar.</string>
     <string name="restricted_wrong_pin">Fel PIN-kod</string>
     <string name="restricted_pin_locked_out">För många försök · vänta %1$s</string>
@@ -3281,6 +3282,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d siffra angiven</item>
         <item quantity="other">%d siffror angivna</item>
+    </plurals>
+    <string name="restricted_sensor_last_hour">Mindre än en timme kvar</string>
+    <string name="restricted_sensor_end_passed">Slutdatumet har passerat</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d dag kvar</item>
+        <item quantity="other">%d dagar kvar</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d timme kvar</item>
+        <item quantity="other">%d timmar kvar</item>
     </plurals>
     <string name="restricted_section_settings">Inställningar öppna i begränsat läge</string>
     <string name="restricted_allow_alarm_settings_desc">Ändra nivåer och ljud, eller stäng av varningar</string>
