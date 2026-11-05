@@ -3330,7 +3330,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="restricted_allow_calibration_desc">Kalibrációk hozzáadása és szerkesztése</string>
     <string name="restricted_allow_alarm_stop">Riasztások leállítása</string>
     <string name="restricted_allow_alarm_stop_desc">Kikapcsolva a riasztások csak szundíthatók</string>
-    <string name="restricted_always_hidden">A beállítások, a szenzor visszaállítása, a speciális szenzorvezérlők és az adatok törlése mindig teljes módot igényel.</string>
+    <string name="restricted_always_hidden">A többi beállítás, a szenzor visszaállítása, a speciális szenzorvezérlők és az adatok törlése mindig teljes módot igényel.</string>
     <string name="restricted_pin_options_desc">Módosítsd a PIN-kódot, vagy töröld, hogy a teljes mód egy koppintással nyíljon.</string>
     <string name="restricted_change_pin">PIN-kód módosítása</string>
     <string name="restricted_remove_pin">PIN-kód törlése</string>
@@ -3351,5 +3351,20 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d számjegy megadva</item>
         <item quantity="other">%d számjegy megadva</item>
+    </plurals>
+    <string name="restricted_section_settings">Korlátozott módban nyitva maradó beállítások</string>
+    <string name="restricted_allow_alarm_settings_desc">Szintek és hangok módosítása, riasztások kikapcsolása</string>
+    <string name="restricted_allow_voice_desc">Felolvasott értékek és riasztások</string>
+    <string name="restricted_allow_display_desc">Célérték-tartomány, grafikonok, értesítések, lebegő glükóz és zárolási képernyő</string>
+    <string name="restricted_sensor_day">%2$d napból a(z) %1$d.</string>
+    <string name="restricted_sensor_last_hour">Kevesebb mint egy óra van hátra</string>
+    <string name="restricted_sensor_end_passed">A záró dátum elmúlt</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d nap van hátra</item>
+        <item quantity="other">%d nap van hátra</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d óra van hátra</item>
+        <item quantity="other">%d óra van hátra</item>
     </plurals>
 </resources>

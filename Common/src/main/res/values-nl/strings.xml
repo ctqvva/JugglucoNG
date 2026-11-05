@@ -3304,7 +3304,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="restricted_allow_calibration_desc">Kalibraties toevoegen en bewerken</string>
     <string name="restricted_allow_alarm_stop">Alarmen stoppen</string>
     <string name="restricted_allow_alarm_stop_desc">Indien uit, kunnen alarmen alleen worden gesluimerd</string>
-    <string name="restricted_always_hidden">Instellingen, sensorresets, geavanceerde sensorbediening en gegevens wissen vragen altijd de volledige modus.</string>
+    <string name="restricted_always_hidden">Andere instellingen, sensorresets, geavanceerde sensorbediening en gegevens wissen vragen altijd de volledige modus.</string>
     <string name="restricted_pin_options_desc">Wijzig de pincode, of verwijder hem zodat de volledige modus met één tik opent.</string>
     <string name="restricted_change_pin">Pincode wijzigen</string>
     <string name="restricted_remove_pin">Pincode verwijderen</string>
@@ -3325,5 +3325,20 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d cijfer ingevoerd</item>
         <item quantity="other">%d cijfers ingevoerd</item>
+    </plurals>
+    <string name="restricted_section_settings">Instellingen open in beperkte modus</string>
+    <string name="restricted_allow_alarm_settings_desc">Niveaus en geluiden wijzigen, of meldingen uitzetten</string>
+    <string name="restricted_allow_voice_desc">Uitgesproken waarden en alarmen</string>
+    <string name="restricted_allow_display_desc">Doelbereik, grafieken, meldingen, zwevende glucose en vergrendelscherm</string>
+    <string name="restricted_sensor_day">Dag %1$d van %2$d</string>
+    <string name="restricted_sensor_last_hour">Minder dan een uur over</string>
+    <string name="restricted_sensor_end_passed">Einddatum voorbij</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">Nog %d dag</item>
+        <item quantity="other">Nog %d dagen</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">Nog %d uur</item>
+        <item quantity="other">Nog %d uur</item>
     </plurals>
 </resources>

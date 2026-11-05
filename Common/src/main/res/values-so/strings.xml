@@ -3446,7 +3446,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="restricted_allow_calibration_desc">Ku dar oo wax ka beddel cabbir-hagaajinta</string>
     <string name="restricted_allow_alarm_stop">Jooji alaarmiyada</string>
     <string name="restricted_allow_alarm_stop_desc">Marka la damiyo, alaarmiyada waa la dib u dhigi karaa oo keliya</string>
-    <string name="restricted_always_hidden">Dejimaha, dib-u-dejinta dareemaha, kontaroolada horumarsan iyo tirtirista xogta had iyo jeer waxay u baahan yihiin habka buuxa.</string>
+    <string name="restricted_always_hidden">Dejimaha kale, dib-u-dejinta dareemaha, kontaroolada horumarsan iyo tirtirista xogta had iyo jeer waxay u baahan yihiin habka buuxa.</string>
     <string name="restricted_pin_options_desc">Beddel PIN-ka, ama ka saar si habka buuxa hal taabasho ugu furmo.</string>
     <string name="restricted_change_pin">Beddel PIN</string>
     <string name="restricted_remove_pin">Ka saar PIN</string>
@@ -3467,5 +3467,20 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d god ayaa la geliyay</item>
         <item quantity="other">%d god ayaa la geliyay</item>
+    </plurals>
+    <string name="restricted_section_settings">Dejimaha furan inta la xaddidan yahay</string>
+    <string name="restricted_allow_alarm_settings_desc">Beddel heerarka iyo codadka, ama dami digniinaha</string>
+    <string name="restricted_allow_voice_desc">Akhrinta iyo alaarmiyada codka ah</string>
+    <string name="restricted_allow_display_desc">Xadka bartilmaameedka, jaantusyada, ogeysiisyada, sonkorta sabaynaysa iyo shaashadda quful</string>
+    <string name="restricted_sensor_day">Maalinta %1$d ee %2$d</string>
+    <string name="restricted_sensor_last_hour">In ka yar saacad ayaa hartay</string>
+    <string name="restricted_sensor_end_passed">Taariikhda dhammaadku way dhaaftay</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d maalin ayaa hartay</item>
+        <item quantity="other">%d maalmood ayaa hartay</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d saac ayaa hartay</item>
+        <item quantity="other">%d saacadood ayaa hartay</item>
     </plurals>
 </resources>

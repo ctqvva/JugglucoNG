@@ -418,6 +418,14 @@ internal fun tk.glucodata.ui.viewmodel.SensorInfo.lifetimeEndMs(): Long = when {
     else -> startMs + (14L * 24 * 3600 * 1000)
 }
 
+/** Colour of a sensor's used lifetime: safe, then warning (80%), then critical (95%). */
+@Composable
+internal fun sensorLifetimeColor(progress: Float): Color = when {
+    progress > 0.95f -> MaterialTheme.colorScheme.error
+    progress > 0.80f -> MaterialTheme.colorScheme.tertiary
+    else -> MaterialTheme.colorScheme.primary
+}
+
 @Composable
 fun SensorCard(
     sensor: tk.glucodata.ui.viewmodel.SensorInfo,
@@ -426,7 +434,7 @@ fun SensorCard(
     onNavigateToMqAccount: () -> Unit = {},
     /**
      * Restricted mode: the same card with only what describes the sensor — name, status,
-     * newest reading, day of wear, start and end — and no controls, except Disconnect when
+     * newest reading, time left, start and end — and no controls, except Disconnect when
      * [allowDisconnect] (the adult allowed sensor changes).
      */
     restricted: Boolean = false,
@@ -1895,12 +1903,7 @@ fun SensorCard(
         val usedDuration = (now - start).coerceAtLeast(0)
         val progress = (usedDuration.toFloat() / totalDuration).coerceIn(0f, 1f)
         
-        // Color Shift: Safe -> Warning (80%) -> Critical (95%)
-        val fillColor = when {
-            progress > 0.95f -> MaterialTheme.colorScheme.error
-            progress > 0.80f -> MaterialTheme.colorScheme.tertiary 
-            else -> MaterialTheme.colorScheme.primary
-        }
+        val fillColor = sensorLifetimeColor(progress)
         val fillAlpha = 0.12f // Light tint
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -1966,13 +1969,12 @@ fun SensorCard(
                             modifier = Modifier.weight(1f),
                         )
                         val cloneWithoutControl = sensor.isCloneSource && !sensor.canTakeOverClone
-                        if (!cloneWithoutControl) {
+                        if (!cloneWithoutControl && !restricted) {
                             Spacer(modifier = Modifier.width(8.dp))
                         }
 
                         if (restricted) {
-                            // In the pause button's place: the day of wear, "7 / 28".
-                            tk.glucodata.ui.restricted.RestrictedSensorDay(sensor)
+                            // No controls: the name has the row to itself.
                         } else if (isHandedOff && !sensor.isCloneSource) {
                             IconButtonTooltip(stringResource(R.string.return_sensor_to_phone)) {
                                 // A filled icon button, not a background behind a plain one: the

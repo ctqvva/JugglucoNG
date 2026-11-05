@@ -3374,7 +3374,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="restricted_allow_calibration_desc">Kalibrierungen hinzufügen und bearbeiten</string>
     <string name="restricted_allow_alarm_stop">Alarme beenden</string>
     <string name="restricted_allow_alarm_stop_desc">Wenn aus, können Alarme nur schlummern</string>
-    <string name="restricted_always_hidden">Einstellungen, Sensor-Resets, erweiterte Sensorsteuerung und das Löschen von Daten brauchen immer den Vollmodus.</string>
+    <string name="restricted_always_hidden">Andere Einstellungen, Sensor-Resets, erweiterte Sensorsteuerung und das Löschen von Daten brauchen immer den Vollmodus.</string>
     <string name="restricted_pin_options_desc">Ändere die PIN oder entferne sie, damit der Vollmodus mit einem Tippen öffnet.</string>
     <string name="restricted_change_pin">PIN ändern</string>
     <string name="restricted_remove_pin">PIN entfernen</string>
@@ -3395,5 +3395,20 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d Ziffer eingegeben</item>
         <item quantity="other">%d Ziffern eingegeben</item>
+    </plurals>
+    <string name="restricted_section_settings">Im eingeschränkten Modus offene Einstellungen</string>
+    <string name="restricted_allow_alarm_settings_desc">Grenzwerte und Töne ändern oder Alarme ausschalten</string>
+    <string name="restricted_allow_voice_desc">Gesprochene Werte und Alarme</string>
+    <string name="restricted_allow_display_desc">Zielbereich, Diagramme, Benachrichtigungen, schwebender Glukosewert und Sperrbildschirm</string>
+    <string name="restricted_sensor_day">Tag %1$d von %2$d</string>
+    <string name="restricted_sensor_last_hour">Weniger als eine Stunde übrig</string>
+    <string name="restricted_sensor_end_passed">Enddatum überschritten</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">Noch %d Tag</item>
+        <item quantity="other">Noch %d Tage</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">Noch %d Stunde</item>
+        <item quantity="other">Noch %d Stunden</item>
     </plurals>
 </resources>

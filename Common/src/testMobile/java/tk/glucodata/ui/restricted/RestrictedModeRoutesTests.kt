@@ -48,6 +48,69 @@ class RestrictedModeRoutesTests {
         }
     }
 
+    @Test fun eachSettingsSwitchOpensOnlyItsOwnScreens() {
+        val alarms = "settings/alerts"
+        val voice = "settings/alerts/talker"
+        val display = listOf(
+            "settings/display-colors",
+            "settings/notification-display",
+            "settings/floating-display",
+            "settings/aod-display",
+        )
+        fun opened(config: RestrictedModeConfig) =
+            (display + alarms + voice).filter { RestrictedModeRoutes.isOpenWhileLocked(it, config) }.toSet()
+
+        assertEquals(emptySet<String>(), opened(closed))
+        assertEquals(setOf(alarms), opened(closed.copy(allowAlarmSettings = true)))
+        assertEquals(setOf(voice), opened(closed.copy(allowVoiceSettings = true)))
+        assertEquals(display.toSet(), opened(closed.copy(allowDisplaySettings = true)))
+    }
+
+    @Test fun whatChangesTheNumbersStaysClosedWithEverySettingOpen() {
+        val all = open.copy(allowAlarmSettings = true, allowVoiceSettings = true, allowDisplaySettings = true)
+        for (route in listOf(
+            "settings/data-smoothing",
+            "settings/predictive-simulation",
+            "settings/calibrations",
+            "settings/restricted-mode",
+            "settings/nightscout",
+        )) {
+            assertFalse(route, RestrictedModeRoutes.isOpenWhileLocked(route, all))
+        }
+    }
+
+    @Test fun timeLeftIsSaidInWholeDaysThenHours() {
+        val start = 1_800_000_000_000L
+        val hour = 3_600_000L
+        val end = start + 15 * 24 * hour
+
+        // The reported case: day 13 of 15, just under three days to go.
+        val day13 = sensorWear(start, end, end - (2 * 24 + 22) * hour)
+        assertEquals(13, day13.day)
+        assertEquals(15, day13.totalDays)
+        assertEquals(SensorTimeLeft.Days(2), day13.left)
+
+        assertEquals(SensorTimeLeft.Days(1), sensorWear(start, end, end - 24 * hour).left)
+        assertEquals(SensorTimeLeft.Hours(23), sensorWear(start, end, end - 24 * hour + 1).left)
+        assertEquals(SensorTimeLeft.Hours(1), sensorWear(start, end, end - hour).left)
+        assertEquals(SensorTimeLeft.UnderAnHour, sensorWear(start, end, end - hour + 1).left)
+    }
+
+    @Test fun theFirstDayCountsAsDayOneAndTheEndStaysPassed() {
+        val start = 1_800_000_000_000L
+        val hour = 3_600_000L
+        val end = start + 14 * 24 * hour
+
+        val first = sensorWear(start, end, start + hour)
+        assertEquals(1, first.day)
+        assertEquals(SensorTimeLeft.Days(13), first.left)
+
+        val passed = sensorWear(start, end, end + 3 * hour)
+        assertEquals(SensorTimeLeft.EndPassed, passed.left)
+        assertEquals(1f, passed.progress)
+        assertEquals(SensorTimeLeft.EndPassed, sensorWear(start, end, end).left)
+    }
+
     @Test fun anUnknownRouteIsClosed() {
         assertFalse(RestrictedModeRoutes.isOpenWhileLocked("some/new-screen", open))
     }

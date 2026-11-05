@@ -3350,7 +3350,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_calibration_desc">Додавати й змінювати калібрування</string>
     <string name="restricted_allow_alarm_stop">Зупинка сигналів</string>
     <string name="restricted_allow_alarm_stop_desc">Якщо вимкнено, сигнали можна лише відкласти</string>
-    <string name="restricted_always_hidden">Налаштування, скидання сенсора, розширене керування сенсором і видалення даних завжди потребують повного режиму.</string>
+    <string name="restricted_always_hidden">Інші налаштування, скидання сенсора, розширене керування сенсором і видалення даних завжди потребують повного режиму.</string>
     <string name="restricted_pin_options_desc">Змініть PIN-код або видаліть його, щоб повний режим відкривався одним дотиком.</string>
     <string name="restricted_change_pin">Змінити PIN-код</string>
     <string name="restricted_remove_pin">Видалити PIN-код</string>
@@ -3373,5 +3373,24 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="few">введено %d цифри</item>
         <item quantity="many">введено %d цифр</item>
         <item quantity="other">введено %d цифри</item>
+    </plurals>
+    <string name="restricted_section_settings">Налаштування, відкриті в обмеженому режимі</string>
+    <string name="restricted_allow_alarm_settings_desc">Змінювати рівні та звуки або вимикати сповіщення</string>
+    <string name="restricted_allow_voice_desc">Озвучення показників і тривог</string>
+    <string name="restricted_allow_display_desc">Цільовий діапазон, графіки, сповіщення, плаваюча глюкоза та екран блокування</string>
+    <string name="restricted_sensor_day">День %1$d із %2$d</string>
+    <string name="restricted_sensor_last_hour">Залишилося менше години</string>
+    <string name="restricted_sensor_end_passed">Дата завершення минула</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">Залишився %d день</item>
+        <item quantity="few">Залишилося %d дні</item>
+        <item quantity="many">Залишилося %d днів</item>
+        <item quantity="other">Залишилося %d дня</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">Залишилася %d година</item>
+        <item quantity="few">Залишилося %d години</item>
+        <item quantity="many">Залишилося %d годин</item>
+        <item quantity="other">Залишилося %d години</item>
     </plurals>
 </resources>

@@ -3289,7 +3289,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="restricted_allow_calibration_desc">Kalibrasyon ekle ve düzenle</string>
     <string name="restricted_allow_alarm_stop">Alarmları durdurma</string>
     <string name="restricted_allow_alarm_stop_desc">Kapalıyken alarmlar yalnızca ertelenebilir</string>
-    <string name="restricted_always_hidden">Ayarlar, sensör sıfırlama, gelişmiş sensör denetimleri ve veri silme her zaman tam mod gerektirir.</string>
+    <string name="restricted_always_hidden">Diğer ayarlar, sensör sıfırlama, gelişmiş sensör denetimleri ve veri silme her zaman tam mod gerektirir.</string>
     <string name="restricted_pin_options_desc">PIN\'i değiştirin ya da tam modun tek dokunuşla açılması için kaldırın.</string>
     <string name="restricted_change_pin">PIN\'i değiştir</string>
     <string name="restricted_remove_pin">PIN\'i kaldır</string>
@@ -3310,5 +3310,20 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d basamak girildi</item>
         <item quantity="other">%d basamak girildi</item>
+    </plurals>
+    <string name="restricted_section_settings">Kısıtlı modda açık ayarlar</string>
+    <string name="restricted_allow_alarm_settings_desc">Seviyeleri ve sesleri değiştir veya uyarıları kapat</string>
+    <string name="restricted_allow_voice_desc">Sesli okunan değerler ve alarmlar</string>
+    <string name="restricted_allow_display_desc">Hedef aralık, grafikler, bildirimler, kayan glukoz ve kilit ekranı</string>
+    <string name="restricted_sensor_day">Gün %1$d / %2$d</string>
+    <string name="restricted_sensor_last_hour">Bir saatten az kaldı</string>
+    <string name="restricted_sensor_end_passed">Bitiş tarihi geçti</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d gün kaldı</item>
+        <item quantity="other">%d gün kaldı</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d saat kaldı</item>
+        <item quantity="other">%d saat kaldı</item>
     </plurals>
 </resources>

@@ -19,12 +19,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.AddAlert
 import androidx.compose.material.icons.filled.AlarmOff
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.WaterDrop
@@ -208,6 +211,40 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                         checked = config.allowAlarmStop,
                         onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowAlarmStop = on) } },
                         icon = Icons.Default.AlarmOff,
+                        iconTint = color,
+                        position = CardPosition.BOTTOM,
+                    )
+                }
+            }
+
+            item(key = "settings_label") { SectionLabel(stringResource(R.string.restricted_section_settings)) }
+            item(key = "settings") {
+                val color = MaterialTheme.colorScheme.tertiary
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.glucose_alerts_title),
+                        subtitle = stringResource(R.string.restricted_allow_alarm_settings_desc),
+                        checked = config.allowAlarmSettings,
+                        onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowAlarmSettings = on) } },
+                        icon = Icons.Default.AddAlert,
+                        iconTint = color,
+                        position = CardPosition.TOP,
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.talker),
+                        subtitle = stringResource(R.string.restricted_allow_voice_desc),
+                        checked = config.allowVoiceSettings,
+                        onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowVoiceSettings = on) } },
+                        icon = Icons.AutoMirrored.Filled.VolumeUp,
+                        iconTint = color,
+                        position = CardPosition.MIDDLE,
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.settings_section_display),
+                        subtitle = stringResource(R.string.restricted_allow_display_desc),
+                        checked = config.allowDisplaySettings,
+                        onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowDisplaySettings = on) } },
+                        icon = Icons.Default.Palette,
                         iconTint = color,
                         position = CardPosition.BOTTOM,
                     )

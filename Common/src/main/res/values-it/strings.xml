@@ -3252,7 +3252,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_calibration_desc">Aggiungi e modifica calibrazioni</string>
     <string name="restricted_allow_alarm_stop">Fermare gli allarmi</string>
     <string name="restricted_allow_alarm_stop_desc">Se disattivo, gli allarmi si possono solo posticipare</string>
-    <string name="restricted_always_hidden">Impostazioni, reset del sensore, controlli avanzati del sensore ed eliminazione dei dati richiedono sempre la modalità completa.</string>
+    <string name="restricted_always_hidden">Altre impostazioni, reset del sensore, controlli avanzati del sensore ed eliminazione dei dati richiedono sempre la modalità completa.</string>
     <string name="restricted_pin_options_desc">Cambia il PIN, o rimuovilo per aprire la modalità completa con un tocco.</string>
     <string name="restricted_change_pin">Cambia PIN</string>
     <string name="restricted_remove_pin">Rimuovi PIN</string>
@@ -3273,5 +3273,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d cifra inserita</item>
         <item quantity="other">%d cifre inserite</item>
+    </plurals>
+    <string name="restricted_section_settings">Impostazioni aperte in modalità limitata</string>
+    <string name="restricted_allow_alarm_settings_desc">Cambia soglie e suoni, o disattiva gli avvisi</string>
+    <string name="restricted_allow_voice_desc">Lettura vocale di valori e allarmi</string>
+    <string name="restricted_allow_display_desc">Intervallo obiettivo, grafici, notifiche, glucosio fluttuante e schermata di blocco</string>
+    <string name="restricted_sensor_day">Giorno %1$d di %2$d</string>
+    <string name="restricted_sensor_last_hour">Meno di un\'ora rimasta</string>
+    <string name="restricted_sensor_end_passed">Data di fine superata</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d giorno rimasto</item>
+        <item quantity="other">%d giorni rimasti</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d ora rimasta</item>
+        <item quantity="other">%d ore rimaste</item>
     </plurals>
 </resources>

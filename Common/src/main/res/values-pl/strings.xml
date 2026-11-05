@@ -3315,7 +3315,7 @@
     <string name="restricted_allow_calibration_desc">Dodawanie i edycja kalibracji</string>
     <string name="restricted_allow_alarm_stop">Wyłączanie alarmów</string>
     <string name="restricted_allow_alarm_stop_desc">Gdy wyłączone, alarmy można tylko drzemać</string>
-    <string name="restricted_always_hidden">Ustawienia, resetowanie czujnika, zaawansowane sterowanie czujnikiem i usuwanie danych zawsze wymagają trybu pełnego.</string>
+    <string name="restricted_always_hidden">Pozostałe ustawienia, resetowanie czujnika, zaawansowane sterowanie czujnikiem i usuwanie danych zawsze wymagają trybu pełnego.</string>
     <string name="restricted_pin_options_desc">Zmień PIN lub usuń go, aby tryb pełny otwierał się jednym dotknięciem.</string>
     <string name="restricted_change_pin">Zmień PIN</string>
     <string name="restricted_remove_pin">Usuń PIN</string>
@@ -3338,5 +3338,24 @@
         <item quantity="few">wpisano %d cyfry</item>
         <item quantity="many">wpisano %d cyfr</item>
         <item quantity="other">wpisano %d cyfry</item>
+    </plurals>
+    <string name="restricted_section_settings">Ustawienia otwarte w trybie ograniczonym</string>
+    <string name="restricted_allow_alarm_settings_desc">Zmiana progów i dźwięków lub wyłączanie alertów</string>
+    <string name="restricted_allow_voice_desc">Odczytywanie wartości i alarmów</string>
+    <string name="restricted_allow_display_desc">Zakres docelowy, wykresy, powiadomienia, pływająca glukoza i ekran blokady</string>
+    <string name="restricted_sensor_day">Dzień %1$d z %2$d</string>
+    <string name="restricted_sensor_last_hour">Została mniej niż godzina</string>
+    <string name="restricted_sensor_end_passed">Data końcowa minęła</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">Został %d dzień</item>
+        <item quantity="few">Zostały %d dni</item>
+        <item quantity="many">Zostało %d dni</item>
+        <item quantity="other">Zostało %d dnia</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">Została %d godzina</item>
+        <item quantity="few">Zostały %d godziny</item>
+        <item quantity="many">Zostało %d godzin</item>
+        <item quantity="other">Zostało %d godziny</item>
     </plurals>
 </resources>

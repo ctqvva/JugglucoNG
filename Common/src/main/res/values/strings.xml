@@ -3564,7 +3564,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_calibration_desc">Add and edit calibrations</string>
     <string name="restricted_allow_alarm_stop">Stop alarms</string>
     <string name="restricted_allow_alarm_stop_desc">When off, alarms can only be snoozed</string>
-    <string name="restricted_always_hidden">Settings, sensor resets, advanced sensor controls and deleting data always need full mode.</string>
+    <string name="restricted_always_hidden">Other settings, sensor resets, advanced sensor controls and deleting data always need full mode.</string>
     <string name="restricted_pin_options_desc">Change the PIN, or remove it so full mode opens with one tap.</string>
     <string name="restricted_change_pin">Change PIN</string>
     <string name="restricted_remove_pin">Remove PIN</string>
@@ -3585,5 +3585,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d digit entered</item>
         <item quantity="other">%d digits entered</item>
+    </plurals>
+    <string name="restricted_section_settings">Settings open while restricted</string>
+    <string name="restricted_allow_alarm_settings_desc">Change levels and sounds, or turn alerts off</string>
+    <string name="restricted_allow_voice_desc">Spoken readings and alarms</string>
+    <string name="restricted_allow_display_desc">Target range, charts, notifications, floating glucose and lock screen</string>
+    <string name="restricted_sensor_day">Day %1$d of %2$d</string>
+    <string name="restricted_sensor_last_hour">Less than an hour left</string>
+    <string name="restricted_sensor_end_passed">End date passed</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d day left</item>
+        <item quantity="other">%d days left</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d hour left</item>
+        <item quantity="other">%d hours left</item>
     </plurals>
 </resources>

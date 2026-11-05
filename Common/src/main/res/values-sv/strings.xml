@@ -3261,7 +3261,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_calibration_desc">Lägg till och ändra kalibreringar</string>
     <string name="restricted_allow_alarm_stop">Stoppa larm</string>
     <string name="restricted_allow_alarm_stop_desc">När av kan larm bara snoozas</string>
-    <string name="restricted_always_hidden">Inställningar, sensoråterställning, avancerad sensorstyrning och radering av data kräver alltid fullt läge.</string>
+    <string name="restricted_always_hidden">Övriga inställningar, sensoråterställning, avancerad sensorstyrning och radering av data kräver alltid fullt läge.</string>
     <string name="restricted_pin_options_desc">Byt PIN-kod, eller ta bort den så att fullt läge öppnas med ett tryck.</string>
     <string name="restricted_change_pin">Byt PIN-kod</string>
     <string name="restricted_remove_pin">Ta bort PIN-kod</string>
@@ -3282,5 +3282,20 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <plurals name="restricted_pin_digits_entered">
         <item quantity="one">%d siffra angiven</item>
         <item quantity="other">%d siffror angivna</item>
+    </plurals>
+    <string name="restricted_section_settings">Inställningar öppna i begränsat läge</string>
+    <string name="restricted_allow_alarm_settings_desc">Ändra nivåer och ljud, eller stäng av varningar</string>
+    <string name="restricted_allow_voice_desc">Upplästa värden och larm</string>
+    <string name="restricted_allow_display_desc">Målområde, diagram, aviseringar, flytande glukos och låsskärm</string>
+    <string name="restricted_sensor_day">Dag %1$d av %2$d</string>
+    <string name="restricted_sensor_last_hour">Mindre än en timme kvar</string>
+    <string name="restricted_sensor_end_passed">Slutdatumet har passerat</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d dag kvar</item>
+        <item quantity="other">%d dagar kvar</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="one">%d timme kvar</item>
+        <item quantity="other">%d timmar kvar</item>
     </plurals>
 </resources>

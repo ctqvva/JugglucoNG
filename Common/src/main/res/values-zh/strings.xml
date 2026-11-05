@@ -3270,7 +3270,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_calibration_desc">添加和编辑校准</string>
     <string name="restricted_allow_alarm_stop">停止警报</string>
     <string name="restricted_allow_alarm_stop_desc">关闭时，警报只能稍后提醒</string>
-    <string name="restricted_always_hidden">设置、传感器重置、高级传感器控制和删除数据始终需要完整模式。</string>
+    <string name="restricted_always_hidden">其他设置、传感器重置、高级传感器控制和删除数据始终需要完整模式。</string>
     <string name="restricted_pin_options_desc">更改 PIN 码，或将其移除以便一键进入完整模式。</string>
     <string name="restricted_change_pin">更改 PIN 码</string>
     <string name="restricted_remove_pin">移除 PIN 码</string>
@@ -3290,5 +3290,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_sensors_locked">添加传感器需要完整模式。</string>
     <plurals name="restricted_pin_digits_entered">
         <item quantity="other">已输入 %d 位数字</item>
+    </plurals>
+    <string name="restricted_section_settings">受限模式下开放的设置</string>
+    <string name="restricted_allow_alarm_settings_desc">更改阈值和声音，或关闭提醒</string>
+    <string name="restricted_allow_voice_desc">语音播报读数和警报</string>
+    <string name="restricted_allow_display_desc">目标范围、图表、通知、悬浮血糖和锁屏</string>
+    <string name="restricted_sensor_day">第 %1$d 天，共 %2$d 天</string>
+    <string name="restricted_sensor_last_hour">剩余不到一小时</string>
+    <string name="restricted_sensor_end_passed">已过结束日期</string>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="other">剩余 %d 天</item>
+    </plurals>
+    <plurals name="restricted_sensor_hours_left">
+        <item quantity="other">剩余 %d 小时</item>
     </plurals>
 </resources>

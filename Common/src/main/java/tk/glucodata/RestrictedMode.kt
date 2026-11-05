@@ -13,8 +13,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * What a restricted phone may still do. Everything not listed here — settings, data
+ * What a restricted phone may still do. Everything not listed here — other settings, data
  * clearing, sensor resets, advanced sensor controls — is closed while restricted.
+ *
+ * [allowAlarmSettings], [allowVoiceSettings] and [allowDisplaySettings] open those settings
+ * screens. Opening the alarm settings includes turning alarms off, whatever
+ * [allowAlarmStop] says about stopping one that is ringing.
  *
  * [allowedSensorTypes] holds sensor family names as the phone's sensor picker spells them
  * (`SensorType.name`); shared code does not know that enum.
@@ -26,6 +30,9 @@ data class RestrictedModeConfig(
     val allowJournal: Boolean = true,
     val allowCalibration: Boolean = false,
     val allowAlarmStop: Boolean = false,
+    val allowAlarmSettings: Boolean = false,
+    val allowVoiceSettings: Boolean = false,
+    val allowDisplaySettings: Boolean = false,
     val hasPin: Boolean = false,
     val biometricUnlock: Boolean = false,
 )
@@ -67,6 +74,9 @@ object RestrictedMode {
     private const val KEY_ALLOW_JOURNAL = "allow_journal"
     private const val KEY_ALLOW_CALIBRATION = "allow_calibration"
     private const val KEY_ALLOW_ALARM_STOP = "allow_alarm_stop"
+    private const val KEY_ALLOW_ALARM_SETTINGS = "allow_alarm_settings"
+    private const val KEY_ALLOW_VOICE_SETTINGS = "allow_voice_settings"
+    private const val KEY_ALLOW_DISPLAY_SETTINGS = "allow_display_settings"
     private const val KEY_BIOMETRIC = "biometric_unlock"
     private const val KEY_PIN = "pin_hash"
     private const val KEY_FAILED_ATTEMPTS = "pin_failed_attempts"
@@ -152,6 +162,9 @@ object RestrictedMode {
                 .putBoolean(KEY_ALLOW_JOURNAL, after.allowJournal)
                 .putBoolean(KEY_ALLOW_CALIBRATION, after.allowCalibration)
                 .putBoolean(KEY_ALLOW_ALARM_STOP, after.allowAlarmStop)
+                .putBoolean(KEY_ALLOW_ALARM_SETTINGS, after.allowAlarmSettings)
+                .putBoolean(KEY_ALLOW_VOICE_SETTINGS, after.allowVoiceSettings)
+                .putBoolean(KEY_ALLOW_DISPLAY_SETTINGS, after.allowDisplaySettings)
                 .putBoolean(KEY_BIOMETRIC, after.biometricUnlock && after.hasPin)
                 .apply()
             // Switching restricted mode on from the settings keeps this session in full
@@ -294,6 +307,9 @@ object RestrictedMode {
                     allowJournal = prefs.getBoolean(KEY_ALLOW_JOURNAL, true),
                     allowCalibration = prefs.getBoolean(KEY_ALLOW_CALIBRATION, false),
                     allowAlarmStop = prefs.getBoolean(KEY_ALLOW_ALARM_STOP, false),
+                    allowAlarmSettings = prefs.getBoolean(KEY_ALLOW_ALARM_SETTINGS, false),
+                    allowVoiceSettings = prefs.getBoolean(KEY_ALLOW_VOICE_SETTINGS, false),
+                    allowDisplaySettings = prefs.getBoolean(KEY_ALLOW_DISPLAY_SETTINGS, false),
                     hasPin = hasPin,
                     biometricUnlock = hasPin && prefs.getBoolean(KEY_BIOMETRIC, false),
                 ),
