@@ -213,83 +213,82 @@ fun JournalScreen(
                 )
             }
 
-            if (sortedHistory.isNotEmpty()) {
-                item(key = "journal-chart") {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(if (showTitle) 324.dp else 348.dp)
-                    ) {
-                        FontScaleCap {
-                            DashboardChartSection(
-                                modifier = Modifier.matchParentSize(),
-                                appChartRangeColors = chartRangeColors,
-                                glucoseHistory = sortedHistory,
-                                dataBounds = timelineExtents?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
-                                onVisibleRangeChanged = onVisibleRangeChanged,
-                                journalMarkers = markers,
-                                graphSmoothingMinutes = graphSmoothingMinutes,
-                                graphCollapseMinutes = graphCollapseMinutes,
-                                previewWindowMode = previewWindowMode,
-                                graphLow = graphLow,
-                                graphHigh = graphHigh,
-                                targetLow = targetLow,
-                                targetHigh = targetHigh,
-                                unit = unit,
-                                viewMode = viewMode,
-                                calibrations = calibrations,
-                                onTimeRangeSelected = { selectedChartRange = it },
-                                selectedTimeRange = selectedChartRange,
-                                isExpanded = false,
-                                expandedProgress = 0f,
-                                onToggleExpanded = null,
-                                onPointClick = {
-                                    clearChartAction()
-                                    onPointClick?.invoke(it)
-                                },
-                                onCalibrationClick = null,
-                                onTimelineTap = { suggestion ->
-                                    if (chartActionTimestamp != null && !suggestion.forceMenu) {
-                                        clearChartAction()
-                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                    } else {
-                                        chartActionTimestamp = suggestion.timestamp
-                                        chartActionDisplayValue = suggestion.suggestedDisplayGlucose
-                                        chartActionAmountFraction = suggestion.normalizedYFraction
-                                        view.performHapticFeedback(
-                                            if (suggestion.forceMenu) HapticFeedbackConstants.LONG_PRESS
-                                            else HapticFeedbackConstants.CLOCK_TICK
-                                        )
-                                    }
-                                },
-                                journalActionTimestamp = chartActionTimestamp,
-                                journalActionDisplayValue = chartActionDisplayValue,
-                                journalActionAnchor = chartActionAnchor,
-                                onDismissJournalAction = { clearChartAction() },
-                                onJournalMarkerClick = { entryId ->
-                                    entriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
-                                },
-                                onViewportSnapshotChanged = { viewportSnapshot = it }
-                            )
-                        }
-
-                        JournalFloatingActionMenu(
-                            selectedTimestamp = chartActionTimestamp,
-                            anchor = chartActionAnchor,
-                            onDismissRequest = { clearChartAction() },
-                            onTypeSelected = { type, actionTimestamp ->
-                                onAddJournalEntry(
-                                    actionTimestamp,
-                                    type,
-                                    chartActionDisplayValue,
-                                    chartActionAmountFraction
-                                )
+            item(key = "journal-chart") {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (showTitle) 324.dp else 348.dp)
+                ) {
+                    FontScaleCap {
+                        DashboardChartSection(
+                            modifier = Modifier.matchParentSize(),
+                            appChartRangeColors = chartRangeColors,
+                            glucoseHistory = sortedHistory,
+                            drawWithoutReadings = sortedHistory.isEmpty(),
+                            dataBounds = timelineExtents?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
+                            onVisibleRangeChanged = onVisibleRangeChanged,
+                            journalMarkers = markers,
+                            graphSmoothingMinutes = graphSmoothingMinutes,
+                            graphCollapseMinutes = graphCollapseMinutes,
+                            previewWindowMode = previewWindowMode,
+                            graphLow = graphLow,
+                            graphHigh = graphHigh,
+                            targetLow = targetLow,
+                            targetHigh = targetHigh,
+                            unit = unit,
+                            viewMode = viewMode,
+                            calibrations = calibrations,
+                            onTimeRangeSelected = { selectedChartRange = it },
+                            selectedTimeRange = selectedChartRange,
+                            isExpanded = false,
+                            expandedProgress = 0f,
+                            onToggleExpanded = null,
+                            onPointClick = {
                                 clearChartAction()
-                                fabExpanded = false
-                            }
+                                onPointClick?.invoke(it)
+                            },
+                            onCalibrationClick = null,
+                            onTimelineTap = { suggestion ->
+                                if (chartActionTimestamp != null && !suggestion.forceMenu) {
+                                    clearChartAction()
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                } else {
+                                    chartActionTimestamp = suggestion.timestamp
+                                    chartActionDisplayValue = suggestion.suggestedDisplayGlucose
+                                    chartActionAmountFraction = suggestion.normalizedYFraction
+                                    view.performHapticFeedback(
+                                        if (suggestion.forceMenu) HapticFeedbackConstants.LONG_PRESS
+                                        else HapticFeedbackConstants.CLOCK_TICK
+                                    )
+                                }
+                            },
+                            journalActionTimestamp = chartActionTimestamp,
+                            journalActionDisplayValue = chartActionDisplayValue,
+                            journalActionAnchor = chartActionAnchor,
+                            onDismissJournalAction = { clearChartAction() },
+                            onJournalMarkerClick = { entryId ->
+                                entriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
+                            },
+                            onViewportSnapshotChanged = { viewportSnapshot = it }
                         )
                     }
+
+                    JournalFloatingActionMenu(
+                        selectedTimestamp = chartActionTimestamp,
+                        anchor = chartActionAnchor,
+                        onDismissRequest = { clearChartAction() },
+                        onTypeSelected = { type, actionTimestamp ->
+                            onAddJournalEntry(
+                                actionTimestamp,
+                                type,
+                                chartActionDisplayValue,
+                                chartActionAmountFraction
+                            )
+                            clearChartAction()
+                            fabExpanded = false
+                        }
+                    )
                 }
             }
 

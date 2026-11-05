@@ -1407,7 +1407,48 @@ fun DashboardScreen(
             val recentReadingJournalEntries = remember(recentReadings, consumerHistory, dashboardJournalEntries) {
                 groupJournalEntriesByReading(recentReadings, dashboardJournalEntries, history = consumerHistory)
             }
-            val hasVisibleReadingContent = dashboardDataState.isFresh || recentReadings.isNotEmpty()
+            val journalOnlyRows = remember(recentReadings, recentReadingJournalEntries, dashboardJournalEntries) {
+                journalRowsAfterReadings(
+                    entries = dashboardJournalEntries,
+                    readingEntries = recentReadingJournalEntries,
+                    newestReadingMillis = recentReadings.maxOfOrNull { it.timestamp }
+                )
+            }
+            val journalOnlyRowsContent: (@Composable () -> Unit)? = if (journalOnlyRows.isEmpty()) {
+                null
+            } else {
+                {
+                    // One past the end while readings follow, so the last of these draws the
+                    // divider above them.
+                    val rowCount = journalOnlyRows.size + if (recentReadings.isEmpty()) 0 else 1
+                    journalOnlyRows.forEachIndexed { index, row ->
+                        key(row.timestamp) {
+                            JournalTimelineRow(
+                                timestamp = row.timestamp,
+                                unit = unit,
+                                journalEntries = row.entries,
+                                journalPresetsById = journalPresetsById,
+                                journalFoodsById = journalFoodsById,
+                                onJournalEntryClick = { entry ->
+                                    lastJournalType = entry.type
+                                    clearJournalAction()
+                                    journalEditorRequest = JournalEditorRequest(entry.type, entry.timestamp, entry)
+                                },
+                                onAddJournalEntry = {
+                                    clearJournalAction()
+                                    journalEditorRequest = JournalEditorRequest(lastJournalType, row.timestamp)
+                                },
+                                index = index,
+                                totalCount = rowCount,
+                                reserveValueSlot = false
+                            )
+                        }
+                    }
+                }
+            }
+            // Calibrating needs a sensor, whatever history is still on screen.
+            val hasVisibleReadingContent = hasSensorContext &&
+                (dashboardDataState.isFresh || recentReadings.isNotEmpty())
 
             val triggerCalibrationIfEnabled: (CalibrationSheetState) -> Unit = { state ->
                 val targetSensorId = when (state) {
@@ -1454,7 +1495,7 @@ fun DashboardScreen(
             Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
             } else if (glucoseHistory.isEmpty() && !hasSensorContext && !sensorSetupSkipped) {
             tk.glucodata.ui.components.DashboardEmptyState(
-                onSkip = viewModel::skipSensorSetup,
+                onContinueWithoutSensor = viewModel::skipSensorSetup,
                 onSensorSelected = { type ->
                     when (type) {
                         tk.glucodata.ui.components.SensorType.SIBIONICS -> showSibionicsWizard = true
@@ -1607,7 +1648,8 @@ fun DashboardScreen(
                             unit = unit,
                             viewMode = viewMode,
                             footerLabel = stringResource(R.string.historyname),
-                            onViewHistory = onNavigateToHistory
+                            onViewHistory = onNavigateToHistory,
+                            leadingRows = journalOnlyRowsContent
                         ) { index, item ->
                             ReadingRow(
                                 point = item,
@@ -2085,7 +2127,8 @@ fun DashboardScreen(
                             unit = unit,
                             viewMode = viewMode,
                             footerLabel = stringResource(R.string.historyname),
-                            onViewHistory = onNavigateToHistory
+                            onViewHistory = onNavigateToHistory,
+                            leadingRows = journalOnlyRowsContent
                         ) { index, item ->
                             ReadingRow(
                                 point = item,

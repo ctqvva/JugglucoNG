@@ -1800,6 +1800,7 @@ class DashboardViewModel(
         _sensorSetupSkipped.value = true
         setJournalEnabled(true)
         setJournalNavigationTabEnabled(true)
+        setJournalDashboardQuickAddButton(true)
     }
 
     fun setJournalTypeShownOnDashboard(type: JournalEntryType, visible: Boolean) {

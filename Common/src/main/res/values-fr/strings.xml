@@ -377,6 +377,8 @@
 
     <!-- Newly Extracted Strings -->
     <string name="import_history_desc">Importer les données de glucose depuis une exportation JugglucoNG ou un fichier CSV</string>
+    <string name="continue_without_sensor">Continuer sans capteur</string>
+    <string name="continue_without_sensor_desc">Notez insuline, aliments et mesures capillaires dans le journal</string>
     <string name="get_started_desc">Commencez par ajouter votre capteur</string>
     <string name="select_sensor">Sélectionner le type de capteur</string>
     <string name="select_sibionics_type">Choisir un capteur Sibionics</string>
@@ -633,7 +635,7 @@
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Scannez la matrice de données sur votre capteur Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Configuration Accu-Chek</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Ajouter un capteur</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Connecté !</string>
@@ -856,7 +858,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="no_qr_found">No QR code found in image</string>
     <string name="no_ringtone_picker_found">No Ringtone Picker found</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Aucun capteur connecté</string>
     <string name="nohttpport">The port number should be different from the http port</string>
     <string name="nomirrorport">The port number should be different from the mirror port</string>
     <string name="nonewdata">"No new data"</string>

@@ -1876,9 +1876,11 @@ fun RecentReadingsCard(
     viewMode: Int,
     footerLabel: String,
     onViewHistory: (() -> Unit)? = null,
+    // Rows above the readings, in the same card. With no readings they are the whole list.
+    leadingRows: (@Composable () -> Unit)? = null,
     content: @Composable (Int, GlucosePoint) -> Unit // Rendering the row with Index
 ) {
-    if (recentReadings.isNotEmpty()) {
+    if (recentReadings.isNotEmpty() || leadingRows != null) {
         // This is a snapshot of recent history, including readings received
         // while hidden. Keep one stable subtree per reading: entrance wrappers
         // replayed missed rows and were removed on the very next recomposition.
@@ -1892,6 +1894,7 @@ fun RecentReadingsCard(
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column {
+                leadingRows?.invoke()
                 recentReadings.forEachIndexed { index, item ->
                     key(item.sensorSerial, item.timestamp) {
                         content(index, item)
