@@ -355,9 +355,6 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.debug_logs_desc), terms = listOf("logcat", "trace")),
         SettingsSearchEntry(R.string.cgm_readiness_title, ADVANCED, Icons.Default.Security, N, route("settings/cgm-readiness"),
             keywords = listOf(R.string.cgm_readiness_settings_desc), terms = listOf("CGM readiness")),
-        SettingsSearchEntry(R.string.restricted_mode_title, ADVANCED, Icons.Default.ChildCare, N,
-            route("settings/restricted-mode"), keywords = listOf(R.string.restricted_mode_desc),
-            terms = listOf("PIN", "child", "kid", "parental", "elderly", "simple")),
         SettingsSearchEntry(R.string.settings_sensor_connection_title, ADVANCED, Icons.Default.Bluetooth, N,
             route("settings/sensor-connection"), keywords = listOf(R.string.settings_sensor_connection_desc)),
         SettingsSearchEntry(R.string.sensor_handover_title, CONNECTION, Icons.Default.SwapHoriz, N,
@@ -368,6 +365,9 @@ internal object SettingsSearchIndex {
             route("settings/sensor-connection"), terms = listOf("AutoConnect"), anchor = SettingsSearchAnchors.AUTOCONNECT),
         SettingsSearchEntry(R.string.freeze_displayed_values, ADVANCED, Icons.Default.Lock, N,
             action(SettingsSearchAction.KEEP_DISPLAYED_VALUES)),
+        SettingsSearchEntry(R.string.restricted_mode_title, ADVANCED, Icons.Default.ChildCare, N,
+            route("settings/restricted-mode"), keywords = listOf(R.string.restricted_mode_desc),
+            terms = listOf("PIN", "child", "kid", "parental", "elderly", "simple")),
 
         // Danger zone: restart acts at once, as its row does; the rest ask for confirmation.
         SettingsSearchEntry(R.string.restart_app, DANGER, Icons.Default.Refresh, E, action(SettingsSearchAction.RESTART),

@@ -3374,19 +3374,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="many">введено %d цифр</item>
         <item quantity="other">введено %d цифри</item>
     </plurals>
-    <string name="restricted_sensor_ends_soon">Менш ніж за годину</string>
+    <string name="restricted_sensor_ends_soon">Залишилося менше години</string>
     <string name="restricted_sensor_ended">Закінчився</string>
     <plurals name="restricted_sensor_ends_in_days">
-        <item quantity="one">Через %d день</item>
-        <item quantity="few">Через %d дні</item>
-        <item quantity="many">Через %d днів</item>
-        <item quantity="other">Через %d дня</item>
+        <item quantity="one">Залишився %d день</item>
+        <item quantity="few">Залишилося %d дні</item>
+        <item quantity="many">Залишилося %d днів</item>
+        <item quantity="other">Залишилося %d дня</item>
     </plurals>
     <plurals name="restricted_sensor_ends_in_hours">
-        <item quantity="one">Через %d годину</item>
-        <item quantity="few">Через %d години</item>
-        <item quantity="many">Через %d годин</item>
-        <item quantity="other">Через %d години</item>
+        <item quantity="one">Залишилася %d година</item>
+        <item quantity="few">Залишилося %d години</item>
+        <item quantity="many">Залишилося %d годин</item>
+        <item quantity="other">Залишилося %d години</item>
     </plurals>
     <string name="restricted_section_settings">Налаштування, відкриті в обмеженому режимі</string>
     <string name="restricted_allow_alarm_settings_desc">Змінювати рівні та звуки або вимикати сповіщення</string>

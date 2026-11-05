@@ -3386,19 +3386,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="many">введено %d цифр</item>
         <item quantity="other">введено %d цифры</item>
     </plurals>
-    <string name="restricted_sensor_ends_soon">Меньше чем через час</string>
+    <string name="restricted_sensor_ends_soon">Осталось меньше часа</string>
     <string name="restricted_sensor_ended">Закончился</string>
     <plurals name="restricted_sensor_ends_in_days">
-        <item quantity="one">Через %d день</item>
-        <item quantity="few">Через %d дня</item>
-        <item quantity="many">Через %d дней</item>
-        <item quantity="other">Через %d дня</item>
+        <item quantity="one">Остался %d день</item>
+        <item quantity="few">Осталось %d дня</item>
+        <item quantity="many">Осталось %d дней</item>
+        <item quantity="other">Осталось %d дня</item>
     </plurals>
     <plurals name="restricted_sensor_ends_in_hours">
-        <item quantity="one">Через %d час</item>
-        <item quantity="few">Через %d часа</item>
-        <item quantity="many">Через %d часов</item>
-        <item quantity="other">Через %d часа</item>
+        <item quantity="one">Остался %d час</item>
+        <item quantity="few">Осталось %d часа</item>
+        <item quantity="many">Осталось %d часов</item>
+        <item quantity="other">Осталось %d часа</item>
     </plurals>
     <string name="restricted_section_settings">Настройки, открытые в ограниченном режиме</string>
     <string name="restricted_allow_alarm_settings_desc">Менять уровни и звуки или выключать оповещения</string>

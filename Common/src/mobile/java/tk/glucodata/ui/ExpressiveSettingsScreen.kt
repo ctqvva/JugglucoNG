@@ -753,24 +753,12 @@ fun ExpressiveSettingsScreen(
             val advancedColor = MaterialTheme.colorScheme.onSurfaceVariant
             val restrictedMode by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.restricted_mode_title),
-                    subtitle = stringResource(R.string.restricted_mode_desc),
-                    checked = restrictedMode.config.enabled,
-                    onCheckedChange = { on ->
-                        tk.glucodata.RestrictedMode.update(context) { it.copy(enabled = on) }
-                    },
-                    onClick = { navController.navigate("settings/restricted-mode") },
-                    icon = Icons.Default.ChildCare,
-                    iconTint = advancedColor,
-                    position = CardPosition.TOP,
-                )
                 SettingsItem(
                     title = stringResource(R.string.debug_logs),
                     subtitle = stringResource(R.string.debug_logs_desc),
                     icon = Icons.Default.BugReport,
                     iconTint = advancedColor,
-                    position = CardPosition.MIDDLE,
+                    position = CardPosition.TOP,
                     onClick = { navController.navigate("settings/debug") }
                 )
                 SettingsItem(
@@ -809,7 +797,19 @@ fun ExpressiveSettingsScreen(
                     onClick = { showSealGraceDialog = true },
                     icon = Icons.Default.Lock,
                     iconTint = advancedColor,
-                    position = CardPosition.BOTTOM
+                    position = CardPosition.MIDDLE
+                )
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.restricted_mode_title),
+                    subtitle = stringResource(R.string.restricted_mode_desc),
+                    checked = restrictedMode.config.enabled,
+                    onCheckedChange = { on ->
+                        tk.glucodata.RestrictedMode.update(context) { it.copy(enabled = on) }
+                    },
+                    onClick = { navController.navigate("settings/restricted-mode") },
+                    icon = Icons.Default.ChildCare,
+                    iconTint = advancedColor,
+                    position = CardPosition.BOTTOM,
                 )
             }
         }
