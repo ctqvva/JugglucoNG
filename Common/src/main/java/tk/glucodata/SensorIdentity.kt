@@ -378,7 +378,18 @@ object SensorIdentity {
         val canonicalSelected = canonicalOrRaw(selectedMain)
         val canonicalPreferred = canonicalOrRaw(preferredSensorId)
 
-        if (active.isEmpty()) {
+        // The selected managed sensor keeps its role while its callback lives: re-adding one
+        // leaves its native mirror finished until the first reading revives it. Removal clears
+        // this slot before it drops the callback.
+        if (managed != null && active.any { matches(it, managed) }) {
+            return managed
+        }
+
+        // A callback outlives native termination until sensorEnded() drops it, so being a
+        // candidate does not make a finished sensor available.
+        val live = active.filterNot(isFinished)
+
+        if (live.isEmpty()) {
             // Being outside the active list does not make a sensor gone: native leaves out
             // scan-only sensors and ones silent for a day, and those stay the main sensor.
             // A finished one is gone. Native lastsensorname() falls back to the newest slot,
@@ -387,19 +398,15 @@ object SensorIdentity {
                 .firstOrNull { !isFinished(it) }
         }
 
-        if (managed != null && active.any { matches(it, managed) }) {
-            return managed
-        }
-
-        if (canonicalSelected != null && active.any { matches(it, canonicalSelected) }) {
+        if (canonicalSelected != null && live.any { matches(it, canonicalSelected) }) {
             return canonicalSelected
         }
 
-        if (canonicalPreferred != null && active.any { matches(it, canonicalPreferred) }) {
+        if (canonicalPreferred != null && live.any { matches(it, canonicalPreferred) }) {
             return canonicalPreferred
         }
 
-        return active.firstOrNull()
+        return live.firstOrNull()
     }
 
     @JvmStatic

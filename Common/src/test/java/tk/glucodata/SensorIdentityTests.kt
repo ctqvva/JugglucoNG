@@ -167,6 +167,60 @@ class SensorIdentityTests {
     }
 
     @Test
+    fun resolveAvailableMainSensor_retainedCallbackDoesNotKeepFinishedSensorMain() {
+        // The callback outlives native termination until sensorEnded() drops it.
+        assertNull(
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished",
+                preferredSensorId = null,
+                activeSensors = arrayOf("finished"),
+                isFinished = { true }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_retainedCallbackFallsToSecondLiveSensor() {
+        assertEquals(
+            "live-sensor",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished",
+                preferredSensorId = "finished",
+                activeSensors = arrayOf("finished", "live-sensor"),
+                isFinished = { it == "finished" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_retainedCallbackLeavesScanOnlySensorMain() {
+        assertEquals(
+            "scan-only",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "scan-only",
+                preferredSensorId = null,
+                activeSensors = arrayOf("finished"),
+                isFinished = { it == "finished" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_selectedManagedSensorSurvivesFinishedMirrorWhileConnected() {
+        // Re-adding a managed sensor leaves its mirror finished until the first reading.
+        ManagedCurrentSensor.set("X-2222268RXN")
+        assertEquals(
+            "X-2222268RXN",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = null,
+                preferredSensorId = null,
+                activeSensors = arrayOf("X-2222268RXN"),
+                isFinished = { true }
+            )
+        )
+    }
+
+    @Test
     fun resolveAvailableMainSensor_importedHistoryPinIsNotASensor() {
         // Older imports pinned the synthetic id, or the file's newest real serial, which can
         // belong to another phone: no driver record, no native slot, nothing to finish.

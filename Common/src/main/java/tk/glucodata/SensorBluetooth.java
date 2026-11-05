@@ -854,7 +854,7 @@ public class SensorBluetooth {
     private static void onMainSensorCleared() {
         try {
             Notify.stoplossalarm();
-            GlucoseWidget.update();
+            GlucoseUpdateBroadcaster.sendNow();
             UiRefreshBus.requestDataRefresh();
         } catch (Throwable t) {
             Log.stack(LOG_ID, "onMainSensorCleared", t);
@@ -958,6 +958,9 @@ public class SensorBluetooth {
                     gatt = gattcallbacks.get(i);
                     gatt.stopHealth = false;
                 }
+                // Only now does the roster stop naming it. A redraw before this could still
+                // resolve the removed sensor, and a replacement has no reading to trigger one.
+                GlucoseUpdateBroadcaster.sendNow();
                 return;
             } else {
                 gatt.stopHealth = false;
@@ -1257,6 +1260,7 @@ public class SensorBluetooth {
             final String replacement = resolveReplacementSensorSerial(sensorId);
             setCurrentSensorSelection(replacement != null ? replacement : "");
         }
+        GlucoseUpdateBroadcaster.sendNow();
     }
 
     // --- KOTLIN SENSORS (AiDex) SUPPORT ---

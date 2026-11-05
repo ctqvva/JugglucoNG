@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 object GlucoseUpdateBroadcaster {
     const val ACTION_GLUCOSE_UPDATE = "tk.glucodata.action.GLUCOSE_UPDATE"
     const val EXTRA_TICK_DELIVERED = "tk.glucodata.extra.TICK_DELIVERED"
+    const val EXTRA_REDRAW_NOW = "tk.glucodata.extra.REDRAW_NOW"
 
     private const val LOG_ID = "GlucoseUpdateBroadcast"
     private const val MIN_BROADCAST_INTERVAL_MS = 1_000L
@@ -78,6 +79,15 @@ object GlucoseUpdateBroadcaster {
         deliver(context, throttled = true)
     }
 
+    /**
+     * For a change no later reading will repair, such as a sensor leaving: skips this throttle
+     * and the widget's own, either of which would otherwise drop the only redraw.
+     */
+    @JvmStatic
+    fun sendNow() {
+        deliver(null, throttled = false)
+    }
+
     private fun deliver(context: Context?, throttled: Boolean) {
         val appContext = (context?.applicationContext ?: Applic.app) ?: return
         val now = SystemClock.elapsedRealtime()
@@ -98,6 +108,7 @@ object GlucoseUpdateBroadcaster {
                 Intent(ACTION_GLUCOSE_UPDATE)
                     .setPackage(appContext.packageName)
                     .putExtra(EXTRA_TICK_DELIVERED, true)
+                    .putExtra(EXTRA_REDRAW_NOW, !throttled)
             )
         } catch (th: Throwable) {
             Log.stack(LOG_ID, "send", th)
