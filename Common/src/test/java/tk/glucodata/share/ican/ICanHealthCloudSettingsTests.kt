@@ -83,6 +83,41 @@ class ICanHealthCloudSettingsTests {
         )
         assertEquals("s3cret", settings.password)
     }
+    @Test
+    fun failedEncryptionLeavesPreviousSessionUntouched() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context, object : ICanHealthCloudSettings.PasswordCipher {
+            override fun encrypt(value: String): String = error("Keystore unavailable")
+            override fun decrypt(value: String): String = ""
+        })
+        settings.clear()
+        settings.token = "previous-token"
+        settings.userId = "previous-user"
+        settings.lastSyncMs = 123L
+        val result = runCatching {
+            settings.installLogin("new@example.test", "secret", ICanHealthCloudClient.LoginResult.Ok("new-token"))
+        }
+        assertTrue(result.isFailure)
+        assertEquals("previous-token", settings.token)
+        assertEquals("previous-user", settings.userId)
+        assertEquals(123L, settings.lastSyncMs)
+        assertTrue(!context.getSharedPreferences("ican_cloud", Context.MODE_PRIVATE)
+            .contains("ican_cloud_password"))
+    }
+
+    @Test
+    fun acknowledgedProgressResetsOnlyWhenAccountOwnerChanges() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context, B64PasswordCipher())
+        settings.clear()
+        settings.installLogin("a@example.test", "pwd", ICanHealthCloudClient.LoginResult.Ok("a1", LoginModel(userId = "A", tenantId = "T")))
+        settings.lastSyncMs = 123L
+        settings.installLogin("a@example.test", "pwd", ICanHealthCloudClient.LoginResult.Ok("a2", LoginModel(userId = "A", tenantId = "T")))
+        assertEquals(123L, settings.lastSyncMs)
+        settings.installLogin("b@example.test", "pwd", ICanHealthCloudClient.LoginResult.Ok("b", LoginModel(userId = "B", tenantId = "T")))
+        assertEquals(0L, settings.lastSyncMs)
+    }
+
 }
 
 class ICanHealthCloudSettingsTestApplication : Applic() {

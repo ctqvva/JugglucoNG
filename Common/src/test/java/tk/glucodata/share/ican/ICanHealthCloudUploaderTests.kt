@@ -3,6 +3,7 @@ package tk.glucodata.share.ican
 import android.content.Context
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -15,6 +16,13 @@ import tk.glucodata.share.ican.ICanHealthCloudClient.UploadResult
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = ICanHealthCloudUploaderTestApplication::class)
 class ICanHealthCloudUploaderTests {
+
+    @Before
+    fun resetSessionAndQueue() {
+        val context = RuntimeEnvironment.getApplication()
+        ICanHealthCloudSettings(context).clear()
+        context.filesDir.resolve("ican_cloud_queue.json").delete()
+    }
 
     private class FakeTransport(private val respond: (String) -> HttpResult) : ICanHealthCloudClient.Transport {
         val calls = mutableListOf<String>()
@@ -134,6 +142,139 @@ class ICanHealthCloudUploaderTests {
         assertTrue(transport.calls.size >= 2)
         assertEquals(1, queue.size())
     }
+    private fun signedIn(): Pair<ICanHealthCloudSettings, ICanHealthCloudQueue> {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context, TestB64Cipher())
+        settings.installLogin("a@example.test", "pwd", ICanHealthCloudClient.LoginResult.Ok("token-a", LoginModel(userId = "A")))
+        settings.enabled = true
+        return settings to ICanHealthCloudQueue(context)
+    }
+
+    private fun switchAccount(settings: ICanHealthCloudSettings) {
+        settings.installLogin("b@example.test", "pwd", ICanHealthCloudClient.LoginResult.Ok("token-b", LoginModel(userId = "B")))
+    }
+
+    @Test
+    fun initializedUploaderNeverSendsPreviousAccountsBacklog() {
+        val (settings, queue) = signedIn()
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        val transport = FakeTransport { HttpResult(200, """{"code":0}""") }
+        val uploader = ICanHealthCloudUploader(ICanHealthCloudClient(transport), settings, queue)
+        switchAccount(settings)
+        assertEquals(0, uploader.flush().uploaded)
+        assertTrue(transport.calls.isEmpty())
+        // The same cached instance must also see B's new work, never reload A's backlog.
+        ICanHealthCloudQueue(RuntimeEnvironment.getApplication()).enqueue(EgvUpload("SN2", 2L, 120, 1))
+        assertEquals(1, uploader.flush().uploaded)
+        assertEquals(1, transport.calls.size)
+    }
+
+    @Test
+    fun disablingDuringBackoffPreventsAnotherRequest() {
+        val (settings, queue) = signedIn()
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        val transport = FakeTransport { HttpResult(500, "") }
+        val uploader = ICanHealthCloudUploader(ICanHealthCloudClient(transport), settings, queue) { settings.enabled = false }
+        assertTrue(uploader.flush() is ICanHealthCloudUploader.FlushResult.Disabled)
+        assertEquals(1, transport.calls.size)
+        assertEquals(1, queue.size())
+    }
+
+    @Test
+    fun accountChangeDuringBackoffDoesNotSendOldBatchWithNewToken() {
+        val (settings, queue) = signedIn()
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        val tokens = mutableListOf<String?>()
+        val transport = object : ICanHealthCloudClient.Transport {
+            override fun post(url: String, jsonBody: String?) = HttpResult(500, "")
+            override fun get(url: String) = HttpResult(404, "")
+            override fun post(url: String, jsonBody: String?, headers: Map<String, String>): HttpResult {
+                tokens += headers[ICanHealthCloudConstants.HEADER_SINO_AUTH]
+                return HttpResult(500, "")
+            }
+        }
+        val uploader = ICanHealthCloudUploader(ICanHealthCloudClient(transport), settings, queue) { switchAccount(settings) }
+        assertTrue(uploader.flush() is ICanHealthCloudUploader.FlushResult.Unauthorized)
+        assertEquals(listOf("token-a"), tokens)
+        assertEquals("token-b", settings.token)
+    }
+
+    @Test
+    fun oldSuccessfulResponseCannotRemoveNewAccountsMatchingReading() {
+        val (settings, queue) = signedIn()
+        val reading = EgvUpload("SN1", 1L, 100, 1)
+        queue.enqueue(reading)
+        val transport = FakeTransport {
+            switchAccount(settings)
+            ICanHealthCloudQueue(RuntimeEnvironment.getApplication()).enqueue(reading)
+            HttpResult(200, """{"code":0}""")
+        }
+        assertTrue(ICanHealthCloudUploader(ICanHealthCloudClient(transport), settings, queue).flush() is ICanHealthCloudUploader.FlushResult.Unauthorized)
+        assertEquals(listOf(reading), queue.peek())
+        assertEquals(0L, settings.lastSyncMs)
+    }
+
+    @Test
+    fun permanentFailureStopsImmediatelyAndKeepsAcknowledgedProgress() {
+        val (settings, queue) = signedIn()
+        queue.enqueueAll((1L..61L).map { EgvUpload("SN1", it, 100, 1) })
+        var calls = 0
+        val transport = FakeTransport {
+            if (calls++ == 0) HttpResult(200, """{"code":0}""") else HttpResult(400, "")
+        }
+        val result = ICanHealthCloudUploader(ICanHealthCloudClient(transport), settings, queue) { error("Permanent failures must not retry") }.flush()
+        assertTrue(result is ICanHealthCloudUploader.FlushResult.Failed)
+        assertEquals(60, result.uploaded)
+        assertEquals(60L, settings.lastSyncMs)
+        assertEquals(listOf(61L), queue.peek().map { it.timeMs })
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun repeatedUnauthorizedResponsesOnlyReloginOnce() {
+        val (settings, queue) = signedIn()
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        var logins = 0
+        var uploads = 0
+        val transport = FakeTransport { url ->
+            if (url.contains("oauth/token")) {
+                logins++
+                HttpResult(200, """{"code":0,"data":{"access_token":"renewed"}}""")
+            } else {
+                uploads++
+                check(uploads <= 2) { "Unbounded automatic login" }
+                HttpResult(401, "")
+            }
+        }
+        assertTrue(ICanHealthCloudUploader(ICanHealthCloudClient(transport), settings, queue).flush() is ICanHealthCloudUploader.FlushResult.Unauthorized)
+        assertEquals(1, logins)
+        assertEquals(2, uploads)
+        assertEquals(1, queue.size())
+    }
+
+    @Test
+    fun lateUnauthorizedResponseCannotEraseNewLogin() {
+        val (settings, queue) = signedIn()
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        val transport = FakeTransport {
+            switchAccount(settings)
+            HttpResult(401, "")
+        }
+        assertTrue(ICanHealthCloudUploader(ICanHealthCloudClient(transport), settings, queue).flush() is ICanHealthCloudUploader.FlushResult.Unauthorized)
+        assertEquals("token-b", settings.token)
+        assertEquals(1, transport.calls.size)
+    }
+
+    @Test
+    fun olderAcknowledgementCannotMoveSyncProgressBackwards() {
+        val (settings, queue) = signedIn()
+        settings.lastSyncMs = 100L
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        val transport = FakeTransport { HttpResult(200, """{"code":0}""") }
+        assertEquals(1, ICanHealthCloudUploader(ICanHealthCloudClient(transport), settings, queue).flush().uploaded)
+        assertEquals(100L, settings.lastSyncMs)
+    }
+
 }
 
 private class TestB64Cipher : ICanHealthCloudSettings.PasswordCipher {

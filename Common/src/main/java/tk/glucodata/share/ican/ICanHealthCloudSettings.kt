@@ -82,11 +82,44 @@ class ICanHealthCloudSettings(
             }
         }
 
-    fun clear() {
+    internal data class Session(val token: String, val accountKey: String)
+
+    internal val accountKey: String
+        get() = accountKey(tenantId, userId, account)
+
+    private fun accountKey(tenant: String, user: String, account: String): String {
+        val identity = org.json.JSONArray().put(tenant).put(
+            user.ifBlank { account.trim().lowercase(java.util.Locale.ROOT) },
+        ).toString()
+        return java.security.MessageDigest.getInstance("SHA-256")
+            .digest(identity.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+    }
+
+    internal fun session(): Session = synchronized(sessionLock) { Session(token, accountKey) }
+
+    fun installLogin(account: String, password: String, result: ICanHealthCloudClient.LoginResult.Ok) {
+        val encryptedPassword = passwordCipher.encrypt(password)
+        synchronized(sessionLock) {
+            val nextAccount = accountKey(result.model.tenantId, result.model.userId, account)
+            val progress = if (accountKey == nextAccount) lastSyncMs else 0L
+            prefs.edit()
+                .putString(KEY_ACCOUNT, account.trim())
+                .putString(KEY_TOKEN, result.sessionId)
+                .putString(KEY_REFRESH_TOKEN, result.model.refreshToken)
+                .putString(KEY_USER_ID, result.model.userId)
+                .putString(KEY_TENANT_ID, result.model.tenantId)
+                .putString(KEY_PASSWORD, encryptedPassword)
+                .putLong(KEY_LAST_SYNC_MS, progress)
+                .apply()
+        }
+    }
+
+    fun clear() = synchronized(sessionLock) {
         prefs.edit().clear().apply()
     }
 
     companion object {
+        internal val sessionLock = Any()
         private const val PREFS = "ican_cloud"
         private const val KEY_ENABLED = "ican_cloud_enabled"
 
@@ -114,13 +147,13 @@ class ICanHealthCloudSettings(
 object AndroidKeystorePasswordCipher : ICanHealthCloudSettings.PasswordCipher {
     private const val KEY_ALIAS = "juggluco_ican_cloud"
 
-    override fun encrypt(value: String): String = runCatching {
+    override fun encrypt(value: String): String {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, secretKey(), SecureRandom())
         val iv = Base64.getEncoder().encodeToString(cipher.iv)
         val ciphertext = Base64.getEncoder().encodeToString(cipher.doFinal(value.toByteArray(Charsets.UTF_8)))
-        "$iv:$ciphertext"
-    }.getOrDefault(value)
+        return "$iv:$ciphertext"
+    }
 
     override fun decrypt(value: String): String = runCatching {
         val parts = value.split(':', limit = 2)

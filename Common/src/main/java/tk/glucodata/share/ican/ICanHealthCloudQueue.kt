@@ -8,7 +8,8 @@ import java.io.File
 class ICanHealthCloudQueue(context: Context) {
 
     private val file = File(context.applicationContext.filesDir, "ican_cloud_queue.json")
-    private val lock = Any()
+    private val settings = ICanHealthCloudSettings(context)
+    private val lock = ICanHealthCloudSettings.sessionLock
     private val items = ArrayList<EgvUpload>()
 
     init {
@@ -17,6 +18,7 @@ class ICanHealthCloudQueue(context: Context) {
 
     fun enqueue(egv: EgvUpload) {
         synchronized(lock) {
+            load()
             val clamped = egv.copy(mgdl = egv.mgdl.coerceIn(MIN_MGDL, MAX_MGDL))
             if (items.any { it.serial == clamped.serial && it.timeMs == clamped.timeMs }) return
             items.add(clamped)
@@ -28,6 +30,7 @@ class ICanHealthCloudQueue(context: Context) {
     fun enqueueAll(egvs: List<EgvUpload>): Int {
         if (egvs.isEmpty()) return 0
         synchronized(lock) {
+            load()
             val keys = items.map { it.serial to it.timeMs }.toHashSet()
             var added = 0
             for (egv in egvs) {
@@ -47,6 +50,7 @@ class ICanHealthCloudQueue(context: Context) {
 
     fun clear() {
         synchronized(lock) {
+            load()
             items.clear()
             persist()
         }
@@ -54,12 +58,14 @@ class ICanHealthCloudQueue(context: Context) {
 
     fun peek(): List<EgvUpload> {
         synchronized(lock) {
+            load()
             return items.toList()
         }
     }
 
     fun remove(ids: Any?) {
         synchronized(lock) {
+            load()
             val targets = when (ids) {
                 is Iterable<*> -> ids.toList()
                 is Array<*> -> ids.toList()
@@ -83,6 +89,7 @@ class ICanHealthCloudQueue(context: Context) {
 
     fun size(): Int {
         synchronized(lock) {
+            load()
             return items.size
         }
     }
@@ -112,12 +119,13 @@ class ICanHealthCloudQueue(context: Context) {
     }
 
     private fun load() {
+        items.clear()
         if (!file.exists()) return
         val text = runCatching { file.readText() }.getOrNull() ?: return
-        val parsed = runCatching { JSONArray(text) }.getOrNull()
-        val array = parsed ?: runCatching { JSONObject(text).optJSONArray("items") }.getOrNull()
-        if (array == null) return
-        items.clear()
+        val stored = runCatching { JSONObject(text) }.getOrNull() ?: return
+        // A legacy queue has no provable account owner. Never attach it to a new session.
+        if (stored.optString("account") != settings.accountKey) return
+        val array = stored.optJSONArray("items") ?: return
         for (i in 0 until array.length()) {
             val obj = array.optJSONObject(i) ?: continue
             items.add(EgvUpload.fromJson(obj))
@@ -131,7 +139,7 @@ class ICanHealthCloudQueue(context: Context) {
             items.forEach { array.put(it.toJson()) }
             file.parentFile?.mkdirs()
             val tmp = java.io.File(file.parentFile, file.name + ".tmp")
-            tmp.writeText(array.toString())
+            tmp.writeText(JSONObject().put("account", settings.accountKey).put("items", array).toString())
             if (!tmp.renameTo(file)) {
                 file.writeText(tmp.readText())
                 tmp.delete()

@@ -14,90 +14,78 @@ class ICanHealthCloudUploader(
 
     @Synchronized
     fun flush(): FlushResult {
-        var token = settings.token
-        if (token.isBlank()) {
-            return FlushResult.Unauthorized(0)
-        }
-        if (!settings.enabled) {
-            return FlushResult.Disabled(0)
-        }
-        val all = queue.peek()
-        if (all.isEmpty()) {
-            return FlushResult.Success(0)
+        var session = settings.session()
+        if (session.token.isBlank()) return FlushResult.Unauthorized(0)
+        if (!settings.enabled) return FlushResult.Disabled(0)
+        val all = synchronized(ICanHealthCloudSettings.sessionLock) {
+            if (settings.session() != session) return FlushResult.Unauthorized(0)
+            queue.peek()
         }
         var uploadedTotal = 0
-        var newestMs = 0L
-        val bySerial = all.groupBy { it.serial }
-        for ((serial, items) in bySerial) {
-            var index = 0
-            while (index < items.size) {
-                if (!settings.enabled) {
-                    return FlushResult.Disabled(uploadedTotal)
-                }
-                if (settings.token != token) {
-                    return FlushResult.Unauthorized(uploadedTotal)
-                }
-                val end = minOf(index + BATCH_SIZE, items.size)
-                val batch = items.subList(index, end).toList()
+        var refreshed = false
+        for ((serial, items) in all.groupBy { it.serial }) {
+            for (batch in items.chunked(BATCH_SIZE)) {
                 var attempt = 0
-                var success = false
-                var unauthorized = false
-                var lastCode = 0
-                var lastMessage = ""
-                while (attempt < MAX_RETRIES && !success && !unauthorized) {
-                    attempt++
-                    when (val result = client.uploadGlucose(settings.token, serial, batch)) {
-                        is UploadResult.Ok -> success = true
-                        is UploadResult.Failed -> {
-                            if (result.code == 401) {
-                                unauthorized = true
-                                lastCode = result.code
-                                lastMessage = result.message
-                            } else {
-                                lastCode = result.code
-                                lastMessage = result.message
-                                if (attempt < MAX_RETRIES) {
-                                    sleep(backoffMs(attempt))
-                                }
-                            }
+                while (true) {
+                    // Revalidate before every request, including retries after a backoff.
+                    synchronized(ICanHealthCloudSettings.sessionLock) {
+                        if (!settings.enabled) return FlushResult.Disabled(uploadedTotal)
+                        if (settings.session() != session) return FlushResult.Unauthorized(uploadedTotal)
+                    }
+                    val result = client.uploadGlucose(session.token, serial, batch)
+                    synchronized(ICanHealthCloudSettings.sessionLock) {
+                        if (settings.session() != session) return FlushResult.Unauthorized(uploadedTotal)
+                        if (result is UploadResult.Ok) {
+                            queue.remove(batch)
+                            uploadedTotal += batch.size
+                            settings.lastSyncMs = maxOf(settings.lastSyncMs, batch.maxOf { it.timeMs })
                         }
                     }
-                }
-                if (unauthorized) {
-                    if (relogin(token)) {
-                        unauthorized = false
-                        attempt = 0
-                        token = settings.token
-                        continue
+                    if (result is UploadResult.Ok) break
+                    result as UploadResult.Failed
+                    if (result.kind == ICanHealthCloudError.Kind.UNAUTHORIZED) {
+                        // A server that keeps rejecting a fresh token must not create an endless loop.
+                        val renewed = if (!refreshed && settings.enabled) relogin(session) else null
+                        if (renewed != null) {
+                            refreshed = true
+                            session = renewed
+                            continue
+                        }
+                        synchronized(ICanHealthCloudSettings.sessionLock) {
+                            if (settings.session() == session) settings.token = ""
+                        }
+                        return FlushResult.Unauthorized(uploadedTotal)
                     }
-                    if (settings.token == token) settings.token = ""
-                    return FlushResult.Unauthorized(uploadedTotal)
+                    attempt++
+                    if (result.kind != ICanHealthCloudError.Kind.TRANSIENT || attempt >= MAX_RETRIES) {
+                        return FlushResult.Failed(uploadedTotal, result.code, result.message, result.kind)
+                    }
+                    sleep(backoffMs(attempt))
                 }
-                if (!success) {
-                    return FlushResult.Failed(uploadedTotal, lastCode, lastMessage)
-                }
-                queue.remove(batch)
-                uploadedTotal += batch.size
-                newestMs = maxOf(newestMs, batch.last().timeMs)
-                index = end
             }
         }
-        if (newestMs > 0L) settings.lastSyncMs = maxOf(settings.lastSyncMs, newestMs)
         return FlushResult.Success(uploadedTotal)
     }
 
-    private fun relogin(oldToken: String): Boolean {
-        val account = settings.account
-        val password = settings.password
-        if (account.isBlank() || password.isBlank()) return false
-        val result = client.login(account, password)
-        if (result !is ICanHealthCloudClient.LoginResult.Ok) return false
-        if (settings.token != oldToken) return true
-        settings.token = result.sessionId
-        if (result.model.refreshToken.isNotEmpty()) settings.refreshToken = result.model.refreshToken
-        if (result.model.userId.isNotEmpty()) settings.userId = result.model.userId
-        if (result.model.tenantId.isNotEmpty()) settings.tenantId = result.model.tenantId
-        return true
+    private fun relogin(session: ICanHealthCloudSettings.Session): ICanHealthCloudSettings.Session? {
+        val credentials = synchronized(ICanHealthCloudSettings.sessionLock) {
+            if (!settings.enabled || settings.session() != session) return null
+            settings.account to settings.password
+        }
+        if (credentials.first.isBlank() || credentials.second.isBlank()) return null
+        val result = client.login(credentials.first, credentials.second)
+        if (result !is ICanHealthCloudClient.LoginResult.Ok) return null
+        return synchronized(ICanHealthCloudSettings.sessionLock) {
+            if (!settings.enabled || settings.session() != session) return null
+            // Automatic refresh may replace the token, never the patient owning the queued data.
+            if (result.model.userId.isNotBlank() && settings.userId.isNotBlank() &&
+                result.model.userId != settings.userId) return null
+            if (result.model.tenantId.isNotBlank() && settings.tenantId.isNotBlank() &&
+                result.model.tenantId != settings.tenantId) return null
+            settings.token = result.sessionId
+            if (result.model.refreshToken.isNotEmpty()) settings.refreshToken = result.model.refreshToken
+            settings.session()
+        }
     }
 
     sealed class FlushResult(
@@ -158,17 +146,25 @@ class ICanHealthCloudUploader(
         )
 
         @JvmStatic
-        fun onHistoryStored(sensorSerial: String, rows: List<ICanHealthCloudUploader.Row>) {
+        fun onHistoryStored(
+            sensorSerial: String,
+            rows: List<ICanHealthCloudUploader.Row>,
+            expectedAccountKey: String? = null,
+        ) {
             if (sensorSerial.isEmpty() || rows.isEmpty()) return
             try {
                 val context = tk.glucodata.Applic.app ?: return
                 if (!ICanHealthCloudSettings.isEnabled(context)) return
                 val current = stateFor(context)
-                val accepted = current.queue.enqueueAll(
-                    rows.filter { it.mgdl > 0 }.map {
-                        EgvUpload(it.serial, it.timeMs, it.mgdl, it.trendIndex)
-                    },
-                )
+                val accepted = synchronized(ICanHealthCloudSettings.sessionLock) {
+                    if (!current.settings.enabled || (expectedAccountKey != null &&
+                        current.settings.accountKey != expectedAccountKey)) return
+                    current.queue.enqueueAll(
+                        rows.filter { it.mgdl > 0 }.map {
+                            EgvUpload(it.serial, it.timeMs, it.mgdl, it.trendIndex)
+                        },
+                    )
+                }
                 if (accepted > 0) {
                     requestFlush(context)
                 }
@@ -184,10 +180,15 @@ class ICanHealthCloudUploader(
                 val context = tk.glucodata.Applic.app ?: return
                 if (!ICanHealthCloudSettings.isEnabled(context)) return
                 val appContext = context.applicationContext
+                val accountKey = ICanHealthCloudSettings(appContext).session().accountKey
                 synchronized(lock) {
                     executor.execute {
                         try {
-                            stateFor(appContext).queue.enqueue(EgvUpload(sensorSerial, timeMs, mgdl, trendIndex))
+                            val current = stateFor(appContext)
+                            synchronized(ICanHealthCloudSettings.sessionLock) {
+                                if (!current.settings.enabled || current.settings.accountKey != accountKey) return@execute
+                                current.queue.enqueue(EgvUpload(sensorSerial, timeMs, mgdl, trendIndex))
+                            }
                             requestFlush(appContext)
                         } catch (error: Throwable) {
                             tk.glucodata.Log.stack(LOG_ID, "onLiveReading", error)
@@ -230,7 +231,7 @@ class ICanHealthCloudUploader(
             try {
                 val current = stateFor(context)
                 val result = ICanHealthCloudUploader(current.client, current.settings, current.queue).flush()
-                if (result is FlushResult.Failed && result.code != 401) {
+                if (result is FlushResult.Failed && result.kind == ICanHealthCloudError.Kind.TRANSIENT) {
                     requestFlush(context, RETRY_DELAY_MS)
                 }
             } catch (error: Throwable) {

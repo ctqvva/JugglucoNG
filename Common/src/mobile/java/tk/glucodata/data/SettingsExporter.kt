@@ -249,10 +249,6 @@ object SettingsExporter {
             .put("locale", Locale.getDefault().toLanguageTag())
     }
 
-    private val excludedPreferenceFiles = setOf(
-        "ican_cloud",
-    )
-
     private fun buildSharedPreferences(context: Context): JSONObject {
         val result = JSONObject()
         val prefsDir = File(context.applicationInfo.dataDir, "shared_prefs")

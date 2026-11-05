@@ -55,6 +55,26 @@ class ICanHealthCloudQueueTests {
         assertTrue(vals.contains(40))
         assertTrue(vals.contains(400))
     }
+    @Test
+    fun clearingAnotherInstanceInvalidatesAlreadyLoadedItems() {
+        val context = RuntimeEnvironment.getApplication()
+        val queue = ICanHealthCloudQueue(context)
+        queue.clear()
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        ICanHealthCloudQueue(context).clear()
+        assertTrue(queue.peek().isEmpty())
+    }
+
+    @Test
+    fun queueWithoutAccountOwnershipIsNotAdoptedByLoggedInPatient() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context)
+        settings.userId = "new-patient"
+        val legacy = org.json.JSONArray().put(EgvUpload("SN1", 1L, 100, 1).toJson())
+        context.filesDir.resolve("ican_cloud_queue.json").writeText(legacy.toString())
+        assertTrue(ICanHealthCloudQueue(context).peek().isEmpty())
+    }
+
 }
 
 class ICanHealthCloudQueueTestApplication : Applic() {
