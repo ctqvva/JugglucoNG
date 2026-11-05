@@ -28,6 +28,8 @@ import tk.glucodata.share.DexcomShareSettings
 import tk.glucodata.share.DexcomShareUploader
 import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.share.ican.ICanHealthCloudUploader
+import tk.glucodata.share.lumiflex.LumiflexCloudSettings
+import tk.glucodata.share.lumiflex.LumiflexCloudUploader
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -744,6 +746,12 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                     icnRows(serial, backfillRows, XdripBackfill.displayedRows(serial, backfillRows)),
                 )
             }
+            if (app != null && LumiflexCloudSettings.isEnabled(app)) {
+                LumiflexCloudUploader.onHistoryStored(
+                    serial,
+                    lumiflexRows(serial, backfillRows, XdripBackfill.displayedRows(serial, backfillRows)),
+                )
+            }
         }
     }
 
@@ -767,6 +775,18 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         val rateByTime = rows.associate { it.timeMs to it.rate }
         return displayed.map { r ->
             ICanHealthCloudUploader.Row(serial, r.timeMs, r.mgdl, (rateByTime[r.timeMs] ?: 0.0).toInt())
+        }
+    }
+
+    /** The rows the Lumiflex cloud should hear about. */
+    private fun lumiflexRows(
+        serial: String,
+        rows: List<XdripBackfill.Row>,
+        displayed: List<XdripBackfill.DisplayedRow>,
+    ): List<LumiflexCloudUploader.Row> {
+        val rateByTime = rows.associate { it.timeMs to it.rate }
+        return displayed.map { r ->
+            LumiflexCloudUploader.Row(serial, r.timeMs, r.mgdl, (rateByTime[r.timeMs] ?: 0.0).toInt())
         }
     }
 

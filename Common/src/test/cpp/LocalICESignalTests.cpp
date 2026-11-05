@@ -19,6 +19,9 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+// Production reads the app files directory from here; empty disables persistence.
+std::string_view globalbasedir;
 #include "net/ICE/GenerationWatchRetry.hpp"
 #include "net/ICE/RendezvousCandidateStream.hpp"
 #include "net/ICE/RecoveryWakeLease.hpp"
@@ -89,6 +92,7 @@ struct Link {
     std::array<int, 2> v6sockets{-1, -1};
     std::atomic_bool blockIPv4{false};
     size_t ipv4Packets{}, ipv6Packets{};
+    std::vector<in_addr_t> ipv4Destinations;
     std::atomic_int joins{0}, leaves{0};
     bool failJoin{false};
     std::array<uint8_t, 16> key{};
@@ -99,7 +103,8 @@ struct Link {
     size_t dropped{};
     static inline Link *active{};
 
-    Link(bool ipv4 = true, bool ipv6 = false) {
+    Link(bool ipv4 = true, bool ipv6 = false,
+         const char *label = "paired-lan-test") {
         if (socketpair(AF_UNIX, SOCK_DGRAM, 0, sockets.data()) != 0)
             throw std::runtime_error("socketpair failed");
         active = this;
@@ -107,7 +112,7 @@ struct Link {
             throw std::runtime_error("IPv6 test socketpair failed");
         for (int side = 0; side != 2; ++side) {
             sessions[side] = std::make_unique<LocalICESignalSession>(
-                side, nullptr, 1, "paired-lan-test", side, key,
+                side, nullptr, 1, label, side, key,
                 std::string(32, side ? 'b' : 'a'));
             sessions[side]->impl->socketFd = ipv4 ? sockets[side] : -1;
             sessions[side]->impl->multicastFd = v6sockets[side];
@@ -223,6 +228,8 @@ static ssize_t testSendTo(int socket, const void *data, size_t length, int flags
         ++link.ipv6Packets;
     } else {
         ++link.ipv4Packets;
+        link.ipv4Destinations.push_back(
+            reinterpret_cast<const sockaddr_in *>(destination)->sin_addr.s_addr);
         if (link.blockIPv4) return static_cast<ssize_t>(length);
     }
     if (link.drop && link.drop(side, static_cast<MessageType>(plain[0]))) {
@@ -323,6 +330,260 @@ static void recoverSnapshotFromConnectedPeer() {
     require(waitUntil([&] {
         return link.peers[1].candidates > 0 && link.peers[1].gatheringDone;
     }), "connected peer did not repair lost candidate/gathering completion");
+}
+
+// Connected, the multicast lock only lets every LAN multicast wake the phone.
+// It goes once the peer's address is confirmed: signaling then also travels by
+// unicast, which the Wi-Fi filter passes, and the address survives a restart.
+static void connectedPeerDropsMulticastLockButStaysReachable() {
+    char directory[] = "/tmp/juggluco-local-ice-XXXXXX";
+    if (!mkdtemp(directory)) throw std::runtime_error("mkdtemp failed");
+    globalbasedir = directory;
+    const char *label = "unicast-reach-test";
+    const in_addr_t peerAddress = htonl(0xC0000207); // 192.0.2.7
+    const in_addr_t replayAddress = htonl(0xC0000242); // 192.0.2.66
+    auto from = [](in_addr_t address) {
+        sockaddr_storage source{};
+        auto &ipv4 = reinterpret_cast<sockaddr_in &>(source);
+        ipv4.sin_family = AF_INET;
+        ipv4.sin_addr.s_addr = address;
+        return source;
+    };
+    auto sentTo = [](Link &link, in_addr_t address) {
+        std::lock_guard lock(link.mutex);
+        return std::find(link.ipv4Destinations.begin(), link.ipv4Destinations.end(),
+                         address) != link.ipv4Destinations.end();
+    };
+    auto clearSent = [](Link &link) {
+        std::lock_guard lock(link.mutex);
+        link.ipv4Destinations.clear();
+    };
+    {
+        Link link(true, false, label);
+        auto *answerer = link.sessions[1]->impl.get();
+        answerer->multicastLockHeld = true;
+        link.sessions[1]->markConnected();
+        require(answerer->multicastLockHeld,
+                "dropped the lock with no direct way to reach the peer");
+
+        // Connected to the peer at .7 before hearing it on the LAN: ask it.
+        link.sessions[1]->markConnected("192.0.2.7:47560 Host");
+        require(answerer->multicastLockHeld, "dropped the lock before the peer answered");
+        answerer->probeRoute(std::chrono::steady_clock::now());
+        require(sentTo(link, peerAddress), "no Hello sent to the ICE-verified peer");
+
+        // An authenticated, current packet replayed from elsewhere is not the peer.
+        const auto replay = from(replayAddress);
+        auto replayed = link.sessions[0]->impl->makePacket(
+            MessageType::Candidate, "candidate", std::string(32, 'b'));
+        answerer->handlePacket(replayed.data(), replayed.size(), &replay);
+        require(!answerer->peerConfirmedHere(), "trusted a replay's source address");
+        require(answerer->multicastLockHeld, "a replay dropped the lock");
+
+        const auto peer = from(peerAddress);
+        auto stale = link.sessions[0]->impl->makePacket(
+            MessageType::Hello, {}, std::string(32, 'c'));
+        answerer->handlePacket(stale.data(), stale.size(), &peer);
+        require(!answerer->peerConfirmedHere(), "confirmed from a stale echo");
+        require(answerer->multicastLockHeld, "a stale echo dropped the lock");
+
+        auto fresh = link.sessions[0]->impl->makePacket(
+            MessageType::Hello, {}, std::string(32, 'b'));
+        answerer->handlePacket(fresh.data(), fresh.size(), &peer);
+        require(answerer->peerConfirmedHere(), "peer address not confirmed");
+        require(!answerer->multicastLockHeld, "connected peer kept the multicast lock");
+        require(loadPeerAddress(label) && loadPeerAddress(label)->s_addr == peerAddress,
+                "confirmed address not saved");
+
+        clearSent(link);
+        answerer->sendPacket(MessageType::Hello);
+        require(sentTo(link, peerAddress), "signaling not sent to the peer directly");
+        std::lock_guard lock(link.mutex);
+        require(std::find_if(link.ipv4Destinations.begin(), link.ipv4Destinations.end(),
+                             [&](in_addr_t a) { return a != peerAddress; }) !=
+                    link.ipv4Destinations.end(),
+                "broadcast discovery was dropped");
+    }
+    {
+        // After a restart the saved address is used to reach the peer at once,
+        // but proves nothing about this network.
+        Link restarted(true, false, label);
+        auto *answerer = restarted.sessions[1]->impl.get();
+        answerer->sendPacket(MessageType::Hello);
+        require(sentTo(restarted, peerAddress), "saved peer address not used after restart");
+        answerer->multicastLockHeld = true;
+        restarted.sessions[1]->markConnected("fe80::1%wlan0:47560");
+        require(answerer->multicastLockHeld, "IPv6-only connection dropped the lock");
+        restarted.sessions[1]->markConnected("192.0.2.7:47560");
+        require(answerer->multicastLockHeld,
+                "a saved address alone dropped the lock");
+        const auto peer = from(peerAddress);
+        auto fresh = restarted.sessions[0]->impl->makePacket(
+            MessageType::Hello, {}, std::string(32, 'b'));
+        answerer->handlePacket(fresh.data(), fresh.size(), &peer);
+        require(!answerer->multicastLockHeld,
+                "confirmed peer did not let the lock go");
+    }
+    require(selectedIPv4("::ffff:192.0.2.7:1") == peerAddress, "v4-mapped address not read");
+    require(!selectedIPv4("[fe80::1]:1") && !selectedIPv4("?") && !selectedIPv4(""),
+            "non-IPv4 selected address accepted");
+    const auto path = peerAddressPath(label);
+    unlink(path.c_str());
+    rmdir(directory);
+    globalbasedir = {};
+}
+
+// The selected address can come late or change between connected and completed,
+// and a confirming reply can be lost: none of it may leave a phone stuck.
+static void connectedRouteIsConfirmedAndFollowed() {
+    char directory[] = "/tmp/juggluco-local-ice-XXXXXX";
+    if (!mkdtemp(directory)) throw std::runtime_error("mkdtemp failed");
+    globalbasedir = directory;
+    const char *label = "route-follow-test";
+    const in_addr_t first = htonl(0xC0000207);  // 192.0.2.7
+    const in_addr_t second = htonl(0xC0000208); // 192.0.2.8
+    Link link(true, false, label);
+    auto *answerer = link.sessions[1]->impl.get();
+    answerer->multicastLockHeld = true;
+    auto echoFrom = [&](in_addr_t address) {
+        sockaddr_storage source{};
+        auto &ipv4 = reinterpret_cast<sockaddr_in &>(source);
+        ipv4.sin_family = AF_INET;
+        ipv4.sin_addr.s_addr = address;
+        auto packet = link.sessions[0]->impl->makePacket(
+            MessageType::Hello, {}, std::string(32, 'b'));
+        answerer->handlePacket(packet.data(), packet.size(), &source);
+    };
+    auto clearSent = [&] {
+        std::lock_guard lock(link.mutex);
+        link.ipv4Destinations.clear();
+    };
+    auto sends = [&](in_addr_t address) {
+        std::lock_guard lock(link.mutex);
+        return std::count(link.ipv4Destinations.begin(), link.ipv4Destinations.end(), address);
+    };
+
+    // The address arrives after connected: the echo already heard counts.
+    echoFrom(first);
+    link.sessions[1]->markConnected();
+    require(answerer->multicastLockHeld, "lock dropped with no selected address");
+    link.sessions[1]->markConnected("192.0.2.7:47560");
+    require(!answerer->multicastLockHeld, "late selected address kept the lock");
+
+    // A failed lookup says nothing about the confirmed route.
+    link.sessions[1]->markConnected();
+    require(!answerer->multicastLockHeld && answerer->peerConfirmedHere(),
+            "an unknown address undid the confirmation");
+
+    // The route moves: confirmation goes with it, and the lock comes back.
+    link.sessions[1]->markConnected("192.0.2.8:47560");
+    require(!answerer->peerConfirmedHere(), "confirmation outlived its route");
+    require(answerer->multicastLockHeld, "unconfirmed route without the lock");
+    require(loadPeerAddress(label)->s_addr == first, "saved an unconfirmed route");
+
+    // Probes keep the reply limit in mind, stop when spent, and need no echo...
+    clearSent();
+    auto now = std::chrono::steady_clock::now();
+    answerer->probeRoute(now);
+    answerer->probeRoute(now + routeProbeInterval / 2);
+    require(sends(second) == 2, "probe not paced");
+    require(sends(first) == 2, "previous address no longer tried");
+    for (int probe = 0; probe != routeProbes * 2; ++probe) {
+        now += routeProbeInterval;
+        answerer->probeRoute(now);
+    }
+    require(sends(second) == 2 * routeProbes, "probing is not bounded");
+
+    // ...but the same route reported again does not restart them.
+    link.sessions[1]->markConnected("192.0.2.8:47560");
+    answerer->probeRoute(now + routeProbeInterval);
+    require(sends(second) == 2 * routeProbes, "completed restarted spent probes");
+
+    echoFrom(second);
+    require(answerer->peerConfirmedHere() && !answerer->multicastLockHeld,
+            "new route not confirmed by its echo");
+    require(loadPeerAddress(label)->s_addr == second, "new route not saved");
+
+    // Over TURN nothing direct is left to confirm.
+    link.sessions[1]->markConnected("relay");
+    require(!answerer->peerConfirmedHere() && answerer->multicastLockHeld,
+            "a relayed route kept the confirmation");
+    clearSent();
+    answerer->probeRoute(now + routeProbeInterval * 2);
+    require(sends(first) == 0 && sends(second) == 0, "probing a relayed route");
+
+    // Back on an address already heard from: no need to ask.
+    link.sessions[1]->markConnected("192.0.2.7:47560");
+    require(answerer->peerConfirmedHere() && !answerer->multicastLockHeld,
+            "known echo source not confirmed on the route back");
+    clearSent();
+    answerer->probeRoute(now + routeProbeInterval * 3);
+    require(sends(first) == 0, "probing a confirmed route");
+
+    // An answered probe ends the remaining ones.
+    const in_addr_t third = htonl(0xC0000209); // 192.0.2.9
+    link.sessions[1]->markConnected("192.0.2.9:47560");
+    answerer->probeRoute(now + routeProbeInterval * 4);
+    require(sends(third) == 2, "new route not probed");
+    echoFrom(third);
+    require(answerer->peerConfirmedHere(), "answered probe did not confirm");
+    answerer->probeRoute(now + routeProbeInterval * 5);
+    require(sends(third) == 2, "kept probing after the answer");
+
+    const auto path = peerAddressPath(label);
+    unlink(path.c_str());
+    rmdir(directory);
+    globalbasedir = {};
+}
+
+// The route is reported on libjuice's thread while echoes arrive on the receive
+// thread. Whatever the order, the lock must end up matching the confirmation.
+static void multicastLockFollowsConcurrentRouteChanges() {
+    Link link;
+    auto *answerer = link.sessions[1]->impl.get();
+    answerer->multicastLockHeld = true;
+    std::atomic_int started{0}, ready{0}, finished{0}, delay{0};
+    std::atomic_bool done{false};
+    sockaddr_storage source{};
+    auto spin = [](int count) {
+        for (volatile int i = 0; i < count; i = i + 1) {}
+    };
+    std::thread receiver([&] {
+        for (int seen = 1;; ++seen) {
+            while (started < seen)
+                if (done) return;
+            ++ready;
+            while (ready < 2) {}
+            spin(delay);
+            answerer->noteEchoSource(source);
+            ++finished;
+        }
+    });
+    bool agreed = true;
+    for (int round = 1; agreed && round <= 300000; ++round) {
+        const in_addr_t host = htonl(0x0A000000 | (round * 2 + 1));
+        const in_addr_t next = htonl(0x0A000000 | (round * 2 + 2));
+        // Even rounds race an echo with its route being reported. Odd rounds
+        // race the echo confirming a route with the route moving on.
+        const bool moveOn = round % 2 != 0;
+        if (moveOn) answerer->connectedTo(host);
+        source = {};
+        auto &ipv4 = reinterpret_cast<sockaddr_in &>(source);
+        ipv4.sin_family = AF_INET;
+        ipv4.sin_addr.s_addr = host;
+        delay = (round / 2) % 64;
+        ready = 0;
+        finished = 0;
+        ++started;
+        ++ready;
+        while (ready < 2) {}
+        answerer->connectedTo(moveOn ? next : host);
+        while (finished < 1) {}
+        agreed = answerer->multicastLockHeld == !answerer->peerConfirmedHere();
+    }
+    done = true;
+    receiver.join();
+    require(agreed, "multicast lock disagrees with the confirmed route");
 }
 
 static void noTrafficAfterBothConnected() {
@@ -752,6 +1013,9 @@ int main() {
         {"lost answer after peer authentication", [] { recoverLostDescription(1); }},
         {"connected peer repairs lost snapshot", recoverSnapshotFromConnectedPeer},
         {"both connected stop broadcasts", noTrafficAfterBothConnected},
+        {"connected peer drops multicast lock but stays reachable", connectedPeerDropsMulticastLockButStaysReachable},
+        {"connected route is confirmed and followed", connectedRouteIsConfirmedAndFollowed},
+        {"multicast lock follows concurrent route changes", multicastLockFollowsConcurrentRouteChanges},
         {"Rendezvous winner remains authoritative", [] { rendezvousWinnerIsPreserved(); }},
         {"late Hello cannot start a connected reply loop", [] { lateHelloDoesNotStartAReplyLoop(); }},
         {"existing Rendezvous connection is not renegotiated", [] { lateHelloDoesNotStartAReplyLoop(true); }},

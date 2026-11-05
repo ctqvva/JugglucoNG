@@ -451,7 +451,6 @@ fun DashboardScreen(
     val coroutineScope = rememberCoroutineScope()
     val journalPresetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
     val journalFoodsById = remember(journalFoods) { journalFoods.associateBy { it.id } }
-    val activeJournalPresets = remember(journalInsulinPresets) { journalInsulinPresets.filter { !it.isArchived } }
     // Mirror the History route: journal entries are time-bound, not
     // sensor-bound. Scoping them by the active sensor would silently hide
     // entries logged before a sensor swap.
@@ -553,6 +552,12 @@ fun DashboardScreen(
             evaluationSmoothingMinutes = evaluationSmoothingMinutes,
             evaluationCollapseMinutes = evaluationCollapseMinutes
         )
+    }
+    // The peers' counterpart of [consumerHistory]: what the reading rows pair with the
+    // main value and what each peer's forecast extends. The chart keeps the unsmoothed
+    // [multiSensorDisplay] and applies its own window, as it does for the main line.
+    val consumerPeerDisplay = remember(multiSensorDisplay, evaluationSmoothingMinutes) {
+        buildSmoothedPeerReadings(multiSensorDisplay, evaluationSmoothingMinutes)
     }
     // Read off the current state, not off the far end of the forecast: the hint answers
     // "what does the value need right now", which is a question the last point of a curve
@@ -658,7 +663,7 @@ fun DashboardScreen(
     // not just the primary. Same journal/settings (same person), each peer's
     // own points + view mode.
     val peerPredictionSeries = remember(
-        multiSensorDisplay,
+        consumerPeerDisplay,
         journalEnabled,
         predictionSettings,
         calibrationRevision,
@@ -669,7 +674,7 @@ fun DashboardScreen(
         targetLow,
         targetHigh
     ) {
-        if (multiSensorDisplay.isEmpty || !predictionSettings.enabled) {
+        if (consumerPeerDisplay.isEmpty || !predictionSettings.enabled) {
             emptyMap()
         } else {
             // Only series that are still running get a prediction.
@@ -687,7 +692,7 @@ fun DashboardScreen(
             // producing readings, and nothing should be extrapolated from it.
             val predictionFreshnessCutoff =
                 System.currentTimeMillis() - tk.glucodata.GlucoseChartGap.THRESHOLD_MS
-            multiSensorDisplay.series.filter { peer ->
+            consumerPeerDisplay.series.filter { peer ->
                 (peer.points.lastOrNull()?.timestamp ?: 0L) >= predictionFreshnessCutoff
             }.associate { peer ->
                 peer.sensorId to buildPredictionSeriesForChart(
@@ -954,7 +959,8 @@ fun DashboardScreen(
             suggestedGlucoseMgDl = request.suggestedGlucoseMgDl,
             suggestedChartAnchorGlucoseMgDl = request.suggestedChartAnchorGlucoseMgDl,
             suggestedAmountFraction = request.suggestedAmountFraction,
-            insulinPresets = if (request.existingEntry != null) journalInsulinPresets else activeJournalPresets,
+            suggestedDose = stateDoseHint,
+            insulinPresets = journalInsulinPresets,
             foods = if (journalFoodLibraryEnabled) journalFoods else emptyList(),
             foodMacrosEnabled = journalFoodMacrosEnabled,
             doseJournalEntries = scopedJournalEntries,
@@ -1351,8 +1357,8 @@ fun DashboardScreen(
             val recentReadingsTrendHistory = remember(consumerHistory) {
                 buildTrendHistory(consumerHistory)
             }
-            val recentReadingPeers = remember(recentReadings, multiSensorDisplay) {
-                recentReadings.map { reading -> multiSensorDisplay.peersAt(reading.timestamp) }
+            val recentReadingPeers = remember(recentReadings, consumerPeerDisplay) {
+                recentReadings.map { reading -> consumerPeerDisplay.peersAt(reading.timestamp) }
             }
             // Per-row Δ: the hero's delta computation anchored at each row's
             // timestamp — over the same unsmoothed history the hero reads, so the
@@ -1384,8 +1390,10 @@ fun DashboardScreen(
             val recentReadingDeltaTexts = remember(recentReadingDeltas) {
                 recentReadingDeltas.map { it?.text }
             }
-            val peerSeriesById = remember(multiSensorDisplay) {
-                multiSensorDisplay.series.associateBy { it.sensorId }
+            // The row's peer arrows regress over these points, so they read the same
+            // smoothed series as the peer values beside them.
+            val peerSeriesById = remember(consumerPeerDisplay) {
+                consumerPeerDisplay.series.associateBy { it.sensorId }
             }
             val recentReadingJournalEntries = remember(recentReadings, consumerHistory, dashboardJournalEntries) {
                 groupJournalEntriesByReading(recentReadings, dashboardJournalEntries, history = consumerHistory)

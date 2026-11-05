@@ -2253,6 +2253,7 @@ class ICanHealthBleManager(
                 val nowMs = System.currentTimeMillis()
                 var importedCount = 0
                 var skippedUnanchoredCount = 0
+                var skippedCoveredCount = 0
                 for (record in batch.records) {
                     val glucoseMgdl = record.glucoseMgdl
                     if (glucoseMgdl == null ||
@@ -2265,6 +2266,7 @@ class ICanHealthBleManager(
                         continue
                     }
                     if (shouldSkipHistoryOverlap(record.sequenceNumber, sampleTimeMs)) {
+                        skippedCoveredCount++
                         continue
                     }
                     recordHistoryBackfillSample(
@@ -2279,16 +2281,19 @@ class ICanHealthBleManager(
                 Log.i(
                     TAG,
                     "Parsed SN glucose history batch base=${batch.baseSequenceNumber} records=${batch.records.size} " +
-                        "imported=$importedCount skippedUnanchored=$skippedUnanchoredCount"
+                        "imported=$importedCount skippedUnanchored=$skippedUnanchoredCount " +
+                        "skippedCovered=$skippedCoveredCount"
                 )
                 if (importedCount > 0) {
-                    sawUnsupportedSnHistoryBatch = false
                     refreshHistorySyncProgressStatus()
-                } else if (skippedUnanchoredCount > 0) {
-                    sawUnsupportedSnHistoryBatch = false
-                } else {
-                    sawUnsupportedSnHistoryBatch = true
                 }
+                // Already-stored records decoded fine; only a batch with nothing usable disables
+                // backfill for this callback (#742).
+                sawUnsupportedSnHistoryBatch = ICanHealthHistoryPolicy.glucoseBatchShowsUnsupportedHistory(
+                    importedCount = importedCount,
+                    skippedUnanchoredCount = skippedUnanchoredCount,
+                    skippedCoveredCount = skippedCoveredCount,
+                )
             }
 
             ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL -> {
@@ -2356,7 +2361,7 @@ class ICanHealthBleManager(
             if (sensorPtr != 0L || nativeWriteName.isNotBlank()) {
                 adoptNativeSensorIfAppropriate(SerialNumber, nativeWriteName)
             }
-            Natives.wakebackup()
+            Natives.wakestreamonly()
         }.onFailure {
             Log.stack(TAG, "storeMeasurement", it)
         }
@@ -3695,7 +3700,7 @@ class ICanHealthBleManager(
             if (nativeWriteName.isNotBlank()) {
                 adoptNativeSensorIfAppropriate(SerialNumber, nativeWriteName)
             }
-            Natives.wakebackup()
+            Natives.wakehereonly()
         }.onFailure {
             Log.stack(TAG, "mirrorHistoryBatchIntoNative", it)
         }

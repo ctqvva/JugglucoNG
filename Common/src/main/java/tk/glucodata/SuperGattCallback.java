@@ -1082,6 +1082,12 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         handleGlucoseResultInternal(res, timmsec, 0, Float.NaN);
     }
 
+    /** Rate (mg/dL per minute) packed by native glucoselong; NaN when the sensor gave none. */
+    static float packedRate(long res) {
+        final short ratein = (short) ((res >> 32) & 0xFFFFL);
+        return ratein == Short.MIN_VALUE ? Float.NaN : ratein / 1000.0f;
+    }
+
     protected void handleGlucoseResult(long res, long timmsec, float preferredRawMgdl) {
         handleGlucoseResultInternal(res, timmsec, 0, preferredRawMgdl);
     }
@@ -1090,8 +1096,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         // int glumgdl = (int) (res & 0xFFFFFFFFL);
         int glumgL = (int) (res & 0xFFFFFFFFL);
         int alarm = (int) ((res >> 48) & 0xFFL);
-        short ratein = (short) ((res >> 32) & 0xFFFFL);
-        float rate = ratein / 1000.0f;
+        float rate = packedRate(res);
         final boolean liveRoomStorage = this instanceof ManagedBluetoothSensorDriver managed
                 && managed.managesLiveRoomStorage()
                 && SerialNumber != null

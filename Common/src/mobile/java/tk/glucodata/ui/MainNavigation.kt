@@ -1001,6 +1001,8 @@ private fun NavGraphBuilder.appDestinations(
     composable("settings/dexcom-share") { DexcomShareSettingsScreen(navController) }
     composable("settings/ican-health") { ICanHealthCloudSettingsScreen(navController) }
     composable("settings/ican-health/followers") { ICanHealthCloudFollowersScreen(navController) }
+    composable("settings/lumiflex") { LumiflexCloudSettingsScreen(navController) }
+    composable("settings/lumiflex/followers") { LumiflexCloudFollowersScreen(navController) }
     composable("settings/api-source") { ApiSourceSettingsScreen(navController) }
     composable("settings/glucose-meters") { GlucoseMeterSettingsScreen(navController) }
     composable("settings/insulin-pens") { InsulinPenSettingsScreen(navController) }
