@@ -30,6 +30,7 @@ object LumiflexCloudConstants {
     const val PATH_USER_INFO = "/user/getUserInfo"
     const val PATH_LOGOUT = "/user/logout"
     const val PATH_FIRST_LAST_DEVICE = "/cgmDevice/getFirstAndLastDeviceInfo"
+    const val PATH_REGISTER_DEVICE = "/cgmDevice/userDeviceRegister"
     const val PATH_CGM_SAVE = "/cgmRecord/saveCgmRecord"
     const val PATH_FOLLOWER_LIST = "/userAuthorization/findUserAuthorizationList"
     const val PATH_FOLLOWER_SAVE = "/userAuthorization/saveOrUpdateUserAuthorization"

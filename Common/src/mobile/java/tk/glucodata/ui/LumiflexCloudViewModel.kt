@@ -18,6 +18,7 @@ import tk.glucodata.share.lumiflex.LumiflexCloudCredentials
 import tk.glucodata.share.lumiflex.LumiflexCloudError
 import tk.glucodata.share.lumiflex.LumiflexCloudSettings
 import tk.glucodata.share.lumiflex.LumiflexCloudSyncWorker
+import tk.glucodata.share.lumiflex.LumiflexCloudSensor
 
 internal data class LumiflexCloudUiState(
     val account: String = "",
@@ -225,6 +226,15 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
         settings.enabled = value
         scheduleSync(getApplication())
         refresh()
+    }
+
+    fun bindSensors() {
+        if (!settings.isSignedIn() || !settings.enabled || mutableState.value.busy) return
+        if (LumiflexCloudSensor.pairedLocally(getApplication()).isEmpty()) {
+            mutableState.update { it.copy(error = text(R.string.lumiflex_connect_sensor)) }
+            return
+        }
+        checkConnection(sync = true)
     }
 
     fun checkConnection(sync: Boolean = true) {

@@ -29,12 +29,19 @@ setup fails, retry that step without creating another account or requesting anot
 SMS request loses its network response, the code field stays available in case the SMS arrived.
 Automatic uploads start after password setup succeeds.
 
-This creates a **mobile account**, not a sensor registration. A sensor still needs to be paired in
-the official Lumiflex app before this cloud can accept its readings.
+## Bind a sensor
+
+JNG registers locally paired AiDex / LinX sensors with Lumiflex automatically when uploads start.
+You can also tap **Bind sensor** in the sensor row before the first reading. Registration uses the
+local BLE address, activation time and saved PAIR credential; no placeholder keys or addresses are
+sent. The cloud device list must confirm the binding before readings are uploaded with its sensor ID.
+
+If pairing details are not available yet, connect the sensor in JNG and retry. The official app is
+not needed for this binding. Clone mirrors are never registered or uploaded.
 
 ## Account and sync status
 
-The account card checks the saved session with the vendor when the screen opens. It distinguishes
+The account row checks the saved session with the vendor when the screen opens. It distinguishes
 a confirmed sign-in, a check in progress, an unverified connection, and an expired session. Editing
 sign-in details does not change the authenticated account until sign-in succeeds.
 
@@ -43,7 +50,7 @@ excluded from settings exports. Sign-out keeps this draft for the next login; cl
 field to remove the saved password. JNG does not silently sign in again when another app displaces
 the session.
 
-After signing in, enable **Automatic upload**. The sync card shows queued readings, the last
+After signing in, enable **Automatic upload**. The sync row shows queued readings, the last
 successful upload, network failures and missing cloud sensors. **Sync now** checks the connection
 and requests an upload. Signing in and checking the connection do not count as successful uploads.
 
@@ -51,7 +58,7 @@ Transient failures use persistent, network-constrained background retries. A per
 and process-start initialization recover queued work without waiting for another glucose reading.
 Readings leave the queue only after an explicit successful vendor response; an empty HTTP 200
 response is not an acknowledgement. If a sensor is missing from the account, its readings stay
-queued: pair it in the official app, then sign in to JNG again.
+queued while JNG binds it using the local pairing details.
 
 ## What is uploaded
 
@@ -80,16 +87,12 @@ offers: *Switch display*, *Regular reminders*, *Urgent low*, *Extreme high*.
 - The account, token and user id are stored as one session and only replaced after a successful
   sign-in; a failed attempt keeps the previous session, and the pending queue is bound to the account
   that produced it.
-- A sensor must already be registered on the account (paired in the official app) — JNG resolves the
-  server-side `sensorId` from the device list by `deviceSn`; readings for an unknown serial stay
-  queued instead of being sent.
+- A sensor must be locally paired with complete metadata before JNG can register it. JNG confirms
+  the server-side `sensorId` through the cloud device list before uploading; unconfirmed readings
+  stay queued.
 
 ## Known limitations
 
-- JNG does not create sensor records on the account: the vendor's `userDeviceRegister` needs
-  `deviceMac`, `deviceKey`, `sensorStartUp` and a device-key pair that only the official app has, and
-  the server accepts a registration only with a complete payload. A sensor that was never paired in
-  the official app therefore cannot be uploaded.
 - No live-value/trend push in v1 — the follower view is fed by the uploaded records.
 - No follower-side consumption: JNG does not read another account's data from this cloud.
 - The vendor contract can change with an app update; the channel is isolated behind its own

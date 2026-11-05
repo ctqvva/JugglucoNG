@@ -3342,9 +3342,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_credential_save_failed">Не удалось безопасно сохранить данные входа на устройстве. Вход возможен, но пароль может потребоваться ввести снова.</string>
     <string name="lumiflex_invalid_phone">Введите российский номер телефона с кодом страны +7.</string>
     <string name="lumiflex_request_failed">Не удалось выполнить запрос. Попробуйте ещё раз.</string>
-    <string name="lumiflex_code_sent">Код подтверждения отправлен. Введите код из СМС.</string>
-    <string name="lumiflex_finish_password">Телефон подтверждён. Задайте пароль, чтобы завершить настройку аккаунта.</string>
-    <string name="lumiflex_password_rules">Используйте от 8 до 12 латинских букв или цифр.</string>
+    <string name="lumiflex_code_sent">Код отправлен</string>
+    <string name="lumiflex_finish_password">Телефон подтверждён</string>
+    <string name="lumiflex_password_rules">8–12 латинских букв или цифр</string>
     <string name="lumiflex_password_saved">Пароль задан. Аккаунт готов к работе.</string>
     <string name="lumiflex_set_password">Задать пароль</string>
     <string name="lumiflex_edit_credentials">Изменить данные входа</string>
@@ -3353,7 +3353,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_create_account">Создать аккаунт</string>
     <string name="lumiflex_registration_description">Укажите российский номер телефона. Код из СМС создаст аккаунт или позволит войти в существующий. Затем задайте пароль.</string>
     <string name="lumiflex_phone">Номер мобильного телефона</string>
-    <string name="lumiflex_phone_example">+7 999 123-45-67</string>
+    <string name="lumiflex_phone_example">(999) 123-45-67</string>
     <string name="lumiflex_resend_after">Повторить через %1$d с</string>
     <string name="lumiflex_send_code">Получить код из СМС</string>
     <string name="lumiflex_verification_code">Код из СМС</string>
@@ -3365,7 +3365,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_sync_paused">Отправка приостановлена</string>
     <string name="lumiflex_sync_waiting_readings">Ожидание показаний</string>
     <string name="lumiflex_sync_queued">Ожидание отправки</string>
-    <string name="lumiflex_sync_uploading">Отправка показаний…</string>
+    <string name="lumiflex_sync_uploading">Синхронизация…</string>
     <string name="lumiflex_sync_up_to_date">Показания отправлены</string>
     <string name="lumiflex_sync_sensor_missing">Сенсор не привязан</string>
     <string name="lumiflex_sync_error">Не удалось отправить показания</string>
@@ -3374,4 +3374,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_sync_now">Отправить сейчас</string>
     <string name="lumiflex_connection_error">Не удалось выполнить запрос к Lumiflex. Проверьте интернет или повторите попытку позже.</string>
     <string name="lumiflex_sync_retry_hint">JNG повторит отправку автоматически. Проверьте подключение к интернету.</string>
+    <string name="lumiflex_help">Об аккаунте</string>
+    <string name="lumiflex_account_actions">Действия с аккаунтом</string>
+    <string name="lumiflex_phone_mode">Телефон</string>
+    <string name="lumiflex_email_mode">Почта</string>
+    <string name="lumiflex_cloud_controls">Облако</string>
+    <string name="lumiflex_sensor">Сенсор</string>
+    <string name="lumiflex_connect_sensor">Подключите сенсор для привязки</string>
+    <string name="lumiflex_bind_sensor">Привязать сенсор</string>
 </resources>

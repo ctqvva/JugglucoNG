@@ -724,51 +724,32 @@ internal fun OttaiAccountCard(
             }
             Spacer(Modifier.size(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedTextField(
-                    value = form.phone,
-                    onValueChange = { value ->
-                        val next = if (useSms) {
-                            value.filter(Char::isDigit).take(form.smsCountry.subscriberDigits)
-                        } else {
-                            value.trim()
-                        }
-                        if (next != form.phone && useSms) form.resetSms()
-                        form.phone = next
-                    },
-                    label = {
-                        Text(stringResource(if (useSms) R.string.ottai_phone_hint else R.string.ottai_account_hint))
-                    },
-                    isError = useSms && form.phone.isNotBlank() && smsPhone == null,
-                    leadingIcon = if (useSms) {
-                        {
-                            Row(
-                                modifier = Modifier
-                                    .heightIn(min = 48.dp)
-                                    .clickable(
-                                        enabled = !busy,
-                                        role = Role.Button,
-                                        onClickLabel = stringResource(R.string.ottai_sms_country_title),
-                                        onClick = { showCountryPicker = true },
-                                    )
-                                    .padding(start = 16.dp, end = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(form.smsCountry.prefix)
-                                Icon(
-                                    Icons.Default.ArrowDropDown,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                        }
-                    } else null,
-                    singleLine = true,
-                    enabled = !busy,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = if (useSms) KeyboardType.Phone else KeyboardType.Email,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                if (useSms) {
+                    tk.glucodata.ui.components.AccountPhoneField(
+                        value = form.phone,
+                        onValueChange = { value ->
+                            val next = value.filter(Char::isDigit).take(form.smsCountry.subscriberDigits)
+                            if (next != form.phone) form.resetSms()
+                            form.phone = next
+                        },
+                        prefix = form.smsCountry.prefix,
+                        normalizeInput = { it.filter(Char::isDigit).take(form.smsCountry.subscriberDigits) },
+                        label = stringResource(R.string.ottai_phone_hint),
+                        isError = form.phone.isNotBlank() && smsPhone == null,
+                        enabled = !busy,
+                        onCountryClick = { showCountryPicker = true },
+                        countryPickerLabel = stringResource(R.string.ottai_sms_country_title),
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = form.phone,
+                        onValueChange = { form.phone = it.trim() },
+                        label = { Text(stringResource(R.string.ottai_account_hint)) },
+                        singleLine = true, enabled = !busy,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
 
                 if (useSms) {
                     OutlinedButton(

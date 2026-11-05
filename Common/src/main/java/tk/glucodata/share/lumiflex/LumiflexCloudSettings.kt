@@ -20,6 +20,7 @@ class LumiflexCloudSettings(context: Context) {
         val lastSuccessMs: Long = 0,
         val message: String = "",
         val retrying: Boolean = false,
+        val boundSensors: List<String> = emptyList(),
     )
 
     private val prefs: SharedPreferences =
@@ -79,7 +80,12 @@ class LumiflexCloudSettings(context: Context) {
         lastSuccessMs = lastSyncMs,
         message = prefs.getString("sync_message", "").orEmpty(),
         retrying = prefs.getBoolean("sync_retrying", false),
+        boundSensors = prefs.getStringSet("bound_sensors", emptySet()).orEmpty().sorted(),
     )
+
+    fun recordBindings(session: Session, serials: Set<String>) {
+        withCurrentSession(session) { prefs.edit().putStringSet("bound_sensors", serials).apply() }
+    }
 
     fun recordSync(session: Session, state: SyncState, pending: Int, message: String = "", uploaded: Int = 0, retrying: Boolean = false) {
         synchronized(sessionLock) {
@@ -123,6 +129,7 @@ class LumiflexCloudSettings(context: Context) {
                 .putBoolean("sync_retrying", false)
                 .putLong(KEY_LAST_SYNC_MS, if (accountChanged) 0L else lastSyncMs)
                 .putInt("pending", if (accountChanged) 0 else syncStatus().pending)
+                .putStringSet("bound_sensors", if (accountChanged) emptySet() else syncStatus().boundSensors.toSet())
                 .apply()
         }
     }

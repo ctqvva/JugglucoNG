@@ -239,12 +239,19 @@ class LumiflexCloudClient(
             val array = data.optJSONArray(key) ?: return@forEach
             for (i in 0 until array.length()) {
                 val item = array.optJSONObject(i) ?: continue
+                if (item.optString("unregisterTime", "").let { it.isNotBlank() && it != "null" }) continue
                 val sn = item.optString("deviceSn", "")
                 val sensorId = item.optString("sensorId", "")
                 if (sn.isNotBlank() && sensorId.isNotBlank()) result[sn] = sensorId
             }
         }
         return DeviceList.Ok(result)
+    }
+
+    fun registerSensor(token: String, userId: String, sensor: LumiflexCloudSensor): SyncResult {
+        if (!sensor.complete || userId.isBlank() || token.isBlank()) return SyncResult.Failed(LumiflexCloudError.Kind.OTHER, 400, "Incomplete sensor pairing")
+        return classifySync(post(LumiflexCloudConstants.PATH_REGISTER_DEVICE,
+            sensor.registrationJson(userId, System.currentTimeMillis()).toString(), token, userId))
     }
 
     fun addFollower(token: String, account: String, alias: String, userId: String = ""): FollowerInfo? {

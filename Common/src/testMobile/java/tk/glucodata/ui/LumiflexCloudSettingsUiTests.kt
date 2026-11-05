@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -56,12 +57,12 @@ class LumiflexCloudSettingsUiTests {
                 }
             }
         }
-        compose.onNodeWithText("79991234567").assertIsDisplayed()
+        compose.onNodeWithText("+7 (999) 123-45-67").assertIsDisplayed()
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
         compose.onNodeWithText("Войти").assertDoesNotExist()
         compose.onNodeWithText("Ожидание показаний").assertExists()
         capture("signed-in-ru")
-        compose.onNodeWithText("Отправить сейчас").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Отправить сейчас").performScrollTo().performClick()
         assertEquals(1, syncClicks)
     }
 
@@ -135,10 +136,39 @@ class LumiflexCloudSettingsUiTests {
                 }
             }
         }
-        compose.onNodeWithText("Выйти").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithContentDescription("Действия с аккаунтом").performScrollTo().performClick()
+        compose.onNodeWithText("Выйти").assertIsDisplayed().performClick()
         assertTrue(signOut)
-        compose.onNodeWithText("Отправить сейчас").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithContentDescription("Отправить сейчас").performScrollTo().assertIsDisplayed().performClick()
         assertTrue(synced)
         capture("narrow-large-text-ru")
+    }
+
+    @Test
+    fun registrationHasAFixedCountryPrefixAndNormalizesTypedAndPastedNumbers() {
+        var current by mutableStateOf(LumiflexCloudUiState(registration = true))
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                Box(Modifier.size(420.dp, 1_000.dp).testTag("screen")) {
+                    LumiflexCloudSettingsContent(current, onPhone = { current = current.copy(phone = it) })
+                }
+            }
+        }
+        compose.onNodeWithText("+7", useUnmergedTree = true).assertIsDisplayed()
+        val field = compose.onNode(hasSetTextAction())
+        field.performTextInput("9991234567")
+        compose.waitUntil { current.phone == "79991234567" }
+        field.performTextReplacement("+7 (999) 123-45-67")
+        compose.waitUntil { current.phone == "79991234567" }
+        field.performKeyInput { pressKey(Key.Backspace) }
+        compose.waitUntil { current.phone == "7999123456" }
+        field.performTextInput("7")
+        compose.waitUntil { current.phone == "79991234567" }
+        compose.mainClock.advanceTimeByFrame()
+        compose.waitForIdle()
+        compose.onNodeWithText("Получить код из СМС").assertIsEnabled()
+        compose.onNodeWithText("Укажите российский номер", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Вход здесь разлогинивает", substring = true).assertDoesNotExist()
+        capture("phone-entry-ru")
     }
 }

@@ -14,6 +14,7 @@ class LumiflexCloudUploader(
     private val sensorIds: (String) -> LumiflexCloudClient.DeviceList = {
         LumiflexCloudClient.DeviceList.Ok(emptyMap())
     },
+    private val bindingSensors: () -> List<LumiflexCloudSensor> = { emptyList() },
 ) {
 
     data class Row(
@@ -66,11 +67,12 @@ class LumiflexCloudUploader(
             if (unusable.isNotEmpty()) queue.remove(unusable, session.account)
             usable = pending.filter { it.mgdl > 0 }
         }) return FlushResult.Success(0)
-        if (usable.isEmpty()) return FlushResult.Success(0)
+        val localSensors = bindingSensors().filter { it.complete }
+        if (usable.isEmpty() && localSensors.isEmpty()) return FlushResult.Success(0)
 
         var uploaded = 0
         var missingSensor = false
-        val sensorIdBySerial = when (val devices = sensorIds(session.token)) {
+        var sensorIdBySerial = when (val devices = sensorIds(session.token)) {
             is LumiflexCloudClient.DeviceList.Ok -> devices.sensorIdBySerial
             LumiflexCloudClient.DeviceList.Unauthorized -> {
                 settings.invalidateSession(session)
@@ -78,6 +80,39 @@ class LumiflexCloudUploader(
             }
             is LumiflexCloudClient.DeviceList.Failed -> {
                 return FlushResult.Failed(0, devices.code, devices.message)
+            }
+        }
+        val ourSerials = (localSensors.map { it.serial } + usable.map { it.serial })
+            .map { AiDexSerialIdentity.bareSerial(it) }.distinct()
+        fun publishBindings() = settings.recordBindings(session,
+            ourSerials.filter { sensorIdFor(sensorIdBySerial, it) != null }.toSet())
+        publishBindings()
+        for (sensor in localSensors) {
+            if (!settings.isCurrent(session) || !settings.enabled) return FlushResult.Success(0)
+            if (sensorIdFor(sensorIdBySerial, sensor.serial) != null) continue
+            when (val registration = client.registerSensor(session.token, session.userId, sensor)) {
+                LumiflexCloudClient.SyncResult.Ok -> Unit
+                is LumiflexCloudClient.SyncResult.Failed -> {
+                    if (registration.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
+                        settings.invalidateSession(session)
+                        return FlushResult.Unauthorized(0)
+                    }
+                    return FlushResult.Failed(0, registration.code, registration.message, registration.kind)
+                }
+            }
+            if (!settings.isCurrent(session)) return FlushResult.Success(0)
+            // A successful POST alone is not proof that the server associated this sensor.
+            when (val refreshed = sensorIds(session.token)) {
+                is LumiflexCloudClient.DeviceList.Ok -> sensorIdBySerial = refreshed.sensorIdBySerial
+                LumiflexCloudClient.DeviceList.Unauthorized -> {
+                    settings.invalidateSession(session)
+                    return FlushResult.Unauthorized(0)
+                }
+                is LumiflexCloudClient.DeviceList.Failed -> return FlushResult.Failed(0, refreshed.code, refreshed.message)
+            }
+            publishBindings()
+            if (sensorIdFor(sensorIdBySerial, sensor.serial) == null) {
+                return FlushResult.Failed(0, -1, "Sensor binding is not confirmed")
             }
         }
         usable.groupBy { it.serial }.forEach { (serial, items) ->
@@ -241,6 +276,7 @@ class LumiflexCloudUploader(
                     settings = current.settings,
                     queue = current.queue,
                     sensorIds = { token -> current.client.devicesBySensorSerial(token) },
+                    bindingSensors = { LumiflexCloudSensor.pairedLocally(context) },
                 )
                 uploader.flush()
             } catch (error: Throwable) {
