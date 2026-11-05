@@ -753,16 +753,17 @@ fun ExpressiveSettingsScreen(
             val advancedColor = MaterialTheme.colorScheme.onSurfaceVariant
             val restrictedMode by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsItem(
+                SettingsNavSwitchItem(
                     title = stringResource(R.string.restricted_mode_title),
-                    subtitle = stringResource(
-                        if (restrictedMode.config.enabled) R.string.restricted_mode_summary_on
-                        else R.string.restricted_mode_desc
-                    ),
+                    subtitle = stringResource(R.string.restricted_mode_desc),
+                    checked = restrictedMode.config.enabled,
+                    onCheckedChange = { on ->
+                        tk.glucodata.RestrictedMode.update(context) { it.copy(enabled = on) }
+                    },
+                    onClick = { navController.navigate("settings/restricted-mode") },
                     icon = Icons.Default.ChildCare,
                     iconTint = advancedColor,
                     position = CardPosition.TOP,
-                    onClick = { navController.navigate("settings/restricted-mode") }
                 )
                 SettingsItem(
                     title = stringResource(R.string.debug_logs),

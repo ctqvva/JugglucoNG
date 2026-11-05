@@ -3338,7 +3338,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Хязгаарлагдмал горим</string>
     <string name="restricted_mode_desc">Хүүхэд эсвэл зөвхөн глюкозоо хянах хүнд зориулсан энгийн апп</string>
-    <string name="restricted_mode_summary_on">Асаалттай · тохиргоо бүрэн горим шаарддаг</string>
     <string name="restricted_full_mode_title">Одоогоор бүрэн горим</string>
     <string name="restricted_full_mode_desc">Хязгаарлагдмал горим аппаас гарснаас нэг минутын дараа эсвэл түгжихэд буцаж ирнэ.</string>
     <string name="restricted_lock_now">Одоо түгжих</string>
@@ -3388,6 +3387,4 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="restricted_allow_alarm_settings_desc">Түвшин, дуу өөрчлөх эсвэл сэрэмжлүүлгийг унтраах</string>
     <string name="restricted_allow_voice_desc">Уншсан утга ба дохио</string>
     <string name="restricted_allow_display_desc">Зорилтот хүрээ, график, мэдэгдэл, хөвөгч глюкоз, түгжээний дэлгэц</string>
-    <string name="restricted_sensor_ends">Дуусах: %1$s</string>
-    <string name="restricted_sensor_ended">Дууссан</string>
 </resources>

@@ -3291,7 +3291,6 @@
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Tryb ograniczony</string>
     <string name="restricted_mode_desc">Prostsza aplikacja dla dziecka lub dla każdego, kto chce tylko śledzić glukozę</string>
-    <string name="restricted_mode_summary_on">Wł. · ustawienia proszą o tryb pełny</string>
     <string name="restricted_full_mode_title">Na razie tryb pełny</string>
     <string name="restricted_full_mode_desc">Tryb ograniczony wróci minutę po wyjściu z aplikacji lub gdy go zablokujesz.</string>
     <string name="restricted_lock_now">Zablokuj teraz</string>
@@ -3343,6 +3342,4 @@
     <string name="restricted_allow_alarm_settings_desc">Zmiana progów i dźwięków lub wyłączanie alertów</string>
     <string name="restricted_allow_voice_desc">Odczytywanie wartości i alarmów</string>
     <string name="restricted_allow_display_desc">Zakres docelowy, wykresy, powiadomienia, pływająca glukoza i ekran blokady</string>
-    <string name="restricted_sensor_ends">Kończy się: %1$s</string>
-    <string name="restricted_sensor_ended">Zakończony</string>
 </resources>

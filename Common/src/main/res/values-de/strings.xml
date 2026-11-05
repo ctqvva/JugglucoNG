@@ -3350,7 +3350,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Eingeschränkter Modus</string>
     <string name="restricted_mode_desc">Eine einfachere App für ein Kind oder alle, die nur ihren Glukosewert verfolgen</string>
-    <string name="restricted_mode_summary_on">An · Einstellungen fragen nach dem Vollmodus</string>
     <string name="restricted_full_mode_title">Vorerst Vollmodus</string>
     <string name="restricted_full_mode_desc">Der eingeschränkte Modus kehrt eine Minute nach Verlassen der App zurück oder wenn du ihn sperrst.</string>
     <string name="restricted_lock_now">Jetzt sperren</string>
@@ -3400,6 +3399,4 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="restricted_allow_alarm_settings_desc">Grenzwerte und Töne ändern oder Alarme ausschalten</string>
     <string name="restricted_allow_voice_desc">Gesprochene Werte und Alarme</string>
     <string name="restricted_allow_display_desc">Zielbereich, Diagramme, Benachrichtigungen, schwebender Glukosewert und Sperrbildschirm</string>
-    <string name="restricted_sensor_ends">Endet %1$s</string>
-    <string name="restricted_sensor_ended">Beendet</string>
 </resources>

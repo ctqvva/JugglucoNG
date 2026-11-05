@@ -2,15 +2,11 @@
 
 package tk.glucodata.ui.restricted
 
-import android.content.Context
-import android.text.format.DateUtils
 import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -20,11 +16,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,44 +29,31 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
 import tk.glucodata.SensorVendor
 import tk.glucodata.drivers.ManagedSensorStatusPolicy
-import tk.glucodata.sensorBadge
 import tk.glucodata.ui.AnimatedHourglassIcon
 import tk.glucodata.ui.CustomCalendarIcon
-import tk.glucodata.ui.SensorModelBadge
-import tk.glucodata.ui.StatusPalette
+import tk.glucodata.ui.formatSensorTime
 import tk.glucodata.ui.lifetimeEndMs
 import tk.glucodata.ui.viewmodel.SensorInfo
 import tk.glucodata.ui.viewmodel.SensorViewModel
 
-/** Starts before this are unset or bogus (1970); the card then shows no lifetime. */
+/** Starts before this are unset or bogus (1970); nothing about the wear is shown then. */
 private const val PLAUSIBLE_START_MS = 1_577_836_800_000L // 2020-01-01
 
 /**
- * The sensor card of a restricted phone, built like the dashboard's sensor card: its container
- * (tertiary near the end), its full-height lifetime fill, the quiet name, and "8 / 28" with the
- * calendar, or the hours left with the hourglass in the last day.
- *
- * [status] and [reading] come from the full card, so the two never disagree about the sensor.
+ * The day of wear where the full card has its pause button, as the dashboard's sensor card
+ * shows it: "8 / 28" with the calendar, or the hours left with the hourglass in the last day.
  */
 @Composable
-internal fun RestrictedSensorCard(
-    sensor: SensorInfo,
-    status: String?,
-    reading: (@Composable () -> Unit)?,
-    disconnect: (@Composable () -> Unit)?,
-) {
-    val context = LocalContext.current
+internal fun RestrictedSensorDay(sensor: SensorInfo) {
+    if (sensor.startMs <= PLAUSIBLE_START_MS) return
     val now = System.currentTimeMillis()
-    val lifetimeKnown = sensor.startMs > PLAUSIBLE_START_MS
     val endMs = sensor.lifetimeEndMs()
     val lifecycle = ManagedSensorStatusPolicy.resolveLifecycleSummary(
         startTimeMs = sensor.startMs,
@@ -79,154 +61,83 @@ internal fun RestrictedSensorCard(
         expectedEndMs = endMs,
         nowMs = now,
     )
-    val ended = lifetimeKnown && now >= endMs
-    val scheme = MaterialTheme.colorScheme
-    val isExpiring = lifetimeKnown && lifecycle.progress > 0.90f
-    val containerColor = if (isExpiring) {
-        scheme.tertiaryContainer
-    } else {
-        scheme.primaryContainer.copy(alpha = 0.4f).compositeOver(scheme.background)
-    }
-    val contentColor = if (isExpiring) scheme.onTertiaryContainer else scheme.onPrimaryContainer
-    val quietColor = contentColor.copy(alpha = 0.7f)
-    val fillColor = when {
-        lifecycle.progress > 0.95f -> scheme.error
-        lifecycle.progress > 0.80f -> scheme.tertiary
-        else -> StatusPalette.sensorLifeFill
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor, contentColor = contentColor),
+    val hoursLeft = lifecycle.remainingHours.takeIf { now < endMs && it in 0L..24L }
+    val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        modifier = Modifier.padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box {
-            if (lifetimeKnown && lifecycle.progress > 0f) {
-                Box(Modifier.matchParentSize()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(lifecycle.progress)
-                            .background(fillColor.copy(alpha = 0.25f)),
-                    )
-                }
-            }
-            Row(modifier = Modifier.padding(16.dp)) {
-                val badge = remember(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand) {
-                    sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand)
-                }
-                SensorModelBadge(badge = badge, vendor = sensor.vendor, color = sensor.color)
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = sensor.displayName.ifBlank { sensor.serial },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = quietColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            if (lifetimeKnown) {
-                                Spacer(Modifier.height(4.dp))
-                                SensorLifetimeLabel(
-                                    daysText = lifecycle.daysText,
-                                    currentDay = lifecycle.currentDay,
-                                    remainingHours = lifecycle.remainingHours.takeUnless { ended } ?: -1L,
-                                )
-                            }
-                        }
-                        reading?.let {
-                            Spacer(Modifier.width(12.dp))
-                            it()
-                        }
-                    }
-                    // Below the name, so a long status never squeezes it or the days.
-                    if (status != null || lifetimeKnown || disconnect != null) {
-                        Spacer(Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                if (status != null) {
-                                    Text(
-                                        text = status,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = quietColor,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                                if (lifetimeKnown) {
-                                    Text(
-                                        text = if (ended) {
-                                            stringResource(R.string.restricted_sensor_ended)
-                                        } else {
-                                            stringResource(R.string.restricted_sensor_ends, sensorEndText(context, endMs, now))
-                                        },
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = if (ended) scheme.error else quietColor,
-                                    )
-                                }
-                            }
-                            disconnect?.invoke()
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** The dashboard's lifetime line: "8 / 28" with the calendar, or "5h" with the hourglass. */
-@Composable
-private fun SensorLifetimeLabel(daysText: String, currentDay: Int, remainingHours: Long) {
-    val lastDay = remainingHours in 0L..24L
-    val color = androidx.compose.material3.LocalContentColor.current
-    Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = if (lastDay) "${remainingHours}h" else daysText,
-            style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
+            text = hoursLeft?.let { "${it}h" } ?: lifecycle.daysText,
+            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
         )
         Spacer(Modifier.width(8.dp))
-        if (lastDay) {
+        if (hoursLeft != null) {
             AnimatedHourglassIcon(
-                color = color.copy(alpha = 0.8f),
+                color = iconColor,
                 modifier = Modifier.size(16.dp),
-                cycleDuration = (500 + (1500 * (remainingHours / 24f))).toInt().coerceAtLeast(500),
+                cycleDuration = (500 + (1500 * (hoursLeft / 24f))).toInt().coerceAtLeast(500),
             )
         } else {
             CustomCalendarIcon(
-                color = color.copy(alpha = 0.6f),
+                color = iconColor,
                 modifier = Modifier.size(16.dp),
-                currentDay = currentDay,
+                currentDay = lifecycle.currentDay,
             )
         }
     }
 }
 
-/** "Thu, 26 Nov", with the time once the end is less than two days away. */
-private fun sensorEndText(context: Context, endMs: Long, nowMs: Long): String {
-    var flags = DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY or
-        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR
-    if (endMs - nowMs < 2L * 24L * 60L * 60L * 1000L) flags = flags or DateUtils.FORMAT_SHOW_TIME
-    return DateUtils.formatDateTime(context, endMs, flags)
-}
-
-/** Disconnect while restricted: quiet, and it always keeps the sensor's history. */
+/**
+ * What replaces the full card's details and controls while restricted: when the sensor
+ * started and when it ends, in the card's own data rows, and Disconnect when the adult allowed
+ * sensor changes. That Disconnect never deletes history.
+ */
 @Composable
-internal fun RestrictedDisconnectButton(sensor: SensorInfo, viewModel: SensorViewModel) {
+internal fun RestrictedSensorDetails(
+    sensor: SensorInfo,
+    viewModel: SensorViewModel,
+    allowDisconnect: Boolean,
+) {
     val context = LocalContext.current
     var confirmDisconnect by remember { mutableStateOf(false) }
 
-    TextButton(
-        onClick = { confirmDisconnect = true },
-        shapes = ButtonDefaults.shapes(),
-        contentPadding = ButtonDefaults.TextButtonContentPadding,
-        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-    ) {
-        Text(stringResource(R.string.disconnect))
+    if (sensor.startMs > PLAUSIBLE_START_MS) {
+        Spacer(modifier = Modifier.height(16.dp))
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+        ) {
+            Column(
+                modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                DetailRow(stringResource(R.string.sensor_started), formatSensorTime(sensor.startMs.toString()))
+                val endLabel = if (sensor.officialEndMs > 0) R.string.sensor_ends_officially else R.string.sensor_expected_end
+                DetailRow(stringResource(endLabel), formatSensorTime(sensor.lifetimeEndMs().toString()))
+            }
+        }
+    }
+
+    if (allowDisconnect && !sensor.isCloneSource) {
+        Spacer(modifier = Modifier.height(16.dp))
+        FilledTonalButton(
+            onClick = { confirmDisconnect = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 40.dp),
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.ContentPadding,
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            ),
+        ) {
+            Text(stringResource(R.string.disconnect))
+        }
     }
 
     if (confirmDisconnect) {
@@ -264,6 +175,29 @@ internal fun RestrictedDisconnectButton(sensor: SensorInfo, viewModel: SensorVie
                     contentPadding = ButtonDefaults.TextButtonContentPadding,
                 ) { Text(stringResource(R.string.cancel)) }
             },
+        )
+    }
+}
+
+/** The full card's label–value row. */
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End,
+            modifier = Modifier.padding(start = 16.dp),
         )
     }
 }

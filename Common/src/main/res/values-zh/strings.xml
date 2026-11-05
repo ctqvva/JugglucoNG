@@ -3246,7 +3246,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">受限模式</string>
     <string name="restricted_mode_desc">为孩子或只需查看血糖的人提供更简单的应用</string>
-    <string name="restricted_mode_summary_on">已开启 · 进入设置需切换到完整模式</string>
     <string name="restricted_full_mode_title">暂时处于完整模式</string>
     <string name="restricted_full_mode_desc">离开应用一分钟后或锁定时，将恢复受限模式。</string>
     <string name="restricted_lock_now">立即锁定</string>
@@ -3295,6 +3294,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">更改阈值和声音，或关闭提醒</string>
     <string name="restricted_allow_voice_desc">语音播报读数和警报</string>
     <string name="restricted_allow_display_desc">目标范围、图表、通知、悬浮血糖和锁屏</string>
-    <string name="restricted_sensor_ends">结束于 %1$s</string>
-    <string name="restricted_sensor_ended">已结束</string>
 </resources>

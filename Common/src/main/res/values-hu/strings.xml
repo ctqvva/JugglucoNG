@@ -3306,7 +3306,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Korlátozott mód</string>
     <string name="restricted_mode_desc">Egyszerűbb alkalmazás gyereknek vagy bárkinek, aki csak a glükózát követi</string>
-    <string name="restricted_mode_summary_on">Be · a beállítások teljes módot kérnek</string>
     <string name="restricted_full_mode_title">Egyelőre teljes mód</string>
     <string name="restricted_full_mode_desc">A korlátozott mód egy perccel az alkalmazás elhagyása után visszatér, vagy amikor lezárod.</string>
     <string name="restricted_lock_now">Lezárás most</string>
@@ -3356,6 +3355,4 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="restricted_allow_alarm_settings_desc">Szintek és hangok módosítása, riasztások kikapcsolása</string>
     <string name="restricted_allow_voice_desc">Felolvasott értékek és riasztások</string>
     <string name="restricted_allow_display_desc">Célérték-tartomány, grafikonok, értesítések, lebegő glükóz és zárolási képernyő</string>
-    <string name="restricted_sensor_ends">Lejár: %1$s</string>
-    <string name="restricted_sensor_ended">Lejárt</string>
 </resources>

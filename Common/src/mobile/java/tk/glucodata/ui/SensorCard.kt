@@ -222,10 +222,12 @@ private fun SensorIdentityControl(
     color: Color,
     onToggle: () -> Unit,
     onPickColor: () -> Unit,
+    colorPickable: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
-        val leadShape = ConnectedButtonShapes.Leading
+        // Alone (no colour segment beside it) the name is a whole pill.
+        val leadShape = if (colorPickable) ConnectedButtonShapes.Leading else RoundedCornerShape(percent = 50)
         Row(
             modifier = Modifier
                 .weight(1f)
@@ -275,22 +277,24 @@ private fun SensorIdentityControl(
                 modifier = Modifier.weight(1f, fill = false),
             )
         }
-        Spacer(modifier = Modifier.width(2.dp))
-        Box(
-            modifier = Modifier
-                .width(40.dp)
-                .fillMaxHeight()
-                .clip(ConnectedButtonShapes.Trailing)
-                .background(color.copy(alpha = 0.12f))
-                .clickable(onClick = onPickColor),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Default.ShowChart,
-                contentDescription = stringResource(R.string.sensor_color_title),
-                tint = color,
-                modifier = Modifier.size(18.dp),
-            )
+        if (colorPickable) {
+            Spacer(modifier = Modifier.width(2.dp))
+            Box(
+                modifier = Modifier
+                    .width(40.dp)
+                    .fillMaxHeight()
+                    .clip(ConnectedButtonShapes.Trailing)
+                    .background(color.copy(alpha = 0.12f))
+                    .clickable(onClick = onPickColor),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ShowChart,
+                    contentDescription = stringResource(R.string.sensor_color_title),
+                    tint = color,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }
@@ -421,8 +425,9 @@ fun SensorCard(
     sensorCount: Int = 1,
     onNavigateToMqAccount: () -> Unit = {},
     /**
-     * Restricted mode: the dashboard-style card (RestrictedSensorCard) instead of this one:
-     * no controls, except Disconnect when [allowDisconnect] (the adult allowed sensor changes).
+     * Restricted mode: the same card with only what describes the sensor — name, status,
+     * newest reading, day of wear, start and end — and no controls, except Disconnect when
+     * [allowDisconnect] (the adult allowed sensor changes).
      */
     restricted: Boolean = false,
     allowDisconnect: Boolean = false,
@@ -1873,41 +1878,6 @@ fun SensorCard(
         }
     }
 
-    val pausedText = stringResource(R.string.disabled_status)
-    // One status line, not two: a paused sensor's last connection state is stale
-    // trivia, so the paused label takes the slot instead of sitting in the header
-    // repeating what the play button already says.
-    val sensorStatusText = when {
-        sensor.isCloneSource && !cloneHasRecentData -> stringResource(R.string.nodata)
-        !sensor.isCloneSource && !isHandedOff && !isLocallyEnabled -> pausedText
-        // statusTextRes only knows connected from reconnecting, and
-        // it reads the ICE generation, which is unknown often enough
-        // that a Clone showing a reading from thirty seconds ago still
-        // claimed to be reconnecting. What the line is for is whether
-        // readings are arriving, and the stale check above already
-        // answers that; the route itself has its own row.
-        sensor.isCloneSource ->
-            stringResource(R.string.clone_transport_connected)
-        sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
-        sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
-        else -> null
-    }
-
-    if (restricted) {
-        tk.glucodata.ui.restricted.RestrictedSensorCard(
-            sensor = sensor,
-            status = sensorStatusText,
-            reading = currentSnapshot?.let { snapshot ->
-                { SensorCurrentValueChip(snapshot = snapshot, accentColor = sensorTint) }
-            },
-            disconnect = if (allowDisconnect && !sensor.isCloneSource) {
-                { tk.glucodata.ui.restricted.RestrictedDisconnectButton(sensor, viewModel) }
-            } else {
-                null
-            },
-        )
-        return
-    }
 
     Card(
         modifier = Modifier
@@ -1960,6 +1930,8 @@ fun SensorCard(
                 )
 
                 Column(modifier = Modifier.padding(16.dp).weight(1f)) {
+                    val pausedText = stringResource(R.string.disabled_status)
+
                     val displayName = sensor.displayName.ifBlank { sensor.serial }
                     val badge = remember(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand) {
                         sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand)
@@ -1986,10 +1958,11 @@ fun SensorCard(
                         SensorIdentityControl(
                             name = displayName,
                             selected = sensor.isSelectedForDisplay,
-                            selectable = canToggleEnabled,
+                            selectable = canToggleEnabled && !restricted,
                             color = sensorTint,
                             onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
                             onPickColor = { showColorSheet = true },
+                            colorPickable = !restricted,
                             modifier = Modifier.weight(1f),
                         )
                         val cloneWithoutControl = sensor.isCloneSource && !sensor.canTakeOverClone
@@ -1997,7 +1970,10 @@ fun SensorCard(
                             Spacer(modifier = Modifier.width(8.dp))
                         }
 
-                        if (isHandedOff && !sensor.isCloneSource) {
+                        if (restricted) {
+                            // In the pause button's place: the day of wear, "7 / 28".
+                            tk.glucodata.ui.restricted.RestrictedSensorDay(sensor)
+                        } else if (isHandedOff && !sensor.isCloneSource) {
                             IconButtonTooltip(stringResource(R.string.return_sensor_to_phone)) {
                                 // A filled icon button, not a background behind a plain one: the
                                 // container itself takes the press shape.
@@ -2098,6 +2074,24 @@ fun SensorCard(
                         }
                     }
 
+                    // One status line, not two: a paused sensor's last connection state is stale
+                    // trivia, so the paused label takes the slot instead of sitting in the header
+                    // repeating what the play button already says.
+                    val sensorStatusText = when {
+                        sensor.isCloneSource && !cloneHasRecentData -> stringResource(R.string.nodata)
+                        !sensor.isCloneSource && !isHandedOff && !isLocallyEnabled -> pausedText
+                        // statusTextRes only knows connected from reconnecting, and
+                        // it reads the ICE generation, which is unknown often enough
+                        // that a Clone showing a reading from thirty seconds ago still
+                        // claimed to be reconnecting. What the line is for is whether
+                        // readings are arriving, and the stale check above already
+                        // answers that; the route itself has its own row.
+                        sensor.isCloneSource ->
+                            stringResource(R.string.clone_transport_connected)
+                        sensor.detailedStatus.isNotEmpty() -> sensor.detailedStatus
+                        sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
+                        else -> null
+                    }
                     if (currentSnapshot != null || sensorStatusText != null) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(
@@ -2141,6 +2135,7 @@ fun SensorCard(
 //                } // Close Column (content)
 //            } // Close Row (color indicator wrapper)
 //            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            if (!restricted) {
             Spacer(modifier = Modifier.height(16.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -3442,6 +3437,13 @@ fun SensorCard(
                         }
                     }
                 }
+            }
+            } else {
+                tk.glucodata.ui.restricted.RestrictedSensorDetails(
+                    sensor = sensor,
+                    viewModel = viewModel,
+                    allowDisconnect = allowDisconnect,
+                )
             }
             }
         }

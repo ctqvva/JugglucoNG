@@ -3321,7 +3321,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Абмежаваны рэжым</string>
     <string name="restricted_mode_desc">Прасцейшая праграма для дзіцяці або для тых, каму трэба толькі сачыць за глюкозай</string>
-    <string name="restricted_mode_summary_on">Укл. · налады просяць перайсці ў поўны рэжым</string>
     <string name="restricted_full_mode_title">Пакуль поўны рэжым</string>
     <string name="restricted_full_mode_desc">Абмежаваны рэжым вернецца праз хвіліну пасля выхаду з праграмы або калі вы яго заблакуеце.</string>
     <string name="restricted_lock_now">Заблакаваць</string>
@@ -3373,6 +3372,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">Змяняць узроўні і гукі або выключаць абвесткі</string>
     <string name="restricted_allow_voice_desc">Агучванне паказанняў і трывог</string>
     <string name="restricted_allow_display_desc">Мэтавы дыяпазон, графікі, апавяшчэнні, плаваючая глюкоза і экран блакіроўкі</string>
-    <string name="restricted_sensor_ends">Канец: %1$s</string>
-    <string name="restricted_sensor_ended">Скончыўся</string>
 </resources>

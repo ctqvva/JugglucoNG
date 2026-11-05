@@ -3237,7 +3237,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Begränsat läge</string>
     <string name="restricted_mode_desc">En enklare app för ett barn eller för den som bara vill följa sitt glukosvärde</string>
-    <string name="restricted_mode_summary_on">På · inställningarna ber om fullt läge</string>
     <string name="restricted_full_mode_title">Fullt läge, för tillfället</string>
     <string name="restricted_full_mode_desc">Begränsat läge kommer tillbaka en minut efter att du lämnat appen, eller när du låser det.</string>
     <string name="restricted_lock_now">Lås nu</string>
@@ -3287,6 +3286,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">Ändra nivåer och ljud, eller stäng av varningar</string>
     <string name="restricted_allow_voice_desc">Upplästa värden och larm</string>
     <string name="restricted_allow_display_desc">Målområde, diagram, aviseringar, flytande glukos och låsskärm</string>
-    <string name="restricted_sensor_ends">Slutar %1$s</string>
-    <string name="restricted_sensor_ended">Slut</string>
 </resources>

@@ -3422,7 +3422,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Habka xaddidan</string>
     <string name="restricted_mode_desc">App fudud oo loogu talagalay ilmo ama qof kaliya la socda gluukooskiisa</string>
-    <string name="restricted_mode_summary_on">Shidan · dejimuhu waxay codsadaan habka buuxa</string>
     <string name="restricted_full_mode_title">Hadda habka buuxa</string>
     <string name="restricted_full_mode_desc">Habka xaddidan wuxuu soo laabanayaa daqiiqad kadib markaad ka baxdo app-ka, ama markaad xirto.</string>
     <string name="restricted_lock_now">Hadda xir</string>
@@ -3472,6 +3471,4 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="restricted_allow_alarm_settings_desc">Beddel heerarka iyo codadka, ama dami digniinaha</string>
     <string name="restricted_allow_voice_desc">Akhrinta iyo alaarmiyada codka ah</string>
     <string name="restricted_allow_display_desc">Xadka bartilmaameedka, jaantusyada, ogeysiisyada, sonkorta sabaynaysa iyo shaashadda quful</string>
-    <string name="restricted_sensor_ends">Wuxuu dhammaanayaa %1$s</string>
-    <string name="restricted_sensor_ended">Dhammaaday</string>
 </resources>

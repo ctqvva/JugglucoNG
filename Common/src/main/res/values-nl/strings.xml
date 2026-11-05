@@ -3280,7 +3280,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Beperkte modus</string>
     <string name="restricted_mode_desc">Een eenvoudigere app voor een kind of iedereen die alleen de glucose wil volgen</string>
-    <string name="restricted_mode_summary_on">Aan · instellingen vragen om de volledige modus</string>
     <string name="restricted_full_mode_title">Voorlopig volledige modus</string>
     <string name="restricted_full_mode_desc">De beperkte modus keert een minuut nadat je de app verlaat terug, of wanneer je hem vergrendelt.</string>
     <string name="restricted_lock_now">Nu vergrendelen</string>
@@ -3330,6 +3329,4 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="restricted_allow_alarm_settings_desc">Niveaus en geluiden wijzigen, of meldingen uitzetten</string>
     <string name="restricted_allow_voice_desc">Uitgesproken waarden en alarmen</string>
     <string name="restricted_allow_display_desc">Doelbereik, grafieken, meldingen, zwevende glucose en vergrendelscherm</string>
-    <string name="restricted_sensor_ends">Eindigt %1$s</string>
-    <string name="restricted_sensor_ended">Afgelopen</string>
 </resources>

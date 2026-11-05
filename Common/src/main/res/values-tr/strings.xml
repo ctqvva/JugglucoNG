@@ -3265,7 +3265,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Kısıtlı mod</string>
     <string name="restricted_mode_desc">Bir çocuk ya da yalnızca glikozunu takip etmesi gereken biri için daha basit bir uygulama</string>
-    <string name="restricted_mode_summary_on">Açık · ayarlar tam mod ister</string>
     <string name="restricted_full_mode_title">Şimdilik tam mod</string>
     <string name="restricted_full_mode_desc">Kısıtlı mod, uygulamadan çıktıktan bir dakika sonra ya da kilitlediğinizde geri gelir.</string>
     <string name="restricted_lock_now">Şimdi kilitle</string>
@@ -3315,6 +3314,4 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="restricted_allow_alarm_settings_desc">Seviyeleri ve sesleri değiştir veya uyarıları kapat</string>
     <string name="restricted_allow_voice_desc">Sesli okunan değerler ve alarmlar</string>
     <string name="restricted_allow_display_desc">Hedef aralık, grafikler, bildirimler, kayan glukoz ve kilit ekranı</string>
-    <string name="restricted_sensor_ends">Bitiş: %1$s</string>
-    <string name="restricted_sensor_ended">Bitti</string>
 </resources>

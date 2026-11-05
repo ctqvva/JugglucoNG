@@ -3540,7 +3540,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Restricted mode</string>
     <string name="restricted_mode_desc">A simpler app for a child, or anyone who only needs to follow their glucose</string>
-    <string name="restricted_mode_summary_on">On · settings ask to switch to full mode</string>
     <string name="restricted_full_mode_title">Full mode, for now</string>
     <string name="restricted_full_mode_desc">Restricted mode comes back a minute after you leave the app, or when you lock it.</string>
     <string name="restricted_lock_now">Lock now</string>
@@ -3590,6 +3589,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">Change levels and sounds, or turn alerts off</string>
     <string name="restricted_allow_voice_desc">Spoken readings and alarms</string>
     <string name="restricted_allow_display_desc">Target range, charts, notifications, floating glucose and lock screen</string>
-    <string name="restricted_sensor_ends">Ends %1$s</string>
-    <string name="restricted_sensor_ended">Ended</string>
 </resources>

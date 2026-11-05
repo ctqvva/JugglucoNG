@@ -3239,7 +3239,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Modo restrito</string>
     <string name="restricted_mode_desc">Um app mais simples para uma criança ou para quem só precisa acompanhar a glicose</string>
-    <string name="restricted_mode_summary_on">Ativado · as configurações pedem o modo completo</string>
     <string name="restricted_full_mode_title">Modo completo, por enquanto</string>
     <string name="restricted_full_mode_desc">O modo restrito volta um minuto depois de sair do app, ou quando você o bloquear.</string>
     <string name="restricted_lock_now">Bloquear agora</string>
@@ -3289,6 +3288,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">Alterar níveis e sons, ou desativar alertas</string>
     <string name="restricted_allow_voice_desc">Leitura em voz alta de valores e alarmes</string>
     <string name="restricted_allow_display_desc">Faixa-alvo, gráficos, notificações, glicose flutuante e tela de bloqueio</string>
-    <string name="restricted_sensor_ends">Termina %1$s</string>
-    <string name="restricted_sensor_ended">Terminou</string>
 </resources>
