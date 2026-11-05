@@ -77,6 +77,23 @@ class ICanHealthCloudClientTests {
     }
 
     @Test
+    fun followerListUsesEncryptedGetAndDecrypts() {
+        val key = ICanHealthCloudJson.getRandomString()
+        val inner = """{"code":200,"success":true,"data":[{"id":"1","userId":"u","followerId":"f","email":"a@b.com"}]}"""
+        val encrypted = ICanHealthCloudJson.aesEncrypt(key, inner)
+        val transport = FakeTransport { url ->
+            if (url.contains("follower/list")) HttpResult(200, encrypted) else HttpResult(404, "")
+        }
+        val client = ICanHealthCloudClient(transport, keyFactory = { key })
+        val list = client.followerList("tok")
+        assertEquals(1, list.size)
+        assertEquals("1", list[0].id)
+        val url = transport.calls.single().first
+        assertTrue(url.contains("key="))
+        assertTrue(url.contains("data="))
+    }
+
+    @Test
     fun loginWrongCredentialsMapsBadCredentials() {
         val transport = FakeTransport { _ ->
             HttpResult(200, """{"code":13,"success":false,"data":null,"msg":"Incorrect account or password"}""")

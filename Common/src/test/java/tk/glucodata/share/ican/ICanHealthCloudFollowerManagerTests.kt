@@ -60,14 +60,22 @@ class ICanHealthCloudFollowerManagerTests {
         val context = RuntimeEnvironment.getApplication()
         val settings = ICanHealthCloudSettings(context)
         settings.token = "tok"
+        val key = ICanHealthCloudJson.getRandomString()
+        val encrypted = ICanHealthCloudJson.aesEncrypt(
+            key,
+            """{"code":200,"success":true,"data":[{"id":"1","email":"a@b.com"}]}""",
+        )
         val transport = FakeTransport { url, _, _ ->
             if (url.contains("follower/list")) {
-                HttpResult(200, "[{\"id\":\"1\",\"email\":\"a@b.com\"}]")
+                HttpResult(200, encrypted)
             } else {
                 HttpResult(200, "")
             }
         }
-        val manager = ICanHealthCloudFollowerManager(ICanHealthCloudClient(transport), settings)
+        val manager = ICanHealthCloudFollowerManager(
+            ICanHealthCloudClient(transport, keyFactory = { key }),
+            settings,
+        )
         val result = manager.list()
         assertEquals(1, result.size)
         assertEquals("1", result[0].id)

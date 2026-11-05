@@ -11,6 +11,7 @@ import tk.glucodata.Log
 
 class ICanHealthCloudClient(
     private val transport: Transport = HttpTransport,
+    private val keyFactory: () -> String = { ICanHealthCloudJson.getRandomString() },
 ) {
 
     interface Transport {
@@ -129,20 +130,32 @@ class ICanHealthCloudClient(
     }
 
     fun followerList(token: String): List<FollowerFriends> {
-        val url =
-            ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/follower/list"
-        val response = transport.get(url, mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token))
-        if (response.code == 401 || response.code !in 200..299) return emptyList()
-        val body = response.body.trim()
-        if (body.isEmpty()) return emptyList()
-        val array = runCatching {
-            val json = JSONObject(body)
-            if (json.has("data")) json.optJSONArray("data") else null
-        }.getOrNull() ?: runCatching { JSONArray(body) }.getOrNull()
-        if (array == null) return emptyList()
+        val json = encryptedGet(token, "sino-ican/v1/follower/list") ?: return emptyList()
+        val array = json.optJSONArray("data") ?: return emptyList()
         return (0 until array.length()).map { index ->
             FollowerFriends.fromJson(array.optJSONObject(index))
         }
+    }
+
+    /**
+     * The vendor endpoints encrypt both directions: the GET carries the RSA-wrapped
+     * AES key plus the AES payload (`key`/`data` query params) and the response body
+     * is AES-CBC ciphertext with the very same key (IV = key[0:16]).
+     */
+    private fun encryptedGet(
+        token: String,
+        path: String,
+        payload: Map<String, Any?> = emptyMap(),
+    ): JSONObject? {
+        val key = keyFactory()
+        val envelope = ICanHealthCloudJson.createEncryptedRequest(payload, key)
+        val url = ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + path +
+            "?key=" + URLEncoder.encode(envelope["key"], "UTF-8") +
+            "&data=" + URLEncoder.encode(envelope["data"], "UTF-8")
+        val response = transport.get(url, mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token))
+        if (response.code !in 200..299) return null
+        val decrypted = decryptResponse(key, response.body) ?: return null
+        return runCatching { JSONObject(decrypted) }.getOrNull()
     }
 
     fun buildFollowerSavePayload(
@@ -229,22 +242,13 @@ class ICanHealthCloudClient(
     }
 
     fun hasFollower(token: String): Boolean {
-        val url =
-            ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/follower/has-follower"
-        val response = transport.get(url, mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token))
-        if (response.code == 401 || response.code !in 200..299) return false
-        val body = response.body.trim()
-        if (body.isEmpty()) return false
-        val json = runCatching { JSONObject(body) }.getOrNull() ?: return false
+        val json = encryptedGet(token, "sino-ican/v1/follower/has-follower") ?: return false
         return if (json.has("data")) json.optBoolean("data", false) else json.optBoolean("result", false)
     }
 
     fun basicConfigDetail(token: String): String {
-        val url =
-            ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/basic/config/detail"
-        val response = transport.get(url, mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token))
-        if (response.code == 401 || response.code !in 200..299) return ""
-        return response.body
+        val json = encryptedGet(token, "sino-ican/v1/basic/config/detail") ?: return ""
+        return json.toString()
     }
 
     fun basicConfigFollowerUpdate(token: String, shareFollower: String): Boolean {
