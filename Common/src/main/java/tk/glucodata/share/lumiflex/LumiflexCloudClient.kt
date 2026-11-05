@@ -69,8 +69,9 @@ class LumiflexCloudClient(
 
     /** Network-only sign-in: stores nothing, so a cancelled attempt cannot resurrect a session. */
     fun login(account: String, password: String): LoginResult {
+        val loginAccount = normalizeLoginAccount(account)
         val body = JSONObject()
-            .put("userName", account)
+            .put("userName", loginAccount)
             .put("password", LumiflexCloudCrypto.passwordHash(password))
             .toString()
         val response = post(LumiflexCloudConstants.PATH_LOGIN, body, token = "", userId = "")
@@ -93,7 +94,7 @@ class LumiflexCloudClient(
         val data = json?.optJSONObject("data")
         val model = LoginModel.fromJson(data)
         if (response.code in 200..299 && code == 200 && model.token.isNotBlank()) {
-            return LoginResult.Ok(model.userId, model.token, account)
+            return LoginResult.Ok(model.userId, model.token, loginAccount)
         }
         return LoginResult.Failed(
             LumiflexCloudError.classify(response.code, response.body),
@@ -326,6 +327,20 @@ class LumiflexCloudClient(
     }
 
     companion object {
+        /** The vendor expects country-code digits, without '+' or phone display formatting. */
+        private fun normalizeLoginAccount(account: String): String {
+            val trimmed = account.trim()
+            // Do not remove '+' (or any other character) from an email address or username.
+            val phone = trimmed.removePrefix("+")
+            return if (phone.any { it in '0'..'9' } &&
+                phone.all { it in '0'..'9' || it.isWhitespace() || it in "()-" }
+            ) {
+                phone.filter { it in '0'..'9' }
+            } else {
+                trimmed
+            }
+        }
+
         internal const val TRANSPORT_FAILURE_CODE = -1
         private const val UNAUTHORIZED = 401
         private const val DATE_PATTERN = "yyyy-MM-dd HH:mm:ss"

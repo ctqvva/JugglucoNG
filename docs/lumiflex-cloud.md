@@ -7,8 +7,15 @@ Dexcom Share, LibreView and iCan Health.
 ## Enable
 
 Settings → **Lumiflex Cloud** → enter the account (e-mail or phone) and password → **Sign in**.
-The card appears in settings once a Lumiflex account is configured or an AiDex X / LinX sensor is
-active.
+The card appears only when the app language is Russian, and either a Lumiflex account is configured
+or an AiDex X / LinX sensor is active. Phone numbers accept a leading `+` and display formatting
+(for example, `+7 (999) 123-45-67`); JNG sends the country-code digits to the vendor. Email addresses
+keep their `+` aliases, and surrounding account whitespace is removed.
+
+Use credentials that work in the official **Lumiflex LinX mobile app**. A website-only account may
+not authenticate with the mobile service used by JNG. Lumiflex's
+[LinX setup instructions](https://lumiflex.ru/help/linx-step-2/) currently require a Russian phone
+number for mobile registration.
 
 ## What is uploaded
 

@@ -90,6 +90,39 @@ class LumiflexCloudClientTests {
     }
 
     @Test
+    fun loginSendsPhoneDigitsAndPersistsTheAcceptedAccount() {
+        for (account in listOf("+79991234567", "  +7 (999) 123-45-67  ", "79991234567")) {
+            val transport = FakeTransport { _, body ->
+                val request = JSONObject(LumiflexCloudCrypto.decryptEnvelope(body, keys.second)!!)
+                assertEquals("79991234567", request.getString("userName"))
+                LumiflexCloudClient.HttpResult(
+                    200,
+                    envelope("""{"code":200,"data":{"token":"tok","userId":"u1"}}"""),
+                )
+            }
+            val s = settings()
+            val result = newClient(transport).login(account, "pw", s)
+            assertEquals(LumiflexCloudClient.LoginResult.Ok("u1", "tok", "79991234567"), result)
+            assertEquals("79991234567", s.account)
+        }
+    }
+
+    @Test
+    fun loginTrimsEmailWhitespaceAndPreservesPlusAddressingAndPasswordWhitespace() {
+        val transport = FakeTransport { _, body ->
+            val request = JSONObject(LumiflexCloudCrypto.decryptEnvelope(body, keys.second)!!)
+            assertEquals("patient+cloud@example.com", request.getString("userName"))
+            assertEquals(LumiflexCloudCrypto.passwordHash(" pw "), request.getString("password"))
+            LumiflexCloudClient.HttpResult(
+                200,
+                envelope("""{"code":200,"data":{"token":"tok","userId":"u1"}}"""),
+            )
+        }
+        val result = newClient(transport).login("  patient+cloud@example.com  ", " pw ")
+        assertEquals(LumiflexCloudClient.LoginResult.Ok("u1", "tok", "patient+cloud@example.com"), result)
+    }
+
+    @Test
     fun loginWithoutSettingsStoresNothing() {
         val transport = FakeTransport { _, _ ->
             LumiflexCloudClient.HttpResult(

@@ -188,13 +188,22 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
 
             SectionLabel(text = stringResource(R.string.lumiflex_account), topPadding = 0.dp)
 
+            Text(
+                text = stringResource(R.string.lumiflex_account_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
             OutlinedTextField(
                 value = account,
                 onValueChange = { account = it },
                 label = { Text(stringResource(R.string.lumiflex_account_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    autoCorrectEnabled = false,
+                ),
             )
 
             OutlinedTextField(

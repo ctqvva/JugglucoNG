@@ -3297,6 +3297,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_cloud_subtitle">Загрузка глюкозы в Lumiflex</string>
     <string name="lumiflex_account">Аккаунт</string>
     <string name="lumiflex_account_hint">Аккаунт (почта или телефон)</string>
+    <string name="lumiflex_account_help">Используйте почту или телефон и пароль, с которыми вы входите в официальное мобильное приложение Lumiflex. Номер можно вводить с + и кодом страны. Данные аккаунта, созданного только на сайте, могут не подойти.</string>
     <string name="lumiflex_password">Пароль</string>
     <string name="lumiflex_credentials_required">Нужны логин и пароль</string>
     <string name="lumiflex_sign_in">Войти</string>

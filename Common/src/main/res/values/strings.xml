@@ -3499,6 +3499,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_cloud_subtitle">Upload glucose to Lumiflex</string>
     <string name="lumiflex_account">Account</string>
     <string name="lumiflex_account_hint">Account (email or phone)</string>
+    <string name="lumiflex_account_help">Use the email or phone number and password that work in the official Lumiflex mobile app. Phone numbers may include + and the country code. Credentials created only on the website may not work here.</string>
     <string name="lumiflex_password">Password</string>
     <string name="lumiflex_credentials_required">Credentials required</string>
     <string name="lumiflex_sign_in">Sign in</string>

@@ -128,7 +128,8 @@ fun ExpressiveSettingsScreen(
         runCatching { DexcomShareSettings.isSetUp(context) }.getOrDefault(false) ||
             hasActiveDexcomSensor()
     }
-    val showLumiflex = remember {
+    val isRussianLanguage = LocalConfiguration.current.locales[0]?.language == "ru"
+    val showLumiflex = isRussianLanguage && remember {
         runCatching { LumiflexCloudSettings.isSetUp(context) }.getOrDefault(false) ||
             hasActiveAiDexSensor()
     }
@@ -591,8 +592,8 @@ fun ExpressiveSettingsScreen(
                 }
                 if (showLumiflex) {
                     SettingsItem(
-                        title = "Lumiflex Cloud",
-                        subtitle = "Upload glucose to Lumiflex",
+                        title = stringResource(R.string.lumiflex_cloud_title),
+                        subtitle = stringResource(R.string.lumiflex_cloud_subtitle),
                         icon = Icons.Default.CloudUpload,
                         iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
