@@ -1833,7 +1833,11 @@ class ICanHealthBleManager(
         val pending = pendingAddressRebind ?: return false
         if (!pending.candidateAddress.equals(gatt.device?.address, ignoreCase = true)) return true
         val reported = listOf(rawSerial, resolvedSerial).map { ICanHealthConstants.canonicalSensorId(it) }
-        if (pending.savedIds.any { saved -> reported.any { it.equals(saved, ignoreCase = true) } }) {
+        val identityMatches =
+            pending.savedIds.any { saved -> reported.any { it.equals(saved, ignoreCase = true) } } ||
+                ICanHealthConstants.matchesOnboardingIdentity(onboardingDeviceSn, rawSerial) ||
+                ICanHealthConstants.matchesOnboardingIdentity(onboardingDeviceSn, resolvedSerial)
+        if (identityMatches) {
             return false
         }
         return rejectRebindCandidate("DIS serial $resolvedSerial does not match the saved sensor", blacklist = true)
