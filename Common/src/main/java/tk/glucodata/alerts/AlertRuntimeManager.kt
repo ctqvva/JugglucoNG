@@ -38,6 +38,7 @@ object AlertRuntimeManager {
     private var preHighCoverageSkipLogged: String? = null
     private val standardEpisodes = AlertEpisodeState<AlertType>()
     private val sensorExpiryState = SensorExpiryAlertState(AlertRepository.sensorExpiryWarnedStore)
+    private val signalRestoredState = SignalRestoredAlertState()
     private val fallingDeltaState = DeltaAlarmState(falling = true)
     private val risingDeltaState = DeltaAlarmState(falling = false)
     private val calibrationReadingBarrier = ReadingTimestampBarrier()
@@ -130,6 +131,13 @@ object AlertRuntimeManager {
             null
         }
         synchronized(lock) {
+            lastDisplaySnapshot?.let { signalRestoredState.seed(it.sensorId, it.timeMillis) }
+            val recoveryConfig = AlertRepository.loadConfig(AlertType.SIGNAL_RESTORED)
+            val restored = signalRestoredState.onReading(
+                sensorId, readingTimeMs, System.currentTimeMillis(),
+                if (recoveryConfig.enabled) tk.glucodata.SuperGlucoseAlarms.waitmmsec() else 0L,
+                Notify.glucosetimeout
+            )
             lastReadingTimeMs = maxOf(lastReadingTimeMs, readingTimeMs)
             SensorHandoverRuntime.onReading(sensorId)
             if (snapshot != null && snapshot.primaryValue.isFinite()) {
@@ -146,7 +154,20 @@ object AlertRuntimeManager {
             }
             lastDeliveredReadingTimeMs = maxOf(lastDeliveredReadingTimeMs, readingTimeMs)
             ensureTaskLocked()
-            return evaluateLocked(readingTimeMs)
+            val evaluation = evaluateLocked(readingTimeMs)
+            if (restored) {
+                // Each outage starts a new recovery episode. Snooze and time-window
+                // checks remain in the normal delivery gate; a suppressed edge is
+                // consumed now, never announced late on an ordinary later reading.
+                clearRuntimeAlert(AlertType.SIGNAL_RESTORED, "signal-restored-new-episode")
+                if (!evaluation.standardGlucoseAlertStarted) {
+                    triggerMessageAlert(
+                        AlertType.SIGNAL_RESTORED,
+                        Applic.app.getString(R.string.alert_signal_restored)
+                    )
+                }
+            }
+            return evaluation
         }
     }
 
@@ -853,6 +874,7 @@ object AlertRuntimeManager {
             null
         } ?: return
 
+        signalRestoredState.seed(latest.sensorId, latest.timeMillis)
         if (lastReadingTimeMs <= 0L) {
             lastReadingTimeMs = latest.timeMillis
         }

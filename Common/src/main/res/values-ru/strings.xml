@@ -833,6 +833,9 @@
     <string name="alert_forecast_low">Прогноз низкого</string>
     <string name="alert_high">Высокий</string>
     <string name="alert_loss">Потеря сигнала</string>
+    <string name="alert_signal_restored">Сигнал восстановлен</string>
+    <string name="signal_restored_channel_description">Уведомление о возобновлении свежих показаний сенсора после потери сигнала</string>
+    <string name="signal_restored_explanation">Одно уведомление, когда свежие показания возобновятся после тайм-аута потери сигнала. Работает и при выключенном уведомлении о потере сигнала.</string>
     <string name="alert_low">Низкий</string>
     <string name="alert_missed_reading">Пропущенное значение</string>
     <string name="alert_mode">Alert Mode</string>

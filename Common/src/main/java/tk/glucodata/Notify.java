@@ -547,7 +547,8 @@ public class Notify {
 
     Ringtone mkring(String uristr, int kind) {
         // For global alerts, use getalarmdisturb to determine audio stream
-        return mkring(uristr, kind, getalarmdisturb(kind));
+        return mkring(uristr, kind,
+                tk.glucodata.alerts.AlertSoundDefaults.hasNativeSlot(kind) && getalarmdisturb(kind));
     }
 
     Ringtone mkring(String uristr, int kind, boolean disturb) {
@@ -636,6 +637,7 @@ public class Notify {
     public static final String CHANNEL_LOW = "LOW";
     public static final String CHANNEL_HIGH = "HIGH";
     public static final String CHANNEL_LOSS = "LOSS";
+    public static final String CHANNEL_SIGNAL_RESTORED = "SIGNAL_RESTORED";
     public static final String CHANNEL_MISSED_READING = "MISSED_READING";
     public static final String CHANNEL_SENSOR_EXPIRY = "SENSOR_EXPIRY";
     // private static final String LOSSALARM = "LossofSensorAlarm";
@@ -655,6 +657,8 @@ public class Notify {
                 return CHANNEL_HIGH;
             case 11:
                 return CHANNEL_SENSOR_EXPIRY;
+            case 14:
+                return CHANNEL_SIGNAL_RESTORED;
             default:
                 return GLUCOSEALARM;
         }
@@ -732,6 +736,14 @@ public class Notify {
             channelLoss.setShowBadge(false);
             channelLoss.setLockscreenVisibility(VISIBILITY_PUBLIC);
             notificationManager.createNotificationChannel(channelLoss);
+
+            NotificationChannel channelRestored = new NotificationChannel(CHANNEL_SIGNAL_RESTORED,
+                    context.getString(R.string.alert_signal_restored), NotificationManager.IMPORTANCE_HIGH);
+            channelRestored.setDescription(context.getString(R.string.signal_restored_channel_description));
+            channelRestored.setSound(null, null);
+            channelRestored.setShowBadge(false);
+            channelRestored.setLockscreenVisibility(VISIBILITY_PUBLIC);
+            notificationManager.createNotificationChannel(channelRestored);
 
             NotificationChannel channelMissedReading = new NotificationChannel(
                     CHANNEL_MISSED_READING,
@@ -2926,7 +2938,8 @@ public class Notify {
         final boolean sound = p.getBoolean("alert_" + kind + "_sound", defSound);
         final boolean vibration = p.getBoolean("alert_" + kind + "_vibration", defVibrate);
 
-        final boolean dist = isWearable || p.getBoolean("alert_" + kind + "_dnd", getalarmdisturb(kind));
+        final boolean dist = isWearable || p.getBoolean("alert_" + kind + "_dnd",
+                tk.glucodata.alerts.AlertSoundDefaults.hasNativeSlot(kind) && getalarmdisturb(kind));
         final boolean useAlarmStream = shouldUseAlarmAudioStream(kind, dist);
         final AlertSoundHandle soundHandle = sound ? buildAlertSoundHandle(ringUri, kind, useAlarmStream) : null;
 
@@ -2969,7 +2982,7 @@ public class Notify {
             final String label = alertType != null
                     ? Applic.app.getString(alertType.getNameResId())
                     : "Test Alert";
-            final String message = alertType == AlertType.LOSS
+            final String message = alertType == AlertType.LOSS || alertType == AlertType.SIGNAL_RESTORED
                     ? label
                     : label + " " + glucosestr(dummyValue);
 

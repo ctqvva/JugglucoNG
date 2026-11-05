@@ -262,6 +262,7 @@ class AlertRetryAcknowledgementTests {
                     static class AlertType {
                         static AlertType Companion = new AlertType();
                         static AlertType LOSS = new AlertType();
+                        static AlertType SIGNAL_RESTORED = new AlertType();
                         AlertType fromId(int kind) { return kind == 4 ? LOSS : this; }
                         int getNameResId() { return 0; }
                         boolean isLegacyOnlyId(int kind) { return false; }

@@ -204,7 +204,7 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.alert_falling_fast, R.string.alert_rising_fast),
             anchor = SettingsSearchAnchors.PREDICTIVE_ALERTS),
         SettingsSearchEntry(R.string.other_alerts, ALERTS, Icons.Default.NotificationsActive, E, route("settings/alerts"),
-            keywords = listOf(R.string.alert_loss, R.string.alert_missed_reading, R.string.alert_sensor_expiry),
+            keywords = listOf(R.string.alert_loss, R.string.alert_signal_restored, R.string.alert_missed_reading, R.string.alert_sensor_expiry),
             anchor = SettingsSearchAnchors.OTHER_ALERTS),
         SettingsSearchEntry(R.string.quiet_window_title, ALERTS, Icons.Default.DoNotDisturbOn, E, route("settings/alerts"),
             anchor = SettingsSearchAnchors.QUIET_WINDOW),
