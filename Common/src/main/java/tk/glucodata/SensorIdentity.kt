@@ -322,12 +322,13 @@ object SensorIdentity {
     }
 
     /**
-     * Importing history once pinned its serial here so the chart would show it. The chart
-     * shows every stored reading when no sensor is main, and a pin left by an older version
-     * must not pass for a sensor.
+     * Whether [removedSensor] held the main role, for code that runs after finishing it. A
+     * finished sensor no longer resolves as main, so finding no main sensor at all means it
+     * did, and the selection still has to be cleared.
      */
-    private fun isImportedHistoryPin(sensorId: String): Boolean =
-        sensorId == "__imported_csv__" || sensorId.equals("imported", ignoreCase = true)
+    @JvmStatic
+    fun lostMainRole(mainSensor: String?, removedSensor: String?): Boolean =
+        mainSensor.isNullOrBlank() || matches(mainSensor, removedSensor)
 
     private fun availableSensorCandidates(): Array<String?>? {
         val resolved = LinkedHashSet<String?>()
@@ -347,6 +348,14 @@ object SensorIdentity {
         return resolved.takeIf { it.isNotEmpty() }?.toTypedArray()
     }
 
+    /**
+     * The managed slot once also held the serial of imported history, which can be another
+     * phone's sensor. Only a driver's own record or a native slot makes the id a sensor here.
+     */
+    private fun hasSensorRecord(sensorId: String): Boolean =
+        ManagedSensorIdentityRegistry.resolvePersistedFamily(sensorId) != null ||
+            nativeMirrorSensorName(sensorId) != null
+
     private fun isFinishedSensor(sensorId: String): Boolean = runCatching {
         linkedSetOf(sensorId, resolveNativeSensorName(sensorId) ?: sensorId)
             .any(Natives::sensorFinishedById)
@@ -358,10 +367,10 @@ object SensorIdentity {
         selectedMain: String?,
         preferredSensorId: String?,
         activeSensors: Array<String?>?,
-        isFinished: (String) -> Boolean = ::isFinishedSensor
+        isFinished: (String) -> Boolean = ::isFinishedSensor,
+        hasRecord: (String) -> Boolean = ::hasSensorRecord
     ): String? {
         val managed = canonicalOrRaw(ManagedCurrentSensor.get())
-            ?.takeUnless(::isImportedHistoryPin)
         val active = activeSensors
             ?.mapNotNull(::canonicalOrRaw)
             ?.distinct()
@@ -374,7 +383,7 @@ object SensorIdentity {
             // scan-only sensors and ones silent for a day, and those stay the main sensor.
             // A finished one is gone. Native lastsensorname() falls back to the newest slot,
             // finished or not, so without this a removed sensor stays main for good.
-            return listOfNotNull(managed, canonicalSelected, canonicalPreferred)
+            return listOfNotNull(managed?.takeIf(hasRecord), canonicalSelected, canonicalPreferred)
                 .firstOrNull { !isFinished(it) }
         }
 

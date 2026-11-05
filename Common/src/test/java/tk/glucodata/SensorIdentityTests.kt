@@ -147,7 +147,8 @@ class SensorIdentityTests {
                 selectedMain = "finished-sensor",
                 preferredSensorId = null,
                 activeSensors = emptyArray(),
-                isFinished = { it == "finished-sensor" }
+                isFinished = { it == "finished-sensor" },
+                hasRecord = { it == "nightscout-follower" }
             )
         )
     }
@@ -167,15 +168,35 @@ class SensorIdentityTests {
 
     @Test
     fun resolveAvailableMainSensor_importedHistoryPinIsNotASensor() {
-        ManagedCurrentSensor.set("__imported_csv__")
-        assertNull(
-            SensorIdentity.resolveAvailableMainSensor(
-                selectedMain = null,
-                preferredSensorId = null,
-                activeSensors = emptyArray(),
-                isFinished = { false }
+        // Older imports pinned the synthetic id, or the file's newest real serial, which can
+        // belong to another phone: no driver record, no native slot, nothing to finish.
+        listOf("__imported_csv__", "imported", "other-phones-sensor").forEach { pin ->
+            ManagedCurrentSensor.set(pin)
+            assertNull(
+                pin,
+                SensorIdentity.resolveAvailableMainSensor(
+                    selectedMain = null,
+                    preferredSensorId = null,
+                    activeSensors = emptyArray(),
+                    isFinished = { false },
+                    hasRecord = { false }
+                )
             )
-        )
+        }
+    }
+
+    @Test
+    fun lostMainRole_finishedSensorLeavingNoMainStillCounts() {
+        // Clone teardown finishes first: by then the sensor no longer resolves as main, and
+        // comparing the two would skip clearing the selection and stopping its alarm.
+        assertTrue(SensorIdentity.lostMainRole(null, "clone-sensor"))
+        assertTrue(SensorIdentity.lostMainRole("", "clone-sensor"))
+        assertTrue(SensorIdentity.lostMainRole("clone-sensor", "clone-sensor"))
+    }
+
+    @Test
+    fun lostMainRole_anotherMainSensorIsLeftAlone() {
+        assertFalse(SensorIdentity.lostMainRole("other-sensor", "clone-sensor"))
     }
 
     @Test

@@ -53,6 +53,7 @@ public    void handlealarm() {
             // Nothing can have gone silent. The next reading arms this alarm again, so unless
             // a sender still has to be woken, let it lapse.
             if(doLog) {Log.i(LOG_ID, "handlealarm no sensor");};
+            Notify.stoplossalarm();
             if(shouldwake) {
                 LossOfSensorAlarm.setalarm(Applic.app, tryagain);
                 MessageSender.sendwakestream();

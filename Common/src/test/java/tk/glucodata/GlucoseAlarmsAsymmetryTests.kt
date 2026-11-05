@@ -123,6 +123,7 @@ class GlucoseAlarmsAsymmetryTests {
         val noSensorBranch = after(phone, gate).substringBefore("if(!haslossalarm)")
         assertTrue("the branch has to leave handlealarm", noSensorBranch.contains("return;"))
         assertFalse(noSensorBranch, noSensorBranch.contains("oldnotification("))
+        assertTrue("a loss alarm still sounding has nothing left to report", noSensorBranch.contains("Notify.stoplossalarm()"))
         assertTrue(
             "a sender still waiting to be woken must keep its alarm",
             noSensorBranch.contains("if(shouldwake)") && noSensorBranch.contains("LossOfSensorAlarm.setalarm("),
