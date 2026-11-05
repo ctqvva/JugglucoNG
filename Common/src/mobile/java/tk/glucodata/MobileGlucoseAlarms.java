@@ -49,6 +49,17 @@ public    void handlealarm() {
     final long nu = System.currentTimeMillis();
         boolean shouldwake = Natives.shouldwakesender();
         final long tryagain = nu + Notify.glucosetimeout;
+        if(!SensorIdentity.hasMainSensor()) {
+            // Nothing can have gone silent. The next reading arms this alarm again, so unless
+            // a sender still has to be woken, let it lapse.
+            if(doLog) {Log.i(LOG_ID, "handlealarm no sensor");};
+            if(shouldwake) {
+                LossOfSensorAlarm.setalarm(Applic.app, tryagain);
+                MessageSender.sendwakestream();
+                Natives.wakestreamsender();
+                }
+            return;
+            }
 
     long nexttime=tryagain;
         if(!haslossalarm) {

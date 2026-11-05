@@ -97,6 +97,88 @@ class SensorIdentityTests {
     }
 
     @Test
+    fun resolveAvailableMainSensor_dropsFinishedSensorWhenNoActiveSensorsRemain() {
+        // Native lastsensorname() falls back to the newest slot, finished or not.
+        assertNull(
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "X-222227KUFY",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { it == "X-222227KUFY" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_keepsUnfinishedSensorOutsideTheActiveList() {
+        // Scan-only sensors never enter native's active list, yet they are in use.
+        assertEquals(
+            "scan-only",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "scan-only",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { false }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_finishedManagedMirrorDoesNotOutliveItsRemoval() {
+        // Startup can restore the managed slot from a finished Ottai/Sibionics mirror.
+        ManagedCurrentSensor.set("finished-mirror")
+        assertNull(
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished-mirror",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { it == "finished-mirror" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_keepsFollowerWithNoNativeSensor() {
+        // Followers live outside native, which reports their ids as not finished.
+        ManagedCurrentSensor.set("nightscout-follower")
+        assertEquals(
+            "nightscout-follower",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished-sensor",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { it == "finished-sensor" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_finishedSelectionFallsToActiveSensor() {
+        assertEquals(
+            "live-sensor",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished-sensor",
+                preferredSensorId = null,
+                activeSensors = arrayOf("live-sensor"),
+                isFinished = { it == "finished-sensor" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_importedHistoryPinIsNotASensor() {
+        ManagedCurrentSensor.set("__imported_csv__")
+        assertNull(
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = null,
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { false }
+            )
+        )
+    }
+
+    @Test
     fun resolveAvailableMainSensor_returnsNullWhenNothingIsKnown() {
         assertNull(
             SensorIdentity.resolveAvailableMainSensor(

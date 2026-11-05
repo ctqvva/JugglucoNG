@@ -110,6 +110,29 @@ class GlucoseAlarmsAsymmetryTests {
     }
 
     @Test
+    fun neitherSideReportsALossOnceTheSensorWasRemoved() {
+        // Nothing can go silent with no sensor left: this path kept posting "No new value" and
+        // could sound the loss alarm for a sensor the user had just removed.
+        val gate = "if(!SensorIdentity.hasMainSensor()) {"
+        val phoneGate = phone.indexOf(gate)
+        assertTrue("the phone must check for a sensor", phoneGate >= 0)
+        assertTrue(
+            "the check has to come before anything that reports the loss",
+            phoneGate < phone.indexOf("oldnotification(") && phoneGate < phone.indexOf("lossalarm("),
+        )
+        val noSensorBranch = after(phone, gate).substringBefore("if(!haslossalarm)")
+        assertTrue("the branch has to leave handlealarm", noSensorBranch.contains("return;"))
+        assertFalse(noSensorBranch, noSensorBranch.contains("oldnotification("))
+        assertTrue(
+            "a sender still waiting to be woken must keep its alarm",
+            noSensorBranch.contains("if(shouldwake)") && noSensorBranch.contains("LossOfSensorAlarm.setalarm("),
+        )
+        // The watch keeps ticking for WearSync2 and can show the phone's readings with no
+        // native sensor, so only a sensor that really was removed silences its loss alarm.
+        assertTrue(watch, watch.contains("if(hasalarmloss() && !SensorIdentity.mainSensorWasRemoved())"))
+    }
+
+    @Test
     fun withNoLossAlarmThePhoneNotifiesAndTheWatchDoesNothing() {
         // This is the one I would call a candidate bug rather than a decision. Both read
         // hasalarmloss() and both skip the loss branch when it is false, but the phone then
@@ -120,7 +143,7 @@ class GlucoseAlarmsAsymmetryTests {
             "the phone is expected to notify about the stale value",
             phoneNoLoss.contains("Notify.onenot.oldnotification(wastime)"),
         )
-        val watchNoLoss = after(watch, "if(hasalarmloss())")
+        val watchNoLoss = after(watch, "if(hasalarmloss() &&")
         assertFalse(
             "today the watch does nothing when there is no loss alarm; if this now notifies, " +
                 "the change was intended and this line should say so",

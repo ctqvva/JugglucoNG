@@ -31,7 +31,8 @@ import java.util.concurrent.TimeUnit
 
 internal data class DashboardDataStatusText(
     val title: String,
-    val isStale: Boolean = false
+    val isStale: Boolean = false,
+    val isNoSensor: Boolean = false
 )
 
 internal fun shouldShowDashboardSensorStatus(
@@ -49,7 +50,7 @@ internal fun rememberDashboardDataStatusText(
     dataState: DisplayDataState.Status,
     sensorStatus: String
 ): DashboardDataStatusText? {
-    if (dataState.isFresh || dataState.kind == DisplayDataState.Kind.NO_SENSOR) {
+    if (dataState.isFresh) {
         return null
     }
 
@@ -72,6 +73,11 @@ internal fun rememberDashboardDataStatusText(
         DisplayDataState.Kind.AWAITING_DATA -> DashboardDataStatusText(
             title = meaningfulSensorStatus ?: stringResource(R.string.status_waiting_for_data),
             isStale = false
+        )
+
+        DisplayDataState.Kind.NO_SENSOR -> DashboardDataStatusText(
+            title = stringResource(R.string.no_sensor_title),
+            isNoSensor = true
         )
 
         else -> null

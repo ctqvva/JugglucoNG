@@ -842,6 +842,23 @@ public class SensorBluetooth {
 
     public static void setCurrentSensorSelection(String serial) {
         CurrentSensorSelection.select(serial);
+        if (serial == null || serial.isEmpty()) {
+            onMainSensorCleared();
+        }
+    }
+
+    /**
+     * Every route that leaves the app without a main sensor passes here. Nothing else tells
+     * the status surfaces: no further reading arrives to refresh them.
+     */
+    private static void onMainSensorCleared() {
+        try {
+            Notify.stoplossalarm();
+            GlucoseWidget.update();
+            UiRefreshBus.requestDataRefresh();
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, "onMainSensorCleared", t);
+        }
     }
 
     private static void addReplacementCandidate(

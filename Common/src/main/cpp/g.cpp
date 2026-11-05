@@ -625,6 +625,21 @@ fromjava(removeSensorById)(JNIEnv *env, jclass cl, jstring jsensor) {
   return removedAll ? JNI_TRUE : JNI_FALSE;
 }
 
+// Whether every native slot holding this id was finished or removed by the user.
+// An id native has no slot for is not finished: it is a source that lives outside
+// native, such as a Nightscout follower.
+extern "C" JNIEXPORT jboolean JNICALL
+fromjava(sensorFinishedById)(JNIEnv *env, jclass cl, jstring jsensor) {
+  const auto sensorindices = sensorIndicesFromId(env, jsensor);
+  if (sensorindices.empty())
+    return JNI_FALSE;
+  for (const int sensorindex : sensorindices) {
+    if (!sensors->getsensor(sensorindex)->finished)
+      return JNI_FALSE;
+  }
+  return JNI_TRUE;
+}
+
 // Retires a managed driver's native mirror shell by its full id. Unlike
 // removeSensorById this only marks the slot finished, so data written after
 // the same sensor is added again revives it. finishfromSensorptr cannot stand

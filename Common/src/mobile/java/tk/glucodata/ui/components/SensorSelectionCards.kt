@@ -237,6 +237,7 @@ fun ImportHistoryCard(
 fun DashboardEmptyState(
     onSensorSelected: (SensorType) -> Unit,
     onImportHistory: () -> Unit,
+    onSkip: () -> Unit,
     modifier: Modifier = Modifier,
     readinessContent: (@Composable () -> Unit)? = null
 ) {
@@ -271,14 +272,22 @@ fun DashboardEmptyState(
         horizontalAlignment = Alignment.Start
     ) {
         // Welcome header
-        Text(
-            text = stringResource(R.string.app_name),
-            style = brandStyle,
-            textAlign = TextAlign.Start,
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        )
+                .padding(start = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.app_name),
+                style = brandStyle,
+                textAlign = TextAlign.Start,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onSkip, shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(R.string.libre_setup_skip))
+            }
+        }
 
         Spacer(modifier = Modifier.height(if (compact) 16.dp else 20.dp))
 

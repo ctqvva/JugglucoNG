@@ -51,9 +51,10 @@ class GlucoseRepository {
         val current = _currentSerial.value
         val nativeCurrent = SensorIdentity.resolveMainSensor()
             ?.takeIf { it.isNotBlank() }
+        // No fallback to the current value: with no main sensor left, the flows have to fall
+        // back to all stored readings instead of following the removed sensor.
         val resolved = preferredSerial?.takeIf { it.isNotBlank() }
             ?: nativeCurrent
-            ?: current.takeIf { it.isNotBlank() }
             ?: ""
 
         if (resolved != current) {
