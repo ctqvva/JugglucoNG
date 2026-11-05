@@ -3287,15 +3287,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">Ändra nivåer och ljud, eller stäng av varningar</string>
     <string name="restricted_allow_voice_desc">Upplästa värden och larm</string>
     <string name="restricted_allow_display_desc">Målområde, diagram, aviseringar, flytande glukos och låsskärm</string>
-    <string name="restricted_sensor_day">Dag %1$d av %2$d</string>
-    <string name="restricted_sensor_last_hour">Mindre än en timme kvar</string>
-    <string name="restricted_sensor_end_passed">Slutdatumet har passerat</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d dag kvar</item>
-        <item quantity="other">%d dagar kvar</item>
-    </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d timme kvar</item>
-        <item quantity="other">%d timmar kvar</item>
-    </plurals>
+    <string name="restricted_sensor_ends">Slutar %1$s</string>
+    <string name="restricted_sensor_ended">Slut</string>
 </resources>

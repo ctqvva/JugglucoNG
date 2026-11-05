@@ -3356,15 +3356,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="restricted_allow_alarm_settings_desc">Szintek és hangok módosítása, riasztások kikapcsolása</string>
     <string name="restricted_allow_voice_desc">Felolvasott értékek és riasztások</string>
     <string name="restricted_allow_display_desc">Célérték-tartomány, grafikonok, értesítések, lebegő glükóz és zárolási képernyő</string>
-    <string name="restricted_sensor_day">%2$d napból a(z) %1$d.</string>
-    <string name="restricted_sensor_last_hour">Kevesebb mint egy óra van hátra</string>
-    <string name="restricted_sensor_end_passed">A záró dátum elmúlt</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d nap van hátra</item>
-        <item quantity="other">%d nap van hátra</item>
-    </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d óra van hátra</item>
-        <item quantity="other">%d óra van hátra</item>
-    </plurals>
+    <string name="restricted_sensor_ends">Lejár: %1$s</string>
+    <string name="restricted_sensor_ended">Lejárt</string>
 </resources>

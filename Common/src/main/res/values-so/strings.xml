@@ -3472,15 +3472,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="restricted_allow_alarm_settings_desc">Beddel heerarka iyo codadka, ama dami digniinaha</string>
     <string name="restricted_allow_voice_desc">Akhrinta iyo alaarmiyada codka ah</string>
     <string name="restricted_allow_display_desc">Xadka bartilmaameedka, jaantusyada, ogeysiisyada, sonkorta sabaynaysa iyo shaashadda quful</string>
-    <string name="restricted_sensor_day">Maalinta %1$d ee %2$d</string>
-    <string name="restricted_sensor_last_hour">In ka yar saacad ayaa hartay</string>
-    <string name="restricted_sensor_end_passed">Taariikhda dhammaadku way dhaaftay</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d maalin ayaa hartay</item>
-        <item quantity="other">%d maalmood ayaa hartay</item>
-    </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d saac ayaa hartay</item>
-        <item quantity="other">%d saacadood ayaa hartay</item>
-    </plurals>
+    <string name="restricted_sensor_ends">Wuxuu dhammaanayaa %1$s</string>
+    <string name="restricted_sensor_ended">Dhammaaday</string>
 </resources>

@@ -3378,19 +3378,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">Змінювати рівні та звуки або вимикати сповіщення</string>
     <string name="restricted_allow_voice_desc">Озвучення показників і тривог</string>
     <string name="restricted_allow_display_desc">Цільовий діапазон, графіки, сповіщення, плаваюча глюкоза та екран блокування</string>
-    <string name="restricted_sensor_day">День %1$d із %2$d</string>
-    <string name="restricted_sensor_last_hour">Залишилося менше години</string>
-    <string name="restricted_sensor_end_passed">Дата завершення минула</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">Залишився %d день</item>
-        <item quantity="few">Залишилося %d дні</item>
-        <item quantity="many">Залишилося %d днів</item>
-        <item quantity="other">Залишилося %d дня</item>
-    </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">Залишилася %d година</item>
-        <item quantity="few">Залишилося %d години</item>
-        <item quantity="many">Залишилося %d годин</item>
-        <item quantity="other">Залишилося %d години</item>
-    </plurals>
+    <string name="restricted_sensor_ends">Кінець: %1$s</string>
+    <string name="restricted_sensor_ended">Закінчився</string>
 </resources>

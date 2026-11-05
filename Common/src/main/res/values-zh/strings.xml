@@ -3295,13 +3295,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">更改阈值和声音，或关闭提醒</string>
     <string name="restricted_allow_voice_desc">语音播报读数和警报</string>
     <string name="restricted_allow_display_desc">目标范围、图表、通知、悬浮血糖和锁屏</string>
-    <string name="restricted_sensor_day">第 %1$d 天，共 %2$d 天</string>
-    <string name="restricted_sensor_last_hour">剩余不到一小时</string>
-    <string name="restricted_sensor_end_passed">已过结束日期</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="other">剩余 %d 天</item>
-    </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="other">剩余 %d 小时</item>
-    </plurals>
+    <string name="restricted_sensor_ends">结束于 %1$s</string>
+    <string name="restricted_sensor_ended">已结束</string>
 </resources>

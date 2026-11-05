@@ -3590,15 +3590,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">Change levels and sounds, or turn alerts off</string>
     <string name="restricted_allow_voice_desc">Spoken readings and alarms</string>
     <string name="restricted_allow_display_desc">Target range, charts, notifications, floating glucose and lock screen</string>
-    <string name="restricted_sensor_day">Day %1$d of %2$d</string>
-    <string name="restricted_sensor_last_hour">Less than an hour left</string>
-    <string name="restricted_sensor_end_passed">End date passed</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d day left</item>
-        <item quantity="other">%d days left</item>
-    </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d hour left</item>
-        <item quantity="other">%d hours left</item>
-    </plurals>
+    <string name="restricted_sensor_ends">Ends %1$s</string>
+    <string name="restricted_sensor_ended">Ended</string>
 </resources>

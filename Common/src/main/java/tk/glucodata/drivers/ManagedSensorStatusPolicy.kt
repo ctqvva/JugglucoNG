@@ -8,7 +8,6 @@ data class ManagedSensorLifecycleSummary(
     val daysText: String,
     val currentDay: Int,
     val remainingHours: Long,
-    val totalDays: Int = 0,
 )
 
 object ManagedSensorStatusPolicy {
@@ -161,7 +160,6 @@ object ManagedSensorStatusPolicy {
             daysText = "$currentDay / $totalDays",
             currentDay = currentDay,
             remainingHours = remainingHours,
-            totalDays = totalDays.toInt(),
         )
     }
 }

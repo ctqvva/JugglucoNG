@@ -3388,15 +3388,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="restricted_allow_alarm_settings_desc">Түвшин, дуу өөрчлөх эсвэл сэрэмжлүүлгийг унтраах</string>
     <string name="restricted_allow_voice_desc">Уншсан утга ба дохио</string>
     <string name="restricted_allow_display_desc">Зорилтот хүрээ, график, мэдэгдэл, хөвөгч глюкоз, түгжээний дэлгэц</string>
-    <string name="restricted_sensor_day">%2$d өдрийн %1$d дэх өдөр</string>
-    <string name="restricted_sensor_last_hour">Нэг цаг хүрэхгүй үлдсэн</string>
-    <string name="restricted_sensor_end_passed">Дуусах огноо өнгөрсөн</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d өдөр үлдсэн</item>
-        <item quantity="other">%d өдөр үлдсэн</item>
-    </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d цаг үлдсэн</item>
-        <item quantity="other">%d цаг үлдсэн</item>
-    </plurals>
+    <string name="restricted_sensor_ends">Дуусах: %1$s</string>
+    <string name="restricted_sensor_ended">Дууссан</string>
 </resources>

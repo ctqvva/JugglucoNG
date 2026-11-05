@@ -3294,15 +3294,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">Modifier les seuils et les sons, ou couper les alertes</string>
     <string name="restricted_allow_voice_desc">Lecture vocale des valeurs et des alarmes</string>
     <string name="restricted_allow_display_desc">Plage cible, graphiques, notifications, glycémie flottante et écran de verrouillage</string>
-    <string name="restricted_sensor_day">Jour %1$d sur %2$d</string>
-    <string name="restricted_sensor_last_hour">Moins d\'une heure restante</string>
-    <string name="restricted_sensor_end_passed">Date de fin dépassée</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d jour restant</item>
-        <item quantity="other">%d jours restants</item>
-    </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d heure restante</item>
-        <item quantity="other">%d heures restantes</item>
-    </plurals>
+    <string name="restricted_sensor_ends">Se termine %1$s</string>
+    <string name="restricted_sensor_ended">Terminé</string>
 </resources>

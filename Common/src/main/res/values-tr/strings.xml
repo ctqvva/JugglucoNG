@@ -3315,15 +3315,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="restricted_allow_alarm_settings_desc">Seviyeleri ve sesleri değiştir veya uyarıları kapat</string>
     <string name="restricted_allow_voice_desc">Sesli okunan değerler ve alarmlar</string>
     <string name="restricted_allow_display_desc">Hedef aralık, grafikler, bildirimler, kayan glukoz ve kilit ekranı</string>
-    <string name="restricted_sensor_day">Gün %1$d / %2$d</string>
-    <string name="restricted_sensor_last_hour">Bir saatten az kaldı</string>
-    <string name="restricted_sensor_end_passed">Bitiş tarihi geçti</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d gün kaldı</item>
-        <item quantity="other">%d gün kaldı</item>
-    </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d saat kaldı</item>
-        <item quantity="other">%d saat kaldı</item>
-    </plurals>
+    <string name="restricted_sensor_ends">Bitiş: %1$s</string>
+    <string name="restricted_sensor_ended">Bitti</string>
 </resources>

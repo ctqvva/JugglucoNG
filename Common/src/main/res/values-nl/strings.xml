@@ -3330,15 +3330,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="restricted_allow_alarm_settings_desc">Niveaus en geluiden wijzigen, of meldingen uitzetten</string>
     <string name="restricted_allow_voice_desc">Uitgesproken waarden en alarmen</string>
     <string name="restricted_allow_display_desc">Doelbereik, grafieken, meldingen, zwevende glucose en vergrendelscherm</string>
-    <string name="restricted_sensor_day">Dag %1$d van %2$d</string>
-    <string name="restricted_sensor_last_hour">Minder dan een uur over</string>
-    <string name="restricted_sensor_end_passed">Einddatum voorbij</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">Nog %d dag</item>
-        <item quantity="other">Nog %d dagen</item>
-    </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">Nog %d uur</item>
-        <item quantity="other">Nog %d uur</item>
-    </plurals>
+    <string name="restricted_sensor_ends">Eindigt %1$s</string>
+    <string name="restricted_sensor_ended">Afgelopen</string>
 </resources>
