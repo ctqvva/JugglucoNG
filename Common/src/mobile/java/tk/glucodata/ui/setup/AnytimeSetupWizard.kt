@@ -75,6 +75,7 @@ import kotlinx.coroutines.withContext
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.drivers.anytime.AnytimeAlgorithm
 import tk.glucodata.drivers.anytime.AnytimeConstants
 import tk.glucodata.drivers.anytime.AnytimeRegistry
@@ -224,6 +225,7 @@ fun AnytimeSetupWizard(
                 ) {
                     SensorSetupConnectingScreen(
                         ui = ui,
+                        sensor = SensorType.ANYTIME,
                         sensorLabel = selectedLabel.ifBlank { null }
                     )
                 }
@@ -233,6 +235,7 @@ fun AnytimeSetupWizard(
                 ) {
                     SensorSetupSuccessScreen(
                         ui = ui,
+                        sensor = SensorType.ANYTIME,
                         sensorLabel = selectedLabel.ifBlank { null }
                     )
                 }

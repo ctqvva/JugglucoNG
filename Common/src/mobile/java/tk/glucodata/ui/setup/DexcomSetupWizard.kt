@@ -15,6 +15,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tk.glucodata.DexcomManualPairing
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorHeroCard
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.ui.components.AppTopBar
 
 /** Dexcom setup through either the applicator data matrix or its printed pairing code. */
@@ -83,10 +85,14 @@ fun DexcomSetupWizard(
             tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             Spacer(modifier = Modifier.height(ui.spacerMedium))
 
+            SensorHeroCard(SensorType.DEXCOM, stringResource(R.string.dexcom_scan_instruction))
+
+            Spacer(modifier = Modifier.height(ui.spacerMedium))
+
             InlineQrScannerCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (ui.compact) 320.dp else 380.dp),
+                    .height(if (ui.compact) 240.dp else 280.dp),
                 onScanResult = { raw ->
                     if (!handledScan) {
                         handledScan = true
@@ -110,15 +116,6 @@ fun DexcomSetupWizard(
             ) {
                 Text(stringResource(R.string.enter_code_manually))
             }
-
-            Spacer(modifier = Modifier.height(ui.spacerSmall))
-
-            Text(
-                text = stringResource(R.string.dexcom_scan_instruction),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
 
             Spacer(modifier = Modifier.height(24.dp))
 

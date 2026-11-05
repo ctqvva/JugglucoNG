@@ -52,7 +52,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,6 +80,8 @@ import tk.glucodata.ui.components.IconTile
 import tk.glucodata.Libre3NfcSettings
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorHeroArt
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
@@ -277,26 +278,10 @@ fun LibreSetupWizard(
                             .padding(horizontal = ui.horizontalPadding, vertical = ui.spacerSmall),
                         verticalArrangement = Arrangement.spacedBy(ui.spacerMedium)
                     ) {
-                        Surface(
-                            modifier = Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .size(if (ui.compact) 88.dp else 104.dp),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Nfc,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(if (ui.compact) 44.dp else 52.dp)
-                                )
-                            }
-                        }
+                        SensorHeroArt(
+                            type = SensorType.LIBRE,
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        )
 
                         Column(
                             modifier = Modifier.fillMaxWidth(),

@@ -3367,4 +3367,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Reordenar alimentos</string>
     <string name="food_move_up">Mover para cima</string>
     <string name="food_move_down">Mover para baixo</string>
+    <string name="scan_sensor_qr">Digitalizar o código QR do sensor</string>
 </resources>

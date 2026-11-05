@@ -40,6 +40,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.drivers.aidex.AiDexSetupKeyGate
 import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
@@ -210,6 +211,7 @@ fun AiDexSetupWizard(
                 ) {
                     SensorSetupConnectingScreen(
                         ui = ui,
+                        sensor = SensorType.AIDEX,
                         sensorLabel = selectedDeviceName.ifBlank { null }
                     )
                 }
@@ -219,6 +221,7 @@ fun AiDexSetupWizard(
                 ) {
                     SensorSetupSuccessScreen(
                         ui = ui,
+                        sensor = SensorType.AIDEX,
                         sensorLabel = selectedDeviceName.ifBlank { null }
                     )
                 }

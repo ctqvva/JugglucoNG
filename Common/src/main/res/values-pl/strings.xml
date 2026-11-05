@@ -3425,4 +3425,5 @@
     <string name="food_reorder">Zmień kolejność produktów</string>
     <string name="food_move_up">Przenieś w górę</string>
     <string name="food_move_down">Przenieś w dół</string>
+    <string name="scan_sensor_qr">Zeskanuj kod QR sensora</string>
 </resources>

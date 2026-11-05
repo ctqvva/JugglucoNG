@@ -3365,4 +3365,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Ändra ordning på livsmedel</string>
     <string name="food_move_up">Flytta upp</string>
     <string name="food_move_down">Flytta ner</string>
+    <string name="scan_sensor_qr">Skanna sensorns QR-kod</string>
 </resources>

@@ -159,6 +159,7 @@ Reach for these before building a surface by hand.
 | A destructive row | `DangerItem` | same |
 | Group label | `SectionLabel` (24 above, 8 below) | same |
 | Leading icon of a row/card | `IconTile` | `components/IconTile.kt` |
+| A sensor family, shown as itself | `SensorArtTile` in a list, `SensorHeroArt` / `SensorHeroCard` at wizard size; drawn from theme roles, no maker's name; add a `SensorType` and the compiler asks for its drawing and shape | `components/SensorArt.kt`, `components/SensorArtTile.kt` |
 | 2–5 exclusive choices | `ConnectedButtonGroup` (material3 `ToggleButton`s, connected shapes) | `util/ConnectedButtonGroup.kt` |
 | Two buttons as one control | `ConnectedButtonShapes` | `components/ConnectedButtonShapes.kt` |
 | An action with a related second action | `SplitButtonLayout` + `SplitButtonDefaults` | material3 |

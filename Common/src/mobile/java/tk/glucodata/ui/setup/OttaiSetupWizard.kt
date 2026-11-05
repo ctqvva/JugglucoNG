@@ -86,6 +86,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.drivers.ottai.OttaiBleManager
 import tk.glucodata.drivers.ottai.OttaiCloudClient
@@ -1634,6 +1635,7 @@ fun OttaiSetupWizard(
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         SensorSetupConnectingScreen(
                             ui = ui,
+                            sensor = SensorType.OTTAI,
                             sensorLabel = cloudId.ifBlank { null },
                             supportingText = connectionStatus,
                         )
@@ -1643,7 +1645,7 @@ fun OttaiSetupWizard(
                 OttaiSetupStep.SUCCESS -> {
                     LaunchedScreenComplete(onComplete)
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        SensorSetupSuccessScreen(ui = ui, sensorLabel = cloudId.ifBlank { null })
+                        SensorSetupSuccessScreen(ui = ui, sensor = SensorType.OTTAI, sensorLabel = cloudId.ifBlank { null })
                     }
                 }
             }
