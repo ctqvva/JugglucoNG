@@ -1051,6 +1051,8 @@ public class Natives {
         public static native boolean removeSensorById(String sensorId);
 
         public static native boolean finishSensorById(String sensorId);
+        /** True when every native slot of this id is finished or removed; false for an id native does not know. */
+        public static native boolean sensorFinishedById(String sensorId);
 
         public static native void unfinishSensor(long dataptr);
 

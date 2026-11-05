@@ -769,6 +769,8 @@ private fun List<GlucosePoint>.sliceByTimestampRange(startMillis: Long, endMilli
 fun DashboardChartSection(
     modifier: Modifier,
     glucoseHistory: List<GlucosePoint>,
+    /** Show the grid and target band over an empty timeline, not a blank box. */
+    drawWithoutReadings: Boolean = false,
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
     primarySensorId: String? = null,
     mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership = tk.glucodata.chart.MainSensorOwnership.NONE,
@@ -831,9 +833,10 @@ fun DashboardChartSection(
                 // With bounds the chart composes before its window has loaded:
                 // it has to, since it is the chart's viewport that says which
                 // window to load.
-                if (glucoseHistory.isNotEmpty() || dataBounds != null) {
+                if (glucoseHistory.isNotEmpty() || dataBounds != null || drawWithoutReadings) {
                     InteractiveGlucoseChart(
                         fullData = glucoseHistory,
+                        drawWithoutReadings = drawWithoutReadings,
                         primarySensorId = primarySensorId,
                         dataBounds = dataBounds,
                         onVisibleRangeChanged = onVisibleRangeChanged,
@@ -952,6 +955,7 @@ private data class ChartBleedClipShape(
 @Composable
 fun InteractiveGlucoseChart(
     fullData: List<GlucosePoint>,
+    drawWithoutReadings: Boolean = false,
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
     primarySensorId: String? = null,
     mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership = tk.glucodata.chart.MainSensorOwnership.NONE,
@@ -2768,7 +2772,7 @@ fun InteractiveGlucoseChart(
                 val viewportEnd = centerTime + currentDur / 2
                 
                 // Data Access (Strict Guards)
-                if (renderData.isEmpty()) return@Canvas
+                if (renderData.isEmpty() && !drawWithoutReadings) return@Canvas
 
                 // 2. SEARCH RANGE (With ample padding to prevent popping)
                 val padding = currentDur / 2 // 50% padding on each side

@@ -944,8 +944,7 @@ class SensorViewModel : ViewModel() {
     // already synced.
     private fun switchAwayFromSensor(serial: String) {
         try {
-            val current = SensorIdentity.resolveMainSensor()
-            if (SensorIdentity.matches(current, serial)) {
+            if (SensorIdentity.lostMainRole(SensorIdentity.resolveMainSensor(), serial)) {
                 val next = SensorBluetooth.resolveReplacementSensorSerial(serial)
                 if (next != null) {
                     SensorBluetooth.setCurrentSensorSelection(next)

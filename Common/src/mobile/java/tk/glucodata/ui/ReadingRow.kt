@@ -768,6 +768,8 @@ fun JournalTimelineRow(
     index: Int = 0,
     totalCount: Int = 1,
     dividerHorizontalInset: Dp = 16.dp,
+    // Lines the chips up with rows that do carry a value, at the cost of their width.
+    reserveValueSlot: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val view = LocalView.current
@@ -841,7 +843,9 @@ fun JournalTimelineRow(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(valueSlotWidth))
+                if (reserveValueSlot) {
+                    Spacer(modifier = Modifier.width(valueSlotWidth))
+                }
             }
 
             if (index < totalCount - 1) {

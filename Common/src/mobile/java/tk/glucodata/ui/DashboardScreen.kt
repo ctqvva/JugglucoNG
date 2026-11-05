@@ -289,6 +289,7 @@ fun DashboardScreen(
     onNavigateToAppUpdates: () -> Unit = {},
     onNavigateToQuietWindow: () -> Unit = {},
     onNavigateToPredictionModelProfile: () -> Unit = {},
+    onNavigateToSensors: () -> Unit = {},
     onTriggerCalibration: (CalibrationSheetState) -> Unit = {}
 ) {
     // Read once here: the LazyColumns below use Arrangement.spacedBy, which reserves its gap
@@ -407,6 +408,8 @@ fun DashboardScreen(
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val activeSensorList by viewModel.activeSensorList.collectAsStateWithLifecycle()
+    val sensorSetupSkipped by viewModel.sensorSetupSkipped.collectAsStateWithLifecycle()
+    val hasSensorContext = sensorName.isNotBlank() || activeSensorList.isNotEmpty()
     val sensorHoursRemaining by viewModel.sensorHoursRemaining.collectAsStateWithLifecycle()
     val currentDay by viewModel.currentDay.collectAsStateWithLifecycle()
     val predictionCalibrationRefresh by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
@@ -631,6 +634,7 @@ fun DashboardScreen(
         }
     }
     val predictionSeries = remember(
+        hasSensorContext,
         journalEnabled,
         predictionSettings,
         consumerHistory,
@@ -643,16 +647,22 @@ fun DashboardScreen(
         targetLow,
         targetHigh
     ) {
-        buildPredictionSeriesForChart(
-            points = consumerHistory,
-            journalEntries = if (journalEnabled) scopedJournalEntries else emptyList(),
-            insulinPresetsById = journalPresetsById,
-            unit = unit,
-            targetLow = targetLow,
-            targetHigh = targetHigh,
-            viewMode = viewMode,
-            settings = predictionSettings
-        )
+        // A forecast continues a sensor's readings, so with none connected there is nothing
+        // for it to continue.
+        if (!hasSensorContext) {
+            emptyList()
+        } else {
+            buildPredictionSeriesForChart(
+                points = consumerHistory,
+                journalEntries = if (journalEnabled) scopedJournalEntries else emptyList(),
+                insulinPresetsById = journalPresetsById,
+                unit = unit,
+                targetLow = targetLow,
+                targetHigh = targetHigh,
+                viewMode = viewMode,
+                settings = predictionSettings
+            )
+        }
     }
     val stateDoseHintProfileNoticeDue = StateDoseHintCalculator.profileNoticeDue(
         hintPresent = stateDoseHint != null,
@@ -778,7 +788,7 @@ fun DashboardScreen(
                                     toast(context.getString(R.string.import_no_glucose))
                                 } else {
                                     toast(context.getString(R.string.imported_readings_count, outcome.readings))
-                                    viewModel.onHistoryImported(outcome.displaySerial)
+                                    viewModel.onHistoryImported()
                                 }
                             }
                             .onFailure { throwable ->
@@ -794,7 +804,7 @@ fun DashboardScreen(
                         when {
                             result.success && result.successCount > 0 -> {
                                 toast(context.getString(R.string.imported_readings_count, result.successCount))
-                                viewModel.onHistoryImported(tk.glucodata.data.HistoryRepository.IMPORTED_SENSOR_SERIAL)
+                                viewModel.onHistoryImported()
                             }
                             result.success -> toast(context.getString(R.string.import_no_glucose))
                             // Say what was wrong with the file — a bare
@@ -1016,7 +1026,6 @@ fun DashboardScreen(
                 }
             }
             val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
-            val hasSensorContext = sensorName.isNotBlank() || activeSensorList.isNotEmpty() || sensorStatus.isNotBlank()
             val dashboardCurrentSnapshot = remember(
                 refreshRevision,
                 sensorName,
@@ -1398,7 +1407,48 @@ fun DashboardScreen(
             val recentReadingJournalEntries = remember(recentReadings, consumerHistory, dashboardJournalEntries) {
                 groupJournalEntriesByReading(recentReadings, dashboardJournalEntries, history = consumerHistory)
             }
-            val hasVisibleReadingContent = dashboardDataState.isFresh || recentReadings.isNotEmpty()
+            val journalOnlyRows = remember(recentReadings, recentReadingJournalEntries, dashboardJournalEntries) {
+                journalRowsAfterReadings(
+                    entries = dashboardJournalEntries,
+                    readingEntries = recentReadingJournalEntries,
+                    newestReadingMillis = recentReadings.maxOfOrNull { it.timestamp }
+                )
+            }
+            val journalOnlyRowsContent: (@Composable () -> Unit)? = if (journalOnlyRows.isEmpty()) {
+                null
+            } else {
+                {
+                    // One past the end while readings follow, so the last of these draws the
+                    // divider above them.
+                    val rowCount = journalOnlyRows.size + if (recentReadings.isEmpty()) 0 else 1
+                    journalOnlyRows.forEachIndexed { index, row ->
+                        key(row.timestamp) {
+                            JournalTimelineRow(
+                                timestamp = row.timestamp,
+                                unit = unit,
+                                journalEntries = row.entries,
+                                journalPresetsById = journalPresetsById,
+                                journalFoodsById = journalFoodsById,
+                                onJournalEntryClick = { entry ->
+                                    lastJournalType = entry.type
+                                    clearJournalAction()
+                                    journalEditorRequest = JournalEditorRequest(entry.type, entry.timestamp, entry)
+                                },
+                                onAddJournalEntry = {
+                                    clearJournalAction()
+                                    journalEditorRequest = JournalEditorRequest(lastJournalType, row.timestamp)
+                                },
+                                index = index,
+                                totalCount = rowCount,
+                                reserveValueSlot = false
+                            )
+                        }
+                    }
+                }
+            }
+            // Calibrating needs a sensor, whatever history is still on screen.
+            val hasVisibleReadingContent = hasSensorContext &&
+                (dashboardDataState.isFresh || recentReadings.isNotEmpty())
 
             val triggerCalibrationIfEnabled: (CalibrationSheetState) -> Unit = { state ->
                 val targetSensorId = when (state) {
@@ -1443,8 +1493,9 @@ fun DashboardScreen(
         // Empty state check
             if (isLoading) {
             Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
-            } else if (glucoseHistory.isEmpty() && !hasSensorContext) {
+            } else if (glucoseHistory.isEmpty() && !hasSensorContext && !sensorSetupSkipped) {
             tk.glucodata.ui.components.DashboardEmptyState(
+                onContinueWithoutSensor = viewModel::skipSensorSetup,
                 onSensorSelected = { type ->
                     when (type) {
                         tk.glucodata.ui.components.SensorType.SIBIONICS -> showSibionicsWizard = true
@@ -1541,6 +1592,7 @@ fun DashboardScreen(
                                 arrowForecastColorsEnabled = glucoseArrowForecastEnabled,
                                 quietWindowUntilMs = quietWindowUntilMs,
                                 onQuietWindowClick = onNavigateToQuietWindow,
+                                onAddSensorClick = onNavigateToSensors,
                                 onHeroClick = {
                                     val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
                                     val rawVal = latestPoint?.rawValue ?: autoVal
@@ -1596,7 +1648,8 @@ fun DashboardScreen(
                             unit = unit,
                             viewMode = viewMode,
                             footerLabel = stringResource(R.string.historyname),
-                            onViewHistory = onNavigateToHistory
+                            onViewHistory = onNavigateToHistory,
+                            leadingRows = journalOnlyRowsContent
                         ) { index, item ->
                             ReadingRow(
                                 point = item,
@@ -1696,6 +1749,7 @@ fun DashboardScreen(
                                     DashboardChartSection(
                                         modifier = Modifier.fillMaxSize(),
                                         glucoseHistory = glucoseHistory,
+                                        drawWithoutReadings = !hasSensorContext,
                                         primarySensorId = sensorName,
                                         dataBounds = chartDataBounds,
                                         onVisibleRangeChanged = viewModel::onChartViewportChanged,
@@ -1855,6 +1909,7 @@ fun DashboardScreen(
                                 arrowForecastColorsEnabled = glucoseArrowForecastEnabled,
                                 quietWindowUntilMs = quietWindowUntilMs,
                                 onQuietWindowClick = onNavigateToQuietWindow,
+                                onAddSensorClick = onNavigateToSensors,
                                 onHeroClick = {
                                     val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
                                     val rawVal = latestPoint?.rawValue ?: autoVal
@@ -1945,6 +2000,7 @@ fun DashboardScreen(
                                             .fillMaxSize()
                                             .padding(bottom = 0.dp),
                                         glucoseHistory = glucoseHistory,
+                                        drawWithoutReadings = !hasSensorContext,
                                         primarySensorId = sensorName,
                                         dataBounds = chartDataBounds,
                                         onVisibleRangeChanged = viewModel::onChartViewportChanged,
@@ -2071,7 +2127,8 @@ fun DashboardScreen(
                             unit = unit,
                             viewMode = viewMode,
                             footerLabel = stringResource(R.string.historyname),
-                            onViewHistory = onNavigateToHistory
+                            onViewHistory = onNavigateToHistory,
+                            leadingRows = journalOnlyRowsContent
                         ) { index, item ->
                             ReadingRow(
                                 point = item,

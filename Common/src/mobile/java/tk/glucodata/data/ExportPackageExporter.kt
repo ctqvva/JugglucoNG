@@ -79,10 +79,7 @@ object ExportPackageExporter {
         val journalFoods: Int,
         val insulinPresets: Int,
         val calibrations: Int,
-        val restartRequired: Boolean,
-        // Serial to display on the dashboard for the imported glucose (may be a
-        // synthetic "imported"/"__imported_csv__" id when the file had no serial).
-        val historyDisplaySerial: String? = null
+        val restartRequired: Boolean
     )
 
     data class BackupValidationSummary(
@@ -102,16 +99,14 @@ object ExportPackageExporter {
 
     // Result of importing only the glucose/history section.
     data class HistoryOnlyImport(
-        val readings: Int,
-        val displaySerial: String?
+        val readings: Int
     )
 
     private data class HistoryImportSummary(
         val readings: Int = 0,
         val journalEntries: Int = 0,
         val journalFoods: Int = 0,
-        val insulinPresets: Int = 0,
-        val displaySerial: String? = null
+        val insulinPresets: Int = 0
     )
 
     suspend fun exportToUri(
@@ -360,8 +355,7 @@ object ExportPackageExporter {
                         journalFoods = historySummary.journalFoods,
                         insulinPresets = historySummary.insulinPresets,
                         calibrations = calibrationCount,
-                        restartRequired = settingsResult != null,
-                        historyDisplaySerial = historySummary.displaySerial
+                        restartRequired = settingsResult != null
                     )
                 }
             }
@@ -389,7 +383,7 @@ object ExportPackageExporter {
                     val history = payload.optJSONObject("history") ?: return@withLock null
                     val aidex = prepareAiDexImport(appContext, uri, imported, drivers, validateSettings = false)
                     val summary = importHistorySection(appContext, uri, history, aidex)
-                    HistoryOnlyImport(readings = summary.readings, displaySerial = summary.displaySerial)
+                    HistoryOnlyImport(readings = summary.readings)
                 }
             }
         }
@@ -842,7 +836,6 @@ object ExportPackageExporter {
         // A full history does not fit in memory as one list (#627), so readings are merged a
         // chunk at a time; the first pass has already shown the file parses to the end.
         var importedReadings = 0
-        var newestReading: HistoryReading? = null
         val pendingReadings = ArrayList<HistoryReading>(IMPORT_CHUNK)
         val pendingTombstones = ArrayList<DeletedHistoryReading>(IMPORT_CHUNK)
         suspend fun flushReadings() {
@@ -862,9 +855,6 @@ object ExportPackageExporter {
             mapOf(
                 HISTORY_READINGS to StreamedArraySink { element ->
                     val reading = element?.toHistoryReading() ?: return@StreamedArraySink
-                    if (newestReading.let { it == null || reading.timestamp > it.timestamp }) {
-                        newestReading = reading
-                    }
                     pendingReadings += reading
                     if (pendingReadings.size >= IMPORT_CHUNK) flushReadings()
                 },
@@ -895,16 +885,11 @@ object ExportPackageExporter {
             }
             tk.glucodata.NightscoutUploadWake.afterJournalChange()
         }
-        // Serial to key the dashboard on: the newest reading's serial (already
-        // normalized to "imported" by toHistoryReading() when the file had none).
-        val displaySerial = newestReading?.sensorSerial
-
         return HistoryImportSummary(
             readings = importedReadings,
             journalEntries = entries.size,
             journalFoods = foods.size,
-            insulinPresets = insulinPresets.size,
-            displaySerial = displaySerial
+            insulinPresets = insulinPresets.size
         )
     }
 
