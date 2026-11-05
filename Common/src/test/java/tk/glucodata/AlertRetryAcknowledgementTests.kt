@@ -308,6 +308,10 @@ class AlertRetryAcknowledgementTests {
                         static void stoplossalarm() { onenot.soundingKind = -1; }
                     }
                     static class SensorBluetooth { static void reconnectall() {} static void ensureCurrentSensorSelection() {} }
+                    static class SensorIdentity {
+                        static boolean hasMainSensor() { return true; }
+                        static boolean mainSensorWasRemoved() { return false; }
+                    }
                     static class View { void postInvalidate() {} }
                     static class Floating { static View floatview; }
                     static class SuperGattCallback {

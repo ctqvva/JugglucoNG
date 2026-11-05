@@ -50,7 +50,7 @@ public    void handlealarm() {
         final long tryagain = nu + Notify.glucosetimeout;
         long nexttime=tryagain;
 
-        if(hasalarmloss())  {
+        if(hasalarmloss() && !SensorIdentity.mainSensorWasRemoved())  {
             final long afterwait = waitmmsec() + wastime;
             if(afterwait > nu) {
                 if(doLog) {Log.i(LOG_ID, "handlealarm notify");};

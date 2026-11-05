@@ -423,6 +423,8 @@
     <!-- Newly Extracted Strings -->
     <string name="import_history">导入历史记录</string>
     <string name="import_history_desc">从 JugglucoNG 导出文件或 CSV 文件导入血糖数据</string>
+    <string name="continue_without_sensor">不使用传感器继续</string>
+    <string name="continue_without_sensor_desc">在日志中记录胰岛素、食物和指尖血糖</string>
     <string name="get_started_desc">首先添加您的传感器</string>
     <string name="select_sensor">选择传感器类型</string>
     <string name="select_sibionics_type">选择 Sibionics 传感器</string>
@@ -698,7 +700,7 @@
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">扫描 Accu-Chek SmartGuide 传感器上的数据矩阵</string>
     <string name="accuchek_setup_title">Accu-Chek 设置</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">添加传感器</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">已连接！</string>
@@ -896,7 +898,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newdata">"New data"</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">未连接传感器</string>
     <string name="nonewdata">"No new data"</string>
     <string name="not">Not</string>
     <string name="notalldata">WARNING: “Receive from” not set, but some data types are not sent.</string>

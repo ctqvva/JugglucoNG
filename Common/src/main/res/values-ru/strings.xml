@@ -513,6 +513,8 @@
     <!-- Newly Extracted Strings -->
     <string name="import_history">Импорт истории</string>
     <string name="import_history_desc">Импорт данных глюкозы из экспорта JugglucoNG или CSV-файла</string>
+    <string name="continue_without_sensor">Продолжить без датчика</string>
+    <string name="continue_without_sensor_desc">Записывайте инсулин, еду и пальцевые замеры в журнал</string>
     <string name="get_started_desc">Начните с добавления вашего сенсора</string>
     <string name="select_sensor">Выберите тип сенсора</string>
     <string name="select_sibionics_type">Выберите сенсор Sibionics</string>
@@ -938,7 +940,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="min_glucose">Мин</string>
     <string name="newdata">"New data"</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Датчик не подключён</string>
     <string name="nonewdata">"No new data"</string>
     <string name="not">Not</string>
     <string name="notalldata">WARNING: “Receive from” not set, but some data types are not sent.</string>

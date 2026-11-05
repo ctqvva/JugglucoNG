@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -59,6 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp as lerpColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.key
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -258,6 +261,7 @@ fun DashboardCombinedHeader(
     peerReadings: List<PeerCurrentReading> = emptyList(),
     onPeerReadingClick: (String) -> Unit = {},
     onHeroClick: () -> Unit = {},
+    onAddSensorClick: () -> Unit = {},
     // The alarm quiet window: 0 = none, and then nothing is drawn. A running one
     // shows as a chip with its end time; tapping it opens the quiet-window screen.
     quietWindowUntilMs: Long = 0L,
@@ -677,7 +681,39 @@ fun DashboardCombinedHeader(
                     AdaptiveContentWidthClass.Expanded -> MaterialTheme.typography.headlineSmall
                 }.copy(fontFeatureSettings = "tnum")
 
-                if (statusCopy != null) {
+                if (statusCopy?.isNoSensor == true) {
+                    // Beside the button only while the title still fits in its two lines: a long
+                    // translation at a large font size would otherwise be cut off mid-word.
+                    val addSensorLabel = stringResource(R.string.add_sensor)
+                    val buttonLabelStyle = MaterialTheme.typography.labelLarge
+                    val titleBesideButtonFits = !isLandscape && with(density) {
+                        val buttonWidth = heroTextMeasurer.measure(addSensorLabel, style = buttonLabelStyle, maxLines = 1)
+                            .size.width + ButtonDefaults.ContentPadding.calculateStartPadding(LayoutDirection.Ltr).roundToPx() * 2
+                        val chromeWidth = (resolvedStartPadding + resolvedEndPadding + 12.dp).roundToPx()
+                        val titleWidth = heroContentWidthPx - buttonWidth - chromeWidth
+                        heroContentWidthPx == 0 || (titleWidth > 0 && !heroTextMeasurer.measure(
+                            statusCopy.title,
+                            style = statusTitleStyle,
+                            maxLines = 2,
+                            constraints = Constraints(maxWidth = titleWidth)
+                        ).hasVisualOverflow)
+                    }
+                    NoSensorHeroContent(
+                        title = statusCopy.title,
+                        titleStyle = statusTitleStyle,
+                        contentColor = glucoseContentColor,
+                        stacked = !titleBesideButtonFits,
+                        onAddSensorClick = onAddSensorClick,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                start = resolvedStartPadding,
+                                end = resolvedEndPadding,
+                                top = resolvedVerticalPadding,
+                                bottom = resolvedVerticalPadding
+                            )
+                    )
+                } else if (statusCopy != null) {
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
@@ -913,10 +949,12 @@ fun DashboardCombinedHeader(
     }
 
     val heroCard: @Composable (Modifier) -> Unit = { modifier ->
+        // Alone in the row, the card takes the sensor card's outer corners too.
+        val heroAlone = statusCopy?.isNoSensor == true
         val heroShape = RoundedCornerShape(
             topStart = heroTopStart,
-            topEnd = heroTopEnd,
-            bottomEnd = heroBottomEnd,
+            topEnd = if (heroAlone) sensorTopEnd else heroTopEnd,
+            bottomEnd = if (heroAlone) sensorBottomEnd else heroBottomEnd,
             bottomStart = heroBottomStart
         )
         val heroColors = CardDefaults.cardColors(
@@ -1144,13 +1182,17 @@ fun DashboardCombinedHeader(
         }
     }
 
+    // With no sensor there is no sensor card, so nothing can name or count down a removed one.
+    val showSensorCard = statusCopy?.isNoSensor != true
     if (isLandscape) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             heroCard(Modifier.fillMaxWidth())
-            sensorCard(Modifier.fillMaxWidth())
+            if (showSensorCard) {
+                sensorCard(Modifier.fillMaxWidth())
+            }
         }
     } else {
         Row(
@@ -1161,14 +1203,62 @@ fun DashboardCombinedHeader(
         ) {
             heroCard(
                 Modifier
-                    .weight(0.7f)
+                    .weight(if (showSensorCard) 0.7f else 1f)
                     .fillMaxHeight()
             )
-            sensorCard(
-                Modifier
-                    .weight(0.3f)
-                    .fillMaxHeight()
-            )
+            if (showSensorCard) {
+                sensorCard(
+                    Modifier
+                        .weight(0.3f)
+                        .fillMaxHeight()
+                )
+            }
+        }
+    }
+}
+
+/** What the reading card holds with nothing connected: the state, and the way out of it. */
+@Composable
+private fun NoSensorHeroContent(
+    title: String,
+    titleStyle: TextStyle,
+    contentColor: Color,
+    stacked: Boolean,
+    onAddSensorClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val titleText: @Composable (Modifier) -> Unit = { textModifier ->
+        Text(
+            text = title,
+            style = titleStyle,
+            color = contentColor,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = textModifier,
+            textAlign = TextAlign.Start
+        )
+    }
+    val addButton: @Composable () -> Unit = {
+        Button(onClick = onAddSensorClick, shapes = ButtonDefaults.shapes()) {
+            Text(stringResource(R.string.add_sensor), maxLines = 1)
+        }
+    }
+    if (stacked) {
+        Column(
+            modifier = modifier,
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
+        ) {
+            titleText(Modifier)
+            addButton()
+        }
+    } else {
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            titleText(Modifier.weight(1f))
+            addButton()
         }
     }
 }
@@ -1786,9 +1876,11 @@ fun RecentReadingsCard(
     viewMode: Int,
     footerLabel: String,
     onViewHistory: (() -> Unit)? = null,
+    // Rows above the readings, in the same card. With no readings they are the whole list.
+    leadingRows: (@Composable () -> Unit)? = null,
     content: @Composable (Int, GlucosePoint) -> Unit // Rendering the row with Index
 ) {
-    if (recentReadings.isNotEmpty()) {
+    if (recentReadings.isNotEmpty() || leadingRows != null) {
         // This is a snapshot of recent history, including readings received
         // while hidden. Keep one stable subtree per reading: entrance wrappers
         // replayed missed rows and were removed on the very next recomposition.
@@ -1802,6 +1894,7 @@ fun RecentReadingsCard(
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column {
+                leadingRows?.invoke()
                 recentReadings.forEachIndexed { index, item ->
                     key(item.sensorSerial, item.timestamp) {
                         content(index, item)

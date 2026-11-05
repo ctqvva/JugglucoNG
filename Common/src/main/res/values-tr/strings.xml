@@ -468,6 +468,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <!-- Newly Extracted Strings -->
     <string name="import_history">Geçmişi İçe Aktar</string>
     <string name="import_history_desc">JugglucoNG dışa aktarımından veya CSV dosyasından glikoz verilerini içe aktar</string>
+    <string name="continue_without_sensor">Sensör olmadan devam et</string>
+    <string name="continue_without_sensor_desc">İnsülin, yiyecek ve parmak ölçümlerini günlüğe kaydedin</string>
     <string name="get_started_desc">Sensörünüzü ekleyerek başlayın</string>
     <string name="select_sensor">Sensör Tipini Seçin</string>
     <string name="select_sibionics_type">Bir Sibionics sensörü seçin</string>
@@ -738,7 +740,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Accu-Chek SmartGuide sensörünüzdeki veri matrisini tarayın</string>
     <string name="accuchek_setup_title">Accu-Chek Kurulumu</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Sensör ekle</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Bağlı!</string>
@@ -917,7 +919,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="newdata">"New data"</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Bağlı sensör yok</string>
     <string name="nonewdata">"No new data"</string>
     <string name="nothing"></string>
     <string name="off">Off</string>

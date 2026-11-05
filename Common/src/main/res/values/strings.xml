@@ -967,6 +967,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Hardcoded Strings Extracted -->
     <string name="import_history">Import history</string>
     <string name="import_history_desc">Import glucose data from a JugglucoNG export or CSV file</string>
+    <string name="continue_without_sensor">Continue without a sensor</string>
+    <string name="continue_without_sensor_desc">Log insulin, food and fingersticks in the journal</string>
     <string name="get_started_desc">Get started by adding your sensor</string>
     <string name="select_sensor">Select Sensor Type</string>
     <string name="or_divider">"  or  "</string>
