@@ -2,6 +2,7 @@ package tk.glucodata.share.lumiflex
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -146,6 +147,72 @@ class LumiflexCloudClientTests {
             LumiflexCloudError.Kind.UNAUTHORIZED,
             (result as LumiflexCloudClient.LoginResult.Failed).kind,
         )
+    }
+
+    @Test
+    fun registrationUsesMobileSmsContractAndKeepsAccountCreationSeparateFromPasswordSetup() {
+        val payloads = mutableListOf<JSONObject>()
+        val transport = FakeTransport { url, body ->
+            payloads += JSONObject(LumiflexCloudCrypto.decryptEnvelope(body, keys.second)!!)
+            LumiflexCloudClient.HttpResult(200, envelope(
+                if (url.endsWith("loginOrRegisterByVerificationCodeWithPhone"))
+                    """{"code":200,"data":{"token":"verified-token","userId":"new-user"}}"""
+                else """{"code":200}""",
+            ))
+        }
+        val client = newClient(transport)
+        assertEquals(LumiflexCloudClient.SyncResult.Ok, client.requestRegistrationCode("+7 (999) 123-45-67"))
+        val login = client.registerWithCode("+79991234567", " 123456 ") as LumiflexCloudClient.LoginResult.Ok
+        assertEquals("79991234567", payloads[0].getString("phone"))
+        assertEquals("123456", payloads[1].getString("code"))
+        assertFalse(payloads[1].has("password"))
+        assertEquals("/user/sendRegisterPhoneVerificationCode", java.net.URL(transport.urls[0]).path.removePrefix("/api-x"))
+        assertEquals("verified-token", login.token)
+        assertEquals(LumiflexCloudClient.SyncResult.Ok, client.setPassword(login.token, login.userId, "pass1234"))
+        assertEquals(LumiflexCloudCrypto.passwordHash("pass1234"), payloads[2].getString("password"))
+        assertEquals("verified-token", transport.headers[2]["x-token"])
+        assertTrue(transport.urls[2].endsWith("/user/setPassword"))
+    }
+
+    @Test
+    fun invalidRegistrationInputDoesNotSendSms() {
+        val transport = FakeTransport { _, _ -> error("Invalid numbers must not reach the service") }
+        for (phone in listOf("", "a@b.c", "+12345678901", "7999", "+7wrong9991234567")) {
+            assertTrue(newClient(transport).requestRegistrationCode(phone) is LumiflexCloudClient.SyncResult.Failed)
+        }
+        assertTrue(transport.urls.isEmpty())
+    }
+
+    @Test
+    fun incompleteSignupReplyCannotClaimSuccessOrExposeItsToken() {
+        val transport = FakeTransport { _, _ -> LumiflexCloudClient.HttpResult(
+            200, envelope("""{"code":200,"data":{"token":"private-session"}}"""),
+        ) }
+        val result = newClient(transport).registerWithCode("79991234567", "123456")
+            as LumiflexCloudClient.LoginResult.Failed
+        assertFalse(result.message.contains("private-session"))
+    }
+
+    @Test
+    fun passwordSetupAndSmsSendingRequireAnExplicitSuccessReply() {
+        val transport = FakeTransport { _, _ -> LumiflexCloudClient.HttpResult(200, "{}") }
+        assertTrue(newClient(transport).requestRegistrationCode("79991234567") is LumiflexCloudClient.SyncResult.Failed)
+        assertTrue(newClient(transport).setPassword("token", "u1", "pass1234") is LumiflexCloudClient.SyncResult.Failed)
+    }
+
+    @Test
+    fun accountValidationChecksTheReturnedIdentityAndExpiredVendorCodes() {
+        var reply = """{"code":200,"data":{"userId":"u1"}}"""
+        val transport = FakeTransport { _, _ -> LumiflexCloudClient.HttpResult(200, envelope(reply)) }
+        val client = newClient(transport)
+        assertEquals(LumiflexCloudClient.SyncResult.Ok, client.checkSession("token", "u1"))
+        reply = """{"code":200,"data":{"userId":"another-user"}}"""
+        assertTrue(client.checkSession("token", "u1") is LumiflexCloudClient.SyncResult.Failed)
+        for (code in listOf(800, 801, 802)) {
+            reply = """{"code":$code,"msg":"Session expired"}"""
+            val failure = client.checkSession("token", "u1") as LumiflexCloudClient.SyncResult.Failed
+            assertEquals(LumiflexCloudError.Kind.UNAUTHORIZED, failure.kind)
+        }
     }
 
     @Test

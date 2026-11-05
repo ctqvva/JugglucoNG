@@ -24,6 +24,9 @@ object LumiflexCloudConstants {
     const val ENCRYPTION_ENABLED = "enabled"
 
     const val PATH_LOGIN = "/user/loginByPassword"
+    const val PATH_SEND_REGISTRATION_CODE = "/user/sendRegisterPhoneVerificationCode"
+    const val PATH_REGISTER_WITH_CODE = "/user/loginOrRegisterByVerificationCodeWithPhone"
+    const val PATH_SET_PASSWORD = "/user/setPassword"
     const val PATH_USER_INFO = "/user/getUserInfo"
     const val PATH_LOGOUT = "/user/logout"
     const val PATH_FIRST_LAST_DEVICE = "/cgmDevice/getFirstAndLastDeviceInfo"

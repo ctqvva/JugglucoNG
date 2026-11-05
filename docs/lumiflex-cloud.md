@@ -17,6 +17,42 @@ not authenticate with the mobile service used by JNG. Lumiflex's
 [LinX setup instructions](https://lumiflex.ru/help/linx-step-2/) currently require a Russian phone
 number for mobile registration.
 
+## Create a mobile account
+
+Choose **Create account**, enter a Russian number with country code `+7`, and request the SMS
+verification code. Enter the received code, then set a password of 8–12 Latin letters or digits.
+The vendor uses one SMS flow to create an account or sign in an existing account. Requests have a
+60-second resend cooldown; JNG never sends another SMS automatically.
+
+The verified session and unfinished password-setup step survive leaving the screen. If password
+setup fails, retry that step without creating another account or requesting another code. If an
+SMS request loses its network response, the code field stays available in case the SMS arrived.
+Automatic uploads start after password setup succeeds.
+
+This creates a **mobile account**, not a sensor registration. A sensor still needs to be paired in
+the official Lumiflex app before this cloud can accept its readings.
+
+## Account and sync status
+
+The account card checks the saved session with the vendor when the screen opens. It distinguishes
+a confirmed sign-in, a check in progress, an unverified connection, and an expired session. Editing
+sign-in details does not change the authenticated account until sign-in succeeds.
+
+Entered account/password details are saved locally in an Android Keystore-encrypted draft and are
+excluded from settings exports. Sign-out keeps this draft for the next login; clear the password
+field to remove the saved password. JNG does not silently sign in again when another app displaces
+the session.
+
+After signing in, enable **Automatic upload**. The sync card shows queued readings, the last
+successful upload, network failures and missing cloud sensors. **Sync now** checks the connection
+and requests an upload. Signing in and checking the connection do not count as successful uploads.
+
+Transient failures use persistent, network-constrained background retries. A periodic recovery task
+and process-start initialization recover queued work without waiting for another glucose reading.
+Readings leave the queue only after an explicit successful vendor response; an empty HTTP 200
+response is not an acknowledgement. If a sensor is missing from the account, its readings stay
+queued: pair it in the official app, then sign in to JNG again.
+
 ## What is uploaded
 
 Brief CGM records only: sensor serial, minutes since sensor start, glucose, status/quality,
@@ -25,7 +61,7 @@ Brief CGM records only: sensor serial, minutes since sensor start, glucose, stat
 version.
 
 Uploads go through a persistent queue: readings are batched, retried with exponential backoff, and a
-401 or the vendor's `802` ("this account has been logged in from other equipments") clears the
+401 or the vendor's expired/replaced-session codes (`800`, `801`, `802`) clear the
 session so the settings screen asks for a new sign-in. Readings are only queued for AiDex sensors JNG
 itself is driving, and only while the channel is switched on: history mirrored in through
 phone-to-phone Clone is never uploaded, and a reading enqueued for one account is dropped when the

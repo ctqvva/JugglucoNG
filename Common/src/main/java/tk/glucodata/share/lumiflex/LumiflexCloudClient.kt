@@ -60,9 +60,7 @@ class LumiflexCloudClient(
     fun login(account: String, password: String, settings: LumiflexCloudSettings): LoginResult {
         val result = login(account, password)
         if (result is LoginResult.Ok) {
-            settings.account = result.account
-            settings.token = result.token
-            settings.userId = result.userId
+            settings.startSession(result.account, result.token, result.userId)
         }
         return result
     }
@@ -74,7 +72,49 @@ class LumiflexCloudClient(
             .put("userName", loginAccount)
             .put("password", LumiflexCloudCrypto.passwordHash(password))
             .toString()
-        val response = post(LumiflexCloudConstants.PATH_LOGIN, body, token = "", userId = "")
+        return loginRequest(LumiflexCloudConstants.PATH_LOGIN, body, loginAccount)
+    }
+
+    fun requestRegistrationCode(phone: String): SyncResult {
+        val normalized = registrationPhone(phone)
+            ?: return SyncResult.Failed(LumiflexCloudError.Kind.OTHER, 400, "Invalid Russian phone number")
+        return classifySync(post(
+            LumiflexCloudConstants.PATH_SEND_REGISTRATION_CODE,
+            JSONObject().put("phone", normalized).toString(), "", "",
+        ))
+    }
+
+    /** The official mobile flow creates an account or signs in an existing one after SMS proof. */
+    fun registerWithCode(phone: String, code: String): LoginResult {
+        val normalized = registrationPhone(phone)
+            ?: return LoginResult.Failed(LumiflexCloudError.Kind.OTHER, 400, "Invalid Russian phone number")
+        if (code.isBlank()) return LoginResult.Failed(LumiflexCloudError.Kind.OTHER, 400, "Verification code required")
+        return loginRequest(
+            LumiflexCloudConstants.PATH_REGISTER_WITH_CODE,
+            JSONObject().put("phone", normalized).put("code", code.trim()).toString(),
+            normalized,
+        )
+    }
+
+    fun setPassword(token: String, userId: String, password: String): SyncResult = classifySync(post(
+        LumiflexCloudConstants.PATH_SET_PASSWORD,
+        JSONObject().put("password", LumiflexCloudCrypto.passwordHash(password)).toString(), token, userId,
+    ))
+
+    /** A persisted token is not proof that the vendor still accepts this session. */
+    fun checkSession(token: String, userId: String): SyncResult {
+        val response = transport.get(url(LumiflexCloudConstants.PATH_USER_INFO), headers(token, userId))
+        val verdict = classifySync(response)
+        if (verdict is SyncResult.Failed) return verdict
+        val data = runCatching { JSONObject(decoded(response.body).orEmpty()).optJSONObject("data") }.getOrNull()
+        if (userId.isBlank() || data?.optString("userId") != userId) {
+            return SyncResult.Failed(LumiflexCloudError.Kind.OTHER, response.code, "Unable to verify account")
+        }
+        return SyncResult.Ok
+    }
+
+    private fun loginRequest(path: String, body: String, account: String): LoginResult {
+        val response = post(path, body, token = "", userId = "")
         if (response.code == UNAUTHORIZED) {
             return LoginResult.Failed(
                 LumiflexCloudError.Kind.UNAUTHORIZED,
@@ -90,14 +130,20 @@ class LumiflexCloudClient(
             )
         }
         val json = runCatching { JSONObject(decoded(response.body).orEmpty()) }.getOrNull()
+        if (json != null && !json.has("code")) {
+            return LoginResult.Failed(LumiflexCloudError.Kind.OTHER, response.code, "The server did not confirm sign-in")
+        }
         val code = json?.optInt("code", response.code) ?: response.code
         val data = json?.optJSONObject("data")
         val model = LoginModel.fromJson(data)
-        if (response.code in 200..299 && code == 200 && model.token.isNotBlank()) {
-            return LoginResult.Ok(model.userId, model.token, loginAccount)
+        if (response.code in 200..299 && code == 200 && model.token.isNotBlank() && model.userId.isNotBlank()) {
+            return LoginResult.Ok(model.userId, model.token, account)
+        }
+        if (response.code in 200..299 && code == 200) {
+            return LoginResult.Failed(LumiflexCloudError.Kind.OTHER, code, "The server did not return a complete session")
         }
         return LoginResult.Failed(
-            LumiflexCloudError.classify(response.code, response.body),
+            LumiflexCloudError.classify(code, decoded(response.body)),
             code,
             LumiflexCloudError.message(decoded(response.body)),
         )
@@ -277,20 +323,22 @@ class LumiflexCloudClient(
         }
         val plain = decoded(response.body)
             ?: return SyncResult.Failed(
-                LumiflexCloudError.Kind.OTHER,
+                LumiflexCloudError.Kind.TRANSIENT,
                 response.code,
                 "Unreadable server response",
             )
         val json = runCatching { JSONObject(plain) }.getOrNull()
         if (json == null) {
-            if (response.body.isBlank()) return SyncResult.Ok
             return SyncResult.Failed(
-                LumiflexCloudError.Kind.OTHER,
+                LumiflexCloudError.Kind.TRANSIENT,
                 response.code,
                 "Unreadable server response",
             )
         }
-        val code = json.optInt("code", 200)
+        if (!json.has("code")) return SyncResult.Failed(
+            LumiflexCloudError.Kind.TRANSIENT, response.code, "The server did not confirm the request",
+        )
+        val code = json.optInt("code", 0)
         if (code == 200) return SyncResult.Ok
         return SyncResult.Failed(
             LumiflexCloudError.classify(code, response.body),
@@ -327,6 +375,9 @@ class LumiflexCloudClient(
     }
 
     companion object {
+        fun registrationPhone(account: String): String? = normalizeLoginAccount(account)
+            .takeIf { it.length == 11 && it.startsWith("7") && it.all { char -> char in '0'..'9' } }
+
         /** The vendor expects country-code digits, without '+' or phone display formatting. */
         private fun normalizeLoginAccount(account: String): String {
             val trimmed = account.trim()

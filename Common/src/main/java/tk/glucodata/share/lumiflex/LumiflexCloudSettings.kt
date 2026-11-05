@@ -7,6 +7,21 @@ import androidx.annotation.Keep
 @Keep
 class LumiflexCloudSettings(context: Context) {
 
+    data class Session(val account: String, val token: String, val userId: String, val generation: Long) {
+        val signedIn: Boolean get() = token.isNotBlank() && userId.isNotBlank()
+    }
+
+    enum class SyncState { IDLE, QUEUED, SYNCING, SYNCED, WAITING_FOR_SENSOR, ERROR, SIGN_IN_REQUIRED }
+
+    data class SyncStatus(
+        val state: SyncState = SyncState.IDLE,
+        val pending: Int = 0,
+        val lastAttemptMs: Long = 0,
+        val lastSuccessMs: Long = 0,
+        val message: String = "",
+        val retrying: Boolean = false,
+    )
+
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -36,32 +51,108 @@ class LumiflexCloudSettings(context: Context) {
 
     private fun nextGeneration(): Long = maxOf(sessionGeneration + 1, System.currentTimeMillis())
 
+    fun session(): Session = synchronized(sessionLock) { Session(account, token, userId, sessionGeneration) }
+
+    fun isCurrent(session: Session): Boolean = synchronized(sessionLock) { session() == session }
+
+    /** Only local queue/prefs operations belong here; never hold this lock during network I/O. */
+    internal fun withCurrentSession(session: Session, action: () -> Unit): Boolean = synchronized(sessionLock) {
+        if (!isCurrent(session)) return false
+        action()
+        true
+    }
+
+    val sessionExpired: Boolean get() = prefs.getBoolean("session_expired", false)
+
+    var passwordSetupRequired: Boolean
+        get() = prefs.getBoolean("password_setup_required", false)
+        set(value) = prefs.edit().putBoolean("password_setup_required", value).apply()
+
+    var nextSmsAllowedMs: Long
+        get() = prefs.getLong("next_sms_allowed_ms", 0)
+        set(value) = prefs.edit().putLong("next_sms_allowed_ms", value).apply()
+
+    fun syncStatus(): SyncStatus = SyncStatus(
+        state = runCatching { SyncState.valueOf(prefs.getString("sync_state", "IDLE")!!) }.getOrDefault(SyncState.IDLE),
+        pending = prefs.getInt("pending", 0),
+        lastAttemptMs = prefs.getLong("last_attempt_ms", 0),
+        lastSuccessMs = lastSyncMs,
+        message = prefs.getString("sync_message", "").orEmpty(),
+        retrying = prefs.getBoolean("sync_retrying", false),
+    )
+
+    fun recordSync(session: Session, state: SyncState, pending: Int, message: String = "", uploaded: Int = 0, retrying: Boolean = false) {
+        synchronized(sessionLock) {
+            if (!isCurrent(session)) return
+            val editor = prefs.edit().putString("sync_state", state.name)
+                .putInt("pending", pending).putString("sync_message", message).putBoolean("sync_retrying", retrying)
+            if (state == SyncState.SYNCING) editor.putLong("last_attempt_ms", System.currentTimeMillis())
+            if (uploaded > 0) editor.putLong(KEY_LAST_SYNC_MS, System.currentTimeMillis())
+            editor.apply()
+        }
+    }
+
+    fun startSessionIfCurrent(expected: Session, account: String, token: String, userId: String): Boolean =
+        synchronized(sessionLock) {
+            if (!isCurrent(expected)) return false
+            startSession(account, token, userId)
+            true
+        }
+
+    fun invalidateSession(expected: Session): Boolean = synchronized(sessionLock) {
+        if (!isCurrent(expected)) return false
+        endSession()
+        prefs.edit().putBoolean("session_expired", true)
+            .putString("sync_state", SyncState.SIGN_IN_REQUIRED.name).apply()
+        true
+    }
+
     /** Commits account, token and user id together as one authenticated session. */
     fun startSession(account: String, token: String, userId: String) {
-        prefs.edit()
-            .putString(KEY_ACCOUNT, account)
-            .putString(KEY_TOKEN, token)
-            .putString(KEY_USER_ID, userId)
-            .putLong(KEY_SESSION_GENERATION, nextGeneration())
-            .apply()
+        synchronized(sessionLock) {
+            val accountChanged = this.account != account
+            prefs.edit()
+                .putString(KEY_ACCOUNT, account)
+                .putString(KEY_TOKEN, token)
+                .putString(KEY_USER_ID, userId)
+                .putLong(KEY_SESSION_GENERATION, nextGeneration())
+                .putBoolean("session_expired", false)
+                .putBoolean("password_setup_required", false)
+                .putString("sync_state", SyncState.IDLE.name)
+                .putString("sync_message", "")
+                .putBoolean("sync_retrying", false)
+                .putLong(KEY_LAST_SYNC_MS, if (accountChanged) 0L else lastSyncMs)
+                .putInt("pending", if (accountChanged) 0 else syncStatus().pending)
+                .apply()
+        }
     }
 
     /** Drops the credentials of the current session; [account] stays for the next login. */
     fun endSession() {
-        prefs.edit()
-            .remove(KEY_TOKEN)
-            .remove(KEY_USER_ID)
-            .putLong(KEY_SESSION_GENERATION, nextGeneration())
-            .apply()
+        synchronized(sessionLock) {
+            prefs.edit()
+                .remove(KEY_TOKEN)
+                .remove(KEY_USER_ID)
+                .putLong(KEY_SESSION_GENERATION, nextGeneration())
+                .putBoolean("session_expired", false)
+                .putString("sync_state", SyncState.IDLE.name)
+                .putString("sync_message", "")
+                .putBoolean("sync_retrying", false)
+                .apply()
+        }
     }
 
-    fun isSignedIn(): Boolean = token.isNotBlank() && userId.isNotBlank()
+    fun isSignedIn(): Boolean = session().signedIn
 
     fun clear() {
-        prefs.edit().clear().apply()
+        synchronized(sessionLock) {
+            val generation = nextGeneration()
+            prefs.edit().clear().putLong(KEY_SESSION_GENERATION, generation).apply()
+        }
     }
 
     companion object {
+        private val sessionLock = Any()
         private const val PREFS = "lumiflex_cloud"
         private const val KEY_ENABLED = "lumiflex_cloud_enabled"
         private const val KEY_ACCOUNT = "lumiflex_cloud_account"
@@ -79,6 +170,6 @@ class LumiflexCloudSettings(context: Context) {
         fun isSetUp(context: Context): Boolean = isEnabled(context) ||
             context.applicationContext
                 .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getString(KEY_ACCOUNT, "").orEmpty().isNotBlank()
+                .let { it.getString(KEY_ACCOUNT, "").orEmpty().isNotBlank() || it.contains(LumiflexCloudCredentials.KEY_DRAFT) }
     }
 }

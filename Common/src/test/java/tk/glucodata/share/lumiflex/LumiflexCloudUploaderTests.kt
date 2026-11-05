@@ -17,11 +17,11 @@ class LumiflexCloudUploaderTests {
         var calls = 0
         override fun post(url: String, body: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult {
             calls++
-            return LumiflexCloudClient.HttpResult(code, "")
+            return LumiflexCloudClient.HttpResult(code, if (code == 200) """{"code":200}""" else "")
         }
 
         override fun get(url: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult =
-            LumiflexCloudClient.HttpResult(code, "")
+            LumiflexCloudClient.HttpResult(code, if (code == 200) """{"code":200}""" else "")
     }
 
     private val start = 1_700_000_000_000L
@@ -194,11 +194,11 @@ class LumiflexCloudUploaderTests {
         ): LumiflexCloudClient.HttpResult {
             lastPostBody = body
             onPost()
-            return LumiflexCloudClient.HttpResult(200, "")
+            return LumiflexCloudClient.HttpResult(200, """{"code":200}""")
         }
 
         override fun get(url: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult =
-            LumiflexCloudClient.HttpResult(200, "")
+            LumiflexCloudClient.HttpResult(200, """{"code":200}""")
     }
 
     @Test
@@ -281,5 +281,108 @@ class LumiflexCloudUploaderTests {
         assertEquals(1, queue.size())
         assertEquals("a1", queue.owner())
         assertEquals(102, queue.peek().single().mgdl)
+    }
+
+    @Test
+    fun missingCloudSensorPreservesBacklogAndExplainsWhyItIsWaiting() {
+        val (settings, queue, uploader) = uploaderWithDevices(200) { LumiflexCloudClient.DeviceList.Ok(emptyMap()) }
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        assertEquals(LumiflexCloudUploader.FlushResult.WaitingForSensor(0), uploader.flush())
+        assertEquals(1, queue.size())
+        assertEquals(LumiflexCloudSettings.SyncState.WAITING_FOR_SENSOR, settings.syncStatus().state)
+        assertEquals(1, settings.syncStatus().pending)
+        assertEquals(0L, settings.lastSyncMs)
+    }
+
+    @Test
+    fun transientFailureIsVisibleAndCanBeRetriedWithoutAnotherReading() {
+        var available = false
+        val transport = object : LumiflexCloudClient.Transport {
+            override fun post(url: String, body: String, headers: Map<String, String>) =
+                LumiflexCloudClient.HttpResult(if (available) 200 else 503, if (available) """{"code":200}""" else "Offline")
+            override fun get(url: String, headers: Map<String, String>) = error("Injected device lookup")
+        }
+        val (settings, queue, _) = uploader(200)
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        val up = LumiflexCloudUploader(LumiflexCloudClient(transport, encrypt = { it }), settings, queue,
+            sleep = {}, sensorIds = { LumiflexCloudClient.DeviceList.Ok(mapOf("SN1" to "SID1")) })
+        assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Failed)
+        assertEquals(LumiflexCloudSettings.SyncState.ERROR, settings.syncStatus().state)
+        assertEquals(1, settings.syncStatus().pending)
+        assertEquals("Offline", settings.syncStatus().message)
+        available = true
+        assertEquals(LumiflexCloudUploader.FlushResult.Success(1), up.flush())
+        assertEquals(0, queue.size())
+        assertEquals(LumiflexCloudSettings.SyncState.SYNCED, settings.syncStatus().state)
+        assertTrue(settings.lastSyncMs > 0)
+    }
+
+    @Test
+    fun partialUploadRecordsSuccessWhileUnknownSensorsStayQueued() {
+        val (settings, queue, up) = uploader(200)
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        queue.enqueue(CgmRecord("SN2", "SN2", 0, 1, start + 60_000L, 101, 0))
+        assertEquals(LumiflexCloudUploader.FlushResult.WaitingForSensor(1), up.flush())
+        assertEquals(1, queue.size())
+        assertEquals("SN2", queue.peek().single().serial)
+        assertTrue(settings.lastSyncMs > 0)
+        assertEquals(1, settings.syncStatus().pending)
+    }
+
+    @Test
+    fun accountReplacementBeforeQueueLookupCannotClearTheNewAccountsBacklog() {
+        val (settings, queue, up) = uploaderWithDevices(200) { error("Stale session must not look up devices") }
+        settings.startSession("old-account", "old-token", "old-user")
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), "old-account")
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("lumiflex_cloud", android.content.Context.MODE_PRIVATE)
+        var replaced = false
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "sync_state" && !replaced && settings.syncStatus().state == LumiflexCloudSettings.SyncState.SYNCING) {
+                replaced = true
+                settings.startSession("new-account", "new-token", "new-user")
+                queue.enqueue(CgmRecord("SN2", "SN2", 0, 2, start + 120_000L, 123, 0), "new-account")
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        try {
+            up.flush()
+            assertTrue(replaced)
+            assertEquals("new-account", queue.owner())
+            assertEquals("SN2", queue.peek().single().serial)
+            assertEquals(0L, settings.lastSyncMs)
+        } finally {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    @Test
+    fun backlogWithNoAccountProvenanceCannotBeUploadedToAnArbitraryAccount() {
+        val (settings, queue, up) = uploaderWithDevices(200) { error("Unowned history must not be uploaded") }
+        settings.startSession("account", "token", "user")
+        queue.clear()
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        assertEquals(LumiflexCloudUploader.FlushResult.Success(0), up.flush())
+        assertEquals(0, queue.size())
+        assertEquals("account", queue.owner())
+    }
+
+    @Test
+    fun emptyOrUnconfirmedHttp200CannotDrainReadingsAndRemainsRetryable() {
+        for (responseBody in listOf("", "{}")) {
+            val (settings, queue, _) = uploader(200)
+            queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+            val transport = object : LumiflexCloudClient.Transport {
+                override fun post(url: String, body: String, headers: Map<String, String>) =
+                    LumiflexCloudClient.HttpResult(200, responseBody)
+                override fun get(url: String, headers: Map<String, String>) = error("Injected lookup")
+            }
+            val up = LumiflexCloudUploader(LumiflexCloudClient(transport, encrypt = { it }), settings, queue,
+                sleep = {}, sensorIds = { LumiflexCloudClient.DeviceList.Ok(mapOf("SN1" to "SID1")) })
+            val result = up.flush() as LumiflexCloudUploader.FlushResult.Failed
+            assertEquals(LumiflexCloudError.Kind.TRANSIENT, result.kind)
+            assertEquals(1, queue.size())
+            assertEquals(0L, settings.lastSyncMs)
+            assertTrue(settings.syncStatus().retrying)
+        }
     }
 }

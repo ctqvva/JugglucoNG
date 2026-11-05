@@ -88,12 +88,12 @@ class LumiflexCloudQueue(context: Context) {
         }
     }
 
-    /** Clears the queue when its records were enqueued for a different account. */
+    /** Drops mismatched or legacy unowned records before they can reach an arbitrary account. */
     fun clearIfOwnerMismatch(expected: String): Boolean {
         synchronized(lock) {
-            if (ownerAccount.isNotBlank() && ownerAccount != expected) {
+            if (ownerAccount != expected) {
                 items.clear()
-                ownerAccount = ""
+                ownerAccount = expected
                 persist()
                 return true
             }

@@ -2,6 +2,7 @@ package tk.glucodata.share.lumiflex
 
 import android.content.Context
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -57,6 +58,54 @@ class LumiflexCloudSettingsQueueTests {
         queue.enqueue(CgmRecord("SN1", "SN1", 0, 2, 1_700_000_120_000L, 101, 0), owner = "a1")
         assertEquals(1, queue.size())
         assertEquals("a1", queue.owner())
+    }
+
+    @Test
+    fun logoutAndReplacementFenceLateLoginValidationAndSyncReplies() {
+        val settings = LumiflexCloudSettings(RuntimeEnvironment.getApplication())
+        settings.clear()
+        val beforeLogin = settings.session()
+        settings.endSession()
+        assertFalse(settings.startSessionIfCurrent(beforeLogin, "a0", "old", "u0"))
+        settings.startSession("a1", "same-token", "u1")
+        val oldSession = settings.session()
+        settings.startSession("a1", "same-token", "u1")
+        assertFalse(settings.invalidateSession(oldSession))
+        settings.recordSync(oldSession, LumiflexCloudSettings.SyncState.ERROR, 42, "stale", uploaded = 2)
+        assertTrue(settings.isSignedIn())
+        assertEquals(LumiflexCloudSettings.SyncState.IDLE, settings.syncStatus().state)
+        assertEquals(0, settings.syncStatus().pending)
+        assertEquals(0L, settings.lastSyncMs)
+    }
+
+    @Test
+    fun expiredSessionIsDifferentFromExplicitSignOutAndKeepsPendingReadings() {
+        val settings = LumiflexCloudSettings(RuntimeEnvironment.getApplication())
+        settings.clear()
+        settings.startSession("a1", "token", "u1")
+        settings.passwordSetupRequired = true
+        val session = settings.session()
+        settings.recordSync(session, LumiflexCloudSettings.SyncState.QUEUED, 3)
+        assertTrue(settings.invalidateSession(session))
+        assertTrue(settings.sessionExpired)
+        assertFalse(settings.isSignedIn())
+        assertEquals(3, settings.syncStatus().pending)
+        assertEquals(LumiflexCloudSettings.SyncState.SIGN_IN_REQUIRED, settings.syncStatus().state)
+        settings.endSession()
+        assertFalse(settings.sessionExpired)
+    }
+
+    @Test
+    fun passwordSetupStepSurvivesReopeningAfterAccountCreation() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = LumiflexCloudSettings(context)
+        settings.clear()
+        settings.startSession("79991234567", "sms-token", "new-user")
+        settings.passwordSetupRequired = true
+        val reopened = LumiflexCloudSettings(context)
+        assertTrue(reopened.passwordSetupRequired)
+        assertTrue(reopened.isSignedIn())
+        assertEquals("sms-token", reopened.token)
     }
 }
 
