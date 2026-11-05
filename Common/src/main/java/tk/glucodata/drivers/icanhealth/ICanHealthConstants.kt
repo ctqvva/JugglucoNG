@@ -803,6 +803,27 @@ object ICanHealthConstants {
         return nowMs - lastActivityMs >= STALE_ADDRESS_REBIND_MS
     }
 
+    /**
+     * Widens [shouldRebindStaleAddress] to the iCan family names (`Sinocare CGM`, `iCGM-…`), which
+     * carry no serial in the advertisement. The candidate is only *selected* here; the DIS serial
+     * read after connecting must still match one of [savedIds], or the rebind is rejected.
+     */
+    @JvmStatic
+    fun shouldRebindStaleFamilyAddress(
+        knownAddress: String?,
+        candidateAddress: String?,
+        advertisedName: String?,
+        savedIds: List<String?>,
+        lastActivityMs: Long,
+        nowMs: Long,
+    ): Boolean {
+        if (knownAddress.isNullOrBlank() || candidateAddress.isNullOrBlank()) return false
+        if (knownAddress.equals(candidateAddress, ignoreCase = true)) return false
+        if (savedIds.none { !it.isNullOrBlank() }) return false
+        if (!isICanHealthDevice(advertisedName)) return false
+        return nowMs - lastActivityMs >= STALE_ADDRESS_REBIND_MS
+    }
+
     @JvmStatic
     fun canonicalSensorId(sensorId: String?): String {
         val trimmed = sensorId?.trim().orEmpty()

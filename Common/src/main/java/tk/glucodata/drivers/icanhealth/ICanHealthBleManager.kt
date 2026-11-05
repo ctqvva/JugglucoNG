@@ -1225,17 +1225,26 @@ class ICanHealthBleManager(
                 return true
             }
             if (pendingAddressRebind != null || phase != Phase.IDLE || hasLocallyConnectedGatt()) return false
-            val savedIds = listOf(SerialNumber, serialFromDevice, rawSerialFromDevice)
+            val savedIds = (listOf(SerialNumber, serialFromDevice, rawSerialFromDevice) + listOfNotNull(onboardingDeviceSn))
                 .map { ICanHealthConstants.canonicalSensorId(it) }
                 .filter { it.isNotEmpty() && !ICanHealthConstants.isProvisionalSensorId(it) }
             if (savedIds.isEmpty()) return false
+            val lastActivityMs = maxOf(lastGlucoseReceiptRealtimeMs, createdAtMs)
+            val nowMs = System.currentTimeMillis()
             val rebind = ICanHealthConstants.shouldRebindStaleAddress(
                 knownAddress = knownAddress,
                 candidateAddress = address,
                 advertisedName = trimmedName,
                 sensorIds = savedIds,
-                lastActivityMs = maxOf(lastGlucoseReceiptRealtimeMs, createdAtMs),
-                nowMs = System.currentTimeMillis(),
+                lastActivityMs = lastActivityMs,
+                nowMs = nowMs,
+            ) || ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                knownAddress = knownAddress,
+                candidateAddress = address,
+                advertisedName = trimmedName,
+                savedIds = savedIds,
+                lastActivityMs = lastActivityMs,
+                nowMs = nowMs,
             )
             if (rebind) {
                 // IDLE can still own a waiting autoConnect or a queued connection runnable.
