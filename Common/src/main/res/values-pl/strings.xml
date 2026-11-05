@@ -3289,4 +3289,5 @@
     <string name="tts_trend_decreasing">spada</string>
     <string name="tts_trend_rising_quickly">szybko rośnie</string>
     <string name="tts_trend_falling_quickly">szybko spada</string>
+    <string name="scan_sensor_qr">Zeskanuj kod QR sensora</string>
 </resources>

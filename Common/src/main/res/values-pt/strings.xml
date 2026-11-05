@@ -3237,4 +3237,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">a descer</string>
     <string name="tts_trend_rising_quickly">a subir rapidamente</string>
     <string name="tts_trend_falling_quickly">a descer rapidamente</string>
+    <string name="scan_sensor_qr">Digitalizar o código QR do sensor</string>
 </resources>

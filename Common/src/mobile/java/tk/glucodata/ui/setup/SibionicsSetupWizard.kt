@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.Natives
 import tk.glucodata.ui.util.BleDeviceScanner
 
@@ -1206,6 +1207,7 @@ fun ConnectingStep(
 ) {
     SensorSetupConnectingScreen(
         ui = ui,
+        sensor = SensorType.SIBIONICS,
         sensorLabel = sensorLabel
     )
 }
