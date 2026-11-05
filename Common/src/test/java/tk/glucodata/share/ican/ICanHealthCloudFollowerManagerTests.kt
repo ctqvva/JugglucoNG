@@ -2,6 +2,7 @@ package tk.glucodata.share.ican
 
 import android.content.Context
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,6 +57,103 @@ class ICanHealthCloudFollowerManagerTests {
     }
 
     @Test
+    fun inviteRetriesAfterUnauthorizedOnceReloginSucceeds() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context, passwordCipher = TestPlainCipher())
+        settings.token = "tok1"
+        settings.account = "acct"
+        settings.password = "pwd"
+        val key = ICanHealthCloudJson.getRandomString()
+        var saveCalls = 0
+        val transport = FakeTransport { url, _, _ ->
+            when {
+                url.contains("oauth/token") ->
+                    HttpResult(200, """{"access_token":"tok2","refresh_token":"r2","user_id":"42","tenant_id":"t"}""")
+                url.contains("follower/save") -> {
+                    if (saveCalls++ == 0) {
+                        HttpResult(401, """{"code":401,"msg":"Not Authorized"}""")
+                    } else {
+                        HttpResult(
+                            200,
+                            ICanHealthCloudJson.aesEncrypt(
+                                key,
+                                """{"code":200,"success":true,"data":{"id":"7","email":"a@b.com","status":"invited"}}""",
+                            ),
+                        )
+                    }
+                }
+                else -> HttpResult(404, "")
+            }
+        }
+        val manager = ICanHealthCloudFollowerManager(
+            ICanHealthCloudClient(transport, keyFactory = { key }),
+            settings,
+        )
+        val invited = manager.invite("a@b.com", "", "", "")
+        assertEquals("7", invited?.id)
+        assertEquals("tok2", settings.token)
+        assertEquals(2, saveCalls)
+    }
+
+    @Test
+    fun inviteThrowsUnauthorizedWhenReloginFails() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context)
+        settings.token = "tok1"
+        settings.account = "acct"
+        settings.password = ""
+        val transport = FakeTransport { url, _, _ ->
+            when {
+                url.contains("follower/save") -> HttpResult(401, """{"code":401,"msg":"Not Authorized"}""")
+                else -> HttpResult(404, "")
+            }
+        }
+        val manager = ICanHealthCloudFollowerManager(ICanHealthCloudClient(transport), settings)
+        val error = assertThrows(ICanHealthCloudClient.SessionExpired::class.java) {
+            manager.invite("a@b.com", "", "", "")
+        }
+        assertEquals("session expired", error.message)
+    }
+    @Test
+    fun listRetriesAfterUnauthorizedWithRelogin() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context, passwordCipher = TestPlainCipher())
+        settings.token = "tok1"
+        settings.account = "acct"
+        settings.password = "pwd"
+        val key = ICanHealthCloudJson.getRandomString()
+        var listCalls = 0
+        val transport = FakeTransport { url, _, _ ->
+            when {
+                url.contains("oauth/token") ->
+                    HttpResult(200, """{"access_token":"tok2","refresh_token":"r2","user_id":"42","tenant_id":"t"}""")
+                url.contains("follower/list") -> {
+                    if (listCalls++ == 0) {
+                        HttpResult(401, """{"code":401}""")
+                    } else {
+                        HttpResult(
+                            200,
+                            ICanHealthCloudJson.aesEncrypt(
+                                key,
+                                """{"code":200,"success":true,"data":[{"id":"9","email":"a@b.com"}]}""",
+                            ),
+                        )
+                    }
+                }
+                else -> HttpResult(404, "")
+            }
+        }
+        val manager = ICanHealthCloudFollowerManager(
+            ICanHealthCloudClient(transport, keyFactory = { key }),
+            settings,
+        )
+        val list = manager.list()
+        assertEquals(1, list.size)
+        assertEquals("9", list[0].id)
+        assertEquals(2, listCalls)
+    }
+
+    @Test
     fun listDelegatesToClient() {
         val context = RuntimeEnvironment.getApplication()
         val settings = ICanHealthCloudSettings(context)
@@ -98,4 +196,9 @@ class ICanHealthCloudFollowerManagerTests {
 
 class ICanHealthCloudFollowerManagerTestApplication : Applic() {
     override fun onCreate() {}
+}
+
+private class TestPlainCipher : ICanHealthCloudSettings.PasswordCipher {
+    override fun encrypt(value: String): String = value
+    override fun decrypt(value: String): String = value
 }

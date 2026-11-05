@@ -37,8 +37,15 @@ class ICanHealthCloudClient(
     }
 
     fun login(account: String, password: String): LoginResult {
+        return loginWithForm(account, ICanPasswordHash.hash(password))
+    }
+
+    fun loginRaw(account: String, password: String): LoginResult =
+        loginWithForm(account, password)
+
+    private fun loginWithForm(account: String, password: String): LoginResult {
         val url = ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-auth/oauth/token"
-        val body = buildLoginForm(account, ICanPasswordHash.hash(password))
+        val body = buildLoginForm(account, password)
         val response = transport.post(url, body)
         if (response.code == 401) {
             return LoginResult.Failed(
@@ -53,6 +60,40 @@ class ICanHealthCloudClient(
                 response.code,
                 response.body,
             )
+        }
+        val json = runCatching { JSONObject(response.body) }.getOrNull()
+        val topLevelToken = json?.optString("access_token", "").orEmpty()
+        if (topLevelToken.isNotEmpty()) {
+            return LoginResult.Ok(topLevelToken, LoginModel.fromJson(json))
+        }
+        val code = json?.optInt("code", response.code) ?: response.code
+        if (code == 0 || code == 200) {
+            val data = json?.optJSONObject("data")
+            val token = data?.optString("access_token", "").orEmpty()
+            if (token.isNotEmpty()) return LoginResult.Ok(token, LoginModel.fromJson(data))
+        }
+        return LoginResult.Failed(
+            ICanHealthCloudError.classify(response.code, response.body),
+            code,
+            ICanHealthCloudError.message(response.body),
+        )
+    }
+
+    fun refresh(refreshToken: String): LoginResult {
+        if (refreshToken.isBlank()) {
+            return LoginResult.Failed(ICanHealthCloudError.Kind.UNAUTHORIZED, 0, "no refresh token")
+        }
+        val url = ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-auth/oauth/token"
+        val body = "grant_type=refresh_token" +
+            "&scope=all" +
+            "&refresh_token=${URLEncoder.encode(refreshToken, "UTF-8")}" +
+            "&tenantId=000000"
+        val response = transport.post(url, body)
+        if (response.code == 401) {
+            return LoginResult.Failed(ICanHealthCloudError.Kind.UNAUTHORIZED, 401, ICanHealthCloudError.message(response.body))
+        }
+        if (response.code == TRANSPORT_FAILURE_CODE) {
+            return LoginResult.Failed(ICanHealthCloudError.Kind.TRANSIENT, response.code, response.body)
         }
         val json = runCatching { JSONObject(response.body) }.getOrNull()
         val topLevelToken = json?.optString("access_token", "").orEmpty()
@@ -93,7 +134,7 @@ class ICanHealthCloudClient(
             "apparatusSn" to serial,
             "egvs" to egvs.map { it.toJson().toString() },
         )
-        val key = ICanHealthCloudJson.getRandomString()
+        val key = keyFactory()
         val envelope = ICanHealthCloudJson.createEncryptedRequest(payload, key)
         val body = JSONObject(envelope).toString()
         val headers = mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to sessionToken)
@@ -138,7 +179,7 @@ class ICanHealthCloudClient(
     }
 
     /**
-     * The vendor endpoints encrypt both directions: the GET carries the RSA-wrapped
+     * Vendor endpoints encrypt both directions: the GET carries the RSA-wrapped
      * AES key plus the AES payload (`key`/`data` query params) and the response body
      * is AES-CBC ciphertext with the very same key (IV = key[0:16]).
      */
@@ -153,6 +194,7 @@ class ICanHealthCloudClient(
             "?key=" + URLEncoder.encode(envelope["key"], "UTF-8") +
             "&data=" + URLEncoder.encode(envelope["data"], "UTF-8")
         val response = transport.get(url, mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token))
+        if (response.code == HTTP_UNAUTHORIZED) throw SessionExpired()
         if (response.code !in 200..299) return null
         val decrypted = decryptResponse(key, response.body) ?: return null
         return runCatching { JSONObject(decrypted) }.getOrNull()
@@ -184,7 +226,7 @@ class ICanHealthCloudClient(
         val url =
             ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/follower/save"
         val payload = buildFollowerSavePayload(email, phone, phoneAreaCode, name)
-        val key = ICanHealthCloudJson.getRandomString()
+        val key = keyFactory()
         val envelope = ICanHealthCloudJson.createEncryptedRequest(payload, key)
         val body = JSONObject(envelope).toString()
         val response = transport.post(
@@ -192,6 +234,7 @@ class ICanHealthCloudClient(
             body,
             mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token),
         )
+        if (response.code == HTTP_UNAUTHORIZED) throw SessionExpired()
         if (response.code == 401 || response.code !in 200..299) return null
         val bodyCode = plainBodyCode(response.body)
         if (bodyCode != null && bodyCode != 0 && bodyCode != 200) return null
@@ -201,6 +244,12 @@ class ICanHealthCloudClient(
         return FollowerFriends.fromJson(data)
     }
 
+    /** HTTP 401 from an authorized call: the stored session is no longer active. */
+    class SessionExpired(
+        val code: Int = 401,
+        message: String = "session expired",
+    ) : RuntimeException(message)
+
     fun followerUpdate(token: String, id: String, status: String, nickname: String): Boolean {
         val url =
             ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/follower/update"
@@ -209,7 +258,7 @@ class ICanHealthCloudClient(
             "status" to status,
         )
         if (nickname.isNotEmpty()) payload["nickName"] = nickname
-        val key = ICanHealthCloudJson.getRandomString()
+        val key = keyFactory()
         val envelope = ICanHealthCloudJson.createEncryptedRequest(payload, key)
         val body = JSONObject(envelope).toString()
         val response = transport.post(
@@ -217,6 +266,7 @@ class ICanHealthCloudClient(
             body,
             mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token),
         )
+        if (response.code == HTTP_UNAUTHORIZED) throw SessionExpired()
         if (response.code == 401 || response.code !in 200..299) return false
         val bodyCode = plainBodyCode(response.body)
         return bodyCode == null || bodyCode == 0 || bodyCode == 200
@@ -226,7 +276,7 @@ class ICanHealthCloudClient(
         val url =
             ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/follower/get-follower"
         val payload = mapOf("id" to id)
-        val key = ICanHealthCloudJson.getRandomString()
+        val key = keyFactory()
         val envelope = ICanHealthCloudJson.createEncryptedRequest(payload, key)
         val body = JSONObject(envelope).toString()
         val response = transport.post(
@@ -234,6 +284,7 @@ class ICanHealthCloudClient(
             body,
             mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token),
         )
+        if (response.code == HTTP_UNAUTHORIZED) throw SessionExpired()
         if (response.code == 401 || response.code !in 200..299) return FollowerFriends()
         val decrypted = decryptResponse(key, response.body) ?: return FollowerFriends()
         val json = runCatching { JSONObject(decrypted) }.getOrNull()
@@ -255,7 +306,7 @@ class ICanHealthCloudClient(
         val url =
             ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/basic/config/follower/update"
         val payload = mapOf("shareFollower" to shareFollower)
-        val key = ICanHealthCloudJson.getRandomString()
+        val key = keyFactory()
         val envelope = ICanHealthCloudJson.createEncryptedRequest(payload, key)
         val body = JSONObject(envelope).toString()
         val response = transport.post(
@@ -263,6 +314,7 @@ class ICanHealthCloudClient(
             body,
             mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token),
         )
+        if (response.code == HTTP_UNAUTHORIZED) throw SessionExpired()
         if (response.code == 401 || response.code !in 200..299) return false
         val bodyCode = plainBodyCode(response.body)
         return bodyCode == null || bodyCode == 0 || bodyCode == 200
@@ -312,6 +364,8 @@ class ICanHealthCloudClient(
 
     companion object {
         internal const val TRANSPORT_FAILURE_CODE = -1
+
+        private const val HTTP_UNAUTHORIZED = 401
 
         internal object HttpTransport : Transport {
             override fun post(url: String, jsonBody: String?): HttpResult = post(url, jsonBody, emptyMap())

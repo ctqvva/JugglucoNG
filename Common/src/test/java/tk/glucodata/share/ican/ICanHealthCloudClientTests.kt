@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.Assert.assertThrows
 import tk.glucodata.share.ican.ICanHealthCloudClient.HttpResult
 import tk.glucodata.share.ican.ICanHealthCloudClient.LoginResult
 import tk.glucodata.share.ican.ICanHealthCloudClient.UploadResult
@@ -91,6 +92,22 @@ class ICanHealthCloudClientTests {
         val url = transport.calls.single().first
         assertTrue(url.contains("key="))
         assertTrue(url.contains("data="))
+    }
+
+    @Test
+    fun followerListThrowsSessionExpiredOn401() {
+        val transport = FakeTransport { _ -> HttpResult(401, """{"code":401,"msg":"Not Authorized"}""") }
+        assertThrows(ICanHealthCloudClient.SessionExpired::class.java) {
+            ICanHealthCloudClient(transport).followerList("tok")
+        }
+    }
+
+    @Test
+    fun followerSaveThrowsSessionExpiredOn401() {
+        val transport = FakeTransport { _ -> HttpResult(401, """{"code":401,"msg":"Not Authorized"}""") }
+        assertThrows(ICanHealthCloudClient.SessionExpired::class.java) {
+            ICanHealthCloudClient(transport).followerSave("tok", "a@b.com", "", "", "")
+        }
     }
 
     @Test

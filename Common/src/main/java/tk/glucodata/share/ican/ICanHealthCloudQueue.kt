@@ -150,5 +150,14 @@ class ICanHealthCloudQueue(context: Context) {
     companion object {
         private const val MIN_MGDL = 40
         private const val MAX_MGDL = 400
+
+        private val cache = java.util.concurrent.ConcurrentHashMap<String, ICanHealthCloudQueue>()
+
+        /** One instance per backing file: callers share the same in-memory queue. */
+        @JvmStatic
+        fun shared(context: Context): ICanHealthCloudQueue =
+            cache.getOrPut(context.applicationContext.filesDir.absolutePath) {
+                ICanHealthCloudQueue(context.applicationContext)
+            }
     }
 }
