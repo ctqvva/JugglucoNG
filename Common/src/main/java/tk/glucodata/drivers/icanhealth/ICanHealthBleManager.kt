@@ -1142,7 +1142,14 @@ class ICanHealthBleManager(
         searchforDeviceAddress()
         setUiStatus(UiStatusKind.PREPARING)
         UiRefreshBus.requestStatusRefresh()
-        handler.postDelayed({ if (!stop && !uiPaused) SensorBluetooth.startscan() }, 250L)
+        // The scan that is already running was built while an address was bound, so it still
+        // carries the 0x181F filter and scanStarter() would skip the restart. Stop it first so
+        // the next start rebuilds the filters from the now-empty address (unfiltered).
+        handler.post {
+            if (stop || uiPaused) return@post
+            SensorBluetooth.blueone?.stopScan(false)
+            SensorBluetooth.startscan()
+        }
     }
 
     @Synchronized
