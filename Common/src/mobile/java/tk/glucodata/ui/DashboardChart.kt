@@ -210,6 +210,11 @@ private const val ACTIVE_INSULIN_EXPANDED_MAX_WIDTH_FRACTION = 0.58f
 private val PreviewWindowHeight = 58.dp
 // Band edges soften over this fraction of the preview strip's height.
 private const val PREVIEW_BAND_FADE_FRACTION = 0.025f
+
+// One look for every insulin line on the chart: a dose's chip connector, the band's top edge
+// and each dose's own curve. The chip connector set the strength; the rest follow it.
+private const val INSULIN_LINE_ALPHA = 0.55f
+private const val INSULIN_LINE_WIDTH_DP = 1.5f
 private val PreviewWindowOuterPadding = 12.dp
 
 private data class ChartRangeThresholds(
@@ -3598,17 +3603,17 @@ fun InteractiveGlucoseChart(
                                 // The edge only where this insulin adds activity, so it never
                                 // lies on another insulin's edge in this colour. It fades where
                                 // the data stops, trail or not.
-                                edges += Path().apply { line(range) { upper[it] } } to fadingBrush(tint, 0.6f, range.first, range.last)
+                                edges += Path().apply { line(range) { upper[it] } } to fadingBrush(tint, INSULIN_LINE_ALPHA, range.first, range.last)
                             }
                         }
                         // Edges over every fill, so each insulin's top stays crisp under the
                         // one stacked on it.
-                        val edgeStroke = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                        val edgeStroke = Stroke(width = INSULIN_LINE_WIDTH_DP.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                         edges.forEach { (edge, brush) -> drawPath(edge, brush, style = edgeStroke) }
                         // Each dose on its own, as a light line from zero, over the band it
                         // adds to.
                         if (insulinStyle == InsulinChartStyle.STACKED_WITH_DOSES) {
-                            val doseStroke = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                            val doseStroke = Stroke(width = INSULIN_LINE_WIDTH_DP.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                             fun firstSampleFrom(time: Long): Int {
                                 var low = 0
                                 var high = sampleCount
@@ -3629,7 +3634,7 @@ fun InteractiveGlucoseChart(
                                     if (sampleTimes[i] in dose.timestamp..until) InsulinActivityStack.rate(dose, sampleTimes[i]) else 0f
                                 drawPath(
                                     Path().apply { line(first..last, ::own) },
-                                    fadingBrush(layerTints[dose.layer], 0.45f, first, last),
+                                    fadingBrush(layerTints[dose.layer], INSULIN_LINE_ALPHA, first, last),
                                     style = doseStroke
                                 )
                             }
@@ -3985,7 +3990,7 @@ fun InteractiveGlucoseChart(
             fun insulinCurveHeightFor(amount: Float?): Float =
                 with(journalCurveDensity) { insulinSeparateCurveHeight(amount, chartHeightPx) }
             val journalChipMaxTopPx = (chartHeightPx - with(LocalDensity.current) { 34.dp.toPx() }).coerceAtLeast(journalChipMinTopPx)
-            val connectorStrokePx = with(LocalDensity.current) { 1.5.dp.toPx() }
+            val connectorStrokePx = with(LocalDensity.current) { INSULIN_LINE_WIDTH_DP.dp.toPx() }
             val connectorUnderlapPx = with(LocalDensity.current) { 8.dp.toPx() }
             val insulinConnectorY = chartHeightPx - with(LocalDensity.current) { 1.dp.toPx() }
 
@@ -4397,7 +4402,7 @@ fun InteractiveGlucoseChart(
                     } else {
                         chipRight - connectorUnderlapPx
                     }
-                    val connectorColor = Color(marker.accentColor).copy(alpha = 0.55f)
+                    val connectorColor = Color(marker.accentColor).copy(alpha = INSULIN_LINE_ALPHA)
                     val chipY = (position.y + journalChipPillHeightPx / 2f).coerceIn(0f, chartHeightPx)
                     val anchorY = sourceY.coerceIn(0f, chartHeightPx)
                     val bandTop = bandTopAt[marker.timestamp]?.takeIf { marker.type == JournalEntryType.INSULIN }
@@ -4412,7 +4417,7 @@ fun InteractiveGlucoseChart(
                             cap = StrokeCap.Round
                         )
                         drawLine(
-                            color = Color(marker.accentColor).copy(alpha = 0.45f),
+                            color = connectorColor,
                             start = Offset(anchorX, bandTop),
                             end = Offset(anchorX, anchorY),
                             strokeWidth = connectorStrokePx,
