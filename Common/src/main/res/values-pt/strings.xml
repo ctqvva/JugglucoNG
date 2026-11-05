@@ -872,6 +872,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ready_for_use">Sensor ready for use</string>
     <string name="ready_in">" ready in "</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Repor a associação Bluetooth (dados mantidos)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Isso removerá permanentemente o sensor, limpará as chaves de emparelhamento e interromperá a sessão. O sensor deve ser emparelhado novamente para ser usado novamente.</string>

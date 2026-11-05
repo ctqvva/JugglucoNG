@@ -705,6 +705,10 @@ class ICanHealthBleManager(
 
     /** Drop only the stored address and rescan unfiltered; native data and history stay intact. */
     private fun resetBindingAndRescan() {
+        // A pending automatic rebind owns its own 45 s timer and blocks setDevice(null); retire it
+        // first so an old timer cannot restore the address the user just asked to discard.
+        pendingAddressRebind = null
+        handler.removeCallbacks(rebindTimeoutRunnable)
         close()
         setDevice(null)
         searchforDeviceAddress()
@@ -2000,12 +2004,15 @@ class ICanHealthBleManager(
         val canonicalSerial = ICanHealthConstants.canonicalSensorId(resolvedSerial)
         val expectedSerial = expectedSerialAfterRepair
         if (expectedSerial != null) {
-            expectedSerialAfterRepair = null
             if (!canonicalSerial.equals(ICanHealthConstants.canonicalSensorId(expectedSerial), ignoreCase = true)) {
+                // Keep the expectation until the right sensor answers, and never retry this address:
+                // otherwise the same wrong device could be selected again and adopted unchecked.
+                mActiveDeviceAddress?.let { rejectedOnboardingAddresses.add(it) }
                 Log.w(TAG, "Re-pair rejected: device serial $canonicalSerial does not match $expectedSerial")
                 resetBindingAndRescan()
                 return
             }
+            expectedSerialAfterRepair = null
         }
         serialFromDevice = canonicalSerial
         val previousId = SerialNumber

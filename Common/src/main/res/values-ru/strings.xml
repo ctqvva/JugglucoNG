@@ -481,6 +481,7 @@
     <string name="reconnect_sensor_title">Переподключить датчик?</string>
     <string name="reconnect_sensor_desc">Это сбросит соединение и попытается подключиться снова.</string>
     <string name="reconnect">Переподключить</string>
+    <string name="ican_reset_bluetooth_binding">Сбросить привязку Bluetooth (данные сохранятся)</string>
     
     <string name="forget_sensor_title">Забыть датчик?</string>
     <string name="forget_sensor_desc">Это удалит датчик из списка. Он может появиться снова при сканировании.</string>

@@ -941,6 +941,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth bağlantısını sıfırla (veriler korunur)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Bu, sensörü kalıcı olarak kaldıracak, eşleştirme anahtarlarını silecek ve oturumu durduracaktır. Sensörün tekrar kullanılabilmesi için yeniden eşleştirilmesi gerekir.</string>

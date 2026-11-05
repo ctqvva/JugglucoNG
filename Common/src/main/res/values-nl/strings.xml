@@ -958,6 +958,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth-koppeling resetten (gegevens blijven behouden)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Hierdoor wordt de sensor permanent verwijderd, worden de koppelingssleutels gewist en wordt de sessie gestopt. Om opnieuw te kunnen gebruiken, moet de sensor opnieuw worden gekoppeld.</string>
