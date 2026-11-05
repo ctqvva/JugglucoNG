@@ -148,10 +148,26 @@ object OttaiParser {
     internal fun contentRecordSize(payload: ByteArray): Int? {
         val (nine, eight) = recordSizeEvidence(payload)
         return when {
-            nine >= MIN_DECISIVE_RECORDS && nine - eight >= DECISIVE_MARGIN -> BLE_RECORD_SIZE_E12
-            eight >= MIN_DECISIVE_RECORDS && eight - nine >= DECISIVE_MARGIN -> BLE_RECORD_SIZE
+            nine >= MIN_DECISIVE_RECORDS && nine - eight >= DECISIVE_MARGIN &&
+                explainsMostRecords(payload, BLE_RECORD_SIZE_E12, nine) -> BLE_RECORD_SIZE_E12
+            eight >= MIN_DECISIVE_RECORDS && eight - nine >= DECISIVE_MARGIN &&
+                explainsMostRecords(payload, BLE_RECORD_SIZE, eight) -> BLE_RECORD_SIZE
             else -> null
         }
+    }
+
+    /**
+     * A winning layout must explain most non-padding records, not just beat the other width.
+     * The Nov 5 low-current page has 17 real nine-byte records that all fail the current gate;
+     * four coincidental matches among 20 eight-byte slots cannot prove a different layout.
+     */
+    private fun explainsMostRecords(payload: ByteArray, recSize: Int, valid: Int): Boolean {
+        var framed = 0
+        for (i in 0 until (payload.size - HEADER_SIZE) / recSize) {
+            val src = HEADER_SIZE + i * recSize
+            if ((0 until recSize).any { payload[src + it].toInt() != 0 }) framed++
+        }
+        return valid * 2 > framed
     }
 
     /** E major.minor -> record size, only for families still unambiguous on hardware. */
