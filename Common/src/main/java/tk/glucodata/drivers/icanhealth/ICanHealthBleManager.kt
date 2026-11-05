@@ -291,6 +291,7 @@ class ICanHealthBleManager(
     // The address the onboarding scan picked by name or advert, as opposed to one the user or the
     // registry supplied. Only a guess like that may be dropped for not being a CGM.
     @Volatile private var onboardingScanPickedAddress: String? = null
+    @Volatile private var consecutiveSilentConnectTimeouts = 0
     private val nonCgmCandidateStrikes = ConcurrentHashMap<String, Int>()
     private val unreachableCandidates = ICanHealthUnreachableCandidates()
     // The GATT whose current attempt reached STATE_CONNECTED. Tied to the instance, because a
@@ -1117,8 +1118,31 @@ class ICanHealthBleManager(
     protected override fun connectionAttemptTimeoutMillis(): Long = CONNECTION_ATTEMPT_TIMEOUT_MS
 
     protected override fun onConnectionAttemptTimeout() {
-        // A silent autoConnect at a saved address must periodically allow discovery elsewhere.
+        consecutiveSilentConnectTimeouts++
+        val address = mActiveDeviceAddress
+        if (isAwaitingOnboardingIdentity() && !address.isNullOrBlank() &&
+            ICanHealthConstants.shouldDropUnreachableOnboardingAddress(consecutiveSilentConnectTimeouts)
+        ) {
+            Log.w(
+                TAG,
+                "Bound address $address never answered after $consecutiveSilentConnectTimeouts " +
+                    "silent connect timeouts; dropping it and rescanning unfiltered"
+            )
+            dropUnreachableBoundAddress()
+            return
+        }
         handler.post { if (!stop && !uiPaused) SensorBluetooth.startscan() }
+    }
+
+    /** The bound address never answered at the radio level. Drop it without blacklisting so the
+     *  unfiltered scan can rediscover the sensor once it advertises again. */
+    private fun dropUnreachableBoundAddress() {
+        close()
+        setDevice(null)
+        searchforDeviceAddress()
+        setUiStatus(UiStatusKind.PREPARING)
+        UiRefreshBus.requestStatusRefresh()
+        handler.postDelayed({ if (!stop && !uiPaused) SensorBluetooth.startscan() }, 250L)
     }
 
     @Synchronized
@@ -4850,6 +4874,7 @@ class ICanHealthBleManager(
 
     private fun resetConnectionAttemptState() {
         phase = Phase.IDLE
+        consecutiveSilentConnectTimeouts = 0
         isAuthenticated = false
         authAttempted = false
         postAuthSetupStarted = false

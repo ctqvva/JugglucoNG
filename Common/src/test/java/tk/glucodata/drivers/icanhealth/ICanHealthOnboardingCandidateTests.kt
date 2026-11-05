@@ -66,6 +66,24 @@ class ICanHealthOnboardingCandidateTests {
     }
 
     @Test
+    fun aNameThatMerelyStartsWithPIsNotAnICanDevice() {
+        // juggluco-trace-20261105-211359.log: the pet-spray `Petkit_K3` passed the name check
+        // only because of a bare "P" prefix and became the bound sensor address.
+        assertFalse(ICanHealthConstants.isICanHealthDevice("Petkit_K3"))
+        assertFalse(ICanHealthConstants.isICanHealthDevice("Pixel 7"))
+        // A real P-serial still matches through the P-serials regex, not the prefix.
+        assertTrue(ICanHealthConstants.isICanHealthDevice("P123456789ABC"))
+    }
+
+    @Test
+    fun unreachableOnboardingAddressIsDroppedOnlyAfterTheThreshold() {
+        val threshold = ICanHealthConstants.SILENT_CONNECT_TIMEOUTS_BEFORE_RECOVERY
+        assertTrue(threshold >= 2)
+        assertFalse(ICanHealthConstants.shouldDropUnreachableOnboardingAddress(threshold - 1))
+        assertTrue(ICanHealthConstants.shouldDropUnreachableOnboardingAddress(threshold))
+    }
+
+    @Test
     fun aNamedCandidateNeedsGattDiscoveryEvenWhenItsAdvertListsAnotherService() {
         val nus = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
         assertTrue(ICanHealthConstants.isICanHealthDevice("SatelliteOnline5885"))
