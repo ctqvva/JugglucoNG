@@ -434,7 +434,7 @@ fun SensorCard(
     onNavigateToMqAccount: () -> Unit = {},
     /**
      * Restricted mode: the same card with only what describes the sensor — name, status,
-     * newest reading, the dashboard's day of wear and fill, time left — and no controls, except Disconnect when
+     * newest reading, the dashboard's day of wear and fill, start and end — and no controls, except Disconnect when
      * [allowDisconnect] (the adult allowed sensor changes).
      */
     restricted: Boolean = false,

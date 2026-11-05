@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalLayoutApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package tk.glucodata.ui.restricted
 
@@ -6,21 +6,24 @@ import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,6 +37,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -65,6 +69,7 @@ internal class SensorLife(
     val daysText: String,
     val currentDay: Int,
     val hoursLeft: Long?,
+    val startMs: Long,
     val endMs: Long,
     val nowMs: Long,
 )
@@ -99,6 +104,7 @@ internal fun sensorLife(sensor: SensorInfo): SensorLife? {
         daysText = lifecycle.daysText,
         currentDay = lifecycle.currentDay,
         hoursLeft = lifecycle.remainingHours.takeIf { now < endMs && it in 0L..24L },
+        startMs = sensor.startMs,
         endMs = endMs,
         nowMs = now,
     )
@@ -139,47 +145,92 @@ internal fun SensorLifeDays(life: SensorLife) {
     }
 }
 
-/** "2 days left" and the day it ends, in place of the full card's data rows. */
+/** Started and Ends side by side, one tile each: the date first, the time under it. */
 @Composable
-private fun SensorTimeLeft(life: SensorLife) {
-    val context = LocalContext.current
+private fun SensorDates(life: SensorLife) {
     val leftMs = life.endMs - life.nowMs
     val ended = leftMs <= 0L
-    val leftText = when {
-        ended -> stringResource(R.string.restricted_sensor_end_passed)
-        leftMs < HOUR_MS -> stringResource(R.string.restricted_sensor_last_hour)
+    val endLabel = when {
+        ended -> stringResource(R.string.restricted_sensor_ended)
+        leftMs < HOUR_MS -> stringResource(R.string.restricted_sensor_ends_soon)
         leftMs < DAY_MS -> (leftMs / HOUR_MS).toInt().let {
-            pluralStringResource(R.plurals.restricted_sensor_hours_left, it, it)
+            pluralStringResource(R.plurals.restricted_sensor_ends_in_hours, it, it)
         }
         else -> (leftMs / DAY_MS).toInt().let {
-            pluralStringResource(R.plurals.restricted_sensor_days_left, it, it)
+            pluralStringResource(R.plurals.restricted_sensor_ends_in_days, it, it)
         }
     }
-    var dateFlags = DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY or
-        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR
-    if (leftMs < 2L * DAY_MS) dateFlags = dateFlags or DateUtils.FORMAT_SHOW_TIME
-    // Wraps instead of clipping where both are long.
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        itemVerticalAlignment = Alignment.CenterVertically,
+    // Same height when one tile's label wraps and the other's does not.
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(
-            text = leftText,
-            style = MaterialTheme.typography.titleSmall,
-            color = if (ended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        SensorDateTile(
+            label = stringResource(R.string.sensor_started),
+            timeMs = life.startMs,
+            shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp, topEnd = 4.dp, bottomEnd = 4.dp),
         )
-        Text(
-            text = DateUtils.formatDateTime(context, life.endMs, dateFlags),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        SensorDateTile(
+            label = endLabel,
+            labelColor = if (ended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            timeMs = life.endMs,
+            shape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = 12.dp, bottomEnd = 12.dp),
         )
     }
 }
 
+@Composable
+private fun RowScope.SensorDateTile(
+    label: String,
+    timeMs: Long,
+    shape: Shape,
+    labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
+    val context = LocalContext.current
+    Surface(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight(),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        // From the bottom, so the two dates stay level when one label takes two lines.
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.Bottom,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = labelColor,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = DateUtils.formatDateTime(
+                    context,
+                    timeMs,
+                    DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY or
+                        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+                ),
+                style = MaterialTheme.typography.titleMediumEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = DateUtils.formatDateTime(context, timeMs, DateUtils.FORMAT_SHOW_TIME),
+                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 /**
- * What replaces the full card's details and controls while restricted: the time left and the
- * day the sensor ends, and Disconnect when the adult allowed sensor changes. That Disconnect
+ * What replaces the full card's details and controls while restricted: when the sensor
+ * started and ends, and Disconnect when the adult allowed sensor changes. That Disconnect
  * never deletes history.
  */
 @Composable
@@ -194,7 +245,7 @@ internal fun RestrictedSensorDetails(
 
     if (life != null) {
         Spacer(modifier = Modifier.height(12.dp))
-        SensorTimeLeft(life)
+        SensorDates(life)
     }
 
     if (allowDisconnect && !sensor.isCloneSource) {

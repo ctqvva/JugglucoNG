@@ -3468,15 +3468,15 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
         <item quantity="one">%d god ayaa la geliyay</item>
         <item quantity="other">%d god ayaa la geliyay</item>
     </plurals>
-    <string name="restricted_sensor_last_hour">In ka yar saacad ayaa hartay</string>
-    <string name="restricted_sensor_end_passed">Taariikhda dhammaadku way dhaaftay</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d maalin ayaa hartay</item>
-        <item quantity="other">%d maalmood ayaa hartay</item>
+    <string name="restricted_sensor_ends_soon">Saac gudihiis</string>
+    <string name="restricted_sensor_ended">Wuu dhammaaday</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">%d maalin kadib</item>
+        <item quantity="other">%d maalmood kadib</item>
     </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d saac ayaa hartay</item>
-        <item quantity="other">%d saacadood ayaa hartay</item>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">%d saac kadib</item>
+        <item quantity="other">%d saacadood kadib</item>
     </plurals>
     <string name="restricted_section_settings">Dejimaha furan inta la xaddidan yahay</string>
     <string name="restricted_allow_alarm_settings_desc">Beddel heerarka iyo codadka, ama dami digniinaha</string>

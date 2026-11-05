@@ -3291,13 +3291,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <plurals name="restricted_pin_digits_entered">
         <item quantity="other">已输入 %d 位数字</item>
     </plurals>
-    <string name="restricted_sensor_last_hour">剩余不到一小时</string>
-    <string name="restricted_sensor_end_passed">已过结束日期</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="other">剩余 %d 天</item>
+    <string name="restricted_sensor_ends_soon">一小时内结束</string>
+    <string name="restricted_sensor_ended">已结束</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="other">%d 天后结束</item>
     </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="other">剩余 %d 小时</item>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="other">%d 小时后结束</item>
     </plurals>
     <string name="restricted_section_settings">受限模式下开放的设置</string>
     <string name="restricted_allow_alarm_settings_desc">更改阈值和声音，或关闭提醒</string>

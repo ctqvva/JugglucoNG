@@ -3283,15 +3283,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">%d siffra angiven</item>
         <item quantity="other">%d siffror angivna</item>
     </plurals>
-    <string name="restricted_sensor_last_hour">Mindre än en timme kvar</string>
-    <string name="restricted_sensor_end_passed">Slutdatumet har passerat</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d dag kvar</item>
-        <item quantity="other">%d dagar kvar</item>
+    <string name="restricted_sensor_ends_soon">Slutar inom en timme</string>
+    <string name="restricted_sensor_ended">Avslutad</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Slutar om %d dag</item>
+        <item quantity="other">Slutar om %d dagar</item>
     </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d timme kvar</item>
-        <item quantity="other">%d timmar kvar</item>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Slutar om %d timme</item>
+        <item quantity="other">Slutar om %d timmar</item>
     </plurals>
     <string name="restricted_section_settings">Inställningar öppna i begränsat läge</string>
     <string name="restricted_allow_alarm_settings_desc">Ändra nivåer och ljud, eller stäng av varningar</string>

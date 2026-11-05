@@ -3326,15 +3326,15 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
         <item quantity="one">%d cijfer ingevoerd</item>
         <item quantity="other">%d cijfers ingevoerd</item>
     </plurals>
-    <string name="restricted_sensor_last_hour">Minder dan een uur over</string>
-    <string name="restricted_sensor_end_passed">Einddatum voorbij</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">Nog %d dag</item>
-        <item quantity="other">Nog %d dagen</item>
+    <string name="restricted_sensor_ends_soon">Eindigt binnen een uur</string>
+    <string name="restricted_sensor_ended">Afgelopen</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Eindigt over %d dag</item>
+        <item quantity="other">Eindigt over %d dagen</item>
     </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">Nog %d uur</item>
-        <item quantity="other">Nog %d uur</item>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Eindigt over %d uur</item>
+        <item quantity="other">Eindigt over %d uur</item>
     </plurals>
     <string name="restricted_section_settings">Instellingen open in beperkte modus</string>
     <string name="restricted_allow_alarm_settings_desc">Niveaus en geluiden wijzigen, of meldingen uitzetten</string>

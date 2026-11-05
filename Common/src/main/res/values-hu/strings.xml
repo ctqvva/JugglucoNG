@@ -3352,15 +3352,15 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
         <item quantity="one">%d számjegy megadva</item>
         <item quantity="other">%d számjegy megadva</item>
     </plurals>
-    <string name="restricted_sensor_last_hour">Kevesebb mint egy óra van hátra</string>
-    <string name="restricted_sensor_end_passed">A záró dátum elmúlt</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d nap van hátra</item>
-        <item quantity="other">%d nap van hátra</item>
+    <string name="restricted_sensor_ends_soon">Egy órán belül vége</string>
+    <string name="restricted_sensor_ended">Lejárt</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Még %d nap</item>
+        <item quantity="other">Még %d nap</item>
     </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d óra van hátra</item>
-        <item quantity="other">%d óra van hátra</item>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Még %d óra</item>
+        <item quantity="other">Még %d óra</item>
     </plurals>
     <string name="restricted_section_settings">Korlátozott módban nyitva maradó beállítások</string>
     <string name="restricted_allow_alarm_settings_desc">Szintek és hangok módosítása, riasztások kikapcsolása</string>

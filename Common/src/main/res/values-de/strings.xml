@@ -3396,15 +3396,15 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
         <item quantity="one">%d Ziffer eingegeben</item>
         <item quantity="other">%d Ziffern eingegeben</item>
     </plurals>
-    <string name="restricted_sensor_last_hour">Weniger als eine Stunde übrig</string>
-    <string name="restricted_sensor_end_passed">Enddatum überschritten</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">Noch %d Tag</item>
-        <item quantity="other">Noch %d Tage</item>
+    <string name="restricted_sensor_ends_soon">Endet in unter 1 Stunde</string>
+    <string name="restricted_sensor_ended">Beendet</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Endet in %d Tag</item>
+        <item quantity="other">Endet in %d Tagen</item>
     </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">Noch %d Stunde</item>
-        <item quantity="other">Noch %d Stunden</item>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Endet in %d Stunde</item>
+        <item quantity="other">Endet in %d Stunden</item>
     </plurals>
     <string name="restricted_section_settings">Im eingeschränkten Modus offene Einstellungen</string>
     <string name="restricted_allow_alarm_settings_desc">Grenzwerte und Töne ändern oder Alarme ausschalten</string>

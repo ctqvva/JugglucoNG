@@ -3586,15 +3586,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">%d digit entered</item>
         <item quantity="other">%d digits entered</item>
     </plurals>
-    <string name="restricted_sensor_last_hour">Less than an hour left</string>
-    <string name="restricted_sensor_end_passed">End date passed</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d day left</item>
-        <item quantity="other">%d days left</item>
+    <string name="restricted_sensor_ends_soon">Ends within the hour</string>
+    <string name="restricted_sensor_ended">Ended</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Ends in %d day</item>
+        <item quantity="other">Ends in %d days</item>
     </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d hour left</item>
-        <item quantity="other">%d hours left</item>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Ends in %d hour</item>
+        <item quantity="other">Ends in %d hours</item>
     </plurals>
     <string name="restricted_section_settings">Settings open while restricted</string>
     <string name="restricted_allow_alarm_settings_desc">Change levels and sounds, or turn alerts off</string>

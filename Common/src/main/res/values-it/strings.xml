@@ -3274,15 +3274,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">%d cifra inserita</item>
         <item quantity="other">%d cifre inserite</item>
     </plurals>
-    <string name="restricted_sensor_last_hour">Meno di un\'ora rimasta</string>
-    <string name="restricted_sensor_end_passed">Data di fine superata</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d giorno rimasto</item>
-        <item quantity="other">%d giorni rimasti</item>
+    <string name="restricted_sensor_ends_soon">Finisce entro un\'ora</string>
+    <string name="restricted_sensor_ended">Terminato</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Finisce tra %d giorno</item>
+        <item quantity="other">Finisce tra %d giorni</item>
     </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d ora rimasta</item>
-        <item quantity="other">%d ore rimaste</item>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Finisce tra %d ora</item>
+        <item quantity="other">Finisce tra %d ore</item>
     </plurals>
     <string name="restricted_section_settings">Impostazioni aperte in modalità limitata</string>
     <string name="restricted_allow_alarm_settings_desc">Cambia soglie e suoni, o disattiva gli avvisi</string>

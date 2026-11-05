@@ -3384,15 +3384,15 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
         <item quantity="one">%d цифр оруулсан</item>
         <item quantity="other">%d цифр оруулсан</item>
     </plurals>
-    <string name="restricted_sensor_last_hour">Нэг цаг хүрэхгүй үлдсэн</string>
-    <string name="restricted_sensor_end_passed">Дуусах огноо өнгөрсөн</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d өдөр үлдсэн</item>
-        <item quantity="other">%d өдөр үлдсэн</item>
+    <string name="restricted_sensor_ends_soon">Нэг цагийн дотор дуусна</string>
+    <string name="restricted_sensor_ended">Дууссан</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">%d өдрийн дараа дуусна</item>
+        <item quantity="other">%d өдрийн дараа дуусна</item>
     </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d цаг үлдсэн</item>
-        <item quantity="other">%d цаг үлдсэн</item>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">%d цагийн дараа дуусна</item>
+        <item quantity="other">%d цагийн дараа дуусна</item>
     </plurals>
     <string name="restricted_section_settings">Хязгаарлагдмал горимд нээлттэй тохиргоо</string>
     <string name="restricted_allow_alarm_settings_desc">Түвшин, дуу өөрчлөх эсвэл сэрэмжлүүлгийг унтраах</string>

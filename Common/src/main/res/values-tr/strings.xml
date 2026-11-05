@@ -3311,15 +3311,15 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
         <item quantity="one">%d basamak girildi</item>
         <item quantity="other">%d basamak girildi</item>
     </plurals>
-    <string name="restricted_sensor_last_hour">Bir saatten az kaldı</string>
-    <string name="restricted_sensor_end_passed">Bitiş tarihi geçti</string>
-    <plurals name="restricted_sensor_days_left">
-        <item quantity="one">%d gün kaldı</item>
-        <item quantity="other">%d gün kaldı</item>
+    <string name="restricted_sensor_ends_soon">Bir saat içinde bitiyor</string>
+    <string name="restricted_sensor_ended">Bitti</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">%d gün sonra bitiyor</item>
+        <item quantity="other">%d gün sonra bitiyor</item>
     </plurals>
-    <plurals name="restricted_sensor_hours_left">
-        <item quantity="one">%d saat kaldı</item>
-        <item quantity="other">%d saat kaldı</item>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">%d saat sonra bitiyor</item>
+        <item quantity="other">%d saat sonra bitiyor</item>
     </plurals>
     <string name="restricted_section_settings">Kısıtlı modda açık ayarlar</string>
     <string name="restricted_allow_alarm_settings_desc">Seviyeleri ve sesleri değiştir veya uyarıları kapat</string>
