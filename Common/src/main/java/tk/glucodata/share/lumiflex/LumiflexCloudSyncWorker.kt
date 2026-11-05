@@ -20,7 +20,11 @@ class LumiflexCloudSyncWorker(context: Context, parameters: WorkerParameters) : 
     override fun doWork(): Result {
         val settings = LumiflexCloudSettings(applicationContext)
         if (!settings.enabled || !settings.isSignedIn()) return Result.success()
-        return when (val result = LumiflexCloudUploader.flushNow(applicationContext)) {
+        val result = LumiflexCloudUploader.flushNow(applicationContext)
+        if (!settings.enabled || !settings.isSignedIn()) return Result.success()
+        return when (result) {
+            is LumiflexCloudUploader.FlushResult.Success ->
+                if (settings.syncStatus().pending > 0) Result.retry() else Result.success()
             is LumiflexCloudUploader.FlushResult.Failed ->
                 if (result.kind == LumiflexCloudError.Kind.TRANSIENT) Result.retry()
                 else Result.success()
@@ -55,14 +59,15 @@ class LumiflexCloudSyncWorker(context: Context, parameters: WorkerParameters) : 
                 PeriodicWorkRequestBuilder<LumiflexCloudSyncWorker>(15, TimeUnit.MINUTES)
                     .setConstraints(network).build(),
             )
-            enqueue(context)
+            // Explicit resume/login/manual sync must not be swallowed by an older running request.
+            enqueue(context, replace = true)
         }
 
-        fun enqueue(context: Context) {
+        fun enqueue(context: Context, replace: Boolean = false) {
             val settings = LumiflexCloudSettings(context)
             if (!settings.enabled || !settings.isSignedIn()) return
             WorkManager.getInstance(context).enqueueUniqueWork(
-                WORK_NAME, ExistingWorkPolicy.KEEP,
+                WORK_NAME, if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
                 OneTimeWorkRequestBuilder<LumiflexCloudSyncWorker>()
                     .setConstraints(network)
                     .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)

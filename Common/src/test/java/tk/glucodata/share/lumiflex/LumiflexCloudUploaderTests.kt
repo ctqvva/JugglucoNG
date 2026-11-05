@@ -385,4 +385,21 @@ class LumiflexCloudUploaderTests {
             assertTrue(settings.syncStatus().retrying)
         }
     }
+
+    @Test
+    fun readingsArrivingDuringAnUploadRemainQueuedForAnotherAttempt() {
+        val (settings, queue, _) = uploader(200)
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        val transport = CapturingTransport()
+        transport.onPost = { queue.enqueue(CgmRecord("SN1", "SN1", 0, 2, start + 120_000L, 101, 0)) }
+        val up = LumiflexCloudUploader(LumiflexCloudClient(transport, encrypt = { it }), settings, queue,
+            sleep = {}, sensorIds = { LumiflexCloudClient.DeviceList.Ok(mapOf("SN1" to "SID1")) })
+        assertEquals(LumiflexCloudUploader.FlushResult.Success(1), up.flush())
+        assertEquals(1, queue.size())
+        assertEquals(LumiflexCloudSettings.SyncState.QUEUED, settings.syncStatus().state)
+        assertEquals(1, settings.syncStatus().pending)
+        transport.onPost = {}
+        assertEquals(LumiflexCloudUploader.FlushResult.Success(1), up.flush())
+        assertEquals(0, queue.size())
+    }
 }

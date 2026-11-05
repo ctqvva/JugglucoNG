@@ -39,16 +39,18 @@ class LumiflexCloudUploader(
         val session = settings.session()
         settings.recordSync(session, LumiflexCloudSettings.SyncState.SYNCING, queue.size())
         val result = flushSession(session)
+        val pending = queue.size()
         val (state, uploaded, message) = when (result) {
             is FlushResult.Success -> Triple(
-                if (result.uploaded > 0 || settings.lastSyncMs > 0) LumiflexCloudSettings.SyncState.SYNCED
+                if (pending > 0 && settings.enabled) LumiflexCloudSettings.SyncState.QUEUED
+                else if (result.uploaded > 0 || settings.lastSyncMs > 0) LumiflexCloudSettings.SyncState.SYNCED
                 else LumiflexCloudSettings.SyncState.IDLE, result.uploaded, "",
             )
             is FlushResult.WaitingForSensor -> Triple(LumiflexCloudSettings.SyncState.WAITING_FOR_SENSOR, result.uploaded, "")
             is FlushResult.Failed -> Triple(LumiflexCloudSettings.SyncState.ERROR, result.uploaded, result.message)
             is FlushResult.Unauthorized -> Triple(LumiflexCloudSettings.SyncState.SIGN_IN_REQUIRED, result.uploaded, "")
         }
-        settings.recordSync(session, state, queue.size(), message, uploaded,
+        settings.recordSync(session, state, pending, message, uploaded,
             retrying = result is FlushResult.Failed && result.kind == LumiflexCloudError.Kind.TRANSIENT)
         return result
     }
