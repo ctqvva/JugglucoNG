@@ -59,7 +59,7 @@ struct  Searchgegs {
     bool operator() (const ScanData *g) const {
         if(!g||!g->valid())
             return false;
-        uint32_t glu=g->g*10.0;
+        uint32_t glu=g->getmgdL()*10.0;
         if(g->t&&glu&&glu>=under&&glu<=above&&righttime(g->t)) {
             return  true;
             }

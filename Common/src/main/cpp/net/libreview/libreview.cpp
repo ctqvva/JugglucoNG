@@ -155,7 +155,7 @@ static char *librehistel(const LibreHistEl *el, const int64_t histor,
 
 static char *libreScanel(const SensorGlucoseData *sens, const ScanData &scanel,
                          const int16_t nr, char *ptr) {
-  const auto mgdL = libreviewExportedMgdl(sens, scanel.gettime(), scanel.getmgdL());
+  const auto mgdL = libreviewExportedMgdl(sens, scanel.gettime(), scanel.getmgdL(), 0, scanel.hasResolvedGlucose());
   valuestart(ptr, mgdL);
   int mil = 0;
   ptr += TdatestringGMT(scanel.gettime(), mil, ptr);
@@ -305,13 +305,16 @@ static LibreHist librehistory(SensorGlucoseData *sensdata, uint32_t starttime,
     double rawsum = 0.0;
     int rawnum = 0;
     int num = 0;
+    bool hasFinal = false;
+    const ScanData *bucketStart = iter;
     const int nextid = id + periodright;
     if (nextid > laststreamid)
       break;
     for (; iter->id <= nextid;) {
       //        LOGGER("id %d\n",iter->id);
       timesum += iter->t;
-      glusum += iter->g;
+      glusum += iter->getmgdL();
+      hasFinal |= iter->hasResolvedGlucose();
       if (const int raw = sensdata->getRawForPoll(iter); raw > 0) {
         rawsum += raw;
         ++rawnum;
@@ -331,8 +334,20 @@ static LibreHist librehistory(SensorGlucoseData *sensdata, uint32_t starttime,
       const int avgmgdl = (int)round(glusum / num);
       const int avgraw = rawnum ? (int)lround(rawsum / rawnum) : 0;
       list[datuit].ti = avgtime;
-      list[datuit].mgdL =
-          (int16_t)libreviewExportedMgdl(sensdata, avgtime, avgmgdl, avgraw);
+      if (hasFinal) {
+        // Resolve mixed legacy/final inputs individually. Entirely stock buckets
+        // retain the existing average-then-calibrate behavior.
+        double resolvedSum = 0.0;
+        for (const auto *sample = bucketStart; sample <= useddata; ++sample) {
+          if (sample->valid())
+            resolvedSum += libreviewExportedMgdl(sensdata, sample->gettime(), sample->getmgdL(),
+                sensdata->getRawForPoll(sample), sample->hasResolvedGlucose());
+        }
+        list[datuit].mgdL = (int16_t)lround(resolvedSum / num);
+      } else {
+        list[datuit].mgdL =
+            (int16_t)libreviewExportedMgdl(sensdata, avgtime, avgmgdl, avgraw);
+      }
       list[datuit++].id = id;
       //    LOGGER("in id=%d\n",id);
     }
@@ -460,7 +475,7 @@ extern int betweenviews;
 static char *onecurrent(const SensorGlucoseData *sens, const ScanData &scanel,
                         const int nr, char *ptr, bool isviewed) {
   const auto mgdL = libreviewExportedMgdl(sens, scanel.gettime(), scanel.getmgdL(),
-                                          sens ? sens->getRawForPoll(&scanel) : 0);
+                                          sens ? sens->getRawForPoll(&scanel) : 0, scanel.hasResolvedGlucose());
   valuestart(ptr, mgdL);
   int mil = getmmsec();
   auto wastime = scanel.gettime();

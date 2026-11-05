@@ -180,11 +180,17 @@ internal class OttaiFirmwareSession private constructor(
                 !(hasPendingSetup(context, id) && materials.authKeys != null)) return null
             if (hasPendingPreparation(context, id) && !hasPendingTransfer(context, id) &&
                 pendingMode(context, id, ble) == null) return null
-            if (OttaiRegistry.isV3CredentialBootstrapPending(context, id)) return null
             // A managed owner could reconnect and consume activation intent in parallel.
             if (OttaiRegistry.findRecord(context, id) != null || SensorBluetooth.mygatts().any { callback ->
                     callback is OttaiDriver && callback.matchesManagedSensorId(id)
                 }) return null
+            // Setup no longer starts the wizard-owned legacy bootstrap, so this flag has no live
+            // owner: it survives only from an older build killed mid-bootstrap. Nothing else can
+            // clear it before keys exist, so refusing here would block this sensor indefinitely.
+            // A managed owner that could act on it is excluded above.
+            if (OttaiRegistry.isV3CredentialBootstrapPending(context, id)) {
+                OttaiRegistry.setV3CredentialBootstrapPending(context, id, false)
+            }
             // Fresh OTA must precede bindV3. Its server-authenticated BLE handshake does
             // not require fetching account-bound credentials first.
             if (materials.authKeys == null && mode != OttaiFirmwareMode.PREACTIVATION) return null

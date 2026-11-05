@@ -78,6 +78,7 @@ import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorSourceResolver
 import tk.glucodata.share.DexcomShareSettings
+import tk.glucodata.share.lumiflex.LumiflexCloudSettings
 import tk.glucodata.alerts.SensorHandoverRuntime
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.ScheduledBackupSettings
@@ -126,6 +127,10 @@ fun ExpressiveSettingsScreen(
     val showDexcomShare = remember {
         runCatching { DexcomShareSettings.isSetUp(context) }.getOrDefault(false) ||
             hasActiveDexcomSensor()
+    }
+    val showLumiflex = remember {
+        runCatching { LumiflexCloudSettings.isSetUp(context) }.getOrDefault(false) ||
+            hasActiveAiDexSensor()
     }
     val showOttaiSettings = remember {
         SensorBluetooth.mygatts().any { callback ->
@@ -626,6 +631,16 @@ fun ExpressiveSettingsScreen(
                         iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
                         onClick = { navController.navigate("settings/dexcom-share") }
+                    )
+                }
+                if (showLumiflex) {
+                    SettingsItem(
+                        title = "Lumiflex Cloud",
+                        subtitle = "Upload glucose to Lumiflex",
+                        icon = Icons.Default.CloudUpload,
+                        iconTint = sharingColor,
+                        position = CardPosition.MIDDLE,
+                        onClick = { navController.navigate("settings/lumiflex") }
                     )
                 }
                 if (showMqAccount) {
@@ -1708,3 +1723,10 @@ private val importMimeTypes = arrayOf(
     "text/tab-separated-values",
     "*/*"
 )
+
+private fun hasActiveAiDexSensor(): Boolean = runCatching {
+    Natives.activeSensors()?.filterNotNull().orEmpty().any { sensorId ->
+        SensorSourceResolver.resolveSensorKind(sensorId, SensorSourceResolver.SENSOR_KIND_UNKNOWN) ==
+            SensorSourceResolver.SENSOR_KIND_AIDEX
+    }
+}.getOrDefault(false)

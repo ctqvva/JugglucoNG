@@ -206,7 +206,9 @@ object SensorIdentity {
         // Taking the sensor over clears the Clone flag, so the driver rules again.
         if (CloneSensorRegistry.isCloneSensor(raw)) return true
         managedDriverHistorySync(raw)?.let { return it }
-        val canonical = canonicalOrRaw(raw) ?: raw
+        // Native current exposes a short name. Recover its full identity before
+        // asking adapters such as API/NSF, which recognize their prefixed ids.
+        val canonical = canonicalSensorId(raw) ?: raw
         if (!canonical.equals(raw, ignoreCase = true)) {
             managedDriverHistorySync(canonical)?.let { return it }
         }

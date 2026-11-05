@@ -1320,12 +1320,15 @@ void       makeWakeThread(int allindex,passhost_t *hostptr) {
     std::thread wake(sendup,hostptr);
     wake.detach();
 }
-void updatedata::wakesender(uintptr_t kind) {
+void updatedata::wakesender(uintptr_t kind,bool sourcesOnly) {
     LOGAR("wakesender");
     for(int i=0;i<hostnr;i++) {
         passhost_t &host=allhosts[i];
         if(host.deactivated) {
             LOGGER("%d deactivated\n", i);
+            }
+        else if(sourcesOnly&&!host.receivedatafrom()) {
+            LOGGER("%d not a source\n", i);
             }
         else {
         if(
@@ -1496,8 +1499,12 @@ int getgetsendnr() {
        return backup->getupdatedata()->sendnr;
     return 0;
     }
+// The web servers call this on every request, to have the phones this one
+// mirrors from send what they have. A host this phone only sends to has
+// nothing to send back; waking it reconnected that Clone link (handshake and
+// full resend) once per request, about every minute with a watch polling.
 void wakesender() {
-     backup->getupdatedata()->wakesender();    
+     backup->getupdatedata()->wakesender(8 /*wakeall*/,true);
      }
 #include "mirrorerror.h"
 char mirrorerrors[maxallhosts][maxmirrortext];

@@ -16,6 +16,7 @@ class VirtualSensorNativeMirrorTests {
         val glucose: FloatArray,
         val raws: FloatArray,
         val sensorSerial: String,
+        val primaryIsResolved: Boolean,
     )
 
     /** A stand-in for the native shell: one start second, and whatever was written. */
@@ -38,8 +39,8 @@ class VirtualSensorNativeMirrorTests {
             native.rebased += startSeconds
             native.startSeconds = startSeconds
         },
-        writeBatch = { timestampsSec, glucose, raws, sensorSerial ->
-            native.batches += Batch(timestampsSec, glucose, raws, sensorSerial)
+        writeBatch = { timestampsSec, glucose, raws, sensorSerial, primaryIsResolved ->
+            native.batches += Batch(timestampsSec, glucose, raws, sensorSerial, primaryIsResolved)
             timestampsSec.size
         },
     )
@@ -67,6 +68,7 @@ class VirtualSensorNativeMirrorTests {
 
         val batch = native.batches.single()
         assertEquals(serial, batch.sensorSerial)
+        assertTrue(batch.primaryIsResolved)
         assertArrayEquals(longArrayOf(now - 300L, now), batch.timestampsSec)
         // g.cpp storeGlucoseStreamSample(): mgVal = glucose * 10.
         assertEquals(12.0f, batch.glucose[0], 0.0001f)
@@ -180,6 +182,65 @@ class VirtualSensorNativeMirrorTests {
         assertEquals(118f, batch.raws[0], 0.0001f)
         // 0 tells native to leave whatever raw the slot already had alone.
         assertEquals(0f, batch.raws[1], 0.0001f)
+    }
+
+    @Test
+    fun apiMirrorUsesThePublishedValueWhileRoomKeepsTheAutomaticLane() {
+        val native = FakeNative()
+        val reading = VirtualGlucoseSensorBridge.Reading(
+            timestampMs = now * 1000L,
+            glucoseMgdl = 130f,
+            autoMgdl = 115f,
+            rawMgdl = 110f,
+        )
+
+        mirrorOver(native).mirror(serial, listOf(reading), "API source")
+
+        assertEquals(115f, reading.storageGlucoseMgdl, 0f)
+        assertEquals(130f, reading.primaryGlucoseMgdl, 0f)
+        assertEquals(13f, native.batches.single().glucose.single(), 0f)
+        assertEquals(110f, native.batches.single().raws.single(), 0f)
+    }
+
+    @Test
+    fun explicitCalibratedValueAndItsFallbackMatchLivePublishing() {
+        val native = FakeNative()
+        val reading = VirtualGlucoseSensorBridge.Reading(
+            timestampMs = now * 1000L,
+            glucoseMgdl = 130f,
+            autoMgdl = 115f,
+            calibratedMgdl = 140f,
+        )
+
+        mirrorOver(native).mirror(
+            serial,
+            listOf(
+                reading,
+                reading.copy(timestampMs = (now + 60L) * 1000L, calibratedMgdl = 0f),
+                reading.copy(timestampMs = (now + 120L) * 1000L, calibratedMgdl = Float.NaN),
+            ),
+            "API source",
+        )
+
+        assertArrayEquals(floatArrayOf(14f, 13f, 13f), native.batches.single().glucose, 0f)
+    }
+
+    @Test
+    fun validAutomaticLaneCannotMakeAnInvalidPublishedValueReachNative() {
+        val native = FakeNative()
+
+        val stored = mirrorOver(native).mirror(
+            serial,
+            listOf(VirtualGlucoseSensorBridge.Reading(
+                timestampMs = now * 1000L,
+                glucoseMgdl = Float.NaN,
+                autoMgdl = 115f,
+            )),
+            "API source",
+        )
+
+        assertEquals(0, stored)
+        assertTrue(native.batches.isEmpty())
     }
 
     @Test

@@ -22,6 +22,19 @@ import java.util.Locale
 
 object SettingsExporter {
     private const val TAG = "SettingsExporter"
+
+    /**
+     * Preference files that hold vendor credentials. They never enter an export (values or raw
+     * XML) and are therefore never restored by an import either.
+     */
+    // restricted_mode: restoring a backup must not lift a child's restrictions, and its PIN
+    // hash is not something to hand around in a file.
+    internal val SECRET_PREFERENCE_FILES = setOf(
+        "lumiflex_cloud", "ican_cloud", "dexcom_share", tk.glucodata.RestrictedMode.PREFS_NAME,
+    )
+
+    internal fun isSecretPreferenceFile(name: String): Boolean =
+        name in SECRET_PREFERENCE_FILES
     internal const val SCHEMA = "tk.glucodata.settings-export"
     private const val SCHEMA_VERSION = 4
 
@@ -244,13 +257,15 @@ object SettingsExporter {
         val result = JSONObject()
         val prefsDir = File(context.applicationInfo.dataDir, "shared_prefs")
         val prefFiles = prefsDir
-            .listFiles { file -> file.isFile && file.extension == "xml" }
+            .listFiles { file ->
+                file.isFile && file.extension == "xml" &&
+                    !isSecretPreferenceFile(file.name.removeSuffix(".xml"))
+            }
             ?.sortedBy { it.name }
             .orEmpty()
 
         prefFiles.forEach { file ->
             val name = file.name.removeSuffix(".xml")
-            if (name in deviceLocalPreferenceFiles) return@forEach
             val values = JSONObject()
             context.getSharedPreferences(name, Context.MODE_PRIVATE)
                 .all
@@ -271,13 +286,6 @@ object SettingsExporter {
         return result
     }
 
-    /**
-     * Preference files that belong to this phone and never travel in a backup. Restricted
-     * mode: restoring a backup must not lift a child's restrictions, and its PIN hash is not
-     * something to hand around in a file.
-     */
-    private val deviceLocalPreferenceFiles = setOf(tk.glucodata.RestrictedMode.PREFS_NAME)
-
     internal fun importSharedPreferences(
         context: Context,
         exportedPreferences: JSONObject,
@@ -296,9 +304,9 @@ object SettingsExporter {
             } else editor.clear()
             return editor
         }
-        val importedNames = exportedPreferences.keySet().filterNot { it in deviceLocalPreferenceFiles }.toSet()
+        val importedNames = exportedPreferences.keySet().filterNot(::isSecretPreferenceFile)
         discoverSharedPreferenceNames(context)
-            .filterNot { it in importedNames || it in deviceLocalPreferenceFiles }
+            .filterNot { it in importedNames }
             .forEach { name ->
                 importEditor(name).commit()
             }
@@ -747,6 +755,8 @@ object SettingsExporter {
         return prefsDir
             .listFiles { file -> file.isFile && file.extension == "xml" }
             ?.mapTo(mutableSetOf()) { it.name.removeSuffix(".xml") }
+            ?.filterNot(::isSecretPreferenceFile)
+            ?.toMutableSet()
             .orEmpty()
     }
 

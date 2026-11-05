@@ -1701,6 +1701,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_dose_pair_insulin">Associar insulina</string>
     <string name="journal_dose_pair_carbs">Associar carboidratos</string>
     <string name="journal_dose_suggested_insulin">%1$s U sugeridas</string>
+    <string name="journal_amount_suggested">Sugerido</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>

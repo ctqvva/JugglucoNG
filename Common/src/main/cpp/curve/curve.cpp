@@ -657,7 +657,7 @@ void JCurve::showScan(NVGcontext *avg, const ScanData *low,
   for (const ScanData *it = low; it != high; it++) {
     if (it->valid()) {
       const uint32_t tim = it->t;
-      const auto glu = it->g * 10;
+      const auto glu = it->getmgdL() * 10;
       const auto posx = transx(tim), posy = transy(glu);
 #ifdef JUGGLUCO_APP
       if (search && searchdata(it))
@@ -705,7 +705,7 @@ void JCurve::showlineScan(NVGcontext *avg, const ScanData *low,
     for (const ScanData *it = low; it != high; it++) {
       if (it->valid() && searchdata(it)) {
         const uint32_t tim = it->t;
-        const auto glu = it->g * 10;
+        const auto glu = it->getmgdL() * 10;
         const auto posx = transx(tim), posy = transy(glu);
         if (washit) {
           if (!restart && tim > late) {
@@ -767,7 +767,7 @@ void JCurve::showlineScan(NVGcontext *avg, const ScanData *low,
         raw = (rawLow + (it - low))->raw;
       }
 
-      const auto glu = useRaw ? (raw * convfactordL) : (it->g * 10);
+      const auto glu = useRaw ? (raw * convfactordL) : (it->getmgdL() * 10);
       if (useRaw && raw == 0)
         continue;
       const auto posx = transx(tim), posy = transy(glu);
@@ -1107,7 +1107,7 @@ JCurve::getextremes(const vector<int> &hists,
       for (const ScanData *it = srange[i].first, *last = srange[i].second;
            it < last; it++) {
         if (it->valid()) {
-          auto mgdL = it->g;
+          auto mgdL = it->getmgdL();
           int glu = mgdL * 10;
           if (glu > gmax)
             gmax = glu;

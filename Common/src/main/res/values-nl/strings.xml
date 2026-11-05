@@ -1743,6 +1743,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_dose_pair_insulin">Insuline koppelen</string>
     <string name="journal_dose_pair_carbs">Koolhydraten koppelen</string>
     <string name="journal_dose_suggested_insulin">%1$s E voorgesteld</string>
+    <string name="journal_amount_suggested">Voorgesteld</string>
     <string name="unit_insulin_value">%1$s E</string>
     <string name="unit_insulin_short">E</string>
     <string name="unit_carbs_value">%1$s g</string>

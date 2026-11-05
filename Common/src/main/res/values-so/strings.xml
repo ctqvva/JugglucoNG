@@ -1930,6 +1930,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_dose_pair_insulin">Isku xidh insulin</string>
     <string name="journal_dose_pair_carbs">Isku xidh karbohaydraytyada</string>
     <string name="journal_dose_suggested_insulin">%1$s U ayaa soo jeedisay</string>
+    <string name="journal_amount_suggested">La soo jeediyay</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>

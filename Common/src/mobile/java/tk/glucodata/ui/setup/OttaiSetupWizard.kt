@@ -741,30 +741,12 @@ fun OttaiSetupWizard(
         }
 
         currentMaterials = null
-        // A wizard-owned BLE bootstrap survives Activity configuration changes. Its result is
-        // persisted, so a recreated composition waits for that same transaction instead of
-        // launching a duplicate or showing the retry button while bindV3 is still finishing.
+        // The wizard no longer starts the legacy BLE credential bootstrap (Connect runs the
+        // firmware/setup session instead), so a pending flag here was left by an older build
+        // killed mid-bootstrap. Waiting on it held materialLoading (and thus Connect) for 90 s
+        // on every selection; nothing would ever complete it. Drop it and continue normally.
         if (OttaiRegistry.isV3CredentialBootstrapPending(context, canonical)) {
-            materialLoading = true
-            repeat(180) {
-                delay(500L)
-                val completed = withContext(Dispatchers.IO) {
-                    OttaiRegistry.loadMaterials(context, canonical).takeIf { it.authKeys != null }
-                }
-                if (completed != null) {
-                    currentMaterials = completed
-                    if (completed.deviceVersion.isNotBlank()) selectedDeviceVersion = completed.deviceVersion
-                    materialLoading = false
-                    showStatus("")
-                    return@LaunchedEffect
-                }
-                if (!OttaiRegistry.isV3CredentialBootstrapPending(context, canonical)) {
-                    materialLoading = false
-                    return@LaunchedEffect
-                }
-            }
-            materialLoading = false
-            return@LaunchedEffect
+            OttaiRegistry.setV3CredentialBootstrapPending(context, canonical, false)
         }
         if (signedIn && lastAutoFetchId != canonical) {
             lastAutoFetchId = canonical

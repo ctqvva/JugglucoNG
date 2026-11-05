@@ -85,6 +85,8 @@ class SensorTraceLogTests {
             ),
         )
         assertEquals(emptyList<String>(), sensorTraceDriverTags(SensorVendor.ABBOTT))
+        // Dexcom's handshake and backfill steps mostly do not name the sensor (#767).
+        assertEquals(listOf("DexGattCallback"), sensorTraceDriverTags(SensorVendor.DEXCOM))
     }
 
     @Test

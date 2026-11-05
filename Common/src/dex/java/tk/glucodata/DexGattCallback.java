@@ -136,6 +136,7 @@ private void docmd0(BluetoothGatt bluetoothGatt) {
             {if(doLog){Log.showbytes("onDescriptorWrite char: " + characteristic.getUuid().toString() + " desc: " + bluetoothGattDescriptor.getUuid().toString() + " status=" + status, value);};}
         }
        if(characteristic.equals(charact[2])) {
+             {if(doLog) {Log.i(LOG_ID, SerialNumber + " backfill notifications status=" + status);};};
              if(status == BluetoothGatt.GATT_SUCCESS)
                 backfilled = true;
             askbackfill();
@@ -865,6 +866,7 @@ private    void getdata(byte[] value) {
                 if(savename) saveDeviceName();
             };break;
            case 0x59:{
+              {if(doLog) {Log.i(LOG_ID, SerialNumber + " backfill response " + hexBytes(value));};};
               Applic.app.redraw();
               Natives.dexEndBackfill(dataptr);
               syncBackfillToRoom();
@@ -891,7 +893,9 @@ private    void getdata(byte[] value) {
             if(doLog)
                 {if(doLog){Log.showbytes("DexGattCallback onCharacteristicChanged UUID: " + bluetoothGattCharacteristic.getUuid().toString(), value);};}
             if (bluetoothGattCharacteristic.equals(charact[2])) {
-                Natives.dexbackfill(dataptr, value);
+                final boolean saved = Natives.dexbackfill(dataptr, value);
+                if (saved) noteBackfillRecords(value);
+                {if(doLog) {Log.i(LOG_ID, SerialNumber + " backfill " + value.length + " bytes saved=" + saved + " " + hexBytes(value));};};
                 return;
             }
 
@@ -1122,6 +1126,11 @@ public synchronized boolean changeAuthSlot(int slot) {
             noteBackfill(cmd);
             tryer(()-> write(0, cmd));
           }
+         else if(doLog) {
+            final int[] state = Natives.dexBackfillState(dataptr);
+            Log.i(LOG_ID, SerialNumber + " backfill not requested"
+                    + (state == null ? "" : ", received up to #" + state[0] + " of #" + state[1]));
+            }
        }
     }
 
@@ -1131,17 +1140,46 @@ public synchronized boolean changeAuthSlot(int slot) {
    sensor has finished, or the link drops mid-transfer, copy from where the
    requested window starts (#767, as Libre 3 #620). */
 private long backfillRoomSyncFromMsec=0L;
+private static int littleEndianInt(byte[] b,int at) {
+    return (b[at]&0xFF)|((b[at+1]&0xFF)<<8)|((b[at+2]&0xFF)<<16)|(b[at+3]<<24);
+    }
 private synchronized void noteBackfill(byte[] cmd) {
     // 0x59, then the window's start and end in little-endian seconds since sensor start.
-    if(cmd.length<5)
+    if(cmd.length<9)
         return;
-    final int startSecs=(cmd[1]&0xFF)|((cmd[2]&0xFF)<<8)|((cmd[3]&0xFF)<<16)|(cmd[4]<<24);
+    final int startSecs=littleEndianInt(cmd,1);
+    {if(doLog) {
+        final long sensorStart=Natives.getSensorStartmsec(dataptr)/1000L;
+        Log.i(LOG_ID, SerialNumber + " backfill request " + (sensorStart+startSecs) + "-" + (sensorStart+littleEndianInt(cmd,5)));
+        }};
+    noteBackfillFrom(startSecs);
+    }
+/* The G7 also streams backfill without our request once its notifications are on
+   (xDrip4iOS never sends 0x59 for G7). Records saved that way can close the gap
+   before getDexbackfillcmd runs, so it asks for nothing; copy them all the same. */
+private synchronized void noteBackfillRecords(byte[] records) {
+    int earliest=Integer.MAX_VALUE;
+    for(int at=0;at+9<=records.length;at+=9) {
+        final int secs=littleEndianInt(records,at);
+        if(secs>=0&&secs<earliest)
+            earliest=secs;
+        }
+    if(earliest!=Integer.MAX_VALUE)
+        noteBackfillFrom(earliest);
+    }
+private void noteBackfillFrom(int startSecs) {
     final long sensorStartMsec=Natives.getSensorStartmsec(dataptr);
     if(sensorStartMsec<=0L)
         return;
     final long fromMsec=sensorStartMsec+(startSecs-5*60)*1000L;
     if(backfillRoomSyncFromMsec==0L||fromMsec<backfillRoomSyncFromMsec)
         backfillRoomSyncFromMsec=fromMsec;
+    }
+private static String hexBytes(byte[] value) {
+    final StringBuilder sb=new StringBuilder(value.length*2);
+    for(byte b:value)
+        sb.append(String.format("%02X",b&0xFF));
+    return sb.toString();
     }
 private synchronized void syncBackfillToRoom() {
     final long fromMsec=backfillRoomSyncFromMsec;
