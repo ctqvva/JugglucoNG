@@ -33,8 +33,12 @@ get<Y>(String path, dynamic params, parse)
 
 `SinoAuthService::login` → POST `sino-auth/oauth/token`
 - headers `{ "authorization": appConfig.authorization }` (Basic)
-- тело = `_$LoginRequestToJson`:
-  `grant_type` (`password` / `verify_code` / `refresh_token`), `scope`, `type`, `thirdAuth`, `country`, `ids`, `tenantId`, `phone_num`, `password`, `thirdAuthKey`
+- **тело (по blutter-разбору 2026-11-05)**: `grant_type=phone_cgm`, `scope=all`,
+  `type=account`, `tenantId=000000`, `phone_num=<account>`, `password=<argon2hex>`;
+  остальные поля `LoginRequest` пустые; упаковка — form-urlencoded (`isEncode=false`)
+- **пароль**: `Argon2Util::encode` — Argon2id, salt = байты пароля, t=3,
+  m=32768 КиБ, p=1, version=0x13, 32 байта → hex (нижний регистр)
+- **ответ**: плоский JSON `LoginModel` (без `code/data`-обёртки)
 - ответ → `LoginModel`: oauth-поля `access_token`,`token_type`,`refresh_token`,`expires_in`,`scope`,`tenant_id`,`tenant_ids`,`jti`,`country` + userinfo `account`,`account_id`,`account_type`,`app_id`,`avatar_url`,`client_id`,`client_type`,`email`,`host`,`im_account`,`language_key`,`mch_id`,`mch_code`,`nick_name`,`oauth_id`,`org_id`,`phone`,`phoneAreaCode`,`post_id`,`real_name`,`role_id`,`role_name`,`sign_account`,`state_mode`,`status`,`supportBgm`,`centre`,`centerCode`,`user_id`.
 - Токен → `TokenStorage::saveToken` + `_sendTokenToNative` (Pigeon).
 
@@ -77,6 +81,10 @@ FollowerFriendsModel JSON-ключи: `id`,`userId`,`followerId`,`sharerId`,`sha
 
 ## Открытые вопросы (след. этапы)
 
-1. IV для AES-CBC (кандидаты probe: key[0:16], key[16:32], фиксированная константа) — проверить живым сервером.
-2. Точная упаковка запроса: form-urlencoded vs JSON body; поведение `isEncode`; формат ответа (расшифровка ответа AES тем же ключом? — `aesDecrypt` есть).
-3. Upload-контракт (`sino-cgm/v2/user-apparatus/save`, `user-device/page`, heartbeat) — только рантайм: распаковка dex из памяти (тот же метод, что в CE-handoff), либо blutter_frida.js hook на реальном устройстве с RU-аккаунтом.
+1. IV для AES-CBC — закрыт живыми данными: IV = key[0:16] (подтверждено на всех конвертах дня);
+2. Упаковка запроса — **решено**: Dart-слой шлёт `createEncryptedRequest` json-конвертом
+   (`{key,data}` в теле, `application/json`), как native-POST; JNG-клиент переведён на этот формат
+   (см. `ICanHealthCloudClient.login`), эмпирическая валидация — первым живым логином из JNG;
+3. Upload-контракт (`sino-cgm/v2/user-apparatus/save`, `user-device/page`, heartbeat) — только рантайм:
+   распаковка dex из памяти (тот же метод, что в CE-handoff), либо blutter_frida.js hook на реальном
+   устройстве с RU-аккаунтом; частично уже снят live-логами (см. ICAN-RU-LIVE-DECRYPT).

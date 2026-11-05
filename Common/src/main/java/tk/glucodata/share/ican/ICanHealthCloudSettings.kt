@@ -2,10 +2,27 @@ package tk.glucodata.share.ican
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import androidx.annotation.Keep
+import java.security.KeyStore
+import java.security.SecureRandom
+import java.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 @Keep
-class ICanHealthCloudSettings(context: Context) {
+class ICanHealthCloudSettings(
+    context: Context,
+    val passwordCipher: PasswordCipher = AndroidKeystorePasswordCipher,
+) {
+    interface PasswordCipher {
+        fun encrypt(value: String): String
+        fun decrypt(value: String): String
+    }
+
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -51,6 +68,20 @@ class ICanHealthCloudSettings(context: Context) {
             prefs.edit().putLong(KEY_LAST_SYNC_MS, value).apply()
         }
 
+    var password: String
+        get() {
+            val raw = prefs.getString(KEY_PASSWORD, "") ?: ""
+            if (raw.isEmpty()) return ""
+            return passwordCipher.decrypt(raw)
+        }
+        set(value) {
+            if (value.isEmpty()) {
+                prefs.edit().remove(KEY_PASSWORD).apply()
+            } else {
+                prefs.edit().putString(KEY_PASSWORD, passwordCipher.encrypt(value)).apply()
+            }
+        }
+
     fun clear() {
         prefs.edit().clear().apply()
     }
@@ -76,5 +107,47 @@ class ICanHealthCloudSettings(context: Context) {
         private const val KEY_TENANT_ID = "ican_cloud_tenant_id"
         private const val KEY_USER_ID = "ican_cloud_user_id"
         private const val KEY_LAST_SYNC_MS = "ican_cloud_last_sync_ms"
+        private const val KEY_PASSWORD = "ican_cloud_password"
+    }
+}
+
+object AndroidKeystorePasswordCipher : ICanHealthCloudSettings.PasswordCipher {
+    private const val KEY_ALIAS = "juggluco_ican_cloud"
+
+    override fun encrypt(value: String): String = runCatching {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey(), SecureRandom())
+        val iv = Base64.getEncoder().encodeToString(cipher.iv)
+        val ciphertext = Base64.getEncoder().encodeToString(cipher.doFinal(value.toByteArray(Charsets.UTF_8)))
+        "$iv:$ciphertext"
+    }.getOrDefault(value)
+
+    override fun decrypt(value: String): String = runCatching {
+        val parts = value.split(':', limit = 2)
+        require(parts.size == 2)
+        val iv = Base64.getDecoder().decode(parts[0])
+        val ciphertext = Base64.getDecoder().decode(parts[1])
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, iv))
+        String(cipher.doFinal(ciphertext), Charsets.UTF_8)
+    }.getOrDefault("")
+
+    @Synchronized
+    private fun secretKey(): SecretKey {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").run {
+            init(
+                KeyGenParameterSpec.Builder(
+                    KEY_ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                )
+                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .setKeySize(256)
+                    .build()
+            )
+            generateKey()
+        }
     }
 }

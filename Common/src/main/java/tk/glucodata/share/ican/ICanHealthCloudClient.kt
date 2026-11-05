@@ -37,7 +37,7 @@ class ICanHealthCloudClient(
 
     fun login(account: String, password: String): LoginResult {
         val url = ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-auth/oauth/token"
-        val body = buildLoginForm(account, password)
+        val body = buildLoginForm(account, ICanPasswordHash.hash(password))
         val response = transport.post(url, body)
         if (response.code == 401) {
             return LoginResult.Failed(
@@ -54,8 +54,12 @@ class ICanHealthCloudClient(
             )
         }
         val json = runCatching { JSONObject(response.body) }.getOrNull()
+        val topLevelToken = json?.optString("access_token", "").orEmpty()
+        if (topLevelToken.isNotEmpty()) {
+            return LoginResult.Ok(topLevelToken, LoginModel.fromJson(json))
+        }
         val code = json?.optInt("code", response.code) ?: response.code
-        if (code == 0) {
+        if (code == 0 || code == 200) {
             val data = json?.optJSONObject("data")
             val token = data?.optString("access_token", "").orEmpty()
             if (token.isNotEmpty()) return LoginResult.Ok(token, LoginModel.fromJson(data))
@@ -65,6 +69,20 @@ class ICanHealthCloudClient(
             code,
             ICanHealthCloudError.message(response.body),
         )
+    }
+
+    private fun buildLoginForm(account: String, password: String): String {
+        val enc = { v: String -> URLEncoder.encode(v, "UTF-8") }
+        return "grant_type=phone_cgm" +
+            "&scope=all" +
+            "&type=account" +
+            "&thirdAuth=" +
+            "&country=${ICanHealthCloudConstants.COUNTRY}" +
+            "&ids=" +
+            "&tenantId=000000" +
+            "&phone_num=${enc(account)}" +
+            "&password=${enc(password)}" +
+            "&thirdAuthKey="
     }
 
     fun uploadGlucose(sessionToken: String, serial: String, egvs: List<EgvUpload>): UploadResult {
@@ -252,20 +270,6 @@ class ICanHealthCloudClient(
         transport.post(url, "", mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token))
     }
 
-    private fun buildLoginForm(account: String, password: String): String {
-        val enc = { v: String -> URLEncoder.encode(v, "UTF-8") }
-        return "grant_type=password" +
-            "&scope=all" +
-            "&type=" +
-            "&thirdAuth=" +
-            "&country=${ICanHealthCloudConstants.COUNTRY}" +
-            "&ids=" +
-            "&tenantId=" +
-            "&phone_num=${enc(account)}" +
-            "&password=${enc(password)}" +
-            "&thirdAuthKey="
-    }
-
     private fun decryptResponse(requestKey: String, body: String): String? {
         val trimmed = body.trim()
         if (trimmed.isEmpty()) return null
@@ -325,10 +329,9 @@ class ICanHealthCloudClient(
                         setRequestProperty(ICanHealthCloudConstants.HEADER_CLIENT_ID, ICanHealthCloudConstants.CLIENT_ID)
                         setRequestProperty(ICanHealthCloudConstants.HEADER_AUTHORIZATION, ICanHealthCloudConstants.AUTHORIZATION_BASIC)
                         setRequestProperty(ICanHealthCloudConstants.HEADER_TIME_ZONE, ICanHealthCloudConstants.TIME_ZONE)
-                        setRequestProperty(
-                            ICanHealthCloudConstants.HEADER_SINO_AUTH,
-                            headers[ICanHealthCloudConstants.HEADER_SINO_AUTH].orEmpty(),
-                        )
+                        headers[ICanHealthCloudConstants.HEADER_SINO_AUTH].orEmpty().takeIf { it.isNotEmpty() }?.let {
+                            setRequestProperty(ICanHealthCloudConstants.HEADER_SINO_AUTH, it)
+                        }
                         val contentType = if (url.contains("oauth/token")) {
                             "application/x-www-form-urlencoded"
                         } else {
@@ -367,10 +370,9 @@ class ICanHealthCloudClient(
                         setRequestProperty(ICanHealthCloudConstants.HEADER_CLIENT_ID, ICanHealthCloudConstants.CLIENT_ID)
                         setRequestProperty(ICanHealthCloudConstants.HEADER_AUTHORIZATION, ICanHealthCloudConstants.AUTHORIZATION_BASIC)
                         setRequestProperty(ICanHealthCloudConstants.HEADER_TIME_ZONE, ICanHealthCloudConstants.TIME_ZONE)
-                        setRequestProperty(
-                            ICanHealthCloudConstants.HEADER_SINO_AUTH,
-                            headers[ICanHealthCloudConstants.HEADER_SINO_AUTH].orEmpty(),
-                        )
+                        headers[ICanHealthCloudConstants.HEADER_SINO_AUTH].orEmpty().takeIf { it.isNotEmpty() }?.let {
+                            setRequestProperty(ICanHealthCloudConstants.HEADER_SINO_AUTH, it)
+                        }
                         setRequestProperty("Accept", "application/json")
                     }
                     val code = connection.responseCode

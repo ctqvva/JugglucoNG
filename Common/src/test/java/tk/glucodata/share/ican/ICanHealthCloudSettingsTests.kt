@@ -2,6 +2,7 @@ package tk.glucodata.share.ican
 
 import android.content.Context
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -61,9 +62,36 @@ class ICanHealthCloudSettingsTests {
         assertEquals("", settings2.tenantId)
         assertEquals("", settings2.userId)
         assertEquals(0L, settings2.lastSyncMs)
+        assertEquals("", settings2.password)
+    }
+
+    @Test
+    fun passwordIsStoredEncryptedNotPlaintext() {
+        val app = RuntimeEnvironment.getApplication() as ICanHealthCloudSettingsTestApplication
+        val context = app
+        val prefs = context.getSharedPreferences("ican_cloud", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+
+        val settings = ICanHealthCloudSettings(context, passwordCipher = B64PasswordCipher())
+        settings.password = "s3cret"
+
+        val raw = prefs.getString("ican_cloud_password", null)
+        assertTrue(raw != null && raw != "s3cret")
+        assertEquals(
+            java.util.Base64.getEncoder().encodeToString("s3cret".toByteArray(Charsets.UTF_8)),
+            raw,
+        )
+        assertEquals("s3cret", settings.password)
     }
 }
 
 class ICanHealthCloudSettingsTestApplication : Applic() {
     override fun onCreate() {}
+}
+
+private class B64PasswordCipher : ICanHealthCloudSettings.PasswordCipher {
+    override fun encrypt(value: String): String =
+        java.util.Base64.getEncoder().encodeToString(value.toByteArray(Charsets.UTF_8))
+    override fun decrypt(value: String): String =
+        String(java.util.Base64.getDecoder().decode(value), Charsets.UTF_8)
 }

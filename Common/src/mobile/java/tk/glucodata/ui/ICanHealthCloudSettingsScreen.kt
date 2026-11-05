@@ -75,13 +75,15 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
 
     var enabled by remember { mutableStateOf(initial.enabled) }
     var account by remember { mutableStateOf(initial.account) }
-    var password by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf(initial.password) }
     var showPassword by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf(initial.lastSyncMs) }
     var testing by remember { mutableStateOf(false) }
     var testMessage by remember { mutableStateOf<String?>(null) }
     val hasCredentials = account.isNotBlank() && password.isNotBlank()
     val hasSession = remember(status) { ICanHealthCloudSettings(context).token.isNotBlank() }
+    val storedAccount = remember { initial.account }
+    val passwordLocked = hasSession && account.trim() == storedAccount.trim()
 
     fun save() {
         val s = ICanHealthCloudSettings(context)
@@ -119,7 +121,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                         }
                         status = s.lastSyncMs
                         testMessage = context.getString(R.string.ican_health_logged_in)
-                        password = ""
+                        s.password = password
                         val since = if (s.lastSyncMs > 0L) s.lastSyncMs else
                             System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
                         coroutineScope.launch(Dispatchers.IO) {
@@ -212,6 +214,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                 label = { Text(stringResource(R.string.ican_health_password)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                enabled = !passwordLocked,
                 visualTransformation = if (showPassword) {
                     VisualTransformation.None
                 } else {

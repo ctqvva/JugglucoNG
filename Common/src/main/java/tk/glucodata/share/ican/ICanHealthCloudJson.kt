@@ -83,6 +83,9 @@ object ICanHealthCloudJson {
         return linkedMapOf("data" to data, "key" to rsaEncrypt(key))
     }
 
+    fun createEncryptedRequest(payloadJson: String, key: String = getRandomString()): Map<String, String> =
+        linkedMapOf("data" to aesEncrypt(key, payloadJson), "key" to rsaEncrypt(key))
+
     fun authBody(account: String, password: String): String = JSONObject()
         .put("grant_type", "password")
         .put("scope", "all")

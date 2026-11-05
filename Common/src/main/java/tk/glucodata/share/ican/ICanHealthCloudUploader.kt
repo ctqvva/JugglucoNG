@@ -14,7 +14,7 @@ class ICanHealthCloudUploader(
 
     @Synchronized
     fun flush(): FlushResult {
-        val token = settings.token
+        var token = settings.token
         if (token.isBlank()) {
             return FlushResult.Unauthorized(0)
         }
@@ -46,7 +46,7 @@ class ICanHealthCloudUploader(
                 var lastMessage = ""
                 while (attempt < MAX_RETRIES && !success && !unauthorized) {
                     attempt++
-                    when (val result = client.uploadGlucose(token, serial, batch)) {
+                    when (val result = client.uploadGlucose(settings.token, serial, batch)) {
                         is UploadResult.Ok -> success = true
                         is UploadResult.Failed -> {
                             if (result.code == 401) {
@@ -64,6 +64,12 @@ class ICanHealthCloudUploader(
                     }
                 }
                 if (unauthorized) {
+                    if (relogin(token)) {
+                        unauthorized = false
+                        attempt = 0
+                        token = settings.token
+                        continue
+                    }
                     if (settings.token == token) settings.token = ""
                     return FlushResult.Unauthorized(uploadedTotal)
                 }
@@ -78,6 +84,20 @@ class ICanHealthCloudUploader(
         }
         if (newestMs > 0L) settings.lastSyncMs = maxOf(settings.lastSyncMs, newestMs)
         return FlushResult.Success(uploadedTotal)
+    }
+
+    private fun relogin(oldToken: String): Boolean {
+        val account = settings.account
+        val password = settings.password
+        if (account.isBlank() || password.isBlank()) return false
+        val result = client.login(account, password)
+        if (result !is ICanHealthCloudClient.LoginResult.Ok) return false
+        if (settings.token != oldToken) return true
+        settings.token = result.sessionId
+        if (result.model.refreshToken.isNotEmpty()) settings.refreshToken = result.model.refreshToken
+        if (result.model.userId.isNotEmpty()) settings.userId = result.model.userId
+        if (result.model.tenantId.isNotEmpty()) settings.tenantId = result.model.tenantId
+        return true
     }
 
     sealed class FlushResult(

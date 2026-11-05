@@ -39,6 +39,54 @@ class ICanHealthCloudClientTests {
     }
 
     @Test
+    fun loginSendsFormWithGrantType() {
+        val transport = FakeTransport { url ->
+            if (url.contains("oauth/token")) HttpResult(200, """{"code":0,"data":{"access_token":"tok"}}""")
+            else HttpResult(404, "")
+        }
+        val result = ICanHealthCloudClient(transport).login("a@b.com", "p w")
+        assertTrue(result is LoginResult.Ok)
+        val body = transport.calls.single().second!!
+        assertTrue(body.contains("grant_type=phone_cgm"))
+        assertTrue(body.contains("type=account"))
+        assertTrue(body.contains("tenantId=000000"))
+        assertTrue(body.contains("phone_num=a%40b.com"))
+        assertTrue(body.contains("password=" + ICanPasswordHash.hash("p w")))
+        assertFalse(body.contains("password=p+w"))
+        assertFalse(body.startsWith("{"))
+    }
+
+    @Test
+    fun loginAcceptsTopLevelTokenResponse() {
+        val transport = FakeTransport { url ->
+            if (url.contains("oauth/token")) {
+                HttpResult(
+                    200,
+                    """{"access_token":"tokTop","refresh_token":"r1","expires_in":1796212808982,"user_id":"42","tenant_id":"tenantCgm"}""",
+                )
+            } else {
+                HttpResult(404, "")
+            }
+        }
+        val result = ICanHealthCloudClient(transport).login("a@b.com", "pw")
+        assertTrue(result is LoginResult.Ok)
+        result as LoginResult.Ok
+        assertEquals("tokTop", result.sessionId)
+        assertEquals("r1", result.model.refreshToken)
+        assertEquals("42", result.model.userId)
+    }
+
+    @Test
+    fun loginWrongCredentialsMapsBadCredentials() {
+        val transport = FakeTransport { _ ->
+            HttpResult(200, """{"code":13,"success":false,"data":null,"msg":"Incorrect account or password"}""")
+        }
+        val result = ICanHealthCloudClient(transport).login("a@b.com", "p")
+        assertTrue(result is LoginResult.Failed)
+        assertEquals(ICanHealthCloudError.Kind.BAD_CREDENTIALS, (result as LoginResult.Failed).kind)
+    }
+
+    @Test
     fun loginCode30ReturnsActivateAccount() {
         val transport = FakeTransport { url ->
             HttpResult(200, """{"code":30,"success":false,"msg":"not activated","data":null}""")
