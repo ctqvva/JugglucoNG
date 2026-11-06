@@ -34,7 +34,7 @@ class LumiflexCloudViewModelTests {
         var smsResponseLost = false
         override fun post(url: String, body: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult {
             val response = when {
-                url.endsWith("sendRegisterPhoneVerificationCode") -> {
+                url.endsWith("sendRegisterOverseaPhoneVerificationCode") -> {
                     codeRequests++
                     if (smsResponseLost) return LumiflexCloudClient.HttpResult(-1, "Response lost")
                     """{"code":200}"""

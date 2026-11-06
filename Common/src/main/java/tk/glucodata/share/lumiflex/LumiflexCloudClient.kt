@@ -80,7 +80,8 @@ class LumiflexCloudClient(
             ?: return SyncResult.Failed(LumiflexCloudError.Kind.OTHER, 400, "Invalid Russian phone number")
         return classifySync(post(
             LumiflexCloudConstants.PATH_SEND_REGISTRATION_CODE,
-            JSONObject().put("phone", normalized).toString(), "", "",
+            // Russian numbers use the overseas SMS gateway, with the dialling code separate.
+            JSONObject().put("zoneNumber", "7").put("phone", normalized.drop(1)).toString(), "", "",
         ))
     }
 

@@ -9,14 +9,12 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -38,7 +36,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
     LumiflexCloudSettingsContent(
         state = state, onBack = { navController.popBackStack() },
         onAccount = model::accountChanged, onPassword = model::passwordChanged,
-        onSignIn = model::signIn, onSignOut = model::signOut, onEdit = model::editCredentials,
+        onSignIn = model::signIn, onSignOut = model::signOut,
         onEnabled = model::setEnabled, onSync = { model.checkConnection() }, onBind = model::bindSensors,
         onRegistration = model::showRegistration, onPhone = model::phoneChanged, onCode = model::codeChanged,
         onRequestCode = model::requestCode, onVerifyCode = model::verifyCode, onSetPassword = model::setPassword,
@@ -51,14 +49,13 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
 internal fun LumiflexCloudSettingsContent(
     state: LumiflexCloudUiState,
     onBack: () -> Unit = {}, onAccount: (String) -> Unit = {}, onPassword: (String) -> Unit = {},
-    onSignIn: () -> Unit = {}, onSignOut: () -> Unit = {}, onEdit: () -> Unit = {},
+    onSignIn: () -> Unit = {}, onSignOut: () -> Unit = {},
     onEnabled: (Boolean) -> Unit = {}, onSync: () -> Unit = {}, onBind: () -> Unit = onSync,
     onRegistration: (Boolean) -> Unit = {}, onPhone: (String) -> Unit = {}, onCode: (String) -> Unit = {},
     onRequestCode: () -> Unit = {}, onVerifyCode: () -> Unit = {}, onSetPassword: () -> Unit = {},
     onFollowers: () -> Unit = {},
 ) {
     var showHelp by remember { mutableStateOf(false) }
-    var accountMenu by remember { mutableStateOf(false) }
     var emailLogin by rememberSaveable { mutableStateOf(state.account.contains('@')) }
     val signedIn = state.session.signedIn
     val setup = signedIn && state.passwordSetupRequired
@@ -89,27 +86,31 @@ internal fun LumiflexCloudSettingsContent(
             }
         })
     }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            MasterSwitchCard(
+                title = stringResource(R.string.lumiflex_cloud_title),
+                subtitle = stringResource(R.string.lumiflex_cloud_subtitle),
+                checked = state.enabled, onCheckedChange = onEnabled, icon = Icons.Default.CloudUpload,
+                enabled = signedIn && !setup && !state.busy,
+            )
             if (signedIn) {
-                SettingsItem(
-                    title = lumiflexAccountLabel(state.session.account), subtitle = stringResource(status),
-                    icon = Icons.Default.AccountCircle, onClick = if (usable && !setup) onEdit else null,
-                    trailingContent = {
-                        if (state.checkingSession) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                        Box {
-                            IconButton(onClick = { accountMenu = true }, shapes = IconButtonDefaults.shapes()) {
-                                Icon(Icons.Default.MoreVert, stringResource(R.string.lumiflex_account_actions))
-                            }
-                            DropdownMenu(expanded = accountMenu, onDismissRequest = { accountMenu = false }) {
-                                if (!setup) DropdownMenuItem(text = { Text(stringResource(R.string.lumiflex_edit_credentials)) },
-                                    enabled = !state.busy, onClick = { accountMenu = false; onEdit() })
-                                DropdownMenuItem(text = { Text(stringResource(R.string.lumiflex_sign_out)) },
-                                    onClick = { accountMenu = false; onSignOut() })
-                            }
+                AdaptiveTrailingRow(Modifier.fillMaxWidth(), trailingContent = {
+                    OutlinedButton(onClick = onSignOut, shapes = ButtonDefaults.shapes()) {
+                        Text(stringResource(R.string.lumiflex_sign_out))
+                    }
+                }) {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        IconTile(icon = Icons.Default.AccountCircle, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(lumiflexAccountLabel(state.session.account), style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(4.dp))
+                            Text(stringResource(status), style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    },
-                )
+                    }
+                }
             }
             if (state.sessionExpired && !signedIn) {
                 Text(stringResource(R.string.lumiflex_account_expired), style = MaterialTheme.typography.bodyMedium,
@@ -123,11 +124,13 @@ internal fun LumiflexCloudSettingsContent(
             }
 
             if (state.registration) {
+                Column {
                 SectionLabel(stringResource(R.string.lumiflex_create_account), topPadding = 0.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 LumiflexPhoneField(state.phone, onPhone, !state.busy)
                 Button(onClick = onRequestCode,
                     enabled = !state.busy && state.resendSeconds == 0 && LumiflexCloudClient.registrationPhone(state.phone) != null,
-                    shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
                     if (state.sendingCode) {
                         CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
@@ -142,14 +145,18 @@ internal fun LumiflexCloudSettingsContent(
                         modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !state.busy,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                     Button(onClick = onVerifyCode, enabled = !state.busy && state.code.isNotBlank(),
-                        shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
                         Text(stringResource(if (state.busy) R.string.lumiflex_working else R.string.lumiflex_verify_phone))
                     }
                 }
                 TextButton(onClick = { onRegistration(false) }, enabled = !state.busy, shapes = ButtonDefaults.shapes(),
                     modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.lumiflex_back_to_sign_in)) }
+                }
+                }
             } else if (!signedIn || state.editing || setup) {
+                Column {
                 SectionLabel(stringResource(if (setup) R.string.lumiflex_set_password else R.string.lumiflex_account), topPadding = 0.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 if (!setup) {
                     ConnectedButtonGroup(
                         options = listOf(false, true), selectedOption = emailLogin,
@@ -171,7 +178,7 @@ internal fun LumiflexCloudSettingsContent(
                     Button(onClick = if (setup) onSetPassword else onSignIn,
                         enabled = !state.busy && state.password.isNotBlank() &&
                             (setup || if (emailLogin) state.account.isNotBlank() else LumiflexCloudClient.registrationPhone(state.account) != null),
-                        shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 48.dp)) {
+                        shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 56.dp)) {
                         if (state.busy) {
                             CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
@@ -179,29 +186,15 @@ internal fun LumiflexCloudSettingsContent(
                         Text(stringResource(if (state.busy) R.string.lumiflex_working else if (setup) R.string.lumiflex_set_password else R.string.lumiflex_sign_in))
                     }
                     if (!signedIn) OutlinedButton(onClick = { onRegistration(true) }, enabled = !state.busy,
-                        shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 48.dp)) {
+                        shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 56.dp)) {
                         Text(stringResource(R.string.lumiflex_create_account))
                     }
+                }
+                }
                 }
             }
 
             if (signedIn && !setup && !state.registration) {
-                SectionLabel(stringResource(R.string.lumiflex_cloud_controls), topPadding = 0.dp)
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingsSwitchItem(title = stringResource(R.string.lumiflex_auto_upload),
-                        checked = state.enabled, onCheckedChange = onEnabled, enabled = !state.busy,
-                        icon = Icons.Default.CloudUpload, position = CardPosition.TOP)
-                    SettingsItem(title = stringResource(R.string.lumiflex_sensor),
-                        subtitle = state.sync.boundSensors.takeIf { it.isNotEmpty() }?.joinToString { "X-${it.removePrefix("X-")}" }
-                            ?: stringResource(R.string.lumiflex_connect_sensor),
-                        icon = Icons.Default.Sensors, position = CardPosition.MIDDLE,
-                        onClick = if (state.enabled && usable && !working) onBind else null,
-                        trailingContent = {
-                            if (working && state.sync.boundSensors.isEmpty()) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                            else IconButton(onClick = onBind, enabled = state.enabled && usable && !working, shapes = IconButtonDefaults.shapes()) {
-                                Icon(Icons.Default.Link, stringResource(R.string.lumiflex_bind_sensor))
-                            }
-                        })
                     val syncTitle = when {
                         !state.enabled -> stringResource(R.string.lumiflex_sync_paused)
                         state.sync.state == LumiflexCloudSettings.SyncState.SYNCING -> stringResource(R.string.lumiflex_sync_uploading)
@@ -217,17 +210,48 @@ internal fun LumiflexCloudSettingsContent(
                         state.sync.lastSuccessMs > 0 -> DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(state.sync.lastSuccessMs))
                         else -> null
                     }
-                    SettingsItem(title = syncTitle, subtitle = detail, icon = Icons.Default.Sync,
-                        position = CardPosition.MIDDLE, onClick = if (state.enabled && usable && !working) onSync else null,
-                        trailingContent = {
-                            if (working) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                            else IconButton(onClick = onSync, enabled = state.enabled && usable, shapes = IconButtonDefaults.shapes()) {
-                                Icon(Icons.Default.Sync, stringResource(R.string.lumiflex_sync_now))
+                Card(shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row {
+                            IconTile(icon = Icons.Default.Sync, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(syncTitle, style = MaterialTheme.typography.titleMediumEmphasized)
+                                detail?.takeIf { it.isNotBlank() }?.let {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(it, style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (state.sync.boundSensors.isNotEmpty()) {
+                                    Spacer(Modifier.height(12.dp))
+                                    Text(state.sync.boundSensors.joinToString { "X-${it.removePrefix("X-")}" },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
-                        })
-                    SettingsItem(title = stringResource(R.string.lumiflex_manage_followers),
-                        icon = Icons.Default.Group, position = CardPosition.BOTTOM, onClick = onFollowers)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        AdaptiveButtonRow(Modifier.fillMaxWidth()) {
+                            FilledTonalButton(onClick = onSync, enabled = state.enabled && usable && !working,
+                                shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 56.dp)) {
+                                if (working) {
+                                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text(stringResource(R.string.lumiflex_sync_now))
+                            }
+                            if (state.sync.boundSensors.isEmpty()) {
+                                OutlinedButton(onClick = onBind, enabled = state.enabled && usable && !working,
+                                    shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 56.dp)) {
+                                    Text(stringResource(R.string.lumiflex_bind_sensor))
+                                }
+                            }
+                        }
+                    }
                 }
+                SettingsItem(title = stringResource(R.string.lumiflex_manage_followers),
+                    icon = Icons.Default.Group, onClick = onFollowers)
             }
         }
     }

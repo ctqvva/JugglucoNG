@@ -9,6 +9,8 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -50,10 +52,11 @@ class LumiflexCloudSettingsUiTests {
     @Test
     fun signedInAccountHasSyncActionsAndNoRedundantLoginForm() {
         var syncClicks = 0
+        var toggled: Boolean? = null
         compose.setContent {
             MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
                 Box(Modifier.size(420.dp, 1_000.dp).testTag("screen")) {
-                    LumiflexCloudSettingsContent(signedIn, onSync = { syncClicks++ })
+                    LumiflexCloudSettingsContent(signedIn, onSync = { syncClicks++ }, onEnabled = { toggled = it })
                 }
             }
         }
@@ -61,8 +64,18 @@ class LumiflexCloudSettingsUiTests {
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
         compose.onNodeWithText("Войти").assertDoesNotExist()
         compose.onNodeWithText("Ожидание показаний").assertExists()
+        val master = compose.onNode(isToggleable()).assertIsOn()
+        assertTrue(master.fetchSemanticsNode().boundsInRoot.bottom <
+            compose.onNodeWithText("+7 (999) 123-45-67").fetchSemanticsNode().boundsInRoot.top)
+        master.performClick()
+        assertEquals(false, toggled)
+        compose.onNodeWithContentDescription("Действия с аккаунтом").assertDoesNotExist()
+        compose.onNodeWithText("Изменить данные входа").assertDoesNotExist()
+        for (label in listOf("Выйти", "Отправить сейчас", "Привязать сенсор")) {
+            compose.onNodeWithText(label).assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        }
         capture("signed-in-ru")
-        compose.onNodeWithContentDescription("Отправить сейчас").performScrollTo().performClick()
+        compose.onNodeWithText("Отправить сейчас").performScrollTo().performClick()
         assertEquals(1, syncClicks)
     }
 
@@ -136,10 +149,9 @@ class LumiflexCloudSettingsUiTests {
                 }
             }
         }
-        compose.onNodeWithContentDescription("Действия с аккаунтом").performScrollTo().performClick()
-        compose.onNodeWithText("Выйти").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Выйти").performScrollTo().assertIsDisplayed().performClick()
         assertTrue(signOut)
-        compose.onNodeWithContentDescription("Отправить сейчас").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithText("Отправить сейчас").performScrollTo().assertIsDisplayed().performClick()
         assertTrue(synced)
         capture("narrow-large-text-ru")
     }
