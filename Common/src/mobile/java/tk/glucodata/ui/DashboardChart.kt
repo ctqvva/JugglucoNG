@@ -1726,7 +1726,9 @@ fun InteractiveGlucoseChart(
                 )
             }
         }
-        PresentedMinuteRecorder.recordVisible(presentedRecorderRepository, visible)
+        PresentedMinuteRecorder.recordVisible(
+            presentedRecorderRepository, visible, renderedInputs.calibrationRevision
+        )
     }
 
     // Manual scaling establishes the baseline; visible outliers may temporarily expand it.

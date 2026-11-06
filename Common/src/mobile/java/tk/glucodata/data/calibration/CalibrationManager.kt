@@ -50,6 +50,7 @@ object CalibrationManager {
     private const val KEY_KEEP_DISABLED_HISTORY = "calibration_keep_disabled_history"
     private const val KEY_WEIGHT_MODE = "calibration_weight_mode"
     private const val KEY_PROFILE_REVISION_PREFIX = "calibration_profile_revision_"
+    private const val KEY_POINT_ADDED_AT_PREFIX = "calibration_point_added_at_"
     private const val HOUR_MS = 3_600_000.0
     private const val PAST_BLEND_WINDOW_MS = 30L * 60L * 1000L
     private const val INTEGRATED_ANCHOR_MATCH_MS = 2L * 60L * 1000L
@@ -1363,20 +1364,76 @@ object CalibrationManager {
                 dao.labelLegacyUnits(if (Applic.unit == 1) 1 else 0)
                 dao.getAllSync().map { it.inUnit(Applic.unit) }
             }
+            var previous: List<CalibrationEntity>? = null
             val changed = synchronized(boundaryLock) {
                 val relabeled = relabelBeforeBoundaries(list)
                 if (calibrationStateLoaded && _calibrations.value == relabeled) {
                     false
                 } else {
+                    if (calibrationStateLoaded) previous = _calibrations.value
                     _calibrations.value = relabeled
                     calibrationStateLoaded = true
                     true
                 }
             }
             if (!changed) return
+            // The revision moves first: from here on a chart still drawing the
+            // old points cannot record them, so what is released below stays
+            // released. See HistoryRepository.recordPresentedMinutes.
             invalidateComputationCache("loadCalibrations")
+            // Not cancellable: a closing screen must not strand a point that has
+            // already left the table with its records still in place.
+            previous?.let {
+                withContext(kotlinx.coroutines.NonCancellable) {
+                    settleRecordsOfChangedPoints(it, _calibrations.value)
+                }
+            }
             requestUiRefreshAfterCalibrationChange()
         }
+    }
+
+    private fun pointAddedAtKey(point: CalibrationEntity) =
+        "$KEY_POINT_ADDED_AT_PREFIX${point.timestamp}_${if (point.isRawMode) "raw" else "auto"}"
+
+    /**
+     * Notes when each point arrived, and takes back what a departed one wrote
+     * into the record after the fact.
+     *
+     * The table has no such column, and bumping the calibration database locks
+     * older builds out of it. A point from before this was tracked has no entry
+     * and releases nothing, which is how every removal behaved until now.
+     */
+    private suspend fun settleRecordsOfChangedPoints(
+        before: List<CalibrationEntity>,
+        after: List<CalibrationEntity>,
+    ) {
+        if (!::prefs.isInitialized) return
+        val changes = CalibrationPointChanges.between(before, after)
+        if (changes.isEmpty) return
+        val addedAt = changes.gone.associateWith { prefs.getLong(pointAddedAtKey(it), 0L) }
+        val now = System.currentTimeMillis()
+        prefs.edit().apply {
+            changes.gone.forEach { remove(pointAddedAtKey(it)) }
+            changes.arrived.forEach { putLong(pointAddedAtKey(it), now) }
+        }.apply()
+
+        var released = 0
+        addedAt.forEach { (point, since) ->
+            if (since <= 0L) return@forEach
+            released += runCatching {
+                tk.glucodata.data.HistoryRepository().releaseRecordsMadeUnderCalibration(
+                    sensorId = point.sensorId,
+                    addedAt = since,
+                    rawLane = matchesMode(point, isRawMode = true),
+                    autoLane = matchesMode(point, isRawMode = false),
+                )
+            }.onFailure {
+                Log.w(TAG, "Failed releasing records of calibration ${point.id}", it)
+            }.getOrDefault(0)
+        }
+        // A released minute may come back with the very value this guard
+        // remembers, and it would never be recorded again in this process.
+        if (released > 0) tk.glucodata.ui.PresentedMinuteRecorder.reset()
     }
 
     @JvmOverloads

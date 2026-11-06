@@ -21,6 +21,20 @@ class RecordedDisplayVoidingTests {
         value = value, rawValue = raw, rate = null,
     )
 
+    @Test fun aCalibrationAnswersOnlyForItsOwnSensorAndLanes() {
+        val auto = record(0, 100f)
+        val raw = record(1, 100f, mode = 1)
+        val dualRaw = record(2, 100f, mode = 3)
+        val other = record(3, 100f, serial = "X-222227KUFY")
+        val records = listOf(auto, raw, dualRaw, other)
+        assertEquals(listOf(auto.timestamp),
+            RecordedDisplayVoiding.minutesOfCalibratedLane(records, SERIAL, rawLane = false, autoLane = true))
+        assertEquals(listOf(raw.timestamp, dualRaw.timestamp),
+            RecordedDisplayVoiding.minutesOfCalibratedLane(records, SERIAL, rawLane = true, autoLane = false))
+        assertEquals(listOf(auto.timestamp, raw.timestamp, dualRaw.timestamp),
+            RecordedDisplayVoiding.minutesOfCalibratedLane(records, SERIAL, rawLane = true, autoLane = true))
+    }
+
     @Test fun changedSourcesInvalidateTheirOwnRecords() {
         val records = listOf(record(0, 99f), record(1, 106f), record(2, 119f))
         val before = listOf(reading(0, 100f), reading(1, 104f), reading(2, 108f))
