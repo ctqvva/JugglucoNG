@@ -79,6 +79,19 @@ class LumiflexFollowSyncTests {
         settings.selectMode(true, provider.copy(dataProviderId = "other"))
         assertEquals(0, settings.lastReceivedMs)
     }
+    @Test fun providerSelectionRequestsOneMainSensorHandoffAndStaleAcknowledgementCannotConsumeIt() {
+        assertTrue(settings.selectionPending)
+        val first = settings.session()
+        settings.selectionApplied(first)
+        assertFalse(settings.selectionPending)
+        settings.selectMode(true, provider.copy(dataProviderId = "other"))
+        settings.selectionApplied(first)
+        assertTrue(settings.selectionPending)
+        settings.selectionApplied(settings.session())
+        assertFalse(settings.selectionPending)
+        settings.startSession("reader-account", "new-token", "reader")
+        assertFalse(settings.selectionPending)
+    }
     @Test fun sessionReplacementDuringReadDiscardsTheReply() {
         val transport = Transport().apply { beforeHistory = { settings.startSession("other", "other-token", "other-id") } }
         assertFalse(sync(transport) { fail("old account data") })

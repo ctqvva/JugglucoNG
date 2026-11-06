@@ -64,6 +64,15 @@ object LumiflexFollowerRegistry : ManagedSensorIdentityAdapter {
             SensorBluetooth.ensureCurrentSensorSelection()
             ManagedSensorUiSignals.markDeviceListDirty()
         }
+        val settings = LumiflexCloudSettings(context)
+        if (result != null && settings.selectionPending && configured(context)) {
+            val session = settings.session()
+            // A valid old native sensor makes ensureCurrentSensorSelection return early.
+            // Selecting Receive/provider is an explicit handoff; apply it once, then retain
+            // any later main-sensor choice across background polls and process restarts.
+            SensorBluetooth.setCurrentSensorSelection(result.SerialNumber)
+            settings.selectionApplied(session)
+        }
         return result
     }
     @JvmStatic
