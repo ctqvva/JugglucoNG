@@ -3287,4 +3287,8 @@
     <string name="tts_trend_decreasing">spada</string>
     <string name="tts_trend_rising_quickly">szybko rośnie</string>
     <string name="tts_trend_falling_quickly">szybko spada</string>
+    <string name="lumiflex_remove_follower_confirm">Odebrać użytkownikowi %1$s dostęp do Twoich odczytów?</string>
+    <string name="lumiflex_discard_changes_title">Odrzucić zmiany?</string>
+    <string name="lumiflex_discard_changes_message">Zmiany ustawień tego obserwatora nie zostały zapisane.</string>
+    <string name="lumiflex_follower_alerts">Powiadomienia obserwatora</string>
 </resources>

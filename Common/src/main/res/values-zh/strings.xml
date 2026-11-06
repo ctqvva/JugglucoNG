@@ -3242,4 +3242,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">下降</string>
     <string name="tts_trend_rising_quickly">快速上升</string>
     <string name="tts_trend_falling_quickly">快速下降</string>
+    <string name="lumiflex_remove_follower_confirm">移除 %1$s 对您读数的访问权限？</string>
+    <string name="lumiflex_discard_changes_title">放弃更改？</string>
+    <string name="lumiflex_discard_changes_message">对此关注者设置的更改尚未保存。</string>
+    <string name="lumiflex_follower_alerts">关注者通知</string>
 </resources>

@@ -3515,14 +3515,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_send_invite">Send invite</string>
     <string name="lumiflex_my_shares">My shares</string>
     <string name="lumiflex_no_followers">No followers yet</string>
-    <string name="lumiflex_switch_display">Switch display</string>
+    <string name="lumiflex_switch_display">Hide on screen</string>
     <string name="lumiflex_regular_reminders">Regular reminders</string>
     <string name="lumiflex_urgent_low">Urgent low</string>
     <string name="lumiflex_extreme_high">Extreme high</string>
     <string name="lumiflex_new_nickname">New nickname</string>
     <string name="lumiflex_save_nickname">Save nickname</string>
     <string name="lumiflex_rename">Rename</string>
-    <string name="lumiflex_remove">Remove</string>
+    <string name="lumiflex_remove">Remove follower</string>
     <string name="lumiflex_status_invited">Invited</string>
     <string name="lumiflex_status_invite_failed">Invite failed</string>
     <string name="lumiflex_status_renamed">Renamed</string>
@@ -3584,4 +3584,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_sensor">Sensor</string>
     <string name="lumiflex_connect_sensor">Connect your sensor to bind it</string>
     <string name="lumiflex_bind_sensor">Bind sensor</string>
+    <string name="lumiflex_remove_follower_confirm">Remove access for %1$s to your readings?</string>
+    <string name="lumiflex_discard_changes_title">Discard changes?</string>
+    <string name="lumiflex_discard_changes_message">Your changes to this follower have not been saved.</string>
+    <string name="lumiflex_follower_alerts">Follower notifications</string>
 </resources>

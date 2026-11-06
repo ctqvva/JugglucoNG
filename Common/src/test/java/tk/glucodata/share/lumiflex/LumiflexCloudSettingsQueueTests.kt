@@ -1,6 +1,9 @@
 package tk.glucodata.share.lumiflex
 
 import android.content.Context
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -58,6 +61,47 @@ class LumiflexCloudSettingsQueueTests {
         queue.enqueue(CgmRecord("SN1", "SN1", 0, 2, 1_700_000_120_000L, 101, 0), owner = "a1")
         assertEquals(1, queue.size())
         assertEquals("a1", queue.owner())
+    }
+
+    @Test
+    fun aLargeBackfillDoesNotStarveSessionReadersAndKeepsTheNewestQueueWindow() {
+        val context = RuntimeEnvironment.getApplication()
+        val queue = LumiflexCloudQueue(context).apply { clear() }
+        val settings = LumiflexCloudSettings(context).apply { startSession("owner", "token", "u1") }
+        val session = settings.session()
+        // Larger than one sensor's history, including input arriving out of order.
+        val batch = (1..200_000).reversed().map {
+            CgmRecord("SN1", "SN1", 0, it, 1_700_000_000_000L + it * 60_000L, 100, 0)
+        }
+        val started = CountDownLatch(1)
+        val workers = Executors.newFixedThreadPool(2)
+        try {
+            val enqueue = workers.submit<Boolean> {
+                settings.withCurrentSession(session) { started.countDown(); queue.enqueueAll(batch, session.account) }
+            }
+            assertTrue(started.await(2, TimeUnit.SECONDS))
+            // This is the call the Pixel's main thread was blocked on in the captured ANR.
+            assertEquals(session, workers.submit<LumiflexCloudSettings.Session> { settings.session() }
+                .get(4, TimeUnit.SECONDS))
+            assertTrue(enqueue.get(4, TimeUnit.SECONDS))
+        } finally { workers.shutdownNow() }
+        val stored = LumiflexCloudQueue(context).peek()
+        assertEquals(LumiflexCloudConstants.QUEUE_CAP, stored.size)
+        assertEquals(195_001, stored.first().timeOffsetMinutes)
+        assertEquals(200_000, stored.last().timeOffsetMinutes)
+    }
+
+    @Test
+    fun bulkMergePreservesExistingValuesAndDeduplicatesPerSensorAndMinute() {
+        val context = RuntimeEnvironment.getApplication()
+        val queue = LumiflexCloudQueue(context).apply { clear() }
+        val first = CgmRecord("SN1", "SN1", 0, 10, 1_700_000_000_000L, 100, 0)
+        queue.enqueue(first, "owner")
+        queue.enqueueAll(listOf(first.copy(mgdl = 200), first.copy(serial = "SN2"),
+            first.copy(timeOffsetMinutes = 11, timeMs = first.timeMs + 60_000), first.copy(serial = "SN2")), "owner")
+        assertEquals(3, queue.size())
+        assertEquals(first, queue.peek().first())
+        assertEquals(queue.peek(), LumiflexCloudQueue(context).peek())
     }
 
     @Test

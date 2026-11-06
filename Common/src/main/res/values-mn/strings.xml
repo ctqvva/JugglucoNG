@@ -3334,4 +3334,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="tts_trend_decreasing">буурч байна</string>
     <string name="tts_trend_rising_quickly">хурдан өсөж байна</string>
     <string name="tts_trend_falling_quickly">хурдан буурч байна</string>
+    <string name="lumiflex_remove_follower_confirm">%1$s таны хэмжилтийг харах эрхийг хасах уу?</string>
+    <string name="lumiflex_discard_changes_title">Өөрчлөлтийг цуцлах уу?</string>
+    <string name="lumiflex_discard_changes_message">Энэ дагагчийн тохиргооны өөрчлөлт хадгалагдаагүй.</string>
+    <string name="lumiflex_follower_alerts">Дагагчийн мэдэгдэл</string>
 </resources>

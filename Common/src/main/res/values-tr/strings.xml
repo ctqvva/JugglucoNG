@@ -3261,4 +3261,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="tts_trend_decreasing">düşüyor</string>
     <string name="tts_trend_rising_quickly">hızla yükseliyor</string>
     <string name="tts_trend_falling_quickly">hızla düşüyor</string>
+    <string name="lumiflex_remove_follower_confirm">%1$s için ölçümlerinize erişim kaldırılsın mı?</string>
+    <string name="lumiflex_discard_changes_title">Değişiklikler silinsin mi?</string>
+    <string name="lumiflex_discard_changes_message">Bu takipçi için yaptığınız değişiklikler kaydedilmedi.</string>
+    <string name="lumiflex_follower_alerts">Takipçi bildirimleri</string>
 </resources>

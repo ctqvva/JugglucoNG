@@ -3224,4 +3224,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">in diminuzione</string>
     <string name="tts_trend_rising_quickly">in rapido aumento</string>
     <string name="tts_trend_falling_quickly">in rapida diminuzione</string>
+    <string name="lumiflex_remove_follower_confirm">Revocare a %1$s l’accesso alle tue letture?</string>
+    <string name="lumiflex_discard_changes_title">Annullare le modifiche?</string>
+    <string name="lumiflex_discard_changes_message">Le modifiche per questo follower non sono state salvate.</string>
+    <string name="lumiflex_follower_alerts">Notifiche del follower</string>
 </resources>

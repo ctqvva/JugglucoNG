@@ -3322,4 +3322,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">знижується</string>
     <string name="tts_trend_rising_quickly">швидко підвищується</string>
     <string name="tts_trend_falling_quickly">швидко знижується</string>
+    <string name="lumiflex_remove_follower_confirm">Закрити доступ до ваших показань для %1$s?</string>
+    <string name="lumiflex_discard_changes_title">Скасувати зміни?</string>
+    <string name="lumiflex_discard_changes_message">Зміни налаштувань підписника не збережено.</string>
+    <string name="lumiflex_follower_alerts">Сповіщення підписника</string>
 </resources>

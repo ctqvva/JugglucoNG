@@ -29,9 +29,21 @@ class LumiflexCloudQueue(context: Context) {
     fun enqueueAll(records: List<CgmRecord>, owner: String = "") {
         synchronized(lock) {
             adoptOwner(owner)
+            // History backfills contain thousands of readings. Scanning and sorting the whole
+            // queue for every item held the shared session lock long enough to ANR the UI.
+            val keys = items.mapTo(HashSet()) { it.serial to it.timeOffsetMinutes }
             var changed = false
-            records.forEach { record -> append(record) { changed = true } }
-            if (changed) persist()
+            for (record in records) {
+                if (keys.add(record.serial to record.timeOffsetMinutes)) {
+                    items.add(record)
+                    changed = true
+                }
+            }
+            if (changed) {
+                items.sortBy { it.timeMs }
+                trimToCapacity()
+                persist()
+            }
         }
     }
 
@@ -51,10 +63,13 @@ class LumiflexCloudQueue(context: Context) {
         if (duplicate) return
         items.add(record)
         items.sortBy { it.timeMs }
-        while (items.size > LumiflexCloudConstants.QUEUE_CAP) {
-            items.removeAt(0)
-        }
+        trimToCapacity()
         onAdded()
+    }
+
+    private fun trimToCapacity() {
+        val excess = items.size - LumiflexCloudConstants.QUEUE_CAP
+        if (excess > 0) items.subList(0, excess).clear()
     }
 
     fun peek(): List<CgmRecord> = synchronized(lock) { items.toList() }

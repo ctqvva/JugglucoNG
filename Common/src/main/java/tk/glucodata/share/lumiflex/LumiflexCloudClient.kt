@@ -256,9 +256,11 @@ class LumiflexCloudClient(
     }
 
     fun addFollower(token: String, account: String, alias: String, userId: String = ""): FollowerInfo? {
+        val normalized = normalizeLoginAccount(account)
+        if (normalized.isBlank()) return null
         val body = JSONObject()
-            .put("readerUserName", account)
-            .put("readerAlias", alias)
+            .put("readerUserName", normalized)
+            .put("readerAlias", alias.trim())
             .put("hideState", 0)
             .put("normalPushState", 1)
             .put("emergePushState", 1)
@@ -266,7 +268,7 @@ class LumiflexCloudClient(
         val response = post(LumiflexCloudConstants.PATH_FOLLOWER_SAVE, body, token, userId)
         if (response.code !in 200..299) return null
         val json = runCatching { JSONObject(decoded(response.body).orEmpty()) }.getOrNull() ?: return null
-        if (json.optInt("code", 200) != 200) return null
+        if (json.optInt("code", 0) != 200) return null
         return FollowerInfo.fromJson(json.optJSONObject("data") ?: json)
     }
 
@@ -278,6 +280,7 @@ class LumiflexCloudClient(
         urgentPush: Boolean? = null,
         extremeHighPush: Boolean? = null,
         userId: String = "",
+        alias: String? = null,
     ): Boolean {
         if (id.isBlank()) return false
         val body = JSONObject().put("userAuthorizationId", id)
@@ -285,6 +288,7 @@ class LumiflexCloudClient(
         normalPush?.let { body.put("normalPushState", if (it) 1 else 0) }
         urgentPush?.let { body.put("emergePushState", if (it) 1 else 0) }
         extremeHighPush?.let { body.put("extremeHighPushState", if (it) 1 else 0) }
+        alias?.let { body.put("readerAlias", it.trim()) }
         return postOk(LumiflexCloudConstants.PATH_FOLLOWER_UPDATE, body.toString(), token, userId)
     }
 
