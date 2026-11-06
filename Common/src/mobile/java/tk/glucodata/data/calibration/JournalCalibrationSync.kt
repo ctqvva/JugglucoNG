@@ -40,6 +40,13 @@ object JournalCalibrationSync {
     private val scheduleLock = Any()
     private var pending: Job? = null
 
+    /**
+     * Runs a user's change to the calibration table between passes. A pass plans
+     * from a snapshot of the table and commits later, so a point removed while one
+     * was in flight could otherwise be written straight back.
+     */
+    suspend fun <T> betweenSyncs(block: suspend () -> T): T = syncLock.withLock { block() }
+
     /** Called whenever journal entries change; cheap when the feature is off. */
     fun onJournalChanged() {
         if (!CalibrationManager.shouldCalibrateFromJournal()) return
@@ -126,6 +133,7 @@ object JournalCalibrationSync {
                 isMmol = isMmol,
                 nowMillis = now,
                 matchesSensor = CalibrationManager::calibrationMatchesSensor,
+                dismissedTimestamps = CalibrationManager.dismissedJournalTimestamps(since),
             )
             CalibrationManager.applyJournalCalibrationPlan(plan, reason)
         }
