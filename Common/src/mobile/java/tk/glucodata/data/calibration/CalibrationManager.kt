@@ -51,6 +51,7 @@ object CalibrationManager {
     private const val KEY_WEIGHT_MODE = "calibration_weight_mode"
     private const val KEY_PROFILE_REVISION_PREFIX = "calibration_profile_revision_"
     private const val KEY_POINT_ADDED_AT_PREFIX = "calibration_point_added_at_"
+    private const val KEY_POINT_SWITCHES_PREFIX = "calibration_point_switches_"
     private val calibrationLoadOrder = CalibrationLoadOrder()
     private const val HOUR_MS = 3_600_000.0
     private const val PAST_BLEND_WINDOW_MS = 30L * 60L * 1000L
@@ -1395,13 +1396,19 @@ object CalibrationManager {
         }
     }
 
-    private fun pointAddedAtKey(point: CalibrationEntity) =
-        "$KEY_POINT_ADDED_AT_PREFIX${normalizeSensorId(point.sensorId)}_${point.timestamp}_" +
-            if (point.isRawMode) "raw" else "auto"
+    private fun pointKey(point: CalibrationEntity) =
+        "${normalizeSensorId(point.sensorId)}_${point.timestamp}_" + if (point.isRawMode) "raw" else "auto"
+
+    private fun pointAddedAtKey(point: CalibrationEntity) = KEY_POINT_ADDED_AT_PREFIX + pointKey(point)
+
+    private fun pointSwitchesKey(point: CalibrationEntity) = KEY_POINT_SWITCHES_PREFIX + pointKey(point)
+
+    private fun pointSwitches(point: CalibrationEntity) =
+        CalibrationPointSwitches.parse(prefs.getString(pointSwitchesKey(point), null))
 
     /**
-     * Notes when each point arrived, and takes back what a departed one wrote
-     * into the record after the fact.
+     * Notes when each point arrived and when it was switched, and takes back what
+     * a departed one wrote into the record after the fact.
      *
      * The table has no such column, and bumping the calibration database locks
      * older builds out of it. A point from before this was tracked has no entry
@@ -1415,12 +1422,28 @@ object CalibrationManager {
         val changes = CalibrationPointChanges.between(before, after)
         if (changes.isEmpty) return
         val addedAt = changes.gone.associateWith { prefs.getLong(pointAddedAtKey(it), 0L) }
+        val switches = changes.gone.associateWith { pointSwitches(it) }
         val now = System.currentTimeMillis()
         prefs.edit().apply {
             // A second point at the same moment still needs the entry.
             val stillHeld = after.mapTo(HashSet()) { pointAddedAtKey(it) }
-            changes.gone.map { pointAddedAtKey(it) }.filterNot { it in stillHeld }.forEach { remove(it) }
-            changes.arrived.forEach { putLong(pointAddedAtKey(it), now) }
+            changes.gone.filterNot { pointAddedAtKey(it) in stillHeld }.forEach {
+                remove(pointAddedAtKey(it))
+                remove(pointSwitchesKey(it))
+            }
+            changes.arrived.forEach {
+                putLong(pointAddedAtKey(it), now)
+                putString(
+                    pointSwitchesKey(it),
+                    CalibrationPointSwitches.encode(CalibrationPointSwitches.thenSwitched(emptyList(), !it.isEnabled, now)),
+                )
+            }
+            changes.switched.forEach {
+                putString(
+                    pointSwitchesKey(it),
+                    CalibrationPointSwitches.encode(CalibrationPointSwitches.thenSwitched(pointSwitches(it), !it.isEnabled, now)),
+                )
+            }
         }.apply()
 
         var released = 0
@@ -1432,6 +1455,7 @@ object CalibrationManager {
                     addedAt = since,
                     rawLane = matchesMode(point, isRawMode = true),
                     autoLane = matchesMode(point, isRawMode = false),
+                    pointSwitches = switches.getValue(point),
                 )
             }.onFailure {
                 Log.w(TAG, "Failed releasing records of calibration ${point.id}", it)

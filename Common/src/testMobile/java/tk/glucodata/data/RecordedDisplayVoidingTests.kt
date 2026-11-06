@@ -35,6 +35,15 @@ class RecordedDisplayVoidingTests {
             RecordedDisplayVoiding.minutesOfCalibratedLane(records, SERIAL, rawLane = true, autoLane = true))
     }
 
+    @Test fun aMinuteRecordedWhileThePointWasOffIsNotItsOwn() {
+        val on = record(0, 100f).copy(recordedAt = 100L)
+        val off = record(1, 100f).copy(recordedAt = 250L)
+        val onAgain = record(2, 100f).copy(recordedAt = 350L)
+        assertEquals(listOf(on.timestamp, onAgain.timestamp),
+            RecordedDisplayVoiding.minutesOfCalibratedLane(
+                listOf(on, off, onAgain), SERIAL, rawLane = false, autoLane = true, pointSwitches = listOf(200L, 300L)))
+    }
+
     @Test fun aPointWithNoSensorAnswersForNothing() {
         assertEquals(emptyList<Long>(), RecordedDisplayVoiding.minutesOfCalibratedLane(
             listOf(record(0, 100f)), " ", rawLane = true, autoLane = true))

@@ -2383,11 +2383,13 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
      * timestamp: the point can sit anywhere in the past and reaches the minutes
      * after it. A minute recorded before it arrived never carried it.
      * A minute lived through while it was in force was shown that way as it
-     * happened, and stays. The lock does not apply, since it protects what was
+     * happened, and stays, and so does one recorded while it was switched off,
+     * which was never under it. The lock does not apply, since it protects what was
      * seen, and this is a value that no longer has any standing. Released minutes
      * follow the live line until they are next presented.
      *
      * @param addedAt when the calibration appeared on this device.
+     * @param pointSwitches when it was switched, as [CalibrationPointSwitches] has them.
      * @return how many minutes were released.
      */
     suspend fun releaseRecordsMadeUnderCalibration(
@@ -2395,10 +2397,11 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         addedAt: Long,
         rawLane: Boolean,
         autoLane: Boolean,
+        pointSwitches: List<Long> = emptyList(),
     ): Int = withContext(Dispatchers.IO) {
         val released = database.withTransaction {
             val minutes = RecordedDisplayVoiding.minutesOfCalibratedLane(
-                displayDao.getWrittenAfterTheFact(addedAt), sensorId, rawLane, autoLane,
+                displayDao.getWrittenAfterTheFact(addedAt), sensorId, rawLane, autoLane, pointSwitches,
             )
             var deleted = 0
             minutes.chunked(500).forEach { deleted += displayDao.deleteAtMinutes(it, sealHorizon = null) }

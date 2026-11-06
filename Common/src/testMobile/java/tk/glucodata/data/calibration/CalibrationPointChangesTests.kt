@@ -33,10 +33,60 @@ class CalibrationPointChangesTests {
         assertEquals(listOf(edited), changes.arrived)
     }
 
+    @Test fun removingOneOfTwoIdenticalPointsOnASensorIsARemoval() {
+        val twin = point(id = 2)
+        assertEquals(listOf(twin), CalibrationPointChanges.between(listOf(point(), twin), listOf(point())).gone)
+    }
+
+    @Test fun addingAPointIdenticalToOneOnTheSensorIsAnArrival() {
+        val twin = point(id = 2)
+        assertEquals(listOf(twin), CalibrationPointChanges.between(listOf(point()), listOf(point(), twin)).arrived)
+    }
+
     @Test fun switchingAPointOffOrOnIsNotARemoval() {
         val disabled = point(enabled = false)
-        assertTrue(CalibrationPointChanges.between(listOf(point()), listOf(disabled)).isEmpty)
-        assertTrue(CalibrationPointChanges.between(listOf(disabled), listOf(point())).isEmpty)
+        val off = CalibrationPointChanges.between(listOf(point()), listOf(disabled))
+        assertEquals(CalibrationPointChanges.Changes(emptyList(), emptyList(), listOf(disabled)), off)
+        val on = CalibrationPointChanges.between(listOf(disabled), listOf(point()))
+        assertEquals(CalibrationPointChanges.Changes(emptyList(), emptyList(), listOf(point())), on)
+    }
+
+    @Test fun aPointLeftInTheSamePositionIsNotSwitched() {
+        assertTrue(CalibrationPointChanges.between(listOf(point(id = 1)), listOf(point(id = 9))).switched.isEmpty())
+        val other = point(id = 2, timestamp = 2_000L)
+        assertEquals(listOf(point(enabled = false)),
+            CalibrationPointChanges.between(listOf(point(), other), listOf(point(enabled = false), other)).switched)
+    }
+
+    @Test fun anEditIsNotASwitchEvenWhenItAlsoTurnsThePointOff() {
+        val edited = point(user = 130f, enabled = false)
+        assertTrue(CalibrationPointChanges.between(listOf(point()), listOf(edited)).switched.isEmpty())
+    }
+
+    @Test fun whenAPointWasOffIsReadFromItsSwitches() {
+        val switches = listOf(100L, 200L, 300L)
+        assertFalse(CalibrationPointSwitches.isOffAt(switches, 99L))
+        assertTrue(CalibrationPointSwitches.isOffAt(switches, 100L))
+        assertTrue(CalibrationPointSwitches.isOffAt(switches, 199L))
+        assertFalse(CalibrationPointSwitches.isOffAt(switches, 200L))
+        assertFalse(CalibrationPointSwitches.isOffAt(switches, 299L))
+        assertTrue(CalibrationPointSwitches.isOffAt(switches, 300L))
+        assertFalse(CalibrationPointSwitches.isOffAt(emptyList(), 100L))
+    }
+
+    @Test fun onlyARealChangeOfPositionIsAdded() {
+        assertEquals(listOf(100L), CalibrationPointSwitches.thenSwitched(emptyList(), off = true, at = 100L))
+        assertEquals(listOf(100L, 200L), CalibrationPointSwitches.thenSwitched(listOf(100L), off = false, at = 200L))
+        assertEquals(listOf(100L), CalibrationPointSwitches.thenSwitched(listOf(100L), off = true, at = 200L))
+        // Off before anything was noted: on must not start the list as if it were off.
+        assertEquals(emptyList<Long>(), CalibrationPointSwitches.thenSwitched(emptyList(), off = false, at = 100L))
+    }
+
+    @Test fun switchesSurviveBeingStored() {
+        val switches = listOf(1_793_972_580_000L, 1_793_972_590_000L)
+        assertEquals(switches, CalibrationPointSwitches.parse(CalibrationPointSwitches.encode(switches)))
+        assertEquals(emptyList<Long>(), CalibrationPointSwitches.parse(null))
+        assertEquals(emptyList<Long>(), CalibrationPointSwitches.parse(CalibrationPointSwitches.encode(emptyList())))
     }
 
     @Test fun makingAJournalPointTheUsersOwnChangesItsLanes() {

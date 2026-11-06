@@ -13,15 +13,18 @@ import java.util.concurrent.atomic.AtomicLong
  * A point switched off is neither. The switch is a way of looking at the line
  * without the point, and the user can flip it back, so what the point wrote
  * stays where it is, as it does for the sensor's own calibration switch. Removing
- * the point afterwards still takes it back.
+ * the point afterwards still takes that back, and [Changes.switched] is what
+ * lets it tell that from what was recorded while the point was off.
  */
 internal object CalibrationPointChanges {
 
     data class Changes(
         val gone: List<CalibrationEntity>,
         val arrived: List<CalibrationEntity>,
+        /** Rows of the new table whose point was in the other position before. */
+        val switched: List<CalibrationEntity>,
     ) {
-        val isEmpty: Boolean get() = gone.isEmpty() && arrived.isEmpty()
+        val isEmpty: Boolean get() = gone.isEmpty() && arrived.isEmpty() && switched.isEmpty()
     }
 
     private data class Effect(
@@ -44,8 +47,20 @@ internal object CalibrationPointChanges {
     fun between(before: List<CalibrationEntity>, after: List<CalibrationEntity>): Changes {
         // Two units in play is the display unit changing under the table, not a
         // calibration change, and the converted floats would not compare equal.
-        if ((before + after).distinctBy { it.valueUnit }.size > 1) return Changes(emptyList(), emptyList())
-        return Changes(gone = missingFrom(after, before), arrived = missingFrom(before, after))
+        if ((before + after).distinctBy { it.valueUnit }.size > 1) return Changes(emptyList(), emptyList(), emptyList())
+        return Changes(
+            gone = missingFrom(after, before),
+            arrived = missingFrom(before, after),
+            switched = switchedBetween(before, after),
+        )
+    }
+
+    private fun switchedBetween(before: List<CalibrationEntity>, after: List<CalibrationEntity>): List<CalibrationEntity> {
+        val previously = before.groupBy { it.sensorId to it.effect() }
+        return after.filter { row ->
+            val same = previously[row.sensorId to row.effect()].orEmpty()
+            same.isNotEmpty() && same.none { it.isEnabled == row.isEnabled }
+        }
     }
 
     /**
@@ -56,7 +71,9 @@ internal object CalibrationPointChanges {
      * other keeps it. But a sensor replacement re-files old points under an
      * archive id, which changes the sensor and not how many there are, and a
      * point that merely moved is still in force for the minutes it was in force
-     * for. So a row only counts as missing when its effect has fewer rows.
+     * for. So a row only counts as missing when its effect has fewer rows, and
+     * rows pair off one to one: a sensor can hold the same point twice, and the
+     * twin left behind does not stand in for the one removed.
      */
     private fun missingFrom(others: List<CalibrationEntity>, rows: List<CalibrationEntity>): List<CalibrationEntity> {
         val counterparts = others.groupBy { it.effect() }
@@ -64,9 +81,34 @@ internal object CalibrationPointChanges {
             val matching = counterparts[effect].orEmpty()
             val surplus = sameEffect.size - matching.size
             if (surplus <= 0) return@flatMap emptyList()
-            sameEffect.filter { row -> matching.none { it.sensorId == row.sensorId } }.take(surplus)
+            val unpaired = matching.mapTo(ArrayList()) { it.sensorId }
+            sameEffect.filterNot { unpaired.remove(it.sensorId) }.take(surplus)
         }
     }
+}
+
+/**
+ * The moments a point was switched, oldest first: off, on, off and so on.
+ *
+ * A point that is off is in no fit, so a minute recorded then owes it nothing,
+ * and taking that minute back when the point goes would move a sealed value
+ * whenever anything else about the calibration has changed since.
+ */
+internal object CalibrationPointSwitches {
+    fun parse(stored: String?): List<Long> = stored.orEmpty().split(',').mapNotNull { it.toLongOrNull() }
+
+    fun encode(switches: List<Long>): String = switches.joinToString(",")
+
+    fun isOffAt(switches: List<Long>, moment: Long): Boolean = switches.count { it <= moment } % 2 == 1
+
+    /**
+     * [switches] with the point now [off].
+     *
+     * Nothing to add when they already say so. That also covers a point that was
+     * off before anything was noted: turning it on must not read as turning it off.
+     */
+    fun thenSwitched(switches: List<Long>, off: Boolean, at: Long): List<Long> =
+        if ((switches.size % 2 == 1) == off) switches else switches + at
 }
 
 /**

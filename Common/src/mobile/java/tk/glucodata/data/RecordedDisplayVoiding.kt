@@ -1,6 +1,7 @@
 package tk.glucodata.data
 
 import kotlin.math.abs
+import tk.glucodata.data.calibration.CalibrationPointSwitches
 
 /**
  * A driver may replace its derived history after an algorithm/calibration edit.
@@ -52,7 +53,8 @@ object RecordedDisplayVoiding {
 
     /**
      * The minutes of [records] a removed calibration of [sensorId] can have
-     * produced: the sensor's own, in a lane the calibration applied to.
+     * produced: the sensor's own, in a lane the calibration applied to, recorded
+     * while it was switched on.
      *
      * A record belongs to whichever sensor won its minute, and in a two-sensor
      * store the other sensor's minutes sit between these. A calibration says
@@ -66,10 +68,12 @@ object RecordedDisplayVoiding {
         sensorId: String,
         rawLane: Boolean,
         autoLane: Boolean,
+        pointSwitches: List<Long> = emptyList(),
     ): List<Long> {
         if (sensorId.isBlank()) return emptyList()
         return records.mapNotNull { record ->
             if (!tk.glucodata.SensorIdentity.matches(record.sensorSerial, sensorId)) return@mapNotNull null
+            if (CalibrationPointSwitches.isOffAt(pointSwitches, record.recordedAt)) return@mapNotNull null
             val raw = record.viewMode == 1 || record.viewMode == 3
             record.timestamp.takeIf { if (raw) rawLane else autoLane }
         }

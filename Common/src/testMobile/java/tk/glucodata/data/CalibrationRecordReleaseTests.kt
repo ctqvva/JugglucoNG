@@ -15,6 +15,7 @@ import tk.glucodata.Applic
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.calibration.CalibrationArchiveTestApplication
 import tk.glucodata.data.calibration.CalibrationDatabase
+import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.calibration.MirrorCalibrationTransferNatives
 
@@ -122,6 +123,100 @@ class CalibrationRecordReleaseTests {
         assertEquals(mapOf(hole to 118f), recorded())
 
         CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
+        assertEquals(emptyMap<Long, Float>(), recorded())
+    }
+
+    @Test
+    fun removingAPointLeavesWhatWasRecordedWhileItWasOff() = runBlocking {
+        val underThePoint = now - 6 * HOUR
+        val whileOff = now - 5 * HOUR
+        addPastCalibration()
+        Thread.sleep(5)
+        display.sealAll(listOf(record(underThePoint, 118f, recordedAt = System.currentTimeMillis())))
+        Thread.sleep(5)
+
+        val point = CalibrationManager.calibrations.value.single()
+        CalibrationManager.updateCalibration(point.copy(isEnabled = false))
+        Thread.sleep(5)
+        display.sealAll(listOf(record(whileOff, 80f, recordedAt = System.currentTimeMillis())))
+        Thread.sleep(5)
+
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
+
+        assertEquals(mapOf(whileOff to 80f), recorded())
+    }
+
+    @Test
+    fun onlyThePartOfAPointsLifeItWasOnCounts() = runBlocking {
+        val whileOff = now - 6 * HOUR
+        val backOn = now - 5 * HOUR
+        addPastCalibration()
+        Thread.sleep(5)
+
+        val point = CalibrationManager.calibrations.value.single()
+        CalibrationManager.updateCalibration(point.copy(isEnabled = false))
+        Thread.sleep(5)
+        display.sealAll(listOf(record(whileOff, 80f, recordedAt = System.currentTimeMillis())))
+        Thread.sleep(5)
+        CalibrationManager.updateCalibration(point.copy(isEnabled = true))
+        Thread.sleep(5)
+        display.sealAll(listOf(record(backOn, 118f, recordedAt = System.currentTimeMillis())))
+        Thread.sleep(5)
+
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
+
+        assertEquals(mapOf(whileOff to 80f), recorded())
+    }
+
+    @Test
+    fun aPointThatArrivesSwitchedOffReleasesNothingWhenRemoved() = runBlocking {
+        val whileOff = now - 6 * HOUR
+        CalibrationManager.restoreAll(listOf(CalibrationEntity(
+            timestamp = now - 8 * HOUR, sensorId = OTTAI, sensorValue = 100f,
+            sensorValueRaw = 90f, userValue = 138f, isEnabled = false,
+        )))
+        Thread.sleep(5)
+        display.sealAll(listOf(record(whileOff, 80f, recordedAt = System.currentTimeMillis())))
+        Thread.sleep(5)
+
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
+
+        assertEquals(mapOf(whileOff to 80f), recorded())
+    }
+
+    @Test
+    fun editingAPointThatIsOffLeavesWhatWasRecordedWhileItWasOff() = runBlocking {
+        val whileOff = now - 6 * HOUR
+        addPastCalibration()
+        Thread.sleep(5)
+        val point = CalibrationManager.calibrations.value.single()
+        CalibrationManager.updateCalibration(point.copy(isEnabled = false))
+        Thread.sleep(5)
+        display.sealAll(listOf(record(whileOff, 80f, recordedAt = System.currentTimeMillis())))
+        Thread.sleep(5)
+
+        CalibrationManager.updateCalibration(point.copy(isEnabled = false, userValue = 150f))
+        assertEquals(mapOf(whileOff to 80f), recorded())
+
+        // The edited point arrived off, so it is off until someone turns it on.
+        val later = now - 5 * HOUR
+        Thread.sleep(5)
+        display.sealAll(listOf(record(later, 80f, recordedAt = System.currentTimeMillis())))
+        Thread.sleep(5)
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
+        assertEquals(mapOf(whileOff to 80f, later to 80f), recorded())
+    }
+
+    @Test
+    fun removingOneOfTwoIdenticalPointsReleasesWhatTheyMadeTogether() = runBlocking {
+        val hole = now - 6 * HOUR
+        addPastCalibration()
+        addPastCalibration()
+        assertEquals(2, CalibrationManager.calibrations.value.size)
+        display.sealAll(listOf(record(hole, 118f, recordedAt = System.currentTimeMillis() + MINUTE)))
+
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.first())
+
         assertEquals(emptyMap<Long, Float>(), recorded())
     }
 
