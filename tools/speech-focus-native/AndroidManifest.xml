@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.jugglucong.speechfocustest">
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="36" />
+    <queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>
+    <application android:label="Speech focus test" android:debuggable="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <activity android:name="tk.glucodata.FocusPlaybackActivity" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,24 @@
+Xiaomi Mi 9T, Android 10 (API 29), 2026-11-01
+Real Android AudioManager, MediaPlayer and system TextToSpeech service
+SpeechFocus.java SHA-256: 1c90e56836f8a5ac49813b0f2969620542655a60cd7f475139324d5e6da1f358
+SpeechAudioFocus.java SHA-256: 784967e229effbb929525d7550569b981f3647f0338cb52a1bde0a4400b8917c
+
+Raw device test report (elapsedRealtime milliseconds):
+862245157 Testing speech continuing after alarm stop...
+862245397 background focus -2, protected=false
+862246968 native TTS onStart continuing#1
+862246971 alarm stops while native TTS isSpeaking=true
+862246980 abandon alarm focus after speech handoff
+862246981 alarm focus -3
+862256008 native TTS onDone continuing#1
+862256015 background focus 1, protected=false
+862256023 PASS continuing#1: media focus restored only after native TTS completion
+862256076 Testing the 300 ms closing announcement gap...
+862256170 background focus -2, protected=false
+862256179 abandon alarm focus after speech handoff
+862256482 300 ms closing gap completed without media gain
+862256513 native TTS onStart closing#2
+862265479 native TTS onDone closing#2
+862265485 background focus 1, protected=false
+862265494 PASS closing#2: media focus restored only after native TTS completion
+862265547 PASS: continuing TTS and the 300 ms closing gap kept independent focus. No premature media gain. See audio-focus-result.txt.

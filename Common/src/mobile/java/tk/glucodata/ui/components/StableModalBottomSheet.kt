@@ -15,10 +15,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -62,12 +62,10 @@ fun StableModalBottomSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val heightPolicy = remember(sheetState, contentKey) { StableSheetHeightPolicy() }
-    val density = LocalDensity.current
-    val isImeVisible = WindowInsets.ime.getBottom(density) > 0
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        modifier = modifier.stabilizeViewportHeight(heightPolicy, isImeVisible, contentHeight),
+        modifier = modifier.stabilizeViewportHeight(heightPolicy, contentHeight),
         sheetState = sheetState,
         sheetMaxWidth = sheetMaxWidth,
         sheetGesturesEnabled = sheetGesturesEnabled,
@@ -137,11 +135,18 @@ fun Modifier.animateSheetContentHeight(
             layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
         }
 
+/**
+ * The sheet is a window of its own, and the keyboard's inset has to come from that window: it is
+ * what pads the sheet. The window behind can see the keyboard gone while the sheet is still
+ * padded for it, which a back gesture does, and a sheet measured then would look like content
+ * that fills the viewport. Hence composed, which resolves inside the sheet, and reading the inset
+ * during measurement, so it can't lag the padding it explains.
+ */
 private fun Modifier.stabilizeViewportHeight(
     policy: StableSheetHeightPolicy,
-    isImeVisible: Boolean,
     contentHeight: SheetContentHeightAnimation?,
-): Modifier =
+): Modifier = composed {
+    val ime = WindowInsets.ime
     layout { measurable, constraints ->
         val minimumHeight = policy.minimumHeight(
             maxHeight = constraints.maxHeight,
@@ -157,7 +162,7 @@ private fun Modifier.stabilizeViewportHeight(
             measuredHeight = placeable.height,
             maxHeight = constraints.maxHeight,
             hasBoundedHeight = constraints.hasBoundedHeight,
-            isImeVisible = isImeVisible,
+            isImeVisible = ime.getBottom(this) > 0,
             isContentHeightSettled = contentHeight?.isSettled ?: true,
         )
 
@@ -165,3 +170,4 @@ private fun Modifier.stabilizeViewportHeight(
             placeable.placeRelative(0, 0)
         }
     }
+}

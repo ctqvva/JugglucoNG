@@ -73,6 +73,8 @@ object OttaiRegistry {
         val activeExpireTimeMs: Long = 0L,
         val retainTimeMs: Long = 0L,
         val preheatPeriodMs: Long = 0L,
+        val calibrationValueK: Double? = null,
+        val calibrationValueB: Double? = null,
     ) {
         val authKeys: List<ByteArray>? get() = OttaiCrypto.parseAuthKeys(keyAHex)
         val coefficients: List<Double>
@@ -453,6 +455,7 @@ object OttaiRegistry {
                 OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX, OttaiConstants.PREF_RETAIN_TIME_PREFIX,
                 OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX, OttaiConstants.PREF_DEVICE_VERSION_PREFIX,
                 OttaiConstants.PREF_DEVICE_ID_PREFIX,
+                OttaiConstants.PREF_CALIBRATION_K_PREFIX, OttaiConstants.PREF_CALIBRATION_B_PREFIX,
             ).forEach { remove(it + canonical) }
         }.apply()
         saveProvisionalActiveTime(context, canonical, recoveredStartMs)
@@ -491,6 +494,8 @@ object OttaiRegistry {
             putLong(OttaiConstants.PREF_RETAIN_TIME_PREFIX + id, m.retainTimeMs)
             putLong(OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX + id, m.preheatPeriodMs)
             putString(OttaiConstants.PREF_DEVICE_VERSION_PREFIX + id, m.deviceVersion)
+            putString(OttaiConstants.PREF_CALIBRATION_K_PREFIX + id, m.calibrationValueK?.takeIf { it.isFinite() }?.toString())
+            putString(OttaiConstants.PREF_CALIBRATION_B_PREFIX + id, m.calibrationValueB?.takeIf { it.isFinite() }?.toString())
             putInt(OttaiConstants.PREF_DEVICE_ID_PREFIX + id, m.deviceId)
         }.commit()
         if (!saved) {
@@ -539,6 +544,8 @@ object OttaiRegistry {
             preheatPeriodMs = p.getLong(OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX + id, 0L),
             deviceVersion = p.getString(OttaiConstants.PREF_DEVICE_VERSION_PREFIX + id, null).orEmpty(),
             deviceId = p.getInt(OttaiConstants.PREF_DEVICE_ID_PREFIX + id, 0),
+            calibrationValueK = p.getString(OttaiConstants.PREF_CALIBRATION_K_PREFIX + id, null)?.toDoubleOrNull()?.takeIf { it.isFinite() },
+            calibrationValueB = p.getString(OttaiConstants.PREF_CALIBRATION_B_PREFIX + id, null)?.toDoubleOrNull()?.takeIf { it.isFinite() },
         )
     }
 
@@ -806,6 +813,8 @@ object OttaiRegistry {
             put("keyAHex", m.keyAHex)
             put("method", m.method)
             put("coefficient", m.coefficient)
+            put("calibrationValueK", m.calibrationValueK?.takeIf { it.isFinite() })
+            put("calibrationValueB", m.calibrationValueB?.takeIf { it.isFinite() })
             put("activeTimeMs", m.activeTimeMs)
             put("activeExpireTimeMs", m.activeExpireTimeMs)
             put("acceptedMaxActiveMs", loadAcceptedMaxActive(context, canonical))
@@ -846,6 +855,8 @@ object OttaiRegistry {
                 preheatPeriodMs = o.optLong("preheatPeriodMs", 0L),
                 deviceVersion = o.optString("deviceVersion"),
                 deviceId = o.optInt("deviceId", 0),
+                calibrationValueK = o.optDouble("calibrationValueK", Double.NaN).takeIf { it.isFinite() },
+                calibrationValueB = o.optDouble("calibrationValueB", Double.NaN).takeIf { it.isFinite() },
             ),
         )) return null
         // Older exports carry provisionalActiveTimeMs; ignore it rather than adopting another

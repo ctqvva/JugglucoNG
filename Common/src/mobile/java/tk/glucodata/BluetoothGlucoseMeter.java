@@ -184,6 +184,16 @@ public static void retrySatelliteSessions() {
     if(gatts==null) return;
     for(final var gatt:gatts) gatt.retrySatelliteSession();
 }
+public static void pacingChanged() {
+    final var gatts=meterGatts;
+    if(gatts==null) return;
+    for(final var gatt:gatts) gatt.pacingChanged();
+}
+/** A MeterRecheckAlarm went off. */
+static void pacedRecheck(int index,long ticket) {
+    final var gatt=getExistingGatt(index);
+    if(gatt!=null) gatt.runPacedReconnect(ticket);
+}
 public static void getDevices() {
     final int[] devices=Natives.getActiveGlucoseMeters( );
     final int len=devices.length;
@@ -205,6 +215,7 @@ public static void removeDevice(int index) {
             if(gatt.meterIndex==index) {
                 gatt.stop=true;
                 gatt.view=null;
+                gatt.cancelPacedReconnect();
                 if(doLog)
                     Log.i(LOG_ID,"removeDevice remove "+index);
                 gatt.disconnect();
@@ -322,6 +333,7 @@ public static void stopDevices() {
         for(var gatt: meterGatts) {
                 gatt.stop=true;
                 gatt.view=null;
+                gatt.cancelPacedReconnect();
                 gatt.disconnect(); 
                 }
         }

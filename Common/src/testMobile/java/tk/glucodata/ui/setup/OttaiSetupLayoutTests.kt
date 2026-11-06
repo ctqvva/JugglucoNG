@@ -296,4 +296,29 @@ class OttaiSetupLayoutTests {
         assertEquals(page.right, action.right, 1f)
     }
 
+    @Test
+    fun freshSensorWithoutCredentialsCanOpenFirmwareBeforeConnectingAtLargeFont() {
+        var checked = false
+        var label = ""
+        compose.setContent {
+            label = LocalContext.current.getString(R.string.ottai_ota_check)
+            CompositionLocalProvider(LocalDensity provides Density(1f, 2f)) {
+                MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                    Box(Modifier.width(320.dp).testTag("card")) {
+                        OttaiSensorCard(sensorId = "AABBCCDDEEFF", state = OttaiMaterialState.MISSING,
+                            loading = false, signedIn = true, deviceVersion = "",
+                            bindingState = OttaiCloudBindingUiState.NOT_BOUND, busy = false,
+                            canConnect = true, connectLabel = "Connect", message = "", messageIsError = false,
+                            onConnect = { error("Checking firmware must not connect/bind") },
+                            onImport = {}, onSignIn = {}, onExport = null,
+                            onFirmware = if (ottaiFirmwareEntryAvailable(true, true, true, false)) ({ checked = true }) else null)
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText(label).assertIsDisplayed().assertIsEnabled().performClick()
+        compose.runOnIdle { assertTrue(checked) }
+        capture("fresh-before-bind-large-font")
+    }
+
 }

@@ -234,7 +234,8 @@ struct updatedata {
   uint8_t reservedturn[3];
   turnserver_t turnserver[1];
 
-  void wakesender(uintptr_t kind = 8 /*wakeall*/);
+  // sourcesOnly: only the hosts this phone receives data from.
+  void wakesender(uintptr_t kind = 8 /*wakeall*/, bool sourcesOnly = false);
   void wakestreamsender();
 };
 
@@ -541,6 +542,15 @@ public:
     if (sendindex >= 0) {
       deletestart(sendindex);
     }
+    // The transport object belongs to the deleted host. Detached threads may
+    // still hold it, so it is flagged and ended, never freed; libjuice teardown
+    // can block, so it runs off the caller's (often the UI) thread.
+    Connect *retired = connections[index];
+    if (retired) {
+      retired->setReceiverCommandsEnabled(false);
+      retired->finish = true;
+      std::thread([retired] { retired->endConnection(); }).detach();
+    }
     if (--getupdatedata()->hostnr != index) {
       LOGGER("--hostnr %d\n", getupdatedata()->hostnr);
       int fromend = getupdatedata()->hostnr - index;
@@ -551,7 +561,16 @@ public:
               fromend * sizeof(hostsocks[0]));
       memmove(lastuptodate + index, lastuptodate + index + 1,
               fromend * sizeof(lastuptodate[0]));
+      memmove(connections + index, connections + index + 1,
+              fromend * sizeof(connections[0]));
+      for (int i = index; i < getupdatedata()->hostnr; ++i) {
+        if (connections[i])
+          connections[i]->setindex(i);
+      }
     }
+    // The freed last slot keeps the retired object (after a shift it would
+    // otherwise hold a copy of its live neighbour) until changehost replaces it.
+    connections[getupdatedata()->hostnr] = retired;
 
     if (sendindex >= 0) {
       deupdated();
@@ -992,7 +1011,8 @@ public:
     deupdated();
 
     closesocksone(index, getupdatedata()->allhosts + index);
-    if (newhost && !connections[index])
+    // A slot freed by deletehost still holds the deleted host's retired object.
+    if (newhost && (!connections[index] || connections[index]->finish))
       connections[index] = new TCPConnect(index);
     if (startthreads) {
       if (newthread)
@@ -1225,6 +1245,10 @@ sendindex); extern bool doend(int sendindex); */
 #endif
     }
     uintptr_t current = 0;
+    // Every fifth stream wake of this host runs the full update instead.
+    // Counted per sender thread: a function static was shared, unlocked,
+    // by every host's thread.
+    int streamwakes = 0;
     if (resumeCloneRecoveryForHost(allindex, sendindex) == 1) {
       con_vars[sendindex]->wakebackup(wakerecovery);
     }
@@ -1243,11 +1267,11 @@ sendindex); extern bool doend(int sendindex); */
       if (!passive) {
         notpassive(current, sendindex);
       }
-      static int count = 0;
-      if (current == wakestream) {
-        if (count++ % 5 == 4) {
-          current = wakeall;
-        }
+      // A stream wake also carrying other flags (reconnect, nums) counts too,
+      // and keeps those flags when it becomes the full update.
+      if ((current & wakestream) && !(current & wakeall) &&
+          streamwakes++ % 5 == 4) {
+        current = (current & ~wakestream) | wakeall;
       }
       doupdates(current, sendindex);
     }
@@ -1395,6 +1419,10 @@ sendindex); extern bool doend(int sendindex); */
   }
   void wakebackup(myuintptr_t kind = wakeall) {
     LOGGER("start wakebackup %lx\n", kind);
+    wakeeach([kind](int) { return kind; });
+  }
+  // kindfor(i): what to wake sender i with.
+  template <typename KindFor> void wakeeach(KindFor kindfor) {
     int nr;
     if (getupdatedata()->sendnr > con_vars.size()) {
       nr = con_vars.size();
@@ -1422,7 +1450,7 @@ sendindex); extern bool doend(int sendindex); */
         }
         if (doe) {
           LOGGER("host %d wake\n", i);
-          el->wakebackup(kind);
+          el->wakebackup(kindfor(i));
         }
       }
     }

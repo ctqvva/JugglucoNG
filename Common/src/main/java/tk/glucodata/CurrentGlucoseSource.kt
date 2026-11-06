@@ -66,6 +66,9 @@ object CurrentGlucoseSource {
     fun getFresh(maxAgeMillis: Long, preferredSensorId: String?): Snapshot? {
         val now = System.currentTimeMillis()
         val targetSensor = preferredSensorId ?: SensorIdentity.resolveMainSensor()
+        // The last callback reading outlives its sensor, so with none left it must not pass
+        // for current. A watch can show the phone's readings without a native sensor.
+        if (targetSensor == null && !Applic.isWearable) return null
         val isCloneSensor = CloneSensorRegistry.isCloneSensor(targetSensor)
         return resolveForOwnership(
             isCloneSensor = isCloneSensor,

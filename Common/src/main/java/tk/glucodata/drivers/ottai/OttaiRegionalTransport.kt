@@ -35,6 +35,9 @@ internal class OttaiRegionalTransport(
     fun request(method: String, body: String?): OttaiNetSecurity.Reply =
         codec.requestReply(method, route.path, route.query, body)
 
+    fun requestChecked(method: String, body: String?): org.json.JSONObject =
+        codec.request(method, route.path, route.query, body)
+
     fun close() = codec.close()
 
     internal data class Route(

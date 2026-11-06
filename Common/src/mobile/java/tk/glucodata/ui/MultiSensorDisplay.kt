@@ -99,6 +99,24 @@ object MultiSensorDisplay {
             )
         }
 
+        return MultiSensorDisplayData(series, bucketLookupFor(series))
+    }
+
+    /**
+     * [display] with every peer's points passed through [transform], the minute
+     * lookup rebuilt to match. [transform] must keep each list ascending and the
+     * points' [GlucosePoint.sensorSerial]; it may drop or move points.
+     */
+    fun mapSeriesPoints(
+        display: MultiSensorDisplayData,
+        transform: (List<GlucosePoint>) -> List<GlucosePoint>
+    ): MultiSensorDisplayData {
+        if (display.isEmpty) return display
+        val series = display.series.map { it.copy(points = transform(it.points)) }
+        return MultiSensorDisplayData(series, bucketLookupFor(series))
+    }
+
+    private fun bucketLookupFor(series: List<PeerSensorSeries>): Map<Long, List<GlucosePoint>> {
         // bucket -> (sensor handled implicitly by iteration order) latest point per sensor
         val bucketLookup = LinkedHashMap<Long, ArrayList<GlucosePoint>>()
         series.forEach { sensorSeries ->
@@ -117,8 +135,7 @@ object MultiSensorDisplay {
                 }
             }
         }
-
-        return MultiSensorDisplayData(series, bucketLookup)
+        return bucketLookup
     }
 
     /**

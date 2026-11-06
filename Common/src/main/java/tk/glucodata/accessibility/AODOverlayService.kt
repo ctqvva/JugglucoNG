@@ -511,7 +511,8 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         val startT = endT - 3 * 60 * 60 * 1000L
         val isMmol = Applic.unit == 1
         val activeSensorSerial = NotificationHistorySource.resolveSensorSerial(
-            SuperGattCallback.previousglucosesensorid ?: Natives.lastsensorname()
+            tk.glucodata.SensorIdentity.resolveMainSensor()
+                ?.let { main -> SuperGattCallback.previousglucosesensorid ?: main }
         )
 
         var chartPoints: List<GlucosePoint>

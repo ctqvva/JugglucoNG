@@ -377,6 +377,8 @@
 
     <!-- Newly Extracted Strings -->
     <string name="import_history_desc">Importer les données de glucose depuis une exportation JugglucoNG ou un fichier CSV</string>
+    <string name="continue_without_sensor">Continuer sans capteur</string>
+    <string name="continue_without_sensor_desc">Notez insuline, aliments et mesures capillaires dans le journal</string>
     <string name="get_started_desc">Commencez par ajouter votre capteur</string>
     <string name="select_sensor">Sélectionner le type de capteur</string>
     <string name="select_sibionics_type">Choisir un capteur Sibionics</string>
@@ -633,7 +635,7 @@
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Scannez la matrice de données sur votre capteur Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Configuration Accu-Chek</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Ajouter un capteur</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Connecté !</string>
@@ -838,6 +840,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_meters_none">Aucun lecteur configuré</string>
     <string name="glucose_meters_none_desc">Recherchez un lecteur à proximité pour importer des mesures.</string>
     <string name="glucose_meters_nearby">Lecteurs à proximité</string>
+    <string name="glucose_meter_recheck">Revérifier le lecteur après</string>
+    <string name="glucose_meter_recheck_now">Immédiatement</string>
+    <string name="glucose_meter_recheck_hint">Pour les lecteurs qui restent allumés, comme Satellite. Une nouvelle mesure peut arriver avec ce retard</string>
     <string name="glucose_meter_last_reading">Dernière mesure : %1$s</string>
     <string name="glucose_meter_no_readings">Aucune mesure importée</string>
     <string name="satellite_meter_code_missing">Lecteur Satellite : définissez d\'abord le code du lecteur dans les réglages des lecteurs de glycémie</string>
@@ -853,7 +858,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="no_qr_found">No QR code found in image</string>
     <string name="no_ringtone_picker_found">No Ringtone Picker found</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Aucun capteur connecté</string>
     <string name="nohttpport">The port number should be different from the http port</string>
     <string name="nomirrorport">The port number should be different from the mirror port</string>
     <string name="nonewdata">"No new data"</string>
@@ -1703,6 +1708,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_dose_pair_insulin">Associer l\'insuline</string>
     <string name="journal_dose_pair_carbs">Associer les glucides</string>
     <string name="journal_dose_suggested_insulin">%1$s U suggérées</string>
+    <string name="journal_amount_suggested">Suggéré</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>
@@ -1902,15 +1908,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_qr_turn_message">Ce QR hybride remplace aussi la configuration hybride de cet appareil.</string>
     <string name="mirror_connect_action">Connecter</string>
     <string name="mirror_connect_nearby_title">Se connecter à %1$s ?</string>
-    <string name="mirror_connect_nearby_message">Trouvé à %1$s:%2$d.\nCet appareil recevra les données de glucose de %3$s.</string>
     <string name="mirror_connection_data_missing">Données de connexion manquantes</string>
     <string name="mirror_reconnect_all">Tout reconnecter</string>
-    <string name="mirror_quick_pair">Appairage rapide</string>
-    <string name="mirror_share_my_qr">Partager le QR local</string>
-    <string name="mirror_share_my_qr_desc">Même réseau local uniquement</string>
-    <string name="mirror_share_relay_qr">Partager le QR hybride</string>
-    <string name="mirror_share_relay_qr_desc">Essaie d’abord une connexion directe, puis TURN si nécessaire</string>
-    <string name="mirror_scan_qr_desc">Scanner le QR d’un autre appareil pour se connecter</string>
     <string name="mirror_broadcast_network">Diffuser sur le réseau</string>
     <string name="mirror_broadcast_network_desc">Permettre aux appareils proches de trouver cet appareil</string>
     <string name="mirror_relay">Relais</string>
@@ -2530,6 +2529,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Impossible de démarrer la connexion. Réessayez.</string>
     <string name="ottai_offline_hint">Vous pouvez aussi importer un fichier d\'identifiants sous Capteurs enregistrés.</string>
     <string name="ottai_already_binding_hint">Votre compte a encore un autre capteur lié. Déliez-le sous Capteurs enregistrés, puis réessayez.</string>
+    <string name="ottai_ota_upgrade_required">Le service Ottai a demandé une mise à jour du micrologiciel lors de la liaison du capteur. Réessayez la configuration ou importez les identifiants enregistrés. Vous pouvez aussi essayer l’application officielle Ottai.</string>
+    <string name="ottai_retry">Réessayer</string>
+    <string name="ottai_setup_failed">Configuration arrêtée. Réessayez ou fermez cette fenêtre et importez les identifiants enregistrés.</string>
     <string name="ottai_region_cn_full">Ottai Chine</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Indicatif du pays</string>
@@ -2946,11 +2948,21 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_server_edit_hint">Modifier le serveur reconnecte Clone. Utilisez les mêmes paramètres sur les deux appareils.</string>
     <string name="clone_use_default_server">Utiliser le serveur par défaut</string>
     <string name="clone_custom_server">Serveur personnalisé</string>
-    <string name="clone_add_first">Associez d’abord un appareil</string>
-    <string name="clone_visible_nearby">Visible à proximité</string>
-    <string name="clone_visible_nearby_desc">Les nouveaux appareils peuvent trouver ce téléphone</string>
+    <string name="clone_qr_instruction">Sur l’autre téléphone, ouvrez %1$s et appuyez sur %2$s.</string>
+    <string name="clone_connect_title">Connecter un autre téléphone</string>
+    <string name="clone_scan_code">Scanner le code</string>
+    <string name="clone_get_readings">Recevoir les valeurs</string>
+    <string name="clone_code_any_network">Tout réseau</string>
+    <string name="clone_code_wifi_only">Ce Wi-Fi uniquement</string>
+    <string name="clone_pairing_waiting">En attente de l’autre téléphone…</string>
+    <string name="clone_pairing_announced">Également visible sur ce Wi-Fi comme %1$s</string>
+    <string name="clone_pairing_connected">Connecté</string>
+    <string name="clone_add_manually_desc">Saisir vous-même l’adresse et les options</string>
+    <string name="clone_send_readings">Envoyer les valeurs</string>
+    <string name="clone_on_this_wifi">Sur ce Wi-Fi</string>
+    <string name="clone_nearby_empty">Les téléphones qui envoient des valeurs sur ce Wi-Fi apparaissent ici</string>
+    <string name="clone_sharing_readings">Envoie des valeurs</string>
     <string name="clone_network_summary">Serveurs et recherche locale</string>
-    <string name="clone_connections_empty">Aucun appareil associé.</string>
     <string name="clone_background_desc">Consomme plus de batterie</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
@@ -3149,6 +3161,51 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Rechercher dans les paramètres</string>
     <string name="settings_search_no_results">Aucun paramètre ne correspond à « %1$s »</string>
     <string name="settings_search_clear">Effacer la recherche</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Test expérimental du micrologiciel</string>
+    <string name="ottai_ota_warning">Un échec peut rendre le capteur inutilisable. Gardez cet écran ouvert et le téléphone près du capteur.</string>
+    <string name="ottai_ota_connecting">Connexion sans activation…</string>
+    <string name="ottai_ota_authenticating">Vérification de l’identité du capteur…</string>
+    <string name="ottai_ota_checking">Vérification et téléchargement du micrologiciel…</string>
+    <string name="ottai_ota_recovery">Paquet de récupération prêt. L’installation reprend le paquet enregistré depuis le début.</string>
+    <string name="ottai_ota_ready">Micrologiciel prêt. Le capteur n’est pas activé.</string>
+    <string name="ottai_ota_no_update">Aucune mise à jour proposée</string>
+    <string name="ottai_ota_installing">Installation du micrologiciel…</string>
+    <string name="ottai_ota_reconnecting">Reconnexion et vérification de la version installée…</string>
+    <string name="ottai_ota_preparing">Actualisation des identifiants et écriture des paramètres d’usine…</string>
+    <string name="ottai_ota_complete">Préparation terminée. Fermez cette fenêtre, puis connectez-vous normalement pour activer le capteur.</string>
+    <string name="ottai_ota_failed">Configuration arrêtée. Réessayez ou consultez le journal de trace. Une configuration inachevée bloque l’activation.</string>
+    <string name="ottai_ota_version">Capteur : %1$s · Mise à jour : %2$s</string>
+    <string name="ottai_ota_package">%1$d octets · SHA-256 : %2$s</string>
+    <string name="ottai_ota_error_code">Code de diagnostic : %1$s</string>
+    <string name="ottai_ota_install">Installer le micrologiciel</string>
+    <string name="ottai_ota_parameters">Écrire uniquement les paramètres d’usine</string>
+    <string name="ottai_ota_confirm">Installer cette mise à jour expérimentale ? Le capteur peut devenir définitivement inutilisable. L’activation se fait séparément après vérification de la version et des paramètres d’usine.</string>
+    <string name="ottai_ota_parameters_confirm">Écrire les coefficients et l’étalonnage d’usine pris en charge ? Cela modifie la configuration sans mettre à jour le micrologiciel ni démarrer la durée de vie du capteur.</string>
+    <string name="ottai_ota_check">Vérifier le micrologiciel (expérimental)</string>
+    <string name="ottai_ota_cloud_recheck">Revérifier avec l’authentification cloud V3</string>
+    <string name="ottai_ota_cloud_authenticating">Authentification via votre compte Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Revérifier la disponibilité du firmware avec l’authentification du capteur par le serveur. Cela n’active pas le capteur et ne l’associe pas au compte.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Déconnectez d’abord ce capteur de la surveillance. Sa mise à jour peut effacer les mesures, réinitialiser sa durée de vie ou arrêter le capteur.</string>
+    <string name="ottai_ota_fresh_mode">Nouveau capteur</string>
+    <string name="ottai_ota_started_mode">Capteur déjà démarré</string>
+    <string name="ottai_ota_started_ready">Mise à jour prête pour le capteur démarré. Vérifiez les données initiales avant l’installation.</string>
+    <string name="ottai_ota_result_active">Micrologiciel mis à jour. Le capteur se déclare actif ; consultez la trace avant de reconnecter la surveillance.</string>
+    <string name="ottai_ota_result_ended">Micrologiciel mis à jour. Le capteur se déclare terminé ; consultez la trace.</string>
+    <string name="ottai_ota_result_reset">Micrologiciel mis à jour. Le capteur se déclare non activé ; aucune réactivation tentée.</string>
+    <string name="ottai_ota_started_confirm">Installer sur ce capteur déjà démarré ? Ses mesures et son état peuvent être effacés ou réinitialisés. Le test enregistre le résultat sans réactivation ni écriture des paramètres d’usine.</string>
+    <string name="ottai_ota_observation">%1$s · état %2$d · durée %3$s s · dernier enregistrement %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Avant</string>
+    <string name="ottai_ota_after">Après</string>
+
+    <string name="ottai_ota_discard">Abandonner la configuration inachevée</string>
+    <string name="ottai_ota_discard_confirm">Supprimer l’état enregistré de mise à jour et de préparation pour autoriser la connexion ? Cela ne restaure ni le micrologiciel ni les réglages. Une mise à jour interrompue peut encore nécessiter une récupération.</string>
+    <string name="ottai_ota_pending">La configuration du capteur est inachevée. Reconnectez-vous ou ouvrez la récupération pour la terminer ou l’abandonner.</string>
+    <string name="ottai_ota_finish_preparation">Micrologiciel vérifié. Confirmez les paramètres usine pour terminer la configuration.</string>
+    <string name="ottai_ota_discard_failed">Impossible d’abandonner le test. Réessayez.</string>
     <string name="prediction_analysis_section">Analyse des prévisions</string>
     <string name="prediction_analysis_record">Enregistrer les prévisions</string>
     <string name="prediction_analysis_record_summary">Garder chaque prévision sur ce téléphone pour la comparer à ce qui s\'est passé</string>
@@ -3228,4 +3285,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucifer_help_pair">2. Ouvrez la configuration de l’intégration. Scannez son QR code ici ou collez l’URL de connexion complète. Gardez cette URL privée.</string>
     <string name="glucifer_help_test">3. Activez cette destination et envoyez un message de test. Vérifiez la valeur dans Home Assistant. Les modifications sont enregistrées automatiquement.</string>
     <string name="glucifer_setup_guide">Ouvrir le guide de configuration</string>
+    <string name="ican_calibration_marker">Étalonnage (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">stable</string>
+    <string name="tts_trend_increasing">en hausse</string>
+    <string name="tts_trend_decreasing">en baisse</string>
+    <string name="tts_trend_rising_quickly">en hausse rapide</string>
+    <string name="tts_trend_falling_quickly">en baisse rapide</string>
 </resources>

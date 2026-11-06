@@ -38,6 +38,7 @@ base_methods = '\n'.join(method(base, signature) for signature in [
     'public synchronized void setPause(', 'public void onConnectionStateChange(',
     'public void close()', 'protected boolean useAutoConnect(',
     'protected void onConnectionAttemptTimeout(',
+    'public final boolean hasLocallyConnectedGatt(',
 ])
 libre_methods = '\n'.join(method(libre, signature) for signature in [
     'protected boolean useAutoConnect(', 'protected long connectionAttemptTimeoutMillis(',
@@ -88,7 +89,8 @@ class SuperGattCallback {
     static class Build { static class VERSION { static int SDK_INT=37; } static class VERSION_CODES { static int M=23; } }
     static class R { static class string { static int turn_on_nearby_devices_permission=0; } }
     static class Log {
-        static void i(String a,String b){} static void d(String a,String b){} static void e(String a,String b){}
+        static List<String> lines=new ArrayList<>();
+        static void i(String a,String b){lines.add(b);} static void d(String a,String b){} static void e(String a,String b){}
         static void stack(String a,String b,Throwable t){throw new AssertionError(b,t);}
     }
     static class BluetoothGatt {
@@ -171,8 +173,8 @@ java += r'''
     BluetoothGattCharacteristic BLELogincharacteristic, CompositeRawDatacharacteristic, characteristic;
     static UUID mADCCustomServiceUUID=UUID.randomUUID(), mCharacteristicConfigDescriptor=UUID.randomUUID();
     static UUID mCharacteristicUUID_CompositeRawData=BluetoothGattCharacteristic.RAW, mCharacteristicUUID_BLELogin=UUID.randomUUID();
-    boolean m2831x(){logins++;return true;}
-    void writeBLELogin(){logins++;}
+    boolean m2831x(){logins++;conphase=1;return true;}
+    void writeBLELogin(){logins++;conphase=2;}
     void phase2(byte[] value){logins++;} void phase3(byte[] value){logins++;}
     void oldonCharacteristicChanged(byte[] value){frames++;streamPacketReceived();}
     static void showCharacter(String s,BluetoothGattCharacteristic c){}
@@ -181,6 +183,7 @@ java += libre_methods
 java += r'''
     static Libre2GattCallback fresh(){
         Applic.scheduler=new Scheduler();CloneSensorRegistry.clone=false;SensorOwnershipRuntime.blocked=false;
+        Log.lines.clear();
         Natives.resets=0;WearSensorClaim.releases=0;
         Libre2GattCallback cb=new Libre2GattCallback();cb.connectDevice(0);Applic.scheduler.advance(0);
         check(cb.mActiveBluetoothDevice.calls==1,"initial connect");
@@ -215,6 +218,85 @@ java += r'''
         check(current.discoveries==1&&cb.logins==1&&cb.frames==1,"healthy streaming did not resume");
         for(int minute=0;minute<6;minute++){Applic.scheduler.advance(60_000);cb.onCharacteristicChanged(current,new BluetoothGattCharacteristic());}
         check(cb.mBluetoothGatt==current&&current.disconnected==0,"healthy connection expired");
+
+        // #798: an old loss alarm ran six seconds after a successful minute reading.
+        // reconnectall calls reconnect(now) directly, without shouldreconnect's glucose guard.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        long alarmNow=cb.connectTime+3_000_000L;
+        cb.charcha[0]=alarmNow-6_000L;
+        cb.reconnect(alarmNow);
+        check(current.disconnected==0&&cb.mBluetoothGatt==current,
+                "loss alarm disconnected a healthy stream six seconds after glucose");
+        check(!"Loss of signal".equals(cb.constatstatusstr),"healthy stream recorded a false loss");
+        // A recent frame without glucose also keeps the existing no-reading protection.
+        cb.charcha[0]=0;cb.charcha[1]=alarmNow-6_000L;cb.reconnect(alarmNow);
+        check(current.disconnected==0,"loss alarm disconnected a sensor reporting no glucose");
+        // Both kinds of progress must become stale before the periodic fallback recovers it.
+        cb.charcha[0]=cb.charcha[1]=alarmNow-cb.showtime-1_000L;cb.reconnect(alarmNow);
+        check(current.disconnected==1,"stale stream no longer gets periodic recovery");
+
+        // Ownership's idle nudge unpauses and calls reconnect directly. A recent
+        // reading from the retired session must not keep a disconnected driver idle.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        long nudgeNow=cb.connectTime+90_000L;
+        cb.charcha[0]=nudgeNow-6_000L;
+        cb.setPause(true);cb.close();cb.setPause(false);
+        check(!cb.hasLocallyConnectedGatt(),"closed handoff retained a local connection");
+        cb.reconnect(nudgeNow);Applic.scheduler.advance(0);
+        check(cb.mActiveBluetoothDevice.calls==2,
+                "recent glucose suppressed idle ownership nudge after unpause");
+        // A GATT reference whose attempt never connected is not a healthy link either.
+        cb=fresh();current=cb.mBluetoothGatt;
+        nudgeNow=cb.connectTime+90_000L;cb.charcha[0]=nudgeNow-6_000L;
+        cb.reconnect(nudgeNow);Applic.scheduler.advance(2_000);
+        check(current.closed==1&&cb.mActiveBluetoothDevice.calls==2,
+                "recent glucose suppressed recovery of a never-connected GATT");
+
+        // #773: a real status-8 loss ten seconds after glucose must still recover.
+        // Short CONNECTED/status-19 links can fail before discovery for many attempts.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        cb.charcha[0]=System.currentTimeMillis()-10_000L;
+        cb.onConnectionStateChange(current,8,0);Applic.scheduler.advance(0);
+        check(current.closed==1&&cb.mActiveBluetoothDevice.calls==2,
+                "recent glucose suppressed recovery from a real link loss");
+        for(int attempt=0;attempt<24;attempt++){
+            old=cb.mBluetoothGatt;Applic.scheduler.advance(30_000);
+            cb.onConnectionStateChange(old,147,0);Applic.scheduler.advance(0);
+            check(old.closed==1,"pre-discovery timeout retained the old GATT");
+            old=cb.mBluetoothGatt;Applic.scheduler.advance(26_000);
+            cb.onConnectionStateChange(old,0,2);Applic.scheduler.advance(3_000);
+            cb.onConnectionStateChange(old,19,0);Applic.scheduler.advance(0);
+            check(old.closed==1,"short connected link retained the old GATT");
+        }
+        check(cb.mActiveBluetoothDevice.calls==50&&cb.logins==0&&cb.frames==0,
+                "pre-discovery retry sequence fabricated login or packet progress");
+
+        // ColorOS delivered CONNECTED twice for one GATT, causing two discoveries.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        cb.sensorgen=2;cb.onServicesDiscovered(current,0);cb.onDescriptorWrite(current,null,0);
+        check(cb.conphase==2,"test handshake did not reach challenge phase");
+        int startedLogins=cb.logins;
+        cb.mBLELoginHandler=cb.forCurrentGatt(()->{});
+        Runnable pendingLogin=cb.mBLELoginHandler;
+        doLog=true;
+        Applic.scheduler.advance(1_000);cb.onConnectionStateChange(current,0,2);
+        check(current.discoveries==1,"duplicate CONNECTED restarted service discovery");
+        check(cb.mBLELoginHandler==pendingLogin&&cb.conphase==2,
+                "duplicate CONNECTED cancelled an in-flight login retry");
+        // Independently duplicate service results must not reset phase 2 back to phase 1.
+        cb.onServicesDiscovered(current,0);
+        doLog=false;
+        check(cb.logins==startedLogins&&cb.conphase==2,
+                "duplicate discovery restarted the security handshake");
+        check(Log.lines.stream().anyMatch(s->s.contains("ignoring duplicate CONNECTED"))
+                &&Log.lines.stream().anyMatch(s->s.contains("ignoring duplicate service discovery, phase=2")),
+                "ignored duplicate callbacks disappeared from recorded diagnostics");
+        // A duplicate must not move the original silence deadline later.
+        Applic.scheduler.advance(149_000);
+        check(current.disconnected==1,"duplicate CONNECTED extended the handshake deadline");
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        cb.sensorgen=2;cb.onServicesDiscovered(current,0);cb.onServicesDiscovered(current,133);
+        check(current.disconnected==1,"active handshake hid a service-discovery failure");
 
         // A CONNECTED link that stops streaming is retired through the same fresh-GATT path.
         cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
@@ -332,7 +414,7 @@ java += r'''
         login=cb.forCurrentGatt(()->retries[0]++);Runnable replacement=cb.forCurrentGatt(()->retries[0]++);
         login.run();check(retries[0]==1,"superseded login ran on the same GATT");
         replacement.run();check(retries[0]==2,"replacement login rejected");
-        System.out.println("PASS: Libre 2 fresh-GATT recovery, stream watchdog, callback isolation, deadlines, cancellation, ownership and login retries");
+        System.out.println("PASS: Libre 2 fresh-GATT recovery, healthy-alarm guard, duplicate callbacks, stream watchdog, callback isolation, deadlines, cancellation, ownership and login retries");
     }
 }
 '''

@@ -98,7 +98,7 @@ std::shared_ptr<LocalICESignalSession> localSignal;
 std::mutex candidateReaderMutex;
 std::jthread candidateReader;
 std::atomic_bool candidateReaderFinished{true};
-ICE_data   icedata[2]{{allindex,side},{allindex,!side}};
+ICE_data   icedata[2]{{this,allindex,side},{this,allindex,!side}};
 std::atomic<juice_agent*> agent;
 std::atomic<uint64_t> agentGeneration{0};
 std::atomic<int> selectedCloneTransport{clone_transport_unknown};
@@ -269,11 +269,24 @@ void stopCandidateReader() {
         cancelRendezvous();
         joinCandidateReader();
         }
+bool isICE() const override { return true; }
 virtual int setindex(int in) override{
         LOGGER("setindex(%d)\n",in);
+        const bool moved=in!=allindex;
         icedata[1].allindex=in;
         icedata[0].allindex=in;
-        return Connect::setindex(in);
+        const int res=Connect::setindex(in);
+        if(moved) {
+            // deletehost moved this host down a slot. Whatever runs against the old
+            // slot stops; the receiver wakes, sees the move and restarts at the new one.
+            endConnectionHere();
+            {
+            std::lock_guard<std::mutex> lck(receiveThreadMutex);
+            wakeReceiver=true;
+            }
+            receiveThreadCon.notify_one();
+            }
+        return res;
         }
 int cloneTransportCode() const override {
         const juice_state_t currentState = state.load();
@@ -509,7 +522,11 @@ virtual ssize_t  s_recvni(void *buf, size_t len) override {
            LOGGERICE("ICEConnect::s_recvni(%p,%d) not connected\n",buf,len);
            return -1;
            }
-        auto ret= icedata[0].receive(agent.load(),(char *)buf, len);
+        // The sender only reads handshake replies and acks. Once a reconnect
+        // left the two sides' transaction ids one apart, each waited for the
+        // other forever with the link up; TCP's 60 s SO_RCVTIMEO ends that wait,
+        // so give ICE the same and let the sender reconnect.
+        auto ret= icedata[0].receive(agent.load(),(char *)buf, len,60);
         LOGGERICE("ICEConnect::s_recvni(%p,%d)=%d\n",buf,len,ret);
         return ret;
         }

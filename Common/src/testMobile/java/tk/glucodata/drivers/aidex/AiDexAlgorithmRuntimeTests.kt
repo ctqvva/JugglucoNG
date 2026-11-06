@@ -601,6 +601,15 @@ class AiDexAlgorithmRuntimeTests {
         assertEquals(serial, SensorIdentity.resolveRoomStorageSensorId(serial.removePrefix("X-")))
     }
 
+    // On a Clone receiver only native storage gets the sender's readings, so Room
+    // must be fed from it even though the (paused) AiDEX callback is registered.
+    @Test fun mirroredAiDexOnAReceiverSyncsNativeHistory() {
+        assertFalse(SensorIdentity.shouldUseNativeHistorySync(serial))
+        assertTrue(CloneSensorRegistry.markCloneSensor(serial, CloneTransport.LOCAL_ICE.code, "test-connection"))
+        assertTrue(SensorIdentity.shouldUseNativeHistorySync(serial))
+        assertTrue(SensorIdentity.shouldUseNativeHistorySync(serial.removePrefix("X-")))
+    }
+
     @Test fun irrecoverableOriginalMinuteNeverStopsNewFactoryReadingsOrPublication() {
         runtime.record(listOf(sample(1)))
         choose(9)

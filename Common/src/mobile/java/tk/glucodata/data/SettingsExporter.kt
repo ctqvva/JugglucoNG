@@ -22,6 +22,15 @@ import java.util.Locale
 
 object SettingsExporter {
     private const val TAG = "SettingsExporter"
+
+    /**
+     * Preference files that hold vendor credentials. They never enter an export (values or raw
+     * XML) and are therefore never restored by an import either.
+     */
+    internal val SECRET_PREFERENCE_FILES = setOf("lumiflex_cloud", "ican_cloud", "dexcom_share")
+
+    internal fun isSecretPreferenceFile(name: String): Boolean =
+        name in SECRET_PREFERENCE_FILES
     internal const val SCHEMA = "tk.glucodata.settings-export"
     private const val SCHEMA_VERSION = 4
 
@@ -244,7 +253,10 @@ object SettingsExporter {
         val result = JSONObject()
         val prefsDir = File(context.applicationInfo.dataDir, "shared_prefs")
         val prefFiles = prefsDir
-            .listFiles { file -> file.isFile && file.extension == "xml" }
+            .listFiles { file ->
+                file.isFile && file.extension == "xml" &&
+                    !isSecretPreferenceFile(file.name.removeSuffix(".xml"))
+            }
             ?.sortedBy { it.name }
             .orEmpty()
 
@@ -288,7 +300,7 @@ object SettingsExporter {
             } else editor.clear()
             return editor
         }
-        val importedNames = exportedPreferences.keySet()
+        val importedNames = exportedPreferences.keySet().filterNot(::isSecretPreferenceFile)
         discoverSharedPreferenceNames(context)
             .filterNot { it in importedNames }
             .forEach { name ->
@@ -739,6 +751,8 @@ object SettingsExporter {
         return prefsDir
             .listFiles { file -> file.isFile && file.extension == "xml" }
             ?.mapTo(mutableSetOf()) { it.name.removeSuffix(".xml") }
+            ?.filterNot(::isSecretPreferenceFile)
+            ?.toMutableSet()
             .orEmpty()
     }
 

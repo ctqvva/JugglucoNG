@@ -199,8 +199,16 @@ object SensorIdentity {
         // managed driver answer "Room owns this" left both sources empty and the
         // screen showing "No data" over a full store.
         if (Applic.isWearable) return true
+        // A sensor mirrored in over Clone reaches this phone only through native
+        // storage; its driver writes Room on the phone wearing it. The managed
+        // families answer "Room owns this" from the serial alone (AiDEX since
+        // #636), which froze a receiver's history while readings kept arriving.
+        // Taking the sensor over clears the Clone flag, so the driver rules again.
+        if (CloneSensorRegistry.isCloneSensor(raw)) return true
         managedDriverHistorySync(raw)?.let { return it }
-        val canonical = canonicalOrRaw(raw) ?: raw
+        // Native current exposes a short name. Recover its full identity before
+        // asking adapters such as API/NSF, which recognize their prefixed ids.
+        val canonical = canonicalSensorId(raw) ?: raw
         if (!canonical.equals(raw, ignoreCase = true)) {
             managedDriverHistorySync(canonical)?.let { return it }
         }
@@ -232,6 +240,24 @@ object SensorIdentity {
             ?: true
     }
 
+    /**
+     * The native sensor a managed driver mirrors its readings into (Ottai, Sibionics), or null
+     * for a source with no native sensor at all (Nightscout follower, cloud APIs). Those drivers
+     * report no [hasNativeSensorBacking] because the app reads them from Room, but everything
+     * native that follows the main sensor — the web server's sgv.json, the watch value — only
+     * sees them when native `current` points at this mirror.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun nativeMirrorSensorName(
+        sensorId: String?,
+        nativeLookup: (String) -> String? = { Natives.resolveFullSensorName(it) },
+    ): String? {
+        val raw = normalized(sensorId) ?: return null
+        return linkedSetOf(raw, canonicalOrRaw(raw) ?: raw, resolveNativeSensorName(raw) ?: raw)
+            .firstOrNull { name -> runCatching { nativeLookup(name) }.getOrNull() != null }
+    }
+
     @JvmStatic
     fun usesNativeDirectStreamShell(sensorId: String?): Boolean {
         val raw = normalized(sensorId) ?: return false
@@ -248,6 +274,22 @@ object SensorIdentity {
             activeSensors = availableSensorCandidates()
         )
     }
+
+    /**
+     * Whether any sensor or follower can still deliver readings. False after the last one
+     * was removed, which is when "no new value" and the loss alarm stop meaning anything.
+     */
+    @JvmStatic
+    fun hasMainSensor(): Boolean = !resolveMainSensor().isNullOrBlank()
+
+    /**
+     * A sensor existed and was finished, with nothing left to replace it. Unlike
+     * ![hasMainSensor] this stays false on a watch that shows the phone's readings and never
+     * had a native sensor of its own.
+     */
+    @JvmStatic
+    fun mainSensorWasRemoved(): Boolean =
+        !hasMainSensor() && !runCatching { Natives.lastsensorname() }.getOrNull().isNullOrBlank()
 
     @JvmStatic
     fun resolveLiveMainSensor(preferredSensorId: String?): String? {
@@ -279,6 +321,15 @@ object SensorIdentity {
         return native.none { matches(it, mainSensor) }
     }
 
+    /**
+     * Whether [removedSensor] held the main role, for code that runs after finishing it. A
+     * finished sensor no longer resolves as main, so finding no main sensor at all means it
+     * did, and the selection still has to be cleared.
+     */
+    @JvmStatic
+    fun lostMainRole(mainSensor: String?, removedSensor: String?): Boolean =
+        mainSensor.isNullOrBlank() || matches(mainSensor, removedSensor)
+
     private fun availableSensorCandidates(): Array<String?>? {
         val resolved = LinkedHashSet<String?>()
 
@@ -297,11 +348,27 @@ object SensorIdentity {
         return resolved.takeIf { it.isNotEmpty() }?.toTypedArray()
     }
 
+    /**
+     * The managed slot once also held the serial of imported history, which can be another
+     * phone's sensor. Only a driver's own record or a native slot makes the id a sensor here.
+     */
+    private fun hasSensorRecord(sensorId: String): Boolean =
+        ManagedSensorIdentityRegistry.resolvePersistedFamily(sensorId) != null ||
+            nativeMirrorSensorName(sensorId) != null
+
+    private fun isFinishedSensor(sensorId: String): Boolean = runCatching {
+        linkedSetOf(sensorId, resolveNativeSensorName(sensorId) ?: sensorId)
+            .any(Natives::sensorFinishedById)
+    }.getOrDefault(false)
+
     @JvmStatic
+    @JvmOverloads
     fun resolveAvailableMainSensor(
         selectedMain: String?,
         preferredSensorId: String?,
-        activeSensors: Array<String?>?
+        activeSensors: Array<String?>?,
+        isFinished: (String) -> Boolean = ::isFinishedSensor,
+        hasRecord: (String) -> Boolean = ::hasSensorRecord
     ): String? {
         val managed = canonicalOrRaw(ManagedCurrentSensor.get())
         val active = activeSensors
@@ -312,7 +379,12 @@ object SensorIdentity {
         val canonicalPreferred = canonicalOrRaw(preferredSensorId)
 
         if (active.isEmpty()) {
-            return managed ?: canonicalSelected ?: canonicalPreferred
+            // Being outside the active list does not make a sensor gone: native leaves out
+            // scan-only sensors and ones silent for a day, and those stay the main sensor.
+            // A finished one is gone. Native lastsensorname() falls back to the newest slot,
+            // finished or not, so without this a removed sensor stays main for good.
+            return listOfNotNull(managed?.takeIf(hasRecord), canonicalSelected, canonicalPreferred)
+                .firstOrNull { !isFinished(it) }
         }
 
         if (managed != null && active.any { matches(it, managed) }) {

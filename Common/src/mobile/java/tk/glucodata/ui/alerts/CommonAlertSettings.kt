@@ -200,9 +200,9 @@ fun CommonAlertSettings(
                 startMinute = config.activeStartMinute,
                 endHour = config.activeEndHour,
                 endMinute = config.activeEndMinute,
-                onEnabledChange = { onConfigChange(config.copy(timeRangeEnabled = it)) },
-                onStartChange = { hour, minute -> onConfigChange(config.copy(activeStartHour = hour, activeStartMinute = minute)) },
-                onEndChange = { hour, minute -> onConfigChange(config.copy(activeEndHour = hour, activeEndMinute = minute)) }
+                onEnabledChange = { onConfigChange(config.withTimeRangeEnabled(it)) },
+                onStartChange = { hour, minute -> onConfigChange(config.withActiveStart(hour, minute)) },
+                onEndChange = { hour, minute -> onConfigChange(config.withActiveEnd(hour, minute)) }
             )
 
             // === Advanced: collapsed, one row, everything set once and left alone ===

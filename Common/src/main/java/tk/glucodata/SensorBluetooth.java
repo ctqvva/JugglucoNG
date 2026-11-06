@@ -841,26 +841,23 @@ public class SensorBluetooth {
     }
 
     public static void setCurrentSensorSelection(String serial) {
+        CurrentSensorSelection.select(serial);
         if (serial == null || serial.isEmpty()) {
-            ManagedCurrentSensor.clear();
-            Natives.setcurrentsensor("");
-            return;
+            onMainSensorCleared();
         }
-        if (SensorIdentity.hasNativeSensorBacking(serial)) {
-            // The managed-current slot is only for sensors that cannot be
-            // represented by native lastsensorname. Selecting any native-backed
-            // sensor must clear a previous managed primary, otherwise
-            // SensorIdentity.resolveMainSensor() keeps returning that stale
-            // managed id ahead of the native current sensor.
-            ManagedCurrentSensor.clear();
-            final String nativeSerial = SensorIdentity.resolveNativeSensorName(serial);
-            Natives.setcurrentsensor(nativeSerial != null && !nativeSerial.isEmpty() ? nativeSerial : serial);
-        } else {
-            ManagedCurrentSensor.set(serial);
-            final String current = Natives.lastsensorname();
-            if (current != null && !current.isEmpty() && !SensorIdentity.hasNativeSensorBacking(current)) {
-                Natives.setcurrentsensor("");
-            }
+    }
+
+    /**
+     * Every route that leaves the app without a main sensor passes here. Nothing else tells
+     * the status surfaces: no further reading arrives to refresh them.
+     */
+    private static void onMainSensorCleared() {
+        try {
+            Notify.stoplossalarm();
+            GlucoseWidget.update();
+            UiRefreshBus.requestDataRefresh();
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, "onMainSensorCleared", t);
         }
     }
 
@@ -917,8 +914,7 @@ public class SensorBluetooth {
         if (removedSerial == null || removedSerial.isEmpty()) {
             return;
         }
-        final String current = SensorIdentity.resolveMainSensor();
-        if (!SensorIdentity.matches(current, removedSerial)) {
+        if (!SensorIdentity.lostMainRole(SensorIdentity.resolveMainSensor(), removedSerial)) {
             return;
         }
         final String replacement = resolveReplacementSensorSerial(removedSerial, preferredCandidates);
@@ -1257,8 +1253,7 @@ public class SensorBluetooth {
             }
             Natives.setmaxsensors(gattcallbacks.size());
         }
-        final String current = SensorIdentity.resolveMainSensor();
-        if (SensorIdentity.matches(current, sensorId)) {
+        if (SensorIdentity.lostMainRole(SensorIdentity.resolveMainSensor(), sensorId)) {
             final String replacement = resolveReplacementSensorSerial(sensorId);
             setCurrentSensorSelection(replacement != null ? replacement : "");
         }

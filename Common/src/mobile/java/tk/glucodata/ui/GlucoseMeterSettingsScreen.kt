@@ -67,11 +67,13 @@ import tk.glucodata.GlucoseMeterSnapshot
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.glucosemeter.MeterSyncPacing
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.util.BleDeviceScanner
+import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.rememberBleScanner
 import java.text.DateFormat
 import java.util.Date
@@ -102,6 +104,11 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
     var satelliteCode by remember { mutableStateOf(GlucoseMeterManager.satelliteCode()) }
     var pendingSatellite by remember { mutableStateOf<NearbyGlucoseMeter?>(null) }
     var pendingForget by remember { mutableStateOf<GlucoseMeterSnapshot?>(null) }
+    var recheckMinutes by remember { mutableStateOf(GlucoseMeterManager.recheckMinutes()) }
+    val recheckNow = stringResource(R.string.glucose_meter_recheck_now)
+    val recheckLabel: (Int) -> String = { minutes ->
+        if (minutes == 0) recheckNow else context.getString(R.string.minutes_short_format, minutes)
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -360,6 +367,34 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            // Only a meter that never sleeps waits between checks, so the choice shows with one.
+            if (meters.any { it.staysOn }) {
+                item("recheck") {
+                    Column {
+                        SectionLabel(stringResource(R.string.glucose_meter_recheck))
+                        ConnectedButtonGroup(
+                            options = MeterSyncPacing.CHOICES_MINUTES,
+                            selectedOption = recheckMinutes,
+                            onOptionSelected = { minutes ->
+                                recheckMinutes = minutes
+                                GlucoseMeterManager.setRecheckMinutes(minutes)
+                            },
+                            labelText = recheckLabel,
+                            label = { minutes -> Text(recheckLabel(minutes)) },
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            stringResource(R.string.glucose_meter_recheck_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
                     }
                 }
             }

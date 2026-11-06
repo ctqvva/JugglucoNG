@@ -222,4 +222,31 @@ class ICanHealthConstantsTests {
         assertEquals(null, ICanHealthConstants.boxSerialForDisplay(""))
         assertEquals(null, ICanHealthConstants.boxSerialForDisplay(null))
     }
+
+    @Test
+    fun shouldRebindStaleAddress_requiresExactNameAndStaleness() {
+        val now = 10_000_000L
+        val stale = now - ICanHealthConstants.STALE_ADDRESS_REBIND_MS
+        val ids = listOf("ICN-7BF00099C663", null)
+        fun rebind(name: String?, candidate: String? = "AA:BB:CC:DD:EE:02", last: Long = stale) =
+            ICanHealthConstants.shouldRebindStaleAddress(
+                "AA:BB:CC:DD:EE:01", candidate, name, ids, last, now
+            )
+        assertTrue(rebind("ICN-7BF00099C663"))
+        assertTrue(rebind("icn-7bf00099c663"))
+        assertFalse(rebind("ICN-7BF00099C664"))
+        assertFalse(rebind(null))
+        assertFalse(rebind("ICN-7BF00099C663", last = stale + 1L))
+        assertFalse(rebind("ICN-7BF00099C663", candidate = "aa:bb:cc:dd:ee:01"))
+        assertFalse(
+            ICanHealthConstants.shouldRebindStaleAddress(null, "AA", "ICN-7BF00099C663", ids, stale, now)
+        )
+    }
+
+    @Test
+    fun formatCalibrationMarker_showsScaleOrNothing() {
+        assertEquals("", ICanHealthConstants.formatCalibrationMarker(null))
+        assertEquals("F6 0xFFFF", ICanHealthConstants.formatCalibrationMarker(0xFFFF))
+        assertEquals("F6 0x0244 (580), x13 0.580", ICanHealthConstants.formatCalibrationMarker(580))
+    }
 }

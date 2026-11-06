@@ -51,9 +51,10 @@ class GlucoseRepository {
         val current = _currentSerial.value
         val nativeCurrent = SensorIdentity.resolveMainSensor()
             ?.takeIf { it.isNotBlank() }
+        // No fallback to the current value: with no main sensor left, the flows have to fall
+        // back to all stored readings instead of following the removed sensor.
         val resolved = preferredSerial?.takeIf { it.isNotBlank() }
             ?: nativeCurrent
-            ?: current.takeIf { it.isNotBlank() }
             ?: ""
 
         if (resolved != current) {
@@ -142,6 +143,9 @@ class GlucoseRepository {
             BatteryTrace.bump("glucose.native.poll_once", logEvery = 20L)
             // Get the main sensor serial for tagging
             val sensorSerial = Natives.lastsensorname() ?: "unknown"
+            // Native current may be a driver's mirror (Ottai, Sibionics); that driver
+            // writes Room itself, so copying its mirror back would duplicate rows.
+            if (!SensorIdentity.shouldUseNativeHistorySync(sensorSerial)) return
             val canonicalSerial = SensorIdentity.resolveAppSensorId(sensorSerial) ?: sensorSerial
             if (canonicalSerial.isBlank()) return
             

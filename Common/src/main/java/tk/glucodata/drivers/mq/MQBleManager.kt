@@ -478,7 +478,7 @@ class MQBleManager(
                 markLocalReadingAccepted(sampleMs)
             }
             applyNativeSensorMetadata(nativeName)
-            Natives.wakebackup()
+            Natives.wakestreamonly()
         }.onFailure { Log.stack(TAG, "mirrorReadingIntoNative", it) }
     }
 

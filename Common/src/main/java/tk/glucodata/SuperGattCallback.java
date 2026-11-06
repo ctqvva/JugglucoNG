@@ -133,7 +133,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
     private void connectionAttemptExpired(BluetoothGatt attempt) {
         // The deadline holds this callback's monitor, also used for GATT replacement.
-        if (mBluetoothGatt != attempt || stop || dataptr == 0L
+        if (mBluetoothGatt != attempt || stop || (dataptr == 0L && !allowConnectWithoutDataptr())
                 || CloneSensorRegistry.isCloneSensor(SerialNumber)
                 || SensorOwnershipRuntime.blocksLocalConnection(SerialNumber)) return;
         Log.i(LOG_ID, SerialNumber + " no connection result before deadline; retrying");
@@ -763,6 +763,13 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             UiRefreshBus.requestDataRefresh();
             return;
         }
+        // A managed main sensor's native mirror may only now exist (first reading after
+        // selection). Native current must follow it for the web server and watch value.
+        try {
+            CurrentSensorSelection.syncNativeToManaged(SerialNumber);
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, "syncNativeToManaged", t);
+        }
 
         // History/replay rows are already persisted before this method. They must not
         // move notifications, glucose alerts, or the signal-loss deadline backwards.
@@ -865,7 +872,9 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     // notifications, and alarm speech) rather than the raw native value.
                     final CurrentDisplaySource.Snapshot speakcurrent =
                             CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout);
-                    currentTalker.selspeak(speakcurrent != null ? speakcurrent.getSpeechPrimaryStr() : sglucose.value);
+                    currentTalker.selspeak(speakcurrent != null
+                            ? GlucoseSpeech.format(Applic.app,speakcurrent)
+                            : GlucoseSpeech.format(Applic.app,sglucose.value,sglucose.rate));
                 }
             }
         }
@@ -1064,6 +1073,12 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         handleGlucoseResultInternal(res, timmsec, 0, Float.NaN);
     }
 
+    /** Rate (mg/dL per minute) packed by native glucoselong; NaN when the sensor gave none. */
+    static float packedRate(long res) {
+        final short ratein = (short) ((res >> 32) & 0xFFFFL);
+        return ratein == Short.MIN_VALUE ? Float.NaN : ratein / 1000.0f;
+    }
+
     protected void handleGlucoseResult(long res, long timmsec, float preferredRawMgdl) {
         handleGlucoseResultInternal(res, timmsec, 0, preferredRawMgdl);
     }
@@ -1072,8 +1087,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         // int glumgdl = (int) (res & 0xFFFFFFFFL);
         int glumgL = (int) (res & 0xFFFFFFFFL);
         int alarm = (int) ((res >> 48) & 0xFFL);
-        short ratein = (short) ((res >> 32) & 0xFFFFL);
-        float rate = ratein / 1000.0f;
+        float rate = packedRate(res);
         final boolean liveRoomStorage = this instanceof ManagedBluetoothSensorDriver managed
                 && managed.managesLiveRoomStorage()
                 && SerialNumber != null

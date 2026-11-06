@@ -27,6 +27,7 @@
 // Created by jka on 27-11-20.
 //
 #include <algorithm>
+#include <cmath>
 #include <cinttypes>
 #include <future>
 #include <jni.h>
@@ -622,6 +623,21 @@ fromjava(removeSensorById)(JNIEnv *env, jclass cl, jstring jsensor) {
   if (backup)
     backup->wakebackup(Backup::wakeall);
   return removedAll ? JNI_TRUE : JNI_FALSE;
+}
+
+// Whether every native slot holding this id was finished or removed by the user.
+// An id native has no slot for is not finished: it is a source that lives outside
+// native, such as a Nightscout follower.
+extern "C" JNIEXPORT jboolean JNICALL
+fromjava(sensorFinishedById)(JNIEnv *env, jclass cl, jstring jsensor) {
+  const auto sensorindices = sensorIndicesFromId(env, jsensor);
+  if (sensorindices.empty())
+    return JNI_FALSE;
+  for (const int sensorindex : sensorindices) {
+    if (!sensors->getsensor(sensorindex)->finished)
+      return JNI_FALSE;
+  }
+  return JNI_TRUE;
 }
 
 // Retires a managed driver's native mirror shell by its full id. Unlike
@@ -1296,7 +1312,14 @@ static jlong glucoselong(uint32_t nu, uint32_t glval, float drate,
                          const SensorGlucoseData *hist) {
   if (!glval)
     return 0LL;
-  const jlong rate = roundl(((long double)drate) * 1000LL);
+  // Rate x1000 in 16 bits; 0x8000 means no rate, which
+  // SuperGattCallback.packedRate reads back as NaN. Converting a NaN rate
+  // directly is undefined, so it never reaches roundl.
+  const jlong rate =
+      std::isnan(drate)
+          ? jlong{0x8000}
+          : std::clamp<jlong>(roundl(((long double)drate) * 1000LL), -0x7FFF,
+                              0x7FFF);
 
   const double cali = calibrateNow(hist, nu, glval);
   uint32_t mgL;
@@ -1484,7 +1507,7 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
                                      jlong timestamp, jfloat glucose,
                                      jfloat rawGlucose, jfloat temperatureC,
                                      bool overwriteRaw, bool overwriteTemp,
-                                     bool quiet, int *rewindFrom) {
+                                     bool quiet, int *rewindFrom, bool primaryIsResolved = false) {
   if (!hist || hist->error() || timestamp <= 0)
     return false;
   auto *info = hist->getinfo();
@@ -1529,13 +1552,14 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
     preservedTemp = static_cast<uint16_t>(temperatureC * 10.0f);
 
   const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
-                                             mgVal, timestamp);
+                                             mgVal, timestamp, primaryIsResolved);
+  const int storedGlucose = mgVal | (primaryIsResolved ? ScanData::resolvedGlucoseFlag : 0);
   const bool stored = quiet
                           ? hist->savepollallIDsQuiet<60>(
-                                timestamp, lifeCount, mgVal, 0, change,
+                                timestamp, lifeCount, storedGlucose, 0, change,
                                 preservedRaw, preservedTemp)
                           : hist->savepollallIDs<60>(
-                                timestamp, lifeCount, mgVal, 0, change,
+                                timestamp, lifeCount, storedGlucose, 0, change,
                                 preservedRaw, preservedTemp);
   if (!stored)
     return false;
@@ -1662,9 +1686,9 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithTemp)(
 // quiet writes that skip the per-sample LOGGER, a single backstream/backhistory
 // rewind from the lowest index touched, and one setstreaming. Mirroring a
 // 4867-sample history one call at a time cost all of that per reading.
-extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
-    JNIEnv *env, jclass cl, jlongArray timestamps, jfloatArray glucoses,
-    jfloatArray raws, jfloatArray temperatures, jstring sensorId) {
+static jint addGlucoseStreamBatchWithRawTempInternal(
+    JNIEnv *env, jlongArray timestamps, jfloatArray glucoses,
+    jfloatArray raws, jfloatArray temperatures, jstring sensorId, bool primaryIsResolved) {
   if (!sensors || !timestamps || !glucoses || !raws || !temperatures ||
       !sensorId)
     return 0;
@@ -1705,7 +1729,7 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
       if (storeGlucoseStreamSample(
               hist, str, timeValues[index], glucoseValues[index],
               rawValues[index], temperatureValues[index], true, true, true,
-              &rewindFrom)) {
+              &rewindFrom, primaryIsResolved)) {
         ++stored;
       }
     }
@@ -1723,6 +1747,20 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
   env->ReleaseLongArrayElements(timestamps, timeValues, JNI_ABORT);
   env->ReleaseStringUTFChars(sensorId, str);
   return stored;
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
+    JNIEnv *env, jclass, jlongArray timestamps, jfloatArray glucoses,
+    jfloatArray raws, jfloatArray temperatures, jstring sensorId) {
+  return addGlucoseStreamBatchWithRawTempInternal(env, timestamps, glucoses, raws,
+                                                 temperatures, sensorId, false);
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(addResolvedGlucoseStreamBatchWithRawTemp)(
+    JNIEnv *env, jclass, jlongArray timestamps, jfloatArray glucoses,
+    jfloatArray raws, jfloatArray temperatures, jstring sensorId) {
+  return addGlucoseStreamBatchWithRawTempInternal(env, timestamps, glucoses, raws,
+                                                 temperatures, sensorId, true);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(addGlucoseStreamWithRawTemp)(
@@ -1932,7 +1970,8 @@ fromjava(addRawGlucoseStream)(JNIEnv *env, jclass cl, jlong timestamp,
       }
 
       if (hist->validPollIndex(lifeCount) && hist->hasStreamID(lifeCount)) {
-        int preservedAuto = hist->getPollsData()[lifeCount].g;
+        const ScanData &preserved = hist->getPollsData()[lifeCount];
+        int preservedAuto = preserved.g;
         uint16_t preservedTemp = hist->getTempForPoll(lifeCount);
         int rawVal = 0;
         if (rawGlucose > 0) {
@@ -1945,7 +1984,8 @@ fromjava(addRawGlucoseStream)(JNIEnv *env, jclass cl, jlong timestamp,
         }
         // See addGlucoseStreamInternal(): derive rather than storing a fake flat 0.0f.
         const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
-                                                   preservedAuto, timestamp);
+                                                   preserved.getmgdL(), timestamp,
+                                                   preserved.hasResolvedGlucose());
         hist->savepollallIDs<60>(timestamp, lifeCount, preservedAuto, 0, change,
                                  rawVal, preservedTemp);
         if (backup) {
@@ -2138,7 +2178,7 @@ static void appendPollHistory(const SensorGlucoseData *hist, jlong starttime,
     jlong valAuto = 0;
     if (autoValid) {
       double cali = calibrateNow(hist, item);
-      valAuto = !isnan(cali) ? (jlong)(cali * 10) : (jlong)item.g * 10;
+      valAuto = !isnan(cali) ? (jlong)(cali * 10) : (jlong)item.getmgdL() * 10;
     }
 
     jlong valRaw = rawVal > 0 ? (jlong)(rawVal * convfactordL) : 0;
@@ -2169,7 +2209,7 @@ static void appendScanHistory(const SensorGlucoseData *hist, jlong starttime,
       continue;
 
     const double cali = calibrateNow(hist, item);
-    const jlong valAuto = !isnan(cali) ? (jlong)(cali * 10) : (jlong)item.g * 10;
+    const jlong valAuto = !isnan(cali) ? (jlong)(cali * 10) : (jlong)item.getmgdL() * 10;
 
     // Scans have no dedicated raw lane like rawpolls.dat. Assignment is
     // intentional: a scan is a newer source than the periodic history point.
@@ -2429,6 +2469,14 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(lastsensorname)(JNIEnv *envin,
   if (const auto *name = sensors->shortsensorname()->data()) {
     return envin->NewStringUTF(name);
   }
+  return nullptr;
+}
+extern "C" JNIEXPORT jstring JNICALL fromjava(currentsensorname)(JNIEnv *envin,
+                                                                 jclass cl) {
+  if (!sensors)
+    return nullptr;
+  if (const char *name = sensors->currentshortsensorname_chars(); name && *name)
+    return envin->NewStringUTF(name);
   return nullptr;
 }
 extern "C" JNIEXPORT jlong JNICALL fromjava(laststarttime)(JNIEnv *envin,

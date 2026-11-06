@@ -5,7 +5,7 @@ package tk.glucodata;
  * can be unit tested.
  *
  * <p>{@link Talker} takes focus before it queues an utterance's lead-in, so focus is now held
- * while no words are playing yet. The focus itself is one global flag in {@link Notify}, and the
+ * while no words are playing yet. Speech has its own focus request, separate from alarms, and the
  * engine's progress callbacks arrive late and on any thread. Releasing on every callback would
  * let the previous utterance's onDone, or its onStop when the next one flushes it, drop the focus
  * the next one has just taken. So only the utterance that holds focus releases it.
@@ -19,6 +19,7 @@ final class SpeechFocus {
 
     private final Audio audio;
     private String owner;
+    private final java.util.Set<Hold> pending = new java.util.HashSet<>();
 
     SpeechFocus(Audio audio) {
         this.audio = audio;
@@ -26,8 +27,44 @@ final class SpeechFocus {
 
     /** Hold focus for this utterance; whoever held it before no longer releases it. */
     synchronized void claim(String utteranceId) {
+        claim(utteranceId, true);
+    }
+
+    /** Alarm speech records its owner now, but leaves the alarm's stronger request on top. */
+    synchronized void claim(String utteranceId, boolean requestNow) {
         owner = utteranceId;
-        audio.request();
+        if (requestNow) audio.request();
+    }
+
+    /** Reserve the gap before a closing announcement is queued; it is not an utterance owner. */
+    synchronized Hold reserve() {
+        Hold hold = new Hold();
+        pending.add(hold);
+        return hold;
+    }
+
+    synchronized void requestIfOwned() {
+        if (owner != null || !pending.isEmpty()) audio.request();
+    }
+
+    synchronized Hold handoff(boolean closingAnnouncement, Runnable releaseAlarm) {
+        Hold hold = closingAnnouncement ? reserve() : null;
+        requestIfOwned();
+        try {
+            releaseAlarm.run();
+            return hold;
+        } catch (RuntimeException e) {
+            if (hold != null) hold.close();
+            throw e;
+        }
+    }
+
+    final class Hold implements AutoCloseable {
+        @Override public void close() {
+            synchronized (SpeechFocus.this) {
+                if (pending.remove(this) && pending.isEmpty() && owner == null) audio.abandon();
+            }
+        }
     }
 
     /**
@@ -37,7 +74,7 @@ final class SpeechFocus {
     synchronized void release(String utteranceId) {
         if (utteranceId != null && utteranceId.equals(owner)) {
             owner = null;
-            audio.abandon();
+            if (pending.isEmpty()) audio.abandon();
         }
     }
 }

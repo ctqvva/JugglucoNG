@@ -434,6 +434,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="glucose_meters_none">Nincs beállított mérő</string>
     <string name="glucose_meters_none_desc">Közeli mérő keresésével indítható a mérések importálása.</string>
     <string name="glucose_meters_nearby">Közeli mérők</string>
+    <string name="glucose_meter_recheck">Mérő újbóli ellenőrzése</string>
+    <string name="glucose_meter_recheck_now">Azonnal</string>
+    <string name="glucose_meter_recheck_hint">Bekapcsolva maradó mérőkhöz, mint a Satellite. Egy új mérés ennyivel később érkezhet meg</string>
     <string name="glucose_meter_last_reading">Utolsó mérés: %1$s</string>
     <string name="glucose_meter_no_readings">Még nincs importált mérés</string>
     <string name="glucose_meter_forget">Elfelejtés</string>
@@ -870,6 +873,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="alert_amount">Mennyiségi riasztás</string>
     <string name="import_history">Előzmények importálása</string>
     <string name="import_history_desc">Glükózadatok importálása JugglucoNG-exportból vagy CSV-fájlból</string>
+    <string name="continue_without_sensor">Folytatás szenzor nélkül</string>
+    <string name="continue_without_sensor_desc">Inzulin, étel és ujjbegyes mérések rögzítése a naplóban</string>
     <string name="get_started_desc">A kezdéshez adja hozzá a szenzorát</string>
     <string name="select_sensor">Szenzortípus kiválasztása</string>
     <string name="or_divider">"  vagy  "</string>
@@ -1074,6 +1079,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_connect_failed">Nem sikerült elindítani a kapcsolatot. Próbálja újra.</string>
     <string name="ottai_offline_hint">Hitelesítőadat-fájlt a Mentett szenzorok alatt is importálhat.</string>
     <string name="ottai_already_binding_hint">A fiókjához még egy másik szenzor van kötve. Oldja fel a kötését a Mentett szenzorok alatt, majd próbálja újra.</string>
+    <string name="ottai_ota_upgrade_required">Az Ottai szolgáltatás firmware-frissítést kért a szenzor hozzárendelésekor. Próbálja újra a firmware beállítását, vagy importálja a mentett hitelesítő adatokat. A hivatalos Ottai alkalmazást is kipróbálhatja.</string>
+    <string name="ottai_retry">Újrapróbálás</string>
+    <string name="ottai_setup_failed">A beállítás leállt. Próbálja újra, vagy zárja be, és importálja a mentett hitelesítő adatokat.</string>
     <string name="ottai_region_cn_full">Ottai Kína</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Országhívószám</string>
@@ -2062,6 +2070,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_dose_pair_insulin">Inzulin társítása</string>
     <string name="journal_dose_pair_carbs">Szénhidrát társítása</string>
     <string name="journal_dose_suggested_insulin">Javasolt: %1$s U</string>
+    <string name="journal_amount_suggested">Javasolt</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>
@@ -2342,15 +2351,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="mirror_connect_qr_turn_message">Ez a ‘Hibrid\' QR-kód az eszköz hibrid konfigurációját is lecseréli.</string>
     <string name="mirror_connect_action">Csatlakozás</string>
     <string name="mirror_connect_nearby_title">Csatlakozás: %1$s?</string>
-    <string name="mirror_connect_nearby_message">Megtalálva: %1$s:%2$d.\nGlükózadatok fogadása innen: %3$s.</string>
     <string name="mirror_connection_data_missing">Hiányzó kapcsolati adatok</string>
     <string name="mirror_reconnect_all">Összes újracsatlakoztatása</string>
-    <string name="mirror_quick_pair">Gyors párosítás</string>
-    <string name="mirror_share_my_qr">Helyi QR-kód megosztása</string>
-    <string name="mirror_share_my_qr_desc">Csak azonos helyi hálózaton</string>
-    <string name="mirror_share_relay_qr">Hibrid QR-kód megosztása</string>
-    <string name="mirror_share_relay_qr_desc">Először közvetlenül próbálkozik, majd szükség esetén TURN-nel</string>
-    <string name="mirror_scan_qr_desc">Másik eszköz QR-kódjának szkennelése a csatlakozáshoz</string>
     <string name="mirror_broadcast_network">Hálózati hirdetés</string>
     <string name="mirror_broadcast_network_desc">Az eszköz felfedezhetővé tétele a közeli eszközök számára</string>
     <string name="mirror_relay">Közvetítő</string>
@@ -2978,11 +2980,21 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clone_server_edit_hint">A kiszolgáló módosításakor a Clone újracsatlakozik. Mindkét eszközön azonos beállításokat használjon.</string>
     <string name="clone_use_default_server">Alkalmazás alapértelmezésének használata</string>
     <string name="clone_custom_server">Egyéni kiszolgáló</string>
-    <string name="clone_add_first">A kezdéshez párosítson egy eszközt</string>
-    <string name="clone_visible_nearby">Látható a közelben</string>
-    <string name="clone_visible_nearby_desc">Új eszközök megtalálhatják ezt a telefont</string>
+    <string name="clone_qr_instruction">A másik telefonon nyissa meg: %1$s, és koppintson erre: %2$s.</string>
+    <string name="clone_connect_title">Másik telefon csatlakoztatása</string>
+    <string name="clone_scan_code">Kód beolvasása</string>
+    <string name="clone_get_readings">Értékek fogadása</string>
+    <string name="clone_code_any_network">Bármely hálózat</string>
+    <string name="clone_code_wifi_only">Csak ez a Wi-Fi</string>
+    <string name="clone_pairing_waiting">Várakozás a másik telefonra…</string>
+    <string name="clone_pairing_announced">Ezen a Wi-Fi-n is látható mint %1$s</string>
+    <string name="clone_pairing_connected">Csatlakoztatva</string>
+    <string name="clone_add_manually_desc">Adja meg saját maga a címet és a beállításokat</string>
+    <string name="clone_send_readings">Értékek küldése</string>
+    <string name="clone_on_this_wifi">Ezen a Wi-Fi-n</string>
+    <string name="clone_nearby_empty">Itt jelennek meg az ezen a Wi-Fi-n értékeket küldő telefonok</string>
+    <string name="clone_sharing_readings">Értékeket küld</string>
     <string name="clone_network_summary">Kiszolgálók és helyi felderítés</string>
-    <string name="clone_connections_empty">Még nincs párosított eszköz.</string>
     <string name="clone_background_desc">Nagyobb akkumulátorfogyasztás</string>
     <string name="watch_transport_section">Átvitel</string>
     <string name="watch_wearos_enable_desc">Wear OS-üzenetátvitel engedélyezése</string>
@@ -3175,6 +3187,51 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="settings_search_hint">Keresés a beállításokban</string>
     <string name="settings_search_no_results">Nincs a(z) „%1$s” keresésnek megfelelő beállítás</string>
     <string name="settings_search_clear">Keresés törlése</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Kísérleti firmware-teszt</string>
+    <string name="ottai_ota_warning">A sikertelen frissítés használhatatlanná teheti az érzékelőt. Tartsa nyitva ezt a képernyőt, és a telefont az érzékelő közelében.</string>
+    <string name="ottai_ota_connecting">Csatlakozás aktiválás nélkül…</string>
+    <string name="ottai_ota_authenticating">Az érzékelő azonosságának ellenőrzése…</string>
+    <string name="ottai_ota_checking">Firmware ellenőrzése és letöltése…</string>
+    <string name="ottai_ota_recovery">A helyreállítási csomag kész. A telepítés a mentett csomag elejéről indul újra.</string>
+    <string name="ottai_ota_ready">A firmware-csomag kész. Az érzékelő nincs aktiválva.</string>
+    <string name="ottai_ota_no_update">Nincs felajánlott firmware-frissítés</string>
+    <string name="ottai_ota_installing">Firmware telepítése…</string>
+    <string name="ottai_ota_reconnecting">Újracsatlakozás és a telepített verzió ellenőrzése…</string>
+    <string name="ottai_ota_preparing">Hitelesítő adatok frissítése és gyári paraméterek írása…</string>
+    <string name="ottai_ota_complete">Az előkészítés kész. Zárja be az ablakot, majd csatlakozzon a szokásos módon az aktiváláshoz.</string>
+    <string name="ottai_ota_failed">A beállítás leállt. Próbálja újra, vagy ellenőrizze a nyomkövetési naplót. A befejezetlen beállítás blokkolja az aktiválást.</string>
+    <string name="ottai_ota_version">Érzékelő: %1$s · Frissítés: %2$s</string>
+    <string name="ottai_ota_package">%1$d bájt · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Diagnosztikai kód: %1$s</string>
+    <string name="ottai_ota_install">Firmware telepítése</string>
+    <string name="ottai_ota_parameters">Csak gyári paraméterek írása</string>
+    <string name="ottai_ota_confirm">Telepíti ezt a kísérleti frissítést? Az érzékelő végleg használhatatlanná válhat. Az aktiválás külön, a verzió és a gyári paraméterek ellenőrzése után történik.</string>
+    <string name="ottai_ota_parameters_confirm">Kiírja a támogatott gyári együtthatókat és kalibrációt? Ez firmware-frissítés és az élettartam indítása nélkül módosítja a beállításokat.</string>
+    <string name="ottai_ota_check">Firmware ellenőrzése (kísérleti)</string>
+    <string name="ottai_ota_cloud_recheck">Újraellenőrzés V3 felhőhitelesítéssel</string>
+    <string name="ottai_ota_cloud_authenticating">Hitelesítés az Ottai-fiókon keresztül…</string>
+    <string name="ottai_ota_cloud_recheck_hint">A firmware elérhetőségének újraellenőrzése szerveres szenzorhitelesítéssel. Ez nem aktiválja és nem köti a fiókhoz a szenzort.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Először válassza le az érzékelőt a megfigyelésről. Egy elindított érzékelő frissítése törölheti a méréseket, visszaállíthatja az élettartamot vagy leállíthatja az érzékelőt.</string>
+    <string name="ottai_ota_fresh_mode">Új érzékelő</string>
+    <string name="ottai_ota_started_mode">Elindított érzékelő</string>
+    <string name="ottai_ota_started_ready">Az elindított érzékelő frissítése kész. Telepítés előtt ellenőrizze a kiindulási adatokat.</string>
+    <string name="ottai_ota_result_active">Firmware frissítve. Az érzékelő aktív állapotot jelez; az újracsatlakoztatás előtt ellenőrizze a naplót.</string>
+    <string name="ottai_ota_result_ended">Firmware frissítve. Az érzékelő befejezett állapotot jelez; ellenőrizze a naplót.</string>
+    <string name="ottai_ota_result_reset">Firmware frissítve. Az érzékelő nincs aktiválva; nem történt újraaktiválási kísérlet.</string>
+    <string name="ottai_ota_started_confirm">Telepíti erre az elindított érzékelőre? A mérések és a működési állapot törlődhetnek vagy visszaállhatnak. A teszt újraaktiválás és gyári paraméterek írása nélkül rögzíti az eredményt.</string>
+    <string name="ottai_ota_observation">%1$s · állapot %2$d · élettartam %3$s s · utolsó rekord %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Előtte</string>
+    <string name="ottai_ota_after">Utána</string>
+
+    <string name="ottai_ota_discard">Befejezetlen beállítás elvetése</string>
+    <string name="ottai_ota_discard_confirm">Törli a mentett frissítési és előkészítési állapotot a csatlakozás engedélyezéséhez? Ez nem állítja vissza a firmware-t vagy a beállításokat. A megszakított frissítés még helyreállítást igényelhet.</string>
+    <string name="ottai_ota_pending">A szenzor beállítása nem fejeződött be. Csatlakozzon újra, vagy nyissa meg a helyreállítást a befejezéshez vagy elvetéshez.</string>
+    <string name="ottai_ota_finish_preparation">A firmware ellenőrizve. A beállítás befejezéséhez erősítse meg a gyári paraméterek írását.</string>
+    <string name="ottai_ota_discard_failed">A firmware-teszt nem vethető el. Próbálja újra.</string>
     <string name="prediction_analysis_section">Előrejelzés-elemzés</string>
     <string name="prediction_analysis_record">Előrejelzések rögzítése</string>
     <string name="prediction_analysis_record_summary">Minden előrejelzés megőrzése ezen a telefonon, hogy összevethető legyen a történtekkel</string>
@@ -3254,4 +3311,12 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="glucifer_help_pair">2. Nyissa meg az integráció beállításait. Olvassa be itt a QR-kódját, vagy illessze be a teljes kapcsolati URL-t. Tartsa titokban ezt az URL-t.</string>
     <string name="glucifer_help_test">3. Kapcsolja be ezt a célt, és küldjön tesztüzenetet. Ellenőrizze az értéket a Home Assistant rendszerben. A módosítások automatikusan mentődnek.</string>
     <string name="glucifer_setup_guide">Beállítási útmutató megnyitása</string>
+    <string name="ican_calibration_marker">Kalibráció (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">stabil</string>
+    <string name="tts_trend_increasing">emelkedik</string>
+    <string name="tts_trend_decreasing">csökken</string>
+    <string name="tts_trend_rising_quickly">gyorsan emelkedik</string>
+    <string name="tts_trend_falling_quickly">gyorsan csökken</string>
 </resources>

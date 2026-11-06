@@ -24,6 +24,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class OttaiRegionalTransportTests {
+    @Test fun ordinaryCnPhoneAccountLookupUsesTheSecureTransportDependency() {
+        val common = OttaiCloudClient.cnPhoneHeaders("n:synthetic-cn", "synthetic-token", 123L, "synthetic")
+        val url = OttaiConstants.API_BASE + OttaiConstants.EP_GET_BIND_DEVICE
+        val server = Server(OttaiConstants.API_BASE)
+        val result = OttaiCloudClient.requestWithResult("GET", url, null, common, openConnection = server::connection)
+        assertNull(result.failure)
+        assertEquals(2, server.calls.size)
+        assertTrue(server.calls.all { it.url.startsWith(OttaiConstants.API_BASE + "/cgm/security/app/server/") })
+        assertEquals("1.63.0", server.calls.last().headers["versionName"])
+        assertEquals(common["deviceId"], server.calls.last().headers["cipherUserId"])
+    }
+
     private val headers = mapOf("deviceId" to "ottai-watch:a:synthetic-install", "appName" to "ottai-watch",
         "packageName" to "com.ottai.tag.watch", "versionCode" to "244301", "versionName" to "1.1.0",
         "timestamp" to System.currentTimeMillis().toString(), "Authorization" to "synthetic-token",
@@ -38,10 +50,12 @@ class OttaiRegionalTransportTests {
         val clearBodies = mutableListOf<JSONObject>()
         val connections = mutableListOf<HttpURLConnection>()
         var business = JSONObject("""{"code":"OK","data":{"result":"synthetic-materials"}}""")
+        var businessForPath: ((String) -> JSONObject)? = null
         var exchangeFailure: JSONObject? = null
         var gatewayFailure: JSONObject? = null
         var corruptResponse = false
         var emptyResponse = false
+        var plaintextResponse = false
         private val pair = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
         private lateinit var aes: ByteArray
         private lateinit var signing: ByteArray
@@ -67,7 +81,7 @@ class OttaiRegionalTransportTests {
         }.also { connections += it }
 
         private fun answer(call: Call): OttaiNetSecurity.Reply {
-            val identity = call.headers.getValue("webDeviceId")
+            val identity = call.headers.getValue(if (base == OttaiConstants.API_BASE) "deviceId" else "webDeviceId")
             if (call.url.endsWith("/security/exchangeKey")) {
                 exchangeFailure?.let { return OttaiNetSecurity.Reply(401, it) }
                 val request = JSONObject(requireNotNull(call.body))
@@ -99,8 +113,11 @@ class OttaiRegionalTransportTests {
             }
             gatewayFailure?.let { return OttaiNetSecurity.Reply(401, it) }
             if (emptyResponse) return OttaiNetSecurity.Reply(200, null)
-            check(call.headers["webDeviceId"] == identity && call.headers["cipherSecretId"] == secretId)
-            check(call.headers["versionCode"] == "10000000")
+            val responseBusiness = businessForPath?.invoke(call.url.substringBefore('?')) ?: business
+            if (plaintextResponse) return OttaiNetSecurity.Reply(200, responseBusiness)
+            check(call.headers[if (base == OttaiConstants.API_BASE) "cipherUserId" else "webDeviceId"] == identity &&
+                call.headers["cipherSecretId"] == secretId)
+            check(call.headers["versionCode"] == if (base == OttaiConstants.API_BASE) "264122" else "10000000")
             fun decrypt(envelope: JSONObject, kind: String): JSONObject {
                 val text = envelope.getString("cipher${kind}Text")
                 val signed = call.headers.getValue("cipherNonceId") + call.headers.getValue("cipherSeq") +
@@ -115,7 +132,7 @@ class OttaiRegionalTransportTests {
             clearQueries += if (query.isEmpty()) JSONObject() else decrypt(JSONObject(query), "Param")
             call.body?.let { clearBodies += decrypt(JSONObject(it), "Body") }
             val nonce = ByteArray(12) { 7 }
-            val encrypted = crypt(Cipher.ENCRYPT_MODE, nonce, business.toString().toByteArray())
+            val encrypted = crypt(Cipher.ENCRYPT_MODE, nonce, responseBusiness.toString().toByteArray())
             val tag = encrypted.takeLast(16).toByteArray()
             if (corruptResponse) tag[0] = (tag[0].toInt() xor 1).toByte()
             return OttaiNetSecurity.Reply(200, JSONObject().put("code", "OK").put("cipherSecretId", secretId)
@@ -232,7 +249,7 @@ class OttaiRegionalTransportTests {
         val server = Server(); server.emptyResponse = true
         val result = server.request("GET", "/deviceBind/getBindDevice")
         assertNull(result.body)
-        assertEquals("ota_request_http=200", result.failure!!.text)
+        assertEquals("ota_request_response_json_http=200", result.failure!!.text)
         assertEquals(200, result.failure.httpStatus)
     }
 
@@ -290,6 +307,218 @@ class OttaiRegionalTransportTests {
                 } else assertEquals(headers["deviceId"], actual.headers["deviceId"])
                 assertEquals(headers["timestamp"], actual.headers["timestamp"])
             }
+        }
+    }
+
+    @Test fun otaOfferAndSuccessReportUseTheIssuingBackendForEveryRegion() {
+        for (base in listOf(OttaiConstants.API_BASE, OttaiConstants.API_BASE_GLOBAL, OttaiConstants.API_BASE_SYAI)) {
+            val server = Server(base)
+            val common = if (base == OttaiConstants.API_BASE)
+                OttaiCloudClient.cnPhoneHeaders("n:synthetic-cn", "synthetic-token", 0L, "synthetic") else headers
+            val client = OttaiCloudClient.OtaClient(base, common, server::connection)
+            try {
+                server.business = JSONObject("""{"code":"OK","data":{"requiredUpgrade":true,"allowUpgrade":false,"downloadUrl":"https://firmware.example/V1.8.0.gbl"}}""")
+                val source = "vE1.2.3(V1.7.SH2542.1),STDRD"
+                val offer = client.judgeOta("001122334455", source)
+                assertTrue(offer.required)
+                assertFalse(offer.allowed)
+                assertEquals("https://firmware.example/V1.8.0.gbl", offer.downloadUrl)
+                assertEquals(source, server.clearQueries.single().getString("deviceVersion"))
+                assertEquals("001122334455", server.clearQueries.single().getString("mac"))
+                assertEquals("cgm", server.clearQueries.single().getString("deviceType"))
+                assertTrue(server.calls.last().url.startsWith("$base/cgm/security/app/server/ota/upgradeVersion/judge?"))
+
+                server.business = JSONObject("""{"code":"OK","data":null}""")
+                client.reportOtaSuccess("001122334455", source, "V1.8.0")
+                assertEquals(4, server.calls.size)
+                assertEquals("$base/cgm/security/app/server/device/ota/upgrade", server.calls.last().url)
+                assertEquals("POST", server.calls.last().method)
+                val report = server.clearBodies.single()
+                assertEquals(source, report.getString("sourceVersion"))
+                assertEquals("V1.8.0", report.getString("targetVersion"))
+                assertEquals(1, report.getInt("upgradeStatus"))
+                assertTrue(server.calls.all { it.url.startsWith("$base/cgm/security/app/server/") })
+                assertTrue(server.calls.all { it.headers["Authorization"] == "synthetic-token" })
+                assertTrue(server.calls.all { it.headers["deviceId"] == common["deviceId"] })
+                if (base != OttaiConstants.API_BASE) assertTrue(server.calls.all { call ->
+                    call.headers.keys.none { it in setOf("X-Forwarded-For", "X-Real-IP", "CF-Connecting-IP", "True-Client-IP") }
+                })
+            } finally { client.close() }
+            assertEquals("cancelled", assertThrows(OttaiOtaCloudException::class.java) {
+                client.judgeOta("001122334455", "V1.7")
+            }.diagnostic)
+            assertEquals(4, server.calls.size)
+        }
+    }
+
+    @Test fun regionalAppVersionFailureDoesNotBecomeASensorFirmwareOffer() {
+        for (base in listOf(OttaiConstants.API_BASE_GLOBAL, OttaiConstants.API_BASE_SYAI)) {
+            val server = Server(base)
+            val client = OttaiCloudClient.OtaClient(base, headers, server::connection)
+            try {
+                server.business = JSONObject().put("code", OttaiCloudClient.BIZ_UPGRADE_VERSION)
+                val error = assertThrows(OttaiOtaCloudException::class.java) { client.judgeOta("001122334455", "V1.7") }
+                assertEquals(OttaiCloudClient.BIZ_UPGRADE_VERSION, error.businessCode)
+                assertEquals(2, server.calls.size)
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun explicitPreparationBindsOnlyThroughTheExperimentsIssuingAccount() {
+        for (base in listOf(OttaiConstants.API_BASE, OttaiConstants.API_BASE_GLOBAL, OttaiConstants.API_BASE_SYAI)) {
+            val server = Server(base)
+            val common = if (base == OttaiConstants.API_BASE)
+                OttaiCloudClient.cnPhoneHeaders("n:synthetic-cn", "synthetic-token", 0L, "synthetic") else headers
+            server.business = JSONObject("""{"code":"OK","data":{"mac":"001122334455","keyA":"encrypted-key","deviceVersion":"V1.7"}}""")
+            val client = OttaiCloudClient.OtaClient(base, common, server::connection, userId = "synthetic-user")
+            try {
+                assertEquals("001122334455", client.bindMaterials("001122334455", "V1.7").mac)
+                assertEquals("$base/cgm/security/app/server/deviceBind/composite/bindV3", server.calls.last().url)
+                assertEquals("synthetic-user", server.clearBodies.single().getString("userId"))
+                assertEquals("V1.7", server.clearBodies.single().getString("deviceVersion"))
+                assertTrue(server.clearBodies.single().getLong("activeTime") > 0)
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun bindUsesFullBleRevisionAndRecoversKeysFromALostOrPreviouslyCompletedBind() {
+        val version = "E1.2.6(V1.7.SH2616.1),STDRD"
+        for (code in listOf("OTA_UPGRADE_REQUIRED", "AppDevice_AlreadyUsed", "AppUser_AlreadyBinding")) {
+            val server = Server()
+            server.businessForPath = { path ->
+                if (path.endsWith("/bindV3")) JSONObject().put("code", code)
+                else JSONObject("""{"code":"OK","data":{"cgmDeviceRespVO":{"mac":"001122334455","keyA":"encrypted-key","deviceVersion":"E1.2.6(V1.7.SH2616.1)"}}}""")
+            }
+            val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection, userId = "synthetic-user")
+            try {
+                assertEquals("001122334455", client.bindMaterials("001122334455", version).mac)
+                assertEquals(listOf("POST", "POST", "POST", "GET"), server.calls.map { it.method })
+                assertTrue(server.calls.last().url.endsWith("/deviceBind/getBindDevice"))
+                assertEquals(version, server.clearBodies.single().getString("deviceVersion"))
+                assertEquals(1, server.calls.count { it.url.endsWith("/bindV3") })
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun lostBindResponseIsRecoveredReadOnlyInsteadOfRebinding() {
+        val server = Server()
+        server.businessForPath = { path ->
+            if (path.endsWith("/bindV3")) throw java.io.IOException("synthetic response lost after commit")
+            JSONObject("""{"code":"OK","data":{"mac":"001122334455","keyA":"encrypted-key","deviceVersion":"V1.7"}}""")
+        }
+        val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection, userId = "synthetic-user")
+        try {
+            assertEquals("001122334455", client.bindMaterials("001122334455", "V1.7").mac)
+            assertEquals(1, server.calls.count { it.url.endsWith("/bindV3") })
+            assertTrue(server.calls.last().url.endsWith("/deviceBind/getBindDevice"))
+        } finally { client.close() }
+    }
+
+    @Test fun bindRecoveryCannotBorrowAnotherSensorsKeysOrAnotherFirmwareBuild() {
+        for ((mac, version) in listOf("AABBCCDDEEFF" to "V1.7", "001122334455" to "V1.8")) {
+            val server = Server()
+            server.businessForPath = { path ->
+                if (path.endsWith("/bindV3")) JSONObject().put("code", "OTA_UPGRADE_REQUIRED")
+                else JSONObject("""{"code":"OK","data":{"mac":"$mac","keyA":"encrypted-key","deviceVersion":"$version"}}""")
+            }
+            val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection, userId = "synthetic-user")
+            try {
+                assertEquals("OTA_UPGRADE_REQUIRED", assertThrows(OttaiOtaCloudException::class.java) {
+                    client.bindMaterials("001122334455", "V1.7")
+                }.businessCode)
+                assertEquals(4, server.calls.size)
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun expiredAccountDoesNotTriggerBindFallbackRequests() {
+        val server = Server()
+        server.business = JSONObject().put("code", OttaiCloudClient.BIZ_TOKEN_INVALID)
+        val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection, userId = "synthetic-user")
+        try {
+            assertEquals(OttaiCloudClient.BIZ_TOKEN_INVALID, assertThrows(OttaiOtaCloudException::class.java) {
+                client.bindMaterials("001122334455", "V1.7")
+            }.businessCode)
+            assertEquals(2, server.calls.size)
+        } finally { client.close() }
+    }
+
+    @Test fun explicitCloudProofUsesTheCapturedRegionalIdentityAndExactlyTheSignedTimestamp() {
+        for (base in listOf(OttaiConstants.API_BASE, OttaiConstants.API_BASE_GLOBAL, OttaiConstants.API_BASE_SYAI)) {
+            val server = Server(base)
+            val cn = base == OttaiConstants.API_BASE
+            val common = if (cn) OttaiCloudClient.cnPhoneHeaders("n:synthetic-cn", "synthetic-token", 0L, "synthetic") else headers
+            val param = ByteArray(68) { it.toByte() }
+            val signature = ByteArray(32) { (it + 128).toByte() }
+            server.business = JSONObject().put("code", "OK").put("data", JSONObject()
+                .put("auth", "11".repeat(68)).put("shaInfo", "22".repeat(32)).put("cf", "unused"))
+            val client = OttaiCloudClient.OtaClient(base, common, server::connection)
+            try {
+                assertEquals("11".repeat(68), client.verifySensor("001122334455", param, signature).authHost)
+                val actual = server.calls.last()
+                assertEquals("$base/cgm/security/app/server/cgmAuth/verify", actual.url)
+                val body = server.clearBodies.single()
+                val timestamp = actual.headers.getValue("timestamp").toLong()
+                assertEquals(timestamp.toString(), body.getString("timestamp"))
+                assertEquals(OttaiCrypto.bytesToHex(param).uppercase(), body.getString("paramStr"))
+                assertEquals(OttaiCrypto.bytesToHex(signature).uppercase(), body.getString("shaInfo"))
+                val app = common.getValue("appName")
+                val expected = OttaiCloudClient.cgmAuthVerifySign(
+                    if (cn) OttaiRegistry.SessionProfile.CN_PHONE else OttaiRegistry.SessionProfile.WATCH,
+                    common.getValue("deviceId").removePrefix("$app:a:"), timestamp,
+                    "001122334455", body.getString("paramStr"), body.getString("shaInfo"))
+                assertEquals(expected, body.getString("sign"))
+                assertEquals(common["Authorization"], actual.headers["Authorization"])
+                assertFalse(actual.body.orEmpty().contains(body.getString("paramStr")))
+                assertEquals(setOf("mac", "paramStr", "shaInfo", "sign", "timestamp"), body.keys().asSequence().toSet())
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun cloudProofCannotAcceptAPlaintextOrUnauthenticatedResponse() {
+        for (plaintext in listOf(true, false)) {
+            val server = Server()
+            server.plaintextResponse = plaintext
+            server.corruptResponse = !plaintext
+            server.business = JSONObject("""{"code":"OK","data":{"auth":"${"11".repeat(68)}","shaInfo":"${"22".repeat(32)}"}}""")
+            val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection)
+            try {
+                assertThrows(OttaiOtaCloudException::class.java) {
+                    client.verifySensor("001122334455", ByteArray(68), ByteArray(32))
+                }
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun cnCloudProofPreservesAuthenticatedBusinessRejectionWithoutReturningMaterials() {
+        val server = Server(OttaiConstants.API_BASE)
+        server.business = JSONObject().put("code", "Device_Auth_Error")
+            .put("message", "private-token").put("data", JSONObject().put("auth", "private-auth"))
+        val common = OttaiCloudClient.cnPhoneHeaders("n:synthetic-cn", "synthetic-token", 0L, "synthetic")
+        val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE, common, server::connection)
+        try {
+            val error = assertThrows(OttaiOtaCloudException::class.java) {
+                client.verifySensor("001122334455", ByteArray(68), ByteArray(32))
+            }
+            assertEquals("ota_request_http=200_biz=Device_Auth_Error", error.diagnostic)
+            assertEquals("Device_Auth_Error", error.businessCode)
+            assertEquals(2, server.calls.size)
+            assertTrue(server.calls.last().url.endsWith("/cgmAuth/verify"))
+        } finally { client.close() }
+    }
+
+    @Test fun regionalOtaCannotAcceptPlaintextOrUnauthenticatedOffers() {
+        for (plaintext in listOf(true, false)) {
+            val server = Server()
+            server.plaintextResponse = plaintext
+            server.corruptResponse = !plaintext
+            server.business = JSONObject("""{"code":"OK","data":{"requiredUpgrade":true,"allowUpgrade":true,"downloadUrl":"https://firmware.example/V1.8.0.gbl"}}""")
+            val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection)
+            try {
+                assertEquals("ota_response_cipher", assertThrows(OttaiOtaCloudException::class.java) {
+                    client.judgeOta("001122334455", "V1.7")
+                }.diagnostic)
+            } finally { client.close() }
         }
     }
 

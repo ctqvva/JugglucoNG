@@ -1387,6 +1387,13 @@ public:
     return sens->showsensorname();
   }
 
+  // The selected sensor only, without shortsensorname_chars()'s last() fallback:
+  // null when nothing is selected.
+  const char *currentshortsensorname_chars() const {
+    if (int l = infoblockptr()->current; populatedSensorSlot(l))
+      return shortsensorname_chars(l);
+    return nullptr;
+  }
   const char *shortsensorname_chars() const {
     if (int l = infoblockptr()->current; populatedSensorSlot(l))
       return shortsensorname_chars(l);

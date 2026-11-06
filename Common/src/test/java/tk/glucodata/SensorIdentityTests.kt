@@ -97,6 +97,109 @@ class SensorIdentityTests {
     }
 
     @Test
+    fun resolveAvailableMainSensor_dropsFinishedSensorWhenNoActiveSensorsRemain() {
+        // Native lastsensorname() falls back to the newest slot, finished or not.
+        assertNull(
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "X-222227KUFY",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { it == "X-222227KUFY" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_keepsUnfinishedSensorOutsideTheActiveList() {
+        // Scan-only sensors never enter native's active list, yet they are in use.
+        assertEquals(
+            "scan-only",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "scan-only",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { false }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_finishedManagedMirrorDoesNotOutliveItsRemoval() {
+        // Startup can restore the managed slot from a finished Ottai/Sibionics mirror.
+        ManagedCurrentSensor.set("finished-mirror")
+        assertNull(
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished-mirror",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { it == "finished-mirror" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_keepsFollowerWithNoNativeSensor() {
+        // Followers live outside native, which reports their ids as not finished.
+        ManagedCurrentSensor.set("nightscout-follower")
+        assertEquals(
+            "nightscout-follower",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished-sensor",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { it == "finished-sensor" },
+                hasRecord = { it == "nightscout-follower" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_finishedSelectionFallsToActiveSensor() {
+        assertEquals(
+            "live-sensor",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished-sensor",
+                preferredSensorId = null,
+                activeSensors = arrayOf("live-sensor"),
+                isFinished = { it == "finished-sensor" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_importedHistoryPinIsNotASensor() {
+        // Older imports pinned the synthetic id, or the file's newest real serial, which can
+        // belong to another phone: no driver record, no native slot, nothing to finish.
+        listOf("__imported_csv__", "imported", "other-phones-sensor").forEach { pin ->
+            ManagedCurrentSensor.set(pin)
+            assertNull(
+                pin,
+                SensorIdentity.resolveAvailableMainSensor(
+                    selectedMain = null,
+                    preferredSensorId = null,
+                    activeSensors = emptyArray(),
+                    isFinished = { false },
+                    hasRecord = { false }
+                )
+            )
+        }
+    }
+
+    @Test
+    fun lostMainRole_finishedSensorLeavingNoMainStillCounts() {
+        // Clone teardown finishes first: by then the sensor no longer resolves as main, and
+        // comparing the two would skip clearing the selection and stopping its alarm.
+        assertTrue(SensorIdentity.lostMainRole(null, "clone-sensor"))
+        assertTrue(SensorIdentity.lostMainRole("", "clone-sensor"))
+        assertTrue(SensorIdentity.lostMainRole("clone-sensor", "clone-sensor"))
+    }
+
+    @Test
+    fun lostMainRole_anotherMainSensorIsLeftAlone() {
+        assertFalse(SensorIdentity.lostMainRole("other-sensor", "clone-sensor"))
+    }
+
+    @Test
     fun resolveAvailableMainSensor_returnsNullWhenNothingIsKnown() {
         assertNull(
             SensorIdentity.resolveAvailableMainSensor(
@@ -228,6 +331,34 @@ class SensorIdentityTests {
     fun matches_blankExpectedStillMatchesAnything() {
         assertTrue(SensorIdentity.matches("sensor-alpha", null))
         assertTrue(SensorIdentity.matches("sensor-alpha", ""))
+    }
+
+    @Test
+    fun nativeMirrorSensorName_returnsTheNativeSensorAManagedDriverMirrorsInto() {
+        // Ottai writes its native stream shell under its own id.
+        val native = setOf("X-222227KUFY", "70D07EDCB416")
+        assertEquals(
+            "70D07EDCB416",
+            SensorIdentity.nativeMirrorSensorName("70D07EDCB416") { name ->
+                name.takeIf { it in native }
+            }
+        )
+    }
+
+    @Test
+    fun nativeMirrorSensorName_isNullForASourceWithNoNativeSensor() {
+        assertNull(SensorIdentity.nativeMirrorSensorName("virtual-source") { null })
+        assertNull(SensorIdentity.nativeMirrorSensorName(null) { it })
+        assertNull(SensorIdentity.nativeMirrorSensorName("  ") { it })
+    }
+
+    @Test
+    fun nativeMirrorSensorName_isNullWhenNativeIsUnavailable() {
+        assertNull(
+            SensorIdentity.nativeMirrorSensorName("70D07EDCB416") {
+                throw UnsatisfiedLinkError("no native library")
+            }
+        )
     }
 
 }
