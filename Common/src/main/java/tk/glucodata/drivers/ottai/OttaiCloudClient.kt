@@ -1307,7 +1307,16 @@ object OttaiCloudClient {
         val mobileBase = webBaseToMobile(webBase)
         return upgradeWebSession(resp,
             readProfile = { token ->
-                if (isSyai(webBase)) mobileGetUser(ctx, mobileBase, token) else webGetUser(webBase, token)
+                if (isSyai(webBase)) {
+                    // Syai binds the web JWT to the identity it was issued under (appName cgm +
+                    // browser fingerprint). The watch identity is refused with "invalid appName
+                    // or deviceId" (401, 2026-11-06, #857), so present the token's own identity
+                    // on the mobile route first and the website profile route second.
+                    firstProfileWithUserName(
+                        { mobileGetUser(mobileBase, token) },
+                        { webGetUser(webBase, token) },
+                    )
+                } else webGetUser(webBase, token)
             },
             login = { name, token -> passwordLogin(ctx, name, password, mobileBase, authorizationOverride = token) },
         )
@@ -1457,15 +1466,37 @@ object OttaiCloudClient {
         return resp.optJSONObject("data") ?: resp.optJSONObject("result")
     }
 
-    /** Mobile GET /user/getUser using a just-issued web JWT, before it is persisted. */
-    private fun mobileGetUser(ctx: Context, mobileBase: String, accessToken: String): JSONObject? {
-        val ts = now()
+    /**
+     * Mobile GET /user/getUser using a just-issued Syai web JWT, before it is persisted. The
+     * token only validates under the identity it was issued to, see [syaiWebIdentityMobileHeaders].
+     */
+    private fun mobileGetUser(mobileBase: String, accessToken: String): JSONObject? {
         val resp = httpGet(
             mobileBase + OttaiConstants.EP_GET_USER,
             emptyMap(),
-            headers(ctx, ts, mobileBase, accessToken),
+            syaiWebIdentityMobileHeaders(now(), accessToken),
         ) ?: return null
         return resp.optJSONObject("data") ?: resp.optJSONObject("result")
+    }
+
+    /** The web client's identity (appName cgm, fingerprint as deviceId) with the raw token. */
+    internal fun syaiWebIdentityMobileHeaders(ts: Long, accessToken: String): Map<String, String> =
+        webHeaders(OttaiConstants.API_BASE_SYAI, ts) +
+            ("deviceId" to WEB_FINGERPRINT_SYAI) +
+            ("Authorization" to accessToken)
+
+    /**
+     * The first profile that names the account, so a source that answers without a username
+     * does not hide one that has it. Falls back to the first profile of any kind, then null.
+     */
+    internal fun firstProfileWithUserName(vararg sources: () -> JSONObject?): JSONObject? {
+        var anyProfile: JSONObject? = null
+        for (source in sources) {
+            val profile = source() ?: continue
+            if (profile.optString("userName").orEmptyIfNull().isNotBlank()) return profile
+            if (anyProfile == null) anyProfile = profile
+        }
+        return anyProfile
     }
 
     internal fun webGetUserHeaders(webBase: String, ts: Long, accessToken: String): Map<String, String> =
