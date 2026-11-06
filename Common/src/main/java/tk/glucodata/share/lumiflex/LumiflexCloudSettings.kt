@@ -35,6 +35,10 @@ class LumiflexCloudSettings(context: Context) {
     val providerId: String get() = prefs.getString("follow_provider", "").orEmpty()
     val providerName: String get() = prefs.getString("follow_name", "").orEmpty()
     val uploadEnabled: Boolean get() = enabled && !followMode
+    val lastReceivedMs: Long get() = prefs.getLong("follow_last_reading_ms", 0L)
+    fun recordReceived(session: Session, timestampMs: Long) {
+        withCurrentSession(session) { prefs.edit().putLong("follow_last_reading_ms", timestampMs).apply() }
+    }
 
     /** A role/provider change retires in-flight work just like a session replacement. */
     fun selectMode(follow: Boolean, provider: FollowerInfo? = null) = synchronized(sessionLock) {
@@ -43,7 +47,8 @@ class LumiflexCloudSettings(context: Context) {
             .putString("follow_name", if (follow) provider?.providerAlias?.ifBlank { provider.providerUserName }.orEmpty() else "")
             .putLong(KEY_SESSION_GENERATION, nextGeneration())
             .putString("sync_state", SyncState.IDLE.name).putInt("pending", 0)
-            .putString("sync_message", "").putLong(KEY_LAST_SYNC_MS, 0L).apply()
+            .putString("sync_message", "").putLong(KEY_LAST_SYNC_MS, 0L)
+            .putLong("follow_last_reading_ms", 0L).apply()
     }
 
     var account: String
@@ -146,6 +151,7 @@ class LumiflexCloudSettings(context: Context) {
                 .putLong(KEY_LAST_SYNC_MS, if (accountChanged) 0L else lastSyncMs)
                 .putInt("pending", if (accountChanged) 0 else syncStatus().pending)
                 .putStringSet("bound_sensors", if (accountChanged) emptySet() else syncStatus().boundSensors.toSet())
+                .putLong("follow_last_reading_ms", if (accountChanged) 0L else lastReceivedMs)
                 .putBoolean("mode_chosen", if (accountChanged) false else modeChosen)
                 .putBoolean("follow_mode", if (accountChanged) false else followMode)
                 .putString("follow_provider", if (accountChanged) "" else providerId)

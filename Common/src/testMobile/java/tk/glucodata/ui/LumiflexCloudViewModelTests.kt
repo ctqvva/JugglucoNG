@@ -79,6 +79,12 @@ class LumiflexCloudViewModelTests {
         assertTrue(viewModel.state.value.followMode)
         assertEquals("patient", viewModel.state.value.providerId)
         assertEquals("Mum", viewModel.state.value.providers.single().providerAlias)
+        settings.lastSyncMs = 1234L
+        val session = settings.session()
+        viewModel.selectMode(true)
+        viewModel.selectProvider(viewModel.state.value.providers.single())
+        assertEquals(session, settings.session())
+        assertEquals(1234L, settings.lastSyncMs)
         viewModel.selectMode(false)
         assertFalse(settings.followMode)
         viewModel.checkConnection(false)

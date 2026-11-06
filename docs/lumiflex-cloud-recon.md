@@ -340,3 +340,9 @@ It returned business code 200 and 500 newest-first records. Page 2 returned a di
 local wall time and its timezone. The receiver filters invalid and unrelated-provider rows.
 No live account identifiers or credentials are recorded here. The previously listed
 `/cgm-record/list-recent` query remains unverified and is not used by this receiver.
+
+The receiver build was installed over the existing Mi 9T debug app without changing its login.
+The account migrated to receive mode with its authorized provider. Read-only Room inspection
+confirmed 500 `lumiflex_follower` rows. Subsequent poll timestamps advanced and Android alarm
+diagnostics recorded two follower wakeups with the next wakeup scheduled. Visual dashboard
+verification was blocked by a device-control daemon timeout, including its diagnostic retry.

@@ -33,12 +33,12 @@ class LumiflexFollowerManager(private val context: Context, private val provider
     override fun shouldUseSharedCurrentSensorHandoffOnTerminate() = false
     override fun shouldShowSearchingStatusWhenIdle() = false
     override fun matchesManagedSensorId(sensorId: String?) = SerialNumber.equals(sensorId, true)
-    override fun mygetDeviceName() = context.getString(R.string.lumiflex_follow_mode)
+    override fun mygetDeviceName() = context.getString(R.string.lumiflex_cloud_title)
     override fun getDetailedBleStatus() = context.getString(when (settings.syncStatus().state) {
         LumiflexCloudSettings.SyncState.SYNCING -> R.string.lumiflex_follow_refreshing
         LumiflexCloudSettings.SyncState.ERROR -> R.string.lumiflex_follow_failed
         LumiflexCloudSettings.SyncState.SIGN_IN_REQUIRED -> R.string.lumiflex_sign_in
-        else -> R.string.lumiflex_follow_mode
+        else -> if (latest != null) R.string.lumiflex_follow_current else R.string.lumiflex_sync_waiting_readings
     })
     override fun getManagedCurrentSnapshot(maxAgeMillis: Long): ManagedSensorCurrentSnapshot? {
         val row = latest ?: return null

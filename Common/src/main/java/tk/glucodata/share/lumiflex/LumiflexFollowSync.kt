@@ -28,9 +28,11 @@ class LumiflexFollowSync(
         val readings = mutableListOf<LumiflexFollowReading>()
         // The first page is newest first. Fetch up to a day on first start or a long outage;
         // overlapping pages are deduplicated before reaching Room/native storage.
-        val since = maxOf(settings.lastSyncMs - 5 * 60_000L, System.currentTimeMillis() - 24 * 60 * 60_000L)
+        val now = System.currentTimeMillis()
+        val since = maxOf(settings.lastReceivedMs - 5 * 60_000L, now - 24 * 60 * 60_000L)
+        val pageSize = if (settings.lastReceivedMs >= now - 15 * 60_000L) 20 else 500
         for (page in 1..3) {
-            when (val result = client.followHistory(session, provider, page)) {
+            when (val result = client.followHistory(session, provider, page, pageSize)) {
                 is LumiflexCloudClient.FollowHistory.Failed -> {
                     if (!current()) return false
                     if (result.kind == LumiflexCloudError.Kind.UNAUTHORIZED) settings.invalidateSession(session)
@@ -41,7 +43,7 @@ class LumiflexFollowSync(
                 is LumiflexCloudClient.FollowHistory.Ok -> {
                     if (!current()) return false
                     readings += result.readings
-                    if (result.pageCount < 500 || result.readings.firstOrNull()?.let { it.timestampMs <= since } == true) break
+                    if (result.pageCount < pageSize || result.readings.firstOrNull()?.let { it.timestampMs <= since } == true) break
                 }
             }
         }
@@ -51,6 +53,7 @@ class LumiflexFollowSync(
         if (usable.isNotEmpty()) {
             publish(usable)
             if (!current()) return false
+            settings.recordReceived(session, usable.last().timestampMs)
         }
         settings.recordSync(session, LumiflexCloudSettings.SyncState.SYNCED, 0, uploaded = usable.size)
         return true

@@ -212,11 +212,11 @@ class LumiflexCloudClient(
     }
 
     /** Uses the provider id, never the reader's own user id, for the authorized read. */
-    fun followHistory(session: LumiflexCloudSettings.Session, providerId: String, page: Int = 1): FollowHistory {
-        if (providerId.isBlank() || providerId == session.userId || page < 1) {
+    fun followHistory(session: LumiflexCloudSettings.Session, providerId: String, page: Int = 1, pageSize: Int = 500): FollowHistory {
+        if (providerId.isBlank() || providerId == session.userId || page < 1 || pageSize !in 1..500) {
             return FollowHistory.Failed(LumiflexCloudError.Kind.OTHER, 400)
         }
-        val query = "?userId=${java.net.URLEncoder.encode(providerId, "UTF-8")}&pageNum=$page&pageSize=500"
+        val query = "?userId=${java.net.URLEncoder.encode(providerId, "UTF-8")}&pageNum=$page&pageSize=$pageSize"
         val response = transport.get(url(LumiflexCloudConstants.PATH_CGM_HISTORY) + query, headers(session.token, session.userId))
         val result = classifySync(response)
         if (result is SyncResult.Failed) return FollowHistory.Failed(result.kind, result.code)

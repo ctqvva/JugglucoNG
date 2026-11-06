@@ -29,6 +29,7 @@ class LumiflexFollowSyncTests {
         var allowed = true
         var historyCode = 200
         var historyRequests = 0
+        val pageSizes = mutableListOf<Int>()
         var history = listOf(row(), row("unrelated"), row().put("glucoseIsValid", 0))
         override fun post(url: String, body: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult =
             error("A follower must never POST uploads, binding or invitations")
@@ -40,7 +41,8 @@ class LumiflexFollowSyncTests {
                 else """{"code":200,"data":[]}"""
             } else {
                 assertTrue(url.contains("userId=patient")); assertFalse(url.contains("userId=reader"))
-                assertTrue(url.contains("pageNum=1&pageSize=500"))
+                assertTrue(url.contains("pageNum=1"))
+                pageSizes += url.substringAfter("pageSize=").toInt()
                 historyRequests++
                 beforeHistory()
                 JSONObject().put("code", historyCode).put("data", org.json.JSONArray(history)).toString()
@@ -67,6 +69,15 @@ class LumiflexFollowSyncTests {
         val transport = Transport().apply { allowed = false }
         assertFalse(sync(transport) { fail("revoked data") })
         assertEquals(0, transport.historyRequests)
+    }
+    @Test fun currentReceiverUsesSmallOverlappingPollsAndProviderChangeResetsTheWatermark() {
+        val transport = Transport()
+        assertTrue(sync(transport) {})
+        assertTrue(settings.lastReceivedMs > 0)
+        assertTrue(sync(transport) {})
+        assertEquals(listOf(500, 20), transport.pageSizes)
+        settings.selectMode(true, provider.copy(dataProviderId = "other"))
+        assertEquals(0, settings.lastReceivedMs)
     }
     @Test fun sessionReplacementDuringReadDiscardsTheReply() {
         val transport = Transport().apply { beforeHistory = { settings.startSession("other", "other-token", "other-id") } }

@@ -40,7 +40,8 @@ The receiver reads the provider account, rather than the signed-in reader’s ow
 checks sharing authorization every poll, fetches records about once a minute, and imports them
 through the shared virtual-sensor bridge into history, the dashboard, alerts and native exports.
 An initial/recovery fetch covers up to three 500-record pages, stopping once it reaches a day of
-history. Record timestamps use their reported timezone; glucose is already in mg/dL. The receiver
+history. Once current, polls request only 20 overlapping records; long gaps use the larger
+recovery pages again. Record timestamps use their reported timezone; glucose is already in mg/dL. The receiver
 recovers on process start, network return and app foreground, with an alarm for background polls
 and WorkManager as a periodic recovery backstop. Android may defer polling during deep sleep.
 Account/provider changes and sign-out discard in-flight results.

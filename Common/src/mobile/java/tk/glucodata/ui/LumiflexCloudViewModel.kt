@@ -244,21 +244,22 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
     }
 
     fun selectMode(follow: Boolean) {
-        if (mutableState.value.busy || mutableState.value.checkingSession) return
+        if (mutableState.value.busy || mutableState.value.checkingSession || settings.followMode == follow) return
         settings.selectMode(follow, if (follow) mutableState.value.providers.singleOrNull() else null)
         scheduleSync(getApplication())
         refresh()
     }
 
     fun selectProvider(row: FollowerInfo) {
-        if (mutableState.value.busy || mutableState.value.providers.none { it == row }) return
+        if (mutableState.value.busy || mutableState.value.checkingSession || settings.providerId == row.dataProviderId ||
+            mutableState.value.providers.none { it == row }) return
         settings.selectMode(true, row)
         scheduleSync(getApplication())
         refresh()
     }
 
     fun bindSensors() {
-        if (!settings.isSignedIn() || !settings.enabled || mutableState.value.busy) return
+        if (!settings.isSignedIn() || !settings.uploadEnabled || mutableState.value.busy) return
         if (LumiflexCloudSensor.pairedLocally(getApplication()).isEmpty()) {
             mutableState.update { it.copy(error = text(R.string.lumiflex_connect_sensor)) }
             return
