@@ -84,8 +84,9 @@ object GlucoseUpdateBroadcaster {
      * and the widget's own, either of which would otherwise drop the only redraw.
      */
     @JvmStatic
-    fun sendNow() {
-        deliver(null, throttled = false)
+    @JvmOverloads
+    fun sendNow(context: Context? = null) {
+        deliver(context, throttled = false)
     }
 
     private fun deliver(context: Context?, throttled: Boolean) {

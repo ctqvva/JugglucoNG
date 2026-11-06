@@ -323,12 +323,31 @@ object SensorIdentity {
 
     /**
      * Whether [removedSensor] held the main role, for code that runs after finishing it. A
-     * finished sensor no longer resolves as main, so finding no main sensor at all means it
-     * did, and the selection still has to be cleared.
+     * finished sensor no longer resolves as main, so the resolved main alone cannot say: with
+     * another sensor live it names that one while native current still points at the removed
+     * sensor, and with none left it is blank. Either way the selection still has to move.
      */
     @JvmStatic
-    fun lostMainRole(mainSensor: String?, removedSensor: String?): Boolean =
-        mainSensor.isNullOrBlank() || matches(mainSensor, removedSensor)
+    fun lostMainRole(removedSensor: String?): Boolean = lostMainRole(
+        resolveMainSensor(),
+        removedSensor,
+        runCatching { Natives.currentsensorname() }.getOrNull()
+    )
+
+    @JvmStatic
+    @JvmOverloads
+    fun lostMainRole(mainSensor: String?, removedSensor: String?, nativeCurrent: String? = null): Boolean {
+        if (mainSensor.isNullOrBlank() || matches(mainSensor, removedSensor)) {
+            return true
+        }
+        // A managed main can leave native current on an older sensor until its mirror exists.
+        // Removing that older sensor must not take the main role from the managed one.
+        val managed = ManagedCurrentSensor.get()
+        if (managed != null && matches(mainSensor, managed)) {
+            return false
+        }
+        return !nativeCurrent.isNullOrBlank() && matches(nativeCurrent, removedSensor)
+    }
 
     private fun availableSensorCandidates(): Array<String?>? {
         val resolved = LinkedHashSet<String?>()
@@ -379,8 +398,8 @@ object SensorIdentity {
         val canonicalPreferred = canonicalOrRaw(preferredSensorId)
 
         // The selected managed sensor keeps its role while its callback lives: re-adding one
-        // leaves its native mirror finished until the first reading revives it. Removal clears
-        // this slot before it drops the callback.
+        // leaves its native mirror finished until the first reading revives it. A removed one
+        // cannot stay: this match ends with whichever of the slot and the callback goes first.
         if (managed != null && active.any { matches(it, managed) }) {
             return managed
         }

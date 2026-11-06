@@ -249,6 +249,25 @@ class SensorIdentityTests {
     }
 
     @Test
+    fun lostMainRole_finishedSensorStillNativeCurrentCountsWithAnotherSensorLive() {
+        // The resolver already names the survivor, so only native current shows the selection
+        // has to move. Skipping it leaves the web server and watch value on the removed sensor.
+        assertTrue(SensorIdentity.lostMainRole("other-sensor", "removed-sensor", "removed-sensor"))
+    }
+
+    @Test
+    fun lostMainRole_managedMainKeepsItsRoleWhenNativeCurrentLagsOnTheRemovedSensor() {
+        ManagedCurrentSensor.set("X-2222268RXN")
+        assertFalse(SensorIdentity.lostMainRole("X-2222268RXN", "removed-sensor", "removed-sensor"))
+    }
+
+    @Test
+    fun lostMainRole_blankNativeCurrentNamesNoSensor() {
+        // matches() treats a blank expected id as a wildcard; a blank current must not.
+        assertFalse(SensorIdentity.lostMainRole("other-sensor", "removed-sensor", ""))
+    }
+
+    @Test
     fun lostMainRole_anotherMainSensorIsLeftAlone() {
         assertFalse(SensorIdentity.lostMainRole("other-sensor", "clone-sensor"))
     }

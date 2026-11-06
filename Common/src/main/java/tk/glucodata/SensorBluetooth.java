@@ -914,7 +914,7 @@ public class SensorBluetooth {
         if (removedSerial == null || removedSerial.isEmpty()) {
             return;
         }
-        if (!SensorIdentity.lostMainRole(SensorIdentity.resolveMainSensor(), removedSerial)) {
+        if (!SensorIdentity.lostMainRole(removedSerial)) {
             return;
         }
         final String replacement = resolveReplacementSensorSerial(removedSerial, preferredCandidates);
@@ -1256,7 +1256,7 @@ public class SensorBluetooth {
             }
             Natives.setmaxsensors(gattcallbacks.size());
         }
-        if (SensorIdentity.lostMainRole(SensorIdentity.resolveMainSensor(), sensorId)) {
+        if (SensorIdentity.lostMainRole(sensorId)) {
             final String replacement = resolveReplacementSensorSerial(sensorId);
             setCurrentSensorSelection(replacement != null ? replacement : "");
         }
