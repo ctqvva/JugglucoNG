@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -95,12 +96,12 @@ internal fun LumiflexCloudSettingsContent(
                 enabled = signedIn && !setup && !state.busy,
             )
             if (signedIn) {
-                AdaptiveTrailingRow(Modifier.fillMaxWidth(), trailingContent = {
+                AdaptiveTrailingRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp), trailingContent = {
                     OutlinedButton(onClick = onSignOut, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(R.string.lumiflex_sign_out))
                     }
                 }) {
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         IconTile(icon = Icons.Default.AccountCircle, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(12.dp))
                         Column {
@@ -125,91 +126,91 @@ internal fun LumiflexCloudSettingsContent(
 
             if (state.registration) {
                 Column {
-                SectionLabel(stringResource(R.string.lumiflex_create_account), topPadding = 0.dp)
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                LumiflexPhoneField(state.phone, onPhone, !state.busy)
-                Button(onClick = onRequestCode,
-                    enabled = !state.busy && state.resendSeconds == 0 && LumiflexCloudClient.registrationPhone(state.phone) != null,
-                    shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                    if (state.sendingCode) {
-                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
+                    SectionLabel(stringResource(R.string.lumiflex_create_account), topPadding = 0.dp)
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        LumiflexPhoneField(state.phone, onPhone, !state.busy)
+                        Button(onClick = onRequestCode,
+                            enabled = !state.busy && state.resendSeconds == 0 && LumiflexCloudClient.registrationPhone(state.phone) != null,
+                            shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                            if (state.sendingCode) {
+                                CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(if (state.resendSeconds > 0) stringResource(R.string.lumiflex_resend_after, state.resendSeconds)
+                                else stringResource(R.string.lumiflex_send_code))
+                        }
+                        if (state.codeSent) {
+                            OutlinedTextField(value = state.code,
+                                onValueChange = { onCode(it.filter { char -> char in '0'..'9' }) },
+                                label = { Text(stringResource(R.string.lumiflex_verification_code)) },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !state.busy,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                            Button(onClick = onVerifyCode, enabled = !state.busy && state.code.isNotBlank(),
+                                shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                                Text(stringResource(if (state.busy) R.string.lumiflex_working else R.string.lumiflex_verify_phone))
+                            }
+                        }
+                        TextButton(onClick = { onRegistration(false) }, enabled = !state.busy, shapes = ButtonDefaults.shapes(),
+                            modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.lumiflex_back_to_sign_in)) }
                     }
-                    Text(if (state.resendSeconds > 0) stringResource(R.string.lumiflex_resend_after, state.resendSeconds)
-                        else stringResource(R.string.lumiflex_send_code))
-                }
-                if (state.codeSent) {
-                    OutlinedTextField(value = state.code,
-                        onValueChange = { onCode(it.filter { char -> char in '0'..'9' }) },
-                        label = { Text(stringResource(R.string.lumiflex_verification_code)) },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !state.busy,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                    Button(onClick = onVerifyCode, enabled = !state.busy && state.code.isNotBlank(),
-                        shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                        Text(stringResource(if (state.busy) R.string.lumiflex_working else R.string.lumiflex_verify_phone))
-                    }
-                }
-                TextButton(onClick = { onRegistration(false) }, enabled = !state.busy, shapes = ButtonDefaults.shapes(),
-                    modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.lumiflex_back_to_sign_in)) }
-                }
                 }
             } else if (!signedIn || state.editing || setup) {
                 Column {
-                SectionLabel(stringResource(if (setup) R.string.lumiflex_set_password else R.string.lumiflex_account), topPadding = 0.dp)
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (!setup) {
-                    ConnectedButtonGroup(
-                        options = listOf(false, true), selectedOption = emailLogin,
-                        onOptionSelected = { if (!state.busy && it != emailLogin) { emailLogin = it; onAccount("") } },
-                        label = { Text(stringResource(if (it) R.string.lumiflex_email_mode else R.string.lumiflex_phone_mode)) },
-                        modifier = Modifier.fillMaxWidth(), enabled = !state.busy,
-                    )
-                    if (emailLogin) {
-                        OutlinedTextField(value = state.account, onValueChange = onAccount,
-                            label = { Text(stringResource(R.string.lumiflex_email_mode)) },
-                            singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false))
-                    } else LumiflexPhoneField(state.account, onAccount, !state.busy)
-                }
-                AccountPasswordField(state.password, onPassword, enabled = !state.busy,
-                    supportingText = if (setup) stringResource(R.string.lumiflex_password_rules) else null,
-                    onDone = if (setup) onSetPassword else onSignIn)
-                AdaptiveButtonRow(Modifier.fillMaxWidth()) {
-                    Button(onClick = if (setup) onSetPassword else onSignIn,
-                        enabled = !state.busy && state.password.isNotBlank() &&
-                            (setup || if (emailLogin) state.account.isNotBlank() else LumiflexCloudClient.registrationPhone(state.account) != null),
-                        shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 56.dp)) {
-                        if (state.busy) {
-                            CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
+                    SectionLabel(stringResource(if (setup) R.string.lumiflex_set_password else R.string.lumiflex_account), topPadding = 0.dp)
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        if (!setup) {
+                            ConnectedButtonGroup(
+                                options = listOf(false, true), selectedOption = emailLogin,
+                                onOptionSelected = { if (!state.busy && it != emailLogin) { emailLogin = it; onAccount("") } },
+                                label = { Text(stringResource(if (it) R.string.lumiflex_email_mode else R.string.lumiflex_phone_mode)) },
+                                modifier = Modifier.fillMaxWidth(), enabled = !state.busy,
+                            )
+                            if (emailLogin) {
+                                OutlinedTextField(value = state.account, onValueChange = onAccount,
+                                    label = { Text(stringResource(R.string.lumiflex_email_mode)) },
+                                    singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false))
+                            } else LumiflexPhoneField(state.account, onAccount, !state.busy)
                         }
-                        Text(stringResource(if (state.busy) R.string.lumiflex_working else if (setup) R.string.lumiflex_set_password else R.string.lumiflex_sign_in))
+                        AccountPasswordField(state.password, onPassword, enabled = !state.busy,
+                            supportingText = if (setup) stringResource(R.string.lumiflex_password_rules) else null,
+                            onDone = if (setup) onSetPassword else onSignIn)
+                        AdaptiveButtonRow(Modifier.fillMaxWidth()) {
+                            Button(onClick = if (setup) onSetPassword else onSignIn,
+                                enabled = !state.busy && state.password.isNotBlank() &&
+                                    (setup || if (emailLogin) state.account.isNotBlank() else LumiflexCloudClient.registrationPhone(state.account) != null),
+                                shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 56.dp)) {
+                                if (state.busy) {
+                                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text(stringResource(if (state.busy) R.string.lumiflex_working else if (setup) R.string.lumiflex_set_password else R.string.lumiflex_sign_in))
+                            }
+                            if (!signedIn) OutlinedButton(onClick = { onRegistration(true) }, enabled = !state.busy,
+                                shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 56.dp)) {
+                                Text(stringResource(R.string.lumiflex_create_account))
+                            }
+                        }
                     }
-                    if (!signedIn) OutlinedButton(onClick = { onRegistration(true) }, enabled = !state.busy,
-                        shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 56.dp)) {
-                        Text(stringResource(R.string.lumiflex_create_account))
-                    }
-                }
-                }
                 }
             }
 
             if (signedIn && !setup && !state.registration) {
-                    val syncTitle = when {
-                        !state.enabled -> stringResource(R.string.lumiflex_sync_paused)
-                        state.sync.state == LumiflexCloudSettings.SyncState.SYNCING -> stringResource(R.string.lumiflex_sync_uploading)
-                        state.sync.state == LumiflexCloudSettings.SyncState.ERROR -> stringResource(R.string.lumiflex_sync_error)
-                        state.sync.state == LumiflexCloudSettings.SyncState.WAITING_FOR_SENSOR -> stringResource(R.string.lumiflex_connect_sensor)
-                        state.sync.pending > 0 -> stringResource(R.string.lumiflex_pending_readings, state.sync.pending)
-                        state.sync.lastSuccessMs > 0 -> stringResource(R.string.lumiflex_sync_up_to_date)
-                        else -> stringResource(R.string.lumiflex_sync_waiting_readings)
-                    }
-                    val detail = when {
-                        state.sync.state == LumiflexCloudSettings.SyncState.ERROR ->
-                            if (state.sync.retrying) stringResource(R.string.lumiflex_sync_retry_hint) else state.sync.message
-                        state.sync.lastSuccessMs > 0 -> DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(state.sync.lastSuccessMs))
-                        else -> null
-                    }
+                val syncTitle = when {
+                    !state.enabled -> stringResource(R.string.lumiflex_sync_paused)
+                    state.sync.state == LumiflexCloudSettings.SyncState.SYNCING -> stringResource(R.string.lumiflex_sync_uploading)
+                    state.sync.state == LumiflexCloudSettings.SyncState.ERROR -> stringResource(R.string.lumiflex_sync_error)
+                    state.sync.state == LumiflexCloudSettings.SyncState.WAITING_FOR_SENSOR -> stringResource(R.string.lumiflex_connect_sensor)
+                    state.sync.pending > 0 -> stringResource(R.string.lumiflex_pending_readings, state.sync.pending)
+                    state.sync.lastSuccessMs > 0 -> stringResource(R.string.lumiflex_sync_up_to_date)
+                    else -> stringResource(R.string.lumiflex_sync_waiting_readings)
+                }
+                val detail = when {
+                    state.sync.state == LumiflexCloudSettings.SyncState.ERROR ->
+                        if (state.sync.retrying) stringResource(R.string.lumiflex_sync_retry_hint) else state.sync.message
+                    state.sync.lastSuccessMs > 0 -> DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(state.sync.lastSuccessMs))
+                    else -> null
+                }
                 Card(shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
                     Column(Modifier.padding(16.dp)) {

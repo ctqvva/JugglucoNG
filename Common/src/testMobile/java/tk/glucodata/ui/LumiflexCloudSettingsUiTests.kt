@@ -64,6 +64,8 @@ class LumiflexCloudSettingsUiTests {
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
         compose.onNodeWithText("Войти").assertDoesNotExist()
         compose.onNodeWithText("Ожидание показаний").assertExists()
+        assertEquals(compose.onNodeWithText("Ожидание показаний").fetchSemanticsNode().boundsInRoot.left,
+            compose.onNodeWithText("+7 (999) 123-45-67").fetchSemanticsNode().boundsInRoot.left)
         val master = compose.onNode(isToggleable()).assertIsOn()
         assertTrue(master.fetchSemanticsNode().boundsInRoot.bottom <
             compose.onNodeWithText("+7 (999) 123-45-67").fetchSemanticsNode().boundsInRoot.top)
@@ -77,6 +79,27 @@ class LumiflexCloudSettingsUiTests {
         capture("signed-in-ru")
         compose.onNodeWithText("Отправить сейчас").performScrollTo().performClick()
         assertEquals(1, syncClicks)
+    }
+
+    @Test
+    fun syncedAccountShowsBoundSensorAndDirectLogout() {
+        var signOut = false
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                Box(Modifier.size(420.dp, 1_000.dp).testTag("screen")) {
+                    LumiflexCloudSettingsContent(signedIn.copy(sync = LumiflexCloudSettings.SyncStatus(
+                        state = LumiflexCloudSettings.SyncState.SYNCED,
+                        lastSuccessMs = 1_793_918_000_000, boundSensors = listOf("222227KUFY"),
+                    )), onSignOut = { signOut = true })
+                }
+            }
+        }
+        compose.onNodeWithText("X-222227KUFY").assertIsDisplayed()
+        compose.onNodeWithText("Привязать сенсор").assertDoesNotExist()
+        compose.onNodeWithText("Отправить сейчас").assertIsDisplayed()
+        capture("synced-ru")
+        compose.onNodeWithText("Выйти").performClick()
+        assertTrue(signOut)
     }
 
     @Test

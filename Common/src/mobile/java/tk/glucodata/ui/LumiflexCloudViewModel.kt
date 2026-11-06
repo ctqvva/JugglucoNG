@@ -131,6 +131,8 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
         val generation = ++actionGeneration
         viewModelScope.launch {
             val result = withContext(networkDispatcher) { client.requestRegistrationCode(current.phone) }
+            tk.glucodata.Log.i("LumiflexCloud", "registration SMS result=" +
+                if (result is LumiflexCloudClient.SyncResult.Failed) result.code else 200)
             if (generation != actionGeneration) return@launch
             when (result) {
                 LumiflexCloudClient.SyncResult.Ok -> mutableState.update {
@@ -157,6 +159,8 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
             verificationFailed = it.verificationFailed || it.checkingSession, error = null, notice = null) }
         viewModelScope.launch {
             val result = withContext(networkDispatcher) { request() }
+            tk.glucodata.Log.i("LumiflexCloud", "${if (registration) "verify phone" else "sign in"} result=" +
+                if (result is LumiflexCloudClient.LoginResult.Failed) result.code else 200)
             if (generation != actionGeneration) return@launch
             if (!settings.isCurrent(expected)) {
                 mutableState.update { it.copy(busy = false) }
@@ -202,6 +206,8 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
             verificationFailed = it.verificationFailed || it.checkingSession, error = null, notice = null) }
         viewModelScope.launch {
             val result = withContext(networkDispatcher) { client.setPassword(expected.token, expected.userId, input.password) }
+            tk.glucodata.Log.i("LumiflexCloud", "set password result=" +
+                if (result is LumiflexCloudClient.SyncResult.Failed) result.code else 200)
             if (generation != actionGeneration) return@launch
             if (settings.isCurrent(expected)) {
                 when (result) {
