@@ -32,7 +32,15 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import tk.glucodata.R
+
+// Keep wrapped row subtitles compact without tightening paragraph text elsewhere in the app.
+private val Typography.settingsSubtitle: TextStyle
+    get() = bodyMedium.copy(lineHeight = 18.sp)
+
+// Deliberate optical spacing for Plex: keep the title and subtitle close together.
+private val SettingsTitleSubtitleGap = 2.dp
 
 /**
  * A settings row that opens its own content underneath, inside the same card:
@@ -68,7 +76,7 @@ fun ExpandableSettingsCard(
                     .fillMaxWidth()
                     .clickable { onExpandedChange(!expanded) }
                     .heightIn(min = 72.dp)
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 trailingContent = {
                     Icon(
                         imageVector = Icons.Default.ExpandMore,
@@ -81,12 +89,11 @@ fun ExpandableSettingsCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(icon = icon, tint = tint)
                     Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsTitleSubtitleGap)) {
                         Text(text = title, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            modifier = Modifier.padding(top = 2.dp),
                             text = summary,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.settingsSubtitle,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -145,7 +152,7 @@ fun DisclosingSwitchCard(
                     .fillMaxWidth()
                     .clickable(enabled = enabled) { onCheckedChange(!checked) }
                     .heightIn(min = 72.dp)
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 trailingContent = {
                     StyledSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
                 }
@@ -153,12 +160,11 @@ fun DisclosingSwitchCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(icon = icon, tint = tint)
                     Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsTitleSubtitleGap)) {
                         Text(text = title, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            modifier = Modifier.padding(top = 2.dp),
                             text = subtitle,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.settingsSubtitle,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -270,8 +276,8 @@ fun SettingsItem(
     ) {
         AdaptiveTrailingRow(
             modifier = Modifier
-                .heightIn(min = 72.dp) // M3 Two-line item standard
-                .padding(horizontal = 16.dp, vertical = 16.dp), // Coherent spacing
+                .heightIn(min = 72.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             trailingContent = {
                 if (trailingContent != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) { trailingContent() }
@@ -291,12 +297,12 @@ fun SettingsItem(
                     Spacer(Modifier.width(IconTileDefaults.Gap))
                 }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium) // Heavier weight (500) for legibility
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsTitleSubtitleGap)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium)
                     if (subtitle != null) {
                         Text(
                             subtitle,
-                            style = subtitleStyle ?: MaterialTheme.typography.bodyMedium,
+                            style = subtitleStyle ?: MaterialTheme.typography.settingsSubtitle,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -456,13 +462,14 @@ fun MasterSwitchCard(
 
                 Spacer(modifier = Modifier.width(IconTileDefaults.Gap))
 
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsTitleSubtitleGap)) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleMediumEmphasized,)
+                        style = MaterialTheme.typography.titleMediumEmphasized,
+                    )
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.settingsSubtitle,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
