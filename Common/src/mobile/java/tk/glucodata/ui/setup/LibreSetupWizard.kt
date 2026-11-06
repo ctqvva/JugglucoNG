@@ -271,6 +271,7 @@ fun LibreSetupWizard(
                         SensorHeroArt(
                             type = SensorType.LIBRE,
                             modifier = Modifier.align(Alignment.CenterHorizontally),
+                            tileSize = ui.heroSize,
                         )
 
                         Column(
