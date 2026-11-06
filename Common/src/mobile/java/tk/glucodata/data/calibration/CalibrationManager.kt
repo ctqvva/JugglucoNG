@@ -47,6 +47,7 @@ object CalibrationManager {
         (tk.glucodata.chart.MainSensorOwnership.DEFAULT_SEAL_GRACE_MS / 3_600_000L).toInt()
     private const val KEY_VISUAL_CONTINUITY = "calibration_visual_continuity"
     private const val KEY_CALIBRATE_FROM_JOURNAL = "calibration_from_journal_bg"
+    private const val KEY_JOURNAL_DISMISSED_TIMESTAMPS = "calibration_journal_dismissed_timestamps"
     private const val KEY_KEEP_DISABLED_HISTORY = "calibration_keep_disabled_history"
     private const val KEY_WEIGHT_MODE = "calibration_weight_mode"
     private const val KEY_PROFILE_REVISION_PREFIX = "calibration_profile_revision_"
@@ -1056,8 +1057,9 @@ object CalibrationManager {
     /**
      * Turns every blood-glucose entry in the journal — a meter reading or a
      * finger stick typed in by hand — into a calibration point. Switching it off
-     * removes the derived points again; hand-entered calibrations are untouched
-     * either way.
+     * removes the derived points again and forgets which ones the user removed, so
+     * switching it back on starts from the whole journal; hand-entered calibrations
+     * are untouched either way.
      */
     fun setCalibrateFromJournal(enabled: Boolean) {
         if (_calibrateFromJournal.value == enabled) return
@@ -1072,6 +1074,54 @@ object CalibrationManager {
     fun shouldCalibrateFromJournal(): Boolean {
         ensureInitialized()
         return _calibrateFromJournal.value
+    }
+
+    /**
+     * Moments the user took a calibration away from, which the journal must not
+     * fill again. The entry behind a derived point outlives the point, and a manual
+     * point can be all that was holding an entry back, so removing either would
+     * otherwise bring a point back on the next pass.
+     *
+     * Kept by time rather than by entry so the duplicate window applies, as it does
+     * to a manual point: a second entry for the same finger stick stays out too.
+     * Kept in preferences, not a table, so it reaches backups without a schema
+     * version an older build could not open. Mutated only between syncs.
+     *
+     * Anything before [sinceMillis] can no longer pair with a reading and is dropped.
+     */
+    fun dismissedJournalTimestamps(sinceMillis: Long): Set<Long> {
+        val stored = readDismissedJournalTimestamps()
+        val live = stored.filterTo(linkedSetOf()) { it >= sinceMillis }
+        if (live.size != stored.size) persistDismissedJournalTimestamps(live)
+        return live
+    }
+
+    private fun readDismissedJournalTimestamps(): Set<Long> {
+        if (!ensureInitialized()) return emptySet()
+        return prefs.getStringSet(KEY_JOURNAL_DISMISSED_TIMESTAMPS, emptySet())
+            .orEmpty()
+            .mapNotNullTo(linkedSetOf()) { it.toLongOrNull() }
+    }
+
+    private fun persistDismissedJournalTimestamps(timestamps: Set<Long>) {
+        prefs.edit()
+            .putStringSet(KEY_JOURNAL_DISMISSED_TIMESTAMPS, timestamps.mapTo(linkedSetOf()) { it.toString() })
+            .apply()
+    }
+
+    private fun dismissJournalTimestamps(timestamps: Collection<Long>) {
+        if (timestamps.isEmpty() || !shouldCalibrateFromJournal()) return
+        persistDismissedJournalTimestamps(readDismissedJournalTimestamps() + timestamps)
+    }
+
+    /**
+     * Only a derived point gives its moment back. A manual one holds the entry off
+     * by itself, and the moment it shares may be a removal made on another sensor.
+     */
+    private fun undismissJournalTimestamps(restored: Collection<CalibrationEntity>) {
+        val timestamps = restored.filter { it.journalEntryId != null }.mapTo(hashSetOf()) { it.timestamp }
+        val stored = readDismissedJournalTimestamps()
+        if (stored.any { it in timestamps }) persistDismissedJournalTimestamps(stored - timestamps)
     }
 
     fun setWeightMode(mode: CalibrationWeightMode) {
@@ -1454,6 +1504,7 @@ object CalibrationManager {
     /** Drops every calibration derived from a journal entry, keeping manual ones. */
     suspend fun purgeJournalCalibrations() {
         if (!ensureInitialized()) return
+        persistDismissedJournalTimestamps(emptySet())
         val removed = withContext(Dispatchers.IO) { dao.deleteJournalDerived() }
         if (removed <= 0) return
         deferGlucoseAlertsUntilNextReading()
@@ -1464,27 +1515,39 @@ object CalibrationManager {
     }
 
     suspend fun restoreCalibration(entity: CalibrationEntity) {
-        withContext(Dispatchers.IO) { dao.insert(entity) }
+        JournalCalibrationSync.betweenSyncs {
+            undismissJournalTimestamps(listOf(entity))
+            withContext(Dispatchers.IO) { dao.insert(entity) }
+            loadCalibrations()
+        }
         deferGlucoseAlertsUntilNextReading()
-        loadCalibrations()
         refreshDiagnosticsPreview(isRawMode = entity.isRawMode, force = true)
         requestMirrorCalibrationSync(entity.sensorId)
         Log.i(TAG, "Restored calibration: id=${entity.id}")
     }
 
     suspend fun deleteCalibration(entity: CalibrationEntity) {
-        withContext(Dispatchers.IO) { dao.delete(entity) }
+        JournalCalibrationSync.betweenSyncs {
+            dismissJournalTimestamps(listOf(entity.timestamp))
+            withContext(Dispatchers.IO) { dao.delete(entity) }
+            loadCalibrations()
+        }
         deferGlucoseAlertsUntilNextReading()
-        loadCalibrations()
         refreshDiagnosticsPreview(isRawMode = entity.isRawMode, force = true)
         requestMirrorCalibrationSync(entity.sensorId)
         Log.i(TAG, "Deleted calibration: id=${entity.id}")
     }
     
     suspend fun updateCalibration(entity: CalibrationEntity) {
-        withContext(Dispatchers.IO) { dao.update(entity) }
+        JournalCalibrationSync.betweenSyncs {
+            // A point moved in time leaves its entry behind, unclaimed.
+            _calibrations.value.firstOrNull { it.id == entity.id }
+                ?.takeIf { it.timestamp != entity.timestamp }
+                ?.let { dismissJournalTimestamps(listOf(it.timestamp)) }
+            withContext(Dispatchers.IO) { dao.update(entity) }
+            loadCalibrations()
+        }
         deferGlucoseAlertsUntilNextReading()
-        loadCalibrations()
         refreshDiagnosticsPreview(isRawMode = entity.isRawMode, force = true)
         requestMirrorCalibrationSync(entity.sensorId)
     }
@@ -1607,9 +1670,14 @@ object CalibrationManager {
 
     suspend fun clearAll() {
         val affectedSensors = _calibrations.value.map { it.sensorId }
-        withContext(Dispatchers.IO) { dao.deleteAll() }
+        JournalCalibrationSync.betweenSyncs {
+            withContext(Dispatchers.IO) {
+                dismissJournalTimestamps(dao.getAllSync().map { it.timestamp })
+                dao.deleteAll()
+            }
+            loadCalibrations()
+        }
         deferGlucoseAlertsUntilNextReading()
-        loadCalibrations()
         refreshDiagnosticsPreview(isRawMode = true, force = true)
         refreshDiagnosticsPreview(isRawMode = false, force = true)
         requestMirrorCalibrationSyncForSensors(affectedSensors)
@@ -1704,9 +1772,12 @@ object CalibrationManager {
     }
 
     suspend fun restoreAll(calibrations: List<CalibrationEntity>) {
-        withContext(Dispatchers.IO) { dao.insertAll(calibrations) }
+        JournalCalibrationSync.betweenSyncs {
+            undismissJournalTimestamps(calibrations)
+            withContext(Dispatchers.IO) { dao.insertAll(calibrations) }
+            loadCalibrations()
+        }
         deferGlucoseAlertsUntilNextReading()
-        loadCalibrations()
         refreshDiagnosticsPreview(isRawMode = true, force = true)
         refreshDiagnosticsPreview(isRawMode = false, force = true)
         requestMirrorCalibrationSyncForSensors(calibrations.map { it.sensorId })
