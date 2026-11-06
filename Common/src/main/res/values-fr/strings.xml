@@ -3242,4 +3242,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">en baisse</string>
     <string name="tts_trend_rising_quickly">en hausse rapide</string>
     <string name="tts_trend_falling_quickly">en baisse rapide</string>
+    <string name="scan_sensor_qr">Scanner le code QR du capteur</string>
 </resources>

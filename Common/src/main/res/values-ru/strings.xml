@@ -3336,4 +3336,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_status_sign_in_failed">Не удалось войти: %1$s</string>
     <string name="lumiflex_signed_in_as">Вы вошли как %1$s</string>
     <string name="lumiflex_session_note">Вход здесь разлогинивает официальное приложение Lumiflex и наоборот: одна сессия на аккаунт.</string>
+    <string name="scan_sensor_qr">Отсканируйте QR-код датчика</string>
 </resources>

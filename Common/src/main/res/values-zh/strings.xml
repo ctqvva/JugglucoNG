@@ -3244,4 +3244,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">下降</string>
     <string name="tts_trend_rising_quickly">快速上升</string>
     <string name="tts_trend_falling_quickly">快速下降</string>
+    <string name="scan_sensor_qr">扫描传感器二维码</string>
 </resources>

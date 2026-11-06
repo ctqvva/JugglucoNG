@@ -3235,4 +3235,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">sjunkande</string>
     <string name="tts_trend_rising_quickly">snabbt stigande</string>
     <string name="tts_trend_falling_quickly">snabbt sjunkande</string>
+    <string name="scan_sensor_qr">Skanna sensorns QR-kod</string>
 </resources>
