@@ -41,10 +41,13 @@ checks sharing authorization every poll, fetches records about once a minute, an
 through the shared virtual-sensor bridge into history, the dashboard, alerts and native exports.
 An initial/recovery fetch covers up to three 500-record pages, stopping once it reaches a day of
 history. Once current, polls request only 20 overlapping records; long gaps use the larger
-recovery pages again. Record timestamps use their reported timezone; glucose is already in mg/dL. The receiver
+recovery pages again. Catch-up progress advances only after a confirmed history write.
+Record timestamps use their reported timezone and daylight-saving offset to distinguish the
+repeated autumn hour; ambiguous or out-of-window readings cannot become live alerts. Glucose is already in mg/dL. The receiver
 recovers on process start, network return and app foreground, with an alarm for background polls
 and WorkManager as a periodic recovery backstop. Android may defer polling during deep sleep.
-Account/provider changes and sign-out discard in-flight results.
+Account/provider changes and sign-out discard in-flight results. Receive-only mode remains
+selected when changing accounts; choose Send explicitly to start uploading from a reader phone.
 
 ## Bind a sensor (Send mode)
 

@@ -20,27 +20,19 @@ class LumiflexCloudSyncWorker(context: Context, parameters: WorkerParameters) : 
     override fun doWork(): Result {
         val settings = LumiflexCloudSettings(applicationContext)
         if (!settings.enabled || !settings.isSignedIn()) return Result.success()
-        if (!settings.modeChosen) {
-            val session = settings.session()
-            val client = LumiflexCloudClient()
-            val providers = client.followerList(session.token, false, session.userId)
-            if (providers == null) {
-                val check = client.checkSession(session.token, session.userId)
-                if (check is LumiflexCloudClient.SyncResult.Failed && check.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
-                    settings.invalidateSession(session)
-                    return Result.success()
-                }
-                return Result.retry()
-            }
-            settings.withCurrentSession(session) {
-                LumiflexCloudRole.discover(settings, providers, LumiflexCloudSensor.pairedLocally(applicationContext).isNotEmpty())
-            }
+        val session = when (val prepared = LumiflexCloudRole.prepare(settings, LumiflexCloudClient()) {
+            LumiflexCloudSensor.pairedLocally(applicationContext).isNotEmpty()
+        }) {
+            is LumiflexCloudRole.Preparation.Ready -> prepared.session
+            LumiflexCloudRole.Preparation.Retry -> return Result.retry()
+            LumiflexCloudRole.Preparation.Stop -> return Result.success()
         }
+        if (!settings.isCurrent(session)) return Result.success()
         if (settings.followMode) {
-            LumiflexFollowerRegistry.refresh(applicationContext)
-            return Result.success()
+            val success = LumiflexFollowerRegistry.reconcile(applicationContext)?.refreshBlocking(session) ?: true
+            return if (!success && settings.isCurrent(session) && settings.syncStatus().retrying) Result.retry() else Result.success()
         }
-        val result = LumiflexCloudUploader.flushNow(applicationContext)
+        val result = LumiflexCloudUploader.flushNow(applicationContext, session)
         if (!settings.enabled || !settings.isSignedIn()) return Result.success()
         return when (result) {
             is LumiflexCloudUploader.FlushResult.Success ->
@@ -57,6 +49,16 @@ class LumiflexCloudSyncWorker(context: Context, parameters: WorkerParameters) : 
         internal const val WORK_NAME = "lumiflex-cloud-sync"
         internal const val PERIODIC_NAME = "lumiflex-cloud-recovery"
         private val network = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+
+        /** Called once by Application bootstrap; no queue file is read on the main thread. */
+        @JvmStatic
+        fun initializeAfterProcessStart(context: Context) {
+            val settings = LumiflexCloudSettings(context)
+            if (settings.syncStatus().state == LumiflexCloudSettings.SyncState.SYNCING) {
+                settings.recordSync(settings.session(), LumiflexCloudSettings.SyncState.QUEUED, settings.syncStatus().pending)
+            }
+            initialize(context)
+        }
 
         @JvmStatic
         @JvmOverloads
@@ -82,10 +84,10 @@ class LumiflexCloudSyncWorker(context: Context, parameters: WorkerParameters) : 
             enqueue(context, replace = replace)
         }
 
-        fun enqueue(context: Context, replace: Boolean = false) {
+        fun enqueue(context: Context, replace: Boolean = false): androidx.work.Operation? {
             val settings = LumiflexCloudSettings(context)
-            if (!settings.enabled || !settings.isSignedIn()) return
-            WorkManager.getInstance(context).enqueueUniqueWork(
+            if (!settings.enabled || !settings.isSignedIn()) return null
+            return WorkManager.getInstance(context).enqueueUniqueWork(
                 WORK_NAME, if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
                 OneTimeWorkRequestBuilder<LumiflexCloudSyncWorker>()
                     .setConstraints(network)

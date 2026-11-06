@@ -106,6 +106,20 @@ class LumiflexCloudSettingsUiTests {
         capture("receiver-ru")
     }
 
+    @Test fun receivingFailureUsesReceiveCopyAndCachedProvidersAreDisabled() {
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                Box(Modifier.size(420.dp, 1_000.dp).testTag("screen")) {
+                    LumiflexCloudSettingsContent(signedIn.copy(followMode = true, providersLoaded = false,
+                        providers = listOf(tk.glucodata.share.lumiflex.FollowerInfo(dataProviderId = "old", providerAlias = "Мама")),
+                        sync = LumiflexCloudSettings.SyncStatus(state = LumiflexCloudSettings.SyncState.ERROR)))
+                }
+            }
+        }
+        compose.onNodeWithText("Не удалось получить показания").assertIsDisplayed()
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton)).assertIsNotEnabled()
+    }
+
     @Test
     fun syncedAccountShowsBoundSensorAndDirectLogout() {
         var signOut = false

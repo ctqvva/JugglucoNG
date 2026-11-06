@@ -245,13 +245,13 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
 
     fun selectMode(follow: Boolean) {
         if (mutableState.value.busy || mutableState.value.checkingSession || settings.followMode == follow) return
-        settings.selectMode(follow, if (follow) mutableState.value.providers.singleOrNull() else null)
+        settings.selectMode(follow, if (follow && mutableState.value.providersLoaded) mutableState.value.providers.singleOrNull() else null)
         scheduleSync(getApplication())
         refresh()
     }
 
     fun selectProvider(row: FollowerInfo) {
-        if (mutableState.value.busy || mutableState.value.checkingSession || settings.providerId == row.dataProviderId ||
+        if (mutableState.value.busy || mutableState.value.checkingSession || !mutableState.value.providersLoaded || settings.providerId == row.dataProviderId ||
             mutableState.value.providers.none { it == row }) return
         settings.selectMode(true, row)
         scheduleSync(getApplication())

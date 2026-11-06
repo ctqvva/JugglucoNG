@@ -55,7 +55,7 @@ class LumiflexFollowSyncTests {
         settings.enabled = true; settings.selectMode(true, provider)
     }
     private fun sync(transport: Transport, sink: (List<LumiflexFollowReading>) -> Unit) =
-        LumiflexFollowSync(LumiflexCloudClient(transport, encrypt = { it }, decrypt = { it }), settings, sink).sync()
+        LumiflexFollowSync(LumiflexCloudClient(transport, encrypt = { it }, decrypt = { it }), settings) { sink(it); true }.sync()
 
     @Test fun authorizedProviderHistoryReachesTheSinkInMgdlAndNeverUploads() {
         val received = mutableListOf<LumiflexFollowReading>()
@@ -139,5 +139,45 @@ class LumiflexFollowSyncTests {
         assertNull(LumiflexFollowReading.fromJson(row().put("glucoseIsValid", 0), "patient"))
         assertNull(LumiflexFollowReading.fromJson(row(glucose = -1.0), "patient"))
         assertNull(LumiflexFollowReading.fromJson(row("other"), "patient"))
+    }
+
+    @Test fun daylightSavingOffsetSeparatesTheRepeatedAutumnHourAndAmbiguousRowsAreRejected() {
+        val first = row().put("appTime", "2026-10-25 02:30:00").put("appTimeZone", "Europe/Berlin").put("dstOffset", "3600")
+        val second = JSONObject(first.toString()).put("dstOffset", "0")
+        val summer = LumiflexFollowReading.fromJson(first, "patient")!!
+        val winter = LumiflexFollowReading.fromJson(second, "patient")!!
+        assertEquals(3_600_000L, winter.timestampMs - summer.timestampMs)
+        first.remove("dstOffset")
+        assertNull(LumiflexFollowReading.fromJson(first, "patient"))
+        assertNull(LumiflexFollowReading.fromJson(second.put("appTime", "2026-03-29 02:30:00"), "patient"))
+    }
+
+    @Test fun failedHistoryWriteDoesNotAdvanceCatchupAndRetryFetchesTheFullPageAgain() {
+        val transport = Transport()
+        val client = LumiflexCloudClient(transport, encrypt = { it }, decrypt = { it })
+        assertFalse(LumiflexFollowSync(client, settings) { false }.sync())
+        assertEquals(0, settings.lastReceivedMs)
+        assertEquals(0, settings.lastSyncMs)
+        assertTrue(settings.syncStatus().retrying)
+        assertTrue(LumiflexFollowSync(client, settings) { true }.sync())
+        assertEquals(listOf(500, 500), transport.pageSizes)
+    }
+
+    @Test fun aPageContainingOnlyOldHistoryNeverReachesThePublicationSink() {
+        val old = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ROOT).apply { timeZone = TimeZone.getTimeZone("UTC") }
+            .format(Date(System.currentTimeMillis() - 2 * 24 * 60 * 60_000L))
+        assertTrue(sync(Transport().apply { history = listOf(row().put("appTime", old)) }) { fail("out-of-window data") })
+        assertEquals(0, settings.lastReceivedMs)
+    }
+
+    @Test fun switchingReaderAccountsNeverSilentlyEnablesUploadsEvenWithALocalSensor() {
+        settings.startSession("another-reader", "token-2", "reader-2")
+        assertTrue(settings.followMode)
+        assertTrue(settings.providerId.isBlank())
+        LumiflexCloudRole.discover(settings, emptyList(), hasLocalSensor = true)
+        assertTrue(settings.followMode)
+        assertFalse(settings.uploadEnabled)
+        settings.selectMode(false)
+        assertTrue(settings.uploadEnabled)
     }
 }

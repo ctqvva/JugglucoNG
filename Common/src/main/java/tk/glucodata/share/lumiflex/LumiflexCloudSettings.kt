@@ -159,7 +159,8 @@ class LumiflexCloudSettings(context: Context) {
                 .putLong("follow_last_reading_ms", if (accountChanged) 0L else lastReceivedMs)
                 .putBoolean("follow_selection_pending", accountChanged || selectionPending)
                 .putBoolean("mode_chosen", if (accountChanged) false else modeChosen)
-                .putBoolean("follow_mode", if (accountChanged) false else followMode)
+                // A reader changing accounts has not consented to becoming an uploader.
+                .putBoolean("follow_mode", followMode)
                 .putString("follow_provider", if (accountChanged) "" else providerId)
                 .putString("follow_name", if (accountChanged) "" else providerName)
                 .apply()

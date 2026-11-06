@@ -244,10 +244,11 @@ UI/поведение:
 - Фолловер, добавленный в официальном приложении, на сервере есть: `userAuthorizationId =
   <userAuthorizationId>`, `dataProviderId` = владелец аккаунта,
   `dataReaderId` = аккаунт читателя, `readerUserName = <follower phone>`.
-- `findUserAuthorizationList` с `type=1` или `type=2` возвращает **пустой список** даже при
-  существующей авторизации; `type=0` возвращает все авторизации аккаунта. Поэтому клиент
-  запрашивает `?type=0&pageNum=1&pageSize=500` и сам фильтрует по направлению:
-  share — `dataProviderId == userId`, follow — `dataReaderId == userId`.
+- Проверка выполнена с аккаунта **провайдера**: `type=0` вернул выданные им
+  авторизации, а `type=1` / `type=2` — пустой список. Это не доказывает, что `type=0`
+  возвращает оба направления. Проверка аккаунта читателя в §14 подтвердила отдельный
+  запрос `type=1` для входящих авторизаций. Клиент использует `type=0` для share
+  (`dataProviderId == userId`) и `type=1` для follow (`dataReaderId == userId`).
 
 ## 12. Device registration and sensor "name" (2026-11-03)
 
@@ -346,3 +347,11 @@ The account migrated to receive mode with its authorized provider. Read-only Roo
 confirmed 500 `lumiflex_follower` rows. Subsequent poll timestamps advanced and Android alarm
 diagnostics recorded two follower wakeups with the next wakeup scheduled. Visual dashboard
 verification was blocked by a device-control daemon timeout, including its diagnostic retry.
+
+Review follow-up: record `dstOffset` (daylight-saving seconds) disambiguates the repeated local
+hour during an autumn clock change. A wall time with two valid offsets and no matching
+recorded daylight offset is rejected. Sync progress is acknowledged only after the Room write
+succeeds, and live publication excludes stale readings. Alarm broadcasts now persist a
+WorkManager request before finishing; the worker owns the complete network/import lifetime.
+JSON object list responses require the observed explicit `code: 200`; a missing code is
+a retryable malformed response, not evidence that the request succeeded.

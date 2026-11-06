@@ -215,11 +215,26 @@ class LumiflexCloudFollowersUiTests {
         compose.onNodeWithTag("followers-list").performScrollToNode(hasText("Сохранить"))
         val save = compose.onNodeWithText("Сохранить").fetchSemanticsNode().boundsInRoot
         assertEquals(field.width, save.width, 0.5f)
+        assertTrue(save.height >= 56f)
         capture("controls-actions-ru")
         compose.onNodeWithContentDescription("Удалить подписчика").performScrollTo()
         val remove = compose.onNode(hasContentDescription("Удалить подписчика") and hasClickAction()).fetchSemanticsNode()
         val touch = remove.touchBoundsInRoot
         assertTrue("touch=$touch layout=${remove.boundsInRoot}", touch.width >= 48f && touch.height >= 48f)
+    }
+
+    @Test fun deletionFailureRemainsVisibleWhenTheAffectedFollowerIsFarBelowTheInvitationForm() {
+        val rows = (1..20).map { row.copy(userAuthorizationId = "a$it", readerAlias = "Person $it") }
+        var state by mutableStateOf(LumiflexFollowersUiState(followers = rows))
+        content { LumiflexCloudFollowersContent(state, actions = LumiflexFollowerActions(
+            remove = { state = state.copy(removeError = R.string.lumiflex_status_remove_failed) })) }
+        compose.onNodeWithTag("followers-list").performScrollToNode(hasText("Person 20"))
+        compose.onNode(hasContentDescription("Удалить подписчика") and hasClickAction() and
+            hasAnyAncestor(hasTestTag("follower-a20"))).performClick()
+        compose.onNode(hasText("Удалить подписчика") and hasClickAction() and
+            hasAnyAncestor(hasTestTag("follower-remove-confirm"))).performClick()
+        compose.onNodeWithText("Не удалось удалить").assertIsDisplayed()
+        compose.onNodeWithText("Person 20").assertIsDisplayed()
     }
 
 }

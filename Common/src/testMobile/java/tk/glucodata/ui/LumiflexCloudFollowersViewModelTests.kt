@@ -44,12 +44,37 @@ class LumiflexCloudFollowersViewModelTests {
     @Before fun reset() { settings.clear(); settings.startSession("owner", "token", "u1") }
     @After fun clear() { stores.forEach { it.clear() } }
 
-    private fun model(transport: Transport = Transport()): LumiflexCloudFollowersViewModel {
+    private fun model(transport: Transport = Transport(), dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Unconfined): LumiflexCloudFollowersViewModel {
         val model = LumiflexCloudFollowersViewModel(app, LumiflexCloudFollowerManager(
-            LumiflexCloudClient(transport, encrypt = { it }, decrypt = { it }), settings), Dispatchers.Unconfined)
+            LumiflexCloudClient(transport, encrypt = { it }, decrypt = { it }), settings), dispatcher)
         stores += ViewModelStore().also { it.put("followers", model) }
         ShadowLooper.idleMainLooper()
         return model
+    }
+
+    private class QueuedDispatcher : kotlinx.coroutines.CoroutineDispatcher() {
+        private val pending = java.util.ArrayDeque<Runnable>()
+        override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) { pending.add(block) }
+        fun drain() { while (pending.isNotEmpty()) pending.removeFirst().run() }
+    }
+
+    @Test fun accountChangeBeforeIoDispatchPreventsInviteSaveAndRemovalUnderTheNewAccount() {
+        for (operation in listOf("invite", "save", "remove")) {
+            reset()
+            val queue = QueuedDispatcher()
+            val transport = Transport()
+            val model = model(transport, queue)
+            queue.drain(); ShadowLooper.idleMainLooper()
+            when (operation) {
+                "invite" -> { model.accountChanged("79991234567"); model.invite() }
+                "save" -> { model.edit(row); model.editChanged(row.copy(readerAlias = "Changed")); model.saveEditor() }
+                else -> model.remove(row.userAuthorizationId)
+            }
+            ShadowLooper.idleMainLooper()
+            settings.startSession("new-owner", "new-token", "u2")
+            queue.drain(); ShadowLooper.idleMainLooper()
+            assertEquals(operation, 0, transport.posts)
+        }
     }
 
     @Test fun failedSaveKeepsConfirmedRowAndDraftForRetry() {

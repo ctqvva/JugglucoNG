@@ -34,6 +34,7 @@ class LumiflexCloudViewModelTests {
         var onValidation: () -> Unit = {}
         var smsResponseLost = false
         var providers = "[]"
+        var providersCode = 200
         override fun post(url: String, body: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult {
             val response = when {
                 url.endsWith("sendRegisterOverseaPhoneVerificationCode") -> {
@@ -57,7 +58,7 @@ class LumiflexCloudViewModelTests {
         override fun get(url: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult {
             if (url.contains("findUserAuthorizationList")) {
                 assertTrue(url.contains("type=1"))
-                return LumiflexCloudClient.HttpResult(200, """{"code":200,"data":$providers}""")
+                return LumiflexCloudClient.HttpResult(200, """{"code":$providersCode,"data":$providers}""")
             }
             onValidation()
             return LumiflexCloudClient.HttpResult(200, if (validationCode == 200) """{"code":200,"data":{"userId":"u1"}}"""
@@ -67,6 +68,25 @@ class LumiflexCloudViewModelTests {
 
     @Before fun reset() { settings.clear() }
     @After fun clear() { stores.forEach { it.clear() } }
+
+    @Test fun failedProviderRefreshCannotSelectPreviouslyCachedAuthorization() {
+        settings.startSession("79991234567", "sms-token", "u1")
+        settings.enabled = true
+        val transport = Transport().apply {
+            providers = """[{"dataProviderId":"one","dataReaderId":"u1"},{"dataProviderId":"two","dataReaderId":"u1"}]"""
+        }
+        val model = model(transport)
+        model.selectProvider(model.state.value.providers.first())
+        assertEquals("one", settings.providerId)
+        transport.providersCode = 500
+        model.checkConnection(false)
+        ShadowLooper.idleMainLooper()
+        assertFalse(model.state.value.providersLoaded)
+        val session = settings.session()
+        model.selectProvider(model.state.value.providers.last())
+        assertEquals("one", settings.providerId)
+        assertEquals(session, settings.session())
+    }
 
     @Test fun configuredReaderDiscoversItsProviderAndSwitchesToReceiving() {
         settings.startSession("79991234567", "sms-token", "u1")

@@ -12,6 +12,19 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = LumiflexCloudTestApplication::class)
 class LumiflexCloudUploaderTests {
+    @Test fun aRetiredWorkerSessionCannotUploadTheReplacementAccountsQueue() {
+        var lookups = 0
+        val (settings, queue, uploader) = uploaderWithDevices(200) {
+            lookups++; LumiflexCloudClient.DeviceList.Ok(mapOf("SN1" to "SID1"))
+        }
+        val expected = settings.session()
+        settings.startSession("replacement", "new-token", "new-user")
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "replacement")
+        assertTrue(uploader.flush(expected) is LumiflexCloudUploader.FlushResult.Success)
+        assertEquals(0, lookups)
+        assertEquals(1, queue.size())
+        assertEquals("new-token", settings.token)
+    }
 
     private class FakeTransport(private val code: Int) : LumiflexCloudClient.Transport {
         var calls = 0

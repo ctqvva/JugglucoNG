@@ -184,26 +184,36 @@ class LumiflexCloudClient(
         return classifySync(response)
     }
 
-    fun followerList(token: String, isShare: Boolean, userId: String): List<FollowerInfo>? {
-        val url = url(LumiflexCloudConstants.PATH_FOLLOWER_LIST) +
+    sealed class AuthorizationList {
+        data class Ok(val rows: List<FollowerInfo>) : AuthorizationList()
+        data class Failed(val kind: LumiflexCloudError.Kind, val code: Int) : AuthorizationList()
+    }
+
+    fun followerList(token: String, isShare: Boolean, userId: String): List<FollowerInfo>? =
+        (authorizations(token, isShare, userId) as? AuthorizationList.Ok)?.rows
+
+    fun authorizations(token: String, isShare: Boolean, userId: String): AuthorizationList {
+        val requestUrl = url(LumiflexCloudConstants.PATH_FOLLOWER_LIST) +
             "?type=${if (isShare) 0 else 1}&pageNum=1&pageSize=500"
-        val response = transport.get(url, headers(token, userId))
-        if (response.code !in 200..299) return null
-        val plain = decoded(response.body) ?: return null
-        val json = runCatching { JSONObject(plain) }.getOrNull()
-        if (json != null && json.optInt("code", 0) != 200) return null
-        val array = json?.optJSONArray("data") ?: runCatching { JSONArray(plain) }.getOrNull()
-        if (array == null) return null
-        val rows = (0 until array.length()).map { index ->
-            FollowerInfo.fromJson(array.optJSONObject(index))
+        val response = transport.get(requestUrl, headers(token, userId))
+        val plain = decoded(response.body)
+        if (response.code !in 200..299) return AuthorizationList.Failed(
+            LumiflexCloudError.classify(response.code, plain), response.code)
+        val json = runCatching { JSONObject(plain.orEmpty()) }.getOrNull()
+        if (json != null) {
+            if (!json.has("code")) return AuthorizationList.Failed(LumiflexCloudError.Kind.TRANSIENT, response.code)
+            val code = json.optInt("code", 0)
+            if (code != 200) return AuthorizationList.Failed(LumiflexCloudError.classify(code, plain), code)
         }
-        return rows.filter { row ->
-            if (isShare) {
-                row.dataProviderId.equals(userId, ignoreCase = true)
-            } else {
-                row.dataReaderId.equals(userId, ignoreCase = true)
-            }
+        val array = json?.optJSONArray("data") ?: runCatching { JSONArray(plain.orEmpty()) }.getOrNull()
+            ?: return AuthorizationList.Failed(LumiflexCloudError.Kind.TRANSIENT, response.code)
+        val rows = (0 until array.length()).mapNotNull { index ->
+            array.optJSONObject(index)?.let(FollowerInfo::fromJson)
+        }.filter { row ->
+            if (isShare) row.dataProviderId.equals(userId, ignoreCase = true)
+            else row.dataReaderId.equals(userId, ignoreCase = true)
         }
+        return AuthorizationList.Ok(rows)
     }
 
     sealed class FollowHistory {

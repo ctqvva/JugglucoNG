@@ -35,9 +35,8 @@ class LumiflexCloudUploader(
     }
 
     @Synchronized
-    fun flush(): FlushResult {
-        if (!settings.uploadEnabled) return FlushResult.Success(0)
-        val session = settings.session()
+    fun flush(session: LumiflexCloudSettings.Session = settings.session()): FlushResult {
+        if (!settings.uploadEnabled || !settings.isCurrent(session)) return FlushResult.Success(0)
         settings.recordSync(session, LumiflexCloudSettings.SyncState.SYNCING, queue.size())
         val result = flushSession(session)
         val pending = queue.size()
@@ -268,9 +267,9 @@ class LumiflexCloudUploader(
         }
 
         /** Worker and manual requests share one queue and one in-process upload lock. */
-        fun flushNow(context: Context): FlushResult = synchronized(flushLock) {
+        fun flushNow(context: Context, expected: LumiflexCloudSettings.Session? = null): FlushResult = synchronized(flushLock) {
             val current = stateFor(context)
-            val session = current.settings.session()
+            val session = expected ?: current.settings.session()
             try {
                 val uploader = LumiflexCloudUploader(
                     client = current.client,
@@ -279,7 +278,7 @@ class LumiflexCloudUploader(
                     sensorIds = { token -> current.client.devicesBySensorSerial(token) },
                     bindingSensors = { LumiflexCloudSensor.pairedLocally(context) },
                 )
-                uploader.flush()
+                uploader.flush(session)
             } catch (error: Throwable) {
                 tk.glucodata.Log.stack(LOG_ID, "runFlush", error)
                 current.settings.recordSync(session, LumiflexCloudSettings.SyncState.ERROR,

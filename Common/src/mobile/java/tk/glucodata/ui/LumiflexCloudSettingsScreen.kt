@@ -216,11 +216,11 @@ internal fun LumiflexCloudSettingsContent(
                             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         state.providers.forEach { row ->
                             Row(Modifier.fillMaxWidth().selectable(
-                                selected = row.dataProviderId == state.providerId, enabled = usable,
+                                selected = row.dataProviderId == state.providerId, enabled = usable && state.providersLoaded,
                                 role = androidx.compose.ui.semantics.Role.RadioButton, onClick = { onProvider(row) })
                                 .heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                RadioButton(selected = row.dataProviderId == state.providerId, onClick = null, enabled = usable)
+                                RadioButton(selected = row.dataProviderId == state.providerId, onClick = null, enabled = usable && state.providersLoaded)
                                 Text(row.providerAlias.ifBlank { lumiflexAccountLabel(row.providerUserName) },
                                     style = MaterialTheme.typography.titleMedium)
                             }
@@ -230,7 +230,7 @@ internal fun LumiflexCloudSettingsContent(
                 val syncTitle = when {
                     !state.enabled -> stringResource(R.string.lumiflex_sync_paused)
                     state.sync.state == LumiflexCloudSettings.SyncState.SYNCING -> stringResource(if (state.followMode) R.string.lumiflex_follow_refreshing else R.string.lumiflex_sync_uploading)
-                    state.sync.state == LumiflexCloudSettings.SyncState.ERROR -> stringResource(R.string.lumiflex_sync_error)
+                    state.sync.state == LumiflexCloudSettings.SyncState.ERROR -> stringResource(if (state.followMode) R.string.lumiflex_follow_failed else R.string.lumiflex_sync_error)
                     state.sync.state == LumiflexCloudSettings.SyncState.WAITING_FOR_SENSOR -> stringResource(R.string.lumiflex_connect_sensor)
                     state.sync.pending > 0 -> stringResource(R.string.lumiflex_pending_readings, state.sync.pending)
                     state.sync.lastSuccessMs > 0 -> stringResource(if (state.followMode) R.string.lumiflex_follow_current else R.string.lumiflex_sync_up_to_date)

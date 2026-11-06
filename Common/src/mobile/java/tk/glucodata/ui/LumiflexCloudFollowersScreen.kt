@@ -59,6 +59,9 @@ internal fun LumiflexCloudFollowersContent(
     var pendingId by rememberSaveable { mutableStateOf<String?>(null) }
     var leaving by rememberSaveable { mutableStateOf(false) }
     var removeId by rememberSaveable { mutableStateOf<String?>(null) }
+    val snackbar = remember { SnackbarHostState() }
+    val removalError = state.removeError?.let { stringResource(it) }
+    LaunchedEffect(removalError) { removalError?.let { snackbar.showSnackbar(it) } }
     fun select(row: FollowerInfo?) {
         if (!state.blocked) {
             if (state.editorDirty) { pendingId = row?.userAuthorizationId; leaving = false; discard = true }
@@ -71,7 +74,7 @@ internal fun LumiflexCloudFollowersContent(
         }
     }
     BackHandler(enabled = state.busy || state.editorDirty, onBack = back)
-    Scaffold(contentWindowInsets = WindowInsets(0.dp), topBar = {
+    Scaffold(contentWindowInsets = WindowInsets(0.dp), snackbarHost = { SnackbarHost(snackbar) }, topBar = {
         AppTopBar(stringResource(R.string.lumiflex_followers_title), back, actions = {
             IconButtonTooltip(stringResource(R.string.refresh)) {
                 IconButton(onClick = actions.refresh, enabled = !state.blocked, shapes = IconButtonDefaults.shapes()) {
@@ -91,7 +94,6 @@ internal fun LumiflexCloudFollowersContent(
                         color = MaterialTheme.colorScheme.primary)
                 }
                 SectionLabel(stringResource(R.string.lumiflex_my_shares))
-                FollowerError(state.removeError)
             }
             if (state.loadFailed) item {
                 Text(stringResource(R.string.lumiflex_status_load_failed), color = MaterialTheme.colorScheme.error,
@@ -214,7 +216,7 @@ internal fun ColumnScope.LumiflexFollowerEditor(
     }
     FollowerError(state.editorError)
     Button(onClick = actions.save, enabled = !state.blocked && state.editorDirty, shapes = ButtonDefaults.shapes(),
-        modifier = Modifier.fillMaxWidth(), contentPadding = ButtonDefaults.ContentPadding) {
+        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), contentPadding = ButtonDefaults.ContentPadding) {
         if (state.operation == FollowerOperation.SAVE) FollowerButtonProgress(true)
         else { Icon(Icons.Default.Save, null); Spacer(Modifier.width(8.dp)) }
         Text(stringResource(R.string.save))

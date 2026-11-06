@@ -16,6 +16,30 @@ import org.robolectric.shadows.ShadowLooper
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = LumiflexCloudTestApplication::class)
 class LumiflexCloudSyncWorkerTests {
+    @Test fun startupRecoversInterruptedSyncWithoutResettingAnInProcessSync() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = LumiflexCloudSettings(context).apply { clear(); startSession("account", "token", "user"); enabled = true }
+        settings.recordSync(settings.session(), LumiflexCloudSettings.SyncState.SYNCING, 7)
+        LumiflexCloudSyncWorker.initializeAfterProcessStart(context)
+        assertEquals(LumiflexCloudSettings.SyncState.QUEUED, settings.syncStatus().state)
+        assertEquals(7, settings.syncStatus().pending)
+        settings.recordSync(settings.session(), LumiflexCloudSettings.SyncState.SYNCING, 7)
+        LumiflexCloudSyncWorker.initialize(context)
+        assertEquals(LumiflexCloudSettings.SyncState.SYNCING, settings.syncStatus().state)
+        settings.enabled = false; LumiflexCloudSyncWorker.initialize(context)
+    }
+
+    @Test fun anAlarmPersistsNetworkConstrainedWorkInsteadOfStartingAnUnownedThread() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = LumiflexCloudSettings(context).apply { clear(); startSession("account", "token", "user"); enabled = true }
+        context.sendBroadcast(android.content.Intent(context, LumiflexFollowerPollReceiver::class.java)
+            .setAction(LumiflexFollowerPollReceiver.ACTION))
+        ShadowLooper.idleMainLooper()
+        val active = await(WorkManager.getInstance(context).getWorkInfosForUniqueWork(LumiflexCloudSyncWorker.WORK_NAME))
+            .single { !it.state.isFinished }
+        assertEquals(NetworkType.CONNECTED, active.constraints.requiredNetworkType)
+        settings.enabled = false; LumiflexCloudSyncWorker.initialize(context)
+    }
     /** WorkManager startup posts main-loop callbacks; a blocking get on Robolectric's main thread starves them. */
     private fun <T> await(future: ListenableFuture<T>): T {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15)

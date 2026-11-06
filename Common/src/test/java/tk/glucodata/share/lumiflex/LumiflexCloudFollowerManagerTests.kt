@@ -13,6 +13,17 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = LumiflexCloudTestApplication::class)
 class LumiflexCloudFollowerManagerTests {
+    @Test fun queuedMutationsCannotUseAnAccountThatReplacedTheCapturedSession() {
+        val transport = FakeTransport()
+        val manager = manager(transport)
+        val settings = LumiflexCloudSettings(RuntimeEnvironment.getApplication())
+        val captured = settings.session()
+        settings.startSession("replacement", "new-token", "new-user")
+        assertFalse(manager.invite("person@example.org", "Name", captured))
+        assertFalse(manager.save(FollowerInfo(userAuthorizationId = "old-id"), captured))
+        assertFalse(manager.remove("old-id", captured))
+        assertTrue(transport.bodies.isEmpty())
+    }
 
     private class FakeTransport : LumiflexCloudClient.Transport {
         val bodies = mutableListOf<JSONObject>()

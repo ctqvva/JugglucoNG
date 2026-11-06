@@ -4,24 +4,23 @@ package tk.glucodata.share.lumiflex
 class LumiflexFollowSync(
     private val client: LumiflexCloudClient,
     private val settings: LumiflexCloudSettings,
-    private val publish: (List<LumiflexFollowReading>) -> Unit,
+    private val publish: (List<LumiflexFollowReading>) -> Boolean,
 ) {
-    fun sync(): Boolean {
-        val session = settings.session()
+    fun sync(session: LumiflexCloudSettings.Session = settings.session()): Boolean {
         val provider = settings.providerId
         fun current() = settings.enabled && settings.followMode && settings.providerId == provider && settings.isCurrent(session)
         if (!session.signedIn || provider.isBlank() || !current()) return false
         settings.recordSync(session, LumiflexCloudSettings.SyncState.SYNCING, 0)
-        val follows = client.followerList(session.token, isShare = false, userId = session.userId)
+        val follows = client.authorizations(session.token, isShare = false, userId = session.userId)
         if (!current()) return false
-        if (follows == null) {
-            val check = client.checkSession(session.token, session.userId)
-            if (check is LumiflexCloudClient.SyncResult.Failed && check.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
+        if (follows is LumiflexCloudClient.AuthorizationList.Failed) {
+            if (follows.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
                 settings.invalidateSession(session)
-            } else settings.recordSync(session, LumiflexCloudSettings.SyncState.ERROR, 0, retrying = true)
+            } else settings.recordSync(session, LumiflexCloudSettings.SyncState.ERROR, 0,
+                retrying = follows.kind == LumiflexCloudError.Kind.TRANSIENT)
             return false
         }
-        if (follows.none { it.dataProviderId == provider }) {
+        if ((follows as LumiflexCloudClient.AuthorizationList.Ok).rows.none { it.dataProviderId == provider }) {
             settings.recordSync(session, LumiflexCloudSettings.SyncState.ERROR, 0)
             return false
         }
@@ -49,9 +48,12 @@ class LumiflexFollowSync(
         }
         if (!current()) return false
         val usable = readings.distinctBy { it.timestampMs }.sortedBy { it.timestampMs }
-            .filter { it.timestampMs <= System.currentTimeMillis() + 60_000L }
+            .filter { it.timestampMs in since..(System.currentTimeMillis() + 60_000L) }
         if (usable.isNotEmpty()) {
-            publish(usable)
+            if (!publish(usable)) {
+                settings.recordSync(session, LumiflexCloudSettings.SyncState.ERROR, 0, retrying = true)
+                return false
+            }
             if (!current()) return false
             settings.recordReceived(session, usable.last().timestampMs)
         }
@@ -61,10 +63,46 @@ class LumiflexFollowSync(
 }
 
 object LumiflexCloudRole {
+    sealed class Preparation {
+        data class Ready(val session: LumiflexCloudSettings.Session) : Preparation()
+        object Retry : Preparation()
+        object Stop : Preparation()
+    }
+
+    fun prepare(settings: LumiflexCloudSettings, client: LumiflexCloudClient, hasLocalSensor: () -> Boolean): Preparation {
+        val expected = settings.session()
+        if (!settings.enabled || !expected.signedIn) return Preparation.Stop
+        if (settings.modeChosen) return Preparation.Ready(expected)
+        val result = client.authorizations(expected.token, false, expected.userId)
+        if (!settings.isCurrent(expected)) return Preparation.Stop
+        if (result is LumiflexCloudClient.AuthorizationList.Failed) {
+            if (result.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
+                settings.invalidateSession(expected)
+                return Preparation.Stop
+            }
+            if (result.kind == LumiflexCloudError.Kind.TRANSIENT || settings.followMode) {
+                settings.recordSync(expected, LumiflexCloudSettings.SyncState.ERROR, settings.syncStatus().pending,
+                    retrying = result.kind == LumiflexCloudError.Kind.TRANSIENT)
+                return if (result.kind == LumiflexCloudError.Kind.TRANSIENT) Preparation.Retry else Preparation.Stop
+            }
+        }
+        // Do not hold the session lock while looking up BLE/native pairing metadata.
+        val local = if (result is LumiflexCloudClient.AuthorizationList.Ok) hasLocalSensor() else false
+        var ready: LumiflexCloudSettings.Session? = null
+        if (!settings.withCurrentSession(expected) {
+            if (!settings.modeChosen) {
+                if (result is LumiflexCloudClient.AuthorizationList.Ok) discover(settings, result.rows, local)
+                else settings.selectMode(false) // A permanent sharing error must not disable an existing uploader.
+            }
+            ready = settings.session()
+        }) return Preparation.Stop
+        return Preparation.Ready(ready!!)
+    }
+
     /** Existing upload-only installations with a followed provider and no local sensor migrate. */
     fun discover(settings: LumiflexCloudSettings, providers: List<FollowerInfo>, hasLocalSensor: Boolean) {
         if (settings.modeChosen) return
-        val follow = providers.isNotEmpty() && !hasLocalSensor
+        val follow = settings.followMode || (providers.isNotEmpty() && !hasLocalSensor)
         settings.selectMode(follow, if (follow) providers.singleOrNull() else null)
     }
 }

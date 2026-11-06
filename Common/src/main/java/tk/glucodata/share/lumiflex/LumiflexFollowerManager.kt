@@ -6,8 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Handler
-import android.os.HandlerThread
-import android.os.PowerManager
+import android.os.Looper
 import android.os.SystemClock
 import java.util.concurrent.atomic.AtomicBoolean
 import tk.glucodata.*
@@ -17,8 +16,7 @@ import tk.glucodata.drivers.*
 class LumiflexFollowerManager(private val context: Context, private val provider: String) :
     SuperGattCallback(LumiflexFollowerRegistry.sensorId(context, provider), 0L, 0), ManagedBluetoothSensorDriver {
     private val settings = LumiflexCloudSettings(context)
-    private val thread = HandlerThread("LumiflexFollower").apply { start() }
-    private val handler = Handler(thread.looper)
+    private val handler = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(false)
     @Volatile private var latest: LumiflexFollowReading? = null
     @Volatile private var rateMgdl = 0f
@@ -69,55 +67,58 @@ class LumiflexFollowerManager(private val context: Context, private val provider
     override fun softReconnect() { stop = false; refresh() }
     override fun close() {
         cancel()
-        if (stop) thread.quitSafely()
         super.close()
     }
     override fun terminateManagedSensor(wipeData: Boolean) {
-        stop = true; cancel(); thread.quitSafely()
+        stop = true; cancel()
         if (wipeData) settings.enabled = false
     }
     override fun removeManagedPersistence(context: Context) { settings.enabled = false }
 
-    fun refresh(wakeLock: PowerManager.WakeLock? = null) {
-        if (!usable() || !running.compareAndSet(false, true)) { release(wakeLock); return }
-        val heldLock = wakeLock ?: (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)
-            ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Juggluco::LumiflexFollower")?.apply {
-                setReferenceCounted(false); acquire(3 * 60_000L)
-            }
+    /** Foreground/network/timer wakes use the same durable worker as alarm wakes. */
+    fun refresh() { if (usable()) LumiflexCloudSyncWorker.enqueue(context) }
+
+    /** Runs on WorkManager's thread, whose lifetime and wakelock cover the whole poll. */
+    fun refreshBlocking(session: LumiflexCloudSettings.Session): Boolean {
+        if (!usable() || !settings.isCurrent(session)) return false
+        if (!running.compareAndSet(false, true)) return true
         lastPoll = SystemClock.elapsedRealtime()
-        schedule(3 * 60_000L) // Book recovery before network I/O, in case a process/poll is interrupted.
-        handler.post {
-            try {
-                LumiflexFollowSync(LumiflexCloudClient(), settings) { rows ->
-                    if (usable()) {
-                        val history = rows.map { VirtualGlucoseSensorBridge.Reading(it.timestampMs, it.mgdl) }
-                        VirtualGlucoseSensorBridge.importHistory(SerialNumber, history, "Lumiflex",
-                            backfill = false, mirrorToNative = true, source = GlucoseReadingSource.LUMIFLEX_FOLLOWER)
-                        if (usable()) {
-                            val newest = rows.last()
-                            if (newest.timestampMs > (latest?.timestampMs ?: 0L)) {
-                                val previous = rows.dropLast(1).lastOrNull()
-                                val elapsed = newest.timestampMs - (previous?.timestampMs ?: 0L)
-                                rateMgdl = if (previous != null && elapsed in 1..300_000L)
-                                    (newest.mgdl - previous.mgdl) / (elapsed / 60_000f) else 0f
-                                latest = newest
-                                VirtualGlucoseSensorBridge.publishCurrent(SerialNumber,
-                                    VirtualGlucoseSensorBridge.Reading(newest.timestampMs, newest.mgdl, rate = rateMgdl), 0, "Lumiflex",
-                                    mirrorToNative = true, source = GlucoseReadingSource.LUMIFLEX_FOLLOWER)
-                            }
-                        }
+        schedule(3 * 60_000L)
+        try {
+            return LumiflexFollowSync(LumiflexCloudClient(), settings, publish@{ rows ->
+                if (!usable() || !settings.isCurrent(session)) return@publish false
+                val history = rows.map { VirtualGlucoseSensorBridge.Reading(it.timestampMs, it.mgdl) }
+                // backfill=true writes the entire fetched overlap. Zero from a nonempty,
+                // validated batch is a failed write, not an already-imported watermark.
+                val stored = VirtualGlucoseSensorBridge.importHistory(SerialNumber, history, "Lumiflex",
+                    backfill = true, mirrorToNative = true, source = GlucoseReadingSource.LUMIFLEX_FOLLOWER)
+                if (stored != history.size || !usable() || !settings.isCurrent(session)) return@publish false
+                val newest = rows.last()
+                if (newest.timestampMs > (latest?.timestampMs ?: 0L)) {
+                    val previous = rows.dropLast(1).lastOrNull()
+                    val elapsed = newest.timestampMs - (previous?.timestampMs ?: 0L)
+                    rateMgdl = if (previous != null && elapsed in 1..300_000L)
+                        (newest.mgdl - previous.mgdl) / (elapsed / 60_000f) else 0f
+                    latest = newest
+                    // History older than ten minutes belongs in the chart, not live alerts.
+                    if (System.currentTimeMillis() - newest.timestampMs <= 10 * 60_000L) {
+                        VirtualGlucoseSensorBridge.publishCurrent(SerialNumber,
+                            VirtualGlucoseSensorBridge.Reading(newest.timestampMs, newest.mgdl, rate = rateMgdl), 0, "Lumiflex",
+                            mirrorToNative = true, source = GlucoseReadingSource.LUMIFLEX_FOLLOWER)
                     }
-                }.sync()
-            } catch (error: Exception) { Log.stack("LumiflexFollower", "refresh", error) }
-            finally {
-                running.set(false)
-                if (usable()) schedule(60_000L)
-                release(heldLock)
-                UiRefreshBus.requestStatusRefresh()
-            }
+                }
+                true
+            }).sync(session)
+        } catch (error: Exception) {
+            Log.stack("LumiflexFollower", "refresh", error)
+            settings.recordSync(session, LumiflexCloudSettings.SyncState.ERROR, 0, retrying = true)
+            return false
+        } finally {
+            running.set(false)
+            if (usable()) schedule(60_000L)
+            UiRefreshBus.requestStatusRefresh()
         }
     }
-    private fun release(lock: PowerManager.WakeLock?) { if (lock?.isHeld == true) lock.release() }
     private fun pollIntent(): PendingIntent = PendingIntent.getBroadcast(context, 0,
         Intent(context, LumiflexFollowerPollReceiver::class.java).setAction(LumiflexFollowerPollReceiver.ACTION),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)

@@ -92,7 +92,7 @@ class LumiflexCloudFollowersViewModel @JvmOverloads constructor(
         val expected = settings.session()
         mutableState.update { it.copy(operation = FollowerOperation.INVITE, inviteError = null, notice = null) }
         viewModelScope.launch {
-            val confirmed = withContext(networkDispatcher) { manager.invite(input.account, input.alias) }
+            val confirmed = withContext(networkDispatcher) { manager.invite(input.account, input.alias, expected) }
             if (discardStaleResult(expected)) return@launch
             mutableState.update {
                 if (confirmed) it.copy(operation = null, account = "", alias = "",
@@ -124,7 +124,7 @@ class LumiflexCloudFollowersViewModel @JvmOverloads constructor(
         val expected = settings.session()
         mutableState.update { it.copy(operation = FollowerOperation.SAVE, editorError = null) }
         viewModelScope.launch {
-            val confirmed = withContext(networkDispatcher) { manager.save(row) }
+            val confirmed = withContext(networkDispatcher) { manager.save(row, expected) }
             if (discardStaleResult(expected)) return@launch
             mutableState.update {
                 if (confirmed) it.copy(operation = null, editor = row,
@@ -141,7 +141,7 @@ class LumiflexCloudFollowersViewModel @JvmOverloads constructor(
         val expected = settings.session()
         mutableState.update { it.copy(operation = FollowerOperation.REMOVE, removalId = id, removeError = null) }
         viewModelScope.launch {
-            val confirmed = withContext(networkDispatcher) { manager.remove(row.userAuthorizationId) }
+            val confirmed = withContext(networkDispatcher) { manager.remove(row.userAuthorizationId, expected) }
             if (discardStaleResult(expected)) return@launch
             mutableState.update {
                 if (confirmed) {

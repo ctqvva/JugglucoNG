@@ -15,22 +15,21 @@ class LumiflexCloudFollowerManager(
     fun follows(): List<FollowerInfo>? =
         client.followerList(settings.token, isShare = false, userId = settings.userId)
 
-    fun invite(account: String, alias: String): Boolean {
+    fun invite(account: String, alias: String, expected: LumiflexCloudSettings.Session = settings.session()): Boolean {
         if (account.isBlank()) return false
-        return change { client.addFollower(it.token, account, alias, it.userId) != null }
+        return change(expected) { client.addFollower(it.token, account, alias, it.userId) != null }
     }
 
     /** Send one confirmed edit, rather than racing separate requests for each switch/name. */
-    fun save(row: FollowerInfo): Boolean = change {
+    fun save(row: FollowerInfo, expected: LumiflexCloudSettings.Session = settings.session()): Boolean = change(expected) {
         client.updateFollower(it.token, row.userAuthorizationId,
             displayHidden = row.hideState == 1, normalPush = row.normalPushState == 1,
             urgentPush = row.emergePushState == 1, extremeHighPush = row.extremeHighPushState == 1,
             userId = it.userId, alias = row.readerAlias)
     }
 
-    private fun change(action: (LumiflexCloudSettings.Session) -> Boolean): Boolean {
-        val session = settings.session()
-        if (!session.signedIn) return false
+    private fun change(session: LumiflexCloudSettings.Session, action: (LumiflexCloudSettings.Session) -> Boolean): Boolean {
+        if (!session.signedIn || !settings.isCurrent(session)) return false
         val confirmed = action(session)
         return confirmed && settings.isCurrent(session)
     }
@@ -51,5 +50,6 @@ class LumiflexCloudFollowerManager(
     fun rename(id: String, alias: String): Boolean =
         client.renameFollower(settings.token, id, alias, settings.userId)
 
-    fun remove(id: String): Boolean = change { client.removeFollower(it.token, id, it.userId) }
+    fun remove(id: String, expected: LumiflexCloudSettings.Session = settings.session()): Boolean =
+        change(expected) { client.removeFollower(it.token, id, it.userId) }
 }
