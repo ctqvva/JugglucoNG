@@ -362,4 +362,6 @@ uploaders could send the timezone’s nominal daylight amount even for winter re
 uploads calculate the daylight amount per record, including both occurrences of an autumn
 hour. The live cursor is committed after publication, so a thrown publication is retried by
 the next overlapping poll. Expired alarm wakes reconcile and retire the native mirror without
-deleting history, then select another available source or clear the selection.
+deleting history. A selected historical non-Lumiflex sensor with native backing is preserved
+even when it has no active callback. Otherwise cleanup selects another available source or
+clears the selection.

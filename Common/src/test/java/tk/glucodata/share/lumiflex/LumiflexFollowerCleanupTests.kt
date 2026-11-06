@@ -23,14 +23,17 @@ class LumiflexFollowerCleanupTests {
             val history = mutableSetOf<String>()
             val active = mutableListOf<String>()
             var selected = ""
+            var reportShortSelection = false
             @JvmStatic @Implementation fun getDeviceAddress(pointer: Long, fresh: Boolean): String? = null
             @JvmStatic @Implementation fun getSensorStartmsec(pointer: Long) = 0L
             @JvmStatic @Implementation fun setmaxsensors(count: Int) = Unit
             @JvmStatic @Implementation fun activeSensors(): Array<String> = active.toTypedArray()
-            @JvmStatic @Implementation fun currentsensorname() = selected
+            @JvmStatic @Implementation fun currentsensorname() =
+                if (reportShortSelection && selected.startsWith("LMF-")) selected.takeLast(11) else selected
             @JvmStatic @Implementation fun lastsensorname() = selected.ifBlank { active.firstOrNull().orEmpty() }
             @JvmStatic @Implementation fun setcurrentsensor(name: String) { selected = name }
-            @JvmStatic @Implementation fun resolveFullSensorName(name: String): String? = name.takeIf { it in history }
+            @JvmStatic @Implementation fun resolveFullSensorName(name: String): String? =
+                history.firstOrNull { it == name || it.takeLast(11) == name }
             @JvmStatic @Implementation fun finishSensorById(name: String): Boolean { active.remove(name); return name in history }
             @JvmStatic @Implementation fun str2sensorptr(name: String) = 0L
         }
@@ -48,6 +51,7 @@ class LumiflexFollowerCleanupTests {
         settings.selectMode(true, FollowerInfo(dataProviderId = "patient"))
         serial = LumiflexFollowerRegistry.sensorId(app)
         NativeInputs.history.clear(); NativeInputs.active.clear(); NativeInputs.selected = ""
+        NativeInputs.reportShortSelection = false
         NativeInputs.history += listOf(serial, "3MH00000000")
         NativeInputs.active += listOf(serial, "3MH00000000")
         assertNotNull(LumiflexFollowerRegistry.reconcile(app))
@@ -79,5 +83,41 @@ class LumiflexFollowerCleanupTests {
         assertEquals("", NativeInputs.selected)
         assertTrue(NativeInputs.active.isEmpty())
         assertTrue(serial in NativeInputs.history)
+    }
+
+    @Test fun historicalSelectionSurvivesFollowerCleanupWithAnActiveAlternative() {
+        val historical = "3MH00000001"
+        NativeInputs.history += historical
+        SensorBluetooth.setCurrentSensorSelection(historical)
+        assertFalse(historical in NativeInputs.active)
+        assertTrue(SensorBluetooth.gattcallbacks.none { it.SerialNumber == historical })
+        settings.invalidateSession(settings.session())
+        LumiflexFollowerRegistry.reconcile(app)
+        assertEquals(historical, NativeInputs.selected)
+        assertNull(ManagedCurrentSensor.get())
+        assertTrue(SensorBluetooth.gattcallbacks.none { it is LumiflexFollowerManager })
+        assertFalse(serial in NativeInputs.active)
+    }
+
+    @Test fun historicalSelectionSurvivesFollowerCleanupWithoutActiveAlternatives() {
+        val historical = "3MH00000001"
+        NativeInputs.history += historical
+        NativeInputs.active.remove("3MH00000000")
+        SensorBluetooth.setCurrentSensorSelection(historical)
+        settings.invalidateSession(settings.session())
+        LumiflexFollowerRegistry.reconcile(app)
+        assertTrue(NativeInputs.active.isEmpty())
+        assertEquals(historical, NativeInputs.selected)
+        assertNull(ManagedCurrentSensor.get())
+        assertTrue(historical in NativeInputs.history)
+    }
+
+    @Test fun expiredFollowersShortNativeAliasIsNotPreservedAsAHistoricalPhysicalSensor() {
+        NativeInputs.reportShortSelection = true
+        settings.invalidateSession(settings.session())
+        LumiflexFollowerRegistry.reconcile(app)
+        assertEquals("3MH00000000", NativeInputs.selected)
+        assertNull(ManagedCurrentSensor.get())
+        assertFalse(serial in NativeInputs.active)
     }
 }

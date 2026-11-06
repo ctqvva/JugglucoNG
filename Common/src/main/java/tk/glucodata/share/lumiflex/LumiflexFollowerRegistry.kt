@@ -67,8 +67,10 @@ object LumiflexFollowerRegistry : ManagedSensorIdentityAdapter {
             if (removed && result == null && ManagedCurrentSensor.get() == null) {
                 val candidates = (SensorBluetooth.mygatts().map { it.SerialNumber } +
                     Natives.activeSensors().orEmpty().toList()).filterNot { it.startsWith(PREFIX, true) }
-                val selected = Natives.currentsensorname()
-                SensorBluetooth.setCurrentSensorSelection(candidates.firstOrNull { it.equals(selected, true) }
+                val selected = SensorIdentity.canonicalSensorId(Natives.currentsensorname())
+                // Historical dashboard targets need not be active or own a callback.
+                val historical = selected?.takeIf { !it.startsWith(PREFIX, true) && SensorIdentity.hasNativeSensorBacking(it) }
+                SensorBluetooth.setCurrentSensorSelection(historical ?: candidates.firstOrNull { it.equals(selected, true) }
                     ?: candidates.firstOrNull().orEmpty())
             } else SensorBluetooth.ensureCurrentSensorSelection()
             ManagedSensorUiSignals.markDeviceListDirty()
