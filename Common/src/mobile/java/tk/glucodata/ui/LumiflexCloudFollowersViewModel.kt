@@ -19,9 +19,11 @@ internal data class LumiflexFollowersUiState(
     val followers: List<FollowerInfo> = emptyList(),
     val loading: Boolean = false,
     val operation: FollowerOperation? = null,
+    val removalId: String? = null,
     val loadFailed: Boolean = false,
     val inviteError: Int? = null,
     val editorError: Int? = null,
+    val removeError: Int? = null,
     val notice: Int? = null,
     val emailMode: Boolean = false,
     val account: String = "",
@@ -78,8 +80,8 @@ class LumiflexCloudFollowersViewModel @JvmOverloads constructor(
     private fun discardStaleResult(expected: LumiflexCloudSettings.Session): Boolean {
         if (settings.isCurrent(expected)) return false
         // The server may have applied the old account's request. Do not offer to retry it as a failure.
-        mutableState.update { it.copy(operation = null, followers = emptyList(), editor = null,
-            account = "", alias = "", inviteError = null, editorError = null, notice = null) }
+        mutableState.update { it.copy(operation = null, removalId = null, followers = emptyList(), editor = null,
+            account = "", alias = "", inviteError = null, editorError = null, removeError = null, notice = null) }
         refresh()
         return true
     }
@@ -132,22 +134,24 @@ class LumiflexCloudFollowersViewModel @JvmOverloads constructor(
         }
     }
 
-    fun removeEditor() {
+    fun remove(id: String) {
         val input = state.value
-        val row = input.editor ?: return
+        val row = input.followers.find { it.userAuthorizationId == id } ?: return
         if (input.blocked) return
         val expected = settings.session()
-        mutableState.update { it.copy(operation = FollowerOperation.REMOVE, editorError = null) }
+        mutableState.update { it.copy(operation = FollowerOperation.REMOVE, removalId = id, removeError = null) }
         viewModelScope.launch {
             val confirmed = withContext(networkDispatcher) { manager.remove(row.userAuthorizationId) }
             if (discardStaleResult(expected)) return@launch
             mutableState.update {
                 if (confirmed) {
                     val remaining = it.followers.filterNot { old -> old.userAuthorizationId == row.userAuthorizationId }
-                    it.copy(operation = null, editor = remaining.singleOrNull(), followers = remaining,
+                    it.copy(operation = null, removalId = null,
+                        editor = if (it.editor?.userAuthorizationId == id || it.editor == null) remaining.singleOrNull() else it.editor,
+                        followers = remaining,
                         notice = R.string.lumiflex_status_removed)
                 }
-                else it.copy(operation = null, editorError = R.string.lumiflex_status_remove_failed)
+                else it.copy(operation = null, removalId = null, removeError = R.string.lumiflex_status_remove_failed)
             }
         }
     }

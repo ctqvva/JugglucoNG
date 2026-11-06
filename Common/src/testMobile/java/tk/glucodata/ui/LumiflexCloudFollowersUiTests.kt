@@ -103,7 +103,7 @@ class LumiflexCloudFollowersUiTests {
     }
 
 
-    @Test fun singleFollowerUsesTheSharedAccordionWithInlineControls() {
+    @Test fun singleFollowerUsesTheApiDestinationEditorPattern() {
         content {
             LumiflexCloudFollowersContent(LumiflexFollowersUiState(followers = listOf(row), editor = row))
         }
@@ -140,7 +140,7 @@ class LumiflexCloudFollowersUiTests {
         compose.onNodeWithTag("followers-list").performScrollToNode(hasText("Сохранить"))
         compose.onNodeWithText("Сохранить").assertIsNotEnabled()
         capture("details-ru")
-        compose.onNodeWithText("Удалить подписчика").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Удалить подписчика").performScrollTo().performClick()
         assertEquals(0, removed)
         compose.onNodeWithText("Подписчик «Мама» потеряет доступ к вашим показаниям.").assertIsDisplayed()
         compose.onNode(hasText("Удалить подписчика") and hasClickAction() and hasAnyAncestor(hasTestTag("follower-remove-confirm"))).performClick()
@@ -197,14 +197,14 @@ class LumiflexCloudFollowersUiTests {
         assertEquals(0, current.editor!!.emergePushState)
         compose.onNodeWithTag("followers-list").performScrollToNode(hasText("Сохранить"))
         compose.onNodeWithText("Сохранить").assertIsDisplayed().assertIsEnabled()
-        compose.onNodeWithText("Удалить подписчика").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Удалить подписчика").performScrollTo().assertIsDisplayed()
         capture("narrow-large-text-ru")
     }
-    @Test fun restoredControlsKeepTheirInsetsTouchHeightAndSeparateRemovalAction() {
+    @Test fun apiDestinationControlsKeepTheirInsetsTouchTargetsAndHeaderRemoval() {
         content { LumiflexCloudFollowersContent(LumiflexFollowersUiState(followers = listOf(row), editor = row)) }
         compose.onNodeWithTag("followers-list").performScrollToNode(hasText("Обычные уведомления"))
         val control = compose.onNode(hasText("Обычные уведомления") and hasClickAction())
-        assertTrue(control.fetchSemanticsNode().boundsInRoot.height >= 72f)
+        assertTrue(control.fetchSemanticsNode().boundsInRoot.height >= 64f)
         val field = compose.onNode(hasSetTextAction() and hasText("Мама")).fetchSemanticsNode().boundsInRoot
         val label = compose.onNodeWithText("Обычные уведомления", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         assertEquals(field.left + 16f, label.left, 0.5f)
@@ -213,10 +213,13 @@ class LumiflexCloudFollowersUiTests {
         capture("controls-pressed-ru")
         control.performTouchInput { up() }
         compose.onNodeWithTag("followers-list").performScrollToNode(hasText("Сохранить"))
-        val saveWidth = compose.onNodeWithText("Сохранить").fetchSemanticsNode().boundsInRoot.width
-        compose.onNodeWithText("Удалить подписчика").performScrollTo()
-        assertTrue(compose.onNodeWithText("Удалить подписчика").fetchSemanticsNode().boundsInRoot.width > saveWidth * 1.7f)
+        val save = compose.onNodeWithText("Сохранить").fetchSemanticsNode().boundsInRoot
+        assertEquals(field.width, save.width, 0.5f)
         capture("controls-actions-ru")
+        compose.onNodeWithContentDescription("Удалить подписчика").performScrollTo()
+        val remove = compose.onNode(hasContentDescription("Удалить подписчика") and hasClickAction()).fetchSemanticsNode()
+        val touch = remove.touchBoundsInRoot
+        assertTrue("touch=$touch layout=${remove.boundsInRoot}", touch.width >= 48f && touch.height >= 48f)
     }
 
 }

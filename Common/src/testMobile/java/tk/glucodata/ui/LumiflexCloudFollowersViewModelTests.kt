@@ -95,7 +95,7 @@ class LumiflexCloudFollowersViewModelTests {
         val model = model(transport)
         model.edit(row)
         model.editChanged(row.copy(hideState = 1))
-        transport.onPost = { model.saveEditor(); model.removeEditor(); model.dismissEditor() }
+        transport.onPost = { model.saveEditor(); model.remove(row.userAuthorizationId); model.dismissEditor() }
         model.saveEditor()
         ShadowLooper.idleMainLooper()
         assertEquals(1, transport.posts)
@@ -121,12 +121,12 @@ class LumiflexCloudFollowersViewModelTests {
         val transport = Transport().apply { failPost = true }
         val model = model(transport)
         model.edit(row)
-        model.removeEditor()
+        model.remove(row.userAuthorizationId)
         ShadowLooper.idleMainLooper()
         assertEquals(listOf(row), model.state.value.followers)
         assertNotNull(model.state.value.editor)
         transport.failPost = false
-        model.removeEditor()
+        model.remove(row.userAuthorizationId)
         ShadowLooper.idleMainLooper()
         assertTrue(model.state.value.followers.isEmpty())
         assertNull(model.state.value.editor)
@@ -203,18 +203,48 @@ class LumiflexCloudFollowersViewModelTests {
             when (operation) {
                 FollowerOperation.INVITE -> model.invite()
                 FollowerOperation.SAVE -> model.saveEditor()
-                FollowerOperation.REMOVE -> model.removeEditor()
+                FollowerOperation.REMOVE -> model.remove(row.userAuthorizationId)
             }
             ShadowLooper.idleMainLooper()
             assertEquals(1, transport.posts)
             assertFalse(model.state.value.busy)
             assertNull(model.state.value.inviteError)
             assertNull(model.state.value.editorError)
+            assertNull(model.state.value.removeError)
             assertTrue(model.state.value.followers.isEmpty())
             assertNull(model.state.value.editor)
             assertEquals("", model.state.value.account)
             assertNull(model.state.value.notice)
         }
+    }
+
+    @Test fun removingACollapsedFollowerPreservesAnotherFollowersUnsavedEdits() {
+        val transport = Transport().apply {
+            listBody = """{"code":200,"data":[{"userAuthorizationId":"a1","dataProviderId":"u1","readerUserName":"79991234567","readerAlias":"Mum","normalPushState":1,"emergePushState":1},{"userAuthorizationId":"a2","dataProviderId":"u1","readerUserName":"family@example.org"}]}"""
+        }
+        val model = model(transport)
+        model.edit(row)
+        val draft = row.copy(readerAlias = "Family")
+        model.editChanged(draft)
+        model.remove("a2")
+        ShadowLooper.idleMainLooper()
+        assertEquals("a2", transport.lastBody.getJSONArray("ids").getString(0))
+        assertEquals(draft, model.state.value.editor)
+        assertEquals(row, model.state.value.followers.single())
+    }
+
+    @Test fun aCollapsedFollowersFailedRemovalIsVisibleWithoutOpeningAnEditor() {
+        val transport = Transport().apply {
+            failPost = true
+            listBody = """{"code":200,"data":[{"userAuthorizationId":"a1","dataProviderId":"u1","readerUserName":"79991234567"},{"userAuthorizationId":"a2","dataProviderId":"u1","readerUserName":"family@example.org"}]}"""
+        }
+        val model = model(transport)
+        assertNull(model.state.value.editor)
+        model.remove("a2")
+        ShadowLooper.idleMainLooper()
+        assertEquals(2, model.state.value.followers.size)
+        assertEquals(R.string.lumiflex_status_remove_failed, model.state.value.removeError)
+        assertNull(model.state.value.editor)
     }
 
 }
