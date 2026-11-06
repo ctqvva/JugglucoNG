@@ -1114,9 +1114,14 @@ object CalibrationManager {
         persistDismissedJournalTimestamps(readDismissedJournalTimestamps() + timestamps)
     }
 
-    private fun undismissJournalTimestamps(timestamps: Collection<Long>) {
+    /**
+     * Only a derived point gives its moment back. A manual one holds the entry off
+     * by itself, and the moment it shares may be a removal made on another sensor.
+     */
+    private fun undismissJournalTimestamps(restored: Collection<CalibrationEntity>) {
+        val timestamps = restored.filter { it.journalEntryId != null }.mapTo(hashSetOf()) { it.timestamp }
         val stored = readDismissedJournalTimestamps()
-        if (stored.any { it in timestamps }) persistDismissedJournalTimestamps(stored - timestamps.toSet())
+        if (stored.any { it in timestamps }) persistDismissedJournalTimestamps(stored - timestamps)
     }
 
     fun setWeightMode(mode: CalibrationWeightMode) {
@@ -1511,7 +1516,7 @@ object CalibrationManager {
 
     suspend fun restoreCalibration(entity: CalibrationEntity) {
         JournalCalibrationSync.betweenSyncs {
-            undismissJournalTimestamps(listOf(entity.timestamp))
+            undismissJournalTimestamps(listOf(entity))
             withContext(Dispatchers.IO) { dao.insert(entity) }
             loadCalibrations()
         }
@@ -1768,7 +1773,7 @@ object CalibrationManager {
 
     suspend fun restoreAll(calibrations: List<CalibrationEntity>) {
         JournalCalibrationSync.betweenSyncs {
-            undismissJournalTimestamps(calibrations.map { it.timestamp })
+            undismissJournalTimestamps(calibrations)
             withContext(Dispatchers.IO) { dao.insertAll(calibrations) }
             loadCalibrations()
         }

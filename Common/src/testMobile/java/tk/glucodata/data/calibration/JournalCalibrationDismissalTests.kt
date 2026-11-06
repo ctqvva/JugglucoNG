@@ -144,6 +144,35 @@ class JournalCalibrationDismissalTests {
     }
 
     @Test
+    fun undoingAManualPointKeepsARemovalMadeAtTheSameMoment() = runBlocking {
+        sync(first)
+        CalibrationManager.deleteCalibration(row(1L))
+        // A corrected point keeps its entry's exact time, here on the other sensor.
+        CalibrationManager.addCalibration(first.timestamp, 100f, 96f, 118f, sensorId = "OTTAI-2")
+        val manual = rows.single()
+
+        CalibrationManager.deleteCalibration(manual)
+        CalibrationManager.restoreCalibration(manual)
+        sync(first)
+
+        assertEquals(manual, rows.single())
+    }
+
+    @Test
+    fun undoOfClearAllKeepsARemovalMadeAtTheSameMoment() = runBlocking {
+        sync(first)
+        CalibrationManager.deleteCalibration(row(1L))
+        CalibrationManager.addCalibration(first.timestamp, 100f, 96f, 118f, sensorId = "OTTAI-2")
+        val manual = rows.single()
+
+        CalibrationManager.clearAll()
+        CalibrationManager.restoreAll(listOf(manual))
+        sync(first)
+
+        assertEquals(manual, rows.single())
+    }
+
+    @Test
     fun removingAManualPointDoesNotLetTheEntryBesideItTakeOver() = runBlocking {
         CalibrationManager.addCalibration(first.timestamp + 20_000L, 100f, 96f, 118f, sensorId = sensor)
         sync(first)
