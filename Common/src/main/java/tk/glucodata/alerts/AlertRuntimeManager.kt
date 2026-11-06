@@ -38,7 +38,9 @@ object AlertRuntimeManager {
     private var preHighCoverageSkipLogged: String? = null
     private val standardEpisodes = AlertEpisodeState<AlertType>()
     private val sensorExpiryState = SensorExpiryAlertState(AlertRepository.sensorExpiryWarnedStore)
-    private val signalRestoredState = SignalRestoredAlertState()
+    private val signalRestoredState by lazy {
+        SignalRestoredAlertState(SignalRestoredReadingPreferences(Applic.app))
+    }
     private val fallingDeltaState = DeltaAlarmState(falling = true)
     private val risingDeltaState = DeltaAlarmState(falling = false)
     private val calibrationReadingBarrier = ReadingTimestampBarrier()
@@ -160,12 +162,12 @@ object AlertRuntimeManager {
                 // checks remain in the normal delivery gate; a suppressed edge is
                 // consumed now, never announced late on an ordinary later reading.
                 clearRuntimeAlert(AlertType.SIGNAL_RESTORED, "signal-restored-new-episode")
-                if (!evaluation.standardGlucoseAlertStarted) {
-                    triggerMessageAlert(
-                        AlertType.SIGNAL_RESTORED,
-                        Applic.app.getString(R.string.alert_signal_restored)
-                    )
-                }
+                // Notify arbitrates on its delivery looper, after every alert family
+                // evaluated above, before changing notification/audio/retry ownership.
+                triggerMessageAlert(
+                    AlertType.SIGNAL_RESTORED,
+                    Applic.app.getString(R.string.alert_signal_restored)
+                )
             }
             return evaluation
         }

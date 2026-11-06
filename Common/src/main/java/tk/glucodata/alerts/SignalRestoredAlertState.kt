@@ -3,15 +3,21 @@ package tk.glucodata.alerts
 import tk.glucodata.SensorIdentity
 
 /** A data recovery edge, rather than GATT CONNECTED (which may never produce data). */
-internal class SignalRestoredAlertState {
+internal class SignalRestoredAlertState(private val store: SignalRestoredReadingStore? = null) {
     private var sensorId: String? = null
     private var lastReadingMs = 0L
 
-    /** Seed once from the persisted current reading so a process restart retains the gap. */
+    init {
+        store?.load()?.let {
+            sensorId = it.sensorId
+            lastReadingMs = it.readingMs
+        }
+    }
+
+    /** Upgrade fallback only: a display snapshot must not overwrite the durable baseline. */
     fun seed(id: String?, readingMs: Long) {
         if (lastReadingMs == 0L && !id.isNullOrBlank() && readingMs > 0L) {
-            sensorId = id
-            lastReadingMs = readingMs
+            remember(id, readingMs)
         }
     }
 
@@ -19,13 +25,18 @@ internal class SignalRestoredAlertState {
         if (id.isNullOrBlank() || readingMs <= 0L || readingMs > nowMs) return false
         if (sensorId == null || !SensorIdentity.matches(id, sensorId)) {
             // A first connection or a different main sensor is not a restoration.
-            sensorId = id
-            lastReadingMs = readingMs
+            remember(id, readingMs)
             return false
         }
         if (readingMs <= lastReadingMs || nowMs - readingMs > freshnessMs) return false
         val restored = lossWaitMs > 0L && nowMs - lastReadingMs >= lossWaitMs
-        lastReadingMs = readingMs
+        remember(id, readingMs)
         return restored
+    }
+
+    private fun remember(id: String, readingMs: Long) {
+        sensorId = id
+        lastReadingMs = readingMs
+        store?.save(SignalRestoredReading(id, readingMs))
     }
 }

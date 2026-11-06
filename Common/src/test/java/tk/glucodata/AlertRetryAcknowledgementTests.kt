@@ -9,6 +9,77 @@ import org.junit.Test
 
 /** Execute Notify's retry callbacks unchanged with a controllable main-thread queue. */
 class AlertRetryAcknowledgementTests {
+    @Test fun recoveryCannotReplaceAnyOtherFamilyDeliveredOnTheSameReading() {
+        for (kind in listOf(0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13)) {
+            val h = harness()
+            invoke(h, "startEmpty")
+            queue(h, kind)
+            queue(h, 14)
+            invoke(h, "drain")
+            assertEquals("kind=$kind", listOf("start:$kind", "end:$kind"),
+                compiled.getField("deliveries").get(h))
+            assertEquals(1, compiled.getMethod("firings").invoke(h))
+            assertEquals(kind, compiled.getMethod("sessionKind").invoke(h))
+        }
+    }
+
+    @Test fun recoveryPreservesAnExistingRetryOwnerWithoutCountingAFiring() {
+        val h = harness() // An outstanding high retry, with no notification/audio yet.
+        queue(h, 14)
+        invoke(h, "drain")
+        assertEquals(0, count(h))
+        assertEquals(0, compiled.getMethod("firings").invoke(h))
+        assertEquals(1, compiled.getMethod("sessionKind").invoke(h))
+    }
+
+    @Test fun recoveryCannotReplaceAVisibleSilentAlertOrSoundWithoutANotification() {
+        for (field in listOf("presentedStandardAlertKind", "lastalarm")) {
+            val h = harness()
+            invoke(h, "startEmpty")
+            compiled.getField(field).setInt(null, 12)
+            queue(h, 14)
+            invoke(h, "drain")
+            assertEquals(field, 0, count(h))
+            assertEquals(12, compiled.getField(field).getInt(null))
+        }
+        for (field in listOf("presentedCustomAlert", "alarmUiVisible")) {
+            val h = harness()
+            invoke(h, "startEmpty")
+            compiled.getField(field).setBoolean(null, true)
+            queue(h, 14)
+            invoke(h, "drain")
+            assertEquals(field, 0, count(h))
+        }
+    }
+
+    @Test fun recoveryRetryCannotInterruptAnAlertThatArrivedAfterItsFirstDelivery() {
+        val h = harness()
+        invoke(h, "startEmpty")
+        queue(h, 14)
+        invoke(h, "drain")
+        assertEquals(1, count(h))
+        compiled.getField("presentedCustomAlert").setBoolean(null, true)
+        compiled.getMethod("timerFor", Int::class.javaPrimitiveType).invoke(h, 14)
+        invoke(h, "drain")
+        assertEquals(1, count(h))
+        assertEquals(-1, compiled.getMethod("sessionKind").invoke(h))
+    }
+
+    @Test fun recoveryMayReplaceLossAndHigherAlertsMayReplaceRecovery() {
+        val h = harness()
+        invoke(h, "startEmpty")
+        invoke(h, "loss")
+        invoke(h, "drain")
+        queue(h, 14)
+        invoke(h, "drain")
+        assertEquals(1, count(h))
+        assertEquals(14, compiled.getMethod("sessionKind").invoke(h))
+        queue(h, 0)
+        invoke(h, "drain")
+        assertEquals(2, count(h))
+        assertEquals(0, compiled.getMethod("sessionKind").invoke(h))
+    }
+
     @Test fun dismissalAfterTimerButBeforeMainDeliveryDropsTheRetry() {
         val h = harness()
         invoke(h, "timer")
@@ -163,6 +234,8 @@ class AlertRetryAcknowledgementTests {
     private fun harness() = compiled.getConstructor().newInstance().also { invoke(it, "start") }
     private fun invoke(h: Any, method: String) { compiled.getMethod(method).invoke(h) }
     private fun count(h: Any) = compiled.getField("delivered").getInt(h)
+    private fun queue(h: Any, kind: Int) =
+        compiled.getMethod("queueKind", Int::class.javaPrimitiveType).invoke(h, kind)
 
     companion object {
         private var scratch: File? = null
@@ -201,6 +274,8 @@ class AlertRetryAcknowledgementTests {
                 "public static void testTrigger(int kind)",
                 "private static void runOnAlertThread(Runnable task)",
                 "private static void fireRetrySession(int expectedKind, long expectedGeneration)",
+                "private static boolean isRecoveryBlocker(int kind)",
+                "private static boolean suppressRecoveryDelivery(int kind)",
                 "private static void deliverRetrySession(int expectedKind, long expectedGeneration)",
                 "private void deliverInitialAlert(int kind, float value, String message, notGlucose glucose,",
                 "private void syncRetrySession(int kind, float glvalue, String message, notGlucose strglucose, String type,",
@@ -234,7 +309,9 @@ class AlertRetryAcknowledgementTests {
                     public java.util.List<String> deliveries = new ArrayList<>();
                     public boolean interleave;
                     public boolean ownerStayedHigh;
-                    static int presentedStandardAlertKind = -1;
+                    public static int presentedStandardAlertKind = -1;
+                    public static int lastalarm = -1;
+                    public static boolean presentedCustomAlert, alarmUiVisible;
                     public int soundingKind = -1;
                     public int lossSounds;
                     public boolean saidloss;
@@ -375,6 +452,11 @@ class AlertRetryAcknowledgementTests {
                     static String format(Object locale, String format, float value) { return "" + value; }
                     static notGlucose copyGlucoseSnapshot(notGlucose original, float value) { return new notGlucose(); }
                     void deliverTriggeredAlert(int kind, float glucose, String text, notGlucose snapshot, String type) {
+                        // Recording notification/audio sinks; the ownership/gating methods
+                        // above are compiled unchanged from production Notify.
+                        presentedStandardAlertKind = kind;
+                        presentedCustomAlert = false;
+                        lastalarm = kind;
                         deliveries.add("start:" + kind);
                         if (interleave && kind == 1) {
                             interleave = false;
@@ -393,6 +475,9 @@ class AlertRetryAcknowledgementTests {
                         Notify.onenot = this;
                         activeRetrySession = new AlertRetrySession(1, 180, new notGlucose(), "High 180", "HIGH", 1);
                         retrySessionSchedule = new Future(); scheduled = true;
+                        presentedStandardAlertKind = lastalarm = -1;
+                        presentedCustomAlert = alarmUiVisible = false;
+                        AlertStateTracker.INSTANCE.firings = 0;
                     }
                     public void cancel() { cancelRetrySessionLocked("dismiss"); }
                     public void timer() { fireRetrySession(1, retryGeneration); }
@@ -422,7 +507,12 @@ class AlertRetryAcknowledgementTests {
                         AlertStateTracker.INSTANCE.pending = false;
                         AlertStateTracker.INSTANCE.manual = false;
                         AlertStateTracker.INSTANCE.firings = 0;
+                        presentedStandardAlertKind = lastalarm = -1;
+                        presentedCustomAlert = alarmUiVisible = false;
                     }
+                    public void queueKind(int kind) { deliverInitialAlert(kind, 180, "Alert", new notGlucose(), "ALERT", new AlertConfig(), true); }
+                    public int sessionKind() { return activeRetrySession == null ? -1 : activeRetrySession.kind; }
+                    public void timerFor(int kind) { fireRetrySession(kind, retryGeneration); }
                     public void queueHigh() { deliverInitialAlert(1, 180, "High", new notGlucose(), "HIGH", new AlertConfig(), true); }
                     public void highFalling() { cancelRetrySession(1, "high-falling"); }
                     public void cancelLow() { cancelRetrySession(0, "resolved"); }
