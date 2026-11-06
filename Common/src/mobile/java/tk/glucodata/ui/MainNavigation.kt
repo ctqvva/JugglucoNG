@@ -1007,6 +1007,8 @@ private fun NavGraphBuilder.appDestinations(
     composable("settings/mirror") { MirrorSettingsScreen(navController) }
     composable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
     composable("settings/dexcom-share") { DexcomShareSettingsScreen(navController) }
+    composable("settings/ican-health") { ICanHealthCloudSettingsScreen(navController) }
+    composable("settings/ican-health/followers") { ICanHealthCloudFollowersScreen(navController) }
     composable("settings/lumiflex") { LumiflexCloudSettingsScreen(navController) }
     composable("settings/lumiflex/followers") { LumiflexCloudFollowersScreen(navController) }
     composable("settings/api-source") { ApiSourceSettingsScreen(navController) }

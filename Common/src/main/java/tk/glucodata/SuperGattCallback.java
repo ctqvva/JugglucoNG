@@ -913,12 +913,15 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         final boolean outboundApiEnabled = OutboundApiSettings.isEnabled(app);
         // Credentials and the pending queue live on the phone, so the watch never sends.
         final boolean dexcomShareEnabled = !isWearable && DexcomShareSettings.isEnabled(app);
+        final boolean icanHealthEnabled = !isWearable
+                && tk.glucodata.share.ican.ICanHealthCloudSettings.isEnabled(app);
         final boolean followerFeedEnabled = !isWearable && XdripFollowerSend.isEnabled(app);
         final boolean loopFeedEnabled = Natives.getxbroadcast() || (!isWearable && Natives.getlibrelinkused());
         final boolean shouldResolveExchangePayload =
                 Natives.getJugglucobroadcast()
                 || outboundApiEnabled
                 || dexcomShareEnabled
+                || icanHealthEnabled
                 || (shouldBroadcastMinuteUpdate && (
                         loopFeedEnabled
                         || followerFeedEnabled
@@ -942,7 +945,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 !isWearable && doGadgetbridge,
                 loopFeedEnabled,
                 dexcomShareEnabled,
-                followerFeedEnabled);
+                followerFeedEnabled,
+                icanHealthEnabled);
         // The loop feed shares the same payload JUGGLUCO/OUTBOUND_API get: it is resolved from the
         // same gl/rate/timmsec this call received, so reusing it can never carry a stale timestamp.
         final ExchangeGlucosePayload loopFeedPayload = exchangeOutputDecision.getSendLoopFeed()
@@ -974,6 +978,12 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     exchangePayload.getPrimaryMgdl(),
                     exchangePayload.getTrendIndex(),
                     exchangePayload.getTimeMillis());
+        if (exchangeOutputDecision.getSendICanHealth())
+            tk.glucodata.share.ican.ICanHealthCloudUploader.onLiveReading(
+                    exchangePayload.getSensorId(),
+                    exchangePayload.getTimeMillis(),
+                    exchangePayload.getPrimaryMgdl(),
+                    exchangePayload.getTrendIndex());
         // Readings travel to whichever device is not holding the sensor, so the
         // watch pushes too when it is the one reading. A reading that arrived
         // from the peer is not sent straight back.

@@ -126,7 +126,7 @@ def main(path):
     for ts, direction, pdu in att_pdus(path):
         if len(pdu) < 3:
             continue
-        op = pdu[0] & 0x3f
+        op = pdu[0]
         if op == 0x1d and struct.unpack('<H', pdu[1:3])[0] == 0x0024:
             val = pdu[3:]
             if val[:3] == b'\x06\xf3\x01' and len(val) >= 7:
