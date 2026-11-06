@@ -1,6 +1,7 @@
 package tk.glucodata.data.calibration
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -32,9 +33,51 @@ class CalibrationPointChangesTests {
         assertEquals(listOf(edited), changes.arrived)
     }
 
-    @Test fun disablingAPointTakesItOutOfForce() {
+    @Test fun switchingAPointOffOrOnIsNotARemoval() {
         val disabled = point(enabled = false)
-        assertEquals(listOf(point()), CalibrationPointChanges.between(listOf(point()), listOf(disabled)).gone)
+        assertTrue(CalibrationPointChanges.between(listOf(point()), listOf(disabled)).isEmpty)
+        assertTrue(CalibrationPointChanges.between(listOf(disabled), listOf(point())).isEmpty)
+    }
+
+    @Test fun makingAJournalPointTheUsersOwnChangesItsLanes() {
+        val journal = point().copy(journalEntryId = 7L)
+        assertEquals(listOf(journal), CalibrationPointChanges.between(listOf(journal), listOf(point())).gone)
+    }
+
+    @Test fun theJournalEntryAPointCameFromDoesNotMatter() {
+        val journal = point().copy(journalEntryId = 7L)
+        assertTrue(CalibrationPointChanges.between(listOf(journal), listOf(journal.copy(journalEntryId = 8L))).isEmpty)
+    }
+
+    @Test fun aNewStockValueMovesThePointInAnIntegratingFit() {
+        val restocked = point().copy(sensorValueStock = 95f)
+        assertEquals(listOf(point()), CalibrationPointChanges.between(listOf(point()), listOf(restocked)).gone)
+    }
+
+    @Test fun removingAPointFromOneSensorWhileAnotherKeepsItIsARemoval() {
+        val other = point(id = 2).copy(sensorId = "B")
+        assertEquals(listOf(point()), CalibrationPointChanges.between(listOf(point(), other), listOf(other)).gone)
+    }
+
+    @Test fun reFilingOneOfTwoSensorsCopiesIsNotARemoval() {
+        val other = point(id = 2).copy(sensorId = "B")
+        val moved = point().copy(sensorId = "A#archive")
+        assertTrue(CalibrationPointChanges.between(listOf(point(), other), listOf(moved, other)).isEmpty)
+    }
+
+    @Test fun anOlderReadCannotFollowANewerOne() {
+        val order = CalibrationLoadOrder()
+        val older = order.begin()
+        val newer = order.begin()
+        assertTrue(order.mayApply(newer))
+        assertFalse(order.mayApply(older))
+        assertTrue(order.mayApply(order.begin()))
+    }
+
+    @Test fun readsInOrderAllApply() {
+        val order = CalibrationLoadOrder()
+        assertTrue(order.mayApply(order.begin()))
+        assertTrue(order.mayApply(order.begin()))
     }
 
     @Test fun aChangeOfDisplayUnitIsNotACalibrationChange() {

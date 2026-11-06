@@ -95,6 +95,75 @@ class CalibrationRecordReleaseTests {
     }
 
     @Test
+    fun theLimitIsThePointsArrivalNotItsTimestamp() = runBlocking {
+        // The report: the point sat in the past and its offset reached the
+        // minutes after it, which are the ones that sealed.
+        val afterThePoint = now - 6 * HOUR
+        val beforeThePoint = now - 10 * HOUR
+        addPastCalibration(atMs = now - 8 * HOUR)
+        val later = System.currentTimeMillis() + MINUTE
+        display.sealAll(listOf(record(afterThePoint, 118f, later), record(beforeThePoint, 118f, later)))
+
+        removeCalibration()
+
+        assertEquals(emptyMap<Long, Float>(), recorded())
+    }
+
+    @Test
+    fun switchingAPointOffLeavesItsRecordsAndRemovingItLaterTakesThem() = runBlocking {
+        val hole = now - 6 * HOUR
+        addPastCalibration()
+        display.sealAll(listOf(record(hole, 118f, recordedAt = System.currentTimeMillis() + MINUTE)))
+
+        val point = CalibrationManager.calibrations.value.single()
+        CalibrationManager.updateCalibration(point.copy(isEnabled = false))
+        assertEquals(mapOf(hole to 118f), recorded())
+        CalibrationManager.updateCalibration(point.copy(isEnabled = true))
+        assertEquals(mapOf(hole to 118f), recorded())
+
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
+        assertEquals(emptyMap<Long, Float>(), recorded())
+    }
+
+    @Test
+    fun twoSensorsSharingAPointEachKeepTheirOwnRecord() = runBlocking {
+        val ottaiHole = now - 6 * HOUR
+        val aidexHole = now - 5 * HOUR
+        val at = now - 8 * HOUR
+        addPastCalibration(atMs = at, serial = OTTAI)
+        // Recorded before the second sensor got the point: each keeps its own arrival.
+        val betweenTheArrivals = System.currentTimeMillis()
+        Thread.sleep(5)
+        addPastCalibration(atMs = at, serial = AIDEX)
+        val later = System.currentTimeMillis() + MINUTE
+        display.sealAll(listOf(
+            record(ottaiHole, 118f, betweenTheArrivals, serial = OTTAI),
+            record(aidexHole, 118f, later, serial = AIDEX),
+        ))
+
+        removeCalibration(OTTAI)
+        assertEquals(mapOf(aidexHole to 118f), recorded())
+
+        removeCalibration(AIDEX)
+        assertEquals(emptyMap<Long, Float>(), recorded())
+    }
+
+    @Test
+    fun twoPointsAtTheSameMomentDoNotLoseEachOthersArrival() = runBlocking {
+        val hole = now - 6 * HOUR
+        val at = now - 8 * HOUR
+        CalibrationManager.addCalibration(at, 100f, 90f, 138f, sensorId = OTTAI)
+        CalibrationManager.addCalibration(at, 100f, 90f, 150f, sensorId = OTTAI)
+        val later = System.currentTimeMillis() + MINUTE
+
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.first { it.userValue == 138f })
+        display.sealAll(listOf(record(hole, 118f, later)))
+
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
+        assertEquals(emptyMap<Long, Float>(), recorded())
+    }
+
+    @Test
     fun aMinuteLivedThroughUnderTheCalibrationStaysLocked() = runBlocking {
         addPastCalibration()
         val lived = now + 2 * MINUTE

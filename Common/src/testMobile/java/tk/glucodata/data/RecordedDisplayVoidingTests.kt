@@ -35,6 +35,11 @@ class RecordedDisplayVoidingTests {
             RecordedDisplayVoiding.minutesOfCalibratedLane(records, SERIAL, rawLane = true, autoLane = true))
     }
 
+    @Test fun aPointWithNoSensorAnswersForNothing() {
+        assertEquals(emptyList<Long>(), RecordedDisplayVoiding.minutesOfCalibratedLane(
+            listOf(record(0, 100f)), " ", rawLane = true, autoLane = true))
+    }
+
     @Test fun changedSourcesInvalidateTheirOwnRecords() {
         val records = listOf(record(0, 99f), record(1, 106f), record(2, 119f))
         val before = listOf(reading(0, 100f), reading(1, 104f), reading(2, 108f))

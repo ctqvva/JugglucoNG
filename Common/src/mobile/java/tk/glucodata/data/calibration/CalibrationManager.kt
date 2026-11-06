@@ -51,6 +51,7 @@ object CalibrationManager {
     private const val KEY_WEIGHT_MODE = "calibration_weight_mode"
     private const val KEY_PROFILE_REVISION_PREFIX = "calibration_profile_revision_"
     private const val KEY_POINT_ADDED_AT_PREFIX = "calibration_point_added_at_"
+    private val calibrationLoadOrder = CalibrationLoadOrder()
     private const val HOUR_MS = 3_600_000.0
     private const val PAST_BLEND_WINDOW_MS = 30L * 60L * 1000L
     private const val INTEGRATED_ANCHOR_MATCH_MS = 2L * 60L * 1000L
@@ -1359,6 +1360,7 @@ object CalibrationManager {
     
     suspend fun loadCalibrations() {
         if (::dao.isInitialized) {
+            val load = calibrationLoadOrder.begin()
             val list = withContext(Dispatchers.IO) {
                 migrateCalibrationSensorIdsIfPossible()
                 dao.labelLegacyUnits(if (Applic.unit == 1) 1 else 0)
@@ -1366,6 +1368,7 @@ object CalibrationManager {
             }
             var previous: List<CalibrationEntity>? = null
             val changed = synchronized(boundaryLock) {
+                if (!calibrationLoadOrder.mayApply(load)) return@synchronized false
                 val relabeled = relabelBeforeBoundaries(list)
                 if (calibrationStateLoaded && _calibrations.value == relabeled) {
                     false
@@ -1393,7 +1396,8 @@ object CalibrationManager {
     }
 
     private fun pointAddedAtKey(point: CalibrationEntity) =
-        "$KEY_POINT_ADDED_AT_PREFIX${point.timestamp}_${if (point.isRawMode) "raw" else "auto"}"
+        "$KEY_POINT_ADDED_AT_PREFIX${normalizeSensorId(point.sensorId)}_${point.timestamp}_" +
+            if (point.isRawMode) "raw" else "auto"
 
     /**
      * Notes when each point arrived, and takes back what a departed one wrote
@@ -1413,7 +1417,9 @@ object CalibrationManager {
         val addedAt = changes.gone.associateWith { prefs.getLong(pointAddedAtKey(it), 0L) }
         val now = System.currentTimeMillis()
         prefs.edit().apply {
-            changes.gone.forEach { remove(pointAddedAtKey(it)) }
+            // A second point at the same moment still needs the entry.
+            val stillHeld = after.mapTo(HashSet()) { pointAddedAtKey(it) }
+            changes.gone.map { pointAddedAtKey(it) }.filterNot { it in stillHeld }.forEach { remove(it) }
             changes.arrived.forEach { putLong(pointAddedAtKey(it), now) }
         }.apply()
 

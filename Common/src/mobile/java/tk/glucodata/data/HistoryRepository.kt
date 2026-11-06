@@ -2378,8 +2378,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
      * in a two-sensor store, because it releases one sensor's minutes and leaves
      * holes along exactly that sensor's ownership.
      *
-     * Only those minutes are released: older than the calibration, and recorded
-     * since it was added. A minute recorded before it arrived never carried it.
+     * Only those minutes are released: from before the moment the calibration
+     * was added, and recorded since. That is its arrival, not the point's own
+     * timestamp: the point can sit anywhere in the past and reaches the minutes
+     * after it. A minute recorded before it arrived never carried it.
      * A minute lived through while it was in force was shown that way as it
      * happened, and stays. The lock does not apply, since it protects what was
      * seen, and this is a value that no longer has any standing. Released minutes

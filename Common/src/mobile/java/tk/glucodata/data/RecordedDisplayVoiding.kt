@@ -57,16 +57,22 @@ object RecordedDisplayVoiding {
      * A record belongs to whichever sensor won its minute, and in a two-sensor
      * store the other sensor's minutes sit between these. A calibration says
      * nothing about them, so they are never released on its account.
+     *
+     * A point with no sensor applies to none, and [SensorIdentity.matches] reads
+     * a blank expectation as "any", so it is answered here.
      */
     fun minutesOfCalibratedLane(
         records: List<ReadingDisplay>,
         sensorId: String,
         rawLane: Boolean,
         autoLane: Boolean,
-    ): List<Long> = records.mapNotNull { record ->
-        if (!tk.glucodata.SensorIdentity.matches(record.sensorSerial, sensorId)) return@mapNotNull null
-        val raw = record.viewMode == 1 || record.viewMode == 3
-        record.timestamp.takeIf { if (raw) rawLane else autoLane }
+    ): List<Long> {
+        if (sensorId.isBlank()) return emptyList()
+        return records.mapNotNull { record ->
+            if (!tk.glucodata.SensorIdentity.matches(record.sensorSerial, sensorId)) return@mapNotNull null
+            val raw = record.viewMode == 1 || record.viewMode == 3
+            record.timestamp.takeIf { if (raw) rawLane else autoLane }
+        }
     }
 
     /**

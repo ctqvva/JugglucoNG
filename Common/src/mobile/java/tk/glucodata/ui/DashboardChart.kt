@@ -1703,6 +1703,9 @@ fun InteractiveGlucoseChart(
         visibleDuration,
         renderViewMode,
         chartModel,
+        // Separately from the model: a change that redraws nothing leaves an
+        // equal model, and a write under the old revision is refused.
+        renderedInputs.calibrationRevision,
     ) {
         if (!isResumed || renderData.isEmpty()) return@LaunchedEffect
         kotlinx.coroutines.delay(PresentedMinuteRecorder.SETTLE_MS)
