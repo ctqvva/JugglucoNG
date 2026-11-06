@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
@@ -16,6 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -127,7 +129,7 @@ internal fun LumiflexCloudFollowersContent(
                         else -> CardPosition.MIDDLE
                     },
                 ) {
-                    LumiflexFollowerEditor(state, draft ?: row, actions, onRemove = { remove = true })
+                    LumiflexFollowerEditor(state, draft ?: row, actions, onCancel = { select(null) }, onRemove = { remove = true })
                 }
                 if (index != state.followers.lastIndex) Spacer(Modifier.height(2.dp))
             }
@@ -189,54 +191,63 @@ internal fun LumiflexInviteForm(state: LumiflexFollowersUiState, actions: Lumifl
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LumiflexFollowerEditor(
-    state: LumiflexFollowersUiState, row: FollowerInfo, actions: LumiflexFollowerActions, onRemove: () -> Unit,
+    state: LumiflexFollowersUiState, row: FollowerInfo, actions: LumiflexFollowerActions,
+    onCancel: () -> Unit, onRemove: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().testTag("follower-editor")) {
+    // The shared accordion supplies 16dp horizontally and 12dp vertically; complete the 16dp body inset.
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).testTag("follower-editor")) {
         OutlinedTextField(row.readerAlias, { actions.editChanged(row.copy(readerAlias = it)) },
             modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.lumiflex_nickname_optional)) },
             singleLine = true, enabled = !state.blocked)
         SectionLabel(stringResource(R.string.lumiflex_follower_alerts))
-        FollowerSetting(stringResource(R.string.lumiflex_regular_reminders), row.normalPushState == 1, !state.blocked) {
-            actions.editChanged(row.copy(normalPushState = if (it) 1 else 0))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            FollowerSetting(stringResource(R.string.lumiflex_regular_reminders), row.normalPushState == 1,
+                !state.blocked, CardPosition.TOP) {
+                actions.editChanged(row.copy(normalPushState = if (it) 1 else 0))
+            }
+            FollowerSetting(stringResource(R.string.lumiflex_urgent_low), row.emergePushState == 1,
+                !state.blocked, CardPosition.MIDDLE) {
+                actions.editChanged(row.copy(emergePushState = if (it) 1 else 0))
+            }
+            FollowerSetting(stringResource(R.string.lumiflex_extreme_high), row.extremeHighPushState == 1,
+                !state.blocked, CardPosition.BOTTOM) {
+                actions.editChanged(row.copy(extremeHighPushState = if (it) 1 else 0))
+            }
         }
-        FollowerSetting(stringResource(R.string.lumiflex_urgent_low), row.emergePushState == 1, !state.blocked) {
-            actions.editChanged(row.copy(emergePushState = if (it) 1 else 0))
-        }
-        FollowerSetting(stringResource(R.string.lumiflex_extreme_high), row.extremeHighPushState == 1, !state.blocked) {
-            actions.editChanged(row.copy(extremeHighPushState = if (it) 1 else 0))
-        }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(24.dp))
         FollowerSetting(stringResource(R.string.lumiflex_switch_display), row.hideState == 1, !state.blocked) {
             actions.editChanged(row.copy(hideState = if (it) 1 else 0))
         }
         state.editorError?.let { Spacer(Modifier.height(16.dp)); FollowerError(it) }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(24.dp))
         AdaptiveButtonRow(Modifier.fillMaxWidth()) {
             Button(onClick = actions.save, enabled = !state.blocked && state.editorDirty, shapes = ButtonDefaults.shapes(),
                 modifier = Modifier.heightIn(min = 56.dp)) {
                 FollowerButtonProgress(state.operation == FollowerOperation.SAVE)
                 Text(stringResource(R.string.save))
             }
-            OutlinedButton(onClick = onRemove, enabled = !state.blocked, shapes = ButtonDefaults.shapes(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                modifier = Modifier.heightIn(min = 56.dp)) {
-                FollowerButtonProgress(state.operation == FollowerOperation.REMOVE)
-                Text(stringResource(R.string.lumiflex_remove))
-            }
+            OutlinedButton(onClick = onCancel, enabled = !state.blocked, shapes = ButtonDefaults.shapes(),
+                modifier = Modifier.heightIn(min = 56.dp)) { Text(stringResource(R.string.cancel)) }
+        }
+        Spacer(Modifier.height(16.dp))
+        OutlinedButton(onClick = onRemove, enabled = !state.blocked, shapes = ButtonDefaults.shapes(),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+            FollowerButtonProgress(state.operation == FollowerOperation.REMOVE)
+            Text(stringResource(R.string.lumiflex_remove))
         }
     }
 }
 
 @Composable
-private fun FollowerSetting(label: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
-    AdaptiveTrailingRow(Modifier.fillMaxWidth().heightIn(min = 48.dp)
-        .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
-        .padding(vertical = 8.dp), trailingContent = {
-            StyledSwitch(checked = checked, enabled = enabled, onCheckedChange = null)
-        }) {
-        Text(label, style = MaterialTheme.typography.bodyLarge,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+private fun FollowerSetting(
+    label: String, checked: Boolean, enabled: Boolean, position: CardPosition = CardPosition.SINGLE, onChange: (Boolean) -> Unit,
+) {
+    SettingsSwitchItem(title = label, checked = checked, enabled = enabled, position = position, onCheckedChange = onChange,
+        modifier = Modifier.semantics {
+            role = Role.Switch
+            toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+        })
 }
 
 @Composable

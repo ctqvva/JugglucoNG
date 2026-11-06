@@ -43,7 +43,7 @@ class LumiflexCloudFollowersUiTests {
     private fun content(block: @Composable () -> Unit) {
         compose.setContent {
             MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
-                Box(Modifier.size(420.dp, 1_000.dp).background(MaterialTheme.colorScheme.surface).testTag("screen")) {
+                Box(Modifier.size(448.dp, 860.dp).background(MaterialTheme.colorScheme.surface).testTag("screen")) {
                     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) { block() }
                 }
             }
@@ -200,4 +200,23 @@ class LumiflexCloudFollowersUiTests {
         compose.onNodeWithText("Удалить подписчика").performScrollTo().assertIsDisplayed()
         capture("narrow-large-text-ru")
     }
+    @Test fun restoredControlsKeepTheirInsetsTouchHeightAndSeparateRemovalAction() {
+        content { LumiflexCloudFollowersContent(LumiflexFollowersUiState(followers = listOf(row), editor = row)) }
+        compose.onNodeWithTag("followers-list").performScrollToNode(hasText("Обычные уведомления"))
+        val control = compose.onNode(hasText("Обычные уведомления") and hasClickAction())
+        assertTrue(control.fetchSemanticsNode().boundsInRoot.height >= 72f)
+        val field = compose.onNode(hasSetTextAction() and hasText("Мама")).fetchSemanticsNode().boundsInRoot
+        val label = compose.onNodeWithText("Обычные уведомления", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertEquals(field.left + 16f, label.left, 0.5f)
+        control.performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(200)
+        capture("controls-pressed-ru")
+        control.performTouchInput { up() }
+        compose.onNodeWithTag("followers-list").performScrollToNode(hasText("Сохранить"))
+        val saveWidth = compose.onNodeWithText("Сохранить").fetchSemanticsNode().boundsInRoot.width
+        compose.onNodeWithText("Удалить подписчика").performScrollTo()
+        assertTrue(compose.onNodeWithText("Удалить подписчика").fetchSemanticsNode().boundsInRoot.width > saveWidth * 1.7f)
+        capture("controls-actions-ru")
+    }
+
 }
