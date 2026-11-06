@@ -13,6 +13,7 @@ class LumiflexFollowerPollReceiver : BroadcastReceiver() {
         try {
             // Keep the broadcast alive until the request is persisted. WorkManager then
             // owns the process/wakelock lifetime, including multi-page catch-up reads.
+            LumiflexFollowerRegistry.reconcile(context)
             val operation = LumiflexCloudSyncWorker.enqueue(context)
             if (operation == null) pending.finish()
             else operation.result.addListener({ pending.finish() }, Executor { it.run() })

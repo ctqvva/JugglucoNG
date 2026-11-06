@@ -165,7 +165,7 @@ class LumiflexCloudClient(
         val formatter = SimpleDateFormat(DATE_PATTERN, Locale.US).apply { timeZone = zone }
         val createTimeFormatter = SimpleDateFormat(CREATE_TIME_PATTERN, Locale.US).apply { timeZone = zone }
         val appTimeZone = zone.id
-        val dstOffset = (zone.getDSTSavings() / 1000).toString()
+        val rules = zone.toZoneId().rules
         val appCreateTime = createTimeFormatter.format(Date(nowMs))
         val array = JSONArray()
         records.forEach { record ->
@@ -175,7 +175,7 @@ class LumiflexCloudClient(
                     appTime = formatter.format(Date(record.timeMs)),
                     appTimeZone = appTimeZone,
                     appCreateTime = appCreateTime,
-                    dstOffset = dstOffset,
+                    dstOffset = rules.getDaylightSavings(java.time.Instant.ofEpochMilli(record.timeMs)).seconds.toString(),
                 ),
             )
         }
@@ -202,7 +202,8 @@ class LumiflexCloudClient(
         val json = runCatching { JSONObject(plain.orEmpty()) }.getOrNull()
         if (json != null) {
             if (!json.has("code")) return AuthorizationList.Failed(LumiflexCloudError.Kind.TRANSIENT, response.code)
-            val code = json.optInt("code", 0)
+            val code = runCatching { java.math.BigDecimal(json.get("code").toString()).intValueExact() }.getOrNull()
+                ?: return AuthorizationList.Failed(LumiflexCloudError.Kind.TRANSIENT, response.code)
             if (code != 200) return AuthorizationList.Failed(LumiflexCloudError.classify(code, plain), code)
         }
         val array = json?.optJSONArray("data") ?: runCatching { JSONArray(plain.orEmpty()) }.getOrNull()

@@ -152,6 +152,18 @@ class LumiflexFollowSyncTests {
         assertNull(LumiflexFollowReading.fromJson(second.put("appTime", "2026-03-29 02:30:00"), "patient"))
     }
 
+    @Test fun legacyZoneAliasesAndWinterRowsWithLegacyDaylightMetadataRemainReadable() {
+        for (date in listOf("2026-01-15 12:00:00", "2026-07-15 12:00:00")) {
+            val alias = row().put("appTime", date).put("appTimeZone", "PST").put("dstOffset", "3600")
+            val canonical = JSONObject(alias.toString()).put("appTimeZone", "America/Los_Angeles")
+            val parsed = LumiflexFollowReading.fromJson(alias, "patient")
+            assertNotNull(parsed)
+            assertEquals(LumiflexFollowReading.fromJson(canonical, "patient"), parsed)
+        }
+        val winter = row().put("appTime", "2026-11-06 12:00:00").put("appTimeZone", "Europe/Berlin").put("dstOffset", "3600")
+        assertNotNull(LumiflexFollowReading.fromJson(winter, "patient"))
+    }
+
     @Test fun failedHistoryWriteDoesNotAdvanceCatchupAndRetryFetchesTheFullPageAgain() {
         val transport = Transport()
         val client = LumiflexCloudClient(transport, encrypt = { it }, decrypt = { it })

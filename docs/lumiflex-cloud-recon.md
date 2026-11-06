@@ -355,3 +355,11 @@ succeeds, and live publication excludes stale readings. Alarm broadcasts now per
 WorkManager request before finishing; the worker owns the complete network/import lifetime.
 JSON object list responses require the observed explicit `code: 200`; a missing code is
 a retryable malformed response, not evidence that the request succeeded.
+
+Compatibility/recovery follow-up: supported legacy timezone aliases such as `PST` map through
+`ZoneId.SHORT_IDS`. Daylight metadata is used only when a wall time is ambiguous; older
+uploaders could send the timezone’s nominal daylight amount even for winter records. New
+uploads calculate the daylight amount per record, including both occurrences of an autumn
+hour. The live cursor is committed after publication, so a thrown publication is retried by
+the next overlapping poll. Expired alarm wakes reconcile and retire the native mirror without
+deleting history, then select another available source or clear the selection.

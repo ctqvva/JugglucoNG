@@ -51,6 +51,9 @@ object LumiflexFollowerRegistry : ManagedSensorIdentityAdapter {
                 it.close()
                 SensorBluetooth.gattcallbacks.remove(it)
                 ManagedCurrentSensor.clearIfMatches(it.SerialNumber)
+                // Retire the native mirror without deleting its history. Future data for
+                // the same provider revives it through the shared native-mirror bridge.
+                Natives.finishSensorById(it.SerialNumber)
             }
             val found = SensorBluetooth.gattcallbacks.filterIsInstance<LumiflexFollowerManager>().firstOrNull()
             found ?: expected?.let {
@@ -61,7 +64,13 @@ object LumiflexFollowerRegistry : ManagedSensorIdentityAdapter {
         }
         if (added || removed) {
             Natives.setmaxsensors(SensorBluetooth.mygatts().size)
-            SensorBluetooth.ensureCurrentSensorSelection()
+            if (removed && result == null && ManagedCurrentSensor.get() == null) {
+                val candidates = (SensorBluetooth.mygatts().map { it.SerialNumber } +
+                    Natives.activeSensors().orEmpty().toList()).filterNot { it.startsWith(PREFIX, true) }
+                val selected = Natives.currentsensorname()
+                SensorBluetooth.setCurrentSensorSelection(candidates.firstOrNull { it.equals(selected, true) }
+                    ?: candidates.firstOrNull().orEmpty())
+            } else SensorBluetooth.ensureCurrentSensorSelection()
             ManagedSensorUiSignals.markDeviceListDirty()
         }
         val settings = LumiflexCloudSettings(context)

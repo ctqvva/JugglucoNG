@@ -13,6 +13,32 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = LumiflexCloudTestApplication::class)
 class LumiflexCloudClientTests {
+    @Test fun fractionalAndOutOfRangeAuthorizationCodesAreMalformedRatherThanSuccessful() {
+        for (code in listOf("200.5", "\"200.5\"", "2147483848", "null", "true")) {
+            val transport = FakeTransport { _, _ -> LumiflexCloudClient.HttpResult(200, """{"code":$code,"data":[]}""") }
+            val client = LumiflexCloudClient(transport, encrypt = { it }, decrypt = { it })
+            val result = client.authorizations("token", false, "user") as LumiflexCloudClient.AuthorizationList.Failed
+            assertEquals(LumiflexCloudError.Kind.TRANSIENT, result.kind)
+        }
+    }
+
+    @Test fun uploadDaylightOffsetIsCalculatedForEachReadingAndRoundTripsTheAutumnHour() {
+        val original = java.util.TimeZone.getDefault()
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Europe/Berlin"))
+            val times = listOf("2026-10-25T00:30:00Z", "2026-10-25T01:30:00Z", "2026-11-06T11:00:00Z")
+                .map { java.time.Instant.parse(it).toEpochMilli() }
+            val transport = FakeTransport { _, body ->
+                val records = JSONObject(body).getJSONArray("records")
+                assertEquals(listOf("3600", "0", "0"), (0..2).map { records.getJSONObject(it).getString("dstOffset") })
+                for (i in 0..2) assertEquals(times[i], LumiflexFollowReading.fromJson(records.getJSONObject(i), "patient")!!.timestampMs)
+                LumiflexCloudClient.HttpResult(200, """{"code":200}""")
+            }
+            val records = times.mapIndexed { i, time -> CgmRecord("SN", "SID", 0, i + 1, time, 100, 0) }
+            assertEquals(LumiflexCloudClient.SyncResult.Ok,
+                LumiflexCloudClient(transport, encrypt = { it }, decrypt = { it }).uploadGlucose("token", "patient", records, times.last()))
+        } finally { java.util.TimeZone.setDefault(original) }
+    }
 
     private class FakeTransport(var handler: (String, String) -> LumiflexCloudClient.HttpResult) :
         LumiflexCloudClient.Transport {

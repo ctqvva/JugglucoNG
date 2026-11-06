@@ -17,13 +17,13 @@ data class LumiflexFollowReading(val timestampMs: Long, val mgdl: Float) {
             if (!glucose.isFinite() || glucose <= 0f || glucose > 1000f) return null
             val timestamp = runCatching {
                 val local = LocalDateTime.parse(row.optString("appTime"), timeFormat)
-                val rules = ZoneId.of(row.optString("appTimeZone")).rules
+                val rules = ZoneId.of(row.optString("appTimeZone"), ZoneId.SHORT_IDS).rules
                 val offsets = rules.getValidOffsets(local)
                 // The vendor records daylight-saving seconds separately. During the repeated
                 // autumn hour, zone + wall time alone cannot identify which instant was read.
                 val daylightSeconds = row.optString("dstOffset").toLongOrNull()
                 val candidates = offsets.map { local.toInstant(it) }.filter {
-                    daylightSeconds == null || rules.getDaylightSavings(it).seconds == daylightSeconds
+                    offsets.size == 1 || daylightSeconds == null || rules.getDaylightSavings(it).seconds == daylightSeconds
                 }
                 candidates.singleOrNull()?.toEpochMilli()
             }.getOrNull() ?: return null

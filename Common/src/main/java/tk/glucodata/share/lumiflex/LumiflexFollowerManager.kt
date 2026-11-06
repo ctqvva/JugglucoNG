@@ -18,8 +18,11 @@ class LumiflexFollowerManager(private val context: Context, private val provider
     private val settings = LumiflexCloudSettings(context)
     private val handler = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(false)
-    @Volatile private var latest: LumiflexFollowReading? = null
-    @Volatile private var rateMgdl = 0f
+    private val delivery = LumiflexCurrentDelivery { row, rate ->
+        VirtualGlucoseSensorBridge.publishCurrent(SerialNumber,
+            VirtualGlucoseSensorBridge.Reading(row.timestampMs, row.mgdl, rate = rate), 0, "Lumiflex",
+            mirrorToNative = true, source = GlucoseReadingSource.LUMIFLEX_FOLLOWER)
+    }
     @Volatile private var lastPoll = 0L
     private val timer = Runnable { refresh() }
     override var viewMode: Int = 0
@@ -36,19 +39,20 @@ class LumiflexFollowerManager(private val context: Context, private val provider
         LumiflexCloudSettings.SyncState.SYNCING -> R.string.lumiflex_follow_refreshing
         LumiflexCloudSettings.SyncState.ERROR -> R.string.lumiflex_follow_failed
         LumiflexCloudSettings.SyncState.SIGN_IN_REQUIRED -> R.string.lumiflex_sign_in
-        else -> if (latest != null) R.string.lumiflex_follow_current else R.string.lumiflex_sync_waiting_readings
+        else -> if (delivery.snapshot != null) R.string.lumiflex_follow_current else R.string.lumiflex_sync_waiting_readings
     })
     override fun getManagedCurrentSnapshot(maxAgeMillis: Long): ManagedSensorCurrentSnapshot? {
-        val row = latest ?: return null
+        val delivered = delivery.snapshot ?: return null
+        val row = delivered.reading
         if (kotlin.math.abs(System.currentTimeMillis() - row.timestampMs) > maxAgeMillis) return null
         return ManagedSensorCurrentSnapshot(row.timestampMs, if (Applic.unit == 1) row.mgdl / 18.0182f else row.mgdl,
-            rate = if (Applic.unit == 1) rateMgdl / 18.0182f else rateMgdl)
+            rate = if (Applic.unit == 1) delivered.rate / 18.0182f else delivered.rate)
     }
     override fun getManagedUiSnapshot(activeSensorId: String?) = ManagedSensorUiSnapshot(
         serial = SerialNumber, displayName = mygetDeviceName(), deviceAddress = "cloud.lumiflex.ru",
         connectionStatus = getDetailedBleStatus(), detailedStatus = getDetailedBleStatus(),
         subtitleStatus = settings.providerName, isActive = SerialNumber.equals(activeSensorId, true),
-        vendorModel = "Lumiflex", vendorBrand = "LUMI", isVendorConnected = latest != null,
+        vendorModel = "Lumiflex", vendorBrand = "LUMI", isVendorConnected = delivery.snapshot != null,
     )
     private fun usable() = !stop && settings.enabled && settings.followMode && settings.isSignedIn() &&
         settings.providerId == provider && SerialNumber == LumiflexFollowerRegistry.sensorId(context, provider) &&
@@ -93,20 +97,7 @@ class LumiflexFollowerManager(private val context: Context, private val provider
                 val stored = VirtualGlucoseSensorBridge.importHistory(SerialNumber, history, "Lumiflex",
                     backfill = true, mirrorToNative = true, source = GlucoseReadingSource.LUMIFLEX_FOLLOWER)
                 if (stored != history.size || !usable() || !settings.isCurrent(session)) return@publish false
-                val newest = rows.last()
-                if (newest.timestampMs > (latest?.timestampMs ?: 0L)) {
-                    val previous = rows.dropLast(1).lastOrNull()
-                    val elapsed = newest.timestampMs - (previous?.timestampMs ?: 0L)
-                    rateMgdl = if (previous != null && elapsed in 1..300_000L)
-                        (newest.mgdl - previous.mgdl) / (elapsed / 60_000f) else 0f
-                    latest = newest
-                    // History older than ten minutes belongs in the chart, not live alerts.
-                    if (System.currentTimeMillis() - newest.timestampMs <= 10 * 60_000L) {
-                        VirtualGlucoseSensorBridge.publishCurrent(SerialNumber,
-                            VirtualGlucoseSensorBridge.Reading(newest.timestampMs, newest.mgdl, rate = rateMgdl), 0, "Lumiflex",
-                            mirrorToNative = true, source = GlucoseReadingSource.LUMIFLEX_FOLLOWER)
-                    }
-                }
+                delivery.deliver(rows, System.currentTimeMillis())
                 true
             }).sync(session)
         } catch (error: Exception) {
