@@ -47,12 +47,15 @@ class Log:
             key = (pid, tid, label)
             prev = self.chunks.get(key)
             if prev is not None and prev[0] == n - 1 and n > 1:
-                prev[1].append(part)
-                self.chunks[key] = (n, prev[1])
+                parts = prev[1] + [part]
+                self.chunks[key] = (n, parts)
+                # Only emit once the final chunk has arrived.
+                # (We do not know the total count; emit when a gap breaks the run.)
                 return
             self.chunks[key] = (n, [part])
             if n != 1:
                 return
+            # Defer emission until the run completes: emit immediately only for single-chunk.
             return self.event(t, pid, tid, label + part)
         self.event(t, pid, tid, msg)
 
@@ -121,7 +124,8 @@ def strip_pad(b):
 
 def b64url_dec(s):
     try:
-        d = base64.b64decode(urllib.parse.unquote(s))
+        s = urllib.parse.unquote(s)
+        d = base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
         return d.hex()
     except Exception:
         return None
@@ -155,7 +159,7 @@ def main():
             heads = [(x["len"], x["head"]) for x in grp if x["kind"] == "OUT" and x.get("head")]
             lens = [x["len"] for x in grp if x["kind"] == "OUT"]
             alg, mode, key, iv = e.get("alg") or "", e["mode"], e.get("keyHex"), e.get("iv")
-            rec = {"t": e["t"], "pid": e["pid"], "alg": alg, "mode": mode, "key": key, "iv": iv, "out_hex": outs,
+            rec = {"t": e["t"], "pid": e["pid"], "alg": alg, "mode": mode, "iv": iv, "out_hex": outs,
                    "in_hex": ins, "out_len": lens[0] if lens else None}
             if heads:
                 rec["head_len"], rec["head"] = heads[0]

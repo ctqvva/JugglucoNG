@@ -125,12 +125,12 @@ Files (copies — `re-research/ican-2026-08/`):
 ```
 Connected to 8C:73:DA:73:CE:24
 MTU changed to 247; using modern vendor history command family
-WIRE rx read 2A25 30 31 54 48 30 35 46 45 30 30 30 33 30 31 30 31 30 30 30 30 30 30 30 30   → 01TH05FE00030101
+WIRE rx read 2A25 30 31 54 48 30 35 46 45 30 30 30 33 30 31 30 31 30 30 30 30 30 30 30 30   → <sensor SN>
 WIRE rx read 2A24 69 43 47 4D 2D 74 36                                                      → "iCGM-t6"
 WIRE rx read 2A28 56 30 31 2E 30 35 2E 30 30 2E 30 30 5F 42 30 30 30 31                     → "V01.05.00.00_B0001"
 WIRE rx read 2A26 34 2E 32 2E 33                                                            → "4.2.3"
 WIRE rx read 2AAB E0 01                                                                     → 480h (20 days)
-setSensorWearDays: 01TH05FE00030101 days=28 wear=40320   (driver declared 28 days)
+setSensorWearDays: <sensor SN> days=28 wear=40320   (driver declared 28 days)
 WIRE rx read 2AA8 01 40 00 23 FF FF  → cgmFeature=0x004001, calibrationSupported=true, multiSession=true, type=0x3
 ```
 Device advertisement: `deviceName=Sinocare CGM`, GATT name `ICN-ZP1TH05FEE50…`.
@@ -140,10 +140,10 @@ Device advertisement: `deviceName=Sinocare CGM`, GATT name `ICN-ZP1TH05FEE50…`
 ```
 WIRE tx write 2AAC F3
 WIRE rx notify 2AAC 06 F3 01 <challenge>                     ; challenge
-authUserId=P1TH05FEE505 from source=ZP1TH05FEE505 …          ; driver derived the userId from the name
+authUserId=<recoveredUserId> from source=<recoveredUserId> …          ; driver derived the userId from the name
 WIRE tx write 2AAC F4 <redacted> 
 WIRE rx notify 2AAC 1C F4 02 <redacted>   ; REJECT 0x02 + payload
-Persisted recovered userId for 01TH05FE00030101: len=12, suffix=<redacted>
+Persisted recovered userId for <sensor SN>: len=12, suffix=<redacted>
 Auth rejected (0x02) but recovered realUserId=len=12, suffix=<redacted> — retrying auth
 WIRE tx write 2AAC F3 → 06 F3 01 <challenge>
 authUserId=<USER_ID> from source=<USER_ID> …
