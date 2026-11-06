@@ -234,7 +234,8 @@ struct updatedata {
   uint8_t reservedturn[3];
   turnserver_t turnserver[1];
 
-  void wakesender(uintptr_t kind = 8 /*wakeall*/);
+  // sourcesOnly: only the hosts this phone receives data from.
+  void wakesender(uintptr_t kind = 8 /*wakeall*/, bool sourcesOnly = false);
   void wakestreamsender();
 };
 
@@ -1244,6 +1245,10 @@ sendindex); extern bool doend(int sendindex); */
 #endif
     }
     uintptr_t current = 0;
+    // Every fifth stream wake of this host runs the full update instead.
+    // Counted per sender thread: a function static was shared, unlocked,
+    // by every host's thread.
+    int streamwakes = 0;
     if (resumeCloneRecoveryForHost(allindex, sendindex) == 1) {
       con_vars[sendindex]->wakebackup(wakerecovery);
     }
@@ -1262,11 +1267,11 @@ sendindex); extern bool doend(int sendindex); */
       if (!passive) {
         notpassive(current, sendindex);
       }
-      static int count = 0;
-      if (current == wakestream) {
-        if (count++ % 5 == 4) {
-          current = wakeall;
-        }
+      // A stream wake also carrying other flags (reconnect, nums) counts too,
+      // and keeps those flags when it becomes the full update.
+      if ((current & wakestream) && !(current & wakeall) &&
+          streamwakes++ % 5 == 4) {
+        current = (current & ~wakestream) | wakeall;
       }
       doupdates(current, sendindex);
     }
@@ -1414,6 +1419,10 @@ sendindex); extern bool doend(int sendindex); */
   }
   void wakebackup(myuintptr_t kind = wakeall) {
     LOGGER("start wakebackup %lx\n", kind);
+    wakeeach([kind](int) { return kind; });
+  }
+  // kindfor(i): what to wake sender i with.
+  template <typename KindFor> void wakeeach(KindFor kindfor) {
     int nr;
     if (getupdatedata()->sendnr > con_vars.size()) {
       nr = con_vars.size();
@@ -1441,7 +1450,7 @@ sendindex); extern bool doend(int sendindex); */
         }
         if (doe) {
           LOGGER("host %d wake\n", i);
-          el->wakebackup(kind);
+          el->wakebackup(kindfor(i));
         }
       }
     }

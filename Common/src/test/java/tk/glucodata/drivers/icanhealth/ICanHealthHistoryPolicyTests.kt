@@ -152,4 +152,19 @@ class ICanHealthHistoryPolicyTests {
         assertNull(ICanHealthHistoryPolicy.tailRetryStartSequence(3, 3, 3))
         assertNull(ICanHealthHistoryPolicy.tailRetryStartSequence(0, 300, 3))
     }
+
+    @Test
+    fun batchOfAlreadyStoredRecords_doesNotDisableHistory() {
+        // #742: the sensor answered with readings the live lane had already stored. They decoded
+        // fine, so the next live gap must still be repaired from history.
+        assertFalse(ICanHealthHistoryPolicy.glucoseBatchShowsUnsupportedHistory(0, 0, 3))
+        assertFalse(ICanHealthHistoryPolicy.glucoseBatchShowsUnsupportedHistory(0, 2, 0))
+        assertFalse(ICanHealthHistoryPolicy.glucoseBatchShowsUnsupportedHistory(1, 0, 0))
+    }
+
+    @Test
+    fun batchWithNothingUsable_stillDisablesHistory() {
+        // Every record failed to decode to a valid reading (wrong key, garbage fields).
+        assertTrue(ICanHealthHistoryPolicy.glucoseBatchShowsUnsupportedHistory(0, 0, 0))
+    }
 }

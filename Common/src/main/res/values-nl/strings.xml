@@ -502,6 +502,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <!-- Nieuwe vertalingen -->
     <string name="import_history">Geschiedenis importeren</string>
     <string name="import_history_desc">Importeer glucosegegevens uit een JugglucoNG-export of CSV-bestand</string>
+    <string name="continue_without_sensor">Doorgaan zonder sensor</string>
+    <string name="continue_without_sensor_desc">Leg insuline, voeding en vingerprikken vast in het dagboek</string>
     <string name="get_started_desc">Ga aan de slag door je sensor toe te voegen</string>
     <string name="select_sensor">Selecteer sensortype</string>
     <string name="select_sibionics_type">Kies een Sibionics-sensor</string>
@@ -782,7 +784,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Scan de datamatrix op uw Accu-Chek SmartGuide-sensor</string>
     <string name="accuchek_setup_title">Accu-Chek-installatie</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Sensor toevoegen</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Verbonden!</string>
@@ -938,7 +940,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mmolL">mmol/L</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Geen sensor verbonden</string>
     <string name="nothing"></string>
     <string name="off">Off</string>
     <string name="one">1</string>
@@ -1743,6 +1745,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_dose_pair_insulin">Insuline koppelen</string>
     <string name="journal_dose_pair_carbs">Koolhydraten koppelen</string>
     <string name="journal_dose_suggested_insulin">%1$s E voorgesteld</string>
+    <string name="journal_amount_suggested">Voorgesteld</string>
     <string name="unit_insulin_value">%1$s E</string>
     <string name="unit_insulin_short">E</string>
     <string name="unit_carbs_value">%1$s g</string>

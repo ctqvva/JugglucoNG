@@ -848,6 +848,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <!-- Hardcoded Strings Extracted -->
     <string name="import_history">Түүхийг импортлох</string>
     <string name="import_history_desc">JugglucoNG экспорт эсвэл CSV файлаас глюкозын өгөгдөл импортлох</string>
+    <string name="continue_without_sensor">Мэдрэгчгүйгээр үргэлжлүүлэх</string>
+    <string name="continue_without_sensor_desc">Инсулин, хоол, хурууны хэмжилтийг журналд бүртгэх</string>
     <string name="get_started_desc">Мэдрэгчээ нэмж эхлүүлнэ үү</string>
     <string name="select_sensor">Мэдрэгчийн төрлийг сонгох</string>
     <string name="or_divider">"  эсвэл  "</string>
@@ -1707,6 +1709,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_dose_pair_insulin">Pair insulin</string>
     <string name="journal_dose_pair_carbs">Pair carbs</string>
     <string name="journal_dose_suggested_insulin">%1$s U suggested</string>
+    <string name="journal_amount_suggested">Санал болгосон</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s г</string>

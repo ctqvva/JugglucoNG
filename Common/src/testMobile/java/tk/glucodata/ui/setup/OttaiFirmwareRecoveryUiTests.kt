@@ -226,4 +226,23 @@ class OttaiFirmwareRecoveryUiTests {
         compose.runOnIdle { assertEquals(1, installed) }
     }
 
+    @Test fun ordinarySetupDoesNotRepeatTheCloudAuthenticatedCheck() {
+        compose.setContent {
+            MaterialTheme {
+                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.READY,
+                    firmware = "V1.7", target = "V1.8", totalBytes = 1_024, sha256 = "00",
+                    canPrepareParameters = true), false,
+                    onInstall = {}, onPrepare = {}, onDiscard = {}, onDismiss = {},
+                    onCloudRecheck = { error("Setup already authenticated through the cloud") },
+                    prepareForSetup = true)
+            }
+        }
+        compose.onNodeWithText(text(R.string.ottai_ota_install)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck_hint)).assertDoesNotExist()
+        // Nothing has been written yet, so no progress bar beside the unconfirmed install.
+        compose.onAllNodes(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo))
+            .assertCountEquals(0)
+    }
+
 }

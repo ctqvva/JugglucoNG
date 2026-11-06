@@ -923,6 +923,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <!-- Hardcoded Strings Extracted -->
     <string name="import_history">Soo dejinta Taariikhda</string>
     <string name="import_history_desc">Ka soo deji xogta gulukooska dhoofinta JugglucoNG ama faylka CSV</string>
+    <string name="continue_without_sensor">Ku sii wad sensor la\'aan</string>
+    <string name="continue_without_sensor_desc">Ku diiwaangeli insulinta, cuntada iyo cabbirka farta joornaalka</string>
     <string name="get_started_desc">Ku bilow adiga oo ku dara dareenkaaga</string>
     <string name="select_sensor">Dooro Nooca Sensor</string>
     <string name="or_divider">"ama"</string>
@@ -1930,6 +1932,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_dose_pair_insulin">Isku xidh insulin</string>
     <string name="journal_dose_pair_carbs">Isku xidh karbohaydraytyada</string>
     <string name="journal_dose_suggested_insulin">%1$s U ayaa soo jeedisay</string>
+    <string name="journal_amount_suggested">La soo jeediyay</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>

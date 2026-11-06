@@ -316,6 +316,8 @@
     <!-- Newly Extracted Strings -->
     <string name="import_history">Importar Histórico</string>
     <string name="import_history_desc">Importar dados de glicose de uma exportação do JugglucoNG ou arquivo CSV</string>
+    <string name="continue_without_sensor">Continuar sem sensor</string>
+    <string name="continue_without_sensor_desc">Registre insulina, alimentos e medições de ponta de dedo no diário</string>
     <string name="get_started_desc">Comece adicionando seu sensor</string>
     <string name="select_sensor">Selecionar Tipo de Sensor</string>
     <string name="select_sibionics_type">Escolha um sensor Sibionics</string>
@@ -588,7 +590,7 @@
     <string name="accuchek_scan_instruction">Digitalize a matriz de dados no seu sensor Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Configuração Accu-Chek</string>
     <string name="active">Ativo</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Adicionar sensor</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Conectado!</string>
@@ -827,7 +829,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="no_data_available">No data available</string>
     <string name="no_ringtone_picker_found">No Ringtone Picker found</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Nenhum sensor conectado</string>
     <string name="noaccountidspecified">"No account id specified "</string>
     <string name="noapplisteningto">"No app listening to "</string>
     <string name="nohttpport">The port number should be different from the http port</string>
@@ -1701,6 +1703,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_dose_pair_insulin">Associar insulina</string>
     <string name="journal_dose_pair_carbs">Associar carboidratos</string>
     <string name="journal_dose_suggested_insulin">%1$s U sugeridas</string>
+    <string name="journal_amount_suggested">Sugerido</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>

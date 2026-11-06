@@ -131,6 +131,14 @@ private fun DashboardRoute(
         onNavigateToPredictionModelProfile = {
             navController.navigate("settings/predictive-simulation/model-profile")
         },
+        // Placed as a tab tap would, so the bar keeps working from there.
+        onNavigateToSensors = {
+            navController.navigate("sensors") {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        },
         onTriggerCalibration = onTriggerCalibration
     )
 }
@@ -999,6 +1007,8 @@ private fun NavGraphBuilder.appDestinations(
     composable("settings/mirror") { MirrorSettingsScreen(navController) }
     composable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
     composable("settings/dexcom-share") { DexcomShareSettingsScreen(navController) }
+    composable("settings/lumiflex") { LumiflexCloudSettingsScreen(navController) }
+    composable("settings/lumiflex/followers") { LumiflexCloudFollowersScreen(navController) }
     composable("settings/api-source") { ApiSourceSettingsScreen(navController) }
     composable("settings/glucose-meters") { GlucoseMeterSettingsScreen(navController) }
     composable("settings/insulin-pens") { InsulinPenSettingsScreen(navController) }

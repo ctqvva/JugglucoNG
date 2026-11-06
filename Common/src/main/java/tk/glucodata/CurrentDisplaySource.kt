@@ -109,6 +109,9 @@ object CurrentDisplaySource {
         smoothingMode: SmoothingMode
     ): Snapshot? {
         val resolvedSensorId = preferredSensorId ?: SensorIdentity.resolveMainSensor()
+        // History below would otherwise hand the removed sensor's last reading to every surface
+        // as current. A watch can show the phone's readings without a native sensor.
+        if (resolvedSensorId == null && !Applic.isWearable) return null
         val current = CurrentGlucoseSource.getFresh(maxAgeMillis, resolvedSensorId)
         val isMmol = Applic.unit == 1
         val now = System.currentTimeMillis()

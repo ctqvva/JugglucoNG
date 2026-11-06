@@ -359,6 +359,8 @@
     <!-- Newly Extracted Strings -->
     <string name="import_history">Імпартаваць гісторыю</string>
     <string name="import_history_desc">Імпартаваць даныя глюкозы з экспарту JugglucoNG або CSV-файла</string>
+    <string name="continue_without_sensor">Працягнуць без датчыка</string>
+    <string name="continue_without_sensor_desc">Запісвайце інсулін, ежу і вымярэнні з пальца ў журнал</string>
     <string name="get_started_desc">Пачніце з дадання вашага сэнсара</string>
     <string name="select_sensor">Выберыце тып сэнсара</string>
     <string name="select_sibionics_type">Выберыце сэнсар Sibionics</string>
@@ -677,7 +679,7 @@
     <string name="accuchek_scan_instruction">Адсканіруйце матрыцу дадзеных на датчыку Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Налада Accu-Chek</string>
     <string name="add_connection">Add Connection</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Дадаць датчык</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Падключана!</string>
@@ -877,7 +879,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newdata">"New data"</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Датчык не падключаны</string>
     <string name="nonewdata">"No new data"</string>
     <string name="not">Not</string>
     <string name="notalldata">WARNING: “Receive from” not set, but some data types are not sent.</string>
@@ -1769,6 +1771,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_dose_pair_insulin">Дадаць інсулін</string>
     <string name="journal_dose_pair_carbs">Дадаць вугляводы</string>
     <string name="journal_dose_suggested_insulin">Прапанавана %1$s АД</string>
+    <string name="journal_amount_suggested">Прапанавана</string>
     <string name="unit_insulin_value">%1$s АД</string>
     <string name="unit_insulin_short">АД</string>
     <string name="unit_carbs_value">%1$s г</string>

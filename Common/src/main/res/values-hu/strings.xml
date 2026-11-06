@@ -873,6 +873,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="alert_amount">Mennyiségi riasztás</string>
     <string name="import_history">Előzmények importálása</string>
     <string name="import_history_desc">Glükózadatok importálása JugglucoNG-exportból vagy CSV-fájlból</string>
+    <string name="continue_without_sensor">Folytatás szenzor nélkül</string>
+    <string name="continue_without_sensor_desc">Inzulin, étel és ujjbegyes mérések rögzítése a naplóban</string>
     <string name="get_started_desc">A kezdéshez adja hozzá a szenzorát</string>
     <string name="select_sensor">Szenzortípus kiválasztása</string>
     <string name="or_divider">"  vagy  "</string>
@@ -2068,6 +2070,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_dose_pair_insulin">Inzulin társítása</string>
     <string name="journal_dose_pair_carbs">Szénhidrát társítása</string>
     <string name="journal_dose_suggested_insulin">Javasolt: %1$s U</string>
+    <string name="journal_amount_suggested">Javasolt</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>

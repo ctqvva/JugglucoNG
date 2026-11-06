@@ -120,7 +120,9 @@ struct ICE_data {
  //       std::lock_guard<std::mutex> lck( receiveMutex);
         receiveCond.notify_one();
         }
-    int receive(juice_agent_t *agent,char *buf, const int maxbuf);
+    // timeoutSecs>0 gives up after that long without data, like a TCP
+    // SO_RCVTIMEO; 0 waits as long as the peer keeps acknowledging asks.
+    int receive(juice_agent_t *agent,char *buf, const int maxbuf,int timeoutSecs=0);
     void resetReceive() {
         offset=0;
         datalen=-1;

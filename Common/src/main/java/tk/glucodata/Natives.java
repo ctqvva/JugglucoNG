@@ -460,6 +460,9 @@ public class Natives {
 
         public static native void wakehereonly();
 
+        /** A new reading for Clone, without reconnecting; see wakebackup() for that. */
+        public static native void wakestreamonly();
+
         public static native void resetbackuphost(int pos);
 
         public static native void deletebackuphost(int pos);
@@ -770,6 +773,9 @@ public class Natives {
          */
         public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 
+        /** Stores an upstream final primary with persisted per-reading provenance. */
+        public static native int addResolvedGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
+
         public static native long ensureSensorShell(String sensorId, long startTimeSec);
 
         public static native long ensureSensorShellWithCapacity(String sensorId, long startTimeSec, int minimumRecords);
@@ -1045,6 +1051,8 @@ public class Natives {
         public static native boolean removeSensorById(String sensorId);
 
         public static native boolean finishSensorById(String sensorId);
+        /** True when every native slot of this id is finished or removed; false for an id native does not know. */
+        public static native boolean sensorFinishedById(String sensorId);
 
         public static native void unfinishSensor(long dataptr);
 
@@ -1358,6 +1366,9 @@ public class Natives {
         public static native boolean dexcomProcessData(long dataptr, byte[] bluetoothdata, long[] timeres);
 
         public static native byte[] getDexbackfillcmd(long dataptr);
+
+        /** {last reading received without a gap before it, newest reading}, as stream indices. */
+        public static native int[] dexBackfillState(long dataptr);
 
         public static native boolean dexbackfill(long dataptr, byte[] bluetoothdata);
 

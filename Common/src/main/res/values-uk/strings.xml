@@ -428,6 +428,8 @@
     <!-- Newly Extracted Strings -->
     <string name="import_history">Імпортувати історію</string>
     <string name="import_history_desc">Імпортувати дані глюкози з експорту JugglucoNG або CSV-файлу</string>
+    <string name="continue_without_sensor">Продовжити без датчика</string>
+    <string name="continue_without_sensor_desc">Записуйте інсулін, їжу та пальцеві заміри в журнал</string>
     <string name="get_started_desc">Почніть з додавання вашого сенсора</string>
     <string name="select_sensor">Виберіть тип сенсора</string>
     <string name="select_sibionics_type">Виберіть сенсор Sibionics</string>
@@ -698,7 +700,7 @@
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Відскануйте матрицю даних на датчику Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Налаштування Accu-Chek</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Додати датчик</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Підключено!</string>
@@ -894,7 +896,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newdata">"New data"</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Датчик не підключено</string>
     <string name="nonewdata">"No new data"</string>
     <string name="not">Not</string>
     <string name="notalldata">WARNING: “Receive from” not set, but some data types are not sent.</string>
@@ -1774,6 +1776,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_dose_pair_insulin">Додати інсулін</string>
     <string name="journal_dose_pair_carbs">Додати вуглеводи</string>
     <string name="journal_dose_suggested_insulin">Запропоновано %1$s ОД</string>
+    <string name="journal_amount_suggested">Запропоновано</string>
     <string name="unit_insulin_value">%1$s ОД</string>
     <string name="unit_insulin_short">ОД</string>
     <string name="unit_carbs_value">%1$s г</string>

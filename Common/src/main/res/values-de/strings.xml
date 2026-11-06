@@ -520,6 +520,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <!-- Newly Extracted Strings -->
     <string name="import_history">Verlauf importieren</string>
     <string name="import_history_desc">Glukosedaten aus einem JugglucoNG-Export oder einer CSV-Datei importieren</string>
+    <string name="continue_without_sensor">Ohne Sensor fortfahren</string>
+    <string name="continue_without_sensor_desc">Insulin, Essen und Blutzuckermessungen im Journal erfassen</string>
     <string name="get_started_desc">Zum Einstieg den Sensor hinzufügen</string>
     <string name="select_sensor">Sensortyp auswählen</string>
     <string name="select_sibionics_type">Sibionics-Sensor auswählen</string>
@@ -1831,6 +1833,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_dose_pair_insulin">Insulin koppeln</string>
     <string name="journal_dose_pair_carbs">Kohlenhydrate koppeln</string>
     <string name="journal_dose_suggested_insulin">%1$s E vorgeschlagen</string>
+    <string name="journal_amount_suggested">Vorgeschlagen</string>
     <string name="unit_insulin_value">%1$s E</string>
     <string name="unit_insulin_short">E</string>
     <string name="unit_carbs_value">%1$s g</string>

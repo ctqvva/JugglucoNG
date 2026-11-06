@@ -289,6 +289,8 @@
     <!-- Newly Extracted Strings -->
     <string name="import_history">Importa Cronologia</string>
     <string name="import_history_desc">Importa i dati del glucosio da un\'esportazione JugglucoNG o da un file CSV</string>
+    <string name="continue_without_sensor">Continua senza sensore</string>
+    <string name="continue_without_sensor_desc">Registra insulina, cibo e punture al dito nel diario</string>
     <string name="get_started_desc">Inizia aggiungendo il tuo sensore</string>
     <string name="select_sensor">Seleziona tipo sensore</string>
     <string name="select_sibionics_type">Scegli un sensore Sibionics</string>
@@ -561,7 +563,7 @@
     <string name="accuchek_scan_instruction">Scansiona la matrice dei dati sul sensore Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Configurazione Accu-Chek</string>
     <string name="active">Attivo</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Aggiungi sensore</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Connesso!</string>
@@ -809,7 +811,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="no_data_available">No data available</string>
     <string name="no_ringtone_picker_found">No Ringtone Picker found</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Nessun sensore connesso</string>
     <string name="noaccountidspecified">"No account id specified "</string>
     <string name="noapplisteningto">"No app listening to "</string>
     <string name="nohttpport">The port number should be different from the http port</string>
@@ -1690,6 +1692,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_dose_pair_insulin">Abbina insulina</string>
     <string name="journal_dose_pair_carbs">Abbina carboidrati</string>
     <string name="journal_dose_suggested_insulin">%1$s U suggerite</string>
+    <string name="journal_amount_suggested">Suggerito</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>

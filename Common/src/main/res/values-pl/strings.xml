@@ -491,6 +491,8 @@
     <!-- Newly Extracted Strings -->
     <string name="import_history">Importuj Historię</string>
     <string name="import_history_desc">Importuj dane glukozy z eksportu JugglucoNG lub pliku CSV</string>
+    <string name="continue_without_sensor">Kontynuuj bez sensora</string>
+    <string name="continue_without_sensor_desc">Zapisuj insulinę, jedzenie i pomiary z palca w dzienniku</string>
     <string name="get_started_desc">Rozpocznij, dodając swój sensor</string>
     <string name="select_sensor">Wybierz Typ Sensora</string>
     <string name="select_sibionics_type">Wybierz sensor Sibionics</string>
@@ -761,7 +763,7 @@
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Zeskanuj matrycę danych na czujniku Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Konfiguracja Accu-Chek</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Dodaj sensor</string>
     <string name="advanced_title">Advanced</string>
     <string name="aidex_connected">Połączono!</string>
     <string name="aidex_connecting_to">Łączę z %1$s…</string>
@@ -935,7 +937,7 @@
     <string name="newdata">"Nowe dane"</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Brak podłączonego sensora</string>
     <string name="nonewdata">"Brak nowych danych"</string>
     <string name="not">Not</string>
     <string name="nothing"></string>
@@ -1735,6 +1737,7 @@
     <string name="journal_dose_pair_insulin">Połącz insulinę</string>
     <string name="journal_dose_pair_carbs">Połącz węglowodany</string>
     <string name="journal_dose_suggested_insulin">Sugerowane %1$s j.</string>
+    <string name="journal_amount_suggested">Sugerowane</string>
     <string name="unit_insulin_value">%1$s j.</string>
     <string name="unit_insulin_short">j.</string>
     <string name="unit_carbs_value">%1$s g</string>
