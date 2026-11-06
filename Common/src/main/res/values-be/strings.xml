@@ -3319,4 +3319,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">зніжаецца</string>
     <string name="tts_trend_rising_quickly">хутка павышаецца</string>
     <string name="tts_trend_falling_quickly">хутка зніжаецца</string>
+    <string name="lumiflex_remove_follower_confirm">Закрыць доступ да вашых паказанняў для %1$s?</string>
+    <string name="lumiflex_discard_changes_title">Адкінуць змены?</string>
+    <string name="lumiflex_discard_changes_message">Змены налад падпісчыка не захаваны.</string>
+    <string name="lumiflex_follower_alerts">Апавяшчэнні падпісчыка</string>
+    <string name="lumiflex_follow_mode">Атрымліваць</string>
+    <string name="lumiflex_upload_mode">Адпраўляць</string>
+    <string name="lumiflex_follow_subtitle">Атрыманне паказанняў з воблака Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Атрыманне паказанняў</string>
+    <string name="lumiflex_follow_current">Паказанні атрыманы</string>
+    <string name="lumiflex_follow_failed">Не ўдалося атрымаць паказанні</string>
+    <string name="lumiflex_no_providers">Няма даступных акаўнтаў. Папрасіце ўладальніка сэнсара дадаць ваш акаўнт у падпісчыкі.</string>
+    <string name="lumiflex_follow_refresh">Абнавіць</string>
 </resources>

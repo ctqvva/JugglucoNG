@@ -3278,4 +3278,16 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="tts_trend_decreasing">dalend</string>
     <string name="tts_trend_rising_quickly">snel stijgend</string>
     <string name="tts_trend_falling_quickly">snel dalend</string>
+    <string name="lumiflex_remove_follower_confirm">%1$s geen toegang meer geven tot je metingen?</string>
+    <string name="lumiflex_discard_changes_title">Wijzigingen verwerpen?</string>
+    <string name="lumiflex_discard_changes_message">Je wijzigingen voor deze volger zijn niet opgeslagen.</string>
+    <string name="lumiflex_follower_alerts">Meldingen voor volgers</string>
+    <string name="lumiflex_follow_mode">Ontvangen</string>
+    <string name="lumiflex_upload_mode">Verzenden</string>
+    <string name="lumiflex_follow_subtitle">Glucose ontvangen van Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Metingen ontvangen</string>
+    <string name="lumiflex_follow_current">Metingen ontvangen</string>
+    <string name="lumiflex_follow_failed">Metingen konden niet worden ontvangen</string>
+    <string name="lumiflex_no_providers">Geen gedeelde accounts. Vraag de eigenaar van de sensor om je account als volger toe te voegen.</string>
+    <string name="lumiflex_follow_refresh">Vernieuwen</string>
 </resources>

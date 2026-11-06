@@ -50,7 +50,8 @@ class LumiflexCloudClient(
     sealed class DeviceList {
         data class Ok(val sensorIdBySerial: Map<String, String>) : DeviceList()
         object Unauthorized : DeviceList()
-        data class Failed(val code: Int, val message: String) : DeviceList()
+        data class Failed(val code: Int, val message: String,
+            val kind: LumiflexCloudError.Kind = LumiflexCloudError.classify(code, null)) : DeviceList()
     }
 
     /**
@@ -60,20 +61,62 @@ class LumiflexCloudClient(
     fun login(account: String, password: String, settings: LumiflexCloudSettings): LoginResult {
         val result = login(account, password)
         if (result is LoginResult.Ok) {
-            settings.account = result.account
-            settings.token = result.token
-            settings.userId = result.userId
+            settings.startSession(result.account, result.token, result.userId)
         }
         return result
     }
 
     /** Network-only sign-in: stores nothing, so a cancelled attempt cannot resurrect a session. */
     fun login(account: String, password: String): LoginResult {
+        val loginAccount = normalizeLoginAccount(account)
         val body = JSONObject()
-            .put("userName", account)
+            .put("userName", loginAccount)
             .put("password", LumiflexCloudCrypto.passwordHash(password))
             .toString()
-        val response = post(LumiflexCloudConstants.PATH_LOGIN, body, token = "", userId = "")
+        return loginRequest(LumiflexCloudConstants.PATH_LOGIN, body, loginAccount)
+    }
+
+    fun requestRegistrationCode(phone: String): SyncResult {
+        val normalized = registrationPhone(phone)
+            ?: return SyncResult.Failed(LumiflexCloudError.Kind.OTHER, 400, "Invalid Russian phone number")
+        return classifySync(post(
+            LumiflexCloudConstants.PATH_SEND_REGISTRATION_CODE,
+            // Russian numbers use the overseas SMS gateway, with the dialling code separate.
+            JSONObject().put("zoneNumber", "7").put("phone", normalized.drop(1)).toString(), "", "",
+        ))
+    }
+
+    /** The official mobile flow creates an account or signs in an existing one after SMS proof. */
+    fun registerWithCode(phone: String, code: String): LoginResult {
+        val normalized = registrationPhone(phone)
+            ?: return LoginResult.Failed(LumiflexCloudError.Kind.OTHER, 400, "Invalid Russian phone number")
+        if (code.isBlank()) return LoginResult.Failed(LumiflexCloudError.Kind.OTHER, 400, "Verification code required")
+        return loginRequest(
+            LumiflexCloudConstants.PATH_REGISTER_WITH_CODE,
+            JSONObject().put("phone", normalized).put("code", code.trim()).toString(),
+            normalized,
+        )
+    }
+
+    fun setPassword(token: String, userId: String, password: String): SyncResult = classifySync(post(
+        LumiflexCloudConstants.PATH_SET_PASSWORD,
+        JSONObject().put("password", LumiflexCloudCrypto.passwordHash(password)).toString(), token, userId,
+    ))
+
+    /** A persisted token is not proof that the vendor still accepts this session. */
+    fun checkSession(token: String, userId: String): SyncResult {
+        val response = transport.get(url(LumiflexCloudConstants.PATH_USER_INFO), headers(token, userId))
+        val verdict = classifySync(response)
+        if (verdict is SyncResult.Failed) return verdict
+        val data = runCatching { JSONObject(decoded(response.body).orEmpty()).optJSONObject("data") }.getOrNull()
+        if (userId.isBlank() || data?.optString("userId") != userId) {
+            return SyncResult.Failed(LumiflexCloudError.Kind.OTHER, response.code, "Unable to verify account")
+        }
+        return SyncResult.Ok
+    }
+
+    private fun loginRequest(path: String, body: String, account: String): LoginResult {
+        val response = post(path, body, token = "", userId = "")
         if (response.code == UNAUTHORIZED) {
             return LoginResult.Failed(
                 LumiflexCloudError.Kind.UNAUTHORIZED,
@@ -88,15 +131,24 @@ class LumiflexCloudClient(
                 response.body,
             )
         }
-        val json = runCatching { JSONObject(decoded(response.body).orEmpty()) }.getOrNull()
+        val plain = decoded(response.body)
+        if (response.code !in 200..299) return LoginResult.Failed(
+            LumiflexCloudError.classify(response.code, plain), response.code, LumiflexCloudError.message(plain))
+        val json = runCatching { JSONObject(plain.orEmpty()) }.getOrNull()
+        if (json != null && !json.has("code")) {
+            return LoginResult.Failed(LumiflexCloudError.Kind.OTHER, response.code, "The server did not confirm sign-in")
+        }
         val code = json?.optInt("code", response.code) ?: response.code
         val data = json?.optJSONObject("data")
         val model = LoginModel.fromJson(data)
-        if (response.code in 200..299 && code == 200 && model.token.isNotBlank()) {
+        if (response.code in 200..299 && code == 200 && model.token.isNotBlank() && model.userId.isNotBlank()) {
             return LoginResult.Ok(model.userId, model.token, account)
         }
+        if (response.code in 200..299 && code == 200) {
+            return LoginResult.Failed(LumiflexCloudError.Kind.OTHER, code, "The server did not return a complete session")
+        }
         return LoginResult.Failed(
-            LumiflexCloudError.classify(response.code, response.body),
+            LumiflexCloudError.classify(code, decoded(response.body)),
             code,
             LumiflexCloudError.message(decoded(response.body)),
         )
@@ -113,7 +165,7 @@ class LumiflexCloudClient(
         val formatter = SimpleDateFormat(DATE_PATTERN, Locale.US).apply { timeZone = zone }
         val createTimeFormatter = SimpleDateFormat(CREATE_TIME_PATTERN, Locale.US).apply { timeZone = zone }
         val appTimeZone = zone.id
-        val dstOffset = (zone.getDSTSavings() / 1000).toString()
+        val rules = zone.toZoneId().rules
         val appCreateTime = createTimeFormatter.format(Date(nowMs))
         val array = JSONArray()
         records.forEach { record ->
@@ -123,7 +175,7 @@ class LumiflexCloudClient(
                     appTime = formatter.format(Date(record.timeMs)),
                     appTimeZone = appTimeZone,
                     appCreateTime = appCreateTime,
-                    dstOffset = dstOffset,
+                    dstOffset = rules.getDaylightSavings(java.time.Instant.ofEpochMilli(record.timeMs)).seconds.toString(),
                 ),
             )
         }
@@ -132,26 +184,57 @@ class LumiflexCloudClient(
         return classifySync(response)
     }
 
-    fun followerList(token: String, isShare: Boolean, userId: String): List<FollowerInfo>? {
-        val url = url(LumiflexCloudConstants.PATH_FOLLOWER_LIST) +
-            "?type=0&pageNum=1&pageSize=500"
-        val response = transport.get(url, headers(token, ""))
-        if (response.code !in 200..299) return null
-        val plain = decoded(response.body) ?: return null
-        val json = runCatching { JSONObject(plain) }.getOrNull()
-        if (json != null && json.optInt("code", 200) != 200) return null
-        val array = json?.optJSONArray("data") ?: runCatching { JSONArray(plain) }.getOrNull()
-        if (array == null) return null
-        val rows = (0 until array.length()).map { index ->
-            FollowerInfo.fromJson(array.optJSONObject(index))
+    sealed class AuthorizationList {
+        data class Ok(val rows: List<FollowerInfo>) : AuthorizationList()
+        data class Failed(val kind: LumiflexCloudError.Kind, val code: Int) : AuthorizationList()
+    }
+
+    fun followerList(token: String, isShare: Boolean, userId: String): List<FollowerInfo>? =
+        (authorizations(token, isShare, userId) as? AuthorizationList.Ok)?.rows
+
+    fun authorizations(token: String, isShare: Boolean, userId: String): AuthorizationList {
+        val requestUrl = url(LumiflexCloudConstants.PATH_FOLLOWER_LIST) +
+            "?type=${if (isShare) 0 else 1}&pageNum=1&pageSize=500"
+        val response = transport.get(requestUrl, headers(token, userId))
+        val plain = decoded(response.body)
+        if (response.code !in 200..299) return AuthorizationList.Failed(
+            LumiflexCloudError.classify(response.code, plain), response.code)
+        val json = runCatching { JSONObject(plain.orEmpty()) }.getOrNull()
+        if (json != null) {
+            if (!json.has("code")) return AuthorizationList.Failed(LumiflexCloudError.Kind.TRANSIENT, response.code)
+            val code = runCatching { java.math.BigDecimal(json.get("code").toString()).intValueExact() }.getOrNull()
+                ?: return AuthorizationList.Failed(LumiflexCloudError.Kind.TRANSIENT, response.code)
+            if (code != 200) return AuthorizationList.Failed(LumiflexCloudError.classify(code, plain), code)
         }
-        return rows.filter { row ->
-            if (isShare) {
-                row.dataProviderId.equals(userId, ignoreCase = true)
-            } else {
-                row.dataReaderId.equals(userId, ignoreCase = true)
-            }
+        val array = json?.optJSONArray("data") ?: runCatching { JSONArray(plain.orEmpty()) }.getOrNull()
+            ?: return AuthorizationList.Failed(LumiflexCloudError.Kind.TRANSIENT, response.code)
+        val rows = (0 until array.length()).mapNotNull { index ->
+            array.optJSONObject(index)?.let(FollowerInfo::fromJson)
+        }.filter { row ->
+            if (isShare) row.dataProviderId.equals(userId, ignoreCase = true)
+            else row.dataReaderId.equals(userId, ignoreCase = true)
         }
+        return AuthorizationList.Ok(rows)
+    }
+
+    sealed class FollowHistory {
+        data class Ok(val readings: List<LumiflexFollowReading>, val pageCount: Int) : FollowHistory()
+        data class Failed(val kind: LumiflexCloudError.Kind, val code: Int) : FollowHistory()
+    }
+
+    /** Uses the provider id, never the reader's own user id, for the authorized read. */
+    fun followHistory(session: LumiflexCloudSettings.Session, providerId: String, page: Int = 1, pageSize: Int = 500): FollowHistory {
+        if (providerId.isBlank() || providerId == session.userId || page < 1 || pageSize !in 1..500) {
+            return FollowHistory.Failed(LumiflexCloudError.Kind.OTHER, 400)
+        }
+        val query = "?userId=${java.net.URLEncoder.encode(providerId, "UTF-8")}&pageNum=$page&pageSize=$pageSize"
+        val response = transport.get(url(LumiflexCloudConstants.PATH_CGM_HISTORY) + query, headers(session.token, session.userId))
+        val result = classifySync(response)
+        if (result is SyncResult.Failed) return FollowHistory.Failed(result.kind, result.code)
+        val array = runCatching { JSONObject(decoded(response.body)!!).getJSONArray("data") }.getOrNull()
+            ?: return FollowHistory.Failed(LumiflexCloudError.Kind.TRANSIENT, response.code)
+        val rows = (0 until array.length()).mapNotNull { LumiflexFollowReading.fromJson(array.optJSONObject(it), providerId) }
+        return FollowHistory.Ok(rows.distinctBy { it.timestampMs }.sortedBy { it.timestampMs }, array.length())
     }
 
     fun devicesBySensorSerial(token: String): DeviceList {
@@ -173,10 +256,12 @@ class LumiflexCloudClient(
             return DeviceList.Failed(response.code, message)
         }
         val plain = decoded(response.body)
-            ?: return DeviceList.Failed(response.code, "Unreadable device list")
+            ?: return DeviceList.Failed(response.code, "Unreadable device list", LumiflexCloudError.Kind.TRANSIENT)
         val json = runCatching { JSONObject(plain) }.getOrNull()
-            ?: return DeviceList.Failed(response.code, "Unreadable device list")
-        val code = json.optInt("code", 200)
+            ?: return DeviceList.Failed(response.code, "Unreadable device list", LumiflexCloudError.Kind.TRANSIENT)
+        if (!json.has("code")) return DeviceList.Failed(response.code,
+            "Device list is not confirmed", LumiflexCloudError.Kind.TRANSIENT)
+        val code = json.optInt("code", 0)
         if (code != 200) {
             if (LumiflexCloudError.classify(code, plain) == LumiflexCloudError.Kind.UNAUTHORIZED) {
                 return DeviceList.Unauthorized
@@ -184,14 +269,16 @@ class LumiflexCloudClient(
             return DeviceList.Failed(code, LumiflexCloudError.message(plain))
         }
         if (!json.has("data")) {
-            return DeviceList.Failed(code, "Device list data is missing")
+            return DeviceList.Failed(code, "Device list data is missing", LumiflexCloudError.Kind.TRANSIENT)
         }
-        val data = json.optJSONObject("data") ?: return DeviceList.Ok(emptyMap())
+        val data = json.optJSONObject("data") ?: return if (json.isNull("data")) DeviceList.Ok(emptyMap())
+            else DeviceList.Failed(code, "Unreadable device list", LumiflexCloudError.Kind.TRANSIENT)
         val result = LinkedHashMap<String, String>()
         listOf("firstList", "lastList").forEach { key ->
             val array = data.optJSONArray(key) ?: return@forEach
             for (i in 0 until array.length()) {
                 val item = array.optJSONObject(i) ?: continue
+                if (item.optString("unregisterTime", "").let { it.isNotBlank() && it != "null" }) continue
                 val sn = item.optString("deviceSn", "")
                 val sensorId = item.optString("sensorId", "")
                 if (sn.isNotBlank() && sensorId.isNotBlank()) result[sn] = sensorId
@@ -200,10 +287,18 @@ class LumiflexCloudClient(
         return DeviceList.Ok(result)
     }
 
+    fun registerSensor(token: String, userId: String, sensor: LumiflexCloudSensor): SyncResult {
+        if (!sensor.complete || userId.isBlank() || token.isBlank()) return SyncResult.Failed(LumiflexCloudError.Kind.OTHER, 400, "Incomplete sensor pairing")
+        return classifySync(post(LumiflexCloudConstants.PATH_REGISTER_DEVICE,
+            sensor.registrationJson(userId, System.currentTimeMillis()).toString(), token, userId))
+    }
+
     fun addFollower(token: String, account: String, alias: String, userId: String = ""): FollowerInfo? {
+        val normalized = normalizeLoginAccount(account)
+        if (normalized.isBlank()) return null
         val body = JSONObject()
-            .put("readerUserName", account)
-            .put("readerAlias", alias)
+            .put("readerUserName", normalized)
+            .put("readerAlias", alias.trim())
             .put("hideState", 0)
             .put("normalPushState", 1)
             .put("emergePushState", 1)
@@ -211,7 +306,7 @@ class LumiflexCloudClient(
         val response = post(LumiflexCloudConstants.PATH_FOLLOWER_SAVE, body, token, userId)
         if (response.code !in 200..299) return null
         val json = runCatching { JSONObject(decoded(response.body).orEmpty()) }.getOrNull() ?: return null
-        if (json.optInt("code", 200) != 200) return null
+        if (json.optInt("code", 0) != 200) return null
         return FollowerInfo.fromJson(json.optJSONObject("data") ?: json)
     }
 
@@ -223,6 +318,7 @@ class LumiflexCloudClient(
         urgentPush: Boolean? = null,
         extremeHighPush: Boolean? = null,
         userId: String = "",
+        alias: String? = null,
     ): Boolean {
         if (id.isBlank()) return false
         val body = JSONObject().put("userAuthorizationId", id)
@@ -230,6 +326,7 @@ class LumiflexCloudClient(
         normalPush?.let { body.put("normalPushState", if (it) 1 else 0) }
         urgentPush?.let { body.put("emergePushState", if (it) 1 else 0) }
         extremeHighPush?.let { body.put("extremeHighPushState", if (it) 1 else 0) }
+        alias?.let { body.put("readerAlias", it.trim()) }
         return postOk(LumiflexCloudConstants.PATH_FOLLOWER_UPDATE, body.toString(), token, userId)
     }
 
@@ -276,20 +373,22 @@ class LumiflexCloudClient(
         }
         val plain = decoded(response.body)
             ?: return SyncResult.Failed(
-                LumiflexCloudError.Kind.OTHER,
+                LumiflexCloudError.Kind.TRANSIENT,
                 response.code,
                 "Unreadable server response",
             )
         val json = runCatching { JSONObject(plain) }.getOrNull()
         if (json == null) {
-            if (response.body.isBlank()) return SyncResult.Ok
             return SyncResult.Failed(
-                LumiflexCloudError.Kind.OTHER,
+                LumiflexCloudError.Kind.TRANSIENT,
                 response.code,
                 "Unreadable server response",
             )
         }
-        val code = json.optInt("code", 200)
+        if (!json.has("code")) return SyncResult.Failed(
+            LumiflexCloudError.Kind.TRANSIENT, response.code, "The server did not confirm the request",
+        )
+        val code = json.optInt("code", 0)
         if (code == 200) return SyncResult.Ok
         return SyncResult.Failed(
             LumiflexCloudError.classify(code, response.body),
@@ -326,6 +425,23 @@ class LumiflexCloudClient(
     }
 
     companion object {
+        fun registrationPhone(account: String): String? = normalizeLoginAccount(account)
+            .takeIf { it.length == 11 && it.startsWith("7") && it.all { char -> char in '0'..'9' } }
+
+        /** The vendor expects country-code digits, without '+' or phone display formatting. */
+        private fun normalizeLoginAccount(account: String): String {
+            val trimmed = account.trim()
+            // Do not remove '+' (or any other character) from an email address or username.
+            val phone = trimmed.removePrefix("+")
+            return if (phone.any { it in '0'..'9' } &&
+                phone.all { it in '0'..'9' || it.isWhitespace() || it in "()-" }
+            ) {
+                phone.filter { it in '0'..'9' }
+            } else {
+                trimmed
+            }
+        }
+
         internal const val TRANSPORT_FAILURE_CODE = -1
         private const val UNAUTHORIZED = 401
         private const val DATE_PATTERN = "yyyy-MM-dd HH:mm:ss"

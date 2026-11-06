@@ -237,17 +237,18 @@ UI/поведение:
   `getFirstAndLastDeviceInfo` по `deviceSn`. `updateCgmRecord` с `deleteStatus:1` по `cgmRecordId`
   удалить запись не дал (500) — удаление осталось непроверенным.
 - `userDeviceRegister` вживую не проверялся: на аккаунте сенсор уже привязан официальным
-  приложением. Пока считаем, что новый сенсор должен быть сначала зарегистрирован приложением.
+  приложением. Это ограничение той проверки, а не требование к регистрации из JNG.
 
 ## 11. Followers live check (2026-11-03)
 
 - Фолловер, добавленный в официальном приложении, на сервере есть: `userAuthorizationId =
   <userAuthorizationId>`, `dataProviderId` = владелец аккаунта,
   `dataReaderId` = аккаунт читателя, `readerUserName = <follower phone>`.
-- `findUserAuthorizationList` с `type=1` или `type=2` возвращает **пустой список** даже при
-  существующей авторизации; `type=0` возвращает все авторизации аккаунта. Поэтому клиент
-  запрашивает `?type=0&pageNum=1&pageSize=500` и сам фильтрует по направлению:
-  share — `dataProviderId == userId`, follow — `dataReaderId == userId`.
+- Проверка выполнена с аккаунта **провайдера**: `type=0` вернул выданные им
+  авторизации, а `type=1` / `type=2` — пустой список. Это не доказывает, что `type=0`
+  возвращает оба направления. Проверка аккаунта читателя в §14 подтвердила отдельный
+  запрос `type=1` для входящих авторизаций. Клиент использует `type=0` для share
+  (`dataProviderId == userId`) и `type=1` для follow (`dataReaderId == userId`).
 
 ## 12. Device registration and sensor "name" (2026-11-03)
 
@@ -296,7 +297,71 @@ UI/поведение:
 
 ### Что из этого следует для JNG
 
-Регистрация из JNG невозможна без MAC/ключа/времени активации сенсора, поэтому вызов
-`registerDevice` убран: раньше он отправлял только `deviceSn`/`sensorId`/`sensorIndex` и гарантированно
-получал `300007`. Сенсор должен быть привязан в официальном приложении — тогда `sensorId` берётся из
-`getFirstAndLastDeviceInfo`.
+Реализованный в JNG поток (покрыт интеграционными тестами с ответами-заглушками,
+но пока не подтверждён новой привязкой физического сенсора в этой рабочей копии)
+получает обязательные поля из локального драйвера: BLE MAC, время активации и сохранённый
+16-байтовый PAIR-ключ из AiDexPairKeyVault. Он регистрирует локально сопряжённый сенсор через
+`userDeviceRegister`, затем повторно читает список устройств и использует подтверждённый сервером
+`sensorId`. Отсутствующие MAC/ключ/время не подменяются заглушками. Clone-сенсоры исключены.
+Клиентские ID стабильны для аккаунта, серийного номера и времени активации, чтобы повтор запроса
+после потери ответа не создавал новую идентичность.
+
+## 13. Проверка регистрации RU (2026-11-06)
+
+Повторный запрос с российским номером подтвердил причину ошибки регистрации:
+`/user/sendRegisterPhoneVerificationCode` с полным номером `7…` отвечает HTTP 200,
+но бизнес-кодом `200100` («Отправка кода не удалась»). Это не успешный запрос.
+
+В APK 2.4.0 присутствуют `/sms/sendRegisterOverseaPhoneVerificationCode` и модель
+`ReqPhoneVerCode(zoneNumber=…)`. Запрос на этот маршрут с отдельным `zoneNumber: "7"`
+и десятизначным `phone` получил бизнес-код `200` («Запрос выполнен успешно»).
+Номер, SMS-код и токены в отчёт не записывались. Завершение проверки телефона и
+переход к настройке пароля наблюдались в установленной debug-сборке на Pixel;
+затем приложение перешло на экран подписчиков.
+
+Для проверки кода по-прежнему используется
+`/user/loginOrRegisterByVerificationCodeWithPhone` с полным номером `7…` и `code`.
+Строгая проверка бизнес-кода остаётся обязательной; HTTP 200 сам по себе ничего
+не говорит о доставке SMS. Поля запроса SMS и канонический номер для входа теперь
+проверяются раздельно в регрессии клиента.
+
+
+## 14. Follower receiving validation (2026-11-06)
+
+The Mi 9T session reproduced the missing receiver behavior: the old client requested
+`findUserAuthorizationList?type=0` for both directions. With the same session, `type=0`
+returned no shared readers, while `type=1` returned an authorization whose `dataReaderId`
+matched the signed-in account. The reader must request the provider’s `dataProviderId`.
+
+The read-only endpoint verified for this implementation is
+`GET /cgmRecord/getCgmRecordsByPageInfo?userId=<provider>&pageNum=1&pageSize=500`.
+It returned business code 200 and 500 newest-first records. Page 2 returned a distinct older
+500-record window. All returned user ids matched the authorized provider. Fields include
+`glucose` (mg/dL), `glucoseIsValid`, `appTime` and `appTimeZone`; the latter two specify
+local wall time and its timezone. The receiver filters invalid and unrelated-provider rows.
+No live account identifiers or credentials are recorded here. The previously listed
+`/cgm-record/list-recent` query remains unverified and is not used by this receiver.
+
+The receiver build was installed over the existing Mi 9T debug app without changing its login.
+The account migrated to receive mode with its authorized provider. Read-only Room inspection
+confirmed 500 `lumiflex_follower` rows. Subsequent poll timestamps advanced and Android alarm
+diagnostics recorded two follower wakeups with the next wakeup scheduled. Visual dashboard
+verification was blocked by a device-control daemon timeout, including its diagnostic retry.
+
+Review follow-up: record `dstOffset` (daylight-saving seconds) disambiguates the repeated local
+hour during an autumn clock change. A wall time with two valid offsets and no matching
+recorded daylight offset is rejected. Sync progress is acknowledged only after the Room write
+succeeds, and live publication excludes stale readings. Alarm broadcasts now persist a
+WorkManager request before finishing; the worker owns the complete network/import lifetime.
+JSON object list responses require the observed explicit `code: 200`; a missing code is
+a retryable malformed response, not evidence that the request succeeded.
+
+Compatibility/recovery follow-up: supported legacy timezone aliases such as `PST` map through
+`ZoneId.SHORT_IDS`. Daylight metadata is used only when a wall time is ambiguous; older
+uploaders could send the timezone’s nominal daylight amount even for winter records. New
+uploads calculate the daylight amount per record, including both occurrences of an autumn
+hour. The live cursor is committed after publication, so a thrown publication is retried by
+the next overlapping poll. Expired alarm wakes reconcile and retire the native mirror without
+deleting history. A selected historical non-Lumiflex sensor with native backing is preserved
+even when it has no active callback. Otherwise cleanup selects another available source or
+clears the selection.

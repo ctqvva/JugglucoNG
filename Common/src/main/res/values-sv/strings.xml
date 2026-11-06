@@ -3235,4 +3235,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">sjunkande</string>
     <string name="tts_trend_rising_quickly">snabbt stigande</string>
     <string name="tts_trend_falling_quickly">snabbt sjunkande</string>
+    <string name="lumiflex_remove_follower_confirm">Ta bort åtkomsten till dina mätvärden för %1$s?</string>
+    <string name="lumiflex_discard_changes_title">Kasta ändringarna?</string>
+    <string name="lumiflex_discard_changes_message">Dina ändringar för den här följaren har inte sparats.</string>
+    <string name="lumiflex_follower_alerts">Aviseringar för följaren</string>
+    <string name="lumiflex_follow_mode">Ta emot</string>
+    <string name="lumiflex_upload_mode">Skicka</string>
+    <string name="lumiflex_follow_subtitle">Ta emot glukos från Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Tar emot värden</string>
+    <string name="lumiflex_follow_current">Värden mottagna</string>
+    <string name="lumiflex_follow_failed">Kunde inte ta emot värden</string>
+    <string name="lumiflex_no_providers">Inga delade konton. Be sensorns ägare lägga till ditt konto som följare.</string>
+    <string name="lumiflex_follow_refresh">Uppdatera</string>
 </resources>

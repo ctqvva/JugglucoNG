@@ -83,7 +83,7 @@ fun ExpandableSettingsCard(
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = title, style = MaterialTheme.typography.titleMedium)
-                        Text(
+                        if (summary.isNotBlank()) Text(
                             modifier = Modifier.padding(top = 2.dp),
                             text = summary,
                             style = MaterialTheme.typography.bodyMedium,

@@ -3348,4 +3348,16 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="tts_trend_decreasing">sinkend</string>
     <string name="tts_trend_rising_quickly">schnell steigend</string>
     <string name="tts_trend_falling_quickly">schnell sinkend</string>
+    <string name="lumiflex_remove_follower_confirm">%1$s den Zugriff auf Ihre Messwerte entziehen?</string>
+    <string name="lumiflex_discard_changes_title">Änderungen verwerfen?</string>
+    <string name="lumiflex_discard_changes_message">Die Änderungen für diesen Follower wurden nicht gespeichert.</string>
+    <string name="lumiflex_follower_alerts">Benachrichtigungen für Follower</string>
+    <string name="lumiflex_follow_mode">Empfangen</string>
+    <string name="lumiflex_upload_mode">Senden</string>
+    <string name="lumiflex_follow_subtitle">Glukose von Lumiflex empfangen</string>
+    <string name="lumiflex_follow_refreshing">Messwerte werden empfangen</string>
+    <string name="lumiflex_follow_current">Messwerte empfangen</string>
+    <string name="lumiflex_follow_failed">Messwerte konnten nicht empfangen werden</string>
+    <string name="lumiflex_no_providers">Keine freigegebenen Konten. Bitten Sie den Sensorbesitzer, Ihr Konto als Follower hinzuzufügen.</string>
+    <string name="lumiflex_follow_refresh">Aktualisieren</string>
 </resources>

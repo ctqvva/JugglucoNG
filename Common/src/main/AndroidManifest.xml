@@ -179,6 +179,10 @@
             android:enabled="true"
             android:exported="false" />
         <receiver
+            android:name=".share.lumiflex.LumiflexFollowerPollReceiver"
+            android:enabled="true"
+            android:exported="false" />
+        <receiver
             android:name=".drivers.sibionics.SibionicsResetReminderReceiver"
             android:enabled="true"
             android:exported="false" />
