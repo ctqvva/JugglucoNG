@@ -34,7 +34,7 @@ internal data class LumiflexFollowersUiState(
         it.userAuthorizationId == editor.userAuthorizationId
     }
     val canInvite get() = !blocked && if (emailMode) {
-        account.trim().let { it.contains('@') && it.substringAfter('@').contains('.') && it.none(Char::isWhitespace) }
+        android.util.Patterns.EMAIL_ADDRESS.matcher(account.trim()).matches()
     } else LumiflexCloudClient.registrationPhone(account) != null
 }
 
@@ -45,6 +45,7 @@ class LumiflexCloudFollowersViewModel @JvmOverloads constructor(
         LumiflexCloudClient(), LumiflexCloudSettings(application)),
     private val networkDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : AndroidViewModel(application) {
+    private val settings = LumiflexCloudSettings(application)
     private val mutableState = MutableStateFlow(LumiflexFollowersUiState())
     internal val state = mutableState.asStateFlow()
 
@@ -74,12 +75,23 @@ class LumiflexCloudFollowersViewModel @JvmOverloads constructor(
     fun accountChanged(value: String) { mutableState.update { it.copy(account = value, inviteError = null) } }
     fun aliasChanged(value: String) { mutableState.update { it.copy(alias = value, inviteError = null) } }
 
+    private fun discardStaleResult(expected: LumiflexCloudSettings.Session): Boolean {
+        if (settings.isCurrent(expected)) return false
+        // The server may have applied the old account's request. Do not offer to retry it as a failure.
+        mutableState.update { it.copy(operation = null, followers = emptyList(), editor = null,
+            account = "", alias = "", inviteError = null, editorError = null, notice = null) }
+        refresh()
+        return true
+    }
+
     fun invite() {
         val input = state.value
         if (!input.canInvite) return
+        val expected = settings.session()
         mutableState.update { it.copy(operation = FollowerOperation.INVITE, inviteError = null, notice = null) }
         viewModelScope.launch {
             val confirmed = withContext(networkDispatcher) { manager.invite(input.account, input.alias) }
+            if (discardStaleResult(expected)) return@launch
             mutableState.update {
                 if (confirmed) it.copy(operation = null, account = "", alias = "",
                     notice = R.string.lumiflex_status_invited)
@@ -107,9 +119,11 @@ class LumiflexCloudFollowersViewModel @JvmOverloads constructor(
         val input = state.value
         val row = input.editor?.let { it.copy(readerAlias = it.readerAlias.trim()) } ?: return
         if (input.blocked || !input.editorDirty) return
+        val expected = settings.session()
         mutableState.update { it.copy(operation = FollowerOperation.SAVE, editorError = null) }
         viewModelScope.launch {
             val confirmed = withContext(networkDispatcher) { manager.save(row) }
+            if (discardStaleResult(expected)) return@launch
             mutableState.update {
                 if (confirmed) it.copy(operation = null, editor = row,
                     followers = it.followers.map { old -> if (old.userAuthorizationId == row.userAuthorizationId) row else old })
@@ -122,9 +136,11 @@ class LumiflexCloudFollowersViewModel @JvmOverloads constructor(
         val input = state.value
         val row = input.editor ?: return
         if (input.blocked) return
+        val expected = settings.session()
         mutableState.update { it.copy(operation = FollowerOperation.REMOVE, editorError = null) }
         viewModelScope.launch {
             val confirmed = withContext(networkDispatcher) { manager.remove(row.userAuthorizationId) }
+            if (discardStaleResult(expected)) return@launch
             mutableState.update {
                 if (confirmed) {
                     val remaining = it.followers.filterNot { old -> old.userAuthorizationId == row.userAuthorizationId }

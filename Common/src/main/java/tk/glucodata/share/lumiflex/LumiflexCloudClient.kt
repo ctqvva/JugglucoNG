@@ -50,7 +50,8 @@ class LumiflexCloudClient(
     sealed class DeviceList {
         data class Ok(val sensorIdBySerial: Map<String, String>) : DeviceList()
         object Unauthorized : DeviceList()
-        data class Failed(val code: Int, val message: String) : DeviceList()
+        data class Failed(val code: Int, val message: String,
+            val kind: LumiflexCloudError.Kind = LumiflexCloudError.classify(code, null)) : DeviceList()
     }
 
     /**
@@ -130,7 +131,10 @@ class LumiflexCloudClient(
                 response.body,
             )
         }
-        val json = runCatching { JSONObject(decoded(response.body).orEmpty()) }.getOrNull()
+        val plain = decoded(response.body)
+        if (response.code !in 200..299) return LoginResult.Failed(
+            LumiflexCloudError.classify(response.code, plain), response.code, LumiflexCloudError.message(plain))
+        val json = runCatching { JSONObject(plain.orEmpty()) }.getOrNull()
         if (json != null && !json.has("code")) {
             return LoginResult.Failed(LumiflexCloudError.Kind.OTHER, response.code, "The server did not confirm sign-in")
         }
@@ -221,10 +225,12 @@ class LumiflexCloudClient(
             return DeviceList.Failed(response.code, message)
         }
         val plain = decoded(response.body)
-            ?: return DeviceList.Failed(response.code, "Unreadable device list")
+            ?: return DeviceList.Failed(response.code, "Unreadable device list", LumiflexCloudError.Kind.TRANSIENT)
         val json = runCatching { JSONObject(plain) }.getOrNull()
-            ?: return DeviceList.Failed(response.code, "Unreadable device list")
-        val code = json.optInt("code", 200)
+            ?: return DeviceList.Failed(response.code, "Unreadable device list", LumiflexCloudError.Kind.TRANSIENT)
+        if (!json.has("code")) return DeviceList.Failed(response.code,
+            "Device list is not confirmed", LumiflexCloudError.Kind.TRANSIENT)
+        val code = json.optInt("code", 0)
         if (code != 200) {
             if (LumiflexCloudError.classify(code, plain) == LumiflexCloudError.Kind.UNAUTHORIZED) {
                 return DeviceList.Unauthorized
@@ -232,9 +238,10 @@ class LumiflexCloudClient(
             return DeviceList.Failed(code, LumiflexCloudError.message(plain))
         }
         if (!json.has("data")) {
-            return DeviceList.Failed(code, "Device list data is missing")
+            return DeviceList.Failed(code, "Device list data is missing", LumiflexCloudError.Kind.TRANSIENT)
         }
-        val data = json.optJSONObject("data") ?: return DeviceList.Ok(emptyMap())
+        val data = json.optJSONObject("data") ?: return if (json.isNull("data")) DeviceList.Ok(emptyMap())
+            else DeviceList.Failed(code, "Unreadable device list", LumiflexCloudError.Kind.TRANSIENT)
         val result = LinkedHashMap<String, String>()
         listOf("firstList", "lastList").forEach { key ->
             val array = data.optJSONArray(key) ?: return@forEach

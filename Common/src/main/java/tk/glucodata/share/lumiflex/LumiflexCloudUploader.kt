@@ -79,7 +79,7 @@ class LumiflexCloudUploader(
                 return FlushResult.Unauthorized(0)
             }
             is LumiflexCloudClient.DeviceList.Failed -> {
-                return FlushResult.Failed(0, devices.code, devices.message)
+                return FlushResult.Failed(0, devices.code, devices.message, devices.kind)
             }
         }
         val ourSerials = (localSensors.map { it.serial } + usable.map { it.serial })
@@ -108,11 +108,12 @@ class LumiflexCloudUploader(
                     settings.invalidateSession(session)
                     return FlushResult.Unauthorized(0)
                 }
-                is LumiflexCloudClient.DeviceList.Failed -> return FlushResult.Failed(0, refreshed.code, refreshed.message)
+                is LumiflexCloudClient.DeviceList.Failed -> return FlushResult.Failed(0, refreshed.code, refreshed.message, refreshed.kind)
             }
             publishBindings()
             if (sensorIdFor(sensorIdBySerial, sensor.serial) == null) {
-                return FlushResult.Failed(0, -1, "Sensor binding is not confirmed")
+                missingSensor = true
+                continue
             }
         }
         usable.groupBy { it.serial }.forEach { (serial, items) ->

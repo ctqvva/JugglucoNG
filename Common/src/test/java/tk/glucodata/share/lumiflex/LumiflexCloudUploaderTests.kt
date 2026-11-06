@@ -38,6 +38,7 @@ class LumiflexCloudUploaderTests {
         settings.enabled = true
         settings.token = "tok"
         settings.userId = "u1"
+        settings.account = "account"
         val queue = LumiflexCloudQueue(context)
         queue.remove(queue.peek())
         return Triple(
@@ -56,8 +57,8 @@ class LumiflexCloudUploaderTests {
     @Test
     fun flushUploadsAllAndClearsQueue() {
         val (_, queue, up) = uploader(200)
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 2, start + 120_000L, 101, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 2, start + 120_000L, 101, 0), owner = "account")
         assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Success)
         assertEquals(0, queue.size())
     }
@@ -66,7 +67,7 @@ class LumiflexCloudUploaderTests {
     fun flushDoesNothingWhenDisabled() {
         val (settings, queue, up) = uploader(200)
         settings.enabled = false
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
         assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Success)
         assertEquals(1, queue.size())
     }
@@ -74,7 +75,7 @@ class LumiflexCloudUploaderTests {
     @Test
     fun flush401ClearsTokenAndKeepsQueue() {
         val (settings, queue, up) = uploader(401)
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
         assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Unauthorized)
         assertEquals("", settings.token)
         assertEquals(1, queue.size())
@@ -83,7 +84,7 @@ class LumiflexCloudUploaderTests {
     @Test
     fun flush401OnDeviceListClearsTokenAndKeepsQueue() {
         val (settings, queue, up) = uploaderWithDevices(200) { _ -> LumiflexCloudClient.DeviceList.Unauthorized }
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
         assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Unauthorized)
         assertEquals("", settings.token)
         assertEquals(1, queue.size())
@@ -94,7 +95,7 @@ class LumiflexCloudUploaderTests {
         val (settings, queue, up) = uploaderWithDevices(200) { _ ->
             LumiflexCloudClient.DeviceList.Failed(0, "Network error")
         }
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
         assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Failed)
         assertEquals(0L, settings.lastSyncMs)
         assertEquals(1, queue.size())
@@ -107,9 +108,10 @@ class LumiflexCloudUploaderTests {
         settings.enabled = true
         settings.token = "old"
         settings.userId = "u1"
+        settings.account = "account"
         val queue = LumiflexCloudQueue(context)
         queue.remove(queue.peek())
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
         val swapping = object : LumiflexCloudClient.Transport {
             override fun post(
                 url: String,
@@ -137,7 +139,7 @@ class LumiflexCloudUploaderTests {
     @Test
     fun flushDropsNonPositiveReadingsWithoutSending() {
         val (_, queue, up) = uploader(200)
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 0, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 0, 0), owner = "account")
         up.flush()
         assertEquals(0, queue.size())
     }
@@ -286,7 +288,7 @@ class LumiflexCloudUploaderTests {
     @Test
     fun missingCloudSensorPreservesBacklogAndExplainsWhyItIsWaiting() {
         val (settings, queue, uploader) = uploaderWithDevices(200) { LumiflexCloudClient.DeviceList.Ok(emptyMap()) }
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
         assertEquals(LumiflexCloudUploader.FlushResult.WaitingForSensor(0), uploader.flush())
         assertEquals(1, queue.size())
         assertEquals(LumiflexCloudSettings.SyncState.WAITING_FOR_SENSOR, settings.syncStatus().state)
@@ -303,7 +305,7 @@ class LumiflexCloudUploaderTests {
             override fun get(url: String, headers: Map<String, String>) = error("Injected device lookup")
         }
         val (settings, queue, _) = uploader(200)
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
         val up = LumiflexCloudUploader(LumiflexCloudClient(transport, encrypt = { it }), settings, queue,
             sleep = {}, sensorIds = { LumiflexCloudClient.DeviceList.Ok(mapOf("SN1" to "SID1")) })
         assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Failed)
@@ -320,8 +322,8 @@ class LumiflexCloudUploaderTests {
     @Test
     fun partialUploadRecordsSuccessWhileUnknownSensorsStayQueued() {
         val (settings, queue, up) = uploader(200)
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
-        queue.enqueue(CgmRecord("SN2", "SN2", 0, 1, start + 60_000L, 101, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
+        queue.enqueue(CgmRecord("SN2", "SN2", 0, 1, start + 60_000L, 101, 0), owner = "account")
         assertEquals(LumiflexCloudUploader.FlushResult.WaitingForSensor(1), up.flush())
         assertEquals(1, queue.size())
         assertEquals("SN2", queue.peek().single().serial)
@@ -370,7 +372,7 @@ class LumiflexCloudUploaderTests {
     fun emptyOrUnconfirmedHttp200CannotDrainReadingsAndRemainsRetryable() {
         for (responseBody in listOf("", "{}")) {
             val (settings, queue, _) = uploader(200)
-            queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+            queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
             val transport = object : LumiflexCloudClient.Transport {
                 override fun post(url: String, body: String, headers: Map<String, String>) =
                     LumiflexCloudClient.HttpResult(200, responseBody)
@@ -389,9 +391,9 @@ class LumiflexCloudUploaderTests {
     @Test
     fun readingsArrivingDuringAnUploadRemainQueuedForAnotherAttempt() {
         val (settings, queue, _) = uploader(200)
-        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0), owner = "account")
         val transport = CapturingTransport()
-        transport.onPost = { queue.enqueue(CgmRecord("SN1", "SN1", 0, 2, start + 120_000L, 101, 0)) }
+        transport.onPost = { queue.enqueue(CgmRecord("SN1", "SN1", 0, 2, start + 120_000L, 101, 0), owner = "account") }
         val up = LumiflexCloudUploader(LumiflexCloudClient(transport, encrypt = { it }), settings, queue,
             sleep = {}, sensorIds = { LumiflexCloudClient.DeviceList.Ok(mapOf("SN1" to "SID1")) })
         assertEquals(LumiflexCloudUploader.FlushResult.Success(1), up.flush())

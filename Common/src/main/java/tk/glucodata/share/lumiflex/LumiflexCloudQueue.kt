@@ -106,7 +106,7 @@ class LumiflexCloudQueue(context: Context) {
     /** Drops mismatched or legacy unowned records before they can reach an arbitrary account. */
     fun clearIfOwnerMismatch(expected: String): Boolean {
         synchronized(lock) {
-            if (ownerAccount != expected) {
+            if (expected.isBlank() || ownerAccount != expected) {
                 items.clear()
                 ownerAccount = expected
                 persist()

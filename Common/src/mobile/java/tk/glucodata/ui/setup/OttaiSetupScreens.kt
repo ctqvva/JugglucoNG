@@ -728,9 +728,8 @@ internal fun OttaiAccountCard(
                     tk.glucodata.ui.components.AccountPhoneField(
                         value = form.phone,
                         onValueChange = { value ->
-                            val next = value.filter(Char::isDigit).take(form.smsCountry.subscriberDigits)
-                            if (next != form.phone) form.resetSms()
-                            form.phone = next
+                            if (value != form.phone) form.resetSms()
+                            form.phone = value
                         },
                         prefix = form.smsCountry.prefix,
                         normalizeInput = { it.filter(Char::isDigit).take(form.smsCountry.subscriberDigits) },

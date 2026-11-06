@@ -8,7 +8,7 @@ import tk.glucodata.ui.components.*
 @Composable
 internal fun LumiflexPhoneField(account: String, onAccount: (String) -> Unit, enabled: Boolean) {
     AccountPhoneField(
-        value = russianSubscriberFromAccount(account),
+        value = russianSubscriberFromCanonicalAccount(account),
         onValueChange = { raw ->
             val digits = russianSubscriberInput(raw)
             onAccount(if (digits.isBlank()) "" else "7$digits")

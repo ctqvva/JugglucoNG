@@ -380,4 +380,27 @@ class LumiflexCloudClientTests {
         assertEquals("a1", list?.first()?.userAuthorizationId)
         assertTrue(transport.urls.first().contains("/userAuthorization/findUserAuthorizationList?type=0"))
     }
+    @Test
+    fun httpFailuresRemainTransientEvenWhenTheirJsonHasNoCodeOrClaimsSuccess() {
+        for (reply in listOf("{}", """{"code":200,"msg":"Unavailable"}""")) {
+            val transport = FakeTransport { _, _ -> LumiflexCloudClient.HttpResult(503, reply) }
+            val result = newClient(transport).login("79991234567", "pass1234") as LumiflexCloudClient.LoginResult.Failed
+            assertEquals(LumiflexCloudError.Kind.TRANSIENT, result.kind)
+            assertEquals(503, result.code)
+        }
+    }
+
+    @Test
+    fun malformedSuccessfulDeviceLookupsRemainRetryable() {
+        for (reply in listOf("not-json", "{}", """{"code":200}""", """{"code":200,"data":[]}""")) {
+            val lookup = object : LumiflexCloudClient.Transport {
+                override fun get(url: String, headers: Map<String, String>) = LumiflexCloudClient.HttpResult(200, reply)
+                override fun post(url: String, body: String, headers: Map<String, String>) = error("Unexpected POST")
+            }
+            val result = LumiflexCloudClient(lookup, encrypt = { it }).devicesBySensorSerial("token")
+                as LumiflexCloudClient.DeviceList.Failed
+            assertEquals(LumiflexCloudError.Kind.TRANSIENT, result.kind)
+        }
+    }
+
 }

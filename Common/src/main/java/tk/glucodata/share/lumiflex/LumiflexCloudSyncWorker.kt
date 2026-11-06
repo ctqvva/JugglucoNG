@@ -28,7 +28,8 @@ class LumiflexCloudSyncWorker(context: Context, parameters: WorkerParameters) : 
             is LumiflexCloudUploader.FlushResult.Failed ->
                 if (result.kind == LumiflexCloudError.Kind.TRANSIENT) Result.retry()
                 else Result.success()
-            else -> Result.success()
+            is LumiflexCloudUploader.FlushResult.WaitingForSensor,
+            is LumiflexCloudUploader.FlushResult.Unauthorized -> Result.success()
         }
     }
 
@@ -38,16 +39,10 @@ class LumiflexCloudSyncWorker(context: Context, parameters: WorkerParameters) : 
         private val network = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
         @JvmStatic
-        fun initialize(context: Context) {
+        @JvmOverloads
+        fun initialize(context: Context, replace: Boolean = false) {
             val settings = LumiflexCloudSettings(context)
-            val session = settings.session()
-            val status = settings.syncStatus()
-            val pending = LumiflexCloudUploader.pendingCount(context)
-            val queued = settings.enabled && session.signedIn
-            settings.recordSync(session,
-                if (queued) LumiflexCloudSettings.SyncState.QUEUED else status.state,
-                pending, message = if (queued) "" else status.message, retrying = !queued && status.retrying,
-            )
+            // Startup only arms durable work. Loading/parsing the queue belongs to the worker.
             val manager = WorkManager.getInstance(context)
             if (!settings.enabled || !settings.isSignedIn()) {
                 manager.cancelUniqueWork(WORK_NAME)
@@ -59,8 +54,11 @@ class LumiflexCloudSyncWorker(context: Context, parameters: WorkerParameters) : 
                 PeriodicWorkRequestBuilder<LumiflexCloudSyncWorker>(15, TimeUnit.MINUTES)
                     .setConstraints(network).build(),
             )
-            // Explicit resume/login/manual sync must not be swallowed by an older running request.
-            enqueue(context, replace = true)
+            if (replace) {
+                settings.recordSync(settings.session(), LumiflexCloudSettings.SyncState.QUEUED, settings.syncStatus().pending)
+            }
+            // Startup preserves running/backed-off work; explicit user actions can replace it.
+            enqueue(context, replace = replace)
         }
 
         fun enqueue(context: Context, replace: Boolean = false) {

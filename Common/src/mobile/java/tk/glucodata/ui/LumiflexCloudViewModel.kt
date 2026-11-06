@@ -30,7 +30,6 @@ internal data class LumiflexCloudUiState(
     val checkingSession: Boolean = false,
     val verificationFailed: Boolean = false,
     val sessionExpired: Boolean = false,
-    val editing: Boolean = false,
     val registration: Boolean = false,
     val phone: String = "",
     val code: String = "",
@@ -48,14 +47,14 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
     private val client: LumiflexCloudClient = LumiflexCloudClient(),
     private val credentials: LumiflexCloudCredentials = LumiflexCloudCredentials(application),
     private val networkDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val scheduleSync: (Context) -> Unit = { LumiflexCloudSyncWorker.initialize(it) },
+    private val scheduleSync: (Context) -> Unit = { LumiflexCloudSyncWorker.initialize(it, replace = true) },
 ) : AndroidViewModel(application) {
     private val settings = LumiflexCloudSettings(application)
     private val draft = credentials.load()
     private val mutableState = MutableStateFlow(LumiflexCloudUiState(
         account = draft.account.ifBlank { settings.account }, password = draft.password,
         session = settings.session(), enabled = settings.enabled, sync = settings.syncStatus(),
-        editing = !settings.isSignedIn(), passwordSetupRequired = settings.passwordSetupRequired,
+        passwordSetupRequired = settings.passwordSetupRequired,
         sessionExpired = settings.sessionExpired,
     ))
     internal val state = mutableState.asStateFlow()
@@ -104,7 +103,6 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
         saveDraft()
     }
 
-    fun editCredentials() { mutableState.update { it.copy(editing = !it.editing, error = null, notice = null) } }
     fun showRegistration(value: Boolean) {
         mutableState.update { it.copy(registration = value, code = "", codeSent = false, error = null, notice = null) }
     }
@@ -179,7 +177,7 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
                     mutableState.update { it.copy(
                         busy = false, account = result.account,
                         password = if (registration) "" else it.password,
-                        registration = false, code = "", editing = false, verificationFailed = false,
+                        registration = false, code = "", verificationFailed = false,
                         notice = if (registration) text(R.string.lumiflex_finish_password) else null,
                     ) }
                     saveDraft()
@@ -250,7 +248,10 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
         mutableState.update { it.copy(checkingSession = true, error = null, notice = null) }
         viewModelScope.launch {
             val result = withContext(networkDispatcher) { client.checkSession(expected.token, expected.userId) }
-            if (generation != actionGeneration) return@launch
+            if (result is LumiflexCloudClient.SyncResult.Failed && result.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
+                settings.invalidateSession(expected)
+            }
+            if (generation != actionGeneration) { refresh(); return@launch }
             if (settings.isCurrent(expected)) {
                 when (result) {
                     LumiflexCloudClient.SyncResult.Ok -> {
@@ -276,7 +277,7 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
         settings.endSession()
         settings.enabled = false
         scheduleSync(getApplication())
-        mutableState.update { it.copy(busy = false, sendingCode = false, checkingSession = false, editing = true,
+        mutableState.update { it.copy(busy = false, sendingCode = false, checkingSession = false,
             verificationFailed = false, registration = false, notice = null, error = null) }
         refresh()
     }

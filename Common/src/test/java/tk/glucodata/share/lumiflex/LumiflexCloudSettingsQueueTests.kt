@@ -105,6 +105,14 @@ class LumiflexCloudSettingsQueueTests {
     }
 
     @Test
+    fun aBlankSessionAccountCannotAdoptLegacyUnownedReadings() {
+        val queue = LumiflexCloudQueue(RuntimeEnvironment.getApplication()).apply { clear() }
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, 1_700_000_000_000L, 100, 0))
+        assertTrue(queue.clearIfOwnerMismatch(""))
+        assertTrue(queue.peek().isEmpty())
+    }
+
+    @Test
     fun logoutAndReplacementFenceLateLoginValidationAndSyncReplies() {
         val settings = LumiflexCloudSettings(RuntimeEnvironment.getApplication())
         settings.clear()

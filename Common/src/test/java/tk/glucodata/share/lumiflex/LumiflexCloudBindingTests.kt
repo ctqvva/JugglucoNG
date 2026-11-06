@@ -30,20 +30,25 @@ class LumiflexCloudBindingTests {
 
     private class Transport : LumiflexCloudClient.Transport {
         var registered = false
+        var confirmRegistration = true
+        var otherBoundSensor = false
         var registrationCalls = 0
         var uploads = 0
         var registrationBody = ""
         var registrationResponse = LumiflexCloudClient.HttpResult(200, """{"code":200,"data":{"deviceId":"accepted"}}""")
         var onRegistration: () -> Unit = {}
-        override fun get(url: String, headers: Map<String, String>) = LumiflexCloudClient.HttpResult(200,
-            if (registered) """{"code":200,"data":{"firstList":[{"deviceSn":"1111222233","sensorId":"server-sensor-id"}]}}"""
-            else """{"code":200,"data":{"firstList":[]}}""",
-        )
+        override fun get(url: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult {
+            val devices = org.json.JSONArray()
+            if (registered) devices.put(JSONObject().put("deviceSn", "1111222233").put("sensorId", "server-sensor-id"))
+            if (otherBoundSensor) devices.put(JSONObject().put("deviceSn", "2222333344").put("sensorId", "server-sensor-id"))
+            return LumiflexCloudClient.HttpResult(200,
+                JSONObject().put("code", 200).put("data", JSONObject().put("firstList", devices)).toString())
+        }
         override fun post(url: String, body: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult {
             if (url.endsWith("userDeviceRegister")) {
                 registrationCalls++
                 registrationBody = body
-                registered = true
+                registered = confirmRegistration
                 onRegistration()
                 return registrationResponse
             }
@@ -133,6 +138,17 @@ class LumiflexCloudBindingTests {
         assertEquals("new-account", queue.owner())
         assertEquals("9999000011", queue.peek().single().serial)
         assertEquals(0, transport.uploads)
+    }
+
+    @Test
+    fun anUnconfirmedSensorDoesNotBlockReadingsFromAnAlreadyBoundSensor() {
+        enqueue()
+        queue.enqueue(CgmRecord("X-2222333344", "X-2222333344", 0, 1, start + 60_000, 110, 0), "account")
+        val transport = Transport().apply { confirmRegistration = false; otherBoundSensor = true }
+        assertEquals(LumiflexCloudUploader.FlushResult.WaitingForSensor(1), uploader(transport).flush())
+        assertEquals(1, transport.uploads)
+        assertEquals(1, transport.registrationCalls)
+        assertEquals("X-1111222233", queue.peek().single().serial)
     }
 
     @Test

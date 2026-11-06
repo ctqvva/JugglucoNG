@@ -106,7 +106,7 @@ class LumiflexCloudSettingsUiTests {
     fun expiredSessionKeepsEnteredPasswordAndOffersAccountCreation() {
         var current by mutableStateOf(signedIn.copy(
             session = LumiflexCloudSettings.Session("79991234567", "", "", 2),
-            sessionExpired = true, editing = true,
+            sessionExpired = true,
         ))
         compose.setContent {
             MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
@@ -206,4 +206,14 @@ class LumiflexCloudSettingsUiTests {
         compose.onNodeWithText("Вход здесь разлогинивает", substring = true).assertDoesNotExist()
         capture("phone-entry-ru")
     }
+    @Test fun syncErrorsWithoutPublicServerTextShowALocalizedFallback() {
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                LumiflexCloudSettingsContent(signedIn.copy(sync = LumiflexCloudSettings.SyncStatus(
+                    state = LumiflexCloudSettings.SyncState.ERROR, message = "")))
+            }
+        }
+        compose.onNodeWithText("Не удалось выполнить запрос. Попробуйте ещё раз.").assertExists()
+    }
+
 }

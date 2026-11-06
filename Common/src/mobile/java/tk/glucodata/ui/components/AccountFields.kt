@@ -114,7 +114,13 @@ internal fun russianSubscriberInput(raw: String): String {
 }
 
 internal fun russianSubscriberFromAccount(account: String): String =
-    account.filter { it in '0'..'9' }.let { if (it.startsWith('7') || (it.length == 11 && it.startsWith('8'))) it.drop(1) else it }.take(10)
+    account.filter { it in '0'..'9' }.let { if (it.length == 11 && it.firstOrNull() in listOf('7', '8')) it.drop(1) else it }.take(10)
+
+/** Entry drafts retain the country prefix even before all ten subscriber digits are entered. */
+internal fun russianSubscriberFromCanonicalAccount(account: String): String =
+    account.filter { it in '0'..'9' }.let {
+        if (it.startsWith('7')) it.drop(1).take(10) else russianSubscriberFromAccount(it)
+    }
 
 internal val RussianPhoneOutputTransformation = OutputTransformation {
     if (length > 8) insert(8, "-")

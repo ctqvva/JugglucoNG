@@ -31,6 +31,7 @@ class LumiflexCloudViewModelTests {
         var failPassword = true
         var onLogin: () -> Unit = {}
         var validationCode = 200
+        var onValidation: () -> Unit = {}
         var smsResponseLost = false
         override fun post(url: String, body: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult {
             val response = when {
@@ -52,10 +53,11 @@ class LumiflexCloudViewModelTests {
             return LumiflexCloudClient.HttpResult(200, response)
         }
 
-        override fun get(url: String, headers: Map<String, String>) = LumiflexCloudClient.HttpResult(
-            200, if (validationCode == 200) """{"code":200,"data":{"userId":"u1"}}"""
-            else """{"code":$validationCode,"msg":"Session expired"}""",
-        )
+        override fun get(url: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult {
+            onValidation()
+            return LumiflexCloudClient.HttpResult(200, if (validationCode == 200) """{"code":200,"data":{"userId":"u1"}}"""
+            else """{"code":$validationCode,"msg":"Session expired"}""")
+        }
     }
 
     @Before fun reset() { settings.clear() }
@@ -152,4 +154,30 @@ class LumiflexCloudViewModelTests {
         assertTrue(settings.isSignedIn())
         assertEquals(1, transport.codeRequests)
     }
+    @Test fun anUnauthorizedCheckInvalidatesItsSessionEvenWhenANewerActionStarts() {
+        val transport = Transport()
+        val model = model(transport)
+        settings.startSession("79991234567", "token", "u1")
+        model.phoneChanged("79991234567")
+        transport.validationCode = 802
+        transport.onValidation = { model.requestCode() }
+        model.checkConnection(sync = false)
+        ShadowLooper.idleMainLooper()
+        assertEquals(1, transport.codeRequests)
+        assertFalse(settings.isSignedIn())
+        assertFalse(model.state.value.session.signedIn)
+    }
+
+    @Test fun aRejectedOldTokenCannotInvalidateAnAccountThatReplacedIt() {
+        val transport = Transport()
+        val model = model(transport)
+        settings.startSession("79991234567", "old-token", "u1")
+        transport.validationCode = 802
+        transport.onValidation = { settings.startSession("other", "new-token", "u2") }
+        model.checkConnection(sync = false)
+        ShadowLooper.idleMainLooper()
+        assertTrue(settings.isSignedIn())
+        assertEquals("new-token", settings.token)
+    }
+
 }

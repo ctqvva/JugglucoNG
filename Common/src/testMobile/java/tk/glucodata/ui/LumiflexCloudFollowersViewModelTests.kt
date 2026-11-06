@@ -181,4 +181,40 @@ class LumiflexCloudFollowersViewModelTests {
         assertEquals(draft, model.state.value.editor)
         assertEquals(row, model.state.value.followers.single())
     }
+    @Test fun invalidEmailRecipientsCannotBeSubmittedButPlusAliasesCan() {
+        val model = model()
+        model.emailModeChanged(true)
+        for (email in listOf("@example.org", "user@", "a@@example.org", "a b@example.org")) {
+            model.accountChanged(email)
+            assertFalse(email, model.state.value.canInvite)
+        }
+        model.accountChanged("family+reader@example.org")
+        assertTrue(model.state.value.canInvite)
+    }
+
+    @Test fun staleInvitesEditsAndRemovalsDoNotOfferToRetryAnAlreadyAppliedChange() {
+        for (operation in FollowerOperation.entries) {
+            settings.startSession("owner", "token", "u1")
+            val transport = Transport()
+            val model = model(transport)
+            model.accountChanged("79991234567")
+            model.editChanged(row.copy(readerAlias = "Family"))
+            transport.onPost = { settings.startSession("new-owner", "new-token", "u2") }
+            when (operation) {
+                FollowerOperation.INVITE -> model.invite()
+                FollowerOperation.SAVE -> model.saveEditor()
+                FollowerOperation.REMOVE -> model.removeEditor()
+            }
+            ShadowLooper.idleMainLooper()
+            assertEquals(1, transport.posts)
+            assertFalse(model.state.value.busy)
+            assertNull(model.state.value.inviteError)
+            assertNull(model.state.value.editorError)
+            assertTrue(model.state.value.followers.isEmpty())
+            assertNull(model.state.value.editor)
+            assertEquals("", model.state.value.account)
+            assertNull(model.state.value.notice)
+        }
+    }
+
 }

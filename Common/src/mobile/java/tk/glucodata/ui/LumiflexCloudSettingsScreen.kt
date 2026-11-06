@@ -154,7 +154,7 @@ internal fun LumiflexCloudSettingsContent(
                             modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.lumiflex_back_to_sign_in)) }
                     }
                 }
-            } else if (!signedIn || state.editing || setup) {
+            } else if (!signedIn || setup) {
                 Column {
                     SectionLabel(stringResource(if (setup) R.string.lumiflex_set_password else R.string.lumiflex_account), topPadding = 0.dp)
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -207,7 +207,7 @@ internal fun LumiflexCloudSettingsContent(
                 }
                 val detail = when {
                     state.sync.state == LumiflexCloudSettings.SyncState.ERROR ->
-                        if (state.sync.retrying) stringResource(R.string.lumiflex_sync_retry_hint) else state.sync.message
+                        if (state.sync.retrying) stringResource(R.string.lumiflex_sync_retry_hint) else state.sync.message.ifBlank { stringResource(R.string.lumiflex_request_failed) }
                     state.sync.lastSuccessMs > 0 -> DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(state.sync.lastSuccessMs))
                     else -> null
                 }

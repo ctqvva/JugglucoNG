@@ -129,9 +129,9 @@ fun ExpressiveSettingsScreen(
             hasActiveDexcomSensor()
     }
     val isRussianLanguage = LocalConfiguration.current.locales[0]?.language == "ru"
-    val showLumiflex = isRussianLanguage && remember {
-        runCatching { LumiflexCloudSettings.isSetUp(context) }.getOrDefault(false) ||
-            hasActiveAiDexSensor()
+    val showLumiflex = remember(isRussianLanguage) {
+        isRussianLanguage && (runCatching { LumiflexCloudSettings.isSetUp(context) }.getOrDefault(false) ||
+            hasActiveAiDexSensor())
     }
     val showOttaiSettings = remember {
         SensorBluetooth.mygatts().any { callback ->

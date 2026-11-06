@@ -3418,7 +3418,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="tts_trend_decreasing">hoos u dhacaya</string>
     <string name="tts_trend_rising_quickly">si degdeg ah kor ugu kacaya</string>
     <string name="tts_trend_falling_quickly">si degdeg ah hoos ugu dhacaya</string>
-    <string name="lumiflex_remove_follower_confirm">Ma ka joojinaysaa %1$s inuu arko cabbirradaada?</string>
+    <string name="lumiflex_remove_follower_confirm">Ma ka qaadaysaa %1$s xaqa gelitaanka cabbirradaada?</string>
     <string name="lumiflex_discard_changes_title">Ma tirtiraysaa isbeddellada?</string>
     <string name="lumiflex_discard_changes_message">Isbeddellada qofkan ku raacaya lama kaydin.</string>
     <string name="lumiflex_follower_alerts">Ogeysiisyada qofka ku raacaya</string>
