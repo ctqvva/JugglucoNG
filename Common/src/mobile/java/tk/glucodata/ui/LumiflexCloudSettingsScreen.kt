@@ -3,10 +3,12 @@ package tk.glucodata.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Sync
@@ -42,6 +44,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
         onRegistration = model::showRegistration, onPhone = model::phoneChanged, onCode = model::codeChanged,
         onRequestCode = model::requestCode, onVerifyCode = model::verifyCode, onSetPassword = model::setPassword,
         onFollowers = { navController.navigate("settings/lumiflex/followers") },
+        onMode = model::selectMode, onProvider = model::selectProvider,
     )
 }
 
@@ -55,6 +58,8 @@ internal fun LumiflexCloudSettingsContent(
     onRegistration: (Boolean) -> Unit = {}, onPhone: (String) -> Unit = {}, onCode: (String) -> Unit = {},
     onRequestCode: () -> Unit = {}, onVerifyCode: () -> Unit = {}, onSetPassword: () -> Unit = {},
     onFollowers: () -> Unit = {},
+    onMode: (Boolean) -> Unit = {},
+    onProvider: (tk.glucodata.share.lumiflex.FollowerInfo) -> Unit = {},
 ) {
     var showHelp by remember { mutableStateOf(false) }
     var emailLogin by rememberSaveable { mutableStateOf(state.account.contains('@')) }
@@ -91,8 +96,9 @@ internal fun LumiflexCloudSettingsContent(
             verticalArrangement = Arrangement.spacedBy(24.dp)) {
             MasterSwitchCard(
                 title = stringResource(R.string.lumiflex_cloud_title),
-                subtitle = stringResource(R.string.lumiflex_cloud_subtitle),
-                checked = state.enabled, onCheckedChange = onEnabled, icon = Icons.Default.CloudUpload,
+                subtitle = stringResource(if (state.followMode) R.string.lumiflex_follow_subtitle else R.string.lumiflex_cloud_subtitle),
+                checked = state.enabled, onCheckedChange = onEnabled,
+                icon = if (state.followMode) Icons.Default.CloudDownload else Icons.Default.CloudUpload,
                 enabled = signedIn && !setup && !state.busy,
             )
             if (signedIn) {
@@ -196,13 +202,38 @@ internal fun LumiflexCloudSettingsContent(
             }
 
             if (signedIn && !setup && !state.registration) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ConnectedButtonGroup(options = listOf(false, true), selectedOption = state.followMode,
+                        onOptionSelected = onMode, enabled = usable && !working,
+                        label = { Text(stringResource(if (it) R.string.lumiflex_follow_mode else R.string.lumiflex_upload_mode)) },
+                        modifier = Modifier.fillMaxWidth())
+                    if (state.followMode) {
+                        if (state.providers.isEmpty()) Text(stringResource(when {
+                            state.checkingSession -> R.string.lumiflex_follow_refreshing
+                            !state.providersLoaded -> R.string.lumiflex_follow_failed
+                            else -> R.string.lumiflex_no_providers
+                        }),
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        state.providers.forEach { row ->
+                            Row(Modifier.fillMaxWidth().selectable(
+                                selected = row.dataProviderId == state.providerId, enabled = usable,
+                                role = androidx.compose.ui.semantics.Role.RadioButton, onClick = { onProvider(row) })
+                                .heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                RadioButton(selected = row.dataProviderId == state.providerId, onClick = null, enabled = usable)
+                                Text(row.providerAlias.ifBlank { lumiflexAccountLabel(row.providerUserName) },
+                                    style = MaterialTheme.typography.titleMedium)
+                            }
+                        }
+                    }
+                }
                 val syncTitle = when {
                     !state.enabled -> stringResource(R.string.lumiflex_sync_paused)
-                    state.sync.state == LumiflexCloudSettings.SyncState.SYNCING -> stringResource(R.string.lumiflex_sync_uploading)
+                    state.sync.state == LumiflexCloudSettings.SyncState.SYNCING -> stringResource(if (state.followMode) R.string.lumiflex_follow_refreshing else R.string.lumiflex_sync_uploading)
                     state.sync.state == LumiflexCloudSettings.SyncState.ERROR -> stringResource(R.string.lumiflex_sync_error)
                     state.sync.state == LumiflexCloudSettings.SyncState.WAITING_FOR_SENSOR -> stringResource(R.string.lumiflex_connect_sensor)
                     state.sync.pending > 0 -> stringResource(R.string.lumiflex_pending_readings, state.sync.pending)
-                    state.sync.lastSuccessMs > 0 -> stringResource(R.string.lumiflex_sync_up_to_date)
+                    state.sync.lastSuccessMs > 0 -> stringResource(if (state.followMode) R.string.lumiflex_follow_current else R.string.lumiflex_sync_up_to_date)
                     else -> stringResource(R.string.lumiflex_sync_waiting_readings)
                 }
                 val detail = when {
@@ -224,7 +255,7 @@ internal fun LumiflexCloudSettingsContent(
                                     Text(it, style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                if (state.sync.boundSensors.isNotEmpty()) {
+                                if (!state.followMode && state.sync.boundSensors.isNotEmpty()) {
                                     Spacer(Modifier.height(12.dp))
                                     Text(state.sync.boundSensors.joinToString { "X-${it.removePrefix("X-")}" },
                                         style = MaterialTheme.typography.bodyMedium,
@@ -240,9 +271,9 @@ internal fun LumiflexCloudSettingsContent(
                                     CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
                                     Spacer(Modifier.width(8.dp))
                                 }
-                                Text(stringResource(R.string.lumiflex_sync_now))
+                                Text(stringResource(if (state.followMode) R.string.lumiflex_follow_refresh else R.string.lumiflex_sync_now))
                             }
-                            if (state.sync.boundSensors.isEmpty()) {
+                            if (!state.followMode && state.sync.boundSensors.isEmpty()) {
                                 OutlinedButton(onClick = onBind, enabled = state.enabled && usable && !working,
                                     shapes = ButtonDefaults.shapes(), modifier = Modifier.heightIn(min = 56.dp)) {
                                     Text(stringResource(R.string.lumiflex_bind_sensor))
@@ -251,7 +282,7 @@ internal fun LumiflexCloudSettingsContent(
                         }
                     }
                 }
-                SettingsItem(title = stringResource(R.string.lumiflex_manage_followers),
+                if (!state.followMode) SettingsItem(title = stringResource(R.string.lumiflex_manage_followers),
                     icon = Icons.Default.Group, onClick = onFollowers)
             }
         }

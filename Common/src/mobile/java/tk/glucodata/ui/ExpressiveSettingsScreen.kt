@@ -129,10 +129,8 @@ fun ExpressiveSettingsScreen(
             hasActiveDexcomSensor()
     }
     val isRussianLanguage = LocalConfiguration.current.locales[0]?.language == "ru"
-    val showLumiflex = remember(isRussianLanguage) {
-        isRussianLanguage && (runCatching { LumiflexCloudSettings.isSetUp(context) }.getOrDefault(false) ||
-            hasActiveAiDexSensor())
-    }
+    // A cloud follower has no local AiDex sensor to make this entry visible.
+    val showLumiflex = isRussianLanguage
     val showOttaiSettings = remember {
         SensorBluetooth.mygatts().any { callback ->
             (callback as? tk.glucodata.drivers.ottai.OttaiDriver)?.isUiEnabled() == true

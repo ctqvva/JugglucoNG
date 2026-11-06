@@ -3306,4 +3306,12 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="lumiflex_discard_changes_title">Elveti a módosításokat?</string>
     <string name="lumiflex_discard_changes_message">A követő beállításainak módosításai nincsenek mentve.</string>
     <string name="lumiflex_follower_alerts">Követő értesítései</string>
+    <string name="lumiflex_follow_mode">Fogadás</string>
+    <string name="lumiflex_upload_mode">Küldés</string>
+    <string name="lumiflex_follow_subtitle">Glükózértékek fogadása a Lumiflexből</string>
+    <string name="lumiflex_follow_refreshing">Értékek fogadása</string>
+    <string name="lumiflex_follow_current">Értékek fogadva</string>
+    <string name="lumiflex_follow_failed">Nem sikerült fogadni az értékeket</string>
+    <string name="lumiflex_no_providers">Nincs megosztott fiók. Kérje meg az érzékelő tulajdonosát, hogy adja hozzá fiókját követőként.</string>
+    <string name="lumiflex_follow_refresh">Frissítés</string>
 </resources>

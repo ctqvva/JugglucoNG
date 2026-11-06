@@ -323,3 +323,20 @@ UI/поведение:
 Строгая проверка бизнес-кода остаётся обязательной; HTTP 200 сам по себе ничего
 не говорит о доставке SMS. Поля запроса SMS и канонический номер для входа теперь
 проверяются раздельно в регрессии клиента.
+
+
+## 14. Follower receiving validation (2026-11-06)
+
+The Mi 9T session reproduced the missing receiver behavior: the old client requested
+`findUserAuthorizationList?type=0` for both directions. With the same session, `type=0`
+returned no shared readers, while `type=1` returned an authorization whose `dataReaderId`
+matched the signed-in account. The reader must request the provider’s `dataProviderId`.
+
+The read-only endpoint verified for this implementation is
+`GET /cgmRecord/getCgmRecordsByPageInfo?userId=<provider>&pageNum=1&pageSize=500`.
+It returned business code 200 and 500 newest-first records. Page 2 returned a distinct older
+500-record window. All returned user ids matched the authorized provider. Fields include
+`glucose` (mg/dL), `glucoseIsValid`, `appTime` and `appTimeZone`; the latter two specify
+local wall time and its timezone. The receiver filters invalid and unrelated-provider rows.
+No live account identifiers or credentials are recorded here. The previously listed
+`/cgm-record/list-recent` query remains unverified and is not used by this receiver.

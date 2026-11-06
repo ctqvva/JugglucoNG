@@ -20,6 +20,26 @@ class LumiflexCloudSyncWorker(context: Context, parameters: WorkerParameters) : 
     override fun doWork(): Result {
         val settings = LumiflexCloudSettings(applicationContext)
         if (!settings.enabled || !settings.isSignedIn()) return Result.success()
+        if (!settings.modeChosen) {
+            val session = settings.session()
+            val client = LumiflexCloudClient()
+            val providers = client.followerList(session.token, false, session.userId)
+            if (providers == null) {
+                val check = client.checkSession(session.token, session.userId)
+                if (check is LumiflexCloudClient.SyncResult.Failed && check.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
+                    settings.invalidateSession(session)
+                    return Result.success()
+                }
+                return Result.retry()
+            }
+            settings.withCurrentSession(session) {
+                LumiflexCloudRole.discover(settings, providers, LumiflexCloudSensor.pairedLocally(applicationContext).isNotEmpty())
+            }
+        }
+        if (settings.followMode) {
+            LumiflexFollowerRegistry.refresh(applicationContext)
+            return Result.success()
+        }
         val result = LumiflexCloudUploader.flushNow(applicationContext)
         if (!settings.enabled || !settings.isSignedIn()) return Result.success()
         return when (result) {
@@ -42,6 +62,7 @@ class LumiflexCloudSyncWorker(context: Context, parameters: WorkerParameters) : 
         @JvmOverloads
         fun initialize(context: Context, replace: Boolean = false) {
             val settings = LumiflexCloudSettings(context)
+            LumiflexFollowerRegistry.reconcile(context)
             // Startup only arms durable work. Loading/parsing the queue belongs to the worker.
             val manager = WorkManager.getInstance(context)
             if (!settings.enabled || !settings.isSignedIn()) {

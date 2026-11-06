@@ -186,12 +186,12 @@ class LumiflexCloudClient(
 
     fun followerList(token: String, isShare: Boolean, userId: String): List<FollowerInfo>? {
         val url = url(LumiflexCloudConstants.PATH_FOLLOWER_LIST) +
-            "?type=0&pageNum=1&pageSize=500"
-        val response = transport.get(url, headers(token, ""))
+            "?type=${if (isShare) 0 else 1}&pageNum=1&pageSize=500"
+        val response = transport.get(url, headers(token, userId))
         if (response.code !in 200..299) return null
         val plain = decoded(response.body) ?: return null
         val json = runCatching { JSONObject(plain) }.getOrNull()
-        if (json != null && json.optInt("code", 200) != 200) return null
+        if (json != null && json.optInt("code", 0) != 200) return null
         val array = json?.optJSONArray("data") ?: runCatching { JSONArray(plain) }.getOrNull()
         if (array == null) return null
         val rows = (0 until array.length()).map { index ->
@@ -204,6 +204,26 @@ class LumiflexCloudClient(
                 row.dataReaderId.equals(userId, ignoreCase = true)
             }
         }
+    }
+
+    sealed class FollowHistory {
+        data class Ok(val readings: List<LumiflexFollowReading>, val pageCount: Int) : FollowHistory()
+        data class Failed(val kind: LumiflexCloudError.Kind, val code: Int) : FollowHistory()
+    }
+
+    /** Uses the provider id, never the reader's own user id, for the authorized read. */
+    fun followHistory(session: LumiflexCloudSettings.Session, providerId: String, page: Int = 1): FollowHistory {
+        if (providerId.isBlank() || providerId == session.userId || page < 1) {
+            return FollowHistory.Failed(LumiflexCloudError.Kind.OTHER, 400)
+        }
+        val query = "?userId=${java.net.URLEncoder.encode(providerId, "UTF-8")}&pageNum=$page&pageSize=500"
+        val response = transport.get(url(LumiflexCloudConstants.PATH_CGM_HISTORY) + query, headers(session.token, session.userId))
+        val result = classifySync(response)
+        if (result is SyncResult.Failed) return FollowHistory.Failed(result.kind, result.code)
+        val array = runCatching { JSONObject(decoded(response.body)!!).getJSONArray("data") }.getOrNull()
+            ?: return FollowHistory.Failed(LumiflexCloudError.Kind.TRANSIENT, response.code)
+        val rows = (0 until array.length()).mapNotNull { LumiflexFollowReading.fromJson(array.optJSONObject(it), providerId) }
+        return FollowHistory.Ok(rows.distinctBy { it.timestampMs }.sortedBy { it.timestampMs }, array.length())
     }
 
     fun devicesBySensorSerial(token: String): DeviceList {

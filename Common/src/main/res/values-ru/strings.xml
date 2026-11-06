@@ -3355,4 +3355,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_discard_changes_title">Отменить изменения?</string>
     <string name="lumiflex_discard_changes_message">Изменения настроек подписчика не сохранены.</string>
     <string name="lumiflex_follower_alerts">Уведомления подписчика</string>
+    <string name="lumiflex_follow_mode">Получать</string>
+    <string name="lumiflex_upload_mode">Отправлять</string>
+    <string name="lumiflex_follow_subtitle">Получение показаний из облака Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Получение показаний</string>
+    <string name="lumiflex_follow_current">Показания получены</string>
+    <string name="lumiflex_follow_failed">Не удалось получить показания</string>
+    <string name="lumiflex_no_providers">Нет доступных аккаунтов. Попросите владельца сенсора добавить ваш аккаунт в подписчики.</string>
+    <string name="lumiflex_follow_refresh">Обновить</string>
 </resources>

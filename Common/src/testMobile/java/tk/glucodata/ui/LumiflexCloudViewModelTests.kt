@@ -33,6 +33,7 @@ class LumiflexCloudViewModelTests {
         var validationCode = 200
         var onValidation: () -> Unit = {}
         var smsResponseLost = false
+        var providers = "[]"
         override fun post(url: String, body: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult {
             val response = when {
                 url.endsWith("sendRegisterOverseaPhoneVerificationCode") -> {
@@ -54,6 +55,10 @@ class LumiflexCloudViewModelTests {
         }
 
         override fun get(url: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult {
+            if (url.contains("findUserAuthorizationList")) {
+                assertTrue(url.contains("type=1"))
+                return LumiflexCloudClient.HttpResult(200, """{"code":200,"data":$providers}""")
+            }
             onValidation()
             return LumiflexCloudClient.HttpResult(200, if (validationCode == 200) """{"code":200,"data":{"userId":"u1"}}"""
             else """{"code":$validationCode,"msg":"Session expired"}""")
@@ -62,6 +67,24 @@ class LumiflexCloudViewModelTests {
 
     @Before fun reset() { settings.clear() }
     @After fun clear() { stores.forEach { it.clear() } }
+
+    @Test fun configuredReaderDiscoversItsProviderAndSwitchesToReceiving() {
+        settings.startSession("79991234567", "sms-token", "u1")
+        settings.enabled = true
+        val transport = Transport().apply {
+            providers = """[{"dataProviderId":"patient","dataReaderId":"u1","providerAlias":"Mum"}]"""
+        }
+        val viewModel = model(transport)
+        ShadowLooper.idleMainLooper()
+        assertTrue(viewModel.state.value.followMode)
+        assertEquals("patient", viewModel.state.value.providerId)
+        assertEquals("Mum", viewModel.state.value.providers.single().providerAlias)
+        viewModel.selectMode(false)
+        assertFalse(settings.followMode)
+        viewModel.checkConnection(false)
+        ShadowLooper.idleMainLooper()
+        assertFalse(settings.followMode)
+    }
 
     private fun model(transport: Transport): LumiflexCloudViewModel {
         val store = ViewModelStore().also { stores += it }

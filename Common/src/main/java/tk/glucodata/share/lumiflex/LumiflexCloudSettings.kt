@@ -30,6 +30,22 @@ class LumiflexCloudSettings(context: Context) {
         get() = prefs.getBoolean(KEY_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_ENABLED, value).apply()
 
+    val followMode: Boolean get() = prefs.getBoolean("follow_mode", false)
+    val modeChosen: Boolean get() = prefs.getBoolean("mode_chosen", false)
+    val providerId: String get() = prefs.getString("follow_provider", "").orEmpty()
+    val providerName: String get() = prefs.getString("follow_name", "").orEmpty()
+    val uploadEnabled: Boolean get() = enabled && !followMode
+
+    /** A role/provider change retires in-flight work just like a session replacement. */
+    fun selectMode(follow: Boolean, provider: FollowerInfo? = null) = synchronized(sessionLock) {
+        prefs.edit().putBoolean("follow_mode", follow).putBoolean("mode_chosen", true)
+            .putString("follow_provider", if (follow) provider?.dataProviderId.orEmpty() else "")
+            .putString("follow_name", if (follow) provider?.providerAlias?.ifBlank { provider.providerUserName }.orEmpty() else "")
+            .putLong(KEY_SESSION_GENERATION, nextGeneration())
+            .putString("sync_state", SyncState.IDLE.name).putInt("pending", 0)
+            .putString("sync_message", "").putLong(KEY_LAST_SYNC_MS, 0L).apply()
+    }
+
     var account: String
         get() = prefs.getString(KEY_ACCOUNT, "").orEmpty()
         set(value) = prefs.edit().putString(KEY_ACCOUNT, value).apply()
@@ -130,6 +146,10 @@ class LumiflexCloudSettings(context: Context) {
                 .putLong(KEY_LAST_SYNC_MS, if (accountChanged) 0L else lastSyncMs)
                 .putInt("pending", if (accountChanged) 0 else syncStatus().pending)
                 .putStringSet("bound_sensors", if (accountChanged) emptySet() else syncStatus().boundSensors.toSet())
+                .putBoolean("mode_chosen", if (accountChanged) false else modeChosen)
+                .putBoolean("follow_mode", if (accountChanged) false else followMode)
+                .putString("follow_provider", if (accountChanged) "" else providerId)
+                .putString("follow_name", if (accountChanged) "" else providerName)
                 .apply()
         }
     }

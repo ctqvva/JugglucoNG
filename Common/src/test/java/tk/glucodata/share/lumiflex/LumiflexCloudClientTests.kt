@@ -259,7 +259,7 @@ class LumiflexCloudClientTests {
             LumiflexCloudClient.HttpResult(200, envelope("{\"code\":200,\"data\":[]}"))
         }
         newClient(transport).followerList("tok", isShare = false, userId = "u1")
-        assertTrue(transport.urls.first().contains("?type=0"))
+        assertTrue(transport.urls.first().contains("?type=1"))
     }
 
     @Test

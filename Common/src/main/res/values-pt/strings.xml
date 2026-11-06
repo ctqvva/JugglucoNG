@@ -3239,4 +3239,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_discard_changes_title">Descartar alterações?</string>
     <string name="lumiflex_discard_changes_message">As alterações deste seguidor não foram guardadas.</string>
     <string name="lumiflex_follower_alerts">Notificações do seguidor</string>
+    <string name="lumiflex_follow_mode">Receber</string>
+    <string name="lumiflex_upload_mode">Enviar</string>
+    <string name="lumiflex_follow_subtitle">Receber glicose do Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">A receber leituras</string>
+    <string name="lumiflex_follow_current">Leituras recebidas</string>
+    <string name="lumiflex_follow_failed">Não foi possível receber leituras</string>
+    <string name="lumiflex_no_providers">Sem contas partilhadas. Peça ao proprietário do sensor para adicionar a sua conta como seguidor.</string>
+    <string name="lumiflex_follow_refresh">Atualizar</string>
 </resources>

@@ -36,14 +36,14 @@ class LumiflexCloudUploader(
 
     @Synchronized
     fun flush(): FlushResult {
-        if (!settings.enabled) return FlushResult.Success(0)
+        if (!settings.uploadEnabled) return FlushResult.Success(0)
         val session = settings.session()
         settings.recordSync(session, LumiflexCloudSettings.SyncState.SYNCING, queue.size())
         val result = flushSession(session)
         val pending = queue.size()
         val (state, uploaded, message) = when (result) {
             is FlushResult.Success -> Triple(
-                if (pending > 0 && settings.enabled) LumiflexCloudSettings.SyncState.QUEUED
+                if (pending > 0 && settings.uploadEnabled) LumiflexCloudSettings.SyncState.QUEUED
                 else if (result.uploaded > 0 || settings.lastSyncMs > 0) LumiflexCloudSettings.SyncState.SYNCED
                 else LumiflexCloudSettings.SyncState.IDLE, result.uploaded, "",
             )
@@ -88,7 +88,7 @@ class LumiflexCloudUploader(
             ourSerials.filter { sensorIdFor(sensorIdBySerial, it) != null }.toSet())
         publishBindings()
         for (sensor in localSensors) {
-            if (!settings.isCurrent(session) || !settings.enabled) return FlushResult.Success(0)
+            if (!settings.isCurrent(session) || !settings.uploadEnabled) return FlushResult.Success(0)
             if (sensorIdFor(sensorIdBySerial, sensor.serial) != null) continue
             when (val registration = client.registerSensor(session.token, session.userId, sensor)) {
                 LumiflexCloudClient.SyncResult.Ok -> Unit
@@ -132,7 +132,7 @@ class LumiflexCloudUploader(
                 var lastMessage = ""
                 var lastKind = LumiflexCloudError.Kind.OTHER
                 while (attempt < LumiflexCloudConstants.RETRY_LIMIT && !success) {
-                    if (!settings.enabled) return FlushResult.Success(uploaded)
+                    if (!settings.uploadEnabled) return FlushResult.Success(uploaded)
                     if (!settings.isCurrent(session)) return FlushResult.Success(uploaded)
                     attempt++
                     val result = client.uploadGlucose(
@@ -205,7 +205,7 @@ class LumiflexCloudUploader(
             if (sensorSerial.isEmpty() || rows.isEmpty()) return
             try {
                 val context: Context = Applic.app ?: return
-                if (!LumiflexCloudSettings.isEnabled(context)) return
+                if (!LumiflexCloudSettings(context).uploadEnabled) return
                 if (!shouldUpload(sensorSerial)) return
                 val current = stateFor(context)
                 val start = sensorStartProvider(sensorSerial)

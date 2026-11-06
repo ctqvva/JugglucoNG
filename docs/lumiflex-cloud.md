@@ -1,14 +1,13 @@
 # Lumiflex cloud
 
-JNG can mirror glucose readings to the Lumiflex vendor cloud (`cloud.lumiflex.ru`, brand `lumi`) and
-manage the followers the official app shows under "Share/Follow". It is the same channel model as
-Dexcom Share, LibreView and iCan Health.
+JNG can send glucose to Lumiflex (`cloud.lumiflex.ru`, brand `lumi`), manage sharing, and
+receive glucose from an account that has granted access.
 
 ## Enable
 
 Settings → **Lumiflex Cloud** → enter the account (e-mail or phone) and password → **Sign in**.
-The card appears only when the app language is Russian, and either a Lumiflex account is configured
-or an AiDex X / LinX sensor is active. Phone numbers accept a leading `+` and display formatting
+The entry appears when the app language is Russian, including on a follower phone without
+a local sensor. Phone numbers accept a leading `+` and display formatting
 (for example, `+7 (999) 123-45-67`); JNG sends the country-code digits to the vendor. Email addresses
 keep their `+` aliases, and surrounding account whitespace is removed.
 
@@ -29,7 +28,24 @@ setup fails, retry that step without creating another account or requesting anot
 SMS request loses its network response, the code field stays available in case the SMS arrived.
 Automatic uploads start after password setup succeeds.
 
-## Bind a sensor
+## Receive shared readings
+
+Sign in with the follower account and select **Receive**. The sensor owner must add that
+account under **Followers** on their phone. Select the account whose glucose you want to see;
+one authorized provider is selected automatically when an existing reader has no local sensor.
+With several providers, choose one explicitly. **Send** keeps the existing local upload mode.
+The feature master switch pauses either mode. Receiving never binds sensors or uploads glucose.
+
+The receiver reads the provider account, rather than the signed-in reader’s own history. It
+checks sharing authorization every poll, fetches records about once a minute, and imports them
+through the shared virtual-sensor bridge into history, the dashboard, alerts and native exports.
+An initial/recovery fetch covers up to three 500-record pages, stopping once it reaches a day of
+history. Record timestamps use their reported timezone; glucose is already in mg/dL. The receiver
+recovers on process start, network return and app foreground, with an alarm for background polls
+and WorkManager as a periodic recovery backstop. Android may defer polling during deep sleep.
+Account/provider changes and sign-out discard in-flight results.
+
+## Bind a sensor (Send mode)
 
 JNG registers locally paired AiDex / LinX sensors with Lumiflex automatically when uploads start.
 You can also tap **Bind sensor** in the sensor row before the first reading. Registration uses the
@@ -94,6 +110,5 @@ offers: *Switch display*, *Regular reminders*, *Urgent low*, *Extreme high*.
 ## Known limitations
 
 - No live-value/trend push in v1 — the follower view is fed by the uploaded records.
-- No follower-side consumption: JNG does not read another account's data from this cloud.
 - The vendor contract can change with an app update; the channel is isolated behind its own
   constants and can be switched off.

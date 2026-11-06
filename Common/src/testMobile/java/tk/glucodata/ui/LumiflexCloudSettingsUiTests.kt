@@ -66,7 +66,7 @@ class LumiflexCloudSettingsUiTests {
         compose.onNodeWithText("Ожидание показаний").assertExists()
         assertEquals(compose.onNodeWithText("Ожидание показаний").fetchSemanticsNode().boundsInRoot.left,
             compose.onNodeWithText("+7 (999) 123-45-67").fetchSemanticsNode().boundsInRoot.left)
-        val master = compose.onNode(isToggleable()).assertIsOn()
+        val master = compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch)).assertIsOn()
         assertTrue(master.fetchSemanticsNode().boundsInRoot.bottom <
             compose.onNodeWithText("+7 (999) 123-45-67").fetchSemanticsNode().boundsInRoot.top)
         master.performClick()
@@ -79,6 +79,31 @@ class LumiflexCloudSettingsUiTests {
         capture("signed-in-ru")
         compose.onNodeWithText("Отправить сейчас").performScrollTo().performClick()
         assertEquals(1, syncClicks)
+    }
+
+    @Test
+    fun receiverShowsProviderAndRefreshWithoutUploadOrBindingActions() {
+        val provider = tk.glucodata.share.lumiflex.FollowerInfo(dataProviderId = "patient", providerAlias = "Мама")
+        var refreshed = false
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                Box(Modifier.size(420.dp, 1_000.dp).testTag("screen")) {
+                    LumiflexCloudSettingsContent(signedIn.copy(followMode = true, providerId = "patient",
+                        providers = listOf(provider), providersLoaded = true,
+                        sync = LumiflexCloudSettings.SyncStatus(lastSuccessMs = 1_793_918_000_000)),
+                        onSync = { refreshed = true })
+                }
+            }
+        }
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch)).assertIsOn()
+        compose.onNodeWithText("Мама").assertIsDisplayed()
+        compose.onNodeWithText("Показания получены").assertIsDisplayed()
+        compose.onNodeWithText("Привязать сенсор").assertDoesNotExist()
+        compose.onNodeWithText("Отправить сейчас").assertDoesNotExist()
+        compose.onNodeWithText("Подписчики").assertDoesNotExist()
+        compose.onNodeWithText("Обновить").performScrollTo().performClick()
+        assertTrue(refreshed)
+        capture("receiver-ru")
     }
 
     @Test

@@ -3557,4 +3557,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_discard_changes_title">Discard changes?</string>
     <string name="lumiflex_discard_changes_message">Your changes to this follower have not been saved.</string>
     <string name="lumiflex_follower_alerts">Follower notifications</string>
+    <string name="lumiflex_follow_mode">Receive</string>
+    <string name="lumiflex_upload_mode">Send</string>
+    <string name="lumiflex_follow_subtitle">Receive glucose from Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Receiving readings</string>
+    <string name="lumiflex_follow_current">Readings received</string>
+    <string name="lumiflex_follow_failed">Could not receive readings</string>
+    <string name="lumiflex_no_providers">No shared accounts. Ask the sensor owner to add your account as a follower.</string>
+    <string name="lumiflex_follow_refresh">Refresh</string>
 </resources>

@@ -3246,4 +3246,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_discard_changes_title">放弃更改？</string>
     <string name="lumiflex_discard_changes_message">对此关注者设置的更改尚未保存。</string>
     <string name="lumiflex_follower_alerts">关注者通知</string>
+    <string name="lumiflex_follow_mode">接收</string>
+    <string name="lumiflex_upload_mode">发送</string>
+    <string name="lumiflex_follow_subtitle">从 Lumiflex 接收血糖</string>
+    <string name="lumiflex_follow_refreshing">正在接收读数</string>
+    <string name="lumiflex_follow_current">已接收读数</string>
+    <string name="lumiflex_follow_failed">无法接收读数</string>
+    <string name="lumiflex_no_providers">没有共享账户。请让传感器所有者将您的账户添加为关注者。</string>
+    <string name="lumiflex_follow_refresh">刷新</string>
 </resources>

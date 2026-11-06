@@ -3228,4 +3228,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_discard_changes_title">Annullare le modifiche?</string>
     <string name="lumiflex_discard_changes_message">Le modifiche per questo follower non sono state salvate.</string>
     <string name="lumiflex_follower_alerts">Notifiche del follower</string>
+    <string name="lumiflex_follow_mode">Ricevi</string>
+    <string name="lumiflex_upload_mode">Invia</string>
+    <string name="lumiflex_follow_subtitle">Ricevi la glicemia da Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Ricezione delle letture</string>
+    <string name="lumiflex_follow_current">Letture ricevute</string>
+    <string name="lumiflex_follow_failed">Impossibile ricevere le letture</string>
+    <string name="lumiflex_no_providers">Nessun account condiviso. Chiedi al proprietario del sensore di aggiungere il tuo account come follower.</string>
+    <string name="lumiflex_follow_refresh">Aggiorna</string>
 </resources>

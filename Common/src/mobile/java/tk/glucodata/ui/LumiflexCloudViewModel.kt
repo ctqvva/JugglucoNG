@@ -19,6 +19,8 @@ import tk.glucodata.share.lumiflex.LumiflexCloudError
 import tk.glucodata.share.lumiflex.LumiflexCloudSettings
 import tk.glucodata.share.lumiflex.LumiflexCloudSyncWorker
 import tk.glucodata.share.lumiflex.LumiflexCloudSensor
+import tk.glucodata.share.lumiflex.FollowerInfo
+import tk.glucodata.share.lumiflex.LumiflexCloudRole
 
 internal data class LumiflexCloudUiState(
     val account: String = "",
@@ -39,6 +41,10 @@ internal data class LumiflexCloudUiState(
     val passwordSetupRequired: Boolean = false,
     val error: String? = null,
     val notice: String? = null,
+    val followMode: Boolean = false,
+    val providerId: String = "",
+    val providers: List<FollowerInfo> = emptyList(),
+    val providersLoaded: Boolean = false,
 )
 
 /** Keeps entry drafts, vendor operations and persisted session identity apart. */
@@ -56,6 +62,7 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
         session = settings.session(), enabled = settings.enabled, sync = settings.syncStatus(),
         passwordSetupRequired = settings.passwordSetupRequired,
         sessionExpired = settings.sessionExpired,
+        followMode = settings.followMode, providerId = settings.providerId,
     ))
     internal val state = mutableState.asStateFlow()
     private var actionGeneration = 0
@@ -81,6 +88,9 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
             session = settings.session(), enabled = settings.enabled, sync = settings.syncStatus(),
             passwordSetupRequired = settings.passwordSetupRequired,
             sessionExpired = settings.sessionExpired,
+            followMode = settings.followMode, providerId = settings.providerId,
+            providers = if (it.session.userId == settings.userId) it.providers else emptyList(),
+            providersLoaded = it.providersLoaded && it.session.userId == settings.userId,
             resendSeconds = ((settings.nextSmsAllowedMs - System.currentTimeMillis() + 999) / 1_000)
                 .coerceAtLeast(0).toInt(),
         ) }
@@ -188,6 +198,7 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
                 }
             }
             refresh()
+            if (result is LumiflexCloudClient.LoginResult.Ok && !registration) checkConnection(sync = false)
         }
     }
 
@@ -232,6 +243,20 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
         refresh()
     }
 
+    fun selectMode(follow: Boolean) {
+        if (mutableState.value.busy || mutableState.value.checkingSession) return
+        settings.selectMode(follow, if (follow) mutableState.value.providers.singleOrNull() else null)
+        scheduleSync(getApplication())
+        refresh()
+    }
+
+    fun selectProvider(row: FollowerInfo) {
+        if (mutableState.value.busy || mutableState.value.providers.none { it == row }) return
+        settings.selectMode(true, row)
+        scheduleSync(getApplication())
+        refresh()
+    }
+
     fun bindSensors() {
         if (!settings.isSignedIn() || !settings.enabled || mutableState.value.busy) return
         if (LumiflexCloudSensor.pairedLocally(getApplication()).isEmpty()) {
@@ -247,7 +272,11 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
         val generation = actionGeneration
         mutableState.update { it.copy(checkingSession = true, error = null, notice = null) }
         viewModelScope.launch {
-            val result = withContext(networkDispatcher) { client.checkSession(expected.token, expected.userId) }
+            val (result, providers) = withContext(networkDispatcher) {
+                val checked = client.checkSession(expected.token, expected.userId)
+                checked to if (checked == LumiflexCloudClient.SyncResult.Ok)
+                    client.followerList(expected.token, false, expected.userId) else null
+            }
             if (result is LumiflexCloudClient.SyncResult.Failed && result.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
                 settings.invalidateSession(expected)
             }
@@ -255,7 +284,13 @@ class LumiflexCloudViewModel @JvmOverloads constructor(
             if (settings.isCurrent(expected)) {
                 when (result) {
                     LumiflexCloudClient.SyncResult.Ok -> {
-                        mutableState.update { it.copy(verificationFailed = false) }
+                        mutableState.update { it.copy(verificationFailed = false, providers = providers ?: it.providers,
+                            providersLoaded = providers != null) }
+                        if (providers != null && !settings.modeChosen) {
+                            LumiflexCloudRole.discover(settings, providers,
+                                LumiflexCloudSensor.pairedLocally(getApplication()).isNotEmpty())
+                            scheduleSync(getApplication())
+                        }
                         if (sync && settings.enabled) {
                             settings.recordSync(expected, LumiflexCloudSettings.SyncState.QUEUED, settings.syncStatus().pending)
                             scheduleSync(getApplication())
