@@ -168,8 +168,16 @@ class OttaiCloudHeadersTests {
         val named = org.json.JSONObject().put("userName", "u123")
 
         assertEquals(named, OttaiCloudClient.firstProfileWithUserName({ null }, { bare }, { named }))
-        assertEquals(bare, OttaiCloudClient.firstProfileWithUserName({ bare }, { null }))
         assertEquals(null, OttaiCloudClient.firstProfileWithUserName({ null }, { null }))
+    }
+
+    @Test
+    fun usernameLessProfileLeavesTheLookupRetryable() {
+        // A non-null profile is final in upgradeWebSession; only null lets its retry run.
+        val bare = org.json.JSONObject().put("email", "a@b.c")
+
+        assertEquals(null, OttaiCloudClient.firstProfileWithUserName({ null }, { bare }))
+        assertEquals("account profile has no username", OttaiCloudClient.lastError)
     }
 
     @Test

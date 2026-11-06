@@ -1487,16 +1487,19 @@ object OttaiCloudClient {
 
     /**
      * The first profile that names the account, so a source that answers without a username
-     * does not hide one that has it. Falls back to the first profile of any kind, then null.
+     * does not hide one that has it. Null when none does: [upgradeWebSession] treats any
+     * non-null profile as final, so a username-less answer (Syai's website profile omits it)
+     * must not end the lookup while its retry could still reach the mobile profile.
      */
     internal fun firstProfileWithUserName(vararg sources: () -> JSONObject?): JSONObject? {
-        var anyProfile: JSONObject? = null
+        var answeredWithoutName = false
         for (source in sources) {
             val profile = source() ?: continue
             if (profile.optString("userName").orEmptyIfNull().isNotBlank()) return profile
-            if (anyProfile == null) anyProfile = profile
+            answeredWithoutName = true
         }
-        return anyProfile
+        if (answeredWithoutName) lastFailure = CloudFailure("account profile has no username")
+        return null
     }
 
     internal fun webGetUserHeaders(webBase: String, ts: Long, accessToken: String): Map<String, String> =
