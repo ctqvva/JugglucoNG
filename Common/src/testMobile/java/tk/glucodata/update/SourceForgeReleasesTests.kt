@@ -181,18 +181,44 @@ class SourceForgeReleasesTests {
 
     @Test
     fun `the backup is only for the default github source and only when github is unreachable`() {
-        val default = UpdateSource.resolve("https://github.com/ctqvva/JugglucoNG")!!
-        val other = UpdateSource.resolve("https://github.com/someone/fork")!!
+        val default = "https://github.com/ctqvva/JugglucoNG"
 
         assertTrue(UpdateSourceClient.shouldTryBackup(default, default, UpdateError.NETWORK))
-        assertTrue(UpdateSourceClient.shouldTryBackup(default, default, UpdateError.RATE_LIMITED))
+        assertTrue(UpdateSourceClient.shouldTryBackup("$default/", default, UpdateError.RATE_LIMITED))
 
         // GitHub answered, so the mirror would only say the same thing.
         assertFalse(UpdateSourceClient.shouldTryBackup(default, default, UpdateError.PARSE))
         assertFalse(UpdateSourceClient.shouldTryBackup(default, default, UpdateError.NO_ARTIFACT))
 
-        // A source the user chose is never swapped for ours.
-        assertFalse(UpdateSourceClient.shouldTryBackup(other, default, UpdateError.NETWORK))
-        assertFalse(UpdateSourceClient.shouldTryBackup(default, null, UpdateError.NETWORK))
+        // A source the user chose is never swapped for ours, even when it points at the same
+        // repository through its API URL.
+        assertFalse(UpdateSourceClient.shouldTryBackup("https://github.com/someone/fork", default, UpdateError.NETWORK))
+        assertFalse(
+            UpdateSourceClient.shouldTryBackup(
+                "https://api.github.com/repos/ctqvva/JugglucoNG/releases", default, UpdateError.NETWORK
+            )
+        )
+    }
+
+    @Test
+    fun `the backup only replaces github's failure with a verdict`() {
+        val github = UpdateCheckResult.Failed(UpdateError.RATE_LIMITED)
+        val update = AvailableUpdate(
+            versionName = "1.2.8-Alpha", versionCode = 1028, tagName = "1.2.8-Alpha", notes = "",
+            publishedAtMillis = 0L, prerelease = false,
+            artifact = UpdateArtifact("JugglucoNG-1.2.8-Alpha.apk", "https://sourceforge.net/x", 1L)
+        )
+
+        assertEquals(UpdateCheckResult.UpToDate, UpdateSourceClient.afterBackup(github, UpdateCheckResult.UpToDate))
+        assertEquals(
+            UpdateCheckResult.Available(update),
+            UpdateSourceClient.afterBackup(github, UpdateCheckResult.Available(update))
+        )
+        // Unreadable mirror, or a readable one with no build for this variant: GitHub's error stays.
+        assertEquals(github, UpdateSourceClient.afterBackup(github, null))
+        assertEquals(
+            github,
+            UpdateSourceClient.afterBackup(github, UpdateCheckResult.Failed(UpdateError.NO_ARTIFACT))
+        )
     }
 }

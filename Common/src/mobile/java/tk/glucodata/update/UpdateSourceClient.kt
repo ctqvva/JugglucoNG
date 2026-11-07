@@ -63,11 +63,9 @@ object UpdateSourceClient {
             is UpdateSource.Resolved.GithubReleases -> {
                 val result = checkGithub(resolved.apiUrl)
                 if (result is UpdateCheckResult.Failed &&
-                    shouldTryBackup(resolved, UpdateSource.resolve(AppUpdateSettings.defaultUpdateSource), result.error)
+                    shouldTryBackup(source, AppUpdateSettings.defaultUpdateSource, result.error)
                 ) {
-                    // A failed backup keeps GitHub's error: "rate limited" is more useful to
-                    // the user than a second, vaguer "network" from the mirror.
-                    checkBackup() ?: result
+                    afterBackup(result, checkBackup())
                 } else {
                     result
                 }
@@ -76,12 +74,23 @@ object UpdateSourceClient {
         }
     }
 
-    /** Only for the default GitHub source, and only when GitHub itself could not be reached. */
-    internal fun shouldTryBackup(
-        source: UpdateSource.Resolved,
-        defaultSource: UpdateSource.Resolved?,
-        error: UpdateError
-    ): Boolean = source == defaultSource && error in BACKUP_ERRORS
+    /**
+     * Only for the default GitHub source, and only when GitHub itself could not be reached.
+     *
+     * Compared as typed, not as resolved: `https://api.github.com/repos/<default>/releases`
+     * resolves to the same endpoint as the default, but a user who entered that URL chose it.
+     */
+    internal fun shouldTryBackup(source: String, defaultSource: String, error: UpdateError): Boolean =
+        UpdateSource.sanitize(source) == UpdateSource.sanitize(defaultSource) && error in BACKUP_ERRORS
+
+    /**
+     * The mirror only replaces GitHub's failure when it produced a verdict. Any failure of its
+     * own (unreadable, or readable but without a build for this variant, which can just be
+     * sync lag) leaves GitHub's error in place: "rate limited" says what to do, a second,
+     * vaguer error does not.
+     */
+    internal fun afterBackup(primary: UpdateCheckResult.Failed, backup: UpdateCheckResult?): UpdateCheckResult =
+        if (backup == null || backup is UpdateCheckResult.Failed) primary else backup
 
     /**
      * Same question as [checkGithub], asked of the SourceForge mirror: newest regular release
