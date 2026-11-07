@@ -17,6 +17,10 @@ import tk.glucodata.drivers.aidex.native.protocol.AiDexPairingMaterialRegistry
 import tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /** Keep real encryption/storage; replace only the unavailable device keystore key. */
 @Implements(AiDexProvisioningStore::class)
@@ -24,8 +28,21 @@ class AiDexTestKeystore {
     @Implementation fun secretKey(): SecretKey = SecretKeySpec(ByteArray(32) { 7 }, "AES")
 }
 
+@Implements(AiDexNativeFactory::class)
+class AiDexPausingMaterialInstall {
+    companion object {
+        @Volatile var beforeInstall: (() -> Unit)? = null
+        @JvmStatic @Implementation
+        fun installProvisionedPairingMaterial(serial: String, secret: ByteArray, iv: ByteArray): Boolean {
+            beforeInstall?.invoke()
+            return AiDexPairingMaterialRegistry.install(serial, secret, iv)
+        }
+    }
+}
+
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33], application = Application::class, shadows = [AiDexTestKeystore::class])
+@Config(sdk = [33], application = Application::class,
+    shadows = [AiDexTestKeystore::class, AiDexPausingMaterialInstall::class])
 @ConscryptMode(ConscryptMode.Mode.OFF)
 class AiDexSavedKeysTests {
     private val context: Context get() = RuntimeEnvironment.getApplication()
@@ -34,6 +51,7 @@ class AiDexSavedKeysTests {
     private val iv = ByteArray(16) { (it + 16).toByte() }
 
     @Before fun reset() {
+        AiDexPausingMaterialInstall.beforeInstall = null
         for (prefs in listOf("aidex_cn_provisioning", "aidex_setup_key_requirements",
             "AiDexPairKeysPrimary", "AiDexPairKeysRecovery", "AiDexNativePrefs")) {
             context.getSharedPreferences(prefs, Context.MODE_PRIVATE).edit().clear().commit()
@@ -97,5 +115,42 @@ class AiDexSavedKeysTests {
         AiDexPairingMaterialRegistry.clearForTests()
         assertNull(AiDexProvisioningStore.loadSaved(context, "22222FXYT3"))
         assertFalse(AiDexSetupKeyGate.mayConnect(context, "22222FXYT3", ""))
+    }
+
+    @Test fun deletionWaitsForAnInFlightRestoreAndLeavesNoLiveMaterial() {
+        assertTrue(AiDexProvisioningStore.saveAndInstall(context, serial, secret, iv))
+        AiDexPairingMaterialRegistry.clearForTests()
+        val installing = CountDownLatch(1)
+        val releaseInstall = CountDownLatch(1)
+        val deleting = CountDownLatch(1)
+        val workers = Executors.newFixedThreadPool(2)
+        AiDexPausingMaterialInstall.beforeInstall = {
+            installing.countDown()
+            check(releaseInstall.await(5, TimeUnit.SECONDS))
+        }
+        try {
+            val restore = workers.submit<Boolean> { AiDexProvisioningStore.installSaved(context, serial) }
+            assertTrue(installing.await(5, TimeUnit.SECONDS))
+            val removal = workers.submit<Boolean> {
+                deleting.countDown()
+                AiDexProvisioningStore.removeSaved(context, serial)
+            }
+            assertTrue(deleting.await(5, TimeUnit.SECONDS))
+            val deletedBeforeInstallCompleted = try {
+                removal.get(150, TimeUnit.MILLISECONDS)
+            } catch (_: TimeoutException) {
+                false
+            }
+            releaseInstall.countDown()
+            assertTrue(restore.get(5, TimeUnit.SECONDS))
+            assertTrue(removal.get(5, TimeUnit.SECONDS))
+            assertFalse(deletedBeforeInstallCompleted)
+            assertFalse(AiDexProvisioningStore.hasSaved(context, serial))
+            assertNull(AiDexPairingMaterialRegistry.find(serial))
+        } finally {
+            releaseInstall.countDown()
+            AiDexPausingMaterialInstall.beforeInstall = null
+            workers.shutdownNow()
+        }
     }
 }

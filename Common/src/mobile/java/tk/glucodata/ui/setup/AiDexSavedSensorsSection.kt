@@ -49,7 +49,8 @@ internal fun AiDexSavedSensorsSection(
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.export))
                     }
-                    // Added sensors retain their keys; removal belongs to their sensor card.
+                    // Only unadded records can be deleted here. The sensor card manages
+                    // the separate validated PAIR credential.
                     if (!sensor.managed) {
                         val label = stringResource(R.string.ottai_delete_saved)
                         IconButtonTooltip(label) {

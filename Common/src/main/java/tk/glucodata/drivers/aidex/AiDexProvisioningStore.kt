@@ -110,6 +110,7 @@ internal object AiDexProvisioningStore {
     }
 
     /** Restore material before a BLE manager constructs its F001 key-exchange state. */
+    @Synchronized
     fun installSaved(context: Context, serial: String): Boolean {
         val material = loadSaved(context, serial) ?: return false
         return AiDexNativeFactory.installProvisionedPairingMaterial(

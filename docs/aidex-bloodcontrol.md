@@ -16,7 +16,9 @@ BloodControl endpoints. Saved/imported keys are reused before any network reques
 A **Saved sensors** link at the top of the retrieval page opens an optional, separate
 management screen with its own title and back navigation. That screen reuses Ottai’s
 saved-sensor rows: **Select**, **Export**, and confirmed deletion for keys belonging to
-sensors that have not been added. Added sensors retain their keys. Selecting a row or
+sensors that have not been added. Added sensors retain this provisioning material here;
+the sensor card’s pairing-key Delete action clears its separate PAIR credential, not these
+provisioned keys. Selecting a row or
 importing a file returns to the retrieval page with that serial selected.
 
 The retrieval page keeps its serial field and inline **Export | Replace** controls after
@@ -125,7 +127,12 @@ Regressions cover encrypted enumeration and legacy migration, per-sensor export/
 delete, record identity mismatch, F-series and F-labelled G/H serial gating, validated-PAIR reconnects, and the
 Connect action becoming available only after the F-series key requirement is satisfied.
 
-Separate-screen correction passed 660 phone tests (AiDEX, UI, Ottai layout and restricted
+Separate-screen correction passed 661 phone tests (AiDEX, UI, Ottai layout and restricted
 mode) and 559 Wear tests, with no failures or skips. Regressions verify optional navigation,
 provider/serial preservation, immediate inline Export/Replace, active/error scan states,
 and refreshing unchanged serials after saved-key changes during navigation.
+
+Saved-material restore and deletion share one lock across the complete read/install, so a
+concurrent restore cannot resurrect deleted material in the live registry. A controlled
+interleaving regression failed before this fix and passed afterward. The sensor card’s
+PAIR-key deletion remains distinct from deletion of saved provisioning material.
