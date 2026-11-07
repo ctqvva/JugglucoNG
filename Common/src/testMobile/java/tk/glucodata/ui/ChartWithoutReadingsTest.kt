@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -36,8 +37,11 @@ class ChartWithoutReadingsTest {
     @get:Rule
     val compose = createComposeRule()
 
+    private var previousApplic: Applic? = null
+
     @Before
     fun provideApplic() {
+        previousApplic = Applic.app
         val applic = Applic()
         ReflectionHelpers.callInstanceMethod<Any>(
             applic,
@@ -45,6 +49,11 @@ class ChartWithoutReadingsTest {
             ReflectionHelpers.ClassParameter.from(Context::class.java, RuntimeEnvironment.getApplication())
         )
         Applic.app = applic
+    }
+
+    @After
+    fun restoreApplic() {
+        Applic.app = previousApplic
     }
 
     @Test
