@@ -178,7 +178,11 @@ object WearSync2 {
     @JvmStatic
     fun onRequest(data: ByteArray?) {
         // The optional byte after the start asks for the full horizon even when one went
-        // out recently; a request without it is the older, shorter form.
+        // out less than DEEP_SERVE_MIN_INTERVAL_MS ago; a request without it is the older,
+        // shorter form. The only sender is a watch that has just moved its mirrored copy of
+        // a Dexcom aside (ManagedSensorHandoff), so it is a one-off, not a way round the
+        // throttle: it costs one extra full serve (~9000 readings, ~26 messages) and
+        // restarts the spacing window like any other full serve.
         val (fromSec, force) = runCatching {
             val buf = ByteBuffer.wrap(data ?: return)
             if (buf.get().toInt() != VERSION) return
