@@ -3374,4 +3374,6 @@
     <string name="lumiflex_follow_failed">Nie udało się odebrać odczytów</string>
     <string name="lumiflex_no_providers">Brak udostępnionych kont. Poproś właściciela sensora o dodanie Twojego konta jako obserwatora.</string>
     <string name="lumiflex_follow_refresh">Odśwież</string>
+    <string name="aidex_keys_before_connect">Przed połączeniem zaimportuj lub pobierz klucze tego sensora.</string>
+    <string name="aidex_delete_keys_message">Usunąć z tego telefonu zapisane klucze parowania dla %1$s? Najpierw je wyeksportuj, jeśli mogą być jeszcze potrzebne.</string>
 </resources>

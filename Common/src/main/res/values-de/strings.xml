@@ -3427,4 +3427,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="lumiflex_follow_failed">Messwerte konnten nicht empfangen werden</string>
     <string name="lumiflex_no_providers">Keine freigegebenen Konten. Bitten Sie den Sensorbesitzer, Ihr Konto als Follower hinzuzufügen.</string>
     <string name="lumiflex_follow_refresh">Aktualisieren</string>
+    <string name="aidex_keys_before_connect">Importiere oder fordere die Schlüssel dieses Sensors an, bevor du dich verbindest.</string>
+    <string name="aidex_delete_keys_message">Gespeicherte Kopplungsschlüssel für %1$s von diesem Telefon entfernen? Exportiere sie zuerst, falls du sie später noch benötigst.</string>
 </resources>

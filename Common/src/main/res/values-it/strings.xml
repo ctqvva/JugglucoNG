@@ -3305,4 +3305,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Impossibile ricevere le letture</string>
     <string name="lumiflex_no_providers">Nessun account condiviso. Chiedi al proprietario del sensore di aggiungere il tuo account come follower.</string>
     <string name="lumiflex_follow_refresh">Aggiorna</string>
+    <string name="aidex_keys_before_connect">Importa o richiedi le chiavi di questo sensore prima di connetterti.</string>
+    <string name="aidex_delete_keys_message">Rimuovere da questo telefono le chiavi di associazione salvate per %1$s? Esportale prima se potrebbero servirti ancora.</string>
 </resources>

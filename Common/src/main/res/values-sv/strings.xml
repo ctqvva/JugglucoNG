@@ -3314,4 +3314,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Kunde inte ta emot värden</string>
     <string name="lumiflex_no_providers">Inga delade konton. Be sensorns ägare lägga till ditt konto som följare.</string>
     <string name="lumiflex_follow_refresh">Uppdatera</string>
+    <string name="aidex_keys_before_connect">Importera eller begär sensorns nycklar innan du ansluter.</string>
+    <string name="aidex_delete_keys_message">Ta bort de sparade parkopplingsnycklarna för %1$s från den här telefonen? Exportera dem först om du kan behöva dem igen.</string>
 </resources>

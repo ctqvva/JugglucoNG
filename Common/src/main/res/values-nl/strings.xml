@@ -3357,4 +3357,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="lumiflex_follow_failed">Metingen konden niet worden ontvangen</string>
     <string name="lumiflex_no_providers">Geen gedeelde accounts. Vraag de eigenaar van de sensor om je account als volger toe te voegen.</string>
     <string name="lumiflex_follow_refresh">Vernieuwen</string>
+    <string name="aidex_keys_before_connect">Importeer de sleutels van deze sensor of vraag ze aan voordat je verbinding maakt.</string>
+    <string name="aidex_delete_keys_message">De opgeslagen koppelingssleutels voor %1$s van deze telefoon verwijderen? Exporteer ze eerst als je ze later nog nodig kunt hebben.</string>
 </resources>

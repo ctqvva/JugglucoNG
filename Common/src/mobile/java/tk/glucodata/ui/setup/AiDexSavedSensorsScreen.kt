@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.R
+import tk.glucodata.RestrictedMode
 import tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter
 import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
@@ -60,26 +61,22 @@ internal fun AiDexSavedSensorsScreen(
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         val serial = pendingExport
         pendingExport = null
-        if (uri != null && serial != null) scope.launch {
+        if (uri != null && serial != null && !RestrictedMode.isLocked()) scope.launch {
             val exported = withContext(Dispatchers.IO) {
-                val json = AiDexProvisioningStore.exportJson(context, serial) ?: return@withContext false
-                runCatching {
-                    context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) } != null
-                }.getOrDefault(false)
+                AiDexKeyDocuments.exportKeys(context, serial, uri)
             }
+            if (RestrictedMode.isLocked()) return@launch
             status = context.getString(if (exported) R.string.ottai_save_ok else R.string.ottai_save_nothing)
         }
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
+        if (uri != null && !RestrictedMode.isLocked()) scope.launch {
             busy = true
             val serial = withContext(Dispatchers.IO) {
-                val json = runCatching {
-                    context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
-                }.getOrNull() ?: return@withContext null
-                AiDexProvisioningStore.importJson(context, json)
+                AiDexKeyDocuments.importKeys(context, uri)
             }
             busy = false
+            if (RestrictedMode.isLocked()) return@launch
             refresh++
             if (serial != null) onSelect(serial)
             else status = context.getString(R.string.aidex_key_import_failed)

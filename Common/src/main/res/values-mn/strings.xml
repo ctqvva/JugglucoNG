@@ -3415,4 +3415,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="lumiflex_follow_failed">Хэмжилт хүлээн авч чадсангүй</string>
     <string name="lumiflex_no_providers">Хуваалцсан бүртгэл алга. Мэдрэгчийн эзэмшигчээс таны бүртгэлийг дагагчаар нэмэхийг хүснэ үү.</string>
     <string name="lumiflex_follow_refresh">Шинэчлэх</string>
+    <string name="aidex_keys_before_connect">Холбогдохоос өмнө энэ мэдрэгчийн түлхүүрүүдийг импортлох эсвэл хүсэлт илгээн авна уу.</string>
+    <string name="aidex_delete_keys_message">Энэ утаснаас %1$s мэдрэгчийн хадгалсан холболтын түлхүүрүүдийг устгах уу? Дахин хэрэг болж магадгүй бол эхлээд экспортлоорой.</string>
 </resources>

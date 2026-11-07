@@ -3404,4 +3404,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Не ўдалося атрымаць паказанні</string>
     <string name="lumiflex_no_providers">Няма даступных акаўнтаў. Папрасіце ўладальніка сэнсара дадаць ваш акаўнт у падпісчыкі.</string>
     <string name="lumiflex_follow_refresh">Абнавіць</string>
+    <string name="aidex_keys_before_connect">Імпартуйце або запытайце ключы гэтага датчыка перад падключэннем.</string>
+    <string name="aidex_delete_keys_message">Выдаліць захаваныя ключы спалучэння датчыка %1$s з гэтага тэлефона? Спачатку экспартуйце іх, калі яны могуць спатрэбіцца зноў.</string>
 </resources>

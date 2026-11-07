@@ -136,3 +136,9 @@ Saved-material restore and deletion share one lock across the complete read/inst
 concurrent restore cannot resurrect deleted material in the live registry. A controlled
 interleaving regression failed before this fix and passed afterward. The sensor card’s
 PAIR-key deletion remains distinct from deletion of saved provisioning material.
+
+Both key-file pickers use a shared reader capped at 64 KiB. Completion callbacks and the
+actual file operations recheck live restricted mode; a relock during provider reads
+discards the import before installation. The two new messages cover all 16 supported
+locales. Document-review follow-up passed 665 phone tests and 559 Wear tests, including
+bounded-stream, permitted import/export, locked completion and mid-read relock cases.

@@ -57,6 +57,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.R
+import tk.glucodata.RestrictedMode
 import tk.glucodata.drivers.aidex.AiDexCnCloudClient
 import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
 import tk.glucodata.drivers.aidex.bloodcontrol.BloodControlAidex
@@ -164,16 +165,11 @@ internal fun AiDexKeyManagementScreen(
     ) { uri ->
         val serial = pendingExport
         pendingExport = null
-        if (uri != null && serial != null) scope.launch {
+        if (uri != null && serial != null && !RestrictedMode.isLocked()) scope.launch {
             val saved = withContext(Dispatchers.IO) {
-                val json = AiDexProvisioningStore.exportJson(context, serial)
-                    ?: return@withContext false
-                runCatching {
-                    context.contentResolver.openOutputStream(uri)?.use {
-                        it.write(json.toByteArray(Charsets.UTF_8))
-                    } != null
-                }.getOrDefault(false)
+                AiDexKeyDocuments.exportKeys(context, serial, uri)
             }
+            if (RestrictedMode.isLocked()) return@launch
             statusIsError = !saved
             status = context.getString(
                 if (saved) R.string.ottai_save_ok else R.string.ottai_save_nothing,
@@ -183,13 +179,11 @@ internal fun AiDexKeyManagementScreen(
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        if (uri != null) scope.launch {
+        if (uri != null && !RestrictedMode.isLocked()) scope.launch {
             val importedSerial = withContext(Dispatchers.IO) {
-                val json = runCatching {
-                    context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
-                }.getOrNull() ?: return@withContext null
-                AiDexProvisioningStore.importJson(context, json)
+                AiDexKeyDocuments.importKeys(context, uri)
             }
+            if (RestrictedMode.isLocked()) return@launch
             if (importedSerial != null) {
                 serialInput = importedSerial
                 serialEdited = true

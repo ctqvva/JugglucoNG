@@ -3499,4 +3499,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="lumiflex_follow_failed">Cabbirrada lama heli karin</string>
     <string name="lumiflex_no_providers">Ma jiraan akoonno la wadaagay. Ka codso milkiilaha dareemaha inuu akoonkaaga ku daro raace ahaan.</string>
     <string name="lumiflex_follow_refresh">Cusboonaysii</string>
+    <string name="aidex_keys_before_connect">Soo geli ama codso furayaasha dareemahan ka hor intaadan isku xidhin.</string>
+    <string name="aidex_delete_keys_message">Ma ka tirtiraysaa taleefankan furayaasha isku lammaaninta ee loo kaydiyey %1$s? Marka hore dhoofi haddii aad mar kale u baahan karto.</string>
 </resources>
