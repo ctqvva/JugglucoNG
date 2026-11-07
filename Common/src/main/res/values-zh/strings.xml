@@ -3320,4 +3320,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">无法接收读数</string>
     <string name="lumiflex_no_providers">没有共享账户。请让传感器所有者将您的账户添加为关注者。</string>
     <string name="lumiflex_follow_refresh">刷新</string>
+    <string name="aidex_keys_before_connect">连接前，请导入或请求此传感器的密钥。</string>
+    <string name="aidex_delete_keys_message">要从此手机中删除 %1$s 已保存的配对密钥吗？如果以后可能还需要，请先将其导出。</string>
 </resources>

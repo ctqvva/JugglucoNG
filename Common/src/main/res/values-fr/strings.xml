@@ -3321,4 +3321,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Impossible de recevoir les mesures</string>
     <string name="lumiflex_no_providers">Aucun compte partagé. Demandez au propriétaire du capteur de vous ajouter comme abonné.</string>
     <string name="lumiflex_follow_refresh">Actualiser</string>
+    <string name="aidex_keys_before_connect">Importez ou demandez les clés de ce capteur avant de vous connecter.</string>
+    <string name="aidex_delete_keys_message">Supprimer de ce téléphone les clés d’appairage enregistrées pour %1$s ? Exportez-les d’abord si vous risquez d’en avoir besoin.</string>
 </resources>

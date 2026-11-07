@@ -37,8 +37,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -130,7 +128,6 @@ import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.IconTileDefaults
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
-import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.ConnectedButtonGroup
 
 /** Status cards sit beside settings rows, so they take the 20dp radius the guide gives them. */
@@ -1358,7 +1355,7 @@ internal fun OttaiSavedSensorsStep(
                         else -> null
                     }
                     val unbind = unbindTarget(sensor.sensorId)
-                    OttaiSensorEntry(
+                    SavedSensorEntry(
                         title = sensor.sensorId,
                         status = listOfNotNull(presence, stringResource(ottaiMaterialStateTitle(sensor.state)))
                             .joinToString(" · "),
@@ -1462,7 +1459,7 @@ internal fun OttaiSavedSensorsStep(
                 unsaved.forEachIndexed { index, device ->
                     val id = OttaiConstants.canonicalSensorId(device.mac)
                     val unbind = unbindTarget(id)
-                    OttaiSensorEntry(
+                    SavedSensorEntry(
                         title = device.serialNo.ifBlank { id },
                         status = listOfNotNull(
                             stringResource(if (device.isActive) R.string.ottai_sensor_active else R.string.ottai_sensor_past),
@@ -1496,53 +1493,6 @@ internal fun OttaiSavedSensorsStep(
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.refresh))
             }
-        }
-    }
-}
-
-/**
- * One sensor in a saved/account list: the ID first (it is what the user matches against the
- * sensor's label), where it stands, and its actions underneath, wrapping when a locale's labels
- * are long.
- */
-@Composable
-private fun OttaiSensorEntry(
-    title: String,
-    status: String,
-    detail: String?,
-    position: CardPosition,
-    actions: @Composable FlowRowScope.() -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
-            )
-            Spacer(Modifier.size(4.dp))
-            Text(
-                status,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (detail != null) {
-                Text(
-                    detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.size(12.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                itemVerticalAlignment = Alignment.CenterVertically,
-                content = actions,
-            )
         }
     }
 }
