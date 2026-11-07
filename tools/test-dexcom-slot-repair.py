@@ -73,6 +73,7 @@ fixture = r'''
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
+#include <memory>
 #include <mutex>
 #include <span>
 #include <string>
