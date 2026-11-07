@@ -1,6 +1,7 @@
 package tk.glucodata.drivers.aidex
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.MessageDigest
@@ -13,6 +14,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import org.json.JSONObject
+import tk.glucodata.drivers.aidex.native.protocol.AiDexPairingMaterialRegistry
 
 /** Keystore-encrypted persistence for the CN session and already-provisioned sensor keys. */
 internal object AiDexProvisioningStore {
@@ -28,6 +30,7 @@ internal object AiDexProvisioningStore {
 
     fun accountLabel(context: Context): String = readEncrypted(context, ACCOUNT)
 
+    @Synchronized
     fun saveSession(context: Context, accountLabel: String, token: String): Boolean {
         if (token.isBlank()) return false
         val encryptedToken = encrypt(token) ?: return false
@@ -38,11 +41,22 @@ internal object AiDexProvisioningStore {
             .commit()
     }
 
+    @Synchronized
     fun clearSession(context: Context) {
         prefs(context).edit().remove(TOKEN).remove(ACCOUNT).apply()
     }
 
+    fun addSessionListener(context: Context, onChanged: () -> Unit): () -> Unit {
+        val preferences = prefs(context)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == null || key == TOKEN) onChanged()
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        return { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+
     /** Persist only complete material, then install a defensive copy into the live registry. */
+    @Synchronized
     fun saveAndInstall(
         context: Context,
         serial: String,
@@ -50,7 +64,9 @@ internal object AiDexProvisioningStore {
         iv: ByteArray,
     ): Boolean {
         if (secret.size != 16 || iv.size != 16) return false
+        val normalized = AiDexPairingMaterialFile.normalizeSerial(serial) ?: return false
         val value = JSONObject()
+            .put("serialNumber", normalized)
             .put("secret", Base64.getEncoder().encodeToString(secret))
             .put("iv", Base64.getEncoder().encodeToString(iv))
             .toString()
@@ -60,6 +76,26 @@ internal object AiDexProvisioningStore {
     }
 
     fun hasSaved(context: Context, serial: String): Boolean = loadSaved(context, serial) != null
+
+    /** The serial lives inside the encrypted record, alongside its keys. Old records
+     * without it can still be found through known/selected sensor identities. */
+    fun savedSerials(context: Context, knownSerials: Collection<String> = emptyList()): List<String> {
+        val identified = prefs(context).all.keys.filter { it.startsWith(MATERIAL_PREFIX) }.mapNotNull { key ->
+            val json = runCatching { JSONObject(readEncrypted(context, key)) }.getOrNull() ?: return@mapNotNull null
+            val serial = AiDexPairingMaterialFile.normalizeSerial(json.optString("serialNumber"))
+                ?: return@mapNotNull null
+            serial.takeIf { materialKey(it) == key && loadSaved(context, it) != null }
+        }
+        return (identified + knownSerials.mapNotNull(AiDexPairingMaterialFile::normalizeSerial)
+            .filter { hasSaved(context, it) }).distinct().sorted()
+    }
+
+    @Synchronized
+    fun removeSaved(context: Context, serial: String): Boolean {
+        if (!prefs(context).edit().remove(materialKey(serial)).commit()) return false
+        AiDexPairingMaterialRegistry.remove(serial)
+        return true
+    }
 
     fun exportJson(context: Context, serial: String): String? {
         val material = loadSaved(context, serial) ?: return null
@@ -83,11 +119,25 @@ internal object AiDexProvisioningStore {
         )
     }
 
+    @Synchronized
     fun loadSaved(context: Context, serial: String): AiDexProvisionedKeys? {
         val value = readEncrypted(context, materialKey(serial)).takeIf(String::isNotBlank) ?: return null
         val json = runCatching { JSONObject(value) }.getOrNull() ?: return null
+        if (json.has("serialNumber") &&
+            AiDexPairingMaterialFile.normalizeSerial(json.optString("serialNumber")) !=
+            AiDexPairingMaterialFile.normalizeSerial(serial)) return null
         val secret = decodeMaterial(json.optString("secret")) ?: return null
         val iv = decodeMaterial(json.optString("iv")) ?: return null
+        // Original records had only a hashed preference key and no recoverable serial.
+        // Once a known/selected identity finds one, index it inside the encrypted value.
+        // A metadata-write failure must not make otherwise valid keys unavailable.
+        if (!json.has("serialNumber")) {
+            AiDexPairingMaterialFile.normalizeSerial(serial)?.let { normalized ->
+                encrypt(json.put("serialNumber", normalized).toString())?.let { encrypted ->
+                    prefs(context).edit().putString(materialKey(serial), encrypted).commit()
+                }
+            }
+        }
         return AiDexProvisionedKeys(secret, iv)
     }
 

@@ -34,11 +34,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
+import tk.glucodata.drivers.aidex.AiDexSetupKeyGate
+import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
 import tk.glucodata.ui.components.AppTopBar
@@ -72,9 +76,20 @@ fun AiDexSetupWizard(
         if (restrictedLocked && currentStep == AiDexSetupStep.KEY_MANAGEMENT) currentStep = AiDexSetupStep.SCAN
     }
     var selectedDeviceName by remember { mutableStateOf("") }
+    var selectedSensor by remember { mutableStateOf<AiDexKeySensor?>(null) }
+    var requiredSerial by remember { mutableStateOf<String?>(null) }
+    var connectionStarting by remember { mutableStateOf(false) }
+    var nearbyKeySensors by remember { mutableStateOf<List<AiDexKeySensor>>(emptyList()) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var signedIn by remember { mutableStateOf(AiDexProvisioningStore.hasSession(context)) }
+    DisposableEffect(context) {
+        val removeListener = AiDexProvisioningStore.addSessionListener(context) {
+            signedIn = AiDexProvisioningStore.hasSession(context)
+        }
+        signedIn = AiDexProvisioningStore.hasSession(context)
+        onDispose { removeListener() }
+    }
     val navigateBack = {
         if (currentStep == AiDexSetupStep.SCAN) onDismiss() else currentStep = AiDexSetupStep.SCAN
     }
@@ -86,6 +101,41 @@ fun AiDexSetupWizard(
         if (currentStep == AiDexSetupStep.SUCCESS) {
             delay(SENSOR_SETUP_SUCCESS_AUTO_ADVANCE_MS)
             onComplete()
+        }
+    }
+
+    val connectSensor: (AiDexKeySensor) -> Unit = connect@{ sensor ->
+        if (connectionStarting) return@connect
+        connectionStarting = true
+        val bare = AiDexPairingMaterialFile.normalizeSerial(sensor.serial)
+        val name = bare?.let { "X-$it" } ?: sensor.serial.trim()
+        selectedDeviceName = name
+        selectedSensor = sensor
+        scope.launch {
+            try {
+                val allowed = withContext(Dispatchers.IO) {
+                    AiDexSetupKeyGate.mayConnect(context, name, sensor.name)
+                }
+                if (!allowed) {
+                    requiredSerial = name
+                    fullModeGuard { currentStep = AiDexSetupStep.KEY_MANAGEMENT }
+                    return@launch
+                }
+                requiredSerial = null
+                currentStep = AiDexSetupStep.CONNECTING
+                AiDexProvisioningStore.installSaved(context, name)
+                SensorBluetooth.addAiDexSensor(context, name, sensor.address)
+                delay(2000)
+                currentStep = AiDexSetupStep.SUCCESS
+            } catch (t: kotlinx.coroutines.CancellationException) {
+                throw t
+            } catch (t: Throwable) {
+                Log.e(tag, "Failed to add/select AiDex sensor: ${t.message}")
+                Toast.makeText(context, context.getString(R.string.nobluetooth), Toast.LENGTH_LONG).show()
+                currentStep = AiDexSetupStep.SCAN
+            } finally {
+                connectionStarting = false
+            }
         }
     }
 
@@ -109,53 +159,20 @@ fun AiDexSetupWizard(
                     onNavigateToReadiness = onNavigateToReadiness,
                     // Saved pairing keys can be deleted there: full mode on a restricted phone.
                     onManageKeys = { fullModeGuard { currentStep = AiDexSetupStep.KEY_MANAGEMENT } },
-                    onDeviceSelected = { selectedName, address ->
-                        try {
-                            val name = selectedName.trim()
-                            if (name.isEmpty()) {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.aidex_parse_error, selectedName),
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                return@AiDexScanStep
-                            }
-
-                            selectedDeviceName = name
-                            currentStep = AiDexSetupStep.CONNECTING
-
-                            // Initiate Connection Logic
-                            scope.launch {
-                                try {
-                                    // Saved material is optional. With none present, the BLE driver
-                                    // always tries the serial-derived key first and reports a
-                                    // missing-key status only if the sensor rejects it.
-                                    AiDexProvisioningStore.installSaved(context, name)
-                                    SensorBluetooth.addAiDexSensor(context, name, address)
-
-                                    // 2. Wait a bit then show success
-                                    kotlinx.coroutines.delay(2000)
-                                    currentStep = AiDexSetupStep.SUCCESS
-                                } catch (t: Throwable) {
-                                    Log.e(tag, "Failed to add/select AiDex sensor: ${t.message}")
-                                    Toast.makeText(context, context.getString(R.string.nobluetooth), Toast.LENGTH_LONG).show()
-                                    currentStep = AiDexSetupStep.SCAN
-                                }
-                            }
-                        } catch (t: Throwable) {
-                            Log.e(tag, "onDeviceSelected failed: ${t.message}")
-                            Toast.makeText(context, context.getString(R.string.nobluetooth), Toast.LENGTH_LONG).show()
-                            currentStep = AiDexSetupStep.SCAN
-                        }
+                    onSensorsChanged = { if (it.isNotEmpty()) nearbyKeySensors = it },
+                    onDeviceSelected = { selectedName, address, advertisedName ->
+                        connectSensor(AiDexKeySensor(selectedName, advertisedName, address))
                     }
                 )
                 AiDexSetupStep.KEY_MANAGEMENT -> AiDexKeyManagementScreen(
                     ui = ui,
-                    initialSerial = selectedDeviceName,
+                    initialSerial = AiDexPairingMaterialFile.normalizeSerial(selectedDeviceName).orEmpty(),
                     signedIn = signedIn,
                     onSignedIn = { signedIn = true },
                     onSignedOut = { signedIn = false },
-                    onClose = { currentStep = AiDexSetupStep.SCAN },
+                    sensors = rememberAiDexKeySensors(nearbyKeySensors + listOfNotNull(selectedSensor)),
+                    requiredSerial = requiredSerial,
+                    onConnect = connectSensor,
                 )
                 AiDexSetupStep.CONNECTING -> Box(
                     modifier = Modifier.fillMaxSize(),
@@ -181,11 +198,12 @@ fun AiDexSetupWizard(
 }
 
 @Composable
-fun AiDexScanStep(
+internal fun AiDexScanStep(
     ui: WizardUiMetrics,
     onNavigateToReadiness: () -> Unit,
     onManageKeys: () -> Unit,
-    onDeviceSelected: (String, String) -> Unit
+    onSensorsChanged: (List<AiDexKeySensor>) -> Unit = {},
+    onDeviceSelected: (String, String, String) -> Unit
 ) {
     data class ScanCandidate(
         val address: String,
@@ -205,6 +223,12 @@ fun AiDexScanStep(
     var scanError by remember { mutableStateOf<BleDeviceScanner.ScanStartError?>(null) }
     var requestedPermissionOnce by remember { mutableStateOf(false) }
     var showAllDevices by remember { mutableStateOf(false) }
+
+    LaunchedEffect(devices) {
+        onSensorsChanged(devices.mapNotNull { candidate ->
+            candidate.serial?.let { AiDexKeySensor(it, candidate.rawName, candidate.address) }
+        })
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -267,6 +291,7 @@ fun AiDexScanStep(
                     advertisedServiceUuids = record?.serviceUuids?.map { it.uuid }
                 )
 
+                candidate.serial?.let { AiDexSetupKeyGate.requiresKeys(context, it, candidate.displayName) }
                 if (!showAllDevices && !candidate.isLikelyAiDex) return@startScan
                 val next = ScanCandidate(
                     address = address,
@@ -417,6 +442,7 @@ fun AiDexScanStep(
                         onDeviceSelected(
                             device.selectionName,
                             device.address,
+                            device.rawName,
                         )
                     }
                 )
@@ -501,7 +527,7 @@ private class ListHandOver {
     var state: LazyListState? = null
 }
 
-private data class AiDexScanDetection(
+internal data class AiDexScanDetection(
     val displayName: String,
     val selectionName: String,
     val serial: String?,
@@ -513,7 +539,7 @@ private val AIDEX_CGM_SERVICE_UUID: UUID = UUID.fromString("0000181f-0000-1000-8
 private val AIDEX_VENDOR_SERVICE_UUID: UUID = UUID.fromString("0000f000-0000-1000-8000-00805f9b34fb")
 private val AIDEX_FF30_SERVICE_UUID: UUID = UUID.fromString("0000ff30-0000-1000-8000-00805f9b34fb")
 
-private fun detectAiDexCandidate(
+internal fun detectAiDexCandidate(
     address: String,
     deviceName: String?,
     scanRecordName: String?,

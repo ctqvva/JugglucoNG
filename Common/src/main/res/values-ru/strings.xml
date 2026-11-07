@@ -3441,4 +3441,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Не удалось получить показания</string>
     <string name="lumiflex_no_providers">Нет доступных аккаунтов. Попросите владельца сенсора добавить ваш аккаунт в подписчики.</string>
     <string name="lumiflex_follow_refresh">Обновить</string>
+    <string name="aidex_keys_before_connect">Импортируйте или запросите ключи этого сенсора перед подключением.</string>
+    <string name="aidex_delete_keys_message">Удалить сохранённые ключи сенсора %1$s с этого телефона? Сначала экспортируйте их, если они могут понадобиться снова.</string>
 </resources>
