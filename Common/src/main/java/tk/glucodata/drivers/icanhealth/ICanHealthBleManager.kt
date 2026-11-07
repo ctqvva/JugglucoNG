@@ -291,6 +291,7 @@ class ICanHealthBleManager(
     // The address the onboarding scan picked by name or advert, as opposed to one the user or the
     // registry supplied. Only a guess like that may be dropped for not being a CGM.
     @Volatile private var onboardingScanPickedAddress: String? = null
+    @Volatile private var consecutiveSilentConnectTimeouts = 0
     private val nonCgmCandidateStrikes = ConcurrentHashMap<String, Int>()
     private val unreachableCandidates = ICanHealthUnreachableCandidates()
     // The GATT whose current attempt reached STATE_CONNECTED. Tied to the instance, because a
@@ -1117,8 +1118,38 @@ class ICanHealthBleManager(
     protected override fun connectionAttemptTimeoutMillis(): Long = CONNECTION_ATTEMPT_TIMEOUT_MS
 
     protected override fun onConnectionAttemptTimeout() {
-        // A silent autoConnect at a saved address must periodically allow discovery elsewhere.
+        consecutiveSilentConnectTimeouts++
+        val address = mActiveDeviceAddress
+        if (isAwaitingOnboardingIdentity() && !address.isNullOrBlank() &&
+            ICanHealthConstants.shouldDropUnreachableOnboardingAddress(consecutiveSilentConnectTimeouts)
+        ) {
+            Log.w(
+                TAG,
+                "Bound address $address never answered after $consecutiveSilentConnectTimeouts " +
+                    "silent connect timeouts; dropping it and rescanning unfiltered"
+            )
+            dropUnreachableBoundAddress()
+            return
+        }
         handler.post { if (!stop && !uiPaused) SensorBluetooth.startscan() }
+    }
+
+    /** The bound address never answered at the radio level. Drop it without blacklisting so the
+     *  unfiltered scan can rediscover the sensor once it advertises again. */
+    private fun dropUnreachableBoundAddress() {
+        close()
+        setDevice(null)
+        searchforDeviceAddress()
+        setUiStatus(UiStatusKind.PREPARING)
+        UiRefreshBus.requestStatusRefresh()
+        // The scan that is already running was built while an address was bound, so it still
+        // carries the 0x181F filter and scanStarter() would skip the restart. Stop it first so
+        // the next start rebuilds the filters from the now-empty address (unfiltered).
+        handler.post {
+            if (stop || uiPaused) return@post
+            SensorBluetooth.blueone?.stopScan(false)
+            SensorBluetooth.startscan()
+        }
     }
 
     @Synchronized
@@ -4855,6 +4886,7 @@ class ICanHealthBleManager(
 
     private fun resetConnectionAttemptState() {
         phase = Phase.IDLE
+        consecutiveSilentConnectTimeouts = 0
         isAuthenticated = false
         authAttempted = false
         postAuthSetupStarted = false
