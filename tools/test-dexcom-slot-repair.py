@@ -38,6 +38,9 @@ helpers = '\n'.join(extract(header, s) for s in [
     'void repairDexcomMinuteSlots()', 'void consecutivelifecount()',
     'std::span<const ScanData> getPolldata() const',
 ])
+# The cursor rewind a writer makes after storing a sample.
+backstream = extract((root / 'Common/src/main/cpp/glucose.cpp').read_text(),
+                     'void SensorGlucoseData::backstream(int pos)').replace('SensorGlucoseData::', '')
 backfill = extract((root / 'Common/src/main/cpp/dexcom/java.cpp').read_text(),
                    'fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr)')
 backfill = 'jbyteArray ' + backfill.replace('fromjava(getDexbackfillcmd)', 'getDexbackfillcmd')
@@ -63,6 +66,7 @@ fixture = r'''
 #include <ctime>
 #include <mutex>
 #include <span>
+#include <string>
 #include <thread>
 #include <vector>
 #define NOLOG
@@ -74,8 +78,9 @@ struct ScanData { uint32_t t; int32_t id; int32_t g; int32_t tr; float ch; uint3
 struct Info {
     uint32_t starttime = 0, pollcount = 0;
     uint16_t pollstart = 0, lastLifeCountReceived = 0;
-    struct { uint32_t streamstart, rawstreamstart; } update[8]{};
+    struct { uint32_t streamstart, rawstreamstart; bool changedstreamstart = false; } update[8]{};
 };
+struct { struct { int sendnr = 8; } data; auto *getupdatedata() { return &data; } } backupInstance, *backup = &backupInstance;
 struct SensorGlucoseData {
     Info metadata;
     vector<ScanData> polls = vector<ScanData>(4000);
@@ -89,6 +94,7 @@ struct SensorGlucoseData {
     int pollcount() const { return metadata.pollcount; }
     size_t pollStorageCapacity() const { return polls.size(); }
     const ScanData *getstream(int i) const { return &polls[i]; }
+    string showsensorname() const { return "fake"; }
     static recursive_mutex &pollWriteMutex() { static recursive_mutex lock; return lock; }
     /* HELPERS */
 
@@ -225,6 +231,28 @@ int main() {
         assert(d.pollcount() == 369 && d.polls[368].g == 121);
         assert(d.polls[366].g == 99);
     }
+    {   // The cursor rewind after a store is a read-compare-write too. It waits for a
+        // repair in flight, so it cannot write back the higher cursor it read first
+        // over the lower one the repair left.
+        SensorGlucoseData d; d.metadata.starttime = S;
+        d.metadata.update[0].streamstart = 100;
+        atomic<bool> rewound{false};
+        thread rewind;
+        {
+            lock_guard<recursive_mutex> repairing(SensorGlucoseData::pollWriteMutex());
+            rewind = thread([&] {
+                d.backstream(80);
+                rewound = true;
+            });
+            this_thread::sleep_for(chrono::milliseconds(100));
+            assert(!rewound);
+            d.metadata.update[0].streamstart = 50;   // what the repair lowers it to
+        }
+        rewind.join();
+        assert(d.metadata.update[0].streamstart == 50 && d.metadata.update[0].changedstreamstart);
+        d.backstream(40);
+        assert(d.metadata.update[0].streamstart == 40);
+    }
     {   // Padding the sensor's own readings overtook stays as empty slots, but
         // must not keep minute times: lookups by time need the stream in order.
         SensorGlucoseData d; d.metadata.starttime = S;
@@ -312,7 +340,7 @@ int main() {
     }
     puts("PASS: Dexcom minute-indexed copies are moved to their slots or dropped, repair is serialized with writes, the stream ends at the newest reading, and skewed copies keep their slot");
 }
-'''.replace('/* HELPERS */', helpers).replace('/* BACKFILL */', backfill)
+'''.replace('/* HELPERS */', helpers + '\n' + backstream).replace('/* BACKFILL */', backfill)
 
 with tempfile.TemporaryDirectory(prefix='dexcom-slot-repair-') as directory:
     directory = Path(directory)
