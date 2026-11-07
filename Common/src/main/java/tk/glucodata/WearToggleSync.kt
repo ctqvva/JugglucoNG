@@ -205,7 +205,12 @@ object WearToggleSync {
 
     // ------------------------------------------------------------- phone side
 
-    @Volatile private var lastSentHash: Int? = null
+    /**
+     * What each watch was last sent, so the ride-along stays silent per watch.
+     * One shared value let a send to one watch hide a change from another, and a
+     * broadcast that never landed hid it from all of them.
+     */
+    private val lastSentHashByNode = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     /** Phone: applies a watch command, then reports the resulting state back. */
     @JvmStatic
@@ -228,7 +233,7 @@ object WearToggleSync {
         runCatching {
             val payload = encode(currentState())
             MessageSender.getMessageSender()?.sendToggleState(target, payload)
-            lastSentHash = payload.contentHashCode()
+            lastSentHashByNode[target] = payload.contentHashCode()
         }.onFailure { Log.stack(LOG_ID, "pushTo", it) }
     }
 
@@ -239,7 +244,9 @@ object WearToggleSync {
         runCatching {
             val payload = encode(currentState())
             MessageSender.getMessageSender()?.sendToggleState(payload)
-            lastSentHash = payload.contentHashCode()
+            // Which watches it reached is unknown here; let each one's next
+            // ride-along confirm it rather than assume it arrived.
+            lastSentHashByNode.clear()
         }.onFailure { Log.stack(LOG_ID, "push", it) }
     }
 
@@ -251,9 +258,9 @@ object WearToggleSync {
         runCatching {
             val payload = encode(currentState())
             val hash = payload.contentHashCode()
-            if (hash == lastSentHash) return
+            if (lastSentHashByNode[target] == hash) return
             MessageSender.getMessageSender()?.sendToggleState(target, payload)
-            lastSentHash = hash
+            lastSentHashByNode[target] = hash
         }.onFailure { Log.stack(LOG_ID, "pushIfChanged", it) }
     }
 }

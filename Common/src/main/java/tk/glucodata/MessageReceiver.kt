@@ -67,7 +67,14 @@ class MessageReceiver: WearableListenerService() {
                     }
                     setWearosdefaults(source, true)
                     val context = if (MainActivity.thisone == null) Applic.app else MainActivity.thisone
-                    Applic.setbluetooth(context, false)
+                    // Defaults do not turn automatic switching off on either
+                    // device, so its radio has to survive them, the same as a
+                    // /bluetooth=false does below.
+                    if (isWearable && AutoSensorSwitch.isEnabled()) {
+                        AutoSensorSwitch.keepWatchRadioArmed("defaults")
+                    } else {
+                        Applic.setbluetooth(context, false)
+                    }
                 }
             }
             WearMessagePath.WAKE -> {
@@ -105,6 +112,9 @@ class MessageReceiver: WearableListenerService() {
                     // A previous prefs reply may have been lost, even if sendMessage succeeded.
                     WearPrefsSync.pushTo(messageEvent.sourceNodeId)
                     WearToggleSync.pushIfChanged(messageEvent.sourceNodeId)
+                    // A watch armed for automatic switching needs the setup of
+                    // the sensor being worn now, not of the one it was armed with.
+                    AutoSensorSwitch.provisionIfNeeded(messageEvent.sourceNodeId)
                     // Answer the handshake with this build's protocol version.
                     MessageSender.sendProtocol(messageEvent.sourceNodeId)
                 }
@@ -208,7 +218,12 @@ class MessageReceiver: WearableListenerService() {
                         galaxy = isGalaxy(node)
                     }
 
-                    if(Natives.setmynetinfo(name, data, galaxy)) {
+                    val applied = Natives.setmynetinfo(name, data, galaxy)
+                    // setmynetinfo turns the watch's Bluetooth off whenever the
+                    // phone says it reads the sensor; automatic switching needs
+                    // it on. See AutoSensorSwitch.keepWatchRadioArmed.
+                    if (isWearable) AutoSensorSwitch.keepWatchRadioArmed("netinfo handshake")
+                    if(applied) {
                         sendnetinfo(sourceId)
                         if (isWearable) {
                             MessageSender.sendSensorClaimStatus()

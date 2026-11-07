@@ -53,44 +53,90 @@ internal fun resolvePeerGone(
     graceMs: Long,
 ): Boolean {
     if (!autoSwitchEnabled) return false
-    if (!lastAnnouncementDelivered) return true
+    // A send that did not land is only uncertainty: a busy or dozing Data Layer
+    // drops one without the peer having gone anywhere, and treating that as
+    // "gone" pulled a device off a peer that was still reading the sensor.
+    // It counts only when discovery agrees that nobody is there.
+    if (!lastAnnouncementDelivered) return undiscoverableForMs >= 0L
     return undiscoverableForMs >= 0L && undiscoverableForMs >= graceMs
 }
 
-/** Whether to trust the peer's most recent "I don't own it" report yet; see [resolvePeerStandDownConfirmation]. */
-internal data class PeerStandDownConfirmation(
-    /**
-     * When owns=false was first seen since it was last true. Null once the peer
-     * reports owns=true again, or once the state is confirmed. Feed this back in
-     * as the next call's [resolvePeerStandDownConfirmation] previousFalseSinceMs
-     * — it is how the clock survives across reconciliation ticks.
-     */
-    val falseSinceMs: Long?,
-    /**
-     * True once owns=false has persisted for confirmMs and should be acted on;
-     * false while it is still inside its grace window.
-     */
-    val confirmed: Boolean,
-)
+/**
+ * When the peer stopped owning a sensor it had owned, after a new report.
+ *
+ * A single owns=false announcement can be the peer's own reconnect taking a
+ * moment rather than it actually letting go of the sensor: acting on it in the
+ * same tick pulled a device that could not even reach the sensor into a
+ * multi-minute connectGatt() storm over a blip the peer recovered from on its
+ * own a few seconds later. So a peer that WAS reading gets a short grace before
+ * its "I let go" is believed.
+ *
+ * Only a peer that was reading. An owns=false from a peer never seen owning the
+ * sensor is the plain truth, and debouncing it as if it were a blip invented an
+ * owner: two devices starting up idle each held the other's first "I don't have
+ * it" as "I have it" for the window, and both stood down from a sensor neither
+ * was reading.
+ *
+ * @param previousOwns what the peer said last time, or null if nothing yet.
+ * @param currentFalseSinceMs the window already running, if any.
+ * @return when the grace window started, or null when there is none.
+ */
+internal fun resolvePeerStandDownStart(
+    previousOwns: Boolean?,
+    reportOwns: Boolean,
+    currentFalseSinceMs: Long?,
+    nowMs: Long,
+): Long? {
+    if (reportOwns) return null
+    if (previousOwns == true) return currentFalseSinceMs ?: nowMs
+    return currentFalseSinceMs
+}
 
 /**
- * A single owns=false announcement can be the peer's own reconnect taking a
- * moment rather than it actually letting go of the sensor: reconcile() used to
- * act on the report in the same tick it arrived, which pulled a device that
- * could not even reach the sensor into a multi-minute connectGatt() storm over
- * a blip the peer recovered from on its own a few seconds later. owns=true is
- * always believed immediately — reverting to "keep reading" cannot lose data —
- * only the negative report waits out a short confirmation window first.
+ * Whether the peer's owns=false is believed yet; see [resolvePeerStandDownStart].
+ * With no grace window running there is nothing to wait for.
  */
-internal fun resolvePeerStandDownConfirmation(
-    peerOwns: Boolean,
-    previousFalseSinceMs: Long?,
+internal fun resolvePeerStandDownConfirmed(
+    falseSinceMs: Long?,
     nowMs: Long,
     confirmMs: Long,
-): PeerStandDownConfirmation {
-    if (peerOwns) return PeerStandDownConfirmation(falseSinceMs = null, confirmed = false)
-    val since = previousFalseSinceMs ?: nowMs
-    return PeerStandDownConfirmation(falseSinceMs = since, confirmed = nowMs - since >= confirmMs)
+): Boolean = falseSinceMs == null || nowMs - falseSinceMs >= confirmMs
+
+/**
+ * Whether this device can show that it is the one reading a sensor.
+ *
+ * "Has a GATT connection" was the whole test before, which was wrong both ways.
+ * A Dexcom G7 connects for a few seconds per five-minute reading, so the phone
+ * reading one announced "not mine" most of the time; every flip woke the watch,
+ * and history the watch echoed back was accepted as if someone else were reading
+ * it (#767). And a link that stayed up while delivering nothing kept the other
+ * device off the sensor for as long as the link lasted.
+ *
+ * @param lastLocalReadingSeenAtMs this device's clock when a local driver last
+ *   accepted a live reading, since the sensor was last released here; null when
+ *   none has been. Synced or imported history never sets it.
+ */
+internal fun resolveLocalOwnershipProof(
+    released: Boolean,
+    gattConnected: Boolean,
+    connectsPerReading: Boolean,
+    lastLocalReadingSeenAtMs: Long?,
+    nowMs: Long,
+    perReadingFreshMs: Long,
+    connectedStaleMs: Long,
+): Boolean {
+    if (released) return false
+    val sinceReading = lastLocalReadingSeenAtMs?.let { nowMs - it }
+    if (connectsPerReading) {
+        // Hanging up between readings is normal; missing two of them is not.
+        return sinceReading != null && sinceReading <= perReadingFreshMs
+    }
+    if (!gattConnected) return false
+    // Connected but nothing accepted yet: pairing, warm-up, a new sensor. The
+    // link is the only evidence there can be, and the other device could not
+    // connect to a one-client sensor anyway.
+    if (sinceReading == null) return true
+    return sinceReading <= connectedStaleMs
 }
 
 /** The state of one sensor's handover window; see [resolveYieldWindow]. */
@@ -205,7 +251,7 @@ object SensorOwnershipRuntime {
      * Short enough that a genuine handover is barely delayed — well under the
      * ~60s reading cadence — but long enough to outlast the peer's own
      * reconnect blips, which is what a live handoff storm turned out to be.
-     * See [resolvePeerStandDownConfirmation].
+     * See [resolvePeerStandDownStart].
      */
     private const val PEER_STOOD_DOWN_CONFIRM_MS = 15_000L
 
@@ -225,6 +271,27 @@ object SensorOwnershipRuntime {
     /** After a failed handover, how long before offering the watch another go. */
     private const val YIELD_RETRY_INTERVAL_MS = 15L * 60L * 1000L
 
+    /**
+     * How long a connect-per-reading sensor (Dexcom G7/ONE+, one reading per five
+     * minutes) still counts as ours after its last accepted reading: two missed
+     * readings and a minute of slack.
+     */
+    private const val PER_READING_OWNERSHIP_FRESH_MS = 11L * 60_000L
+
+    /**
+     * How long a connected sensor that has stopped delivering readings still
+     * counts as ours. Long, because handing over is the bigger disruption: this
+     * is for a link that is up and dead, not for a slow minute.
+     */
+    private const val CONNECTED_OWNERSHIP_STALE_MS = 20L * 60_000L
+
+    /**
+     * Longest the ownership probe may block the arbitration thread. The default
+     * send wait is a minute per watch, and discovery-grace and stand-down
+     * deadlines queue behind it on this executor.
+     */
+    private const val PROBE_SEND_TIMEOUT_SECONDS = 5L
+
     /** Reconnect delay when taking a sensor back, in ms. */
     private const val RESUME_DELAY_MS = 200L
 
@@ -236,10 +303,17 @@ object SensorOwnershipRuntime {
     /** Serials as the peer spells them, so we can answer about sensors we lack. */
     private val peerSerials = ConcurrentHashMap<String, String>()
     private val localReadings = ConcurrentHashMap<String, Long>()
+    /**
+     * This device's clock when a local driver last accepted a live reading.
+     * [localReadings] keeps the sample time, which is the sensor's idea of when
+     * and only fit for comparing with the peer; freshness is judged on this.
+     * Cleared on release, so a device taking a sensor back has to prove it anew.
+     */
+    private val localReadingSeenAt = ConcurrentHashMap<String, Long>()
     private val releaseState = SensorOwnershipReleaseState(::key)
     private val yieldStartedAt = ConcurrentHashMap<String, Long>()
 
-    /** Per-sensor state for [resolvePeerStandDownConfirmation]; see [confirmedPeerReportFor]. */
+    /** When a peer that was reading a sensor said it stopped; see [resolvePeerStandDownStart]. */
     private val peerOwnsFalseSinceMs = ConcurrentHashMap<String, Long>()
 
     /**
@@ -296,11 +370,15 @@ object SensorOwnershipRuntime {
     @JvmStatic
     fun noteLocalReading(serial: String?, timestampMs: Long) {
         val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return
-        val stamp = if (timestampMs > 0L) timestampMs else System.currentTimeMillis()
-        val previous = localReadings.put(key(target), stamp)
-        // First reading after a gap changes what we would announce, so say so now
-        // rather than at the next tick.
-        if (previous == null) executor.execute { runCatching { announceAndReconcile() } }
+        val now = System.currentTimeMillis()
+        val stamp = if (timestampMs > 0L) timestampMs else now
+        val id = key(target)
+        localReadings[id] = stamp
+        val previousSeenAt = localReadingSeenAt.put(id, now)
+        // First reading since a release, or after the proof had gone stale,
+        // changes what we would announce, so say so now rather than at the tick.
+        val wasStale = previousSeenAt == null || now - previousSeenAt > PER_READING_OWNERSHIP_FRESH_MS
+        if (wasStale) executor.execute { runCatching { announceAndReconcile() } }
     }
 
     /**
@@ -312,7 +390,7 @@ object SensorOwnershipRuntime {
     fun readsLocally(serial: String?): Boolean {
         val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return false
         if (releaseState.isReleased(target)) return false
-        return holdsLiveConnection(target)
+        return holdsSensor(target)
     }
 
     /**
@@ -372,6 +450,7 @@ object SensorOwnershipRuntime {
                 if (!enabled) {
                     peerReports.clear()
                     peerSerials.clear()
+                    peerOwnsFalseSinceMs.clear()
                     yieldStartedAt.clear()
                     resumeReleasedSensors("WearOS companion disabled")
                 }
@@ -392,7 +471,7 @@ object SensorOwnershipRuntime {
                 yieldStartedAt.remove(key(target))
                 if (releaseState.isReleased(target)) {
                     resume(target, "requested on phone")
-                } else if (!holdsLiveConnection(target)) {
+                } else if (!holdsSensor(target)) {
                     findGatt(target)?.let { gatt ->
                         gatt.setPause(false)
                         gatt.connectDevice(RESUME_DELAY_MS)
@@ -410,17 +489,28 @@ object SensorOwnershipRuntime {
         val report = decode(data) ?: return
         // Hearing from the peer is proof it is there, whatever the last send said.
         peerDeliverable = true
-        peerSerials[key(report.first)] = report.first
-        peerReports[key(report.first)] = SensorOwnershipPolicy.PeerReport(
+        val now = System.currentTimeMillis()
+        val id = key(report.first)
+        // Before storing: the previous word may have come under another spelling.
+        val previousOwns = peerReportFor(report.first)?.owns
+        val falseSince = resolvePeerStandDownStart(
+            previousOwns = previousOwns,
+            reportOwns = report.second,
+            currentFalseSinceMs = standDownSinceFor(report.first),
+            nowMs = now,
+        )
+        if (falseSince == null) forgetStandDown(report.first) else peerOwnsFalseSinceMs[id] = falseSince
+        peerSerials[id] = report.first
+        peerReports[id] = SensorOwnershipPolicy.PeerReport(
             owns = report.second,
             lastReadingMs = report.third,
-            receivedAtMs = System.currentTimeMillis(),
+            receivedAtMs = now,
         )
         if (Log.doLog) {
             Log.i(LOG_ID, "peer holds ${report.first}=${report.second} newest=${report.third}")
         }
         executor.execute { runCatching { reconcile() }.onFailure { Log.stack(LOG_ID, "reconcile", it) } }
-        if (!report.second) {
+        if (falseSince != null) {
             // An unchanged owns=false is only repeated at the heartbeat, and the
             // tick is a minute: reconcile again when the confirmation window
             // closes, so a real hand-back waits the window and not the tick.
@@ -455,34 +545,40 @@ object SensorOwnershipRuntime {
     }
 
     /**
-     * [peerReportFor], debounced through [resolvePeerStandDownConfirmation] so a
-     * single owns=false report cannot start a takeover on its own — only one
-     * that persists past [PEER_STOOD_DOWN_CONFIRM_MS] is passed through as-is.
-     * Until then the fresh report is served with `owns` held at true: its
-     * [SensorOwnershipPolicy.PeerReport.receivedAtMs] and `lastReadingMs` stay
-     * current, so the peer does not start looking silent from an older report.
+     * [peerReportFor], with a peer that was reading the sensor and has just said
+     * it let go still served as owning it until [PEER_STOOD_DOWN_CONFIRM_MS] has
+     * passed; see [resolvePeerStandDownStart]. Its receivedAtMs and lastReadingMs
+     * stay current, so the peer does not start looking silent from an older one.
      */
     private fun confirmedPeerReportFor(serial: String, nowMs: Long): SensorOwnershipPolicy.PeerReport? {
-        val id = key(serial)
         val raw = peerReportFor(serial) ?: run {
-            peerOwnsFalseSinceMs.remove(id)
+            forgetStandDown(serial)
             return null
         }
-        val confirmation = resolvePeerStandDownConfirmation(
-            peerOwns = raw.owns,
-            previousFalseSinceMs = peerOwnsFalseSinceMs[id],
-            nowMs = nowMs,
-            confirmMs = PEER_STOOD_DOWN_CONFIRM_MS,
-        )
-        if (confirmation.falseSinceMs == null) {
-            peerOwnsFalseSinceMs.remove(id)
-        } else {
-            peerOwnsFalseSinceMs[id] = confirmation.falseSinceMs
+        if (raw.owns) return raw
+        val since = standDownSinceFor(serial)
+        if (resolvePeerStandDownConfirmed(since, nowMs, PEER_STOOD_DOWN_CONFIRM_MS)) {
+            if (since != null) forgetStandDown(serial)
+            return raw
         }
-        if (raw.owns || confirmation.confirmed) return raw
-        // Not yet confirmed: report the peer as still owning it rather than
-        // passing the fresh owns=false through, so a blip cannot start a takeover.
         return raw.copy(owns = true)
+    }
+
+    /** The running stand-down window for any spelling of [serial]. */
+    private fun standDownSinceFor(serial: String): Long? {
+        peerOwnsFalseSinceMs[key(serial)]?.let { return it }
+        return peerSerials.entries
+            .asSequence()
+            .filter { (_, spelling) -> SensorIdentity.matches(spelling, serial) }
+            .mapNotNull { (id, _) -> peerOwnsFalseSinceMs[id] }
+            .maxOrNull()
+    }
+
+    private fun forgetStandDown(serial: String) {
+        peerOwnsFalseSinceMs.remove(key(serial))
+        peerSerials.entries
+            .filter { (_, spelling) -> SensorIdentity.matches(spelling, serial) }
+            .forEach { (id, _) -> peerOwnsFalseSinceMs.remove(id) }
     }
 
     private fun announceAndReconcile() {
@@ -513,7 +609,7 @@ object SensorOwnershipRuntime {
         // this runs on.
         var probed = false
         sensors().forEach { serial ->
-            val owns = holdsLiveConnection(serial)
+            val owns = holdsSensor(serial, now)
             val newest = localReadings[key(serial)] ?: 0L
             val id = key(serial)
             // The reading time changes every minute by nature, so it is not part
@@ -527,6 +623,7 @@ object SensorOwnershipRuntime {
                 val delivered = MessageSender.sendSyncMessageAwait(
                     WearMessagePath.SYNC2_OWN,
                     payload,
+                    timeoutSeconds = PROBE_SEND_TIMEOUT_SECONDS,
                 )
                 if (delivered != peerDeliverable) {
                     Log.i(LOG_ID, "peer ${if (delivered) "reachable again" else "unreachable"}")
@@ -612,6 +709,12 @@ object SensorOwnershipRuntime {
         val now = System.currentTimeMillis()
         val companionEnabled = Applic.isWearable || MessageSender.outgoingAllowed()
         val autoSwitch = autoSwitchEnabled()
+        // The watch can only take a sensor over with its radio armed, and the
+        // native handshake disarms it every time the phone says it is reading.
+        if (Applic.isWearable && autoSwitch) {
+            runCatching { AutoSensorSwitch.keepWatchRadioArmed("reconcile") }
+                .onFailure { Log.stack(LOG_ID, "keep watch radio armed", it) }
+        }
         // Automatic switching is the one mode that acts on the peer being gone
         // rather than merely quiet, so an undeliverable announcement retires its
         // report at once instead of waiting out the silence timeout.
@@ -622,10 +725,11 @@ object SensorOwnershipRuntime {
             val id = key(serial)
             val peer = if (companionEnabled && !peerGone) confirmedPeerReportFor(serial, now) else null
             val intent = intentFor(serial, companionEnabled)
+            val holds = holdsSensor(serial, now)
             val shouldRead = SensorOwnershipPolicy.shouldReadLocally(
                 isPhone = !Applic.isWearable,
                 intent = intent,
-                localHasConnection = holdsLiveConnection(serial),
+                localHasConnection = holds,
                 localLastReadingMs = localReadings[id] ?: 0L,
                 peer = peer,
                 nowMs = now,
@@ -640,7 +744,7 @@ object SensorOwnershipRuntime {
                 // connection. Reconnecting only ever happened on the way back
                 // from a release, so a device that was armed while the sensor
                 // was simply not its own sat here doing nothing at all.
-                shouldRead && autoSwitch && !holdsLiveConnection(serial) -> nudge(serial)
+                shouldRead && autoSwitch && !holds -> nudge(serial)
             }
         }
     }
@@ -746,6 +850,7 @@ object SensorOwnershipRuntime {
 
         peerReports.clear()
         peerSerials.clear()
+        peerOwnsFalseSinceMs.clear()
         yieldStartedAt.clear()
         assignedSensors.forEach { serial ->
             releaseState.resume(serial)
@@ -765,6 +870,8 @@ object SensorOwnershipRuntime {
         // Mark first. A callback may be created after this reconciliation; it
         // must still be unable to connect.
         releaseState.release(serial)
+        // Readings from before the release prove nothing about holding it later.
+        localReadingSeenAt.remove(key(serial))
         Log.i(LOG_ID, "standing down from $serial: the other device is reading it")
         val gatt = findGatt(serial) ?: return
         runCatching {
@@ -811,8 +918,13 @@ object SensorOwnershipRuntime {
             return
         }
         driverlessReported.remove(key(serial))
+        // Paused, and not by us (a release goes through resume()): the user's
+        // pause button, Clone, or a sensor being torn down. Automatic switching
+        // used to clear that pause on its next pass and connect anyway.
+        if (gatt.pauseRequested()) return
+        // Already linked: reconnect() would only tear down a working connection.
+        if (gatt.hasLocallyConnectedGatt()) return
         runCatching {
-            gatt.setPause(false)
             gatt.reconnect(System.currentTimeMillis())
         }.onFailure { Log.stack(LOG_ID, "nudge($serial)", it) }
     }
@@ -835,6 +947,7 @@ object SensorOwnershipRuntime {
         matchingKeys.forEach { id ->
             peerReports.remove(id)
             peerSerials.remove(id)
+            peerOwnsFalseSinceMs.remove(id)
         }
     }
 
@@ -867,10 +980,30 @@ object SensorOwnershipRuntime {
         SensorBluetooth.mygatts()?.firstOrNull { SensorIdentity.matches(it.SerialNumber, serial) }
     }.getOrNull()
 
-    private fun holdsLiveConnection(serial: String): Boolean = runCatching {
-        SensorBluetooth.mygatts()?.any {
-            it.hasLocallyConnectedGatt() && SensorIdentity.matches(it.SerialNumber, serial)
-        } == true
+    /** Whether the peer currently says it is reading [serial]. */
+    @JvmStatic
+    fun peerReportsOwning(serial: String?): Boolean {
+        val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return false
+        val peer = peerReportFor(target) ?: return false
+        val silentAfter = if (autoSwitchEnabled()) AUTO_SWITCH_PEER_SILENT_AFTER_MS else PEER_SILENT_AFTER_MS
+        return peer.owns && System.currentTimeMillis() - peer.receivedAtMs <= silentAfter
+    }
+
+    /** See [resolveLocalOwnershipProof]. */
+    private fun holdsSensor(serial: String, nowMs: Long = System.currentTimeMillis()): Boolean = runCatching {
+        val matching = SensorBluetooth.mygatts()
+            ?.filter { SensorIdentity.matches(it.SerialNumber, serial) }
+            .orEmpty()
+        if (matching.isEmpty()) return@runCatching false
+        resolveLocalOwnershipProof(
+            released = releaseState.isReleased(serial),
+            gattConnected = matching.any { it.hasLocallyConnectedGatt() },
+            connectsPerReading = matching.any { it.connectsPerReading() },
+            lastLocalReadingSeenAtMs = localReadingSeenAt[key(serial)],
+            nowMs = nowMs,
+            perReadingFreshMs = PER_READING_OWNERSHIP_FRESH_MS,
+            connectedStaleMs = CONNECTED_OWNERSHIP_STALE_MS,
+        )
     }.getOrDefault(false)
 
     // ---------------------------------------------------------------- wire

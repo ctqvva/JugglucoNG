@@ -374,12 +374,13 @@ class SensorOwnershipPolicyTests {
                 graceMs = grace,
             ),
         )
-        // An announcement that could not be delivered needs no grace.
+        // An announcement that could not be delivered needs no grace once
+        // discovery agrees the peer is gone.
         assertTrue(
             resolvePeerGone(
                 autoSwitchEnabled = true,
                 lastAnnouncementDelivered = false,
-                undiscoverableForMs = -1L,
+                undiscoverableForMs = 0L,
                 graceMs = grace,
             ),
         )
@@ -483,51 +484,135 @@ class SensorOwnershipPolicyTests {
     }
 
     @Test
-    fun peerOwningResetsAnyPendingFalseConfirmation() {
-        val result = resolvePeerStandDownConfirmation(
-            peerOwns = true,
-            previousFalseSinceMs = now - 5_000L,
-            nowMs = now,
-            confirmMs = 15_000L,
+    fun peerOwningEndsAnyStandDownWindow() {
+        assertEquals(
+            null,
+            resolvePeerStandDownStart(
+                previousOwns = false,
+                reportOwns = true,
+                currentFalseSinceMs = now - 5_000L,
+                nowMs = now,
+            ),
         )
-        assertEquals(null, result.falseSinceMs)
-        assertFalse(result.confirmed)
     }
 
     @Test
-    fun aFreshFalseReportStartsTheClockButIsNotYetConfirmed() {
-        val result = resolvePeerStandDownConfirmation(
-            peerOwns = false,
-            previousFalseSinceMs = null,
+    fun anOwnerLettingGoStartsTheGraceWindow() {
+        val since = resolvePeerStandDownStart(
+            previousOwns = true,
+            reportOwns = false,
+            currentFalseSinceMs = null,
             nowMs = now,
-            confirmMs = 15_000L,
         )
-        assertEquals(now, result.falseSinceMs)
-        assertFalse(result.confirmed)
+        assertEquals(now, since)
+        assertFalse(resolvePeerStandDownConfirmed(since, now, confirmMs = 15_000L))
     }
 
     @Test
-    fun aFalseReportInsideTheGraceWindowStaysUnconfirmed() {
-        val result = resolvePeerStandDownConfirmation(
-            peerOwns = false,
-            previousFalseSinceMs = now - 14_999L,
-            nowMs = now,
-            confirmMs = 15_000L,
+    fun aRepeatedFalseKeepsTheWindowItIsAlreadyIn() {
+        assertEquals(
+            now - 10_000L,
+            resolvePeerStandDownStart(
+                previousOwns = false,
+                reportOwns = false,
+                currentFalseSinceMs = now - 10_000L,
+                nowMs = now,
+            ),
         )
-        assertEquals(now - 14_999L, result.falseSinceMs)
-        assertFalse(result.confirmed)
     }
 
     @Test
-    fun aFalseReportPastTheGraceWindowIsConfirmed() {
-        val result = resolvePeerStandDownConfirmation(
-            peerOwns = false,
-            previousFalseSinceMs = now - 15_000L,
+    fun aPeerNeverSeenOwningIsBelievedAtOnce() {
+        // The first report after a start, or from a peer that was idle all
+        // along: nothing to debounce, and debouncing it invented an owner.
+        val first = resolvePeerStandDownStart(
+            previousOwns = null,
+            reportOwns = false,
+            currentFalseSinceMs = null,
             nowMs = now,
-            confirmMs = 15_000L,
         )
-        assertEquals(now - 15_000L, result.falseSinceMs)
-        assertTrue(result.confirmed)
+        assertEquals(null, first)
+        assertTrue(resolvePeerStandDownConfirmed(first, now, confirmMs = 15_000L))
+        val stillIdle = resolvePeerStandDownStart(
+            previousOwns = false,
+            reportOwns = false,
+            currentFalseSinceMs = null,
+            nowMs = now,
+        )
+        assertEquals(null, stillIdle)
+    }
+
+    @Test
+    fun theGraceWindowClosesAfterConfirmMs() {
+        assertFalse(resolvePeerStandDownConfirmed(now - 14_999L, now, confirmMs = 15_000L))
+        assertTrue(resolvePeerStandDownConfirmed(now - 15_000L, now, confirmMs = 15_000L))
+    }
+
+    @Test
+    fun aFailedSendIsNotThePeerLeavingWhileDiscoveryStillSeesIt() {
+        val grace = 30_000L
+        assertFalse(
+            resolvePeerGone(
+                autoSwitchEnabled = true,
+                lastAnnouncementDelivered = false,
+                undiscoverableForMs = -1L,
+                graceMs = grace,
+            ),
+        )
+        // Both signals say it is gone: no grace needed.
+        assertTrue(
+            resolvePeerGone(
+                autoSwitchEnabled = true,
+                lastAnnouncementDelivered = false,
+                undiscoverableForMs = 0L,
+                graceMs = grace,
+            ),
+        )
+    }
+
+    private val perReadingFresh = 11L * 60_000L
+    private val connectedStale = 20L * 60_000L
+
+    private fun proof(
+        released: Boolean = false,
+        gattConnected: Boolean = false,
+        connectsPerReading: Boolean = false,
+        seenAt: Long? = null,
+    ) = resolveLocalOwnershipProof(
+        released = released,
+        gattConnected = gattConnected,
+        connectsPerReading = connectsPerReading,
+        lastLocalReadingSeenAtMs = seenAt,
+        nowMs = now,
+        perReadingFreshMs = perReadingFresh,
+        connectedStaleMs = connectedStale,
+    )
+
+    @Test
+    fun aG7BetweenReadingsIsStillOwned() {
+        // Hung up 4 minutes ago, as it does after every reading.
+        assertTrue(proof(connectsPerReading = true, seenAt = now - 4L * 60_000L))
+        // Two readings missed: no longer.
+        assertFalse(proof(connectsPerReading = true, seenAt = now - perReadingFresh - 1L))
+        // A connection alone proves nothing for it.
+        assertFalse(proof(connectsPerReading = true, gattConnected = true, seenAt = null))
+    }
+
+    @Test
+    fun aConnectedSensorIsOwnedUntilItsReadingsGoStale() {
+        // Warm-up, pairing, a new sensor: the link is all there is.
+        assertTrue(proof(gattConnected = true, seenAt = null))
+        assertTrue(proof(gattConnected = true, seenAt = now - 60_000L))
+        // Up, and delivering nothing for twenty minutes.
+        assertFalse(proof(gattConnected = true, seenAt = now - connectedStale - 1L))
+        // Disconnected: not ours, however recent the last reading.
+        assertFalse(proof(gattConnected = false, seenAt = now - 60_000L))
+    }
+
+    @Test
+    fun aReleasedSensorIsNeverOwned() {
+        assertFalse(proof(released = true, gattConnected = true, seenAt = now))
+        assertFalse(proof(released = true, connectsPerReading = true, seenAt = now))
     }
 
     @Test
