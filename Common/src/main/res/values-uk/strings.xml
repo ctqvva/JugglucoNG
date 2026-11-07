@@ -3409,6 +3409,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Не вдалося отримати показання</string>
     <string name="lumiflex_no_providers">Немає доступних акаунтів. Попросіть власника сенсора додати ваш акаунт до підписників.</string>
     <string name="lumiflex_follow_refresh">Оновити</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Озвучування значень</string>
+    <string name="voice_turn_off">Вимкнути голос</string>
+    <string name="voice_turn_on">Увімкнути голос</string>
+    <string name="voice_every_reading">Кожне значення</string>
+    <string name="voice_every_minutes">Кожні %1$d хв</string>
+    <string name="voice_resumes_at">З %1$s</string>
+    <string name="voice_quick_dashboard">Показувати на панелі</string>
+    <string name="voice_quick_dashboard_desc">Перемикач угорі графіка</string>
+    <string name="voice_quick_notification">Показувати в сповіщенні</string>
+    <string name="voice_quick_notification_desc">Кнопка голосу в сповіщенні з глюкозою</string>
     <string name="aidex_keys_before_connect">Імпортуйте або запросіть ключі цього сенсора перед підключенням.</string>
     <string name="aidex_delete_keys_message">Видалити збережені ключі сполучення сенсора %1$s із цього телефона? Спочатку експортуйте їх, якщо вони можуть знадобитися знову.</string>
 </resources>

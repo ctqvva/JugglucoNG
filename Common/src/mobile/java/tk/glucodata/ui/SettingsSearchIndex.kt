@@ -211,7 +211,7 @@ internal object SettingsSearchIndex {
             anchor = SettingsSearchAnchors.QUIET_WINDOW),
         SettingsSearchEntry(R.string.talker, ALERTS, Icons.Default.AddAlert, E, route("settings/alerts/talker"),
             keywords = listOf(R.string.speakglucose, R.string.voice_schedule_title, R.string.voice_chime_title,
-                R.string.override_silent_mode),
+                R.string.override_silent_mode, R.string.voice_readings),
             terms = listOf("TTS")),
         SettingsSearchEntry(R.string.settings_calibration_title, TOP, Icons.Default.WaterDrop, P, route("settings/calibrations"),
             keywords = listOf(R.string.calibration_from_journal_title),

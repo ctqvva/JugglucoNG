@@ -125,6 +125,7 @@ import tk.glucodata.R;
 import tk.glucodata.SetColorsScreenAccess;
 import tk.glucodata.Specific;
 import tk.glucodata.SuperGattCallback;
+import tk.glucodata.VoiceReadings;
 import tk.glucodata.XdripFollowerSend;
 
 import java.text.DecimalFormat;
@@ -882,6 +883,7 @@ new View[]{isvalue},new View[]{ringisvalue},new View[]{usealarm},new View[]{adva
                MainActivity.poponback();
                Natives.setProfile(position);
                SuperGattCallback.initAlarmTalk();
+               VoiceReadings.changed();
                alarmsettings(context,parview);
                }
             }

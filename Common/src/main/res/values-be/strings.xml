@@ -3404,6 +3404,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Не ўдалося атрымаць паказанні</string>
     <string name="lumiflex_no_providers">Няма даступных акаўнтаў. Папрасіце ўладальніка сэнсара дадаць ваш акаўнт у падпісчыкі.</string>
     <string name="lumiflex_follow_refresh">Абнавіць</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Агучванне паказанняў</string>
+    <string name="voice_turn_off">Выключыць голас</string>
+    <string name="voice_turn_on">Уключыць голас</string>
+    <string name="voice_every_reading">Кожнае паказанне</string>
+    <string name="voice_every_minutes">Кожныя %1$d хв</string>
+    <string name="voice_resumes_at">З %1$s</string>
+    <string name="voice_quick_dashboard">Паказваць на панэлі</string>
+    <string name="voice_quick_dashboard_desc">Перамыкач уверсе графіка</string>
+    <string name="voice_quick_notification">Паказваць у апавяшчэнні</string>
+    <string name="voice_quick_notification_desc">Кнопка голасу ў апавяшчэнні з глюкозай</string>
     <string name="aidex_keys_before_connect">Імпартуйце або запытайце ключы гэтага датчыка перад падключэннем.</string>
     <string name="aidex_delete_keys_message">Выдаліць захаваныя ключы спалучэння датчыка %1$s з гэтага тэлефона? Спачатку экспартуйце іх, калі яны могуць спатрэбіцца зноў.</string>
 </resources>

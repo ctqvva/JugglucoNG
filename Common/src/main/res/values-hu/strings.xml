@@ -3383,6 +3383,17 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="lumiflex_follow_failed">Nem sikerült fogadni az értékeket</string>
     <string name="lumiflex_no_providers">Nincs megosztott fiók. Kérje meg az érzékelő tulajdonosát, hogy adja hozzá fiókját követőként.</string>
     <string name="lumiflex_follow_refresh">Frissítés</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Hangos értékek</string>
+    <string name="voice_turn_off">Hang kikapcsolása</string>
+    <string name="voice_turn_on">Hang bekapcsolása</string>
+    <string name="voice_every_reading">Minden mérés</string>
+    <string name="voice_every_minutes">%1$d percenként</string>
+    <string name="voice_resumes_at">%1$s-tól</string>
+    <string name="voice_quick_dashboard">Megjelenítés a kezdőlapon</string>
+    <string name="voice_quick_dashboard_desc">Kapcsoló a grafikon tetején</string>
+    <string name="voice_quick_notification">Megjelenítés az értesítésben</string>
+    <string name="voice_quick_notification_desc">Hang gomb a glükóz értesítésben</string>
     <string name="aidex_keys_before_connect">Csatlakozás előtt importáld vagy kérd le az érzékelő kulcsait.</string>
     <string name="aidex_delete_keys_message">Eltávolítod a(z) %1$s mentett párosítási kulcsait erről a telefonról? Előbb exportáld őket, ha később még szükséged lehet rájuk.</string>
 </resources>
