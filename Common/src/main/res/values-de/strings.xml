@@ -1016,6 +1016,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="broadcast_only">Datenweitergabe</string>
     <string name="reset_autocal_button">Automatische Kalibrierung neu starten</string>
     <string name="reconnect">Neu verbinden</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth-Bindung zurücksetzen (Daten bleiben erhalten)</string>
     <string name="reconnect_sensor_desc">Setzt die Verbindung zurück und versucht, neu zu verbinden.</string>
     <string name="reconnect_sensor_title">Sensor neu verbinden?</string>
     <string name="remove_sensor_desc">Dadurch wird der Sensor dauerhaft entfernt, die Kopplungsschlüssel werden gelöscht und die Sitzung wird beendet. Zur erneuten Verwendung muss der Sensor erneut gekoppelt werden.</string>

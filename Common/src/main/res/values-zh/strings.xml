@@ -925,6 +925,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">重置蓝牙绑定（保留数据）</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">这将永久删除传感器、擦除配对密钥并停止会话。传感器必须重新配对才能再次使用。</string>
