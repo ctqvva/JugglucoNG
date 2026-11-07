@@ -922,6 +922,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="libreview_password">Wachtwoord</string>
     <string name="libreview_resend">Gegevens opnieuw verzenden</string>
     <string name="libreview_russia">Regio Rusland</string>
+    <string name="libreview_official_end">Stoppen bij het officiële einde van de sensor</string>
+    <string name="libreview_official_end_desc">Laat de extra uren na het officiële einde van een Libre 2-sensor weg</string>
     <string name="libreview_send_now">Verzend nu</string>
     <string name="libreview_send_numbers">Stuur insuline/koolhydraten</string>
     <string name="libreview_settings_title">LibreView-instellingen</string>

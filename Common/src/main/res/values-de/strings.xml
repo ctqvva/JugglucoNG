@@ -975,6 +975,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="libreview_password">Passwort</string>
     <string name="libreview_resend">Daten erneut senden</string>
     <string name="libreview_russia">Region Russland</string>
+    <string name="libreview_official_end">Am offiziellen Sensorende stoppen</string>
+    <string name="libreview_official_end_desc">Zusätzliche Stunden nach dem offiziellen Ende eines Libre-2-Sensors auslassen</string>
     <string name="libreview_send_now">Jetzt senden</string>
     <string name="libreview_send_numbers">Insulin/Kohlenhydrate senden</string>
     <string name="libreview_settings_title">LibreView-Einstellungen</string>

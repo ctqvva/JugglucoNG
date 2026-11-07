@@ -222,6 +222,18 @@ static LibreHist librehistory(SensorGlucoseData *sensdata, uint32_t starttime,
       return {.notsend = streamlen};
     }
   }
+  // Past the official end the readings stay unsent, and the cursor stays where it was so
+  // switching the option off sends them. The bucket straddling the end is dropped with them,
+  // as for any period that is not whole yet.
+  const uint32_t cutoff = libreviewCutoff(sensdata);
+  while (laststream->t > cutoff) {
+    do {
+      if (--laststream < firststream) {
+        LOGAR("no hist: all past the official end");
+        return {.notsend = static_cast<uint32_t>(notsend)};
+      }
+    } while (!laststream->valid());
+  }
   int laststreamid = laststream->id;
   constexpr int periodmin = 15;
   constexpr int periodright = 15 / 2;
@@ -525,11 +537,14 @@ static int addcurrents(char *&uitptr, time_t nu,
     return ends;
   }
   const time_t old = nu - 5 * 60;
+  const uint32_t cutoff = libreviewCutoff(sens);
   const ScanData *startstream = sens->beginpolls();
   for (int i = ends; i >= start; i--) {
     const ScanData *el = startstream + i;
     if (el->current(i)) {
       auto wastime = el->gettime();
+      if (wastime > cutoff)
+        continue;
       if (wastime < old)
         return 0;
       //        const auto &viewed=sens->viewed;
@@ -883,10 +898,15 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
         }
         LOGGER("scanoff=%d startid=%d end=%d\n", scanoff, startid,
                scans.size());
+        // A scan past the official end is stepped over like one already sent: Abbott's
+        // own app never reports it, and a cursor stuck on it would leave this sensor
+        // counting as pending on every later upload.
+        const uint32_t cutoff = libreviewCutoff(sensdata);
         for (const ScanData *iter = &scans[scanoff + startid]; iter < endscans;
              ++iter) {
           ++id;
-          if (iter->valid() && iter->gettime() > starttimeiter) {
+          if (iter->valid() && iter->gettime() > starttimeiter &&
+              iter->gettime() <= cutoff) {
             uitptr = libreScanel(sensdata, *iter, id, uitptr);
             *uitptr++ = ',';
             ++scansiter;
@@ -1062,7 +1082,7 @@ static int askhasnewcurrent2(time_t nu) {
       continue;
     if (!sens->isLibre2())
       continue;
-    if (sens->getmaxtime() < nu)
+    if (sens->getmaxtime() < nu || libreviewPastCutoff(sens, nu))
       continue;
     int start = sens->getinfo()->libreCurrentIter;
     const int pollstart = sens->getinfo()->pollstart;

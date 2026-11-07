@@ -432,6 +432,8 @@
     <string name="libreview_get_account_id">Получить ID аккаунта</string>
     <string name="libreview_status">Статус</string>
     <string name="libreview_russia">Регион Россия</string>
+    <string name="libreview_official_end">Обрезать по официальному сроку датчика</string>
+    <string name="libreview_official_end_desc">Не отправлять показания за лишние часы после официального окончания датчика Libre 2</string>
     <string name="low_label">Низкий</string>
     <string name="high_label">Высокий</string>
 

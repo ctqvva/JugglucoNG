@@ -847,6 +847,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">Lösenord</string>
     <string name="libreview_resend">Skicka data igen</string>
     <string name="libreview_russia">Ryssland regionen</string>
+    <string name="libreview_official_end">Sluta vid sensorns officiella slut</string>
+    <string name="libreview_official_end_desc">Hoppa över extratimmarna efter en Libre 2-sensors officiella slut</string>
     <string name="libreview_send_now">Skicka nu</string>
     <string name="libreview_send_numbers">Skicka insulin/kolhydrater</string>
     <string name="libreview_settings_title">LibreView-inställningar</string>

@@ -884,6 +884,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="libreview_password">Şifre</string>
     <string name="libreview_resend">Verileri Yeniden Gönder</string>
     <string name="libreview_russia">Rusya bölgesi</string>
+    <string name="libreview_official_end">Sensörün resmi bitişinde durdur</string>
+    <string name="libreview_official_end_desc">Libre 2 sensörünün resmi bitişinden sonraki ek saatleri atla</string>
     <string name="libreview_send_now">Şimdi Gönder</string>
     <string name="libreview_send_numbers">İnsülin/Karbonhidrat Gönder</string>
     <string name="libreview_settings_title">LibreView Ayarları</string>

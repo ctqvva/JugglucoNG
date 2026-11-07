@@ -842,6 +842,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">Пароль</string>
     <string name="libreview_resend">Адправіць даныя паўторна</string>
     <string name="libreview_russia">Расія вобласць</string>
+    <string name="libreview_official_end">Спыняць у афіцыйны тэрмін датчыка</string>
+    <string name="libreview_official_end_desc">Не адпраўляць паказанні за лішнія гадзіны пасля афіцыйнага заканчэння датчыка Libre 2</string>
     <string name="libreview_send_now">Адправіць зараз</string>
     <string name="libreview_send_numbers">Адправіць інсулін/вугляводы</string>
     <string name="libreview_settings_title">Налады LibreView</string>

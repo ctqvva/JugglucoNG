@@ -655,6 +655,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="libreview_get_account_id">Hel aqoonsiga Koontada</string>
     <string name="libreview_status">Xaalada</string>
     <string name="libreview_russia">Gobolka Ruushka</string>
+    <string name="libreview_official_end">Ku jooji dhammaadka rasmiga ah ee sensor-ka</string>
+    <string name="libreview_official_end_desc">Ka tag saacadaha dheeraadka ah ee ka dambeeya dhammaadka rasmiga ah ee sensor-ka Libre 2</string>
     
     <string name="low_label">Hoose</string>
     <string name="high_label">Sare</string>

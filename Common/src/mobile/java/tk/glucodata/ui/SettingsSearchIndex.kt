@@ -313,7 +313,7 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.nightscout_desc, R.string.nightscout_send_treatments,
                 R.string.nightscout_upload_iob, R.string.nightscout_receive_amounts, R.string.nightscout_use_v3_api)),
         SettingsSearchEntry(R.string.libreview_config, SHARING, Icons.Default.Cloud, T, route("settings/libreview"),
-            keywords = listOf(R.string.libreview_desc), terms = listOf("Abbott"),
+            keywords = listOf(R.string.libreview_desc, R.string.libreview_official_end), terms = listOf("Abbott"),
             condition = SettingsSearchCondition.LIBREVIEW),
         SettingsSearchEntry(R.string.dexcom_share_title, SHARING, Icons.Default.CloudUpload, T, route("settings/dexcom-share"),
             keywords = listOf(R.string.dexcom_share_desc), condition = SettingsSearchCondition.DEXCOM_SHARE),

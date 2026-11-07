@@ -762,6 +762,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">Parola d\'ordine</string>
     <string name="libreview_resend">Invia nuovamente i dati</string>
     <string name="libreview_russia">Regione russa</string>
+    <string name="libreview_official_end">Fermati alla fine ufficiale del sensore</string>
+    <string name="libreview_official_end_desc">Escludi le ore extra dopo la fine ufficiale di un sensore Libre 2</string>
     <string name="libreview_send_now">Invia adesso</string>
     <string name="libreview_send_numbers">Invia insulina/carboidrati</string>
     <string name="libreview_settings_title">Impostazioni di LibreView</string>
