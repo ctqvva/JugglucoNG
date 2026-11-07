@@ -177,15 +177,18 @@ object WearSync2 {
     /** Handle an incoming request from the watch. */
     @JvmStatic
     fun onRequest(data: ByteArray?) {
-        val fromSec = runCatching {
+        // The optional byte after the start asks for the full horizon even when one went
+        // out recently; a request without it is the older, shorter form.
+        val (fromSec, force) = runCatching {
             val buf = ByteBuffer.wrap(data ?: return)
             if (buf.get().toInt() != VERSION) return
-            buf.long
+            val from = buf.long
+            from to (buf.hasRemaining() && buf.get().toInt() != 0)
         }.getOrNull() ?: return
         executor.execute {
             runCatching {
                 val requestedHorizon = fromSec <= System.currentTimeMillis() / 1000L - BACKFILL_HORIZON_SEC + 60L
-                if (!requestedHorizon || allowDeepServe(force = false)) {
+                if (!requestedHorizon || allowDeepServe(force = force)) {
                     serveSince(sanitizeFrom(fromSec))
                 } else {
                     serveSince(tailStartSec())
@@ -409,11 +412,13 @@ object WearSync2 {
      * Ask the phone for what we are missing. [deep] asks for the whole horizon
      * (app open, empty store); the routine path only asks for the tail, so a
      * fortnight of readings is not re-sent — and re-decoded — every few
-     * minutes on a watch battery.
+     * minutes on a watch battery. The phone also spaces its full serves out;
+     * [force] is for a watch that has just thrown its stored copy away and so
+     * needs the whole horizon whatever the phone sent last.
      */
     @JvmStatic
     @JvmOverloads
-    fun requestSync(deep: Boolean = false) {
+    fun requestSync(deep: Boolean = false, force: Boolean = false) {
         executor.execute {
             runCatching {
                 val nowSec = System.currentTimeMillis() / 1000L
@@ -424,9 +429,10 @@ object WearSync2 {
                 } else {
                     (lastSec - INCREMENTAL_OVERLAP_SEC).coerceIn(horizonStart, nowSec)
                 }
-                val buf = ByteBuffer.allocate(9)
+                val buf = ByteBuffer.allocate(10)
                 buf.put(VERSION.toByte())
                 buf.putLong(fromSec)
+                buf.put((if (force) 1 else 0).toByte())
                 MessageSender.sendSyncMessage(WearMessagePath.SYNC2_REQ, buf.array())
                 if (doLog) Log.i(LOG_ID, "requested sync from $fromSec")
             }.onFailure { Log.stack(LOG_ID, "requestSync", it) }

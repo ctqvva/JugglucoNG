@@ -150,11 +150,11 @@ object ManagedSensorHandoff {
                     runCatching { DexcomWatchSetup.applyOnWatch(root) }
                         .onFailure { Log.stack(LOG_ID, "Dexcom setup", it) }
                     SensorIdentity.invalidateCaches()
-                    requestBacklog(root)
+                    requestBacklog(root, mirrorDiscarded = true)
                 }
             }
             SensorIdentity.invalidateCaches()
-            if (!dexcomSetup) requestBacklog(root)
+            if (!dexcomSetup) requestBacklog(root, mirrorDiscarded = false)
             // The record is now stored, but drivers are only built from storage at Bluetooth
             // start. Without this the receiving device holds the sensor on paper and never
             // opens a connection — no GATT attempt, no broadcast fallback — until the app is
@@ -167,7 +167,12 @@ object ManagedSensorHandoff {
         }
     }
 
-    private fun requestBacklog(root: JSONObject) {
+    /**
+     * @param mirrorDiscarded the Dexcom setup may have moved this device's mirrored copy of
+     *   the sensor aside, which leaves nothing but what the sender serves now; it serves the
+     *   full horizon again at once instead of waiting out its spacing between full serves.
+     */
+    private fun requestBacklog(root: JSONObject, mirrorDiscarded: Boolean) {
         // Ask the sender for its backlog now. A full-horizon serve is otherwise throttled
         // to its own schedule, so a device could take a sensor over holding only the last
         // few minutes and wait minutes for the rest — while the sender had all of it and
@@ -178,7 +183,7 @@ object ManagedSensorHandoff {
         // full history over BLE that sync had just delivered.
         // A refresh of setup this device already had needs no backlog.
         if (root.optBoolean("refresh", false)) return
-        runCatching { WearSync2.requestSync(deep = true) }
+        runCatching { WearSync2.requestSync(deep = true, force = mirrorDiscarded) }
             .onFailure { Log.stack(LOG_ID, "handoff deep sync request", it) }
     }
 
