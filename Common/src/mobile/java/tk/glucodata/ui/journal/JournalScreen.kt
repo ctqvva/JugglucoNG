@@ -225,7 +225,6 @@ fun JournalScreen(
                             modifier = Modifier.matchParentSize(),
                             appChartRangeColors = chartRangeColors,
                             glucoseHistory = sortedHistory,
-                            drawWithoutReadings = sortedHistory.isEmpty(),
                             dataBounds = timelineExtents?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
                             onVisibleRangeChanged = onVisibleRangeChanged,
                             journalMarkers = markers,

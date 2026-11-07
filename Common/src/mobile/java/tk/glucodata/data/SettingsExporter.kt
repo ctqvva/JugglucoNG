@@ -24,10 +24,14 @@ object SettingsExporter {
     private const val TAG = "SettingsExporter"
 
     /**
-     * Preference files that hold vendor credentials. They never enter an export (values or raw
-     * XML) and are therefore never restored by an import either.
+     * Preference files too sensitive to export: vendor credentials, and restricted mode (a
+     * restored backup must not lift a child's restrictions, and its PIN hash is not something
+     * to hand around in a file). They never enter an export (values or raw XML) and are
+     * therefore never restored by an import either.
      */
-    internal val SECRET_PREFERENCE_FILES = setOf("lumiflex_cloud", "ican_cloud", "dexcom_share")
+    internal val SECRET_PREFERENCE_FILES = setOf(
+        "lumiflex_cloud", "ican_cloud", "dexcom_share", tk.glucodata.RestrictedMode.PREFS_NAME,
+    )
 
     internal fun isSecretPreferenceFile(name: String): Boolean =
         name in SECRET_PREFERENCE_FILES

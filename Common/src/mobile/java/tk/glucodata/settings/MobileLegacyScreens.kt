@@ -65,6 +65,9 @@ object MobileLegacyScreens : LegacyScreens {
     }
 
     override fun openMenus(activity: MainActivity) {
+        // The legacy menus reach every setting with no restricted-mode checks (TalkBack opens
+        // them on start). A restricted phone stays in the Compose UI, which TalkBack reads too.
+        if (tk.glucodata.RestrictedMode.isLocked()) return
         Menus.show(activity)
     }
 

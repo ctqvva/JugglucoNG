@@ -42,7 +42,10 @@ import tk.glucodata.drivers.ottai.OttaiCloudClient
 
 @Composable
 internal fun OttaiFirmwareTestDialog(sensorId: String, address: String, prepareForSetup: Boolean = false,
-    onPrepared: () -> Unit = {}, onRetrySetup: () -> Unit = {}, onDismiss: () -> Unit) {
+    onPrepared: () -> Unit = {}, onRetrySetup: () -> Unit = {},
+    /** Close as soon as no transfer is running (restricted mode relocked); never mid-transfer. */
+    closeWhenIdle: Boolean = false,
+    onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var mode by remember(sensorId, address) { mutableStateOf<OttaiFirmwareMode?>(null) }
@@ -55,8 +58,10 @@ internal fun OttaiFirmwareTestDialog(sensorId: String, address: String, prepareF
     if (loading) return
     val selected = mode
     if (selected != null) {
-        OttaiFirmwareSessionDialog(sensorId, address, selected, prepareForSetup, onPrepared, onRetrySetup, onDismiss)
+        OttaiFirmwareSessionDialog(sensorId, address, selected, prepareForSetup, onPrepared, onRetrySetup,
+            closeWhenIdle, onDismiss)
     } else {
+        LaunchedEffect(closeWhenIdle) { if (closeWhenIdle) onDismiss() }
         OttaiFirmwareModeDialog(OttaiFirmwareSession.hasPendingSetup(context, sensorId),
             onMode = { mode = it },
             onDiscard = { done -> scope.launch {
@@ -94,7 +99,8 @@ internal fun OttaiFirmwareModeDialog(pending: Boolean, onMode: (OttaiFirmwareMod
 
 @Composable
 private fun OttaiFirmwareSessionDialog(sensorId: String, address: String, mode: OttaiFirmwareMode,
-    prepareForSetup: Boolean, onPrepared: () -> Unit, onRetrySetup: () -> Unit, onDismiss: () -> Unit) {
+    prepareForSetup: Boolean, onPrepared: () -> Unit, onRetrySetup: () -> Unit, closeWhenIdle: Boolean,
+    onDismiss: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     var state by remember(sensorId, address, mode) { mutableStateOf(OttaiFirmwareState(mode = mode)) }
@@ -120,6 +126,9 @@ private fun OttaiFirmwareSessionDialog(sensorId: String, address: String, mode: 
         if (prepareForSetup && state.stage == OttaiFirmwareStage.COMPLETE) onPrepared()
     }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(closeWhenIdle, state.transferring) {
+        if (closeWhenIdle && !state.transferring) onDismiss()
+    }
     OttaiFirmwareStatusDialog(state, OttaiFirmwareSession.hasPendingSetup(context, sensorId),
         onInstall = { session?.install() }, onPrepare = { session?.prepareOnly() },
         onCloudRecheck = { session?.recheckWithCloudAuth() },
