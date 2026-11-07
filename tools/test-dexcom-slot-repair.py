@@ -37,6 +37,7 @@ helpers = '\n'.join(extract(header, s) for s in [
     'bool dexSlotTimeFits(const int id) const', 'int dexSlotFor(const uint32_t tim) const',
     'void repairDexcomMinuteSlots()', 'void consecutivelifecount()',
     'std::span<const ScanData> getPolldata() const',
+    'int dexAnchorSlot() const', 'bool takeDexcomPeerAnchor(',
 ])
 # The cursor rewind a writer makes after storing a sample.
 backstream = extract((root / 'Common/src/main/cpp/glucose.cpp').read_text(),
@@ -54,6 +55,17 @@ backfill = 'jbyteArray ' + backfill.replace('fromjava(getDexbackfillcmd)', 'getD
 # store must be repaired when it is opened.
 assert re.search(r'lifeCount = dexslots \? hist->dexSlotFor\(timestamp\)', writer), 'writer must snap Dexcom slots'
 assert re.search(r'if \(isDexcom\(\)\)\s*repairDexcomMinuteSlots\(\);', header), 'Dexcom stores must be repaired on load'
+# A Dexcom's start comes from the sensor. The start WearSync2 passes with each chunk
+# (its first reading minus an hour) used to be taken whenever it was earlier, which
+# moved the grid every slot is counted from; neither shell path may do that.
+sensoren = (root / 'Common/src/main/cpp/sensoren.hpp').read_text()
+assert 'if (starttime > 0 && !(info && info->dexcom)) {' in extract(sensoren, 'SensorGlucoseData *ensureDirectStreamShell('), \
+    'ensureDirectStreamShell must not move a Dexcom start'
+assert re.search(r'if \(hist->isDexcom\(\)\)\s*startTimeSec = 0;', extract(writer, 'static jlong ensureSensorShellInternal(')), \
+    'ensureSensorShell must not move a Dexcom start'
+# The record a watch makes from the phone's setup counts from the phone's start.
+assert 'convertMirrorToDexcom(sensindex, scan, now, sensorStart)' in sensoren
+assert re.search(r'mkdatabaseDex\(sensordir, scan.payload, now, scan.days,\s*sensorStart\)', extract(sensoren, 'convertMirrorToDexcom(const int ind'))
 # The writers, the repair and the cursor rewind are run below, and the mirror writer in
 # test-resolved-glucose.py. The two outer writers also move the count after the inner
 # one returns, a gap no other thread can be made to land in, so their guard has to be
@@ -380,6 +392,55 @@ int main() {
         d.repairDexcomMinuteSlots();
         assert(d.pollcount() == 61 && d.polls[60].g == 105 && !d.polls[50].g && d.polls[10].g == 110);
     }
+    {   // A watch taking a phone's G7 over (#862). The record counts from the
+        // phone's start; the phone's copies and the watch's own readings must
+        // share the sensor's slots. G7 readings sit right at slot edges here
+        // (the worst case), and the phone's clock drifts up to 25 s either way
+        // from the sensor's, so a copy may be timed just before its slot.
+        auto phoneTime = [&](int k) { return uint32_t(S + k * 300 + ((k * 37) % 51) - 25); };
+        SensorGlucoseData phone; phone.metadata.starttime = S;
+        for (int k = 100; k <= 400; ++k)   // the phone's driver: slot from the sensor's own count
+            assert(phone.savepollallIDs<300>(phoneTime(k), k, 100 + k % 50, 0, 0.f));
+        const int anchor = phone.dexAnchorSlot();
+        assert(anchor == 400);
+        const auto *a = phone.getstream(anchor);
+        // Without the anchor, plain division puts an early copy one slot back.
+        int early = 100;
+        while (phoneTime(early) >= S + early * 300) ++early;
+        {
+            SensorGlucoseData bare; bare.metadata.starttime = S;
+            assert(bare.dexSlotFor(phoneTime(early)) == early - 1);
+        }
+        SensorGlucoseData watch; watch.metadata.starttime = S;
+        assert(watch.takeDexcomPeerAnchor(S, anchor, a->t, a->g, a->tr, a->ch));
+        assert(!watch.takeDexcomPeerAnchor(S, anchor, a->t, a->g, a->tr, a->ch));   // once, into an empty record
+        // The deep serve: every phone reading, oldest first, through the mirror
+        // writer's rule (dexSlotFor, fill only slots the sensor has not filled).
+        auto mirror = [&](int k) {
+            const int slot = watch.dexSlotFor(phoneTime(k));
+            assert(slot == k);
+            if (slot < watch.pollcount() && watch.polls[slot].g) return;
+            assert(watch.savepollallIDs<300>(phoneTime(k), slot, 100 + k % 50, 0, 0.f));
+        };
+        for (int k = 100; k <= 400; ++k) mirror(k);
+        // The watch then reads the sensor itself, its clock 30 s ahead.
+        for (int k = 401; k <= 410; ++k)
+            assert(watch.savepollallIDs<300>(S + k * 300 + 30, k, 200, 0, 0.f));
+        // A late copy of a reading the watch already has lands on it and is dropped.
+        for (int k = 401; k <= 410; ++k) assert(watch.dexSlotFor(phoneTime(k)) == k);
+        assert(watch.getstarttime() == S && watch.pollcount() == 411);
+        for (int k = 100; k <= 400; ++k) assert(watch.polls[k].id == k && watch.polls[k].g == 100 + k % 50);
+        for (int k = 401; k <= 410; ++k) assert(watch.polls[k].g == 200);
+        for (int k = 101; k <= 410; ++k) assert(watch.polls[k].t > watch.polls[k - 1].t);
+        // An anchor that does not fit its slot, or a record counting from
+        // another start, is refused rather than written off the grid.
+        SensorGlucoseData other; other.metadata.starttime = S + 600;
+        assert(!other.takeDexcomPeerAnchor(S, anchor, a->t, a->g, a->tr, a->ch));
+        SensorGlucoseData wrong; wrong.metadata.starttime = S;
+        assert(!wrong.takeDexcomPeerAnchor(S, anchor, a->t + 900, a->g, a->tr, a->ch));
+        assert(!other.pollcount() && !wrong.pollcount());
+    }
+    puts("PASS: a watch taking a phone's G7 over keeps the sensor's start, and the phone's copies and its own readings share the sensor's slots");
     puts("PASS: Dexcom minute-indexed copies are moved to their slots or dropped, repair is serialized with writes, the stream ends at the newest reading, and skewed copies keep their slot");
 }
 '''.replace('/* HELPERS */', helpers + '\n' + backstream + '\n' + writers).replace('/* BACKFILL */', backfill)

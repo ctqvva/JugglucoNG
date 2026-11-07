@@ -1,5 +1,6 @@
 package tk.glucodata
 
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -24,6 +25,8 @@ object DexcomWatchSetup {
     private const val KEY_SCAN = "scan"
     private const val KEY_SERIAL = "serial"
     private const val KEY_PHONE_SLOT = "phoneSlot"
+    private const val KEY_ANCHOR = "anchor"
+    private const val ANCHOR_SIZE = 6
 
     /** Phone: the main sensor's setup for the watch, or null when it is not a Dexcom here. */
     @JvmStatic
@@ -33,8 +36,16 @@ object DexcomWatchSetup {
         val dataptr = callback.dataptr.takeIf { it != 0L } ?: return null
         val scan = runCatching { Natives.dexScanPayload(dataptr) }.getOrNull()
             ?.takeIf { it.isNotEmpty() } ?: return null
+        // Every slot is counted from the sensor's start, which only a reading
+        // establishes. Until the phone has one the watch would count from the
+        // moment it was handed the sensor, and the phone's readings it is then
+        // sent would land on other slots than its own. The newest reading and
+        // its slot travel too: they pin the grid the copies are placed on.
+        val anchor = runCatching { Natives.dexPeerAnchor(dataptr) }.getOrNull()
+            ?.takeIf { it.size >= ANCHOR_SIZE && it[0] > 0L } ?: return null
         return JSONObject()
             .put(KEY_SCAN, scan)
+            .put(KEY_ANCHOR, JSONArray().apply { anchor.forEach { put(it) } })
             .put(KEY_SERIAL, callback.SerialNumber)
             .put(KEY_PHONE_SLOT, DexcomBluetoothSlot.forSensor(callback.SerialNumber))
     }
@@ -70,6 +81,9 @@ object DexcomWatchSetup {
         val part = root.optJSONObject(KEY) ?: return false
         val scan = part.optString(KEY_SCAN, "").takeIf { it.isNotEmpty() } ?: return false
         val serial = part.optString(KEY_SERIAL, "")
+        val anchor = part.optJSONArray(KEY_ANCHOR)
+            ?.takeIf { it.length() >= ANCHOR_SIZE }
+            ?.let { array -> LongArray(ANCHOR_SIZE) { array.optLong(it, 0L) } }
         val phoneSlot = part.optInt(KEY_PHONE_SLOT, DexcomBluetoothSlot.DEFAULT)
         val slot = watchSlotFor(phoneSlot)
         val existing = serial.takeIf { it.isNotEmpty() }?.let { dexcomCallbackFor(it) }
@@ -77,8 +91,12 @@ object DexcomWatchSetup {
             if (existing.authSlot == phoneSlot) moveToSlot(existing, slot)
             return true
         }
-        val name = runCatching { Natives.addSIscangetName(scan, intArrayOf(-1)) }
-            .onFailure { Log.stack(LOG_ID, "addSIscangetName", it) }
+        if (anchor == null || anchor[0] <= 0L) {
+            Log.w(LOG_ID, "Dexcom $serial setup has no sensor start; not set up")
+            return false
+        }
+        val name = runCatching { Natives.addDexcomScanFromPeer(scan, anchor) }
+            .onFailure { Log.stack(LOG_ID, "addDexcomScanFromPeer", it) }
             .getOrNull()
         if (name.isNullOrEmpty()) {
             Log.w(LOG_ID, "could not set up Dexcom $serial on this watch")

@@ -601,6 +601,39 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(dexScanPayload)(JNIEnv *envin,
   return envin->NewStringUTF(payload.c_str());
 }
 
+// What another device needs to count a G7's slots exactly as this one does:
+// {start, slot, time, mgdL, trend, change as float bits} of the newest reading
+// stored in its own slot, or null while there is none. The start a fresh
+// record holds before its first reading is a guess, and a start alone is not
+// enough: the copies the other device is sent are timed by this device's
+// clock, which drifts from the sensor's, and readings near a slot edge would
+// fall into the previous slot. A reading with its slot fixes the grid.
+extern "C" JNIEXPORT jlongArray JNICALL fromjava(dexPeerAnchor)(JNIEnv *envin,
+                                                               jclass cl,
+                                                               jlong dataptr) {
+  if (!dataptr)
+    return nullptr;
+  const SensorGlucoseData *sens =
+      reinterpret_cast<const dexcomstream *>(dataptr)->hist;
+  if (!sens || !sens->isDexcom())
+    return nullptr;
+  const uint32_t start = sens->getstarttime();
+  if (!Sensoren::validSensorStarttime(start))
+    return nullptr;
+  const int id = sens->dexAnchorSlot();
+  if (id < 0)
+    return nullptr;
+  const auto *poll = sens->getstream(id);
+  const float change = poll->ch;
+  int32_t changeBits;
+  memcpy(&changeBits, &change, sizeof(changeBits));
+  const jlong values[6] = {start, id, poll->t, poll->g, poll->tr, changeBits};
+  jlongArray out = envin->NewLongArray(6);
+  if (out)
+    envin->SetLongArrayRegion(out, 0, 6, values);
+  return out;
+}
+
 extern bool encrypt8AES(const uint8_t *keybytes, const uint8_t *data,
                         unsigned char *uit);
 extern "C" JNIEXPORT jboolean JNICALL

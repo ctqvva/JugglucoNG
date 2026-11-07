@@ -165,6 +165,7 @@ struct Sensoren {
         d->metadata=disk.at(string(path)+"/info.dat");
         d->initialHistoryBytes();data.push_back(std::move(d));return i;
     }
+    static bool validSensorStarttime(uint32_t tim){return tim>1598911200u&&tim<2145909600u;}
     Sensoren()=default;
     Sensoren& operator=(Sensoren&& other){
         records=other.records;data=std::move(other.data);retired=std::move(other.retired);
@@ -420,8 +421,11 @@ int main(){
         const int mirrorId=registry.addsensor(scan.name);
         auto* mirror=registry.getSensorData(mirrorId);
         assert(!mirror->isDexcom());
-        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005);
+        // The phone's start: every slot is counted from it, not from now.
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005,1699000000);
         assert(id==mirrorId&&d&&d!=mirror&&d->isDexcom());
+        assert(d->getstarttime()==1699000000&&registry.getsensor(id)->starttime==1699000000);
+        assert(d->metadata.lastscantime==1700000005);
         assert(string_view(reinterpret_cast<const char*>(d->metadata.siId),d->metadata.siIdlen)==scan.payload);
         assert(d->metadata.pollcount==0&&d->getDexWearMinutes()==21600);
         assert(registry.getsensor(id)->halfdays==(15+2)*2&&registry.data.size()==1);
@@ -432,6 +436,20 @@ int main(){
         // Running the same setup again finds the Dexcom record: no second move.
         auto [again,same]=registry.makeDexComSensorindex(scan,1700000006);
         assert(again==id&&same==d&&registry.retired.size()==1);
+    }
+    // Without a usable start (none, or one after now) a fresh record counts
+    // from now until its first reading sets it, as a scan on this device does.
+    for(uint32_t start:{0u,1700000009u}){
+        registry=Sensoren{};disk.clear();
+        auto scan=*dexcom::parseScan(barcode());
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005,start);
+        assert(id>=0&&d&&d->isDexcom()&&d->getstarttime()==1700000005);
+    }
+    {   // A fresh record for the phone's sensor takes the phone's start too.
+        registry=Sensoren{};disk.clear();
+        auto scan=*dexcom::parseScan(barcode());
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005,1699000000);
+        assert(id>=0&&d&&d->getstarttime()==1699000000&&registry.getsensor(id)->starttime==1699000000);
     }
     // Only a mirror is replaced. A record another driver established under
     // the same name keeps its files, and the setup is refused.

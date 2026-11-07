@@ -1800,6 +1800,11 @@ static jlong ensureSensorShellInternal(const char *str, jlong startTimeSec,
 
   hist->sensorerror = false;
   const int ind = hist->sensorIndex;
+  // A Dexcom's slots are counted from the start the sensor reported; the
+  // guess WearSync2 passes (first mirrored reading minus an hour) must not
+  // move it, or mirrored and direct readings land on different slots.
+  if (hist->isDexcom())
+    startTimeSec = 0;
   if (auto *sens = sensors->getsensor(ind)) {
     sens->reactivateFromData();
     if (startTimeSec > 0 &&
