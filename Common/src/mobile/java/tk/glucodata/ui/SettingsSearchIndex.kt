@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudUpload
@@ -204,7 +205,7 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.alert_falling_fast, R.string.alert_rising_fast),
             anchor = SettingsSearchAnchors.PREDICTIVE_ALERTS),
         SettingsSearchEntry(R.string.other_alerts, ALERTS, Icons.Default.NotificationsActive, E, route("settings/alerts"),
-            keywords = listOf(R.string.alert_loss, R.string.alert_missed_reading, R.string.alert_sensor_expiry),
+            keywords = listOf(R.string.alert_loss, R.string.alert_signal_restored, R.string.alert_missed_reading, R.string.alert_sensor_expiry),
             anchor = SettingsSearchAnchors.OTHER_ALERTS),
         SettingsSearchEntry(R.string.quiet_window_title, ALERTS, Icons.Default.DoNotDisturbOn, E, route("settings/alerts"),
             anchor = SettingsSearchAnchors.QUIET_WINDOW),
@@ -313,7 +314,7 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.nightscout_desc, R.string.nightscout_send_treatments,
                 R.string.nightscout_upload_iob, R.string.nightscout_receive_amounts, R.string.nightscout_use_v3_api)),
         SettingsSearchEntry(R.string.libreview_config, SHARING, Icons.Default.Cloud, T, route("settings/libreview"),
-            keywords = listOf(R.string.libreview_desc), terms = listOf("Abbott"),
+            keywords = listOf(R.string.libreview_desc, R.string.libreview_official_end), terms = listOf("Abbott"),
             condition = SettingsSearchCondition.LIBREVIEW),
         SettingsSearchEntry(R.string.dexcom_share_title, SHARING, Icons.Default.CloudUpload, T, route("settings/dexcom-share"),
             keywords = listOf(R.string.dexcom_share_desc), condition = SettingsSearchCondition.DEXCOM_SHARE),
@@ -364,6 +365,9 @@ internal object SettingsSearchIndex {
             route("settings/sensor-connection"), terms = listOf("AutoConnect"), anchor = SettingsSearchAnchors.AUTOCONNECT),
         SettingsSearchEntry(R.string.freeze_displayed_values, ADVANCED, Icons.Default.Lock, N,
             action(SettingsSearchAction.KEEP_DISPLAYED_VALUES)),
+        SettingsSearchEntry(R.string.restricted_mode_title, ADVANCED, Icons.Default.ChildCare, N,
+            route("settings/restricted-mode"), keywords = listOf(R.string.restricted_mode_desc),
+            terms = listOf("PIN", "child", "kid", "parental", "elderly", "simple")),
 
         // Danger zone: restart acts at once, as its row does; the rest ask for confirmation.
         SettingsSearchEntry(R.string.restart_app, DANGER, Icons.Default.Refresh, E, action(SettingsSearchAction.RESTART),

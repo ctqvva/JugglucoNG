@@ -58,7 +58,9 @@ private fun jugglucoBrandFamily(weight: Int, width: Float): FontFamily {
 @Composable
 fun SensorSelectionCards(
     onSensorSelected: (SensorType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Restricted mode's allowed families; null offers every family. */
+    allowedTypes: Set<SensorType>? = null,
 ) {
     val compact = rememberAdaptiveWindowMetrics().isCompact
     val horizontalPadding = 0.dp
@@ -80,7 +82,7 @@ fun SensorSelectionCards(
             verticalArrangement = Arrangement.spacedBy(cardGap) // Generous spacing (M3 Expressive)
         ) {
 
-            sensorTypeOptions.forEach { option ->
+            sensorTypeOptions.filter { allowedTypes == null || it.type in allowedTypes }.forEach { option ->
                 val highlighted = option.type == SensorType.SIBIONICS
                 SensorCard(
                     icon = option.icon,
@@ -255,10 +257,14 @@ private fun SetupAlternativeCard(
 @Composable
 fun DashboardEmptyState(
     onSensorSelected: (SensorType) -> Unit,
-    onImportHistory: () -> Unit,
-    onContinueWithoutSensor: () -> Unit,
+    /** Null hides the choice. */
+    onImportHistory: (() -> Unit)?,
+    /** Null hides the choice. */
+    onContinueWithoutSensor: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    readinessContent: (@Composable () -> Unit)? = null
+    readinessContent: (@Composable () -> Unit)? = null,
+    /** Restricted mode's allowed families; null offers every family, empty offers none. */
+    allowedTypes: Set<SensorType>? = null,
 ) {
     val compact = rememberAdaptiveWindowMetrics().isCompact
     val sidePadding = 16.dp
@@ -307,45 +313,55 @@ fun DashboardEmptyState(
             Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
         }
 
-        SensorSelectionCards(
-            onSensorSelected = onSensorSelected
-        )
-        
-        Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
-        
-        // Divider with "or"
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = if (compact) 4.dp else 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            HorizontalDivider(modifier = Modifier.weight(1f))
-            Text(
-                text = stringResource(R.string.or_divider),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        val hasAlternative = onImportHistory != null || onContinueWithoutSensor != null
+        if (allowedTypes == null || allowedTypes.isNotEmpty()) {
+            SensorSelectionCards(
+                onSensorSelected = onSensorSelected,
+                allowedTypes = allowedTypes,
             )
-            HorizontalDivider(modifier = Modifier.weight(1f))
         }
+        // "or" only between the sensors and something else to choose.
+        if ((allowedTypes == null || allowedTypes.isNotEmpty()) && hasAlternative) {
+            Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
         
-        Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
+            // Divider with "or"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = if (compact) 4.dp else 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f))
+                Text(
+                    text = stringResource(R.string.or_divider),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                HorizontalDivider(modifier = Modifier.weight(1f))
+            }
         
-        // Import History card
-        ImportHistoryCard(
-            onClick = onImportHistory,
-            modifier = Modifier.padding(horizontal = if (compact) 4.dp else 8.dp)
-        )
+            Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
+        
+        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        if (onImportHistory != null) {
+            ImportHistoryCard(
+                onClick = onImportHistory,
+                modifier = Modifier.padding(horizontal = if (compact) 4.dp else 8.dp)
+            )
+        }
 
-        SetupAlternativeCard(
-            icon = Icons.Default.EditNote,
-            title = stringResource(R.string.continue_without_sensor),
-            description = stringResource(R.string.continue_without_sensor_desc),
-            onClick = onContinueWithoutSensor,
-            modifier = Modifier.padding(horizontal = if (compact) 4.dp else 8.dp)
-        )
+        if (onContinueWithoutSensor != null) {
+            if (onImportHistory != null) Spacer(modifier = Modifier.height(8.dp))
+
+            SetupAlternativeCard(
+                icon = Icons.Default.EditNote,
+                title = stringResource(R.string.continue_without_sensor),
+                description = stringResource(R.string.continue_without_sensor_desc),
+                onClick = onContinueWithoutSensor,
+                modifier = Modifier.padding(horizontal = if (compact) 4.dp else 8.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
     }
@@ -357,7 +373,8 @@ fun DashboardEmptyState(
 @Composable
 fun SensorsEmptyState(
     onSensorSelected: (SensorType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    allowedTypes: Set<SensorType>? = null,
 ) {
     val compact = rememberAdaptiveWindowMetrics().isCompact
     Column(
@@ -374,7 +391,8 @@ fun SensorsEmptyState(
         )
         
         SensorSelectionCards(
-            onSensorSelected = onSensorSelected
+            onSensorSelected = onSensorSelected,
+            allowedTypes = allowedTypes,
         )
     }
 }

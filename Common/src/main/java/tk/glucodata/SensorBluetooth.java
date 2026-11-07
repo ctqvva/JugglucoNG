@@ -854,7 +854,7 @@ public class SensorBluetooth {
     private static void onMainSensorCleared() {
         try {
             Notify.stoplossalarm();
-            GlucoseWidget.update();
+            GlucoseUpdateBroadcaster.sendNow();
             UiRefreshBus.requestDataRefresh();
         } catch (Throwable t) {
             Log.stack(LOG_ID, "onMainSensorCleared", t);
@@ -899,7 +899,13 @@ public class SensorBluetooth {
                 addReplacementCandidate(candidates, seen, cb.SerialNumber, removedSerial);
             }
         }
-        return candidates.isEmpty() ? null : candidates.get(0);
+        String resolvedMain = null;
+        try {
+            resolvedMain = SensorIdentity.resolveMainSensor();
+        } catch (Throwable t) {
+            Log.e(LOG_ID, "resolveReplacementSensorSerial resolveMainSensor failed: " + t.getMessage());
+        }
+        return SensorIdentity.pickReplacementSensor(candidates, resolvedMain, removedSerial);
     }
 
     public static String resolveReplacementSensorSerial(String removedSerial) {
@@ -914,7 +920,7 @@ public class SensorBluetooth {
         if (removedSerial == null || removedSerial.isEmpty()) {
             return;
         }
-        if (!SensorIdentity.lostMainRole(SensorIdentity.resolveMainSensor(), removedSerial)) {
+        if (!SensorIdentity.lostMainRole(removedSerial)) {
             return;
         }
         final String replacement = resolveReplacementSensorSerial(removedSerial, preferredCandidates);
@@ -958,6 +964,9 @@ public class SensorBluetooth {
                     gatt = gattcallbacks.get(i);
                     gatt.stopHealth = false;
                 }
+                // Only now does the roster stop naming it. A redraw before this could still
+                // resolve the removed sensor, and a replacement has no reading to trigger one.
+                GlucoseUpdateBroadcaster.sendNow();
                 return;
             } else {
                 gatt.stopHealth = false;
@@ -1253,10 +1262,11 @@ public class SensorBluetooth {
             }
             Natives.setmaxsensors(gattcallbacks.size());
         }
-        if (SensorIdentity.lostMainRole(SensorIdentity.resolveMainSensor(), sensorId)) {
+        if (SensorIdentity.lostMainRole(sensorId)) {
             final String replacement = resolveReplacementSensorSerial(sensorId);
             setCurrentSensorSelection(replacement != null ? replacement : "");
         }
+        GlucoseUpdateBroadcaster.sendNow();
     }
 
     // --- KOTLIN SENSORS (AiDex) SUPPORT ---

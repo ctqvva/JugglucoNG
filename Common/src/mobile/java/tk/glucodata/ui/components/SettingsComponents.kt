@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -675,22 +676,28 @@ fun DangerItem(
     position: CardPosition = CardPosition.SINGLE,
     severity: DangerSeverity = DangerSeverity.HIGH
 ) {
-    val (bgColor, contentColor) = when (severity) {
-        DangerSeverity.LOW -> MaterialTheme.colorScheme.surfaceContainerHigh to MaterialTheme.colorScheme.onSurface
-        DangerSeverity.MEDIUM -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
-        DangerSeverity.HIGH -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+    val colors = MaterialTheme.colorScheme
+    // Retain a visible risk hierarchy without the full-strength container fills.
+    val containerColor = when (severity) {
+        DangerSeverity.LOW -> colors.surfaceContainerHigh
+        DangerSeverity.MEDIUM -> colors.tertiaryContainer.copy(alpha = 0.16f)
+            .compositeOver(colors.surfaceContainerHigh)
+        DangerSeverity.HIGH -> colors.errorContainer.copy(alpha = 0.40f)
+            .compositeOver(colors.surfaceContainerHigh)
     }
-    val iconBgColor = when (severity) {
-        DangerSeverity.LOW -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        DangerSeverity.MEDIUM -> contentColor.copy(alpha = 0.12f)
-        DangerSeverity.HIGH -> contentColor.copy(alpha = 0.12f)
+    val titleColor = if (severity == DangerSeverity.HIGH) colors.onErrorContainer else colors.onSurface
+    val subtitleColor = if (severity == DangerSeverity.HIGH) colors.onErrorContainer else colors.onSurfaceVariant
+    val iconColor = when (severity) {
+        DangerSeverity.LOW -> colors.onSurface
+        DangerSeverity.MEDIUM -> colors.tertiary
+        DangerSeverity.HIGH -> colors.onErrorContainer
     }
     
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = cardShape(position),
-        color = bgColor
+        color = containerColor
     ) {
         Row(
             modifier = Modifier
@@ -698,18 +705,18 @@ fun DangerItem(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconTile(icon = icon, tint = contentColor, containerColor = iconBgColor)
+            IconTile(icon = icon, tint = iconColor)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = contentColor
+                    color = titleColor
                 )
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = contentColor.copy(alpha = 0.72f)
+                    color = subtitleColor
                 )
             }
         }

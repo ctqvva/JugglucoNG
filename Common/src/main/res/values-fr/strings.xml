@@ -817,6 +817,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">Mot de passe</string>
     <string name="libreview_resend">Renvoyer les données</string>
     <string name="libreview_russia">Région Russie</string>
+    <string name="libreview_official_end">S\'arrêter à la fin officielle du capteur</string>
+    <string name="libreview_official_end_desc">Ignorer les heures supplémentaires après la fin officielle d\'un capteur Libre 2</string>
     <string name="libreview_send_now">Envoyer maintenant</string>
     <string name="libreview_send_numbers">Envoyer de l\'insuline/des glucides</string>
     <string name="libreview_settings_title">Paramètres LibreView</string>
@@ -893,6 +895,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ready_for_use">Sensor ready for use</string>
     <string name="ready_in">" ready in "</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Réinitialiser la liaison Bluetooth (données conservées)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Cela supprimera définitivement le capteur, effacera les clés d’appairage et arrêtera la session. Le capteur doit être réappairé pour pouvoir être réutilisé.</string>
@@ -3242,6 +3245,70 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">en baisse</string>
     <string name="tts_trend_rising_quickly">en hausse rapide</string>
     <string name="tts_trend_falling_quickly">en baisse rapide</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Mode restreint</string>
+    <string name="restricted_mode_desc">Masque les réglages et les commandes</string>
+    <string name="restricted_full_mode_title">Mode complet, pour l\'instant</string>
+    <string name="restricted_full_mode_desc">Le mode restreint revient une minute après avoir quitté l\'app, ou quand vous le verrouillez.</string>
+    <string name="restricted_lock_now">Verrouiller</string>
+    <string name="restricted_section_unlock">Passage au mode complet</string>
+    <string name="restricted_pin_title">Code PIN</string>
+    <string name="restricted_pin_set">Activé · demandé avant le mode complet</string>
+    <string name="restricted_pin_not_set">Désactivé · tout le monde peut passer en mode complet</string>
+    <string name="restricted_biometric_title">Empreinte ou visage</string>
+    <string name="restricted_biometric_desc">Déverrouiller aussi avec la biométrie du téléphone</string>
+    <string name="restricted_biometric_needs_pin">Définissez d\'abord un code PIN</string>
+    <string name="restricted_section_allowed">Autorisé en mode restreint</string>
+    <string name="restricted_section_available">Disponible maintenant</string>
+    <string name="restricted_allow_sensor_change">Changer de capteur</string>
+    <string name="restricted_allow_sensor_change_desc">Ajouter un nouveau capteur et déconnecter l\'ancien</string>
+    <string name="restricted_sensor_types_label">Capteurs pouvant être ajoutés</string>
+    <string name="restricted_sensor_types_none">Choisissez-en au moins un, sinon aucun capteur ne peut être ajouté.</string>
+    <string name="restricted_handover_on">Le relais automatique des capteurs est activé : le nouveau capteur prend le relais à la fin de l\'ancien.</string>
+    <string name="restricted_handover_off">Le relais automatique des capteurs est désactivé. Activez-le pour que le nouveau capteur prenne le relais à la fin de l\'ancien.</string>
+    <string name="restricted_turn_on_handover">Activer le relais</string>
+    <string name="restricted_allow_journal">Entrées du journal</string>
+    <string name="restricted_allow_journal_desc">Ajouter et modifier l\'insuline, les repas et les notes</string>
+    <string name="restricted_allow_calibration_desc">Ajouter et modifier des calibrations</string>
+    <string name="restricted_allow_alarm_stop">Arrêter les alarmes</string>
+    <string name="restricted_allow_alarm_stop_desc">Si désactivé, les alarmes peuvent seulement être reportées</string>
+    <string name="restricted_always_hidden">Les autres réglages, la réinitialisation des capteurs, les commandes avancées et la suppression de données demandent toujours le mode complet.</string>
+    <string name="restricted_pin_options_desc">Changez le code PIN, ou supprimez-le pour ouvrir le mode complet d\'un seul geste.</string>
+    <string name="restricted_change_pin">Changer le code PIN</string>
+    <string name="restricted_remove_pin">Supprimer le code PIN</string>
+    <string name="restricted_use_biometric">Utiliser l\'empreinte ou le visage</string>
+    <string name="restricted_unlock_title">Passer en mode complet</string>
+    <string name="restricted_unlock_desc">Les réglages et toutes les commandes du capteur s\'ouvrent. Ils se referment une minute après avoir quitté l\'appli.</string>
+    <string name="restricted_unlock_desc_pin">Saisissez le code PIN pour ouvrir les réglages et toutes les commandes du capteur. Ils se referment une minute après avoir quitté l\'appli.</string>
+    <string name="restricted_needs_full_mode">Passez d\'abord en mode complet dans les réglages.</string>
+    <string name="restricted_wrong_pin">Code PIN incorrect</string>
+    <string name="restricted_pin_locked_out">Trop d\'essais · attendez %1$s</string>
+    <string name="restricted_choose_pin">Choisir un code PIN</string>
+    <string name="restricted_confirm_pin">Saisir à nouveau le code PIN</string>
+    <string name="restricted_choose_pin_desc">%1$d à %2$d chiffres</string>
+    <string name="restricted_pin_mismatch">Les codes PIN ne correspondent pas. Choisissez à nouveau un code PIN.</string>
+    <string name="restricted_delete_digit">Effacer le chiffre</string>
+    <string name="restricted_disconnect_desc">Ce téléphone arrête de lire le capteur. Les mesures déjà reçues sont conservées.</string>
+    <string name="restricted_sensors_locked">Ajouter un capteur nécessite le mode complet.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d chiffre saisi</item>
+        <item quantity="other">%d chiffres saisis</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Fin dans moins d\'une heure</string>
+    <string name="restricted_sensor_ended">Terminé</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Fin dans %d jour</item>
+        <item quantity="other">Fin dans %d jours</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Fin dans %d heure</item>
+        <item quantity="other">Fin dans %d heures</item>
+    </plurals>
+    <string name="restricted_section_settings">Réglages ouverts en mode restreint</string>
+    <string name="restricted_allow_alarm_settings_desc">Modifier les seuils et les sons, ou couper les alertes</string>
+    <string name="restricted_allow_voice_desc">Lecture vocale des valeurs et des alarmes</string>
+    <string name="restricted_allow_display_desc">Plage cible, graphiques, notifications, glycémie flottante et écran de verrouillage</string>
     <string name="lumiflex_remove_follower_confirm">Retirer à %1$s l’accès à vos mesures ?</string>
     <string name="lumiflex_discard_changes_title">Abandonner les modifications ?</string>
     <string name="lumiflex_discard_changes_message">Les modifications pour cet abonné ne sont pas enregistrées.</string>
@@ -3261,4 +3328,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_every_reading">Chaque mesure</string>
     <string name="voice_every_minutes">Toutes les %1$d min</string>
     <string name="voice_resumes_at">À partir de %1$s</string>
+    <string name="aidex_keys_before_connect">Importez ou demandez les clés de ce capteur avant de vous connecter.</string>
+    <string name="aidex_delete_keys_message">Supprimer de ce téléphone les clés d’appairage enregistrées pour %1$s ? Exportez-les d’abord si vous risquez d’en avoir besoin.</string>
 </resources>

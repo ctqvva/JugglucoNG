@@ -147,6 +147,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          BC_AIDEX_BEARER_TOKEN: ${{ secrets.BC_AIDEX_BEARER_TOKEN }}
+          BC_AIDEX_ENVELOPE_AES_BASE64: ${{ secrets.BC_AIDEX_ENVELOPE_AES_BASE64 }}
+          BC_AIDEX_SIGNING_KEY_PKCS8_BASE64: ${{ secrets.BC_AIDEX_SIGNING_KEY_PKCS8_BASE64 }}
+          BC_AIDEX_SERVER_PUBLIC_DER_BASE64: ${{ secrets.BC_AIDEX_SERVER_PUBLIC_DER_BASE64 }}
           ORG_GRADLE_PROJECT_thepassword: ${{ secrets.ANDROID_STORE_PASSWORD }}
           ORG_GRADLE_PROJECT_thekeyalias: ${{ secrets.ANDROID_KEY_ALIAS }}
           ORG_GRADLE_PROJECT_thekeypassword: ${{ secrets.ANDROID_KEY_PASSWORD }}

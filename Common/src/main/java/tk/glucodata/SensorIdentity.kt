@@ -323,12 +323,54 @@ object SensorIdentity {
 
     /**
      * Whether [removedSensor] held the main role, for code that runs after finishing it. A
-     * finished sensor no longer resolves as main, so finding no main sensor at all means it
-     * did, and the selection still has to be cleared.
+     * finished sensor no longer resolves as main, so the resolved main alone cannot say: with
+     * another sensor live it names that one while native current still points at the removed
+     * sensor, and with none left it is blank. Either way the selection still has to move.
      */
     @JvmStatic
-    fun lostMainRole(mainSensor: String?, removedSensor: String?): Boolean =
-        mainSensor.isNullOrBlank() || matches(mainSensor, removedSensor)
+    fun lostMainRole(removedSensor: String?): Boolean = lostMainRole(
+        resolveMainSensor(),
+        removedSensor,
+        runCatching { Natives.currentsensorname() }.getOrNull()
+    )
+
+    @JvmStatic
+    @JvmOverloads
+    fun lostMainRole(mainSensor: String?, removedSensor: String?, nativeCurrent: String? = null): Boolean {
+        if (mainSensor.isNullOrBlank() || matches(mainSensor, removedSensor)) {
+            return true
+        }
+        // A managed main can leave native current on an older sensor until its mirror exists.
+        // Removing that older sensor must not take the main role from the managed one.
+        val managed = ManagedCurrentSensor.get()
+        if (managed != null && matches(mainSensor, managed)) {
+            return false
+        }
+        return !nativeCurrent.isNullOrBlank() && matches(nativeCurrent, removedSensor)
+    }
+
+    /**
+     * The sensor to hand the main role to after [removedSensor] left. Retained callbacks can
+     * include other finished sensors; one of those would leave native consumers on stale
+     * glucose. The resolver already skips them, so its answer comes first. A finished candidate
+     * is still taken when it is the only one: a re-added sensor stays finished until its first
+     * reading.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun pickReplacementSensor(
+        candidates: List<String>,
+        resolvedMain: String?,
+        removedSensor: String?,
+        isFinished: (String) -> Boolean = ::isFinishedSensor
+    ): String? {
+        if (!resolvedMain.isNullOrBlank() && !removedSensor.isNullOrBlank() &&
+            !matches(resolvedMain, removedSensor)
+        ) {
+            candidates.firstOrNull { matches(it, resolvedMain) }?.let { return it }
+        }
+        return candidates.firstOrNull { !isFinished(it) } ?: candidates.firstOrNull()
+    }
 
     private fun availableSensorCandidates(): Array<String?>? {
         val resolved = LinkedHashSet<String?>()
@@ -378,7 +420,18 @@ object SensorIdentity {
         val canonicalSelected = canonicalOrRaw(selectedMain)
         val canonicalPreferred = canonicalOrRaw(preferredSensorId)
 
-        if (active.isEmpty()) {
+        // The selected managed sensor keeps its role while its callback lives: re-adding one
+        // leaves its native mirror finished until the first reading revives it. A removed one
+        // cannot stay: this match ends with whichever of the slot and the callback goes first.
+        if (managed != null && active.any { matches(it, managed) }) {
+            return managed
+        }
+
+        // A callback outlives native termination until sensorEnded() drops it, so being a
+        // candidate does not make a finished sensor available.
+        val live = active.filterNot(isFinished)
+
+        if (live.isEmpty()) {
             // Being outside the active list does not make a sensor gone: native leaves out
             // scan-only sensors and ones silent for a day, and those stay the main sensor.
             // A finished one is gone. Native lastsensorname() falls back to the newest slot,
@@ -387,19 +440,15 @@ object SensorIdentity {
                 .firstOrNull { !isFinished(it) }
         }
 
-        if (managed != null && active.any { matches(it, managed) }) {
-            return managed
-        }
-
-        if (canonicalSelected != null && active.any { matches(it, canonicalSelected) }) {
+        if (canonicalSelected != null && live.any { matches(it, canonicalSelected) }) {
             return canonicalSelected
         }
 
-        if (canonicalPreferred != null && active.any { matches(it, canonicalPreferred) }) {
+        if (canonicalPreferred != null && live.any { matches(it, canonicalPreferred) }) {
             return canonicalPreferred
         }
 
-        return active.firstOrNull()
+        return live.firstOrNull()
     }
 
     @JvmStatic

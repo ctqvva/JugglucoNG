@@ -48,12 +48,14 @@ internal object PresentedMinuteRecorder {
 
     /**
      * @param visible the minutes the chart has just drawn, in mg/dL.
+     * @param calibrationRevision the revision those values were resolved under.
      * @return how many were newly recorded.
      */
     suspend fun recordVisible(
         repository: HistoryRepository,
         visible: List<HistoryRepository.PresentedMinute>,
-    ): Int = recordVisible(visible, repository::recordPresentedMinutes)
+        calibrationRevision: Long,
+    ): Int = recordVisible(visible) { repository.recordPresentedMinutes(it, calibrationRevision) }
 
     internal suspend fun recordVisible(
         visible: List<HistoryRepository.PresentedMinute>,

@@ -847,6 +847,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">Lösenord</string>
     <string name="libreview_resend">Skicka data igen</string>
     <string name="libreview_russia">Ryssland regionen</string>
+    <string name="libreview_official_end">Sluta vid sensorns officiella slut</string>
+    <string name="libreview_official_end_desc">Hoppa över extratimmarna efter en Libre 2-sensors officiella slut</string>
     <string name="libreview_send_now">Skicka nu</string>
     <string name="libreview_send_numbers">Skicka insulin/kolhydrater</string>
     <string name="libreview_settings_title">LibreView-inställningar</string>
@@ -911,6 +913,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Återställ Bluetooth-koppling (data behålls)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Detta tar bort sensorn permanent, torkar parningsnycklar och stoppar sessionen. Sensorn måste paras ihop igen för att kunna användas igen.</string>
@@ -3235,6 +3238,70 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">sjunkande</string>
     <string name="tts_trend_rising_quickly">snabbt stigande</string>
     <string name="tts_trend_falling_quickly">snabbt sjunkande</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Begränsat läge</string>
+    <string name="restricted_mode_desc">Döljer inställningar och styrning</string>
+    <string name="restricted_full_mode_title">Fullt läge, för tillfället</string>
+    <string name="restricted_full_mode_desc">Begränsat läge kommer tillbaka en minut efter att du lämnat appen, eller när du låser det.</string>
+    <string name="restricted_lock_now">Lås nu</string>
+    <string name="restricted_section_unlock">Byte till fullt läge</string>
+    <string name="restricted_pin_title">PIN-kod</string>
+    <string name="restricted_pin_set">På · krävs före fullt läge</string>
+    <string name="restricted_pin_not_set">Av · vem som helst kan byta till fullt läge</string>
+    <string name="restricted_biometric_title">Fingeravtryck eller ansikte</string>
+    <string name="restricted_biometric_desc">Lås även upp med telefonens biometri</string>
+    <string name="restricted_biometric_needs_pin">Ange en PIN-kod först</string>
+    <string name="restricted_section_allowed">Tillåtet i begränsat läge</string>
+    <string name="restricted_section_available">Tillgängligt nu</string>
+    <string name="restricted_allow_sensor_change">Byta sensorer</string>
+    <string name="restricted_allow_sensor_change_desc">Lägg till en ny sensor och koppla från den gamla</string>
+    <string name="restricted_sensor_types_label">Sensorer som kan läggas till</string>
+    <string name="restricted_sensor_types_none">Välj minst en, annars kan ingen sensor läggas till.</string>
+    <string name="restricted_handover_on">Automatiskt sensorbyte är på: den nya sensorn tar över när den gamla tar slut.</string>
+    <string name="restricted_handover_off">Automatiskt sensorbyte är av. Slå på det så att den nya sensorn tar över när den gamla tar slut.</string>
+    <string name="restricted_turn_on_handover">Slå på sensorbyte</string>
+    <string name="restricted_allow_journal">Dagboksposter</string>
+    <string name="restricted_allow_journal_desc">Lägg till och ändra insulin, måltider och anteckningar</string>
+    <string name="restricted_allow_calibration_desc">Lägg till och ändra kalibreringar</string>
+    <string name="restricted_allow_alarm_stop">Stoppa larm</string>
+    <string name="restricted_allow_alarm_stop_desc">När den är avstängd kan larm bara snoozas</string>
+    <string name="restricted_always_hidden">Övriga inställningar, sensoråterställning, avancerad sensorstyrning och radering av data kräver alltid fullt läge.</string>
+    <string name="restricted_pin_options_desc">Byt PIN-kod, eller ta bort den så att fullt läge öppnas med ett tryck.</string>
+    <string name="restricted_change_pin">Byt PIN-kod</string>
+    <string name="restricted_remove_pin">Ta bort PIN-kod</string>
+    <string name="restricted_use_biometric">Använd fingeravtryck eller ansikte</string>
+    <string name="restricted_unlock_title">Byt till fullt läge</string>
+    <string name="restricted_unlock_desc">Inställningar och all sensorstyrning öppnas. De stängs en minut efter att du lämnat appen.</string>
+    <string name="restricted_unlock_desc_pin">Ange PIN-koden för att öppna inställningarna och all sensorstyrning. De stängs en minut efter att du lämnat appen.</string>
+    <string name="restricted_needs_full_mode">Byt först till fullt läge i Inställningar.</string>
+    <string name="restricted_wrong_pin">Fel PIN-kod</string>
+    <string name="restricted_pin_locked_out">För många försök · vänta %1$s</string>
+    <string name="restricted_choose_pin">Välj en PIN-kod</string>
+    <string name="restricted_confirm_pin">Ange PIN-koden igen</string>
+    <string name="restricted_choose_pin_desc">%1$d till %2$d siffror</string>
+    <string name="restricted_pin_mismatch">PIN-koderna stämde inte. Välj en PIN-kod igen.</string>
+    <string name="restricted_delete_digit">Radera siffra</string>
+    <string name="restricted_disconnect_desc">Telefonen slutar läsa sensorn. Värdena hittills sparas.</string>
+    <string name="restricted_sensors_locked">Att lägga till en sensor kräver fullt läge.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d siffra angiven</item>
+        <item quantity="other">%d siffror angivna</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Slutar inom en timme</string>
+    <string name="restricted_sensor_ended">Avslutad</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Slutar om %d dag</item>
+        <item quantity="other">Slutar om %d dagar</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Slutar om %d timme</item>
+        <item quantity="other">Slutar om %d timmar</item>
+    </plurals>
+    <string name="restricted_section_settings">Inställningar öppna i begränsat läge</string>
+    <string name="restricted_allow_alarm_settings_desc">Ändra nivåer och ljud, eller stäng av varningar</string>
+    <string name="restricted_allow_voice_desc">Upplästa värden och larm</string>
+    <string name="restricted_allow_display_desc">Målområde, diagram, aviseringar, flytande glukos och låsskärm</string>
     <string name="lumiflex_remove_follower_confirm">Ta bort åtkomsten till dina mätvärden för %1$s?</string>
     <string name="lumiflex_discard_changes_title">Kasta ändringarna?</string>
     <string name="lumiflex_discard_changes_message">Dina ändringar för den här följaren har inte sparats.</string>
@@ -3254,4 +3321,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_every_reading">Varje värde</string>
     <string name="voice_every_minutes">Var %1$d:e min</string>
     <string name="voice_resumes_at">Från %1$s</string>
+    <string name="aidex_keys_before_connect">Importera eller begär sensorns nycklar innan du ansluter.</string>
+    <string name="aidex_delete_keys_message">Ta bort de sparade parkopplingsnycklarna för %1$s från den här telefonen? Exportera dem först om du kan behöva dem igen.</string>
 </resources>
