@@ -22,14 +22,22 @@ BC_AIDEX_SIGNING_KEY_PKCS8_BASE64
 BC_AIDEX_SERVER_PUBLIC_DER_BASE64
 ```
 
-No values are committed. Builds without the inputs show an unavailable message on an
-explicit request. Partially configured or malformed inputs fail configuration without
+No values are committed. Builds without the inputs omit the BloodControl selector and
+retain the CN form. Partially configured or malformed inputs fail configuration without
 printing values. This repository has mobile/wear flavors; it has no full/foss dimension.
 No new distribution flavor is introduced. Protect these inputs in release CI and do not
 provide them to untrusted pull requests. APK credentials are recoverable from the APK.
 Trusted distribution and owner-approved development builds read the four secrets from the
 existing `production-signing` environment, only in their build step. Ordinary PR CI does
 not receive them.
+
+PR test builds execute their controller workflow from trusted `main`, while checking out
+the approved PR's application source separately. Adding new secret references to a PR's
+workflow does not change that controller until its workflow update reaches `main`. Run
+2026-11-07's `42386954279` therefore produced an unconfigured APK from source `dd77005dd`.
+Rerunning that controller cannot inject the new inputs. A local test APK can be built with
+the same production signing and relay inputs through `scripts/build-dist.sh phone` and the
+four BloodControl variables, without changing the trusted-controller policy.
 
 The dedicated HTTPS client trusts only `bloodcontrol_ca.pem`, retains hostname validation,
 rejects redirects, verifies RSA-PSS signatures over raw response bytes before JSON parsing,
@@ -42,6 +50,13 @@ network/rate/server failures back off for 15 minutes, one hour, six hours, then 
 Authentication or signature failures disable requests for the process session. Key material
 must decode to two 16-byte values and any response serial must match the requested sensor.
 Allowlist membership does not guarantee that keys exist.
+
+Automatic fetches return uncommitted material. The BLE handler checks the exact GATT,
+exchange generation and saved-material revision before committing it; a newer import wins.
+Transient failures carry their backoff deadline to the recovery state, which permits at
+most four later reconnect retries. Permanent failures and a completed BC installation stop
+automatic requests. HTTP 5xx tries the alternate IP once before backing off; successful
+responses still require a valid signature. Signed allowlist client errors cache for an hour.
 
 ## Validation
 
@@ -63,3 +78,7 @@ was absent from the current allowlist, so the provider correctly skipped its key
 No key values or client credentials were printed or committed. Physical pairing and
 reconnect remain unverified; live API success does not establish sensor acceptance.
 The credential-enabled phone build and all 13 BloodControl protocol/provider tests passed.
+
+Review follow-up validation passed 616 phone tests and 560 Wear tests. Added regressions
+cover stale/duplicate completions, a newer saved import, bounded reconnect retry deadlines,
+signed allowlist failure caching, HTTP 5xx route fallback, and unconfigured Russian UI.

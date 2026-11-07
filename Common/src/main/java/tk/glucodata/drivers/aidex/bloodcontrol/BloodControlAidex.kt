@@ -5,6 +5,7 @@ import tk.glucodata.BuildConfig
 import tk.glucodata.R
 import tk.glucodata.drivers.aidex.AiDexCnCloudClient
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
+import tk.glucodata.drivers.aidex.AiDexProvisionedKeys
 
 internal object BloodControlAidex {
     private val credentials by lazy {
@@ -27,6 +28,16 @@ internal object BloodControlAidex {
         if (!isRussian(context)) return BloodControlKeyResult(error = "BloodControl API недоступен")
         // Imported or previously fetched material always wins over another network request.
         if (reuseSaved && AiDexProvisioningStore.installSaved(context, serial)) return BloodControlKeyResult()
+        val result = requestKeys(context, serial)
+        val keys = result.keys ?: return result
+        return if (AiDexProvisioningStore.saveAndInstall(context, serial, keys.secret, keys.iv)) result
+        else BloodControlKeyResult(error = "Не удалось сохранить ключи сенсора")
+    }
+
+    /** Fetch only. Automatic callers must validate their exchange before saving anything. */
+    @Synchronized
+    private fun requestKeys(context: Context, serial: String): BloodControlKeyResult {
+        if (!isRussian(context)) return BloodControlKeyResult(error = "BloodControl API недоступен")
         val credentials = credentials ?: return BloodControlKeyResult(error = "BloodControl API не настроен в этой сборке")
         val instance = provider ?: run {
             val prefs = context.applicationContext.getSharedPreferences("bloodcontrol_aidex", Context.MODE_PRIVATE)
@@ -40,26 +51,33 @@ internal object BloodControlAidex {
                 BloodControlHttpsTransport(context.resources.openRawResource(R.raw.bloodcontrol_ca).use { it.readBytes() }, credentials.bearer),
                 cache).also { provider = it }
         }
-        val result = instance.request(serial)
-        val keys = result.keys ?: return result
-        return if (AiDexProvisioningStore.saveAndInstall(context, serial, keys.secret, keys.iv)) result
-        else BloodControlKeyResult(error = "Не удалось сохранить ключи сенсора")
+        return instance.request(serial)
     }
 
     /** Called only after a rejected local F001 exchange. CN account gets the first attempt. */
-    class AutomaticResult(val installed: Boolean, val usedBloodControl: Boolean)
+    class AutomaticResult(
+        val keys: AiDexProvisionedKeys?,
+        val usedBloodControl: Boolean,
+        val retryAtMillis: Long? = null,
+    )
 
     fun automaticAfterLocalFailure(context: Context, serial: String, tryCn: Boolean): AutomaticResult =
         recoverAfterLocalFailure(tryCn, cn = {
             val token = AiDexProvisioningStore.token(context)
-            if (token.isBlank()) false else {
+            if (token.isBlank()) null else {
                 val result = AiDexCnCloudClient.getProvisionedKeys(serial, token)
-                if (result.code == 800) AiDexProvisioningStore.clearSession(context)
-                val keys = result.value
-                keys != null && AiDexProvisioningStore.saveAndInstall(context, serial, keys.secret, keys.iv)
+                result.value
             }
-        }, bloodControl = { requestAndInstall(context, serial, reuseSaved = false).error.isEmpty() })
+        }, bloodControl = { requestKeys(context, serial) })
 
-    internal fun recoverAfterLocalFailure(tryCn: Boolean, cn: () -> Boolean, bloodControl: () -> Boolean): AutomaticResult =
-        if (tryCn && cn()) AutomaticResult(true, false) else AutomaticResult(bloodControl(), true)
+    internal fun recoverAfterLocalFailure(
+        tryCn: Boolean,
+        cn: () -> AiDexProvisionedKeys?,
+        bloodControl: () -> BloodControlKeyResult,
+    ): AutomaticResult {
+        val cnKeys = if (tryCn) cn() else null
+        if (cnKeys != null) return AutomaticResult(cnKeys, false)
+        val bc = bloodControl()
+        return AutomaticResult(bc.keys, true, bc.retryAtMillis)
+    }
 }

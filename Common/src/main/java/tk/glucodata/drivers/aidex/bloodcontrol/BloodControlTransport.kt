@@ -45,6 +45,13 @@ internal class BloodControlHttpsTransport(
         for ((index, route) in routes.withIndex()) {
             try {
                 val response = exchange(route, path, body, ssl, bearer)
+                // A reachable gateway can still fail independently of the other route. Do not
+                // parse its body here (gateway errors may be unsigned); the provider verifies
+                // whichever response is finally returned before it parses or installs keys.
+                if (response.status in 500..599) {
+                    if (index != routes.lastIndex) continue
+                    return response
+                }
                 preferSecondaryUntil = if (route == secondary) now() + 15 * 60_000 else 0
                 return response
             } catch (e: IOException) {

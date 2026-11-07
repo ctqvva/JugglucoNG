@@ -68,6 +68,7 @@ internal fun AiDexKeyManagementScreen(
     signedIn: Boolean,
     onSignedIn: () -> Unit,
     onSignedOut: () -> Unit,
+    bloodControlAvailable: Boolean = BloodControlAidex.available,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -146,7 +147,8 @@ internal fun AiDexKeyManagementScreen(
             stringResource(R.string.aidex_key_management_title),
             style = MaterialTheme.typography.titleLarge,
         )
-        if (isRussian) {
+        val showBloodControl = isRussian && bloodControlAvailable
+        if (showBloodControl) {
             ConnectedButtonGroup(
                 options = listOf(false, true),
                 selectedOption = bloodControlSelected,
@@ -156,7 +158,7 @@ internal fun AiDexKeyManagementScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        val useBloodControl = isRussian && bloodControlSelected
+        val useBloodControl = showBloodControl && bloodControlSelected
 
         Card(
             modifier = Modifier.fillMaxWidth(),

@@ -14,6 +14,7 @@ def bloodControlInputs = bloodControlNames.collectEntries { name ->
 if (bloodControlInputs.values().any { !it.isEmpty() }) {
     try {
         if (bloodControlInputs.values().any { it.isEmpty() }) throw new IllegalArgumentException()
+        if (bloodControlInputs.BC_AIDEX_BEARER_TOKEN.isBlank()) throw new IllegalArgumentException()
         if (bloodControlInputs.BC_AIDEX_BEARER_TOKEN =~ /[\r\n]/) throw new IllegalArgumentException()
         def decoder = Base64.decoder
         if (decoder.decode(bloodControlInputs.BC_AIDEX_ENVELOPE_AES_BASE64).length != 32) throw new IllegalArgumentException()

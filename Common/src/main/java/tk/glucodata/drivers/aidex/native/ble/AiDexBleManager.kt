@@ -53,6 +53,7 @@ import tk.glucodata.drivers.aidex.AiDexTemperatureStore
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
 import tk.glucodata.drivers.aidex.bloodcontrol.BloodControlAidex
+import tk.glucodata.drivers.aidex.bloodcontrol.AiDexAutomaticKeyRecovery
 import tk.glucodata.drivers.aidex.CalibrationRecord as SharedCalibrationRecord
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
@@ -3375,34 +3376,38 @@ class AiDexBleManager(
     }
 
     private var pairExchangeGeneration = 0L
-    private var automaticCloudAttempts = 0
-    private var automaticCloudInFlight = false
+    private val automaticKeyRecovery = AiDexAutomaticKeyRecovery()
 
     private fun maybeRequestAutomaticPairingMaterial(gatt: BluetoothGatt) {
         val context = Applic.app
         val serial = keyExchange.bareSerial
         val exchangeGeneration = pairExchangeGeneration
-        if (automaticCloudInFlight || automaticCloudAttempts >= 2 ||
-            gatt !== mBluetoothGatt ||
+        if (gatt !== mBluetoothGatt ||
             !BloodControlAidex.automaticEligible(context.resources.configuration.locales[0]?.language,
                 serial, runCatching { super.mygetDeviceName() }.getOrNull())) return
-        val tryCn = automaticCloudAttempts == 0
-        automaticCloudAttempts++
-        automaticCloudInFlight = true
+        val attempt = automaticKeyRecovery.begin() ?: return
+        val materialRevision = AiDexProvisioningStore.savedMaterialRevision(context, serial)
         handler.removeCallbacks(keyExchangeWatchdog)
         // Network work never blocks the BLE handler. Completion belongs to this exact GATT.
         java.util.concurrent.CompletableFuture.supplyAsync {
-            runCatching { BloodControlAidex.automaticAfterLocalFailure(context, serial, tryCn) }
-                .getOrElse { BloodControlAidex.AutomaticResult(false, true) }
+            runCatching { BloodControlAidex.automaticAfterLocalFailure(context, serial, attempt.tryCn) }
+                .getOrElse { BloodControlAidex.AutomaticResult(null, true) }
         }.thenAccept { result ->
             handler.post {
-                automaticCloudInFlight = false
-                if (result.usedBloodControl) automaticCloudAttempts = 2
-                if (gatt !== mBluetoothGatt || stop || isPaused || isUnpaired ||
-                    phase != Phase.KEY_EXCHANGE || keyExchange.bareSerial != serial ||
-                    pairExchangeGeneration != exchangeGeneration) return@post
-                if (result.installed) startFreshPairKeyExchange(gatt)
-                else handler.postDelayed(keyExchangeWatchdog, KEY_EXCHANGE_TIMEOUT_MS)
+                val isCurrent = {
+                    gatt === mBluetoothGatt && !stop && !isPaused && !isUnpaired &&
+                        phase == Phase.KEY_EXCHANGE && keyExchange.bareSerial == serial &&
+                        pairExchangeGeneration == exchangeGeneration
+                }
+                val installed = automaticKeyRecovery.complete(attempt, result, isCurrent) { keys ->
+                    AiDexProvisioningStore.saveAndInstallIfUnchanged(
+                        context, serial, keys.secret, keys.iv, materialRevision,
+                    )
+                }
+                if (isCurrent()) {
+                    if (installed) startFreshPairKeyExchange(gatt)
+                    else handler.postDelayed(keyExchangeWatchdog, KEY_EXCHANGE_TIMEOUT_MS)
+                }
             }
         }
     }

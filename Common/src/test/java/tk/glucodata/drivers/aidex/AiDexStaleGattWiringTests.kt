@@ -16,12 +16,13 @@ class AiDexStaleGattWiringTests {
     fun automaticCloudCompletionCannotRestartAReplacedOrAdvancedExchange() {
         val recovery = manager.substringAfter("private fun maybeRequestAutomaticPairingMaterial(gatt: BluetoothGatt) {")
             .substringBefore("private fun handleF001Response")
-        assertTrue(recovery.contains("automaticCloudInFlight || automaticCloudAttempts >= 2"))
+        assertTrue(recovery.contains("val attempt = automaticKeyRecovery.begin() ?: return"))
         assertTrue(recovery.contains("handler.post {"))
-        val guard = recovery.substringAfter("handler.post {").substringBefore("if (result.installed)")
-        assertTrue(guard.contains("gatt !== mBluetoothGatt || stop || isPaused || isUnpaired"))
-        assertTrue(guard.contains("phase != Phase.KEY_EXCHANGE"))
-        assertTrue(guard.contains("pairExchangeGeneration != exchangeGeneration"))
+        assertTrue(recovery.contains("automaticKeyRecovery.complete(attempt, result, isCurrent) { keys -> AiDexProvisioningStore.saveAndInstallIfUnchanged("))
+        val guard = recovery.substringAfter("val isCurrent = {").substringBefore("val installed =")
+        assertTrue(guard.contains("gatt === mBluetoothGatt && !stop && !isPaused && !isUnpaired"))
+        assertTrue(guard.contains("phase == Phase.KEY_EXCHANGE"))
+        assertTrue(guard.contains("pairExchangeGeneration == exchangeGeneration"))
         for (name in listOf("startSavedPairKeyExchange", "startFreshPairKeyExchange")) {
             assertTrue(manager.contains("private fun $name(gatt: BluetoothGatt) { pairExchangeGeneration++"))
         }

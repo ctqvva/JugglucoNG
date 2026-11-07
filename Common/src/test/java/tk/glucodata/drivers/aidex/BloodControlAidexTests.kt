@@ -106,8 +106,8 @@ class BloodControlAidexTests {
         assertEquals(listOf(BloodControlAidexKeyProvider.ALLOWLIST, BloodControlAidexKeyProvider.KEYS), paths)
         assertEquals("[\"BCTEST0001\"]", cache.string("allowlist"))
         paths.clear()
-        assertNull(provider.request(serial).keys)
-        assertTrue(paths.isEmpty())
+        assertNotNull(provider.request(serial).keys)
+        assertEquals(listOf(BloodControlAidexKeyProvider.KEYS), paths)
         paths.clear()
         assertNull(provider.request("BCTEST0002").keys)
         assertTrue(paths.isEmpty())
@@ -205,23 +205,25 @@ class BloodControlAidexTests {
         assertFalse(BloodControlAidex.automaticEligible("ru", "X-BCTEST0001", "X-BCTEST0001"))
     }
 
-    @Test fun automaticRecoveryPreservesCnPriorityAndFallsBackAfterRejection() {
+    @Test fun automaticRecoveryPreservesCnPriorityAndReturnsUncommittedMaterial() {
         val order = mutableListOf<String>()
+        val keys = AiDexProvisionedKeys(ByteArray(16), ByteArray(16))
         val cnSuccess = BloodControlAidex.recoverAfterLocalFailure(true,
-            cn = { order += "cn"; true }, bloodControl = { order += "bc"; true })
-        assertTrue(cnSuccess.installed)
+            cn = { order += "cn"; keys }, bloodControl = { order += "bc"; BloodControlKeyResult(keys) })
+        assertSame(keys, cnSuccess.keys)
         assertFalse(cnSuccess.usedBloodControl)
         assertEquals(listOf("cn"), order)
         order.clear()
         val cnFailure = BloodControlAidex.recoverAfterLocalFailure(true,
-            cn = { order += "cn"; false }, bloodControl = { order += "bc"; true })
-        assertTrue(cnFailure.installed)
+            cn = { order += "cn"; null }, bloodControl = { order += "bc"; BloodControlKeyResult(keys) })
+        assertSame(keys, cnFailure.keys)
         assertTrue(cnFailure.usedBloodControl)
         assertEquals(listOf("cn", "bc"), order)
         order.clear()
         val rejectedCn = BloodControlAidex.recoverAfterLocalFailure(false,
-            cn = { order += "cn"; true }, bloodControl = { order += "bc"; false })
-        assertFalse(rejectedCn.installed)
+            cn = { order += "cn"; keys }, bloodControl = { order += "bc"; BloodControlKeyResult(error = "failure", retryAtMillis = time) })
+        assertNull(rejectedCn.keys)
+        assertEquals(time, rejectedCn.retryAtMillis)
         assertTrue(rejectedCn.usedBloodControl)
         assertEquals(listOf("bc"), order)
     }

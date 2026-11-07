@@ -25,11 +25,12 @@ import java.io.File
 class AiDexKeyManagementTests {
     @get:Rule val compose = createComposeRule()
 
-    private fun show() {
+    private fun show(available: Boolean = true) {
         compose.setContent {
             MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
                 Surface {
-                    AiDexKeyManagementScreen(rememberWizardUiMetrics(), "", false, {}, {})
+                    AiDexKeyManagementScreen(rememberWizardUiMetrics(), "", false, {}, {},
+                        bloodControlAvailable = available)
                 }
             }
         }
@@ -57,6 +58,14 @@ class AiDexKeyManagementTests {
         compose.onNodeWithText("BloodControl API").assertDoesNotExist()
         compose.onNodeWithText("Close").assertDoesNotExist()
         compose.onAllNodesWithText("SMS code")[0].performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun russianBuildWithoutCredentialsDoesNotOfferBloodControl() {
+        show(available = false)
+        compose.onNodeWithText("AideX CN").assertDoesNotExist()
+        compose.onNodeWithText("BloodControl API").assertDoesNotExist()
+        compose.onNodeWithText("Запросить ключ").assertDoesNotExist()
+        compose.onNodeWithText("Закрыть").assertDoesNotExist()
     }
 
     @Test @Config(qualifiers = "ru-w640dp-h360dp-mdpi")

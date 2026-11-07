@@ -43,6 +43,7 @@ internal object AiDexProvisioningStore {
     }
 
     /** Persist only complete material, then install a defensive copy into the live registry. */
+    @Synchronized
     fun saveAndInstall(
         context: Context,
         serial: String,
@@ -57,6 +58,23 @@ internal object AiDexProvisioningStore {
         val encryptedValue = encrypt(value) ?: return false
         if (!prefs(context).edit().putString(materialKey(serial), encryptedValue).commit()) return false
         return AiDexNativeFactory.installProvisionedPairingMaterial(serial, secret, iv)
+    }
+
+    /** Opaque encrypted-value revision. Never log or export this snapshot. */
+    fun savedMaterialRevision(context: Context, serial: String): String? =
+        prefs(context).getString(materialKey(serial), null)
+
+    /** A manual import/account fetch completed while the cloud request was pending wins. */
+    @Synchronized
+    fun saveAndInstallIfUnchanged(
+        context: Context,
+        serial: String,
+        secret: ByteArray,
+        iv: ByteArray,
+        expectedRevision: String?,
+    ): Boolean {
+        if (savedMaterialRevision(context, serial) != expectedRevision) return false
+        return saveAndInstall(context, serial, secret, iv)
     }
 
     fun hasSaved(context: Context, serial: String): Boolean = loadSaved(context, serial) != null
