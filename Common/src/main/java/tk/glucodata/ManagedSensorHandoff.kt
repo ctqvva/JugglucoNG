@@ -82,6 +82,8 @@ object ManagedSensorHandoff {
             }
         }
         root.put("entries", entries)
+        // A Dexcom has no preferences to carry; its setup is the scan it came from.
+        DexcomWatchSetup.attach(root, SensorIdentity.resolveMainSensor())
         // Which namespaces actually travelled is otherwise invisible: a receiver that comes up
         // with no auth material looks exactly like one that was never sent any.
         run {
@@ -110,6 +112,7 @@ object ManagedSensorHandoff {
             // sensor's cursors and replay or lose history.
             val incomingSensor = root.optString("managedSensorId", "").trim()
                 .takeIf { it.isNotEmpty() && it != "null" }
+                ?: DexcomWatchSetup.incomingSerial(root)
             if (incomingSensor != null && SensorOwnershipRuntime.readsLocally(incomingSensor)) {
                 Log.i(LOG_ID, "handoff ignored: already reading $incomingSensor here")
                 return@runCatching false
@@ -135,6 +138,8 @@ object ManagedSensorHandoff {
             }
                 Log.i(LOG_ID, "handoff applied: ${entries.length()} entries $perPrefs")
             }
+            runCatching { DexcomWatchSetup.applyOnWatch(root) }
+                .onFailure { Log.stack(LOG_ID, "Dexcom setup", it) }
             SensorIdentity.invalidateCaches()
             // Ask the sender for its backlog now. A full-horizon serve is otherwise throttled
             // to its own schedule, so a device could take a sensor over holding only the last

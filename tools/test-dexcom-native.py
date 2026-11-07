@@ -44,6 +44,7 @@ fixture = fixture.replace('/* REGISTRY_METHODS */', methods('sensoren.hpp', [
     'bool knownDex(',
     'sensor *findUnboundManualDexcom(',
     'std::pair<int, SensorGlucoseData *>\n  makeDexComSensorindex(',
+    'std::pair<int, SensorGlucoseData *>\n  convertMirrorToDexcom(',
 ]))
 fixture = fixture.replace('/* DRIVER_METHODS */',
     extract('dexcom/java.cpp', 'struct glucoseinput {') + ' __attribute__((packed));\n' +

@@ -710,6 +710,13 @@ public:
       const int sensindex = sensgegs - sensorlist();
       SensorGlucoseData *sens = getSensorData(sensindex);
       if (!sens) return {-1, nullptr};
+      if (!sens->isDexcom()) {
+        // A watch builds a plain record under this exact name from the
+        // phone's mirrored history (WearSync2) long before it is handed the
+        // sensor itself. Taking that record as the Dexcom one left it without
+        // a Dexcom header, so nothing could ever connect to it.
+        return convertMirrorToDexcom(sensindex, scan, now);
+      }
       sensgegs = getsensor(sensindex);
       auto *info = sens->getinfo();
       info->wearduration = std::max<uint16_t>(info->wearduration,
@@ -861,6 +868,42 @@ private:
     sen->halfdays = maxdaysAir * 2;
     return {ind, getSensorData(ind)};
   }
+
+#ifdef DEXCOM
+  /**
+   * Turns a mirrored (non-Dexcom) record into a fresh Dexcom record of the
+   * same name and slot. The mirror's files are moved aside rather than
+   * rewritten: other threads may still hold its SensorGlucoseData, which keeps
+   * its open mappings of the moved files, so it is deliberately not deleted.
+   * Its readings were copies of the phone's and are served again.
+   */
+  std::pair<int, SensorGlucoseData *>
+  convertMirrorToDexcom(const int ind, const dexcom::ScanIdentity &scan,
+                        const uint32_t now) {
+    sensorlistmap();
+    const auto fullname = sensorlist()[ind].fullname();
+    if (fullname.empty()) return {-1, nullptr};
+    const pathconcat sensordir(inbasedir, fullname);
+    char aside[PATH_MAX];
+    snprintf(aside, sizeof(aside), "%s.mirror%u", sensordir.data(), now);
+    if (rename(sensordir.data(), aside) != 0) {
+      LOGGER("convertMirrorToDexcom rename %s failed\n", sensordir.data());
+      return {-1, nullptr};
+    }
+    if (!SensorGlucoseData::mkdatabaseDex(sensordir, scan.payload, now, scan.days)) {
+      LOGGER("convertMirrorToDexcom mkdatabaseDex %s failed\n", sensordir.data());
+      rename(aside, sensordir.data());
+      return {-1, nullptr};
+    }
+    hist[ind] = nullptr; // reopened below; the old object is left alive on purpose
+    sensor *sen = getsensor(ind);
+    sen->initialized = true;
+    sen->finished = 0;
+    sen->halfdays = (scan.days + 2) * 2;
+    LOGGER("converted mirrored record %s to Dexcom\n", sensordir.data());
+    return {ind, getSensorData(ind)};
+  }
+#endif
 
 public:
 #ifdef SIBIONICS

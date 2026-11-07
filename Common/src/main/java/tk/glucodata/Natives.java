@@ -1384,6 +1384,8 @@ public class Natives {
         public static native boolean isAuthenticated(long dataptr);
 
         public static native String dexPairingCode(long dataptr);
+        /** The scan a Dexcom record was set up from, for replaying on the watch. */
+        public static native String dexScanPayload(long dataptr);
 
         public static native int getDexCertSize(byte[] ar);
 

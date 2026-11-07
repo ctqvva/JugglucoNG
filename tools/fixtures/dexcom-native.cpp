@@ -1,6 +1,8 @@
 // Android/JNI/storage stand-ins for the production methods injected by the runner.
 #include "dexcom/ScanIdentity.hpp"
 #include <cassert>
+#include <climits>
+#include <cstdio>
 #include <cmath>
 #include <cstring>
 #include <ctime>
@@ -40,6 +42,18 @@ struct Info {
     array<uint8_t,16> sharedKey{};
 };
 map<string,Info> disk;
+// Directory rename: moves every file under the old path, as the real one would.
+int fakeRename(const char* from,const char* to){
+    const string prefix=string(from)+"/";bool moved=false;
+    for(auto it=disk.begin();it!=disk.end();){
+        if(it->first.starts_with(prefix)){
+            disk[string(to)+"/"+it->first.substr(prefix.size())]=it->second;
+            it=disk.erase(it);moved=true;
+        } else ++it;
+    }
+    return moved?0:-1;
+}
+#define rename fakeRename
 int mkdir(const char*,int){return 0;}
 int access(const char* path,int){return disk.contains(path)?0:-1;}
 void writeall(const char* path,const void* info,size_t){disk[path]=*static_cast<const Info*>(info);}
@@ -98,6 +112,7 @@ struct sensor {
     int halfdays=24;
     uint32_t starttime=1700000001,endtime=0;
     const char* showsensorname(){return name;}
+    string_view fullname()const{return string_view(name,16);}
 };
 void resensordata(int){}
 struct Sensoren {
@@ -105,6 +120,20 @@ struct Sensoren {
     static constexpr string_view manualDexcomPrefix=dexcom::manualPrefix;
     array<sensor,32> records{};
     vector<unique_ptr<SensorGlucoseData>> data;
+    // Objects whose slot was cleared while other threads may still use them.
+    vector<unique_ptr<SensorGlucoseData>> retired;
+    void sensorlistmap(){}
+    // hist[i]=nullptr in production drops the slot so getSensorData reopens it.
+    struct HistSlot {Sensoren* r;int i;
+        HistSlot& operator=(nullptr_t){
+            auto& slot=r->data.at(i);
+            const string dir=slot->sensordir;
+            r->retired.push_back(std::move(slot));
+            slot=make_unique<SensorGlucoseData>(dir);
+            slot->metadata=disk.at(dir+"/info.dat");
+            slot->initialHistoryBytes();
+            return *this;}};
+    struct Hist {Sensoren* r;HistSlot operator[](int i){return {r,i};}} hist{this};
     int last()const{return int(data.size())-1;}
     sensor* getsensor(int i){return &records.at(i);}
     const sensor* getsensor(int i)const{return &records.at(i);}
@@ -124,6 +153,10 @@ struct Sensoren {
         d->metadata=disk.at(string(path)+"/info.dat");
         d->initialHistoryBytes();data.push_back(std::move(d));return i;
     }
+    Sensoren()=default;
+    Sensoren& operator=(Sensoren&& other){
+        records=other.records;data=std::move(other.data);retired=std::move(other.retired);
+        inbasedir=other.inbasedir;hist.r=this;return *this;}
     /* REGISTRY_METHODS */
 };
 Sensoren registry;
@@ -363,5 +396,31 @@ int main(){
     assert(missing.pollStorageSize()==24*24*60);
     assert(!SensorGlucoseData::mkdatabaseDex("bad",string(69,'a'),1700000001));
     assert(!SensorGlucoseData::mkdatabaseDex("bad",manual(),1700000001,12));
+    // A watch holds a plain record under the sensor's name, made from the
+    // phone's mirrored history, before it is handed the sensor. Setting the
+    // sensor up must turn that record into a Dexcom one, not adopt it as is.
+    registry=Sensoren{};disk.clear();
+    {
+        auto scan=*dexcom::parseScan(barcode());
+        pathconcat dir(registry.inbasedir,scan.name);
+        Info plain{};plain.dexcom=false;plain.days=14;plain.pollcount=900;
+        disk[string(dir)+"/info.dat"]=plain;
+        const int mirrorId=registry.addsensor(scan.name);
+        auto* mirror=registry.getSensorData(mirrorId);
+        assert(!mirror->isDexcom());
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005);
+        assert(id==mirrorId&&d&&d!=mirror&&d->isDexcom());
+        assert(string_view(reinterpret_cast<const char*>(d->metadata.siId),d->metadata.siIdlen)==scan.payload);
+        assert(d->metadata.pollcount==0&&d->getDexWearMinutes()==21600);
+        assert(registry.getsensor(id)->halfdays==(15+2)*2&&registry.data.size()==1);
+        // The mirror's files moved aside, and its object is still alive.
+        assert(disk.contains(string(dir)+".mirror1700000005/info.dat"));
+        assert(!disk.at(string(dir)+".mirror1700000005/info.dat").dexcom);
+        assert(registry.retired.size()==1&&registry.retired[0].get()==mirror);
+        // Running the same setup again finds the Dexcom record: no second move.
+        auto [again,same]=registry.makeDexComSensorindex(scan,1700000006);
+        assert(again==id&&same==d&&registry.retired.size()==1);
+    }
+    cout<<"PASS: mirrored record converted to Dexcom on setup\n";
     cout<<"PASS: Dexcom Flex discovery/binding, batched backfill, GS1/manual identities, model-aware reuse, legacy migration, storage and live cutoff\n";
 }

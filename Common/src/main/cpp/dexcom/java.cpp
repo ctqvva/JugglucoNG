@@ -578,6 +578,29 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(dexPairingCode)(JNIEnv *envin,
   return envin->NewStringUTF(code);
 }
 
+// The scan payload the sensor was set up from (GS1 fields or the manual
+// pairing payload), as stored in its header. Replaying it on another device
+// builds the same record name, so both devices agree on which sensor it is.
+extern "C" JNIEXPORT jstring JNICALL fromjava(dexScanPayload)(JNIEnv *envin,
+                                                              jclass cl,
+                                                              jlong dataptr) {
+  if (!dataptr)
+    return nullptr;
+  const SensorGlucoseData *sens =
+      reinterpret_cast<const dexcomstream *>(dataptr)->hist;
+  if (!sens || !sens->isDexcom())
+    return nullptr;
+  const auto *info = sens->getinfo();
+  if (info->siIdlen == 0 || info->siIdlen > sizeof(info->siId))
+    return nullptr;
+  const std::string payload(reinterpret_cast<const char *>(info->siId),
+                            info->siIdlen);
+  if (!dexcom::parseScan(payload))
+    return nullptr;
+  // NewStringUTF needs modified UTF-8; the GS1 separator 0x1d is plain ASCII.
+  return envin->NewStringUTF(payload.c_str());
+}
+
 extern bool encrypt8AES(const uint8_t *keybytes, const uint8_t *data,
                         unsigned char *uit);
 extern "C" JNIEXPORT jboolean JNICALL
