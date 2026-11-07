@@ -316,6 +316,20 @@ fun ExpressiveSettingsScreen(
 
     // Restricted mode: the tab opens to the switch to full mode and a few safe settings.
     val restrictedState by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
+    // Back to restricted with a full-mode dialog still open (the app came back after the
+    // grace): close it. Theme and language stay, as they are open while restricted too.
+    LaunchedEffect(restrictedState.locked) {
+        if (!restrictedState.locked) return@LaunchedEffect
+        showUnitDialog = false
+        showClearHistoryDialog = false
+        showClearDataDialog = false
+        showFactoryResetDialog = false
+        showExportDialog = false
+        showScheduledBackupDialog = false
+        showSealGraceDialog = false
+        pendingSettingsImportUri = null
+        pendingExportPackageImportUri = null
+    }
 
     fun openSearchResult(entry: SettingsSearchEntry) {
         focusManager.clearFocus()

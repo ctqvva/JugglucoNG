@@ -3263,7 +3263,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_journal_desc">Lägg till och ändra insulin, måltider och anteckningar</string>
     <string name="restricted_allow_calibration_desc">Lägg till och ändra kalibreringar</string>
     <string name="restricted_allow_alarm_stop">Stoppa larm</string>
-    <string name="restricted_allow_alarm_stop_desc">När av kan larm bara snoozas</string>
+    <string name="restricted_allow_alarm_stop_desc">När den är avstängd kan larm bara snoozas</string>
     <string name="restricted_always_hidden">Övriga inställningar, sensoråterställning, avancerad sensorstyrning och radering av data kräver alltid fullt läge.</string>
     <string name="restricted_pin_options_desc">Byt PIN-kod, eller ta bort den så att fullt läge öppnas med ett tryck.</string>
     <string name="restricted_change_pin">Byt PIN-kod</string>

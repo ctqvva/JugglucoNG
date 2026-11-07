@@ -257,7 +257,8 @@ private fun SetupAlternativeCard(
 @Composable
 fun DashboardEmptyState(
     onSensorSelected: (SensorType) -> Unit,
-    onImportHistory: () -> Unit,
+    /** Null hides the choice. */
+    onImportHistory: (() -> Unit)?,
     /** Null hides the choice. */
     onContinueWithoutSensor: (() -> Unit)?,
     modifier: Modifier = Modifier,
@@ -312,12 +313,15 @@ fun DashboardEmptyState(
             Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
         }
 
+        val hasAlternative = onImportHistory != null || onContinueWithoutSensor != null
         if (allowedTypes == null || allowedTypes.isNotEmpty()) {
             SensorSelectionCards(
                 onSensorSelected = onSensorSelected,
                 allowedTypes = allowedTypes,
             )
-        
+        }
+        // "or" only between the sensors and something else to choose.
+        if ((allowedTypes == null || allowedTypes.isNotEmpty()) && hasAlternative) {
             Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
         
             // Divider with "or"
@@ -340,14 +344,15 @@ fun DashboardEmptyState(
         
         }
 
-        // Import History card
-        ImportHistoryCard(
-            onClick = onImportHistory,
-            modifier = Modifier.padding(horizontal = if (compact) 4.dp else 8.dp)
-        )
+        if (onImportHistory != null) {
+            ImportHistoryCard(
+                onClick = onImportHistory,
+                modifier = Modifier.padding(horizontal = if (compact) 4.dp else 8.dp)
+            )
+        }
 
         if (onContinueWithoutSensor != null) {
-            Spacer(modifier = Modifier.height(8.dp))
+            if (onImportHistory != null) Spacer(modifier = Modifier.height(8.dp))
 
             SetupAlternativeCard(
                 icon = Icons.Default.EditNote,

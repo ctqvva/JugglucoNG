@@ -1136,9 +1136,11 @@ private fun NavGraphBuilder.gatedComposable(
     route: String,
     content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit,
 ) = composable(route) { entry ->
+    // Collected so a change recomposes; the live state decides, so a relock the collector
+    // has not delivered yet still draws nothing.
     val restricted by RestrictedMode.state.collectAsStateWithLifecycle()
-    val live = RestrictedMode.current()
-    if (restricted.locked && live.locked && !RestrictedModeRoutes.isOpenWhileLocked(route, live.config)) {
+    val live = restricted.let { RestrictedMode.current() }
+    if (live.locked && !RestrictedModeRoutes.isOpenWhileLocked(route, live.config)) {
         Box(Modifier.fillMaxSize())
     } else {
         content(entry)

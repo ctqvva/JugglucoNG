@@ -3231,7 +3231,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Modalità limitata</string>
     <string name="restricted_mode_desc">Nasconde impostazioni e controlli</string>
-    <string name="restricted_full_mode_title">Per ora modalità completa</string>
+    <string name="restricted_full_mode_title">Modalità completa, per ora</string>
     <string name="restricted_full_mode_desc">La modalità limitata torna un minuto dopo che esci dall\'app, o quando la blocchi.</string>
     <string name="restricted_lock_now">Blocca ora</string>
     <string name="restricted_section_unlock">Passaggio alla modalità completa</string>
@@ -3254,7 +3254,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_journal_desc">Aggiungi e modifica insulina, pasti e note</string>
     <string name="restricted_allow_calibration_desc">Aggiungi e modifica calibrazioni</string>
     <string name="restricted_allow_alarm_stop">Fermare gli allarmi</string>
-    <string name="restricted_allow_alarm_stop_desc">Se disattivo, gli allarmi si possono solo posticipare</string>
+    <string name="restricted_allow_alarm_stop_desc">Quando è disattivato, gli allarmi possono solo essere posticipati</string>
     <string name="restricted_always_hidden">Altre impostazioni, reset del sensore, controlli avanzati del sensore ed eliminazione dei dati richiedono sempre la modalità completa.</string>
     <string name="restricted_pin_options_desc">Cambia il PIN, o rimuovilo per aprire la modalità completa con un tocco.</string>
     <string name="restricted_change_pin">Cambia PIN</string>

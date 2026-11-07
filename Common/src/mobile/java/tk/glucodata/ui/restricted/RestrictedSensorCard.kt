@@ -29,6 +29,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import tk.glucodata.R
 import tk.glucodata.SensorVendor
 import tk.glucodata.drivers.ManagedSensorStatusPolicy
@@ -72,18 +74,29 @@ internal class SensorLife(
     val startMs: Long,
     val endMs: Long,
     val nowMs: Long,
+    /** An Anytime CT5 still running past its advisory expected end: not ended. */
+    val overrun: Boolean,
 )
 
 /** Null when the start is unset or bogus: nothing about the wear is known then. */
 @Composable
 internal fun sensorLife(sensor: SensorInfo): SensorLife? {
+    // Ticks each minute, so the fill, the day and the time left move on without a reading.
+    val now by produceState(System.currentTimeMillis()) {
+        while (true) {
+            delay(60_000L)
+            value = System.currentTimeMillis()
+        }
+    }
     if (sensor.startMs <= PLAUSIBLE_START_MS) return null
-    val now = System.currentTimeMillis()
     val endMs = sensor.lifetimeEndMs()
+    // The dashboard's rule: an Anytime CT5's expected end is advisory, and it keeps running.
+    val allowOverrun = sensor.isAnytime && sensor.expectedEndMs > 0L && !sensor.isSensorExpired
     val lifecycle = ManagedSensorStatusPolicy.resolveLifecycleSummary(
         startTimeMs = sensor.startMs,
         officialEndMs = endMs,
         expectedEndMs = endMs,
+        allowExpectedEndOverrun = allowOverrun,
         nowMs = now,
     )
     val scheme = MaterialTheme.colorScheme
@@ -107,6 +120,7 @@ internal fun sensorLife(sensor: SensorInfo): SensorLife? {
         startMs = sensor.startMs,
         endMs = endMs,
         nowMs = now,
+        overrun = allowOverrun && now >= endMs,
     )
 }
 
@@ -149,11 +163,13 @@ internal fun SensorLifeDays(life: SensorLife) {
 @Composable
 private fun SensorDates(life: SensorLife) {
     val leftMs = life.endMs - life.nowMs
-    val ended = leftMs <= 0L
+    val ended = leftMs <= 0L && !life.overrun
     val endLabel = when {
+        life.overrun -> stringResource(R.string.sensor_expected_end)
         ended -> stringResource(R.string.restricted_sensor_ended)
         leftMs < HOUR_MS -> stringResource(R.string.restricted_sensor_ends_soon)
-        leftMs < DAY_MS -> (leftMs / HOUR_MS).toInt().let {
+        // Up to 24 hours in hours, as the pill shows "24h" with the hourglass.
+        leftMs < DAY_MS + HOUR_MS -> (leftMs / HOUR_MS).toInt().let {
             pluralStringResource(R.plurals.restricted_sensor_ends_in_hours, it, it)
         }
         else -> (leftMs / DAY_MS).toInt().let {
@@ -277,11 +293,9 @@ internal fun RestrictedSensorDetails(
                         confirmDisconnect = false
                         // The keep-everything variant of each vendor's Disconnect: history
                         // stays, AiDex stays paired, Ottai keeps its saved keys.
+                        // AiDex's keep-pairing Disconnect is terminateSensor itself, which says
+                        // whether the sensor went.
                         val removed = when {
-                            sensor.isAidex -> {
-                                viewModel.disconnectAiDexSensor(sensor.serial, breakPairing = false)
-                                true
-                            }
                             sensor.vendor == SensorVendor.OTTAI ->
                                 viewModel.disconnectOttaiSensor(sensor.serial, wipeData = false, forgetAndUnbind = false)
                             else -> viewModel.terminateSensor(sensor.serial, wipeData = false)

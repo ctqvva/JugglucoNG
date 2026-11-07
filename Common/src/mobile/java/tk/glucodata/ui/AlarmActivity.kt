@@ -95,6 +95,17 @@ class AlarmActivity : ComponentActivity() {
 
         window.decorView.optOutOfForceDark()
         setContent {
+            // Full mode can end while the alarm is up (the app has been off screen past the
+            // grace); look again so Stop goes away rather than quietly snoozing.
+            val canStop = androidx.compose.runtime.remember {
+                androidx.compose.runtime.mutableStateOf(tk.glucodata.RestrictedMode.allowsAlarmStop())
+            }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                while (true) {
+                    kotlinx.coroutines.delay(1_000L)
+                    canStop.value = tk.glucodata.RestrictedMode.allowsAlarmStop()
+                }
+            }
             AlarmScreen(
                 primaryGlucose = model.primaryGlucose,
                 secondaryGlucose = model.secondaryGlucose,
@@ -109,7 +120,7 @@ class AlarmActivity : ComponentActivity() {
                     )
                     leaveAlarmScreen()
                 },
-                onDismiss = if (tk.glucodata.RestrictedMode.allowsAlarmStop()) {
+                onDismiss = if (canStop.value) {
                     {
                         tk.glucodata.alerts.AlertActions.handle(
                             model.alertType?.id ?: Notify.resolveAlertKind(-1), customAlertId

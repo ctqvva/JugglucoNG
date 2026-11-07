@@ -384,8 +384,9 @@ object RestrictedModePin {
     }
 
     /**
-     * Lockout after [failures] consecutive wrong PINs: none for the first [FREE_ATTEMPTS],
-     * then 30 seconds, doubling with each further wrong PIN up to 15 minutes.
+     * Lockout after [failures] consecutive wrong PINs: [FREE_ATTEMPTS] guesses with no wait,
+     * then a 30-second wait before the next one, doubling with each further wrong PIN up to
+     * 15 minutes.
      */
     fun lockoutMs(failures: Int): Long {
         if (failures < FREE_ATTEMPTS) return 0L

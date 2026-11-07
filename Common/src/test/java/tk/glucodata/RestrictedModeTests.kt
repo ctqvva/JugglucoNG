@@ -18,7 +18,8 @@ class RestrictedModeTests {
     @Test fun pinIsStoredSaltedNotInClear() {
         val first = RestrictedModePin.encode("1234")
         val second = RestrictedModePin.encode("1234")
-        assertFalse(first.contains("1234"))
+        // Field by field: the random Base64 salt and hash may contain "1234" by chance.
+        assertFalse(first.split(':').any { it == "1234" })
         // A fresh salt each time: the same PIN does not give the same record.
         assertNotEquals(first, second)
         assertTrue(RestrictedModePin.matches("1234", second))

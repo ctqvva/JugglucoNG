@@ -3246,7 +3246,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Mode restreint</string>
-    <string name="restricted_mode_desc">Masque réglages et commandes</string>
+    <string name="restricted_mode_desc">Masque les réglages et les commandes</string>
     <string name="restricted_full_mode_title">Mode complet, pour l\'instant</string>
     <string name="restricted_full_mode_desc">Le mode restreint revient une minute après avoir quitté l\'app, ou quand vous le verrouillez.</string>
     <string name="restricted_lock_now">Verrouiller</string>
@@ -3267,7 +3267,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_handover_off">Le relais automatique des capteurs est désactivé. Activez-le pour que le nouveau capteur prenne le relais à la fin de l\'ancien.</string>
     <string name="restricted_turn_on_handover">Activer le relais</string>
     <string name="restricted_allow_journal">Entrées du journal</string>
-    <string name="restricted_allow_journal_desc">Ajouter et modifier insuline, repas et notes</string>
+    <string name="restricted_allow_journal_desc">Ajouter et modifier l\'insuline, les repas et les notes</string>
     <string name="restricted_allow_calibration_desc">Ajouter et modifier des calibrations</string>
     <string name="restricted_allow_alarm_stop">Arrêter les alarmes</string>
     <string name="restricted_allow_alarm_stop_desc">Si désactivé, les alarmes peuvent seulement être reportées</string>

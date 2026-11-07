@@ -3353,7 +3353,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Eingeschränkter Modus</string>
     <string name="restricted_mode_desc">Verbirgt Einstellungen und Steuerung</string>
-    <string name="restricted_full_mode_title">Vorerst Vollmodus</string>
+    <string name="restricted_full_mode_title">Vollmodus (vorübergehend)</string>
     <string name="restricted_full_mode_desc">Der eingeschränkte Modus kehrt eine Minute nach Verlassen der App zurück oder wenn du ihn sperrst.</string>
     <string name="restricted_lock_now">Jetzt sperren</string>
     <string name="restricted_section_unlock">Wechsel in den Vollmodus</string>

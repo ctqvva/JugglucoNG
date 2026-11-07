@@ -516,6 +516,34 @@ fun SensorCard(
         }
     }
     var pendingAiDexKeyBackup by remember { mutableStateOf<String?>(null) }
+    // Restricted again with a full-card dialog or sheet still open (the app came back after
+    // the grace): close it, since its controls need full mode.
+    LaunchedEffect(restricted) {
+        if (!restricted) return@LaunchedEffect
+        showTerminateDialog = false
+        showForgetDialog = false
+        showResetDialog = false
+        showDexcomSlotDialog = false
+        showClearAllDialog = false
+        showUnifiedResetDialog = false
+        showReconnectDialog = false
+        showWipeDialog = false
+        showSibionicsCalSheet = false
+        showAiDexAlgorithmSheet = false
+        showColorSheet = false
+        showAiDexClearDialog = false
+        showSensorCalibrateDialog = false
+        showAnytimeClearCalibrationDialog = false
+        showAnytimeHistoryDialog = false
+        showAnytimeCredentialBackupDialog = false
+        showAiDexUnpairDialog = false
+        showAiDexKeyBackupDialog = false
+        showAiDexKeyDeleteConfirm = false
+        showMqRestoreSheet = false
+        showMqCalibrationSheet = false
+        pendingAnytimeCredentialBackup = null
+        pendingAiDexKeyBackup = null
+    }
     val aiDexKeyExportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/plain")
     ) { uri ->

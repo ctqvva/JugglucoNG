@@ -3241,21 +3241,21 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Modo restrito</string>
-    <string name="restricted_mode_desc">Oculta configurações e controles</string>
+    <string name="restricted_mode_desc">Oculta definições e controlos</string>
     <string name="restricted_full_mode_title">Modo completo, por enquanto</string>
-    <string name="restricted_full_mode_desc">O modo restrito volta um minuto depois de sair do app, ou quando você o bloquear.</string>
+    <string name="restricted_full_mode_desc">O modo restrito volta um minuto depois de sair da aplicação, ou quando o bloquear.</string>
     <string name="restricted_lock_now">Bloquear agora</string>
     <string name="restricted_section_unlock">Passar ao modo completo</string>
     <string name="restricted_pin_title">PIN</string>
     <string name="restricted_pin_set">Ativado · pedido antes do modo completo</string>
     <string name="restricted_pin_not_set">Desativado · qualquer pessoa pode passar ao modo completo</string>
     <string name="restricted_biometric_title">Impressão digital ou rosto</string>
-    <string name="restricted_biometric_desc">Desbloquear também com a biometria do telefone</string>
+    <string name="restricted_biometric_desc">Desbloquear também com a biometria do telemóvel</string>
     <string name="restricted_biometric_needs_pin">Defina um PIN primeiro</string>
     <string name="restricted_section_allowed">Permitido no modo restrito</string>
     <string name="restricted_section_available">Disponível agora</string>
     <string name="restricted_allow_sensor_change">Trocar sensores</string>
-    <string name="restricted_allow_sensor_change_desc">Adicionar um sensor novo e desconectar o antigo</string>
+    <string name="restricted_allow_sensor_change_desc">Adicionar um sensor novo e desligar o antigo</string>
     <string name="restricted_sensor_types_label">Sensores que podem ser adicionados</string>
     <string name="restricted_sensor_types_none">Escolha pelo menos um, senão nenhum sensor poderá ser adicionado.</string>
     <string name="restricted_handover_on">A troca automática de sensor está ativada: o sensor novo assume quando o antigo terminar.</string>
@@ -3266,27 +3266,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_calibration_desc">Adicionar e editar calibrações</string>
     <string name="restricted_allow_alarm_stop">Parar alarmes</string>
     <string name="restricted_allow_alarm_stop_desc">Desativado: os alarmes só podem ser adiados</string>
-    <string name="restricted_always_hidden">Outras configurações, redefinição do sensor, controles avançados do sensor e exclusão de dados sempre exigem o modo completo.</string>
+    <string name="restricted_always_hidden">Outras definições, reposição do sensor, controlos avançados do sensor e eliminação de dados exigem sempre o modo completo.</string>
     <string name="restricted_pin_options_desc">Altere o PIN, ou remova-o para o modo completo abrir com um toque.</string>
     <string name="restricted_change_pin">Alterar PIN</string>
     <string name="restricted_remove_pin">Remover PIN</string>
     <string name="restricted_use_biometric">Usar impressão digital ou rosto</string>
     <string name="restricted_unlock_title">Passar ao modo completo</string>
-    <string name="restricted_unlock_desc">As configurações e todos os controles do sensor se abrem. Elas fecham um minuto depois de você sair do app.</string>
-    <string name="restricted_unlock_desc_pin">Digite o PIN para abrir as configurações e todos os controles do sensor. Elas fecham um minuto depois de você sair do app.</string>
-    <string name="restricted_needs_full_mode">Passe primeiro ao modo completo nas configurações.</string>
+    <string name="restricted_unlock_desc">As definições e todos os controlos do sensor ficam abertos. Fecham um minuto depois de sair da aplicação.</string>
+    <string name="restricted_unlock_desc_pin">Introduza o PIN para abrir as definições e todos os controlos do sensor. Fecham um minuto depois de sair da aplicação.</string>
+    <string name="restricted_needs_full_mode">Passe primeiro ao modo completo nas definições.</string>
     <string name="restricted_wrong_pin">PIN incorreto</string>
     <string name="restricted_pin_locked_out">Tentativas demais · aguarde %1$s</string>
     <string name="restricted_choose_pin">Escolha um PIN</string>
-    <string name="restricted_confirm_pin">Digite o PIN novamente</string>
+    <string name="restricted_confirm_pin">Introduza o PIN novamente</string>
     <string name="restricted_choose_pin_desc">De %1$d a %2$d dígitos</string>
     <string name="restricted_pin_mismatch">Os PINs não coincidem. Escolha um PIN novamente.</string>
     <string name="restricted_delete_digit">Apagar dígito</string>
-    <string name="restricted_disconnect_desc">Este telefone deixa de ler o sensor. As leituras recebidas até agora são mantidas.</string>
+    <string name="restricted_disconnect_desc">Este telemóvel deixa de ler o sensor. As leituras recebidas até agora são mantidas.</string>
     <string name="restricted_sensors_locked">Adicionar um sensor exige o modo completo.</string>
     <plurals name="restricted_pin_digits_entered">
-        <item quantity="one">%d dígito digitado</item>
-        <item quantity="other">%d dígitos digitados</item>
+        <item quantity="one">%d dígito introduzido</item>
+        <item quantity="other">%d dígitos introduzidos</item>
     </plurals>
     <string name="restricted_sensor_ends_soon">Termina em menos de 1 hora</string>
     <string name="restricted_sensor_ended">Terminado</string>
@@ -3298,10 +3298,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">Termina em %d hora</item>
         <item quantity="other">Termina em %d horas</item>
     </plurals>
-    <string name="restricted_section_settings">Configurações abertas no modo restrito</string>
+    <string name="restricted_section_settings">Definições abertas no modo restrito</string>
     <string name="restricted_allow_alarm_settings_desc">Alterar níveis e sons, ou desativar alertas</string>
     <string name="restricted_allow_voice_desc">Leitura em voz alta de valores e alarmes</string>
-    <string name="restricted_allow_display_desc">Faixa-alvo, gráficos, notificações, glicose flutuante e tela de bloqueio</string>
+    <string name="restricted_allow_display_desc">Intervalo-alvo, gráficos, notificações, glicose flutuante e ecrã de bloqueio</string>
     <string name="lumiflex_remove_follower_confirm">Remover o acesso de %1$s às suas leituras?</string>
     <string name="lumiflex_discard_changes_title">Descartar alterações?</string>
     <string name="lumiflex_discard_changes_message">As alterações deste seguidor não foram guardadas.</string>

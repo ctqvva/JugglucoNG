@@ -3444,7 +3444,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="restricted_handover_on">Wareejinta tooska ah ee dareemaha waa shidan tahay: dareemaha cusub ayaa la wareegaya marka kii hore dhammaado.</string>
     <string name="restricted_handover_off">Wareejinta tooska ah ee dareemaha waa dansan tahay. Shid si dareemaha cusub ula wareego marka kii hore dhammaado.</string>
     <string name="restricted_turn_on_handover">Shid wareejinta</string>
-    <string name="restricted_allow_journal">Qoraallada buugga</string>
+    <string name="restricted_allow_journal">Qoraallada joornaalka</string>
     <string name="restricted_allow_journal_desc">Ku dar oo wax ka beddel insulin, cunto iyo qoraallo</string>
     <string name="restricted_allow_calibration_desc">Ku dar oo wax ka beddel cabbir-hagaajinta</string>
     <string name="restricted_allow_alarm_stop">Jooji alaarmiyada</string>
@@ -3462,14 +3462,14 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="restricted_pin_locked_out">Isku day badan · sug %1$s</string>
     <string name="restricted_choose_pin">Dooro PIN</string>
     <string name="restricted_confirm_pin">Mar kale geli PIN-ka</string>
-    <string name="restricted_choose_pin_desc">%1$d ilaa %2$d god</string>
+    <string name="restricted_choose_pin_desc">%1$d ilaa %2$d lambar</string>
     <string name="restricted_pin_mismatch">PIN-yadu isma waafaqin. Mar kale dooro PIN.</string>
-    <string name="restricted_delete_digit">Tirtir godka</string>
+    <string name="restricted_delete_digit">Tirtir lambarka</string>
     <string name="restricted_disconnect_desc">Taleefankani wuu joojinayaa akhrinta dareemaha. Akhrisyadii hore waa la hayaa.</string>
     <string name="restricted_sensors_locked">Ku darista dareeme waxay u baahan tahay habka buuxa.</string>
     <plurals name="restricted_pin_digits_entered">
-        <item quantity="one">%d god ayaa la geliyay</item>
-        <item quantity="other">%d god ayaa la geliyay</item>
+        <item quantity="one">%d lambar ayaa la geliyay</item>
+        <item quantity="other">%d lambar ayaa la geliyay</item>
     </plurals>
     <string name="restricted_sensor_ends_soon">In ka yar saacad ayaa hartay</string>
     <string name="restricted_sensor_ended">Wuu dhammaaday</string>

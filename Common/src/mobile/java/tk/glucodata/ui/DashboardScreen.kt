@@ -1558,7 +1558,9 @@ fun DashboardScreen(
                         tk.glucodata.ui.components.SensorType.MEDTRUM -> showMedtrumWizard = true
                 }
             },
-                onImportHistory = {
+                // Importing writes history, which needs full mode like the settings import.
+                onImportHistory = if (restrictedMode.locked) null else {
+                    {
                     importLauncher.launch(
                         arrayOf(
                             "application/json",
@@ -1570,6 +1572,7 @@ fun DashboardScreen(
                             "*/*"
                         )
                     )
+                    }
                 },
                 modifier = Modifier
                     .padding(padding),
@@ -1768,8 +1771,11 @@ fun DashboardScreen(
                                         )
                                     )
                                 },
-                                onDeleteReading = { point ->
-                                    viewModel.deleteHistoryReading(point, sensorName)
+                                // Restricted mode: deleting readings is data clearing, as in History.
+                                onDeleteReading = if (restrictedMode.canClearData) {
+                                    { point -> viewModel.deleteHistoryReading(point, sensorName) }
+                                } else {
+                                    null
                                 },
                                 modifier = Modifier
                             )
@@ -2247,8 +2253,11 @@ fun DashboardScreen(
                                         )
                                     )
                                 },
-                                onDeleteReading = { point ->
-                                    viewModel.deleteHistoryReading(point, sensorName)
+                                // Restricted mode: deleting readings is data clearing, as in History.
+                                onDeleteReading = if (restrictedMode.canClearData) {
+                                    { point -> viewModel.deleteHistoryReading(point, sensorName) }
+                                } else {
+                                    null
                                 },
                                 onBaselineHeightMeasured = if (index == 0) {
                                     { measuredReadingBaselineHeightPx = it }

@@ -3308,7 +3308,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Korlátozott mód</string>
-    <string name="restricted_mode_desc">Elrejti a beállításokat</string>
+    <string name="restricted_mode_desc">Elrejti a beállításokat és a vezérlőket</string>
     <string name="restricted_full_mode_title">Egyelőre teljes mód</string>
     <string name="restricted_full_mode_desc">A korlátozott mód egy perccel az alkalmazás elhagyása után visszatér, vagy amikor lezárod.</string>
     <string name="restricted_lock_now">Lezárás most</string>

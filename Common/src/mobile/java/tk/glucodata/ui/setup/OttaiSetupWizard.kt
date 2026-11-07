@@ -1400,9 +1400,11 @@ fun OttaiSetupWizard(
             onSignIn = { openSignIn() },
             onExport = if (hasMaterials && hasSensorCode) {
                 {
-                    val id = canonicalSensorId.orEmpty()
-                    exportTargetId = id
-                    exportLauncher.launch("ottai_${id}.json")
+                    fullModeGuard {
+                        val id = canonicalSensorId.orEmpty()
+                        exportTargetId = id
+                        exportLauncher.launch("ottai_${id}.json")
+                    }
                 }
             } else null,
         )
