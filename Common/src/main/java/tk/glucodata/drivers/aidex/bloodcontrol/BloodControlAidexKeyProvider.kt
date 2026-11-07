@@ -90,12 +90,11 @@ internal class BloodControlAidexKeyProvider(
                     return failure("BloodControl вернул некорректные ключи")
                 }
             cache.put("failures", 0L)
-            // Fetching is not a commit: the caller may discard this result after its
-            // exchange changes. Only committed encrypted material supplies a cache hit.
+            // The manual request caller commits keys to the encrypted provisioning store.
             BloodControlKeyResult(keys)
         } catch (error: Exception) {
             // Transport failures are handled in post(). Invalid envelopes/JSON are not
-            // transient network failures and must not restart automatic provisioning.
+            // transient network failures and must not be retried as an outage.
             val cryptoFailure = error is GeneralSecurityException
             disable(if (cryptoFailure) "request_crypto" else "invalid_response",
                 if (cryptoFailure) "Не удалось подготовить защищённый запрос BloodControl"

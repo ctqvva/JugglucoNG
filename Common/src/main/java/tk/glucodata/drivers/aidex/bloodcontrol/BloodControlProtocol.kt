@@ -103,7 +103,7 @@ internal object BloodControlProtocol {
     }.getOrDefault(false)
 
     fun parseKeys(json: JSONObject, serial: String): AiDexProvisionedKeys? {
-        if (json.has("serialNumber") && normalizeSerial(json.optString("serialNumber")) != serial) return null
+        if (normalizeSerial(json.optString("serialNumber")) != serial) return null
         val secret = AiDexCnProtocol.decodeMaterial(json.optString("publicKey")) ?: return null
         val iv = AiDexCnProtocol.decodeMaterial(json.optString("communicationKey")) ?: return null
         return AiDexProvisionedKeys(secret, iv)

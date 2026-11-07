@@ -4,12 +4,19 @@ Russian app language exposes **AideX CN | BloodControl API** in AiDEX key manage
 BloodControl uses the existing encrypted pairing-material store, so downloaded keys also
 work with the existing import/export and reconnect paths.
 
-For F-series sensors in Russian, a sensor's explicit F001 missing-key response starts
-automatic recovery after saved PAIR credentials and local/imported provisioning material
-have been tried. A saved CN account is tried first. If it fails, or its downloaded material
-is rejected by the sensor, BloodControl is the final fallback. Other languages and product
-lines keep their existing automatic pairing behavior. Product detection affects only the
-optional cloud fallback, never the local key derivation.
+BloodControl requests are manual-only. The form retains nearby sensor identities from the
+scan screen and lists known AiDEX sensors, with connected sensors first. It also scans for
+new nearby AiDEX serials while open. A connected sensor (or a sole available sensor) fills
+an empty, untouched serial field; tapping another row changes that field. Neither entering
+the screen, choosing a sensor, nor BLE pairing/reconnecting contacts BloodControl.
+The user must select BloodControl and tap **Request key** to contact the service. That
+request sends the selected serial and a persistent random device UUID to the configured
+BloodControl endpoints. Saved/imported keys are reused before any network request.
+
+The BLE driver retains its original local/saved pairing flow and missing-key reporting.
+There is no F-series prefix classifier, automatic cloud recovery, or network-driven second
+F001 challenge on an existing link. Explicitly downloaded keys use the same encrypted store
+as imports and CN account downloads, and are available on the next connection.
 
 ## Build configuration
 
@@ -48,36 +55,22 @@ Eligibility is cached for five minutes and stale eligibility can be used after a
 failure. A missing allowlist blocks key requests. Unavailable keys are cached for an hour;
 network/rate/server failures back off for 15 minutes, one hour, six hours, then 24 hours.
 Authentication or signature failures disable requests for the process session. Key material
-must decode to two 16-byte values and any response serial must match the requested sensor.
+must decode to two 16-byte values. The response must include a serial that matches the
+requested sensor; missing, empty and mismatched serials are rejected.
 Allowlist membership does not guarantee that keys exist.
 
-Automatic fetches return uncommitted material. The BLE handler checks the exact GATT,
-exchange generation and saved-material revision before staging it in that connection's
-private protocol session. A rejected F001/BOND discards it without touching the persistent
-store or global registry. A valid BOND permits retention across a warmup reconnect, and a
-CRC-valid direct F003 frame permits the encrypted commit (even for a warmup glucose
-sentinel). A newer import wins the revision check at commit time. Transient encrypted-store
-failures retry the same validated material on later live frames with bounded write backoff;
-they do not refetch keys or persist the PAIR credential prematurely.
-Transient failures carry their backoff deadline to the recovery state, which permits at
-most four later reconnect retries. Permanent failures and a completed BC installation stop
-automatic requests. HTTP 5xx tries the alternate IP once before backing off; successful
-responses still require a valid signature. Signed allowlist client errors cache for an hour.
-An active refresh backoff also propagates through a stale allowlist miss, since a stale miss
-does not establish that the sensor is ineligible. Expired CN sessions (code 800) are cleared
-only if their rejected token still matches; an open setup wizard observes that change.
+HTTP 5xx tries the alternate IP once before backing off. Unsigned HTTP 429/5xx responses
+also trigger backoff; successful responses still require a valid signature. Signed
+allowlist client errors cache for an hour. An active refresh backoff propagates through a
+stale allowlist miss, since a stale miss does not establish that the sensor is ineligible.
 
 ## Validation
 
 `BloodControlAidexTests` uses freshly generated synthetic RSA credentials and an injected
 transport. It covers the wire envelope, exact-byte signatures, parsing, eligibility,
 negative caching, throttling, and address fallback. `AiDexKeyManagementTests` checks the
-Russian switch/form, English visibility, and landscape scrolling.
-
-Initial validation passed 594 focused phone tests and 540 focused Wear tests, with zero
-failures or skips, plus UI guardrails and `git diff --check`. The rendered Russian form was
-inspected from the Compose test capture. A partial configuration using a synthetic token
-was rejected with a generic configuration error.
+Russian switch/form, English visibility, connected prefill, tap-to-fill selection,
+manual edit preservation, MAC-fallback exclusion, and landscape scrolling.
 
 Live validation on 2026-11-07 used the production protocol, transport and provider with
 the supplied credentials and only the two authorized serials. The allowlist returned HTTP
@@ -86,15 +79,7 @@ returned HTTP 200 with a valid signature; both decoded keys were 16 bytes. `2222
 was absent from the current allowlist, so the provider correctly skipped its key request.
 No key values or client credentials were printed or committed. Physical pairing and
 reconnect remain unverified; live API success does not establish sensor acceptance.
-The credential-enabled phone build and all 13 BloodControl protocol/provider tests passed.
-
-Review follow-up validation passed 616 phone tests and 560 Wear tests. Added regressions
-cover stale/duplicate completions, a newer saved import, bounded reconnect retry deadlines,
-signed allowlist failure caching, HTTP 5xx route fallback, and unconfigured Russian UI.
-
-Validated-material follow-up passed 629 phone and 569 Wear tests. It additionally covers
-actual-manager BOND rejection cleanup, bad-CRC and warmup F003 handling, bounded validated
-store retries, token-specific session expiry, wizard refresh, and stale allowlist recovery.
+The credential-enabled phone build and protocol/provider tests passed.
 
 Android crypto validation found that AndroidOpenSSL exposes `SHA256withRSA/PSS` but not
 generic `RSASSA-PSS`; the earlier desktop-only live probe had masked this difference. The
@@ -107,3 +92,8 @@ availability regression covers the absence of the generic algorithm.
 Safe diagnostics record endpoint category, HTTP status and exception class only. The first
 session-disable reason remains visible on later requests; no exception messages, response
 bodies, headers, allowlist entries, client credentials or sensor keys are logged.
+
+Manual-only follow-up validation passed 618 focused phone tests and 558 focused Wear tests,
+with no failures or skips, plus UI guardrails and `git diff --check`. The Russian sensor
+picker render was inspected. Automatic-recovery-only state, helpers and tests were removed;
+the BLE manager now matches the pairing behavior before this PR.

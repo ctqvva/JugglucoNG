@@ -14,11 +14,16 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.Button
@@ -28,6 +33,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -69,18 +75,28 @@ internal fun AiDexKeyManagementScreen(
     onSignedIn: () -> Unit,
     onSignedOut: () -> Unit,
     bloodControlAvailable: Boolean = BloodControlAidex.available,
+    sensors: List<AiDexKeySensor> = emptyList(),
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val isRussian = LocalConfiguration.current.locales[0]?.language == "ru"
     var bloodControlSelected by remember { mutableStateOf(false) }
     var serialInput by remember(initialSerial) { mutableStateOf(initialSerial) }
+    var serialEdited by remember(initialSerial) { mutableStateOf(initialSerial.isNotBlank()) }
     var keySaved by remember { mutableStateOf(false) }
     var keyRefresh by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var statusIsError by remember { mutableStateOf(false) }
     val normalizedSerial = AiDexPairingMaterialFile.normalizeSerial(serialInput)
+    val sensorChoices = remember(sensors) { mergeAiDexKeySensors(sensors) }
+
+    LaunchedEffect(sensorChoices) {
+        if (!serialEdited && serialInput.isBlank()) {
+            val preferred = sensorChoices.firstOrNull { it.connected } ?: sensorChoices.singleOrNull()
+            if (preferred != null) serialInput = preferred.serial
+        }
+    }
 
     var phone by remember { mutableStateOf(AiDexProvisioningStore.accountLabel(context)) }
     var code by remember { mutableStateOf("") }
@@ -126,6 +142,7 @@ internal fun AiDexKeyManagementScreen(
             }
             if (importedSerial != null) {
                 serialInput = importedSerial
+                serialEdited = true
                 keyRefresh += 1
                 statusIsError = false
                 status = context.getString(R.string.aidex_key_saved)
@@ -147,6 +164,33 @@ internal fun AiDexKeyManagementScreen(
             stringResource(R.string.aidex_key_management_title),
             style = MaterialTheme.typography.titleLarge,
         )
+        if (sensorChoices.isNotEmpty()) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 216.dp)) {
+                    items(sensorChoices, key = { it.serial }) { sensor ->
+                        ListItem(
+                            headlineContent = { Text(sensor.serial) },
+                            supportingContent = { Text(sensor.name.ifBlank { sensor.address }) },
+                            leadingContent = { Icon(Icons.Default.Bluetooth, contentDescription = null) },
+                            trailingContent = {
+                                if (normalizedSerial == sensor.serial) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null)
+                                }
+                            },
+                            modifier = Modifier.selectable(
+                                selected = normalizedSerial == sensor.serial,
+                                enabled = !busy,
+                                onClick = {
+                                    serialInput = sensor.serial
+                                    serialEdited = true
+                                    status = ""
+                                },
+                            ),
+                        )
+                    }
+                }
+            }
+        }
         val showBloodControl = isRussian && bloodControlAvailable
         if (showBloodControl) {
             ConnectedButtonGroup(
@@ -174,6 +218,7 @@ internal fun AiDexKeyManagementScreen(
                     value = serialInput,
                     onValueChange = {
                         serialInput = it.take(32)
+                        serialEdited = true
                         status = ""
                     },
                     label = { Text(stringResource(R.string.serial_number_label)) },

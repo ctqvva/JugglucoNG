@@ -64,6 +64,7 @@ fun AiDexSetupWizard(
     val ui = rememberWizardUiMetrics()
     var currentStep by remember { mutableStateOf(AiDexSetupStep.SCAN) }
     var selectedDeviceName by remember { mutableStateOf("") }
+    var nearbyKeySensors by remember { mutableStateOf<List<AiDexKeySensor>>(emptyList()) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var signedIn by remember { mutableStateOf(AiDexProvisioningStore.hasSession(context)) }
@@ -107,6 +108,7 @@ fun AiDexSetupWizard(
                     ui = ui,
                     onNavigateToReadiness = onNavigateToReadiness,
                     onManageKeys = { currentStep = AiDexSetupStep.KEY_MANAGEMENT },
+                    onSensorsChanged = { if (it.isNotEmpty()) nearbyKeySensors = it },
                     onDeviceSelected = { selectedName, address ->
                         try {
                             val name = selectedName.trim()
@@ -153,6 +155,7 @@ fun AiDexSetupWizard(
                     signedIn = signedIn,
                     onSignedIn = { signedIn = true },
                     onSignedOut = { signedIn = false },
+                    sensors = rememberAiDexKeySensors(nearbyKeySensors),
                 )
                 AiDexSetupStep.CONNECTING -> Box(
                     modifier = Modifier.fillMaxSize(),
@@ -178,10 +181,11 @@ fun AiDexSetupWizard(
 }
 
 @Composable
-fun AiDexScanStep(
+internal fun AiDexScanStep(
     ui: WizardUiMetrics,
     onNavigateToReadiness: () -> Unit,
     onManageKeys: () -> Unit,
+    onSensorsChanged: (List<AiDexKeySensor>) -> Unit = {},
     onDeviceSelected: (String, String) -> Unit
 ) {
     data class ScanCandidate(
@@ -202,6 +206,12 @@ fun AiDexScanStep(
     var scanError by remember { mutableStateOf<BleDeviceScanner.ScanStartError?>(null) }
     var requestedPermissionOnce by remember { mutableStateOf(false) }
     var showAllDevices by remember { mutableStateOf(false) }
+
+    LaunchedEffect(devices) {
+        onSensorsChanged(devices.mapNotNull { candidate ->
+            candidate.serial?.let { AiDexKeySensor(it, candidate.rawName, candidate.address) }
+        })
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -498,7 +508,7 @@ private class ListHandOver {
     var state: LazyListState? = null
 }
 
-private data class AiDexScanDetection(
+internal data class AiDexScanDetection(
     val displayName: String,
     val selectionName: String,
     val serial: String?,
@@ -510,7 +520,7 @@ private val AIDEX_CGM_SERVICE_UUID: UUID = UUID.fromString("0000181f-0000-1000-8
 private val AIDEX_VENDOR_SERVICE_UUID: UUID = UUID.fromString("0000f000-0000-1000-8000-00805f9b34fb")
 private val AIDEX_FF30_SERVICE_UUID: UUID = UUID.fromString("0000ff30-0000-1000-8000-00805f9b34fb")
 
-private fun detectAiDexCandidate(
+internal fun detectAiDexCandidate(
     address: String,
     deviceName: String?,
     scanRecordName: String?,

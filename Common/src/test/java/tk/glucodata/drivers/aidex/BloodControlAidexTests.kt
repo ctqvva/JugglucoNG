@@ -91,7 +91,7 @@ class BloodControlAidexTests {
         assertNull(BloodControlProtocol.parseKeys(JSONObject(keys()).put("serialNumber", ""), serial))
         assertNull(BloodControlProtocol.parseKeys(JSONObject(keys()).put("publicKey", base64.encodeToString(ByteArray(15))), serial))
         assertNull(BloodControlProtocol.parseKeys(JSONObject(keys()).apply { remove("communicationKey") }, serial))
-        assertNotNull(BloodControlProtocol.parseKeys(JSONObject(keys()).apply { remove("serialNumber") }, serial))
+        assertNull(BloodControlProtocol.parseKeys(JSONObject(keys()).apply { remove("serialNumber") }, serial))
     }
 
     @Test fun allowlistNormalizesAndCachesWithoutRequestingOtherSensors() {
@@ -193,39 +193,11 @@ class BloodControlAidexTests {
         assertEquals(listOf(BloodControlAidexKeyProvider.ALLOWLIST, BloodControlAidexKeyProvider.KEYS), paths)
     }
 
-    @Test fun normalizationAndAutomaticEligibilityAreNarrow() {
+    @Test fun serialNormalizationRejectsInvalidInputs() {
         assertEquals("22222FXYT3", BloodControlProtocol.normalizeSerial("F-22222FXYT3"))
         for (s in listOf(".", "(21)", "16ШТ.", "A", "ABCDEFG", "ABCDEFGHIJKLMNO", "ABC 123")) {
             assertNull(BloodControlProtocol.normalizeSerial(s))
         }
-        assertTrue(BloodControlAidex.automaticEligible("ru", "X-22222FXYT3", null))
-        assertTrue(BloodControlAidex.automaticEligible("ru", "X-22222FY2M8", null))
-        assertTrue(BloodControlAidex.automaticEligible("ru", "X-BCTEST0001", "F-BCTEST0001"))
-        assertFalse(BloodControlAidex.automaticEligible("en", "X-22222FXYT3", "F-22222FXYT3"))
-        assertFalse(BloodControlAidex.automaticEligible("ru", "X-BCTEST0001", "X-BCTEST0001"))
-    }
-
-    @Test fun automaticRecoveryPreservesCnPriorityAndReturnsUncommittedMaterial() {
-        val order = mutableListOf<String>()
-        val keys = AiDexProvisionedKeys(ByteArray(16), ByteArray(16))
-        val cnSuccess = BloodControlAidex.recoverAfterLocalFailure(true,
-            cn = { order += "cn"; keys }, bloodControl = { order += "bc"; BloodControlKeyResult(keys) })
-        assertSame(keys, cnSuccess.keys)
-        assertFalse(cnSuccess.usedBloodControl)
-        assertEquals(listOf("cn"), order)
-        order.clear()
-        val cnFailure = BloodControlAidex.recoverAfterLocalFailure(true,
-            cn = { order += "cn"; null }, bloodControl = { order += "bc"; BloodControlKeyResult(keys) })
-        assertSame(keys, cnFailure.keys)
-        assertTrue(cnFailure.usedBloodControl)
-        assertEquals(listOf("cn", "bc"), order)
-        order.clear()
-        val rejectedCn = BloodControlAidex.recoverAfterLocalFailure(false,
-            cn = { order += "cn"; keys }, bloodControl = { order += "bc"; BloodControlKeyResult(error = "failure", retryAtMillis = time) })
-        assertNull(rejectedCn.keys)
-        assertEquals(time, rejectedCn.retryAtMillis)
-        assertTrue(rejectedCn.usedBloodControl)
-        assertEquals(listOf("bc"), order)
     }
 
     @Test fun transportFallsBackOnlyForConnectAndTlsAndRemembersTheRoute() {

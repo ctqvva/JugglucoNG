@@ -52,10 +52,6 @@ import tk.glucodata.drivers.aidex.adaptive2.AiDexAdaptiveV2
 import tk.glucodata.drivers.aidex.AiDexTemperatureStore
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
-import tk.glucodata.drivers.aidex.bloodcontrol.BloodControlAidex
-import tk.glucodata.drivers.aidex.bloodcontrol.AiDexAutomaticKeyRecovery
-import tk.glucodata.drivers.aidex.bloodcontrol.AiDexStagedPairingMaterial
-import tk.glucodata.drivers.aidex.AiDexProvisioningStore.ConditionalSaveStatus
 import tk.glucodata.drivers.aidex.CalibrationRecord as SharedCalibrationRecord
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
@@ -1638,8 +1634,6 @@ class AiDexBleManager(
     }
 
     private fun resetConnectionRuntimeState(reason: String, resetInvalidSetupCounter: Boolean) {
-        automaticKeyRecovery.abandonInFlight()
-        discardUnvalidatedAutomaticMaterial()
         handler.removeCallbacksAndMessages(null)
         cancelBroadcastScan()
         connectAttemptInFlight = false
@@ -2154,7 +2148,6 @@ class AiDexBleManager(
             }
 
             // Reset per-connection state
-            discardUnvalidatedAutomaticMaterial()
             bondStateAtConnection = gatt.device?.bondState ?: BluetoothDevice.BOND_NONE
             bondBecameBondedThisConnection = false
             if (bondStateAtConnection != BluetoothDevice.BOND_BONDED) {
@@ -3259,7 +3252,6 @@ class AiDexBleManager(
     }
 
     private fun startSavedPairKeyExchange(gatt: BluetoothGatt) {
-        pairExchangeGeneration++
         val savedPairKey = persistedPairKey?.takeIf {
             it.size == AiDexPairKeyBackup.PAIR_KEY_BYTES
         } ?: run {
@@ -3290,8 +3282,6 @@ class AiDexBleManager(
     }
 
     private fun startFreshPairKeyExchange(gatt: BluetoothGatt) {
-        pairExchangeGeneration++
-        automaticMaterialSuperseded = false
         if (persistedPairKey != null) {
             Log.w(
                 TAG,
@@ -3370,19 +3360,6 @@ class AiDexBleManager(
     /** Pick up material installed or removed after construction but before F001 is written. */
     private fun maybeUseProvisionedPairingMaterial() {
         val protocolSerial = keyExchange.bareSerial
-        val staged = pendingAutomaticMaterial
-        if (staged != null) {
-            if (staged.serial == protocolSerial &&
-                (staged.validated || stagedMaterialGatt === mBluetoothGatt) &&
-                AiDexProvisioningStore.savedMaterialRevision(Applic.app, protocolSerial) == staged.expectedRevision
-            ) {
-                val material = AiDexPairingMaterial.fromDecodedBytes(staged.keys.secret, staged.keys.iv)
-                protocolSession = ProtocolSession(AiDexKeyExchange(protocolSerial, material))
-                return
-            }
-            pendingAutomaticMaterial = null
-            stagedMaterialGatt = null
-        }
         AiDexProvisioningStore.installSaved(Applic.app, protocolSerial)
         val material = AiDexPairingMaterialRegistry.find(protocolSerial)
         if (material == null && !keyExchange.usesProvisionedPairingMaterial) return
@@ -3394,93 +3371,15 @@ class AiDexBleManager(
         }
     }
 
-    private var pairExchangeGeneration = 0L
-    private val automaticKeyRecovery = AiDexAutomaticKeyRecovery()
-    private var pendingAutomaticMaterial: AiDexStagedPairingMaterial? = null
-    private var stagedMaterialGatt: BluetoothGatt? = null
-    private var automaticMaterialSuperseded = false
-
-    private fun discardUnvalidatedAutomaticMaterial() {
-        if (pendingAutomaticMaterial?.validated != false) return
-        pendingAutomaticMaterial = null
-        stagedMaterialGatt = null
-        val serial = keyExchange.bareSerial
-        protocolSession = ProtocolSession(AiDexKeyExchange(serial, AiDexPairingMaterialRegistry.find(serial)))
-    }
-
-    /** Only called after a CRC-valid direct live frame confirms this candidate's exchange. */
-    private fun persistValidatedAutomaticMaterial(): Boolean {
-        val staged = pendingAutomaticMaterial ?: return !automaticMaterialSuperseded
-        if (staged.serial != keyExchange.bareSerial ||
-            (!staged.validated && stagedMaterialGatt !== mBluetoothGatt)) return false
-        staged.validate()
-        val status = staged.persistIfDue { revision ->
-            AiDexProvisioningStore.saveAndInstallIfUnchangedResult(
-                Applic.app, staged.serial, staged.keys.secret, staged.keys.iv, revision,
-            )
-        }
-        return when (status) {
-            ConditionalSaveStatus.SAVED -> {
-                pendingAutomaticMaterial = null
-                stagedMaterialGatt = null
-                true
-            }
-            ConditionalSaveStatus.SUPERSEDED -> {
-                pendingAutomaticMaterial = null
-                stagedMaterialGatt = null
-                automaticMaterialSuperseded = true
-                false
-            }
-            ConditionalSaveStatus.RETRYABLE_FAILURE, null -> false
-        }
-    }
-
-    private fun maybeRequestAutomaticPairingMaterial(gatt: BluetoothGatt) {
-        val context = Applic.app
-        val serial = keyExchange.bareSerial
-        val exchangeGeneration = pairExchangeGeneration
-        if (gatt !== mBluetoothGatt ||
-            !BloodControlAidex.automaticEligible(context.resources.configuration.locales[0]?.language,
-                serial, runCatching { super.mygetDeviceName() }.getOrNull())) return
-        val attempt = automaticKeyRecovery.begin() ?: return
-        val materialRevision = AiDexProvisioningStore.savedMaterialRevision(context, serial)
-        handler.removeCallbacks(keyExchangeWatchdog)
-        // Network work never blocks the BLE handler. Completion belongs to this exact GATT.
-        java.util.concurrent.CompletableFuture.supplyAsync {
-            runCatching { BloodControlAidex.automaticAfterLocalFailure(context, serial, attempt.tryCn) }
-                .getOrElse { BloodControlAidex.AutomaticResult(null, true) }
-        }.thenAccept { result ->
-            handler.post {
-                val isCurrent = {
-                    gatt === mBluetoothGatt && !stop && !isPaused && !isUnpaired &&
-                        phase == Phase.KEY_EXCHANGE && keyExchange.bareSerial == serial &&
-                        pairExchangeGeneration == exchangeGeneration
-                }
-                val staged = automaticKeyRecovery.complete(attempt, result, isCurrent) { keys ->
-                    if (AiDexProvisioningStore.savedMaterialRevision(context, serial) != materialRevision ||
-                        AiDexPairingMaterial.fromDecodedBytes(keys.secret, keys.iv) == null) false
-                    else {
-                        pendingAutomaticMaterial = AiDexStagedPairingMaterial(serial, keys, materialRevision)
-                        stagedMaterialGatt = gatt
-                        true
-                    }
-                }
-                if (isCurrent()) {
-                    if (staged) startFreshPairKeyExchange(gatt)
-                    else handler.postDelayed(keyExchangeWatchdog, KEY_EXCHANGE_TIMEOUT_MS)
-                }
-            }
-        }
-    }
-
-    /** Handle F001 notification — contains the PAIR key or an explicit missing-key rejection. */
+    /**
+     * Handle F001 notification — contains the PAIR key.
+     */
     private fun handleF001Response(data: ByteArray, gatt: BluetoothGatt) {
         if (data.size < 16) {
             Log.w(TAG, "F001 response too short (${data.size} bytes, hex=${AiDexParser.hexString(data)})")
             if (
                 data.size == 1 &&
-                (data[0].toInt() and 0xFF) == 0 &&
-                challengeWritten && keyExchange.pairKey == null
+                (data[0].toInt() and 0xFF) == 0
             ) {
                 pairingKeyProblemStatus = Applic.getContext().getString(
                     aiDexPairingKeyProblemStatusRes(keyExchange.usesProvisionedPairingMaterial),
@@ -3488,7 +3387,6 @@ class AiDexBleManager(
                 constatstatusstr = pairingKeyProblemStatus.orEmpty()
                 Log.e(TAG, pairingKeyProblemStatus.orEmpty())
                 UiRefreshBus.requestStatusRefresh()
-                maybeRequestAutomaticPairingMaterial(gatt)
             }
             return
         }
@@ -3587,11 +3485,6 @@ class AiDexBleManager(
             return
         }
 
-        // A valid BOND confirms the candidate's exchange. Retain it across a link loss
-        // during warmup; persistence still waits for a CRC-valid direct F003 frame.
-        pendingAutomaticMaterial?.takeIf {
-            it.serial == keyExchange.bareSerial && stagedMaterialGatt === gatt
-        }?.validate()
         pairKeyAwaitingLiveValidation = !keyExchangeUsingSavedPairKey
         Log.i(TAG, "Key exchange: session key established; waiting for valid direct F003")
 
@@ -3609,7 +3502,6 @@ class AiDexBleManager(
      * in broadcast-only until the user acts.
      */
     private fun handleKeyExchangeFailure(reason: String) {
-        discardUnvalidatedAutomaticMaterial()
         val usedSavedKey = keyExchangeUsingSavedPairKey
         val freshPairAfterReset = keyExchangeIsFreshPairAfterReset
         // Read before close(): afterwards there is no GATT device to ask.
@@ -4541,8 +4433,6 @@ class AiDexBleManager(
             return
         }
 
-        // A valid encrypted frame confirms pairing even while glucose is a warmup sentinel.
-        val automaticMaterialPersisted = persistValidatedAutomaticMaterial()
         if (!frame.isValid) {
             Log.w(TAG, "F003: Invalid reading (sentinel or out of range)")
             firstValidReadingWaitStatus(now)?.let {
@@ -4561,7 +4451,7 @@ class AiDexBleManager(
             return
         }
 
-        if (pairKeyAwaitingLiveValidation && automaticMaterialPersisted) {
+        if (pairKeyAwaitingLiveValidation) {
             val candidate = keyExchange.pairKey
             if (candidate != null && AiDexPairKeyVault.saveValidated(Applic.app, SerialNumber, candidate)) {
                 persistedPairKey = candidate.copyOf()
@@ -6496,7 +6386,6 @@ class AiDexBleManager(
         stop = true  // Prevent auto-reconnect from disconnect handler
         noDirectLiveBroadcastFallbackMode = false
         cancelBroadcastScan()  // Stop active BLE scanner and cancel scheduled scans
-        automaticKeyRecovery.abandonInFlight()
         handler.removeCallbacksAndMessages(null)   // Cancel pending reconnects/timeouts
         close()  // SuperGattCallback.close() does disconnect + close + nulls mBluetoothGatt
         setPhase(Phase.IDLE)
@@ -7542,7 +7431,6 @@ class AiDexBleManager(
         stop = true
         cancelBroadcastScan()
         close()
-        automaticKeyRecovery.abandonInFlight()
         handler.removeCallbacksAndMessages(null)
         handlerThread.quitSafely()
     }
