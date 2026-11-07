@@ -1116,6 +1116,7 @@ fun DashboardScreen(
             }
             val dashboardListTopPadding = 16.dp
             val dashboardItemSpacing = 12.dp
+            val voiceReadingsStatus = rememberVoiceReadingsStatus()
             val readingsTopSpacing = 0.dp
             val collapsedChartHorizontalPadding = contentHorizontalPadding
             val defaultVisibleReadingRows = when (adaptiveMetrics.layoutDensity) {
@@ -1609,6 +1610,12 @@ fun DashboardScreen(
                         }
                     }
 
+                    voiceReadingsStatus?.let { voice ->
+                        item {
+                            DashboardActiveFeatures(voice = voice)
+                        }
+                    }
+
                     // Pinned metrics live in the narrow left column here, two rows of
                     // two, rather than four cells squeezed across it.
                     if (showPinnedStats) {
@@ -1924,6 +1931,15 @@ fun DashboardScreen(
                                 }
                             )
                         }
+                    }
+                }
+
+                voiceReadingsStatus?.let { voice ->
+                    item {
+                        DashboardActiveFeatures(
+                            voice = voice,
+                            modifier = Modifier.padding(horizontal = contentHorizontalPadding)
+                        )
                     }
                 }
 

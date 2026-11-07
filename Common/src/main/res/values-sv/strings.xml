@@ -3247,4 +3247,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Kunde inte ta emot värden</string>
     <string name="lumiflex_no_providers">Inga delade konton. Be sensorns ägare lägga till ditt konto som följare.</string>
     <string name="lumiflex_follow_refresh">Uppdatera</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Upplästa värden</string>
+    <string name="voice_turn_off">Stäng av rösten</string>
+    <string name="voice_turn_on">Slå på rösten</string>
+    <string name="voice_every_reading">Varje värde</string>
+    <string name="voice_every_minutes">Var %1$d:e min</string>
+    <string name="voice_resumes_at">Från %1$s</string>
 </resources>

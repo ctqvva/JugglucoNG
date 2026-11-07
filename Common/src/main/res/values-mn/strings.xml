@@ -3348,4 +3348,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="lumiflex_follow_failed">Хэмжилт хүлээн авч чадсангүй</string>
     <string name="lumiflex_no_providers">Хуваалцсан бүртгэл алга. Мэдрэгчийн эзэмшигчээс таны бүртгэлийг дагагчаар нэмэхийг хүснэ үү.</string>
     <string name="lumiflex_follow_refresh">Шинэчлэх</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Дуут уншилт</string>
+    <string name="voice_turn_off">Дууг унтраах</string>
+    <string name="voice_turn_on">Дууг асаах</string>
+    <string name="voice_every_reading">Уншилт бүр</string>
+    <string name="voice_every_minutes">%1$d мин тутам</string>
+    <string name="voice_resumes_at">%1$s-с</string>
 </resources>

@@ -3290,4 +3290,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="lumiflex_follow_failed">Metingen konden niet worden ontvangen</string>
     <string name="lumiflex_no_providers">Geen gedeelde accounts. Vraag de eigenaar van de sensor om je account als volger toe te voegen.</string>
     <string name="lumiflex_follow_refresh">Vernieuwen</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Gesproken waarden</string>
+    <string name="voice_turn_off">Stem uit</string>
+    <string name="voice_turn_on">Stem aan</string>
+    <string name="voice_every_reading">Elke meting</string>
+    <string name="voice_every_minutes">Elke %1$d min</string>
+    <string name="voice_resumes_at">Vanaf %1$s</string>
 </resources>

@@ -3256,4 +3256,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">无法接收读数</string>
     <string name="lumiflex_no_providers">没有共享账户。请让传感器所有者将您的账户添加为关注者。</string>
     <string name="lumiflex_follow_refresh">刷新</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">语音播报</string>
+    <string name="voice_turn_off">关闭语音</string>
+    <string name="voice_turn_on">开启语音</string>
+    <string name="voice_every_reading">每次读数</string>
+    <string name="voice_every_minutes">每 %1$d 分钟</string>
+    <string name="voice_resumes_at">%1$s 起</string>
 </resources>

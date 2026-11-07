@@ -3432,4 +3432,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="lumiflex_follow_failed">Cabbirrada lama heli karin</string>
     <string name="lumiflex_no_providers">Ma jiraan akoonno la wadaagay. Ka codso milkiilaha dareemaha inuu akoonkaaga ku daro raace ahaan.</string>
     <string name="lumiflex_follow_refresh">Cusboonaysii</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Akhrinta codka</string>
+    <string name="voice_turn_off">Dami codka</string>
+    <string name="voice_turn_on">Shid codka</string>
+    <string name="voice_every_reading">Akhris kasta</string>
+    <string name="voice_every_minutes">%1$d daqiiqo kasta</string>
+    <string name="voice_resumes_at">Laga bilaabo %1$s</string>
 </resources>

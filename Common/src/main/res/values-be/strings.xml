@@ -3331,4 +3331,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Не ўдалося атрымаць паказанні</string>
     <string name="lumiflex_no_providers">Няма даступных акаўнтаў. Папрасіце ўладальніка сэнсара дадаць ваш акаўнт у падпісчыкі.</string>
     <string name="lumiflex_follow_refresh">Абнавіць</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Агучванне паказанняў</string>
+    <string name="voice_turn_off">Выключыць голас</string>
+    <string name="voice_turn_on">Уключыць голас</string>
+    <string name="voice_every_reading">Кожнае паказанне</string>
+    <string name="voice_every_minutes">Кожныя %1$d хв</string>
+    <string name="voice_resumes_at">З %1$s</string>
 </resources>

@@ -3249,4 +3249,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Não foi possível receber leituras</string>
     <string name="lumiflex_no_providers">Sem contas partilhadas. Peça ao proprietário do sensor para adicionar a sua conta como seguidor.</string>
     <string name="lumiflex_follow_refresh">Atualizar</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Leituras por voz</string>
+    <string name="voice_turn_off">Desligar voz</string>
+    <string name="voice_turn_on">Ligar voz</string>
+    <string name="voice_every_reading">Cada leitura</string>
+    <string name="voice_every_minutes">A cada %1$d min</string>
+    <string name="voice_resumes_at">A partir das %1$s</string>
 </resources>

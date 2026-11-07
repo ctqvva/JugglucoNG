@@ -3316,4 +3316,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="lumiflex_follow_failed">Nem sikerült fogadni az értékeket</string>
     <string name="lumiflex_no_providers">Nincs megosztott fiók. Kérje meg az érzékelő tulajdonosát, hogy adja hozzá fiókját követőként.</string>
     <string name="lumiflex_follow_refresh">Frissítés</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Hangos értékek</string>
+    <string name="voice_turn_off">Hang kikapcsolása</string>
+    <string name="voice_turn_on">Hang bekapcsolása</string>
+    <string name="voice_every_reading">Minden mérés</string>
+    <string name="voice_every_minutes">%1$d percenként</string>
+    <string name="voice_resumes_at">%1$s-tól</string>
 </resources>

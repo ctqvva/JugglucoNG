@@ -4129,6 +4129,35 @@ public class Notify {
         return content.notification;
     }
 
+    private static final int VOICE_READINGS_REQUEST = 8400;
+
+    /**
+     * Adds "Turn off voice" / "Turn on voice" to the ongoing phone glucose notification when
+     * the user uses voice readings. Only spoken readings change; alarms are untouched.
+     * Returns 0 when no action was added, 1 for the off action, 2 for the on action.
+     */
+    private static int addVoiceReadingsAction(Notification.Builder builder, String type) {
+        if (isWearable || !GLUCOSENOTIFICATION.equals(type)) return 0;
+        try {
+            if (!VoiceReadings.isInUse(app)) return 0;
+            final boolean on = VoiceReadings.isOn();
+            final Intent intent = new Intent(app, tk.glucodata.receivers.VoiceReadingsReceiver.class)
+                    .setAction(tk.glucodata.receivers.VoiceReadingsReceiver.ACTION_SET_VOICE)
+                    .putExtra(tk.glucodata.receivers.VoiceReadingsReceiver.EXTRA_ON, !on);
+            final PendingIntent pending = PendingIntent.getBroadcast(app, VOICE_READINGS_REQUEST, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | penmutable);
+            builder.addAction(new Notification.Action.Builder(
+                    android.graphics.drawable.Icon.createWithResource(app,
+                            on ? R.drawable.ic_voice_off : R.drawable.ic_voice_on),
+                    app.getString(on ? R.string.voice_turn_off : R.string.voice_turn_on),
+                    pending).build());
+            return on ? 1 : 2;
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "addVoiceReadingsAction", th);
+            return 0;
+        }
+    }
+
     private static final class GlucoseNotificationContent {
         final Notification notification;
         final CurrentDisplaySource.Snapshot snapshot;
@@ -4546,6 +4575,11 @@ public class Notify {
 
         GluNotBuilder.setVisibility(VISIBILITY_PUBLIC);
 
+        // Voice readings: one tap from the shade, for those who use them (#840).
+        // 0 = no action, 1 = "Turn off voice", 2 = "Turn on voice"; part of the fingerprint
+        // so a change made anywhere reposts the button.
+        final int voiceAction = addVoiceReadingsAction(GluNotBuilder, type);
+
         if (customPhone) {
             CustomGlucoseNotification.apply(GluNotBuilder, standardTitle, standardText,
                     remoteViews, remoteViewsExpanded);
@@ -4594,6 +4628,7 @@ public class Notify {
                         .add(tertiaryDisplayColor).add(rate).add(arrowColor).add(isMmol)
                         .add(newStatusText).add(shadeNight).add(displayGlucoseValue)
                         .add(glucose.sensorgen2)
+                        .add((long) voiceAction)
                         .add(fallbackDisplay != null ? fallbackDisplay.getTimeMillis() : 0L)
                         .add((long) Applic.app.getResources().getConfiguration().hashCode())
                         .addPresentationPrefs(prefs)

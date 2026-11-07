@@ -3254,4 +3254,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Impossible de recevoir les mesures</string>
     <string name="lumiflex_no_providers">Aucun compte partagé. Demandez au propriétaire du capteur de vous ajouter comme abonné.</string>
     <string name="lumiflex_follow_refresh">Actualiser</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Lecture vocale</string>
+    <string name="voice_turn_off">Couper la voix</string>
+    <string name="voice_turn_on">Activer la voix</string>
+    <string name="voice_every_reading">Chaque mesure</string>
+    <string name="voice_every_minutes">Toutes les %1$d min</string>
+    <string name="voice_resumes_at">À partir de %1$s</string>
 </resources>

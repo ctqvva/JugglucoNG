@@ -3275,4 +3275,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="lumiflex_follow_failed">Ölçümler alınamadı</string>
     <string name="lumiflex_no_providers">Paylaşılan hesap yok. Sensör sahibinden hesabınızı takipçi olarak eklemesini isteyin.</string>
     <string name="lumiflex_follow_refresh">Yenile</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Sesli okuma</string>
+    <string name="voice_turn_off">Sesi kapat</string>
+    <string name="voice_turn_on">Sesi aç</string>
+    <string name="voice_every_reading">Her ölçüm</string>
+    <string name="voice_every_minutes">Her %1$d dk</string>
+    <string name="voice_resumes_at">%1$s itibarıyla</string>
 </resources>

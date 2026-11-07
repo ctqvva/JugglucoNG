@@ -3238,4 +3238,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Impossibile ricevere le letture</string>
     <string name="lumiflex_no_providers">Nessun account condiviso. Chiedi al proprietario del sensore di aggiungere il tuo account come follower.</string>
     <string name="lumiflex_follow_refresh">Aggiorna</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Letture vocali</string>
+    <string name="voice_turn_off">Disattiva voce</string>
+    <string name="voice_turn_on">Attiva voce</string>
+    <string name="voice_every_reading">Ogni lettura</string>
+    <string name="voice_every_minutes">Ogni %1$d min</string>
+    <string name="voice_resumes_at">Dalle %1$s</string>
 </resources>
