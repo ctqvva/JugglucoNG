@@ -4,6 +4,7 @@ import android.content.Context
 import tk.glucodata.BuildConfig
 import tk.glucodata.R
 import tk.glucodata.drivers.aidex.AiDexCnCloudClient
+import tk.glucodata.drivers.aidex.AiDexCnResult
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexProvisionedKeys
 
@@ -65,8 +66,9 @@ internal object BloodControlAidex {
         recoverAfterLocalFailure(tryCn, cn = {
             val token = AiDexProvisioningStore.token(context)
             if (token.isBlank()) null else {
-                val result = AiDexCnCloudClient.getProvisionedKeys(serial, token)
-                result.value
+                requestCnKeys(token,
+                    request = { AiDexCnCloudClient.getProvisionedKeys(serial, it) },
+                    expire = { AiDexProvisioningStore.clearSessionIfMatches(context, it) })
             }
         }, bloodControl = { requestKeys(context, serial) })
 
@@ -79,5 +81,15 @@ internal object BloodControlAidex {
         if (cnKeys != null) return AutomaticResult(cnKeys, false)
         val bc = bloodControl()
         return AutomaticResult(bc.keys, true, bc.retryAtMillis)
+    }
+
+    internal fun requestCnKeys(
+        token: String,
+        request: (String) -> AiDexCnResult<AiDexProvisionedKeys>,
+        expire: (String) -> Unit,
+    ): AiDexProvisionedKeys? {
+        val result = request(token)
+        if (result.code == 800) expire(token)
+        return result.value
     }
 }

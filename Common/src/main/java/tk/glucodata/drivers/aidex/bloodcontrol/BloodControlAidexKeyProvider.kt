@@ -69,6 +69,11 @@ internal class BloodControlAidexKeyProvider(
             val entries = allowlist ?: return failure("Не удалось проверить доступность сенсора в BloodControl",
                 activeDeadline("retry_allowlist_transient"))
             if ((0 until entries.length()).none { entries.optString(it) == serial }) {
+                // A failed refresh cannot establish that a newly eligible serial is absent.
+                // Preserve its transient deadline instead of installing a terminal serial miss.
+                activeDeadline("retry_allowlist_transient")?.let {
+                    return failure("Не удалось проверить доступность сенсора в BloodControl", it)
+                }
                 cache.put("retry_$serial", now() + 5 * 60_000)
                 return failure("Сенсор отсутствует в списке BloodControl")
             }

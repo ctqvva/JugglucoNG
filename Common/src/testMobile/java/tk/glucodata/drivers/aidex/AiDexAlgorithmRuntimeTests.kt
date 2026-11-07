@@ -30,6 +30,8 @@ import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.aidex.native.ble.AiDexBleManager
 import tk.glucodata.drivers.aidex.native.protocol.AiDexKeyExchange
 import tk.glucodata.drivers.aidex.native.protocol.AiDexOpcodes
+import tk.glucodata.drivers.aidex.native.protocol.AiDexPairingMaterialRegistry
+import tk.glucodata.drivers.aidex.bloodcontrol.AiDexStagedPairingMaterial
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
@@ -1277,6 +1279,60 @@ class AiDexAlgorithmRuntimeTests {
     private fun drainCallbackPosts() {
         val handler = AiDexBleManager::class.java.getDeclaredField("handler").apply { isAccessible = true }.get(driver) as Handler
         Shadows.shadowOf(handler.looper).idle()
+    }
+
+    private fun stageAutomaticMaterialForTest(): AiDexStagedPairingMaterial {
+        val gatt = currentGatt()
+        Applic.app.getSharedPreferences("aidex_cn_provisioning", Context.MODE_PRIVATE).edit().clear().commit()
+        AiDexPairingMaterialRegistry.remove(serial)
+        val staged = AiDexStagedPairingMaterial(serial.removePrefix("X-"),
+            AiDexProvisionedKeys(ByteArray(16) { 1 }, ByteArray(16) { 2 }), null)
+        AiDexBleManager::class.java.getDeclaredField("pendingAutomaticMaterial").apply { isAccessible = true }.set(driver, staged)
+        AiDexBleManager::class.java.getDeclaredField("stagedMaterialGatt").apply { isAccessible = true }.set(driver, gatt)
+        return staged
+    }
+
+    @Test fun badDirectFrameCannotValidateAutomaticMaterialButValidCrcFrameCan() {
+        val staged = stageAutomaticMaterialForTest()
+        DecryptedFrames.complete = true
+        val gatt = SuperGattCallback::class.java.getDeclaredField("mBluetoothGatt").apply { isAccessible = true }.get(driver)
+        val receive = AiDexBleManager::class.java.getDeclaredMethod("handleF003", ByteArray::class.java,
+            Long::class.javaPrimitiveType, android.bluetooth.BluetoothGatt::class.java).apply { isAccessible = true }
+        val badFrame = dataFrame().also { it[15] = (it[15].toInt() xor 1).toByte() }
+        receive.invoke(driver, badFrame, System.currentTimeMillis(), gatt)
+        assertFalse(staged.validated)
+        assertNull(AiDexProvisioningStore.savedMaterialRevision(Applic.app, serial))
+        assertNull(AiDexPairingMaterialRegistry.find(serial))
+        receive.invoke(driver, dataFrame(), System.currentTimeMillis(), gatt)
+        assertTrue(staged.validated)
+    }
+
+    @Test fun rejectedAutomaticMaterialIsDiscardedWithoutDurableOrRegistryChanges() {
+        val staged = stageAutomaticMaterialForTest()
+        val reject = AiDexBleManager::class.java.getDeclaredMethod("handleKeyExchangeFailure", String::class.java)
+            .apply { isAccessible = true }
+        reject.invoke(driver, "f002-decrypt-or-crc")
+        assertFalse(staged.validated)
+        assertNull(AiDexBleManager::class.java.getDeclaredField("pendingAutomaticMaterial")
+            .apply { isAccessible = true }.get(driver))
+        assertNull(AiDexProvisioningStore.savedMaterialRevision(Applic.app, serial))
+        assertNull(AiDexPairingMaterialRegistry.find(serial))
+    }
+
+    @Test fun validCrcWarmupSentinelStillConfirmsAutomaticMaterial() {
+        val staged = stageAutomaticMaterialForTest()
+        DecryptedFrames.complete = true
+        val gatt = SuperGattCallback::class.java.getDeclaredField("mBluetoothGatt").apply { isAccessible = true }.get(driver)
+        val warmup = dataFrame().also {
+            it[6] = 0; it[7] = 0
+            val crc = Crc16CcittFalse.checksum(it.copyOfRange(0, 15))
+            it[15] = crc.toByte(); it[16] = (crc shr 8).toByte()
+        }
+        AiDexBleManager::class.java.getDeclaredMethod("handleF003", ByteArray::class.java,
+            Long::class.javaPrimitiveType, android.bluetooth.BluetoothGatt::class.java)
+            .apply { isAccessible = true }.invoke(driver, warmup, System.currentTimeMillis(), gatt)
+        assertTrue(staged.validated)
+        assertEquals(0, roomWrites)
     }
 
     @Test fun gattCallbackReturnsWhileRoomIsBusyAndOwnedWorkerProcessesItsCopiedFrameLater() {

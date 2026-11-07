@@ -52,11 +52,20 @@ must decode to two 16-byte values and any response serial must match the request
 Allowlist membership does not guarantee that keys exist.
 
 Automatic fetches return uncommitted material. The BLE handler checks the exact GATT,
-exchange generation and saved-material revision before committing it; a newer import wins.
+exchange generation and saved-material revision before staging it in that connection's
+private protocol session. A rejected F001/BOND discards it without touching the persistent
+store or global registry. A valid BOND permits retention across a warmup reconnect, and a
+CRC-valid direct F003 frame permits the encrypted commit (even for a warmup glucose
+sentinel). A newer import wins the revision check at commit time. Transient encrypted-store
+failures retry the same validated material on later live frames with bounded write backoff;
+they do not refetch keys or persist the PAIR credential prematurely.
 Transient failures carry their backoff deadline to the recovery state, which permits at
 most four later reconnect retries. Permanent failures and a completed BC installation stop
 automatic requests. HTTP 5xx tries the alternate IP once before backing off; successful
 responses still require a valid signature. Signed allowlist client errors cache for an hour.
+An active refresh backoff also propagates through a stale allowlist miss, since a stale miss
+does not establish that the sensor is ineligible. Expired CN sessions (code 800) are cleared
+only if their rejected token still matches; an open setup wizard observes that change.
 
 ## Validation
 
@@ -82,3 +91,7 @@ The credential-enabled phone build and all 13 BloodControl protocol/provider tes
 Review follow-up validation passed 616 phone tests and 560 Wear tests. Added regressions
 cover stale/duplicate completions, a newer saved import, bounded reconnect retry deadlines,
 signed allowlist failure caching, HTTP 5xx route fallback, and unconfigured Russian UI.
+
+Validated-material follow-up passed 629 phone and 569 Wear tests. It additionally covers
+actual-manager BOND rejection cleanup, bad-CRC and warmup F003 handling, bounded validated
+store retries, token-specific session expiry, wizard refresh, and stale allowlist recovery.

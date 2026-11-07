@@ -8,28 +8,28 @@ import tk.glucodata.drivers.aidex.bloodcontrol.BloodControlAidex
 class AiDexAutomaticKeyRecoveryTests {
     private val keys = AiDexProvisionedKeys(ByteArray(16) { 1 }, ByteArray(16) { 2 })
 
-    @Test fun staleConnectionCompletionCannotOverwriteNewerSavedMaterial() {
+    @Test fun staleConnectionCompletionCannotStageOverNewerMaterial() {
         val recovery = AiDexAutomaticKeyRecovery()
         val pending = recovery.begin()!!
         var saved = AiDexProvisionedKeys(ByteArray(16) { 3 }, ByteArray(16) { 4 })
         val newer = saved
         val installed = recovery.complete(pending, BloodControlAidex.AutomaticResult(keys, true),
-            isCurrent = { false }, install = { saved = it; true })
+            isCurrent = { false }, stage = { saved = it; true })
         assertFalse(installed)
         assertSame(newer, saved)
         // Discarding a stale response must not exhaust a new exchange's provisioning.
         assertTrue(recovery.begin()!!.tryCn)
     }
 
-    @Test fun onlyFreshCompletionCanCommitAndDuplicateCompletionCannotCommitAgain() {
+    @Test fun onlyFreshCompletionCanStageAndDuplicateCompletionCannotStageAgain() {
         val recovery = AiDexAutomaticKeyRecovery()
         val attempt = recovery.begin()!!
         assertNull(recovery.begin())
         var writes = 0
         assertTrue(recovery.complete(attempt, BloodControlAidex.AutomaticResult(keys, true),
-            isCurrent = { true }, install = { writes++; true }))
+            isCurrent = { true }, stage = { writes++; true }))
         assertFalse(recovery.complete(attempt, BloodControlAidex.AutomaticResult(keys, true),
-            isCurrent = { true }, install = { writes++; true }))
+            isCurrent = { true }, stage = { writes++; true }))
         assertEquals(1, writes)
         assertNull(recovery.begin())
     }
@@ -78,12 +78,12 @@ class AiDexAutomaticKeyRecoveryTests {
         assertNull(recovery.begin())
     }
 
-    @Test fun changedSavedRevisionCannotBeOverwrittenByOtherwiseFreshCompletion() {
+    @Test fun changedSavedRevisionCannotBeStagedOverByOtherwiseFreshCompletion() {
         val recovery = AiDexAutomaticKeyRecovery()
         var saved = "imported-after-request"
         val expected = "before-request"
         val installed = recovery.complete(recovery.begin()!!, BloodControlAidex.AutomaticResult(keys, true),
-            isCurrent = { true }, install = {
+            isCurrent = { true }, stage = {
                 if (saved == expected) { saved = "downloaded"; true } else false
             })
         assertFalse(installed)

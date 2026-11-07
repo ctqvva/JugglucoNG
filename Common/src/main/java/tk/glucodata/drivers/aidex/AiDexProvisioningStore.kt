@@ -1,6 +1,7 @@
 package tk.glucodata.drivers.aidex
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.MessageDigest
@@ -28,6 +29,7 @@ internal object AiDexProvisioningStore {
 
     fun accountLabel(context: Context): String = readEncrypted(context, ACCOUNT)
 
+    @Synchronized
     fun saveSession(context: Context, accountLabel: String, token: String): Boolean {
         if (token.isBlank()) return false
         val encryptedToken = encrypt(token) ?: return false
@@ -38,8 +40,24 @@ internal object AiDexProvisioningStore {
             .commit()
     }
 
+    @Synchronized
     fun clearSession(context: Context) {
         prefs(context).edit().remove(TOKEN).remove(ACCOUNT).apply()
+    }
+
+    /** An expired request must not clear an account signed in while it was pending. */
+    @Synchronized
+    fun clearSessionIfMatches(context: Context, rejectedToken: String) {
+        if (token(context) == rejectedToken) clearSession(context)
+    }
+
+    fun addSessionListener(context: Context, onChanged: () -> Unit): () -> Unit {
+        val preferences = prefs(context)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == null || key == TOKEN) onChanged()
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        return { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
     /** Persist only complete material, then install a defensive copy into the live registry. */
@@ -73,8 +91,27 @@ internal object AiDexProvisioningStore {
         iv: ByteArray,
         expectedRevision: String?,
     ): Boolean {
-        if (savedMaterialRevision(context, serial) != expectedRevision) return false
-        return saveAndInstall(context, serial, secret, iv)
+        return saveAndInstallIfUnchangedResult(context, serial, secret, iv, expectedRevision).status ==
+            ConditionalSaveStatus.SAVED
+    }
+
+    enum class ConditionalSaveStatus { SAVED, SUPERSEDED, RETRYABLE_FAILURE }
+
+    class ConditionalSaveResult(val status: ConditionalSaveStatus, val revision: String?)
+
+    @Synchronized
+    fun saveAndInstallIfUnchangedResult(
+        context: Context, serial: String, secret: ByteArray, iv: ByteArray, expectedRevision: String?,
+    ): ConditionalSaveResult {
+        val before = savedMaterialRevision(context, serial)
+        if (before != expectedRevision) return ConditionalSaveResult(ConditionalSaveStatus.SUPERSEDED, before)
+        val saved = saveAndInstall(context, serial, secret, iv)
+        // SharedPreferences can update its memory map even when the disk commit fails.
+        // Retain that revision for retrying our own write, while still detecting a later import.
+        val after = savedMaterialRevision(context, serial)
+        return ConditionalSaveResult(
+            if (saved) ConditionalSaveStatus.SAVED else ConditionalSaveStatus.RETRYABLE_FAILURE, after,
+        )
     }
 
     fun hasSaved(context: Context, serial: String): Boolean = loadSaved(context, serial) != null

@@ -158,6 +158,58 @@ class BloodControlProviderRetryTests {
         assertEquals(listOf(BloodControlAidexKeyProvider.ALLOWLIST, BloodControlAidexKeyProvider.KEYS), paths)
     }
 
+    @Test fun staleAllowlistMissPreservesRefreshDeadlineAcrossRecreationAndCanBecomeEligible() {
+        val cache = Cache().apply {
+            put("allowlist", "[\"BCTEST0002\"]")
+            put("allowlist_at", clock - 6 * 60_000)
+        }
+        val paths = mutableListOf<String>()
+        var failRefresh = true
+        val transport = BloodControlTransport { path, _ ->
+            paths += path
+            if (path == BloodControlAidexKeyProvider.ALLOWLIST) {
+                if (failRefresh) throw ConnectException()
+                signed(200, "{\"allowlistAidex\":[\"$serial\"]}")
+            } else signed(200, keys())
+        }
+        fun provider() = BloodControlAidexKeyProvider(credentials, transport, cache, { clock })
+        val deadline = clock + 15 * 60_000
+        assertEquals(deadline, provider().request(serial).retryAtMillis)
+        assertEquals(0L, cache.long("retry_$serial"))
+        assertEquals(listOf(BloodControlAidexKeyProvider.ALLOWLIST), paths)
+
+        clock = deadline - 1
+        assertEquals(deadline, provider().request(serial).retryAtMillis)
+        assertEquals(0L, cache.long("retry_$serial"))
+        assertEquals(listOf(BloodControlAidexKeyProvider.ALLOWLIST), paths)
+
+        clock = deadline
+        failRefresh = false
+        val result = provider().request(serial)
+        assertNotNull(result.keys)
+        assertNull(result.retryAtMillis)
+        assertEquals(listOf(BloodControlAidexKeyProvider.ALLOWLIST,
+            BloodControlAidexKeyProvider.ALLOWLIST, BloodControlAidexKeyProvider.KEYS), paths)
+    }
+
+    @Test fun confirmedFreshAndNonTransientStaleMissesRemainNegativeCached() {
+        for (stale in listOf(false, true)) {
+            val cache = Cache().apply {
+                put("allowlist", "[\"BCTEST0002\"]")
+                put("allowlist_at", clock - if (stale) 6 * 60_000 else 0)
+            }
+            val paths = mutableListOf<String>()
+            val provider = BloodControlAidexKeyProvider(credentials, BloodControlTransport { path, _ ->
+                paths += path
+                signed(400, "{\"detail\":\"INVALID_REQUEST\"}")
+            }, cache, { clock })
+            assertNull(provider.request(serial).retryAtMillis)
+            assertEquals(clock + 5 * 60_000, cache.long("retry_$serial"))
+            assertNull(provider.request(serial).retryAtMillis)
+            assertEquals(if (stale) listOf(BloodControlAidexKeyProvider.ALLOWLIST) else emptyList<String>(), paths)
+        }
+    }
+
     @Test fun signedMalformedAllowlistIsTerminalRatherThanANetworkRetry() {
         for (body in listOf("not json", "{}")) {
             var calls = 0

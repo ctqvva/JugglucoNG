@@ -67,6 +67,13 @@ fun AiDexSetupWizard(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var signedIn by remember { mutableStateOf(AiDexProvisioningStore.hasSession(context)) }
+    DisposableEffect(context) {
+        val removeListener = AiDexProvisioningStore.addSessionListener(context) {
+            signedIn = AiDexProvisioningStore.hasSession(context)
+        }
+        signedIn = AiDexProvisioningStore.hasSession(context)
+        onDispose { removeListener() }
+    }
     val navigateBack = {
         if (currentStep == AiDexSetupStep.SCAN) onDismiss() else currentStep = AiDexSetupStep.SCAN
     }

@@ -16,12 +16,12 @@ internal class AiDexAutomaticKeyRecovery(private val now: () -> Long = System::c
         return Attempt(tryCn = !cnAttempted).also { inFlight = it }
     }
 
-    /** No persistence callback runs before freshness has been checked on the BLE handler. */
+    /** Stage for the sensor exchange only; persistence follows direct live-frame validation. */
     fun complete(
         attempt: Attempt,
         result: BloodControlAidex.AutomaticResult,
         isCurrent: () -> Boolean,
-        install: (AiDexProvisionedKeys) -> Boolean,
+        stage: (AiDexProvisionedKeys) -> Boolean,
     ): Boolean {
         if (inFlight !== attempt) return false
         inFlight = null
@@ -29,10 +29,10 @@ internal class AiDexAutomaticKeyRecovery(private val now: () -> Long = System::c
         cnAttempted = true
         val keys = result.keys
         if (keys != null) {
-            val installed = install(keys)
-            terminal = result.usedBloodControl || !installed
+            val staged = stage(keys)
+            terminal = result.usedBloodControl || !staged
             retryAtMillis = 0
-            return installed
+            return staged
         }
         val deadline = result.retryAtMillis
         if (deadline != null && ++transientFailures < MAX_TRANSIENT_ATTEMPTS) {
