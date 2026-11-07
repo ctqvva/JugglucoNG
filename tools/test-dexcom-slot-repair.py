@@ -41,6 +41,11 @@ helpers = '\n'.join(extract(header, s) for s in [
 # The cursor rewind a writer makes after storing a sample.
 backstream = extract((root / 'Common/src/main/cpp/glucose.cpp').read_text(),
                      'void SensorGlucoseData::backstream(int pos)').replace('SensorGlucoseData::', '')
+# The writers a mirrored sample or the driver stores through.
+writers = '\n'.join('template <int secs>\n' + extract(header, s) for s in [
+    'int savepollallIDsonly(time_t tim', 'int savepollallIDsonlyQuiet(time_t tim',
+    'bool savepollallIDs(time_t tim', 'bool savepollallIDsQuiet(time_t tim',
+])
 backfill = extract((root / 'Common/src/main/cpp/dexcom/java.cpp').read_text(),
                    'fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr)')
 backfill = 'jbyteArray ' + backfill.replace('fromjava(getDexbackfillcmd)', 'getDexbackfillcmd')
@@ -49,11 +54,15 @@ backfill = 'jbyteArray ' + backfill.replace('fromjava(getDexbackfillcmd)', 'getD
 # store must be repaired when it is opened.
 assert re.search(r'lifeCount = dexslots \? hist->dexSlotFor\(timestamp\)', writer), 'writer must snap Dexcom slots'
 assert re.search(r'if \(isDexcom\(\)\)\s*repairDexcomMinuteSlots\(\);', header), 'Dexcom stores must be repaired on load'
-for sig in ['int savepollallIDsonly(time_t tim', 'int savepollallIDsonlyQuiet(time_t tim',
-            'bool savepollallIDs(time_t tim', 'bool savepollallIDsQuiet(time_t tim',
-            'void repairDexcomMinuteSlots()']:
-    assert 'pollWriteMutex()' in extract(header, sig), f'{sig} must serialize poll writes with repair'
-assert 'pollWriteMutex()' in extract(writer, 'static bool storeGlucoseStreamSample('), 'mirror writer must serialize poll reads and writes with repair'
+# The writers, the repair and the cursor rewind are run below, and the mirror writer in
+# test-resolved-glucose.py. The two outer writers also move the count after the inner
+# one returns, a gap no other thread can be made to land in, so their guard has to be
+# the first statement: that is what makes it span the inner call and the count.
+for sig in ['bool savepollallIDs(time_t tim', 'bool savepollallIDsQuiet(time_t tim']:
+    body = extract(header, sig)
+    first = body[body.index('{') + 1:].lstrip().split(';', 1)[0]
+    assert re.fullmatch(r'const std::lock_guard<std::recursive_mutex> \w+\(pollWriteMutex\(\)\)', first), \
+        f'{sig} must take the poll write lock before anything else'
 
 fixture = r'''
 #include <algorithm>
@@ -70,6 +79,7 @@ fixture = r'''
 #include <thread>
 #include <vector>
 #define NOLOG
+constexpr float convfactordL = 180.182f;
 #define LOGGER(...) do{if(false)printf(__VA_ARGS__);}while(0)
 #define LOGAR(...) do{}while(0)
 using namespace std;
@@ -139,6 +149,27 @@ static jbyteArray mkbackfillcmd(JNIEnv *, int start, int end) { return {start, e
 static jbyteArray ask(SensorGlucoseData &d) {
     dexcomstream stream{&d}; JNIEnv env;
     return getDexbackfillcmd(&env, 0, reinterpret_cast<jlong>(&stream));
+}
+// Runs write() on another thread while this one holds the poll write lock, as a
+// repair does. The writer must neither finish nor touch the store until the lock
+// is let go: a lock taken after its first write (the gap fill) would let a repair
+// see, and cut the count under, a half-written sample.
+template <class Write>
+unique_ptr<SensorGlucoseData> waitsForRepair(Write write) {
+    auto d = make_unique<SensorGlucoseData>();
+    d->metadata.starttime = 1790000000u;
+    d->metadata.pollcount = 8;
+    atomic<bool> done{false};
+    thread writer;
+    {
+        lock_guard<recursive_mutex> repairing(SensorGlucoseData::pollWriteMutex());
+        writer = thread([&] { write(*d); done = true; });
+        this_thread::sleep_for(chrono::milliseconds(100));
+        assert(!done && !d->polls[8].t && !d->polls[10].t && d->metadata.pollcount == 8);
+    }
+    writer.join();
+    assert(done && d->polls[8].id == 8 && !d->polls[8].g && d->polls[10].g == 105);
+    return d;
 }
 int main() {
     const uint32_t S = 1790000000u;
@@ -230,6 +261,16 @@ int main() {
         repair.join();
         assert(d.pollcount() == 369 && d.polls[368].g == 121);
         assert(d.polls[366].g == 99);
+    }
+    {   // Each writer waits for a repair in flight before its first write, and the two
+        // that move the count do so before they release the lock.
+        const uint32_t t = 1790000000u + 10 * 300;
+        waitsForRepair([&](SensorGlucoseData &d) { d.savepollallIDsonly<300>(t, 10, 105, 0, 0.f); });
+        waitsForRepair([&](SensorGlucoseData &d) { d.savepollallIDsonlyQuiet<300>(t, 10, 105, 0, 0.f); });
+        auto loud = waitsForRepair([&](SensorGlucoseData &d) { assert(d.savepollallIDs<300>(t, 10, 105, 0, 0.f)); });
+        assert(loud->pollcount() == 11);
+        auto quiet = waitsForRepair([&](SensorGlucoseData &d) { assert(d.savepollallIDsQuiet<300>(t, 10, 105, 0, 0.f)); });
+        assert(quiet->pollcount() == 11);
     }
     {   // The cursor rewind after a store is a read-compare-write too. It waits for a
         // repair in flight, so it cannot write back the higher cursor it read first
@@ -340,7 +381,7 @@ int main() {
     }
     puts("PASS: Dexcom minute-indexed copies are moved to their slots or dropped, repair is serialized with writes, the stream ends at the newest reading, and skewed copies keep their slot");
 }
-'''.replace('/* HELPERS */', helpers + '\n' + backstream).replace('/* BACKFILL */', backfill)
+'''.replace('/* HELPERS */', helpers + '\n' + backstream + '\n' + writers).replace('/* BACKFILL */', backfill)
 
 with tempfile.TemporaryDirectory(prefix='dexcom-slot-repair-') as directory:
     directory = Path(directory)
