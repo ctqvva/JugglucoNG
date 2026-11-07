@@ -59,17 +59,24 @@ object DexcomWatchSetup {
     /**
      * Watch: build the Dexcom record from an incoming payload.
      *
-     * Skipped when this watch already has a Dexcom driver for the sensor: the
-     * phone refreshes its setup periodically, and rebuilding the driver roster
-     * each time would drop a live connection.
+     * Not rebuilt when this watch already has a Dexcom driver for the sensor:
+     * the phone refreshes its setup periodically, and rebuilding the driver
+     * roster each time would drop a live connection. The one thing a refresh
+     * can change is the phone's slot, so a driver that has ended up on it is
+     * moved to the slot the phone left.
      */
     internal fun applyOnWatch(root: JSONObject): Boolean {
         if (!Applic.isWearable) return false
         val part = root.optJSONObject(KEY) ?: return false
         val scan = part.optString(KEY_SCAN, "").takeIf { it.isNotEmpty() } ?: return false
         val serial = part.optString(KEY_SERIAL, "")
-        if (serial.isNotEmpty() && dexcomCallbackFor(serial) != null) return true
-        val slot = watchSlotFor(part.optInt(KEY_PHONE_SLOT, DexcomBluetoothSlot.DEFAULT))
+        val phoneSlot = part.optInt(KEY_PHONE_SLOT, DexcomBluetoothSlot.DEFAULT)
+        val slot = watchSlotFor(phoneSlot)
+        val existing = serial.takeIf { it.isNotEmpty() }?.let { dexcomCallbackFor(it) }
+        if (existing != null) {
+            if (existing.authSlot == phoneSlot) moveToSlot(existing, slot)
+            return true
+        }
         val name = runCatching { Natives.addSIscangetName(scan, intArrayOf(-1)) }
             .onFailure { Log.stack(LOG_ID, "addSIscangetName", it) }
             .getOrNull()
@@ -89,10 +96,28 @@ object DexcomWatchSetup {
         return true
     }
 
-    private fun dexcomCallbackFor(sensorId: String): SuperGattCallback? = runCatching {
+    /**
+     * Pairs an existing driver again on [slot], as the sensor card's slot picker
+     * does: the key and bond belong to the old slot, so the next connection
+     * pairs from the stored code. Paused around the change, which closes the old
+     * session itself.
+     */
+    private fun moveToSlot(callback: DexGattCallback, slot: Int) {
+        val wasPaused = SensorBluetooth.isSensorPaused(callback)
+        callback.setPause(true)
+        callback.changeAuthSlot(slot)
+        if (callback.dataptr != 0L) runCatching { Natives.resetbluetooth(callback.dataptr) }
+        if (!wasPaused) {
+            callback.setPause(false)
+            callback.connectDevice(200)
+        }
+        Log.i(LOG_ID, "moved Dexcom ${callback.SerialNumber} to Bluetooth slot $slot: the phone is now on the slot it used")
+    }
+
+    private fun dexcomCallbackFor(sensorId: String): DexGattCallback? = runCatching {
         SensorBluetooth.mygatts()?.firstOrNull {
             it is DexGattCallback && SensorIdentity.matches(it.SerialNumber, sensorId)
-        }
+        } as? DexGattCallback
     }.getOrNull()
 }
 
