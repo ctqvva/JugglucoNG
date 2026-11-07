@@ -54,4 +54,20 @@ class DexcomRecoveryTests {
             output.delete()
         }
     }
+
+    @Test fun minuteIndexedWatchCopiesAreRepairedIntoDexcomSlots() {
+        val root = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }
+            .first { File(it, "tools/test-dexcom-slot-repair.py").isFile }
+        val output = File.createTempFile("dexcom-slot-repair-", ".log")
+        try {
+            val process = ProcessBuilder("python3", File(root, "tools/test-dexcom-slot-repair.py").path)
+                .directory(root).redirectErrorStream(true).redirectOutput(output).start()
+            val finished = process.waitFor(60, TimeUnit.SECONDS)
+            if (!finished) process.destroyForcibly()
+            assertTrue("Dexcom slot repair tests timed out: ${output.readText()}", finished)
+            assertEquals(output.readText(), 0, process.exitValue())
+        } finally {
+            output.delete()
+        }
+    }
 }

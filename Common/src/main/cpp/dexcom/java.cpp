@@ -269,8 +269,13 @@ fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr) {
   dexcomstream *sdata = reinterpret_cast<dexcomstream *>(dataptr);
   SensorGlucoseData *sens = sdata->hist;
   auto *info = sens->getinfo();
-  const int last = info->pollcount - 1;
   const int was = info->lastLifeCountReceived;
+  int last = info->pollcount - 1;
+  // Readings once mirrored at minute indices (#767) can sit past the newest
+  // real slot with an older time, which made the window empty; end it at the
+  // newest reading that fits its own slot.
+  while (last > was && !sens->dexSlotTimeFits(last))
+    --last;
   uint32_t starttime = sens->getstarttime();
   if (last > was) {
     time_t starts = sens->getstream(was)->gettime() + 60;

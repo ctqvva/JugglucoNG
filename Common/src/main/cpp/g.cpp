@@ -1521,9 +1521,14 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
     syncListStarttime(hist, start);
   }
 
+  // Dexcom stores one reading per 5-minute sensor slot, not per minute.
+  // Readings mirrored from the watch at minute indices ran the stream end far
+  // past the live slot, so no backfill was requested any more (#767).
+  const bool dexslots = hist->isDexcom();
   int lifeCount = 0;
   if (start > 0 && timestamp >= start)
-    lifeCount = (timestamp - start) / 60;
+    lifeCount = dexslots ? hist->dexSlotFor(timestamp)
+                         : (timestamp - start) / 60;
   const uint16_t mgVal = (uint16_t)(glucose * 10.0f);
 
   if (!hist->validPollIndex(lifeCount)) {
@@ -1540,6 +1545,10 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
   uint16_t preservedTemp = 0;
   const ScanData *pollsbuf = hist->getPollsData();
   const bool fillsPollGap = pollsbuf && pollsbuf[lifeCount].g <= 0;
+  // The driver's own reading for a slot wins; a mirrored copy only fills a
+  // slot it missed.
+  if (dexslots && lifeCount < hist->pollcount() && !fillsPollGap)
+    return false;
   if (hist->hasStreamID(lifeCount)) {
     const RawData *rawbuf = hist->getRawPollsData();
     if (rawbuf)
@@ -1554,13 +1563,18 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
   const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
                                              mgVal, timestamp, primaryIsResolved);
   const int storedGlucose = mgVal | (primaryIsResolved ? ScanData::resolvedGlucoseFlag : 0);
-  const bool stored = quiet
-                          ? hist->savepollallIDsQuiet<60>(
-                                timestamp, lifeCount, storedGlucose, 0, change,
-                                preservedRaw, preservedTemp)
-                          : hist->savepollallIDs<60>(
-                                timestamp, lifeCount, storedGlucose, 0, change,
-                                preservedRaw, preservedTemp);
+  const bool stored =
+      dexslots ? (quiet ? hist->savepollallIDsQuiet<300>(
+                              timestamp, lifeCount, storedGlucose, 0, change,
+                              preservedRaw, preservedTemp)
+                        : hist->savepollallIDs<300>(timestamp, lifeCount,
+                                                    storedGlucose, 0, change,
+                                                    preservedRaw, preservedTemp))
+      : quiet ? hist->savepollallIDsQuiet<60>(timestamp, lifeCount, storedGlucose,
+                                              0, change, preservedRaw,
+                                              preservedTemp)
+              : hist->savepollallIDs<60>(timestamp, lifeCount, storedGlucose, 0,
+                                         change, preservedRaw, preservedTemp);
   if (!stored)
     return false;
 
