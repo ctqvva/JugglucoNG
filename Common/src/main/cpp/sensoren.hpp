@@ -899,7 +899,10 @@ private:
     }
     if (!SensorGlucoseData::mkdatabaseDex(sensordir, scan.payload, now, scan.days)) {
       LOGGER("convertMirrorToDexcom mkdatabaseDex %s failed\n", sensordir.data());
-      rename(aside, sensordir.data());
+      // The directory mkdatabaseDex made would stop the mirror moving back.
+      rmdir(sensordir.data());
+      if (rename(aside, sensordir.data()) != 0)
+        LOGGER("convertMirrorToDexcom restoring %s failed\n", aside);
       return {-1, nullptr};
     }
     hist[ind] = nullptr; // reopened below; the old object is left alive on purpose

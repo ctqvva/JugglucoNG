@@ -1649,7 +1649,10 @@ bool libreviewable() const {
              .pollcount = 0};
     inf.siIdlen = sensorgegs.size();
     memcpy(inf.siId, sensorgegs.data(), inf.siIdlen);
-    writeall(infoname, &inf, sizeof(inf));
+    if (!writeall(infoname, &inf, sizeof(inf))) {
+      unlink(infoname); // a truncated info.dat must not read as a record
+      return false;
+    }
 
     //        settings->data()->balanced_priority=false;
     //       settings->data()->android13=true;

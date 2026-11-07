@@ -43,9 +43,11 @@ struct Info {
     struct {int len;signed char data[6];int16_t extra;} info{};
 };
 map<string,Info> disk;
-// Directory rename: moves every file under the old path, as the real one would.
+// Directory rename: moves every file under the old path, as the real one
+// would, and refuses a destination directory that still holds files.
 int fakeRename(const char* from,const char* to){
     const string prefix=string(from)+"/";bool moved=false;
+    for(const auto& entry:disk)if(entry.first.starts_with(string(to)+"/"))return -1;
     for(auto it=disk.begin();it!=disk.end();){
         if(it->first.starts_with(prefix)){
             disk[string(to)+"/"+it->first.substr(prefix.size())]=it->second;
@@ -56,8 +58,16 @@ int fakeRename(const char* from,const char* to){
 }
 #define rename fakeRename
 int mkdir(const char*,int){return 0;}
+int fakeRmdir(const char*){return 0;}
+int fakeUnlink(const char* path){return disk.erase(path)?0:-1;}
+#define rmdir fakeRmdir
+#define unlink fakeUnlink
 int access(const char* path,int){return disk.contains(path)?0:-1;}
-void writeall(const char* path,const void* info,size_t){disk[path]=*static_cast<const Info*>(info);}
+// A failing write leaves the truncated file the real one creates before it fails.
+bool failWrites=false;
+bool writeall(const char* path,const void* info,size_t){
+    if(failWrites){disk[path]=Info{};return false;}
+    disk[path]=*static_cast<const Info*>(info);return true;}
 template<class T> struct Readall {
     Info info;
     Readall(const char* path):info(disk.at(path)){}
@@ -445,6 +455,30 @@ int main(){
         assert(disk.contains(string(dir)+"/info.dat")&&!disk.at(string(dir)+"/info.dat").dexcom);
         assert(registry.getSensorData(otherId)->metadata.pollcount==900);
     }
-    cout<<"PASS: mirrored record converted to Dexcom on setup, other records left alone\n";
+    // A write that fails must leave the mirror where it was, not a moved-aside
+    // one behind an empty Dexcom record.
+    registry=Sensoren{};disk.clear();
+    {
+        auto scan=*dexcom::parseScan(barcode());
+        pathconcat dir(registry.inbasedir,scan.name);
+        Info plain{};plain.dexcom=false;plain.days=14;plain.pollcount=900;plain.interval=15*60;
+        disk[string(dir)+"/info.dat"]=plain;
+        const int mirrorId=registry.addsensor(scan.name);
+        auto* mirror=registry.getSensorData(mirrorId);
+        failWrites=true;
+        assert(!SensorGlucoseData::mkdatabaseDex("elsewhere",scan.payload,1700000005,scan.days));
+        assert(!disk.contains("elsewhere/info.dat"));
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005);
+        failWrites=false;
+        assert(id==-1&&!d&&registry.retired.empty());
+        assert(registry.getSensorData(mirrorId)==mirror&&!mirror->isDexcom());
+        assert(disk.contains(string(dir)+"/info.dat")&&!disk.at(string(dir)+"/info.dat").dexcom);
+        assert(disk.at(string(dir)+"/info.dat").pollcount==900);
+        assert(!disk.contains(string(dir)+".mirror1700000005/info.dat"));
+        // The next attempt converts it.
+        auto [retry,converted]=registry.makeDexComSensorindex(scan,1700000006);
+        assert(retry==mirrorId&&converted&&converted->isDexcom()&&registry.retired.size()==1);
+    }
+    cout<<"PASS: mirrored record converted to Dexcom on setup, other records and failed writes left alone\n";
     cout<<"PASS: Dexcom Flex discovery/binding, batched backfill, GS1/manual identities, model-aware reuse, legacy migration, storage and live cutoff\n";
 }
