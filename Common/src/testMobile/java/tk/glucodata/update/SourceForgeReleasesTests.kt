@@ -186,8 +186,10 @@ class SourceForgeReleasesTests {
         assertTrue(UpdateSourceClient.shouldTryBackup(default, default, UpdateError.NETWORK))
         assertTrue(UpdateSourceClient.shouldTryBackup("$default/", default, UpdateError.RATE_LIMITED))
 
+        // A 200 that is not a releases array, e.g. a filtering proxy's block page.
+        assertTrue(UpdateSourceClient.shouldTryBackup(default, default, UpdateError.PARSE))
+
         // GitHub answered, so the mirror would only say the same thing.
-        assertFalse(UpdateSourceClient.shouldTryBackup(default, default, UpdateError.PARSE))
         assertFalse(UpdateSourceClient.shouldTryBackup(default, default, UpdateError.NO_ARTIFACT))
 
         // A source the user chose is never swapped for ours, even when it points at the same

@@ -42,8 +42,13 @@ object UpdateSourceClient {
     /** Release folders tried on the mirror, newest first (see [SourceForgeReleases.newestRegularReleases]). */
     private const val MIRROR_RELEASE_CANDIDATES = 3
 
-    /** Failures that say "GitHub is unreachable", as opposed to "GitHub answered and has nothing". */
-    private val BACKUP_ERRORS = setOf(UpdateError.NETWORK, UpdateError.RATE_LIMITED)
+    /**
+     * Failures that say "we did not get GitHub's answer", as opposed to "GitHub answered and has
+     * nothing". PARSE belongs here: on the GitHub path it only means the 200 body was not a
+     * releases array, which is what a filtering proxy's block page looks like. NO_ARTIFACT does
+     * not, since the mirror carries the same builds.
+     */
+    private val BACKUP_ERRORS = setOf(UpdateError.NETWORK, UpdateError.RATE_LIMITED, UpdateError.PARSE)
 
     val userAgent: String = "JugglucoNG/${BuildConfig.BASE_VERSION_NAME} (Android)"
 
@@ -75,7 +80,7 @@ object UpdateSourceClient {
     }
 
     /**
-     * Only for the default GitHub source, and only when GitHub itself could not be reached.
+     * Only for the default GitHub source, and only when GitHub's answer could not be obtained or read.
      *
      * Compared as typed, not as resolved: `https://api.github.com/repos/<default>/releases`
      * resolves to the same endpoint as the default, but a user who entered that URL chose it.
