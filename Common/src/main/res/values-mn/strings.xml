@@ -869,6 +869,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="scan_sensor_title">QR код уншуулах</string>
     <string name="scan_sensor_instruction">Sibionics мэдрэгчийн хайрцаг дээрх QR кодыг уншуулна уу.</string>
     <string name="scan_sensor_instruction_sibionics2">Sibionics 2 дамжуулагч дээрх холболтын кодыг уншуулна уу, эсвэл доорх Bluetooth-оос дамжуулагчаа сонгоно уу.</string>
+    <string name="scan_sensor_instruction_gs3cn">Sibionics GS3 (Хятад) Bluetooth-оор холбогдоно. Мэдрэгчийг ойр байлгаад доорх жагсаалтаас сонгоно уу.</string>
     <string name="scan_qr_button">QR код уншуулах</string>
     <string name="select_gallery_button">Галлерейгаас сонгох</string>
     <string name="skip_fake_sensor">Алгасах (Хуурамч мэдрэгч ашиглах)</string>
@@ -2216,6 +2217,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
 
     <!-- Preserved current-main entries added after the translation branch split. -->
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (Хятад)</string>
     <string name="data_smoothing_exchange_only_title">Зөвхөн илгээх хэмжилт</string>
     <string name="data_smoothing_causal_title">Одоогийн утгын Калманы шүүлтүүр</string>
     <string name="data_smoothing_causal_desc">Хамгийн сүүлийн уншилтыг зөвхөн өмнөхөөр тооцоолдог тул дараа нь өөрчлөгдөхгүй. График болон Nightscout жигдлэх цонхыг ашиглана</string>

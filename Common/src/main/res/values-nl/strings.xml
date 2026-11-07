@@ -526,6 +526,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="scan_sensor_title">Scan QR-code</string>
     <string name="scan_sensor_instruction">Scan de QR-code op je generieke Sibionics-sensordoos.</string>
     <string name="scan_sensor_instruction_sibionics2">Scan de verbindingscode op de Sibionics 2-zender, of kies de zender hieronder via Bluetooth.</string>
+    <string name="scan_sensor_instruction_gs3cn">De Sibionics GS3 (China) koppelt via Bluetooth. Houd de sensor dichtbij en kies hem hieronder uit de lijst.</string>
     <string name="scan_qr_button">QR-code scannen</string>
     <string name="select_gallery_button">Selecteer uit galerij</string>
     <string name="skip_fake_sensor">Overslaan (Gebruik nepsensor)</string>
@@ -978,6 +979,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensors_title">Sensors</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (China)</string>
     <string name="stability">Stabiliteit</string>
     <string name="start_tracking">Begin met het bijhouden van uw glucose om statistieken te bekijken</string>
     <string name="statistics_subtitle">Uw glucoseanalyses</string>

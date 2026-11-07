@@ -378,6 +378,7 @@
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2 osztott</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (Kína)</string>
     <string name="datapresent">"Meglévő adatok: "</string>
     <string name="overwrite">Felülírás?</string>
     <string name="autoqr">Automatikus QR</string>
@@ -894,6 +895,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="scan_sensor_title">QR-kód szkennelése</string>
     <string name="scan_sensor_instruction">Szkennelje be a hagyományos Sibionics szenzor dobozán lévő QR-kódot.</string>
     <string name="scan_sensor_instruction_sibionics2">Szkennelje be a Sibionics 2 jeladó csatlakozási kódját, vagy válassza ki alább a jeladót a Bluetooth-eszközök közül.</string>
+    <string name="scan_sensor_instruction_gs3cn">A Sibionics GS3 (Kína) Bluetooth-on keresztül párosítható. Tartsa közel az érzékelőt, és válassza ki az alábbi listából.</string>
     <string name="scan_qr_button">QR-kód szkennelése</string>
     <string name="select_gallery_button">Kiválasztás a Galériából</string>
     <string name="skip_fake_sensor">Kihagyás (tesztszenzor)</string>
