@@ -1256,17 +1256,26 @@ class ICanHealthBleManager(
                 return true
             }
             if (pendingAddressRebind != null || phase != Phase.IDLE || hasLocallyConnectedGatt()) return false
-            val savedIds = listOf(SerialNumber, serialFromDevice, rawSerialFromDevice)
+            val savedIds = (listOf(SerialNumber, serialFromDevice, rawSerialFromDevice) + listOfNotNull(onboardingDeviceSn))
                 .map { ICanHealthConstants.canonicalSensorId(it) }
                 .filter { it.isNotEmpty() && !ICanHealthConstants.isProvisionalSensorId(it) }
             if (savedIds.isEmpty()) return false
+            val lastActivityMs = maxOf(lastGlucoseReceiptRealtimeMs, createdAtMs)
+            val nowMs = System.currentTimeMillis()
             val rebind = ICanHealthConstants.shouldRebindStaleAddress(
                 knownAddress = knownAddress,
                 candidateAddress = address,
                 advertisedName = trimmedName,
                 sensorIds = savedIds,
-                lastActivityMs = maxOf(lastGlucoseReceiptRealtimeMs, createdAtMs),
-                nowMs = System.currentTimeMillis(),
+                lastActivityMs = lastActivityMs,
+                nowMs = nowMs,
+            ) || ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                knownAddress = knownAddress,
+                candidateAddress = address,
+                advertisedName = trimmedName,
+                savedIds = savedIds,
+                lastActivityMs = lastActivityMs,
+                nowMs = nowMs,
             )
             if (rebind) {
                 // IDLE can still own a waiting autoConnect or a queued connection runnable.
@@ -1855,7 +1864,11 @@ class ICanHealthBleManager(
         val pending = pendingAddressRebind ?: return false
         if (!pending.candidateAddress.equals(gatt.device?.address, ignoreCase = true)) return true
         val reported = listOf(rawSerial, resolvedSerial).map { ICanHealthConstants.canonicalSensorId(it) }
-        if (pending.savedIds.any { saved -> reported.any { it.equals(saved, ignoreCase = true) } }) {
+        val identityMatches =
+            pending.savedIds.any { saved -> reported.any { it.equals(saved, ignoreCase = true) } } ||
+                ICanHealthConstants.matchesOnboardingIdentity(onboardingDeviceSn, rawSerial) ||
+                ICanHealthConstants.matchesOnboardingIdentity(onboardingDeviceSn, resolvedSerial)
+        if (identityMatches) {
             return false
         }
         return rejectRebindCandidate("DIS serial $resolvedSerial does not match the saved sensor", blacklist = true)

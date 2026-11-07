@@ -147,4 +147,48 @@ class ICanHealthOnboardingCandidateTests {
         assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding(null, "iCGM-0123456789ABCDEF"))
         assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding("", "iCGM-0123456789ABCDEF"))
     }
+
+    @Test
+    fun aFamilyNameRebindsAStaleKnownAddress() {
+        // `Sinocare CGM` carries no serial; the DIS serial read after connecting is the check.
+        assertTrue(
+            ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                knownAddress = "AA:BB:CC:DD:EE:01",
+                candidateAddress = "AA:BB:CC:DD:EE:02",
+                advertisedName = "Sinocare CGM",
+                savedIds = listOf("AAAABBBBCCCCDDDD"),
+                lastActivityMs = 0L,
+                nowMs = ICanHealthConstants.STALE_ADDRESS_REBIND_MS,
+            )
+        )
+    }
+
+    @Test
+    fun aFamilyRebindNeedsAStaleWindowAndSomethingToVerifyAgainst() {
+        val stale = ICanHealthConstants.STALE_ADDRESS_REBIND_MS
+        assertFalse(
+            ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02", "Sinocare CGM",
+                listOf("AAAABBBBCCCCDDDD"), 0L, stale - 1,
+            )
+        )
+        assertFalse(
+            ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02", "Sinocare CGM",
+                emptyList(), 0L, stale,
+            )
+        )
+        assertFalse(
+            ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:01", "Sinocare CGM",
+                listOf("AAAABBBBCCCCDDDD"), 0L, stale,
+            )
+        )
+        assertFalse(
+            ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02", "Galaxy Buds",
+                listOf("AAAABBBBCCCCDDDD"), 0L, stale,
+            )
+        )
+    }
 }
