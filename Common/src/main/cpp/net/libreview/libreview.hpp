@@ -117,7 +117,9 @@ extern bool sendlibre3viewdata(bool,uint32_t);
 
 //Libre 2 sensors keep streaming for 12 hours past their official wear period, hours that
 //Abbott's own app never reports. With the "stop at the official end" option on, nothing
-//stamped after the returned time is sent to LibreView; without it the cap is UINT32_MAX.
+//stamped after the returned time is sent to LibreView; without it the cap is UINT32_MAX,
+//and so it is for every sensor that is not a real Libre 1/2 (managed drivers' stream shells
+//also pass isLibre2(), see mkrealhistory.cpp).
 extern uint32_t libreviewCutoff(const SensorGlucoseData *sens);
 //True once the sensor is past its official end and the option cuts it off, so there is
 //nothing left to wait for on it.

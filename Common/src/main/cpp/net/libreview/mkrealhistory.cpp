@@ -6,6 +6,13 @@
 uint32_t libreviewCutoff(const SensorGlucoseData *sens) {
 	if(!sens||!settings->data()->libreviewOfficialEnd())
 		return UINT32_MAX;
+	//isLibre2() is true by elimination, so it also matches the direct stream shells of managed
+	//drivers (Ottai, Medtrum, iCan, AiDex, followers...). They have no 12 hour grace period and
+	//a lifetime of their own, which officialendtime() would replace with the 14 day fallback.
+	//Only a sensor that gave its patch info over NFC is a real Libre 1/2, the same test g.cpp
+	//uses for the Libre history lane; anything else is sent whole.
+	if(!sens->isLibre2()||sens->isAiDex()||!sens->hasLibrePatchInfo())
+		return UINT32_MAX;
 	return sens->officialendtime();
 	}
 /*
