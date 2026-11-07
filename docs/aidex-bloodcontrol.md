@@ -27,6 +27,9 @@ explicit request. Partially configured or malformed inputs fail configuration wi
 printing values. This repository has mobile/wear flavors; it has no full/foss dimension.
 No new distribution flavor is introduced. Protect these inputs in release CI and do not
 provide them to untrusted pull requests. APK credentials are recoverable from the APK.
+Trusted distribution and owner-approved development builds read the four secrets from the
+existing `production-signing` environment, only in their build step. Ordinary PR CI does
+not receive them.
 
 The dedicated HTTPS client trusts only `bloodcontrol_ca.pem`, retains hostname validation,
 rejects redirects, verifies RSA-PSS signatures over raw response bytes before JSON parsing,
@@ -52,9 +55,11 @@ failures or skips, plus UI guardrails and `git diff --check`. The rendered Russi
 inspected from the Compose test capture. A partial configuration using a synthetic token
 was rejected with a generic configuration error.
 
-The supplied serials `22222FXYT3` and `22222FY2M8` are authorized for live checks. No live
-request was possible during initial implementation because client credentials were absent.
-The supplied API audit previously reported `AIDEX_KEYS_NOT_AVAILABLE` for two F-series
-sensors; this is background evidence, not a result from this implementation. A live signed
-200 response and physical pairing/reconnect still require verification with configured
-credentials and the sensors.
+Live validation on 2026-11-07 used the production protocol, transport and provider with
+the supplied credentials and only the two authorized serials. The allowlist returned HTTP
+200 with a valid server signature. `22222FY2M8` was listed and its single key request also
+returned HTTP 200 with a valid signature; both decoded keys were 16 bytes. `22222FXYT3`
+was absent from the current allowlist, so the provider correctly skipped its key request.
+No key values or client credentials were printed or committed. Physical pairing and
+reconnect remain unverified; live API success does not establish sensor acceptance.
+The credential-enabled phone build and all 13 BloodControl protocol/provider tests passed.
