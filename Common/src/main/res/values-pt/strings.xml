@@ -3,6 +3,8 @@
     <string name="language">pt</string>
 
     <string name="languagename">Linguagem</string>
+    <string name="child_friendly_mode_title">Modo adequado para crianças</string>
+    <string name="child_friendly_mode_desc">Escolha quais controles ocultar das crianças.</string>
 <string name="app_name">JugglucoNG</string>
 
 <string name="ok">OK</string>

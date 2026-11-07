@@ -287,6 +287,24 @@ object SettingsExporter {
         exportedPreferences: JSONObject,
     ): Pair<Int, Int> {
         val aidexName = "AiDexNativePrefs"
+        val mainPreferencesName = "tk.glucodata_preferences"
+        val childFriendlyModeKey = "child_friendly_mode"
+        val mainPreferences = context.getSharedPreferences(mainPreferencesName, Context.MODE_PRIVATE)
+        val preservedChildFriendlyPreferences: Map<String, Boolean> = if (
+            mainPreferences.getBoolean(childFriendlyModeKey, false)
+        ) {
+            mainPreferences.all
+                .mapNotNull { (key, value) ->
+                    if (key == childFriendlyModeKey || key.startsWith("${childFriendlyModeKey}_")) {
+                        (value as? Boolean)?.let { key to it }
+                    } else {
+                        null
+                    }
+                }
+                .toMap()
+        } else {
+            emptyMap()
+        }
         fun historyKey(key: String) = key.startsWith("algorithmAppliedMode_") ||
             key.startsWith("algorithmEverAdaptive_") || key.startsWith("algorithmSourceBootstrapped_")
         // Settings change requests, not the provenance of retained glucose.
@@ -298,6 +316,11 @@ object SettingsExporter {
                 // by a writer during import; don't restore an earlier snapshot.
                 prefs.all.keys.filterNot(::historyKey).forEach(editor::remove)
             } else editor.clear()
+            if (name == mainPreferencesName && preservedChildFriendlyPreferences.isNotEmpty()) {
+                preservedChildFriendlyPreferences.forEach { (key, value) ->
+                    editor.putBoolean(key, value)
+                }
+            }
             return editor
         }
         val importedNames = exportedPreferences.keySet().filterNot(::isSecretPreferenceFile)
@@ -315,6 +338,10 @@ object SettingsExporter {
 
             values.keySet().sorted().forEach valueLoop@ { key ->
                 if (name == aidexName && historyKey(key)) return@valueLoop
+                if (name == mainPreferencesName &&
+                    preservedChildFriendlyPreferences.isNotEmpty() &&
+                    (key == childFriendlyModeKey || key.startsWith("${childFriendlyModeKey}_"))
+                ) return@valueLoop
                 putPreferenceValue(editor, key, values.getJSONObject(key))
                 if (name == aidexName && key.startsWith("algorithmMode_")) {
                     // An imported request cannot claim that local history has

@@ -1,6 +1,8 @@
 <resources>
     <string name="language">nl</string>
     <string name="languagename">Taal</string>
+    <string name="child_friendly_mode_title">Kindvriendelijke modus</string>
+    <string name="child_friendly_mode_desc">Kies welke bedieningselementen voor kinderen verborgen moeten worden.</string>
 
     <string name="app_name">JugglucoNG</string>
 
