@@ -292,6 +292,7 @@ class ICanHealthBleManager(
     // registry supplied. Only a guess like that may be dropped for not being a CGM.
     @Volatile private var onboardingScanPickedAddress: String? = null
     @Volatile private var expectedSerialAfterRepair: String? = null
+    @Volatile private var consecutiveSilentConnectTimeouts = 0
     private val nonCgmCandidateStrikes = ConcurrentHashMap<String, Int>()
     private val unreachableCandidates = ICanHealthUnreachableCandidates()
     // The GATT whose current attempt reached STATE_CONNECTED. Tied to the instance, because a
@@ -1157,8 +1158,38 @@ class ICanHealthBleManager(
     protected override fun connectionAttemptTimeoutMillis(): Long = CONNECTION_ATTEMPT_TIMEOUT_MS
 
     protected override fun onConnectionAttemptTimeout() {
-        // A silent autoConnect at a saved address must periodically allow discovery elsewhere.
+        consecutiveSilentConnectTimeouts++
+        val address = mActiveDeviceAddress
+        if (isAwaitingOnboardingIdentity() && !address.isNullOrBlank() &&
+            ICanHealthConstants.shouldDropUnreachableOnboardingAddress(consecutiveSilentConnectTimeouts)
+        ) {
+            Log.w(
+                TAG,
+                "Bound address $address never answered after $consecutiveSilentConnectTimeouts " +
+                    "silent connect timeouts; dropping it and rescanning unfiltered"
+            )
+            dropUnreachableBoundAddress()
+            return
+        }
         handler.post { if (!stop && !uiPaused) SensorBluetooth.startscan() }
+    }
+
+    /** The bound address never answered at the radio level. Drop it without blacklisting so the
+     *  unfiltered scan can rediscover the sensor once it advertises again. */
+    private fun dropUnreachableBoundAddress() {
+        close()
+        setDevice(null)
+        searchforDeviceAddress()
+        setUiStatus(UiStatusKind.PREPARING)
+        UiRefreshBus.requestStatusRefresh()
+        // The scan that is already running was built while an address was bound, so it still
+        // carries the 0x181F filter and scanStarter() would skip the restart. Stop it first so
+        // the next start rebuilds the filters from the now-empty address (unfiltered).
+        handler.post {
+            if (stop || uiPaused) return@post
+            SensorBluetooth.blueone?.stopScan(false)
+            SensorBluetooth.startscan()
+        }
     }
 
     @Synchronized
@@ -1265,17 +1296,26 @@ class ICanHealthBleManager(
                 return true
             }
             if (isAwaitingBindingIdentity() || phase != Phase.IDLE || hasLocallyConnectedGatt()) return false
-            val savedIds = listOf(SerialNumber, serialFromDevice, rawSerialFromDevice)
+            val savedIds = (listOf(SerialNumber, serialFromDevice, rawSerialFromDevice) + listOfNotNull(onboardingDeviceSn))
                 .map { ICanHealthConstants.canonicalSensorId(it) }
                 .filter { it.isNotEmpty() && !ICanHealthConstants.isProvisionalSensorId(it) }
             if (savedIds.isEmpty()) return false
+            val lastActivityMs = maxOf(lastGlucoseReceiptRealtimeMs, createdAtMs)
+            val nowMs = System.currentTimeMillis()
             val rebind = ICanHealthConstants.shouldRebindStaleAddress(
                 knownAddress = knownAddress,
                 candidateAddress = address,
                 advertisedName = trimmedName,
                 sensorIds = savedIds,
-                lastActivityMs = maxOf(lastGlucoseReceiptRealtimeMs, createdAtMs),
-                nowMs = System.currentTimeMillis(),
+                lastActivityMs = lastActivityMs,
+                nowMs = nowMs,
+            ) || ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                knownAddress = knownAddress,
+                candidateAddress = address,
+                advertisedName = trimmedName,
+                savedIds = savedIds,
+                lastActivityMs = lastActivityMs,
+                nowMs = nowMs,
             )
             if (rebind) {
                 // IDLE can still own a waiting autoConnect or a queued connection runnable.
@@ -1883,7 +1923,11 @@ class ICanHealthBleManager(
         val pending = pendingAddressRebind ?: return false
         if (!pending.candidateAddress.equals(gatt.device?.address, ignoreCase = true)) return true
         val reported = listOf(rawSerial, resolvedSerial).map { ICanHealthConstants.canonicalSensorId(it) }
-        if (pending.savedIds.any { saved -> reported.any { it.equals(saved, ignoreCase = true) } }) {
+        val identityMatches =
+            pending.savedIds.any { saved -> reported.any { it.equals(saved, ignoreCase = true) } } ||
+                ICanHealthConstants.matchesOnboardingIdentity(onboardingDeviceSn, rawSerial) ||
+                ICanHealthConstants.matchesOnboardingIdentity(onboardingDeviceSn, resolvedSerial)
+        if (identityMatches) {
             return false
         }
         return rejectUnverifiedBindingCandidate("DIS serial $resolvedSerial does not match the saved sensor", blacklist = true)
@@ -4931,6 +4975,7 @@ class ICanHealthBleManager(
 
     private fun resetConnectionAttemptState() {
         phase = Phase.IDLE
+        consecutiveSilentConnectTimeouts = 0
         isAuthenticated = false
         authAttempted = false
         postAuthSetupStarted = false
