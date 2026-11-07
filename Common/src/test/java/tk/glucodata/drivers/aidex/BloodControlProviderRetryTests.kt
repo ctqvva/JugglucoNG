@@ -5,6 +5,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import tk.glucodata.drivers.aidex.bloodcontrol.*
 import java.net.ConnectException
+import java.io.File
 import java.security.KeyPairGenerator
 import java.security.Signature
 import java.security.spec.MGF1ParameterSpec
@@ -110,6 +111,57 @@ class BloodControlProviderRetryTests {
         }
     }
 
+    @Test fun unsignedTransientResponsesBackOffWithoutDisablingEitherEndpoint() {
+        for (status in listOf(429, 500, 502, 503, 599)) {
+            for (endpoint in listOf(BloodControlAidexKeyProvider.ALLOWLIST, BloodControlAidexKeyProvider.KEYS)) {
+                val cache = if (endpoint == BloodControlAidexKeyProvider.KEYS) cachedAllowlist() else Cache()
+                var failing = true
+                val paths = mutableListOf<String>()
+                val provider = BloodControlAidexKeyProvider(credentials, BloodControlTransport { path, _ ->
+                    paths += path
+                    if (failing && path == endpoint) BloodControlResponse(status, "<html>gateway failure".toByteArray(), null)
+                    else if (path == BloodControlAidexKeyProvider.ALLOWLIST)
+                        signed(200, "{\"allowlistAidex\":[\"$serial\"]}")
+                    else signed(200, keys())
+                }, cache, { clock })
+                val deadline = clock + 15 * 60_000
+                val failed = provider.request(serial)
+                assertNull(failed.keys)
+                assertEquals("$endpoint HTTP $status", deadline, failed.retryAtMillis)
+                val calls = paths.size
+                assertEquals(deadline, provider.request(serial).retryAtMillis)
+                assertEquals(calls, paths.size)
+                clock = deadline
+                failing = false
+                assertNotNull("Must recover after unsigned HTTP $status", provider.request(serial).keys)
+            }
+        }
+    }
+
+    @Test fun unsignedErrorsFromBothRoutesBackOffAndRecoverThroughRealTransport() {
+        val ca = generateSequence(File(System.getProperty("user.dir") ?: ".").absoluteFile) { it.parentFile }
+            .map { File(it, "Common/src/main/res/raw/bloodcontrol_ca.pem") }.first(File::isFile).readBytes()
+        var failing = true
+        val routes = mutableListOf<String>()
+        val transport = BloodControlHttpsTransport(ca, "synthetic", { clock }) { route, path, _, _, _ ->
+            routes += route
+            if (failing) BloodControlResponse(502, "<html>temporary gateway failure".toByteArray(), null)
+            else if (path == BloodControlAidexKeyProvider.ALLOWLIST)
+                signed(200, "{\"allowlistAidex\":[\"$serial\"]}")
+            else signed(200, keys())
+        }
+        val provider = BloodControlAidexKeyProvider(credentials, transport, Cache(), { clock })
+        val deadline = clock + 15 * 60_000
+        assertEquals(deadline, provider.request(serial).retryAtMillis)
+        assertEquals(listOf("https://5.23.53.98", "https://178.253.22.116"), routes)
+        assertEquals(deadline, provider.request(serial).retryAtMillis)
+        assertEquals(2, routes.size)
+        clock = deadline
+        failing = false
+        assertNotNull(provider.request(serial).keys)
+        assertEquals(4, routes.size) // One signed allowlist and one signed keys request.
+    }
+
     @Test fun keyConnectionFailureCanRecoverAfterItsDeadline() {
         val cache = cachedAllowlist()
         var calls = 0
@@ -143,7 +195,7 @@ class BloodControlProviderRetryTests {
     }
 
     @Test fun authenticationAndSignatureFailuresStayTerminal() {
-        for (status in listOf(401, 403, 200)) {
+        for (status in listOf(401, 403, 200, 400)) {
             var calls = 0
             val provider = BloodControlAidexKeyProvider(credentials, BloodControlTransport { _, _ ->
                 calls++; BloodControlResponse(status, "invalid".toByteArray(), null)

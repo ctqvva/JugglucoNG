@@ -125,11 +125,13 @@ internal class BloodControlAidexKeyProvider(
             else disabledSensors.add(serial)
             return null
         }
+        // Gateways/rate limiters may return unsigned errors. Only classify the status;
+        // never parse their bodies or treat them as a permanent signature failure.
+        if (response.status == 429 || response.status in 500..599) { backoff(); return null }
         if (!BloodControlProtocol.verify(response.body, response.signature, credentials.serverKey)) {
             disable("response_signature", "Не удалось проверить подлинность ответа BloodControl")
             return null
         }
-        if (response.status == 429 || response.status >= 500) { backoff(); return null }
         if (response.status != 200) {
             if (serial != null) cache.put("retry_$serial", now() + 60 * 60_000)
             else {
