@@ -163,6 +163,10 @@
             android:enabled="true"
             android:exported="false" />
         <receiver
+            android:name=".receivers.VoiceReadingsReceiver"
+            android:enabled="true"
+            android:exported="false" />
+        <receiver
             android:name=".alerts.QuietWindowReceiver"
             android:enabled="true"
             android:exported="false" />

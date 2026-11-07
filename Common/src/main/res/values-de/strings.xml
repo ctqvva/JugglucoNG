@@ -3427,4 +3427,17 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="lumiflex_follow_failed">Messwerte konnten nicht empfangen werden</string>
     <string name="lumiflex_no_providers">Keine freigegebenen Konten. Bitten Sie den Sensorbesitzer, Ihr Konto als Follower hinzuzufügen.</string>
     <string name="lumiflex_follow_refresh">Aktualisieren</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Sprachausgabe</string>
+    <string name="voice_turn_off">Sprache aus</string>
+    <string name="voice_turn_on">Sprache an</string>
+    <string name="voice_every_reading">Jeder Messwert</string>
+    <string name="voice_every_minutes">Alle %1$d Min.</string>
+    <string name="voice_resumes_at">Ab %1$s</string>
+    <string name="voice_quick_dashboard">Auf dem Dashboard</string>
+    <string name="voice_quick_dashboard_desc">Schalter oben im Diagramm</string>
+    <string name="voice_quick_notification">In der Benachrichtigung</string>
+    <string name="voice_quick_notification_desc">Sprachtaste in der Glukose-Benachrichtigung</string>
+    <string name="aidex_keys_before_connect">Importiere oder fordere die Schlüssel dieses Sensors an, bevor du dich verbindest.</string>
+    <string name="aidex_delete_keys_message">Gespeicherte Kopplungsschlüssel für %1$s von diesem Telefon entfernen? Exportiere sie zuerst, falls du sie später noch benötigst.</string>
 </resources>

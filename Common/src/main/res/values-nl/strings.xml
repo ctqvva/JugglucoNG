@@ -3357,4 +3357,17 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="lumiflex_follow_failed">Metingen konden niet worden ontvangen</string>
     <string name="lumiflex_no_providers">Geen gedeelde accounts. Vraag de eigenaar van de sensor om je account als volger toe te voegen.</string>
     <string name="lumiflex_follow_refresh">Vernieuwen</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Gesproken waarden</string>
+    <string name="voice_turn_off">Stem uit</string>
+    <string name="voice_turn_on">Stem aan</string>
+    <string name="voice_every_reading">Elke meting</string>
+    <string name="voice_every_minutes">Elke %1$d min</string>
+    <string name="voice_resumes_at">Vanaf %1$s</string>
+    <string name="voice_quick_dashboard">Tonen op dashboard</string>
+    <string name="voice_quick_dashboard_desc">Schakelaar boven in de grafiek</string>
+    <string name="voice_quick_notification">Tonen in melding</string>
+    <string name="voice_quick_notification_desc">Stemknop in de glucosemelding</string>
+    <string name="aidex_keys_before_connect">Importeer de sleutels van deze sensor of vraag ze aan voordat je verbinding maakt.</string>
+    <string name="aidex_delete_keys_message">De opgeslagen koppelingssleutels voor %1$s van deze telefoon verwijderen? Exporteer ze eerst als je ze later nog nodig kunt hebben.</string>
 </resources>

@@ -1278,6 +1278,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_status_saved_key_rejected_press_pair">Stored pairing key rejected — press Pair</string>
     <string name="aidex_status_pairing_failed_broadcast_only">Pairing failed — Broadcast Only</string>
     <string name="aidex_key_saved">Sensor-specific pairing key saved</string>
+    <string name="aidex_keys_before_connect">Import or request this sensor’s keys before connecting.</string>
+    <string name="aidex_delete_keys_message">Remove saved pairing keys for %1$s from this phone? Export them first if you may need them again.</string>
     <string name="aidex_key_fetch_action">Get key from account</string>
     <string name="aidex_key_fetch_requires_sign_in">Sign in to download this sensor\'s key.</string>
     <string name="aidex_key_import_failed">Import failed — not a valid AiDex key file.</string>
@@ -3637,4 +3639,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_follow_failed">Could not receive readings</string>
     <string name="lumiflex_no_providers">No shared accounts. Ask the sensor owner to add your account as a follower.</string>
     <string name="lumiflex_follow_refresh">Refresh</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Voice readings</string>
+    <string name="voice_turn_off">Turn off voice</string>
+    <string name="voice_turn_on">Turn on voice</string>
+    <string name="voice_every_reading">Every reading</string>
+    <string name="voice_every_minutes">Every %1$d min</string>
+    <string name="voice_resumes_at">From %1$s</string>
+    <string name="voice_quick_dashboard">Show on dashboard</string>
+    <string name="voice_quick_dashboard_desc">One-tap switch at the top of the chart</string>
+    <string name="voice_quick_notification">Show in notification</string>
+    <string name="voice_quick_notification_desc">Voice button on the glucose notification</string>
 </resources>

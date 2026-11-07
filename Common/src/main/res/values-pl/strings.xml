@@ -3374,4 +3374,17 @@
     <string name="lumiflex_follow_failed">Nie udało się odebrać odczytów</string>
     <string name="lumiflex_no_providers">Brak udostępnionych kont. Poproś właściciela sensora o dodanie Twojego konta jako obserwatora.</string>
     <string name="lumiflex_follow_refresh">Odśwież</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Odczyty głosowe</string>
+    <string name="voice_turn_off">Wyłącz głos</string>
+    <string name="voice_turn_on">Włącz głos</string>
+    <string name="voice_every_reading">Każdy odczyt</string>
+    <string name="voice_every_minutes">Co %1$d min</string>
+    <string name="voice_resumes_at">Od %1$s</string>
+    <string name="voice_quick_dashboard">Pokaż na pulpicie</string>
+    <string name="voice_quick_dashboard_desc">Przełącznik u góry wykresu</string>
+    <string name="voice_quick_notification">Pokaż w powiadomieniu</string>
+    <string name="voice_quick_notification_desc">Przycisk głosu w powiadomieniu o glukozie</string>
+    <string name="aidex_keys_before_connect">Przed połączeniem zaimportuj lub pobierz klucze tego sensora.</string>
+    <string name="aidex_delete_keys_message">Usunąć z tego telefonu zapisane klucze parowania dla %1$s? Najpierw je wyeksportuj, jeśli mogą być jeszcze potrzebne.</string>
 </resources>

@@ -30,6 +30,7 @@ import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.aidex.native.ble.AiDexBleManager
 import tk.glucodata.drivers.aidex.native.protocol.AiDexKeyExchange
 import tk.glucodata.drivers.aidex.native.protocol.AiDexOpcodes
+import tk.glucodata.drivers.aidex.native.protocol.AiDexPairingMaterialRegistry
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
