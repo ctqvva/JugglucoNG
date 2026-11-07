@@ -335,6 +335,7 @@ public static void selectProfile(Context context,int profile) {
         return;
     Natives.setProfile(profile);
     SuperGattCallback.initAlarmTalk();
+    VoiceReadings.changed();
     ensureComposeTalker(context);
     notifyVoiceListeners();
     }
@@ -939,6 +940,7 @@ private static View makeConfigView(MainActivity context, boolean overlayMode, Ru
         if(position!=curProfile) {
            Natives.setProfile(position);
            SuperGattCallback.initAlarmTalk();
+           VoiceReadings.changed();
            if(overlayMode) {
                MainActivity.doonback();
                config(context);
