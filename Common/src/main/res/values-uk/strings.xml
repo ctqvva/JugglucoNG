@@ -859,6 +859,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">Пароль</string>
     <string name="libreview_resend">Повторно надіслати дані</string>
     <string name="libreview_russia">Росія область</string>
+    <string name="libreview_official_end">Зупиняти в офіційний термін датчика</string>
+    <string name="libreview_official_end_desc">Не надсилати показання за зайві години після офіційного завершення датчика Libre 2</string>
     <string name="libreview_send_now">Надіслати зараз</string>
     <string name="libreview_send_numbers">Надішліть інсулін/вуглеводи</string>
     <string name="libreview_settings_title">Налаштування LibreView</string>
@@ -924,6 +926,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Скинути прив’язку Bluetooth (дані збережуться)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Це назавжди видалить датчик, зітре ключі сполучення та припинить сеанс. Для повторного використання датчик потрібно повторно підключити.</string>
@@ -3324,6 +3327,76 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">знижується</string>
     <string name="tts_trend_rising_quickly">швидко підвищується</string>
     <string name="tts_trend_falling_quickly">швидко знижується</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Обмежений режим</string>
+    <string name="restricted_mode_desc">Приховує налаштування й керування</string>
+    <string name="restricted_full_mode_title">Поки що повний режим</string>
+    <string name="restricted_full_mode_desc">Обмежений режим повернеться за хвилину після виходу із застосунку або коли ви його заблокуєте.</string>
+    <string name="restricted_lock_now">Заблокувати</string>
+    <string name="restricted_section_unlock">Перехід у повний режим</string>
+    <string name="restricted_pin_title">PIN-код</string>
+    <string name="restricted_pin_set">Увімк. · запитується перед повним режимом</string>
+    <string name="restricted_pin_not_set">Вимк. · у повний режим може перейти будь-хто</string>
+    <string name="restricted_biometric_title">Відбиток або обличчя</string>
+    <string name="restricted_biometric_desc">Розблоковувати також біометрією телефона</string>
+    <string name="restricted_biometric_needs_pin">Спершу задайте PIN-код</string>
+    <string name="restricted_section_allowed">Дозволено в обмеженому режимі</string>
+    <string name="restricted_section_available">Доступно зараз</string>
+    <string name="restricted_allow_sensor_change">Зміна сенсорів</string>
+    <string name="restricted_allow_sensor_change_desc">Додати новий сенсор і від\'єднати старий</string>
+    <string name="restricted_sensor_types_label">Сенсори, які можна додати</string>
+    <string name="restricted_sensor_types_none">Виберіть хоча б один, інакше додати сенсор буде неможливо.</string>
+    <string name="restricted_handover_on">Автоматична зміна сенсора увімкнена: новий сенсор замінить старий, коли той закінчиться.</string>
+    <string name="restricted_handover_off">Автоматична зміна сенсора вимкнена. Увімкніть її, щоб новий сенсор замінив старий, коли той закінчиться.</string>
+    <string name="restricted_turn_on_handover">Увімкнути зміну</string>
+    <string name="restricted_allow_journal">Записи щоденника</string>
+    <string name="restricted_allow_journal_desc">Додавати й змінювати інсулін, їжу та нотатки</string>
+    <string name="restricted_allow_calibration_desc">Додавати й змінювати калібрування</string>
+    <string name="restricted_allow_alarm_stop">Зупинка сигналів</string>
+    <string name="restricted_allow_alarm_stop_desc">Якщо вимкнено, сигнали можна лише відкласти</string>
+    <string name="restricted_always_hidden">Інші налаштування, скидання сенсора, розширене керування сенсором і видалення даних завжди потребують повного режиму.</string>
+    <string name="restricted_pin_options_desc">Змініть PIN-код або видаліть його, щоб повний режим відкривався одним дотиком.</string>
+    <string name="restricted_change_pin">Змінити PIN-код</string>
+    <string name="restricted_remove_pin">Видалити PIN-код</string>
+    <string name="restricted_use_biometric">Відбиток або обличчя</string>
+    <string name="restricted_unlock_title">Перейти в повний режим</string>
+    <string name="restricted_unlock_desc">Відкриються налаштування й усе керування сенсором. Вони закриються через хвилину після виходу із застосунку.</string>
+    <string name="restricted_unlock_desc_pin">Введіть PIN-код, щоб відкрити налаштування й усе керування сенсором. Вони закриються через хвилину після виходу із застосунку.</string>
+    <string name="restricted_needs_full_mode">Спершу перейдіть у повний режим у налаштуваннях.</string>
+    <string name="restricted_wrong_pin">Неправильний PIN-код</string>
+    <string name="restricted_pin_locked_out">Забагато спроб · зачекайте %1$s</string>
+    <string name="restricted_choose_pin">Задайте PIN-код</string>
+    <string name="restricted_confirm_pin">Введіть PIN-код ще раз</string>
+    <string name="restricted_choose_pin_desc">Від %1$d до %2$d цифр</string>
+    <string name="restricted_pin_mismatch">PIN-коди не збіглися. Задайте PIN-код знову.</string>
+    <string name="restricted_delete_digit">Видалити цифру</string>
+    <string name="restricted_disconnect_desc">Телефон перестане читати сенсор. Отримані показники збережуться.</string>
+    <string name="restricted_sensors_locked">Щоб додати сенсор, потрібен повний режим.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">введено %d цифру</item>
+        <item quantity="few">введено %d цифри</item>
+        <item quantity="many">введено %d цифр</item>
+        <item quantity="other">введено %d цифри</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Залишилося менше години</string>
+    <string name="restricted_sensor_ended">Закінчився</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Залишився %d день</item>
+        <item quantity="few">Залишилося %d дні</item>
+        <item quantity="many">Залишилося %d днів</item>
+        <item quantity="other">Залишилося %d дня</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Залишилася %d година</item>
+        <item quantity="few">Залишилося %d години</item>
+        <item quantity="many">Залишилося %d годин</item>
+        <item quantity="other">Залишилося %d години</item>
+    </plurals>
+    <string name="restricted_section_settings">Налаштування, відкриті в обмеженому режимі</string>
+    <string name="restricted_allow_alarm_settings_desc">Змінювати рівні та звуки або вимикати сповіщення</string>
+    <string name="restricted_allow_voice_desc">Озвучення показників і тривог</string>
+    <string name="restricted_allow_display_desc">Цільовий діапазон, графіки, сповіщення, плаваюча глюкоза та екран блокування</string>
     <string name="lumiflex_remove_follower_confirm">Закрити доступ до ваших показань для %1$s?</string>
     <string name="lumiflex_discard_changes_title">Скасувати зміни?</string>
     <string name="lumiflex_discard_changes_message">Зміни налаштувань підписника не збережено.</string>
@@ -3347,4 +3420,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_dashboard_desc">Перемикач угорі графіка</string>
     <string name="voice_quick_notification">Показувати в сповіщенні</string>
     <string name="voice_quick_notification_desc">Кнопка голосу в сповіщенні з глюкозою</string>
+    <string name="aidex_keys_before_connect">Імпортуйте або запросіть ключі цього сенсора перед підключенням.</string>
+    <string name="aidex_delete_keys_message">Видалити збережені ключі сполучення сенсора %1$s із цього телефона? Спочатку експортуйте їх, якщо вони можуть знадобитися знову.</string>
 </resources>

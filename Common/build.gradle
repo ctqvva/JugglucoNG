@@ -4,6 +4,28 @@ plugins {
     id 'com.google.devtools.ksp' version '2.3.11'
 }
 
+// Optional private BloodControl inputs. Missing inputs keep ordinary/CI builds usable.
+// A configured build must supply all four; never print their values in diagnostics.
+def bloodControlNames = ['BC_AIDEX_BEARER_TOKEN', 'BC_AIDEX_ENVELOPE_AES_BASE64',
+                        'BC_AIDEX_SIGNING_KEY_PKCS8_BASE64', 'BC_AIDEX_SERVER_PUBLIC_DER_BASE64']
+def bloodControlInputs = bloodControlNames.collectEntries { name ->
+    [(name): providers.gradleProperty(name).orElse(providers.environmentVariable(name)).getOrElse('')]
+}
+if (bloodControlInputs.values().any { !it.isEmpty() }) {
+    try {
+        if (bloodControlInputs.values().any { it.isEmpty() }) throw new IllegalArgumentException()
+        if (bloodControlInputs.BC_AIDEX_BEARER_TOKEN.isBlank()) throw new IllegalArgumentException()
+        if (bloodControlInputs.BC_AIDEX_BEARER_TOKEN =~ /[\r\n]/) throw new IllegalArgumentException()
+        def decoder = Base64.decoder
+        if (decoder.decode(bloodControlInputs.BC_AIDEX_ENVELOPE_AES_BASE64).length != 32) throw new IllegalArgumentException()
+        def rsa = java.security.KeyFactory.getInstance('RSA')
+        rsa.generatePrivate(new java.security.spec.PKCS8EncodedKeySpec(decoder.decode(bloodControlInputs.BC_AIDEX_SIGNING_KEY_PKCS8_BASE64)))
+        rsa.generatePublic(new java.security.spec.X509EncodedKeySpec(decoder.decode(bloodControlInputs.BC_AIDEX_SERVER_PUBLIC_DER_BASE64)))
+    } catch (Exception ignored) {
+        throw new GradleException('BloodControl requires all four valid BC_AIDEX build inputs')
+    }
+}
+
 // Single source of truth for toolchain + dependency versions.
 ext {
     // Bump the app version here only. Wear releases use appVersionCode + 1000000
@@ -57,6 +79,9 @@ android {
     }
 
     defaultConfig {
+        bloodControlInputs.each { name, value ->
+            buildConfigField 'String', name, groovy.json.JsonOutput.toJson(value)
+        }
         // Ship ARM only. x86 and x86_64 are emulator and ChromeOS territory; on a phone app
         // they were half the native payload for hardware nobody wears a sensor next to.
         // armeabi-v7a stays: minSdk is 26, and 32-bit ARM handsets of that vintage are
@@ -94,6 +119,9 @@ android {
         buildConfigField 'String', 'BASE_VERSION_NAME', "\"$appVersionName\""
         // GitHub repo the in-app updater reads releases from. Forks change it here.
         buildConfigField 'String', 'UPDATE_REPO', '"ctqvva/JugglucoNG"'
+        // Backup for the above, tried only when GitHub itself cannot be reached. A SourceForge
+        // project files URL; empty disables the fallback. Forks change or clear it here.
+        buildConfigField 'String', 'UPDATE_BACKUP_SOURCE', '"https://sourceforge.net/projects/jugglucong/files/"'
 
         buildConfigField 'String', 'BUILD_TIME', 'new java.text.SimpleDateFormat("HH:mm:ss dd-MMM-yyyy").format(new java.util.Date(' + System.currentTimeMillis() + 'L))'
         buildConfigField 'int', 'isRelease', '0'

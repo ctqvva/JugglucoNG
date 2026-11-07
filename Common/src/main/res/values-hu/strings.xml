@@ -622,6 +622,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="libreview_get_account_id">Fiókazonosító lekérése</string>
     <string name="libreview_status">Állapot</string>
     <string name="libreview_russia">Oroszországi régió</string>
+    <string name="libreview_official_end">Leállítás a szenzor hivatalos végén</string>
+    <string name="libreview_official_end_desc">A Libre 2 szenzor hivatalos vége utáni többletórák kihagyása</string>
     <string name="low_label">Alacsony</string>
     <string name="high_label">Magas</string>
     <string name="disconnect_sensor_title">Szenzor leválasztása?</string>
@@ -640,6 +642,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="reconnect_sensor_title">Szenzor újracsatlakoztatása?</string>
     <string name="reconnect_sensor_desc">Ez alaphelyzetbe állítja a kapcsolatot, és megpróbál újracsatlakozni.</string>
     <string name="reconnect">Újracsatlakozás</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth-eszköz hozzárendelésének visszaállítása (az adatok megmaradnak)</string>
     <string name="forget_sensor_title">Szenzor elfelejtése?</string>
     <string name="forget_sensor_desc">Ez eltávolítja a szenzort a listából. Újabb szkenneléskor ismét megjelenhet.</string>
     <string name="reset_sensor_title">Szenzor alaphelyzetbe állítása?</string>
@@ -3304,6 +3307,70 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="tts_trend_decreasing">csökken</string>
     <string name="tts_trend_rising_quickly">gyorsan emelkedik</string>
     <string name="tts_trend_falling_quickly">gyorsan csökken</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Korlátozott mód</string>
+    <string name="restricted_mode_desc">Elrejti a beállításokat és a vezérlőket</string>
+    <string name="restricted_full_mode_title">Egyelőre teljes mód</string>
+    <string name="restricted_full_mode_desc">A korlátozott mód egy perccel az alkalmazás elhagyása után visszatér, vagy amikor lezárod.</string>
+    <string name="restricted_lock_now">Lezárás most</string>
+    <string name="restricted_section_unlock">Váltás teljes módra</string>
+    <string name="restricted_pin_title">PIN-kód</string>
+    <string name="restricted_pin_set">Be · a teljes mód előtt kéri</string>
+    <string name="restricted_pin_not_set">Ki · bárki válthat teljes módra</string>
+    <string name="restricted_biometric_title">Ujjlenyomat vagy arc</string>
+    <string name="restricted_biometric_desc">Feloldás a telefon biometriájával is</string>
+    <string name="restricted_biometric_needs_pin">Először állíts be PIN-kódot</string>
+    <string name="restricted_section_allowed">Korlátozott módban engedélyezett</string>
+    <string name="restricted_section_available">Most elérhető</string>
+    <string name="restricted_allow_sensor_change">Szenzorcsere</string>
+    <string name="restricted_allow_sensor_change_desc">Új szenzor hozzáadása és a régi leválasztása</string>
+    <string name="restricted_sensor_types_label">Hozzáadható szenzorok</string>
+    <string name="restricted_sensor_types_none">Válassz legalább egyet, különben nem lehet szenzort hozzáadni.</string>
+    <string name="restricted_handover_on">Az automatikus szenzorátadás be van kapcsolva: az új szenzor átveszi a mérést, amikor a régi lejár.</string>
+    <string name="restricted_handover_off">Az automatikus szenzorátadás ki van kapcsolva. Kapcsold be, hogy az új szenzor átvegye a mérést, amikor a régi lejár.</string>
+    <string name="restricted_turn_on_handover">Átadás bekapcsolása</string>
+    <string name="restricted_allow_journal">Naplóbejegyzések</string>
+    <string name="restricted_allow_journal_desc">Inzulin, étkezések és jegyzetek hozzáadása és szerkesztése</string>
+    <string name="restricted_allow_calibration_desc">Kalibrációk hozzáadása és szerkesztése</string>
+    <string name="restricted_allow_alarm_stop">Riasztások leállítása</string>
+    <string name="restricted_allow_alarm_stop_desc">Kikapcsolva a riasztások csak szundíthatók</string>
+    <string name="restricted_always_hidden">A többi beállítás, a szenzor visszaállítása, a speciális szenzorvezérlők és az adatok törlése mindig teljes módot igényel.</string>
+    <string name="restricted_pin_options_desc">Módosítsd a PIN-kódot, vagy töröld, hogy a teljes mód egy koppintással nyíljon.</string>
+    <string name="restricted_change_pin">PIN-kód módosítása</string>
+    <string name="restricted_remove_pin">PIN-kód törlése</string>
+    <string name="restricted_use_biometric">Ujjlenyomat vagy arc használata</string>
+    <string name="restricted_unlock_title">Váltás teljes módra</string>
+    <string name="restricted_unlock_desc">Megnyílnak a beállítások és az összes szenzorvezérlő. Egy perccel az alkalmazásból való kilépés után bezárulnak.</string>
+    <string name="restricted_unlock_desc_pin">Add meg a PIN-kódot a beállítások és az összes szenzorvezérlő megnyitásához. Egy perccel az alkalmazásból való kilépés után bezárulnak.</string>
+    <string name="restricted_needs_full_mode">Előbb válts teljes módra a Beállításokban.</string>
+    <string name="restricted_wrong_pin">Hibás PIN-kód</string>
+    <string name="restricted_pin_locked_out">Túl sok próbálkozás · várj %1$s</string>
+    <string name="restricted_choose_pin">Válassz PIN-kódot</string>
+    <string name="restricted_confirm_pin">Add meg újra a PIN-kódot</string>
+    <string name="restricted_choose_pin_desc">%1$d–%2$d számjegy</string>
+    <string name="restricted_pin_mismatch">A PIN-kódok nem egyeznek. Válassz újra PIN-kódot.</string>
+    <string name="restricted_delete_digit">Számjegy törlése</string>
+    <string name="restricted_disconnect_desc">A telefon nem olvassa tovább a szenzort. Az eddigi mérések megmaradnak.</string>
+    <string name="restricted_sensors_locked">Szenzor hozzáadásához teljes mód kell.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d számjegy megadva</item>
+        <item quantity="other">%d számjegy megadva</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Egy órán belül vége</string>
+    <string name="restricted_sensor_ended">Lejárt</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Még %d nap</item>
+        <item quantity="other">Még %d nap</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Még %d óra</item>
+        <item quantity="other">Még %d óra</item>
+    </plurals>
+    <string name="restricted_section_settings">Korlátozott módban nyitva maradó beállítások</string>
+    <string name="restricted_allow_alarm_settings_desc">Szintek és hangok módosítása, riasztások kikapcsolása</string>
+    <string name="restricted_allow_voice_desc">Felolvasott értékek és riasztások</string>
+    <string name="restricted_allow_display_desc">Célérték-tartomány, grafikonok, értesítések, lebegő glükóz és zárolási képernyő</string>
     <string name="lumiflex_remove_follower_confirm">Megvonja %1$s hozzáférését a mérési adataihoz?</string>
     <string name="lumiflex_discard_changes_title">Elveti a módosításokat?</string>
     <string name="lumiflex_discard_changes_message">A követő beállításainak módosításai nincsenek mentve.</string>
@@ -3327,4 +3394,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="voice_quick_dashboard_desc">Kapcsoló a grafikon tetején</string>
     <string name="voice_quick_notification">Megjelenítés az értesítésben</string>
     <string name="voice_quick_notification_desc">Hang gomb a glükóz értesítésben</string>
+    <string name="aidex_keys_before_connect">Csatlakozás előtt importáld vagy kérd le az érzékelő kulcsait.</string>
+    <string name="aidex_delete_keys_message">Eltávolítod a(z) %1$s mentett párosítási kulcsait erről a telefonról? Előbb exportáld őket, ha később még szükséged lehet rájuk.</string>
 </resources>

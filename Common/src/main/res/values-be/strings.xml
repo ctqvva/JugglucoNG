@@ -842,6 +842,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">Пароль</string>
     <string name="libreview_resend">Адправіць даныя паўторна</string>
     <string name="libreview_russia">Расія вобласць</string>
+    <string name="libreview_official_end">Спыняць у афіцыйны тэрмін датчыка</string>
+    <string name="libreview_official_end_desc">Не адпраўляць паказанні за лішнія гадзіны пасля афіцыйнага заканчэння датчыка Libre 2</string>
     <string name="libreview_send_now">Адправіць зараз</string>
     <string name="libreview_send_numbers">Адправіць інсулін/вугляводы</string>
     <string name="libreview_settings_title">Налады LibreView</string>
@@ -908,6 +910,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Скінуць прывязку Bluetooth (даныя захаваюцца)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Гэта прывядзе да канчатковага выдалення датчыка, выдалення клавіш спалучэння і спынення сеанса. Для паўторнага выкарыстання датчык павінен быць паўторна спалучаны.</string>
@@ -3319,6 +3322,76 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">зніжаецца</string>
     <string name="tts_trend_rising_quickly">хутка павышаецца</string>
     <string name="tts_trend_falling_quickly">хутка зніжаецца</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Абмежаваны рэжым</string>
+    <string name="restricted_mode_desc">Хавае налады і кіраванне</string>
+    <string name="restricted_full_mode_title">Пакуль поўны рэжым</string>
+    <string name="restricted_full_mode_desc">Абмежаваны рэжым вернецца праз хвіліну пасля выхаду з праграмы або калі вы яго заблакуеце.</string>
+    <string name="restricted_lock_now">Заблакаваць</string>
+    <string name="restricted_section_unlock">Пераход у поўны рэжым</string>
+    <string name="restricted_pin_title">PIN-код</string>
+    <string name="restricted_pin_set">Укл. · запытваецца перад поўным рэжымам</string>
+    <string name="restricted_pin_not_set">Выкл. · у поўны рэжым можа перайсці хто заўгодна</string>
+    <string name="restricted_biometric_title">Адбітак або твар</string>
+    <string name="restricted_biometric_desc">Разблакоўваць таксама біяметрыяй тэлефона</string>
+    <string name="restricted_biometric_needs_pin">Спачатку задайце PIN-код</string>
+    <string name="restricted_section_allowed">Дазволена ў абмежаваным рэжыме</string>
+    <string name="restricted_section_available">Даступна зараз</string>
+    <string name="restricted_allow_sensor_change">Змена датчыкаў</string>
+    <string name="restricted_allow_sensor_change_desc">Дадаць новы датчык і адлучыць стары</string>
+    <string name="restricted_sensor_types_label">Датчыкі, якія можна дадаць</string>
+    <string name="restricted_sensor_types_none">Выберыце хаця б адзін, інакш дадаць датчык будзе нельга.</string>
+    <string name="restricted_handover_on">Аўтаматычная змена датчыка ўключана: новы датчык заменіць стары, калі той скончыцца.</string>
+    <string name="restricted_handover_off">Аўтаматычная змена датчыка выключана. Уключыце яе, каб новы датчык замяніў стары, калі той скончыцца.</string>
+    <string name="restricted_turn_on_handover">Уключыць змену</string>
+    <string name="restricted_allow_journal">Запісы дзённіка</string>
+    <string name="restricted_allow_journal_desc">Дадаваць і змяняць інсулін, ежу і нататкі</string>
+    <string name="restricted_allow_calibration_desc">Дадаваць і змяняць каліброўкі</string>
+    <string name="restricted_allow_alarm_stop">Спыненне сігналаў</string>
+    <string name="restricted_allow_alarm_stop_desc">Калі выключана, сігналы можна толькі адкласці</string>
+    <string name="restricted_always_hidden">Іншыя налады, скід датчыка, пашыранае кіраванне датчыкам і выдаленне даных заўсёды патрабуюць поўнага рэжыму.</string>
+    <string name="restricted_pin_options_desc">Змяніце PIN-код або выдаліце яго, каб поўны рэжым адкрываўся адным націскам.</string>
+    <string name="restricted_change_pin">Змяніць PIN-код</string>
+    <string name="restricted_remove_pin">Выдаліць PIN-код</string>
+    <string name="restricted_use_biometric">Адбітак або твар</string>
+    <string name="restricted_unlock_title">Перайсці ў поўны рэжым</string>
+    <string name="restricted_unlock_desc">Адкрыюцца налады і ўсё кіраванне датчыкам. Яны закрыюцца праз хвіліну пасля выхаду з праграмы.</string>
+    <string name="restricted_unlock_desc_pin">Увядзіце PIN-код, каб адкрыць налады і ўсё кіраванне датчыкам. Яны закрыюцца праз хвіліну пасля выхаду з праграмы.</string>
+    <string name="restricted_needs_full_mode">Спачатку перайдзіце ў поўны рэжым у наладах.</string>
+    <string name="restricted_wrong_pin">Няправільны PIN-код</string>
+    <string name="restricted_pin_locked_out">Занадта шмат спроб · пачакайце %1$s</string>
+    <string name="restricted_choose_pin">Задайце PIN-код</string>
+    <string name="restricted_confirm_pin">Увядзіце PIN-код яшчэ раз</string>
+    <string name="restricted_choose_pin_desc">Ад %1$d да %2$d лічбаў</string>
+    <string name="restricted_pin_mismatch">PIN-коды не супалі. Задайце PIN-код зноў.</string>
+    <string name="restricted_delete_digit">Выдаліць лічбу</string>
+    <string name="restricted_disconnect_desc">Тэлефон перастане чытаць датчык. Атрыманыя паказанні захаваюцца.</string>
+    <string name="restricted_sensors_locked">Каб дадаць датчык, патрэбны поўны рэжым.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">уведзена %d лічба</item>
+        <item quantity="few">уведзена %d лічбы</item>
+        <item quantity="many">уведзена %d лічбаў</item>
+        <item quantity="other">уведзена %d лічбы</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Засталося менш за гадзіну</string>
+    <string name="restricted_sensor_ended">Скончыўся</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Застаўся %d дзень</item>
+        <item quantity="few">Засталося %d дні</item>
+        <item quantity="many">Засталося %d дзён</item>
+        <item quantity="other">Засталося %d дня</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Засталася %d гадзіна</item>
+        <item quantity="few">Засталося %d гадзіны</item>
+        <item quantity="many">Засталося %d гадзін</item>
+        <item quantity="other">Засталося %d гадзіны</item>
+    </plurals>
+    <string name="restricted_section_settings">Налады, адкрытыя ў абмежаваным рэжыме</string>
+    <string name="restricted_allow_alarm_settings_desc">Змяняць узроўні і гукі або выключаць абвесткі</string>
+    <string name="restricted_allow_voice_desc">Агучванне паказанняў і трывог</string>
+    <string name="restricted_allow_display_desc">Мэтавы дыяпазон, графікі, апавяшчэнні, плаваючая глюкоза і экран блакіроўкі</string>
     <string name="lumiflex_remove_follower_confirm">Закрыць доступ да вашых паказанняў для %1$s?</string>
     <string name="lumiflex_discard_changes_title">Адкінуць змены?</string>
     <string name="lumiflex_discard_changes_message">Змены налад падпісчыка не захаваны.</string>
@@ -3342,4 +3415,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_dashboard_desc">Перамыкач уверсе графіка</string>
     <string name="voice_quick_notification">Паказваць у апавяшчэнні</string>
     <string name="voice_quick_notification_desc">Кнопка голасу ў апавяшчэнні з глюкозай</string>
+    <string name="aidex_keys_before_connect">Імпартуйце або запытайце ключы гэтага датчыка перад падключэннем.</string>
+    <string name="aidex_delete_keys_message">Выдаліць захаваныя ключы спалучэння датчыка %1$s з гэтага тэлефона? Спачатку экспартуйце іх, калі яны могуць спатрэбіцца зноў.</string>
 </resources>

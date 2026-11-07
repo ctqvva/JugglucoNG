@@ -108,6 +108,7 @@ class AlarmWindowFallbackTests {
                     public static List<Runnable> delayed = new ArrayList<>();
                     public static boolean alarmUiVisible;
                     static int presentedStandardAlertKind = -1;
+                    static boolean presentedCustomAlert;
                     static int glucosealarmid = 81432;
                     static boolean doLog = false;
                     static String LOG_ID = "test";

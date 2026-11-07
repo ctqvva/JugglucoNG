@@ -922,6 +922,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="libreview_password">Wachtwoord</string>
     <string name="libreview_resend">Gegevens opnieuw verzenden</string>
     <string name="libreview_russia">Regio Rusland</string>
+    <string name="libreview_official_end">Stoppen bij het officiële einde van de sensor</string>
+    <string name="libreview_official_end_desc">Laat de extra uren na het officiële einde van een Libre 2-sensor weg</string>
     <string name="libreview_send_now">Verzend nu</string>
     <string name="libreview_send_numbers">Stuur insuline/koolhydraten</string>
     <string name="libreview_settings_title">LibreView-instellingen</string>
@@ -960,6 +962,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth-koppeling resetten (gegevens blijven behouden)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Hierdoor wordt de sensor permanent verwijderd, worden de koppelingssleutels gewist en wordt de sessie gestopt. Om opnieuw te kunnen gebruiken, moet de sensor opnieuw worden gekoppeld.</string>
@@ -3278,6 +3281,70 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="tts_trend_decreasing">dalend</string>
     <string name="tts_trend_rising_quickly">snel stijgend</string>
     <string name="tts_trend_falling_quickly">snel dalend</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Beperkte modus</string>
+    <string name="restricted_mode_desc">Verbergt instellingen en bediening</string>
+    <string name="restricted_full_mode_title">Voorlopig volledige modus</string>
+    <string name="restricted_full_mode_desc">De beperkte modus keert een minuut nadat je de app verlaat terug, of wanneer je hem vergrendelt.</string>
+    <string name="restricted_lock_now">Nu vergrendelen</string>
+    <string name="restricted_section_unlock">Naar volledige modus</string>
+    <string name="restricted_pin_title">Pincode</string>
+    <string name="restricted_pin_set">Aan · gevraagd voor de volledige modus</string>
+    <string name="restricted_pin_not_set">Uit · iedereen kan naar de volledige modus</string>
+    <string name="restricted_biometric_title">Vingerafdruk of gezicht</string>
+    <string name="restricted_biometric_desc">Ook ontgrendelen met de biometrie van de telefoon</string>
+    <string name="restricted_biometric_needs_pin">Stel eerst een pincode in</string>
+    <string name="restricted_section_allowed">Toegestaan in beperkte modus</string>
+    <string name="restricted_section_available">Nu beschikbaar</string>
+    <string name="restricted_allow_sensor_change">Sensoren wisselen</string>
+    <string name="restricted_allow_sensor_change_desc">Een nieuwe sensor toevoegen en de oude loskoppelen</string>
+    <string name="restricted_sensor_types_label">Sensoren die toegevoegd kunnen worden</string>
+    <string name="restricted_sensor_types_none">Kies er minstens één, anders kan er geen sensor worden toegevoegd.</string>
+    <string name="restricted_handover_on">Automatische sensoroverdracht staat aan: de nieuwe sensor neemt het over als de oude afloopt.</string>
+    <string name="restricted_handover_off">Automatische sensoroverdracht staat uit. Zet hem aan zodat de nieuwe sensor het overneemt als de oude afloopt.</string>
+    <string name="restricted_turn_on_handover">Overdracht aanzetten</string>
+    <string name="restricted_allow_journal">Dagboekitems</string>
+    <string name="restricted_allow_journal_desc">Insuline, maaltijden en notities toevoegen en bewerken</string>
+    <string name="restricted_allow_calibration_desc">Kalibraties toevoegen en bewerken</string>
+    <string name="restricted_allow_alarm_stop">Alarmen stoppen</string>
+    <string name="restricted_allow_alarm_stop_desc">Indien uit, kunnen alarmen alleen worden gesluimerd</string>
+    <string name="restricted_always_hidden">Andere instellingen, sensorresets, geavanceerde sensorbediening en gegevens wissen vragen altijd de volledige modus.</string>
+    <string name="restricted_pin_options_desc">Wijzig de pincode, of verwijder hem zodat de volledige modus met één tik opent.</string>
+    <string name="restricted_change_pin">Pincode wijzigen</string>
+    <string name="restricted_remove_pin">Pincode verwijderen</string>
+    <string name="restricted_use_biometric">Vingerafdruk of gezicht gebruiken</string>
+    <string name="restricted_unlock_title">Naar volledige modus</string>
+    <string name="restricted_unlock_desc">Instellingen en alle sensorbediening gaan open. Ze sluiten een minuut nadat je de app verlaat.</string>
+    <string name="restricted_unlock_desc_pin">Voer de pincode in om de instellingen en alle sensorbediening te openen. Ze sluiten een minuut nadat je de app verlaat.</string>
+    <string name="restricted_needs_full_mode">Schakel eerst naar de volledige modus in Instellingen.</string>
+    <string name="restricted_wrong_pin">Onjuiste pincode</string>
+    <string name="restricted_pin_locked_out">Te veel pogingen · wacht %1$s</string>
+    <string name="restricted_choose_pin">Kies een pincode</string>
+    <string name="restricted_confirm_pin">Voer de pincode opnieuw in</string>
+    <string name="restricted_choose_pin_desc">%1$d tot %2$d cijfers</string>
+    <string name="restricted_pin_mismatch">De pincodes komen niet overeen. Kies opnieuw een pincode.</string>
+    <string name="restricted_delete_digit">Cijfer wissen</string>
+    <string name="restricted_disconnect_desc">Deze telefoon stopt met het uitlezen van de sensor. De metingen tot nu toe blijven bewaard.</string>
+    <string name="restricted_sensors_locked">Voor het toevoegen van een sensor is de volledige modus nodig.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d cijfer ingevoerd</item>
+        <item quantity="other">%d cijfers ingevoerd</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Eindigt binnen een uur</string>
+    <string name="restricted_sensor_ended">Afgelopen</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Eindigt over %d dag</item>
+        <item quantity="other">Eindigt over %d dagen</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Eindigt over %d uur</item>
+        <item quantity="other">Eindigt over %d uur</item>
+    </plurals>
+    <string name="restricted_section_settings">Instellingen open in beperkte modus</string>
+    <string name="restricted_allow_alarm_settings_desc">Niveaus en geluiden wijzigen, of meldingen uitzetten</string>
+    <string name="restricted_allow_voice_desc">Uitgesproken waarden en alarmen</string>
+    <string name="restricted_allow_display_desc">Doelbereik, grafieken, meldingen, zwevende glucose en vergrendelscherm</string>
     <string name="lumiflex_remove_follower_confirm">%1$s geen toegang meer geven tot je metingen?</string>
     <string name="lumiflex_discard_changes_title">Wijzigingen verwerpen?</string>
     <string name="lumiflex_discard_changes_message">Je wijzigingen voor deze volger zijn niet opgeslagen.</string>
@@ -3301,4 +3368,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="voice_quick_dashboard_desc">Schakelaar boven in de grafiek</string>
     <string name="voice_quick_notification">Tonen in melding</string>
     <string name="voice_quick_notification_desc">Stemknop in de glucosemelding</string>
+    <string name="aidex_keys_before_connect">Importeer de sleutels van deze sensor of vraag ze aan voordat je verbinding maakt.</string>
+    <string name="aidex_delete_keys_message">De opgeslagen koppelingssleutels voor %1$s van deze telefoon verwijderen? Exporteer ze eerst als je ze later nog nodig kunt hebben.</string>
 </resources>

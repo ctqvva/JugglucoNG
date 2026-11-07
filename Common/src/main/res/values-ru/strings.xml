@@ -432,6 +432,8 @@
     <string name="libreview_get_account_id">Получить ID аккаунта</string>
     <string name="libreview_status">Статус</string>
     <string name="libreview_russia">Регион Россия</string>
+    <string name="libreview_official_end">Обрезать по официальному сроку датчика</string>
+    <string name="libreview_official_end_desc">Не отправлять показания за лишние часы после официального окончания датчика Libre 2</string>
     <string name="low_label">Низкий</string>
     <string name="high_label">Высокий</string>
 
@@ -481,6 +483,7 @@
     <string name="reconnect_sensor_title">Переподключить датчик?</string>
     <string name="reconnect_sensor_desc">Это сбросит соединение и попытается подключиться снова.</string>
     <string name="reconnect">Переподключить</string>
+    <string name="ican_reset_bluetooth_binding">Сбросить привязку Bluetooth (данные сохранятся)</string>
     
     <string name="forget_sensor_title">Забыть датчик?</string>
     <string name="forget_sensor_desc">Это удалит датчик из списка. Он может появиться снова при сканировании.</string>
@@ -833,6 +836,9 @@
     <string name="alert_forecast_low">Прогноз низкого</string>
     <string name="alert_high">Высокий</string>
     <string name="alert_loss">Потеря сигнала</string>
+    <string name="alert_signal_restored">Сигнал восстановлен</string>
+    <string name="signal_restored_channel_description">Уведомление о возобновлении свежих показаний сенсора после потери сигнала</string>
+    <string name="signal_restored_explanation">Одно уведомление, когда свежие показания возобновятся после тайм-аута потери сигнала. Работает и при выключенном уведомлении о потере сигнала.</string>
     <string name="alert_low">Низкий</string>
     <string name="alert_missed_reading">Пропущенное значение</string>
     <string name="alert_mode">Alert Mode</string>
@@ -3319,6 +3325,76 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_status_load_failed">Не удалось загрузить подписчиков</string>
     <string name="lumiflex_status_signed_in">Вход подтверждён</string>
     <string name="lumiflex_session_note">Вход здесь разлогинивает официальное приложение Lumiflex и наоборот: одна сессия на аккаунт.</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Ограниченный режим</string>
+    <string name="restricted_mode_desc">Скрывает настройки и управление</string>
+    <string name="restricted_full_mode_title">Пока полный режим</string>
+    <string name="restricted_full_mode_desc">Ограниченный режим вернётся через минуту после выхода из приложения или когда вы его заблокируете.</string>
+    <string name="restricted_lock_now">Заблокировать</string>
+    <string name="restricted_section_unlock">Переход в полный режим</string>
+    <string name="restricted_pin_title">PIN-код</string>
+    <string name="restricted_pin_set">Вкл. · запрашивается перед полным режимом</string>
+    <string name="restricted_pin_not_set">Выкл. · в полный режим может перейти любой</string>
+    <string name="restricted_biometric_title">Отпечаток или лицо</string>
+    <string name="restricted_biometric_desc">Разблокировать также биометрией телефона</string>
+    <string name="restricted_biometric_needs_pin">Сначала задайте PIN-код</string>
+    <string name="restricted_section_allowed">Разрешено в ограниченном режиме</string>
+    <string name="restricted_section_available">Доступно сейчас</string>
+    <string name="restricted_allow_sensor_change">Смена датчиков</string>
+    <string name="restricted_allow_sensor_change_desc">Добавить новый датчик и отключить старый</string>
+    <string name="restricted_sensor_types_label">Датчики, которые можно добавить</string>
+    <string name="restricted_sensor_types_none">Выберите хотя бы один, иначе добавить датчик будет нельзя.</string>
+    <string name="restricted_handover_on">Автоматическая смена датчика включена: новый датчик заменит старый, когда тот закончится.</string>
+    <string name="restricted_handover_off">Автоматическая смена датчика выключена. Включите её, чтобы новый датчик заменил старый, когда тот закончится.</string>
+    <string name="restricted_turn_on_handover">Включить смену</string>
+    <string name="restricted_allow_journal">Записи дневника</string>
+    <string name="restricted_allow_journal_desc">Добавлять и изменять инсулин, еду и заметки</string>
+    <string name="restricted_allow_calibration_desc">Добавлять и изменять калибровки</string>
+    <string name="restricted_allow_alarm_stop">Остановка сигналов</string>
+    <string name="restricted_allow_alarm_stop_desc">Если выключено, сигналы можно только отложить</string>
+    <string name="restricted_always_hidden">Остальные настройки, сброс датчика, расширенное управление датчиком и удаление данных всегда требуют полного режима.</string>
+    <string name="restricted_pin_options_desc">Измените PIN-код или удалите его, чтобы полный режим открывался одним нажатием.</string>
+    <string name="restricted_change_pin">Изменить PIN-код</string>
+    <string name="restricted_remove_pin">Удалить PIN-код</string>
+    <string name="restricted_use_biometric">Отпечаток или лицо</string>
+    <string name="restricted_unlock_title">Перейти в полный режим</string>
+    <string name="restricted_unlock_desc">Откроются настройки и всё управление датчиком. Они закроются через минуту после выхода из приложения.</string>
+    <string name="restricted_unlock_desc_pin">Введите PIN-код, чтобы открыть настройки и всё управление датчиком. Они закроются через минуту после выхода из приложения.</string>
+    <string name="restricted_needs_full_mode">Сначала перейдите в полный режим в настройках.</string>
+    <string name="restricted_wrong_pin">Неверный PIN-код</string>
+    <string name="restricted_pin_locked_out">Слишком много попыток · подождите %1$s</string>
+    <string name="restricted_choose_pin">Задайте PIN-код</string>
+    <string name="restricted_confirm_pin">Введите PIN-код ещё раз</string>
+    <string name="restricted_choose_pin_desc">От %1$d до %2$d цифр</string>
+    <string name="restricted_pin_mismatch">PIN-коды не совпали. Задайте PIN-код заново.</string>
+    <string name="restricted_delete_digit">Удалить цифру</string>
+    <string name="restricted_disconnect_desc">Телефон перестанет читать датчик. Полученные показания сохранятся.</string>
+    <string name="restricted_sensors_locked">Чтобы добавить датчик, нужен полный режим.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">введена %d цифра</item>
+        <item quantity="few">введено %d цифры</item>
+        <item quantity="many">введено %d цифр</item>
+        <item quantity="other">введено %d цифры</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Осталось меньше часа</string>
+    <string name="restricted_sensor_ended">Закончился</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Остался %d день</item>
+        <item quantity="few">Осталось %d дня</item>
+        <item quantity="many">Осталось %d дней</item>
+        <item quantity="other">Осталось %d дня</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Остался %d час</item>
+        <item quantity="few">Осталось %d часа</item>
+        <item quantity="many">Осталось %d часов</item>
+        <item quantity="other">Осталось %d часа</item>
+    </plurals>
+    <string name="restricted_section_settings">Настройки, открытые в ограниченном режиме</string>
+    <string name="restricted_allow_alarm_settings_desc">Менять уровни и звуки или выключать оповещения</string>
+    <string name="restricted_allow_voice_desc">Озвучивание показаний и тревог</string>
+    <string name="restricted_allow_display_desc">Целевой диапазон, графики, уведомления, плавающая глюкоза и экран блокировки</string>
     <string name="lumiflex_account_checking">Проверка подключения…</string>
     <string name="lumiflex_account_setup_pending">Телефон подтверждён · завершите настройку</string>
     <string name="lumiflex_account_unverified">Не удалось проверить подключение</string>
@@ -3376,4 +3452,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_dashboard_desc">Переключатель вверху графика</string>
     <string name="voice_quick_notification">Показывать в уведомлении</string>
     <string name="voice_quick_notification_desc">Кнопка голоса в уведомлении с глюкозой</string>
+    <string name="aidex_keys_before_connect">Импортируйте или запросите ключи этого сенсора перед подключением.</string>
+    <string name="aidex_delete_keys_message">Удалить сохранённые ключи сенсора %1$s с этого телефона? Сначала экспортируйте их, если они могут понадобиться снова.</string>
 </resources>

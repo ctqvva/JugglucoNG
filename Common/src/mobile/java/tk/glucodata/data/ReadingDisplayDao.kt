@@ -94,6 +94,13 @@ interface ReadingDisplayDao {
     )
     fun getBetweenFlow(startTime: Long, endTime: Long): Flow<List<ReadingDisplay>>
 
+    /**
+     * Records written or revised at or after [moment] for minutes older than
+     * it, so whatever produced their value was applied after the fact.
+     */
+    @Query("SELECT * FROM reading_display WHERE timestamp < :moment AND recordedAt >= :moment")
+    suspend fun getWrittenAfterTheFact(moment: Long): List<ReadingDisplay>
+
     /** Which sensor owned the main line, minute by minute, since [startTime]. */
     @Query("SELECT timestamp, sensorSerial FROM reading_display WHERE timestamp >= :startTime")
     suspend fun mainLineOwners(startTime: Long): List<ReadingDisplayOwner>

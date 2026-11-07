@@ -1,5 +1,20 @@
 #include "LibreHist.hpp"
 #include "libreview.hpp"
+#include "settings/settings.hpp"
+//Lives here rather than in libreview.cpp because that file is stubbed out on Wear OS while
+//this one is built everywhere.
+uint32_t libreviewCutoff(const SensorGlucoseData *sens) {
+	if(!sens||!settings->data()->libreviewOfficialEnd())
+		return UINT32_MAX;
+	//isLibre2() is true by elimination, so it also matches the direct stream shells of managed
+	//drivers (Ottai, Medtrum, iCan, AiDex, followers...). They have no 12 hour grace period and
+	//a lifetime of their own, which officialendtime() would replace with the 14 day fallback.
+	//Only a sensor that gave its patch info over NFC is a real Libre 1/2, the same test g.cpp
+	//uses for the Libre history lane; anything else is sent whole.
+	if(!sens->isLibre2()||sens->isAiDex()||!sens->hasLibrePatchInfo())
+		return UINT32_MAX;
+	return sens->officialendtime();
+	}
 /*
 bool startedwithStreamhistory(const SensorGlucoseData *sensdata) {
 	const bool userealhistory= (sensdata->getinfo()->libreviewnotsendHistory>= sensdata->getinfo()->startedwithStreamhistory)||!sensdata->pollcount();
@@ -63,6 +78,7 @@ void switchrealhistory(SensorGlucoseData *sensdata,bool torealhistory) {
 LibreHist  libreRealHistory(SensorGlucoseData *sens,uint32_t starttime,uint32_t nu) { //test on start time;
 	const uint32_t notsend=sens->getinfo()->libreviewnotsendHistory;
 	const uint32_t endpos=sens->getAllendhistory();
+	const uint32_t cutoff=libreviewCutoff(sens);
 #ifndef NOLOG
 	time_t tim=starttime;
 	LOGGER("libreRealHistory %s getAllendhistory=%d libreviewnotsendHistory=%d from %s", sens->shortsensorname()->data(), endpos, notsend,ctime(&tim));
@@ -75,8 +91,13 @@ LibreHist  libreRealHistory(SensorGlucoseData *sens,uint32_t starttime,uint32_t 
 			}
 		const Glucose *gl=sens->getglucose(iter);
 
-		if(gl->valid()&&!info->isLibreSend(iter)&&gl->gettime()>starttime)
+		if(gl->valid()&&!info->isLibreSend(iter)&&gl->gettime()>starttime) {
+			//Past the official end the entries stay unsent and the cursor stays on the
+			//first of them, so switching the option off sends them.
+			if(gl->gettime()>cutoff)
+				return {.notsendHistory=iter};
 			break;
+			}
 		++iter;
 		}
 	int datalen=(int)endpos-iter;
@@ -85,9 +106,14 @@ LibreHist  libreRealHistory(SensorGlucoseData *sens,uint32_t starttime,uint32_t 
 	int startit=iter;	
 #endif
 	int uitit=0;
+	uint32_t nextpos=endpos;
 	for(;iter<endpos;iter++) {
 		const Glucose *gl=sens->getglucose(iter);
 		if(gl->valid()&&!info->isLibreSend(iter)) {
+			if(gl->gettime()>cutoff) {
+				nextpos=iter;
+				break;
+				}
 			list[uitit++]={.ti=gl->gettime(),
 			               .mgdL=(uint16_t)libreviewExportedMgdl(sens,gl->gettime(),gl->getmgdL()),
 			               .id=(uint16_t)(gl->getid())};
@@ -96,7 +122,7 @@ LibreHist  libreRealHistory(SensorGlucoseData *sens,uint32_t starttime,uint32_t 
 	LOGGER("startit=%d nr=%d\n",startit,uitit);
 	extern int64_t libreviewHistor(const sensorname_t *sensorid) ;
 	const int64_t histor=libreviewHistor(sens->shortsensorname());
-	return {.histor=histor,.list=list,.size=uitit,.starttime=sens->getstarttime(),.msec=0,.notsendHistory=endpos,.sendstart=sens->getinfo()->sendsensorstart };
+	return {.histor=histor,.list=list,.size=uitit,.starttime=sens->getstarttime(),.msec=0,.notsendHistory=nextpos,.sendstart=sens->getinfo()->sendsensorstart };
 	}
 
 void setlibresend(SensorGlucoseData *sens,const LibreHist &hists) {

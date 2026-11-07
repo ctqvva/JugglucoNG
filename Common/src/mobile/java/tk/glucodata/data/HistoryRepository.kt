@@ -2280,9 +2280,17 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
      * Which of the two happens is decided by the database rather than here — see
      * [ReadingDisplayDao.reviseIfUnsealed].
      *
-     * @return newly inserted minutes, or null if disabled or the transaction failed.
+     * @param calibrationRevision the revision the presented values were resolved
+     *   under. A write from an older one is refused, inside the transaction, so
+     *   it either lands before [releaseRecordsMadeUnderCalibration] runs or not
+     *   at all: a chart still drawing a calibration that has just gone must not
+     *   put its value back.
+     * @return newly inserted minutes, or null if disabled, stale or the transaction failed.
      */
-    suspend fun recordPresentedMinutes(entries: List<PresentedMinute>): Int? {
+    suspend fun recordPresentedMinutes(
+        entries: List<PresentedMinute>,
+        calibrationRevision: Long? = null,
+    ): Int? {
         if (entries.isEmpty()) return 0
         if (!runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)) {
             return null
@@ -2315,6 +2323,9 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                 if (rows.isEmpty()) return@withContext 0
 
                 val inserted = database.withTransaction {
+                    if (calibrationRevision != null && calibrationRevision != CalibrationManager.revision.value) {
+                        return@withTransaction null
+                    }
                     var count = 0
                     rows.chunked(NATIVE_BACKFILL_INSERT_CHUNK).forEach { chunk ->
                         count += displayDao.sealAll(chunk).count { it >= 0L }
@@ -2326,7 +2337,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                         )
                     }
                     count
-                }
+                } ?: return@withContext null
                 // No data refresh here. Recording a presentation changes nothing
                 // that is displayed — the value written is the value already on
                 // screen — and requesting one after every newly presented minute
@@ -2352,6 +2363,55 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                 null
             }
         }
+    }
+
+    /**
+     * Takes back what a calibration wrote into the record after the fact, when
+     * that calibration is removed or changed.
+     *
+     * A minute older than the grace window seals on first presentation. If a
+     * calibration added for the past is in force at that moment, the minute
+     * seals with a number that only that calibration ever produced, and removing
+     * the calibration used to leave it there for good: a stretch of the main line
+     * sitting a calibration's offset away from the sensor, with the minutes that
+     * already had a record showing through it. A driver rewrite makes that worse
+     * in a two-sensor store, because it releases one sensor's minutes and leaves
+     * holes along exactly that sensor's ownership.
+     *
+     * Only those minutes are released: from before the moment the calibration
+     * was added, and recorded since. That is its arrival, not the point's own
+     * timestamp: the point can sit anywhere in the past and reaches the minutes
+     * after it. A minute recorded before it arrived never carried it.
+     * A minute lived through while it was in force was shown that way as it
+     * happened, and stays, and so does one recorded while it was switched off,
+     * which was never under it. The lock does not apply, since it protects what was
+     * seen, and this is a value that no longer has any standing. Released minutes
+     * follow the live line until they are next presented.
+     *
+     * @param addedAt when the calibration appeared on this device.
+     * @param pointSwitches when it was switched, as [CalibrationPointSwitches] has them.
+     * @return how many minutes were released.
+     */
+    suspend fun releaseRecordsMadeUnderCalibration(
+        sensorId: String,
+        addedAt: Long,
+        rawLane: Boolean,
+        autoLane: Boolean,
+        pointSwitches: List<Long> = emptyList(),
+    ): Int = withContext(Dispatchers.IO) {
+        val released = database.withTransaction {
+            val minutes = RecordedDisplayVoiding.minutesOfCalibratedLane(
+                displayDao.getWrittenAfterTheFact(addedAt), sensorId, rawLane, autoLane, pointSwitches,
+            )
+            var deleted = 0
+            minutes.chunked(500).forEach { deleted += displayDao.deleteAtMinutes(it, sealHorizon = null) }
+            deleted
+        }
+        tk.glucodata.Log.i(
+            TAG,
+            "calibration of $sensorId added at $addedAt is gone: released $released minutes recorded under it"
+        )
+        released
     }
 
     /**

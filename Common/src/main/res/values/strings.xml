@@ -678,6 +678,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_get_account_id">Get account ID</string>
     <string name="libreview_status">Status</string>
     <string name="libreview_russia">Russia region</string>
+    <string name="libreview_official_end">Stop at sensor\'s official end</string>
+    <string name="libreview_official_end_desc">Leave out the extra hours after a Libre 2 sensor\'s official end</string>
     
     <string name="low_label">Low</string>
     <string name="high_label">High</string>
@@ -700,6 +702,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Reset Bluetooth binding (keeps data)</string>
     
     <string name="forget_sensor_title">Forget Sensor?</string>
     <string name="forget_sensor_desc">This will remove the sensor from the list. It may reappear if scanned again.</string>
@@ -933,6 +936,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alert_forecast_low">Forecast Low</string>
     <string name="alert_forecast_high">Forecast High</string>
     <string name="alert_loss">Signal Loss</string>
+    <string name="alert_signal_restored">Signal restored</string>
+    <string name="signal_restored_channel_description">Alerts when fresh sensor readings resume after signal loss</string>
+    <string name="signal_restored_explanation">Notify once when fresh readings resume after the Signal loss timeout. Works even when the Signal loss alert is off.</string>
     <string name="alert_missed_reading">Missed Reading</string>
     <string name="alert_persistent_high">Persistent High</string>
     <string name="alert_sensor_expiry">Sensor Expiry</string>
@@ -1272,6 +1278,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_status_saved_key_rejected_press_pair">Stored pairing key rejected — press Pair</string>
     <string name="aidex_status_pairing_failed_broadcast_only">Pairing failed — Broadcast Only</string>
     <string name="aidex_key_saved">Sensor-specific pairing key saved</string>
+    <string name="aidex_keys_before_connect">Import or request this sensor’s keys before connecting.</string>
+    <string name="aidex_delete_keys_message">Remove saved pairing keys for %1$s from this phone? Export them first if you may need them again.</string>
     <string name="aidex_key_fetch_action">Get key from account</string>
     <string name="aidex_key_fetch_requires_sign_in">Sign in to download this sensor\'s key.</string>
     <string name="aidex_key_import_failed">Import failed — not a valid AiDex key file.</string>
@@ -3521,6 +3529,70 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_status_load_failed">Could not load followers</string>
     <string name="lumiflex_status_signed_in">Signed in</string>
     <string name="lumiflex_session_note">Signing in here signs the official Lumiflex app out, and vice versa: one session per account.</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Restricted mode</string>
+    <string name="restricted_mode_desc">Hides settings and controls</string>
+    <string name="restricted_full_mode_title">Full mode, for now</string>
+    <string name="restricted_full_mode_desc">Restricted mode comes back a minute after you leave the app, or when you lock it.</string>
+    <string name="restricted_lock_now">Lock now</string>
+    <string name="restricted_section_unlock">Switching to full mode</string>
+    <string name="restricted_pin_title">PIN</string>
+    <string name="restricted_pin_set">On · asked for before full mode</string>
+    <string name="restricted_pin_not_set">Off · anyone can switch to full mode</string>
+    <string name="restricted_biometric_title">Fingerprint or face</string>
+    <string name="restricted_biometric_desc">Also unlock with the phone\'s biometrics</string>
+    <string name="restricted_biometric_needs_pin">Set a PIN first</string>
+    <string name="restricted_section_allowed">Allowed while restricted</string>
+    <string name="restricted_section_available">Available now</string>
+    <string name="restricted_allow_sensor_change">Change sensors</string>
+    <string name="restricted_allow_sensor_change_desc">Add a new sensor and disconnect the old one</string>
+    <string name="restricted_sensor_types_label">Sensors that can be added</string>
+    <string name="restricted_sensor_types_none">Choose at least one, or no sensor can be added.</string>
+    <string name="restricted_handover_on">Automatic sensor handover is on: the new sensor takes over when the old one ends.</string>
+    <string name="restricted_handover_off">Automatic sensor handover is off. Turn it on so the new sensor takes over when the old one ends.</string>
+    <string name="restricted_turn_on_handover">Turn on handover</string>
+    <string name="restricted_allow_journal">Journal entries</string>
+    <string name="restricted_allow_journal_desc">Add and edit insulin, meals and notes</string>
+    <string name="restricted_allow_calibration_desc">Add and edit calibrations</string>
+    <string name="restricted_allow_alarm_stop">Stop alarms</string>
+    <string name="restricted_allow_alarm_stop_desc">When off, alarms can only be snoozed</string>
+    <string name="restricted_always_hidden">Other settings, sensor resets, advanced sensor controls and deleting data always need full mode.</string>
+    <string name="restricted_pin_options_desc">Change the PIN, or remove it so full mode opens with one tap.</string>
+    <string name="restricted_change_pin">Change PIN</string>
+    <string name="restricted_remove_pin">Remove PIN</string>
+    <string name="restricted_use_biometric">Use fingerprint or face</string>
+    <string name="restricted_unlock_title">Switch to full mode</string>
+    <string name="restricted_unlock_desc">Settings and all sensor controls open. They close a minute after you leave the app.</string>
+    <string name="restricted_unlock_desc_pin">Enter the PIN to open settings and all sensor controls. They close a minute after you leave the app.</string>
+    <string name="restricted_needs_full_mode">Switch to full mode in Settings first.</string>
+    <string name="restricted_wrong_pin">Wrong PIN</string>
+    <string name="restricted_pin_locked_out">Too many tries · wait %1$s</string>
+    <string name="restricted_choose_pin">Choose a PIN</string>
+    <string name="restricted_confirm_pin">Enter the PIN again</string>
+    <string name="restricted_choose_pin_desc">%1$d to %2$d digits</string>
+    <string name="restricted_pin_mismatch">The PINs didn\'t match. Choose a PIN again.</string>
+    <string name="restricted_delete_digit">Delete digit</string>
+    <string name="restricted_disconnect_desc">This phone stops reading the sensor. Its readings so far are kept.</string>
+    <string name="restricted_sensors_locked">Adding a sensor needs full mode.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d digit entered</item>
+        <item quantity="other">%d digits entered</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Ends within the hour</string>
+    <string name="restricted_sensor_ended">Ended</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Ends in %d day</item>
+        <item quantity="other">Ends in %d days</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Ends in %d hour</item>
+        <item quantity="other">Ends in %d hours</item>
+    </plurals>
+    <string name="restricted_section_settings">Settings open while restricted</string>
+    <string name="restricted_allow_alarm_settings_desc">Change levels and sounds, or turn alerts off</string>
+    <string name="restricted_allow_voice_desc">Spoken readings and alarms</string>
+    <string name="restricted_allow_display_desc">Target range, charts, notifications, floating glucose and lock screen</string>
     <string name="lumiflex_account_checking">Checking connection…</string>
     <string name="lumiflex_account_setup_pending">Phone verified · finish account setup</string>
     <string name="lumiflex_account_unverified">Connection could not be verified</string>

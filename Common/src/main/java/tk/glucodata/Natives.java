@@ -1202,6 +1202,11 @@ public class Natives {
 
         public static native boolean getLibreIsViewed();
 
+        /** LibreView: stop uploading a Libre 2 sensor's readings at its official end. */
+        public static native void setLibreOfficialEnd(boolean val);
+
+        public static native boolean getLibreOfficialEnd();
+
         public static native void setRTL(boolean val);
 
         public static native boolean getRTL();

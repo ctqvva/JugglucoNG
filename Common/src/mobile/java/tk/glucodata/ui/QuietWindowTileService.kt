@@ -31,9 +31,11 @@ class QuietWindowTileService : TileService() {
         try {
             if (QuietWindow.untilMs(System.currentTimeMillis()) > 0L) {
                 QuietWindow.end(this)
-            } else {
+            } else if (tk.glucodata.RestrictedMode.allowsAlarmStop()) {
                 QuietWindow.startDefault(this)
             }
+            // Restricted to snoozing: a quiet window would silence the alarms outright, so
+            // the tile only ends one (refresh() shows it unavailable).
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "onClick", t)
         }
@@ -44,7 +46,11 @@ class QuietWindowTileService : TileService() {
         val tile = qsTile ?: return
         val until = QuietWindow.untilMs(System.currentTimeMillis())
         val active = until > 0L
-        tile.state = if (active) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+        tile.state = when {
+            active -> Tile.STATE_ACTIVE
+            !tk.glucodata.RestrictedMode.allowsAlarmStop() -> Tile.STATE_UNAVAILABLE
+            else -> Tile.STATE_INACTIVE
+        }
         tile.icon = Icon.createWithResource(
             this,
             if (active) R.drawable.ic_quiet_window_active else R.drawable.ic_quiet_window_inactive
