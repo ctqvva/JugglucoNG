@@ -3245,6 +3245,67 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">下降</string>
     <string name="tts_trend_rising_quickly">快速上升</string>
     <string name="tts_trend_falling_quickly">快速下降</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">受限模式</string>
+    <string name="restricted_mode_desc">隐藏设置和控制项</string>
+    <string name="restricted_full_mode_title">暂时处于完整模式</string>
+    <string name="restricted_full_mode_desc">离开应用一分钟后或锁定时，将恢复受限模式。</string>
+    <string name="restricted_lock_now">立即锁定</string>
+    <string name="restricted_section_unlock">切换到完整模式</string>
+    <string name="restricted_pin_title">PIN 码</string>
+    <string name="restricted_pin_set">已开启 · 进入完整模式前需输入</string>
+    <string name="restricted_pin_not_set">未开启 · 任何人都可切换到完整模式</string>
+    <string name="restricted_biometric_title">指纹或面容</string>
+    <string name="restricted_biometric_desc">也可使用手机生物识别解锁</string>
+    <string name="restricted_biometric_needs_pin">请先设置 PIN 码</string>
+    <string name="restricted_section_allowed">受限模式下允许</string>
+    <string name="restricted_section_available">现在可用</string>
+    <string name="restricted_allow_sensor_change">更换传感器</string>
+    <string name="restricted_allow_sensor_change_desc">添加新传感器并断开旧传感器</string>
+    <string name="restricted_sensor_types_label">可添加的传感器</string>
+    <string name="restricted_sensor_types_none">请至少选择一种，否则无法添加传感器。</string>
+    <string name="restricted_handover_on">自动传感器交接已开启：旧传感器结束时由新传感器接替。</string>
+    <string name="restricted_handover_off">自动传感器交接已关闭。开启后，旧传感器结束时由新传感器接替。</string>
+    <string name="restricted_turn_on_handover">开启交接</string>
+    <string name="restricted_allow_journal">日志记录</string>
+    <string name="restricted_allow_journal_desc">添加和编辑胰岛素、餐食和备注</string>
+    <string name="restricted_allow_calibration_desc">添加和编辑校准</string>
+    <string name="restricted_allow_alarm_stop">停止警报</string>
+    <string name="restricted_allow_alarm_stop_desc">关闭时，警报只能稍后提醒</string>
+    <string name="restricted_always_hidden">其他设置、传感器重置、高级传感器控制和删除数据始终需要完整模式。</string>
+    <string name="restricted_pin_options_desc">更改 PIN 码，或将其移除以便一键进入完整模式。</string>
+    <string name="restricted_change_pin">更改 PIN 码</string>
+    <string name="restricted_remove_pin">移除 PIN 码</string>
+    <string name="restricted_use_biometric">使用指纹或面容</string>
+    <string name="restricted_unlock_title">切换到完整模式</string>
+    <string name="restricted_unlock_desc">将打开设置和全部传感器控制。离开应用一分钟后会再次关闭。</string>
+    <string name="restricted_unlock_desc_pin">输入 PIN 码以打开设置和全部传感器控制。离开应用一分钟后会再次关闭。</string>
+    <string name="restricted_needs_full_mode">请先在设置中切换到完整模式。</string>
+    <string name="restricted_wrong_pin">PIN 码错误</string>
+    <string name="restricted_pin_locked_out">尝试次数过多 · 请等待 %1$s</string>
+    <string name="restricted_choose_pin">设置 PIN 码</string>
+    <string name="restricted_confirm_pin">再次输入 PIN 码</string>
+    <string name="restricted_choose_pin_desc">%1$d–%2$d 位数字</string>
+    <string name="restricted_pin_mismatch">两次 PIN 码不一致，请重新设置。</string>
+    <string name="restricted_delete_digit">删除数字</string>
+    <string name="restricted_disconnect_desc">此手机将停止读取该传感器。已有读数会保留。</string>
+    <string name="restricted_sensors_locked">添加传感器需要完整模式。</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="other">已输入 %d 位数字</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">一小时内结束</string>
+    <string name="restricted_sensor_ended">已结束</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="other">%d 天后结束</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="other">%d 小时后结束</item>
+    </plurals>
+    <string name="restricted_section_settings">受限模式下开放的设置</string>
+    <string name="restricted_allow_alarm_settings_desc">更改阈值和声音，或关闭提醒</string>
+    <string name="restricted_allow_voice_desc">语音播报读数和警报</string>
+    <string name="restricted_allow_display_desc">目标范围、图表、通知、悬浮血糖和锁屏</string>
     <string name="lumiflex_remove_follower_confirm">移除 %1$s 对您读数的访问权限？</string>
     <string name="lumiflex_discard_changes_title">放弃更改？</string>
     <string name="lumiflex_discard_changes_message">对此关注者设置的更改尚未保存。</string>

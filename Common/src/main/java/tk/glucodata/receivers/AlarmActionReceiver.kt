@@ -38,8 +38,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
                 val kind = fallbackAlertTypeId.takeIf { it >= 0 } ?: Notify.resolveAlertKind(-1)
                 val minutes = if (intent.hasExtra(EXTRA_SNOOZE_MINUTES)) {
                     intent.getIntExtra(EXTRA_SNOOZE_MINUTES, 15)
-                } else if (customAlertId != null) 15
-                else AlertType.fromId(kind)?.let { AlertRepository.loadConfig(it).defaultSnoozeMinutes } ?: 15
+                } else tk.glucodata.alerts.AlertActions.defaultSnoozeMinutes(kind, customAlertId)
                 tk.glucodata.alerts.AlertActions.handle(kind, customAlertId, minutes)
             }
 

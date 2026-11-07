@@ -82,7 +82,12 @@ fun AlertSettingsScreen(
 ) {
     val context = LocalContext.current
     val isMmol = Applic.unit == 1
-    
+    val restricted by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
+    val voiceOpen = !restricted.locked || tk.glucodata.ui.restricted.RestrictedModeRoutes.isOpenWhileLocked(
+        tk.glucodata.ui.restricted.RestrictedModeRoutes.VOICE,
+        restricted.config,
+    )
+
     // Load all alert configs
     val configs = remember {
         mutableStateMapOf<AlertType, AlertConfig>().apply {
@@ -550,12 +555,13 @@ fun AlertSettingsScreen(
                     subtitle = stringResource(R.string.preemptive_snooze_desc),
                     icon = Icons.Default.Snooze,
                     iconTint = MaterialTheme.colorScheme.primary,
-                    position = SettingsItemPosition.TOP,
+                    position = if (voiceOpen) SettingsItemPosition.TOP else SettingsItemPosition.SINGLE,
                     onClick = { showPreemptiveSnooze = true }
                 )
             }
 
-            item(key = "talker-settings") {
+            // Alarms can be open to a restricted phone without Voice; the row is gone then.
+            if (voiceOpen) item(key = "talker-settings") {
                 SettingsItem(
                     title = stringResource(R.string.talker),
                     subtitle = stringResource(R.string.speakglucose) + " \u2022 " + stringResource(R.string.speakalarms),

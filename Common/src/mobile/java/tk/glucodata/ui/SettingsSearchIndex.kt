@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudUpload
@@ -364,6 +365,9 @@ internal object SettingsSearchIndex {
             route("settings/sensor-connection"), terms = listOf("AutoConnect"), anchor = SettingsSearchAnchors.AUTOCONNECT),
         SettingsSearchEntry(R.string.freeze_displayed_values, ADVANCED, Icons.Default.Lock, N,
             action(SettingsSearchAction.KEEP_DISPLAYED_VALUES)),
+        SettingsSearchEntry(R.string.restricted_mode_title, ADVANCED, Icons.Default.ChildCare, N,
+            route("settings/restricted-mode"), keywords = listOf(R.string.restricted_mode_desc),
+            terms = listOf("PIN", "child", "kid", "parental", "elderly", "simple")),
 
         // Danger zone: restart acts at once, as its row does; the rest ask for confirmation.
         SettingsSearchEntry(R.string.restart_app, DANGER, Icons.Default.Refresh, E, action(SettingsSearchAction.RESTART),

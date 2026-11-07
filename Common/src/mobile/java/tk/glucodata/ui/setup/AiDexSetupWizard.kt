@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -60,9 +62,15 @@ fun AiDexSetupWizard(
     onNavigateToReadiness: () -> Unit = {},
     onComplete: () -> Unit
 ) {
+    val fullModeGuard = tk.glucodata.ui.restricted.rememberFullModeGuard()
+    val restrictedLocked = tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle().value.locked
     val tag = "AiDexSetupWizard"
     val ui = rememberWizardUiMetrics()
     var currentStep by remember { mutableStateOf(AiDexSetupStep.SCAN) }
+    // Restricted again with key management open: back to the scan, where keys are not touched.
+    LaunchedEffect(restrictedLocked) {
+        if (restrictedLocked && currentStep == AiDexSetupStep.KEY_MANAGEMENT) currentStep = AiDexSetupStep.SCAN
+    }
     var selectedDeviceName by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -99,7 +107,8 @@ fun AiDexSetupWizard(
                 AiDexSetupStep.SCAN -> AiDexScanStep(
                     ui = ui,
                     onNavigateToReadiness = onNavigateToReadiness,
-                    onManageKeys = { currentStep = AiDexSetupStep.KEY_MANAGEMENT },
+                    // Saved pairing keys can be deleted there: full mode on a restricted phone.
+                    onManageKeys = { fullModeGuard { currentStep = AiDexSetupStep.KEY_MANAGEMENT } },
                     onDeviceSelected = { selectedName, address ->
                         try {
                             val name = selectedName.trim()
