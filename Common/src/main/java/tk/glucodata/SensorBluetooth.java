@@ -1396,6 +1396,23 @@ public class SensorBluetooth {
         return false;
     }
 
+    /**
+     * Why a driver with a native record is being removed: native no longer lists
+     * its sensor. A working sensor removed this way leaves the app altogether
+     * (#872), so the log says which check dropped it.
+     */
+    private static String removalReason(SuperGattCallback callback) {
+        if (callback == null || callback.dataptr == 0L || callback.SerialNumber == null) {
+            return "";
+        }
+        try {
+            final String why = Natives.activeSensorReason(callback.SerialNumber);
+            return why == null ? "" : ": native " + why;
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
     private static int consumeMatchingDeviceIds(String[] sensors, SuperGattCallback callback) {
         if (sensors == null || callback == null) {
             return 0;
@@ -1585,14 +1602,11 @@ public class SensorBluetooth {
 
             for (int el = rem.size() - 1; el >= 0; el--) {
                 int weg = rem.get(el);
-                final String removedSerial = gattcallbacks.get(weg).SerialNumber;
-                {
-                    if (doLog) {
-                        Log.i(LOG_ID, "remove " + removedSerial);
-                    }
-                    ;
+                final SuperGattCallback removed = gattcallbacks.get(weg);
+                final String removedSerial = removed.SerialNumber;
+                if (doLog) {
+                    Log.i(LOG_ID, "remove " + removedSerial + removalReason(removed));
                 }
-                ;
                 gattcallbacks.get(weg).free();
                 gattcallbacks.remove(weg);
                 rehomeCurrentSensorAfterRemoval(removedSerial, allDevs);

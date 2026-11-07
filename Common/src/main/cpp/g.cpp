@@ -2599,6 +2599,28 @@ fromjava(finishfromSensorptr)(JNIEnv *env, jclass cl, jlong sensorptr) {
   finishsensor(sens, sensorindex);
 }
 #endif
+// Why activeSensors leaves this sensor out, for the log when its driver is
+// removed (#872).
+extern std::string usedsensorreason(int ind);
+extern "C" JNIEXPORT jstring JNICALL fromjava(activeSensorReason)(JNIEnv *env,
+                                                                  jclass cl,
+                                                                  jstring jname) {
+  if (!sensors || !jname)
+    return nullptr;
+  const char *name = env->GetStringUTFChars(jname, nullptr);
+  if (!name)
+    return nullptr;
+  int ind = sensors->sensorindexshort(name);
+  if (ind < 0)
+    ind = sensors->sensorindex(name);
+  env->ReleaseStringUTFChars(jname, name);
+  if (ind < 0)
+    return env->NewStringUTF("not a native sensor");
+  std::string why = usedsensorreason(ind);
+  if (sensors->sensorDirectoryMissing(ind))
+    why += ", directory missing";
+  return env->NewStringUTF(why.c_str());
+}
 #ifdef LIBRE3
 extern "C" JNIEXPORT jobjectArray JNICALL fromjava(activeSensors)(JNIEnv *env,
                                                                   jclass cl) {

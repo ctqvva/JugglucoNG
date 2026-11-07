@@ -1486,6 +1486,33 @@ public:
   }
 
   vector<int> bluetoothactive(uint32_t tim, uint32_t nu) {
+    return bluetoothactive(tim, nu, [](int, const char *) {});
+  }
+  // Why the sensor at target is or is not one Bluetooth is kept for: the walk
+  // bluetoothactive makes, reported for that sensor. When it is dropped, its
+  // driver is removed and the sensor leaves the app (#872).
+  std::string bluetoothactiveReason(const int target, uint32_t tim, uint32_t nu) {
+    std::string why;
+    int stoppedAt = -1;
+    const auto out = bluetoothactive(tim, nu, [&](int i, const char *reason) {
+      if (i == target)
+        why = reason;
+      else if (!strcmp(reason, "stops the walk"))
+        stoppedAt = i;
+    });
+    if (std::find(out.begin(), out.end(), target) != out.end())
+      return "listed";
+    if (!why.empty())
+      return why;
+    if (stoppedAt >= 0)
+      return std::string("not reached: the walk stopped at ") +
+             showsensorname(stoppedAt) + ", started later, no data for 24 days";
+    return "not in the sensor list walk";
+  }
+  // Walks the sensors from the latest started back; report(index, reason) is
+  // told why each one left out was left out.
+  template <typename Report>
+  vector<int> bluetoothactive(uint32_t tim, uint32_t nu, Report &&report) {
     vector<int> out;
     const uint32_t oldsecs = nu - maxSIhours * 60 * 60;
     const uint32_t newsecs = nu - youngsensorsecs;
@@ -1498,6 +1525,8 @@ public:
           setindices();
         prev = sensor.prev;
         if (sensor.finished) {
+          report(i, sensor.wasRemovedByUser() ? "removed by the user"
+                                              : "finished");
           continue;
         }
         if (sensor.endtime < newsecs) {
@@ -1509,10 +1538,12 @@ public:
             } else {
               LOGSTRING("hist==null\n");
             }
+            report(i, "its data could not be opened");
             continue;
           }
           if (!sensor.starttime) {
             if (!repairMissingStarttime(i, sensor, hist, false)) {
+              report(i, "no start time");
               continue;
             }
             repairedOrder = true;
@@ -1525,30 +1556,48 @@ public:
           const auto sensmax = hist->lastused();  // Use actual last data time, not expected max time
           if (sensmax <= oldsecs) {
             LOGGER("blueactive %s old %u\n", showsensorname(i), sensmax);
+            // The list is in start order, so the sensors before this one
+            // started earlier still, and are taken to be over too. Not when
+            // this one started recently and only has no data (a record set up
+            // and never read, a shell): an earlier sensor may still be live,
+            // and stopping here dropped it and removed its driver.
+            if (sensor.starttime > oldsecs) {
+              report(i, "started within 24 days, no data");
+              continue;
+            }
+            report(i, "stops the walk");
             break;
           }
           const auto lasttime = hist->lastused();
           bool canuse = hist->canusestreaming();
           // If in reset mode, ignore gap timeout to allow backfill.
           // isInResetMode() handles auto-clearing when gap closes.
-          if (!canuse ||
-              (lasttime && lasttime < tim && !hist->isInResetMode())) {
+          if (!canuse) {
+            report(i, "not a Bluetooth sensor");
+            continue;
+          }
+          if (lasttime && lasttime < tim && !hist->isInResetMode()) {
+            report(i, "no data for a day");
             continue;
           }
         } else {
           SensorGlucoseData *hist = getSensorData(i);
           if (!hist) {
             LOGSTRING("hist==null\n");
+            report(i, "its data could not be opened");
             continue;
           }
           if (!sensor.starttime) {
             if (!repairMissingStarttime(i, sensor, hist, false)) {
+              report(i, "no start time");
               continue;
             }
             repairedOrder = true;
           }
-          if (!hist->canusestreaming())
+          if (!hist->canusestreaming()) {
+            report(i, "not a Bluetooth sensor");
             continue;
+          }
         }
         out.push_back(i);
       }
