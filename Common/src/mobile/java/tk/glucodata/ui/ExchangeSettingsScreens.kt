@@ -108,6 +108,7 @@ import tk.glucodata.webserver.WebServerCertificate
 import tk.glucodata.Applic
 import tk.glucodata.AutoSensorSwitch
 import tk.glucodata.WearToggleSync
+import tk.glucodata.MessageSender
 import tk.glucodata.GoogleServices
 import tk.glucodata.Natives
 import tk.glucodata.NotificationForwardingSettings
@@ -541,10 +542,11 @@ fun WearOsConfigScreen(navController: NavController) {
             // a reachable watch must not stay armed until its next sync.
             // Turning it on does need one, to send the sensor's setup to.
             if (!enabled) {
-                scope.launch(Dispatchers.IO) {
-                    AutoSensorSwitch.setEnabled(false)
-                    WearToggleSync.push()
-                }
+                // Stored now, not from a coroutine: this screen's scope dies on
+                // back, and a cancelled launch would leave it switched on. The
+                // broadcast goes on the app-wide scope for the same reason.
+                AutoSensorSwitch.setEnabled(false)
+                MessageSender.scope.launch { WearToggleSync.push() }
             }
             return
         }
