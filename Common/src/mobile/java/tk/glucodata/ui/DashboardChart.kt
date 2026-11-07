@@ -155,6 +155,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -944,6 +945,9 @@ private data class ChartBleedClipShape(
         }
     }
 }
+
+/** Marks the chart's plot area, which is composed whether or not there are readings. */
+internal const val GLUCOSE_CHART_PLOT_TAG = "glucose_chart_plot"
 
 @Composable
 fun InteractiveGlucoseChart(
@@ -2029,6 +2033,7 @@ fun InteractiveGlucoseChart(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
+                .testTag(GLUCOSE_CHART_PLOT_TAG)
                 .onGloballyPositioned { gestureSurfaceOnScreen = it.positionOnScreen() }
                 .pointerInput(previewWindowReservedIntPx) {
                     // Manual Gesture Handler for:

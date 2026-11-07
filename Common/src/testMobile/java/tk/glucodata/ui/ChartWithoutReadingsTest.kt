@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import org.junit.Before
@@ -62,6 +63,7 @@ class ChartWithoutReadingsTest {
                 selectedTimeRange = TimeRange.H3,
             )
         }
+        compose.onNodeWithTag(GLUCOSE_CHART_PLOT_TAG, useUnmergedTree = true).assertExists()
         compose.onNodeWithText("3H", useUnmergedTree = true).assertExists()
     }
 }
