@@ -4,6 +4,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.drivers.aidex.AiDexProvisionedKeys
 import java.io.IOException
+import java.security.GeneralSecurityException
+import tk.glucodata.Log
 
 internal interface BloodControlCache {
     fun string(key: String): String?
@@ -27,13 +29,15 @@ internal class BloodControlAidexKeyProvider(
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     private var disabled = false
+    private var disabledReason = "BloodControl API недоступен в этом сеансе"
     private val disabledSensors = mutableSetOf<String>()
 
     @Synchronized
     fun request(serialInput: String): BloodControlKeyResult {
         val serial = BloodControlProtocol.normalizeSerial(serialInput)
             ?: return failure("Проверьте серийный номер")
-        if (disabled || serial in disabledSensors) return failure("BloodControl API недоступен в этом сеансе")
+        if (disabled) return failure(disabledReason)
+        if (serial in disabledSensors) return failure("BloodControl API недоступен для этого сенсора")
         activeDeadline("retry_global")?.let {
             return failure("Повторите запрос позже", it)
         }
@@ -47,7 +51,7 @@ internal class BloodControlAidexKeyProvider(
                 val response = post(ALLOWLIST)
                 if (response != null) {
                     val entries = response.optJSONArray("allowlistAidex") ?: run {
-                        disabled = true
+                        disable("allowlist_schema", "BloodControl вернул некорректный список сенсоров")
                         return failure("Некорректный ответ BloodControl")
                     }
                     val normalized = JSONArray()
@@ -62,7 +66,7 @@ internal class BloodControlAidexKeyProvider(
                     allowlist = normalized
                 }
             }
-            if (disabled) return failure("BloodControl API временно недоступен")
+            if (disabled) return failure(disabledReason)
             activeDeadline("retry_global")?.let {
                 return failure("BloodControl API временно недоступен", it)
             }
@@ -78,7 +82,7 @@ internal class BloodControlAidexKeyProvider(
                 return failure("Сенсор отсутствует в списке BloodControl")
             }
             val response = post(KEYS, serial)
-                ?: return failure("Ключи BloodControl недоступны. Повторите запрос позже",
+                ?: return failure(if (disabled) disabledReason else "Ключи BloodControl недоступны. Повторите запрос позже",
                     activeDeadline("retry_global"))
             val keys = BloodControlProtocol.parseKeys(response, serial)
                 ?: run {
@@ -89,11 +93,14 @@ internal class BloodControlAidexKeyProvider(
             // Fetching is not a commit: the caller may discard this result after its
             // exchange changes. Only committed encrypted material supplies a cache hit.
             BloodControlKeyResult(keys)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
             // Transport failures are handled in post(). Invalid envelopes/JSON are not
             // transient network failures and must not restart automatic provisioning.
-            disabled = true
-            failure("Некорректный ответ BloodControl")
+            val cryptoFailure = error is GeneralSecurityException
+            disable(if (cryptoFailure) "request_crypto" else "invalid_response",
+                if (cryptoFailure) "Не удалось подготовить защищённый запрос BloodControl"
+                else "Некорректный ответ BloodControl", error.javaClass.simpleName)
+            failure(disabledReason)
         }
     }
 
@@ -101,18 +108,25 @@ internal class BloodControlAidexKeyProvider(
         val time = BloodControlProtocol.timestamp(now())
         val deviceId = cache.string("device_id") ?: java.util.UUID.randomUUID().toString().also { cache.put("device_id", it) }
         val body = BloodControlProtocol.wrap(BloodControlProtocol.plaintext(deviceId, time, serial), time, credentials)
-        val response = try { transport.post(path, body) } catch (_: IOException) {
+        val operation = if (serial == null) "allowlist" else "keys"
+        val response = try { transport.post(path, body) } catch (error: IOException) {
+            Log.w(TAG, "$operation failure=network exception=${error.javaClass.simpleName}")
             backoff(allowlistOnly = serial == null)
             return null
         }
         // Authentication failures can be unsigned. Never parse an unsigned body.
-        if (response.status == 401) { disabled = true; return null }
+        Log.i(TAG, "$operation http=${response.status}")
+        if (response.status == 401) {
+            disable("authorization", "Сервер BloodControl отклонил авторизацию (401)")
+            return null
+        }
         if (response.status == 403) {
-            if (serial == null) disabled = true else disabledSensors.add(serial)
+            if (serial == null) disable("forbidden", "Сервер BloodControl отказал в доступе (403)")
+            else disabledSensors.add(serial)
             return null
         }
         if (!BloodControlProtocol.verify(response.body, response.signature, credentials.serverKey)) {
-            disabled = true
+            disable("response_signature", "Не удалось проверить подлинность ответа BloodControl")
             return null
         }
         if (response.status == 429 || response.status >= 500) { backoff(); return null }
@@ -143,10 +157,18 @@ internal class BloodControlAidexKeyProvider(
 
     private fun activeDeadline(key: String): Long? = cache.long(key).takeIf { now() < it }
 
+    private fun disable(code: String, reason: String, exception: String? = null) {
+        disabled = true
+        disabledReason = reason
+        // Never log exception messages, bodies, headers, keys, or sensor allowlist entries.
+        Log.w(TAG, "disabled reason=$code" + (exception?.let { " exception=$it" } ?: ""))
+    }
+
     private fun failure(message: String, retryAtMillis: Long? = null) =
         BloodControlKeyResult(error = message, retryAtMillis = retryAtMillis)
 
     companion object {
+        private const val TAG = "BloodControlAidex"
         const val ALLOWLIST = "/v2/clients/android/allowlist"
         const val KEYS = "$ALLOWLIST/aidex-keys"
     }

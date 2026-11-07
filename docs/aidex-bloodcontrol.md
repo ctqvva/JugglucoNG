@@ -95,3 +95,15 @@ signed allowlist failure caching, HTTP 5xx route fallback, and unconfigured Russ
 Validated-material follow-up passed 629 phone and 569 Wear tests. It additionally covers
 actual-manager BOND rejection cleanup, bad-CRC and warmup F003 handling, bounded validated
 store retries, token-specific session expiry, wizard refresh, and stale allowlist recovery.
+
+Android crypto validation found that AndroidOpenSSL exposes `SHA256withRSA/PSS` but not
+generic `RSASSA-PSS`; the earlier desktop-only live probe had masked this difference. The
+client now prefers the Android digest-specific algorithm and falls back to the generic name
+for desktop providers, retaining SHA-256/MGF1-SHA256, salt length 32 and trailer field 1.
+An actual Android runtime probe using the production protocol/transport/provider completed
+signed HTTP 200 allowlist and `22222FY2M8` key requests, with two 16-byte keys. A provider-
+availability regression covers the absence of the generic algorithm.
+
+Safe diagnostics record endpoint category, HTTP status and exception class only. The first
+session-disable reason remains visible on later requests; no exception messages, response
+bodies, headers, allowlist entries, client credentials or sensor keys are logged.

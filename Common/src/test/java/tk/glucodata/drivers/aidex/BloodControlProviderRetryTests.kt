@@ -13,6 +13,15 @@ import java.util.Base64
 
 /** Retry classification uses synthetic signatures and an injected transport, never real keys. */
 class BloodControlProviderRetryTests {
+    @Test fun firstLocalCryptoErrorRemainsVisibleForLaterRequests() {
+        val cache = Cache()
+        val provider = BloodControlAidexKeyProvider(credentials, BloodControlTransport { _, _ ->
+            throw java.security.NoSuchAlgorithmException("Synthetic secret-bearing detail must not be logged")
+        }, cache, { 1_000L })
+        val first = provider.request(serial)
+        assertTrue(first.error.contains("защищённый запрос"))
+        assertEquals(first.error, provider.request(serial).error)
+    }
     private val serial = "BCTEST0001"
     private var clock = 1_799_999_999_000L
     private val credentials = BloodControlCredentials("synthetic", ByteArray(32), pair.private, pair.public)

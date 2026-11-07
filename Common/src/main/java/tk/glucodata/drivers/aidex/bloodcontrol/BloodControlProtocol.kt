@@ -5,6 +5,7 @@ import tk.glucodata.drivers.aidex.AiDexCnProtocol
 import tk.glucodata.drivers.aidex.AiDexProvisionedKeys
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
 import java.security.KeyFactory
+import java.security.NoSuchAlgorithmException
 import java.security.PrivateKey
 import java.security.PublicKey
 import java.security.SecureRandom
@@ -44,7 +45,12 @@ internal class BloodControlCredentials(
 
 /** All signatures cover the exact bytes on the wire; no credentials or bodies are logged. */
 internal object BloodControlProtocol {
-    private fun pss() = Signature.getInstance("RSASSA-PSS").apply {
+    private fun pss() = try {
+        // AndroidOpenSSL exposes digest-specific PSS names, not generic RSASSA-PSS.
+        Signature.getInstance("SHA256withRSA/PSS")
+    } catch (_: NoSuchAlgorithmException) {
+        Signature.getInstance("RSASSA-PSS")
+    }.apply {
         setParameter(PSSParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, 32, 1))
     }
 
