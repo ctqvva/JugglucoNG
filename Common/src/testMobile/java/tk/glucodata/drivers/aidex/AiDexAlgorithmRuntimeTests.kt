@@ -32,6 +32,8 @@ import tk.glucodata.drivers.aidex.native.protocol.AiDexKeyExchange
 import tk.glucodata.drivers.aidex.native.protocol.AiDexOpcodes
 import tk.glucodata.drivers.aidex.native.protocol.AiDexPairingMaterialRegistry
 import tk.glucodata.drivers.aidex.bloodcontrol.AiDexStagedPairingMaterial
+import tk.glucodata.drivers.aidex.bloodcontrol.AiDexAutomaticKeyRecovery
+import tk.glucodata.drivers.aidex.bloodcontrol.BloodControlAidex
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
@@ -1279,6 +1281,27 @@ class AiDexAlgorithmRuntimeTests {
     private fun drainCallbackPosts() {
         val handler = AiDexBleManager::class.java.getDeclaredField("handler").apply { isAccessible = true }.get(driver) as Handler
         Shadows.shadowOf(handler.looper).idle()
+    }
+
+    @Test fun resetCancelsPostedCloudCompletionAndReleasesItsAttempt() {
+        val handler = AiDexBleManager::class.java.getDeclaredField("handler")
+            .apply { isAccessible = true }.get(driver) as Handler
+        val looper = Shadows.shadowOf(handler.looper)
+        looper.pause()
+        val recovery = AiDexBleManager::class.java.getDeclaredField("automaticKeyRecovery")
+            .apply { isAccessible = true }.get(driver) as AiDexAutomaticKeyRecovery
+        val cancelled = recovery.begin()!!
+        var deliveries = 0
+        val result = BloodControlAidex.AutomaticResult(AiDexProvisionedKeys(ByteArray(16), ByteArray(16)), true)
+        handler.post { deliveries++; recovery.complete(cancelled, result, { true }, { true }) }
+        AiDexBleManager::class.java.getDeclaredMethod("resetConnectionRuntimeState", String::class.java,
+            Boolean::class.javaPrimitiveType).apply { isAccessible = true }.invoke(driver, "test-cancelled-cloud", false)
+        looper.idle()
+        assertEquals(0, deliveries)
+        val current = recovery.begin()!!
+        assertFalse(recovery.complete(cancelled, result, { true }) { fail("Late cancelled result"); false })
+        assertNull(recovery.begin())
+        assertTrue(recovery.complete(current, result, { true }, { true }))
     }
 
     private fun stageAutomaticMaterialForTest(): AiDexStagedPairingMaterial {

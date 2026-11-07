@@ -8,6 +8,33 @@ import tk.glucodata.drivers.aidex.bloodcontrol.BloodControlAidex
 class AiDexAutomaticKeyRecoveryTests {
     private val keys = AiDexProvisionedKeys(ByteArray(16) { 1 }, ByteArray(16) { 2 })
 
+    @Test fun abandonedCompletionCannotBlockOrClearANewerAttempt() {
+        val recovery = AiDexAutomaticKeyRecovery()
+        val cancelled = recovery.begin()!!
+        recovery.abandonInFlight()
+        val current = recovery.begin()!!
+        assertTrue(current.tryCn)
+        assertFalse(recovery.complete(cancelled, BloodControlAidex.AutomaticResult(keys, true),
+            isCurrent = { true }, stage = { fail("Cancelled attempt must never stage keys"); false }))
+        assertNull(recovery.begin()) // Late completion must not clear the newer in-flight attempt.
+        assertTrue(recovery.complete(current, BloodControlAidex.AutomaticResult(keys, true), { true }, { true }))
+    }
+
+    @Test fun abandonmentPreservesCompletedCnProgressAndTransientBackoff() {
+        var clock = 1_000L
+        val recovery = AiDexAutomaticKeyRecovery { clock }
+        recovery.complete(recovery.begin()!!, BloodControlAidex.AutomaticResult(keys, false), { true }, { true })
+        recovery.begin()!!
+        recovery.abandonInFlight()
+        val retry = recovery.begin()!!
+        assertFalse(retry.tryCn)
+        recovery.complete(retry, BloodControlAidex.AutomaticResult(null, true, 901_000), { true }, { true })
+        recovery.abandonInFlight()
+        assertNull(recovery.begin())
+        clock = 901_000
+        assertFalse(recovery.begin()!!.tryCn)
+    }
+
     @Test fun staleConnectionCompletionCannotStageOverNewerMaterial() {
         val recovery = AiDexAutomaticKeyRecovery()
         val pending = recovery.begin()!!

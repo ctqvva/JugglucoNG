@@ -2,7 +2,7 @@ package tk.glucodata.drivers.aidex.bloodcontrol
 
 import tk.glucodata.drivers.aidex.AiDexProvisionedKeys
 
-/** Handler-owned recovery state: one CN attempt, then BC, with bounded transient retries. */
+/** BLE recovery state; connection cleanup can abandon an attempt from outside the handler. */
 internal class AiDexAutomaticKeyRecovery(private val now: () -> Long = System::currentTimeMillis) {
     class Attempt internal constructor(val tryCn: Boolean)
     private var inFlight: Attempt? = null
@@ -11,12 +11,20 @@ internal class AiDexAutomaticKeyRecovery(private val now: () -> Long = System::c
     private var retryAtMillis = 0L
     private var transientFailures = 0
 
+    @Synchronized
     fun begin(): Attempt? {
         if (inFlight != null || terminal || now() < retryAtMillis) return null
         return Attempt(tryCn = !cnAttempted).also { inFlight = it }
     }
 
+    /** Cleanup can remove a posted completion before it ever calls complete(). */
+    @Synchronized
+    fun abandonInFlight() {
+        inFlight = null
+    }
+
     /** Stage for the sensor exchange only; persistence follows direct live-frame validation. */
+    @Synchronized
     fun complete(
         attempt: Attempt,
         result: BloodControlAidex.AutomaticResult,

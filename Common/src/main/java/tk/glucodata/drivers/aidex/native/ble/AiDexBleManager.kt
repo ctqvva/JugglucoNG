@@ -1638,6 +1638,7 @@ class AiDexBleManager(
     }
 
     private fun resetConnectionRuntimeState(reason: String, resetInvalidSetupCounter: Boolean) {
+        automaticKeyRecovery.abandonInFlight()
         discardUnvalidatedAutomaticMaterial()
         handler.removeCallbacksAndMessages(null)
         cancelBroadcastScan()
@@ -6495,6 +6496,7 @@ class AiDexBleManager(
         stop = true  // Prevent auto-reconnect from disconnect handler
         noDirectLiveBroadcastFallbackMode = false
         cancelBroadcastScan()  // Stop active BLE scanner and cancel scheduled scans
+        automaticKeyRecovery.abandonInFlight()
         handler.removeCallbacksAndMessages(null)   // Cancel pending reconnects/timeouts
         close()  // SuperGattCallback.close() does disconnect + close + nulls mBluetoothGatt
         setPhase(Phase.IDLE)
@@ -7540,6 +7542,7 @@ class AiDexBleManager(
         stop = true
         cancelBroadcastScan()
         close()
+        automaticKeyRecovery.abandonInFlight()
         handler.removeCallbacksAndMessages(null)
         handlerThread.quitSafely()
     }
