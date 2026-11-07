@@ -52,6 +52,7 @@ import tk.glucodata.drivers.aidex.adaptive2.AiDexAdaptiveV2
 import tk.glucodata.drivers.aidex.AiDexTemperatureStore
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
+import tk.glucodata.drivers.aidex.bloodcontrol.BloodControlAidex
 import tk.glucodata.drivers.aidex.CalibrationRecord as SharedCalibrationRecord
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
@@ -3252,6 +3253,7 @@ class AiDexBleManager(
     }
 
     private fun startSavedPairKeyExchange(gatt: BluetoothGatt) {
+        pairExchangeGeneration++
         val savedPairKey = persistedPairKey?.takeIf {
             it.size == AiDexPairKeyBackup.PAIR_KEY_BYTES
         } ?: run {
@@ -3282,6 +3284,7 @@ class AiDexBleManager(
     }
 
     private fun startFreshPairKeyExchange(gatt: BluetoothGatt) {
+        pairExchangeGeneration++
         if (persistedPairKey != null) {
             Log.w(
                 TAG,
@@ -3371,15 +3374,47 @@ class AiDexBleManager(
         }
     }
 
-    /**
-     * Handle F001 notification — contains the PAIR key.
-     */
+    private var pairExchangeGeneration = 0L
+    private var automaticCloudAttempts = 0
+    private var automaticCloudInFlight = false
+
+    private fun maybeRequestAutomaticPairingMaterial(gatt: BluetoothGatt) {
+        val context = Applic.app
+        val serial = keyExchange.bareSerial
+        val exchangeGeneration = pairExchangeGeneration
+        if (automaticCloudInFlight || automaticCloudAttempts >= 2 ||
+            gatt !== mBluetoothGatt ||
+            !BloodControlAidex.automaticEligible(context.resources.configuration.locales[0]?.language,
+                serial, runCatching { super.mygetDeviceName() }.getOrNull())) return
+        val tryCn = automaticCloudAttempts == 0
+        automaticCloudAttempts++
+        automaticCloudInFlight = true
+        handler.removeCallbacks(keyExchangeWatchdog)
+        // Network work never blocks the BLE handler. Completion belongs to this exact GATT.
+        java.util.concurrent.CompletableFuture.supplyAsync {
+            runCatching { BloodControlAidex.automaticAfterLocalFailure(context, serial, tryCn) }
+                .getOrElse { BloodControlAidex.AutomaticResult(false, true) }
+        }.thenAccept { result ->
+            handler.post {
+                automaticCloudInFlight = false
+                if (result.usedBloodControl) automaticCloudAttempts = 2
+                if (gatt !== mBluetoothGatt || stop || isPaused || isUnpaired ||
+                    phase != Phase.KEY_EXCHANGE || keyExchange.bareSerial != serial ||
+                    pairExchangeGeneration != exchangeGeneration) return@post
+                if (result.installed) startFreshPairKeyExchange(gatt)
+                else handler.postDelayed(keyExchangeWatchdog, KEY_EXCHANGE_TIMEOUT_MS)
+            }
+        }
+    }
+
+    /** Handle F001 notification — contains the PAIR key or an explicit missing-key rejection. */
     private fun handleF001Response(data: ByteArray, gatt: BluetoothGatt) {
         if (data.size < 16) {
             Log.w(TAG, "F001 response too short (${data.size} bytes, hex=${AiDexParser.hexString(data)})")
             if (
                 data.size == 1 &&
-                (data[0].toInt() and 0xFF) == 0
+                (data[0].toInt() and 0xFF) == 0 &&
+                challengeWritten && keyExchange.pairKey == null
             ) {
                 pairingKeyProblemStatus = Applic.getContext().getString(
                     aiDexPairingKeyProblemStatusRes(keyExchange.usesProvisionedPairingMaterial),
@@ -3387,6 +3422,7 @@ class AiDexBleManager(
                 constatstatusstr = pairingKeyProblemStatus.orEmpty()
                 Log.e(TAG, pairingKeyProblemStatus.orEmpty())
                 UiRefreshBus.requestStatusRefresh()
+                maybeRequestAutomaticPairingMaterial(gatt)
             }
             return
         }

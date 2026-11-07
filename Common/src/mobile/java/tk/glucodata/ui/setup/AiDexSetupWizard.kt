@@ -146,7 +146,6 @@ fun AiDexSetupWizard(
                     signedIn = signedIn,
                     onSignedIn = { signedIn = true },
                     onSignedOut = { signedIn = false },
-                    onClose = { currentStep = AiDexSetupStep.SCAN },
                 )
                 AiDexSetupStep.CONNECTING -> Box(
                     modifier = Modifier.fillMaxSize(),

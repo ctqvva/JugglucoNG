@@ -31,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,6 +52,7 @@ import kotlinx.coroutines.withContext
 import tk.glucodata.R
 import tk.glucodata.drivers.aidex.AiDexCnCloudClient
 import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
+import tk.glucodata.drivers.aidex.bloodcontrol.BloodControlAidex
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.ui.util.ConnectedButtonGroup
 
@@ -67,10 +68,11 @@ internal fun AiDexKeyManagementScreen(
     signedIn: Boolean,
     onSignedIn: () -> Unit,
     onSignedOut: () -> Unit,
-    onClose: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val isRussian = LocalConfiguration.current.locales[0]?.language == "ru"
+    var bloodControlSelected by remember { mutableStateOf(false) }
     var serialInput by remember(initialSerial) { mutableStateOf(initialSerial) }
     var keySaved by remember { mutableStateOf(false) }
     var keyRefresh by remember { mutableIntStateOf(0) }
@@ -144,11 +146,17 @@ internal fun AiDexKeyManagementScreen(
             stringResource(R.string.aidex_key_management_title),
             style = MaterialTheme.typography.titleLarge,
         )
-        Text(
-            stringResource(R.string.aidex_key_management_desc),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        if (isRussian) {
+            ConnectedButtonGroup(
+                options = listOf(false, true),
+                selectedOption = bloodControlSelected,
+                onOptionSelected = { bloodControlSelected = it; status = "" },
+                label = { Text(if (it) "BloodControl API" else "AideX CN") },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        val useBloodControl = isRussian && bloodControlSelected
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -236,7 +244,12 @@ internal fun AiDexKeyManagementScreen(
                         status = ""
                         scope.launch {
                             val result = withContext(Dispatchers.IO) {
-                                AiDexCnCloudClient.getProvisionedKeys(
+                                if (useBloodControl) {
+                                    val bc = BloodControlAidex.requestAndInstall(context, serial)
+                                    tk.glucodata.drivers.aidex.AiDexCnResult<tk.glucodata.drivers.aidex.AiDexProvisionedKeys>(
+                                        bc.keys, error = bc.error,
+                                    )
+                                } else AiDexCnCloudClient.getProvisionedKeys(
                                     serial,
                                     AiDexProvisioningStore.token(context),
                                 )
@@ -246,7 +259,7 @@ internal fun AiDexKeyManagementScreen(
                                 onSignedOut()
                             }
                             val keys = result.value
-                            val saved = keys != null && withContext(Dispatchers.IO) {
+                            val saved = if (useBloodControl) result.error.isEmpty() else keys != null && withContext(Dispatchers.IO) {
                                 AiDexProvisioningStore.saveAndInstall(
                                     context,
                                     serial,
@@ -264,7 +277,7 @@ internal fun AiDexKeyManagementScreen(
                             }
                         }
                     },
-                    enabled = !busy && signedIn && normalizedSerial != null,
+                    enabled = !busy && (useBloodControl || signedIn) && normalizedSerial != null,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
@@ -274,10 +287,10 @@ internal fun AiDexKeyManagementScreen(
                     } else {
                         Icon(Icons.Default.CloudDownload, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.aidex_key_fetch_action))
+                        Text(if (useBloodControl) "Запросить ключ" else stringResource(R.string.aidex_key_fetch_action))
                     }
                 }
-                if (!signedIn) {
+                if (!signedIn && !useBloodControl) {
                     Text(
                         stringResource(R.string.aidex_key_fetch_requires_sign_in),
                         style = MaterialTheme.typography.bodySmall,
@@ -287,160 +300,162 @@ internal fun AiDexKeyManagementScreen(
             }
         }
 
-        HorizontalDivider()
+        if (!useBloodControl) {
+            HorizontalDivider()
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
             ) {
-                Text(
-                    stringResource(R.string.mq_account_section_credentials),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                if (signedIn) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     Text(
-                        stringResource(R.string.mq_account_status_signed_in),
-                        color = MaterialTheme.colorScheme.primary,
+                        stringResource(R.string.mq_account_section_credentials),
+                        style = MaterialTheme.typography.titleMedium,
                     )
-                    AiDexProvisioningStore.accountLabel(context).takeIf(String::isNotBlank)?.let {
-                        Text("+86 $it", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            AiDexProvisioningStore.clearSession(context)
-                            onSignedOut()
-                        },
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                    ) {
-                        Text(stringResource(R.string.mq_account_sign_out_action))
-                    }
-                } else {
-                    ConnectedButtonGroup(
-                        options = AiDexAccountLoginMethod.entries.toList(),
-                        selectedOption = loginMethod,
-                        onOptionSelected = {
-                            loginMethod = it
-                            status = ""
-                        },
-                        label = { Text(stringResource(it.labelRes)) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = phone,
-                        onValueChange = {
-                            phone = it.filter(Char::isDigit).take(11)
-                            status = ""
-                        },
-                        label = { Text(stringResource(R.string.ottai_phone_hint)) },
-                        leadingIcon = { Text("+86") },
-                        isError = phone.isNotBlank() && normalizedPhone == null,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    if (loginMethod == AiDexAccountLoginMethod.SMS) {
+                    if (signedIn) {
+                        Text(
+                            stringResource(R.string.mq_account_status_signed_in),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        AiDexProvisioningStore.accountLabel(context).takeIf(String::isNotBlank)?.let {
+                            Text("+86 $it", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         OutlinedButton(
                             onClick = {
-                                val validPhone = normalizedPhone ?: return@OutlinedButton
-                                busy = true
-                                status = ""
-                                scope.launch {
-                                    val result = withContext(Dispatchers.IO) {
-                                        AiDexCnCloudClient.requestLoginCode(validPhone)
-                                    }
-                                    busy = false
-                                    statusIsError = !result.isSuccess
-                                    status = if (result.isSuccess) {
-                                        context.getString(
-                                            R.string.ottai_code_sent_email,
-                                            "+86 $validPhone",
-                                        )
-                                    } else {
-                                        result.error
-                                    }
-                                }
+                                AiDexProvisioningStore.clearSession(context)
+                                onSignedOut()
                             },
-                            enabled = !busy && normalizedPhone != null,
+                            enabled = !busy,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = ButtonDefaults.ContentPadding,
                         ) {
-                            Text(stringResource(R.string.ottai_send_code))
+                            Text(stringResource(R.string.mq_account_sign_out_action))
                         }
-                        OutlinedTextField(
-                            value = code,
-                            onValueChange = { code = it.filter(Char::isDigit) },
-                            label = { Text(stringResource(R.string.ottai_code_hint)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            enabled = !busy,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
                     } else {
+                        ConnectedButtonGroup(
+                            options = AiDexAccountLoginMethod.entries.toList(),
+                            selectedOption = loginMethod,
+                            onOptionSelected = {
+                                loginMethod = it
+                                status = ""
+                            },
+                            label = { Text(stringResource(it.labelRes)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                         OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = { Text(stringResource(R.string.ottai_password_hint)) },
+                            value = phone,
+                            onValueChange = {
+                                phone = it.filter(Char::isDigit).take(11)
+                                status = ""
+                            },
+                            label = { Text(stringResource(R.string.ottai_phone_hint)) },
+                            leadingIcon = { Text("+86") },
+                            isError = phone.isNotBlank() && normalizedPhone == null,
                             singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                    }
 
-                    Button(
-                        onClick = {
-                            val validPhone = normalizedPhone ?: return@Button
-                            busy = true
-                            status = ""
-                            scope.launch {
-                                val result = withContext(Dispatchers.IO) {
-                                    when (loginMethod) {
-                                        AiDexAccountLoginMethod.SMS ->
-                                            AiDexCnCloudClient.loginWithCode(validPhone, code)
-                                        AiDexAccountLoginMethod.PASSWORD ->
-                                            AiDexCnCloudClient.loginWithPassword(validPhone, password)
+                        if (loginMethod == AiDexAccountLoginMethod.SMS) {
+                            OutlinedButton(
+                                onClick = {
+                                    val validPhone = normalizedPhone ?: return@OutlinedButton
+                                    busy = true
+                                    status = ""
+                                    scope.launch {
+                                        val result = withContext(Dispatchers.IO) {
+                                            AiDexCnCloudClient.requestLoginCode(validPhone)
+                                        }
+                                        busy = false
+                                        statusIsError = !result.isSuccess
+                                        status = if (result.isSuccess) {
+                                            context.getString(
+                                                R.string.ottai_code_sent_email,
+                                                "+86 $validPhone",
+                                            )
+                                        } else {
+                                            result.error
+                                        }
                                     }
-                                }
-                                val token = result.value
-                                val saved = token != null && withContext(Dispatchers.IO) {
-                                    AiDexProvisioningStore.saveSession(context, validPhone, token)
-                                }
-                                busy = false
-                                if (saved) {
-                                    password = ""
-                                    code = ""
-                                    statusIsError = false
-                                    status = context.getString(R.string.mq_account_status_signed_in)
-                                    onSignedIn()
-                                } else {
-                                    statusIsError = true
-                                    status = result.error.ifBlank {
-                                        context.getString(R.string.ottai_login_fail)
-                                    }
-                                }
+                                },
+                                enabled = !busy && normalizedPhone != null,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding,
+                            ) {
+                                Text(stringResource(R.string.ottai_send_code))
                             }
-                        },
-                        enabled = !busy && normalizedPhone != null &&
-                            (if (loginMethod == AiDexAccountLoginMethod.SMS) code.isNotBlank()
-                            else password.isNotBlank()),
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                    ) {
-                        Text(stringResource(R.string.ottai_login_button))
+                            OutlinedTextField(
+                                value = code,
+                                onValueChange = { code = it.filter(Char::isDigit) },
+                                label = { Text(stringResource(R.string.ottai_code_hint)) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                enabled = !busy,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
+                            OutlinedTextField(
+                                value = password,
+                                onValueChange = { password = it },
+                                label = { Text(stringResource(R.string.ottai_password_hint)) },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                enabled = !busy,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                val validPhone = normalizedPhone ?: return@Button
+                                busy = true
+                                status = ""
+                                scope.launch {
+                                    val result = withContext(Dispatchers.IO) {
+                                        when (loginMethod) {
+                                            AiDexAccountLoginMethod.SMS ->
+                                                AiDexCnCloudClient.loginWithCode(validPhone, code)
+                                            AiDexAccountLoginMethod.PASSWORD ->
+                                                AiDexCnCloudClient.loginWithPassword(validPhone, password)
+                                        }
+                                    }
+                                    val token = result.value
+                                    val saved = token != null && withContext(Dispatchers.IO) {
+                                        AiDexProvisioningStore.saveSession(context, validPhone, token)
+                                    }
+                                    busy = false
+                                    if (saved) {
+                                        password = ""
+                                        code = ""
+                                        statusIsError = false
+                                        status = context.getString(R.string.mq_account_status_signed_in)
+                                        onSignedIn()
+                                    } else {
+                                        statusIsError = true
+                                        status = result.error.ifBlank {
+                                            context.getString(R.string.ottai_login_fail)
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = !busy && normalizedPhone != null &&
+                                (if (loginMethod == AiDexAccountLoginMethod.SMS) code.isNotBlank()
+                                else password.isNotBlank()),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
+                        ) {
+                            Text(stringResource(R.string.ottai_login_button))
+                        }
                     }
                 }
             }
@@ -454,14 +469,6 @@ internal fun AiDexKeyManagementScreen(
                     else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        TextButton(
-            onClick = onClose,
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            shapes = ButtonDefaults.shapes(),
-            contentPadding = ButtonDefaults.TextButtonContentPadding,
-        ) {
-            Text(stringResource(R.string.close))
-        }
+
     }
 }
