@@ -131,7 +131,23 @@ class CalibrationPointChangesTests {
     }
 
     @Test fun aChangeOfDisplayUnitIsNotACalibrationChange() {
-        val converted = point(user = 6.66f, unit = 1)
-        assertTrue(CalibrationPointChanges.between(listOf(point()), listOf(converted)).isEmpty)
+        val inMmol = point(user = 7.0f, unit = 1).copy(sensorValue = 5.5f, sensorValueRaw = 5.0f)
+        val k = tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL
+        fun CalibrationEntity.scaled(f: Float, unit: Int) = copy(sensorValue = sensorValue * f,
+            sensorValueRaw = sensorValueRaw * f, userValue = userValue * f, valueUnit = unit)
+        val inMgdl = inMmol.scaled(k, 0)
+        val backAgain = inMgdl.scaled(1f / k, 1)
+        assertFalse("the floats do not survive the trip", backAgain.userValue == inMmol.userValue &&
+            backAgain.sensorValue == inMmol.sensorValue)
+        assertTrue(CalibrationPointChanges.between(listOf(inMmol), listOf(inMgdl)).isEmpty)
+        assertTrue(CalibrationPointChanges.between(listOf(inMmol), listOf(backAgain)).isEmpty)
+        assertEquals(CalibrationPointChanges.identity(inMmol), CalibrationPointChanges.identity(backAgain))
+    }
+
+    @Test fun pointsAtTheSameMomentAreToldApartByTheirValue() {
+        assertEquals(CalibrationPointChanges.identity(point(id = 1)), CalibrationPointChanges.identity(point(id = 2)))
+        assertFalse(CalibrationPointChanges.identity(point()) == CalibrationPointChanges.identity(point(user = 150f)))
+        assertFalse(CalibrationPointChanges.identity(point()) ==
+            CalibrationPointChanges.identity(point().copy(isRawMode = true)))
     }
 }

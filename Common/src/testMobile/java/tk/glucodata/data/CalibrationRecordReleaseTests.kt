@@ -1,9 +1,13 @@
 package tk.glucodata.data
 
 import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -205,6 +209,101 @@ class CalibrationRecordReleaseTests {
         Thread.sleep(5)
         CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
         assertEquals(mapOf(whileOff to 80f, later to 80f), recorded())
+    }
+
+    @Test
+    fun twoFingersticksOnTheSameReadingEachKeepTheirOwnArrival() = runBlocking {
+        // A calibration takes the timestamp of the reading it was made against,
+        // so a second finger stick on the same reading shares sensor, moment and
+        // lane with the first and differs only in its value.
+        val underTheFirst = now - 6 * HOUR
+        addPastCalibration()
+        Thread.sleep(5)
+        display.sealAll(listOf(record(underTheFirst, 118f, recordedAt = System.currentTimeMillis())))
+        Thread.sleep(5)
+        val first = CalibrationManager.calibrations.value.single()
+        CalibrationManager.addCalibration(first.timestamp, 100f, 90f, 150f, sensorId = OTTAI)
+        assertEquals(2, CalibrationManager.calibrations.value.size)
+
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single { it.userValue == 138f })
+
+        assertEquals(emptyMap<Long, Float>(), recorded())
+    }
+
+    @Test
+    fun switchingTheDisplayUnitThereAndBackChangesNoPoint() = runBlocking {
+        val hole = now - 6 * HOUR
+        Applic.unit = 1
+        CalibrationManager.loadCalibrations()
+        // 5.5 and 7.0 mmol/L do not come back from mg/dL as the same floats.
+        CalibrationManager.addCalibration(now - 8 * HOUR, 5.5f, 5.0f, 7.0f, sensorId = OTTAI)
+        display.sealAll(listOf(record(hole, 118f, recordedAt = System.currentTimeMillis() + MINUTE)))
+
+        Applic.unit = 0
+        CalibrationManager.isCalibrationStateLoaded()
+        Applic.unit = 1
+        CalibrationManager.isCalibrationStateLoaded()
+        CalibrationManager.loadCalibrations()
+
+        assertEquals(mapOf(hole to 118f), recorded())
+        // And the point kept its arrival: removing it still takes the record.
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
+        assertEquals(emptyMap<Long, Float>(), recorded())
+    }
+
+    @Test
+    fun aLoadSettledOutOfTurnDoesNotLoseAnArrival() = runBlocking {
+        // The add's load publishes and is held before it settles; the delete's
+        // load publishes and settles meanwhile. Settled in that order, the
+        // removal looked for an arrival not written yet, and the add then wrote
+        // one for a point already gone.
+        val hole = now - 6 * HOUR
+        val held = java.util.concurrent.CountDownLatch(1)
+        val reached = java.util.concurrent.CountDownLatch(1)
+        val first = java.util.concurrent.atomic.AtomicBoolean(true)
+        CalibrationManager.beforeSettlingForTests = {
+            if (first.getAndSet(false)) {
+                reached.countDown()
+                held.await(10, java.util.concurrent.TimeUnit.SECONDS)
+            }
+        }
+        try {
+            val adding = async(Dispatchers.IO) { addPastCalibration() }
+            assertTrue(reached.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            display.sealAll(listOf(record(hole, 118f, recordedAt = System.currentTimeMillis() + MINUTE)))
+            val deleting = async(Dispatchers.IO) {
+                CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
+            }
+            // The delete waits for nothing the add holds; give it the chance to run first.
+            Thread.sleep(300)
+            held.countDown()
+            adding.await()
+            deleting.await()
+        } finally {
+            held.countDown()
+            CalibrationManager.beforeSettlingForTests = null
+        }
+
+        assertEquals(emptyMap<Long, Float>(), recorded())
+    }
+
+    @Test
+    fun loadsRunningTogetherLoseNoPoint() = runBlocking {
+        val hole = now - 6 * HOUR
+        val adds = (1..12).map { i ->
+            async(Dispatchers.IO) {
+                CalibrationManager.addCalibration(now - 8 * HOUR - i * MINUTE, 100f, 90f, 120f + i, sensorId = OTTAI)
+            }
+        }
+        val loads = (1..12).map { async(Dispatchers.IO) { CalibrationManager.loadCalibrations() } }
+        (adds + loads).awaitAll()
+        assertEquals(12, CalibrationManager.calibrations.value.size)
+        display.sealAll(listOf(record(hole, 118f, recordedAt = System.currentTimeMillis() + MINUTE)))
+        assertEquals("nothing removed, nothing released", mapOf(hole to 118f), recorded())
+
+        // Every point's arrival was noted: removing any one of them takes the record.
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.random())
+        assertEquals(emptyMap<Long, Float>(), recorded())
     }
 
     @Test

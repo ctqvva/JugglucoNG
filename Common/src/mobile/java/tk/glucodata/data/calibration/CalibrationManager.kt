@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -371,6 +372,11 @@ object CalibrationManager {
     }
 
     private fun invalidateComputationCache(reason: String) {
+        dropComputations()
+        announceRevision(reason)
+    }
+
+    private fun dropComputations() {
         calibrationRevision++
         _revision.value = calibrationRevision
         synchronized(calibrationCache) {
@@ -385,6 +391,10 @@ object CalibrationManager {
         synchronized(seriesCalibrators) {
             seriesCalibrators.clear()
         }
+    }
+
+    /** Outside every lock: drivers act on it. */
+    private fun announceRevision(reason: String) {
         Log.d(TAG, "Calibration cache invalidated: $reason")
         runCatching {
             tk.glucodata.drivers.ManagedSensorRuntime.notifyUserCalibrationRevisionChanged(calibrationRevision)
@@ -1361,43 +1371,63 @@ object CalibrationManager {
     
     suspend fun loadCalibrations() {
         if (::dao.isInitialized) {
-            val load = calibrationLoadOrder.begin()
-            val list = withContext(Dispatchers.IO) {
+            val (load, list) = withContext(Dispatchers.IO) {
                 migrateCalibrationSensorIdsIfPossible()
-                dao.labelLegacyUnits(if (Applic.unit == 1) 1 else 0)
-                dao.getAllSync().map { it.inUnit(Applic.unit) }
+                // The transaction holds the write lock, so no write lands between
+                // the read and its number: a higher number has seen a newer table.
+                database.withTransaction {
+                    dao.labelLegacyUnits(if (Applic.unit == 1) 1 else 0)
+                    calibrationLoadOrder.begin() to dao.getAllSync().map { it.inUnit(Applic.unit) }
+                }
             }
-            var previous: List<CalibrationEntity>? = null
             val changed = synchronized(boundaryLock) {
                 if (!calibrationLoadOrder.mayApply(load)) return@synchronized false
                 val relabeled = relabelBeforeBoundaries(list)
-                if (calibrationStateLoaded && _calibrations.value == relabeled) {
-                    false
-                } else {
-                    if (calibrationStateLoaded) previous = _calibrations.value
-                    _calibrations.value = relabeled
-                    calibrationStateLoaded = true
-                    true
-                }
+                if (calibrationStateLoaded && _calibrations.value == relabeled) return@synchronized false
+                if (calibrationStateLoaded) unsettledChanges.addLast(_calibrations.value to relabeled)
+                _calibrations.value = relabeled
+                calibrationStateLoaded = true
+                // The revision moves with the table: from here on a chart still
+                // drawing the old points cannot record them, so what is released
+                // below stays released. See HistoryRepository.recordPresentedMinutes.
+                dropComputations()
+                true
             }
             if (!changed) return
-            // The revision moves first: from here on a chart still drawing the
-            // old points cannot record them, so what is released below stays
-            // released. See HistoryRepository.recordPresentedMinutes.
-            invalidateComputationCache("loadCalibrations")
+            announceRevision("loadCalibrations")
+            beforeSettlingForTests?.invoke()
             // Not cancellable: a closing screen must not strand a point that has
             // already left the table with its records still in place.
-            previous?.let {
-                withContext(kotlinx.coroutines.NonCancellable) {
-                    settleRecordsOfChangedPoints(it, _calibrations.value)
-                }
-            }
+            withContext(Dispatchers.IO + kotlinx.coroutines.NonCancellable) { settleInOrder() }
             requestUiRefreshAfterCalibrationChange()
         }
     }
 
+    /**
+     * Each applied load's table before and after, in the order they were applied.
+     * Guarded by [boundaryLock].
+     */
+    private val unsettledChanges = ArrayDeque<Pair<List<CalibrationEntity>, List<CalibrationEntity>>>()
+    private val settleMutex = kotlinx.coroutines.sync.Mutex()
+
+    /** Lets a test hold a load between publishing its table and settling it. */
+    @Volatile internal var beforeSettlingForTests: (() -> Unit)? = null
+
+    /**
+     * Settles every applied load in order, whichever load gets here first. Out of
+     * order, a point added and removed in quick succession would be looked up
+     * before its arrival was written and leave that entry behind for good.
+     * Every queued change already has its revision, since both move together.
+     */
+    private suspend fun settleInOrder() = settleMutex.withLock {
+        while (true) {
+            val (before, after) = synchronized(boundaryLock) { unsettledChanges.removeFirstOrNull() } ?: break
+            settleRecordsOfChangedPoints(before, after)
+        }
+    }
+
     private fun pointKey(point: CalibrationEntity) =
-        "${normalizeSensorId(point.sensorId)}_${point.timestamp}_" + if (point.isRawMode) "raw" else "auto"
+        "${normalizeSensorId(point.sensorId)}_${CalibrationPointChanges.identity(point)}"
 
     private fun pointAddedAtKey(point: CalibrationEntity) = KEY_POINT_ADDED_AT_PREFIX + pointKey(point)
 
@@ -1707,6 +1737,7 @@ object CalibrationManager {
     internal fun resetLoadedStateForTests(keepBoundaries: Boolean = true) {
         synchronized(boundaryLock) {
             if (!keepBoundaries) sessionBoundaries.clear()
+            unsettledChanges.clear()
             calibrationStateLoaded = false
             _calibrations.value = emptyList()
         }

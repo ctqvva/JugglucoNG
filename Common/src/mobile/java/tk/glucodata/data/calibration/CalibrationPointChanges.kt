@@ -1,6 +1,7 @@
 package tk.glucodata.data.calibration
 
 import java.util.concurrent.atomic.AtomicLong
+import tk.glucodata.ui.util.GlucoseFormatter
 
 /**
  * Which calibration points appeared and which went, between two loads of the table.
@@ -27,27 +28,45 @@ internal object CalibrationPointChanges {
         val isEmpty: Boolean get() = gone.isEmpty() && arrived.isEmpty() && switched.isEmpty()
     }
 
+    /** Values in tenths of a mg/dL. */
     private data class Effect(
         val timestamp: Long,
         val isRawMode: Boolean,
         /** A journal point counts in both lanes; the entry it came from changes nothing. */
         val isJournalDerived: Boolean,
-        val sensorValue: Float,
-        val sensorValueRaw: Float,
+        val sensorValue: Int,
+        val sensorValueRaw: Int,
         /** Where an integrating driver's fit places the point. */
-        val sensorValueStock: Float,
-        val userValue: Float,
+        val sensorValueStock: Int,
+        val userValue: Int,
     )
 
     private fun CalibrationEntity.effect() = Effect(
         timestamp, isRawMode, journalEntryId != null,
-        sensorValue, sensorValueRaw, sensorValueStock, userValue,
+        tenths(sensorValue), tenths(sensorValueRaw), tenths(sensorValueStock), tenths(userValue),
     )
 
+    /**
+     * A value of [point] that does not depend on the display unit.
+     *
+     * The table is held in the display unit, and a change of unit converts what
+     * is in memory while the next load converts the stored rows: 5.5 mmol/L
+     * taken to mg/dL and back is not the float 5.5. Compared as floats, every
+     * such point looked removed and added again. Tenths of a mg/dL are far finer
+     * than any two calibrations differ by, and far coarser than that error.
+     */
+    private fun CalibrationEntity.tenths(value: Float): Int =
+        Math.round((if (valueUnit == 1) value * GlucoseFormatter.MGDL_PER_MMOL else value) * 10f)
+
+    /**
+     * What tells two points at the same moment apart: a calibration takes the
+     * timestamp of the reading it was made against, so a second finger stick on
+     * that reading differs only in its value.
+     */
+    fun identity(point: CalibrationEntity): String =
+        "${point.timestamp}_${if (point.isRawMode) "raw" else "auto"}_${point.tenths(point.userValue)}"
+
     fun between(before: List<CalibrationEntity>, after: List<CalibrationEntity>): Changes {
-        // Two units in play is the display unit changing under the table, not a
-        // calibration change, and the converted floats would not compare equal.
-        if ((before + after).distinctBy { it.valueUnit }.size > 1) return Changes(emptyList(), emptyList(), emptyList())
         return Changes(
             gone = missingFrom(after, before),
             arrived = missingFrom(before, after),
@@ -69,9 +88,10 @@ internal object CalibrationPointChanges {
      * Two sensors can hold the same point, a profile copied across for one, so
      * the sensor has to count: removing it from one is a removal even while the
      * other keeps it. But a sensor replacement re-files old points under an
-     * archive id, which changes the sensor and not how many there are, and a
-     * point that merely moved is still in force for the minutes it was in force
-     * for. So a row only counts as missing when its effect has fewer rows, and
+     * archive id, which changes the sensor and not how many there are. That is
+     * the driver retiring an electrode's points, not the user taking them back,
+     * and what they sealed was sealed against the electrode they were measured
+     * on. So a row only counts as missing when its effect has fewer rows, and
      * rows pair off one to one: a sensor can hold the same point twice, and the
      * twin left behind does not stand in for the one removed.
      */
@@ -119,14 +139,16 @@ internal object CalibrationPointSwitches {
  * releases its records that is no longer only a stale list. A dropped load loses
  * nothing: whoever wrote the table loads again afterwards.
  *
- * Numbered rather than locked because a load runs driver callbacks part way
- * through and is reached from runBlocking, where holding a lock could deadlock.
+ * The number has to be taken where the read is ordered against writes, inside
+ * the read's write transaction, or a load numbered first can still read last.
+ * Numbered rather than locked across the whole load because a load runs driver
+ * callbacks part way through and is reached from runBlocking.
  */
 internal class CalibrationLoadOrder {
     private val issued = AtomicLong()
     private var applied = 0L
 
-    /** Call before reading the table. */
+    /** Call inside the transaction that reads the table. */
     fun begin(): Long = issued.incrementAndGet()
 
     /** Whether a read may be applied. Call under the lock that guards the state. */
