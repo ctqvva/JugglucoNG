@@ -94,6 +94,9 @@ android {
         buildConfigField 'String', 'BASE_VERSION_NAME', "\"$appVersionName\""
         // GitHub repo the in-app updater reads releases from. Forks change it here.
         buildConfigField 'String', 'UPDATE_REPO', '"ctqvva/JugglucoNG"'
+        // Backup for the above, tried only when GitHub itself cannot be reached. A SourceForge
+        // project files URL; empty disables the fallback. Forks change or clear it here.
+        buildConfigField 'String', 'UPDATE_BACKUP_SOURCE', '"https://sourceforge.net/projects/jugglucong/files/"'
 
         buildConfigField 'String', 'BUILD_TIME', 'new java.text.SimpleDateFormat("HH:mm:ss dd-MMM-yyyy").format(new java.util.Date(' + System.currentTimeMillis() + 'L))'
         buildConfigField 'int', 'isRelease', '0'

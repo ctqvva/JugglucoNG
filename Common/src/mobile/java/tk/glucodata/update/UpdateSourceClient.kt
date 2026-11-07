@@ -33,6 +33,18 @@ object UpdateSourceClient {
     private const val MAX_RELEASES = 15
     private const val MAX_METADATA_BYTES = 512 * 1024
 
+    /**
+     * The mirror's file listing is a full HTML page with a row per folder, nightlies included,
+     * so it grows every day. The usual cap would stop the backup working after a few months.
+     */
+    private const val MAX_LISTING_BYTES = 4 * 1024 * 1024
+
+    /** Release folders tried on the mirror, newest first (see [SourceForgeReleases.newestRegularReleases]). */
+    private const val MIRROR_RELEASE_CANDIDATES = 3
+
+    /** Failures that say "GitHub is unreachable", as opposed to "GitHub answered and has nothing". */
+    private val BACKUP_ERRORS = setOf(UpdateError.NETWORK, UpdateError.RATE_LIMITED)
+
     val userAgent: String = "JugglucoNG/${BuildConfig.BASE_VERSION_NAME} (Android)"
 
     /**
@@ -40,13 +52,76 @@ object UpdateSourceClient {
      *
      * Pre-releases are skipped. The project publishes everything as a full release, so a channel
      * setting would have been a picker with one real option; if that changes, filter here.
+     *
+     * When [source] is this project's own GitHub repo and GitHub cannot be reached, the
+     * SourceForge mirror is asked instead (see [checkBackup]). A source the user typed in is
+     * never second-guessed: if it is down, that is what they are told.
      */
     fun check(source: String): UpdateCheckResult {
         return when (val resolved = UpdateSource.resolve(source)) {
             null -> UpdateCheckResult.Failed(UpdateError.PARSE)
-            is UpdateSource.Resolved.GithubReleases -> checkGithub(resolved.apiUrl)
+            is UpdateSource.Resolved.GithubReleases -> {
+                val result = checkGithub(resolved.apiUrl)
+                if (result is UpdateCheckResult.Failed &&
+                    shouldTryBackup(resolved, UpdateSource.resolve(AppUpdateSettings.defaultUpdateSource), result.error)
+                ) {
+                    // A failed backup keeps GitHub's error: "rate limited" is more useful to
+                    // the user than a second, vaguer "network" from the mirror.
+                    checkBackup() ?: result
+                } else {
+                    result
+                }
+            }
             is UpdateSource.Resolved.Document -> checkDocument(resolved.url)
         }
+    }
+
+    /** Only for the default GitHub source, and only when GitHub itself could not be reached. */
+    internal fun shouldTryBackup(
+        source: UpdateSource.Resolved,
+        defaultSource: UpdateSource.Resolved?,
+        error: UpdateError
+    ): Boolean = source == defaultSource && error in BACKUP_ERRORS
+
+    /**
+     * Same question as [checkGithub], asked of the SourceForge mirror: newest regular release
+     * folder, then the usual manifest and variant matching. Null when there is no mirror
+     * configured or it could not be read, so the caller can keep the original error.
+     */
+    private fun checkBackup(): UpdateCheckResult? {
+        val project = SourceForgeReleases.project(BuildConfig.UPDATE_BACKUP_SOURCE) ?: return null
+        Log.i(LOG_TAG, "GitHub unreachable, checking the SourceForge mirror")
+
+        val listing = (getText(project.filesUrl, accept = "text/html", maxBytes = MAX_LISTING_BYTES)
+                as? TextResponse.Ok)?.body ?: return null
+        val folders = SourceForgeReleases.newestRegularReleases(
+            SourceForgeReleases.parseFolders(listing),
+            MIRROR_RELEASE_CANDIDATES
+        )
+        if (folders.isEmpty()) return null
+
+        // Lazy: the second and third folder are only fetched if the newer ones have no build
+        // for this variant.
+        val fetched = HashMap<String, GithubReleaseParser.Release>()
+        val releases = folders.asSequence().mapNotNull { folder ->
+            val feed = (getText(project.folderFeedUrl(folder), accept = "application/rss+xml")
+                    as? TextResponse.Ok)?.body ?: return@mapNotNull null
+            SourceForgeReleases.parseFolderRelease(folder, feed)?.also { fetched[folder] = it }
+        }.iterator()
+        // No readable folder at all is a failed backup, not "nothing newer".
+        if (!releases.hasNext()) return null
+
+        val result = resolveRelease(releases.asSequence())
+        if (result is UpdateCheckResult.Available && result.update.notes.isBlank()) {
+            // The notes live in README.md; only worth a request once there is something to show.
+            val readme = fetched[result.update.tagName]?.asset("README.md")
+                ?.takeIf { isDownloadableUrl(it.downloadUrl) }
+            val notes = readme?.let { (getText(it.downloadUrl, accept = "text/plain") as? TextResponse.Ok)?.body }
+            if (!notes.isNullOrBlank()) {
+                return UpdateCheckResult.Available(result.update.copy(notes = notes))
+            }
+        }
+        return result
     }
 
     /** A source that is not a releases API: one document, shape decides how it is read. */
@@ -85,9 +160,13 @@ object UpdateSourceClient {
     private fun releasesResult(body: String, assetUrlsFromApi: Boolean): UpdateCheckResult {
         val releases = runCatching { GithubReleaseParser.parseReleases(body) }.getOrNull()
             ?: return UpdateCheckResult.Failed(UpdateError.PARSE)
+        return resolveRelease(releases.asSequence())
+    }
 
-        val candidates = releases.filterNot { it.prerelease }
-        if (candidates.isEmpty()) return UpdateCheckResult.UpToDate
+    /** Picks the update out of [releases] (newest first), skipping pre-releases. */
+    private fun resolveRelease(releases: Sequence<GithubReleaseParser.Release>): UpdateCheckResult {
+        val candidates = releases.filterNot { it.prerelease }.iterator()
+        if (!candidates.hasNext()) return UpdateCheckResult.UpToDate
 
         // Only the newest release matters. Walking further back would mean offering an older
         // build than the newest published one, which is never what the user wants.
@@ -138,7 +217,7 @@ object UpdateSourceClient {
         data class Error(val error: UpdateError) : TextResponse
     }
 
-    private fun getText(url: String, accept: String): TextResponse {
+    private fun getText(url: String, accept: String, maxBytes: Int = MAX_METADATA_BYTES): TextResponse {
         var connection: HttpURLConnection? = null
         return try {
             connection = openConnection(url)
@@ -148,7 +227,7 @@ object UpdateSourceClient {
             val code = connection.responseCode
             when {
                 code == HttpURLConnection.HTTP_OK -> {
-                    TextResponse.Ok(connection.inputStream.readCapped(MAX_METADATA_BYTES))
+                    TextResponse.Ok(connection.inputStream.readCapped(maxBytes))
                 }
                 // GitHub answers an exhausted anonymous quota with 403/429 and a zeroed
                 // X-RateLimit-Remaining. Worth telling apart from a real outage: the user just
