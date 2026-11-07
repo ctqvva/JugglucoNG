@@ -75,6 +75,13 @@ public class SensorBluetooth {
 
     public static SensorBluetooth blueone = null;
 
+    /**
+     * True once {@link #start} brought this instance up with Bluetooth on.
+     * {@link #syncNativeDevicesNoBluetooth} also creates or reuses an instance, as a
+     * holder for sensor records only, and it never connects anything.
+     */
+    public volatile boolean bluetoothStarted = false;
+
     public static void startscan() {
         if (blueone != null)
             blueone.scanStarter(0L);
@@ -1338,6 +1345,7 @@ public class SensorBluetooth {
             if (blueone == null) {
                 blueone = new tk.glucodata.SensorBluetooth();
             }
+            blueone.bluetoothStarted = false;
             if (blueone.mBluetoothManager != null) {
                 blueone.stopScan(false);
             }
@@ -1990,6 +1998,7 @@ public class SensorBluetooth {
                     blueone.addPersistedManagedCallbacks();
                 }
             }
+            if (blueone != null) blueone.bluetoothStarted = true;
         }
     }
 

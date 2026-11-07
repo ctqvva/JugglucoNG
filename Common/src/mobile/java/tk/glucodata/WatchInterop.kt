@@ -227,11 +227,13 @@ object WatchInterop {
             val context = Applic.app ?: MainActivity.thisone ?: return false
             val payload = ManagedSensorHandoff.createOutgoingPayload(context)
             if (!sender.sendSensorHandoff(nodeId, payload)) {
-                // The setting stands — the watch picks it up at the next
-                // handshake — but say the push did not land.
+                // The setting stands, and the setup is sent again at the
+                // watch's next sync handshake (AutoSensorSwitch
+                // .provisionIfNeeded), but say the push did not land.
                 WearToggleSync.push()
                 return false
             }
+            AutoSensorSwitch.recordProvisioned(nodeId, SensorIdentity.resolveMainSensor())
         }
         WearToggleSync.push()
         return true
