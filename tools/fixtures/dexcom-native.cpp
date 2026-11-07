@@ -40,6 +40,7 @@ struct Info {
     char8_t siId[68]{};
     char DexDeviceName[10]{};
     array<uint8_t,16> sharedKey{};
+    struct {int len;signed char data[6];int16_t extra;} info{};
 };
 map<string,Info> disk;
 // Directory rename: moves every file under the old path, as the real one would.
@@ -81,7 +82,8 @@ struct SensorGlucoseData {
     bool isDexcom()const{return getinfo()->dexcom;}
     bool isSibionics()const{return metadata.sibionics;}
     bool isSibionics1()const{return false;}
-    bool isLibre2()const{return false;}bool isLibre3()const{return false;}bool isAiDex()const{return false;}
+    bool isLibre2()const{return !(isAccuChek()||isSibionics()||isDexcom()||isAir()||getinfo()->interval==interval5);}
+    bool isLibre3()const{return false;}bool isAiDex()const{return false;}
     bool isAccuChek()const{return false;}bool isAir()const{return false;}
     int siSubtype()const{return 0;}uint32_t lastused()const{return stream[0].timestamp;}
     int getelsize()const{return 12;}
@@ -403,7 +405,7 @@ int main(){
     {
         auto scan=*dexcom::parseScan(barcode());
         pathconcat dir(registry.inbasedir,scan.name);
-        Info plain{};plain.dexcom=false;plain.days=14;plain.pollcount=900;
+        Info plain{};plain.dexcom=false;plain.days=14;plain.pollcount=900;plain.interval=15*60;
         disk[string(dir)+"/info.dat"]=plain;
         const int mirrorId=registry.addsensor(scan.name);
         auto* mirror=registry.getSensorData(mirrorId);
@@ -421,6 +423,28 @@ int main(){
         auto [again,same]=registry.makeDexComSensorindex(scan,1700000006);
         assert(again==id&&same==d&&registry.retired.size()==1);
     }
-    cout<<"PASS: mirrored record converted to Dexcom on setup\n";
+    // Only a mirror is replaced. A record another driver established under
+    // the same name keeps its files, and the setup is refused.
+    for(int established=0;established<5;++established){
+        registry=Sensoren{};disk.clear();
+        auto scan=*dexcom::parseScan(barcode());
+        pathconcat dir(registry.inbasedir,scan.name);
+        Info other{};other.dexcom=false;other.days=14;other.pollcount=900;other.interval=15*60;
+        switch(established){
+            case 0:other.sibionics=true;break;
+            case 1:other.info.data[0]=7;break;      // Libre patch info
+            case 2:other.scancount=1;break;
+            case 3:other.endhistory=1;break;
+            case 4:other.interval=300;break;        // Libre 3
+        }
+        disk[string(dir)+"/info.dat"]=other;
+        const int otherId=registry.addsensor(scan.name);
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005);
+        assert(id==-1&&!d&&registry.retired.empty()&&registry.data.size()==1);
+        assert(!disk.contains(string(dir)+".mirror1700000005/info.dat"));
+        assert(disk.contains(string(dir)+"/info.dat")&&!disk.at(string(dir)+"/info.dat").dexcom);
+        assert(registry.getSensorData(otherId)->metadata.pollcount==900);
+    }
+    cout<<"PASS: mirrored record converted to Dexcom on setup, other records left alone\n";
     cout<<"PASS: Dexcom Flex discovery/binding, batched backfill, GS1/manual identities, model-aware reuse, legacy migration, storage and live cutoff\n";
 }

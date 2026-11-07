@@ -1424,6 +1424,15 @@ static int getgeneration(const char *info) {
     }
     return false;
   }
+  // The plain record a watch builds for a phone's sensor from mirrored
+  // readings alone: no driver of its own and nothing but polls. Anything with
+  // a driver flag, patch info, scans or history belongs to a sensor this
+  // device really holds.
+  bool isMirrorShell() const {
+    const auto *info = getinfo();
+    return info && isLibre2() && !isAiDex() && !hasLibrePatchInfo() &&
+           !info->scancount && !info->endhistory;
+  }
   bool isAccuChek() const { return getinfo()->accuChek; }
   bool isAiDex() const { return getinfo()->aidex; }
   bool isAir() const { return getinfo()->air; }

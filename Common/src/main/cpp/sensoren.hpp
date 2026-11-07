@@ -714,7 +714,14 @@ public:
         // A watch builds a plain record under this exact name from the
         // phone's mirrored history (WearSync2) long before it is handed the
         // sensor itself. Taking that record as the Dexcom one left it without
-        // a Dexcom header, so nothing could ever connect to it.
+        // a Dexcom header, so nothing could ever connect to it. Only such a
+        // mirror is replaced: a record some other driver established under
+        // this name keeps its files.
+        if (!sens->isMirrorShell()) {
+          LOGGER("makeDexComSensorindex: %s is not a mirrored record\n",
+                 sensgegs->showsensorname());
+          return {-1, nullptr};
+        }
         return convertMirrorToDexcom(sensindex, scan, now);
       }
       sensgegs = getsensor(sensindex);
