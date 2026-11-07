@@ -510,9 +510,12 @@ static void addoldcurrents(char *&uitptr, const SensorGlucoseData *sens,
     return;
   const auto &viewed = sens->viewed;
   const ScanData *startstream = sens->beginpolls();
+  const uint32_t cutoff = libreviewCutoff(sens);
   for (int i : viewed) {
     if (i >= start && i < current) {
       const ScanData *el = startstream + i;
+      if (el->gettime() > cutoff)
+        continue;
       uitptr = onecurrent(sens, *el, i, uitptr, true);
       *uitptr++ = ',';
     }
@@ -677,7 +680,19 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
                  "lastscan=%d scancount=%d\n",
                  info->startedwithStreamhistory, scanoff, startid, lastscan,
                  sensdata->scancount());
-          nrscans += (sensdata->scancount() - lastscan);
+          const uint32_t scancutoff = libreviewCutoff(sensdata);
+          if (scancutoff == UINT32_MAX) {
+            nrscans += (sensdata->scancount() - lastscan);
+          } else {
+            // Scans held back past the official end are not pending, or this sensor
+            // would look unfinished on every upload until it leaves the period.
+            auto scans = sensdata->getScandata();
+            for (size_t scan = std::max(lastscan, 0); scan < scans.size(); ++scan) {
+              if (scans[scan].gettime() > scancutoff)
+                break;
+              ++nrscans;
+            }
+          }
 
           if (usedsensor > 5) {
             startsensor = i;
@@ -898,15 +913,16 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
         }
         LOGGER("scanoff=%d startid=%d end=%d\n", scanoff, startid,
                scans.size());
-        // A scan past the official end is stepped over like one already sent: Abbott's
-        // own app never reports it, and a cursor stuck on it would leave this sensor
-        // counting as pending on every later upload.
+        // Scans past the official end stay unsent and the cursor stays on the first of
+        // them, like the history, so switching the option off sends them.
         const uint32_t cutoff = libreviewCutoff(sensdata);
         for (const ScanData *iter = &scans[scanoff + startid]; iter < endscans;
              ++iter) {
+          const bool valid = iter->valid();
+          if (valid && iter->gettime() > cutoff)
+            break;
           ++id;
-          if (iter->valid() && iter->gettime() > starttimeiter &&
-              iter->gettime() <= cutoff) {
+          if (valid && iter->gettime() > starttimeiter) {
             uitptr = libreScanel(sensdata, *iter, id, uitptr);
             *uitptr++ = ',';
             ++scansiter;
