@@ -1278,6 +1278,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_status_saved_key_rejected_press_pair">Stored pairing key rejected — press Pair</string>
     <string name="aidex_status_pairing_failed_broadcast_only">Pairing failed — Broadcast Only</string>
     <string name="aidex_key_saved">Sensor-specific pairing key saved</string>
+    <string name="aidex_keys_before_connect">Import or request this sensor’s keys before connecting.</string>
+    <string name="aidex_delete_keys_message">Remove saved pairing keys for %1$s from this phone? Export them first if you may need them again.</string>
     <string name="aidex_key_fetch_action">Get key from account</string>
     <string name="aidex_key_fetch_requires_sign_in">Sign in to download this sensor\'s key.</string>
     <string name="aidex_key_import_failed">Import failed — not a valid AiDex key file.</string>

@@ -13,10 +13,25 @@ The user must select BloodControl and tap **Request key** to contact the service
 request sends the selected serial and a persistent random device UUID to the configured
 BloodControl endpoints. Saved/imported keys are reused before any network request.
 
-The BLE driver retains its original local/saved pairing flow and missing-key reporting.
-There is no F-series prefix classifier, automatic cloud recovery, or network-driven second
-F001 challenge on an existing link. Explicitly downloaded keys use the same encrypted store
-as imports and CN account downloads, and are available on the next connection.
+Key management reuses Ottai’s saved-sensor row component: **Select**, **Export**, and
+confirmed deletion for keys belonging to sensors that have not been added. Added sensors
+retain their keys, with removal handled by their sensor card. Selecting a saved row edits
+the same serial field used by nearby selection and import. Successful key acquisition
+reveals **Connect** instead of offering a redundant request for already-saved keys.
+
+Selecting a known F-series sensor without provisioned material or a validated stored PAIR
+credential opens its prefilled key form before the app registers or connects it. Import or
+explicitly request keys there, then press **Connect**. Other series retain local pairing.
+F-series advertisement labels are remembered for G/H serial batches so a later selection
+without an advertised name still uses the gate. Product detection changes setup routing,
+never the BLE driver's cryptographic strategy. BloodControl remains manual-only.
+
+Saved records include their serial inside the encrypted payload, enabling offline listing.
+Older records are located through added/nearby/selected identities and previously cached
+BloodControl eligibility, then indexed without changing their key material. No eligibility
+refresh or network request is made to build the list. An otherwise unknown legacy record
+becomes listable once its serial is entered or selected. Stored serials are checked before
+keys can be installed or used by the setup gate.
 
 ## Build configuration
 
@@ -97,3 +112,9 @@ Manual-only follow-up validation passed 618 focused phone tests and 558 focused 
 with no failures or skips, plus UI guardrails and `git diff --check`. The Russian sensor
 picker render was inspected. Automatic-recovery-only state, helpers and tests were removed;
 the BLE manager now matches the pairing behavior before this PR.
+
+Saved-sensor follow-up passed 1,117 phone tests (AiDEX, Ottai and restricted-mode) and 559
+Wear tests, with zero failures/skips. The final UI cleanup passed its focused layout suite.
+Regressions cover encrypted enumeration and legacy migration, per-sensor export/import and
+delete, record identity mismatch, F-series and F-labelled G/H serial gating, validated-PAIR reconnects, and the
+Connect action becoming available only after the F-series key requirement is satisfied.

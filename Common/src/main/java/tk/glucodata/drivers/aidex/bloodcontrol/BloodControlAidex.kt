@@ -1,6 +1,7 @@
 package tk.glucodata.drivers.aidex.bloodcontrol
 
 import android.content.Context
+import org.json.JSONArray
 import tk.glucodata.BuildConfig
 import tk.glucodata.R
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
@@ -15,6 +16,13 @@ internal object BloodControlAidex {
     private var provider: BloodControlAidexKeyProvider? = null
 
     fun isRussian(context: Context): Boolean = context.resources.configuration.locales[0]?.language == "ru"
+
+    /** Offline identities can locate pre-indexed encrypted keys; never refresh this here. */
+    fun cachedSerials(context: Context): List<String> = runCatching {
+        val prefs = context.applicationContext.getSharedPreferences("bloodcontrol_aidex", Context.MODE_PRIVATE)
+        val entries = JSONArray(prefs.getString("allowlist", "[]"))
+        (0 until entries.length()).mapNotNull { BloodControlProtocol.normalizeSerial(entries.optString(it)) }
+    }.getOrDefault(emptyList())
 
     @Synchronized
     fun requestAndInstall(context: Context, serial: String, reuseSaved: Boolean = true): BloodControlKeyResult {

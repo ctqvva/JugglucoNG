@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import tk.glucodata.SensorBluetooth
+import androidx.compose.ui.platform.LocalContext
+import tk.glucodata.drivers.aidex.AiDexSetupKeyGate
 import tk.glucodata.drivers.aidex.AiDexDriver
 import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
@@ -40,6 +42,7 @@ internal fun aiDexKeySensorFromIdentity(
 /** Observe BLE identities only. Choosing a serial never fetches a key or connects a sensor. */
 @Composable
 internal fun rememberAiDexKeySensors(nearby: List<AiDexKeySensor>): List<AiDexKeySensor> {
+    val context = LocalContext.current
     val known = remember {
         SensorBluetooth.gattcallbacks.mapNotNull { callback ->
             val driver = callback as? AiDexDriver ?: return@mapNotNull null
@@ -59,6 +62,7 @@ internal fun rememberAiDexKeySensors(nearby: List<AiDexKeySensor>): List<AiDexKe
                 runCatching { result.device.name }.getOrNull(), record?.deviceName,
                 record?.bytes, record?.serviceUuids?.map { it.uuid })
             val serial = candidate.serial ?: return@startScan
+            AiDexSetupKeyGate.requiresKeys(context, serial, candidate.displayName)
             discovered = mergeAiDexKeySensors(discovered + AiDexKeySensor(serial, candidate.displayName, address))
         })
         onDispose { scanner.stopScan() }

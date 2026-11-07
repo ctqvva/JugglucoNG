@@ -1,6 +1,5 @@
 package tk.glucodata.ui.setup
 
-import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.ButtonDefaults
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,6 +35,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,7 +59,10 @@ import tk.glucodata.drivers.aidex.AiDexCnCloudClient
 import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
 import tk.glucodata.drivers.aidex.bloodcontrol.BloodControlAidex
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
+import tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter
+import tk.glucodata.drivers.aidex.AiDexSetupKeyGate
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.components.SectionLabel
 
 private enum class AiDexAccountLoginMethod(val labelRes: Int) {
     SMS(R.string.ottai_login_sms),
@@ -76,6 +78,8 @@ internal fun AiDexKeyManagementScreen(
     onSignedOut: () -> Unit,
     bloodControlAvailable: Boolean = BloodControlAidex.available,
     sensors: List<AiDexKeySensor> = emptyList(),
+    requiredSerial: String? = null,
+    onConnect: ((AiDexKeySensor) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -84,12 +88,19 @@ internal fun AiDexKeyManagementScreen(
     var serialInput by remember(initialSerial) { mutableStateOf(initialSerial) }
     var serialEdited by remember(initialSerial) { mutableStateOf(initialSerial.isNotBlank()) }
     var keySaved by remember { mutableStateOf(false) }
+    var connectionAllowedFor by remember { mutableStateOf<String?>(null) }
+    var savedSensors by remember { mutableStateOf<List<AiDexSavedKeySensor>>(emptyList()) }
+    var pendingExport by remember { mutableStateOf<String?>(null) }
+    var pendingDelete by remember { mutableStateOf<String?>(null) }
     var keyRefresh by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var statusIsError by remember { mutableStateOf(false) }
     val normalizedSerial = AiDexPairingMaterialFile.normalizeSerial(serialInput)
     val sensorChoices = remember(sensors) { mergeAiDexKeySensors(sensors) }
+    val connectSensor = sensorChoices.firstOrNull { it.serial == normalizedSerial && it.address.isNotBlank() }
+    val fullModeGuard = tk.glucodata.ui.restricted.rememberFullModeGuard()
+    val unsavedChoices = sensorChoices.filter { choice -> savedSensors.none { it.serial == choice.serial } }
 
     LaunchedEffect(sensorChoices) {
         if (!serialEdited && serialInput.isBlank()) {
@@ -104,16 +115,29 @@ internal fun AiDexKeyManagementScreen(
     var loginMethod by remember { mutableStateOf(AiDexAccountLoginMethod.SMS) }
     val normalizedPhone = AiDexCnCloudClient.normalizeCnPhone(phone)
 
-    LaunchedEffect(normalizedSerial, keyRefresh) {
+    LaunchedEffect(normalizedSerial, keyRefresh, sensorChoices) {
+        connectionAllowedFor = null
         keySaved = normalizedSerial?.let { serial ->
             withContext(Dispatchers.IO) { AiDexProvisioningStore.hasSaved(context, serial) }
         } == true
+        connectionAllowedFor = connectSensor?.takeIf { sensor ->
+            withContext(Dispatchers.IO) { AiDexSetupKeyGate.mayConnect(context, sensor.serial, sensor.name) }
+        }?.serial
+        savedSensors = withContext(Dispatchers.IO) {
+            val managed = AiDexManagedSensorIdentityAdapter.persistedSensorIds(context)
+                .mapNotNull(AiDexPairingMaterialFile::normalizeSerial).toSet()
+            AiDexProvisioningStore.savedSerials(context, sensorChoices.map { it.serial } + managed +
+                listOfNotNull(normalizedSerial) + BloodControlAidex.cachedSerials(context))
+                .map { serial -> AiDexSavedKeySensor(serial, serial in managed,
+                    sensorChoices.any { it.serial == serial && it.connected }) }
+        }
     }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
-        val serial = normalizedSerial
+        val serial = pendingExport
+        pendingExport = null
         if (uri != null && serial != null) scope.launch {
             val saved = withContext(Dispatchers.IO) {
                 val json = AiDexProvisioningStore.exportJson(context, serial)
@@ -145,12 +169,45 @@ internal fun AiDexKeyManagementScreen(
                 serialEdited = true
                 keyRefresh += 1
                 statusIsError = false
-                status = context.getString(R.string.aidex_key_saved)
+                status = ""
             } else {
                 statusIsError = true
                 status = context.getString(R.string.aidex_key_import_failed)
             }
         }
+    }
+
+    pendingDelete?.let { serial ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text(stringResource(R.string.ottai_delete_title)) },
+            text = { Text(stringResource(R.string.aidex_delete_keys_message, serial)) },
+            confirmButton = {
+                Button(onClick = { fullModeGuard {
+                    pendingDelete = null
+                    busy = true
+                    scope.launch {
+                        val removed = withContext(Dispatchers.IO) {
+                            val managed = AiDexManagedSensorIdentityAdapter.persistedSensorIds(context)
+                                .any { AiDexPairingMaterialFile.normalizeSerial(it) == serial }
+                            !managed && AiDexProvisioningStore.removeSaved(context, serial)
+                        }
+                        busy = false
+                        keyRefresh += 1
+                        statusIsError = !removed
+                        status = if (removed) context.getString(R.string.ottai_delete_done, serial)
+                            else context.getString(R.string.error)
+                    }
+                } }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { pendingDelete = null }, shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.cancel)) }
+            },
+        )
     }
 
     Column(
@@ -164,29 +221,40 @@ internal fun AiDexKeyManagementScreen(
             stringResource(R.string.aidex_key_management_title),
             style = MaterialTheme.typography.titleLarge,
         )
-        if (sensorChoices.isNotEmpty()) {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 216.dp)) {
-                    items(sensorChoices, key = { it.serial }) { sensor ->
-                        ListItem(
-                            headlineContent = { Text(sensor.serial) },
-                            supportingContent = { Text(sensor.name.ifBlank { sensor.address }) },
-                            leadingContent = { Icon(Icons.Default.Bluetooth, contentDescription = null) },
-                            trailingContent = {
-                                if (normalizedSerial == sensor.serial) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null)
-                                }
-                            },
-                            modifier = Modifier.selectable(
-                                selected = normalizedSerial == sensor.serial,
-                                enabled = !busy,
-                                onClick = {
-                                    serialInput = sensor.serial
-                                    serialEdited = true
-                                    status = ""
+        AiDexSavedSensorsSection(savedSensors, !busy,
+            onSelect = { serialInput = it; serialEdited = true; status = "" },
+            onExport = { serial -> fullModeGuard {
+                pendingExport = serial
+                exportLauncher.launch("aidex_$serial.json")
+            } },
+            onDelete = { serial -> fullModeGuard { pendingDelete = serial } },
+        )
+        if (unsavedChoices.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionLabel(stringResource(R.string.found_devices_title), topPadding = 0.dp)
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 216.dp)) {
+                        items(unsavedChoices, key = { it.serial }) { sensor ->
+                            ListItem(
+                                headlineContent = { Text(sensor.serial) },
+                                supportingContent = { Text(sensor.name.ifBlank { sensor.address }) },
+                                leadingContent = { Icon(Icons.Default.Bluetooth, contentDescription = null) },
+                                trailingContent = {
+                                    if (normalizedSerial == sensor.serial) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null)
+                                    }
                                 },
-                            ),
-                        )
+                                modifier = Modifier.selectable(
+                                    selected = normalizedSerial == sensor.serial,
+                                    enabled = !busy,
+                                    onClick = {
+                                        serialInput = sensor.serial
+                                        serialEdited = true
+                                        status = ""
+                                    },
+                                ),
+                            )
+                        }
                     }
                 }
             }
@@ -237,112 +305,93 @@ internal fun AiDexKeyManagementScreen(
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                if (keySaved) {
-                    AdaptiveButtonRow(
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Button(
-                            onClick = {
-                                exportLauncher.launch("aidex_${normalizedSerial.orEmpty()}.json")
-                            },
-                            enabled = !busy && normalizedSerial != null,
-                            modifier = Modifier.heightIn(min = 48.dp),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding,
-                        ) {
-                            Icon(Icons.Default.FileUpload, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.export))
-                        }
-                        OutlinedButton(
-                            onClick = {
-                                importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
-                            },
-                            enabled = !busy,
-                            modifier = Modifier.heightIn(min = 48.dp),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding,
-                        ) {
-                            Icon(Icons.Default.FileDownload, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.ottai_credentials_replace))
-                        }
-                    }
-                } else {
-                    OutlinedButton(
-                        onClick = {
-                            importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
-                        },
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                    ) {
-                        Icon(Icons.Default.FileDownload, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.ottai_credentials_import))
-                    }
+                if (!keySaved && requiredSerial != null && normalizedSerial == AiDexPairingMaterialFile.normalizeSerial(requiredSerial)) {
+                    Text(stringResource(R.string.aidex_keys_before_connect),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
-                Button(
-                    onClick = {
-                        val serial = normalizedSerial ?: return@Button
-                        busy = true
-                        status = ""
-                        scope.launch {
-                            val result = withContext(Dispatchers.IO) {
-                                if (useBloodControl) {
-                                    val bc = BloodControlAidex.requestAndInstall(context, serial)
-                                    tk.glucodata.drivers.aidex.AiDexCnResult<tk.glucodata.drivers.aidex.AiDexProvisionedKeys>(
-                                        bc.keys, error = bc.error,
-                                    )
-                                } else AiDexCnCloudClient.getProvisionedKeys(
-                                    serial,
-                                    AiDexProvisioningStore.token(context),
-                                )
-                            }
-                            if (result.code == 800) {
-                                AiDexProvisioningStore.clearSession(context)
-                                onSignedOut()
-                            }
-                            val keys = result.value
-                            val saved = if (useBloodControl) result.error.isEmpty() else keys != null && withContext(Dispatchers.IO) {
-                                AiDexProvisioningStore.saveAndInstall(
-                                    context,
-                                    serial,
-                                    keys.secret,
-                                    keys.iv,
-                                )
-                            }
-                            busy = false
-                            statusIsError = !saved
-                            status = if (saved) {
-                                keyRefresh += 1
-                                context.getString(R.string.aidex_key_saved)
-                            } else {
-                                result.error.ifBlank { context.getString(R.string.error) }
-                            }
-                        }
-                    },
-                    enabled = !busy && (useBloodControl || signedIn) && normalizedSerial != null,
+                OutlinedButton(
+                    onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+                    enabled = !busy,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) {
-                    if (busy) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Default.CloudDownload, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(if (useBloodControl) "Запросить ключ" else stringResource(R.string.aidex_key_fetch_action))
+                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(if (keySaved) R.string.ottai_credentials_replace else R.string.ottai_credentials_import))
+                }
+
+                if (!keySaved) {
+                    Button(
+                        onClick = {
+                            val serial = normalizedSerial ?: return@Button
+                            busy = true
+                            status = ""
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    if (useBloodControl) {
+                                        val bc = BloodControlAidex.requestAndInstall(context, serial)
+                                        tk.glucodata.drivers.aidex.AiDexCnResult<tk.glucodata.drivers.aidex.AiDexProvisionedKeys>(
+                                            bc.keys, error = bc.error,
+                                        )
+                                    } else AiDexCnCloudClient.getProvisionedKeys(
+                                        serial,
+                                        AiDexProvisioningStore.token(context),
+                                    )
+                                }
+                                if (result.code == 800) {
+                                    AiDexProvisioningStore.clearSession(context)
+                                    onSignedOut()
+                                }
+                                val keys = result.value
+                                val saved = if (useBloodControl) result.error.isEmpty() else keys != null && withContext(Dispatchers.IO) {
+                                    AiDexProvisioningStore.saveAndInstall(
+                                        context,
+                                        serial,
+                                        keys.secret,
+                                        keys.iv,
+                                    )
+                                }
+                                busy = false
+                                statusIsError = !saved
+                                status = if (saved) {
+                                    keyRefresh += 1
+                                    ""
+                                } else {
+                                    result.error.ifBlank { context.getString(R.string.error) }
+                                }
+                            }
+                        },
+                        enabled = !busy && (useBloodControl || signedIn) && normalizedSerial != null,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.CloudDownload, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (useBloodControl) "Запросить ключ" else stringResource(R.string.aidex_key_fetch_action))
+                        }
                     }
                 }
-                if (!signedIn && !useBloodControl) {
+                if (!keySaved && !signedIn && !useBloodControl) {
                     Text(
                         stringResource(R.string.aidex_key_fetch_requires_sign_in),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                if (connectSensor != null && onConnect != null) {
+                    Button(onClick = { onConnect(connectSensor) },
+                        enabled = !busy && connectionAllowedFor == connectSensor.serial,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
+                        Text(stringResource(R.string.ottai_connect_saved))
+                    }
                 }
             }
         }
