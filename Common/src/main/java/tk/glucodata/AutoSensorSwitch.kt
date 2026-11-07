@@ -91,17 +91,28 @@ object AutoSensorSwitch {
         if (!Applic.isWearable || !isEnabled()) return
         if (runCatching { Natives.getusebluetooth() }.getOrDefault(true)) return
         Log.i(LOG_ID, "re-arming watch Bluetooth for automatic switching ($reason)")
-        if (SensorBluetooth.blueone != null) {
+        if (SensorBluetooth.blueone?.bluetoothStarted == true) {
             // Drivers still running: restoring the flag is all that is needed,
             // and a full start would kick every connection.
             runCatching { Natives.setusebluetooth(true) }
                 .onFailure { Log.stack(LOG_ID, "setusebluetooth(true)", it) }
         } else {
+            // Torn down, or only the records-only holder updateDevices builds
+            // while Bluetooth is off: that one never scans, so start properly.
             applyRadioState(true)
         }
     }
 
     private const val PROVISION_PREFS = "wear_auto_switch_provisioned"
+    private const val PROVISIONED_AT_SUFFIX = ".at"
+
+    /**
+     * How often the setup is sent again while this phone is the one reading the
+     * sensor. A successful send only means the Data Layer took the message, not
+     * that the watch applied it, so a lost one has to be repeated; and while the
+     * phone reads the sensor its copy is the newest there is.
+     */
+    private const val PROVISION_REFRESH_MS = 60L * 60L * 1000L
     private val provisionExecutor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "AutoSensorSwitchSetup").apply { isDaemon = true }
     }
@@ -112,7 +123,10 @@ object AutoSensorSwitch {
         if (sensorId.isNullOrBlank()) return
         runCatching {
             Applic.app?.getSharedPreferences(PROVISION_PREFS, Context.MODE_PRIVATE)
-                ?.edit()?.putString(nodeId, sensorId)?.apply()
+                ?.edit()
+                ?.putString(nodeId, sensorId)
+                ?.putLong(nodeId + PROVISIONED_AT_SUFFIX, System.currentTimeMillis())
+                ?.apply()
         }
     }
 
@@ -140,19 +154,23 @@ object AutoSensorSwitch {
         val main = SensorIdentity.resolveMainSensor()
         val managed = main != null && ManagedSensorIdentityRegistry.persistedSensorIds(context)
             .any { SensorIdentity.matches(it, main) }
-        val last = context.getSharedPreferences(PROVISION_PREFS, Context.MODE_PRIVATE)
-            .getString(nodeId, null)
+        val prefs = context.getSharedPreferences(PROVISION_PREFS, Context.MODE_PRIVATE)
         val send = shouldProvisionWatch(
             enabled = isEnabled(),
             mainSensor = main,
             mainIsManaged = managed,
-            lastProvisioned = last,
+            lastProvisioned = prefs.getString(nodeId, null),
+            lastProvisionedAtMs = prefs.getLong(nodeId + PROVISIONED_AT_SUFFIX, 0L),
             peerReadsMain = SensorOwnershipRuntime.peerReportsOwning(main),
+            phoneReadsMain = SensorOwnershipRuntime.readsLocally(main),
+            nowMs = System.currentTimeMillis(),
+            refreshMs = PROVISION_REFRESH_MS,
             sameSensor = SensorIdentity::matches,
         )
         if (!send || main == null) return
         val sender = MessageSender.getMessageSender() ?: return
-        val payload = ManagedSensorHandoff.createOutgoingPayload(context)
+        val refresh = prefs.getString(nodeId, null)?.let { SensorIdentity.matches(it, main) } == true
+        val payload = ManagedSensorHandoff.createOutgoingPayload(context, refresh)
         if (sender.sendSensorHandoff(nodeId, payload)) {
             recordProvisioned(nodeId, main)
             Log.i(LOG_ID, "sent $main setup to $nodeId for automatic switching")
@@ -185,16 +203,26 @@ object AutoSensorSwitch {
  * live in native storage, which no longer reaches the watch. Never while the
  * watch says it is reading the sensor itself: its driver state is then newer
  * than the phone's copy, and overwriting it rewinds the sensor's cursors.
+ *
+ * A sensor the watch has not been sent goes at once. One it has been sent goes
+ * again every [refreshMs], but only while this phone is the one reading it: a
+ * successful send is not proof the watch applied it, and only then is the
+ * phone's copy certainly the newest.
  */
 internal fun shouldProvisionWatch(
     enabled: Boolean,
     mainSensor: String?,
     mainIsManaged: Boolean,
     lastProvisioned: String?,
+    lastProvisionedAtMs: Long,
     peerReadsMain: Boolean,
+    phoneReadsMain: Boolean,
+    nowMs: Long,
+    refreshMs: Long,
     sameSensor: (String?, String?) -> Boolean,
 ): Boolean {
     if (!enabled || mainSensor.isNullOrBlank() || !mainIsManaged) return false
     if (peerReadsMain) return false
-    return lastProvisioned.isNullOrBlank() || !sameSensor(lastProvisioned, mainSensor)
+    if (lastProvisioned.isNullOrBlank() || !sameSensor(lastProvisioned, mainSensor)) return true
+    return phoneReadsMain && nowMs - lastProvisionedAtMs >= refreshMs
 }

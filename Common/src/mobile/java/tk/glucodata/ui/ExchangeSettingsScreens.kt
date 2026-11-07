@@ -107,6 +107,7 @@ import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.webserver.WebServerCertificate
 import tk.glucodata.Applic
 import tk.glucodata.AutoSensorSwitch
+import tk.glucodata.WearToggleSync
 import tk.glucodata.GoogleServices
 import tk.glucodata.Natives
 import tk.glucodata.NotificationForwardingSettings
@@ -535,10 +536,16 @@ fun WearOsConfigScreen(navController: NavController) {
         autoSwitch = enabled
         val node = selected
         if (node == null) {
-            // Turning it off is a phone setting and needs no watch; the watch
-            // hears it at its next handshake. Turning it on does need one, to
-            // send the sensor's setup to.
-            if (!enabled) AutoSensorSwitch.setEnabled(false)
+            // Turning it off is a phone setting and needs no selected watch.
+            // Broadcast it anyway: discovery may simply not have finished, and
+            // a reachable watch must not stay armed until its next sync.
+            // Turning it on does need one, to send the sensor's setup to.
+            if (!enabled) {
+                scope.launch(Dispatchers.IO) {
+                    AutoSensorSwitch.setEnabled(false)
+                    WearToggleSync.push()
+                }
+            }
             return
         }
         scope.launch {

@@ -350,7 +350,6 @@ class SensorOwnershipPolicyTests {
         assertTrue(
             resolvePeerGone(
                 autoSwitchEnabled = true,
-                lastAnnouncementDelivered = true,
                 undiscoverableForMs = grace,
                 graceMs = grace,
             ),
@@ -360,7 +359,6 @@ class SensorOwnershipPolicyTests {
         assertFalse(
             resolvePeerGone(
                 autoSwitchEnabled = true,
-                lastAnnouncementDelivered = true,
                 undiscoverableForMs = grace - 1L,
                 graceMs = grace,
             ),
@@ -369,17 +367,14 @@ class SensorOwnershipPolicyTests {
         assertFalse(
             resolvePeerGone(
                 autoSwitchEnabled = true,
-                lastAnnouncementDelivered = true,
                 undiscoverableForMs = -1L,
                 graceMs = grace,
             ),
         )
-        // An announcement that could not be delivered needs no grace once
-        // discovery agrees the peer is gone.
-        assertTrue(
+        // An empty snapshot is not the peer leaving until the grace has run.
+        assertFalse(
             resolvePeerGone(
                 autoSwitchEnabled = true,
-                lastAnnouncementDelivered = false,
                 undiscoverableForMs = 0L,
                 graceMs = grace,
             ),
@@ -388,7 +383,6 @@ class SensorOwnershipPolicyTests {
         assertFalse(
             resolvePeerGone(
                 autoSwitchEnabled = false,
-                lastAnnouncementDelivered = false,
                 undiscoverableForMs = 10L * grace,
                 graceMs = grace,
             ),
@@ -549,21 +543,19 @@ class SensorOwnershipPolicyTests {
     }
 
     @Test
-    fun aFailedSendIsNotThePeerLeavingWhileDiscoveryStillSeesIt() {
+    fun neitherAFailedSendNorABriefEmptySnapshotIsThePeerLeaving() {
         val grace = 30_000L
         assertFalse(
             resolvePeerGone(
                 autoSwitchEnabled = true,
-                lastAnnouncementDelivered = false,
                 undiscoverableForMs = -1L,
                 graceMs = grace,
             ),
         )
-        // Both signals say it is gone: no grace needed.
-        assertTrue(
+        // Even with discovery empty, the grace still applies.
+        assertFalse(
             resolvePeerGone(
                 autoSwitchEnabled = true,
-                lastAnnouncementDelivered = false,
                 undiscoverableForMs = 0L,
                 graceMs = grace,
             ),

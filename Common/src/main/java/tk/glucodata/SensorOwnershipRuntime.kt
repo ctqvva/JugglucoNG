@@ -48,16 +48,15 @@ internal fun resolveSensorOwnershipIntent(
  */
 internal fun resolvePeerGone(
     autoSwitchEnabled: Boolean,
-    lastAnnouncementDelivered: Boolean,
     undiscoverableForMs: Long,
     graceMs: Long,
 ): Boolean {
     if (!autoSwitchEnabled) return false
-    // A send that did not land is only uncertainty: a busy or dozing Data Layer
-    // drops one without the peer having gone anywhere, and treating that as
-    // "gone" pulled a device off a peer that was still reading the sensor.
-    // It counts only when discovery agrees that nobody is there.
-    if (!lastAnnouncementDelivered) return undiscoverableForMs >= 0L
+    // Discovery alone decides, and only after its grace. A send that did not
+    // land used to count as the peer gone on the spot; a busy or dozing Data
+    // Layer drops one without the peer going anywhere, and an empty capability
+    // snapshot can be just as brief, so neither may skip the grace: acting early
+    // pulled a device onto a sensor the peer was still reading.
     return undiscoverableForMs >= 0L && undiscoverableForMs >= graceMs
 }
 
@@ -327,7 +326,7 @@ object SensorOwnershipRuntime {
      * while the phone was already standing down produced no send to fail, and
      * the phone sat released for the whole handover window with capability
      * discovery reporting no watch at all. [MessageSender.peerUnreachable] is
-     * the signal that actually notices; this one only corroborates it.
+     * the signal that decides; this one is kept for the log only.
      */
     @Volatile private var peerDeliverable = true
 
@@ -665,7 +664,6 @@ object SensorOwnershipRuntime {
 
     private fun peerGone(autoSwitch: Boolean): Boolean = resolvePeerGone(
         autoSwitchEnabled = autoSwitch,
-        lastAnnouncementDelivered = peerDeliverable,
         undiscoverableForMs = undiscoverableForMs(),
         graceMs = PEER_UNDISCOVERABLE_GRACE_MS,
     )
@@ -712,8 +710,11 @@ object SensorOwnershipRuntime {
         // The watch can only take a sensor over with its radio armed, and the
         // native handshake disarms it every time the phone says it is reading.
         if (Applic.isWearable && autoSwitch) {
-            runCatching { AutoSensorSwitch.keepWatchRadioArmed("reconcile") }
-                .onFailure { Log.stack(LOG_ID, "keep watch radio armed", it) }
+            // On the native slot, not this executor: setmynetinfo writes the
+            // same flag there and is not re-entrant.
+            MessageReceiver.runNativeOp("keep watch radio armed") {
+                AutoSensorSwitch.keepWatchRadioArmed("reconcile")
+            }
         }
         // Automatic switching is the one mode that acts on the peer being gone
         // rather than merely quiet, so an undeliverable announcement retires its
@@ -985,8 +986,13 @@ object SensorOwnershipRuntime {
     fun peerReportsOwning(serial: String?): Boolean {
         val target = serial?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: return false
         val peer = peerReportFor(target) ?: return false
+        val now = System.currentTimeMillis()
         val silentAfter = if (autoSwitchEnabled()) AUTO_SWITCH_PEER_SILENT_AFTER_MS else PEER_SILENT_AFTER_MS
-        return peer.owns && System.currentTimeMillis() - peer.receivedAtMs <= silentAfter
+        if (now - peer.receivedAtMs > silentAfter) return false
+        // Inside the stand-down grace the peer still counts as reading it, the
+        // same as arbitration treats it (read-only: no window is consumed here).
+        return peer.owns ||
+            !resolvePeerStandDownConfirmed(standDownSinceFor(target), now, PEER_STOOD_DOWN_CONFIRM_MS)
     }
 
     /** See [resolveLocalOwnershipProof]. */

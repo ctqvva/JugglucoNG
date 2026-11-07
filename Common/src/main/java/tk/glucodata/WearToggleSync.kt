@@ -232,9 +232,17 @@ object WearToggleSync {
         val target = nodeName ?: return
         runCatching {
             val payload = encode(currentState())
-            MessageSender.getMessageSender()?.sendToggleState(target, payload)
+            val sender = MessageSender.getMessageSender()
+            if (sender == null || !MessageSender.outgoingAllowed()) {
+                lastSentHashByNode.remove(target)
+                return
+            }
+            sender.sendToggleState(target, payload)
             lastSentHashByNode[target] = payload.contentHashCode()
-        }.onFailure { Log.stack(LOG_ID, "pushTo", it) }
+        }.onFailure {
+            lastSentHashByNode.remove(target)
+            Log.stack(LOG_ID, "pushTo", it)
+        }
     }
 
     /** Phone: broadcasts after a local change, so the watch never lags. */
@@ -259,8 +267,14 @@ object WearToggleSync {
             val payload = encode(currentState())
             val hash = payload.contentHashCode()
             if (lastSentHashByNode[target] == hash) return
-            MessageSender.getMessageSender()?.sendToggleState(target, payload)
+            // Nothing went out without a sender, so nothing is remembered as sent.
+            val sender = MessageSender.getMessageSender() ?: return
+            if (!MessageSender.outgoingAllowed()) return
+            sender.sendToggleState(target, payload)
             lastSentHashByNode[target] = hash
-        }.onFailure { Log.stack(LOG_ID, "pushIfChanged", it) }
+        }.onFailure {
+            lastSentHashByNode.remove(target)
+            Log.stack(LOG_ID, "pushIfChanged", it)
+        }
     }
 }

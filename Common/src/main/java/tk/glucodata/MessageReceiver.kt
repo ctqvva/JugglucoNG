@@ -386,6 +386,14 @@ class MessageReceiver: WearableListenerService() {
    // service used to run these handlers serially on the main thread. One IO slot keeps
    // that serialization without keeping the work on main.
    private val nativeOps = Dispatchers.IO.limitedParallelism(1)
+
+   /** Runs [block] on the same single slot as the native netinfo/start handlers. */
+   @JvmStatic
+   fun runNativeOp(what: String, block: () -> Unit) {
+       MessageSender.scope.launch(nativeOps) {
+           runCatching(block).onFailure { Log.stack(LOG_ID, what, it) }
+       }
+   }
    private const val DISABLED_MESSAGE_LOG_INTERVAL_MS = 60_000L
    private val lastDisabledMessageLogMs = AtomicLong(0L)
     private const val offbyte:Byte=0

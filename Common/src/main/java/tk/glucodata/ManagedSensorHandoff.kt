@@ -55,7 +55,15 @@ object ManagedSensorHandoff {
     )
 
     @JvmStatic
-    fun createOutgoingPayload(context: Context? = Applic.app): ByteArray {
+    fun createOutgoingPayload(context: Context? = Applic.app): ByteArray =
+        createOutgoingPayload(context, refresh = false)
+
+    /**
+     * @param refresh the receiver already had this sensor's setup and is only
+     *   being brought up to date; it skips the full-history request a real
+     *   handover needs. Older receivers ignore the key and behave as before.
+     */
+    fun createOutgoingPayload(context: Context?, refresh: Boolean): ByteArray {
         val ctx = context ?: Applic.app
         val candidates = collectManagedCandidates(ctx)
         val currentManaged = ManagedCurrentSensor.get()
@@ -65,6 +73,7 @@ object ManagedSensorHandoff {
             .put("version", VERSION)
             .put("takeover", true)
             .put("managedSensorId", currentManaged ?: JSONObject.NULL)
+            .put("refresh", refresh)
 
         val entries = JSONArray()
         if (ctx != null && candidates.isNotEmpty()) {
@@ -93,6 +102,16 @@ object ManagedSensorHandoff {
         return runCatching {
             val root = JSONObject(String(data, StandardCharsets.UTF_8))
             if (root.optInt("version", 0) != VERSION || !root.optBoolean("takeover", false)) {
+                return@runCatching false
+            }
+            // Checked here, at apply time, not only when the sender decided to
+            // send: once this device reads the sensor its driver state is newer
+            // than the copy in flight, and importing it would rewind the
+            // sensor's cursors and replay or lose history.
+            val incomingSensor = root.optString("managedSensorId", "").trim()
+                .takeIf { it.isNotEmpty() && it != "null" }
+            if (incomingSensor != null && SensorOwnershipRuntime.readsLocally(incomingSensor)) {
+                Log.i(LOG_ID, "handoff ignored: already reading $incomingSensor here")
                 return@runCatching false
             }
             val entries = root.optJSONArray("entries") ?: JSONArray()
@@ -125,8 +144,11 @@ object ManagedSensorHandoff {
             // which offsets have already been pulled off that sensor, and the deep serve above
             // is what makes them true here. Zeroing it instead made the receiver re-fetch a
             // full history over BLE that sync had just delivered.
-            runCatching { WearSync2.requestSync(deep = true) }
-                .onFailure { Log.stack(LOG_ID, "handoff deep sync request", it) }
+            // A refresh of setup this device already had needs no backlog.
+            if (!root.optBoolean("refresh", false)) {
+                runCatching { WearSync2.requestSync(deep = true) }
+                    .onFailure { Log.stack(LOG_ID, "handoff deep sync request", it) }
+            }
             // The record is now stored, but drivers are only built from storage at Bluetooth
             // start. Without this the receiving device holds the sensor on paper and never
             // opens a connection — no GATT attempt, no broadcast fallback — until the app is
