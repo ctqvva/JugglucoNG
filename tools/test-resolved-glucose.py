@@ -58,6 +58,7 @@ def main():
 #include <cstring>
 #include <ctime>
 #include <fstream>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -81,6 +82,7 @@ float gconvert(int value) { return value; }
 /* SCANDATA */;
 struct Info { uint32_t caliNr = 1, viewMode = 0, starttime = 1760000000, pollcount = 0, pollstart = 0; uint16_t nightiter = 0; CaliPara caliPara[1]; };
 struct SensorGlucoseData {
+    static recursive_mutex &pollWriteMutex() { static recursive_mutex lock; return lock; }
     string id;
     Info info;
     string_view sensid() const { return id; }

@@ -3,9 +3,11 @@
 
 Watch copies used to be written into the 5-minute Dexcom store at minute indices.
 That padded the stream days past the live slot and left an old copy at its end.
-This test covers two things. First, the load-time repair: it must move each copy
+This test covers three things. First, the load-time repair: it must move each copy
 into its own slot when the sensor missed that slot, drop the copies the sensor
-already has, and end the stream at the newest real reading. Second, slot snapping:
+already has, and end the stream at the newest real reading. Second, that the
+repair waits for a write in flight instead of racing it, so a sample stored
+meanwhile is neither hidden by the cut count nor overwritten. Third, slot snapping:
 a copy timed by another device's clock must land in the same slot as the sensor's
 reading, not the next one. No sensor data or credentials are involved. Requires a
 host C++20 compiler (CXX or c++).
@@ -44,15 +46,24 @@ backfill = 'jbyteArray ' + backfill.replace('fromjava(getDexbackfillcmd)', 'getD
 # store must be repaired when it is opened.
 assert re.search(r'lifeCount = dexslots \? hist->dexSlotFor\(timestamp\)', writer), 'writer must snap Dexcom slots'
 assert re.search(r'if \(isDexcom\(\)\)\s*repairDexcomMinuteSlots\(\);', header), 'Dexcom stores must be repaired on load'
+for sig in ['int savepollallIDsonly(time_t tim', 'int savepollallIDsonlyQuiet(time_t tim',
+            'bool savepollallIDs(time_t tim', 'bool savepollallIDsQuiet(time_t tim',
+            'void repairDexcomMinuteSlots()']:
+    assert 'pollWriteMutex()' in extract(header, sig), f'{sig} must serialize poll writes with repair'
+assert 'pollWriteMutex()' in extract(writer, 'static bool storeGlucoseStreamSample('), 'mirror writer must serialize poll reads and writes with repair'
 
 fixture = r'''
 #include <algorithm>
+#include <atomic>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
+#include <mutex>
 #include <span>
+#include <thread>
 #include <vector>
 #define NOLOG
 #define LOGGER(...) do{if(false)printf(__VA_ARGS__);}while(0)
@@ -78,6 +89,7 @@ struct SensorGlucoseData {
     int pollcount() const { return metadata.pollcount; }
     size_t pollStorageCapacity() const { return polls.size(); }
     const ScanData *getstream(int i) const { return &polls[i]; }
+    static recursive_mutex &pollWriteMutex() { static recursive_mutex lock; return lock; }
     /* HELPERS */
 
     // The sensor's own reading for slot k (driver: id=(sensor secs)/300).
@@ -191,6 +203,28 @@ int main() {
         meta.repairDexcomMinuteSlots();
         assert(meta.metadata.lastLifeCountReceived == 365 && meta.metadata.update[0].streamstart == 368);
     }
+    {   // A write in flight holds the repair back; the sample it stores survives.
+        SensorGlucoseData d; d.metadata.starttime = S;
+        for (int k = 300; k <= 365; ++k) d.driver(k, 200, 110);
+        d.driver(367, 200, 120);
+        d.metadata.lastLifeCountReceived = 365;
+        d.oldMirror(S + 366 * 300 + 80, 99);
+        atomic<bool> repaired{false};
+        thread repair;
+        {
+            lock_guard<recursive_mutex> writing(SensorGlucoseData::pollWriteMutex());
+            repair = thread([&] {
+                d.repairDexcomMinuteSlots();
+                repaired = true;
+            });
+            this_thread::sleep_for(chrono::milliseconds(100));
+            assert(!repaired);
+            d.driver(368, 200, 121);
+        }
+        repair.join();
+        assert(d.pollcount() == 369 && d.polls[368].g == 121);
+        assert(d.polls[366].g == 99);
+    }
     {   // Padding the sensor's own readings overtook stays as empty slots, but
         // must not keep minute times: lookups by time need the stream in order.
         SensorGlucoseData d; d.metadata.starttime = S;
@@ -276,7 +310,7 @@ int main() {
         d.repairDexcomMinuteSlots();
         assert(d.pollcount() == 61 && d.polls[60].g == 105 && !d.polls[50].g && d.polls[10].g == 110);
     }
-    puts("PASS: Dexcom minute-indexed copies are moved to their slots or dropped, the stream ends at the newest reading, and skewed copies keep their slot");
+    puts("PASS: Dexcom minute-indexed copies are moved to their slots or dropped, repair is serialized with writes, the stream ends at the newest reading, and skewed copies keep their slot");
 }
 '''.replace('/* HELPERS */', helpers).replace('/* BACKFILL */', backfill)
 
@@ -284,5 +318,5 @@ with tempfile.TemporaryDirectory(prefix='dexcom-slot-repair-') as directory:
     directory = Path(directory)
     source, binary = directory / 'repair.cpp', directory / 'repair'
     source.write_text(fixture)
-    subprocess.run(shlex.split(os.environ.get('CXX', 'c++')) + ['-std=c++20', '-Wall', str(source), '-o', str(binary)], check=True)
+    subprocess.run(shlex.split(os.environ.get('CXX', 'c++')) + ['-std=c++20', '-Wall', '-pthread', str(source), '-o', str(binary)], check=True)
     subprocess.run([str(binary)], check=True)

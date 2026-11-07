@@ -674,6 +674,16 @@ public:
   bool resetdevice = false;
 
   std::mutex mutex;
+  // Serializes every write to the poll arrays and their count with the Dexcom
+  // slot repair, which rewrites slots and cuts the count from a snapshot: a
+  // sample stored meanwhile would be hidden or overwritten. Shared by all
+  // instances, since several may map the same files. Recursive because
+  // savepollallIDs wraps savepollallIDsonly. A leaf lock: nothing else is
+  // acquired while it is held.
+  static std::recursive_mutex &pollWriteMutex() {
+    static std::recursive_mutex lock;
+    return lock;
+  }
   int getsensorgen() const {
     //    return getinfo()->blueinfo.sensorgen;
     const data_t *info = getpatchinfo();
@@ -2197,6 +2207,7 @@ uint32_t getlastpolltime() const {
   // the metadata is checked on each load, so an interrupted run finishes on
   // the next one.
   void repairDexcomMinuteSlots() {
+    const std::lock_guard<std::recursive_mutex> repairing(pollWriteMutex());
     auto *info = getinfo();
     const int64_t start = getstarttime();
     const int count =
@@ -2269,6 +2280,7 @@ uint32_t getlastpolltime() const {
   template <int secs>
   int savepollallIDsonly(time_t tim, const int id, int glu, int trend,
                          float change, int raw = 0, uint16_t temp = 0) {
+    const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
     const size_t capacity = pollStorageCapacity();
     if (id < 0 || static_cast<size_t>(id) >= capacity) {
       LOGGER("savepollallIDsonly id=%d exceeds capacity=%zu\n", id, capacity);
@@ -2310,6 +2322,7 @@ uint32_t getlastpolltime() const {
   template <int secs>
   int savepollallIDsonlyQuiet(time_t tim, const int id, int glu, int trend,
                               float change, int raw = 0, uint16_t temp = 0) {
+    const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
     const size_t capacity = pollStorageCapacity();
     if (id < 0 || static_cast<size_t>(id) >= capacity)
       return -1;
@@ -2343,6 +2356,7 @@ uint32_t getlastpolltime() const {
   template <int secs>
   bool savepollallIDs(time_t tim, const int id, int glu, int trend,
                       float change, int raw = 0, uint16_t temp = 0) {
+    const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
     int count =
         savepollallIDsonly<secs>(tim, id, glu, trend, change, raw, temp);
     if (count < 0)
@@ -2358,6 +2372,7 @@ uint32_t getlastpolltime() const {
   template <int secs>
   bool savepollallIDsQuiet(time_t tim, const int id, int glu, int trend,
                            float change, int raw = 0, uint16_t temp = 0) {
+    const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
     int count =
         savepollallIDsonlyQuiet<secs>(tim, id, glu, trend, change, raw, temp);
     if (count < 0)
