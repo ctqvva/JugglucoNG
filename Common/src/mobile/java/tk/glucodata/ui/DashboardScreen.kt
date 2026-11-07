@@ -1749,7 +1749,6 @@ fun DashboardScreen(
                                     DashboardChartSection(
                                         modifier = Modifier.fillMaxSize(),
                                         glucoseHistory = glucoseHistory,
-                                        drawWithoutReadings = !hasSensorContext,
                                         primarySensorId = sensorName,
                                         dataBounds = chartDataBounds,
                                         onVisibleRangeChanged = viewModel::onChartViewportChanged,
@@ -2000,7 +1999,6 @@ fun DashboardScreen(
                                             .fillMaxSize()
                                             .padding(bottom = 0.dp),
                                         glucoseHistory = glucoseHistory,
-                                        drawWithoutReadings = !hasSensorContext,
                                         primarySensorId = sensorName,
                                         dataBounds = chartDataBounds,
                                         onVisibleRangeChanged = viewModel::onChartViewportChanged,

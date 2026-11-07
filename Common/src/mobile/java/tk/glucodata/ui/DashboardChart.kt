@@ -155,6 +155,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -769,8 +770,6 @@ private fun List<GlucosePoint>.sliceByTimestampRange(startMillis: Long, endMilli
 fun DashboardChartSection(
     modifier: Modifier,
     glucoseHistory: List<GlucosePoint>,
-    /** Show the grid and target band over an empty timeline, not a blank box. */
-    drawWithoutReadings: Boolean = false,
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
     primarySensorId: String? = null,
     mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership = tk.glucodata.chart.MainSensorOwnership.NONE,
@@ -830,63 +829,58 @@ fun DashboardChartSection(
     val chartContent: @Composable () -> Unit = {
         Column(modifier = Modifier.padding(bottom = 0.dp)) {
              Box(modifier = Modifier.weight(1f)) {
-                // With bounds the chart composes before its window has loaded:
-                // it has to, since it is the chart's viewport that says which
-                // window to load.
-                if (glucoseHistory.isNotEmpty() || dataBounds != null || drawWithoutReadings) {
-                    InteractiveGlucoseChart(
-                        fullData = glucoseHistory,
-                        drawWithoutReadings = drawWithoutReadings,
-                        primarySensorId = primarySensorId,
-                        dataBounds = dataBounds,
-                        onVisibleRangeChanged = onVisibleRangeChanged,
-                        multiSensorDisplay = multiSensorDisplay,
-                        mainSensorOwnership = mainSensorOwnership,
-                        peerPredictionSeries = peerPredictionSeries,
-                        journalMarkers = journalMarkers,
-                        activeInsulinSummary = activeInsulinSummary,
-                        activeCarbsGrams = activeCarbsGrams,
-                        stateDoseHint = stateDoseHint,
-                        activeInsulinFromRemote = activeInsulinFromRemote,
-                        showEiob = showEiob,
-                        appChartRangeColors = appChartRangeColors,
-                        predictionPoints = predictionPoints,
-                        predictionSeries = predictionSeries,
-                        graphSmoothingMinutes = graphSmoothingMinutes,
-                        graphCollapseMinutes = graphCollapseMinutes,
-                        previewWindowMode = previewWindowMode,
-                        graphLow = graphLow,
-                        graphHigh = graphHigh,
-                        targetLow = targetLow,
-                        targetHigh = targetHigh,
-                        veryLowThreshold = veryLowThreshold,
-                        veryHighThreshold = veryHighThreshold,
-                        unit = unit,
-                        viewMode = viewMode,
-                        calibrations = calibrations,
-                        onTimeRangeSelected = onTimeRangeSelected,
-                        selectedTimeRange = selectedTimeRange,
-                        isExpanded = isExpanded,
-                        expandedProgress = expandedProgress,
-                        expandedUnderlayBottom = expandedUnderlayBottom,
-                        onToggleExpanded = onToggleExpanded,
-                        onPointClick = onPointClick,
-                        onCalibrationClick = onCalibrationClick,
-                        onTimelineTap = onTimelineTap,
-                        journalActionTimestamp = journalActionTimestamp,
-                        journalActionDisplayValue = journalActionDisplayValue,
-                        journalActionAnchor = journalActionAnchor,
-                        onDismissJournalAction = onDismissJournalAction,
-                        onJournalMarkerClick = onJournalMarkerClick,
-                        chartBoostProgress = chartBoostProgress,
-                        resetToLatestOnResume = resetToLatestOnResume,
-                        onViewportSnapshotChanged = onViewportSnapshotChanged,
-                        backdropBleed = backdropBleed,
-                        backdropContentInset = backdropContentInset
-                    )
-                } else {
-                    Box(Modifier.fillMaxSize())
-                }
+                // Always composed: the grid, the target band and the range picker do not depend on
+                // readings, so they stay up while history loads and with no sensor at all. The
+                // viewport moves to the live edge when the first data arrives.
+                InteractiveGlucoseChart(
+                    fullData = glucoseHistory,
+                    primarySensorId = primarySensorId,
+                    dataBounds = dataBounds,
+                    onVisibleRangeChanged = onVisibleRangeChanged,
+                    multiSensorDisplay = multiSensorDisplay,
+                    mainSensorOwnership = mainSensorOwnership,
+                    peerPredictionSeries = peerPredictionSeries,
+                    journalMarkers = journalMarkers,
+                    activeInsulinSummary = activeInsulinSummary,
+                    activeCarbsGrams = activeCarbsGrams,
+                    stateDoseHint = stateDoseHint,
+                    activeInsulinFromRemote = activeInsulinFromRemote,
+                    showEiob = showEiob,
+                    appChartRangeColors = appChartRangeColors,
+                    predictionPoints = predictionPoints,
+                    predictionSeries = predictionSeries,
+                    graphSmoothingMinutes = graphSmoothingMinutes,
+                    graphCollapseMinutes = graphCollapseMinutes,
+                    previewWindowMode = previewWindowMode,
+                    graphLow = graphLow,
+                    graphHigh = graphHigh,
+                    targetLow = targetLow,
+                    targetHigh = targetHigh,
+                    veryLowThreshold = veryLowThreshold,
+                    veryHighThreshold = veryHighThreshold,
+                    unit = unit,
+                    viewMode = viewMode,
+                    calibrations = calibrations,
+                    onTimeRangeSelected = onTimeRangeSelected,
+                    selectedTimeRange = selectedTimeRange,
+                    isExpanded = isExpanded,
+                    expandedProgress = expandedProgress,
+                    expandedUnderlayBottom = expandedUnderlayBottom,
+                    onToggleExpanded = onToggleExpanded,
+                    onPointClick = onPointClick,
+                    onCalibrationClick = onCalibrationClick,
+                    onTimelineTap = onTimelineTap,
+                    journalActionTimestamp = journalActionTimestamp,
+                    journalActionDisplayValue = journalActionDisplayValue,
+                    journalActionAnchor = journalActionAnchor,
+                    onDismissJournalAction = onDismissJournalAction,
+                    onJournalMarkerClick = onJournalMarkerClick,
+                    chartBoostProgress = chartBoostProgress,
+                    resetToLatestOnResume = resetToLatestOnResume,
+                    onViewportSnapshotChanged = onViewportSnapshotChanged,
+                    backdropBleed = backdropBleed,
+                    backdropContentInset = backdropContentInset
+                )
                 }
         }
     }
@@ -952,10 +946,12 @@ private data class ChartBleedClipShape(
     }
 }
 
+/** Marks the chart's plot area, which is composed whether or not there are readings. */
+internal const val GLUCOSE_CHART_PLOT_TAG = "glucose_chart_plot"
+
 @Composable
 fun InteractiveGlucoseChart(
     fullData: List<GlucosePoint>,
-    drawWithoutReadings: Boolean = false,
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
     primarySensorId: String? = null,
     mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership = tk.glucodata.chart.MainSensorOwnership.NONE,
@@ -2037,6 +2033,7 @@ fun InteractiveGlucoseChart(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
+                .testTag(GLUCOSE_CHART_PLOT_TAG)
                 .onGloballyPositioned { gestureSurfaceOnScreen = it.positionOnScreen() }
                 .pointerInput(previewWindowReservedIntPx) {
                     // Manual Gesture Handler for:
@@ -2772,8 +2769,6 @@ fun InteractiveGlucoseChart(
                 val viewportEnd = centerTime + currentDur / 2
                 
                 // Data Access (Strict Guards)
-                if (renderData.isEmpty() && !drawWithoutReadings) return@Canvas
-
                 // 2. SEARCH RANGE (With ample padding to prevent popping)
                 val padding = currentDur / 2 // 50% padding on each side
                 val searchStart = viewportStart - padding
