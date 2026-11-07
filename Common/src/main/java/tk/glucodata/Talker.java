@@ -1069,6 +1069,9 @@ private static View makeConfigView(MainActivity context, boolean overlayMode, Ru
             SuperGattCallback.endtalk();
             }
         Natives.saveVoice(curspeed,curpitch,(int)(cursep/1000L),voicepos,SuperGattCallback.dotalk);
+        if(SuperGattCallback.dotalk)
+            VoiceReadings.markUsed(context);
+        VoiceReadings.changed();
 
         if(onClose!=null)
             onClose.run();
