@@ -2203,7 +2203,7 @@ uint32_t getlastpolltime() const {
         std::min<int64_t>(pollcount(), static_cast<int64_t>(pollStorageCapacity()));
     if (!info || !start || count <= 0)
       return;
-    int moved = 0, dropped = 0, first = -1, end = 0;
+    int moved = 0, dropped = 0, first = -1, end = 0, lowestMoved = count;
     const auto keep = [&first, &end](const int i) {
       end = std::max(end, i + 1);
       if (first < 0 || i < first)
@@ -2236,6 +2236,7 @@ uint32_t getlastpolltime() const {
         if (slot < info->pollstart)
           info->pollstart = slot;
         keep(slot);
+        lowestMoved = std::min(lowestMoved, slot);
         ++moved;
       } else
         ++dropped;
@@ -2256,9 +2257,13 @@ uint32_t getlastpolltime() const {
       info->lastLifeCountReceived = std::max(first, 0);
       consecutivelifecount();
     }
+    // A backup that already sent past a slot a copy moved into has to send
+    // from there again; one sent past the new end restarts at the end. A
+    // finished run leaves no copy to move, so later loads keep the cursors.
+    const uint32_t resend = std::min(lowestMoved, end);
     for (auto &up : info->update) {
-      up.streamstart = std::min<uint32_t>(up.streamstart, end);
-      up.rawstreamstart = std::min<uint32_t>(up.rawstreamstart, end);
+      up.streamstart = std::min<uint32_t>(up.streamstart, resend);
+      up.rawstreamstart = std::min<uint32_t>(up.rawstreamstart, resend);
     }
   }
   template <int secs>

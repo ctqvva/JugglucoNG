@@ -96,8 +96,10 @@ struct SensorGlucoseData {
     const RawData *getRawPollsData() const { return rawpolls; }
     int getTempForPoll(int) const { return 0; }
     bool validPollIndex(int i) const { return i >= 0 && i < 12; }
-    bool isDexcom() const { return false; }
-    int dexSlotFor(uint32_t) const { return -1; }
+    bool dex = false;
+    int dexSlot = -1;
+    bool isDexcom() const { return dex; }
+    int dexSlotFor(uint32_t) const { return dexSlot; }
     bool hasStreamID(int i) const { return polls[i].getmgdL() > 0; }
     int getRawForPoll(const ScanData *) const { return 0; }
     size_t pollStorageCapacity() const { return 12; }
@@ -224,6 +226,31 @@ char *writev3entry(char *out, const ScanData *value, const sensorname_t *, bool,
     code += r'''
 int main() {
     static_assert(sizeof(ScanData) == 20);
+    {
+        // Dexcom: the writer stores at the slot the store picks, on the
+        // 5-minute grid, and never replaces a slot the sensor already filled.
+        const uint32_t t0 = 1760000000;
+        SensorGlucoseData dexcom{"DEX-123456789ABC"};
+        dexcom.dex = true;
+        dexcom.polls[0] = {t0, 0, 100, 0, 0};
+        dexcom.polls[1] = {t0 + 300, 1, 105, 0, 0};
+        dexcom.info.pollcount = 2;
+        dexcom.dexSlot = 1;
+        assert(!storeGlucoseStreamSample(&dexcom, dexcom.id.c_str(), t0 + 420, 13, 0, 0,
+                                        true, true, true, nullptr, true));
+        assert(dexcom.polls[1].getmgdL() == 105 && dexcom.pollcount() == 2);
+        dexcom.dexSlot = 4;
+        assert(storeGlucoseStreamSample(&dexcom, dexcom.id.c_str(), t0 + 1210, 13, 0, 0,
+                                       true, true, true, nullptr, true));
+        assert(dexcom.pollcount() == 5);
+        assert(dexcom.polls[4].id == 4 && dexcom.polls[4].t == t0 + 1210 && dexcom.polls[4].getmgdL() == 130);
+        assert(dexcom.polls[3].id == 3 && !dexcom.polls[3].g && dexcom.polls[3].t == t0 + 910);
+        assert(dexcom.polls[2].id == 2 && !dexcom.polls[2].g && dexcom.polls[2].t == t0 + 610);
+        dexcom.dexSlot = 3; // a missed slot below the end is filled
+        assert(storeGlucoseStreamSample(&dexcom, dexcom.id.c_str(), t0 + 905, 12, 0, 0,
+                                       true, true, true, nullptr, true));
+        assert(dexcom.polls[3].getmgdL() == 120 && dexcom.pollcount() == 5);
+    }
     // Old storage contains automatic glucose, with no representation marker.
     struct LegacyScan { uint32_t t; int32_t id, g, tr; float ch; };
     static_assert(sizeof(LegacyScan) == sizeof(ScanData));

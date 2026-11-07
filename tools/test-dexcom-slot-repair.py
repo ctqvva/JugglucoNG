@@ -219,7 +219,11 @@ int main() {
         assert(d.polls[367].g == 120 && d.polls[368].g == 121);       // the sensor's own readings win
         for (int k = 300; k <= 365; ++k) assert(d.polls[k].g == 100 + k % 7);
         for (int i = 369; i < 1900; ++i) assert(!d.polls[i].g);        // no copy left to resurface later
-        assert(d.metadata.lastLifeCountReceived == 365 && d.metadata.update[0].streamstart == 369);
+        // The backup had sent up to the old tail: it sends from the moved slot again.
+        assert(d.metadata.lastLifeCountReceived == 365 && d.metadata.update[0].streamstart == 366);
+        d.metadata.update[0].streamstart = 369;   // sent since; a later load keeps it
+        d.repairDexcomMinuteSlots();
+        assert(d.metadata.update[0].streamstart == 369);
         // A gap fill the driver pads later must not revive an old copy.
         d.driver(372, phase, 130);
         for (int i = 369; i < 372; ++i) assert(!d.polls[i].g);
