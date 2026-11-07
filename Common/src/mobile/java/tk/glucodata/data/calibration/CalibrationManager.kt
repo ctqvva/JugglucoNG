@@ -1461,11 +1461,19 @@ object CalibrationManager {
                 remove(pointAddedAtKey(it))
                 remove(pointSwitchesKey(it))
             }
+            // An identical point already in place keeps its arrival: the two share
+            // the entry, and once both are gone the minutes recorded under the
+            // first alone are theirs too. Removing just one releases those as
+            // well, and they come back as they were, the other being the same point.
+            val kept = after.filterNot { row -> changes.arrived.any { it === row } }
+                .mapTo(HashSet()) { pointAddedAtKey(it) }
             changes.arrived.forEach {
-                putLong(pointAddedAtKey(it), now)
+                val twinInPlace = pointAddedAtKey(it) in kept && prefs.contains(pointAddedAtKey(it))
+                if (!twinInPlace) putLong(pointAddedAtKey(it), now)
+                val since = if (twinInPlace) pointSwitches(it) else emptyList()
                 putString(
                     pointSwitchesKey(it),
-                    CalibrationPointSwitches.encode(CalibrationPointSwitches.thenSwitched(emptyList(), !it.isEnabled, now)),
+                    CalibrationPointSwitches.encode(CalibrationPointSwitches.thenSwitched(since, !it.isEnabled, now)),
                 )
             }
             changes.switched.forEach {

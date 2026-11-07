@@ -271,14 +271,13 @@ class CalibrationRecordReleaseTests {
             val adding = async(Dispatchers.IO) { addPastCalibration() }
             assertTrue(reached.await(10, java.util.concurrent.TimeUnit.SECONDS))
             display.sealAll(listOf(record(hole, 118f, recordedAt = System.currentTimeMillis() + MINUTE)))
-            val deleting = async(Dispatchers.IO) {
+            // The delete settles in full while the add is still held, so the order
+            // is the one that went wrong, not a sleep that hopes for it.
+            kotlinx.coroutines.withTimeout(10_000) {
                 CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
             }
-            // The delete waits for nothing the add holds; give it the chance to run first.
-            Thread.sleep(300)
             held.countDown()
             adding.await()
-            deleting.await()
         } finally {
             held.countDown()
             CalibrationManager.beforeSettlingForTests = null
@@ -303,6 +302,22 @@ class CalibrationRecordReleaseTests {
 
         // Every point's arrival was noted: removing any one of them takes the record.
         CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.random())
+        assertEquals(emptyMap<Long, Float>(), recorded())
+    }
+
+    @Test
+    fun removingBothOfTwoIdenticalPointsReleasesFromTheFirstArrival() = runBlocking {
+        val underTheFirst = now - 6 * HOUR
+        val underBoth = now - 5 * HOUR
+        addPastCalibration()
+        Thread.sleep(5)
+        display.sealAll(listOf(record(underTheFirst, 118f, recordedAt = System.currentTimeMillis())))
+        Thread.sleep(5)
+        addPastCalibration()
+        display.sealAll(listOf(record(underBoth, 118f, recordedAt = System.currentTimeMillis() + MINUTE)))
+
+        CalibrationManager.calibrations.value.toList().forEach { CalibrationManager.deleteCalibration(it) }
+
         assertEquals(emptyMap<Long, Float>(), recorded())
     }
 
