@@ -109,22 +109,24 @@ object ManagedSensorHandoff {
             // Checked here, at apply time, not only when the sender decided to
             // send: once this device reads the sensor its driver state is newer
             // than the copy in flight, and importing it would rewind the
-            // sensor's cursors and replay or lose history.
-            val incomingSensor = root.optString("managedSensorId", "").trim()
+            // sensor's cursors and replay or lose history. A payload can name
+            // two sensors, the managed one and a Dexcom, and each is judged on
+            // its own.
+            val managedSensor = root.optString("managedSensorId", "").trim()
                 .takeIf { it.isNotEmpty() && it != "null" }
-                ?: DexcomWatchSetup.incomingSerial(root)
-            if (incomingSensor != null && SensorOwnershipRuntime.readsLocally(incomingSensor)) {
-                Log.i(LOG_ID, "handoff ignored: already reading $incomingSensor here")
+            val dexcomSerial = DexcomWatchSetup.incomingSerial(root)
+            val parts = handoffToApply(managedSensor, dexcomSerial) { SensorOwnershipRuntime.readsLocally(it) }
+            if (parts == null) {
+                Log.i(LOG_ID, "handoff ignored: already reading ${managedSensor ?: dexcomSerial} here")
                 return@runCatching false
             }
-            val entries = root.optJSONArray("entries") ?: JSONArray()
+            val entries = if (parts.managed) root.optJSONArray("entries") ?: JSONArray() else JSONArray()
             for (index in 0 until entries.length()) {
                 val entry = entries.optJSONObject(index) ?: continue
                 importEntry(ctx, entry)
             }
-            root.optString("managedSensorId", "")
-                .trim()
-                .takeIf { it.isNotEmpty() && it != "null" }
+            managedSensor
+                ?.takeIf { parts.managed }
                 ?.let { sensorId ->
                     if (!SensorIdentity.hasNativeSensorBacking(sensorId)) {
                         ManagedCurrentSensor.set(sensorId)
@@ -138,8 +140,10 @@ object ManagedSensorHandoff {
             }
                 Log.i(LOG_ID, "handoff applied: ${entries.length()} entries $perPrefs")
             }
-            runCatching { DexcomWatchSetup.applyOnWatch(root) }
-                .onFailure { Log.stack(LOG_ID, "Dexcom setup", it) }
+            if (parts.dexcom) {
+                runCatching { DexcomWatchSetup.applyOnWatch(root) }
+                    .onFailure { Log.stack(LOG_ID, "Dexcom setup", it) }
+            }
             SensorIdentity.invalidateCaches()
             // Ask the sender for its backlog now. A full-horizon serve is otherwise throttled
             // to its own schedule, so a device could take a sensor over holding only the last
@@ -335,4 +339,27 @@ object ManagedSensorHandoff {
             SensorIdentity.matches(record.substringBefore('|'), candidate) ||
                 record.contains(candidate, ignoreCase = true)
         }
+}
+
+/** Which parts of an incoming handoff this device takes: the managed sensor's state, the Dexcom setup. */
+internal class HandoffApply(val managed: Boolean, val dexcom: Boolean)
+
+/**
+ * What to take from a handoff naming [managedSensor] and/or [dexcomSerial]:
+ * every part whose sensor this device does not already read. Null when the
+ * payload names sensors and this device reads all of them; a payload naming
+ * none is taken whole.
+ */
+internal fun handoffToApply(
+    managedSensor: String?,
+    dexcomSerial: String?,
+    readsHere: (String) -> Boolean,
+): HandoffApply? {
+    val managedHere = managedSensor != null && readsHere(managedSensor)
+    val dexcomHere = dexcomSerial != null && readsHere(dexcomSerial)
+    val namesSensor = managedSensor != null || dexcomSerial != null
+    if (namesSensor && (managedSensor == null || managedHere) && (dexcomSerial == null || dexcomHere)) {
+        return null
+    }
+    return HandoffApply(managed = !managedHere, dexcom = !dexcomHere)
 }
