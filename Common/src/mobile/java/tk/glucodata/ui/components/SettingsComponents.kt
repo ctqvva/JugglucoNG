@@ -675,22 +675,16 @@ fun DangerItem(
     position: CardPosition = CardPosition.SINGLE,
     severity: DangerSeverity = DangerSeverity.HIGH
 ) {
-    val (bgColor, contentColor) = when (severity) {
-        DangerSeverity.LOW -> MaterialTheme.colorScheme.surfaceContainerHigh to MaterialTheme.colorScheme.onSurface
-        DangerSeverity.MEDIUM -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
-        DangerSeverity.HIGH -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
-    }
-    val iconBgColor = when (severity) {
-        DangerSeverity.LOW -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        DangerSeverity.MEDIUM -> contentColor.copy(alpha = 0.12f)
-        DangerSeverity.HIGH -> contentColor.copy(alpha = 0.12f)
-    }
+    val colors = MaterialTheme.colorScheme
+    // Keep large surfaces quiet; use accents to communicate destructive severity.
+    val titleColor = if (severity == DangerSeverity.HIGH) colors.error else colors.onSurface
+    val iconColor = if (severity == DangerSeverity.LOW) colors.onSurface else colors.error
     
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = cardShape(position),
-        color = bgColor
+        color = colors.surfaceContainerHigh
     ) {
         Row(
             modifier = Modifier
@@ -698,18 +692,18 @@ fun DangerItem(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconTile(icon = icon, tint = contentColor, containerColor = iconBgColor)
+            IconTile(icon = icon, tint = iconColor)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = contentColor
+                    color = titleColor
                 )
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = contentColor.copy(alpha = 0.72f)
+                    color = colors.onSurfaceVariant
                 )
             }
         }

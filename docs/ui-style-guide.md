@@ -134,6 +134,10 @@ in `ui/theme/Type.kt`, with `titleMedium` at 400 for the "sleek list" look.
 Icon tiles wash their tint at 12% (`IconTileDefaults.ContainerAlpha`). A tile whose row can
 be switched off uses `IconTileDefaults.toggleContainerColor(tint, active)`.
 
+Destructive rows (`DangerItem`) keep a neutral `surfaceContainerHigh` background and
+`onSurfaceVariant` supporting text. Medium severity uses an `error` icon; high severity
+also uses an `error` title. Severity is carried by these accents rather than a full-row fill.
+
 ---
 
 ## 6. Components
