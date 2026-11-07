@@ -16,6 +16,8 @@ import kotlin.math.ceil
 object VoiceReadings {
     private const val PREFS = "tk.glucodata_preferences"
     private const val KEY_USED = "voice_readings_used"
+    private const val KEY_SHOW_DASHBOARD = "voice_quick_dashboard"
+    private const val KEY_SHOW_NOTIFICATION = "voice_quick_notification"
 
     private val changeCount = MutableStateFlow(0L)
 
@@ -43,6 +45,25 @@ object VoiceReadings {
         return isOn() ||
             prefs(context).getBoolean(KEY_USED, false) ||
             SpeakSchedule.isEnabled(context)
+    }
+
+    /** The dashboard switch beside the chart; on by default, off in Voice settings. */
+    fun showOnDashboard(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_SHOW_DASHBOARD, true)
+
+    fun setShowOnDashboard(context: Context, show: Boolean) {
+        prefs(context).edit().putBoolean(KEY_SHOW_DASHBOARD, show).apply()
+        changed()
+    }
+
+    /** The glucose notification's voice button; on by default, off in Voice settings. */
+    @JvmStatic
+    fun showInNotification(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_SHOW_NOTIFICATION, true)
+
+    fun setShowInNotification(context: Context, show: Boolean) {
+        prefs(context).edit().putBoolean(KEY_SHOW_NOTIFICATION, show).apply()
+        changed()
     }
 
     @JvmStatic

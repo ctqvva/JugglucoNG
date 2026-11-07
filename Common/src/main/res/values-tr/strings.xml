@@ -3282,4 +3282,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="voice_every_reading">Her ölçüm</string>
     <string name="voice_every_minutes">Her %1$d dk</string>
     <string name="voice_resumes_at">%1$s itibarıyla</string>
+    <string name="voice_quick_dashboard">Panoda göster</string>
+    <string name="voice_quick_dashboard_desc">Grafiğin üstünde tek dokunuşla anahtar</string>
+    <string name="voice_quick_notification">Bildirimde göster</string>
+    <string name="voice_quick_notification_desc">Glukoz bildiriminde ses düğmesi</string>
 </resources>

@@ -3297,4 +3297,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="voice_every_reading">Elke meting</string>
     <string name="voice_every_minutes">Elke %1$d min</string>
     <string name="voice_resumes_at">Vanaf %1$s</string>
+    <string name="voice_quick_dashboard">Tonen op dashboard</string>
+    <string name="voice_quick_dashboard_desc">Schakelaar boven in de grafiek</string>
+    <string name="voice_quick_notification">Tonen in melding</string>
+    <string name="voice_quick_notification_desc">Stemknop in de glucosemelding</string>
 </resources>

@@ -3439,4 +3439,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="voice_every_reading">Akhris kasta</string>
     <string name="voice_every_minutes">%1$d daqiiqo kasta</string>
     <string name="voice_resumes_at">Laga bilaabo %1$s</string>
+    <string name="voice_quick_dashboard">Ku muuji dashboard-ka</string>
+    <string name="voice_quick_dashboard_desc">Furaha xagga sare ee jaantuska</string>
+    <string name="voice_quick_notification">Ku muuji ogeysiiska</string>
+    <string name="voice_quick_notification_desc">Badhanka codka ee ogeysiiska gulukoosta</string>
 </resources>

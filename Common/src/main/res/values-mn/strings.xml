@@ -3355,4 +3355,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="voice_every_reading">Уншилт бүр</string>
     <string name="voice_every_minutes">%1$d мин тутам</string>
     <string name="voice_resumes_at">%1$s-с</string>
+    <string name="voice_quick_dashboard">Самбарт харуулах</string>
+    <string name="voice_quick_dashboard_desc">Графикийн дээд талын товч</string>
+    <string name="voice_quick_notification">Мэдэгдэлд харуулах</string>
+    <string name="voice_quick_notification_desc">Глюкозын мэдэгдэл дээрх дууны товч</string>
 </resources>

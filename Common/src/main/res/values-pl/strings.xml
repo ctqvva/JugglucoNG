@@ -3308,4 +3308,8 @@
     <string name="voice_every_reading">Każdy odczyt</string>
     <string name="voice_every_minutes">Co %1$d min</string>
     <string name="voice_resumes_at">Od %1$s</string>
+    <string name="voice_quick_dashboard">Pokaż na pulpicie</string>
+    <string name="voice_quick_dashboard_desc">Przełącznik u góry wykresu</string>
+    <string name="voice_quick_notification">Pokaż w powiadomieniu</string>
+    <string name="voice_quick_notification_desc">Przycisk głosu w powiadomieniu o glukozie</string>
 </resources>

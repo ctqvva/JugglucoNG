@@ -1610,12 +1610,6 @@ fun DashboardScreen(
                         }
                     }
 
-                    voiceReadingsStatus?.let { voice ->
-                        item {
-                            DashboardActiveFeatures(voice = voice)
-                        }
-                    }
-
                     // Pinned metrics live in the narrow left column here, two rows of
                     // two, rather than four cells squeezed across it.
                     if (showPinnedStats) {
@@ -1754,6 +1748,9 @@ fun DashboardScreen(
                             key(Unit) {
                                 FontScaleCap {
                                     DashboardChartSection(
+                                        headerAccessory = voiceReadingsStatus?.let { voice ->
+                                            { compact -> VoiceReadingsChartPill(voice, compact) }
+                                        },
                                         modifier = Modifier.fillMaxSize(),
                                         glucoseHistory = glucoseHistory,
                                         drawWithoutReadings = !hasSensorContext,
@@ -1934,15 +1931,6 @@ fun DashboardScreen(
                     }
                 }
 
-                voiceReadingsStatus?.let { voice ->
-                    item {
-                        DashboardActiveFeatures(
-                            voice = voice,
-                            modifier = Modifier.padding(horizontal = contentHorizontalPadding)
-                        )
-                    }
-                }
-
                 item {
                     DashboardCgmReadinessBanner(
                         modifier = Modifier.padding(horizontal = contentHorizontalPadding),
@@ -2012,6 +2000,9 @@ fun DashboardScreen(
                             key(Unit) {
                                 FontScaleCap {
                                     DashboardChartSection(
+                                        headerAccessory = voiceReadingsStatus?.let { voice ->
+                                            { compact -> VoiceReadingsChartPill(voice, compact) }
+                                        },
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .padding(bottom = 0.dp),

@@ -3323,4 +3323,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="voice_every_reading">Minden mérés</string>
     <string name="voice_every_minutes">%1$d percenként</string>
     <string name="voice_resumes_at">%1$s-tól</string>
+    <string name="voice_quick_dashboard">Megjelenítés a kezdőlapon</string>
+    <string name="voice_quick_dashboard_desc">Kapcsoló a grafikon tetején</string>
+    <string name="voice_quick_notification">Megjelenítés az értesítésben</string>
+    <string name="voice_quick_notification_desc">Hang gomb a glükóz értesítésben</string>
 </resources>

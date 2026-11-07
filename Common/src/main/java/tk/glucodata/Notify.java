@@ -4139,7 +4139,7 @@ public class Notify {
     private static int addVoiceReadingsAction(Notification.Builder builder, String type) {
         if (isWearable || !GLUCOSENOTIFICATION.equals(type)) return 0;
         try {
-            if (!VoiceReadings.isInUse(app)) return 0;
+            if (!VoiceReadings.showInNotification(app) || !VoiceReadings.isInUse(app)) return 0;
             final boolean on = VoiceReadings.isOn();
             final Intent intent = new Intent(app, tk.glucodata.receivers.VoiceReadingsReceiver.class)
                     .setAction(tk.glucodata.receivers.VoiceReadingsReceiver.ACTION_SET_VOICE)

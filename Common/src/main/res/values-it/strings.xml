@@ -3245,4 +3245,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_every_reading">Ogni lettura</string>
     <string name="voice_every_minutes">Ogni %1$d min</string>
     <string name="voice_resumes_at">Dalle %1$s</string>
+    <string name="voice_quick_dashboard">Mostra nella dashboard</string>
+    <string name="voice_quick_dashboard_desc">Interruttore in cima al grafico</string>
+    <string name="voice_quick_notification">Mostra nella notifica</string>
+    <string name="voice_quick_notification_desc">Pulsante voce nella notifica della glicemia</string>
 </resources>

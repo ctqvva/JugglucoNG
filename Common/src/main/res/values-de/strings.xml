@@ -3367,4 +3367,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="voice_every_reading">Jeder Messwert</string>
     <string name="voice_every_minutes">Alle %1$d Min.</string>
     <string name="voice_resumes_at">Ab %1$s</string>
+    <string name="voice_quick_dashboard">Auf dem Dashboard</string>
+    <string name="voice_quick_dashboard_desc">Schalter oben im Diagramm</string>
+    <string name="voice_quick_notification">In der Benachrichtigung</string>
+    <string name="voice_quick_notification_desc">Sprachtaste in der Glukose-Benachrichtigung</string>
 </resources>

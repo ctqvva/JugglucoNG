@@ -3343,4 +3343,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_every_reading">Кожне значення</string>
     <string name="voice_every_minutes">Кожні %1$d хв</string>
     <string name="voice_resumes_at">З %1$s</string>
+    <string name="voice_quick_dashboard">Показувати на панелі</string>
+    <string name="voice_quick_dashboard_desc">Перемикач угорі графіка</string>
+    <string name="voice_quick_notification">Показувати в сповіщенні</string>
+    <string name="voice_quick_notification_desc">Кнопка голосу в сповіщенні з глюкозою</string>
 </resources>

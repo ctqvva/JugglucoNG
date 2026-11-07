@@ -3263,4 +3263,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_every_reading">每次读数</string>
     <string name="voice_every_minutes">每 %1$d 分钟</string>
     <string name="voice_resumes_at">%1$s 起</string>
+    <string name="voice_quick_dashboard">在主页显示</string>
+    <string name="voice_quick_dashboard_desc">图表顶部的一键开关</string>
+    <string name="voice_quick_notification">在通知中显示</string>
+    <string name="voice_quick_notification_desc">血糖通知上的语音按钮</string>
 </resources>

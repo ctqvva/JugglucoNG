@@ -3372,4 +3372,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_every_reading">Каждое значение</string>
     <string name="voice_every_minutes">Каждые %1$d мин</string>
     <string name="voice_resumes_at">С %1$s</string>
+    <string name="voice_quick_dashboard">Показывать на панели</string>
+    <string name="voice_quick_dashboard_desc">Переключатель вверху графика</string>
+    <string name="voice_quick_notification">Показывать в уведомлении</string>
+    <string name="voice_quick_notification_desc">Кнопка голоса в уведомлении с глюкозой</string>
 </resources>
