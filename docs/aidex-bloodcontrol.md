@@ -13,11 +13,17 @@ The user must select BloodControl and tap **Request key** to contact the service
 request sends the selected serial and a persistent random device UUID to the configured
 BloodControl endpoints. Saved/imported keys are reused before any network request.
 
-Key management reuses Ottai’s saved-sensor row component: **Select**, **Export**, and
-confirmed deletion for keys belonging to sensors that have not been added. Added sensors
-retain their keys, with removal handled by their sensor card. Selecting a saved row edits
-the same serial field used by nearby selection and import. Successful key acquisition
-reveals **Connect** instead of offering a redundant request for already-saved keys.
+A **Saved sensors** link at the top of the retrieval page opens an optional, separate
+management screen with its own title and back navigation. That screen reuses Ottai’s
+saved-sensor rows: **Select**, **Export**, and confirmed deletion for keys belonging to
+sensors that have not been added. Added sensors retain their keys. Selecting a row or
+importing a file returns to the retrieval page with that serial selected.
+
+The retrieval page keeps its serial field and inline **Export | Replace** controls after
+keys are saved, independent of the optional management screen. The selected provider and
+in-memory form entries survive visiting the saved-sensor page. A fixed animated wavy line
+and searching label show an active BLE scan; scan-start failures hide the animation and
+show the relevant Bluetooth/permission error.
 
 Selecting a known F-series sensor without provisioned material or a validated stored PAIR
 credential opens its prefilled key form before the app registers or connects it. Import or
@@ -118,3 +124,8 @@ Wear tests, with zero failures/skips. The final UI cleanup passed its focused la
 Regressions cover encrypted enumeration and legacy migration, per-sensor export/import and
 delete, record identity mismatch, F-series and F-labelled G/H serial gating, validated-PAIR reconnects, and the
 Connect action becoming available only after the F-series key requirement is satisfied.
+
+Separate-screen correction passed 660 phone tests (AiDEX, UI, Ottai layout and restricted
+mode) and 559 Wear tests, with no failures or skips. Regressions verify optional navigation,
+provider/serial preservation, immediate inline Export/Replace, active/error scan states,
+and refreshing unchanged serials after saved-key changes during navigation.

@@ -3,6 +3,11 @@ package tk.glucodata.ui
 import android.app.Application
 import android.graphics.Bitmap
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
+import tk.glucodata.ui.components.AppTopBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -26,6 +31,9 @@ import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.native.protocol.AiDexPairingMaterialRegistry
 import tk.glucodata.ui.setup.AiDexSavedSensorsSection
 import tk.glucodata.ui.setup.AiDexSavedKeySensor
+import tk.glucodata.ui.setup.AiDexSavedSensorsScreen
+import tk.glucodata.ui.setup.AiDexKeyManagementState
+import tk.glucodata.ui.util.BleDeviceScanner
 import org.junit.Before
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.ConscryptMode
@@ -171,6 +179,9 @@ class AiDexKeyManagementTests {
                 .any { SemanticsProperties.Disabled !in it.config }
         }
         compose.onNodeWithText("Запросить ключ").assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.export)).assertExists().assertIsEnabled()
+        compose.onNodeWithText(context.getString(R.string.ottai_credentials_replace)).assertExists().assertIsEnabled()
+        compose.onNodeWithText(context.getString(R.string.ottai_select)).assertDoesNotExist()
         capture("aidex-saved-sensors-ru.png")
         compose.onNodeWithText(connect).performScrollTo().performClick()
         assertEquals(sensor, connected)
@@ -197,6 +208,100 @@ class AiDexKeyManagementTests {
         compose.onAllNodesWithContentDescription(context.getString(R.string.ottai_delete_saved)).assertCountEquals(1)
         compose.onNodeWithContentDescription(context.getString(R.string.ottai_delete_saved)).performClick()
         assertEquals("22222FY2M8", deleted)
+    }
+
+    @Test fun topSavedLinkOpensASeparatePageAndSelectionKeepsTheProviderAndFormState() {
+        val context = RuntimeEnvironment.getApplication()
+        val first = "22222FXYT3"
+        val second = "22222FY2M8"
+        for (serial in listOf(first, second)) {
+            assertTrue(AiDexProvisioningStore.saveAndInstall(context, serial, ByteArray(16), ByteArray(16)))
+        }
+        val form = AiDexKeyManagementState(first)
+        form.password.value = "in-memory-draft"
+        val savedPage = mutableStateOf(false)
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                Scaffold(topBar = {
+                    AppTopBar(
+                        title = context.getString(if (savedPage.value) R.string.ottai_saved_sensors_title else R.string.aidex_setup_title),
+                        onNavigateBack = { savedPage.value = false },
+                        navigationContentDescription = "Back",
+                    )
+                }) { padding ->
+                    Box(Modifier.padding(padding)) {
+                    if (savedPage.value) {
+                        AiDexSavedSensorsScreen(rememberWizardUiMetrics(), emptyList(), form.serialInput.value,
+                            onSelect = { form.selectSerial(it); savedPage.value = false })
+                    } else {
+                        AiDexKeyManagementScreen(rememberWizardUiMetrics(), "", false, {}, {},
+                            bloodControlAvailable = true, formState = form,
+                            onOpenSavedSensors = { savedPage.value = true })
+                    }
+                    }
+                }
+            }
+        }
+        val savedTitle = context.getString(R.string.ottai_saved_sensors_title)
+        val select = context.getString(R.string.ottai_select)
+        compose.onNodeWithText("BloodControl API").performScrollTo().performClick()
+        compose.onNodeWithText(select).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.ottai_saved_section_phone)).assertDoesNotExist()
+        compose.onNodeWithText(savedTitle).performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithText("BloodControl API").assertDoesNotExist()
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
+        compose.waitUntil(5000) { compose.onAllNodesWithText(select).fetchSemanticsNodes().size == 2 }
+        capture("aidex-saved-page-ru.png")
+        compose.onAllNodesWithText(select)[1].performClick()
+        compose.onNodeWithText("BloodControl API").assertIsOn()
+        compose.onNode(hasSetTextAction()).assertTextContains(second)
+        compose.onNodeWithText(context.getString(R.string.export)).performScrollTo().assertIsEnabled()
+        compose.onNodeWithText(context.getString(R.string.ottai_credentials_replace)).assertIsEnabled()
+        assertEquals("in-memory-draft", form.password.value)
+        compose.onNodeWithText(select).assertDoesNotExist()
+        capture("aidex-retrieval-inline-keys-ru.png")
+    }
+
+    @Test fun animatedScanLineTracksTheScanStateAndFailureIsVisible() {
+        val scanning = mutableStateOf(true)
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                Surface {
+                AiDexKeyManagementScreen(rememberWizardUiMetrics(), "", false, {}, {},
+                    bloodControlAvailable = true, searching = scanning.value,
+                    scanError = if (scanning.value) null else BleDeviceScanner.ScanStartError.BluetoothDisabled)
+                }
+            }
+        }
+        compose.onNodeWithTag("aidex-key-scan-progress").assertIsDisplayed()
+        compose.onNodeWithText(RuntimeEnvironment.getApplication().getString(R.string.aidex_searching_sensors)).assertExists()
+        compose.mainClock.advanceTimeBy(800)
+        capture("aidex-retrieval-scanning-ru.png")
+        compose.runOnIdle { scanning.value = false }
+        compose.onNodeWithTag("aidex-key-scan-progress").assertDoesNotExist()
+        compose.onNodeWithText(RuntimeEnvironment.getApplication().getString(R.string.bluetooth_is_turned_off)).assertIsDisplayed()
+    }
+
+    @Test fun reselectingTheSameSerialRefreshesInlineControlsAfterSavedKeysChange() {
+        val context = RuntimeEnvironment.getApplication()
+        val serial = "22222FY2M8"
+        assertTrue(AiDexProvisioningStore.saveAndInstall(context, serial, ByteArray(16), ByteArray(16)))
+        val form = AiDexKeyManagementState(serial)
+        form.bloodControlSelected.value = true
+        compose.setContent {
+            MaterialTheme {
+                AiDexKeyManagementScreen(rememberWizardUiMetrics(), "", false, {}, {},
+                    bloodControlAvailable = true, formState = form)
+            }
+        }
+        val export = context.getString(R.string.export)
+        compose.waitUntil(5000) { compose.onAllNodesWithText(export).fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(AiDexProvisioningStore.removeSaved(context, serial))
+        // AnimatedContent can retain the form during a quick visit to the saved page.
+        compose.runOnIdle { form.selectSerial(serial) }
+        compose.waitUntil(5000) { compose.onAllNodesWithText(export).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(context.getString(R.string.ottai_credentials_import)).assertExists()
+        compose.onNode(hasSetTextAction()).assertTextContains(serial)
     }
 
     private fun capture(name: String) {

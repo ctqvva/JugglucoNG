@@ -13,6 +13,7 @@ import tk.glucodata.drivers.aidex.AiDexDriver
 import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
 import tk.glucodata.ui.util.rememberBleScanner
+import tk.glucodata.ui.util.BleDeviceScanner
 
 internal data class AiDexKeySensor(
     val serial: String,
@@ -39,9 +40,15 @@ internal fun aiDexKeySensorFromIdentity(
     return AiDexKeySensor(serial, name, address, connected)
 }
 
+internal data class AiDexKeyScanState(
+    val sensors: List<AiDexKeySensor>,
+    val searching: Boolean,
+    val error: BleDeviceScanner.ScanStartError?,
+)
+
 /** Observe BLE identities only. Choosing a serial never fetches a key or connects a sensor. */
 @Composable
-internal fun rememberAiDexKeySensors(nearby: List<AiDexKeySensor>): List<AiDexKeySensor> {
+internal fun rememberAiDexKeyScan(nearby: List<AiDexKeySensor>): AiDexKeyScanState {
     val context = LocalContext.current
     val known = remember {
         SensorBluetooth.gattcallbacks.mapNotNull { callback ->
@@ -53,8 +60,12 @@ internal fun rememberAiDexKeySensors(nearby: List<AiDexKeySensor>): List<AiDexKe
         }
     }
     var discovered by remember { mutableStateOf(nearby) }
+    var searching by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<BleDeviceScanner.ScanStartError?>(null) }
     val scanner = rememberBleScanner()
     DisposableEffect(scanner) {
+        searching = true
+        error = null
         scanner.startScan(onResult = { result ->
             val address = runCatching { result.device.address }.getOrNull() ?: return@startScan
             val record = result.scanRecord
@@ -64,8 +75,11 @@ internal fun rememberAiDexKeySensors(nearby: List<AiDexKeySensor>): List<AiDexKe
             val serial = candidate.serial ?: return@startScan
             AiDexSetupKeyGate.requiresKeys(context, serial, candidate.displayName)
             discovered = mergeAiDexKeySensors(discovered + AiDexKeySensor(serial, candidate.displayName, address))
+        }, onError = { failure ->
+            searching = false
+            error = failure
         })
         onDispose { scanner.stopScan() }
     }
-    return mergeAiDexKeySensors(known + discovered)
+    return AiDexKeyScanState(mergeAiDexKeySensors(known + discovered), searching, error)
 }

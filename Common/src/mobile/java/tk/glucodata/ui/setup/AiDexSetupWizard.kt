@@ -55,6 +55,7 @@ import java.util.UUID
 enum class AiDexSetupStep {
     SCAN,
     KEY_MANAGEMENT,
+    SAVED_SENSORS,
     CONNECTING,
     SUCCESS
 }
@@ -73,7 +74,7 @@ fun AiDexSetupWizard(
     var currentStep by remember { mutableStateOf(AiDexSetupStep.SCAN) }
     // Restricted again with key management open: back to the scan, where keys are not touched.
     LaunchedEffect(restrictedLocked) {
-        if (restrictedLocked && currentStep == AiDexSetupStep.KEY_MANAGEMENT) currentStep = AiDexSetupStep.SCAN
+        if (restrictedLocked && currentStep in setOf(AiDexSetupStep.KEY_MANAGEMENT, AiDexSetupStep.SAVED_SENSORS)) currentStep = AiDexSetupStep.SCAN
     }
     var selectedDeviceName by remember { mutableStateOf("") }
     var selectedSensor by remember { mutableStateOf<AiDexKeySensor?>(null) }
@@ -82,6 +83,7 @@ fun AiDexSetupWizard(
     var nearbyKeySensors by remember { mutableStateOf<List<AiDexKeySensor>>(emptyList()) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val keyForm = remember { AiDexKeyManagementState(accountLabel = AiDexProvisioningStore.accountLabel(context)) }
     var signedIn by remember { mutableStateOf(AiDexProvisioningStore.hasSession(context)) }
     DisposableEffect(context) {
         val removeListener = AiDexProvisioningStore.addSessionListener(context) {
@@ -91,7 +93,14 @@ fun AiDexSetupWizard(
         onDispose { removeListener() }
     }
     val navigateBack = {
-        if (currentStep == AiDexSetupStep.SCAN) onDismiss() else currentStep = AiDexSetupStep.SCAN
+        when (currentStep) {
+            AiDexSetupStep.SCAN -> onDismiss()
+            AiDexSetupStep.SAVED_SENSORS -> {
+                keyForm.refreshKeys()
+                currentStep = AiDexSetupStep.KEY_MANAGEMENT
+            }
+            else -> currentStep = AiDexSetupStep.SCAN
+        }
     }
     BackHandler {
         navigateBack()
@@ -110,6 +119,7 @@ fun AiDexSetupWizard(
         val bare = AiDexPairingMaterialFile.normalizeSerial(sensor.serial)
         val name = bare?.let { "X-$it" } ?: sensor.serial.trim()
         selectedDeviceName = name
+        keyForm.selectSerial(bare ?: name)
         selectedSensor = sensor
         scope.launch {
             try {
@@ -142,7 +152,8 @@ fun AiDexSetupWizard(
     Scaffold(
         topBar = {
             AppTopBar(
-                title = stringResource(R.string.aidex_setup_title),
+                title = stringResource(if (currentStep == AiDexSetupStep.SAVED_SENSORS)
+                    R.string.ottai_saved_sensors_title else R.string.aidex_setup_title),
                 onNavigateBack = navigateBack,
                 navigationContentDescription = stringResource(R.string.cancel),
             )
@@ -164,15 +175,34 @@ fun AiDexSetupWizard(
                         connectSensor(AiDexKeySensor(selectedName, advertisedName, address))
                     }
                 )
-                AiDexSetupStep.KEY_MANAGEMENT -> AiDexKeyManagementScreen(
+                AiDexSetupStep.KEY_MANAGEMENT -> {
+                    val scan = rememberAiDexKeyScan(nearbyKeySensors + listOfNotNull(selectedSensor))
+                    LaunchedEffect(scan.sensors) {
+                        if (scan.sensors.isNotEmpty()) nearbyKeySensors = scan.sensors
+                    }
+                    AiDexKeyManagementScreen(
+                        ui = ui,
+                        initialSerial = AiDexPairingMaterialFile.normalizeSerial(selectedDeviceName).orEmpty(),
+                        signedIn = signedIn,
+                        onSignedIn = { signedIn = true },
+                        onSignedOut = { signedIn = false },
+                        sensors = scan.sensors,
+                        requiredSerial = requiredSerial,
+                        onConnect = connectSensor,
+                        formState = keyForm,
+                        searching = scan.searching,
+                        scanError = scan.error,
+                        onOpenSavedSensors = { currentStep = AiDexSetupStep.SAVED_SENSORS },
+                    )
+                }
+                AiDexSetupStep.SAVED_SENSORS -> AiDexSavedSensorsScreen(
                     ui = ui,
-                    initialSerial = AiDexPairingMaterialFile.normalizeSerial(selectedDeviceName).orEmpty(),
-                    signedIn = signedIn,
-                    onSignedIn = { signedIn = true },
-                    onSignedOut = { signedIn = false },
-                    sensors = rememberAiDexKeySensors(nearbyKeySensors + listOfNotNull(selectedSensor)),
-                    requiredSerial = requiredSerial,
-                    onConnect = connectSensor,
+                    knownSensors = nearbyKeySensors,
+                    selectedSerial = keyForm.serialInput.value,
+                    onSelect = { serial ->
+                        keyForm.selectSerial(serial)
+                        currentStep = AiDexSetupStep.KEY_MANAGEMENT
+                    },
                 )
                 AiDexSetupStep.CONNECTING -> Box(
                     modifier = Modifier.fillMaxSize(),
