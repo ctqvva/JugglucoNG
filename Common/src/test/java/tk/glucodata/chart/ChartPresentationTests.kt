@@ -33,6 +33,20 @@ class ChartPresentationTests {
         )
     }
 
+    @Test fun aMinuteDrawnFromItsRecordIsNotPresentedAgain() {
+        // The points can be older than a release: recording what they carry
+        // would write the released value straight back.
+        val model = HistoryChartModelBuilder.build(
+            listOf(input("A", true,
+                point(minute, "A", 100f).also { it.sealedDisplayValue = 138f },
+                point(2*minute, "A", 110f),
+            )),
+            MainSensorOwnership.NONE, noCalibration,
+        )
+        assertEquals(138f, model.primary!!.runs.single().points.first().value, 0f)
+        assertEquals(listOf(PresentedChartValue(2*minute, 110f, "A", 0)), model.presentedMainValues(0, 3*minute))
+    }
+
     @Test fun multipleSamplesInOneMinuteProduceOneRecord() {
         val model = HistoryChartModelBuilder.build(
             listOf(input("A", true, point(minute+1, "A", 100f), point(minute+30_000, "A", 110f))),
