@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -676,15 +677,27 @@ fun DangerItem(
     severity: DangerSeverity = DangerSeverity.HIGH
 ) {
     val colors = MaterialTheme.colorScheme
-    // Keep large surfaces quiet; use accents to communicate destructive severity.
-    val titleColor = if (severity == DangerSeverity.HIGH) colors.error else colors.onSurface
-    val iconColor = if (severity == DangerSeverity.LOW) colors.onSurface else colors.error
+    // Retain a visible risk hierarchy without the full-strength container fills.
+    val containerColor = when (severity) {
+        DangerSeverity.LOW -> colors.surfaceContainerHigh
+        DangerSeverity.MEDIUM -> colors.tertiaryContainer.copy(alpha = 0.16f)
+            .compositeOver(colors.surfaceContainerHigh)
+        DangerSeverity.HIGH -> colors.errorContainer.copy(alpha = 0.40f)
+            .compositeOver(colors.surfaceContainerHigh)
+    }
+    val titleColor = if (severity == DangerSeverity.HIGH) colors.onErrorContainer else colors.onSurface
+    val subtitleColor = if (severity == DangerSeverity.HIGH) colors.onErrorContainer else colors.onSurfaceVariant
+    val iconColor = when (severity) {
+        DangerSeverity.LOW -> colors.onSurface
+        DangerSeverity.MEDIUM -> colors.tertiary
+        DangerSeverity.HIGH -> colors.onErrorContainer
+    }
     
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = cardShape(position),
-        color = colors.surfaceContainerHigh
+        color = containerColor
     ) {
         Row(
             modifier = Modifier
@@ -703,7 +716,7 @@ fun DangerItem(
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colors.onSurfaceVariant
+                    color = subtitleColor
                 )
             }
         }
