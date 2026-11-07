@@ -22,13 +22,13 @@ internal class SignalRestoredAlertState(private val store: SignalRestoredReading
     }
 
     fun onReading(id: String?, readingMs: Long, nowMs: Long, lossWaitMs: Long, freshnessMs: Long): Boolean {
-        if (id.isNullOrBlank() || readingMs <= 0L || readingMs > nowMs) return false
+        if (id.isNullOrBlank() || readingMs <= 0L || readingMs > nowMs || nowMs - readingMs > freshnessMs) return false
         if (sensorId == null || !SensorIdentity.matches(id, sensorId)) {
             // A first connection or a different main sensor is not a restoration.
             remember(id, readingMs)
             return false
         }
-        if (readingMs <= lastReadingMs || nowMs - readingMs > freshnessMs) return false
+        if (readingMs <= lastReadingMs) return false
         val restored = lossWaitMs > 0L && nowMs - lastReadingMs >= lossWaitMs
         remember(id, readingMs)
         return restored

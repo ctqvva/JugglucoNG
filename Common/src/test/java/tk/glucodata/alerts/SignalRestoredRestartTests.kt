@@ -3,6 +3,7 @@ package tk.glucodata.alerts
 import android.content.Context
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -31,16 +32,22 @@ class SignalRestoredRestartTests {
     @Implements(CurrentDisplaySource::class)
     class DisplaySource {
         companion object {
+            var resolution = "valid"
             @JvmStatic @Implementation
             fun resolveCurrent(maxAgeMillis: Long, preferredSensorId: String?, historyWindowMs: Long): CurrentDisplaySource.Snapshot? = null
 
             @JvmStatic @Implementation
             fun resolveIncomingReading(reading: LiveReadingLanes, rate: Float, time: Long, sensor: String?,
                 generation: Int, index: Int, source: String, historyWindowMs: Long,
-                preferIncomingSample: Boolean): CurrentDisplaySource.Snapshot = CurrentDisplaySource.Snapshot(
-                time, rate, sensor, generation, index, 0, source, 120f, Float.NaN, 120f, 120, false,
-                DisplayValues(120f, primaryStr = "120", fullFormatted = "120 mg/dL")
-            )
+                preferIncomingSample: Boolean): CurrentDisplaySource.Snapshot? {
+                if (resolution == "missing") return null
+                if (resolution == "throw") error("display resolution failed")
+                val value = if (resolution == "nonfinite") Float.NaN else 120f
+                return CurrentDisplaySource.Snapshot(
+                    time, rate, sensor, generation, index, 0, source, 120f, Float.NaN, 120f, 120, false,
+                    DisplayValues(value, primaryStr = "120", fullFormatted = "120 mg/dL")
+                )
+            }
         }
     }
 
@@ -73,8 +80,14 @@ class SignalRestoredRestartTests {
 
     @Before fun prepare() {
         Applic.app = RuntimeEnvironment.getApplication() as TestApplication
+        assertTrue(AlertRuntimeManager.resetForTests())
         Applic.app.getSharedPreferences("signal_restored_reading", Context.MODE_PRIVATE).edit().clear().commit()
         AlarmSink.delivered.clear()
+        DisplaySource.resolution = "valid"
+    }
+
+    @After fun cleanup() {
+        assertTrue("runtime worker failed to terminate", AlertRuntimeManager.resetForTests())
     }
 
     @Test fun coldRuntimeWithoutCurrentSnapshotRestoresTheDurableOutageBaseline() {
@@ -87,16 +100,43 @@ class SignalRestoredRestartTests {
         assertNull(CurrentDisplaySource.resolveCurrent())
         AlertRuntimeManager::class.java.getDeclaredMethod("bootstrapLastReadingLocked")
             .apply { isAccessible = true }.invoke(AlertRuntimeManager)
-        try {
+        AlertRuntimeManager.onNewReading("sensor-A", LiveReadingLanes.resolved(120f), 0f, now, 0)
+        assertEquals(listOf(AlertType.SIGNAL_RESTORED.id), AlarmSink.delivered)
+        assertEquals(SignalRestoredReading("sensor-A", now),
+            SignalRestoredReadingPreferences(Applic.app).load())
+        AlertRuntimeManager.onNewReading("sensor-A", LiveReadingLanes.resolved(120f), 0f, now, 0)
+        assertEquals(1, AlarmSink.delivered.size)
+    }
+
+    @Test fun runtimeResetTerminatesTheWorkerAndAllowsMonitoringToRestart() {
+        AlertRuntimeManager.ensureMonitoring()
+        val field = AlertRuntimeManager::class.java.getDeclaredField("scheduler").apply { isAccessible = true }
+        val original = field.get(AlertRuntimeManager) as java.util.concurrent.ScheduledExecutorService
+        assertFalse(original.isShutdown)
+        assertTrue(AlertRuntimeManager.resetForTests())
+        assertTrue(original.isTerminated)
+        AlertRuntimeManager.ensureMonitoring()
+        val replacement = field.get(AlertRuntimeManager) as java.util.concurrent.ScheduledExecutorService
+        assertNotSame(original, replacement)
+        assertFalse(replacement.isShutdown)
+    }
+
+    @Test fun unusableDisplayReadingsCannotConsumeRecoveryOrChangeItsCheckpoint() {
+        for (resolution in listOf("missing", "nonfinite", "throw")) {
+            assertTrue(AlertRuntimeManager.resetForTests())
+            AlarmSink.delivered.clear()
+            val now = System.currentTimeMillis()
+            val old = now - 45 * 60_000L
+            val store = SignalRestoredReadingPreferences(Applic.app)
+            store.save(SignalRestoredReading("sensor-A", old))
+            DisplaySource.resolution = resolution
             AlertRuntimeManager.onNewReading("sensor-A", LiveReadingLanes.resolved(120f), 0f, now, 0)
-            assertEquals(listOf(AlertType.SIGNAL_RESTORED.id), AlarmSink.delivered)
-            assertEquals(SignalRestoredReading("sensor-A", now),
-                SignalRestoredReadingPreferences(Applic.app).load())
+            assertTrue(resolution, AlarmSink.delivered.isEmpty())
+            assertEquals(resolution, SignalRestoredReading("sensor-A", old), store.load())
+            DisplaySource.resolution = "valid"
             AlertRuntimeManager.onNewReading("sensor-A", LiveReadingLanes.resolved(120f), 0f, now, 0)
-            assertEquals(1, AlarmSink.delivered.size)
-        } finally {
-            val field = AlertRuntimeManager::class.java.getDeclaredField("monitorTask").apply { isAccessible = true }
-            (field.get(AlertRuntimeManager) as? java.util.concurrent.ScheduledFuture<*>)?.cancel(false)
+            assertEquals(resolution, listOf(AlertType.SIGNAL_RESTORED.id), AlarmSink.delivered)
+            assertEquals(SignalRestoredReading("sensor-A", now), store.load())
         }
     }
 

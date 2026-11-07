@@ -37,6 +37,7 @@ class AlertRetryAcknowledgementTests {
             val h = harness()
             invoke(h, "startEmpty")
             compiled.getField(field).setInt(null, 12)
+            compiled.getMethod("activateEpisode", Int::class.javaPrimitiveType).invoke(h, 12)
             queue(h, 14)
             invoke(h, "drain")
             assertEquals(field, 0, count(h))
@@ -50,6 +51,58 @@ class AlertRetryAcknowledgementTests {
             invoke(h, "drain")
             assertEquals(field, 0, count(h))
         }
+    }
+
+    @Test fun resolvedOrDismissedStandardPresentationDoesNotPermanentlyBlockRecovery() {
+        for (action in listOf("resolvePresentedEpisode", "dismissPresentedEpisode")) {
+            val h = harness()
+            invoke(h, "startEmpty")
+            compiled.getField("presentedStandardAlertKind").setInt(null, 1)
+            compiled.getMethod("activateEpisode", Int::class.javaPrimitiveType).invoke(h, 1)
+            invoke(h, action)
+            // The old notification metadata remains, but there is no live episode,
+            // sounding alarm, window or retry owner left to protect.
+            queue(h, 14)
+            invoke(h, "drain")
+            assertEquals(action, 1, count(h))
+            assertEquals(14, compiled.getMethod("sessionKind").invoke(h))
+        }
+    }
+
+    @Test fun aResolvedPresentationStillCannotLetRecoveryInterruptSoundOrAnAlarmWindow() {
+        for (field in listOf("lastalarm", "alarmUiVisible")) {
+            val h = harness()
+            invoke(h, "startEmpty")
+            compiled.getField("presentedStandardAlertKind").setInt(null, 1)
+            if (field == "lastalarm") compiled.getField(field).setInt(null, 1)
+            else compiled.getField(field).setBoolean(null, true)
+            queue(h, 14)
+            invoke(h, "drain")
+            assertEquals(field, 0, count(h))
+        }
+    }
+
+    @Test fun recoveryRetriesReloadTheRecoverySpecificConfiguration() {
+        val h = harness()
+        invoke(h, "startEmpty")
+        queue(h, 14)
+        invoke(h, "drain")
+        assertEquals(1, count(h))
+        invoke(h, "disableRecoveryRetry")
+        compiled.getMethod("timerFor", Int::class.javaPrimitiveType).invoke(h, 14)
+        invoke(h, "drain")
+        assertEquals(1, count(h))
+        assertEquals(-1, compiled.getMethod("sessionKind").invoke(h))
+    }
+
+    @Test fun recoveryDismissalUsesItsOwnTypeAndDoesNotDismissAHigh() {
+        val h = harness()
+        invoke(h, "startEmpty")
+        invoke(h, "dismissRecovery")
+        queue(h, 14)
+        queue(h, 1)
+        invoke(h, "drain")
+        assertEquals(listOf("start:1", "end:1"), compiled.getField("deliveries").get(h))
     }
 
     @Test fun recoveryRetryCannotInterruptAnAlertThatArrivedAfterItsFirstDelivery() {
@@ -275,6 +328,7 @@ class AlertRetryAcknowledgementTests {
                 "private static void runOnAlertThread(Runnable task)",
                 "private static void fireRetrySession(int expectedKind, long expectedGeneration)",
                 "private static boolean isRecoveryBlocker(int kind)",
+                "private static boolean isActivePresentedRecoveryBlocker(int kind)",
                 "private static boolean suppressRecoveryDelivery(int kind)",
                 "private static void deliverRetrySession(int expectedKind, long expectedGeneration)",
                 "private void deliverInitialAlert(int kind, float value, String message, notGlucose glucose,",
@@ -337,16 +391,26 @@ class AlertRetryAcknowledgementTests {
                         }
                     } }
                     static class AlertType {
-                        static AlertType Companion = new AlertType();
-                        static AlertType LOSS = new AlertType();
-                        static AlertType SIGNAL_RESTORED = new AlertType();
-                        AlertType fromId(int kind) { return kind == 4 ? LOSS : this; }
+                        static final Map<Integer, AlertType> kinds = new HashMap<>();
+                        static AlertType Companion = new AlertType(-1);
+                        static AlertType LOSS = new AlertType(4);
+                        static AlertType SIGNAL_RESTORED = new AlertType(14);
+                        final int id;
+                        AlertType(int id) { this.id = id; }
+                        AlertType fromId(int kind) {
+                            if (kind == 4) return LOSS;
+                            if (kind == 14) return SIGNAL_RESTORED;
+                            return kinds.computeIfAbsent(kind, AlertType::new);
+                        }
                         int getNameResId() { return 0; }
                         boolean isLegacyOnlyId(int kind) { return false; }
                     }
                     static class AlertConfig {
+                        final AlertType type;
+                        AlertConfig() { this(null); }
+                        AlertConfig(AlertType type) { this.type = type; }
                         boolean getEnabled() { return true; }
-                        boolean getRetryEnabled() { return true; }
+                        boolean getRetryEnabled() { return type != AlertType.SIGNAL_RESTORED || AlertRepository.recoveryRetryEnabled; }
                         boolean isActiveNow() { return true; }
                         int getRetryCount() { return 0; }
                     }
@@ -358,21 +422,27 @@ class AlertRetryAcknowledgementTests {
                         static AlertStateTracker INSTANCE = new AlertStateTracker();
                         boolean pending, manual;
                         int firings;
+                        Set<AlertType> episodes = new HashSet<>(), dismissed = new HashSet<>();
                         void allowNextTriggerForTest(AlertType type) { pending = true; }
                         boolean shouldTrigger(AlertType type, AlertConfig config) {
                             if (pending) { pending = false; manual = true; return true; }
                             return !SnoozeManager.snoozed && !WearAlertSync.suppressed;
                         }
-                        boolean onAlertTriggered(AlertType type, AlertConfig config) { firings++; return !manual; }
+                        boolean onAlertTriggered(AlertType type, AlertConfig config) {
+                            firings++;
+                            if (!manual) episodes.add(type);
+                            return !manual;
+                        }
                         boolean isManualTestActive(AlertType type) { return manual; }
                         void supersedeManualTest(AlertType type) { manual = false; }
-                        boolean isDismissed(AlertType type) { return false; }
-                        boolean isEpisodeActive(AlertType type) { return true; }
+                        boolean isDismissed(AlertType type) { return dismissed.contains(type); }
+                        boolean isEpisodeActive(AlertType type) { return episodes.contains(type); }
                     }
                     static boolean isSameRetryFamily(int a, int b) { return a == b; }
                     static class AlertRepository {
                         static AlertRepository INSTANCE = new AlertRepository();
-                        AlertConfig loadConfig(AlertType type) { return new AlertConfig(); }
+                        static boolean recoveryRetryEnabled = true;
+                        AlertConfig loadConfig(AlertType type) { return new AlertConfig(type); }
                     }
                     static class SnoozeManager {
                         static SnoozeManager INSTANCE = new SnoozeManager();
@@ -478,6 +548,9 @@ class AlertRetryAcknowledgementTests {
                         presentedStandardAlertKind = lastalarm = -1;
                         presentedCustomAlert = alarmUiVisible = false;
                         AlertStateTracker.INSTANCE.firings = 0;
+                        AlertStateTracker.INSTANCE.episodes.clear();
+                        AlertStateTracker.INSTANCE.dismissed.clear();
+                        AlertRepository.recoveryRetryEnabled = true;
                     }
                     public void cancel() { cancelRetrySessionLocked("dismiss"); }
                     public void timer() { fireRetrySession(1, retryGeneration); }
@@ -507,10 +580,18 @@ class AlertRetryAcknowledgementTests {
                         AlertStateTracker.INSTANCE.pending = false;
                         AlertStateTracker.INSTANCE.manual = false;
                         AlertStateTracker.INSTANCE.firings = 0;
+                        AlertStateTracker.INSTANCE.episodes.clear();
+                        AlertStateTracker.INSTANCE.dismissed.clear();
+                        AlertRepository.recoveryRetryEnabled = true;
                         presentedStandardAlertKind = lastalarm = -1;
                         presentedCustomAlert = alarmUiVisible = false;
                     }
-                    public void queueKind(int kind) { deliverInitialAlert(kind, 180, "Alert", new notGlucose(), "ALERT", new AlertConfig(), true); }
+                    public void queueKind(int kind) { deliverInitialAlert(kind, 180, "Alert", new notGlucose(), "ALERT", AlertRepository.INSTANCE.loadConfig(AlertType.Companion.fromId(kind)), true); }
+                    public void activateEpisode(int kind) { AlertStateTracker.INSTANCE.episodes.add(AlertType.Companion.fromId(kind)); }
+                    public void resolvePresentedEpisode() { AlertStateTracker.INSTANCE.episodes.remove(AlertType.Companion.fromId(presentedStandardAlertKind)); }
+                    public void dismissPresentedEpisode() { AlertStateTracker.INSTANCE.dismissed.add(AlertType.Companion.fromId(presentedStandardAlertKind)); }
+                    public void disableRecoveryRetry() { AlertRepository.recoveryRetryEnabled = false; }
+                    public void dismissRecovery() { AlertStateTracker.INSTANCE.dismissed.add(AlertType.SIGNAL_RESTORED); }
                     public int sessionKind() { return activeRetrySession == null ? -1 : activeRetrySession.kind; }
                     public void timerFor(int kind) { fireRetrySession(kind, retryGeneration); }
                     public void queueHigh() { deliverInitialAlert(1, 180, "High", new notGlucose(), "HIGH", new AlertConfig(), true); }

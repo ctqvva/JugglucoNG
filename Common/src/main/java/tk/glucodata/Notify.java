@@ -1927,12 +1927,23 @@ public class Notify {
         return kind >= 0 && kind != 4 && kind != 14;
     }
 
+    private static boolean isActivePresentedRecoveryBlocker(int kind) {
+        if (!isRecoveryBlocker(kind)) return false;
+        final AlertType type = AlertType.Companion.fromId(kind);
+        // A notification can outlive its condition. Keep an unacknowledged live
+        // episode protected, but do not let stale presentation metadata veto every
+        // later recovery after the runtime has resolved or the user dismissed it.
+        return type == null || AlertStateTracker.INSTANCE.isManualTestActive(type)
+                || (AlertStateTracker.INSTANCE.isEpisodeActive(type)
+                    && !AlertStateTracker.INSTANCE.isDismissed(type));
+    }
+
     /** Called on the delivery looper, before claiming the shared surface or retry owner. */
     private static boolean suppressRecoveryDelivery(int kind) {
         if (kind != 14) return false;
         synchronized (retrySessionLock) {
             return presentedCustomAlert || alarmUiVisible
-                    || isRecoveryBlocker(presentedStandardAlertKind)
+                    || isActivePresentedRecoveryBlocker(presentedStandardAlertKind)
                     || isRecoveryBlocker(lastalarm)
                     || (activeRetrySession != null && isRecoveryBlocker(activeRetrySession.kind));
         }

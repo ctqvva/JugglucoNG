@@ -11,6 +11,16 @@ class SignalRestoredAlertStateTests {
     private fun SignalRestoredAlertState.read(at: Long, now: Long = at, id: String = "sensor-A",
         lossWait: Long = wait) = onReading(id, at, now, lossWait, fresh)
 
+    private class RecordingStore : SignalRestoredReadingStore {
+        var reading: SignalRestoredReading? = null
+        var writes = 0
+        override fun load() = reading
+        override fun save(reading: SignalRestoredReading) {
+            this.reading = reading
+            writes++
+        }
+    }
+
     @Test fun startupAndOrdinaryReadingsStaySilent() {
         val state = SignalRestoredAlertState()
         assertFalse(state.read(start))
@@ -54,6 +64,34 @@ class SignalRestoredAlertStateTests {
         state.read(start)
         assertFalse(state.read(start + wait, id = "sensor-B"))
         assertFalse(state.read(start + wait + 60_000L, id = "sensor-B"))
+    }
+
+    @Test fun staleInitialHistoryCannotCreateALiveBaselineOrPersistIt() {
+        val store = RecordingStore()
+        val state = SignalRestoredAlertState(store)
+        val now = start + 2 * wait
+        assertFalse(state.read(start, now))
+        assertNull(store.reading)
+        assertEquals(0, store.writes)
+        assertFalse(state.read(now)) // First live activity, not recovery from history.
+        assertEquals(SignalRestoredReading("sensor-A", now), store.reading)
+        assertTrue(state.read(now + wait))
+    }
+
+    @Test fun staleHistoryFromAnotherSensorCannotReplaceTheDurableLiveBaseline() {
+        val store = RecordingStore()
+        val state = SignalRestoredAlertState(store)
+        state.read(start)
+        val now = start + 2 * wait
+        assertFalse(state.read(start + 60_000L, now, id = "sensor-B"))
+        assertEquals(SignalRestoredReading("sensor-A", start), store.reading)
+        assertEquals(1, store.writes)
+
+        // A restart must still recover the original live sensor's actual outage.
+        assertTrue(SignalRestoredAlertState(store).read(now))
+        // Selecting B later begins with live activity, not a history-created outage.
+        assertFalse(state.read(now, id = "sensor-B"))
+        assertFalse(state.read(now + 60_000L, id = "sensor-B"))
     }
 
     @Test fun startupSeedRetainsAnOutageAcrossProcessRestart() {

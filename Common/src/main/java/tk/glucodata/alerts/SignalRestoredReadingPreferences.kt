@@ -1,6 +1,7 @@
 package tk.glucodata.alerts
 
 import android.content.Context
+import tk.glucodata.Log
 
 internal data class SignalRestoredReading(val sensorId: String, val readingMs: Long)
 
@@ -20,6 +21,10 @@ internal class SignalRestoredReadingPreferences(context: Context) : SignalRestor
     }
 
     override fun save(reading: SignalRestoredReading) {
-        prefs.edit().putString("sensor", reading.sensorId).putLong("time", reading.readingMs).apply()
+        // This is a restart checkpoint, not a UI setting: returning before the
+        // disk write completes could resurrect an older recovery baseline.
+        if (!prefs.edit().putString("sensor", reading.sensorId).putLong("time", reading.readingMs).commit()) {
+            Log.e("SignalRestoredReading", "Could not persist the recovery reading checkpoint")
+        }
     }
 }
