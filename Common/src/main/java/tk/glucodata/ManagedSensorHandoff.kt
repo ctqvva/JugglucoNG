@@ -140,24 +140,21 @@ object ManagedSensorHandoff {
             }
                 Log.i(LOG_ID, "handoff applied: ${entries.length()} entries $perPrefs")
             }
-            if (parts.dexcom) {
-                runCatching { DexcomWatchSetup.applyOnWatch(root) }
-                    .onFailure { Log.stack(LOG_ID, "Dexcom setup", it) }
+            val dexcomSetup = parts.dexcom && DexcomWatchSetup.carriesSetup(root)
+            if (dexcomSetup) {
+                // Builds a native record and the driver roster, like the netinfo
+                // and start handlers, which run one at a time on this slot; run
+                // beside them it could overlap a netinfo rebuild. The backlog is
+                // asked for after it, so it lands in the record this makes.
+                MessageReceiver.runNativeOp("Dexcom setup") {
+                    runCatching { DexcomWatchSetup.applyOnWatch(root) }
+                        .onFailure { Log.stack(LOG_ID, "Dexcom setup", it) }
+                    SensorIdentity.invalidateCaches()
+                    requestBacklog(root)
+                }
             }
             SensorIdentity.invalidateCaches()
-            // Ask the sender for its backlog now. A full-horizon serve is otherwise throttled
-            // to its own schedule, so a device could take a sensor over holding only the last
-            // few minutes and wait minutes for the rest — while the sender had all of it and
-            // the Data Layer was idle.
-            // The sender's AiDex download cursor travels with the sensor on purpose: it says
-            // which offsets have already been pulled off that sensor, and the deep serve above
-            // is what makes them true here. Zeroing it instead made the receiver re-fetch a
-            // full history over BLE that sync had just delivered.
-            // A refresh of setup this device already had needs no backlog.
-            if (!root.optBoolean("refresh", false)) {
-                runCatching { WearSync2.requestSync(deep = true) }
-                    .onFailure { Log.stack(LOG_ID, "handoff deep sync request", it) }
-            }
+            if (!dexcomSetup) requestBacklog(root)
             // The record is now stored, but drivers are only built from storage at Bluetooth
             // start. Without this the receiving device holds the sensor on paper and never
             // opens a connection — no GATT attempt, no broadcast fallback — until the app is
@@ -168,6 +165,21 @@ object ManagedSensorHandoff {
             Log.stack(LOG_ID, "applyIncoming", th)
             false
         }
+    }
+
+    private fun requestBacklog(root: JSONObject) {
+        // Ask the sender for its backlog now. A full-horizon serve is otherwise throttled
+        // to its own schedule, so a device could take a sensor over holding only the last
+        // few minutes and wait minutes for the rest — while the sender had all of it and
+        // the Data Layer was idle.
+        // The sender's AiDex download cursor travels with the sensor on purpose: it says
+        // which offsets have already been pulled off that sensor, and the deep serve above
+        // is what makes them true here. Zeroing it instead made the receiver re-fetch a
+        // full history over BLE that sync had just delivered.
+        // A refresh of setup this device already had needs no backlog.
+        if (root.optBoolean("refresh", false)) return
+        runCatching { WearSync2.requestSync(deep = true) }
+            .onFailure { Log.stack(LOG_ID, "handoff deep sync request", it) }
     }
 
     private fun collectManagedCandidates(context: Context?): Set<String> {

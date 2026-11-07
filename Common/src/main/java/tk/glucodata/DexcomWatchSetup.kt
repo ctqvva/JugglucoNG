@@ -48,6 +48,10 @@ object DexcomWatchSetup {
         phoneSetupFor(sensorId)?.let { root.put(KEY, it) }
     }
 
+    /** Whether an incoming payload carries a scan to set a Dexcom up from. */
+    internal fun carriesSetup(root: JSONObject): Boolean =
+        root.optJSONObject(KEY)?.optString(KEY_SCAN, "")?.isNotEmpty() == true
+
     /** The serial in an incoming payload's Dexcom part, if it has one. */
     internal fun incomingSerial(root: JSONObject): String? =
         root.optJSONObject(KEY)?.optString(KEY_SERIAL, "")?.trim()?.takeIf { it.isNotEmpty() }
