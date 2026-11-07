@@ -268,6 +268,44 @@ class SensorIdentityTests {
     }
 
     @Test
+    fun pickReplacementSensor_prefersTheLiveResolvedMainOverAnEarlierFinishedCallback() {
+        assertEquals(
+            "warm-up",
+            SensorIdentity.pickReplacementSensor(
+                listOf("finished-callback", "warm-up"), "warm-up", "removed", isFinished = { it == "finished-callback" }
+            )
+        )
+    }
+
+    @Test
+    fun pickReplacementSensor_skipsFinishedCandidatesWithoutAResolvedMain() {
+        assertEquals(
+            "warm-up",
+            SensorIdentity.pickReplacementSensor(
+                listOf("finished-callback", "warm-up"), null, "removed", isFinished = { it == "finished-callback" }
+            )
+        )
+    }
+
+    @Test
+    fun pickReplacementSensor_neverHandsTheRoleBackToTheRemovedSensor() {
+        assertEquals(
+            "other",
+            SensorIdentity.pickReplacementSensor(listOf("other"), "removed", "removed", isFinished = { false })
+        )
+    }
+
+    @Test
+    fun pickReplacementSensor_keepsAFinishedOnlyCandidate() {
+        // A re-added sensor stays finished until its first reading.
+        assertEquals(
+            "re-added",
+            SensorIdentity.pickReplacementSensor(listOf("re-added"), null, "removed", isFinished = { true })
+        )
+        assertNull(SensorIdentity.pickReplacementSensor(emptyList(), null, "removed", isFinished = { true }))
+    }
+
+    @Test
     fun lostMainRole_anotherMainSensorIsLeftAlone() {
         assertFalse(SensorIdentity.lostMainRole("other-sensor", "clone-sensor"))
     }

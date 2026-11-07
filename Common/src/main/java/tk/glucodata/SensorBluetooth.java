@@ -899,7 +899,13 @@ public class SensorBluetooth {
                 addReplacementCandidate(candidates, seen, cb.SerialNumber, removedSerial);
             }
         }
-        return candidates.isEmpty() ? null : candidates.get(0);
+        String resolvedMain = null;
+        try {
+            resolvedMain = SensorIdentity.resolveMainSensor();
+        } catch (Throwable t) {
+            Log.e(LOG_ID, "resolveReplacementSensorSerial resolveMainSensor failed: " + t.getMessage());
+        }
+        return SensorIdentity.pickReplacementSensor(candidates, resolvedMain, removedSerial);
     }
 
     public static String resolveReplacementSensorSerial(String removedSerial) {

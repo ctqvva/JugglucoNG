@@ -349,6 +349,29 @@ object SensorIdentity {
         return !nativeCurrent.isNullOrBlank() && matches(nativeCurrent, removedSensor)
     }
 
+    /**
+     * The sensor to hand the main role to after [removedSensor] left. Retained callbacks can
+     * include other finished sensors; one of those would leave native consumers on stale
+     * glucose. The resolver already skips them, so its answer comes first. A finished candidate
+     * is still taken when it is the only one: a re-added sensor stays finished until its first
+     * reading.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun pickReplacementSensor(
+        candidates: List<String>,
+        resolvedMain: String?,
+        removedSensor: String?,
+        isFinished: (String) -> Boolean = ::isFinishedSensor
+    ): String? {
+        if (!resolvedMain.isNullOrBlank() && !removedSensor.isNullOrBlank() &&
+            !matches(resolvedMain, removedSensor)
+        ) {
+            candidates.firstOrNull { matches(it, resolvedMain) }?.let { return it }
+        }
+        return candidates.firstOrNull { !isFinished(it) } ?: candidates.firstOrNull()
+    }
+
     private fun availableSensorCandidates(): Array<String?>? {
         val resolved = LinkedHashSet<String?>()
 
