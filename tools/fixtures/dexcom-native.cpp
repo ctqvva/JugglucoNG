@@ -166,10 +166,15 @@ struct Sensoren {
         d->initialHistoryBytes();data.push_back(std::move(d));return i;
     }
     static bool validSensorStarttime(uint32_t tim){return tim>1598911200u&&tim<2145909600u;}
+    // The list is kept in start order: a start must be set through here, which reorders it.
+    int reorders=0;
+    bool setSensorStarttime(int ind,uint32_t start){
+        if(!validSensorStarttime(start))return false;
+        records.at(ind).starttime=start;++reorders;return true;}
     Sensoren()=default;
     Sensoren& operator=(Sensoren&& other){
         records=other.records;data=std::move(other.data);retired=std::move(other.retired);
-        inbasedir=other.inbasedir;hist.r=this;return *this;}
+        inbasedir=other.inbasedir;reorders=other.reorders;hist.r=this;return *this;}
     /* REGISTRY_METHODS */
 };
 Sensoren registry;
@@ -425,6 +430,7 @@ int main(){
         auto [id,d]=registry.makeDexComSensorindex(scan,1700000005,1699000000);
         assert(id==mirrorId&&d&&d!=mirror&&d->isDexcom());
         assert(d->getstarttime()==1699000000&&registry.getsensor(id)->starttime==1699000000);
+        assert(registry.reorders==1);
         assert(d->metadata.lastscantime==1700000005);
         assert(string_view(reinterpret_cast<const char*>(d->metadata.siId),d->metadata.siIdlen)==scan.payload);
         assert(d->metadata.pollcount==0&&d->getDexWearMinutes()==21600);
@@ -450,6 +456,7 @@ int main(){
         auto scan=*dexcom::parseScan(barcode());
         auto [id,d]=registry.makeDexComSensorindex(scan,1700000005,1699000000);
         assert(id>=0&&d&&d->getstarttime()==1699000000&&registry.getsensor(id)->starttime==1699000000);
+        assert(registry.reorders==1);
     }
     // Only a mirror is replaced. A record another driver established under
     // the same name keeps its files, and the setup is refused.

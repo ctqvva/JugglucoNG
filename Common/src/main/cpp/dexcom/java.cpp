@@ -620,14 +620,22 @@ extern "C" JNIEXPORT jlongArray JNICALL fromjava(dexPeerAnchor)(JNIEnv *envin,
   const uint32_t start = sens->getstarttime();
   if (!Sensoren::validSensorStarttime(start))
     return nullptr;
-  const int id = sens->dexAnchorSlot();
-  if (id < 0)
-    return nullptr;
-  const auto *poll = sens->getstream(id);
-  const float change = poll->ch;
-  int32_t changeBits;
-  memcpy(&changeBits, &change, sizeof(changeBits));
-  const jlong values[6] = {start, id, poll->t, poll->g, poll->tr, changeBits};
+  // Chosen and copied under the write lock: a live or backfilled reading
+  // stored into that slot meanwhile would give the watch a mixed sample, and
+  // it treats the anchor's slot as filled.
+  jlong values[6];
+  {
+    const std::lock_guard<std::recursive_mutex> reading(
+        SensorGlucoseData::pollWriteMutex());
+    const int id = sens->dexAnchorSlot();
+    if (id < 0)
+      return nullptr;
+    const ScanData poll = *sens->getstream(id);
+    int32_t changeBits;
+    memcpy(&changeBits, &poll.ch, sizeof(changeBits));
+    const jlong copied[6] = {start, id, poll.t, poll.g, poll.tr, changeBits};
+    memcpy(values, copied, sizeof(values));
+  }
   jlongArray out = envin->NewLongArray(6);
   if (out)
     envin->SetLongArrayRegion(out, 0, 6, values);

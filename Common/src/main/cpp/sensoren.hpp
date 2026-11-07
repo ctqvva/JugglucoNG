@@ -742,7 +742,8 @@ public:
       info->lastscantime = now;
       if (!info->pollcount) {
         info->starttime = sensorStart ? sensorStart : now;
-        sensgegs->starttime = info->starttime;
+        // The list is kept in start order; a start set in place breaks it.
+        setSensorStarttime(sensindex, info->starttime);
       }
       void resensordata(int sensorindex);
       resensordata(sensindex);
@@ -754,7 +755,7 @@ public:
       return {-1, nullptr};
     const int ind = addsensor(name);
     sensor *sen = getsensor(ind);
-    if (sensorStart) sen->starttime = sensorStart;
+    if (sensorStart) setSensorStarttime(ind, sensorStart);
     sen->initialized = true;
     sen->halfdays = (scan.days + 2) * 2;
     return {ind, getSensorData(ind)};
@@ -922,7 +923,7 @@ private:
     sen->initialized = true;
     sen->finished = 0;
     sen->halfdays = (scan.days + 2) * 2;
-    sen->starttime = sensorStart ? sensorStart : now;
+    setSensorStarttime(ind, sensorStart ? sensorStart : now);
     LOGGER("converted mirrored record %s to Dexcom\n", sensordir.data());
     return {ind, getSensorData(ind)};
   }
