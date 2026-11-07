@@ -958,6 +958,7 @@
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Zresetuj powiązanie Bluetooth (dane zostaną zachowane)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Spowoduje to trwałe usunięcie czujnika, wyczyszczenie kluczy parowania i zatrzymanie sesji. Aby móc ponownie używać czujnika, należy go ponownie sparować.</string>

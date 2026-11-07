@@ -924,6 +924,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Скинути підключення Bluetooth (дані збережуться)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Це назавжди видалить датчик, зітре ключі сполучення та припинить сеанс. Для повторного використання датчик потрібно повторно підключити.</string>

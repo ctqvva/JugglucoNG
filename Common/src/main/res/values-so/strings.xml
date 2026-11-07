@@ -677,6 +677,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="reconnect_sensor_title">Dib u xidhid Sensor?</string>
     <string name="reconnect_sensor_desc">Tani waxay dib u dajin doontaa isku xidhka waxayna isku dayi doontaa in dib loo xidho.</string>
     <string name="reconnect">Dib u xidhidh</string>
+    <string name="ican_reset_bluetooth_binding">Dib u deji xiriirka Bluetooth (xogta way sii socotaa)</string>
     
     <string name="forget_sensor_title">Ma ilowdaa Dareemka?</string>
     <string name="forget_sensor_desc">Tani waxay ka saari doontaa dareenka liiska. Waxaa laga yaabaa inay dib u soo baxdo haddii mar kale la sawiro.</string>

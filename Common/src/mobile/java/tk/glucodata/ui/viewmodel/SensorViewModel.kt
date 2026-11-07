@@ -1351,6 +1351,27 @@ class SensorViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Drops the sensor's stored Bluetooth address and rescans without touching its data, so a
+     * sensor stuck on a stale/wrong address can be re-discovered instead of deleted and re-added.
+     */
+    fun rePairSensor(serial: String) {
+        if (tk.glucodata.CloneSensorRegistry.isCloneSensor(serial)) {
+            android.util.Log.w("SensorVM", "Ignoring local re-pair for Clone sensor $serial")
+            return
+        }
+        val gatt = findGatt(serial) ?: return
+        val managed = gatt as? ManagedBluetoothSensorDriver
+        if (managed == null) {
+            reconnectSensor(serial)
+            return
+        }
+        viewModelScope.launch {
+            managed.rePairBinding()
+            refreshSensors()
+        }
+    }
+
     /** Moves a Dexcom sensor to another authentication slot; it pairs again on the next connection. */
     fun setDexcomBluetoothSlot(serial: String, slot: Int) {
         if (tk.glucodata.CloneSensorRegistry.isCloneSensor(serial)) return

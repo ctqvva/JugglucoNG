@@ -640,6 +640,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="reconnect_sensor_title">Мэдрэгчийг дахин холбох уу?</string>
     <string name="reconnect_sensor_desc">Энэ нь холболтыг дахин тохируулж, холбогдохыг оролдоно.</string>
     <string name="reconnect">Дахин холбох</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth холболтыг дахин тохируулах (өгөгдөл хадгалагдана)</string>
     <string name="forget_sensor_title">Мэдрэгчийг мартах уу?</string>
     <string name="forget_sensor_desc">Энэ нь мэдрэгчийг жагсаалтаас хасна. Хэрэв дахин скан хийвэл дахин гарч ирж магадгүй.</string>
     <string name="reset_sensor_title">Мэдрэгчийг дахин тохируулах уу?</string>

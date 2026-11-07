@@ -291,6 +291,7 @@ class ICanHealthBleManager(
     // The address the onboarding scan picked by name or advert, as opposed to one the user or the
     // registry supplied. Only a guess like that may be dropped for not being a CGM.
     @Volatile private var onboardingScanPickedAddress: String? = null
+    @Volatile private var expectedSerialAfterRepair: String? = null
     private val nonCgmCandidateStrikes = ConcurrentHashMap<String, Int>()
     private val unreachableCandidates = ICanHealthUnreachableCandidates()
     // The GATT whose current attempt reached STATE_CONNECTED. Tied to the instance, because a
@@ -691,6 +692,33 @@ class ICanHealthBleManager(
             }, 250L)
         }
         UiRefreshBus.requestStatusRefresh()
+    }
+
+    override fun rePairBinding() {
+        if (stop) return
+        uiPaused = false
+        clearSoftDisconnectState()
+        expectedSerialAfterRepair = serialFromDevice
+            ?: SerialNumber.takeUnless { ICanHealthConstants.isProvisionalSensorId(it) }
+        resetBindingAndRescan()
+    }
+
+    /** Drop only the stored address and rescan unfiltered; native data and history stay intact. */
+    private fun resetBindingAndRescan() {
+        // A pending automatic rebind owns its own 45 s timer and blocks setDevice(null); retire it
+        // first so an old timer cannot restore the address the user just asked to discard.
+        pendingAddressRebind = null
+        handler.removeCallbacks(rebindTimeoutRunnable)
+        close()
+        setDevice(null)
+        searchforDeviceAddress()
+        setUiStatus(UiStatusKind.PREPARING)
+        UiRefreshBus.requestStatusRefresh()
+        handler.post {
+            if (stop || uiPaused) return@post
+            SensorBluetooth.blueone?.stopScan(false)
+            SensorBluetooth.startscan()
+        }
     }
 
     override fun terminateManagedSensor(wipeData: Boolean) {
@@ -1974,6 +2002,18 @@ class ICanHealthBleManager(
 
     private fun handleResolvedSerial(resolvedSerial: String) {
         val canonicalSerial = ICanHealthConstants.canonicalSensorId(resolvedSerial)
+        val expectedSerial = expectedSerialAfterRepair
+        if (expectedSerial != null) {
+            if (!canonicalSerial.equals(ICanHealthConstants.canonicalSensorId(expectedSerial), ignoreCase = true)) {
+                // Keep the expectation until the right sensor answers, and never retry this address:
+                // otherwise the same wrong device could be selected again and adopted unchecked.
+                mActiveDeviceAddress?.let { rejectedOnboardingAddresses.add(it) }
+                Log.w(TAG, "Re-pair rejected: device serial $canonicalSerial does not match $expectedSerial")
+                resetBindingAndRescan()
+                return
+            }
+            expectedSerialAfterRepair = null
+        }
         serialFromDevice = canonicalSerial
         val previousId = SerialNumber
         if (provisionalSensorIdForAdoption == null && ICanHealthConstants.isProvisionalSensorId(previousId)) {

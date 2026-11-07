@@ -700,6 +700,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Reset Bluetooth binding (keeps data)</string>
     
     <string name="forget_sensor_title">Forget Sensor?</string>
     <string name="forget_sensor_desc">This will remove the sensor from the list. It may reappear if scanned again.</string>
