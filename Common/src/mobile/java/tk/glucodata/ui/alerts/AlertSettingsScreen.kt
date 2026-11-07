@@ -161,6 +161,7 @@ fun AlertSettingsScreen(
         listOf(
             AlertType.MISSED_READING,
             AlertType.LOSS,
+            AlertType.SIGNAL_RESTORED,
             AlertType.SENSOR_EXPIRY
         )
     }
@@ -1193,6 +1194,14 @@ private fun AlertSettingsExpanded(
                     }
                 }
 
+                if (config.type == AlertType.SIGNAL_RESTORED) {
+                    Text(
+                        text = stringResource(R.string.signal_restored_explanation),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 // === Sensor-expiry pre-warnings (multi-select, this type only) ===
                 if (config.type == AlertType.SENSOR_EXPIRY) {
                     SensorExpiryThresholdSelector(
@@ -2123,6 +2132,7 @@ private fun getAlertIconAndColor(type: AlertType, isDark: Boolean, scheme: Color
         AlertType.PERSISTENT_HIGH -> Icons.Default.Timer to Color(GlucoseRangeColors.veryHigh(isDark))
         AlertType.MISSED_READING -> Icons.Default.SignalWifiOff to scheme.secondary
         AlertType.LOSS -> Icons.Default.BluetoothDisabled to scheme.secondary
+        AlertType.SIGNAL_RESTORED -> Icons.Default.BluetoothConnected to scheme.secondary
         AlertType.SENSOR_EXPIRY -> Icons.Default.Schedule to scheme.tertiary
         else -> Icons.Default.Notifications to scheme.primary
     }

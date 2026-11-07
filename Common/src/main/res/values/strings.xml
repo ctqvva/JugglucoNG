@@ -934,6 +934,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alert_forecast_low">Forecast Low</string>
     <string name="alert_forecast_high">Forecast High</string>
     <string name="alert_loss">Signal Loss</string>
+    <string name="alert_signal_restored">Signal restored</string>
+    <string name="signal_restored_channel_description">Alerts when fresh sensor readings resume after signal loss</string>
+    <string name="signal_restored_explanation">Notify once when fresh readings resume after the Signal loss timeout. Works even when the Signal loss alert is off.</string>
     <string name="alert_missed_reading">Missed Reading</string>
     <string name="alert_persistent_high">Persistent High</string>
     <string name="alert_sensor_expiry">Sensor Expiry</string>

@@ -547,7 +547,8 @@ public class Notify {
 
     Ringtone mkring(String uristr, int kind) {
         // For global alerts, use getalarmdisturb to determine audio stream
-        return mkring(uristr, kind, getalarmdisturb(kind));
+        return mkring(uristr, kind,
+                tk.glucodata.alerts.AlertSoundDefaults.hasNativeSlot(kind) && getalarmdisturb(kind));
     }
 
     Ringtone mkring(String uristr, int kind, boolean disturb) {
@@ -636,6 +637,7 @@ public class Notify {
     public static final String CHANNEL_LOW = "LOW";
     public static final String CHANNEL_HIGH = "HIGH";
     public static final String CHANNEL_LOSS = "LOSS";
+    public static final String CHANNEL_SIGNAL_RESTORED = "SIGNAL_RESTORED";
     public static final String CHANNEL_MISSED_READING = "MISSED_READING";
     public static final String CHANNEL_SENSOR_EXPIRY = "SENSOR_EXPIRY";
     // private static final String LOSSALARM = "LossofSensorAlarm";
@@ -655,6 +657,8 @@ public class Notify {
                 return CHANNEL_HIGH;
             case 11:
                 return CHANNEL_SENSOR_EXPIRY;
+            case 14:
+                return CHANNEL_SIGNAL_RESTORED;
             default:
                 return GLUCOSEALARM;
         }
@@ -732,6 +736,14 @@ public class Notify {
             channelLoss.setShowBadge(false);
             channelLoss.setLockscreenVisibility(VISIBILITY_PUBLIC);
             notificationManager.createNotificationChannel(channelLoss);
+
+            NotificationChannel channelRestored = new NotificationChannel(CHANNEL_SIGNAL_RESTORED,
+                    context.getString(R.string.alert_signal_restored), NotificationManager.IMPORTANCE_HIGH);
+            channelRestored.setDescription(context.getString(R.string.signal_restored_channel_description));
+            channelRestored.setSound(null, null);
+            channelRestored.setShowBadge(false);
+            channelRestored.setLockscreenVisibility(VISIBILITY_PUBLIC);
+            notificationManager.createNotificationChannel(channelRestored);
 
             NotificationChannel channelMissedReading = new NotificationChannel(
                     CHANNEL_MISSED_READING,
@@ -1019,6 +1031,7 @@ public class Notify {
     private static final java.util.Map<Integer, Long> initialDeliveryGenerations = new java.util.HashMap<>();
     private static long initialDeliveryEpoch = 0;
     private static volatile int presentedStandardAlertKind = -1;
+    private static volatile boolean presentedCustomAlert = false;
     private static volatile boolean alarmUiVisible = false;
     private static final long ALARM_WINDOW_CONFIRM_MS = 2000L;
     private static final Handler alarmWindowCheckHandler = new Handler(Looper.getMainLooper());
@@ -1872,6 +1885,7 @@ public class Notify {
 
     public static void cancelAlertNotification() {
         presentedStandardAlertKind = -1;
+        presentedCustomAlert = false;
         supersedeAlarmWindowFallback();
         if (onenot != null && onenot.notificationManager != null) {
             onenot.notificationManager.cancel(glucosealarmid);
@@ -1908,12 +1922,43 @@ public class Notify {
         runOnAlertThread(() -> deliverRetrySession(expectedKind, expectedGeneration));
     }
 
+    private static boolean isRecoveryBlocker(int kind) {
+        // A recovery may replace its own alert or the outage it resolves.
+        return kind >= 0 && kind != 4 && kind != 14;
+    }
+
+    private static boolean isActivePresentedRecoveryBlocker(int kind) {
+        if (!isRecoveryBlocker(kind)) return false;
+        final AlertType type = AlertType.Companion.fromId(kind);
+        // A notification can outlive its condition. Keep an unacknowledged live
+        // episode protected, but do not let stale presentation metadata veto every
+        // later recovery after the runtime has resolved or the user dismissed it.
+        return type == null || AlertStateTracker.INSTANCE.isManualTestActive(type)
+                || (AlertStateTracker.INSTANCE.isEpisodeActive(type)
+                    && !AlertStateTracker.INSTANCE.isDismissed(type));
+    }
+
+    /** Called on the delivery looper, before claiming the shared surface or retry owner. */
+    private static boolean suppressRecoveryDelivery(int kind) {
+        if (kind != 14) return false;
+        synchronized (retrySessionLock) {
+            return presentedCustomAlert || alarmUiVisible
+                    || isActivePresentedRecoveryBlocker(presentedStandardAlertKind)
+                    || isRecoveryBlocker(lastalarm)
+                    || (activeRetrySession != null && isRecoveryBlocker(activeRetrySession.kind));
+        }
+    }
+
     private static void deliverRetrySession(int expectedKind, long expectedGeneration) {
         final AlertRetrySession sessionSnapshot;
         synchronized (retrySessionLock) {
             if (retryGeneration != expectedGeneration) return;
             retrySessionSchedule = null;
             if (activeRetrySession == null || activeRetrySession.kind != expectedKind) {
+                return;
+            }
+            if (suppressRecoveryDelivery(expectedKind)) {
+                cancelRetrySessionLocked("recovery-yields-to-active-alert");
                 return;
             }
             final AlertType alertType = AlertType.Companion.fromId(activeRetrySession.kind);
@@ -1973,6 +2018,10 @@ public class Notify {
                 if (expectedEpoch != initialDeliveryEpoch ||
                         expectedGeneration != initialDeliveryGenerations.getOrDefault(kind, 0L)) return;
             }
+            // Runtime evaluation also queues persistent-high, delta and expiry alerts.
+            // Check after those deliveries commit, including an already-visible custom
+            // alert or a sounding alarm whose fallback notification was removed.
+            if (suppressRecoveryDelivery(kind)) return;
             final AlertType type = AlertType.Companion.fromId(kind);
             final boolean manual = type != null && AlertStateTracker.INSTANCE.isManualTestActive(type);
             if (!manual && type != null && (AlertStateTracker.INSTANCE.isDismissed(type)
@@ -2314,7 +2363,7 @@ public class Notify {
      */
     public static void breakThroughQuietWindow(int kind) {
         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-            if (onenot != null) {
+            if (onenot != null && !suppressRecoveryDelivery(kind)) {
                 onenot.mksound(kind);
             }
         });
@@ -2586,7 +2635,7 @@ public class Notify {
         notifyfocus = true;
         doTurnFocuson();
         // final int[] curfilter={-1};
-        final boolean glucosealarm = kind < 2 || kind > 4;
+        final boolean glucosealarm = AlertDeliveryPolicy.shouldSpeakGlucose(kind);
         if (!DontTalk) {
             // Speech is sound: a quiet window silences it too.
             if (glucosealarm && Natives.speakalarms() && !quietSilencesSound) {
@@ -2926,7 +2975,8 @@ public class Notify {
         final boolean sound = p.getBoolean("alert_" + kind + "_sound", defSound);
         final boolean vibration = p.getBoolean("alert_" + kind + "_vibration", defVibrate);
 
-        final boolean dist = isWearable || p.getBoolean("alert_" + kind + "_dnd", getalarmdisturb(kind));
+        final boolean dist = isWearable || p.getBoolean("alert_" + kind + "_dnd",
+                tk.glucodata.alerts.AlertSoundDefaults.hasNativeSlot(kind) && getalarmdisturb(kind));
         final boolean useAlarmStream = shouldUseAlarmAudioStream(kind, dist);
         final AlertSoundHandle soundHandle = sound ? buildAlertSoundHandle(ringUri, kind, useAlarmStream) : null;
 
@@ -2969,7 +3019,7 @@ public class Notify {
             final String label = alertType != null
                     ? Applic.app.getString(alertType.getNameResId())
                     : "Test Alert";
-            final String message = alertType == AlertType.LOSS
+            final String message = alertType == AlertType.LOSS || alertType == AlertType.SIGNAL_RESTORED
                     ? label
                     : label + " " + glucosestr(dummyValue);
 
@@ -3034,6 +3084,7 @@ public class Notify {
             if (onenot != null) {
                 int kind = isHigh ? 1 : 0;
                 presentedStandardAlertKind = -1;
+                presentedCustomAlert = true;
                 supersedeAlarmWindowFallback();
 
                 final String defaultName = isTest
@@ -3348,6 +3399,7 @@ public class Notify {
 
     private void deliverTriggeredAlert(int kind, float glvalue, String message, notGlucose strglucose, String type) {
         presentedStandardAlertKind = kind;
+        presentedCustomAlert = false;
         supersedeAlarmWindowFallback();
         AlarmLaunchResult alarmLaunchResult = new AlarmLaunchResult(false, false);
         boolean skipBanner = false;
@@ -3403,6 +3455,7 @@ public class Notify {
                     && (WearAlertSync.isSuppressed(kind) || SnoozeManager.INSTANCE.isSnoozed(alertType))) return false;
             if (!manual && alertType != null) AlertStateTracker.INSTANCE.supersedeManualTest(alertType);
             presentedStandardAlertKind = kind;
+            presentedCustomAlert = false;
             supersedeAlarmWindowFallback();
         }
         {

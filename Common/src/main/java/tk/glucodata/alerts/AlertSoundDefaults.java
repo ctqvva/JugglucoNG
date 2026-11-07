@@ -8,7 +8,7 @@ public final class AlertSoundDefaults {
         switch (type) {
             case 0: return "low";
             case 1: case 10: return "high";
-            case 3: case 11: return "reminder";
+            case 3: case 11: case 14: return "reminder";
             case 4: case 9: return "signal";
             case 5: return "urgent_low";
             case 6: return "urgent_high";
