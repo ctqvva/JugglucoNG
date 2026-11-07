@@ -817,6 +817,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">Mot de passe</string>
     <string name="libreview_resend">Renvoyer les données</string>
     <string name="libreview_russia">Région Russie</string>
+    <string name="libreview_official_end">S\'arrêter à la fin officielle du capteur</string>
+    <string name="libreview_official_end_desc">Ignorer les heures supplémentaires après la fin officielle d\'un capteur Libre 2</string>
     <string name="libreview_send_now">Envoyer maintenant</string>
     <string name="libreview_send_numbers">Envoyer de l\'insuline/des glucides</string>
     <string name="libreview_settings_title">Paramètres LibreView</string>

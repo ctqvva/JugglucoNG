@@ -678,6 +678,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_get_account_id">Get account ID</string>
     <string name="libreview_status">Status</string>
     <string name="libreview_russia">Russia region</string>
+    <string name="libreview_official_end">Stop at sensor\'s official end</string>
+    <string name="libreview_official_end_desc">Leave out the extra hours after a Libre 2 sensor\'s official end</string>
     
     <string name="low_label">Low</string>
     <string name="high_label">High</string>

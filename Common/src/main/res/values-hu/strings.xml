@@ -622,6 +622,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="libreview_get_account_id">Fiókazonosító lekérése</string>
     <string name="libreview_status">Állapot</string>
     <string name="libreview_russia">Oroszországi régió</string>
+    <string name="libreview_official_end">Leállítás a szenzor hivatalos végén</string>
+    <string name="libreview_official_end_desc">A Libre 2 szenzor hivatalos vége utáni többletórák kihagyása</string>
     <string name="low_label">Alacsony</string>
     <string name="high_label">Magas</string>
     <string name="disconnect_sensor_title">Szenzor leválasztása?</string>

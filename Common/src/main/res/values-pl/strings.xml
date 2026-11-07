@@ -903,6 +903,8 @@
     <string name="libreview_password">Hasło</string>
     <string name="libreview_resend">Wyślij ponownie dane</string>
     <string name="libreview_russia">Region Rosji</string>
+    <string name="libreview_official_end">Zatrzymaj w oficjalnym końcu sensora</string>
+    <string name="libreview_official_end_desc">Pomiń dodatkowe godziny po oficjalnym końcu sensora Libre 2</string>
     <string name="libreview_send_now">Wyślij teraz</string>
     <string name="libreview_send_numbers">Wyślij insulinę/węglowodany</string>
     <string name="libreview_settings_title">Ustawienia LibreView</string>

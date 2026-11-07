@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Public
@@ -75,6 +76,7 @@ fun LibreViewSettingsScreen(navController: NavController) {
     var libreCurrent by remember { mutableStateOf(Natives.getLibreCurrent()) }
     var libreIsViewed by remember { mutableStateOf(Natives.getLibreIsViewed()) }
     var sendNumbers by remember { mutableStateOf(Natives.getSendNumbers()) }
+    var stopAtOfficialEnd by remember { mutableStateOf(Natives.getLibreOfficialEnd()) }
     var showPassword by remember { mutableStateOf(false) }
     var statusText by remember { mutableStateOf(tk.glucodata.Libreview.getStatus()) }
     var accountId by remember { mutableLongStateOf(initialAccountId) }
@@ -119,6 +121,7 @@ fun LibreViewSettingsScreen(navController: NavController) {
         Natives.setLibreCurrent(libreCurrent)
         Natives.setLibreIsViewed(libreIsViewed)
         Natives.setSendNumbers(sendNumbers)
+        Natives.setLibreOfficialEnd(stopAtOfficialEnd)
         Libre3NfcSettings.setMode(nfcCommandMode)
     }
 
@@ -467,6 +470,15 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     checked = sendNumbers,
                     onCheckedChange = { sendNumbers = it },
                     icon = Icons.Default.Insights,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    position = CardPosition.MIDDLE
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.libreview_official_end),
+                    subtitle = stringResource(R.string.libreview_official_end_desc),
+                    checked = stopAtOfficialEnd,
+                    onCheckedChange = { stopAtOfficialEnd = it },
+                    icon = Icons.Default.EventBusy,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.BOTTOM
                 )

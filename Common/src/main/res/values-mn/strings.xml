@@ -621,6 +621,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="libreview_get_account_id">Account ID авах</string>
     <string name="libreview_status">Төлөв</string>
     <string name="libreview_russia">Орос бүс</string>
+    <string name="libreview_official_end">Мэдрэгчийн албан ёсны төгсгөлд зогсоох</string>
+    <string name="libreview_official_end_desc">Libre 2 мэдрэгчийн албан ёсны төгсгөлийн дараах нэмэлт цагийг оруулахгүй</string>
     <string name="low_label">Бага</string>
     <string name="high_label">Өндөр</string>
     <!-- Sensor Management Strings -->

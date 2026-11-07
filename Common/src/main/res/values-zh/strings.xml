@@ -859,6 +859,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">密码</string>
     <string name="libreview_resend">重新发送数据</string>
     <string name="libreview_russia">俄罗斯地区</string>
+    <string name="libreview_official_end">在传感器官方结束时停止</string>
+    <string name="libreview_official_end_desc">不上传 Libre 2 传感器官方结束之后的额外时长数据</string>
     <string name="libreview_send_now">立即发送</string>
     <string name="libreview_send_numbers">发送胰岛素/碳水化合物</string>
     <string name="libreview_settings_title">LibreView 设置</string>

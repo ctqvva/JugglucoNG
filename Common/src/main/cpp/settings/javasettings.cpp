@@ -2047,6 +2047,16 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(getLibreIsViewed)(JNIEnv *env,
   return settings->data()->libreIsViewed;
 }
 
+extern "C" JNIEXPORT void JNICALL fromjava(setLibreOfficialEnd)(JNIEnv *env,
+                                                                jclass cl,
+                                                                jboolean val) {
+  settings->data()->setLibreviewOfficialEnd(val);
+}
+extern "C" JNIEXPORT jboolean JNICALL fromjava(getLibreOfficialEnd)(JNIEnv *env,
+                                                                    jclass cl) {
+  return settings->data()->libreviewOfficialEnd();
+}
+
 extern "C" JNIEXPORT void JNICALL fromjava(setRTL)(JNIEnv *env, jclass cl,
                                                    jboolean val) {
   settings->data()->RTL = val;

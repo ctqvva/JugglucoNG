@@ -859,6 +859,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">Пароль</string>
     <string name="libreview_resend">Повторно надіслати дані</string>
     <string name="libreview_russia">Росія область</string>
+    <string name="libreview_official_end">Зупиняти в офіційний термін датчика</string>
+    <string name="libreview_official_end_desc">Не надсилати показання за зайві години після офіційного завершення датчика Libre 2</string>
     <string name="libreview_send_now">Надіслати зараз</string>
     <string name="libreview_send_numbers">Надішліть інсулін/вуглеводи</string>
     <string name="libreview_settings_title">Налаштування LibreView</string>
