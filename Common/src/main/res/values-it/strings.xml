@@ -856,6 +856,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ready_for_use">Sensor ready for use</string>
     <string name="ready_in">" ready in "</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Reimposta il collegamento Bluetooth (dati conservati)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Ciò rimuoverà permanentemente il sensore, cancellerà le chiavi di accoppiamento e interromperà la sessione. Il sensore deve essere riaccoppiato per poter essere riutilizzato.</string>
@@ -3290,4 +3291,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">Cambia soglie e suoni, o disattiva gli avvisi</string>
     <string name="restricted_allow_voice_desc">Lettura vocale di valori e allarmi</string>
     <string name="restricted_allow_display_desc">Intervallo obiettivo, grafici, notifiche, glucosio fluttuante e schermata di blocco</string>
+    <string name="lumiflex_remove_follower_confirm">Revocare a %1$s l’accesso alle tue letture?</string>
+    <string name="lumiflex_discard_changes_title">Annullare le modifiche?</string>
+    <string name="lumiflex_discard_changes_message">Le modifiche per questo follower non sono state salvate.</string>
+    <string name="lumiflex_follower_alerts">Notifiche del follower</string>
+    <string name="lumiflex_follow_mode">Ricevi</string>
+    <string name="lumiflex_upload_mode">Invia</string>
+    <string name="lumiflex_follow_subtitle">Ricevi la glicemia da Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Ricezione delle letture</string>
+    <string name="lumiflex_follow_current">Letture ricevute</string>
+    <string name="lumiflex_follow_failed">Impossibile ricevere le letture</string>
+    <string name="lumiflex_no_providers">Nessun account condiviso. Chiedi al proprietario del sensore di aggiungere il tuo account come follower.</string>
+    <string name="lumiflex_follow_refresh">Aggiorna</string>
 </resources>

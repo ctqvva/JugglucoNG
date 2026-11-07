@@ -1016,6 +1016,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="broadcast_only">Datenweitergabe</string>
     <string name="reset_autocal_button">Automatische Kalibrierung neu starten</string>
     <string name="reconnect">Neu verbinden</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth-Bindung zurücksetzen (Daten bleiben erhalten)</string>
     <string name="reconnect_sensor_desc">Setzt die Verbindung zurück und versucht, neu zu verbinden.</string>
     <string name="reconnect_sensor_title">Sensor neu verbinden?</string>
     <string name="remove_sensor_desc">Dadurch wird der Sensor dauerhaft entfernt, die Kopplungsschlüssel werden gelöscht und die Sitzung wird beendet. Zur erneuten Verwendung muss der Sensor erneut gekoppelt werden.</string>
@@ -3412,4 +3413,16 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="restricted_allow_alarm_settings_desc">Grenzwerte und Töne ändern oder Alarme ausschalten</string>
     <string name="restricted_allow_voice_desc">Gesprochene Werte und Alarme</string>
     <string name="restricted_allow_display_desc">Zielbereich, Diagramme, Benachrichtigungen, schwebender Glukosewert und Sperrbildschirm</string>
+    <string name="lumiflex_remove_follower_confirm">%1$s den Zugriff auf Ihre Messwerte entziehen?</string>
+    <string name="lumiflex_discard_changes_title">Änderungen verwerfen?</string>
+    <string name="lumiflex_discard_changes_message">Die Änderungen für diesen Follower wurden nicht gespeichert.</string>
+    <string name="lumiflex_follower_alerts">Benachrichtigungen für Follower</string>
+    <string name="lumiflex_follow_mode">Empfangen</string>
+    <string name="lumiflex_upload_mode">Senden</string>
+    <string name="lumiflex_follow_subtitle">Glukose von Lumiflex empfangen</string>
+    <string name="lumiflex_follow_refreshing">Messwerte werden empfangen</string>
+    <string name="lumiflex_follow_current">Messwerte empfangen</string>
+    <string name="lumiflex_follow_failed">Messwerte konnten nicht empfangen werden</string>
+    <string name="lumiflex_no_providers">Keine freigegebenen Konten. Bitten Sie den Sensorbesitzer, Ihr Konto als Follower hinzuzufügen.</string>
+    <string name="lumiflex_follow_refresh">Aktualisieren</string>
 </resources>

@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import tk.glucodata.Applic
 import tk.glucodata.BleErrorEvent
 import tk.glucodata.BleErrorHistory
+import tk.glucodata.Libre2GattCallback
 import tk.glucodata.MultiSensorSelection
 import tk.glucodata.NativeSensorTermination
 import tk.glucodata.SensorBluetooth
@@ -136,6 +137,14 @@ data class VendorCalibrationInfo(
     val appliedAtMs: Long = 0L,
     val outputGlucoseMgDl: Int = 0
 )
+
+/** A known local Libre 2 transport takes precedence over persisted sensor flags. */
+internal fun isLegacySensorReceiving(
+    isPaused: Boolean,
+    localGattConnected: Boolean?,
+    nativeStatus: String,
+    streamingEnabled: Boolean,
+): Boolean = !isPaused && (localGattConnected ?: (nativeStatus.isNotEmpty() || streamingEnabled))
 
 
 class SensorViewModel : ViewModel() {
@@ -597,10 +606,16 @@ class SensorViewModel : ViewModel() {
                         // Edit 85: Check `stop` (paused) state via SensorBluetooth helper.
                         // SuperGattCallback.stop is protected, not accessible from this package,
                         // so we use SensorBluetooth.isSensorPaused() as a same-package bridge.
-                        // When paused (stop=true), the sensor is NOT actively receiving regardless
-                        // of what the native streamingIsEnabled flag says (it lags).
+                        // Libre 2's persisted streaming-enabled flag is sensor configuration,
+                        // not evidence of a connection on this phone. Clone and watch delivery
+                        // have their own status paths below and in SensorCard.
                         val isPaused = SensorBluetooth.isSensorPaused(gatt)
-                        val isActivelyReceiving = !isPaused && (nativeStatus.isNotEmpty() || gatt.streamingEnabled())
+                        val isActivelyReceiving = isLegacySensorReceiving(
+                            isPaused = isPaused,
+                            localGattConnected = (gatt as? Libre2GattCallback)?.hasLocallyConnectedGatt(),
+                            nativeStatus = nativeStatus,
+                            streamingEnabled = gatt.streamingEnabled(),
+                        )
 
                         // constatstatusstr records the LAST connection event
                         // ("Status=N", "Loss of signal", ...) and is never cleared
@@ -1333,6 +1348,27 @@ class SensorViewModel : ViewModel() {
                 }
                 refreshSensors()
             }
+        }
+    }
+
+    /**
+     * Drops the sensor's stored Bluetooth address and rescans without touching its data, so a
+     * sensor stuck on a stale/wrong address can be re-discovered instead of deleted and re-added.
+     */
+    fun rePairSensor(serial: String) {
+        if (tk.glucodata.CloneSensorRegistry.isCloneSensor(serial)) {
+            android.util.Log.w("SensorVM", "Ignoring local re-pair for Clone sensor $serial")
+            return
+        }
+        val gatt = findGatt(serial) ?: return
+        val managed = gatt as? ManagedBluetoothSensorDriver
+        if (managed == null) {
+            reconnectSensor(serial)
+            return
+        }
+        viewModelScope.launch {
+            managed.rePairBinding()
+            refreshSensors()
         }
     }
 

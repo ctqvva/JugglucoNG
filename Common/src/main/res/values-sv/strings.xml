@@ -911,6 +911,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Återställ Bluetooth-koppling (data behålls)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Detta tar bort sensorn permanent, torkar parningsnycklar och stoppar sessionen. Sensorn måste paras ihop igen för att kunna användas igen.</string>
@@ -3299,4 +3300,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="restricted_allow_alarm_settings_desc">Ändra nivåer och ljud, eller stäng av varningar</string>
     <string name="restricted_allow_voice_desc">Upplästa värden och larm</string>
     <string name="restricted_allow_display_desc">Målområde, diagram, aviseringar, flytande glukos och låsskärm</string>
+    <string name="lumiflex_remove_follower_confirm">Ta bort åtkomsten till dina mätvärden för %1$s?</string>
+    <string name="lumiflex_discard_changes_title">Kasta ändringarna?</string>
+    <string name="lumiflex_discard_changes_message">Dina ändringar för den här följaren har inte sparats.</string>
+    <string name="lumiflex_follower_alerts">Aviseringar för följaren</string>
+    <string name="lumiflex_follow_mode">Ta emot</string>
+    <string name="lumiflex_upload_mode">Skicka</string>
+    <string name="lumiflex_follow_subtitle">Ta emot glukos från Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Tar emot värden</string>
+    <string name="lumiflex_follow_current">Värden mottagna</string>
+    <string name="lumiflex_follow_failed">Kunde inte ta emot värden</string>
+    <string name="lumiflex_no_providers">Inga delade konton. Be sensorns ägare lägga till ditt konto som följare.</string>
+    <string name="lumiflex_follow_refresh">Uppdatera</string>
 </resources>

@@ -958,6 +958,7 @@
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Zresetuj powiązanie Bluetooth (dane zostaną zachowane)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Spowoduje to trwałe usunięcie czujnika, wyczyszczenie kluczy parowania i zatrzymanie sesji. Aby móc ponownie używać czujnika, należy go ponownie sparować.</string>
@@ -3359,4 +3360,16 @@
     <string name="restricted_allow_alarm_settings_desc">Zmiana progów i dźwięków lub wyłączanie alertów</string>
     <string name="restricted_allow_voice_desc">Odczytywanie wartości i alarmów</string>
     <string name="restricted_allow_display_desc">Zakres docelowy, wykresy, powiadomienia, pływająca glukoza i ekran blokady</string>
+    <string name="lumiflex_remove_follower_confirm">Odebrać użytkownikowi %1$s dostęp do Twoich odczytów?</string>
+    <string name="lumiflex_discard_changes_title">Odrzucić zmiany?</string>
+    <string name="lumiflex_discard_changes_message">Zmiany ustawień tego obserwatora nie zostały zapisane.</string>
+    <string name="lumiflex_follower_alerts">Powiadomienia obserwatora</string>
+    <string name="lumiflex_follow_mode">Odbieraj</string>
+    <string name="lumiflex_upload_mode">Wysyłaj</string>
+    <string name="lumiflex_follow_subtitle">Odbieraj glukozę z Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Odbieranie odczytów</string>
+    <string name="lumiflex_follow_current">Odebrano odczyty</string>
+    <string name="lumiflex_follow_failed">Nie udało się odebrać odczytów</string>
+    <string name="lumiflex_no_providers">Brak udostępnionych kont. Poproś właściciela sensora o dodanie Twojego konta jako obserwatora.</string>
+    <string name="lumiflex_follow_refresh">Odśwież</string>
 </resources>

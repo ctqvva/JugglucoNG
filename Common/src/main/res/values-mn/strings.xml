@@ -640,6 +640,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="reconnect_sensor_title">Мэдрэгчийг дахин холбох уу?</string>
     <string name="reconnect_sensor_desc">Энэ нь холболтыг дахин тохируулж, холбогдохыг оролдоно.</string>
     <string name="reconnect">Дахин холбох</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth холболтыг дахин тохируулах (өгөгдөл хадгалагдана)</string>
     <string name="forget_sensor_title">Мэдрэгчийг мартах уу?</string>
     <string name="forget_sensor_desc">Энэ нь мэдрэгчийг жагсаалтаас хасна. Хэрэв дахин скан хийвэл дахин гарч ирж магадгүй.</string>
     <string name="reset_sensor_title">Мэдрэгчийг дахин тохируулах уу?</string>
@@ -3400,4 +3401,16 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="restricted_allow_alarm_settings_desc">Түвшин, дуу өөрчлөх эсвэл сэрэмжлүүлгийг унтраах</string>
     <string name="restricted_allow_voice_desc">Уншсан утга ба дохио</string>
     <string name="restricted_allow_display_desc">Зорилтот хүрээ, график, мэдэгдэл, хөвөгч глюкоз, түгжээний дэлгэц</string>
+    <string name="lumiflex_remove_follower_confirm">%1$s таны хэмжилтийг харах эрхийг хасах уу?</string>
+    <string name="lumiflex_discard_changes_title">Өөрчлөлтийг цуцлах уу?</string>
+    <string name="lumiflex_discard_changes_message">Энэ дагагчийн тохиргооны өөрчлөлт хадгалагдаагүй.</string>
+    <string name="lumiflex_follower_alerts">Дагагчийн мэдэгдэл</string>
+    <string name="lumiflex_follow_mode">Хүлээн авах</string>
+    <string name="lumiflex_upload_mode">Илгээх</string>
+    <string name="lumiflex_follow_subtitle">Lumiflex-ээс глюкозын утга хүлээн авах</string>
+    <string name="lumiflex_follow_refreshing">Хэмжилт хүлээн авч байна</string>
+    <string name="lumiflex_follow_current">Хэмжилтийг хүлээн авлаа</string>
+    <string name="lumiflex_follow_failed">Хэмжилт хүлээн авч чадсангүй</string>
+    <string name="lumiflex_no_providers">Хуваалцсан бүртгэл алга. Мэдрэгчийн эзэмшигчээс таны бүртгэлийг дагагчаар нэмэхийг хүснэ үү.</string>
+    <string name="lumiflex_follow_refresh">Шинэчлэх</string>
 </resources>

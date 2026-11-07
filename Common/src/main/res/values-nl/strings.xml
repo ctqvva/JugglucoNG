@@ -960,6 +960,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth-koppeling resetten (gegevens blijven behouden)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Hierdoor wordt de sensor permanent verwijderd, worden de koppelingssleutels gewist en wordt de sessie gestopt. Om opnieuw te kunnen gebruiken, moet de sensor opnieuw worden gekoppeld.</string>
@@ -3342,4 +3343,16 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="restricted_allow_alarm_settings_desc">Niveaus en geluiden wijzigen, of meldingen uitzetten</string>
     <string name="restricted_allow_voice_desc">Uitgesproken waarden en alarmen</string>
     <string name="restricted_allow_display_desc">Doelbereik, grafieken, meldingen, zwevende glucose en vergrendelscherm</string>
+    <string name="lumiflex_remove_follower_confirm">%1$s geen toegang meer geven tot je metingen?</string>
+    <string name="lumiflex_discard_changes_title">Wijzigingen verwerpen?</string>
+    <string name="lumiflex_discard_changes_message">Je wijzigingen voor deze volger zijn niet opgeslagen.</string>
+    <string name="lumiflex_follower_alerts">Meldingen voor volgers</string>
+    <string name="lumiflex_follow_mode">Ontvangen</string>
+    <string name="lumiflex_upload_mode">Verzenden</string>
+    <string name="lumiflex_follow_subtitle">Glucose ontvangen van Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Metingen ontvangen</string>
+    <string name="lumiflex_follow_current">Metingen ontvangen</string>
+    <string name="lumiflex_follow_failed">Metingen konden niet worden ontvangen</string>
+    <string name="lumiflex_no_providers">Geen gedeelde accounts. Vraag de eigenaar van de sensor om je account als volger toe te voegen.</string>
+    <string name="lumiflex_follow_refresh">Vernieuwen</string>
 </resources>

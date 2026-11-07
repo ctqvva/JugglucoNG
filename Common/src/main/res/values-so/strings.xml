@@ -677,6 +677,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="reconnect_sensor_title">Dib u xidhid Sensor?</string>
     <string name="reconnect_sensor_desc">Tani waxay dib u dajin doontaa isku xidhka waxayna isku dayi doontaa in dib loo xidho.</string>
     <string name="reconnect">Dib u xidhidh</string>
+    <string name="ican_reset_bluetooth_binding">Dib u deji xiriirka Bluetooth (xogta way sii socotaa)</string>
     
     <string name="forget_sensor_title">Ma ilowdaa Dareemka?</string>
     <string name="forget_sensor_desc">Tani waxay ka saari doontaa dareenka liiska. Waxaa laga yaabaa inay dib u soo baxdo haddii mar kale la sawiro.</string>
@@ -3484,4 +3485,16 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="restricted_allow_alarm_settings_desc">Beddel heerarka iyo codadka, ama dami digniinaha</string>
     <string name="restricted_allow_voice_desc">Akhrinta iyo alaarmiyada codka ah</string>
     <string name="restricted_allow_display_desc">Xadka bartilmaameedka, jaantusyada, ogeysiisyada, sonkorta sabaynaysa iyo shaashadda quful</string>
+    <string name="lumiflex_remove_follower_confirm">Ma ka qaadaysaa %1$s xaqa gelitaanka cabbirradaada?</string>
+    <string name="lumiflex_discard_changes_title">Ma tirtiraysaa isbeddellada?</string>
+    <string name="lumiflex_discard_changes_message">Isbeddellada qofkan ku raacaya lama kaydin.</string>
+    <string name="lumiflex_follower_alerts">Ogeysiisyada qofka ku raacaya</string>
+    <string name="lumiflex_follow_mode">Hel</string>
+    <string name="lumiflex_upload_mode">Dir</string>
+    <string name="lumiflex_follow_subtitle">Ka hel gulukoosta Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Cabbirrada waa la helayaa</string>
+    <string name="lumiflex_follow_current">Cabbirrada waa la helay</string>
+    <string name="lumiflex_follow_failed">Cabbirrada lama heli karin</string>
+    <string name="lumiflex_no_providers">Ma jiraan akoonno la wadaagay. Ka codso milkiilaha dareemaha inuu akoonkaaga ku daro raace ahaan.</string>
+    <string name="lumiflex_follow_refresh">Cusboonaysii</string>
 </resources>

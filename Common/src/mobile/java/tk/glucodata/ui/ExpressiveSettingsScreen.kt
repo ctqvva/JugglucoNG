@@ -128,10 +128,9 @@ fun ExpressiveSettingsScreen(
         runCatching { DexcomShareSettings.isSetUp(context) }.getOrDefault(false) ||
             hasActiveDexcomSensor()
     }
-    val showLumiflex = remember {
-        runCatching { LumiflexCloudSettings.isSetUp(context) }.getOrDefault(false) ||
-            hasActiveAiDexSensor()
-    }
+    val isRussianLanguage = LocalConfiguration.current.locales[0]?.language == "ru"
+    // A cloud follower has no local AiDex sensor to make this entry visible.
+    val showLumiflex = isRussianLanguage
     val showOttaiSettings = remember {
         SensorBluetooth.mygatts().any { callback ->
             (callback as? tk.glucodata.drivers.ottai.OttaiDriver)?.isUiEnabled() == true
@@ -618,8 +617,8 @@ fun ExpressiveSettingsScreen(
                 }
                 if (showLumiflex) {
                     SettingsItem(
-                        title = "Lumiflex Cloud",
-                        subtitle = "Upload glucose to Lumiflex",
+                        title = stringResource(R.string.lumiflex_cloud_title),
+                        subtitle = stringResource(R.string.lumiflex_cloud_subtitle),
                         icon = Icons.Default.CloudUpload,
                         iconTint = sharingColor,
                         position = CardPosition.MIDDLE,

@@ -640,6 +640,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="reconnect_sensor_title">Szenzor újracsatlakoztatása?</string>
     <string name="reconnect_sensor_desc">Ez alaphelyzetbe állítja a kapcsolatot, és megpróbál újracsatlakozni.</string>
     <string name="reconnect">Újracsatlakozás</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth-eszköz hozzárendelésének visszaállítása (az adatok megmaradnak)</string>
     <string name="forget_sensor_title">Szenzor elfelejtése?</string>
     <string name="forget_sensor_desc">Ez eltávolítja a szenzort a listából. Újabb szkenneléskor ismét megjelenhet.</string>
     <string name="reset_sensor_title">Szenzor alaphelyzetbe állítása?</string>
@@ -3368,4 +3369,16 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="restricted_allow_alarm_settings_desc">Szintek és hangok módosítása, riasztások kikapcsolása</string>
     <string name="restricted_allow_voice_desc">Felolvasott értékek és riasztások</string>
     <string name="restricted_allow_display_desc">Célérték-tartomány, grafikonok, értesítések, lebegő glükóz és zárolási képernyő</string>
+    <string name="lumiflex_remove_follower_confirm">Megvonja %1$s hozzáférését a mérési adataihoz?</string>
+    <string name="lumiflex_discard_changes_title">Elveti a módosításokat?</string>
+    <string name="lumiflex_discard_changes_message">A követő beállításainak módosításai nincsenek mentve.</string>
+    <string name="lumiflex_follower_alerts">Követő értesítései</string>
+    <string name="lumiflex_follow_mode">Fogadás</string>
+    <string name="lumiflex_upload_mode">Küldés</string>
+    <string name="lumiflex_follow_subtitle">Glükózértékek fogadása a Lumiflexből</string>
+    <string name="lumiflex_follow_refreshing">Értékek fogadása</string>
+    <string name="lumiflex_follow_current">Értékek fogadva</string>
+    <string name="lumiflex_follow_failed">Nem sikerült fogadni az értékeket</string>
+    <string name="lumiflex_no_providers">Nincs megosztott fiók. Kérje meg az érzékelő tulajdonosát, hogy adja hozzá fiókját követőként.</string>
+    <string name="lumiflex_follow_refresh">Frissítés</string>
 </resources>
