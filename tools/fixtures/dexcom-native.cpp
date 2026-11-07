@@ -49,7 +49,7 @@ template<class T> struct Readall {
     const uint8_t* data(){return reinterpret_cast<const uint8_t*>(&info);}
     size_t size(){return sizeof(Info);}
 };
-struct Stream {uint32_t timestamp;uint32_t gettime(){return timestamp;}};
+struct Stream {uint32_t timestamp;uint32_t gettime()const{return timestamp;}};
 struct SensorGlucoseData {
     Info metadata;
     string sensordir;
@@ -78,6 +78,9 @@ struct SensorGlucoseData {
     uint32_t getstarttime()const{return metadata.starttime;}
     int pollcount()const{return metadata.pollcount;}
     Stream* getstream(int index){assert(index>=0&&index<int(stream.size()));return &stream[index];}
+    const Stream* getstream(int index)const{assert(index>=0&&index<int(stream.size()));return &stream[index];}
+    bool validPollIndex(int64_t index)const{return index>=0&&index<int64_t(stream.size());}
+    bool hasStreamID(int index)const{return validPollIndex(index)&&stream[index].timestamp;}
     template<int Interval> void savepollallIDs(uint32_t t,int index,int glucose,int,float rate){
         assert(index>=0&&index<int(stream.size()));
         saved++;lastSaved=index;stream[index].timestamp=t;
@@ -339,6 +342,19 @@ int main(){
         assert(cmd&&cmd->start==300&&cmd->end==d.getDexMaxSecs());
         d.metadata.lastLifeCountReceived=d.getmaxdexcount();
         assert(!getDexbackfillcmd(nullptr,0,reinterpret_cast<jlong>(&transport)));
+        // #767: readings mirrored from the watch at minute indices left the
+        // stream end at index ~5x the live slot, timed at the previous reading,
+        // so the window came out empty. The request must end at the newest
+        // reading that sits in its own slot.
+        const uint32_t start=uint32_t(time(nullptr))-367*300-100;
+        d.metadata.starttime=start;d.stream={};
+        d.stream[365].timestamp=start+365*300+20;   // live, cursor
+        d.stream[367].timestamp=start+367*300+20;   // live, newest
+        d.stream[1830].timestamp=start+365*300+20;  // minute-indexed leftover
+        d.metadata.pollcount=1831;d.metadata.lastLifeCountReceived=365;
+        cmd=getDexbackfillcmd(nullptr,0,reinterpret_cast<jlong>(&transport));
+        assert(cmd&&cmd->start==365*300+80&&cmd->end==367*300-40);
+        assert(d.dexSlotTimeFits(365)&&d.dexSlotTimeFits(367)&&!d.dexSlotTimeFits(1830)&&!d.dexSlotTimeFits(366));
     }
     SensorGlucoseData corrupt;corrupt.metadata.siIdlen=255;corrupt.initialHistoryBytes();
     assert(corrupt.getDexWearMinutes()==14400);
