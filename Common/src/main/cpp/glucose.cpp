@@ -652,6 +652,12 @@ std::vector<int> usedsensorssnapshot() {
   return usedsensorssnapshot(time(nullptr));
 }
 
+std::string usedsensorreason(int ind) {
+  std::lock_guard<std::mutex> lock(usedsensorsmutex);
+  const uint32_t nu = time(nullptr);
+  return sensors->bluetoothactiveReason(ind, nu - daysecs, nu);
+}
+
 extern std::vector<int> usedsensors;
 uint32_t sendstreamfrom() {
   extern void setusedsensors();

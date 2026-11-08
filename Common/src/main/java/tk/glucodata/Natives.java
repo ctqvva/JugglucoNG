@@ -1051,6 +1051,8 @@ public class Natives {
         public static native boolean removeSensorById(String sensorId);
 
         public static native boolean finishSensorById(String sensorId);
+        /** Why activeSensors leaves this sensor out ("listed" when it does not). */
+        public static native String activeSensorReason(String sensorId);
         /** True when every native slot of this id is finished or removed; false for an id native does not know. */
         public static native boolean sensorFinishedById(String sensorId);
 
