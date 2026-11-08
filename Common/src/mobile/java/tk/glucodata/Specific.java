@@ -34,6 +34,7 @@ public class Specific {
 	// fallback slope. Registration stores singletons and needs nothing from initproc.
 	static void registerBridges() {
 		TrendAccess.register(tk.glucodata.logic.TrendEngineVelocityProvider.INSTANCE);
+		NoiseAccess.register(tk.glucodata.logic.TrendEngineNoiseProvider.INSTANCE);
 		CustomAlertAccess.register(tk.glucodata.logic.CustomAlertManagerController.INSTANCE);
 		JournalAccess.register(tk.glucodata.data.journal.WearJournalBridge.INSTANCE);
 		JournalTreatmentUploadAccess.register(tk.glucodata.data.journal.JournalTreatmentUploader.INSTANCE);
