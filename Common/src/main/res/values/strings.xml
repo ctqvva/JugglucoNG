@@ -773,8 +773,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_receiver_account">Use LibreView account as receiver ID</string>
     <string name="libre3_managed_receiver_desc">Receiver ID sent in the NFC command: %1$s. Keep the account value for sensors started by Juggluco before; turn off to use an ID of this phone\'s own.</string>
     <string name="libre3_managed_identity_none">No app identity imported. A Libre 3 sensor only authorizes an app certificate it accepts, and this app ships none.</string>
-    <string name="libre3_managed_identity_list">App identities: %1$s</string>
-    <string name="libre3_managed_identity_desc">Import a JSON identity file (format 1, curve P-256: label, privateKeyHex, certificateHex). Keys are stored encrypted with a key that never leaves this phone; after restoring a backup, import the file again.</string>
+    <string name="libre3_managed_identity_list">App identity set %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">Download an identity set from a source pinned by its SHA-256 digest, or import a JSON identity file (format 1, curve P-256: label, privateKeyHex, certificateHex). Sets are versioned: a paired sensor keeps using the set it paired with. Keys are stored encrypted with a key that never leaves this phone and are not part of settings exports.</string>
+    <string name="libre3_managed_identity_source">Source %1$s (sha256 %2$s…) from %3$s</string>
+    <string name="libre3_managed_identity_download">Download identities</string>
+    <string name="libre3_managed_source_url">Identity source URL (https)</string>
+    <string name="libre3_managed_source_digest">Identity file SHA-256</string>
+    <string name="libre3_managed_source_save">Use this source</string>
+    <string name="libre3_managed_source_invalid">Enter an https URL and the 64-character SHA-256 of the identity file</string>
+    <string name="libre3_managed_receiver_none">no LibreView account ID yet</string>
     <string name="libre3_managed_identity_import">Import identity file</string>
     <string name="libre3_managed_identity_remove">Remove</string>
     <string name="libre3_managed_identity_imported">Imported %1$d app identities</string>

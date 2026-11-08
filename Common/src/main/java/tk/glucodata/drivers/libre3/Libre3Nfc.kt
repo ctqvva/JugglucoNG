@@ -117,6 +117,10 @@ object Libre3Nfc {
     fun parsePatchInfo(response: ByteArray?): PatchInfo? {
         val off = payloadOffset(response, PATCH_INFO_PAYLOAD_SIZE)
         if (off < 0 || response == null) return null
+        // Same plausibility the legacy NfcMetadata check applies before it creates a sensor.
+        val warmup = u8(response, off + 13) * 5
+        val wear = u16le(response, off + 6)
+        if (warmup == 0 || warmup > 255 || wear <= warmup) return null
         val serialBytes = response.copyOfRange(off + 15, off + 24)
         if (!serialBytes.all { it in 0x20..0x7E }) return null
         return PatchInfo(
@@ -174,7 +178,11 @@ object Libre3Nfc {
         val address = (5 downTo 0).joinToString(":") { "%02X".format(u8(response, off + it)) }
         val pin = response.copyOfRange(off + 6, off + 10)
         val reported = u32le(response, off + 10)
-        val valid = reported in MIN_PLAUSIBLE_ACTIVATION_SECONDS..(nowSeconds + 60)
+        // Legacy falls back to "now" only for a zero time and rejects anything else implausible.
+        if (reported != 0L && reported !in MIN_PLAUSIBLE_ACTIVATION_SECONDS..(nowSeconds + 60)) {
+            return ActivationResult.Malformed(response.size)
+        }
+        val valid = reported != 0L
         return ActivationResult.Success(
             bleAddress = address,
             blePin = pin,

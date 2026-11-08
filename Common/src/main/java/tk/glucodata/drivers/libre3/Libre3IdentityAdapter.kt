@@ -48,7 +48,8 @@ object Libre3IdentityAdapter : ManagedSensorIdentityAdapter {
     }
 
     override fun removePersistedSensor(context: Context, sensorId: String?) {
-        val id = stored(sensorId) ?: return
+        val wanted = sensorId?.trim().takeIf { !it.isNullOrEmpty() } ?: return
+        val id = Libre3Persistence.sensorIds(context).firstOrNull { it.equals(wanted, ignoreCase = true) } ?: return
         Libre3Persistence.removeSensor(context, id)
     }
 
