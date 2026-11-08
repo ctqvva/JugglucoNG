@@ -27,15 +27,23 @@ object NoiseAccess {
         return estimate
     }
 
+    /** The broadcast carries the calibrated lane, so its noise must describe that lane. */
+    internal fun resolveForExchange(
+        provider: TrendNoiseProvider?,
+        points: List<GlucosePoint>,
+        isMmol: Boolean
+    ): NoiseEstimate? = resolve(provider, points, useRaw = false, isMmol)
+
     @JvmStatic
     fun current(sensorId: String?): NoiseEstimate? {
         if (sensorId.isNullOrEmpty()) return null
         val active = provider ?: return null
         return try {
             val isMmol = Applic.unit == 1
-            val viewMode = Notify.resolveSensorViewMode(sensorId)
             val points = DisplayTrendSource.exchangePoints(sensorId, isMmol)
-            resolve(active, points, viewMode == 1 || viewMode == 3, isMmol)
+            val newest = points.maxByOrNull { it.timestamp } ?: return null
+            if (!DisplayTrendSource.isFreshForExchange(newest.timestamp, System.currentTimeMillis())) return null
+            resolveForExchange(active, points, isMmol)
         } catch (th: Throwable) {
             if (Log.doLog) Log.i(LOG_ID, "current failed: $th")
             null

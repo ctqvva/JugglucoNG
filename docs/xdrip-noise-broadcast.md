@@ -7,8 +7,9 @@ estimate, so a receiver such as AAPS can tell a clean reading from a noisy one.
 The estimate is xDrip's unbiased error variance, `SSE / (n - 3)`, of the same quadratic fit
 the in-app signal-quality chip uses (`TrendEngine`). It is computed over the same history
 plus live point list as the outgoing trend, in mg/dL² regardless of the display unit. The
-chip keeps the engine's biased `SSE / n`; only the wire value is rebased, so xDrip's
-thresholds mean what they mean.
+noise is always taken from the calibrated lane (`value`), even when the user views the raw
+lane, so it describes the value the broadcast actually carries. The chip keeps the engine's
+biased `SSE / n`; only the wire value is rebased, so xDrip's thresholds mean what they mean.
 
 ## Extras
 
@@ -43,6 +44,10 @@ unbiased, but it is noisier at that floor.
   determinant is degenerate, or when the variance overflows to a non-finite value. The
   extras are omitted rather than sent as level `0`, so a receiver cannot mistake
   "no estimate" for "clean".
+- Never from a stale live tail. `resolveCurrent` can fall back to history for UI display
+  up to the trend window; the exchange loader drops a snapshot older than the app's
+  5.5-minute freshness limit, and the noise is omitted if the newest remaining point is
+  older than that limit.
 
 ## Consumer note
 

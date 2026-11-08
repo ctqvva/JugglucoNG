@@ -37,4 +37,17 @@ class NoiseAccessTests {
         val actual = NoiseAccess.resolve({ _, _, _ -> NoiseEstimate(Float.NaN) }, points, false, false)
         assertNull(actual)
     }
+
+    @Test
+    fun exchangeNoiseUsesCalibratedSeries() {
+        var seenRaw: Boolean? = null
+        val provider = TrendNoiseProvider { _, useRaw, _ ->
+            seenRaw = useRaw
+            NoiseEstimate(1f)
+        }
+
+        NoiseAccess.resolveForExchange(provider, points, isMmol = false)
+
+        assertEquals(false, seenRaw)
+    }
 }

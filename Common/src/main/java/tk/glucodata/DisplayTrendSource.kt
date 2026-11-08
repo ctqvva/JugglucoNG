@@ -122,10 +122,19 @@ object DisplayTrendSource {
     }
 
     /**
+     * A reading older than [Notify.glucosetimeout] is not a live tail. [resolveCurrent]
+     * deliberately falls back to history for UI display, but an outgoing exchange must not
+     * describe a reading it is not carrying.
+     */
+    @JvmStatic
+    fun isFreshForExchange(timestamp: Long, nowMillis: Long): Boolean =
+        timestamp > 0L && nowMillis - timestamp <= Notify.glucosetimeout
+
+    /**
      * The point list every outgoing exchange consumer regresses over: recent history plus
-     * the live reading, cut to [TREND_WINDOW_MS] anchored at the newest point. Same inputs
-     * as the dashboard arrow, so an outgoing rate and an outgoing noise estimate describe
-     * one series.
+     * the live reading, cut to [TREND_WINDOW_MS] anchored at the newest point. The rate
+     * follows the view lane; the noise estimate uses the calibrated lane, so it describes
+     * the value actually broadcast.
      */
     @JvmStatic
     fun exchangePoints(sensorId: String, isMmol: Boolean): List<GlucosePoint> {
@@ -138,7 +147,9 @@ object DisplayTrendSource {
         // carry the trend the app's arrows show, which is the locally smoothed series.
         var current: CurrentDisplaySource.Snapshot? = null
         try {
+            val now = System.currentTimeMillis()
             current = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout, sensorId)
+                ?.takeIf { isFreshForExchange(it.timeMillis, now) }
         } catch (th: Throwable) {
             if (Log.doLog) Log.i("DisplayTrendSource", "resolveCurrent failed: $th")
         }
