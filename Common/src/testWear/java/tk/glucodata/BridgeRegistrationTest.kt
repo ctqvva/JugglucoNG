@@ -16,6 +16,7 @@ class BridgeRegistrationTest {
         Specific.registerBridges()
 
         assertTrue("TrendAccess", TrendAccess.isRegistered())
+        assertTrue("NoiseAccess", NoiseAccess.isRegistered())
         assertTrue("ComposeHostAccess", tk.glucodata.ui.ComposeHostAccess.isRegistered())
         assertTrue("CalibrationAccess", CalibrationAccess.isRegistered())
         assertTrue("AlarmActivityAccess", tk.glucodata.ui.AlarmActivityAccess.isRegistered())

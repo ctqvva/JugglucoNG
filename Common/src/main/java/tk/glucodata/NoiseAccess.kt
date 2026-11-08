@@ -11,6 +11,10 @@ object NoiseAccess {
         this.provider = provider
     }
 
+    /** Registration-completeness check, mirroring [TrendAccess.isRegistered]. */
+    @JvmStatic
+    fun isRegistered(): Boolean = provider != null
+
     internal fun resolve(
         provider: TrendNoiseProvider?,
         points: List<GlucosePoint>,

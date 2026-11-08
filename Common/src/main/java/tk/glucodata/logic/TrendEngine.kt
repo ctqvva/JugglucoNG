@@ -55,10 +55,12 @@ object TrendEngine {
         val velocity: Float,     // mg/dL per minute
         val acceleration: Float, // Change in velocity
         val confidence: Float,   // 0.0 - 1.0 (based on data density)
-        /** Mean squared residual of the quadratic fit, (mg/dL)^2. */
+        /** Mean squared residual of the quadratic fit, SSE/N, (mg/dL)^2. */
         val noiseLevel: Float = 0f,
         /** True only when the quadratic fit actually ran; false for every early return. */
-        val noiseValid: Boolean = false
+        val noiseValid: Boolean = false,
+        /** Points the noise fit used; 0 when no fit ran. */
+        val noiseSamples: Int = 0
     )
 
     /** Cadence the fixed 20 minute window was chosen for: Dexcom/Libre, one reading per 5 min. */
@@ -248,7 +250,7 @@ object TrendEngine {
         // Use explicit flag
         val conversionFactor = if (isMmol) GlucoseFormatter.MGDL_PER_MMOL else 1.0f
 
-        // Collect values for noise calculation (in NATIVE units - no conversion!)
+        // Collected in display units; the fit below converts them to mg/dL.
         val rawValueList = mutableListOf<Float>()
         validPoints.forEach { rawValueList.add(pointValue(it)) }
 
@@ -370,12 +372,13 @@ object TrendEngine {
                  
                  // Error variance = SSE / N, in (mg/dL)^2.
                  (sumSqResid / n).toFloat()
-             } else null
-         } else null
+            } else null
+        } else null
 
-         return TrendResult(
-             stateFor(velocity), velocity, acceleration, 1.0f,
-             noiseLevel2 ?: 0f, noiseLevel2 != null
-         )
+        return TrendResult(
+            stateFor(velocity), velocity, acceleration, 1.0f,
+            noiseLevel2 ?: 0f, noiseLevel2 != null,
+            if (noiseLevel2 != null) rawValueList.size else 0
+        )
     }
 }
