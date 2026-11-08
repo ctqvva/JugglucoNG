@@ -26,7 +26,7 @@ class AutoSensorSwitchProvisionTests {
     ) = shouldProvisionWatch(
         enabled = enabled,
         mainSensor = main,
-        mainIsManaged = managed,
+        mainCanTravel = managed,
         lastProvisioned = last,
         lastProvisionedAtMs = lastAt,
         peerReadsMain = peerReads,

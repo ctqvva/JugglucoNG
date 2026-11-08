@@ -1521,6 +1521,7 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
     syncListStarttime(hist, start);
   }
 
+  std::unique_lock<std::recursive_mutex> writing(SensorGlucoseData::pollWriteMutex());
   // Dexcom stores one reading per 5-minute sensor slot, not per minute.
   // Readings mirrored from the watch at minute indices ran the stream end far
   // past the live slot, so no backfill was requested any more (#767).
@@ -1575,6 +1576,7 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
                                               preservedTemp)
               : hist->savepollallIDs<60>(timestamp, lifeCount, storedGlucose, 0,
                                          change, preservedRaw, preservedTemp);
+  writing.unlock();
   if (!stored)
     return false;
 
@@ -1798,6 +1800,11 @@ static jlong ensureSensorShellInternal(const char *str, jlong startTimeSec,
 
   hist->sensorerror = false;
   const int ind = hist->sensorIndex;
+  // A Dexcom's slots are counted from the start the sensor reported; the
+  // guess WearSync2 passes (first mirrored reading minus an hour) must not
+  // move it, or mirrored and direct readings land on different slots.
+  if (hist->isDexcom())
+    startTimeSec = 0;
   if (auto *sens = sensors->getsensor(ind)) {
     sens->reactivateFromData();
     if (startTimeSec > 0 &&

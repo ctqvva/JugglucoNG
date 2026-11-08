@@ -674,6 +674,16 @@ public:
   bool resetdevice = false;
 
   std::mutex mutex;
+  // Serializes every write to the poll arrays and their count with the Dexcom
+  // slot repair, which rewrites slots and cuts the count from a snapshot: a
+  // sample stored meanwhile would be hidden or overwritten. Shared by all
+  // instances, since several may map the same files. Recursive because
+  // savepollallIDs wraps savepollallIDsonly. A leaf lock: nothing else is
+  // acquired while it is held.
+  static std::recursive_mutex &pollWriteMutex() {
+    static std::recursive_mutex lock;
+    return lock;
+  }
   int getsensorgen() const {
     //    return getinfo()->blueinfo.sensorgen;
     const data_t *info = getpatchinfo();
@@ -1414,6 +1424,15 @@ static int getgeneration(const char *info) {
     }
     return false;
   }
+  // The plain record a watch builds for a phone's sensor from mirrored
+  // readings alone: no driver of its own and nothing but polls. Anything with
+  // a driver flag, patch info, scans or history belongs to a sensor this
+  // device really holds.
+  bool isMirrorShell() const {
+    const auto *info = getinfo();
+    return info && isLibre2() && !isAiDex() && !hasLibrePatchInfo() &&
+           !info->scancount && !info->endhistory;
+  }
   bool isAccuChek() const { return getinfo()->accuChek; }
   bool isAiDex() const { return getinfo()->aidex; }
   bool isAir() const { return getinfo()->air; }
@@ -1597,8 +1616,12 @@ bool libreviewable() const {
   }
 
 #ifdef DEXCOM
+  // sensorStart: when the sensor was started, if another device that read it
+  // knows; 0 when unknown, and the first reading sets it. Every slot index is
+  // counted from it.
   static bool mkdatabaseDex(string_view sensordir, string_view sensorgegs,
-                            uint32_t now, int wearDays = 10) {
+                            uint32_t now, int wearDays = 10,
+                            uint32_t sensorStart = 0) {
     if ((wearDays != 10 && wearDays != 15) || sensorgegs.size() > sizeof(Info::siId))
       return false;
     LOGGER("mkdatabaseDex %s payload length=%zu\n", sensordir.data(), sensorgegs.size());
@@ -1613,9 +1636,10 @@ bool libreviewable() const {
           return false;
       }
     }
-    uint32_t start = now;
-    Info inf{.starttime = (uint32_t)now,
-             .lastscantime = (uint32_t)start,
+    const uint32_t start =
+        sensorStart && sensorStart <= now ? sensorStart : now;
+    Info inf{.starttime = start,
+             .lastscantime = now,
              .starthistory = 0,
              .endhistory = 0,
              .scancount = 0,
@@ -1630,7 +1654,10 @@ bool libreviewable() const {
              .pollcount = 0};
     inf.siIdlen = sensorgegs.size();
     memcpy(inf.siId, sensorgegs.data(), inf.siIdlen);
-    writeall(infoname, &inf, sizeof(inf));
+    if (!writeall(infoname, &inf, sizeof(inf))) {
+      unlink(infoname); // a truncated info.dat must not read as a record
+      return false;
+    }
 
     //        settings->data()->balanced_priority=false;
     //       settings->data()->android13=true;
@@ -2186,6 +2213,29 @@ uint32_t getlastpolltime() const {
     const int64_t snapped = secs - phase + 150;
     return snapped < 0 ? 0 : static_cast<int>(snapped / 300);
   }
+  // The newest slot holding a reading timed within it, or -1: what another
+  // device taking this sensor over lines its copies up with (dexPeerAnchor).
+  int dexAnchorSlot() const {
+    const int count = pollcount();
+    for (int id = count - 1; id >= 0 && id >= count - 600; --id)
+      if (dexSlotTimeFits(id))
+        return id;
+    return -1;
+  }
+  // A fresh record for a sensor another device has been reading takes that
+  // device's newest reading in its slot. dexSlotFor then places every copy it
+  // is sent on the sensor's grid. Without it the first copy is placed by
+  // plain division, and a copy timed a little early by the sender's clock
+  // (which drifts from the sensor's) goes one slot back, and the copies after
+  // it follow, one slot off the sensor's own readings.
+  bool takeDexcomPeerAnchor(uint32_t start, int slot, uint32_t tim, int glu,
+                            int trend, float change) {
+    const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
+    if (pollcount() || getstarttime() != start || slot < 0 ||
+        !dexTimeFitsSlot(slot, tim))
+      return false;
+    return savepollallIDs<300>(tim, slot, glu, trend, change);
+  }
   // Before #767 was fixed, readings mirrored from the paired watch were
   // stored here at minute indices, padding the stream days past the live
   // slot. Its end then held an old copy: the backfill window came out empty
@@ -2197,6 +2247,7 @@ uint32_t getlastpolltime() const {
   // the metadata is checked on each load, so an interrupted run finishes on
   // the next one.
   void repairDexcomMinuteSlots() {
+    const std::lock_guard<std::recursive_mutex> repairing(pollWriteMutex());
     auto *info = getinfo();
     const int64_t start = getstarttime();
     const int count =
@@ -2269,6 +2320,7 @@ uint32_t getlastpolltime() const {
   template <int secs>
   int savepollallIDsonly(time_t tim, const int id, int glu, int trend,
                          float change, int raw = 0, uint16_t temp = 0) {
+    const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
     const size_t capacity = pollStorageCapacity();
     if (id < 0 || static_cast<size_t>(id) >= capacity) {
       LOGGER("savepollallIDsonly id=%d exceeds capacity=%zu\n", id, capacity);
@@ -2310,6 +2362,7 @@ uint32_t getlastpolltime() const {
   template <int secs>
   int savepollallIDsonlyQuiet(time_t tim, const int id, int glu, int trend,
                               float change, int raw = 0, uint16_t temp = 0) {
+    const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
     const size_t capacity = pollStorageCapacity();
     if (id < 0 || static_cast<size_t>(id) >= capacity)
       return -1;
@@ -2343,6 +2396,7 @@ uint32_t getlastpolltime() const {
   template <int secs>
   bool savepollallIDs(time_t tim, const int id, int glu, int trend,
                       float change, int raw = 0, uint16_t temp = 0) {
+    const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
     int count =
         savepollallIDsonly<secs>(tim, id, glu, trend, change, raw, temp);
     if (count < 0)
@@ -2358,6 +2412,7 @@ uint32_t getlastpolltime() const {
   template <int secs>
   bool savepollallIDsQuiet(time_t tim, const int id, int glu, int trend,
                            float change, int raw = 0, uint16_t temp = 0) {
+    const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
     int count =
         savepollallIDsonlyQuiet<secs>(tim, id, glu, trend, change, raw, temp);
     if (count < 0)

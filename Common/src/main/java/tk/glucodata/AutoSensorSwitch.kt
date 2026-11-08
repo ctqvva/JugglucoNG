@@ -152,13 +152,15 @@ object AutoSensorSwitch {
     private fun provisionNow(nodeId: String) {
         val context = Applic.app ?: return
         val main = SensorIdentity.resolveMainSensor()
-        val managed = main != null && ManagedSensorIdentityRegistry.persistedSensorIds(context)
-            .any { SensorIdentity.matches(it, main) }
+        val canTravel = main != null && (
+            ManagedSensorIdentityRegistry.persistedSensorIds(context).any { SensorIdentity.matches(it, main) } ||
+                DexcomWatchSetup.canSendToWatch(main)
+            )
         val prefs = context.getSharedPreferences(PROVISION_PREFS, Context.MODE_PRIVATE)
         val send = shouldProvisionWatch(
             enabled = isEnabled(),
             mainSensor = main,
-            mainIsManaged = managed,
+            mainCanTravel = canTravel,
             lastProvisioned = prefs.getString(nodeId, null),
             lastProvisionedAtMs = prefs.getLong(nodeId + PROVISIONED_AT_SUFFIX, 0L),
             peerReadsMain = SensorOwnershipRuntime.peerReportsOwning(main),
@@ -199,8 +201,9 @@ object AutoSensorSwitch {
 /**
  * Whether the phone should send the watch the current sensor's setup.
  *
- * Only a managed sensor has setup that can travel: Libre and Dexcom records
- * live in native storage, which no longer reaches the watch. Never while the
+ * Only managed sensors and Dexcom G7/ONE+ have setup that can travel (see
+ * [DexcomWatchSetup]); Libre records live in native storage, which no longer
+ * reaches the watch. Never while the
  * watch says it is reading the sensor itself: its driver state is then newer
  * than the phone's copy, and overwriting it rewinds the sensor's cursors.
  *
@@ -212,7 +215,7 @@ object AutoSensorSwitch {
 internal fun shouldProvisionWatch(
     enabled: Boolean,
     mainSensor: String?,
-    mainIsManaged: Boolean,
+    mainCanTravel: Boolean,
     lastProvisioned: String?,
     lastProvisionedAtMs: Long,
     peerReadsMain: Boolean,
@@ -221,7 +224,7 @@ internal fun shouldProvisionWatch(
     refreshMs: Long,
     sameSensor: (String?, String?) -> Boolean,
 ): Boolean {
-    if (!enabled || mainSensor.isNullOrBlank() || !mainIsManaged) return false
+    if (!enabled || mainSensor.isNullOrBlank() || !mainCanTravel) return false
     if (peerReadsMain) return false
     if (lastProvisioned.isNullOrBlank() || !sameSensor(lastProvisioned, mainSensor)) return true
     return phoneReadsMain && nowMs - lastProvisionedAtMs >= refreshMs

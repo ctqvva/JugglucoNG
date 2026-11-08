@@ -1,6 +1,8 @@
 // Android/JNI/storage stand-ins for the production methods injected by the runner.
 #include "dexcom/ScanIdentity.hpp"
 #include <cassert>
+#include <climits>
+#include <cstdio>
 #include <cmath>
 #include <cstring>
 #include <ctime>
@@ -38,11 +40,34 @@ struct Info {
     char8_t siId[68]{};
     char DexDeviceName[10]{};
     array<uint8_t,16> sharedKey{};
+    struct {int len;signed char data[6];int16_t extra;} info{};
 };
 map<string,Info> disk;
+// Directory rename: moves every file under the old path, as the real one
+// would, and refuses a destination directory that still holds files.
+int fakeRename(const char* from,const char* to){
+    const string prefix=string(from)+"/";bool moved=false;
+    for(const auto& entry:disk)if(entry.first.starts_with(string(to)+"/"))return -1;
+    for(auto it=disk.begin();it!=disk.end();){
+        if(it->first.starts_with(prefix)){
+            disk[string(to)+"/"+it->first.substr(prefix.size())]=it->second;
+            it=disk.erase(it);moved=true;
+        } else ++it;
+    }
+    return moved?0:-1;
+}
+#define rename fakeRename
 int mkdir(const char*,int){return 0;}
+int fakeRmdir(const char*){return 0;}
+int fakeUnlink(const char* path){return disk.erase(path)?0:-1;}
+#define rmdir fakeRmdir
+#define unlink fakeUnlink
 int access(const char* path,int){return disk.contains(path)?0:-1;}
-void writeall(const char* path,const void* info,size_t){disk[path]=*static_cast<const Info*>(info);}
+// A failing write leaves the truncated file the real one creates before it fails.
+bool failWrites=false;
+bool writeall(const char* path,const void* info,size_t){
+    if(failWrites){disk[path]=Info{};return false;}
+    disk[path]=*static_cast<const Info*>(info);return true;}
 template<class T> struct Readall {
     Info info;
     Readall(const char* path):info(disk.at(path)){}
@@ -67,7 +92,8 @@ struct SensorGlucoseData {
     bool isDexcom()const{return getinfo()->dexcom;}
     bool isSibionics()const{return metadata.sibionics;}
     bool isSibionics1()const{return false;}
-    bool isLibre2()const{return false;}bool isLibre3()const{return false;}bool isAiDex()const{return false;}
+    bool isLibre2()const{return !(isAccuChek()||isSibionics()||isDexcom()||isAir()||getinfo()->interval==interval5);}
+    bool isLibre3()const{return false;}bool isAiDex()const{return false;}
     bool isAccuChek()const{return false;}bool isAir()const{return false;}
     int siSubtype()const{return 0;}uint32_t lastused()const{return stream[0].timestamp;}
     int getelsize()const{return 12;}
@@ -98,6 +124,7 @@ struct sensor {
     int halfdays=24;
     uint32_t starttime=1700000001,endtime=0;
     const char* showsensorname(){return name;}
+    string_view fullname()const{return string_view(name,16);}
 };
 void resensordata(int){}
 struct Sensoren {
@@ -105,6 +132,20 @@ struct Sensoren {
     static constexpr string_view manualDexcomPrefix=dexcom::manualPrefix;
     array<sensor,32> records{};
     vector<unique_ptr<SensorGlucoseData>> data;
+    // Objects whose slot was cleared while other threads may still use them.
+    vector<unique_ptr<SensorGlucoseData>> retired;
+    void sensorlistmap(){}
+    // hist[i]=nullptr in production drops the slot so getSensorData reopens it.
+    struct HistSlot {Sensoren* r;int i;
+        HistSlot& operator=(nullptr_t){
+            auto& slot=r->data.at(i);
+            const string dir=slot->sensordir;
+            r->retired.push_back(std::move(slot));
+            slot=make_unique<SensorGlucoseData>(dir);
+            slot->metadata=disk.at(dir+"/info.dat");
+            slot->initialHistoryBytes();
+            return *this;}};
+    struct Hist {Sensoren* r;HistSlot operator[](int i){return {r,i};}} hist{this};
     int last()const{return int(data.size())-1;}
     sensor* getsensor(int i){return &records.at(i);}
     const sensor* getsensor(int i)const{return &records.at(i);}
@@ -124,6 +165,16 @@ struct Sensoren {
         d->metadata=disk.at(string(path)+"/info.dat");
         d->initialHistoryBytes();data.push_back(std::move(d));return i;
     }
+    static bool validSensorStarttime(uint32_t tim){return tim>1598911200u&&tim<2145909600u;}
+    // The list is kept in start order: a start must be set through here, which reorders it.
+    int reorders=0;
+    bool setSensorStarttime(int ind,uint32_t start){
+        if(!validSensorStarttime(start))return false;
+        records.at(ind).starttime=start;++reorders;return true;}
+    Sensoren()=default;
+    Sensoren& operator=(Sensoren&& other){
+        records=other.records;data=std::move(other.data);retired=std::move(other.retired);
+        inbasedir=other.inbasedir;reorders=other.reorders;hist.r=this;return *this;}
     /* REGISTRY_METHODS */
 };
 Sensoren registry;
@@ -363,5 +414,96 @@ int main(){
     assert(missing.pollStorageSize()==24*24*60);
     assert(!SensorGlucoseData::mkdatabaseDex("bad",string(69,'a'),1700000001));
     assert(!SensorGlucoseData::mkdatabaseDex("bad",manual(),1700000001,12));
+    // A watch holds a plain record under the sensor's name, made from the
+    // phone's mirrored history, before it is handed the sensor. Setting the
+    // sensor up must turn that record into a Dexcom one, not adopt it as is.
+    registry=Sensoren{};disk.clear();
+    {
+        auto scan=*dexcom::parseScan(barcode());
+        pathconcat dir(registry.inbasedir,scan.name);
+        Info plain{};plain.dexcom=false;plain.days=14;plain.pollcount=900;plain.interval=15*60;
+        disk[string(dir)+"/info.dat"]=plain;
+        const int mirrorId=registry.addsensor(scan.name);
+        auto* mirror=registry.getSensorData(mirrorId);
+        assert(!mirror->isDexcom());
+        // The phone's start: every slot is counted from it, not from now.
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005,1699000000);
+        assert(id==mirrorId&&d&&d!=mirror&&d->isDexcom());
+        assert(d->getstarttime()==1699000000&&registry.getsensor(id)->starttime==1699000000);
+        assert(registry.reorders==1);
+        assert(d->metadata.lastscantime==1700000005);
+        assert(string_view(reinterpret_cast<const char*>(d->metadata.siId),d->metadata.siIdlen)==scan.payload);
+        assert(d->metadata.pollcount==0&&d->getDexWearMinutes()==21600);
+        assert(registry.getsensor(id)->halfdays==(15+2)*2&&registry.data.size()==1);
+        // The mirror's files moved aside, and its object is still alive.
+        assert(disk.contains(string(dir)+".mirror1700000005/info.dat"));
+        assert(!disk.at(string(dir)+".mirror1700000005/info.dat").dexcom);
+        assert(registry.retired.size()==1&&registry.retired[0].get()==mirror);
+        // Running the same setup again finds the Dexcom record: no second move.
+        auto [again,same]=registry.makeDexComSensorindex(scan,1700000006);
+        assert(again==id&&same==d&&registry.retired.size()==1);
+    }
+    // Without a usable start (none, or one after now) a fresh record counts
+    // from now until its first reading sets it, as a scan on this device does.
+    for(uint32_t start:{0u,1700000009u}){
+        registry=Sensoren{};disk.clear();
+        auto scan=*dexcom::parseScan(barcode());
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005,start);
+        assert(id>=0&&d&&d->isDexcom()&&d->getstarttime()==1700000005);
+    }
+    {   // A fresh record for the phone's sensor takes the phone's start too.
+        registry=Sensoren{};disk.clear();
+        auto scan=*dexcom::parseScan(barcode());
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005,1699000000);
+        assert(id>=0&&d&&d->getstarttime()==1699000000&&registry.getsensor(id)->starttime==1699000000);
+        assert(registry.reorders==1);
+    }
+    // Only a mirror is replaced. A record another driver established under
+    // the same name keeps its files, and the setup is refused.
+    for(int established=0;established<5;++established){
+        registry=Sensoren{};disk.clear();
+        auto scan=*dexcom::parseScan(barcode());
+        pathconcat dir(registry.inbasedir,scan.name);
+        Info other{};other.dexcom=false;other.days=14;other.pollcount=900;other.interval=15*60;
+        switch(established){
+            case 0:other.sibionics=true;break;
+            case 1:other.info.data[0]=7;break;      // Libre patch info
+            case 2:other.scancount=1;break;
+            case 3:other.endhistory=1;break;
+            case 4:other.interval=300;break;        // Libre 3
+        }
+        disk[string(dir)+"/info.dat"]=other;
+        const int otherId=registry.addsensor(scan.name);
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005);
+        assert(id==-1&&!d&&registry.retired.empty()&&registry.data.size()==1);
+        assert(!disk.contains(string(dir)+".mirror1700000005/info.dat"));
+        assert(disk.contains(string(dir)+"/info.dat")&&!disk.at(string(dir)+"/info.dat").dexcom);
+        assert(registry.getSensorData(otherId)->metadata.pollcount==900);
+    }
+    // A write that fails must leave the mirror where it was, not a moved-aside
+    // one behind an empty Dexcom record.
+    registry=Sensoren{};disk.clear();
+    {
+        auto scan=*dexcom::parseScan(barcode());
+        pathconcat dir(registry.inbasedir,scan.name);
+        Info plain{};plain.dexcom=false;plain.days=14;plain.pollcount=900;plain.interval=15*60;
+        disk[string(dir)+"/info.dat"]=plain;
+        const int mirrorId=registry.addsensor(scan.name);
+        auto* mirror=registry.getSensorData(mirrorId);
+        failWrites=true;
+        assert(!SensorGlucoseData::mkdatabaseDex("elsewhere",scan.payload,1700000005,scan.days));
+        assert(!disk.contains("elsewhere/info.dat"));
+        auto [id,d]=registry.makeDexComSensorindex(scan,1700000005);
+        failWrites=false;
+        assert(id==-1&&!d&&registry.retired.empty());
+        assert(registry.getSensorData(mirrorId)==mirror&&!mirror->isDexcom());
+        assert(disk.contains(string(dir)+"/info.dat")&&!disk.at(string(dir)+"/info.dat").dexcom);
+        assert(disk.at(string(dir)+"/info.dat").pollcount==900);
+        assert(!disk.contains(string(dir)+".mirror1700000005/info.dat"));
+        // The next attempt converts it.
+        auto [retry,converted]=registry.makeDexComSensorindex(scan,1700000006);
+        assert(retry==mirrorId&&converted&&converted->isDexcom()&&registry.retired.size()==1);
+    }
+    cout<<"PASS: mirrored record converted to Dexcom on setup, other records and failed writes left alone\n";
     cout<<"PASS: Dexcom Flex discovery/binding, batched backfill, GS1/manual identities, model-aware reuse, legacy migration, storage and live cutoff\n";
 }

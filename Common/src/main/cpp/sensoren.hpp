@@ -500,7 +500,9 @@ public:
              minimumPollRecords);
     }
     auto *info = hist[ind]->getinfo();
-    if (starttime > 0) {
+    // A Dexcom's start comes from the sensor, and its slots are counted from
+    // it. A start guessed from mirrored readings must not move it.
+    if (starttime > 0 && !(info && info->dexcom)) {
       if (info && (info->starttime == 0 || starttime < info->starttime)) {
         info->starttime = starttime;
       }
@@ -681,7 +683,10 @@ public:
   }
 
   std::pair<int, SensorGlucoseData *>
-  makeDexComSensorindex(const dexcom::ScanIdentity &scan, uint32_t now) {
+  makeDexComSensorindex(const dexcom::ScanIdentity &scan, uint32_t now,
+                        uint32_t sensorStart = 0) {
+    if (!validSensorStarttime(sensorStart) || sensorStart > now)
+      sensorStart = 0;
     const auto &name = scan.name;
     const char *pin = name.data() + 12;
     removeunused();
@@ -710,6 +715,20 @@ public:
       const int sensindex = sensgegs - sensorlist();
       SensorGlucoseData *sens = getSensorData(sensindex);
       if (!sens) return {-1, nullptr};
+      if (!sens->isDexcom()) {
+        // A watch builds a plain record under this exact name from the
+        // phone's mirrored history (WearSync2) long before it is handed the
+        // sensor itself. Taking that record as the Dexcom one left it without
+        // a Dexcom header, so nothing could ever connect to it. Only such a
+        // mirror is replaced: a record some other driver established under
+        // this name keeps its files.
+        if (!sens->isMirrorShell()) {
+          LOGGER("makeDexComSensorindex: %s is not a mirrored record\n",
+                 sensgegs->showsensorname());
+          return {-1, nullptr};
+        }
+        return convertMirrorToDexcom(sensindex, scan, now, sensorStart);
+      }
       sensgegs = getsensor(sensindex);
       auto *info = sens->getinfo();
       info->wearduration = std::max<uint16_t>(info->wearduration,
@@ -721,17 +740,22 @@ public:
       setstreaming(sens);
       sensgegs->finished = 0;
       info->lastscantime = now;
-      if (!info->pollcount)
-        info->starttime = now; // Not needed
+      if (!info->pollcount) {
+        info->starttime = sensorStart ? sensorStart : now;
+        // The list is kept in start order; a start set in place breaks it.
+        setSensorStarttime(sensindex, info->starttime);
+      }
       void resensordata(int sensorindex);
       resensordata(sensindex);
       return {sensindex, sens};
     }
     const pathconcat sensordir(inbasedir, name);
-    if (!SensorGlucoseData::mkdatabaseDex(sensordir, scan.payload, now, scan.days))
+    if (!SensorGlucoseData::mkdatabaseDex(sensordir, scan.payload, now, scan.days,
+                                          sensorStart))
       return {-1, nullptr};
     const int ind = addsensor(name);
     sensor *sen = getsensor(ind);
+    if (sensorStart) setSensorStarttime(ind, sensorStart);
     sen->initialized = true;
     sen->halfdays = (scan.days + 2) * 2;
     return {ind, getSensorData(ind)};
@@ -862,14 +886,58 @@ private:
     return {ind, getSensorData(ind)};
   }
 
+#ifdef DEXCOM
+  /**
+   * Turns a mirrored (non-Dexcom) record into a fresh Dexcom record of the
+   * same name and slot. The mirror's files are moved aside rather than
+   * rewritten: other threads may still hold its SensorGlucoseData, which keeps
+   * its open mappings of the moved files, so it is deliberately not deleted.
+   * Its readings were copies of the phone's and are served again.
+   */
+  std::pair<int, SensorGlucoseData *>
+  convertMirrorToDexcom(const int ind, const dexcom::ScanIdentity &scan,
+                        const uint32_t now, const uint32_t sensorStart) {
+    sensorlistmap();
+    const auto fullname = sensorlist()[ind].fullname();
+    if (fullname.empty()) return {-1, nullptr};
+    const pathconcat sensordir(inbasedir, fullname);
+    char aside[PATH_MAX];
+    snprintf(aside, sizeof(aside), "%s.mirror%u", sensordir.data(), now);
+    if (rename(sensordir.data(), aside) != 0) {
+      LOGGER("convertMirrorToDexcom rename %s failed\n", sensordir.data());
+      return {-1, nullptr};
+    }
+    // The mirror's start was guessed from the first reading it was sent, and
+    // later readings moved it; the slots are counted from the real one.
+    if (!SensorGlucoseData::mkdatabaseDex(sensordir, scan.payload, now, scan.days,
+                                          sensorStart)) {
+      LOGGER("convertMirrorToDexcom mkdatabaseDex %s failed\n", sensordir.data());
+      // The directory mkdatabaseDex made would stop the mirror moving back.
+      rmdir(sensordir.data());
+      if (rename(aside, sensordir.data()) != 0)
+        LOGGER("convertMirrorToDexcom restoring %s failed\n", aside);
+      return {-1, nullptr};
+    }
+    hist[ind] = nullptr; // reopened below; the old object is left alive on purpose
+    sensor *sen = getsensor(ind);
+    sen->initialized = true;
+    sen->finished = 0;
+    sen->halfdays = (scan.days + 2) * 2;
+    setSensorStarttime(ind, sensorStart ? sensorStart : now);
+    LOGGER("converted mirrored record %s to Dexcom\n", sensordir.data());
+    return {ind, getSensorData(ind)};
+  }
+#endif
+
 public:
 #ifdef SIBIONICS
   std::pair<int, SensorGlucoseData *> makeSIsensorindex(std::string_view gegsSI,
-                                                        uint32_t now) {
+                                                        uint32_t now,
+                                                        uint32_t dexcomStart = 0) {
 
 #ifdef DEXCOM
     if (const auto scan = dexcom::parseScan(gegsSI))
-      return makeDexComSensorindex(*scan, now);
+      return makeDexComSensorindex(*scan, now, dexcomStart);
 #endif
 
 #ifndef NOLOG
