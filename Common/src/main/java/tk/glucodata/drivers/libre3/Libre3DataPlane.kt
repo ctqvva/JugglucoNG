@@ -139,24 +139,20 @@ class Libre3DataPlaneSession(kEnc: ByteArray, private val ivEnc: ByteArray) {
     }
 
     /**
-     * Decrypts a frame received on [channel]. The channel's own descriptor is tried first; the
-     * others only if that fails, and the one that verified is reported so a mismatch is visible
-     * in logs instead of silently accepted. Null when no descriptor verifies.
+     * Decrypts a frame received on [channel] under that channel's own descriptor only, as the
+     * legacy native intDecrypt does. A frame sealed for another channel would otherwise be parsed
+     * with this channel's layout; it is rejected (null) instead.
      */
     fun decrypt(channel: Libre3Channel, frame: ByteArray): Decrypted? {
         if (frame.size < 2 + Libre3Auth.TAG_SIZE) return null
         val sequence = Libre3Bytes.u16le(frame, frame.size - 2)
         val body = frame.copyOfRange(0, frame.size - 2)
-        val order = listOf(channel.descriptorKind) + DESCRIPTORS.indices.filter { it != channel.descriptorKind }
-        for (kind in order) {
-            val pt = try {
-                ccm.decrypt(nonce(sequence, kind), body, Libre3Auth.TAG_SIZE)
-            } catch (_: Libre3AesCcm.AuthenticationException) {
-                continue
-            }
-            return Decrypted(pt, sequence, kind)
+        val pt = try {
+            ccm.decrypt(nonce(sequence, channel.descriptorKind), body, Libre3Auth.TAG_SIZE)
+        } catch (_: Libre3AesCcm.AuthenticationException) {
+            return null
         }
-        return null
+        return Decrypted(pt, sequence, channel.descriptorKind)
     }
 
     /** A patchControl write: ct || tag4 || seq_LE2 with descriptor 0. */
