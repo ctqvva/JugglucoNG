@@ -19,6 +19,7 @@ All in `Common/src/main/java/tk/glucodata/drivers/libre3/` unless noted. None of
 | Data plane | `Libre3DataPlane.kt` | GATT UUIDs, 20-byte offset-prefixed writes, notify reassembly, 35-byte glucose assembler, per-channel descriptors taken from `cpp/bcrypt/bcrypt.cpp`, outbound sequence starting at 1. |
 | Records | `Libre3Records.kt` | Realtime (29 B), patch status (12 B), clinical (14 B), historic pages, event log, control commands. |
 | Persistence | `Libre3Persistence.kt` | Prefs file `tk.glucodata_libre3_managed`. Identities and kAuth are sealed with an AndroidKeyStore AES-GCM key. |
+| Provisioning | `Libre3IdentityProvisioning.kt` | Pinned, versioned identity sets: source spec, digest check, mirror fallback, bounded fetch (section 7). |
 | Driver | `Libre3BleManager.kt` | A `SuperGattCallback` + `ManagedBluetoothSensorDriver`, described below. |
 | Identity seam | `Libre3IdentityAdapter.kt` | Sensor ID is the 9-character serial; it does not claim the legacy `E07A-XX<serial>` name. |
 | NFC flow + registry | `Libre3ManagedNfc.kt` | `scanForUi` for `ScanNfcV`; `Libre3Registry.addSensor` retires the legacy callback. |
@@ -40,41 +41,46 @@ Integration edits outside the package:
 
 ## 2. What was actually tested
 
-- `./gradlew :Common:compileMobileDebugKotlin` passes.
-- `Libre3ProtocolTest` (11 tests) passes. It uses:
-  - the `dp_activation.hpp` static_assert vectors;
-  - patch-info and `A8` response samples taken from comments in `nfc.cpp`;
-  - both receiver-ID folds (RoundWhiteDiscKit vectors);
-  - RFC 3610 packet vector 1, plus a tampered-frame check;
-  - captured glucose, status and historic frames, and a captured sensor certificate (from RoundWhiteDiscKit tests);
-  - synthetic-scalar kAuth/Phase 5/Phase 6 vectors (RoundWhiteDiscKit `AppIdentityTests`);
-  - a cached handshake driven end to end through the state machine;
-  - a check that d·G matches JCA.
-- `Libre3DriverGuardTest` (5 tests) passes. These are source pins for the fixes in section 3.
-- These suites also pass: `ConnectModeLeverTests`, `ManagedSensorFamilyTests`, `SensorVendorTests`, `SensorSourceResolverTests`, and `tk.glucodata.drivers.*`. In one run `AiDexAlgorithmRuntimeTests` failed because Robolectric could not download its Android jar (HTTP 429); that class passed when rerun.
-- `python3 scripts/ui-guardrails.py` exits 0.
-- **Not run:** the full unit suite, the wear flavour build, any instrumented test, any device or sensor. I did not read the PR's CI or Greptile output myself; the findings in section 3 came from the owner's review request.
+- `:Common:compileMobileDebugKotlin` and `:Common:compileWearDebugKotlin` both build.
+- 27 JVM tests in `Common/src/test/java/tk/glucodata/drivers/libre3/` pass:
+  - `Libre3ProtocolTest` (11): legacy `dp_activation.hpp` vectors, NFC parsing, receiver-ID folds, RFC 3610 CCM, captured RoundWhiteDiscKit data-plane frames and sensor certificate, synthetic kAuth/Phase 5/6 vectors, cached handshake through the state machine.
+  - `Libre3FullAuthSimulationTest` (2): first-pair authorization end to end against a simulated sensor (its own signing key, signed certificate, ECDH, Phase 5/6), and refusal of a certificate from an unknown signer.
+  - `Libre3ProvisioningTest` (7): source-spec parsing (https only, 64-hex digest), digest checked before parsing, mirror fallback, bounded reads, legacy-equivalent NFC plausibility, strict per-channel descriptors, ASCII-only hex.
+  - `Libre3DriverGuardTest` (7): source pins for the backfill, export, connect-mode, device-rejection and end-of-wear fixes.
+- `ConnectModeLeverTests`, `ManagedSensorFamilyTests`, `SensorVendorTests` and `SensorSourceResolverTests` pass; `scripts/ui-guardrails.py` exits 0.
+- **Not run:** the full unit suite, instrumented tests, any device or sensor. Nothing here proves a real sensor accepts these messages.
 
 ## 3. Defects
 
-**Fixed in commit `b9f9bff`:**
-- A backfill control-response timeout no longer settles the backfill marks; only a real response does.
-- Marks are persisted only after `importHistory` has run. A thrown store re-queues the readings.
-- Settings export no longer includes the BLE PIN, sealed identity or kAuth, and import no longer wipes them.
-- The unmeasured `autoConnect` fallback is gone; the driver uses the user's mode. The legacy driver's fallback (#728) was measured only for that driver.
-- Two buttons now pass `shapes`.
-- Wear-expiry suppression is removed, so glucose availability now matches legacy. One deliberate difference remains: values during warmup (life count < warmup minutes from NFC) are not published. Legacy stores any value in 39..501.
+**Fixed** (`b9f9bff`, `5de6d15a`), all from Greptile/cubic review threads on #839:
+- backfill timeout no longer settles marks; marks persist only after Room storage;
+- a completed history request settles its range even with no pages;
+- the Libre 3 prefs (PIN, sealed identity and kAuth) are excluded from settings export and import;
+- the unmeasured autoConnect fallback is removed;
+- a device without the Libre 3 services is not retried every 3 s; it waits for a rescan or a user retry;
+- end of wear (errorData 5) is display-only; only shutdown (6/8) stops reconnects;
+- no wear-duration cut-off on glucose (matches legacy);
+- the native mirror window opens at the sensor start, and gap-filling 5-minute points are mirrored;
+- each channel decrypts under its own descriptor only (legacy `intDecrypt`);
+- NFC rejects implausible warmup/wear and nonzero implausible activation times like legacy; rescans without a reported time keep the known start;
+- a missing LibreView account ID is refused with 0xF8 like legacy, instead of silently using another receiver ID;
+- a terminated NFC scan ends the managed sensor;
+- a successful scan shows the legacy ready/calendar dialog;
+- identity import reads at most 64 KiB; Remove also clears cached kAuth;
+- buttons pass `shapes`.
 
 **Confirmed, still open:**
-- `VirtualGlucoseSensorBridge.importHistory` returns 0 both for "all duplicates" and for "Room store failed", so a silent store failure still advances the marks.
-- The realtime value is stored with `storeCurrentReadingAsync`. The minute mark can be persisted before that async write lands.
-- A full-auth test against a simulated sensor is missing; only the cached path is exercised.
+- `importHistory` returns 0 both for "all duplicates" and for "Room store failed", so a silent store failure still advances marks.
+- The realtime value goes through `storeCurrentReadingAsync`; its minute mark can persist before that write lands.
+- Phone → watch takeover is unsupported (section 6).
+- New strings are English only.
+- `Libre3P256.publicPointFromScalar` is variable-time BigInteger arithmetic, run once at import (cubic P3); not changed.
 
-**Speculative or unverified:**
-- Whether the `patchControl` notification really means "backfill complete". Legacy assumes it; RoundWhiteDiscKit lists completion markers as open.
-- Error code 7: shown as "check sensor" and never treated as terminal. RoundWhiteDiscKit's `protocol.md` and its `PatchStatus.swift` disagree.
-- Whether a link drop right after `CertificateLoadDone` always means the identity was rejected. Rotating identities on that signal could misfire on flaky links; after 2 full rounds the driver stops until the user acts.
-- Clinical backfill timestamps assume `life count × 60 s` from an anchor derived from realtime arrivals, deduplicated in a ±50 s window. Clock drift and duplication have not been measured.
+**Deliberate differences from legacy:**
+- no readings during warmup;
+- the trend-arrow rate fallback is (trend − 3) × 1.3 mg/dL/min; legacy truncated it to ±0.01.
+
+**Speculative or unverified:** `patchControl` as the backfill-complete signal; error 7 severity; identity-rejection inference from a link drop after `CertificateLoadDone`; clinical timestamp alignment.
 
 ## 4. Protocol assumptions and evidence
 
@@ -98,29 +104,36 @@ None of these has been exercised:
 
 ## 6. Integration limitations
 
-- **Native mirror:** minute readings go through the generic `VirtualGlucoseSensorBridge` mirror (shell name = serial, family code 9) for the web server and Nightscout. 5-minute history points are not mirrored. Older app versions receiving code 9 over Clone fall back to GENERIC.
-- **History continuity:** the managed sensor is `<serial>`; legacy used `E07A-XX<serial>`. Switching drivers starts a new series. Registration finishes the legacy native sensor and removes its callback.
-- **Phone/watch handoff:** not examined. `shouldUseSharedCurrentSensorHandoffOnTerminate()` returns false, copied from Medtrum. The wear flavour has not been compiled.
-- **Legacy stack:** untouched and still the default. `NightPost` sensor-start uses the persisted NFC start time.
+- **Native mirror:** minute readings and gap-filling 5-minute points go through the generic `VirtualGlucoseSensorBridge` mirror (shell name = serial, family code 9). The window is opened at the sensor start; the mirror geometry is 14 days, so the last day of a 15-day sensor triggers the generic rebase. Older app versions receiving code 9 over Clone show GENERIC.
+- **History continuity:** the managed sensor is `<serial>`; legacy used `E07A-XX<serial>`. Switching drivers starts a new series. Registration finishes the legacy native sensor and removes its callback. An active legacy sensor has to be rescanned (A8); its 149-byte native auth blob is not convertible.
+- **Phone/watch:** watch takeover is **unsupported**. `ManagedSensorHandoff` does not carry `tk.glucodata_libre3_managed`, and sealed values cannot move between devices' Keystores. No data is lost: the phone stands down only after the watch actually reads the sensor, so the phone keeps reading. Supporting it needs a deliberate transfer of the sensor record, plus either a re-import of the identity on the watch or an explicit unsealed transfer. That is undecided.
 
 ## 7. Credential provisioning
 
-- The driver needs a P-256 private scalar plus the matching 162-byte app certificate that the sensor accepts. The import format is RoundWhiteDiscKit's JSON (`format:1`, `curve:"P-256"`, `identities[{label, privateKeyHex, certificateHex}]`). The key is validated against the certificate on import.
-- The keys in `ECDHCrypto.java` are wrapped for the proprietary library, so this driver cannot use them. This work made no attempt to unwrap them.
-- xDrip4iOS 7.2.0, per the research dossier (not re-read here): downloads versioned identity bundles from a remote JSON, checks them against compiled-in SHA-256 digests, stores them device-only in the Keychain, and pins a paired sensor to its identity version. A digest proves integrity, not secrecy or permission to redistribute.
-- **Open decisions:**
+- **Need:** a P-256 private scalar plus the matching 162-byte app certificate the sensor accepts. The legacy keys in `ECDHCrypto.java` are wrapped for the proprietary library and are not used.
+- **Implemented** (`Libre3IdentityProvisioning.kt`, `Libre3Persistence.kt`, settings UI), on the xDrip4iOS `Libre3IdentityStore` pattern:
+  - an identity set is an immutable version pinned by SHA-256;
+  - a source is `version|sha256|https://mirror …`;
+  - any mirror may serve it, but only bytes matching the digest are parsed;
+  - sets are sealed under the device Keystore and work offline;
+  - reinstalling a version id with other content is refused;
+  - each sensor stores `<version>/<label>` and tries its pinned set first;
+  - a file import becomes version `import-<sha12>`;
+  - turning the driver on downloads from the effective source if nothing is installed.
+- **Source:** none is shipped. A build sets one with `-Plibre3IdentitySource='version|sha256|https://…'` (BuildConfig `LIBRE3_IDENTITY_SOURCE`). A user can enter a URL + SHA-256 in settings, which takes precedence, or import a file.
+- **xDrip4iOS** (read 2026-11-08, `Libre3IdentityStore.swift`) pins `version: "app-identities-1"` with a compiled-in digest and two Arweave gateways (`arweave.net`, `turbo-gateway.com`).
+- **Open decision:** whether this project points its builds at that bundle. It is extracted Abbott app key material; the digest proves integrity, not the right to distribute it. Wiring it in is a one-line Gradle property.
+- **Other open decisions:**
   - which certificate versions each sensor family accepts (patch-info `securityVersion` is logged but unused);
-  - the provenance and legality of any identity file;
-  - whether to support any automatic provisioning (none was built);
-  - how to recover after reinstall or a device change: today the user re-imports and rescans.
+  - whether to auto-download at NFC scan time (today the scan is refused with a message if no set is installed).
 
 ## 8. Next investigations and how to reproduce
 
 1. Device test with a disposable sensor and logcat tags `Libre3BLE`, `Libre3Nfc`, `Libre3Registry`. Capture an HCI snoop log of the first full handshake.
-2. Add a simulated-sensor full-auth test: generate a signing key, sign a fake sensor cert, pass `signingKeys`, and act as the sensor using the RoundWhiteDiscKit scalars.
+2. Decide the identity source (section 7) and run a device test with it.
 3. Make `importHistory` report store failure separately from duplicates before trusting the marks.
 4. Verify the backfill completion signal and the clinical timestamp alignment against a trace.
-5. Compile wear: `:Common:compileWearDebugKotlin`.
+5. Decide whether watch takeover is wanted, and how identities reach the watch.
 
 Build setup used here (no Android SDK was installed by default):
 ```
@@ -128,6 +141,7 @@ Build setup used here (no Android SDK was installed by default):
 # Maven Central returned 429: a local ~/.gradle/init.d script redirected it to
 # https://maven-central.storage-download.googleapis.com/maven2/ and dropped the plugin portal (not committed).
 ./gradlew --no-configuration-cache :Common:compileMobileDebugKotlin
-./gradlew --no-configuration-cache :Common:testMobileDebugUnitTest --tests "tk.glucodata.drivers.libre3.*" --tests "tk.glucodata.ConnectModeLeverTests"
+./gradlew --no-configuration-cache :Common:compileWearDebugKotlin
+./gradlew --no-configuration-cache :Common:testMobileDebugUnitTest --tests "tk.glucodata.drivers.libre3.*" --tests "tk.glucodata.ConnectModeLeverTests" --tests "tk.glucodata.SensorVendorTests"
 python3 scripts/ui-guardrails.py
 ```
