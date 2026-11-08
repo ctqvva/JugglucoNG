@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Execute production WearSync2 chunk ingestion with deterministic storage fakes.
+"""Execute production WearSync2 chunk ingestion and backlog requests with deterministic fakes.
 
 JNI, Room scheduling and device transport are outside this test. The fake native
-writer models the minute-derived cursor that caused issue #593.
+writer models the minute-derived cursor that caused issue #593. The request
+scenarios run the production request encoding and the phone's choice between a
+full serve and the tail, including a watch that must have the full horizon (#862).
 Requires kotlinc and java on PATH.
 """
 from pathlib import Path
@@ -29,6 +31,7 @@ def method(signature):
 kotlin = r'''
 package tk.glucodata
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicLong
 
 object Applic { var isWearable = false }
 object SensorIdentity {
@@ -56,6 +59,7 @@ object Natives {
         check(serial == "3038HVEAD0D")
         return snapshot
     }
+    fun lastglucosetime() = 0L
     fun ensureSensorShell(serial: String, start: Long) { shellWrites++ }
     fun addGlucoseStreamBatchWithRawTemp(
         times: LongArray, values: FloatArray, raws: FloatArray,
@@ -115,10 +119,23 @@ object Log {
     fun i(tag: String, message: String) {}
     fun stack(tag: String, message: String, error: Throwable): Nothing = throw AssertionError(message, error)
 }
+object WearMessagePath { const val SYNC2_REQ = "/sync2/req" }
+object MessageSender {
+    var sent: ByteArray? = null
+    fun sendSyncMessage(path: String, data: ByteArray): Boolean { check(path == WearMessagePath.SYNC2_REQ); sent = data; return true }
+}
 object WearSync2 {
     private const val LOG_ID = "WearSync2"
     private const val VERSION = 1
     private const val doLog = false
+    private const val BACKFILL_HORIZON_SEC = 14L * 24L * 3600L
+    private const val INCREMENTAL_OVERLAP_SEC = 15L * 60L
+    private const val DEEP_SERVE_MIN_INTERVAL_MS = 30L * 60L * 1000L
+    const val TAIL = -1L
+    private val lastDeepServeMs = AtomicLong(0L)
+    val served = ArrayList<Long>()
+    private fun serveSince(fromSec: Long) { served.add(fromSec) }
+    private fun tailStartSec(): Long = TAIL
     private object executor { fun execute(action: () -> Unit) = action() }
     var enabled = true
     var removed = false
@@ -132,7 +149,11 @@ object WearSync2 {
     }
 '''
 kotlin += method('private fun isLibre2NativeSensor(') + '\n'
-kotlin += method('fun onChunk(') + '\n}\n'
+kotlin += method('fun onChunk(') + '\n'
+kotlin += method('fun onRequest(') + '\n'
+kotlin += method('private fun sanitizeFrom(') + '\n'
+kotlin += method('private fun allowDeepServe(') + '\n'
+kotlin += method('fun requestSync(') + '\n}\n'
 kotlin += r'''
 fun chunk(serial: String = "3038HVEAD0D"): ByteArray {
     val name = serial.toByteArray()
@@ -199,6 +220,48 @@ fun main(args: Array<String>) {
             check(Natives.snapshotReads == 0 && Natives.shellWrites == 0 && Natives.batches == 0)
             check(HistorySyncAccess.historyTimes.isEmpty() && UiRefreshBus.refreshes == 0)
         }
+        "request-encoding" -> {
+            WearSync2.requestSync(deep = true)
+            var sent = MessageSender.sent!!
+            check(sent.size == 10 && sent[0] == 1.toByte() && sent[9] == 0.toByte())
+            val horizon = ByteBuffer.wrap(sent, 1, 8).long
+            check(horizon < System.currentTimeMillis() / 1000L - 13L * 24L * 3600L)
+            WearSync2.requestSync(deep = true, force = true)
+            sent = MessageSender.sent!!
+            check(sent.size == 10 && sent[9] == 1.toByte())
+        }
+        "request-serving" -> {
+            fun request(fromSec: Long, force: Int?): ByteArray {
+                val buf = ByteBuffer.allocate(if (force == null) 9 else 10)
+                buf.put(1).putLong(fromSec)
+                if (force != null) buf.put(force.toByte())
+                return buf.array()
+            }
+            val horizon = System.currentTimeMillis() / 1000L - 14L * 24L * 3600L
+            WearSync2.onRequest(request(horizon, null))
+            check(WearSync2.served.size == 1 && WearSync2.served.last() != WearSync2.TAIL)
+            // Within the spacing between full serves only the tail goes, whether
+            // the request is the older nine-byte form or says not to force.
+            WearSync2.onRequest(request(horizon, null))
+            check(WearSync2.served.size == 2 && WearSync2.served.last() == WearSync2.TAIL)
+            WearSync2.onRequest(request(horizon, 0))
+            check(WearSync2.served.size == 3 && WearSync2.served.last() == WearSync2.TAIL)
+            // A watch that threw its copy away gets the full horizon at once...
+            WearSync2.onRequest(request(horizon, 1))
+            check(WearSync2.served.size == 4 && WearSync2.served.last() != WearSync2.TAIL)
+            // ...and that counts as the latest full serve.
+            WearSync2.onRequest(request(horizon, null))
+            check(WearSync2.served.size == 5 && WearSync2.served.last() == WearSync2.TAIL)
+            // A forced request for a short range is just served from there.
+            val recent = System.currentTimeMillis() / 1000L - 3600L
+            WearSync2.onRequest(request(recent, 1))
+            check(WearSync2.served.size == 6 && WearSync2.served.last() == recent)
+            // Unusable requests serve nothing.
+            WearSync2.onRequest(null)
+            WearSync2.onRequest(byteArrayOf(2) + ByteArray(9))
+            WearSync2.onRequest(byteArrayOf(1, 0, 0))
+            check(WearSync2.served.size == 6)
+        }
         else -> error(scenario)
     }
     println("PASS $scenario")
@@ -209,6 +272,7 @@ scenarios = [
     'phone-libre2', 'phone-alias', 'watch-libre2', 'phone-libre3',
     'phone-sibionics', 'phone-managed', 'phone-managed-family', 'phone-unknown',
     'phone-short-snapshot', 'local-owner', 'removed', 'companion-disabled',
+    'request-encoding', 'request-serving',
 ]
 with tempfile.TemporaryDirectory(prefix='wear-sync2-test-') as directory:
     temp = Path(directory)

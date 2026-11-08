@@ -289,6 +289,36 @@ fun groupJournalEntriesByReading(
     }
 }
 
+/** Journal entries of one minute that no reading row can carry. */
+internal data class JournalOnlyRow(
+    val timestamp: Long,
+    val entries: List<JournalEntry>
+)
+
+/**
+ * Rows for entries logged after the newest shown reading and too far from it to ride on its
+ * row, or all of them when there are no readings: without a sensor nothing would show them
+ * otherwise. Entries older than that stay out, since they would land above the readings.
+ */
+internal fun journalRowsAfterReadings(
+    entries: List<JournalEntry>,
+    readingEntries: Map<Long, List<JournalEntry>>,
+    newestReadingMillis: Long?,
+    limit: Int = 10
+): List<JournalOnlyRow> {
+    val onReadingRows = readingEntries.values.flatten().mapTo(HashSet()) { it.id }
+    return entries.asSequence()
+        .filter { it.type in JournalEntryType.journalRowTypes && it.id !in onReadingRows }
+        .filter { newestReadingMillis == null || it.timestamp > newestReadingMillis }
+        .groupBy { it.timestamp / 60_000L }
+        .map { (_, minuteEntries) ->
+            val ordered = minuteEntries.sortedByDescending { it.timestamp }
+            JournalOnlyRow(ordered.first().timestamp, ordered)
+        }
+        .sortedByDescending { it.timestamp }
+        .take(limit)
+}
+
 private fun groupJournalEntriesForTimeline(
     points: List<GlucosePoint>,
     entries: List<JournalEntry>,

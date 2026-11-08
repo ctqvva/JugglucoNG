@@ -102,6 +102,15 @@ object ICanHealthRegistry {
         return readRecords(context).toList()
     }
 
+    /** Keep identity, credentials and history; an empty address marks an unfinished repair. */
+    @JvmStatic
+    fun clearBindingAddress(context: Context?, sensorId: String) {
+        if (context == null) return
+        writeRecords(context, readRecords(context).map { record ->
+            if (record.matchesId(sensorId)) record.copy(address = "") else record
+        })
+    }
+
     private fun resolvePersistedAuthUserId(context: Context, sensorId: String): String? {
         val prefs = prefs(context)
         val perSensor = ICanHealthConstants.normalizeConfiguredAuthUserId(
@@ -124,6 +133,7 @@ object ICanHealthRegistry {
         configuredAesKey: String?,
     ) {
         callback.mActiveDeviceAddress = address.takeIf { it.isNotBlank() }
+        if (address.isBlank()) callback.requireFreshBindingIdentity()
         callback.setConfiguredAesKeyFromASCII(
             ICanHealthConstants.resolveConfiguredAesKey(configuredAesKey),
             explicit = configuredAesKey != null && configuredAesKey.length == ICanHealthConstants.AES_BLOCK_SIZE

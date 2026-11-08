@@ -16,10 +16,6 @@ object NotificationHistorySource {
         SensorIdentity.resolveMainSensor()
             ?.takeIf { it.isNotBlank() }
             ?.let { return it }
-        val lastSensor = SensorIdentity.resolveAppSensorId(Natives.lastsensorname()) ?: Natives.lastsensorname()
-        if (!lastSensor.isNullOrBlank()) {
-            return lastSensor
-        }
         return Natives.activeSensors()
             ?.mapNotNull { SensorIdentity.resolveAppSensorId(it) ?: it }
             ?.firstOrNull { !it.isNullOrBlank() }

@@ -206,7 +206,9 @@ object SensorIdentity {
         // Taking the sensor over clears the Clone flag, so the driver rules again.
         if (CloneSensorRegistry.isCloneSensor(raw)) return true
         managedDriverHistorySync(raw)?.let { return it }
-        val canonical = canonicalOrRaw(raw) ?: raw
+        // Native current exposes a short name. Recover its full identity before
+        // asking adapters such as API/NSF, which recognize their prefixed ids.
+        val canonical = canonicalSensorId(raw) ?: raw
         if (!canonical.equals(raw, ignoreCase = true)) {
             managedDriverHistorySync(canonical)?.let { return it }
         }
@@ -273,6 +275,22 @@ object SensorIdentity {
         )
     }
 
+    /**
+     * Whether any sensor or follower can still deliver readings. False after the last one
+     * was removed, which is when "no new value" and the loss alarm stop meaning anything.
+     */
+    @JvmStatic
+    fun hasMainSensor(): Boolean = !resolveMainSensor().isNullOrBlank()
+
+    /**
+     * A sensor existed and was finished, with nothing left to replace it. Unlike
+     * ![hasMainSensor] this stays false on a watch that shows the phone's readings and never
+     * had a native sensor of its own.
+     */
+    @JvmStatic
+    fun mainSensorWasRemoved(): Boolean =
+        !hasMainSensor() && !runCatching { Natives.lastsensorname() }.getOrNull().isNullOrBlank()
+
     @JvmStatic
     fun resolveLiveMainSensor(preferredSensorId: String?): String? {
         val activeSensors = availableSensorCandidates()
@@ -303,6 +321,57 @@ object SensorIdentity {
         return native.none { matches(it, mainSensor) }
     }
 
+    /**
+     * Whether [removedSensor] held the main role, for code that runs after finishing it. A
+     * finished sensor no longer resolves as main, so the resolved main alone cannot say: with
+     * another sensor live it names that one while native current still points at the removed
+     * sensor, and with none left it is blank. Either way the selection still has to move.
+     */
+    @JvmStatic
+    fun lostMainRole(removedSensor: String?): Boolean = lostMainRole(
+        resolveMainSensor(),
+        removedSensor,
+        runCatching { Natives.currentsensorname() }.getOrNull()
+    )
+
+    @JvmStatic
+    @JvmOverloads
+    fun lostMainRole(mainSensor: String?, removedSensor: String?, nativeCurrent: String? = null): Boolean {
+        if (mainSensor.isNullOrBlank() || matches(mainSensor, removedSensor)) {
+            return true
+        }
+        // A managed main can leave native current on an older sensor until its mirror exists.
+        // Removing that older sensor must not take the main role from the managed one.
+        val managed = ManagedCurrentSensor.get()
+        if (managed != null && matches(mainSensor, managed)) {
+            return false
+        }
+        return !nativeCurrent.isNullOrBlank() && matches(nativeCurrent, removedSensor)
+    }
+
+    /**
+     * The sensor to hand the main role to after [removedSensor] left. Retained callbacks can
+     * include other finished sensors; one of those would leave native consumers on stale
+     * glucose. The resolver already skips them, so its answer comes first. A finished candidate
+     * is still taken when it is the only one: a re-added sensor stays finished until its first
+     * reading.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun pickReplacementSensor(
+        candidates: List<String>,
+        resolvedMain: String?,
+        removedSensor: String?,
+        isFinished: (String) -> Boolean = ::isFinishedSensor
+    ): String? {
+        if (!resolvedMain.isNullOrBlank() && !removedSensor.isNullOrBlank() &&
+            !matches(resolvedMain, removedSensor)
+        ) {
+            candidates.firstOrNull { matches(it, resolvedMain) }?.let { return it }
+        }
+        return candidates.firstOrNull { !isFinished(it) } ?: candidates.firstOrNull()
+    }
+
     private fun availableSensorCandidates(): Array<String?>? {
         val resolved = LinkedHashSet<String?>()
 
@@ -321,11 +390,27 @@ object SensorIdentity {
         return resolved.takeIf { it.isNotEmpty() }?.toTypedArray()
     }
 
+    /**
+     * The managed slot once also held the serial of imported history, which can be another
+     * phone's sensor. Only a driver's own record or a native slot makes the id a sensor here.
+     */
+    private fun hasSensorRecord(sensorId: String): Boolean =
+        ManagedSensorIdentityRegistry.resolvePersistedFamily(sensorId) != null ||
+            nativeMirrorSensorName(sensorId) != null
+
+    private fun isFinishedSensor(sensorId: String): Boolean = runCatching {
+        linkedSetOf(sensorId, resolveNativeSensorName(sensorId) ?: sensorId)
+            .any(Natives::sensorFinishedById)
+    }.getOrDefault(false)
+
     @JvmStatic
+    @JvmOverloads
     fun resolveAvailableMainSensor(
         selectedMain: String?,
         preferredSensorId: String?,
-        activeSensors: Array<String?>?
+        activeSensors: Array<String?>?,
+        isFinished: (String) -> Boolean = ::isFinishedSensor,
+        hasRecord: (String) -> Boolean = ::hasSensorRecord
     ): String? {
         val managed = canonicalOrRaw(ManagedCurrentSensor.get())
         val active = activeSensors
@@ -335,23 +420,35 @@ object SensorIdentity {
         val canonicalSelected = canonicalOrRaw(selectedMain)
         val canonicalPreferred = canonicalOrRaw(preferredSensorId)
 
-        if (active.isEmpty()) {
-            return managed ?: canonicalSelected ?: canonicalPreferred
-        }
-
+        // The selected managed sensor keeps its role while its callback lives: re-adding one
+        // leaves its native mirror finished until the first reading revives it. A removed one
+        // cannot stay: this match ends with whichever of the slot and the callback goes first.
         if (managed != null && active.any { matches(it, managed) }) {
             return managed
         }
 
-        if (canonicalSelected != null && active.any { matches(it, canonicalSelected) }) {
+        // A callback outlives native termination until sensorEnded() drops it, so being a
+        // candidate does not make a finished sensor available.
+        val live = active.filterNot(isFinished)
+
+        if (live.isEmpty()) {
+            // Being outside the active list does not make a sensor gone: native leaves out
+            // scan-only sensors and ones silent for a day, and those stay the main sensor.
+            // A finished one is gone. Native lastsensorname() falls back to the newest slot,
+            // finished or not, so without this a removed sensor stays main for good.
+            return listOfNotNull(managed?.takeIf(hasRecord), canonicalSelected, canonicalPreferred)
+                .firstOrNull { !isFinished(it) }
+        }
+
+        if (canonicalSelected != null && live.any { matches(it, canonicalSelected) }) {
             return canonicalSelected
         }
 
-        if (canonicalPreferred != null && active.any { matches(it, canonicalPreferred) }) {
+        if (canonicalPreferred != null && live.any { matches(it, canonicalPreferred) }) {
             return canonicalPreferred
         }
 
-        return active.firstOrNull()
+        return live.firstOrNull()
     }
 
     @JvmStatic

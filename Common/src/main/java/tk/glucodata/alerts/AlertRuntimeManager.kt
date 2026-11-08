@@ -2,6 +2,7 @@ package tk.glucodata.alerts
 
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import tk.glucodata.Applic
 import tk.glucodata.CurrentDisplaySource
@@ -21,7 +22,8 @@ object AlertRuntimeManager {
     private const val LOG_ID = "AlertRuntimeManager"
     private const val CHECK_INTERVAL_MS = 15_000L
 
-    private val scheduler = Executors.newSingleThreadScheduledExecutor()
+    private var scheduler: ScheduledExecutorService? = null
+    private var monitorGeneration = 0L
     private val lock = Any()
     private var monitorTask: ScheduledFuture<*>? = null
 
@@ -38,9 +40,14 @@ object AlertRuntimeManager {
     private var preHighCoverageSkipLogged: String? = null
     private val standardEpisodes = AlertEpisodeState<AlertType>()
     private val sensorExpiryState = SensorExpiryAlertState(AlertRepository.sensorExpiryWarnedStore)
+    private var signalRestoredStateHolder: SignalRestoredAlertState? = null
+    private val signalRestoredState: SignalRestoredAlertState
+        get() = signalRestoredStateHolder ?: SignalRestoredAlertState(
+            SignalRestoredReadingPreferences(Applic.app)
+        ).also { signalRestoredStateHolder = it }
     private val fallingDeltaState = DeltaAlarmState(falling = true)
     private val risingDeltaState = DeltaAlarmState(falling = false)
-    private val calibrationReadingBarrier = ReadingTimestampBarrier()
+    private var calibrationReadingBarrier = ReadingTimestampBarrier()
     // Shared by the standard-glucose and the delta evaluation on purpose: the
     // quiet period must see both families, or one keeps talking over the other.
     private val sameDirectionSuppression = SameDirectionAlertSuppression()
@@ -132,11 +139,7 @@ object AlertRuntimeManager {
         synchronized(lock) {
             lastReadingTimeMs = maxOf(lastReadingTimeMs, readingTimeMs)
             SensorHandoverRuntime.onReading(sensorId)
-            if (snapshot != null && snapshot.primaryValue.isFinite()) {
-                lastGlucoseValue = snapshot.primaryValue
-                lastRate = snapshot.rate
-                lastDisplaySnapshot = snapshot
-            } else {
+            if (snapshot == null || !snapshot.primaryValue.isFinite()) {
                 lastGlucoseValue = Float.NaN
                 lastRate = Float.NaN
                 lastDisplaySnapshot = null
@@ -144,18 +147,44 @@ object AlertRuntimeManager {
                 ensureTaskLocked()
                 return AlertRuntimeEvaluation()
             }
+            // Only usable display readings may advance or consume recovery evidence.
+            lastDisplaySnapshot?.let { signalRestoredState.seed(it.sensorId, it.timeMillis) }
+            val recoveryConfig = AlertRepository.loadConfig(AlertType.SIGNAL_RESTORED)
+            val restored = signalRestoredState.onReading(
+                sensorId, readingTimeMs, System.currentTimeMillis(),
+                if (recoveryConfig.enabled) tk.glucodata.SuperGlucoseAlarms.waitmmsec() else 0L,
+                Notify.glucosetimeout
+            )
+            lastGlucoseValue = snapshot.primaryValue
+            lastRate = snapshot.rate
+            lastDisplaySnapshot = snapshot
             lastDeliveredReadingTimeMs = maxOf(lastDeliveredReadingTimeMs, readingTimeMs)
             ensureTaskLocked()
-            return evaluateLocked(readingTimeMs)
+            val evaluation = evaluateLocked(readingTimeMs)
+            if (restored) {
+                // Each outage starts a new recovery episode. Snooze and time-window
+                // checks remain in the normal delivery gate; a suppressed edge is
+                // consumed now, never announced late on an ordinary later reading.
+                clearRuntimeAlert(AlertType.SIGNAL_RESTORED, "signal-restored-new-episode")
+                // Notify arbitrates on its delivery looper, after every alert family
+                // evaluated above, before changing notification/audio/retry ownership.
+                triggerMessageAlert(
+                    AlertType.SIGNAL_RESTORED,
+                    Applic.app.getString(R.string.alert_signal_restored)
+                )
+            }
+            return evaluation
         }
     }
 
     private fun ensureTaskLocked() {
         if (monitorTask == null || monitorTask?.isCancelled == true) {
-            monitorTask = scheduler.scheduleAtFixedRate(
+            val executor = scheduler ?: Executors.newSingleThreadScheduledExecutor().also { scheduler = it }
+            val generation = monitorGeneration
+            monitorTask = executor.scheduleAtFixedRate(
                 {
                     synchronized(lock) {
-                        evaluateLocked(System.currentTimeMillis())
+                        if (generation == monitorGeneration) evaluateLocked(System.currentTimeMillis())
                     }
                 },
                 CHECK_INTERVAL_MS,
@@ -163,6 +192,40 @@ object AlertRuntimeManager {
                 TimeUnit.MILLISECONDS
             )
         }
+    }
+
+    /** Stop the worker as well as its timer; the next observation creates a fresh executor. */
+    @androidx.annotation.VisibleForTesting
+    internal fun resetForTests(): Boolean {
+        val retired = synchronized(lock) {
+            monitorGeneration++
+            monitorTask?.cancel(false)
+            monitorTask = null
+            val old = scheduler
+            scheduler = null
+            lastReadingTimeMs = 0L
+            lastDeliveredReadingTimeMs = 0L
+            lastGlucoseValue = Float.NaN
+            lastRate = Float.NaN
+            lastDisplaySnapshot = null
+            persistentHighStartedAtMs = 0L
+            lastLoggedExpiryEndMs = Long.MIN_VALUE
+            warnedForecastRateUntrusted = false
+            preLowSuppressionReason = null
+            preHighIobSuppressed = false
+            preHighCoverageSkipLogged = null
+            signalRestoredStateHolder = null
+            standardEpisodes.clearAll()
+            sensorExpiryState.reset()
+            fallingDeltaState.reset()
+            risingDeltaState.reset()
+            calibrationReadingBarrier = ReadingTimestampBarrier()
+            sameDirectionSuppression.clear()
+            old
+        }
+        // Do not wait while holding the runtime lock: an old tick may be waiting for it.
+        retired?.shutdownNow()
+        return retired?.awaitTermination(5, TimeUnit.SECONDS) ?: true
     }
 
     private fun evaluateLocked(nowMs: Long): AlertRuntimeEvaluation {
@@ -853,6 +916,7 @@ object AlertRuntimeManager {
             null
         } ?: return
 
+        signalRestoredState.seed(latest.sensorId, latest.timeMillis)
         if (lastReadingTimeMs <= 0L) {
             lastReadingTimeMs = latest.timeMillis
         }

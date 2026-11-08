@@ -248,6 +248,24 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
     }
 
+    /**
+     * True while something has paused this driver: the user, Clone, a handover
+     * release, or teardown. Automatic switching reads it so it does not resume a
+     * sensor that someone else paused.
+     */
+    public final boolean pauseRequested() {
+        return stop;
+    }
+
+    /**
+     * Whether this sensor connects only to deliver each reading and hangs up in
+     * between. For those, "no connection right now" is the normal state, and
+     * ownership has to be judged by recent readings instead.
+     */
+    public boolean connectsPerReading() {
+        return false;
+    }
+
     public synchronized void setPause(boolean pause) {
         this.stop = pause;
         if (pause) {
@@ -1073,6 +1091,12 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         handleGlucoseResultInternal(res, timmsec, 0, Float.NaN);
     }
 
+    /** Rate (mg/dL per minute) packed by native glucoselong; NaN when the sensor gave none. */
+    static float packedRate(long res) {
+        final short ratein = (short) ((res >> 32) & 0xFFFFL);
+        return ratein == Short.MIN_VALUE ? Float.NaN : ratein / 1000.0f;
+    }
+
     protected void handleGlucoseResult(long res, long timmsec, float preferredRawMgdl) {
         handleGlucoseResultInternal(res, timmsec, 0, preferredRawMgdl);
     }
@@ -1081,8 +1105,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         // int glumgdl = (int) (res & 0xFFFFFFFFL);
         int glumgL = (int) (res & 0xFFFFFFFFL);
         int alarm = (int) ((res >> 48) & 0xFFL);
-        short ratein = (short) ((res >> 32) & 0xFFFFL);
-        float rate = ratein / 1000.0f;
+        float rate = packedRate(res);
         final boolean liveRoomStorage = this instanceof ManagedBluetoothSensorDriver managed
                 && managed.managesLiveRoomStorage()
                 && SerialNumber != null

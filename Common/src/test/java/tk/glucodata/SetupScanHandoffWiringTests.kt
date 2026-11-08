@@ -69,9 +69,17 @@ class SetupScanHandoffWiringTests {
         assertTrue(connect >= 0 && stop > connect && add > stop)
         val scanEffect = section(
             wizard,
-            "DisposableEffect(scanPermissionGranted, bluetoothEnabled, scanRetryKey, restartKey)",
+            "DisposableEffect(scanPermissionGranted, bluetoothEnabled, scanRetryKey, restartKey, scanPaused)",
             "val knownAddresses = remember(",
         )
+        // The OTA dialog retains the search page. Its pause must stop scanning before
+        // the scan-start branch, including when an NFC/retry key changes while it is open.
+        val pause = scanEffect.indexOf("if (scanPaused || !scanPermissionGranted || !bluetoothEnabled) {")
+        val stopPaused = scanEffect.indexOf("scanner.stopScan()", pause)
+        val returnPaused = scanEffect.indexOf("return@DisposableEffect onDispose { scanner.stopScan() }", stopPaused)
+        val start = scanEffect.indexOf("scanner.startScan(")
+        assertTrue(pause >= 0 && stopPaused > pause && returnPaused > stopPaused && start > returnPaused)
+        assertTrue(wizard.contains("scanPaused = showFirmwareTest"))
         // Connect arms the managed scan before the panel leaves. Only leaving hands the radio back.
         assertFalse(scanEffect.substring(scanEffect.lastIndexOf("onDispose {")).contains("scanStarter"))
         assertTrue(wizard.contains(

@@ -10,8 +10,13 @@ import tk.glucodata.ui.AlarmActivityAccess
 object AlertActions {
     @JvmStatic
     @JvmOverloads
-    fun handle(kind: Int, customId: String?, snoozeMinutes: Int? = null) {
+    fun handle(kind: Int, customId: String?, requestedSnoozeMinutes: Int? = null) {
         val type = AlertType.fromId(kind)
+        // Restricted mode can leave alarms snooze-only. Every local way to stop one — the
+        // alarm screen, the notification's buttons, a swipe, opening the notification —
+        // comes through here, so a stop becomes the alert's usual snooze instead.
+        val snoozeMinutes = requestedSnoozeMinutes
+            ?: if (!tk.glucodata.RestrictedMode.allowsAlarmStop()) defaultSnoozeMinutes(kind, customId) else null
         val production = if (customId != null) {
             if (snoozeMinutes != null) CustomAlertAccess.snoozeAlert(customId, snoozeMinutes)
             else CustomAlertAccess.dismissAlert(customId)
@@ -40,6 +45,12 @@ object AlertActions {
             Notify.cancelAlertNotification()
         }
     }
+
+    /** The snooze a plain "Snooze" uses: the alert's configured default, 15 minutes otherwise. */
+    @JvmStatic
+    fun defaultSnoozeMinutes(kind: Int, customId: String?): Int =
+        if (customId != null) 15
+        else AlertType.fromId(kind)?.let { AlertRepository.loadConfig(it).defaultSnoozeMinutes } ?: 15
 
     fun applyRemote(action: WearAlertAcknowledgement) {
         val type = AlertType.fromId(action.kind) ?: return

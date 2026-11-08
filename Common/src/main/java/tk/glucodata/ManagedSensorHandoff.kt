@@ -55,7 +55,15 @@ object ManagedSensorHandoff {
     )
 
     @JvmStatic
-    fun createOutgoingPayload(context: Context? = Applic.app): ByteArray {
+    fun createOutgoingPayload(context: Context? = Applic.app): ByteArray =
+        createOutgoingPayload(context, refresh = false)
+
+    /**
+     * @param refresh the receiver already had this sensor's setup and is only
+     *   being brought up to date; it skips the full-history request a real
+     *   handover needs. Older receivers ignore the key and behave as before.
+     */
+    fun createOutgoingPayload(context: Context?, refresh: Boolean): ByteArray {
         val ctx = context ?: Applic.app
         val candidates = collectManagedCandidates(ctx)
         val currentManaged = ManagedCurrentSensor.get()
@@ -65,6 +73,7 @@ object ManagedSensorHandoff {
             .put("version", VERSION)
             .put("takeover", true)
             .put("managedSensorId", currentManaged ?: JSONObject.NULL)
+            .put("refresh", refresh)
 
         val entries = JSONArray()
         if (ctx != null && candidates.isNotEmpty()) {
@@ -73,6 +82,8 @@ object ManagedSensorHandoff {
             }
         }
         root.put("entries", entries)
+        // A Dexcom has no preferences to carry; its setup is the scan it came from.
+        DexcomWatchSetup.attach(root, SensorIdentity.resolveMainSensor())
         // Which namespaces actually travelled is otherwise invisible: a receiver that comes up
         // with no auth material looks exactly like one that was never sent any.
         run {
@@ -95,14 +106,27 @@ object ManagedSensorHandoff {
             if (root.optInt("version", 0) != VERSION || !root.optBoolean("takeover", false)) {
                 return@runCatching false
             }
-            val entries = root.optJSONArray("entries") ?: JSONArray()
+            // Checked here, at apply time, not only when the sender decided to
+            // send: once this device reads the sensor its driver state is newer
+            // than the copy in flight, and importing it would rewind the
+            // sensor's cursors and replay or lose history. A payload can name
+            // two sensors, the managed one and a Dexcom, and each is judged on
+            // its own.
+            val managedSensor = root.optString("managedSensorId", "").trim()
+                .takeIf { it.isNotEmpty() && it != "null" }
+            val dexcomSerial = DexcomWatchSetup.incomingSerial(root)
+            val parts = handoffToApply(managedSensor, dexcomSerial) { SensorOwnershipRuntime.readsLocally(it) }
+            if (parts == null) {
+                Log.i(LOG_ID, "handoff ignored: already reading ${managedSensor ?: dexcomSerial} here")
+                return@runCatching false
+            }
+            val entries = if (parts.managed) root.optJSONArray("entries") ?: JSONArray() else JSONArray()
             for (index in 0 until entries.length()) {
                 val entry = entries.optJSONObject(index) ?: continue
                 importEntry(ctx, entry)
             }
-            root.optString("managedSensorId", "")
-                .trim()
-                .takeIf { it.isNotEmpty() && it != "null" }
+            managedSensor
+                ?.takeIf { parts.managed }
                 ?.let { sensorId ->
                     if (!SensorIdentity.hasNativeSensorBacking(sensorId)) {
                         ManagedCurrentSensor.set(sensorId)
@@ -116,17 +140,21 @@ object ManagedSensorHandoff {
             }
                 Log.i(LOG_ID, "handoff applied: ${entries.length()} entries $perPrefs")
             }
+            val dexcomSetup = parts.dexcom && DexcomWatchSetup.carriesSetup(root)
+            if (dexcomSetup) {
+                // Builds a native record and the driver roster, like the netinfo
+                // and start handlers, which run one at a time on this slot; run
+                // beside them it could overlap a netinfo rebuild. The backlog is
+                // asked for after it, so it lands in the record this makes.
+                MessageReceiver.runNativeOp("Dexcom setup") {
+                    runCatching { DexcomWatchSetup.applyOnWatch(root) }
+                        .onFailure { Log.stack(LOG_ID, "Dexcom setup", it) }
+                    SensorIdentity.invalidateCaches()
+                    requestBacklog(root, mirrorDiscarded = true)
+                }
+            }
             SensorIdentity.invalidateCaches()
-            // Ask the sender for its backlog now. A full-horizon serve is otherwise throttled
-            // to its own schedule, so a device could take a sensor over holding only the last
-            // few minutes and wait minutes for the rest — while the sender had all of it and
-            // the Data Layer was idle.
-            // The sender's AiDex download cursor travels with the sensor on purpose: it says
-            // which offsets have already been pulled off that sensor, and the deep serve above
-            // is what makes them true here. Zeroing it instead made the receiver re-fetch a
-            // full history over BLE that sync had just delivered.
-            runCatching { WearSync2.requestSync(deep = true) }
-                .onFailure { Log.stack(LOG_ID, "handoff deep sync request", it) }
+            if (!dexcomSetup) requestBacklog(root, mirrorDiscarded = false)
             // The record is now stored, but drivers are only built from storage at Bluetooth
             // start. Without this the receiving device holds the sensor on paper and never
             // opens a connection — no GATT attempt, no broadcast fallback — until the app is
@@ -137,6 +165,26 @@ object ManagedSensorHandoff {
             Log.stack(LOG_ID, "applyIncoming", th)
             false
         }
+    }
+
+    /**
+     * @param mirrorDiscarded the Dexcom setup may have moved this device's mirrored copy of
+     *   the sensor aside, which leaves nothing but what the sender serves now; it serves the
+     *   full horizon again at once instead of waiting out its spacing between full serves.
+     */
+    private fun requestBacklog(root: JSONObject, mirrorDiscarded: Boolean) {
+        // Ask the sender for its backlog now. A full-horizon serve is otherwise throttled
+        // to its own schedule, so a device could take a sensor over holding only the last
+        // few minutes and wait minutes for the rest — while the sender had all of it and
+        // the Data Layer was idle.
+        // The sender's AiDex download cursor travels with the sensor on purpose: it says
+        // which offsets have already been pulled off that sensor, and the deep serve above
+        // is what makes them true here. Zeroing it instead made the receiver re-fetch a
+        // full history over BLE that sync had just delivered.
+        // A refresh of setup this device already had needs no backlog.
+        if (root.optBoolean("refresh", false)) return
+        runCatching { WearSync2.requestSync(deep = true, force = mirrorDiscarded) }
+            .onFailure { Log.stack(LOG_ID, "handoff deep sync request", it) }
     }
 
     private fun collectManagedCandidates(context: Context?): Set<String> {
@@ -308,4 +356,27 @@ object ManagedSensorHandoff {
             SensorIdentity.matches(record.substringBefore('|'), candidate) ||
                 record.contains(candidate, ignoreCase = true)
         }
+}
+
+/** Which parts of an incoming handoff this device takes: the managed sensor's state, the Dexcom setup. */
+internal class HandoffApply(val managed: Boolean, val dexcom: Boolean)
+
+/**
+ * What to take from a handoff naming [managedSensor] and/or [dexcomSerial]:
+ * every part whose sensor this device does not already read. Null when the
+ * payload names sensors and this device reads all of them; a payload naming
+ * none is taken whole.
+ */
+internal fun handoffToApply(
+    managedSensor: String?,
+    dexcomSerial: String?,
+    readsHere: (String) -> Boolean,
+): HandoffApply? {
+    val managedHere = managedSensor != null && readsHere(managedSensor)
+    val dexcomHere = dexcomSerial != null && readsHere(dexcomSerial)
+    val namesSensor = managedSensor != null || dexcomSerial != null
+    if (namesSensor && (managedSensor == null || managedHere) && (dexcomSerial == null || dexcomHere)) {
+        return null
+    }
+    return HandoffApply(managed = !managedHere, dexcom = !dexcomHere)
 }

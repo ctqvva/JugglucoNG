@@ -502,6 +502,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <!-- Nieuwe vertalingen -->
     <string name="import_history">Geschiedenis importeren</string>
     <string name="import_history_desc">Importeer glucosegegevens uit een JugglucoNG-export of CSV-bestand</string>
+    <string name="continue_without_sensor">Doorgaan zonder sensor</string>
+    <string name="continue_without_sensor_desc">Leg insuline, voeding en vingerprikken vast in het dagboek</string>
     <string name="get_started_desc">Ga aan de slag door je sensor toe te voegen</string>
     <string name="select_sensor">Selecteer sensortype</string>
     <string name="select_sibionics_type">Kies een Sibionics-sensor</string>
@@ -782,7 +784,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Scan de datamatrix op uw Accu-Chek SmartGuide-sensor</string>
     <string name="accuchek_setup_title">Accu-Chek-installatie</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Sensor toevoegen</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Verbonden!</string>
@@ -920,6 +922,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="libreview_password">Wachtwoord</string>
     <string name="libreview_resend">Gegevens opnieuw verzenden</string>
     <string name="libreview_russia">Regio Rusland</string>
+    <string name="libreview_official_end">Stoppen bij het officiële einde van de sensor</string>
+    <string name="libreview_official_end_desc">Laat de extra uren na het officiële einde van een Libre 2-sensor weg</string>
     <string name="libreview_send_now">Verzend nu</string>
     <string name="libreview_send_numbers">Stuur insuline/koolhydraten</string>
     <string name="libreview_settings_title">LibreView-instellingen</string>
@@ -938,7 +942,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mmolL">mmol/L</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Geen sensor verbonden</string>
     <string name="nothing"></string>
     <string name="off">Off</string>
     <string name="one">1</string>
@@ -958,6 +962,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth-koppeling resetten (gegevens blijven behouden)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Hierdoor wordt de sensor permanent verwijderd, worden de koppelingssleutels gewist en wordt de sessie gestopt. Om opnieuw te kunnen gebruiken, moet de sensor opnieuw worden gekoppeld.</string>
@@ -1743,6 +1748,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_dose_pair_insulin">Insuline koppelen</string>
     <string name="journal_dose_pair_carbs">Koolhydraten koppelen</string>
     <string name="journal_dose_suggested_insulin">%1$s E voorgesteld</string>
+    <string name="journal_amount_suggested">Voorgesteld</string>
     <string name="unit_insulin_value">%1$s E</string>
     <string name="unit_insulin_short">E</string>
     <string name="unit_carbs_value">%1$s g</string>
@@ -2527,6 +2533,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_connect_failed">Kon de verbinding niet starten. Probeer het opnieuw.</string>
     <string name="ottai_offline_hint">Je kunt ook een bestand met inloggegevens importeren onder Opgeslagen sensoren.</string>
     <string name="ottai_already_binding_hint">Je account heeft nog een andere sensor gekoppeld. Ontkoppel die onder Opgeslagen sensoren en probeer het opnieuw.</string>
+    <string name="ottai_ota_upgrade_required">De Ottai-dienst vroeg om een firmware-update bij het koppelen van deze sensor. Probeer de firmware-instelling opnieuw of importeer opgeslagen inloggegevens. Je kunt ook de officiële Ottai-app proberen.</string>
+    <string name="ottai_retry">Opnieuw proberen</string>
+    <string name="ottai_setup_failed">Instellen gestopt. Probeer opnieuw of sluit dit venster en importeer opgeslagen inloggegevens.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Landcode</string>
@@ -3155,6 +3164,51 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="settings_search_hint">Instellingen zoeken</string>
     <string name="settings_search_no_results">Geen instellingen gevonden voor ‘%1$s’</string>
     <string name="settings_search_clear">Zoekopdracht wissen</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Experimentele firmwaretest</string>
+    <string name="ottai_ota_warning">Een mislukte update kan de sensor onbruikbaar maken. Houd dit scherm open en de telefoon dicht bij de sensor.</string>
+    <string name="ottai_ota_connecting">Verbinden zonder activering…</string>
+    <string name="ottai_ota_authenticating">Sensoridentiteit controleren…</string>
+    <string name="ottai_ota_checking">Firmware controleren en downloaden…</string>
+    <string name="ottai_ota_recovery">Herstelpakket gereed. De installatie begint opnieuw met het opgeslagen pakket.</string>
+    <string name="ottai_ota_ready">Firmwarepakket gereed. De sensor is niet geactiveerd.</string>
+    <string name="ottai_ota_no_update">Geen firmwareupdate aangeboden</string>
+    <string name="ottai_ota_installing">Firmware installeren…</string>
+    <string name="ottai_ota_reconnecting">Opnieuw verbinden en de geïnstalleerde versie controleren…</string>
+    <string name="ottai_ota_preparing">Inloggegevens vernieuwen en fabrieksparameters schrijven…</string>
+    <string name="ottai_ota_complete">Voorbereiding voltooid. Sluit dit venster en verbind normaal om de sensor te activeren.</string>
+    <string name="ottai_ota_failed">Instellen gestopt. Probeer opnieuw of bekijk het tracelogboek. Een onvoltooide instelling blokkeert activering.</string>
+    <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
+    <string name="ottai_ota_package">%1$d bytes · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Diagnosecode: %1$s</string>
+    <string name="ottai_ota_install">Firmware installeren</string>
+    <string name="ottai_ota_parameters">Alleen fabrieksparameters schrijven</string>
+    <string name="ottai_ota_confirm">Deze experimentele update installeren? Dit kan de sensor permanent uitschakelen. Activering volgt apart na controle van de versie en fabrieksparameters.</string>
+    <string name="ottai_ota_parameters_confirm">De ondersteunde fabriekscoëfficiënten en kalibratie schrijven? Dit wijzigt de configuratie zonder firmwareupdate of het starten van de levensduur.</string>
+    <string name="ottai_ota_check">Firmware controleren (experimenteel)</string>
+    <string name="ottai_ota_cloud_recheck">Opnieuw controleren met V3-cloudverificatie</string>
+    <string name="ottai_ota_cloud_authenticating">Verifiëren via je Ottai-account…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Controleer firmware opnieuw met sensorverificatie via de server. Dit activeert de sensor niet en koppelt hem niet aan het account.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Koppel deze sensor eerst los van de bewaking. Een update van een gestarte sensor kan metingen wissen, de levensduur resetten of de sensor beëindigen.</string>
+    <string name="ottai_ota_fresh_mode">Nieuwe sensor</string>
+    <string name="ottai_ota_started_mode">Gestarte sensor</string>
+    <string name="ottai_ota_started_ready">Update voor de gestarte sensor gereed. Controleer de beginwaarden vóór installatie.</string>
+    <string name="ottai_ota_result_active">Firmware bijgewerkt. De sensor meldt actief; controleer het tracelogboek voordat je de bewaking verbindt.</string>
+    <string name="ottai_ota_result_ended">Firmware bijgewerkt. De sensor meldt beëindigd; controleer het tracelogboek.</string>
+    <string name="ottai_ota_result_reset">Firmware bijgewerkt. De sensor meldt niet geactiveerd; er is geen heractivering geprobeerd.</string>
+    <string name="ottai_ota_started_confirm">Op deze gestarte sensor installeren? Metingen en bedrijfsstatus kunnen worden gewist of gereset. De test registreert het resultaat zonder heractivering of het schrijven van fabrieksparameters.</string>
+    <string name="ottai_ota_observation">%1$s · status %2$d · levensduur %3$s s · laatste record %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Voor</string>
+    <string name="ottai_ota_after">Na</string>
+
+    <string name="ottai_ota_discard">Onvoltooide instelling wissen</string>
+    <string name="ottai_ota_discard_confirm">Opgeslagen update- en voorbereidingsstatus wissen om verbinding toe te staan? Firmware en instellingen worden niet hersteld. Een onderbroken firmware-update kan nog herstel vereisen.</string>
+    <string name="ottai_ota_pending">De sensorinstelling is niet voltooid. Verbind opnieuw of open herstel om deze te voltooien of te wissen.</string>
+    <string name="ottai_ota_finish_preparation">Firmware gecontroleerd. Bevestig de fabrieksparameters om de installatie af te ronden.</string>
+    <string name="ottai_ota_discard_failed">Firmwaretest kon niet worden verwijderd. Probeer opnieuw.</string>
     <string name="prediction_analysis_section">Voorspellingsanalyse</string>
     <string name="prediction_analysis_record">Voorspellingen vastleggen</string>
     <string name="prediction_analysis_record_summary">Elke voorspelling op deze telefoon bewaren om te vergelijken met wat er gebeurde</string>
@@ -3227,4 +3281,93 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="tts_trend_decreasing">dalend</string>
     <string name="tts_trend_rising_quickly">snel stijgend</string>
     <string name="tts_trend_falling_quickly">snel dalend</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Beperkte modus</string>
+    <string name="restricted_mode_desc">Verbergt instellingen en bediening</string>
+    <string name="restricted_full_mode_title">Voorlopig volledige modus</string>
+    <string name="restricted_full_mode_desc">De beperkte modus keert een minuut nadat je de app verlaat terug, of wanneer je hem vergrendelt.</string>
+    <string name="restricted_lock_now">Nu vergrendelen</string>
+    <string name="restricted_section_unlock">Naar volledige modus</string>
+    <string name="restricted_pin_title">Pincode</string>
+    <string name="restricted_pin_set">Aan · gevraagd voor de volledige modus</string>
+    <string name="restricted_pin_not_set">Uit · iedereen kan naar de volledige modus</string>
+    <string name="restricted_biometric_title">Vingerafdruk of gezicht</string>
+    <string name="restricted_biometric_desc">Ook ontgrendelen met de biometrie van de telefoon</string>
+    <string name="restricted_biometric_needs_pin">Stel eerst een pincode in</string>
+    <string name="restricted_section_allowed">Toegestaan in beperkte modus</string>
+    <string name="restricted_section_available">Nu beschikbaar</string>
+    <string name="restricted_allow_sensor_change">Sensoren wisselen</string>
+    <string name="restricted_allow_sensor_change_desc">Een nieuwe sensor toevoegen en de oude loskoppelen</string>
+    <string name="restricted_sensor_types_label">Sensoren die toegevoegd kunnen worden</string>
+    <string name="restricted_sensor_types_none">Kies er minstens één, anders kan er geen sensor worden toegevoegd.</string>
+    <string name="restricted_handover_on">Automatische sensoroverdracht staat aan: de nieuwe sensor neemt het over als de oude afloopt.</string>
+    <string name="restricted_handover_off">Automatische sensoroverdracht staat uit. Zet hem aan zodat de nieuwe sensor het overneemt als de oude afloopt.</string>
+    <string name="restricted_turn_on_handover">Overdracht aanzetten</string>
+    <string name="restricted_allow_journal">Dagboekitems</string>
+    <string name="restricted_allow_journal_desc">Insuline, maaltijden en notities toevoegen en bewerken</string>
+    <string name="restricted_allow_calibration_desc">Kalibraties toevoegen en bewerken</string>
+    <string name="restricted_allow_alarm_stop">Alarmen stoppen</string>
+    <string name="restricted_allow_alarm_stop_desc">Indien uit, kunnen alarmen alleen worden gesluimerd</string>
+    <string name="restricted_always_hidden">Andere instellingen, sensorresets, geavanceerde sensorbediening en gegevens wissen vragen altijd de volledige modus.</string>
+    <string name="restricted_pin_options_desc">Wijzig de pincode, of verwijder hem zodat de volledige modus met één tik opent.</string>
+    <string name="restricted_change_pin">Pincode wijzigen</string>
+    <string name="restricted_remove_pin">Pincode verwijderen</string>
+    <string name="restricted_use_biometric">Vingerafdruk of gezicht gebruiken</string>
+    <string name="restricted_unlock_title">Naar volledige modus</string>
+    <string name="restricted_unlock_desc">Instellingen en alle sensorbediening gaan open. Ze sluiten een minuut nadat je de app verlaat.</string>
+    <string name="restricted_unlock_desc_pin">Voer de pincode in om de instellingen en alle sensorbediening te openen. Ze sluiten een minuut nadat je de app verlaat.</string>
+    <string name="restricted_needs_full_mode">Schakel eerst naar de volledige modus in Instellingen.</string>
+    <string name="restricted_wrong_pin">Onjuiste pincode</string>
+    <string name="restricted_pin_locked_out">Te veel pogingen · wacht %1$s</string>
+    <string name="restricted_choose_pin">Kies een pincode</string>
+    <string name="restricted_confirm_pin">Voer de pincode opnieuw in</string>
+    <string name="restricted_choose_pin_desc">%1$d tot %2$d cijfers</string>
+    <string name="restricted_pin_mismatch">De pincodes komen niet overeen. Kies opnieuw een pincode.</string>
+    <string name="restricted_delete_digit">Cijfer wissen</string>
+    <string name="restricted_disconnect_desc">Deze telefoon stopt met het uitlezen van de sensor. De metingen tot nu toe blijven bewaard.</string>
+    <string name="restricted_sensors_locked">Voor het toevoegen van een sensor is de volledige modus nodig.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d cijfer ingevoerd</item>
+        <item quantity="other">%d cijfers ingevoerd</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Eindigt binnen een uur</string>
+    <string name="restricted_sensor_ended">Afgelopen</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Eindigt over %d dag</item>
+        <item quantity="other">Eindigt over %d dagen</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Eindigt over %d uur</item>
+        <item quantity="other">Eindigt over %d uur</item>
+    </plurals>
+    <string name="restricted_section_settings">Instellingen open in beperkte modus</string>
+    <string name="restricted_allow_alarm_settings_desc">Niveaus en geluiden wijzigen, of meldingen uitzetten</string>
+    <string name="restricted_allow_voice_desc">Uitgesproken waarden en alarmen</string>
+    <string name="restricted_allow_display_desc">Doelbereik, grafieken, meldingen, zwevende glucose en vergrendelscherm</string>
+    <string name="lumiflex_remove_follower_confirm">%1$s geen toegang meer geven tot je metingen?</string>
+    <string name="lumiflex_discard_changes_title">Wijzigingen verwerpen?</string>
+    <string name="lumiflex_discard_changes_message">Je wijzigingen voor deze volger zijn niet opgeslagen.</string>
+    <string name="lumiflex_follower_alerts">Meldingen voor volgers</string>
+    <string name="lumiflex_follow_mode">Ontvangen</string>
+    <string name="lumiflex_upload_mode">Verzenden</string>
+    <string name="lumiflex_follow_subtitle">Glucose ontvangen van Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Metingen ontvangen</string>
+    <string name="lumiflex_follow_current">Metingen ontvangen</string>
+    <string name="lumiflex_follow_failed">Metingen konden niet worden ontvangen</string>
+    <string name="lumiflex_no_providers">Geen gedeelde accounts. Vraag de eigenaar van de sensor om je account als volger toe te voegen.</string>
+    <string name="lumiflex_follow_refresh">Vernieuwen</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Gesproken waarden</string>
+    <string name="voice_turn_off">Stem uit</string>
+    <string name="voice_turn_on">Stem aan</string>
+    <string name="voice_every_reading">Elke meting</string>
+    <string name="voice_every_minutes">Elke %1$d min</string>
+    <string name="voice_resumes_at">Vanaf %1$s</string>
+    <string name="voice_quick_dashboard">Tonen op dashboard</string>
+    <string name="voice_quick_dashboard_desc">Schakelaar boven in de grafiek</string>
+    <string name="voice_quick_notification">Tonen in melding</string>
+    <string name="voice_quick_notification_desc">Stemknop in de glucosemelding</string>
+    <string name="aidex_keys_before_connect">Importeer de sleutels van deze sensor of vraag ze aan voordat je verbinding maakt.</string>
+    <string name="aidex_delete_keys_message">De opgeslagen koppelingssleutels voor %1$s van deze telefoon verwijderen? Exporteer ze eerst als je ze later nog nodig kunt hebben.</string>
 </resources>

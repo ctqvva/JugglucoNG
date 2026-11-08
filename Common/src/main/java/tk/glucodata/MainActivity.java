@@ -861,6 +861,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             try {
                 tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
                         .refreshOnForeground(this);
+                tk.glucodata.share.lumiflex.LumiflexFollowerRegistry.refresh(this);
             } catch (Throwable th) {
                 Log.stack(LOG_ID, "onResume follower refresh", th);
             }

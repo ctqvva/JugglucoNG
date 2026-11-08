@@ -12,6 +12,24 @@ import org.junit.Test
  */
 class AiDexStaleGattWiringTests {
 
+    @Test fun blePairingDoesNotInitiateCloudRequests() {
+        assertFalse(manager.contains("BloodControlAidex"))
+        assertFalse(manager.contains("AiDexCnCloudClient"))
+        assertFalse(manager.contains("maybeRequestAutomaticPairingMaterial"))
+        val rejection = manager.substringAfter("private fun handleF001Response(")
+            .substringBefore("val pairKey =")
+        assertFalse(rejection.contains("challengeWritten && keyExchange.pairKey == null"))
+    }
+
+    @Test fun setupRoutesKeylessFSelectionsAwayBeforeRegisteringOrConnecting() {
+        val wizard = File(repoRoot(), "Common/src/mobile/java/tk/glucodata/ui/setup/AiDexSetupWizard.kt").readText()
+        val gate = wizard.indexOf("AiDexSetupKeyGate.mayConnect(context, name, sensor.name)")
+        val rejection = wizard.substringAfter("if (!allowed) {").substringBefore("requiredSerial = null")
+        assertTrue(rejection.contains("currentStep = AiDexSetupStep.KEY_MANAGEMENT"))
+        assertTrue(rejection.contains("return@launch"))
+        assertTrue(gate >= 0 && gate < wizard.indexOf("SensorBluetooth.addAiDexSensor(context, name, sensor.address)"))
+    }
+
     private fun repoRoot(): File {
         var dir: File? = File(System.getProperty("user.dir") ?: ".").absoluteFile
         while (dir != null) {

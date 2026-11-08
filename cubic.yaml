@@ -1,0 +1,232 @@
+
+# yaml-language-server: $schema=https://cubic.dev/schema/cubic-repository-config.schema.json
+
+version: 1
+
+reviews:
+  enabled: true
+  incremental_commits: true
+  check_drafts: false
+  resolve_threads_when_addressed: true
+  auto_approve_behavior: disabled
+  auto_approve: disabled
+  ultrareview: manual
+
+  custom_instructions: |
+    JugglucoNG is an Android continuous glucose monitoring app,
+    written in Java, Kotlin and C++/JNI, with phone and Wear OS
+    variants. Users may act on its glucose values and alarms.
+
+    PRIORITY:
+    Wrong or stale glucose, incorrect alarms, dropped readings,
+    corrupted history, infinite loops, battery drain, crashes,
+    broken builds, and demonstrable security/privacy problems.
+
+    REVIEW STANDARD:
+    - Report concrete defects introduced, exposed or worsened
+      by the PR. Compare with the base and trace callers.
+    - Explain the triggering state, failing code path, and impact.
+    - Source-level proof is enough; physical reproduction is
+      not required for a demonstrable code defect.
+    - Do not assert undocumented sensor/protocol behaviour
+      without supporting evidence.
+    - Do not flag formatting, naming, legacy code style,
+      speculative performance, or missing tests alone.
+    - Do not propose unrelated refactoring.
+    - Group duplicate instances of the same underlying bug.
+    - Do not inflate severity or invent findings to fill a list.
+    - A declared, intentional behaviour change is not itself
+      a defect. Check that implementation matches intent.
+    - If no concrete problems are found, say so.
+
+    MAINTAINER REVIEW:
+    Changes to sensor signal processing, timestamps, sensor
+    grids, calibration, alarms, reading suppression, storage
+    migrations and phone/watch ownership require maintainer
+    review. Flag undisclosed behaviour changes; do not demand
+    that an already documented change be documented again.
+
+    KNOWN INTENTIONAL PATTERNS:
+    - curve/percentile.cpp and nearby nanovg code support
+      PNG rendering in the built-in web server.
+    - Legacy Settings.java and Compose settings coexist.
+    - Upstream Java formatting and logging wrappers are
+      intentional. Do not request cosmetic rewrites.
+    - Broad sensor-name matching supports OEM rebrands.
+      Verify candidates after connection instead of
+      automatically narrowing the matching pattern.
+    - Refactoring and behaviour changes should normally
+      be separate. Flag misrepresented behaviour changes.
+
+  ignore:
+    files:
+      - 'Common/src/main/cpp/libjuice/**'
+      - 'Common/src/main/cpp/LibAscon/**'
+      - 'Common/src/main/cpp/bcrypt/**'
+      - 'Common/src/main/cpp/curve/nanovg/**'
+      - 'Common/schemas/**'
+      - 'tools/archive/**'
+      - 'docs/test-coverage-map.md'
+      - '**/*.so'
+      - '**/*.png'
+      - '**/*.webp'
+      - '**/*.bak'
+      - '**/*.xml'
+
+
+  custom_rules:
+
+    - name: CGM values, calibration and time correctness
+      description: |
+        Review glucose paths for incorrect values, provenance,
+        calibration, units, timestamps and freshness.
+
+        - LiveReadingLanes.stock values still need this app's
+          calibration. LiveReadingLanes.resolved is final.
+          Both are in display units. Never double-calibrate.
+        - Never send raw or uncalibrated glucose to alarms,
+          widgets, notifications or exports in place of the
+          intended calibrated reading.
+        - Trace mg/dL versus mmol/L at every changed boundary.
+          ExchangeGlucosePayload carries primaryDisplayValue
+          and primaryMgdl with distinct contracts.
+        - Check seconds versus milliseconds:
+          emitExchangeOutputs uses tim in seconds and
+          timmsec in milliseconds. Sensor counters can use
+          minutes since sensor activation.
+        - Flag stale glucose presented as current, incorrect
+          unit conversions, backwards timestamps, or readings
+          assigned to the wrong sensor.
+        - Check actual caller and consumer contracts before
+          claiming a conversion is missing or duplicated.
+
+        Focus on real user impact, not code style.
+      file_paths:
+        - .greptile/rules.md
+      include:
+        - 'Common/src/**/java/tk/glucodata/**'
+        - 'Common/src/main/cpp/**'
+
+    - name: BLE, sensor drivers and history progression
+      description: |
+        Review BLE connection lifecycle, sensor history,
+        replay and reconnect paths for concrete failures.
+
+        - Scans, connections, bonding and retries need
+          termination, backoff or deadlines.
+        - A device lacking required services is rejected,
+          not retried forever under the same identity.
+        - Close GATT resources on disconnect/error paths.
+        - Late callbacks must not corrupt newer operations.
+        - Avoid blocking callbacks and unsynchronized state.
+        - Replay may revisit records, but must not duplicate,
+          overwrite, misattribute or corrupt them.
+        - Stored cursors must not regress over committed data.
+        - Recovery/replay must make forward progress.
+        - Check timestamps, sensor IDs and address reuse.
+        - Verify sensor identity after connection; do not
+          flag broad OEM name matching on its own.
+        - Report reachable retry storms, wake loops,
+          deadlocks and leaks, not theoretical overhead.
+
+        Check the second iteration of any recovery path:
+        what happens with the same cursor, address or ID?
+      include:
+        - 'Common/src/main/java/tk/glucodata/drivers/**'
+        - 'Common/src/**/java/tk/glucodata/*Gatt*'
+        - 'Common/src/main/java/tk/glucodata/SensorBluetooth.java'
+        - 'Common/src/main/cpp/**'
+
+    - name: Glucose delivery, alarms and exchange contracts
+      description: |
+        Check alarms, notifications, integrations and
+        phone/watch synchronisation for delivery regressions.
+
+        - Do not silently suppress, expire or withhold
+          readings based on unapproved driver inference.
+        - Changes to thresholds, delivery timing, calibration
+          defaults and sensor restart/reset behaviour must
+          be accurately described in the PR.
+        - Each exchange destination has its own gate in
+          ExchangeOutputPolicy. Do not reuse another gate.
+        - Exchange outputs consume one ExchangeGlucosePayload;
+          do not recalibrate it or invent unavailable fields.
+        - Glucose broadcasts target explicit packages using
+          setPackage, not implicit broadcasts.
+        - Feeds outside emitExchangeOutputs have their own
+          contracts; do not force them through this path.
+        - Trace settings from UI through persistence to
+          consumers. Watch-controlled ExchangeToggles must
+          retain stable wire IDs.
+        - Check recipients, timestamps, units, enablement
+          and timing for xDrip, AAPS, WearInt, Gadgetbridge,
+          Nightscout, watchdrip and outbound APIs.
+
+        Report unintended observable failures, not merely
+        a different implementation from a sibling sender.
+      include:
+        - 'Common/src/**/java/tk/glucodata/**'
+
+    - name: Android variants, JNI and persistent storage
+      description: |
+        Check cross-variant compatibility, native boundaries,
+        Room database integrity and release build behaviour.
+
+        - Common/src/main is shared by phone and Wear OS.
+          Shared code must not directly depend on classes
+          found only in src/mobile or src/wear.
+        - Variant-specific functionality uses registered
+          interfaces. An unavailable capability is absent,
+          not silently implemented as a no-op.
+        - Check reflection targets and ProGuard keep rules,
+          especially for minified release builds.
+        - JNI declarations and C++ exports/RegisterNatives
+          must agree on method name and signature.
+        - Check JNI global/local reference lifetimes, null
+          arrays/strings and callbacks across threads.
+        - Room schema/entity/index changes require valid
+          migrations from supported user versions.
+        - Never introduce fallbackToDestructiveMigration.
+          History loss on upgrade is unacceptable.
+        - DAO-only query changes need no schema migration.
+        - Do not introduce main-thread history DB access.
+        - Check phone and Wear builds separately, including
+          native CMake configuration and release shrinking.
+
+        Flag actual compatibility or data-integrity defects,
+        not architecture preferences.
+      include:
+        - 'Common/**'
+        - 'build.gradle'
+        - 'settings.gradle'
+
+    - name: Health data security, releases and localization
+      description: |
+        Review security-sensitive changes and localization
+        regressions with evidence-based severity.
+
+        - Never log or expose sensor keys, API tokens,
+          credentials or account secrets.
+        - Do not transmit glucose to destinations the user
+          has not enabled.
+        - Check exported Android components for adequate
+          permission checks or input validation.
+        - Flag actual insecure transport or exposure, not
+          a new permission or endpoint without an exploit path.
+        - Build and release automation must not expose signing
+          secrets to untrusted PR code, widen signing authority,
+          execute unpinned inputs or bypass APK verification.
+        - Newly added/reworded strings in strings.xml must
+          have corresponding translations in the locale
+          files for that source set.
+        - UI text must use string resources. Do not flag
+          subjective translation quality or legacy omissions.
+
+        Keep cosmetic and low-impact concerns separate
+        from safety, privacy and release-integrity defects.
+      include:
+        - 'Common/**'
+        - '.github/**'
+        - 'scripts/**'
+        - 'build.gradle'
+        - 'gradle.properties'

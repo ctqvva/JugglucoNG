@@ -520,6 +520,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <!-- Newly Extracted Strings -->
     <string name="import_history">Verlauf importieren</string>
     <string name="import_history_desc">Glukosedaten aus einem JugglucoNG-Export oder einer CSV-Datei importieren</string>
+    <string name="continue_without_sensor">Ohne Sensor fortfahren</string>
+    <string name="continue_without_sensor_desc">Insulin, Essen und Blutzuckermessungen im Journal erfassen</string>
     <string name="get_started_desc">Zum Einstieg den Sensor hinzufügen</string>
     <string name="select_sensor">Sensortyp auswählen</string>
     <string name="select_sibionics_type">Sibionics-Sensor auswählen</string>
@@ -973,6 +975,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="libreview_password">Passwort</string>
     <string name="libreview_resend">Daten erneut senden</string>
     <string name="libreview_russia">Region Russland</string>
+    <string name="libreview_official_end">Am offiziellen Sensorende stoppen</string>
+    <string name="libreview_official_end_desc">Zusätzliche Stunden nach dem offiziellen Ende eines Libre-2-Sensors auslassen</string>
     <string name="libreview_send_now">Jetzt senden</string>
     <string name="libreview_send_numbers">Insulin/Kohlenhydrate senden</string>
     <string name="libreview_settings_title">LibreView-Einstellungen</string>
@@ -1014,6 +1018,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="broadcast_only">Datenweitergabe</string>
     <string name="reset_autocal_button">Automatische Kalibrierung neu starten</string>
     <string name="reconnect">Neu verbinden</string>
+    <string name="ican_reset_bluetooth_binding">Bluetooth-Bindung zurücksetzen (Daten bleiben erhalten)</string>
     <string name="reconnect_sensor_desc">Setzt die Verbindung zurück und versucht, neu zu verbinden.</string>
     <string name="reconnect_sensor_title">Sensor neu verbinden?</string>
     <string name="remove_sensor_desc">Dadurch wird der Sensor dauerhaft entfernt, die Kopplungsschlüssel werden gelöscht und die Sitzung wird beendet. Zur erneuten Verwendung muss der Sensor erneut gekoppelt werden.</string>
@@ -1831,6 +1836,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_dose_pair_insulin">Insulin koppeln</string>
     <string name="journal_dose_pair_carbs">Kohlenhydrate koppeln</string>
     <string name="journal_dose_suggested_insulin">%1$s E vorgeschlagen</string>
+    <string name="journal_amount_suggested">Vorgeschlagen</string>
     <string name="unit_insulin_value">%1$s E</string>
     <string name="unit_insulin_short">E</string>
     <string name="unit_carbs_value">%1$s g</string>
@@ -2594,6 +2600,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_connect_failed">Die Verbindung konnte nicht gestartet werden. Versuche es erneut.</string>
     <string name="ottai_offline_hint">Du kannst auch unter „Gespeicherte Sensoren“ eine Zugangsdaten-Datei importieren.</string>
     <string name="ottai_already_binding_hint">Dein Konto hat noch einen anderen Sensor gebunden. Löse ihn unter „Gespeicherte Sensoren“ und versuche es dann erneut.</string>
+    <string name="ottai_ota_upgrade_required">Der Ottai-Dienst hat beim Verknüpfen dieses Sensors ein Firmwareupdate angefordert. Wiederhole die Firmwareeinrichtung oder importiere gespeicherte Zugangsdaten. Du kannst auch die offizielle Ottai-App versuchen.</string>
+    <string name="ottai_retry">Erneut versuchen</string>
+    <string name="ottai_setup_failed">Einrichtung angehalten. Versuche es erneut oder schließe das Fenster und importiere gespeicherte Zugangsdaten.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Ländervorwahl</string>
@@ -3225,6 +3234,51 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="settings_search_hint">Einstellungen durchsuchen</string>
     <string name="settings_search_no_results">Keine Einstellung passt zu „%1$s“</string>
     <string name="settings_search_clear">Suche löschen</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Experimenteller Firmwaretest</string>
+    <string name="ottai_ota_warning">Ein fehlgeschlagenes Update kann den Sensor unbrauchbar machen. Diesen Bildschirm geöffnet und das Telefon nahe am Sensor halten.</string>
+    <string name="ottai_ota_connecting">Verbindung ohne Aktivierung…</string>
+    <string name="ottai_ota_authenticating">Sensoridentität wird geprüft…</string>
+    <string name="ottai_ota_checking">Firmware wird geprüft und heruntergeladen…</string>
+    <string name="ottai_ota_recovery">Wiederherstellungspaket bereit. Das gespeicherte Paket wird von Anfang an installiert.</string>
+    <string name="ottai_ota_ready">Firmwarepaket bereit. Der Sensor ist nicht aktiviert.</string>
+    <string name="ottai_ota_no_update">Kein Firmwareupdate angeboten</string>
+    <string name="ottai_ota_installing">Firmware wird installiert…</string>
+    <string name="ottai_ota_reconnecting">Erneute Verbindung und Prüfung der installierten Version…</string>
+    <string name="ottai_ota_preparing">Zugangsdaten werden aktualisiert und Werksparameter geschrieben…</string>
+    <string name="ottai_ota_complete">Vorbereitung abgeschlossen. Diesen Dialog schließen und den Sensor zur Aktivierung normal verbinden.</string>
+    <string name="ottai_ota_failed">Einrichtung angehalten. Versuche es erneut oder prüfe das Trace-Protokoll. Eine unfertige Einrichtung blockiert die Aktivierung.</string>
+    <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
+    <string name="ottai_ota_package">%1$d Bytes · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Diagnosecode: %1$s</string>
+    <string name="ottai_ota_install">Firmware installieren</string>
+    <string name="ottai_ota_parameters">Nur Werksparameter schreiben</string>
+    <string name="ottai_ota_confirm">Dieses experimentelle Update installieren? Der Sensor kann dauerhaft ausfallen. Die Aktivierung erfolgt separat nach Prüfung der Version und der Werksparameter.</string>
+    <string name="ottai_ota_parameters_confirm">Die von dieser Firmware unterstützten Werkskoeffizienten und Kalibrierungswerte schreiben? Dies ändert die Sensorkonfiguration ohne Firmwareupdate oder Start der Laufzeit.</string>
+    <string name="ottai_ota_check">Firmware prüfen (experimentell)</string>
+    <string name="ottai_ota_cloud_recheck">Mit V3-Cloud-Authentifizierung erneut prüfen</string>
+    <string name="ottai_ota_cloud_authenticating">Authentifizierung über dein Ottai-Konto…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Die Firmware-Verfügbarkeit mit servergestützter Sensorauthentifizierung erneut prüfen. Der Sensor wird dabei weder aktiviert noch mit dem Konto verknüpft.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Diesen Sensor zuerst von der Überwachung trennen. Ein Update eines gestarteten Sensors kann Messwerte löschen, die Laufzeit zurücksetzen oder den Sensor beenden.</string>
+    <string name="ottai_ota_fresh_mode">Neuer Sensor</string>
+    <string name="ottai_ota_started_mode">Gestarteter Sensor</string>
+    <string name="ottai_ota_started_ready">Update für den gestarteten Sensor bereit. Vor der Installation die Ausgangswerte prüfen.</string>
+    <string name="ottai_ota_result_active">Firmware aktualisiert. Der Sensor meldet aktiv; vor der Überwachung das Trace-Protokoll prüfen.</string>
+    <string name="ottai_ota_result_ended">Firmware aktualisiert. Der Sensor meldet beendet; das Trace-Protokoll prüfen.</string>
+    <string name="ottai_ota_result_reset">Firmware aktualisiert. Der Sensor meldet nicht aktiviert; keine erneute Aktivierung versucht.</string>
+    <string name="ottai_ota_started_confirm">Auf diesem gestarteten Sensor installieren? Messwerte und Betriebszustand können gelöscht oder zurückgesetzt werden. Der Test protokolliert das Ergebnis ohne erneute Aktivierung oder Schreiben von Werksparametern.</string>
+    <string name="ottai_ota_observation">%1$s · Status %2$d · Laufzeit %3$s s · letzter Datensatz %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Vorher</string>
+    <string name="ottai_ota_after">Nachher</string>
+
+    <string name="ottai_ota_discard">Unfertige Einrichtung verwerfen</string>
+    <string name="ottai_ota_discard_confirm">Gespeicherten Update- und Vorbereitungsstand löschen, um die Verbindung freizugeben? Firmware und Einstellungen werden nicht wiederhergestellt. Ein abgebrochenes Flashen kann weiterhin eine Wiederherstellung erfordern.</string>
+    <string name="ottai_ota_pending">Die Sensoreinrichtung ist nicht abgeschlossen. Verbinde erneut oder öffne die Wiederherstellung, um sie abzuschließen oder zu verwerfen.</string>
+    <string name="ottai_ota_finish_preparation">Firmware geprüft. Werksparameter bestätigen, um die Einrichtung abzuschließen.</string>
+    <string name="ottai_ota_discard_failed">Firmwaretest konnte nicht verworfen werden. Erneut versuchen.</string>
     <string name="prediction_analysis_section">Prognoseanalyse</string>
     <string name="prediction_analysis_record">Prognosen aufzeichnen</string>
     <string name="prediction_analysis_record_summary">Jede Prognose auf diesem Telefon behalten, um sie mit dem Verlauf zu vergleichen</string>
@@ -3297,4 +3351,93 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="tts_trend_decreasing">sinkend</string>
     <string name="tts_trend_rising_quickly">schnell steigend</string>
     <string name="tts_trend_falling_quickly">schnell sinkend</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Eingeschränkter Modus</string>
+    <string name="restricted_mode_desc">Verbirgt Einstellungen und Steuerung</string>
+    <string name="restricted_full_mode_title">Vollmodus (vorübergehend)</string>
+    <string name="restricted_full_mode_desc">Der eingeschränkte Modus kehrt eine Minute nach Verlassen der App zurück oder wenn du ihn sperrst.</string>
+    <string name="restricted_lock_now">Jetzt sperren</string>
+    <string name="restricted_section_unlock">Wechsel in den Vollmodus</string>
+    <string name="restricted_pin_title">PIN</string>
+    <string name="restricted_pin_set">An · wird vor dem Vollmodus abgefragt</string>
+    <string name="restricted_pin_not_set">Aus · jeder kann in den Vollmodus wechseln</string>
+    <string name="restricted_biometric_title">Fingerabdruck oder Gesicht</string>
+    <string name="restricted_biometric_desc">Auch mit der Biometrie des Telefons entsperren</string>
+    <string name="restricted_biometric_needs_pin">Lege zuerst eine PIN fest</string>
+    <string name="restricted_section_allowed">Im eingeschränkten Modus erlaubt</string>
+    <string name="restricted_section_available">Jetzt verfügbar</string>
+    <string name="restricted_allow_sensor_change">Sensoren wechseln</string>
+    <string name="restricted_allow_sensor_change_desc">Neuen Sensor hinzufügen und den alten trennen</string>
+    <string name="restricted_sensor_types_label">Sensoren, die hinzugefügt werden können</string>
+    <string name="restricted_sensor_types_none">Wähle mindestens einen aus, sonst kann kein Sensor hinzugefügt werden.</string>
+    <string name="restricted_handover_on">Automatische Sensorübergabe ist an: Der neue Sensor übernimmt, wenn der alte endet.</string>
+    <string name="restricted_handover_off">Automatische Sensorübergabe ist aus. Schalte sie ein, damit der neue Sensor übernimmt, wenn der alte endet.</string>
+    <string name="restricted_turn_on_handover">Übergabe einschalten</string>
+    <string name="restricted_allow_journal">Tagebucheinträge</string>
+    <string name="restricted_allow_journal_desc">Insulin, Mahlzeiten und Notizen hinzufügen und bearbeiten</string>
+    <string name="restricted_allow_calibration_desc">Kalibrierungen hinzufügen und bearbeiten</string>
+    <string name="restricted_allow_alarm_stop">Alarme beenden</string>
+    <string name="restricted_allow_alarm_stop_desc">Wenn aus, können Alarme nur schlummern</string>
+    <string name="restricted_always_hidden">Andere Einstellungen, Sensor-Resets, erweiterte Sensorsteuerung und das Löschen von Daten brauchen immer den Vollmodus.</string>
+    <string name="restricted_pin_options_desc">Ändere die PIN oder entferne sie, damit der Vollmodus mit einem Tippen öffnet.</string>
+    <string name="restricted_change_pin">PIN ändern</string>
+    <string name="restricted_remove_pin">PIN entfernen</string>
+    <string name="restricted_use_biometric">Fingerabdruck oder Gesicht verwenden</string>
+    <string name="restricted_unlock_title">In den Vollmodus wechseln</string>
+    <string name="restricted_unlock_desc">Einstellungen und alle Sensorsteuerungen werden geöffnet. Sie schließen sich eine Minute nach dem Verlassen der App.</string>
+    <string name="restricted_unlock_desc_pin">Gib die PIN ein, um Einstellungen und alle Sensorsteuerungen zu öffnen. Sie schließen sich eine Minute nach dem Verlassen der App.</string>
+    <string name="restricted_needs_full_mode">Wechsle zuerst in den Einstellungen in den Vollmodus.</string>
+    <string name="restricted_wrong_pin">Falsche PIN</string>
+    <string name="restricted_pin_locked_out">Zu viele Versuche · warte %1$s</string>
+    <string name="restricted_choose_pin">PIN festlegen</string>
+    <string name="restricted_confirm_pin">PIN erneut eingeben</string>
+    <string name="restricted_choose_pin_desc">%1$d bis %2$d Ziffern</string>
+    <string name="restricted_pin_mismatch">Die PINs stimmen nicht überein. Lege die PIN erneut fest.</string>
+    <string name="restricted_delete_digit">Ziffer löschen</string>
+    <string name="restricted_disconnect_desc">Dieses Telefon liest den Sensor nicht mehr. Bisherige Messwerte bleiben erhalten.</string>
+    <string name="restricted_sensors_locked">Zum Hinzufügen eines Sensors ist der Vollmodus nötig.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d Ziffer eingegeben</item>
+        <item quantity="other">%d Ziffern eingegeben</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Endet in unter 1 Stunde</string>
+    <string name="restricted_sensor_ended">Beendet</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Endet in %d Tag</item>
+        <item quantity="other">Endet in %d Tagen</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Endet in %d Stunde</item>
+        <item quantity="other">Endet in %d Stunden</item>
+    </plurals>
+    <string name="restricted_section_settings">Im eingeschränkten Modus offene Einstellungen</string>
+    <string name="restricted_allow_alarm_settings_desc">Grenzwerte und Töne ändern oder Alarme ausschalten</string>
+    <string name="restricted_allow_voice_desc">Gesprochene Werte und Alarme</string>
+    <string name="restricted_allow_display_desc">Zielbereich, Diagramme, Benachrichtigungen, schwebender Glukosewert und Sperrbildschirm</string>
+    <string name="lumiflex_remove_follower_confirm">%1$s den Zugriff auf Ihre Messwerte entziehen?</string>
+    <string name="lumiflex_discard_changes_title">Änderungen verwerfen?</string>
+    <string name="lumiflex_discard_changes_message">Die Änderungen für diesen Follower wurden nicht gespeichert.</string>
+    <string name="lumiflex_follower_alerts">Benachrichtigungen für Follower</string>
+    <string name="lumiflex_follow_mode">Empfangen</string>
+    <string name="lumiflex_upload_mode">Senden</string>
+    <string name="lumiflex_follow_subtitle">Glukose von Lumiflex empfangen</string>
+    <string name="lumiflex_follow_refreshing">Messwerte werden empfangen</string>
+    <string name="lumiflex_follow_current">Messwerte empfangen</string>
+    <string name="lumiflex_follow_failed">Messwerte konnten nicht empfangen werden</string>
+    <string name="lumiflex_no_providers">Keine freigegebenen Konten. Bitten Sie den Sensorbesitzer, Ihr Konto als Follower hinzuzufügen.</string>
+    <string name="lumiflex_follow_refresh">Aktualisieren</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Sprachausgabe</string>
+    <string name="voice_turn_off">Sprache aus</string>
+    <string name="voice_turn_on">Sprache an</string>
+    <string name="voice_every_reading">Jeder Messwert</string>
+    <string name="voice_every_minutes">Alle %1$d Min.</string>
+    <string name="voice_resumes_at">Ab %1$s</string>
+    <string name="voice_quick_dashboard">Auf dem Dashboard</string>
+    <string name="voice_quick_dashboard_desc">Schalter oben im Diagramm</string>
+    <string name="voice_quick_notification">In der Benachrichtigung</string>
+    <string name="voice_quick_notification_desc">Sprachtaste in der Glukose-Benachrichtigung</string>
+    <string name="aidex_keys_before_connect">Importiere oder fordere die Schlüssel dieses Sensors an, bevor du dich verbindest.</string>
+    <string name="aidex_delete_keys_message">Gespeicherte Kopplungsschlüssel für %1$s von diesem Telefon entfernen? Exportiere sie zuerst, falls du sie später noch benötigst.</string>
 </resources>

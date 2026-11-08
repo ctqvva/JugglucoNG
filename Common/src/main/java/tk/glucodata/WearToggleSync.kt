@@ -205,7 +205,12 @@ object WearToggleSync {
 
     // ------------------------------------------------------------- phone side
 
-    @Volatile private var lastSentHash: Int? = null
+    /**
+     * What each watch was last sent, so the ride-along stays silent per watch.
+     * One shared value let a send to one watch hide a change from another, and a
+     * broadcast that never landed hid it from all of them.
+     */
+    private val lastSentHashByNode = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     /** Phone: applies a watch command, then reports the resulting state back. */
     @JvmStatic
@@ -227,9 +232,17 @@ object WearToggleSync {
         val target = nodeName ?: return
         runCatching {
             val payload = encode(currentState())
-            MessageSender.getMessageSender()?.sendToggleState(target, payload)
-            lastSentHash = payload.contentHashCode()
-        }.onFailure { Log.stack(LOG_ID, "pushTo", it) }
+            val sender = MessageSender.getMessageSender()
+            if (sender == null || !MessageSender.outgoingAllowed()) {
+                lastSentHashByNode.remove(target)
+                return
+            }
+            sender.sendToggleState(target, payload)
+            lastSentHashByNode[target] = payload.contentHashCode()
+        }.onFailure {
+            lastSentHashByNode.remove(target)
+            Log.stack(LOG_ID, "pushTo", it)
+        }
     }
 
     /** Phone: broadcasts after a local change, so the watch never lags. */
@@ -239,7 +252,9 @@ object WearToggleSync {
         runCatching {
             val payload = encode(currentState())
             MessageSender.getMessageSender()?.sendToggleState(payload)
-            lastSentHash = payload.contentHashCode()
+            // Which watches it reached is unknown here; let each one's next
+            // ride-along confirm it rather than assume it arrived.
+            lastSentHashByNode.clear()
         }.onFailure { Log.stack(LOG_ID, "push", it) }
     }
 
@@ -251,9 +266,15 @@ object WearToggleSync {
         runCatching {
             val payload = encode(currentState())
             val hash = payload.contentHashCode()
-            if (hash == lastSentHash) return
-            MessageSender.getMessageSender()?.sendToggleState(target, payload)
-            lastSentHash = hash
-        }.onFailure { Log.stack(LOG_ID, "pushIfChanged", it) }
+            if (lastSentHashByNode[target] == hash) return
+            // Nothing went out without a sender, so nothing is remembered as sent.
+            val sender = MessageSender.getMessageSender() ?: return
+            if (!MessageSender.outgoingAllowed()) return
+            sender.sendToggleState(target, payload)
+            lastSentHashByNode[target] = hash
+        }.onFailure {
+            lastSentHashByNode.remove(target)
+            Log.stack(LOG_ID, "pushIfChanged", it)
+        }
     }
 }

@@ -186,6 +186,18 @@ class OttaiBleManager(
     companion object {
         private const val TAG = OttaiConstants.TAG
         const val SENSOR_GEN = 0
+        // A misframed history frame is at most a few hundred bytes; log all of it (2 hex chars/byte).
+        private const val MISFRAMED_PAYLOAD_LOG_HEX_CHARS = 1_024
+
+        /**
+         * Only a decoded notify proves that notifications can replace the safety-net poll.
+         * At the wrong width the last record can be padding; its zero runtime even passes
+         * the sanity gate during the first two hours, but its zero current is not a sample.
+         * Later output rejections (warmup, low current, duplicates) do not imply a broken link.
+         */
+        internal fun notifyHoldsPollDown(readings: List<OttaiReading>): Boolean =
+            readings.lastOrNull()?.let { it.valid && it.record.rawCurrent > 0 } == true
+
         private const val RECONNECT_DELAY_MS = 3_000L
         // Link supervision timeout — the peer stopped answering rather than closing the link.
         // Android exports no constant for the BTA GATT_CONN_* codes, and this was the status on
@@ -1125,11 +1137,11 @@ class OttaiBleManager(
     // Corrects a stream start that dates live records after they arrive; fed accepted frames only.
     private val arrivalStartCorrection = OttaiArrivalStartCorrection()
     @Volatile private var lastBleActivityAtMs = 0L
-    // When the sensor last pushed a live frame on its own. The poll below is a safety net for
-    // notifications stopping, not a second data path, so it stands down while they are flowing.
+    // When the sensor last pushed a decodable live frame on its own. Unreadable notifications
+    // must leave the safety-net poll running so a larger live read can repair the record width.
     @Volatile private var lastLiveNotifyAtMs = 0L
     // When a live frame last decoded, from EITHER source. The post-history one-shot consults this,
-    // and lastLiveNotifyAtMs cannot serve it: that one is written only from onCharacteristicChanged,
+    // and lastLiveNotifyAtMs cannot serve it: that one is written only for decoded notifications,
     // and in the 2026-08-01 logs the driver was on the polled read path — at 1785605688 the last
     // notify was 389 s old, so a notify-based guard would have been inert on exactly the path it is
     // meant to close.
@@ -2870,10 +2882,7 @@ class OttaiBleManager(
         val value = ch.value ?: return
         noteGattActivity()
         when (ch.uuid) {
-            OttaiConstants.CHAR_GLUCOSE_LIVE -> {
-                lastLiveNotifyAtMs = System.currentTimeMillis()
-                handleGlucosePayload(value, live = true, source = "notify")
-            }
+            OttaiConstants.CHAR_GLUCOSE_LIVE -> handleGlucosePayload(value, live = true, source = "notify")
             OttaiConstants.CHAR_GLUCOSE_HISTORY -> handleGlucosePayload(value, live = false, source = "notify")
             OttaiConstants.CHAR_CGM_INFO_NOTIFY -> handleCgmInfo(value, source = "notify")
         }
@@ -3209,6 +3218,7 @@ class OttaiBleManager(
             Log.w(TAG, "$kind $source decrypt failed len=${cipher.size} blockMod=${cipher.size % 16}")
             return
         }
+        val widthBeforeFrame = learnedRecordSize
         learnRecordSize(payload)
         val records = OttaiParser.frameRecords(payload, materials.deviceVersion, heldRecordSize())
         if (records.isEmpty()) {
@@ -3226,11 +3236,22 @@ class OttaiBleManager(
         } else {
             records.map { OttaiParser.toReading(it, materials.method, materials.coefficients, activeMs) }
         }
+        if (live && source == "notify" && notifyHoldsPollDown(readings)) lastLiveNotifyAtMs = receivedAtMs
         // A history frame decoded at the wrong record width is almost entirely rejects, and the
         // few records that slip through are coincidental grid matches that look like glucose.
         // Judge the frame whole before any of it can be stored or mirrored.
         if (!live && OttaiOutputFilter.isMisframedFrame(readings)) {
             Log.w(TAG, "$kind $source misframed: ${readings.size} records at width ${heldRecordSize() ?: "auto"}, discarding frame")
+            // The sensor can return the same undecodable frame on every retry (2026-10-28:
+            // [5335,5352) x5, 168 bytes for 17 records). Keep the whole payload so the real
+            // record layout can be recovered offline; the frame itself is not stored.
+            Log.w(TAG, "$kind $source misframed payloadLen=${payload.size} front=${OttaiParser.frontDataNo(payload)} hex=${OttaiCrypto.bytesToHex(payload).take(MISFRAMED_PAYLOAD_LOG_HEX_CHARS)}")
+            // A discarded frame must not train the next live frame, including across restart.
+            if (learnedRecordSize != widthBeforeFrame) {
+                learnedRecordSize = widthBeforeFrame
+                SerialNumber?.let { id -> Applic.app?.let { OttaiRegistry.saveRecordSize(it, id, widthBeforeFrame) } }
+                Log.w(TAG, "record size restored=$widthBeforeFrame after a discarded frame")
+            }
             abandonHistoryWindow()
             return
         }
@@ -3743,7 +3764,7 @@ class OttaiBleManager(
                 )
                 if (stored > 0) {
                     applyActivatedWearToNative(id)
-                    Natives.wakebackup()
+                    Natives.wakehereonly()
                     Log.i(TAG, "mirrored $stored/${readings.size} history readings into native")
                 }
             }.onFailure { Log.stack(TAG, "mirrorHistoryIntoNative", it) }
@@ -3766,7 +3787,7 @@ class OttaiBleManager(
                 )
                 if (stored) {
                     applyActivatedWearToNative(id)
-                    Natives.wakebackup()
+                    Natives.wakestreamonly()
                     // The shell is sized and the start is known by the time a live write lands, so
                     // this is the first safe moment to close whatever native is missing.
                     handler.post { reconcileNativeFromRoom(id) }
@@ -4036,7 +4057,17 @@ class OttaiBleManager(
             if (stop) return
             val days = activatedLifetimeDays()
             if (days <= 0 || id.isBlank()) return
-            runCatching { Natives.setSensorWearDays(id, days) }
+            runCatching {
+                // setSensorWearDays also creates a missing shell, at the default 15-day
+                // capacity. Lifetime acceptance precedes a trustworthy activation time, so
+                // reserve storage with no start hint before that setter can create it.
+                val minimumRecords = maxOf(OttaiConstants.EXTENDED_LIFETIME_DAYS, days) * 24 * 60
+                if (Natives.ensureSensorShellWithCapacity(id, 0L, minimumRecords) == 0L) {
+                    Log.e(TAG, "cannot reserve native storage before setting lifetime for $id")
+                    return@runCatching
+                }
+                Natives.setSensorWearDays(id, days)
+            }
                 .onFailure { Log.stack(TAG, "setSensorWearDays", it) }
         }
     }
@@ -4063,6 +4094,11 @@ class OttaiBleManager(
     override fun requestActivation(): Boolean {
         val force = forceActivationRequested
         forceActivationRequested = false
+        val context = Applic.app
+        if (context != null && OttaiFirmwareSession.hasPendingSetup(context, SerialNumber.orEmpty())) {
+            Log.w(TAG, "activation refused: finish the pending firmware test first")
+            return false
+        }
         if (!force && (effectiveActiveTimeMs() > 0L || activationCommandSentAtMs > 0L)) {
             Log.i(TAG, "activation request ignored — command already sent/start time known")
             activateRequestedFor = null
@@ -4148,6 +4184,11 @@ class OttaiBleManager(
     }
 
     private fun startActivationWrites(gatt: BluetoothGatt) {
+        val context = Applic.app
+        if (context != null && OttaiFirmwareSession.hasPendingSetup(context, SerialNumber.orEmpty())) {
+            failActivation("pending firmware test")
+            return
+        }
         if (!activationNegotiationActive || maxActiveCandidatesMs.isEmpty()) {
             beginActivationNegotiation()
         }

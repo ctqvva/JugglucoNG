@@ -9,6 +9,8 @@
 
 
 <!-- s/^[	 ]*\(.*\)[	 ]*$/<uses-permission android:name="\1"\/>/g -->
+<!-- Restricted mode: unlock full mode with fingerprint or face (normal permission, granted at install). -->
+<uses-permission android:name="android.permission.USE_BIOMETRIC"/>
 <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE"/>
 <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
 <uses-permission android:name="android.permission.health.READ_STEPS"/>

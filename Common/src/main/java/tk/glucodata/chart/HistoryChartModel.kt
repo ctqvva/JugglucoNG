@@ -21,7 +21,7 @@ enum class ChartLook {
     SECONDARY,
 }
 
-data class ChartPointModel(
+data class ChartPointModel @JvmOverloads constructor(
     val timestamp: Long,
     val value: Float,
     /** The reading's owner; a merged primary series can contain several sensors. */
@@ -30,6 +30,8 @@ data class ChartPointModel(
     val look: ChartLook = ChartLook.MAIN,
     /** Bounds already displaced to this lane's resolved value, in display units. */
     val uncertainty: tk.glucodata.GlucoseUncertainty? = null,
+    /** Drawn from the record rather than resolved live. */
+    val fromRecord: Boolean = false,
 )
 
 /**
@@ -88,6 +90,42 @@ data class ChartSeriesModel(
     }
 
     fun valueAt(timestamp: Long): Float? = valueByTimestamp[timestamp]
+
+    /**
+     * Where this series' line passes at [timestamp], for pinning a mark onto the drawn
+     * curve: interpolated between the points either side when both are within
+     * [maxGapMillis], else the nearer one within it, else null. Unlike [valueAt] it does
+     * not need a reading in that very minute, so a 5-minute sensor still has a value
+     * between its readings.
+     */
+    fun lineValueNear(timestamp: Long, maxGapMillis: Long): Float? {
+        var best: Float? = null
+        var bestDistance = Long.MAX_VALUE
+        for (run in runs) {
+            val points = run.points
+            if (points.isEmpty()) continue
+            val found = points.binarySearchBy(timestamp) { it.timestamp }
+            if (found >= 0) {
+                val value = points[found].value
+                if (value.isFinite()) return value
+                continue
+            }
+            val insertion = -found - 1
+            val before = points.getOrNull(insertion - 1)?.takeIf { timestamp - it.timestamp <= maxGapMillis && it.value.isFinite() }
+            val after = points.getOrNull(insertion)?.takeIf { it.timestamp - timestamp <= maxGapMillis && it.value.isFinite() }
+            if (before != null && after != null) {
+                val fraction = (timestamp - before.timestamp).toFloat() / (after.timestamp - before.timestamp)
+                return before.value + (after.value - before.value) * fraction
+            }
+            val near = before ?: after ?: continue
+            val distance = kotlin.math.abs(near.timestamp - timestamp)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                best = near.value
+            }
+        }
+        return best
+    }
 
     /** Only the Auto lane owns sensor uncertainty. Never borrow an older interval. */
     fun uncertaintyAt(timestamp: Long, isRawLane: Boolean, sourceLane: Boolean): tk.glucodata.GlucoseUncertainty? {
@@ -208,7 +246,15 @@ data class HistoryChartModel(
         return low.takeIf { it.isFinite() } to high.takeIf { it.isFinite() }
     }
 
-    /** Main points actually inside the viewport, excluding borrowed stroke boundaries. */
+    /**
+     * Main points actually inside the viewport, excluding borrowed stroke
+     * boundaries, and those drawn from the record.
+     *
+     * A record is not something presented: its minute already holds that value,
+     * so recording it again can do nothing — unless the record has just been
+     * released and the points are older than the release, when it would write
+     * the released value straight back.
+     */
     fun presentedMainValues(startTime: Long, endTime: Long): List<PresentedChartValue> {
         val values = LinkedHashMap<Long, PresentedChartValue>()
         for (s in series) for (run in s.runs) {
@@ -218,7 +264,7 @@ data class HistoryChartModel(
             val to = pts.binarySearchBy(endTime) { it.timestamp }.let { if (it >= 0) it + 1 else -it - 1 }
             for (i in from until to) {
                 val p = pts[i]
-                if (p.look != ChartLook.MAIN) continue
+                if (p.look != ChartLook.MAIN || p.fromRecord) continue
                 val minute = MainSensorOwnership.minuteOf(p.timestamp)
                 values.putIfAbsent(minute, PresentedChartValue(minute, p.value, p.sensorId ?: s.sensorId, s.viewMode))
             }

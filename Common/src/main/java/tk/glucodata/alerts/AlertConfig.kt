@@ -19,7 +19,8 @@ enum class AlertType(val id: Int, val nameResId: Int) {
     PERSISTENT_HIGH(10, R.string.alert_persistent_high),
     SENSOR_EXPIRY(11, R.string.alert_sensor_expiry),
     FALLING_FAST(12, R.string.alert_falling_fast),
-    RISING_FAST(13, R.string.alert_rising_fast);
+    RISING_FAST(13, R.string.alert_rising_fast),
+    SIGNAL_RESTORED(14, R.string.alert_signal_restored);
 
     companion object {
         fun fromId(id: Int): AlertType? = entries.find { it.id == id }
@@ -39,6 +40,7 @@ enum class AlertType(val id: Int, val nameResId: Int) {
             MISSED_READING,
             PERSISTENT_HIGH,
             LOSS,
+            SIGNAL_RESTORED,
             SENSOR_EXPIRY,
             FALLING_FAST,
             RISING_FAST
@@ -464,6 +466,13 @@ object AlertDefaults {
                 soundEnabled = true,
                 defaultSnoozeMinutes = 120,
                 expiryWarningMinutes = setOf(DEFAULT_EXPIRY_WARNING_MINUTES)
+            )
+            AlertType.SIGNAL_RESTORED -> AlertConfig(
+                type = type,
+                enabled = false,
+                deliveryMode = AlertDeliveryMode.NOTIFICATION_ONLY,
+                hapticProfile = HapticProfile.SOFT,
+                defaultSnoozeMinutes = 30
             )
             AlertType.LOSS -> AlertConfig(
                 type = type,

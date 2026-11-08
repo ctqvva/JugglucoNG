@@ -24,6 +24,7 @@ package tk.glucodata
 import android.content.Intent
 import com.google.android.gms.wearable.*
 import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import tk.glucodata.Applic.isWearable
 import tk.glucodata.Log.doLog
@@ -53,17 +54,29 @@ class MessageReceiver: WearableListenerService() {
         when(WearMessagePath.fromWire(path)) {
             WearMessagePath.ALERT_ACK -> WearAlertSync.onMessage(data)
             WearMessagePath.DEFAULTS ->  {
-                val sender = tk.glucodata.MessageSender.getMessageSender()
-                if (sender == null) {
-                    Log.d(LOG_ID, "messagesender==null")
-                    return
+                MessageSender.scope.launch(nativeOps) {
+                    if (!isWearable && !MessageSender.outgoingAllowed()) return@launch
+                    val sender = tk.glucodata.MessageSender.getMessageSender()
+                    if (sender == null) {
+                        Log.d(LOG_ID, "messagesender==null")
+                        return@launch
                     }
-                val source=  sender.localnode
-                 if(doLog) {Log.i(LOG_ID,"path==WearMessagePath.DEFAULTS "+source );}
-                  setWearosdefaults(source,true);
-                   val context=if(MainActivity.thisone==null)Applic.app;else MainActivity.thisone;
-                   Applic.setbluetooth(context,false)
-                 }
+                    val source = sender.localnode
+                    if (doLog) {
+                        Log.i(LOG_ID, "path==WearMessagePath.DEFAULTS " + source)
+                    }
+                    setWearosdefaults(source, true)
+                    val context = if (MainActivity.thisone == null) Applic.app else MainActivity.thisone
+                    // Defaults do not turn automatic switching off on either
+                    // device, so its radio has to survive them, the same as a
+                    // /bluetooth=false does below.
+                    if (isWearable && AutoSensorSwitch.isEnabled()) {
+                        AutoSensorSwitch.keepWatchRadioArmed("defaults")
+                    } else {
+                        Applic.setbluetooth(context, false)
+                    }
+                }
+            }
             WearMessagePath.WAKE -> {
                 Natives.wakehereonly()
                 }
@@ -99,6 +112,9 @@ class MessageReceiver: WearableListenerService() {
                     // A previous prefs reply may have been lost, even if sendMessage succeeded.
                     WearPrefsSync.pushTo(messageEvent.sourceNodeId)
                     WearToggleSync.pushIfChanged(messageEvent.sourceNodeId)
+                    // A watch armed for automatic switching needs the setup of
+                    // the sensor being worn now, not of the one it was armed with.
+                    AutoSensorSwitch.provisionIfNeeded(messageEvent.sourceNodeId)
                     // Answer the handshake with this build's protocol version.
                     MessageSender.sendProtocol(messageEvent.sourceNodeId)
                 }
@@ -185,37 +201,47 @@ class MessageReceiver: WearableListenerService() {
                     return
                 }
                 val sourceId = messageEvent.getSourceNodeId()
-                val name: String
-                val galaxy: Boolean
-                if (isWearable) {
-                    name = sender.localnode
-                    galaxy = true;
-                } else {
-                    name = sourceId
-                    val it = sender.findnodeid(sourceId)
-                    if (it < 0)
-                        return
-                    val node: Node = nodes.elementAt(it)
-                    galaxy = isGalaxy(node)
-                }
-
-
-
-                if(Natives.setmynetinfo(name, data, galaxy)) {
-                    sendnetinfo(sourceId)
+                MessageSender.scope.launch(nativeOps) {
+                    if (!isWearable && !MessageSender.outgoingAllowed()) return@launch
+                    val name: String
+                    val galaxy: Boolean
                     if (isWearable) {
-                        MessageSender.sendSensorClaimStatus()
+                        name = sender.localnode
+                        galaxy = true;
+                    } else {
+                        name = sourceId
+                        val node = nodes.firstOrNull { it.id == sourceId }
+                        if (node == null) {
+                            Log.e(LOG_ID, "Can't find $sourceId")
+                            return@launch
+                        }
+                        galaxy = isGalaxy(node)
+                    }
+
+                    val applied = Natives.setmynetinfo(name, data, galaxy)
+                    // setmynetinfo turns the watch's Bluetooth off whenever the
+                    // phone says it reads the sensor; automatic switching needs
+                    // it on. See AutoSensorSwitch.keepWatchRadioArmed.
+                    if (isWearable) AutoSensorSwitch.keepWatchRadioArmed("netinfo handshake")
+                    if(applied) {
+                        sendnetinfo(sourceId)
+                        if (isWearable) {
+                            MessageSender.sendSensorClaimStatus()
+                        }
                     }
                 }
             }
             WearMessagePath.START ->  {
-               if(isWearable)
-                  UseWifi.usewifi()
-               val context=Applic.getContext()
-               Applic.setinittext(context.getString(R.string.connected));
-               Applic.initStarted=Natives.ontbytesettings(data)
-               Notify.mkunitstr(context,Natives.getunit())
-               sendnetinfo(messageEvent.getSourceNodeId())
+                val sourceId = messageEvent.getSourceNodeId()
+                MessageSender.scope.launch(nativeOps) {
+                    if(isWearable)
+                        UseWifi.usewifi()
+                    val context=Applic.getContext()
+                    Applic.setinittext(context.getString(R.string.connected));
+                    Applic.initStarted=Natives.ontbytesettings(data)
+                    Notify.mkunitstr(context,Natives.getunit())
+                    sendnetinfo(sourceId)
+                }
             }
              WearMessagePath.TOGGLES_REQ -> {
                  if (!isWearable) WearToggleSync.pushTo(messageEvent.sourceNodeId)
@@ -321,11 +347,6 @@ class MessageReceiver: WearableListenerService() {
                          return
                      }
                      val sourceId = messageEvent.sourceNodeId
-                     val it = sender.findnodeid(sourceId)
-                     if (it < 0) {
-                         Log.e(LOG_ID, "sender.findnodeid(sourceId)<0")
-                         return
-                     }
                      val nodes = sender.nodes
                      if (nodes.isNullOrEmpty()) {
                          Log.e(LOG_ID, "3: no nodes")
@@ -334,7 +355,11 @@ class MessageReceiver: WearableListenerService() {
                          }
                          return;
                      }
-                     val node: Node = nodes.elementAt(it)
+                     val node = nodes.firstOrNull { it.id == sourceId }
+                     if (node == null) {
+                         Log.e(LOG_ID, "Can't find $sourceId")
+                         return
+                     }
                      Wearos.sendinitwatchapp(node);
                      MessageSender.sendProtocol(messageEvent.sourceNodeId)
                  }
@@ -357,6 +382,18 @@ class MessageReceiver: WearableListenerService() {
  companion object {
    private const val LOG_ID = "MessageReceiver"
    private val unknownPaths = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+   // setmynetinfo tears down and rebuilds native host state and is not re-entrant; the
+   // service used to run these handlers serially on the main thread. One IO slot keeps
+   // that serialization without keeping the work on main.
+   private val nativeOps = Dispatchers.IO.limitedParallelism(1)
+
+   /** Runs [block] on the same single slot as the native netinfo/start handlers. */
+   @JvmStatic
+   fun runNativeOp(what: String, block: () -> Unit) {
+       MessageSender.scope.launch(nativeOps) {
+           runCatching(block).onFailure { Log.stack(LOG_ID, what, it) }
+       }
+   }
    private const val DISABLED_MESSAGE_LOG_INTERVAL_MS = 60_000L
    private val lastDisabledMessageLogMs = AtomicLong(0L)
     private const val offbyte:Byte=0

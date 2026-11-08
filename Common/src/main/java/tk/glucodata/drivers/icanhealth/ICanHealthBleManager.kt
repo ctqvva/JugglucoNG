@@ -285,12 +285,14 @@ class ICanHealthBleManager(
     private val rebindCandidateRetryAtMs = ConcurrentHashMap<String, Long>()
     private val rebindTimeoutRunnable = Runnable {
         synchronized(this) {
-            rejectRebindCandidate("candidate identity deadline expired")
+            rejectUnverifiedBindingCandidate("candidate identity deadline expired")
         }
     }
     // The address the onboarding scan picked by name or advert, as opposed to one the user or the
     // registry supplied. Only a guess like that may be dropped for not being a CGM.
     @Volatile private var onboardingScanPickedAddress: String? = null
+    @Volatile private var expectedSerialAfterRepair: String? = null
+    @Volatile private var consecutiveSilentConnectTimeouts = 0
     private val nonCgmCandidateStrikes = ConcurrentHashMap<String, Int>()
     private val unreachableCandidates = ICanHealthUnreachableCandidates()
     // The GATT whose current attempt reached STATE_CONNECTED. Tied to the instance, because a
@@ -388,7 +390,7 @@ class ICanHealthBleManager(
     private val gattOpTimeoutRunnable: Runnable = object : Runnable {
         override fun run() {
             if (gattOpActive) {
-                if (rejectRebindCandidate("GATT operation timed out before identity verification")) return
+                if (rejectUnverifiedBindingCandidate("GATT operation timed out before identity verification")) return
                 Log.w(TAG, "GATT op timeout — forcing queue drain")
                 gattOpActive = false
                 handler.removeCallbacks(this)
@@ -691,6 +693,45 @@ class ICanHealthBleManager(
             }, 250L)
         }
         UiRefreshBus.requestStatusRefresh()
+    }
+
+    @Synchronized
+    override fun rePairBinding() {
+        if (stop) return
+        uiPaused = false
+        clearSoftDisconnectState()
+        requireFreshBindingIdentity()
+        resetBindingAndRescan()
+    }
+
+    /** An empty registry address resumes this gate after an interrupted repair/restart. */
+    internal fun requireFreshBindingIdentity() {
+        expectedSerialAfterRepair = listOfNotNull(serialFromDevice, SerialNumber)
+            .map { ICanHealthConstants.canonicalSensorId(it) }
+            .firstOrNull { it.isNotBlank() && !ICanHealthConstants.isProvisionalSensorId(it) }
+    }
+
+    private fun isAwaitingBindingIdentity(): Boolean =
+        pendingAddressRebind != null || expectedSerialAfterRepair != null
+
+    /** Drop only the stored address and rescan unfiltered; native data and history stay intact. */
+    @Synchronized
+    private fun resetBindingAndRescan() {
+        // A pending automatic rebind owns its own 45 s timer and blocks setDevice(null); retire it
+        // first so an old timer cannot restore the address the user just asked to discard.
+        pendingAddressRebind = null
+        handler.removeCallbacks(rebindTimeoutRunnable)
+        close()
+        setDevice(null)
+        ICanHealthRegistry.clearBindingAddress(Applic.app, SerialNumber)
+        searchforDeviceAddress()
+        setUiStatus(UiStatusKind.PREPARING)
+        UiRefreshBus.requestStatusRefresh()
+        handler.post {
+            if (stop || uiPaused) return@post
+            SensorBluetooth.blueone?.stopScan(false)
+            SensorBluetooth.startscan()
+        }
     }
 
     override fun terminateManagedSensor(wipeData: Boolean) {
@@ -1117,8 +1158,38 @@ class ICanHealthBleManager(
     protected override fun connectionAttemptTimeoutMillis(): Long = CONNECTION_ATTEMPT_TIMEOUT_MS
 
     protected override fun onConnectionAttemptTimeout() {
-        // A silent autoConnect at a saved address must periodically allow discovery elsewhere.
+        consecutiveSilentConnectTimeouts++
+        val address = mActiveDeviceAddress
+        if (isAwaitingOnboardingIdentity() && !address.isNullOrBlank() &&
+            ICanHealthConstants.shouldDropUnreachableOnboardingAddress(consecutiveSilentConnectTimeouts)
+        ) {
+            Log.w(
+                TAG,
+                "Bound address $address never answered after $consecutiveSilentConnectTimeouts " +
+                    "silent connect timeouts; dropping it and rescanning unfiltered"
+            )
+            dropUnreachableBoundAddress()
+            return
+        }
         handler.post { if (!stop && !uiPaused) SensorBluetooth.startscan() }
+    }
+
+    /** The bound address never answered at the radio level. Drop it without blacklisting so the
+     *  unfiltered scan can rediscover the sensor once it advertises again. */
+    private fun dropUnreachableBoundAddress() {
+        close()
+        setDevice(null)
+        searchforDeviceAddress()
+        setUiStatus(UiStatusKind.PREPARING)
+        UiRefreshBus.requestStatusRefresh()
+        // The scan that is already running was built while an address was bound, so it still
+        // carries the 0x181F filter and scanStarter() would skip the restart. Stop it first so
+        // the next start rebuilds the filters from the now-empty address (unfiltered).
+        handler.post {
+            if (stop || uiPaused) return@post
+            SensorBluetooth.blueone?.stopScan(false)
+            SensorBluetooth.startscan()
+        }
     }
 
     @Synchronized
@@ -1224,18 +1295,27 @@ class ICanHealthBleManager(
             if (address != null && address.equals(knownAddress, ignoreCase = true)) {
                 return true
             }
-            if (pendingAddressRebind != null || phase != Phase.IDLE || hasLocallyConnectedGatt()) return false
-            val savedIds = listOf(SerialNumber, serialFromDevice, rawSerialFromDevice)
+            if (isAwaitingBindingIdentity() || phase != Phase.IDLE || hasLocallyConnectedGatt()) return false
+            val savedIds = (listOf(SerialNumber, serialFromDevice, rawSerialFromDevice) + listOfNotNull(onboardingDeviceSn))
                 .map { ICanHealthConstants.canonicalSensorId(it) }
                 .filter { it.isNotEmpty() && !ICanHealthConstants.isProvisionalSensorId(it) }
             if (savedIds.isEmpty()) return false
+            val lastActivityMs = maxOf(lastGlucoseReceiptRealtimeMs, createdAtMs)
+            val nowMs = System.currentTimeMillis()
             val rebind = ICanHealthConstants.shouldRebindStaleAddress(
                 knownAddress = knownAddress,
                 candidateAddress = address,
                 advertisedName = trimmedName,
                 sensorIds = savedIds,
-                lastActivityMs = maxOf(lastGlucoseReceiptRealtimeMs, createdAtMs),
-                nowMs = System.currentTimeMillis(),
+                lastActivityMs = lastActivityMs,
+                nowMs = nowMs,
+            ) || ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                knownAddress = knownAddress,
+                candidateAddress = address,
+                advertisedName = trimmedName,
+                savedIds = savedIds,
+                lastActivityMs = lastActivityMs,
+                nowMs = nowMs,
             )
             if (rebind) {
                 // IDLE can still own a waiting autoConnect or a queued connection runnable.
@@ -1278,6 +1358,16 @@ class ICanHealthBleManager(
     override fun setDevice(device: BluetoothDevice?) {
         val pending = pendingAddressRebind
         if (pending != null && !pending.candidateAddress.equals(device?.address, ignoreCase = true)) {
+            return
+        }
+        if (expectedSerialAfterRepair != null && device != null) {
+            // Use the candidate only as an in-memory connection target until DIS verifies it.
+            if (!mActiveDeviceAddress.isNullOrBlank() &&
+                !mActiveDeviceAddress.equals(device.address, ignoreCase = true)) return
+            mActiveBluetoothDevice = device
+            mActiveDeviceAddress = device.address
+            handler.removeCallbacks(rebindTimeoutRunnable)
+            handler.postDelayed(rebindTimeoutRunnable, REBIND_CANDIDATE_TIMEOUT_MS)
             return
         }
         super.setDevice(device)
@@ -1417,7 +1507,7 @@ class ICanHealthBleManager(
             }
 
             BluetoothProfile.STATE_DISCONNECTED -> {
-                if (rejectRebindCandidate("disconnected before identity verification (status=$status)")) return
+                if (rejectUnverifiedBindingCandidate("disconnected before identity verification (status=$status)")) return
                 Log.i(TAG, "Disconnected (status=$status)")
                 val reachedConnected = connectedGatt === gatt
                 connectedGatt = null
@@ -1515,7 +1605,7 @@ class ICanHealthBleManager(
         if (status != BluetoothGatt.GATT_SUCCESS) {
             serviceDiscoveryStarted = false
             Log.e(TAG, "Service discovery failed status=$status")
-            if (rejectRebindCandidate("service discovery failed (status=$status)")) return
+            if (rejectUnverifiedBindingCandidate("service discovery failed (status=$status)")) return
             gatt.disconnect()
             return
         }
@@ -1543,9 +1633,13 @@ class ICanHealthBleManager(
         if (charMeasurement == null) {
             Log.e(TAG, "CGM measurement characteristic missing")
             val pending = pendingAddressRebind
-            if (pending != null && rejectRebindCandidate(
+            if (pending != null && rejectUnverifiedBindingCandidate(
                     "CGM measurement characteristic missing",
                     blacklist = hasConfirmedNonCgmDiscovery(gatt, pending.candidateAddress),
+                )) return
+            if (expectedSerialAfterRepair != null && rejectUnverifiedBindingCandidate(
+                    "CGM measurement characteristic missing",
+                    blacklist = hasConfirmedNonCgmDiscovery(gatt, mActiveDeviceAddress.orEmpty()),
                 )) return
             if (rejectNonCgmOnboardingCandidate(gatt)) {
                 return
@@ -1555,12 +1649,12 @@ class ICanHealthBleManager(
         }
         gatt.device?.address?.trim()?.uppercase(Locale.US)?.let { nonCgmCandidateStrikes.remove(it) }
 
-        if (pendingAddressRebind != null && disService?.getCharacteristic(ICanHealthConstants.SERIAL_NUMBER) == null) {
-            rejectRebindCandidate("DIS serial characteristic missing")
+        if (isAwaitingBindingIdentity() && disService?.getCharacteristic(ICanHealthConstants.SERIAL_NUMBER) == null) {
+            rejectUnverifiedBindingCandidate("DIS serial characteristic missing")
             return
         }
         setUiStatus(UiStatusKind.PREPARING)
-        if (charSpecificOps != null || pendingAddressRebind != null) {
+        if (charSpecificOps != null || isAwaitingBindingIdentity()) {
             phase = Phase.AUTH_PRIME
             enqueuePreAuthReads()
             if (charSpecificOps != null) enqueueOp(GattOp.EnableIndicate(ICanHealthConstants.CGM_SPECIFIC_OPS))
@@ -1576,7 +1670,7 @@ class ICanHealthBleManager(
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
         if (gatt !== mBluetoothGatt) return
         val data = characteristic.value ?: return
-        if (pendingAddressRebind != null) return
+        if (isAwaitingBindingIdentity()) return
         Log.i(TAG, "WIRE rx notify ${shortUuid(characteristic.uuid)} ${data.toHexString()}")
         when (characteristic.uuid) {
             ICanHealthConstants.CGM_MEASUREMENT -> handleGlucoseNotification(data)
@@ -1629,7 +1723,7 @@ class ICanHealthBleManager(
     ) {
         if (gatt !== mBluetoothGatt) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            if (rejectRebindCandidate("read failed before identity verification (status=$status)")) return
+            if (rejectUnverifiedBindingCandidate("read failed before identity verification (status=$status)")) return
             Log.w(TAG, "Read failed for ${characteristic.uuid} status=$status")
             if (characteristic.uuid == ICanHealthConstants.CGM_STATUS && awaitingFreshStatusForHistoryBackfill) {
                 continuePendingHistoryBackfill("status read failed")
@@ -1684,11 +1778,16 @@ class ICanHealthBleManager(
                 val rawSerial = ICanHealthParser.parseRawDeviceSerial(data)
                 val resolvedSerial = ICanHealthParser.parseDeviceSerial(data)
                 if (resolvedSerial.isNotEmpty()) {
+                    if (rejectMismatchedRepairCandidate(resolvedSerial)) return
                     if (rejectMismatchedRebindCandidate(gatt, rawSerial, resolvedSerial)) {
                         return
                     }
                     if (rejectMismatchedOnboardingCandidate(gatt, rawSerial, resolvedSerial)) {
                         return
+                    }
+                    if (expectedSerialAfterRepair != null) {
+                        expectedSerialAfterRepair = null
+                        setDeviceAddress(mActiveDeviceAddress)
                     }
                     rawSerialFromDevice = rawSerial.takeIf { it.isNotBlank() }
                     applyBundledGlucoseKey(rawSerialFromDevice, vendorSoftwareVersion)
@@ -1696,7 +1795,7 @@ class ICanHealthBleManager(
                     handleResolvedSerial(resolvedSerial)
                     pendingAddressRebind = null
                     handler.removeCallbacks(rebindTimeoutRunnable)
-                } else if (rejectRebindCandidate("empty DIS serial")) {
+                } else if (rejectUnverifiedBindingCandidate("empty DIS serial")) {
                     return
                 }
             }
@@ -1824,10 +1923,31 @@ class ICanHealthBleManager(
         val pending = pendingAddressRebind ?: return false
         if (!pending.candidateAddress.equals(gatt.device?.address, ignoreCase = true)) return true
         val reported = listOf(rawSerial, resolvedSerial).map { ICanHealthConstants.canonicalSensorId(it) }
-        if (pending.savedIds.any { saved -> reported.any { it.equals(saved, ignoreCase = true) } }) {
+        val identityMatches =
+            pending.savedIds.any { saved -> reported.any { it.equals(saved, ignoreCase = true) } } ||
+                ICanHealthConstants.matchesOnboardingIdentity(onboardingDeviceSn, rawSerial) ||
+                ICanHealthConstants.matchesOnboardingIdentity(onboardingDeviceSn, resolvedSerial)
+        if (identityMatches) {
             return false
         }
-        return rejectRebindCandidate("DIS serial $resolvedSerial does not match the saved sensor", blacklist = true)
+        return rejectUnverifiedBindingCandidate("DIS serial $resolvedSerial does not match the saved sensor", blacklist = true)
+    }
+
+    private fun rejectMismatchedRepairCandidate(resolvedSerial: String): Boolean {
+        val expected = expectedSerialAfterRepair ?: return false
+        if (ICanHealthConstants.canonicalSensorId(resolvedSerial).equals(expected, ignoreCase = true)) return false
+        return rejectUnverifiedBindingCandidate("DIS serial $resolvedSerial does not match $expected", blacklist = true)
+    }
+
+    @Synchronized
+    private fun rejectUnverifiedBindingCandidate(reason: String, blacklist: Boolean = false): Boolean {
+        if (expectedSerialAfterRepair == null) return rejectRebindCandidate(reason, blacklist)
+        val address = mActiveDeviceAddress?.trim()?.uppercase(Locale.US) ?: return false
+        if (blacklist) rejectedOnboardingAddresses.add(address)
+        rebindCandidateRetryAtMs[address] = SystemClock.elapsedRealtime() + REBIND_RETRY_BACKOFF_MS
+        Log.w(TAG, "Rejected manual re-pair to $address: $reason; retaining the saved identity")
+        resetBindingAndRescan()
+        return true
     }
 
     /** Restore both connection targets; setDeviceAddress alone leaves the rejected device selected. */
@@ -2252,6 +2372,7 @@ class ICanHealthBleManager(
                 val nowMs = System.currentTimeMillis()
                 var importedCount = 0
                 var skippedUnanchoredCount = 0
+                var skippedCoveredCount = 0
                 for (record in batch.records) {
                     val glucoseMgdl = record.glucoseMgdl
                     if (glucoseMgdl == null ||
@@ -2264,6 +2385,7 @@ class ICanHealthBleManager(
                         continue
                     }
                     if (shouldSkipHistoryOverlap(record.sequenceNumber, sampleTimeMs)) {
+                        skippedCoveredCount++
                         continue
                     }
                     recordHistoryBackfillSample(
@@ -2278,16 +2400,19 @@ class ICanHealthBleManager(
                 Log.i(
                     TAG,
                     "Parsed SN glucose history batch base=${batch.baseSequenceNumber} records=${batch.records.size} " +
-                        "imported=$importedCount skippedUnanchored=$skippedUnanchoredCount"
+                        "imported=$importedCount skippedUnanchored=$skippedUnanchoredCount " +
+                        "skippedCovered=$skippedCoveredCount"
                 )
                 if (importedCount > 0) {
-                    sawUnsupportedSnHistoryBatch = false
                     refreshHistorySyncProgressStatus()
-                } else if (skippedUnanchoredCount > 0) {
-                    sawUnsupportedSnHistoryBatch = false
-                } else {
-                    sawUnsupportedSnHistoryBatch = true
                 }
+                // Already-stored records decoded fine; only a batch with nothing usable disables
+                // backfill for this callback (#742).
+                sawUnsupportedSnHistoryBatch = ICanHealthHistoryPolicy.glucoseBatchShowsUnsupportedHistory(
+                    importedCount = importedCount,
+                    skippedUnanchoredCount = skippedUnanchoredCount,
+                    skippedCoveredCount = skippedCoveredCount,
+                )
             }
 
             ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL -> {
@@ -2355,7 +2480,7 @@ class ICanHealthBleManager(
             if (sensorPtr != 0L || nativeWriteName.isNotBlank()) {
                 adoptNativeSensorIfAppropriate(SerialNumber, nativeWriteName)
             }
-            Natives.wakebackup()
+            Natives.wakestreamonly()
         }.onFailure {
             Log.stack(TAG, "storeMeasurement", it)
         }
@@ -2918,7 +3043,7 @@ class ICanHealthBleManager(
     }
 
     private fun enqueuePreAuthReads() {
-        if (pendingAddressRebind != null || serialFromDevice.isNullOrBlank()) {
+        if (isAwaitingBindingIdentity() || serialFromDevice.isNullOrBlank()) {
             disService?.getCharacteristic(ICanHealthConstants.SERIAL_NUMBER)?.let {
                 enqueueOp(GattOp.Read(ICanHealthConstants.SERIAL_NUMBER, ICanHealthConstants.DEVICE_INFO_SERVICE))
             }
@@ -3692,7 +3817,7 @@ class ICanHealthBleManager(
             if (nativeWriteName.isNotBlank()) {
                 adoptNativeSensorIfAppropriate(SerialNumber, nativeWriteName)
             }
-            Natives.wakebackup()
+            Natives.wakehereonly()
         }.onFailure {
             Log.stack(TAG, "mirrorHistoryBatchIntoNative", it)
         }
@@ -4514,7 +4639,7 @@ class ICanHealthBleManager(
         if (sensorPtr == 0L) {
             return
         }
-        if (dataptr != 0L && !mActiveDeviceAddress.isNullOrEmpty()) {
+        if (!isAwaitingBindingIdentity() && dataptr != 0L && !mActiveDeviceAddress.isNullOrEmpty()) {
             runCatching { Natives.setDeviceAddress(dataptr, mActiveDeviceAddress) }
                 .onFailure { Log.stack(TAG, "applyNativeSensorMetadata(setDeviceAddress)", it) }
         }
@@ -4706,14 +4831,14 @@ class ICanHealthBleManager(
             is GattOp.Read -> {
                 val service = gatt.getService(op.serviceUuid)
                 val char = service?.getCharacteristic(op.charUuid) ?: run {
-                    if (rejectRebindCandidate("read characteristic missing before identity verification")) return
+                    if (rejectUnverifiedBindingCandidate("read characteristic missing before identity verification")) return
                     Log.w(TAG, "Read missing ${op.charUuid} in ${op.serviceUuid}")
                     gattOpActive = false
                     drainGattQueue()
                     return
                 }
                 if (!gatt.readCharacteristic(char)) {
-                    if (rejectRebindCandidate("read failed to start before identity verification")) return
+                    if (rejectUnverifiedBindingCandidate("read failed to start before identity verification")) return
                     Log.e(TAG, "Read failed to start ${op.charUuid}")
                     gattOpActive = false
                     drainGattQueue()
@@ -4850,6 +4975,7 @@ class ICanHealthBleManager(
 
     private fun resetConnectionAttemptState() {
         phase = Phase.IDLE
+        consecutiveSilentConnectTimeouts = 0
         isAuthenticated = false
         authAttempted = false
         postAuthSetupStarted = false
@@ -4912,7 +5038,7 @@ class ICanHealthBleManager(
         if (gattOpActive || gattQueue.isNotEmpty()) {
             return
         }
-        if (rejectRebindCandidate("setup queue drained without a verified serial")) return
+        if (rejectUnverifiedBindingCandidate("setup queue drained without a verified serial")) return
         when (phase) {
             Phase.AUTH_PRIME -> {
                 if (charSpecificOps != null && !authAttempted) {
@@ -4972,7 +5098,7 @@ class ICanHealthBleManager(
 
     fun destroy() {
         stop = true
-        rejectRebindCandidate("manager destroyed before identity verification")
+        rejectUnverifiedBindingCandidate("manager destroyed before identity verification")
         handler.removeCallbacksAndMessages(null)
         cancelScheduledReconnect()
         try {

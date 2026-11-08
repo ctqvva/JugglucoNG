@@ -46,6 +46,9 @@ void SensorGlucoseData::backcalibrated(int pos, bool history) {
   }
 }
 void SensorGlucoseData::backstream(int pos) {
+  // The Dexcom slot repair lowers these cursors under this lock; a rewind
+  // interleaved with it could write back the higher value it read first.
+  const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
   const int maxind = backup->getupdatedata()->sendnr;
   auto *updateptr = getinfo()->update;
   for (int i = 0; i < maxind; i++) {
@@ -647,6 +650,12 @@ std::vector<int> usedsensorssnapshot(uint32_t nu) {
 
 std::vector<int> usedsensorssnapshot() {
   return usedsensorssnapshot(time(nullptr));
+}
+
+std::string usedsensorreason(int ind) {
+  std::lock_guard<std::mutex> lock(usedsensorsmutex);
+  const uint32_t nu = time(nullptr);
+  return sensors->bluetoothactiveReason(ind, nu - daysecs, nu);
 }
 
 extern std::vector<int> usedsensors;

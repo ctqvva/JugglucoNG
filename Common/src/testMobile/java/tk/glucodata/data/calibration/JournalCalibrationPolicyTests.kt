@@ -29,6 +29,7 @@ class JournalCalibrationPolicyTests {
         existing: List<CalibrationEntity> = emptyList(),
         history: List<JournalCalibrationPolicy.SensorLanes> = history(),
         isMmol: Boolean = false,
+        dismissed: Set<Long> = emptySet(),
     ) = JournalCalibrationPolicy.plan(
         entries = entries,
         history = history,
@@ -37,6 +38,7 @@ class JournalCalibrationPolicyTests {
         isMmol = isMmol,
         nowMillis = now,
         matchesSensor = exactMatch,
+        dismissedTimestamps = dismissed,
     )
 
     @Test
@@ -202,5 +204,41 @@ class JournalCalibrationPolicyTests {
         val result = plan(entries = emptyList(), existing = listOf(manual, otherSensor))
 
         assertTrue(result.isEmpty)
+    }
+
+    @Test
+    fun aRemovedPointIsNotDerivedAgainWhileItsEntryRemains() {
+        val result = plan(
+            entries = listOf(entry(id = 1L, timestamp = minutesAgo(10), mgdl = 120f)),
+            dismissed = setOf(minutesAgo(10)),
+        )
+
+        assertTrue(result.isEmpty)
+    }
+
+    @Test
+    fun aRemovedPointLeavesTheOtherEntriesPairing() {
+        val result = plan(
+            entries = listOf(
+                entry(id = 1L, timestamp = minutesAgo(10), mgdl = 120f),
+                entry(id = 2L, timestamp = minutesAgo(40), mgdl = 130f),
+            ),
+            dismissed = setOf(minutesAgo(10)),
+        )
+
+        assertEquals(listOf(2L), result.inserts.map { it.journalEntryId })
+    }
+
+    @Test
+    fun theDuplicateOfARemovedEntryDoesNotStepInForIt() {
+        val result = plan(
+            entries = listOf(
+                entry(id = 1L, timestamp = minutesAgo(10), mgdl = 120f),
+                entry(id = 2L, timestamp = minutesAgo(10) - 30_000L, mgdl = 121f),
+            ),
+            dismissed = setOf(minutesAgo(10)),
+        )
+
+        assertTrue(result.inserts.isEmpty())
     }
 }

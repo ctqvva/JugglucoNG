@@ -518,10 +518,12 @@ double     calibrateNow(const SensorGlucoseData *sens,const uint32_t time, const
     return     calibrateNowNoCheck(sens,time,  value) ;
     }
 double     calibrateNowNoCheck(const SensorGlucoseData *sens,const ScanData &value) {
+    if(value.hasResolvedGlucose()) return NAN;
     return calibrateNowNoCheck(sens,value.gettime(),value.getmgdL());
     }
 extern double     calibrateNow(const SensorGlucoseData *sens,const ScanData &value);
 double     calibrateNow(const SensorGlucoseData *sens,const ScanData &value) {
+    if(value.hasResolvedGlucose()) return NAN;
     return calibrateNow(sens,value.gettime(),value.getmgdL());
     }
 
@@ -556,6 +558,7 @@ double     calibrateONE(const SensorGlucoseData *sens,const uint32_t time, const
     }
 extern double     calibrateONE(const SensorGlucoseData *sens,const ScanData &value);
 double     calibrateONE(const SensorGlucoseData *sens,const ScanData &value) {
+    if(value.hasResolvedGlucose()) return NAN;
     return calibrateONE(sens,value.gettime(),value.getmgdL());
     }
 double     calibrateONEtest(const SensorGlucoseData *sens,const ScanData &value) {
@@ -626,6 +629,10 @@ std::pair<const ScanData*,const ScanData*>      makecalibrated(const SensorGluco
     ScanData *endout=outiter+1; 
     for(;initer>=input;--initer) {
        if(initer->valid()) {
+            if(initer->hasResolvedGlucose()) {
+                *outiter--=*initer;
+                continue;
+            }
             while(cali->time>initer->gettime()) {
                 --cali;
                 if(cali<first) {
@@ -673,6 +680,10 @@ std::pair<const ScanData*,const ScanData*>      makecalibratedback(const SensorG
     for(int i=0;i<nr;++i) {
         const ScanData &el=input[i];
         if(el.valid()) {
+                if(el.hasResolvedGlucose()) {
+                    *outiter++=el;
+                    continue;
+                }
                 double calvalue=calibrateValue(*cali,el);
                 if(isnan(calvalue))
                     continue;

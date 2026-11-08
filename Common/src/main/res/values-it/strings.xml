@@ -289,6 +289,8 @@
     <!-- Newly Extracted Strings -->
     <string name="import_history">Importa Cronologia</string>
     <string name="import_history_desc">Importa i dati del glucosio da un\'esportazione JugglucoNG o da un file CSV</string>
+    <string name="continue_without_sensor">Continua senza sensore</string>
+    <string name="continue_without_sensor_desc">Registra insulina, cibo e punture al dito nel diario</string>
     <string name="get_started_desc">Inizia aggiungendo il tuo sensore</string>
     <string name="select_sensor">Seleziona tipo sensore</string>
     <string name="select_sibionics_type">Scegli un sensore Sibionics</string>
@@ -561,7 +563,7 @@
     <string name="accuchek_scan_instruction">Scansiona la matrice dei dati sul sensore Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Configurazione Accu-Chek</string>
     <string name="active">Attivo</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Aggiungi sensore</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Connesso!</string>
@@ -760,6 +762,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_password">Parola d\'ordine</string>
     <string name="libreview_resend">Invia nuovamente i dati</string>
     <string name="libreview_russia">Regione russa</string>
+    <string name="libreview_official_end">Fermati alla fine ufficiale del sensore</string>
+    <string name="libreview_official_end_desc">Escludi le ore extra dopo la fine ufficiale di un sensore Libre 2</string>
     <string name="libreview_send_now">Invia adesso</string>
     <string name="libreview_send_numbers">Invia insulina/carboidrati</string>
     <string name="libreview_settings_title">Impostazioni di LibreView</string>
@@ -809,7 +813,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="no_data_available">No data available</string>
     <string name="no_ringtone_picker_found">No Ringtone Picker found</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Nessun sensore connesso</string>
     <string name="noaccountidspecified">"No account id specified "</string>
     <string name="noapplisteningto">"No app listening to "</string>
     <string name="nohttpport">The port number should be different from the http port</string>
@@ -854,6 +858,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ready_for_use">Sensor ready for use</string>
     <string name="ready_in">" ready in "</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Reimposta il collegamento Bluetooth (dati conservati)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Ciò rimuoverà permanentemente il sensore, cancellerà le chiavi di accoppiamento e interromperà la sessione. Il sensore deve essere riaccoppiato per poter essere riutilizzato.</string>
@@ -1690,6 +1695,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_dose_pair_insulin">Abbina insulina</string>
     <string name="journal_dose_pair_carbs">Abbina carboidrati</string>
     <string name="journal_dose_suggested_insulin">%1$s U suggerite</string>
+    <string name="journal_amount_suggested">Suggerito</string>
     <string name="unit_insulin_value">%1$s U</string>
     <string name="unit_insulin_short">U</string>
     <string name="unit_carbs_value">%1$s g</string>
@@ -2474,6 +2480,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
     <string name="ottai_offline_hint">Puoi anche importare un file di credenziali in Sensori salvati.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
+    <string name="ottai_ota_upgrade_required">Il servizio Ottai ha richiesto un aggiornamento del firmware durante l’associazione del sensore. Riprova la configurazione o importa le credenziali salvate. Puoi anche provare l’app ufficiale Ottai.</string>
+    <string name="ottai_retry">Riprova</string>
+    <string name="ottai_setup_failed">Configurazione interrotta. Riprova oppure chiudi e importa le credenziali salvate.</string>
     <string name="ottai_region_cn_full">Ottai Cina</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Prefisso internazionale</string>
@@ -3103,6 +3112,51 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Cerca nelle impostazioni</string>
     <string name="settings_search_no_results">Nessuna impostazione corrisponde a “%1$s”</string>
     <string name="settings_search_clear">Cancella ricerca</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Test firmware sperimentale</string>
+    <string name="ottai_ota_warning">Un aggiornamento non riuscito può rendere il sensore inutilizzabile. Tieni aperta questa schermata e il telefono vicino al sensore.</string>
+    <string name="ottai_ota_connecting">Connessione senza attivazione…</string>
+    <string name="ottai_ota_authenticating">Verifica dell’identità del sensore…</string>
+    <string name="ottai_ota_checking">Verifica e download del firmware…</string>
+    <string name="ottai_ota_recovery">Pacchetto di ripristino pronto. L’installazione riparte dall’inizio del pacchetto salvato.</string>
+    <string name="ottai_ota_ready">Firmware pronto. Il sensore non è attivato.</string>
+    <string name="ottai_ota_no_update">Nessun aggiornamento firmware disponibile</string>
+    <string name="ottai_ota_installing">Installazione del firmware…</string>
+    <string name="ottai_ota_reconnecting">Riconnessione e verifica della versione installata…</string>
+    <string name="ottai_ota_preparing">Aggiornamento delle credenziali e scrittura dei parametri di fabbrica…</string>
+    <string name="ottai_ota_complete">Preparazione completata. Chiudi questa finestra e connettiti normalmente per attivare il sensore.</string>
+    <string name="ottai_ota_failed">Configurazione interrotta. Riprova o controlla il registro di traccia. La configurazione incompleta blocca l’attivazione.</string>
+    <string name="ottai_ota_version">Sensore: %1$s · Aggiornamento: %2$s</string>
+    <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Codice diagnostico: %1$s</string>
+    <string name="ottai_ota_install">Installa firmware</string>
+    <string name="ottai_ota_parameters">Scrivi solo i parametri di fabbrica</string>
+    <string name="ottai_ota_confirm">Installare questo aggiornamento sperimentale? Il sensore potrebbe diventare inutilizzabile in modo permanente. L’attivazione avviene separatamente dopo la verifica della versione e dei parametri di fabbrica.</string>
+    <string name="ottai_ota_parameters_confirm">Scrivere i coefficienti e la calibrazione di fabbrica supportati? Questo modifica la configurazione senza aggiornare il firmware o avviare la durata del sensore.</string>
+    <string name="ottai_ota_check">Controlla firmware (sperimentale)</string>
+    <string name="ottai_ota_cloud_recheck">Ricontrolla con autenticazione cloud V3</string>
+    <string name="ottai_ota_cloud_authenticating">Autenticazione tramite il tuo account Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Ricontrolla la disponibilità del firmware con l’autenticazione del sensore tramite server. Il sensore non viene attivato né associato all’account.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Scollega prima questo sensore dal monitoraggio. L’aggiornamento di un sensore avviato può cancellare le letture, azzerare la durata o terminare il sensore.</string>
+    <string name="ottai_ota_fresh_mode">Sensore nuovo</string>
+    <string name="ottai_ota_started_mode">Sensore già avviato</string>
+    <string name="ottai_ota_started_ready">Aggiornamento pronto per il sensore avviato. Controlla i dati iniziali prima dell’installazione.</string>
+    <string name="ottai_ota_result_active">Firmware aggiornato. Il sensore risulta attivo; controlla il registro prima di riconnettere il monitoraggio.</string>
+    <string name="ottai_ota_result_ended">Firmware aggiornato. Il sensore risulta terminato; controlla il registro.</string>
+    <string name="ottai_ota_result_reset">Firmware aggiornato. Il sensore risulta non attivato; non è stata tentata la riattivazione.</string>
+    <string name="ottai_ota_started_confirm">Installare su questo sensore già avviato? Letture e stato operativo potrebbero essere cancellati o azzerati. Il test registra il risultato senza riattivare o scrivere parametri di fabbrica.</string>
+    <string name="ottai_ota_observation">%1$s · stato %2$d · durata %3$s s · ultima registrazione %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Prima</string>
+    <string name="ottai_ota_after">Dopo</string>
+
+    <string name="ottai_ota_discard">Annulla configurazione incompleta</string>
+    <string name="ottai_ota_discard_confirm">Eliminare lo stato salvato di aggiornamento e preparazione per consentire la connessione? Firmware e impostazioni non verranno ripristinati. Un aggiornamento interrotto potrebbe richiedere il recupero.</string>
+    <string name="ottai_ota_pending">La configurazione del sensore è incompleta. Connetti di nuovo o apri il recupero per completarla o annullarla.</string>
+    <string name="ottai_ota_finish_preparation">Firmware verificato. Conferma i parametri di fabbrica per completare la configurazione.</string>
+    <string name="ottai_ota_discard_failed">Impossibile abbandonare il test firmware. Riprova.</string>
     <string name="prediction_analysis_section">Analisi delle previsioni</string>
     <string name="prediction_analysis_record">Registra le previsioni</string>
     <string name="prediction_analysis_record_summary">Conserva ogni previsione su questo telefono per confrontarla con ciò che è successo</string>
@@ -3175,4 +3229,93 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">in diminuzione</string>
     <string name="tts_trend_rising_quickly">in rapido aumento</string>
     <string name="tts_trend_falling_quickly">in rapida diminuzione</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Modalità limitata</string>
+    <string name="restricted_mode_desc">Nasconde impostazioni e controlli</string>
+    <string name="restricted_full_mode_title">Modalità completa, per ora</string>
+    <string name="restricted_full_mode_desc">La modalità limitata torna un minuto dopo che esci dall\'app, o quando la blocchi.</string>
+    <string name="restricted_lock_now">Blocca ora</string>
+    <string name="restricted_section_unlock">Passaggio alla modalità completa</string>
+    <string name="restricted_pin_title">PIN</string>
+    <string name="restricted_pin_set">Attivo · richiesto prima della modalità completa</string>
+    <string name="restricted_pin_not_set">Disattivo · chiunque può passare alla modalità completa</string>
+    <string name="restricted_biometric_title">Impronta o volto</string>
+    <string name="restricted_biometric_desc">Sblocca anche con la biometria del telefono</string>
+    <string name="restricted_biometric_needs_pin">Imposta prima un PIN</string>
+    <string name="restricted_section_allowed">Consentito in modalità limitata</string>
+    <string name="restricted_section_available">Disponibile ora</string>
+    <string name="restricted_allow_sensor_change">Cambiare sensore</string>
+    <string name="restricted_allow_sensor_change_desc">Aggiungi un nuovo sensore e scollega il vecchio</string>
+    <string name="restricted_sensor_types_label">Sensori che si possono aggiungere</string>
+    <string name="restricted_sensor_types_none">Scegline almeno uno, altrimenti non si può aggiungere alcun sensore.</string>
+    <string name="restricted_handover_on">Il passaggio automatico del sensore è attivo: il nuovo sensore subentra quando il vecchio finisce.</string>
+    <string name="restricted_handover_off">Il passaggio automatico del sensore è disattivato. Attivalo perché il nuovo sensore subentri quando il vecchio finisce.</string>
+    <string name="restricted_turn_on_handover">Attiva il passaggio</string>
+    <string name="restricted_allow_journal">Voci del diario</string>
+    <string name="restricted_allow_journal_desc">Aggiungi e modifica insulina, pasti e note</string>
+    <string name="restricted_allow_calibration_desc">Aggiungi e modifica calibrazioni</string>
+    <string name="restricted_allow_alarm_stop">Fermare gli allarmi</string>
+    <string name="restricted_allow_alarm_stop_desc">Quando è disattivato, gli allarmi possono solo essere posticipati</string>
+    <string name="restricted_always_hidden">Altre impostazioni, reset del sensore, controlli avanzati del sensore ed eliminazione dei dati richiedono sempre la modalità completa.</string>
+    <string name="restricted_pin_options_desc">Cambia il PIN, o rimuovilo per aprire la modalità completa con un tocco.</string>
+    <string name="restricted_change_pin">Cambia PIN</string>
+    <string name="restricted_remove_pin">Rimuovi PIN</string>
+    <string name="restricted_use_biometric">Usa impronta o volto</string>
+    <string name="restricted_unlock_title">Passa alla modalità completa</string>
+    <string name="restricted_unlock_desc">Si aprono le impostazioni e tutti i controlli del sensore. Si richiudono un minuto dopo aver lasciato l\'app.</string>
+    <string name="restricted_unlock_desc_pin">Inserisci il PIN per aprire le impostazioni e tutti i controlli del sensore. Si richiudono un minuto dopo aver lasciato l\'app.</string>
+    <string name="restricted_needs_full_mode">Passa prima alla modalità completa nelle impostazioni.</string>
+    <string name="restricted_wrong_pin">PIN errato</string>
+    <string name="restricted_pin_locked_out">Troppi tentativi · attendi %1$s</string>
+    <string name="restricted_choose_pin">Scegli un PIN</string>
+    <string name="restricted_confirm_pin">Inserisci di nuovo il PIN</string>
+    <string name="restricted_choose_pin_desc">Da %1$d a %2$d cifre</string>
+    <string name="restricted_pin_mismatch">I PIN non corrispondono. Scegli di nuovo un PIN.</string>
+    <string name="restricted_delete_digit">Cancella cifra</string>
+    <string name="restricted_disconnect_desc">Questo telefono smette di leggere il sensore. Le letture ricevute finora restano.</string>
+    <string name="restricted_sensors_locked">Per aggiungere un sensore serve la modalità completa.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d cifra inserita</item>
+        <item quantity="other">%d cifre inserite</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Finisce entro un\'ora</string>
+    <string name="restricted_sensor_ended">Terminato</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Finisce tra %d giorno</item>
+        <item quantity="other">Finisce tra %d giorni</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Finisce tra %d ora</item>
+        <item quantity="other">Finisce tra %d ore</item>
+    </plurals>
+    <string name="restricted_section_settings">Impostazioni aperte in modalità limitata</string>
+    <string name="restricted_allow_alarm_settings_desc">Cambia soglie e suoni, o disattiva gli avvisi</string>
+    <string name="restricted_allow_voice_desc">Lettura vocale di valori e allarmi</string>
+    <string name="restricted_allow_display_desc">Intervallo obiettivo, grafici, notifiche, glucosio fluttuante e schermata di blocco</string>
+    <string name="lumiflex_remove_follower_confirm">Revocare a %1$s l’accesso alle tue letture?</string>
+    <string name="lumiflex_discard_changes_title">Annullare le modifiche?</string>
+    <string name="lumiflex_discard_changes_message">Le modifiche per questo follower non sono state salvate.</string>
+    <string name="lumiflex_follower_alerts">Notifiche del follower</string>
+    <string name="lumiflex_follow_mode">Ricevi</string>
+    <string name="lumiflex_upload_mode">Invia</string>
+    <string name="lumiflex_follow_subtitle">Ricevi la glicemia da Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Ricezione delle letture</string>
+    <string name="lumiflex_follow_current">Letture ricevute</string>
+    <string name="lumiflex_follow_failed">Impossibile ricevere le letture</string>
+    <string name="lumiflex_no_providers">Nessun account condiviso. Chiedi al proprietario del sensore di aggiungere il tuo account come follower.</string>
+    <string name="lumiflex_follow_refresh">Aggiorna</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Letture vocali</string>
+    <string name="voice_turn_off">Disattiva voce</string>
+    <string name="voice_turn_on">Attiva voce</string>
+    <string name="voice_every_reading">Ogni lettura</string>
+    <string name="voice_every_minutes">Ogni %1$d min</string>
+    <string name="voice_resumes_at">Dalle %1$s</string>
+    <string name="voice_quick_dashboard">Mostra nella dashboard</string>
+    <string name="voice_quick_dashboard_desc">Interruttore in cima al grafico</string>
+    <string name="voice_quick_notification">Mostra nella notifica</string>
+    <string name="voice_quick_notification_desc">Pulsante voce nella notifica della glicemia</string>
+    <string name="aidex_keys_before_connect">Importa o richiedi le chiavi di questo sensore prima di connetterti.</string>
+    <string name="aidex_delete_keys_message">Rimuovere da questo telefono le chiavi di associazione salvate per %1$s? Esportale prima se potrebbero servirti ancora.</string>
 </resources>

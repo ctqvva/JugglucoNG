@@ -21,6 +21,9 @@ object OttaiConstants {
 
     val SERVICE_DEVICE_INFO: UUID = UUID.fromString("0000180a-0000-1000-8000-00805f9b34fb")
     val CHAR_SOFTWARE_VERSION: UUID = UUID.fromString("00002a28-0000-1000-8000-00805f9b34fb")
+    val SERVICE_OTA: UUID = UUID.fromString("1d14d6ee-fd63-4fa1-bfa4-8f47b42119f0")
+    val CHAR_OTA_CONTROL: UUID = UUID.fromString("f7bf3564-fb6d-4e53-88a4-5e37e0326063")
+    val CHAR_OTA_DATA: UUID = UUID.fromString("984227f3-34fc-4045-a5d0-2c581f81a153")
     val CHAR_CURRENT_TIME: UUID = UUID.fromString("00002a2b-0000-1000-8000-00805f9b34fb")
     val CHAR_MAX_ACTIVE_TIME: UUID = UUID.fromString("b8fd9848-0ccd-423f-bd34-2419aa7ea004")
     val CHAR_CGM_INFO_NOTIFY: UUID = UUID.fromString("cb627922-4e79-42e3-b107-a10e816f6caa")
@@ -77,6 +80,10 @@ object OttaiConstants {
     const val EP_GET_BIND_DEVICE = "$PREFIX/deviceBind/getBindDevice"
     const val EP_DEVICE_LIST = "$PREFIX/deviceBind/list"  // account's bound + past sensors (paged)
     const val EP_DOWNLOAD_GLUCOSE = "$PREFIX/search/downloadGlucose"
+    const val OTA_SECURE_PREFIX = "/cgm/security/app/server"
+    // Relative to OTA_SECURE_PREFIX; these routes require the regional network-security envelope.
+    const val EP_OTA_JUDGE = "/ota/upgradeVersion/judge"
+    const val EP_OTA_REPORT = "/device/ota/upgrade"
 
     /**
      * Default phone-app headers (matches the working bind helper). The four
@@ -389,6 +396,8 @@ object OttaiConstants {
     const val PREF_PREHEAT_PERIOD_PREFIX = "ottai_preheat_period_"
     const val PREF_RETAIN_TIME_PREFIX = "ottai_retain_time_"      // retainTime ms (destruction value)
     const val PREF_DEVICE_VERSION_PREFIX = "ottai_device_version_"
+    const val PREF_CALIBRATION_K_PREFIX = "ottai_calibration_k_"
+    const val PREF_CALIBRATION_B_PREFIX = "ottai_calibration_b_"
     const val PREF_LAST_DATA_NO_PREFIX = "ottai_last_datano_"
     // Realtime delivery high-water. Unlike Room's newest timestamp, this records only a sample
     // that actually claimed the alert/voice/exchange path, so history imports cannot suppress a

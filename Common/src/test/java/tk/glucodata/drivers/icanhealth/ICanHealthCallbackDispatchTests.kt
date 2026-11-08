@@ -91,4 +91,19 @@ class ICanHealthCallbackDispatchTests {
         assertFalse(setAside.contains("rejectedOnboardingAddresses"))
         assertFalse(setAside.contains("handler.postDelayed"))
     }
+
+    @Test fun alreadyStoredHistoryRecordsDoNotMarkTheBatchUnsupported() {
+        // #742: a duplicate-only batch used to set sawUnsupportedSnHistoryBatch, which disabled
+        // automatic and live-gap backfill for the rest of the callback's life.
+        val glucoseBatch = manager.substringAfter("private fun handleSnHistoryNotification(")
+            .substringAfter("ICanHealthConstants.SN_HISTORY_SUBTYPE_GLUCOSE -> {")
+            .substringBefore("ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL -> {")
+        assertTrue(glucoseBatch.contains(
+            "if (shouldSkipHistoryOverlap(record.sequenceNumber, sampleTimeMs)) { skippedCoveredCount++ continue }",
+        ))
+        assertTrue(glucoseBatch.contains(
+            "sawUnsupportedSnHistoryBatch = ICanHealthHistoryPolicy.glucoseBatchShowsUnsupportedHistory(",
+        ))
+        assertFalse(glucoseBatch.contains("sawUnsupportedSnHistoryBatch = true"))
+    }
 }

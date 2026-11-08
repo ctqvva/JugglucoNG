@@ -142,6 +142,12 @@ interface ManagedBluetoothSensorDriver {
 
     fun softReconnect() {}
 
+    /**
+     * Drops the stored Bluetooth address and rescans, keeping the sensor's data and native
+     * backing. Drivers that cannot re-discover by scan fall back to a plain soft reconnect.
+     */
+    fun rePairBinding() { softReconnect() }
+
     /** Requests a fresh optional battery telemetry read without reconnecting. */
     fun requestBatteryRefresh(): Boolean = false
 

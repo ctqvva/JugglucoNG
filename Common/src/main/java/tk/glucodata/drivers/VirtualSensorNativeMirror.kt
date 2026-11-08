@@ -33,7 +33,7 @@ internal class VirtualSensorNativeMirror(
     private val readShellStartSeconds: (String) -> Long,
     private val openShell: (String, Long, Int) -> Unit,
     private val rebaseShell: (String, Long) -> Unit,
-    private val writeBatch: (LongArray, FloatArray, FloatArray, String) -> Int,
+    private val writeBatch: (LongArray, FloatArray, FloatArray, String, Boolean) -> Int,
 ) {
 
     companion object {
@@ -97,11 +97,14 @@ internal class VirtualSensorNativeMirror(
         sensorSerial: String,
         readings: List<VirtualGlucoseSensorBridge.Reading>,
         logLabel: String,
+        primaryIsResolved: Boolean = true,
     ): Int {
         if (sensorSerial.isBlank() || readings.isEmpty()) return 0
+        fun mirroredGlucose(reading: VirtualGlucoseSensorBridge.Reading): Float =
+            if (primaryIsResolved) reading.primaryGlucoseMgdl else reading.storageGlucoseMgdl
         val ordered = readings
             .asSequence()
-            .filter { it.storageGlucoseMgdl.isFinite() && it.storageGlucoseMgdl > 0f }
+            .filter { mirroredGlucose(it).isFinite() && mirroredGlucose(it) > 0f }
             .map { (it.timestampMs / 1000L) to it }
             .filter { (seconds, _) -> seconds > 0L }
             .sortedBy { (seconds, _) -> seconds }
@@ -128,11 +131,14 @@ internal class VirtualSensorNativeMirror(
 
         val stored = writeBatch(
             LongArray(writable.size) { writable[it].first },
-            FloatArray(writable.size) { nativeGlucose(writable[it].second.storageGlucoseMgdl) },
+            // Persist the representation with each value; an existing shell may
+            // still hold older automatic readings outside this source page.
+            FloatArray(writable.size) { nativeGlucose(mirroredGlucose(writable[it].second)) },
             FloatArray(writable.size) {
                 writable[it].second.rawMgdl.takeIf { raw -> raw.isFinite() && raw > 0f } ?: 0f
             },
             sensorSerial,
+            primaryIsResolved,
         )
         if (stored <= 0) {
             Log.w(TAG, "Native mirror stored no $logLabel points for $sensorSerial")
