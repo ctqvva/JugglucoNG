@@ -25,11 +25,20 @@ object Libre3ManagedNfc {
     const val RESULT_WRONG_RECEIVER = 0xFB
     const val RESULT_FAILED = 0xFA
     const val RESULT_TERMINATED = 13
+    /** Legacy "no LibreView account ID" result (ScanNfcV 0xF8). */
+    const val RESULT_NO_ACCOUNT_ID = 0xF8
+
+    /** Serial of the sensor the last successful scan paired, for the success dialog. */
+    @Volatile private var lastPaired: String? = null
+
+    @JvmStatic
+    fun lastPairedSensorId(): String? = lastPaired
 
     sealed class Outcome {
         data class Paired(val sensorId: String, val activated: Boolean) : Outcome()
         object NoResponse : Outcome()
         object MissingIdentity : Outcome()
+        object NoAccountId : Outcome()
         data class Terminated(val serial: String) : Outcome()
         data class WrongReceiver(val serial: String) : Outcome()
         data class Failed(val reason: String) : Outcome()
@@ -45,13 +54,16 @@ object Libre3ManagedNfc {
         return uid.size == 8 && uid[6].toInt() != 7
     }
 
-    /** The receiver ID this install puts in A0/A8. */
+    /**
+     * The receiver ID this install puts in A0/A8, or 0 when the LibreView account is the selected
+     * source but no account ID is known. That case is refused like the legacy scan (0xF8) instead
+     * of silently activating the sensor under an ID the user did not choose.
+     */
     @JvmStatic
     fun receiverId(context: Context): Long {
         if (Libre3Persistence.getReceiverSource(context) == Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT) {
             // The value the legacy path has always sent, so sensors it activated keep accepting A8.
-            val account = runCatching { Natives.getlibreAccountIDnumber() }.getOrDefault(0L) and 0xFFFFFFFFL
-            if (account != 0L) return account
+            return runCatching { Natives.getlibreAccountIDnumber() }.getOrDefault(0L) and 0xFFFFFFFFL
         }
         return Libre3Persistence.ownReceiverId(context)
     }
@@ -64,7 +76,11 @@ object Libre3ManagedNfc {
             .getOrElse { Outcome.Failed(it.javaClass.simpleName) }
         Log.i(TAG, "managed Libre 3 scan: $outcome")
         return when (outcome) {
-            is Outcome.Paired -> intArrayOf(RESULT_PAIRED, 1)
+            is Outcome.Paired -> {
+                lastPaired = outcome.sensorId
+                intArrayOf(RESULT_PAIRED, 1)
+            }
+            Outcome.NoAccountId -> intArrayOf(RESULT_NO_ACCOUNT_ID, 0)
             Outcome.NoResponse -> intArrayOf(RESULT_NO_RESPONSE, 0)
             Outcome.MissingIdentity -> {
                 Applic.Toaster(tk.glucodata.R.string.libre3_managed_identity_missing)
@@ -85,7 +101,10 @@ object Libre3ManagedNfc {
             "patch info serial=${info.serial} state=${info.state} fw=${info.firmwareVersion} " +
                 "secver=${info.securityVersion} wear=${info.wearDurationMinutes} warmup=${info.warmupMinutes}",
         )
-        if (info.isTerminated) return Outcome.Terminated(info.serial)
+        if (info.isTerminated) {
+            Libre3Registry.endSensor(ctx, info.serial)
+            return Outcome.Terminated(info.serial)
+        }
         // A0 starts the sensor's wear clock and A8 moves it to this receiver; neither is worth doing
         // when this phone could not authorize over BLE afterwards.
         if (Libre3Persistence.loadIdentities(ctx).isEmpty()) return Outcome.MissingIdentity
@@ -97,15 +116,22 @@ object Libre3ManagedNfc {
         }
         val command = Libre3Nfc.chooseCommand(info, override)
         val receiver = receiverId(ctx)
+        if (receiver == 0L) return Outcome.NoAccountId
         val nowSeconds = Math.round(System.currentTimeMillis() / 1000.0)
         val response = AlgNfcV.wholenfccmd(tag, Libre3Nfc.activationCommand(command, nowSeconds, receiver))
         return when (val result = Libre3Nfc.parseActivationResponse(response, nowSeconds)) {
             is Libre3Nfc.ActivationResult.Success -> {
+                // A sensor that reported no activation time keeps the start we already know, so a
+                // rescan does not look like a new activation (which would reset backfill marks).
+                val known = Libre3Persistence.loadSensor(ctx, info.serial)
+                val startMs = if (result.reportedActivationTime || known == null || known.startTimeMs <= 0L) {
+                    result.activationTimeSeconds * 1000L
+                } else known.startTimeMs
                 val record = Libre3SensorRecord(
                     sensorId = info.serial,
                     bleAddress = result.bleAddress,
                     blePin = result.blePin,
-                    startTimeMs = result.activationTimeSeconds * 1000L,
+                    startTimeMs = startMs,
                     warmupMinutes = info.warmupMinutes.takeIf { it in 1..255 } ?: 60,
                     wearMinutes = info.wearDurationMinutes,
                     receiverId = receiver,
@@ -132,6 +158,15 @@ object Libre3Registry {
         SensorBluetooth.gattcallbacks.firstNotNullOfOrNull { cb ->
             (cb as? Libre3BleManager)?.takeIf { it.matchesManagedSensorId(sensorId) }
         }
+
+    /** NFC says the sensor is shut down: end the managed record and stop its driver. */
+    @JvmStatic
+    fun endSensor(context: Context, sensorId: String) {
+        if (!Libre3Persistence.hasSensor(context, sensorId)) return
+        Libre3Persistence.setEnded(context, sensorId, true)
+        findDriver(sensorId)?.onSensorTerminated()
+        Log.i(TAG, "$sensorId: NFC reports the sensor terminated")
+    }
 
     /** Persist the NFC result and start (or refresh) the driver for it. */
     @JvmStatic

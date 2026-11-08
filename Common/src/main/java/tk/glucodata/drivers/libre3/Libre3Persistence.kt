@@ -92,7 +92,6 @@ object Libre3Persistence {
     private const val KEY_ENABLED = "enabled"
     private const val KEY_RECEIVER_ID = "receiver_id"
     private const val KEY_RECEIVER_SOURCE = "receiver_source"
-    private const val KEY_IDENTITIES = "identities_sealed"
 
     /** Where this install's receiver ID comes from. */
     const val RECEIVER_FROM_LIBREVIEW_ACCOUNT = 0
@@ -132,26 +131,132 @@ object Libre3Persistence {
     }
 
     // ---- identities ----
+    //
+    // Identity sets are installed as immutable versions (see Libre3IdentityProvisioning). Each
+    // identity is referred to as "<version>/<label>", and a sensor stores the reference it paired
+    // with, so selecting or installing a newer set never changes the key an existing pairing uses.
 
-    fun hasIdentities(context: Context): Boolean = prefs(context).contains(KEY_IDENTITIES)
+    private const val KEY_VERSIONS = "identity_versions"
+    private const val KEY_SELECTED = "identity_selected"
+    private fun payloadKey(version: String) = "identity_payload.$version"
 
-    fun loadIdentities(context: Context): List<Libre3AppIdentity> {
-        val plain = Libre3SecretBox.open(prefs(context).getString(KEY_IDENTITIES, null)) ?: return emptyList()
-        return runCatching { Libre3AppIdentity.parseJson(String(plain, Charsets.UTF_8)) }
-            .onFailure { Log.w("Libre3Persistence", "stored identities unreadable: ${it.message}") }
+    data class IdentityVersion(val id: String, val sha256: String, val installedAtMs: Long, val origin: String)
+
+    fun identityVersions(context: Context): List<IdentityVersion> {
+        val raw = prefs(context).getString(KEY_VERSIONS, null) ?: return emptyList()
+        return runCatching {
+            val array = org.json.JSONArray(raw)
+            (0 until array.length()).map {
+                val o = array.getJSONObject(it)
+                IdentityVersion(o.getString("id"), o.getString("sha256"), o.optLong("installedAt"), o.optString("origin"))
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    fun selectedIdentityVersion(context: Context): String? =
+        prefs(context).getString(KEY_SELECTED, null)?.takeIf { v -> identityVersions(context).any { it.id == v } }
+
+    fun selectIdentityVersion(context: Context, version: String) {
+        require(identityVersions(context).any { it.id == version }) { "identity version $version is not installed" }
+        prefs(context).edit().putString(KEY_SELECTED, version).apply()
+    }
+
+    fun hasIdentities(context: Context): Boolean = selectedIdentityVersion(context) != null
+
+    private const val KEY_CUSTOM_SOURCE = "identity_custom_source"
+
+    /** A source the user entered; it takes precedence over the build's own. */
+    fun customIdentitySource(context: Context): Libre3IdentitySource? =
+        Libre3IdentitySource.parse(prefs(context).getString(KEY_CUSTOM_SOURCE, null))
+
+    fun setCustomIdentitySource(context: Context, source: Libre3IdentitySource?) {
+        prefs(context).edit().apply { if (source == null) remove(KEY_CUSTOM_SOURCE) else putString(KEY_CUSTOM_SOURCE, source.toSpec()) }.apply()
+    }
+
+    /** The build's pinned source (Gradle property libre3IdentitySource), if it names one. */
+    val buildIdentitySource: Libre3IdentitySource?
+        get() = Libre3IdentitySource.parse(tk.glucodata.BuildConfig.LIBRE3_IDENTITY_SOURCE)
+
+    fun effectiveIdentitySource(context: Context): Libre3IdentitySource? =
+        customIdentitySource(context) ?: buildIdentitySource
+
+    /**
+     * Downloads and installs [source] unless that exact version is already installed. Blocking:
+     * call off the main thread.
+     */
+    fun provisionIdentities(context: Context, source: Libre3IdentitySource): List<Libre3AppIdentity> {
+        identityVersions(context).firstOrNull { it.id == source.version && it.sha256.equals(source.sha256, true) }?.let {
+            val installed = loadIdentityVersion(context, it.id)
+            if (installed.isNotEmpty()) {
+                selectIdentityVersion(context, it.id)
+                return installed
+            }
+        }
+        val bytes = Libre3IdentityProvisioning.fetch(source)
+        val origin = source.urls.joinToString { runCatching { java.net.URL(it).host }.getOrDefault(it) }
+        return installIdentities(context, source.version, source.sha256, bytes, origin)
+    }
+
+    /**
+     * Installs [bytes] as identity set [version] after checking it hashes to [sha256]. A version
+     * id is immutable: reinstalling it with other content is refused. The new set is selected.
+     */
+    @Synchronized
+    fun installIdentities(context: Context, version: String, sha256: String, bytes: ByteArray, origin: String): List<Libre3AppIdentity> {
+        val parsed = Libre3IdentityProvisioning.validate(bytes, sha256)
+        val versions = identityVersions(context)
+        versions.firstOrNull { it.id == version }?.let { existing ->
+            if (!existing.sha256.equals(sha256, ignoreCase = true)) {
+                throw Libre3IdentityProvisioning.ProvisioningException("version $version is already installed with other content")
+            }
+        }
+        val sealed = Libre3SecretBox.seal(bytes)
+        val updated = versions.filterNot { it.id == version } +
+            IdentityVersion(version, sha256.lowercase(), System.currentTimeMillis(), origin)
+        val array = org.json.JSONArray()
+        updated.forEach {
+            array.put(org.json.JSONObject().put("id", it.id).put("sha256", it.sha256).put("installedAt", it.installedAtMs).put("origin", it.origin))
+        }
+        // Payload before metadata: a failed write leaves the previous selection usable.
+        prefs(context).edit().putString(payloadKey(version), sealed).commit()
+        prefs(context).edit().putString(KEY_VERSIONS, array.toString()).putString(KEY_SELECTED, version).apply()
+        return relabel(version, parsed)
+    }
+
+    /** A user-picked file: its digest is computed here and becomes its version. */
+    fun importIdentities(context: Context, bytes: ByteArray): List<Libre3AppIdentity> {
+        val sha = Libre3IdentityProvisioning.sha256Hex(bytes)
+        return installIdentities(context, "import-${sha.take(12)}", sha, bytes, "file")
+    }
+
+    fun loadIdentityVersion(context: Context, version: String): List<Libre3AppIdentity> {
+        val meta = identityVersions(context).firstOrNull { it.id == version } ?: return emptyList()
+        val bytes = Libre3SecretBox.open(prefs(context).getString(payloadKey(version), null)) ?: return emptyList()
+        return runCatching { relabel(version, Libre3IdentityProvisioning.validate(bytes, meta.sha256)) }
+            .onFailure { Log.w("Libre3Persistence", "identity set $version unreadable: ${it.message}") }
             .getOrDefault(emptyList())
     }
 
-    /** Validates first; nothing is replaced unless every identity in [json] is well formed. */
-    fun importIdentities(context: Context, json: String): List<Libre3AppIdentity> {
-        val parsed = Libre3AppIdentity.parseJson(json)
-        val sealed = Libre3SecretBox.seal(Libre3AppIdentity.toJson(parsed).toByteArray(Charsets.UTF_8))
-        prefs(context).edit().putString(KEY_IDENTITIES, sealed).apply()
-        return parsed
+    /** The selected set. */
+    fun loadIdentities(context: Context): List<Libre3AppIdentity> =
+        selectedIdentityVersion(context)?.let { loadIdentityVersion(context, it) }.orEmpty()
+
+    /** The set this sensor paired with first, then the selected one. */
+    fun loadIdentitiesForSensor(context: Context, sensorId: String): List<Libre3AppIdentity> {
+        val pinned = pairedIdentityLabel(context, sensorId)?.substringBefore('/', "")?.takeIf { it.isNotEmpty() }
+        val first = pinned?.let { loadIdentityVersion(context, it) }.orEmpty()
+        return (first + loadIdentities(context)).distinctBy { it.label }
     }
 
+    private fun relabel(version: String, identities: List<Libre3AppIdentity>): List<Libre3AppIdentity> =
+        identities.map { Libre3AppIdentity.create("$version/${it.label}", it.scalarCopy(), it.certificate) }
+
+    /** Removes every installed set and every sensor's cached authorization derived from one. */
     fun clearIdentities(context: Context) {
-        prefs(context).edit().remove(KEY_IDENTITIES).apply()
+        val p = prefs(context)
+        val edit = p.edit().remove(KEY_VERSIONS).remove(KEY_SELECTED).remove("identities_sealed")
+        p.all.keys.filter { it.startsWith("identity_payload.") || it.endsWith(".kauth") }.forEach { edit.remove(it) }
+        edit.apply()
     }
 
     // ---- sensors ----

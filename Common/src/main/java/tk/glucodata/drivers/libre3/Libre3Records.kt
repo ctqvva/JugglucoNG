@@ -51,7 +51,11 @@ data class Libre3RealtimeReading(
     val currentMgdl: Int? get() = Libre3Glucose.usableMgdl(currentWord)
     val historicalMgdl: Int? get() = Libre3Glucose.usableMgdl(historicalWord)
 
-    /** mg/dL per minute; the sensor's own rate, else the trend arrow mapped as the legacy path does. */
+    /**
+     * mg/dL per minute: the sensor's own rate, else the trend arrow mapped as (trend - 3) * 1.3.
+     * Deliberate difference: the legacy native path stored that fallback in an int16 hundredths
+     * field, truncating it to about +/-0.01 mg/dL/min, and had no value for unknown trends.
+     */
     val rateMgdlPerMinute: Float
         get() = when {
             rateOfChangeRaw != -32768 -> rateOfChangeRaw / 100f

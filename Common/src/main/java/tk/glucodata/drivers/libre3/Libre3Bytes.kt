@@ -43,6 +43,7 @@ internal object Libre3Bytes {
     fun parseHex(text: String?): ByteArray? {
         if (text == null) return null
         val cleaned = text.filterNot { it.isWhitespace() || it == ':' || it == '-' }
+        if (cleaned.any { it.code > 0x7F }) return null
         if (cleaned.length % 2 != 0) return null
         val out = ByteArray(cleaned.length / 2)
         for (i in out.indices) {

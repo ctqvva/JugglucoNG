@@ -71,6 +71,9 @@ class Libre3BleManager(sensorId: String) :
         /** After this many complete rounds of every identity being refused, stop until the user acts. */
         private const val MAX_IDENTITY_ROUNDS = 2
         private const val MGDL_PER_MMOL = 18.0182f
+        /** Same 14-day geometry the generic mirror (VirtualSensorNativeMirror) assumes. */
+        private const val NATIVE_WINDOW_MINUTES = 14 * 24 * 60
+        private const val NATIVE_WINDOW_SECONDS = NATIVE_WINDOW_MINUTES * 60L
     }
 
     enum class Phase { IDLE, CONNECTING, DISCOVERING, SUBSCRIBING, AUTHENTICATING, STARTING_DATA, STREAMING, ENDED, ERROR }
@@ -138,6 +141,8 @@ class Libre3BleManager(sensorId: String) :
     private enum class ControlKind { CLINICAL, HISTORIC }
     private val controlQueue = ArrayDeque<Pair<ControlKind, ByteArray>>()
     private var controlInFlight: ControlKind? = null
+    /** Committed history life count the queued historic request asked up to. */
+    private var requestedHistoricCommitted = 0
 
     private val minuteBackfill = ArrayList<VirtualGlucoseSensorBridge.Reading>()
     private val historicBackfill = ArrayList<VirtualGlucoseSensorBridge.Reading>()
@@ -151,6 +156,8 @@ class Libre3BleManager(sensorId: String) :
     private var identityRejections = 0
     @Volatile private var identityRejected = false
     @Volatile private var missingIdentity = false
+    /** Connected device lacks the Libre 3 services: retrying the same address cannot help. */
+    @Volatile private var deviceRejected = false
 
     // ---- UI-facing snapshot (any thread) ----
 
@@ -190,6 +197,7 @@ class Libre3BleManager(sensorId: String) :
         Phase.IDLE -> when {
             missingIdentity -> "No Libre 3 app identity imported"
             identityRejected -> "Sensor did not accept the app identity"
+            deviceRejected -> "Device is not a Libre 3 (missing services); scan the sensor again"
             mActiveBluetoothDevice == null -> "Searching"
             else -> "Idle"
         }
@@ -277,6 +285,18 @@ class Libre3BleManager(sensorId: String) :
         return runCatching { adapter.getRemoteDevice(address) }.getOrNull()
     }
 
+    /** NFC found the sensor shut down: stop connecting and show it as ended. */
+    fun onSensorTerminated() {
+        ended = true
+        handler.post {
+            handler.removeCallbacks(reconnectRunnable)
+            closeGattTransport()
+            endLink()
+            phase = Phase.ENDED
+            UiRefreshBus.requestStatusRefresh()
+        }
+    }
+
     /** NFC refreshed this sensor's address/PIN/start: adopt it and start over with a clean link. */
     fun onNfcRecordUpdated() {
         val ctx = Applic.app ?: return
@@ -285,6 +305,7 @@ class Libre3BleManager(sensorId: String) :
         identityRejected = false
         identityRejections = 0
         missingIdentity = false
+        deviceRejected = false
         mActiveDeviceAddress = record?.bleAddress
         mActiveBluetoothDevice = knownDevice()
         sensorstartmsec = record?.startTimeMs ?: 0L
@@ -298,7 +319,7 @@ class Libre3BleManager(sensorId: String) :
     @Synchronized
     override fun connectDevice(delayMillis: Long): Boolean {
         if (stop || ended) return false
-        if (identityRejected || missingIdentity) {
+        if (identityRejected || missingIdentity || deviceRejected) {
             Log.i(TAG, "$sensorId: not connecting (${getDetailedBleStatus()}); waiting for the user")
             return false
         }
@@ -381,7 +402,7 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun noteIdentityRejected(label: String) {
-        val count = Applic.app?.let { Libre3Persistence.loadIdentities(it).size } ?: 0
+        val count = Applic.app?.let { Libre3Persistence.loadIdentitiesForSensor(it, sensorId).size } ?: 0
         identityRejections++
         identityCursor++
         Log.w(TAG, "$sensorId: identity '$label' not accepted ($identityRejections refusals, $count identities)")
@@ -406,6 +427,9 @@ class Libre3BleManager(sensorId: String) :
             val required = Libre3Gatt.SECURITY_NOTIFY_ORDER + Libre3Gatt.DATA_NOTIFY_ORDER
             val missing = required.filterNot { characteristics.containsKey(it) }
             if (missing.isNotEmpty()) {
+                // Deterministic: the same address will be missing them again. Stop until a new NFC
+                // scan (which may report a different address) or an explicit user reconnect.
+                deviceRejected = true
                 dropLink("missing characteristics ${missing.joinToString { it.toString().take(8) }}")
                 return@post
             }
@@ -513,7 +537,7 @@ class Libre3BleManager(sensorId: String) :
         val ctx = Applic.app ?: return dropLink("no context")
         val rec = record ?: return failSetup("Scan the sensor with NFC first", stopUntilUser = true)
         val cached = Libre3Persistence.loadCachedAuth(ctx, sensorId)
-        val identities = Libre3Persistence.loadIdentities(ctx)
+        val identities = Libre3Persistence.loadIdentitiesForSensor(ctx, sensorId)
         val hs = if (cached != null) {
             handshakeIdentity = identities.firstOrNull { it.label == cached.second }
             Libre3Handshake(Libre3Handshake.Mode.CACHED, rec.blePin, handshakeIdentity, cached.first)
@@ -691,6 +715,7 @@ class Libre3BleManager(sensorId: String) :
             lastReadingMgdl = mgdl
             lastRate = rate
             markLocalReadingAccepted(timeMs)
+            ensureNativeWindow()
             val safeRate = rate.takeIf { it.isFinite() } ?: 0f
             HistorySyncAccess.storeCurrentReadingAsync(timeMs, mgdl, 0f, safeRate, sensorId)
             VirtualGlucoseSensorBridge.mirrorToNative(
@@ -720,11 +745,34 @@ class Libre3BleManager(sensorId: String) :
             "$sensorId: status state=${status.patchState} error=${status.errorData} life=${status.currentLifeCount} " +
                 "event=${status.eventIndex} disconnect=${status.stackDisconnectReason}/${status.appDisconnectReason}",
         )
-        if (status.isTerminated || status.attention == Libre3PatchStatus.Attention.ENDED) {
-            markEnded()
-        }
+        // Only a shut-down sensor stops reconnects. Normal end of wear (errorData 5) keeps
+        // advertising and is shown, not treated as terminal.
+        if (status.isTerminated) markEnded()
         planBackfill(status.currentLifeCount)
         UiRefreshBus.requestStatusRefresh()
+    }
+
+    private var nativeWindowChecked = false
+
+    /**
+     * The generic mirror opens a native window one minute before the first reading it sees. For a
+     * sensor taken over mid-life the backfill that follows is older than that and would be dropped
+     * from native exports (web server, Nightscout uploader), so open the window at the sensor's
+     * own start first. An existing shell is left as it is.
+     */
+    private fun ensureNativeWindow() {
+        if (nativeWindowChecked) return
+        nativeWindowChecked = true
+        val startMs = record?.startTimeMs ?: return
+        if (startMs <= 0L) return
+        runCatching {
+            if (Natives.str2sensorptr(sensorId) != 0L) return
+            val nowSec = System.currentTimeMillis() / 1000L
+            val startSec = maxOf(startMs / 1000L - 60L, nowSec - NATIVE_WINDOW_SECONDS + 60L)
+            if (Natives.ensureSensorShellWithCapacity(sensorId, startSec, NATIVE_WINDOW_MINUTES) == 0L) {
+                Natives.ensureSensorShell(sensorId, startSec)
+            }
+        }.onFailure { Log.stack(TAG, "$sensorId ensureNativeWindow", it) }
     }
 
     private fun markEnded() {
@@ -781,6 +829,7 @@ class Libre3BleManager(sensorId: String) :
         val committed = ((currentLifeCount - 16) / 5) * 5
         if (lastHistoricLifeCount < committed) {
             val from = maxOf(lastHistoricLifeCount, 5)
+            requestedHistoricCommitted = committed
             controlQueue.addLast(ControlKind.HISTORIC to Libre3ControlCommand.historicalFrom(from))
             Log.i(TAG, "$sensorId: history backfill from life $from (committed $committed)")
         }
@@ -819,7 +868,10 @@ class Libre3BleManager(sensorId: String) :
                     while (receivedAhead.remove(lastLifeCount + 1)) lastLifeCount++
                 }
             }
-            ControlKind.HISTORIC -> if (highestHistoricSeen > lastHistoricLifeCount) lastHistoricLifeCount = highestHistoricSeen
+            // A completed request settles the range it covered even when the sensor had no pages
+            // for it; otherwise every patch status would ask for the same empty range again.
+            ControlKind.HISTORIC ->
+                lastHistoricLifeCount = maxOf(lastHistoricLifeCount, highestHistoricSeen, requestedHistoricCommitted)
             null -> Unit
         }
         controlInFlight = null
@@ -868,6 +920,16 @@ class Libre3BleManager(sensorId: String) :
     ): Boolean {
         synchronized(readingLock) {
             if (stop) return false
+            ensureNativeWindow()
+            // Five-minute points that land in a hole (no stored or incoming reading within the
+            // duplicate window) are mirrored natively too; the rest would overwrite minute slots.
+            val gapFillers = if (history.isEmpty()) emptyList() else {
+                val from = history.minOf { it.timestampMs } - HISTORY_DUPLICATE_WINDOW_MS
+                val to = history.maxOf { it.timestampMs } + HISTORY_DUPLICATE_WINDOW_MS
+                val known = (HistorySyncAccess.getHistoryTimestampsForSensor(sensorId, from.coerceAtLeast(1L), to).toList() +
+                    minutes.map { it.timestampMs }).sorted()
+                history.filter { h -> known.none { kotlin.math.abs(it - h.timestampMs) <= HISTORY_DUPLICATE_WINDOW_MS } }
+            }
             if (minutes.isNotEmpty()) {
                 VirtualGlucoseSensorBridge.importHistory(
                     sensorId, minutes, "$LOG_LABEL clinical",
@@ -887,6 +949,9 @@ class Libre3BleManager(sensorId: String) :
                     mirrorToNative = false,
                     nativeFamily = ManagedSensorUiFamily.LIBRE3,
                 )
+                if (gapFillers.isNotEmpty()) {
+                    VirtualGlucoseSensorBridge.mirrorToNative(sensorId, gapFillers, "$LOG_LABEL history", ManagedSensorUiFamily.LIBRE3)
+                }
             }
         }
         return true
@@ -921,8 +986,8 @@ class Libre3BleManager(sensorId: String) :
     private val reconnectRunnable = Runnable { if (!stop) connectDevice(0) }
 
     private fun scheduleReconnect() {
-        if (stop || ended || identityRejected || missingIdentity) {
-            phase = if (ended) Phase.ENDED else if (identityRejected || missingIdentity) Phase.IDLE else phase
+        if (stop || ended || identityRejected || missingIdentity || deviceRejected) {
+            phase = if (ended) Phase.ENDED else if (identityRejected || missingIdentity || deviceRejected) Phase.IDLE else phase
             UiRefreshBus.requestStatusRefresh()
             return
         }
@@ -986,6 +1051,7 @@ class Libre3BleManager(sensorId: String) :
             identityRejected = false
             identityRejections = 0
             missingIdentity = false
+            deviceRejected = false
             handler.removeCallbacks(reconnectRunnable)
             closeGattTransport()
             endLink()

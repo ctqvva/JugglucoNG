@@ -82,6 +82,8 @@ class ConnectModeLeverTests {
         )
         val overriders = sources("Common/src")
             .filter { it.name != "SuperGattCallback.java" && it.name != "ConnectModeLeverTests.kt" }
+            // Asserts the Kotlin Libre 3 driver has no override; it names the method, never overrides it.
+            .filter { it.name != "Libre3DriverGuardTest.kt" }
             .filter { it.readText().contains("useAutoConnect") }
             .map { it.name }
         assertTrue(

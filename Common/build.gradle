@@ -104,6 +104,9 @@ android {
         minSdk = 26
         buildConfigField 'int', 'targetSDK', "$targetSdk"
         buildConfigField 'int', 'minSDK', "$minSdk"
+        // Optional pinned Libre 3 app-identity source, "version|sha256|https://mirror …"
+        // (see drivers/libre3/Libre3IdentityProvisioning.kt). Empty: the user imports or enters one.
+        buildConfigField 'String', 'LIBRE3_IDENTITY_SOURCE', "\"${(project.findProperty('libre3IdentitySource') ?: '').toString().replace('"', '')}\""
         manifestPlaceholders["minSDK"] = "$minSdk"
         manifestPlaceholders["targetSDK"] = "$targetSdk"
 
