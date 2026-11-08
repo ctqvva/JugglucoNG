@@ -121,6 +121,30 @@ object DisplayTrendSource {
         return augmented.filter { it.timestamp >= cutoff }
     }
 
+    /**
+     * The point list every outgoing exchange consumer regresses over: recent history plus
+     * the live reading, cut to [TREND_WINDOW_MS] anchored at the newest point. Same inputs
+     * as the dashboard arrow, so an outgoing rate and an outgoing noise estimate describe
+     * one series.
+     */
+    @JvmStatic
+    fun exchangePoints(sensorId: String, isMmol: Boolean): List<GlucosePoint> {
+        // Load twice the trend window: the canonical cut below anchors at the newest point,
+        // which lags the wall clock, so a window-sized load could miss the tail.
+        val startT = System.currentTimeMillis() - 2 * TREND_WINDOW_MS
+        val history = NotificationHistorySource.getDisplayHistory(startT, isMmol, sensorId)
+        // Append the live reading before regressing, exactly like the notification and the
+        // dashboard do. resolveCurrent (not ...ForExchange) on purpose: the promise here is to
+        // carry the trend the app's arrows show, which is the locally smoothed series.
+        var current: CurrentDisplaySource.Snapshot? = null
+        try {
+            current = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout, sensorId)
+        } catch (th: Throwable) {
+            if (Log.doLog) Log.i("DisplayTrendSource", "resolveCurrent failed: $th")
+        }
+        return resolveTrendPoints(history, current, sensorId)
+    }
+
     @JvmStatic
     @JvmOverloads
     fun resolveArrowRate(
