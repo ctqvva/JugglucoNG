@@ -55,7 +55,10 @@ object TrendEngine {
         val velocity: Float,     // mg/dL per minute
         val acceleration: Float, // Change in velocity
         val confidence: Float,   // 0.0 - 1.0 (based on data density)
-        val noiseLevel: Float = 0f // 0.0 - 1.0 (normalized CV, higher = noisier)
+        /** Mean squared residual of the quadratic fit, (mg/dL)^2. */
+        val noiseLevel: Float = 0f,
+        /** True only when the quadratic fit actually ran; false for every early return. */
+        val noiseValid: Boolean = false
     )
 
     /** Cadence the fixed 20 minute window was chosen for: Dexcom/Libre, one reading per 5 min. */
@@ -289,7 +292,7 @@ object TrendEngine {
         
         val newestTs = validPoints.first().timestamp
         val spanMillis = newestTs - validPoints.last().timestamp
-        val noiseLevel2: Float = if (rawValueList.size >= 4 && spanMillis > 0L) { // Need at least 4 points for Variance (N > Order+1)
+        val noiseLevel2: Float? = if (rawValueList.size >= 4 && spanMillis > 0L) { // Need at least 4 points for Variance (N > Order+1)
             val n = rawValueList.size
             // x is elapsed time, not the sample index. A quadratic fit is invariant under an
             // affine change of x, so for evenly spaced readings the two axes describe the same
@@ -365,20 +368,14 @@ object TrendEngine {
                      sumSqResid += resid * resid
                  }
                  
-                 // Error Variance = SSE / (Degrees of Freedom?)
-                 // xDrip's PolyTrendLine usually returns SSE / Count or similar.
-                 // Trial and error suggests pure Variance (SSE/N) or Unbiased (SSE/(N-3)).
-                 // Given user's "4.5" for hump match, let's try SSE / (N-3).
-                 // For N=5, N-3=2. Multiplier ~2.5x vs Variance.
-                 // Let's stick to standard Variance (SSE/N) * Scaling Factor 2.0 (To match xDrip mag).
-                 (sumSqResid / n).toFloat() * 1.0f  // No multiplier first, let's see. 
-                 // Wait, xDrip's errorVarience() is likely MSE. 
-                 // Let's start with basic MSE (SSE/N).
+                 // Error variance = SSE / N, in (mg/dL)^2.
                  (sumSqResid / n).toFloat()
-            } else 0f
-        } else 0f
-        val noiseLevel = noiseLevel2
+             } else null
+         } else null
 
-        return TrendResult(stateFor(velocity), velocity, acceleration, 1.0f, noiseLevel)
+         return TrendResult(
+             stateFor(velocity), velocity, acceleration, 1.0f,
+             noiseLevel2 ?: 0f, noiseLevel2 != null
+         )
     }
 }
