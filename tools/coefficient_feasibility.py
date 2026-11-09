@@ -116,7 +116,7 @@ class Person:
         # Basal away from the person's usual rate is insulin the loop added or held back.
         # "Usual" comes from the training days, so scored days cannot shape the features.
         cut = self.first + int(n * TRAIN_FRACTION)
-        usual = [r for b, r in self.basal.items() if b < cut]
+        usual = [r for b, r in self.basal.items() if b < cut and r > 0]  # suspensions are not the usual rate
         self.median_basal = float(np.median(usual)) if usual else 0.0
         if usual:
             rate, last = self.median_basal, -10**9
@@ -226,7 +226,7 @@ class Person:
         return [v for d, v in by_day.items() if before is None or (d + 1) * 288 <= before]
 
     def basal_per_day(self, before, boluses):
-        rates = [r for b, r in self.basal.items() if before is None or b < before]
+        rates = [r for b, r in self.basal.items() if (before is None or b < before) and r > 0]
         if rates:
             return float(np.median(rates)) * 24
         long_acting = self.daily_values(self.daily_basal, before)
@@ -278,8 +278,10 @@ def load_azt1d(root):
                         if correction > 0 and grams < 5:
                             person.correction_bins.add(b)
                         bolus_type = row.get("BolusType") or ""
-                        if correction > 0.2 and "Automatic" not in bolus_type and last_cgm >= 150:
-                            person.pump_corrections.append((b, correction, last_cgm))
+                        # The calculator's glucose is on the bolus row; the sample before it stands in when absent.
+                        glucose = cgm if cgm > 0.1 else last_cgm
+                        if correction > 0.2 and "Automatic" not in bolus_type and glucose >= 150:
+                            person.pump_corrections.append((b, correction, glucose))
                     elif cgm > 0.1:
                         person.readings.setdefault(b, cgm)
                     if cgm > 0.1:
@@ -1270,6 +1272,8 @@ def main():
     args = parser.parse_args()
     if not args.azt1d and not args.hupa:
         parser.error("point at --azt1d and/or --hupa")
+    if not 0 < args.peak < 180:  # the activity curve needs a peak inside the first half of its 360 min
+        parser.error("--peak must be above 0 and below 180 minutes")
     print(f"Insulin peak {args.peak:.0f} min. Windows {WINDOW_MIN} min from meals with no other meal "
           "in the 2 h before or inside the window.")
     sources = []
