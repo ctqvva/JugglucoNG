@@ -1058,6 +1058,9 @@ public class Natives {
 
         public static native void unfinishSensor(long dataptr);
 
+        /** Reactivates every native slot of this id, including one removed by the user; false for an unknown id. */
+        public static native boolean unfinishSensorById(String sensorId);
+
         public static native long manualLibreAccountIDnumber();
 
         public static native void setApiSecret(String japisecret);

@@ -72,6 +72,18 @@ class MedtrumSerialAliasTest {
     }
 
     @Test
+    fun aShorterSerialHasAShorterNativeName() {
+        // #876: native drops the first five characters whatever the length, so the nine-digit
+        // serial 177195435 is mirrored as "5435", not as a five-digit name.
+        assertTrue(MedtrumSerialAlias.isShortForm("5435", "177195435"))
+        assertTrue(MedtrumIdentityAdapterProbe.matches("5435", "177195435"))
+        assertTrue(MedtrumSerialAlias.isShortForm("5", "195435"))
+        assertFalse(MedtrumSerialAlias.isShortForm("95435", "177195435"))
+        assertFalse(MedtrumSerialAlias.isShortForm("435", "177195435"))
+        assertFalse(MedtrumSerialAlias.isShortForm("", "95435"))
+    }
+
+    @Test
     fun onlyAnEndingOfTheSerialCounts() {
         assertFalse(MedtrumSerialAlias.isShortForm("23298", "2329895446"))
         assertFalse(MedtrumSerialAlias.isShortForm("95447", "2329895446"))

@@ -666,6 +666,31 @@ fromjava(finishSensorById)(JNIEnv *env, jclass cl, jstring jsensor) {
   return JNI_TRUE;
 }
 
+// Brings a managed driver's native mirror shell back by its full id, for a
+// driver that has no dataptr to pass to unfinishSensor (Medtrum). Data written
+// to a slot revives it only when it was finished, not when it was removed by
+// the user; a driver that is streaming again under the same id has to say so.
+extern "C" JNIEXPORT jboolean JNICALL
+fromjava(unfinishSensorById)(JNIEnv *env, jclass cl, jstring jsensor) {
+  const auto sensorindices = sensorIndicesFromId(env, jsensor);
+  if (sensorindices.empty()) {
+    LOGAR("unfinishSensorById unknown sensor");
+    return JNI_FALSE;
+  }
+  for (const int sensorindex : sensorindices) {
+    LOGGER("unfinishSensorById %s index=%d of %zu\n",
+           sensors->getsensor(sensorindex)->showsensorname(), sensorindex,
+           sensorindices.size());
+    sensors->unfinishsensor(sensorindex);
+    if (SensorGlucoseData *sensorptr = sensors->getSensorData(sensorindex))
+      setstreaming(sensorptr);
+  }
+  setusedsensors();
+  if (backup)
+    backup->wakebackup(Backup::wakeall);
+  return JNI_TRUE;
+}
+
 static void unfinishsensor(SensorGlucoseData *sensorptr, int sensorindex) {
   LOGGER("unfinishSensor %s\n", sensorptr->showsensorname().data());
   sensors->unfinishsensor(sensorindex);
