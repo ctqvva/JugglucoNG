@@ -76,9 +76,7 @@ reviews:
       - '**/*.py'
       - '**/*.js'
       - '**/*.sh'
-
-
-
+      - '**/*.txt'
 
 
   custom_rules:
