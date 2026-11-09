@@ -349,8 +349,7 @@ internal fun OttaiSensorCard(
     val hasSelection = OttaiConstants.looksLikeMac(sensorId) || OttaiConstants.isBoxSerial(sensorId)
     val body = when {
         !hasSelection || loading -> null
-        state == OttaiMaterialState.MISSING && signedIn -> stringResource(R.string.ottai_state_missing_signed_in)
-        state == OttaiMaterialState.MISSING -> stringResource(R.string.ottai_state_missing_signed_out)
+        state == OttaiMaterialState.MISSING && !signedIn -> stringResource(R.string.ottai_state_missing_signed_out)
         state == OttaiMaterialState.PARTIAL -> stringResource(R.string.ottai_state_partial_body)
         state == OttaiMaterialState.EXPIRED -> stringResource(R.string.ottai_state_expired_desc)
         else -> null
