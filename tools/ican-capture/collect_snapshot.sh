@@ -9,6 +9,9 @@ DEST="${DEST:-/tmp/ican-snaps/$LABEL}"
 TSHARK="${TSHARK:-tshark}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
+# Deploy the device-side helper if it is missing or older than the repo copy.
+adb -s "$SERIAL" push tools/ican-capture/device_snapshot.sh /data/local/tmp/ican-snapshot.sh >/dev/null 2>&1 || true
+adb -s "$SERIAL" shell "su -c 'chmod 755 /data/local/tmp/ican-snapshot.sh'" >/dev/null 2>&1 || true
 adb -s "$SERIAL" exec-out "su -c sh /data/local/tmp/ican-snapshot.sh $LABEL $MEM" || exit 1
 mkdir -p "$DEST"
 adb -s "$SERIAL" exec-out "su -c tar -cf - -C /data/local/tmp/ican-snap/$LABEL ." | tar -xf - -C "$DEST"
