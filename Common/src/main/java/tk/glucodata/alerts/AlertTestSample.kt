@@ -53,6 +53,10 @@ object AlertTestSample {
         val endMgdl = if (isMmol) endValue * MGDL_PER_MMOL else endValue
         val span = spanMinutes.toFloat()
         val bend = bendMinutes.coerceIn(1, spanMinutes).toFloat()
+        // The sensor's range, widened to hold the test value: a threshold configured past it
+        // still ends the trace exactly where the alarm's figure is.
+        val floor = minOf(40f, endMgdl)
+        val ceiling = maxOf(400f, endMgdl)
         return (-spanMinutes..0).map { minute ->
             val t = minute.toFloat()
             // v(t) = end + r·t + r·t²/2B over the bend: slope r now, slope 0 at its start,
@@ -64,7 +68,7 @@ object AlertTestSample {
             // A slow drift before the bend, so the level hours are not a ruler; zero by the bend.
             val drift = (4f * sin(t / 23f) + 2.5f * sin(t / 9.7f + 1.3f)) *
                 ((-t - bend) / (span - bend).coerceAtLeast(1f)).coerceIn(0f, 1f)
-            val mgdl = (curve + wobble + drift).coerceIn(40f, 400f)
+            val mgdl = if (minute == 0) endMgdl else (curve + wobble + drift).coerceIn(floor, ceiling)
             val value = if (isMmol) mgdl / MGDL_PER_MMOL else mgdl
             (endMs + minute * 60_000L) to value
         }

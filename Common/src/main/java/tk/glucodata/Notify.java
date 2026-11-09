@@ -1155,8 +1155,12 @@ public class Notify {
 
     /**
      * The main line of the last {@code spanMs}, for the alarm window's trace. Resolved by the
-     * same builder as the notification chart and the dashboard, from the same rows, so the
-     * alarm cannot draw a curve the chart never showed. Empty when nothing is recorded.
+     * same builder as the notification chart, from the same inputs (primary and selected
+     * peers), so the alarm cannot draw a curve the chart never showed. Only points the model
+     * draws as the main line are taken, from whichever series owned the minute: after a
+     * sensor switch the trace follows the former main sensor where the record says it was
+     * main, and never passes the current sensor's secondary history off as the main line.
+     * Empty when nothing is recorded.
      */
     public static List<tk.glucodata.chart.ChartPointModel> alarmTracePoints(long spanMs) {
         try {
@@ -1170,26 +1174,31 @@ public class Notify {
             List<GlucosePoint> points = NotificationHistorySource.getDisplayHistory(startT, isMmol, serial);
             points = DisplayTrendSource.augmentHistory(points, current, serial, startT);
             final int viewMode = current != null ? current.getViewMode() : resolveSensorViewMode(serial);
+            final java.util.List<NotificationChartDrawer.PeerSeries> peers = NotificationMultiSensorSource.peerSeries(
+                    NotificationMultiSensorSource.peerCurrents(glucosetimeout, serial), startT, isMmol);
             final tk.glucodata.chart.HistoryChartModel model = NotificationChartModelSource.build(
                     Applic.app, points, serial, viewMode,
-                    NightscoutCalibration.hasCalibrationForViewMode(serial, viewMode),
-                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startT);
-            final tk.glucodata.chart.ChartSeriesModel primary = model != null ? model.getPrimary() : null;
-            if (primary == null) {
+                    NightscoutCalibration.hasCalibrationForViewMode(serial, viewMode), peers, startT);
+            if (model == null) {
                 return java.util.Collections.emptyList();
             }
-            final java.util.ArrayList<tk.glucodata.chart.ChartPointModel> out = new java.util.ArrayList<>();
-            long last = Long.MIN_VALUE;
-            for (tk.glucodata.chart.ChartRun run : primary.getRuns()) {
-                for (tk.glucodata.chart.ChartPointModel point : run.getPoints()) {
-                    // Consecutive runs share their boundary point; take it once.
-                    if (point.getTimestamp() < startT || point.getTimestamp() <= last) continue;
-                    if (!Float.isFinite(point.getValue()) || point.getValue() <= 0.1f) continue;
-                    out.add(point);
-                    last = point.getTimestamp();
+            // Primary first, so where two series both claim a minute the selected sensor wins;
+            // shared run-boundary points collapse onto one timestamp.
+            final java.util.TreeMap<Long, tk.glucodata.chart.ChartPointModel> main = new java.util.TreeMap<>();
+            final java.util.ArrayList<tk.glucodata.chart.ChartSeriesModel> series = new java.util.ArrayList<>();
+            if (model.getPrimary() != null) series.add(model.getPrimary());
+            series.addAll(model.getPeers());
+            for (tk.glucodata.chart.ChartSeriesModel s : series) {
+                for (tk.glucodata.chart.ChartRun run : s.getRuns()) {
+                    for (tk.glucodata.chart.ChartPointModel point : run.getPoints()) {
+                        if (point.getLook() != tk.glucodata.chart.ChartLook.MAIN) continue;
+                        if (point.getTimestamp() < startT) continue;
+                        if (!Float.isFinite(point.getValue()) || point.getValue() <= 0.1f) continue;
+                        main.putIfAbsent(point.getTimestamp(), point);
+                    }
                 }
             }
-            return out;
+            return new java.util.ArrayList<>(main.values());
         } catch (Throwable th) {
             Log.stack(LOG_ID, "alarmTracePoints", th);
             return java.util.Collections.emptyList();

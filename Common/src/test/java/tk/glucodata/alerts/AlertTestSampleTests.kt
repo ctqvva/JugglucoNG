@@ -46,6 +46,16 @@ class AlertTestSampleTests {
     }
 
     @Test
+    fun aTestValuePastTheSensorRangeIsStillWhereTheTraceEnds() {
+        val low = AlertTestSample.trace(35f, -1.4f, isMmol = false, endMs = 0L)
+        assertEquals(35f, low.last().second, 0.001f)
+        low.forEach { assertTrue("${it.second}", it.second >= 35f) }
+        val high = AlertTestSample.trace(420f, 1.4f, isMmol = false, endMs = 0L)
+        assertEquals(420f, high.last().second, 0.001f)
+        high.forEach { assertTrue("${it.second}", it.second <= 420f) }
+    }
+
+    @Test
     fun mgDlTracesStayInsideTheSensorRange() {
         val trace = AlertTestSample.trace(45f, -2.6f, isMmol = false, endMs = 0L)
         trace.forEach { assertTrue("${it.second}", it.second in 40f..400f) }

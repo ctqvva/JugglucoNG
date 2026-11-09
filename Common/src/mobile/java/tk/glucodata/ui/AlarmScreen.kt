@@ -12,6 +12,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
@@ -220,11 +221,17 @@ private fun PixelAlarmContent(
                     }
 
                     // With a trace below it the value sits higher, so the two read as one block.
-                    val aboveHero = when {
-                        trace != null -> if (compact) 0.36f else 0.44f
-                        compact -> 0.58f
-                        else -> 0.68f
-                    }
+                    // The trace is read off the main thread and can land after the screen is
+                    // up, so the value glides there rather than jumping.
+                    val aboveHero by animateFloatAsState(
+                        targetValue = when {
+                            trace != null -> if (compact) 0.36f else 0.44f
+                            compact -> 0.58f
+                            else -> 0.68f
+                        },
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>(),
+                        label = "alarm-hero-lift"
+                    )
                     Spacer(modifier = Modifier.weight(aboveHero))
 
                     AnimatedVisibility(
@@ -244,9 +251,15 @@ private fun PixelAlarmContent(
                         )
                     }
 
-                    if (trace != null) {
+                    AnimatedVisibility(
+                        visible = trace != null,
+                        // No clip: the line reaches past the column's sides and the ripples past its height.
+                        enter = expandVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), clip = false) +
+                            fadeIn(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec())
+                    ) {
+                        val shown = trace ?: return@AnimatedVisibility
                         AlarmTraceLine(
-                            trace = trace,
+                            trace = shown,
                             motionActive = motionActive,
                             modifier = Modifier
                                 .padding(top = 8.dp)

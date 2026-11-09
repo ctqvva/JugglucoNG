@@ -18,6 +18,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
@@ -67,10 +68,12 @@ internal const val ALARM_TRACE_GAP_MS = 15 * 60_000L
 private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
 
 /**
- * The trace laid out in a [width] by [height] box: one list per unbroken stretch. The span
- * runs from the left edge to [endInset] short of the right one, so the present lands on the
- * content's edge rather than under the bezel; a reading missing at either end leaves its
- * part of the span empty rather than stretching what is there.
+ * The trace laid out in a [width] by [height] box: one list per unbroken stretch, a lone
+ * reading between gaps included, so the last list always ends at the latest reading and the
+ * marker stands on the value the alarm shows. The span runs from the left edge to
+ * [endInset] short of the right one, so the present lands clear of the bezel; a reading
+ * missing at either end leaves its part of the span empty rather than stretching what is
+ * there.
  */
 internal fun alarmTraceSegments(
     trace: AlarmTrace,
@@ -97,7 +100,7 @@ internal fun alarmTraceSegments(
     var previousTime = Long.MIN_VALUE
     for (point in points) {
         if (previousTime != Long.MIN_VALUE && point.timeMs - previousTime > ALARM_TRACE_GAP_MS) {
-            if (current.size >= 2) segments.add(current)
+            if (current.isNotEmpty()) segments.add(current)
             current = ArrayList()
         }
         val x = (point.timeMs - trace.startMs) / span * runWidth
@@ -105,7 +108,7 @@ internal fun alarmTraceSegments(
         current.add(Offset(x, y))
         previousTime = point.timeMs
     }
-    if (current.size >= 2) segments.add(current)
+    if (current.isNotEmpty()) segments.add(current)
     return segments
 }
 
@@ -160,7 +163,16 @@ fun AlarmTraceLine(
     val morph = remember { Morph(MaterialShapes.Circle, MaterialShapes.Cookie9Sided) }
     val landSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     val morphSpec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
+    val motionStillActive by rememberUpdatedState(motionActive)
     LaunchedEffect(trace) {
+        if (!motionStillActive) {
+            // Arrived after the motion window closed (a slow history read): appear settled,
+            // since the screen can sit on the lockscreen and its motion is meant to be finite.
+            reveal.snapTo(1f)
+            landed.snapTo(1f)
+            shapeMorph.snapTo(1f)
+            return@LaunchedEffect
+        }
         // After the value has landed, so the eye goes value first, then where it came from.
         delay(320)
         reveal.animateTo(1f, tween(durationMillis = 1_400, easing = EmphasizedDecelerate))
@@ -221,6 +233,10 @@ fun AlarmTraceLine(
                     color = lineColor,
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
                 )
+                // A lone reading between gaps has no line to be part of; it is still a reading.
+                for (segment in segments) {
+                    if (segment.size == 1) drawCircle(lineColor, radius = strokeWidth, center = segment[0])
+                }
             }
             // The past comes in from the edge of the screen rather than starting at a hard cut.
             drawRect(

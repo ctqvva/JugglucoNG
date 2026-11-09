@@ -45,6 +45,19 @@ class AlarmTraceGeometryTests {
     }
 
     @Test
+    fun aLoneLatestReadingAfterAGapStillEndsTheTrace() {
+        // Readings at 0, 5 and 10, then one at 50: the marker must stand on minute 50, the
+        // reading the alarm shows, not on minute 10.
+        val segments = alarmTraceSegments(
+            trace(0 to 5f, 5 to 5.1f, 10 to 5.2f, 50 to 3f), 360f, 100f, 0f, 0f
+        )
+        assertEquals(2, segments.size)
+        assertEquals(1, segments.last().size)
+        assertEquals(300f, segments.last().last().x, 0.01f)
+        assertEquals(100f, segments.last().last().y, 0.01f)
+    }
+
+    @Test
     fun fewerThanTwoReadingsDrawNothing() {
         assertTrue(alarmTraceSegments(trace(30 to 6f), 360f, 100f, 0f, 0f).isEmpty())
     }
