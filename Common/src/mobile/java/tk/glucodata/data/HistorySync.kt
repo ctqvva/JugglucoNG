@@ -328,7 +328,7 @@ object HistorySync {
             )
             val (lastCount, stableCount) = sensorStability[serial] ?: Pair(-1, 0)
             val sensorStable = stableCount >= STABLE_THRESHOLD
-            val latestStoredTimestamp = if (forceFull) 0L else historyRepository.getLatestTimestampForSensor(serial)
+            val latestStoredTimestamp = if (forceFull) 0L else historyRepository.getSyncTailForSensor(serial)
 
             val startSec: Long
             val isFullSync: Boolean

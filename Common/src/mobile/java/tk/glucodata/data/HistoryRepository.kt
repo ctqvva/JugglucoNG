@@ -1482,6 +1482,28 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         }
     }
 
+    /**
+     * Where a sync from the sensor's own store resumes: the newest reading this phone has seen
+     * for the sensor, kept or deliberately removed. After "Clear history" nothing is stored, but
+     * every cleared row is tombstoned; without counting those, each sync would start from zero
+     * and re-read the whole sensor history just to drop it again until a new reading arrived.
+     */
+    suspend fun getSyncTailForSensor(serial: String): Long {
+        val serials = resolveQuerySensorSerials(serial)
+        if (serials.isEmpty()) return 0L
+        return withContext(Dispatchers.IO) {
+            try {
+                maxOf(
+                    dao.getLatestReadingForSensors(serials)?.timestamp ?: 0L,
+                    dao.getLatestDeletedTimestampForSensors(serials) ?: 0L,
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting sync tail for sensor $serial", e)
+                0L
+            }
+        }
+    }
+
     suspend fun getOldestTimestampForSensor(serial: String): Long {
         val serials = resolveQuerySensorSerials(serial)
         if (serials.isEmpty()) return 0L
@@ -2189,6 +2211,32 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             }
         }
         return targets
+    }
+
+    /**
+     * Clears every glucose reading, with the uncertainty bands and recorded display values that
+     * hang off them, and tombstones each row first. A sensor that keeps its own history (every
+     * native one) is read back into Room on the next sync, and so is a driver that re-pulls on
+     * reconnect; the tombstones are what the per-reading delete already uses to refuse that.
+     * Nothing outside the reading tables is touched: the journal, its libraries and the
+     * settings stay.
+     *
+     * Does not ask the UI to refresh; the caller does, once it has cleared whatever else it is
+     * clearing.
+     *
+     * @return how many readings were removed
+     */
+    suspend fun clearAllReadings(): Int = withContext(Dispatchers.IO) {
+        val removed = database.withTransaction {
+            val count = dao.getCount()
+            dao.tombstoneAllReadings(System.currentTimeMillis())
+            displayDao.deleteAll()
+            uncertaintyDao.deleteAll()
+            dao.deleteAllReadings()
+            count
+        }
+        Log.i(TAG, "Cleared $removed readings")
+        removed
     }
 
     suspend fun deleteReading(timestamp: Long, sensorSerial: String): Int {
