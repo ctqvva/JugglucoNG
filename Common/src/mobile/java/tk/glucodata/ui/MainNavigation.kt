@@ -1223,6 +1223,9 @@ private fun NavGraphBuilder.appDestinations(
     gatedComposable("settings/predictive-simulation/model-profile") {
         PredictionModelProfileScreen(navController, dashboardViewModel)
     }
+    gatedComposable("settings/predictive-simulation/model-profile/past-meals") {
+        MealReplayScreen(navController, dashboardViewModel)
+    }
     gatedComposable("settings/predictive-simulation/analysis") {
         PredictionAnalysisScreen(navController, dashboardViewModel)
     }
