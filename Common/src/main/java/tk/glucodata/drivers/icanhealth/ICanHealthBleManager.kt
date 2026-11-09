@@ -229,6 +229,7 @@ class ICanHealthBleManager(
     private var correctCodeTimeoutRunnable: Runnable? = null
     private var correctCodePendingChunk: ByteArray? = null
     private var correctCodeRecheckRunnable: Runnable? = null
+    @Volatile private var awaitingCorrectCodeReadback = false
     @Volatile private var lastSensorInfoMarker: Int? = null
     private var correctCodeRepairChain = false
     private val repairState = ICanHealthRepairState()
@@ -2735,19 +2736,24 @@ class ICanHealthBleManager(
 
             ICanHealthParser.isSensorInfoResponse(data) -> {
                 handler.removeCallbacks(sensorInfoFallbackRunnable)
+                val isCorrectCodeReadback = awaitingCorrectCodeReadback
+                awaitingCorrectCodeReadback = false
                 Log.i(
                     TAG,
                     "Sensor info: ${data.toHexString()} " +
                         "model=$vendorModelName sw=$vendorSoftwareVersion ${bundledKeyContext()}"
                 )
                 lastSensorInfoMarker = ICanHealthParser.parseSensorInfoMarker(data)
+                UiRefreshBus.requestStatusRefresh()
                 if (lastSensorInfoMarker != null && lastSensorInfoMarker != 0xffff) {
                     resetCorrectCodeState()
                     ICanHealthCloudCode.cancelRetry(ICanHealthConstants.normalizeOnboardingDeviceSn(onboardingDeviceSn))
                     Applic.app?.let { ICanHealthCloudStatusNotifier.clearServerUnavailable(it) }
                 }
                 maybeFetchVendorCalibrationCode(data)
-                if (lastSensorInfoMarker == 0xffff &&
+                // A readback reports what the sensor installed; an unchanged marker must
+                // not turn this one-shot verification into another provisioning chain.
+                if (!isCorrectCodeReadback && lastSensorInfoMarker == 0xffff &&
                     (startCommandIssuedThisConnection || !shouldAttemptStandaloneStart())) {
                     // A fresh sensor's 1A-success path is the normal provisioning window.
                     scheduleCorrectCodeWrite()
@@ -2972,6 +2978,14 @@ class ICanHealthBleManager(
                     if (correctCodeRepairChain) " (repair attempt ${repairState.attemptCount()}/${ICanHealthProvisioningPolicy.MAX_REPAIR_ATTEMPTS})" else ""
             )
             resetCorrectCodeState()
+            if (!stop && !uiPaused && isAuthenticated && mBluetoothGatt != null) {
+                // F2 acks confirm the chunks were accepted, not the resulting F6 marker.
+                // Read it through the normal queue and retain the old value until it replies.
+                awaitingCorrectCodeReadback = true
+                enqueueOp(GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS,
+                    ICanHealthConstants.CMD_REQUEST_SENSOR_INFO))
+                drainGattQueue()
+            }
             return
         }
         val sendNext = Runnable { sendCorrectCodeChunk(next) }
@@ -2980,6 +2994,7 @@ class ICanHealthBleManager(
     }
 
     private fun resetCorrectCodeState() {
+        awaitingCorrectCodeReadback = false
         correctCodeStartRunnable?.let { handler.removeCallbacks(it) }
         correctCodeStartRunnable = null
         correctCodeTimeoutRunnable?.let { handler.removeCallbacks(it) }
