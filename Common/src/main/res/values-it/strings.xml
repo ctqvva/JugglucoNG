@@ -343,11 +343,6 @@
     <string name="import_unsupported_file">File non supportato. Seleziona un\'esportazione JugglucoNG o una cronologia del glucosio in CSV.</string>
     <string name="delete_reading_title">Eliminare lettura?</string>
     <string name="delete_reading_confirmation">Rimuovere questa lettura del glucosio dalla cronologia locale. Questa azione non può essere annullata.</string>
-    <string name="factory_reset_title">⚠️ Ripristino Fabbrica?</string>
-    <string name="factory_reset_intro">Questo RIMUOVERÀ TUTTO:</string>
-    <string name="factory_reset_outcome">L\'app tornerà allo stato iniziale.</string>
-    <string name="cannot_be_undone_critical">AZIONE IRREVERSIBILE!</string>
-    <string name="reset_everything_button">RIPRISTINA TUTTO</string>
     <string name="alert_sound">Suono Avviso</string>
     <string name="vibrate_only">Solo Vibrazione</string>
     <string name="sound_vibrate">Suono &amp; Vibrazione</string>
@@ -667,8 +662,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Ripristinare i dati di fabbrica?</string>
+    <string name="factory_reset_message">Cancella tutte le letture, le voci del diario, i sensori e le impostazioni, oltre ai permessi concessi, poi chiude l\'app. Non può essere annullato.</string>
+    <string name="factory_reset_action">Cancella tutto</string>
+    <string name="factory_reset_failed">Impossibile ripristinare l\'app</string>
     <string name="fiasp">Fiasp</string>
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>

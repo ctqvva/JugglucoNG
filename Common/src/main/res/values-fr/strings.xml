@@ -421,10 +421,6 @@
     <string name="import_unsupported_file">Fichier non pris en charge. Choisissez une exportation JugglucoNG ou un historique de glucose CSV.</string>
     <string name="delete_reading_title">Supprimer la lecture ?</string>
     <string name="delete_reading_confirmation">Supprimer cette lecture de glucose de l’historique local. Cette action est irréversible.</string>
-    <string name="factory_reset_title">⚠️ Réinitialisation Système?</string>
-    <string name="factory_reset_intro">Ceci SUPPRIMERA TOUT:</string>
-    <string name="cannot_be_undone_critical">CETTE ACTION EST IRRÉVERSIBLE!</string>
-    <string name="reset_everything_button">TOUT RÉINITIALISER</string>
     <string name="vibrate_only">Vibrer seulement</string>
     <string name="sound_vibrate">Son &amp; Vibration</string>
     <string name="graph_smoothing_title">Lissage des données</string>
@@ -731,9 +727,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="export_history_title">Export History</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
-    <string name="factory_reset_outcome">The app will return to first-run state.</string>
+    <string name="factory_reset_confirm">Réinitialiser l\'application ?</string>
+    <string name="factory_reset_message">Efface toutes les lectures, entrées du journal, capteurs et paramètres, ainsi que les autorisations accordées, puis ferme l\'application. Cette action est irréversible.</string>
+    <string name="factory_reset_action">Tout effacer</string>
+    <string name="factory_reset_failed">Impossible de réinitialiser l\'application</string>
     <string name="fiasp">Fiasp</string>
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>

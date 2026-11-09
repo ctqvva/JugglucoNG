@@ -890,8 +890,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clear_history">Clear history</string>
     <string name="factory_reset">Factory reset</string>
     <string name="factory_reset_desc">Remove everything, return to first-run state</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Factory reset?</string>
+    <string name="factory_reset_message">Erases every reading, journal entry, sensor and setting, and the permissions you granted, then closes the app. This can\'t be undone.</string>
+    <string name="factory_reset_action">Erase everything</string>
+    <string name="factory_reset_failed">Couldn\'t reset the app</string>
     <string name="clean_history_confirm">Clear history?</string>
     <string name="clear_history_desc">Remove readings, journal entries or both</string>
     <string name="clear_history_scope_readings">Removes every glucose reading on this phone and can\'t be undone. Journal, sensors and settings stay.</string>
@@ -1035,11 +1037,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="delete_reading_confirmation">Remove this glucose reading from local history. This action cannot be undone.</string>
     
     
-    <string name="factory_reset_title">⚠️ Factory Reset?</string>
-    <string name="factory_reset_intro">This will REMOVE EVERYTHING:</string>
-    <string name="factory_reset_outcome">The app will return to first-run state.</string>
-    <string name="cannot_be_undone_critical">THIS CANNOT BE UNDONE!</string>
-    <string name="reset_everything_button">RESET EVERYTHING</string>
     
     <string name="alert_sound">Alert sound</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>

@@ -869,8 +869,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clear_history">Nadiifi Taariikhda</string>
     <string name="factory_reset">Dib u habaynta Warshada</string>
     <string name="factory_reset_desc">Ka saar wax walba, ku noqo gobolka ugu horeeya</string>
-    <string name="factory_reset_alert">Ka saar wax walba. Lama soo celin karo!</string>
     <string name="factory_reset_confirm">Dib u habayn warshadeed?</string>
+    <string name="factory_reset_message">Waxay tirtirtaa dhammaan akhriska, qoraallada joornaalka, dareemayaasha iyo dejinta, iyo oggolaanshaha la bixiyay, kadibna waxay xiraysaa abka. Lama soo celin karo.</string>
+    <string name="factory_reset_action">Wax walba tirtir</string>
+    <string name="factory_reset_failed">Abka dib looma habayn karin</string>
     <string name="clean_history_confirm">Taariikhda tirtiri?</string>
     <string name="clear_history_desc">Ka saar akhriska, qoraallada joornaalka ama labadaba</string>
     <string name="clear_history_scope_readings">Waxay ka saaraysaa dhammaan akhriska gulukooska taleefankan, lamana soo celin karo. Joornaalka, dareemayaasha iyo dejinta way hadhayaan.</string>
@@ -988,11 +990,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="delete_reading_confirmation">Ka saar akhriska gulukoosta taariikhda deegaanka. Tallaabadan lama noqon karo.</string>
     
     
-    <string name="factory_reset_title">⚠️ Dib u habayn warshadeed?</string>
-    <string name="factory_reset_intro">Tani waxay meesha ka saaraysaa wax walba:</string>
-    <string name="factory_reset_outcome">Abka waxa uu ku noqon doona gobolka ugu horeeya</string>
-    <string name="cannot_be_undone_critical">Tan lama soo celin karo!</string>
-    <string name="reset_everything_button">Dib u habeyn wax walba</string>
     
     <string name="alert_sound">Digniin Dhawaaq</string>
     <string name="about_text">GPL-3.0 • Fargeeto Juggluco</string>

@@ -802,8 +802,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clear_history">Түүхийг цэвэрлэх</string>
     <string name="factory_reset">Үйлдвэрийн тохиргоонд буцаах</string>
     <string name="factory_reset_desc">Бүх зүйлийг устгаж, анхны төлөвт нь буцаах</string>
-    <string name="factory_reset_alert">БҮХ ЗҮЙЛИЙГ устгах. Буцаах боломжгүй!</string>
     <string name="factory_reset_confirm">Үйлдвэрийн тохиргоонд буцаах уу?</string>
+    <string name="factory_reset_message">Бүх уншилт, Journal-ын бичлэг, мэдрэгч, тохиргоо болон олгосон зөвшөөрлүүдийг устгаад, програмыг хаана. Буцаах боломжгүй.</string>
+    <string name="factory_reset_action">Бүгдийг устгах</string>
+    <string name="factory_reset_failed">Програмыг анхны төлөвт буцааж чадсангүй</string>
     <string name="clean_history_confirm">Түүхийг цэвэрлэх үү?</string>
     <string name="clear_history_desc">Уншилт, Journal-ын бичлэг эсвэл хоёуланг нь устгах</string>
     <string name="clear_history_scope_readings">Энэ утсан дээрх бүх глюкозын уншилтыг устгана, буцаах боломжгүй. Journal, мэдрэгч болон тохиргоо хэвээр үлдэнэ.</string>
@@ -906,11 +908,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="import_unsupported_file">Дэмжигдээгүй файл. JugglucoNG экспорт эсвэл глюкозын түүхийн CSV файлыг сонгоно уу.</string>
     <string name="delete_reading_title">Уншилтыг устгах уу?</string>
     <string name="delete_reading_confirmation">Энэ глюкозын уншилтыг локал түүхээс устгах. Үүнийг буцаах боломжгүй.</string>
-    <string name="factory_reset_title">⚠️ Үйлдвэрийн тохиргоонд буцаах уу?</string>
-    <string name="factory_reset_intro">Энэ нь БҮХ ЗҮЙЛИЙГ УСТГАНА:</string>
-    <string name="factory_reset_outcome">Апп анхны байдалдаа буцна.</string>
-    <string name="cannot_be_undone_critical">ҮҮНИЙГ БУЦААХ БОЛОМЖГҮЙ!</string>
-    <string name="reset_everything_button">БҮХ ЗҮЙЛИЙГ ДАХИН ТОХИРУУЛАХ</string>
     <string name="alert_sound">Дохионы дуу</string>
     <string name="about_text">GPL-3.0 • Juggluco-ийн салаа (Fork)</string>
     <string name="refreshing">Шинэчилж байна…</string>

@@ -413,11 +413,6 @@
     <string name="import_unsupported_file">Файл не падтрымліваецца. Выберыце экспарт JugglucoNG або CSV-файл гісторыі глюкозы.</string>
     <string name="delete_reading_title">Выдаліць паказанне?</string>
     <string name="delete_reading_confirmation">Выдаліць гэта паказанне глюкозы з лакальнай гісторыі. Гэта дзеянне незваротнае.</string>
-    <string name="factory_reset_title">⚠️ Скід да завадскіх?</string>
-    <string name="factory_reset_intro">Гэта ВЫДАЛІЦЬ УСЁ:</string>
-    <string name="factory_reset_outcome">Праграма вернецца да пачатковага стану.</string>
-    <string name="cannot_be_undone_critical">ГЭТА НЕЗВАРОТНА!</string>
-    <string name="reset_everything_button">СКІНУЦЬ УСЁ</string>
     <string name="alert_sound">Гук Трывогі</string>
     <string name="vibrate_only">Толькі Вібрацыя</string>
     <string name="sound_vibrate">Гук і Вібрацыя</string>
@@ -762,8 +757,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Скінуць да завадскіх налад?</string>
+    <string name="factory_reset_message">Выдаляе ўсе паказанні, запісы журнала, датчыкі і налады, а таксама выдадзеныя дазволы, а потым закрывае праграму. Гэта нельга адрабіць.</string>
+    <string name="factory_reset_action">Выдаліць усё</string>
+    <string name="factory_reset_failed">Не ўдалося скінуць праграму</string>
     <string name="fiasp">Fiasp</string>
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>
