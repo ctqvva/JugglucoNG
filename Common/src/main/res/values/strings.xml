@@ -888,16 +888,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     
     <string name="danger_zone">Danger zone</string>
     <string name="clear_history">Clear history</string>
-    <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
-    <string name="clear_history_desc_short">Remove all glucose readings from database</string>
-    <string name="clear_app_data">Clear app data</string>
-    <string name="clear_app_data_desc">Remove history and cache, keep settings</string>
     <string name="factory_reset">Factory reset</string>
     <string name="factory_reset_desc">Remove everything, return to first-run state</string>
     <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
     <string name="factory_reset_confirm">Factory Reset?</string>
-    <string name="clean_history_confirm">Clear History?</string>
-    <string name="clean_data_confirm">Clear App Data?</string>
+    <string name="clean_history_confirm">Clear history?</string>
+    <string name="clear_history_desc">Remove readings, journal entries or both</string>
+    <string name="clear_history_scope_readings">Removes every glucose reading on this phone and can\'t be undone. Journal, sensors and settings stay.</string>
+    <string name="clear_history_scope_journal">Removes every journal entry, also from Nightscout if sent there, and can\'t be undone. Readings, insulin types and settings stay.</string>
+    <string name="clear_history_scope_both">Removes every glucose reading and journal entry, also from Nightscout if sent there, and can\'t be undone. Sensors, insulin types and settings stay.</string>
+    <string name="clear_history_done">History cleared</string>
+    <string name="clear_history_failed">Couldn\'t clear history</string>
     
     <string name="graph_smoothing_title">Data smoothing</string>
     <string name="graph_smoothing_desc">Smooth chart data and, unless Smooth only graph is enabled, resolved glucose values</string>
@@ -1030,21 +1031,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="import_history_title">Import History</string>
     <string name="import_history_sub">Restore glucose readings from a JugglucoNG export or CSV file</string>
     
-    <string name="clear_history_title">Clear History?</string>
-    <string name="clear_history_confirmation">This will remove all glucose readings from the database. This action cannot be undone.</string>
     <string name="delete_reading_title">Delete Reading?</string>
     <string name="delete_reading_confirmation">Remove this glucose reading from local history. This action cannot be undone.</string>
-    <string name="clear_button">Clear</string>
     
-    <string name="clear_app_data_title">Clear App Data?</string>
-    <string name="clear_app_data_intro">This will remove:</string>
-    <string name="all_glucose_readings">• All glucose readings</string>
-    <string name="cache_files">• Cache files</string>
-    <string name="sensor_data">• Sensor data</string>
-    <string name="all_settings">• All settings</string>
-    <string name="settings_preserved">Settings will be preserved.</string>
-    <string name="cannot_be_undone_warning">This action cannot be undone.</string>
-    <string name="clear_data_button">Clear Data</string>
     
     <string name="factory_reset_title">⚠️ Factory Reset?</string>
     <string name="factory_reset_intro">This will REMOVE EVERYTHING:</string>

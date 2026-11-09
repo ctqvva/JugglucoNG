@@ -402,25 +402,8 @@ class JournalRepository {
             val existing = dao.getEntryById(entryId)
             deletedType = existing?.entryType
             deletedGlucose = existing?.glucoseValueMgDl
-            if (existing != null && isCloneJournalExportSource(existing.source)) {
-                dao.upsertCloneJournalTombstone(
-                    CloneJournalTombstoneEntity(
-                        entryId = existing.id,
-                        deletedAt = System.currentTimeMillis(),
-                        recoveryId = existing.recoveryId,
-                    )
-                )
-                cloneDeleteQueued = true
-            }
-            val remoteId = existing?.nightscoutDeleteRemoteId()
-            if (remoteId != null) {
-                dao.enqueuePendingNightscoutDelete(
-                    JournalPendingDeleteEntity(
-                        entryId = entryId,
-                        nsRemoteId = remoteId,
-                        deletedAt = System.currentTimeMillis()
-                    )
-                )
+            if (existing != null) {
+                cloneDeleteQueued = dao.recordEntryDeletion(existing, System.currentTimeMillis())
             }
             dao.deleteEntryById(entryId)
         }
@@ -432,6 +415,34 @@ class JournalRepository {
         }
         // A deletion queues a tombstone, which is the uploader's to carry out.
         tk.glucodata.NightscoutUploadWake.afterJournalChange()
+    }
+
+    /**
+     * Deletes every entry, as deleting each one in turn would: Clone peers and Nightscout are
+     * told, and what the entries fed (IOB, calibrations from fingersticks) is recomputed. The
+     * insulin presets and the food library stay.
+     *
+     * @return how many entries were deleted
+     */
+    suspend fun deleteAllEntries(): Int = announceDeletion(database.deleteAllJournalEntries())
+
+    /**
+     * Tells Clone peers, Nightscout and the IOB and calibration consumers that [deleted] is gone.
+     * Call once the transaction that removed the entries has committed, so what they read back
+     * is the state after it.
+     *
+     * @return how many entries were deleted
+     */
+    internal fun announceDeletion(deleted: DeletedJournalEntries): Int {
+        if (deleted.count == 0) return 0
+        if (deleted.cloneTombstoned || deleted.affectsIob) {
+            tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+        }
+        if (deleted.hadGlucose) {
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+        }
+        tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        return deleted.count
     }
 
     /** Applies sender tombstones without turning a receiver-side delete into outbound work. */
@@ -537,11 +548,6 @@ class JournalRepository {
     /** Rows this app mirrors from elsewhere; the uploader skips them, so a wake is wasted. */
     private fun isMirroredSource(source: JournalEntrySource): Boolean =
         isExternalJournalMirrorSource(source)
-
-    private fun affectsIob(entryType: String?): Boolean {
-        return entryType == JournalEntryType.INSULIN.storageValue ||
-            entryType == JournalEntryType.CARBS.storageValue
-    }
 
     suspend fun getInsulinPresetsSnapshot(): List<JournalInsulinPreset> {
         return dao.getInsulinPresets().map(JournalInsulinPresetEntity::toModel)
@@ -915,7 +921,7 @@ internal fun isEarlierJournalRow(
 ): Boolean = firstCreatedAt < secondCreatedAt ||
     (firstCreatedAt == secondCreatedAt && firstId <= secondId)
 
-private fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? =
+internal fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? =
     nightscoutDeleteRemoteId(source, nsRemoteId)
 
 internal fun nightscoutDeleteRemoteId(source: String, nsRemoteId: String?): String? {

@@ -560,21 +560,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="import_no_glucose">Dit bestand bevat geen glucosegegevens</string>
     <string name="import_unsupported_file">Niet-ondersteund bestand. Kies een JugglucoNG-export of een CSV-bestand met glucosegeschiedenis.</string>
     
-    <string name="clear_history_title">Geschiedenis wissen?</string>
-    <string name="clear_history_confirmation">Hiermee worden alle glucosemetingen uit de database verwijderd. Dit kan niet ongedaan worden gemaakt.</string>
     <string name="delete_reading_title">Meting verwijderen?</string>
     <string name="delete_reading_confirmation">Verwijder deze glucosemeting uit de lokale geschiedenis. Deze actie kan niet ongedaan worden gemaakt.</string>
-    <string name="clear_button">Wissen</string>
     
-    <string name="clear_app_data_title">App-gegevens wissen?</string>
-    <string name="clear_app_data_intro">Dit verwijdert:</string>
-    <string name="all_glucose_readings">• Alle glucosemetingen</string>
-    <string name="cache_files">• Cachebestanden</string>
-    <string name="sensor_data">• Sensorgegevens</string>
-    <string name="all_settings">• Alle instellingen</string>
-    <string name="settings_preserved">Instellingen blijven behouden.</string>
-    <string name="cannot_be_undone_warning">Dit kan niet ongedaan worden gemaakt.</string>
-    <string name="clear_data_button">Gegevens wissen</string>
     
     <string name="factory_reset_title">⚠️ Fabrieksinstellingen herstellen?</string>
     <string name="factory_reset_intro">Dit VERWIJDERT ALLES:</string>
@@ -673,9 +661,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="settings_import_successful">Instellingen geïmporteerd. Opnieuw starten…</string>
     <string name="danger_zone">Gevarenzone</string>
     <string name="clear_history">Geschiedenis wissen</string>
-    <string name="clear_history_desc_short">Verwijder alle glucosemetingen</string>
-    <string name="clear_app_data">App-gegevens wissen</string>
-    <string name="clear_app_data_desc">Verwijder geschiedenis en cache, behoud instellingen</string>
     <string name="factory_reset">Fabrieksinstellingen herstellen</string>
     <string name="factory_reset_desc">Verwijder alles, terug naar eerste staat</string>
     <string name="sibionics_setup_title">Sibionics Installatie</string>
@@ -830,9 +815,13 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="caresens_air_scan_instruction">Scan de sensorcode op uw CareSens Air-pakket</string>
     <string name="caresens_air_setup_title">CareSens Air-installatie</string>
     <string name="chsibionics">Sibionics GS1 CN</string>
-    <string name="clean_data_confirm">Clear App Data?</string>
-    <string name="clean_history_confirm">Clear History?</string>
-    <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
+    <string name="clean_history_confirm">Geschiedenis wissen?</string>
+    <string name="clear_history_desc">Verwijder metingen, dagboekitems of beide</string>
+    <string name="clear_history_scope_readings">Verwijdert alle glucosemetingen op deze telefoon en kan niet ongedaan worden gemaakt. Dagboek, sensoren en instellingen blijven behouden.</string>
+    <string name="clear_history_scope_journal">Verwijdert alle dagboekitems, ook uit Nightscout als ze daarheen zijn verzonden, en kan niet ongedaan worden gemaakt. Metingen, insulinetypes en instellingen blijven behouden.</string>
+    <string name="clear_history_scope_both">Verwijdert alle glucosemetingen en dagboekitems, ook uit Nightscout als ze daarheen zijn verzonden, en kan niet ongedaan worden gemaakt. Sensoren, insulinetypes en instellingen blijven behouden.</string>
+    <string name="clear_history_done">Geschiedenis gewist</string>
+    <string name="clear_history_failed">Geschiedenis wissen is mislukt</string>
     <string name="confidence">Vertrouwen</string>
     <string name="connecting_to_sensor">Verbinding maken met sensor…</string>
     <string name="connecting_to_sensor_wait">Een ogenblik geduld terwijl we een verbinding tot stand brengen.</string>

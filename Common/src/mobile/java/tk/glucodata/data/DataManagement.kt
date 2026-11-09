@@ -2,97 +2,60 @@ package tk.glucodata.data
 
 import android.content.Context
 import android.util.Log
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import tk.glucodata.Applic
 import tk.glucodata.Natives
+import tk.glucodata.UiRefreshBus
+import tk.glucodata.data.journal.DeletedJournalEntries
+import tk.glucodata.data.journal.JournalRepository
+import tk.glucodata.data.journal.deleteAllJournalEntries
+
+/** What "Clear history" removes. The three are exclusive: the dialog offers one of them. */
+enum class ClearScope { READINGS, JOURNAL, BOTH }
 
 /**
  * Handles data clearing operations for app maintenance.
- * Provides 3 levels of data clearing:
- * 1. Clear History only (Room database)
- * 2. Clear App Data (history + cache, keep settings)
- * 3. Factory Reset (everything including settings)
+ * Provides 2 levels of data clearing:
+ * 1. Clear history: glucose readings, journal entries, or both. Settings, sensors and the
+ *    journal's libraries (insulin presets, foods) stay.
+ * 2. Factory reset (everything including settings)
  */
 object DataManagement {
     
     private const val TAG = "DataManagement"
     
     /**
-     * Clear only the glucose history database.
-     * Settings and native data are preserved.
+     * Clear glucose readings, journal entries, or both.
+     *
+     * Readings are tombstoned as they go, so the next sync from a sensor's own store cannot
+     * bring them back; see [HistoryRepository.clearAllReadings]. Journal entries leave the way
+     * a deleted entry does, with Clone and Nightscout told.
+     *
+     * All of it is one database transaction ([clearHistoryRows]): a failure leaves the readings
+     * and the journal as they were, never one of the two cleared. Clearing readings also waits
+     * its turn among the native syncs ([HistorySync.catchUpThen]). It runs to the end even if
+     * the caller leaves the screen.
      */
-    suspend fun clearHistory(context: Context = Applic.app): Boolean {
-        return withContext(Dispatchers.IO) {
+    suspend fun clearHistory(
+        scope: ClearScope = ClearScope.READINGS,
+        context: Context = Applic.app,
+    ): Boolean {
+        return withContext(Dispatchers.IO + NonCancellable) {
             try {
-                // Clear Room database
-                val db = HistoryDatabase.getInstance(context)
-                db.clearAllTables()
-                Log.d(TAG, "Cleared history database")
+                val database = HistoryDatabase.getInstance(context)
+                val deletedJournal = if (scope == ClearScope.JOURNAL) {
+                    database.clearHistoryRows(scope)
+                } else {
+                    HistorySync.catchUpThen { database.clearHistoryRows(scope) }
+                }
+                deletedJournal?.let { JournalRepository().announceDeletion(it) }
+                UiRefreshBus.requestDataRefresh()
                 true
             } catch (e: Exception) {
-                Log.e(TAG, "Error clearing history", e)
-                false
-            }
-        }
-    }
-    
-    /**
-     * Clear sensor connections and data while preserving settings.
-     * This deletes sensor directories and sensors.dat, but keeps:
-     * - SharedPreferences (settings)
-     * - Room database (glucose history)
-     * - Other app configuration
-     */
-    suspend fun clearAppData(context: Context = Applic.app): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                // 1. Disconnect all active sensors first
-                try {
-                    tk.glucodata.SensorBluetooth.mygatts()?.forEach { gatt ->
-                        gatt.close()
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error disconnecting sensors", e)
-                }
-                
-                // 2. Clear cache directories (safe, no settings here)
-                context.cacheDir.deleteRecursively()
-                context.codeCacheDir?.deleteRecursively()
-                
-                // 3. Selectively delete sensor data files only
-                // Native code stores sensors in:
-                // - sensors.dat (sensor list)
-                // - Directories named after sensor serial (e.g., "E07A-XX...")
-                // Settings are kept in a separate settings file
-                val sensorPatterns = listOf(
-                    "sensors.dat",
-                    "logs",  // Log directory
-                )
-                val sensorDirPrefixes = listOf(
-                    "E07A-",  // Libre 3
-                    "E007-",  // Libre 2
-                    "E00A-",  // Libre sensor
-                    "LT",     // Sibionics
-                )
-                
-                context.filesDir.listFiles()?.forEach { file ->
-                    val shouldDelete = sensorPatterns.contains(file.name) ||
-                        sensorDirPrefixes.any { file.name.startsWith(it) } ||
-                        file.name.length == 16 && file.isDirectory  // Sensor dir (16-char serial)
-                    
-                    if (shouldDelete) {
-                        val deleted = file.deleteRecursively()
-                        Log.d(TAG, "Deleted sensor data: ${file.name} = $deleted")
-                    } else {
-                        Log.d(TAG, "Preserved: ${file.name}")
-                    }
-                }
-                
-                Log.d(TAG, "Cleared sensor data (preserved settings)")
-                true
-            } catch (e: Exception) {
-                Log.e(TAG, "Error clearing sensor data", e)
+                Log.e(TAG, "Error clearing history ($scope)", e)
                 false
             }
         }
@@ -154,3 +117,18 @@ object DataManagement {
         }
     }
 }
+
+/**
+ * The database half of [DataManagement.clearHistory]: the readings and the journal entries of
+ * [scope] go in one transaction, so a failure in either leaves both as they were.
+ *
+ * @return what the journal clear removed, for [JournalRepository.announceDeletion] to pass on once
+ * this has committed; `null` when the journal was not part of [scope]
+ */
+internal suspend fun HistoryDatabase.clearHistoryRows(scope: ClearScope): DeletedJournalEntries? =
+    withTransaction {
+        if (scope != ClearScope.JOURNAL) {
+            HistoryRepository(this@clearHistoryRows).clearAllReadings()
+        }
+        if (scope != ClearScope.READINGS) deleteAllJournalEntries() else null
+    }

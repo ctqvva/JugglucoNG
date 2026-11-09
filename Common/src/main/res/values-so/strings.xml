@@ -867,16 +867,17 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     
     <string name="danger_zone">Aagga Khatarta</string>
     <string name="clear_history">Nadiifi Taariikhda</string>
-    <string name="clear_history_desc_long">Ka saar dhammaan akhrinta gulukooska. Lama soo celin karo</string>
-    <string name="clear_history_desc_short">Ka saar dhammaan akhrinta gulukooska xogta xogta</string>
-    <string name="clear_app_data">Nadiifi xogta App-ka</string>
-    <string name="clear_app_data_desc">Ka saar taariikhda iyo kaydinta, ilaali dejinta</string>
     <string name="factory_reset">Dib u habaynta Warshada</string>
     <string name="factory_reset_desc">Ka saar wax walba, ku noqo gobolka ugu horeeya</string>
     <string name="factory_reset_alert">Ka saar wax walba. Lama soo celin karo!</string>
     <string name="factory_reset_confirm">Dib u habayn warshadeed?</string>
     <string name="clean_history_confirm">Taariikhda tirtiri?</string>
-    <string name="clean_data_confirm">Masaar xogta Appka?</string>
+    <string name="clear_history_desc">Ka saar akhriska, qoraallada joornaalka ama labadaba</string>
+    <string name="clear_history_scope_readings">Waxay ka saaraysaa dhammaan akhriska gulukooska taleefankan, lamana soo celin karo. Joornaalka, dareemayaasha iyo dejinta way hadhayaan.</string>
+    <string name="clear_history_scope_journal">Waxay ka saaraysaa dhammaan qoraallada joornaalka, iyo Nightscout haddii halkaas lagu diray, lamana soo celin karo. Akhriska, noocyada insulin iyo dejinta way hadhayaan.</string>
+    <string name="clear_history_scope_both">Waxay ka saaraysaa dhammaan akhriska gulukooska iyo qoraallada joornaalka, iyo Nightscout haddii halkaas lagu diray, lamana soo celin karo. Dareemayaasha, noocyada insulin iyo dejinta way hadhayaan.</string>
+    <string name="clear_history_done">Taariikhda waa la nadiifiyay</string>
+    <string name="clear_history_failed">Taariikhda lama nadiifin karin</string>
     
     <string name="graph_smoothing_title">Simidda xogta</string>
     <string name="graph_smoothing_desc">Xogta jaantuska jilicsan iyo, ilaa garaaf kaliya oo siman aan la damin, qiimayaasha gulukoosta la xaliyay</string>
@@ -983,21 +984,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="import_history_title">Soo dejinta Taariikhda</string>
     <string name="import_history_sub">Soo celi akhrinta gulukooska dhoofinta JugglucoNG ama faylka CSV</string>
     
-    <string name="clear_history_title">Taariikhda tirtiri?</string>
-    <string name="clear_history_confirmation">Tani waxay ka saari doontaa dhammaan akhrinta gulukooska ee kaydka xogta. Tallaabadan lama noqon karo.</string>
     <string name="delete_reading_title">Ma tirtirtaa Akhriska?</string>
     <string name="delete_reading_confirmation">Ka saar akhriska gulukoosta taariikhda deegaanka. Tallaabadan lama noqon karo.</string>
-    <string name="clear_button">Cad</string>
     
-    <string name="clear_app_data_title">Masaar xogta Appka?</string>
-    <string name="clear_app_data_intro">Tani waxay meesha ka saari doontaa:</string>
-    <string name="all_glucose_readings">• Dhammaan akhrinta gulukooska</string>
-    <string name="cache_files">• Cache files</string>
-    <string name="sensor_data">• Xogta dareemayaasha</string>
-    <string name="all_settings">Dhammaan goobaha</string>
-    <string name="settings_preserved">Dejinta waa la ilaalin doonaa</string>
-    <string name="cannot_be_undone_warning">Tallaabadan lama noqon karo.</string>
-    <string name="clear_data_button">Nadiifi Xogta</string>
     
     <string name="factory_reset_title">⚠️ Dib u habayn warshadeed?</string>
     <string name="factory_reset_intro">Tani waxay meesha ka saaraysaa wax walba:</string>
