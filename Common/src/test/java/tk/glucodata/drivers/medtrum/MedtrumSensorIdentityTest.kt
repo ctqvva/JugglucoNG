@@ -118,6 +118,7 @@ class MedtrumIdentityAliasTest {
         context = RuntimeEnvironment.getApplication()
         Applic.app = context as Applic
         MedtrumPersistence.clear(context)
+        MedtrumTestNatives.fullNames.clear()
         MedtrumPersistence.setSensorId(context, "2329895446")
     }
 
@@ -126,6 +127,20 @@ class MedtrumIdentityAliasTest {
         assertTrue(MedtrumIdentityAdapter.hasPersistedManagedRecord("95446"))
         assertTrue(MedtrumIdentityAdapter.hasPersistedManagedRecord("2329895446"))
         assertFalse(MedtrumIdentityAdapter.hasPersistedManagedRecord("3MH01M0MWYR"))
+    }
+
+    @Test
+    fun aShortNameNativeGivesToAnotherSensorIsNotClaimed() {
+        // A nine-digit serial leaves a four-digit name, which another sensor can end with too.
+        MedtrumPersistence.setSensorId(context, "177195435")
+        MedtrumTestNatives.fullNames["5435"] = "177195435"
+        assertTrue(MedtrumIdentityAdapter.hasPersistedManagedRecord("5435"))
+        assertTrue(MedtrumIdentityAdapter.matchesCallbackId("5435", "177195435"))
+
+        MedtrumTestNatives.fullNames["5435"] = "880015435"
+        assertFalse(MedtrumIdentityAdapter.hasPersistedManagedRecord("5435"))
+        assertFalse(MedtrumIdentityAdapter.matchesCallbackId("5435", "177195435"))
+        assertFalse(MedtrumIdentityAdapter.matchesCallbackId("177195435", "5435"))
     }
 
     @Test
