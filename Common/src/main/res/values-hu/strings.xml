@@ -3331,4 +3331,5 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ican_health_follower_status">Status: %1$s</string>
     <string name="ican_health_show_password">Show password</string>
     <string name="ican_health_hide_password">Hide password</string>
+    <string name="ican_health_secure_storage_failed">Could not securely save the iCan Health session</string>
 </resources>
