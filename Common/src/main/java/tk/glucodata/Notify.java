@@ -2327,6 +2327,9 @@ public class Notify {
 
     private static void postAlarmNotificationUnlessWindowShows(Runnable postNotification) {
         final int generation = ++alarmWindowCheckGeneration;
+        // The fallback builds its full-screen intent later, after a test has left
+        // asTestAlarm; carry the mark over so it still opens as the test's window.
+        final boolean test = buildingTestAlarm.get();
         alarmWindowCheckHandler.postDelayed(() -> {
             if (generation != alarmWindowCheckGeneration || alarmUiVisible) {
                 return;
@@ -2335,7 +2338,11 @@ public class Notify {
                 Log.i(LOG_ID, "Alert Debug: alarm window not shown after " + ALARM_WINDOW_CONFIRM_MS
                         + "ms, posting alarm notification");
             }
-            postNotification.run();
+            if (test) {
+                asTestAlarm(postNotification);
+            } else {
+                postNotification.run();
+            }
         }, ALARM_WINDOW_CONFIRM_MS);
     }
 

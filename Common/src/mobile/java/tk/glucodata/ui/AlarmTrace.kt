@@ -18,7 +18,6 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
@@ -163,11 +162,13 @@ fun AlarmTraceLine(
     val morph = remember { Morph(MaterialShapes.Circle, MaterialShapes.Cookie9Sided) }
     val landSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     val morphSpec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
-    val motionStillActive by rememberUpdatedState(motionActive)
-    LaunchedEffect(trace) {
-        if (!motionStillActive) {
-            // Arrived after the motion window closed (a slow history read): appear settled,
-            // since the screen can sit on the lockscreen and its motion is meant to be finite.
+    // Keyed on the window too: when it closes mid-draw (a trace that arrived late in it), the
+    // draw stops where it is and settles rather than running on past it.
+    LaunchedEffect(trace, motionActive) {
+        if (!motionActive) {
+            // Arrived after the motion window closed (a slow history read), or the window
+            // closed mid-draw: appear settled, since the screen can sit on the lockscreen and
+            // its motion is meant to be finite.
             reveal.snapTo(1f)
             landed.snapTo(1f)
             shapeMorph.snapTo(1f)

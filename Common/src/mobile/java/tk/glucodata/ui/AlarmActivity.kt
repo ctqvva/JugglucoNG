@@ -152,7 +152,9 @@ class AlarmActivity : ComponentActivity() {
     }
 
     private fun loadAlarmTrace(model: AlarmUiModel): AlarmTrace? {
-        val endMs = System.currentTimeMillis()
+        // Ends when the alarm was raised, not when the window reads it: a window opened late
+        // or recreated minutes on would otherwise end on a newer reading than its value.
+        val endMs = model.presentedAtMs
         val startMs = endMs - TRACE_SPAN_MS
         val isMmol = tk.glucodata.Applic.unit == 1
         val points = try {
@@ -165,7 +167,11 @@ class AlarmActivity : ComponentActivity() {
                 AlertTestSample.trace(value, rate, isMmol, endMs, (TRACE_SPAN_MS / 60_000L).toInt())
                     .map { (time, v) -> AlarmTracePoint(time, v) }
             } else {
-                Notify.alarmTracePoints(TRACE_SPAN_MS).map { AlarmTracePoint(it.timestamp, it.value) }
+                // Reaching back from now as far as the alarm's three hours go.
+                val sinceAlarm = (System.currentTimeMillis() - endMs).coerceAtLeast(0L)
+                Notify.alarmTracePoints(TRACE_SPAN_MS + sinceAlarm)
+                    .filter { it.timestamp >= startMs && it.timestamp <= endMs + TRACE_END_SLACK_MS }
+                    .map { AlarmTracePoint(it.timestamp, it.value) }
             }
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "loadAlarmTrace", t)
@@ -241,6 +247,8 @@ class AlarmActivity : ComponentActivity() {
 
         val timeText = DateFormat.getTimeFormat(this).format(System.currentTimeMillis())
         val snoozeMinutes = alertType?.let { AlertRepository.loadConfig(it).defaultSnoozeMinutes } ?: 15
+        val presentedAtMs = intent.getLongExtra(tk.glucodata.WearAlertSync.EXTRA_PRESENTED_AT_MS, 0L)
+            .takeIf { it > 0L } ?: System.currentTimeMillis()
         val valueNumber = glucoseParts.firstOrNull()
             ?.replace(decimalSeparator(), '.')
             ?.replace(',', '.')
@@ -257,7 +265,8 @@ class AlarmActivity : ComponentActivity() {
             alertType = alertType,
             snoozeMinutes = snoozeMinutes,
             valueNumber = valueNumber,
-            isTest = intent.getBooleanExtra(Notify.EXTRA_ALARM_TEST, false)
+            isTest = intent.getBooleanExtra(Notify.EXTRA_ALARM_TEST, false),
+            presentedAtMs = presentedAtMs
         )
     }
 
@@ -432,7 +441,12 @@ class AlarmActivity : ComponentActivity() {
         /** The value as a number in the display unit, for drawing a test's trace to it. */
         val valueNumber: Float? = null,
         /** Opened by a test: the window draws the test's story rather than the live trace. */
-        val isTest: Boolean = false
+        val isTest: Boolean = false,
+        /**
+         * When the alarm was raised. Where its trace ends, and what makes a repeat of the same
+         * figure a new alarm, so its window reads the hours again instead of keeping the last.
+         */
+        val presentedAtMs: Long = 0L
     )
 
     companion object {
@@ -444,6 +458,8 @@ class AlarmActivity : ComponentActivity() {
         private const val ALARM_SCREEN_WAKE_HOLD_MS = 45_000L
         /** As the notification chart: enough to see where the alarm came from. */
         private const val TRACE_SPAN_MS = 3 * 60 * 60_000L
+        /** A reading stamped a moment after the alarm went up is still the one it fired on. */
+        private const val TRACE_END_SLACK_MS = 30_000L
         private val TRACE_ALERT_TYPES = setOf(
             AlertType.LOW, AlertType.VERY_LOW, AlertType.PRE_LOW,
             AlertType.HIGH, AlertType.VERY_HIGH, AlertType.PRE_HIGH, AlertType.PERSISTENT_HIGH,
