@@ -160,7 +160,9 @@ class ICanHealthBleManager(
             val serviceUuid: UUID = ICanHealthConstants.CGM_SERVICE,
             val correctCodeOwner: List<ByteArray>? = null,
             val correctCodeIndex: Int = -1,
-        ) : GattOp()
+        ) : GattOp() {
+            @Volatile var completionStatus: Int? = null
+        }
         data class Read(
             val charUuid: UUID,
             val serviceUuid: UUID = ICanHealthConstants.CGM_SERVICE,
@@ -228,6 +230,8 @@ class ICanHealthBleManager(
     private var correctCodeStartRunnable: Runnable? = null
     private var correctCodeTimeoutRunnable: Runnable? = null
     private var correctCodePendingChunk: ByteArray? = null
+    private var correctCodeFinalWrite: GattOp.Write? = null
+    private var correctCodeFinalAckReceived = false
     private var correctCodeRecheckRunnable: Runnable? = null
     @Volatile private var awaitingCorrectCodeReadback = false
     @Volatile private var lastSensorInfoMarker: Int? = null
@@ -2070,6 +2074,9 @@ class ICanHealthBleManager(
             Log.w(TAG, "Write failed for ${characteristic.uuid} status=$status")
         }
         val pending = correctCodePendingChunk
+        // Publish the outcome on this exact dispatch before releasing the GATT queue.
+        // The F2 indication may reach the handler before this callback does.
+        if (write?.charUuid == characteristic.uuid) write.completionStatus = status
         finishGattOp()
         if (status != BluetoothGatt.GATT_SUCCESS && pending != null &&
             write?.charUuid == ICanHealthConstants.CGM_SPECIFIC_OPS && write.data.contentEquals(pending)) {
@@ -2086,8 +2093,12 @@ class ICanHealthBleManager(
             write.data.contentEquals(pending)
         ) {
             handler.post {
-                if (correctCodeChainActive && correctCodePendingChunk === pending) {
-                    armCorrectCodeAckTimeout(correctCodeNextChunk, CORRECT_CODE_CHUNK_TIMEOUT_MS)
+                if (gatt === mBluetoothGatt && correctCodeChainActive && correctCodePendingChunk === pending) {
+                    if (correctCodeFinalAckReceived && correctCodeFinalWrite === write) {
+                        onCorrectCodeAck()
+                    } else {
+                        armCorrectCodeAckTimeout(correctCodeNextChunk, CORRECT_CODE_CHUNK_TIMEOUT_MS)
+                    }
                 }
             }
         }
@@ -2943,8 +2954,13 @@ class ICanHealthBleManager(
         correctCodeNextChunk = index
         correctCodePendingChunk = chunks[index]
         Log.i(TAG, "CorrectCode write ${index + 1}/${chunks.size}: ${chunks[index].toHexString()}")
-        enqueueOp(GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS, chunks[index],
-            correctCodeOwner = chunks, correctCodeIndex = index))
+        val write = GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS, chunks[index],
+            correctCodeOwner = chunks, correctCodeIndex = index)
+        if (index == chunks.lastIndex) {
+            correctCodeFinalWrite = write
+            correctCodeFinalAckReceived = false
+        }
+        enqueueOp(write)
         armCorrectCodeAckTimeout(index, CORRECT_CODE_CHUNK_GUARD_MS)
         drainGattQueue()
     }
@@ -2965,11 +2981,27 @@ class ICanHealthBleManager(
     }
 
     private fun onCorrectCodeAck() {
+        val chunks = correctCodeChunks ?: return
+        val next = correctCodeNextChunk + 1
+        if (next >= chunks.size) {
+            // Completion requires both the sensor's F2 ack and a successful final GATT
+            // write callback, in either order. Retain the pending chunk and its timeout
+            // until both arrive so failure/cancellation can still abort the chain.
+            when (correctCodeFinalWrite?.completionStatus) {
+                null -> {
+                    correctCodeFinalAckReceived = true
+                    return
+                }
+                BluetoothGatt.GATT_SUCCESS -> Unit
+                else -> {
+                    resetCorrectCodeState()
+                    return
+                }
+            }
+        }
         correctCodeTimeoutRunnable?.let { handler.removeCallbacks(it) }
         correctCodeTimeoutRunnable = null
         correctCodePendingChunk = null
-        val chunks = correctCodeChunks ?: return
-        val next = correctCodeNextChunk + 1
         if (next >= chunks.size) {
             repairState.writeCompleted(SystemClock.elapsedRealtime())
             Log.i(
@@ -2995,6 +3027,8 @@ class ICanHealthBleManager(
 
     private fun resetCorrectCodeState() {
         awaitingCorrectCodeReadback = false
+        correctCodeFinalWrite = null
+        correctCodeFinalAckReceived = false
         correctCodeStartRunnable?.let { handler.removeCallbacks(it) }
         correctCodeStartRunnable = null
         correctCodeTimeoutRunnable?.let { handler.removeCallbacks(it) }

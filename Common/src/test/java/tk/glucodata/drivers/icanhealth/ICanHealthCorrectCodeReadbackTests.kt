@@ -56,6 +56,7 @@ class ICanHealthCorrectCodeReadbackTests {
         set("onboardingDeviceSn", serial)
         set("lastAuthChallenge", byteArrayOf(1, 2, 3, 4))
         handler = get("handler") as Handler
+        shadowOf(handler.looper).pause()
     }
 
     @After fun tearDown() { manager.destroy() }
@@ -108,13 +109,46 @@ class ICanHealthCorrectCodeReadbackTests {
     }
 
     @Test fun readbackWaitsForTheFinalGattWriteToFinish() {
-        armChain()
-        set("gattOpActive", true)
+        armChain(completeWrite = false)
         notify(0x1c, 0xf2, 1)
         shadowOf(handler.looper).idle()
         assertEquals(0, readbackCount())
         manager.onCharacteristicWrite(gatt, characteristic, BluetoothGatt.GATT_SUCCESS)
+        shadowOf(handler.looper).idle()
         assertEquals(1, readbackCount())
+    }
+
+    @Test fun aFinalAckBeforeAFailedGattCompletionDoesNotRequestF6() {
+        armChain(index = 1)
+        notify(0x1c, 0xf2, 1)
+        shadowOf(handler.looper).idleFor(Duration.ofMillis(250))
+        // The real queue has dispatched the last F2, but Android has not completed it.
+        assertEquals(1, radio.writes.size)
+        notify(0x1c, 0xf2, 1)
+        shadowOf(handler.looper).idle()
+        assertEquals(0, readbackCount())
+        manager.onCharacteristicWrite(gatt, characteristic, BluetoothGatt.GATT_FAILURE)
+        shadowOf(handler.looper).idle()
+        assertEquals(0, readbackCount())
+        assertFalse(get("correctCodeChainActive") as Boolean)
+    }
+
+    @Test fun aFailedFinalWriteBeforeItsAckDoesNotRequestF6() {
+        armChain(completeWrite = false)
+        manager.onCharacteristicWrite(gatt, characteristic, BluetoothGatt.GATT_FAILURE)
+        // Deliver the ack before the handler has processed the posted failure cleanup.
+        notify(0x1c, 0xf2, 1)
+        shadowOf(handler.looper).idle()
+        assertEquals(0, readbackCount())
+        assertFalse(get("correctCodeChainActive") as Boolean)
+    }
+
+    @Test fun anEarlyFinalAckStillTimesOutWithoutTheGattWriteCallback() {
+        armChain(completeWrite = false)
+        notify(0x1c, 0xf2, 1)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(25))
+        assertEquals(0, readbackCount())
+        assertFalse(get("correctCodeChainActive") as Boolean)
     }
 
     @Test fun pausingBeforeThePostedAckDoesNotRequestF6() {
@@ -172,7 +206,7 @@ class ICanHealthCorrectCodeReadbackTests {
         assertEquals("F6 0x024E (590), x13 0.590", manager.getSensorDetailTelemetry())
     }
 
-    private fun armChain(index: Int = 2) {
+    private fun armChain(index: Int = 2, completeWrite: Boolean = true) {
         val chunks = List(3) { byteArrayOf(0xf2.toByte(), 0x10) + ByteArray(16) { it.toByte() } }
         set("correctCodeChainActive", true)
         set("correctCodeChunks", chunks)
@@ -180,6 +214,14 @@ class ICanHealthCorrectCodeReadbackTests {
         set("correctCodePendingChunk", chunks[index])
         set("correctCodeFactorySerial", serial)
         set("correctCodeChallenge", byteArrayOf(1, 2, 3, 4))
+        // Dispatch through the real queue so callbacks refer to the actual write operation.
+        manager.javaClass.getDeclaredMethod("sendCorrectCodeChunk", Int::class.javaPrimitiveType)
+            .apply { isAccessible = true }.invoke(manager, index)
+        if (completeWrite) {
+            manager.onCharacteristicWrite(gatt, characteristic, BluetoothGatt.GATT_SUCCESS)
+            shadowOf(handler.looper).idle()
+        }
+        radio.writes.clear()
     }
 
     @Suppress("DEPRECATION")
