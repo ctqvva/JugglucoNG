@@ -808,7 +808,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Fabrika ayarlarına sıfırlansın mı?</string>
-    <string name="factory_reset_message">Tüm okumaları, günlük kayıtlarını, sensörleri ve ayarları, ayrıca verdiğiniz izinleri siler, ardından uygulamayı kapatır. Bu işlem geri alınamaz.</string>
+    <string name="factory_reset_message">Tüm okumaları, günlük kayıtlarını, sensörleri ve ayarları, ayrıca verdiğiniz izinleri siler, ardından uygulamayı kapatır. Bir sensörü yeniden kurana kadar glikoz izleme ve alarmlar durur ve bu işlem geri alınamaz.</string>
     <string name="factory_reset_action">Her şeyi sil</string>
     <string name="factory_reset_failed">Uygulama sıfırlanamadı</string>
     <string name="fiasp">Fiasp</string>

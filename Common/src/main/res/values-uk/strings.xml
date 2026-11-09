@@ -777,7 +777,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Скинути до заводських налаштувань?</string>
-    <string name="factory_reset_message">Видаляє всі показання, записи журналу, датчики та налаштування, а також надані дозволи, а потім закриває застосунок. Скасувати це неможливо.</string>
+    <string name="factory_reset_message">Видаляє всі показання, записи журналу, датчики та налаштування, а також надані дозволи, а потім закриває застосунок. Моніторинг глюкози й сповіщення зупиняться, доки ви знову не налаштуєте датчик, і скасувати це неможливо.</string>
     <string name="factory_reset_action">Видалити все</string>
     <string name="factory_reset_failed">Не вдалося скинути застосунок</string>
     <string name="fiasp">Fiasp</string>

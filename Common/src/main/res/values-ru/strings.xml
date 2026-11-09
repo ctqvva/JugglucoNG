@@ -874,7 +874,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="exclude">Exclude</string>
     <string name="factory_reset_confirm">Сбросить к заводским настройкам?</string>
-    <string name="factory_reset_message">Удаляет все показания, записи журнала, датчики и настройки, а также выданные разрешения, затем закрывает приложение. Отменить это нельзя.</string>
+    <string name="factory_reset_message">Удаляет все показания, записи журнала, датчики и настройки, а также выданные разрешения, затем закрывает приложение. Мониторинг глюкозы и оповещения остановятся, пока вы снова не настроите датчик, и отменить это нельзя.</string>
     <string name="factory_reset_action">Удалить всё</string>
     <string name="factory_reset_failed">Не удалось сбросить приложение</string>
     <string name="fiasp">Fiasp</string>

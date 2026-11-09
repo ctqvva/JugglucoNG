@@ -891,7 +891,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="factory_reset">Factory reset</string>
     <string name="factory_reset_desc">Remove everything, return to first-run state</string>
     <string name="factory_reset_confirm">Factory reset?</string>
-    <string name="factory_reset_message">Erases every reading, journal entry, sensor and setting, and the permissions you granted, then closes the app. This can\'t be undone.</string>
+    <string name="factory_reset_message">Erases every reading, journal entry, sensor and setting, and the permissions you granted, then closes the app. Glucose monitoring and alerts stop until you set up a sensor again, and this can\'t be undone.</string>
     <string name="factory_reset_action">Erase everything</string>
     <string name="factory_reset_failed">Couldn\'t reset the app</string>
     <string name="clean_history_confirm">Clear history?</string>

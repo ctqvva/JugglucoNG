@@ -765,7 +765,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Återställa till fabriksinställningar?</string>
-    <string name="factory_reset_message">Raderar alla avläsningar, journalposter, sensorer och inställningar samt de beviljade behörigheterna och stänger sedan appen. Det kan inte ångras.</string>
+    <string name="factory_reset_message">Raderar alla avläsningar, journalposter, sensorer och inställningar samt de beviljade behörigheterna och stänger sedan appen. Glukosövervakning och larm är avstängda tills du ställer in en sensor igen, och det kan inte ångras.</string>
     <string name="factory_reset_action">Radera allt</string>
     <string name="factory_reset_failed">Det gick inte att återställa appen</string>
     <string name="fiasp">Fiasp</string>

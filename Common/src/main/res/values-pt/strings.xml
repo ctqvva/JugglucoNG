@@ -687,7 +687,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Repor definições de fábrica?</string>
-    <string name="factory_reset_message">Apaga todas as leituras, entradas do diário, sensores e definições, bem como as permissões concedidas, e depois fecha a aplicação. Não pode ser anulado.</string>
+    <string name="factory_reset_message">Apaga todas as leituras, entradas do diário, sensores e definições, bem como as permissões concedidas, e depois fecha a aplicação. A monitorização da glicose e os alertas param até configurar um sensor novamente, e não pode ser anulado.</string>
     <string name="factory_reset_action">Apagar tudo</string>
     <string name="factory_reset_failed">Não foi possível repor a aplicação</string>
     <string name="fiasp">Fiasp</string>

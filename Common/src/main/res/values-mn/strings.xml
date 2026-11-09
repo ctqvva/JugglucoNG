@@ -803,7 +803,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="factory_reset">Үйлдвэрийн тохиргоонд буцаах</string>
     <string name="factory_reset_desc">Бүх зүйлийг устгаж, анхны төлөвт нь буцаах</string>
     <string name="factory_reset_confirm">Үйлдвэрийн тохиргоонд буцаах уу?</string>
-    <string name="factory_reset_message">Бүх уншилт, Journal-ын бичлэг, мэдрэгч, тохиргоо болон олгосон зөвшөөрлүүдийг устгаад, програмыг хаана. Буцаах боломжгүй.</string>
+    <string name="factory_reset_message">Бүх уншилт, Journal-ын бичлэг, мэдрэгч, тохиргоо болон олгосон зөвшөөрлүүдийг устгаад, програмыг хаана. Мэдрэгчийг дахин тохируулах хүртэл глюкозын хяналт болон сэрэмжлүүлэг зогсох бөгөөд буцаах боломжгүй.</string>
     <string name="factory_reset_action">Бүгдийг устгах</string>
     <string name="factory_reset_failed">Програмыг анхны төлөвт буцааж чадсангүй</string>
     <string name="clean_history_confirm">Түүхийг цэвэрлэх үү?</string>

@@ -728,7 +728,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="expired">Expired</string>
     <string name="export_history_title">Export History</string>
     <string name="factory_reset_confirm">Réinitialiser l\'application ?</string>
-    <string name="factory_reset_message">Efface toutes les lectures, entrées du journal, capteurs et paramètres, ainsi que les autorisations accordées, puis ferme l\'application. Cette action est irréversible.</string>
+    <string name="factory_reset_message">Efface toutes les lectures, entrées du journal, capteurs et paramètres, ainsi que les autorisations accordées, puis ferme l\'application. La surveillance de la glycémie et les alertes s\'arrêtent jusqu\'à la configuration d\'un nouveau capteur, et cette action est irréversible.</string>
     <string name="factory_reset_action">Tout effacer</string>
     <string name="factory_reset_failed">Impossible de réinitialiser l\'application</string>
     <string name="fiasp">Fiasp</string>

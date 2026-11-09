@@ -829,7 +829,7 @@
     <string name="exclude">Wyklucz</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Przywrócić ustawienia fabryczne?</string>
-    <string name="factory_reset_message">Usuwa wszystkie odczyty, wpisy dziennika, sensory i ustawienia oraz przyznane uprawnienia, a potem zamyka aplikację. Nie można tego cofnąć.</string>
+    <string name="factory_reset_message">Usuwa wszystkie odczyty, wpisy dziennika, sensory i ustawienia oraz przyznane uprawnienia, a potem zamyka aplikację. Monitorowanie glukozy i alarmy wyłączą się, dopóki nie skonfigurujesz sensora ponownie, a tego nie można cofnąć.</string>
     <string name="factory_reset_action">Usuń wszystko</string>
     <string name="factory_reset_failed">Nie udało się zresetować aplikacji</string>
     <string name="finddevices">"Wyszukaj urządzenia"</string>

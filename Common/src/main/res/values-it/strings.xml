@@ -663,7 +663,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Ripristinare i dati di fabbrica?</string>
-    <string name="factory_reset_message">Cancella tutte le letture, le voci del diario, i sensori e le impostazioni, oltre ai permessi concessi, poi chiude l\'app. Non può essere annullato.</string>
+    <string name="factory_reset_message">Cancella tutte le letture, le voci del diario, i sensori e le impostazioni, oltre ai permessi concessi, poi chiude l\'app. Il monitoraggio della glicemia e gli avvisi si fermano finché non configuri di nuovo un sensore, e l\'operazione non può essere annullata.</string>
     <string name="factory_reset_action">Cancella tutto</string>
     <string name="factory_reset_failed">Impossibile ripristinare l\'app</string>
     <string name="fiasp">Fiasp</string>

@@ -18,7 +18,8 @@ import org.robolectric.annotation.ConscryptMode
  * reaches the caller: a refused request is reported (the screen says so instead of closing on a
  * half-reset app), and a request that throws is a refusal, not a crash.
  *
- * The erase itself is the platform's and ends the process; it is not exercised here.
+ * `true` means the system accepted the request, not that the erase has finished. The erase
+ * itself is the platform's and ends the process; it is not exercised here.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = Application::class)
@@ -27,7 +28,7 @@ class FactoryResetTests {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
     @Test
-    fun anAcceptedRequestIsReportedAsDone() = runBlocking {
+    fun anAcceptedRequestIsReportedAsAccepted() = runBlocking {
         assertTrue(DataManagement.factoryReset(context) { true })
     }
 

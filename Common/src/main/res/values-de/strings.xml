@@ -899,7 +899,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="days_short">%1$d T</string>
     <string name="hours_short">%1$d h</string>
     <string name="factory_reset_confirm">Auf Werkseinstellungen zurücksetzen?</string>
-    <string name="factory_reset_message">Löscht alle Messwerte, Journaleinträge, Sensoren und Einstellungen sowie die erteilten Berechtigungen und schließt dann die App. Das kann nicht rückgängig gemacht werden.</string>
+    <string name="factory_reset_message">Löscht alle Messwerte, Journaleinträge, Sensoren und Einstellungen sowie die erteilten Berechtigungen und schließt dann die App. Glukoseüberwachung und Alarme sind aus, bis Sie wieder einen Sensor einrichten, und das kann nicht rückgängig gemacht werden.</string>
     <string name="factory_reset_action">Alles löschen</string>
     <string name="factory_reset_failed">App konnte nicht zurückgesetzt werden</string>
     <string name="fiasp">Fiasp</string>

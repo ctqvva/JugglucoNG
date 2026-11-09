@@ -805,7 +805,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="factory_reset">Gyári visszaállítás</string>
     <string name="factory_reset_desc">Minden törlése, visszatérés az első indítás állapotához</string>
     <string name="factory_reset_confirm">Gyári visszaállítás?</string>
-    <string name="factory_reset_message">Törli az összes mérést, naplóbejegyzést, szenzort és beállítást, valamint a megadott engedélyeket, majd bezárja az alkalmazást. Ez nem vonható vissza.</string>
+    <string name="factory_reset_message">Törli az összes mérést, naplóbejegyzést, szenzort és beállítást, valamint a megadott engedélyeket, majd bezárja az alkalmazást. A glükózfigyelés és a riasztások leállnak, amíg újra be nem állít egy szenzort, és ez nem vonható vissza.</string>
     <string name="factory_reset_action">Minden törlése</string>
     <string name="factory_reset_failed">Az alkalmazás visszaállítása nem sikerült</string>
     <string name="clean_history_confirm">Előzmények törlése?</string>

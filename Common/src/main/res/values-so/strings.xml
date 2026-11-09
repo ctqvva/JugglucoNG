@@ -870,7 +870,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="factory_reset">Dib u habaynta Warshada</string>
     <string name="factory_reset_desc">Ka saar wax walba, ku noqo gobolka ugu horeeya</string>
     <string name="factory_reset_confirm">Dib u habayn warshadeed?</string>
-    <string name="factory_reset_message">Waxay tirtirtaa dhammaan akhriska, qoraallada joornaalka, dareemayaasha iyo dejinta, iyo oggolaanshaha la bixiyay, kadibna waxay xiraysaa abka. Lama soo celin karo.</string>
+    <string name="factory_reset_message">Waxay tirtirtaa dhammaan akhriska, qoraallada joornaalka, dareemayaasha iyo dejinta, iyo oggolaanshaha la bixiyay, kadibna waxay xiraysaa abka. Kormeerka gulukooska iyo digniinaha way istaagayaan ilaa aad mar kale dejiso dareemaha, lamana soo celin karo.</string>
     <string name="factory_reset_action">Wax walba tirtir</string>
     <string name="factory_reset_failed">Abka dib looma habayn karin</string>
     <string name="clean_history_confirm">Taariikhda tirtiri?</string>

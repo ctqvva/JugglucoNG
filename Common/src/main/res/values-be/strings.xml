@@ -758,7 +758,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Скінуць да завадскіх налад?</string>
-    <string name="factory_reset_message">Выдаляе ўсе паказанні, запісы журнала, датчыкі і налады, а таксама выдадзеныя дазволы, а потым закрывае праграму. Гэта нельга адрабіць.</string>
+    <string name="factory_reset_message">Выдаляе ўсе паказанні, запісы журнала, датчыкі і налады, а таксама выдадзеныя дазволы, а потым закрывае праграму. Маніторынг глюкозы і абвесткі спыняцца, пакуль вы зноў не наладзіце датчык, і гэта нельга адрабіць.</string>
     <string name="factory_reset_action">Выдаліць усё</string>
     <string name="factory_reset_failed">Не ўдалося скінуць праграму</string>
     <string name="fiasp">Fiasp</string>

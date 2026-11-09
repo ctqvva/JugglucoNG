@@ -71,9 +71,10 @@ object DataManagement {
      * a sensor callback or worker that touched a preference after its file was gone would
      * recreate it from the copy held in memory, with the old settings in it.
      *
-     * On success the process is killed, so a caller normally never sees `true`; the app starts
-     * from its first-run state the next time it is opened. `false` means the request was
-     * refused and nothing was erased.
+     * `true` means the system accepted the request, not that the erase has finished: it does the
+     * erasing after stopping the app. The process is killed, so a caller normally never sees
+     * `true`; the app starts from its first-run state the next time it is opened. `false` means
+     * the request was refused and nothing was erased.
      *
      * @param eraseUserData the request itself, replaceable so a test need not erase the app
      */
