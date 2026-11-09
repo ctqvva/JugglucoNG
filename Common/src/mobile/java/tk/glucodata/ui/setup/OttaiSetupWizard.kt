@@ -288,6 +288,10 @@ internal fun ottaiConnectFailureMessage(context: Context, sensorId: String): Str
     else R.string.ottai_connect_failed,
 )
 
+/** Preserve a selected/saved BLE address when the inline card has lost its transient value. */
+internal fun ottaiSetupBleAddress(vararg addresses: String?): String? =
+    addresses.firstNotNullOfOrNull { OttaiConstants.normalizeBleAddress(it, allowPlain = false) }
+
 private fun connectOttaiSensor(
     context: Context,
     mac: String,
@@ -297,12 +301,9 @@ private fun connectOttaiSensor(
 ): Boolean {
     val canonical = OttaiConstants.canonicalSensorId(mac).ifEmpty { return false }
     if (OttaiFirmwareSession.hasPendingSetup(context, canonical)) return false
-    val ble = OttaiConstants.normalizeBleAddress(
-        bleAddress, allowPlain = false,
-    ) ?: OttaiConstants.normalizeBleAddress(
-        OttaiRegistry.findDraftRecord(context, canonical)?.address, allowPlain = false,
-    ) ?: OttaiConstants.normalizeBleAddress(
-        OttaiRegistry.findRecord(context, canonical)?.address, allowPlain = false,
+    val ble = ottaiSetupBleAddress(bleAddress,
+        OttaiRegistry.findDraftRecord(context, canonical)?.address,
+        OttaiRegistry.findRecord(context, canonical)?.address,
     ) ?: OttaiConstants.macWithColons(canonical)
     if (!ottaiSetupPublishesManagedSensor(route)) return false
     return when (route) {
@@ -1033,9 +1034,11 @@ fun OttaiSetupWizard(
         if (busy || materialLoading) return
         val canonical = OttaiConstants.canonicalSensorId(mac)
         cloudId = canonical
+        val setupAddress = ottaiSetupBleAddress(selectedBleAddress,
+            OttaiRegistry.findDraftRecord(context, canonical)?.address,
+            OttaiRegistry.findRecord(context, canonical)?.address)
         if (OttaiFirmwareSession.hasPendingTransfer(context, canonical)) {
-            val recoveryAddress = OttaiConstants.normalizeBleAddress(selectedBleAddress, allowPlain = false)
-                ?: OttaiRegistry.findDraftRecord(context, canonical)?.address
+            val recoveryAddress = setupAddress
             if (recoveryAddress != null) {
                 bleAddress = recoveryAddress
                 setupAfterFirmware = true
@@ -1110,10 +1113,7 @@ fun OttaiSetupWizard(
                     busy = false
                     return@launch
                 }
-                val explicitBle = OttaiConstants.normalizeBleAddress(
-                    selectedBleAddress,
-                    allowPlain = false,
-                )
+                val explicitBle = setupAddress
                 if (explicitBle == null) {
                     // The V3 handshake reads the sensor over BLE, so it needs the address the
                     // nearby list picked; a typed ID alone cannot start it.
@@ -1121,9 +1121,8 @@ fun OttaiSetupWizard(
                     showStatus(context.getString(R.string.ottai_v3_needs_nearby), error = true)
                     return@launch
                 }
-                // One shared flow reads the real BLE revision, checks OTA before binding,
-                // and prepares the installed firmware. The normal Connect action authorizes
-                // provisioning; firmware installation still requires its own confirmation.
+                // Connect reads the real BLE revision and prepares the installed firmware.
+                // OTA checks/transfers belong to the separate experimental action.
                 busy = false
                 materialLoading = false
                 bleAddress = explicitBle
@@ -1201,6 +1200,7 @@ fun OttaiSetupWizard(
         val id = OttaiConstants.canonicalSensorId(address)
         if (OttaiConstants.looksLikeMac(id)) {
             cloudId = id
+            OttaiRegistry.saveDraftRecord(context, id, address, OttaiConstants.DEFAULT_DISPLAY_NAME)
             selectedDeviceVersion = ""
             showStatus("")
             val hasLocal = OttaiRegistry.loadMaterials(context, id).authKeys != null

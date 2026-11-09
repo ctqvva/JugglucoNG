@@ -337,17 +337,17 @@ class OttaiFirmwareControllerTests {
     private fun finishFreshCloudAuth(io: FakeIo) {
         io.cloudVerify!!(Result.success(io.cloudProof))
         repeat(2) { io.tick(); io.acknowledge() }
-        io.tick() // Settle, rediscover, check unactivated state, then judge. Never bind.
+        io.tick() // Settle, rediscover, then check status. Connect prepares; experiments judge.
     }
 
-    @Test fun normalSetupPreparesActualInstalledFirmwareWhenNoUpdateOrDownloadIsAvailable() {
+    @Test fun normalConnectPreparesInstalledFirmwareWithoutRequestingAnyOtaOffer() {
         val version = "E1.2.6(V1.7.SH2616.1),STDRD"
-        for (failure in listOf(null, "download_status")) {
+        for (failure in listOf(null, "firmware_host_offline", "ota_judge_OTA_UPGRADE_REQUIRED")) {
             var completeAfterRelease = false
             val (controller, io) = normal(version = version, withoutKeys = true, prepareForSetup = true,
                 onState = { state, transport -> if (state.stage == OttaiFirmwareStage.COMPLETE)
                     completeAfterRelease = transport.closedSuccessfully }) {
-                it.noOffer = true
+                // The fake would offer an image (or fail) if setup queried it.
                 it.offerFailure = failure
                 it.fresh = materials.copy(deviceVersion = version)
             }
@@ -355,7 +355,8 @@ class OttaiFirmwareControllerTests {
             repeat(2) { io.tick(); io.acknowledge() } // Bind completed, establish local auth.
             io.tick(); io.acknowledge() // Factory coefficient packet.
             assertEquals(OttaiFirmwareStage.COMPLETE, controller.state.stage)
-            assertEquals(listOf(version), io.offerVersions)
+            assertEquals(0, io.offerRequests)
+            assertTrue(io.offerVersions.isEmpty())
             assertEquals(listOf(version), io.refreshVersions)
             assertTrue(completeAfterRelease)
             assertFalse(io.saved)
@@ -364,18 +365,18 @@ class OttaiFirmwareControllerTests {
         }
     }
 
-    @Test fun cancelledOrExpiredOfferCannotTriggerAutomaticSetupBinding() {
+    @Test fun cancelledOrExpiredCloudAuthenticationCannotTriggerSetupBinding() {
         for (failure in listOf("cancelled", "ota_request_AuthFailed_TokenInvalid")) {
-            val (controller, io) = normal(withoutKeys = true, prepareForSetup = true) { it.offerFailure = failure }
-            finishFreshCloudAuth(io)
+            val (controller, io) = normal(withoutKeys = true, prepareForSetup = true)
+            io.cloudVerify!!(Result.failure(IllegalStateException(failure)))
             assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
             assertNull(io.refresh)
             assertFalse(io.saved)
         }
     }
 
-    @Test fun normalSetupStillWaitsForFirmwareConsentAndCannotPrepareSavedRecoveryAutomatically() {
-        val (controller, io) = normal(withoutKeys = true, prepareForSetup = true)
+    @Test fun explicitFirmwareExperimentStillWaitsForConsentAndSetupCannotPrepareSavedRecoveryAutomatically() {
+        val (controller, io) = normal(withoutKeys = true)
         finishFreshCloudAuth(io)
         assertEquals(OttaiFirmwareStage.READY, controller.state.stage)
         assertFalse(io.saved)

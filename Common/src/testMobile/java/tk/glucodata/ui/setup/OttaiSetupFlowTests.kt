@@ -62,6 +62,15 @@ class OttaiSetupFlowTests {
     }
 
     @Test
+    fun `V3 setup can use its saved BLE address without selecting the sensor again`() {
+        assertEquals("18:DC:12:80:82:10", ottaiSetupBleAddress("", "18:dc:12:80:82:10"))
+        assertEquals("18:DC:12:80:82:10", ottaiSetupBleAddress(null, null, "18:DC:12:80:82:10"))
+        assertEquals("AA:BB:CC:DD:EE:FF", ottaiSetupBleAddress("AA:BB:CC:DD:EE:FF", "18:DC:12:80:82:10"))
+        // Cloud IDs and box serials alone do not establish a BLE address.
+        assertNull(ottaiSetupBleAddress("18DC12808210", "OTT1234567"))
+    }
+
+    @Test
     fun `missing materials without a signed V3 route remain blocked`() {
         listOf(
             ottaiSetupConnectRoute(false, true, false),
