@@ -22,12 +22,12 @@ class ICanHealthCloudUploader(
             queue.peek()
         }
         var uploadedTotal = 0
+        var reloginCount = 0
         var refreshed = false
         for ((serial, items) in all.groupBy { it.serial }) {
             for (batch in items.chunked(BATCH_SIZE)) {
                 var attempt = 0
                 while (true) {
-                    // Revalidate before every request, including retries after a backoff.
                     synchronized(ICanHealthCloudSettings.sessionLock) {
                         if (!settings.enabled) return FlushResult.Disabled(uploadedTotal)
                         if (settings.session() != session) return FlushResult.Unauthorized(uploadedTotal)
@@ -44,9 +44,9 @@ class ICanHealthCloudUploader(
                     if (result is UploadResult.Ok) break
                     result as UploadResult.Failed
                     if (result.kind == ICanHealthCloudError.Kind.UNAUTHORIZED) {
-                        // A server that keeps rejecting a fresh token must not create an endless loop.
-                        val renewed = if (!refreshed && settings.enabled) relogin(session) else null
+                        val renewed = if (reloginCount < MAX_RELOGINS && !refreshed && settings.enabled) relogin(session) else null
                         if (renewed != null) {
+                            reloginCount++
                             refreshed = true
                             session = renewed
                             continue
@@ -126,6 +126,7 @@ class ICanHealthCloudUploader(
         private const val THREAD_NAME = "ICanHealthCloudSend"
         private const val BATCH_SIZE = 60
         private const val MAX_RETRIES = 3
+        private const val MAX_RELOGINS = 2
         private const val INITIAL_BACKOFF_MS = 100L
         private const val RETRY_DELAY_MS = 5L * 60_000L
 
@@ -231,7 +232,8 @@ class ICanHealthCloudUploader(
             try {
                 val current = stateFor(context)
                 val result = ICanHealthCloudUploader(current.client, current.settings, current.queue).flush()
-                if (result is FlushResult.Failed && result.kind == ICanHealthCloudError.Kind.TRANSIENT) {
+                val transient = result is FlushResult.Failed && (result.code <= 0 || result.code == 408 || result.code == 429 || result.code in 500..599)
+                if (transient) {
                     requestFlush(context, RETRY_DELAY_MS)
                 }
             } catch (error: Throwable) {

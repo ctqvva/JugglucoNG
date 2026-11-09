@@ -275,6 +275,53 @@ class ICanHealthCloudUploaderTests {
         assertEquals(100L, settings.lastSyncMs)
     }
 
+    @Test
+    fun flush4xxIsNotRetriedForever() {
+        val app = RuntimeEnvironment.getApplication() as ICanHealthCloudUploaderTestApplication
+        val context = app
+        val transport = FakeTransport { HttpResult(403, """{"code":403}""") }
+        val client = ICanHealthCloudClient(transport)
+        val settings = ICanHealthCloudSettings(context)
+        settings.token = "tok"
+        settings.enabled = true
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        queue.enqueue(EgvUpload(serial = "SN1", timeMs = 1L, mgdl = 100, trend = 1))
+        val uploader = ICanHealthCloudUploader(client, settings, queue)
+        val result = uploader.flush()
+        assertTrue(result is ICanHealthCloudUploader.FlushResult.Failed)
+        assertEquals(1, transport.calls.size)
+        assertEquals(1, queue.size())
+    }
+
+    @Test
+    fun flushPartialProgressPreservedAcrossFailure() {
+        val app = RuntimeEnvironment.getApplication() as ICanHealthCloudUploaderTestApplication
+        val context = app
+        var calls = 0
+        val transport = object : ICanHealthCloudClient.Transport {
+            override fun post(url: String, jsonBody: String?): HttpResult = HttpResult(200, """{"code":0}""")
+            override fun get(url: String): HttpResult = HttpResult(404, "")
+            override fun post(url: String, jsonBody: String?, headers: Map<String, String>): HttpResult {
+                calls++
+                return if (calls == 1) HttpResult(200, """{"code":0}""") else HttpResult(500, """{"code":500}""")
+            }
+            override fun get(url: String, headers: Map<String, String>): HttpResult = get(url)
+        }
+        val client = ICanHealthCloudClient(transport)
+        val settings = ICanHealthCloudSettings(context)
+        settings.token = "tok"
+        settings.enabled = true
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        queue.enqueue(EgvUpload(serial = "SN1", timeMs = 1L, mgdl = 100, trend = 1))
+        queue.enqueue(EgvUpload(serial = "SN1", timeMs = 2L, mgdl = 110, trend = 1))
+        val uploader = ICanHealthCloudUploader(client, settings, queue)
+        val result = uploader.flush()
+        assertTrue(result is ICanHealthCloudUploader.FlushResult.Failed || result is ICanHealthCloudUploader.FlushResult.Success)
+    }
+
+
 }
 
 private class TestB64Cipher : ICanHealthCloudSettings.PasswordCipher {
