@@ -2,12 +2,16 @@ package tk.glucodata.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -23,11 +27,18 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import androidx.graphics.shapes.Morph
+import androidx.graphics.shapes.toPath
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** One reading of the alarm's trace, in the display unit. */
 @Immutable
@@ -116,10 +127,23 @@ private fun lineYAt(segments: List<List<Offset>>, x: Float): Float? {
     return lastBefore?.y
 }
 
+private val TraceStroke = 2.dp
+/** Room above and below the line for the marker, so the present never sits on the trace's edge. */
+private val TraceVerticalPad = 16.dp
+/** The hour ends on the content's right edge, under the arrow column, not under the bezel. */
+private val TraceEndInset = 24.dp
+private val MarkerSize = 22.dp
+private val MarkerGap = 3.dp
+private val HaloRadius = 30.dp
+private val RippleReach = 38.dp
+
 /**
- * The trace itself: a thin line that draws itself across the hour, eases into the present
- * reading, and lands as a dot that ripples while the alarm's motion window is open.
+ * The trace itself: a thin line that draws itself across the hour and eases into the present.
+ * The present is the one vivid thing on it: an M3 shape that morphs from a dot into a cookie
+ * as it lands and turns slowly, with a breathing glow, ripples and a faint guide down the
+ * minute it stands for. Everything that moves stops with the alarm's motion window.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AlarmTraceLine(
     trace: AlarmTrace,
@@ -128,90 +152,192 @@ fun AlarmTraceLine(
 ) {
     val lineColor = MaterialTheme.colorScheme.primary
     val reveal = remember { Animatable(0f) }
-    val headScale = remember { Animatable(0f) }
-    val popSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val landed = remember { Animatable(0f) }
+    val shapeMorph = remember { Animatable(0f) }
+    val morph = remember { Morph(MaterialShapes.Circle, MaterialShapes.Cookie9Sided) }
+    val landSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val morphSpec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
     LaunchedEffect(trace) {
         // After the value has landed, so the eye goes value first, then where it came from.
         delay(320)
         reveal.animateTo(1f, tween(durationMillis = 1_400, easing = EmphasizedDecelerate))
-        // The present reading lands with a spring, the one expressive beat of the trace.
-        headScale.snapTo(1.9f)
-        headScale.animateTo(1f, popSpec)
+        coroutineScope {
+            launch { landed.animateTo(1f, landSpec) }
+            launch { shapeMorph.animateTo(1f, morphSpec) }
+        }
     }
 
-    val ripple = if (motionActive) {
-        val transition = rememberInfiniteTransition(label = "alarm-trace-ripple")
-        val phase by transition.animateFloat(
+    var spin = 0f
+    var ripple = 0f
+    var breath = 0.5f
+    if (motionActive) {
+        val transition = rememberInfiniteTransition(label = "alarm-trace-now")
+        val spinValue by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(tween(durationMillis = 6_000, easing = LinearEasing)),
+            label = "alarm-trace-spin"
+        )
+        val rippleValue by transition.animateFloat(
             initialValue = 0f,
             targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1_800, easing = EmphasizedDecelerate),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "alarm-trace-ripple-phase"
+            animationSpec = infiniteRepeatable(tween(durationMillis = 1_800, easing = EmphasizedDecelerate)),
+            label = "alarm-trace-ripple"
         )
-        phase
-    } else {
-        null
+        val breathValue by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(durationMillis = 1_200), repeatMode = RepeatMode.Reverse),
+            label = "alarm-trace-breath"
+        )
+        spin = spinValue
+        ripple = rippleValue
+        breath = breathValue
     }
 
-    Canvas(
-        modifier = modifier
-            // Offscreen, so the left-edge fade can mask what is already drawn.
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-    ) {
-        val strokeWidth = 2.dp.toPx()
-        val headRadius = 4.dp.toPx()
-        val pad = headRadius * 2f + strokeWidth
-        val segments = alarmTraceSegments(trace, size.width, size.height, pad, pad, endInset = 24.dp.toPx())
-        if (segments.isEmpty()) return@Canvas
+    Box(modifier = modifier) {
+        // The line, offscreen so the edge fade and the gap around the marker can cut into it.
+        Canvas(
+            modifier = Modifier
+                .matchParentSize()
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        ) {
+            val segments = segmentsFor(trace) ?: return@Canvas
+            val strokeWidth = TraceStroke.toPx()
+            val now = segments.last().last()
+            val headX = now.x * reveal.value
 
-        val lastPoint = segments.last().last()
-        val progress = reveal.value
-        val headX = lastPoint.x * progress
-
-        val line = Path()
-        for (segment in segments) {
-            line.moveTo(segment.first().x, segment.first().y)
-            for (i in 1 until segment.size) line.lineTo(segment[i].x, segment[i].y)
-        }
-
-        clipRect(right = headX + strokeWidth) {
-            drawPath(
-                path = line,
-                color = lineColor,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            val line = Path()
+            for (segment in segments) {
+                line.moveTo(segment.first().x, segment.first().y)
+                for (i in 1 until segment.size) line.lineTo(segment[i].x, segment[i].y)
+            }
+            clipRect(right = headX + strokeWidth) {
+                drawPath(
+                    path = line,
+                    color = lineColor,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                )
+            }
+            // The hour comes in from the edge of the screen rather than starting at a hard cut.
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    0f to Color.Transparent,
+                    0.22f to Color.Black,
+                    startX = 0f,
+                    endX = size.width
+                ),
+                blendMode = BlendMode.DstIn
             )
+            // A clear ring round the marker, so the line stops short of it instead of running under.
+            if (landed.value > 0f) {
+                drawMorph(
+                    morph, shapeMorph.value, now,
+                    (MarkerSize + MarkerGap * 2).toPx() * landed.value, spin,
+                    Color.Black, BlendMode.Clear
+                )
+            }
         }
 
-        // The hour comes in from the edge of the screen rather than starting at a hard cut.
-        drawRect(
-            brush = Brush.horizontalGradient(
-                0f to Color.Transparent,
-                0.22f to Color.Black,
-                startX = 0f,
-                endX = size.width
-            ),
-            blendMode = BlendMode.DstIn
-        )
+        // The present: not clipped to the line's layer, so the glow and ripples can spread.
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val segments = segmentsFor(trace) ?: return@Canvas
+            val now = segments.last().last()
+            val progress = reveal.value
+            if (progress <= 0f) return@Canvas
 
-        if (progress <= 0f) return@Canvas
-        if (progress < 1f) {
-            // A soft head rides the tip while the line is being drawn.
-            val y = lineYAt(segments, headX) ?: return@Canvas
-            drawCircle(color = lineColor.copy(alpha = 0.28f), radius = headRadius * 2f, center = Offset(headX, y))
-            drawCircle(color = lineColor, radius = headRadius * 0.75f, center = Offset(headX, y))
-            return@Canvas
-        }
+            if (progress < 1f) {
+                // A soft head rides the tip while the line is being drawn.
+                val headX = now.x * progress
+                val y = lineYAt(segments, headX) ?: return@Canvas
+                drawCircle(lineColor.copy(alpha = 0.28f), radius = 8.dp.toPx(), center = Offset(headX, y))
+                drawCircle(lineColor, radius = 3.dp.toPx(), center = Offset(headX, y))
+                return@Canvas
+            }
 
-        if (ripple != null) {
-            drawCircle(
-                color = lineColor.copy(alpha = 0.4f * (1f - ripple)),
-                radius = headRadius + headRadius * 4f * ripple,
-                center = lastPoint,
-                style = Stroke(width = strokeWidth * (1f - ripple * 0.5f))
+            val land = landed.value.coerceIn(0f, 1.2f)
+            // Down the minute it stands for, brightest at the reading.
+            val guideTop = 0f
+            val guideBottom = size.height
+            val atReading = ((now.y - guideTop) / (guideBottom - guideTop)).coerceIn(0.05f, 0.95f)
+            drawLine(
+                brush = Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    atReading to lineColor.copy(alpha = 0.45f * land.coerceAtMost(1f)),
+                    1f to Color.Transparent,
+                    startY = guideTop,
+                    endY = guideBottom
+                ),
+                start = Offset(now.x, guideTop),
+                end = Offset(now.x, guideBottom),
+                strokeWidth = 1.dp.toPx()
             )
+
+            // Breathing glow behind the marker.
+            val haloRadius = HaloRadius.toPx() * (0.8f + 0.3f * breath) * land.coerceAtMost(1f)
+            if (haloRadius > 0f) {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        0f to lineColor.copy(alpha = 0.42f),
+                        1f to lineColor.copy(alpha = 0f),
+                        center = now,
+                        radius = haloRadius
+                    ),
+                    radius = haloRadius,
+                    center = now
+                )
+            }
+
+            // Two ripples, half a beat apart, while the motion window is open.
+            if (motionActive) {
+                val markerRadius = MarkerSize.toPx() / 2f
+                val reach = RippleReach.toPx()
+                for (offset in floatArrayOf(0f, 0.5f)) {
+                    val phase = (ripple + offset) % 1f
+                    drawCircle(
+                        color = lineColor.copy(alpha = 0.5f * (1f - phase)),
+                        radius = markerRadius + (reach - markerRadius) * phase,
+                        center = now,
+                        style = Stroke(width = TraceStroke.toPx() * (1.5f - phase))
+                    )
+                }
+            }
+
+            drawMorph(morph, shapeMorph.value, now, MarkerSize.toPx() * land, spin, lineColor)
         }
-        drawCircle(color = lineColor, radius = headRadius * headScale.value, center = lastPoint)
+    }
+}
+
+private fun DrawScope.segmentsFor(trace: AlarmTrace): List<List<Offset>>? {
+    val pad = TraceVerticalPad.toPx()
+    return alarmTraceSegments(trace, size.width, size.height, pad, pad, endInset = TraceEndInset.toPx())
+        .takeIf { it.isNotEmpty() }
+}
+
+/** The marker's shape at [progress] of [morph], [size] across, centred on [center] and turned [degrees]. */
+private fun DrawScope.drawMorph(
+    morph: Morph,
+    progress: Float,
+    center: Offset,
+    size: Float,
+    degrees: Float,
+    color: Color,
+    blendMode: BlendMode = DrawScope.DefaultBlendMode,
+) {
+    if (size <= 0f) return
+    val androidPath = android.graphics.Path()
+    morph.toPath(progress.coerceIn(0f, 1f), androidPath)
+    val bounds = android.graphics.RectF()
+    androidPath.computeBounds(bounds, true)
+    val extent = maxOf(bounds.width(), bounds.height())
+    if (extent <= 0f) return
+    val path = androidPath.asComposePath()
+    withTransform({
+        translate(center.x, center.y)
+        rotate(degrees, pivot = Offset.Zero)
+        scale(size / extent, size / extent, pivot = Offset.Zero)
+        translate(-bounds.centerX(), -bounds.centerY())
+    }) {
+        drawPath(path, color, blendMode = blendMode)
     }
 }

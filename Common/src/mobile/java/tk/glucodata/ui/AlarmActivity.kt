@@ -23,6 +23,7 @@ import tk.glucodata.Notify
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.alerts.AlertDisplayText
 import tk.glucodata.alerts.AlertRepository
+import tk.glucodata.alerts.AlertTestSample
 import tk.glucodata.alerts.AlertType
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.logic.TrendEngine
@@ -109,7 +110,7 @@ class AlarmActivity : ComponentActivity() {
             // Read off the main thread; the trace draws itself in once it is here.
             val trace = androidx.compose.runtime.produceState<AlarmTrace?>(null, model) {
                 value = if (showsTrace(model, customAlertId)) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadAlarmTrace() }
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadAlarmTrace(model) }
                 } else {
                     null
                 }
@@ -150,17 +151,27 @@ class AlarmActivity : ComponentActivity() {
         return model.alertType in TRACE_ALERT_TYPES
     }
 
-    private fun loadAlarmTrace(): AlarmTrace? {
+    private fun loadAlarmTrace(model: AlarmUiModel): AlarmTrace? {
         val endMs = System.currentTimeMillis()
         val startMs = endMs - TRACE_SPAN_MS
+        val isMmol = tk.glucodata.Applic.unit == 1
         val points = try {
-            Notify.alarmTracePoints(TRACE_SPAN_MS).map { AlarmTracePoint(it.timestamp, it.value) }
+            if (model.isTest) {
+                // A test's hour: ends at the test value, arriving at the test's rate, so the
+                // curve, the value and the arrow tell one story. The live hour would end
+                // wherever glucose is now, nowhere near the alarm being tested.
+                val value = model.valueNumber ?: return null
+                val rate = model.trendResult.velocity.takeIf { it.isFinite() } ?: return null
+                AlertTestSample.trace(value, rate, isMmol, endMs, (TRACE_SPAN_MS / 60_000L).toInt())
+                    .map { (time, v) -> AlarmTracePoint(time, v) }
+            } else {
+                Notify.alarmTracePoints(TRACE_SPAN_MS).map { AlarmTracePoint(it.timestamp, it.value) }
+            }
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "loadAlarmTrace", t)
             return null
         }
         if (points.size < 2) return null
-        val isMmol = tk.glucodata.Applic.unit == 1
         return AlarmTrace(
             points = points,
             startMs = startMs,
@@ -230,6 +241,10 @@ class AlarmActivity : ComponentActivity() {
 
         val timeText = DateFormat.getTimeFormat(this).format(System.currentTimeMillis())
         val snoozeMinutes = alertType?.let { AlertRepository.loadConfig(it).defaultSnoozeMinutes } ?: 15
+        val valueNumber = glucoseParts.firstOrNull()
+            ?.replace(decimalSeparator(), '.')
+            ?.replace(',', '.')
+            ?.toFloatOrNull()
 
         return AlarmUiModel(
             primaryGlucose = primaryGlucose,
@@ -240,7 +255,9 @@ class AlarmActivity : ComponentActivity() {
             trendResult = trendResult,
             timeText = timeText,
             alertType = alertType,
-            snoozeMinutes = snoozeMinutes
+            snoozeMinutes = snoozeMinutes,
+            valueNumber = valueNumber,
+            isTest = intent.getBooleanExtra(Notify.EXTRA_ALARM_TEST, false)
         )
     }
 
@@ -411,7 +428,11 @@ class AlarmActivity : ComponentActivity() {
         val trendResult: TrendEngine.TrendResult,
         val timeText: String,
         val alertType: AlertType?,
-        val snoozeMinutes: Int
+        val snoozeMinutes: Int,
+        /** The value as a number in the display unit, for drawing a test's hour to it. */
+        val valueNumber: Float? = null,
+        /** Opened by a test: the window draws the test's story rather than the live hour. */
+        val isTest: Boolean = false
     )
 
     companion object {
