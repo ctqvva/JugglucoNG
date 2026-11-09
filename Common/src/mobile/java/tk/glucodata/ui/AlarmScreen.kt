@@ -78,7 +78,12 @@ import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 
 enum class AlarmSeverity { LOW, HIGH, NEUTRAL }
 
-private const val ALARM_MOTION_ACTIVE_MS = 8_000L
+/**
+ * How long the alarm's motion runs: as long as the window keeps the screen awake
+ * (AlarmActivity's wake hold), then everything holds still so a screen left on the
+ * lockscreen stops redrawing.
+ */
+private const val ALARM_MOTION_ACTIVE_MS = 45_000L
 
 private enum class TrendDirection { UP, DOWN, FLAT, UNKNOWN }
 
