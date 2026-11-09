@@ -72,6 +72,13 @@ reviews:
       - '**/*.webp'
       - '**/*.bak'
       - '**/*.xml'
+      - '**/*.md'
+      - '**/*.py'
+      - '**/*.js'
+      - '**/*.sh'
+
+
+
 
 
   custom_rules:
