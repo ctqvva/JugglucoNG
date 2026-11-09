@@ -34,7 +34,7 @@ class AlarmScreenLayoutTests {
                     alarmLabel = "Glucose low",
                     supportingText = "Falling for 20 minutes",
                     severity = AlarmSeverity.LOW,
-                    // Unknown keeps the trend name (a native call) out; the arrow box keeps its size.
+                    // Unknown: no arrow; the arrow box keeps its size.
                     trendResult = TrendEngine.TrendResult(TrendEngine.TrendState.Unknown, Float.NaN, 0f, 0f),
                     timeText = "12:00",
                     onSnooze = {},

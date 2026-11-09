@@ -85,6 +85,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import tk.glucodata.alerts.AlertDisplayText;
+import tk.glucodata.alerts.AlertTestSample;
 import tk.glucodata.alerts.AlertType;
 import tk.glucodata.alerts.SnoozeManager;
 import tk.glucodata.alerts.AlertConfig;
@@ -1152,6 +1153,81 @@ public class Notify {
         }
     }
 
+    /**
+     * The main line of the last {@code spanMs}, for the alarm window's trace. Resolved by the
+     * same builder as the notification chart, from the same inputs (primary and selected
+     * peers), so the alarm cannot draw a curve the chart never showed. Only points the model
+     * draws as the main line are taken, from whichever series owned the minute: after a
+     * sensor switch the trace follows the former main sensor where the record says it was
+     * main, and never passes the current sensor's secondary history off as the main line.
+     * Empty when nothing is recorded.
+     */
+    public static List<tk.glucodata.chart.ChartPointModel> alarmTracePoints(long spanMs) {
+        try {
+            final long startT = System.currentTimeMillis() - spanMs;
+            final boolean isMmol = Applic.unit == 1;
+            final String serial = resolveNotificationSensorSerial();
+            if (serial == null || serial.isEmpty()) {
+                return java.util.Collections.emptyList();
+            }
+            final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot(serial);
+            List<GlucosePoint> points = NotificationHistorySource.getDisplayHistory(startT, isMmol, serial);
+            points = DisplayTrendSource.augmentHistory(points, current, serial, startT);
+            final int viewMode = current != null ? current.getViewMode() : resolveSensorViewMode(serial);
+            final java.util.List<NotificationChartDrawer.PeerSeries> peers = NotificationMultiSensorSource.peerSeries(
+                    NotificationMultiSensorSource.peerCurrents(glucosetimeout, serial), startT, isMmol);
+            final tk.glucodata.chart.HistoryChartModel model = NotificationChartModelSource.build(
+                    Applic.app, points, serial, viewMode,
+                    NightscoutCalibration.hasCalibrationForViewMode(serial, viewMode), peers, startT);
+            if (model == null) {
+                return java.util.Collections.emptyList();
+            }
+            // Primary first, so where two series both claim a minute the selected sensor wins;
+            // shared run-boundary points collapse onto one timestamp.
+            final java.util.TreeMap<Long, tk.glucodata.chart.ChartPointModel> main = new java.util.TreeMap<>();
+            final java.util.ArrayList<tk.glucodata.chart.ChartSeriesModel> series = new java.util.ArrayList<>();
+            if (model.getPrimary() != null) series.add(model.getPrimary());
+            series.addAll(model.getPeers());
+            for (tk.glucodata.chart.ChartSeriesModel s : series) {
+                for (tk.glucodata.chart.ChartRun run : s.getRuns()) {
+                    for (tk.glucodata.chart.ChartPointModel point : run.getPoints()) {
+                        if (point.getLook() != tk.glucodata.chart.ChartLook.MAIN) continue;
+                        if (point.getTimestamp() < startT) continue;
+                        if (!Float.isFinite(point.getValue()) || point.getValue() <= 0.1f) continue;
+                        main.putIfAbsent(point.getTimestamp(), point);
+                    }
+                }
+            }
+            return new java.util.ArrayList<>(main.values());
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "alarmTracePoints", th);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
+     * The rate a test alarm carries: the one the current reading shows, so a test draws the
+     * arrow a real alarm would draw now. NaN when nothing is current; the window then reads
+     * the rate itself, as it does for a real alarm.
+     */
+    private static float currentAlarmRate() {
+        final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
+        if (current != null && Float.isFinite(current.getRate())) {
+            return current.getRate();
+        }
+        try {
+            final strGlucose latest = Natives.lastglucose();
+            if (latest != null && Float.isFinite(latest.rate)) {
+                return latest.rate;
+            }
+        } catch (Throwable th) {
+            if (doLog) {
+                Log.i(LOG_ID, "currentAlarmRate latest lookup failed: " + th);
+            }
+        }
+        return Float.NaN;
+    }
+
     private static long latestNotificationTimestamp(List<GlucosePoint> historyPoints) {
         if (historyPoints == null || historyPoints.isEmpty()) {
             return 0L;
@@ -1789,24 +1865,13 @@ public class Notify {
         return TimeUnit.SECONDS.toMillis(sanitizedDurationSeconds);
     }
 
-    private static float resolveAlarmRate(float requestedRate, boolean isHigh, boolean isTest) {
+    private static float resolveAlarmRate(float requestedRate) {
         if (Float.isFinite(requestedRate)) {
             return requestedRate;
         }
-        try {
-            final strGlucose latest = Natives.lastglucose();
-            if (latest != null && Float.isFinite(latest.rate)) {
-                return latest.rate;
-            }
-        } catch (Throwable th) {
-            if (doLog) {
-                Log.i(LOG_ID, "resolveAlarmRate latest lookup failed: " + th);
-            }
-        }
-        if (isTest) {
-            return isHigh ? 1.2f : -1.2f;
-        }
-        return Float.NaN;
+        // A test used to invent ±1.2 here when nothing was current; it now shows what a real
+        // alarm would: the current rate, or no arrow at all.
+        return currentAlarmRate();
     }
 
     private static void cancelRetryScheduleLocked() {
@@ -2221,6 +2286,24 @@ public class Notify {
 
     public static final String EXTRA_CUSTOM_ALERT_ID = "custom_alert_id";
     public static final String EXTRA_ALERT_DELIVERY_MODE = "alert_delivery_mode";
+    /** Set on the alarm window's intent when a test opened it: the window draws the test's story, not the live hour. */
+    public static final String EXTRA_ALARM_TEST = "alarm_test";
+
+    /**
+     * True while a test builds its alarm window, on the thread doing it. Thread-local so a real
+     * alarm built at the same moment on the alert thread can never be marked as a test and
+     * shown a made-up hour.
+     */
+    private static final ThreadLocal<Boolean> buildingTestAlarm = ThreadLocal.withInitial(() -> false);
+
+    private static void asTestAlarm(Runnable body) {
+        buildingTestAlarm.set(true);
+        try {
+            body.run();
+        } finally {
+            buildingTestAlarm.set(false);
+        }
+    }
 
     public static void setAlarmUiVisible(boolean visible) {
         alarmUiVisible = visible;
@@ -2244,6 +2327,9 @@ public class Notify {
 
     private static void postAlarmNotificationUnlessWindowShows(Runnable postNotification) {
         final int generation = ++alarmWindowCheckGeneration;
+        // The fallback builds its full-screen intent later, after a test has left
+        // asTestAlarm; carry the mark over so it still opens as the test's window.
+        final boolean test = buildingTestAlarm.get();
         alarmWindowCheckHandler.postDelayed(() -> {
             if (generation != alarmWindowCheckGeneration || alarmUiVisible) {
                 return;
@@ -2252,7 +2338,11 @@ public class Notify {
                 Log.i(LOG_ID, "Alert Debug: alarm window not shown after " + ALARM_WINDOW_CONFIRM_MS
                         + "ms, posting alarm notification");
             }
-            postNotification.run();
+            if (test) {
+                asTestAlarm(postNotification);
+            } else {
+                postNotification.run();
+            }
         }, ALARM_WINDOW_CONFIRM_MS);
     }
 
@@ -3001,9 +3091,12 @@ public class Notify {
                     AlertStateTracker.INSTANCE.shouldTrigger(alertType, config);
                     onenot.lossofsignalalarm(kind, R.drawable.loss, message, typeStr, true, true);
                 } else {
-                    notGlucose dummyGlucose = new notGlucose(System.currentTimeMillis(), String.valueOf(dummyValue), 0f,
-                            0);
-                    onenot.arrowglucosealarm(kind, dummyValue, message, dummyGlucose, typeStr, true);
+                    // Falling into a low, rising into a high: the arrow a real alarm of this
+                    // kind arrives with. Alarms not about direction keep the current rate.
+                    final Float sampleRate = AlertTestSample.rate(alertType);
+                    notGlucose dummyGlucose = new notGlucose(System.currentTimeMillis(), String.valueOf(dummyValue),
+                            sampleRate != null ? sampleRate : currentAlarmRate(), 0);
+                    asTestAlarm(() -> onenot.arrowglucosealarm(kind, dummyValue, message, dummyGlucose, typeStr, true));
                 }
             }
         });
@@ -3048,6 +3141,21 @@ public class Notify {
         lastCustomTriggerTime = now;
 
         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            final Runnable present = () -> presentCustomAlert(soundUri, sound, vibrate, flash, isHigh, glucoseValue,
+                    isTest, deliveryMode, hapticProfile, durationSeconds, overrideDnd, customAlertId,
+                    customAlertName, rate, soundVolumePercent);
+            if (isTest) {
+                asTestAlarm(present);
+            } else {
+                present.run();
+            }
+        });
+    }
+
+    private static void presentCustomAlert(String soundUri, boolean sound, boolean vibrate, boolean flash,
+            boolean isHigh, float glucoseValue, boolean isTest, String deliveryMode,
+            String hapticProfile, int durationSeconds, boolean overrideDnd, String customAlertId,
+            String customAlertName, float rate, int soundVolumePercent) {
             if (onenot != null) {
                 int kind = isHigh ? 1 : 0;
                 presentedStandardAlertKind = -1;
@@ -3062,7 +3170,7 @@ public class Notify {
                         : defaultName;
 
                 String typeStr = alertChannelForKind(kind);
-                final float resolvedRate = resolveAlarmRate(rate, isHigh, isTest);
+                final float resolvedRate = isTest ? AlertTestSample.customRate(isHigh) : resolveAlarmRate(rate);
                 notGlucose glucoseStr = new notGlucose(System.currentTimeMillis(), String.valueOf(glucoseValue),
                         resolvedRate, 0);
 
@@ -3139,7 +3247,6 @@ public class Notify {
                 // turning it into a second custom-alert card.
                 onenot.updateForegroundGlucoseNotification(kind, glucoseValue, glucoseStr);
             }
-        });
     }
 
     private static void setmessage(String message, Boolean cancel) {
@@ -3169,6 +3276,9 @@ public class Notify {
         alarmIntent.putExtra("EXTRA_ALERT_TYPE_ID", alertTypeId);
         alarmIntent.putExtra(WearAlertSync.EXTRA_PRESENTED_AT_MS, System.currentTimeMillis());
         alarmIntent.putExtra("EXTRA_RATE", rate);
+        if (buildingTestAlarm.get()) {
+            alarmIntent.putExtra(EXTRA_ALARM_TEST, true);
+        }
         if (deliveryMode != null && !deliveryMode.isEmpty()) {
             alarmIntent.putExtra(EXTRA_ALERT_DELIVERY_MODE, deliveryMode);
         }
