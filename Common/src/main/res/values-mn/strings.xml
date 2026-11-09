@@ -3330,6 +3330,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="meal_replay_carbs_only">%1$s г, инсулин бүртгээгүй</string>
     <string name="meal_replay_no_outcome">4 цагийн дараа хэмжилт алга</string>
     <string name="meal_replay_reading_at_4h">4 цагийн дараах хэмжилт</string>
+    <string name="meal_replay_failed">Түүх эсвэл тэмдэглэлийг уншиж чадсангүй</string>
+    <string name="meal_replay_retry">Дахин оролдох</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Туршилтын · %d өдрийн хэмжилтээс суралцсан</item>
         <item quantity="other">Туршилтын · %d өдрийн хэмжилтээс суралцсан</item>

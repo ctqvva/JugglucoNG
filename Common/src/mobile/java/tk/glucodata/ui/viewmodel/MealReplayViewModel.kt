@@ -57,6 +57,8 @@ data class ReplayBlock(
 data class MealReplayState(
     val meals: List<ReplayedMeal>,
     val blocks: List<ReplayBlock>,
+    /** True when reading history or the journal threw; [MealReplayViewModel.load] tries again. */
+    val failed: Boolean = false,
 )
 
 /**
@@ -75,6 +77,7 @@ class MealReplayViewModel : ViewModel() {
     private var inputs: Inputs? = null
     private var trials: Map<Int, PredictionModelParameters> = emptyMap()
     private var trialJob: Job? = null
+    private var loadJob: Job? = null
 
     private class Case(
         val meal: MealReplay.Meal,
@@ -93,13 +96,19 @@ class MealReplayViewModel : ViewModel() {
         val forecast: (Case, PredictionModelProfile) -> MealReplay.Replay?,
     )
 
+    /** Loads once; after a failed load, loads again. */
     fun load() {
-        if (_state.value != null || inputs != null) return
-        viewModelScope.launch {
-            val loaded = runCatching { withContext(Dispatchers.Default) { loadInputs() } }
-                .onFailure { Log.stack(LOG_ID, "load", it) }
-                .getOrNull()
-            inputs = loaded
+        val current = _state.value
+        if (loadJob?.isActive == true || (current != null && !current.failed)) return
+        _state.value = null
+        loadJob = viewModelScope.launch {
+            val result = runCatching { withContext(Dispatchers.Default) { loadInputs() } }
+            result.exceptionOrNull()?.let { error ->
+                Log.stack(LOG_ID, "load", error)
+                _state.value = MealReplayState(emptyList(), emptyList(), failed = true)
+                return@launch
+            }
+            inputs = result.getOrNull()
             publish()
             val meals = _state.value?.meals.orEmpty()
             _selected.value = meals.lastIndex

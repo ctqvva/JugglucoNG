@@ -3236,6 +3236,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_replay_carbs_only">%1$s g, aucune insuline notée</string>
     <string name="meal_replay_no_outcome">Aucune mesure 4 heures après</string>
     <string name="meal_replay_reading_at_4h">Mesure à 4 heures</string>
+    <string name="meal_replay_failed">Impossible de lire l’historique ou le journal</string>
+    <string name="meal_replay_retry">Réessayer</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Expérimental · apprise sur %d jour de mesures</item>
         <item quantity="other">Expérimental · apprise sur %d jours de mesures</item>

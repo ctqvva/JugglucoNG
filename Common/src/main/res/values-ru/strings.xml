@@ -3284,6 +3284,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_replay_carbs_only">%1$s г, инсулин не записан</string>
     <string name="meal_replay_no_outcome">Нет показания через 4 часа</string>
     <string name="meal_replay_reading_at_4h">Показание через 4 часа</string>
+    <string name="meal_replay_failed">Не удалось прочитать историю или дневник</string>
+    <string name="meal_replay_retry">Повторить</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Экспериментально · обучен на %d дне показаний</item>
         <item quantity="few">Экспериментально · обучен на %d днях показаний</item>

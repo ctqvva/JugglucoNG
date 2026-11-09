@@ -3242,6 +3242,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_replay_carbs_only">%1$s g，未记录胰岛素</string>
     <string name="meal_replay_no_outcome">4 小时后无读数</string>
     <string name="meal_replay_reading_at_4h">4 小时时的读数</string>
+    <string name="meal_replay_failed">无法读取历史记录或日志</string>
+    <string name="meal_replay_retry">重试</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="other">实验性 · 已根据 %d 天的读数学习</item>
     </plurals>

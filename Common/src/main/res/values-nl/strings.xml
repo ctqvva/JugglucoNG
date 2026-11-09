@@ -3272,6 +3272,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="meal_replay_carbs_only">%1$s g, geen insuline gelogd</string>
     <string name="meal_replay_no_outcome">Geen meting 4 uur erna</string>
     <string name="meal_replay_reading_at_4h">Meting na 4 uur</string>
+    <string name="meal_replay_failed">Geschiedenis of logboek kon niet worden gelezen</string>
+    <string name="meal_replay_retry">Opnieuw proberen</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Experimenteel · geleerd van %d dag metingen</item>
         <item quantity="other">Experimenteel · geleerd van %d dagen metingen</item>

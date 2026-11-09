@@ -112,6 +112,7 @@ fun MealReplayScreen(navController: NavController, dashboardViewModel: Dashboard
             onCarbRatio = { start, value -> viewModel.setTrial(start, carbRatio = value) },
             onSensitivity = { start, mgdl -> viewModel.setTrial(start, sensitivityMgdl = mgdl) },
             onReset = viewModel::resetTrial,
+            onRetry = viewModel::load,
             modifier = Modifier.padding(padding),
         )
     }
@@ -129,6 +130,7 @@ internal fun MealReplayContent(
     onCarbRatio: (Int, Float) -> Unit,
     onSensitivity: (Int, Float) -> Unit,
     onReset: (Int) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -140,6 +142,21 @@ internal fun MealReplayContent(
             state == null -> item(key = "loading") {
                 Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
                     LoadingIndicator()
+                }
+            }
+            state.failed -> item(key = "failed") {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.meal_replay_failed),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = onRetry, shapes = ButtonDefaults.shapes()) {
+                        Text(stringResource(R.string.meal_replay_retry))
+                    }
                 }
             }
             state.meals.isEmpty() -> item(key = "empty") {

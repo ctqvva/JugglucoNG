@@ -3342,6 +3342,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="meal_replay_carbs_only">%1$s g, kein Insulin erfasst</string>
     <string name="meal_replay_no_outcome">Kein Messwert 4 Stunden danach</string>
     <string name="meal_replay_reading_at_4h">Messwert nach 4 Stunden</string>
+    <string name="meal_replay_failed">Verlauf oder Tagebuch konnte nicht gelesen werden</string>
+    <string name="meal_replay_retry">Erneut versuchen</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Experimentell · aus %d Tag Messwerten gelernt</item>
         <item quantity="other">Experimentell · aus %d Tagen Messwerten gelernt</item>

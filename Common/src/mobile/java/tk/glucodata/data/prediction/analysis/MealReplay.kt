@@ -70,30 +70,39 @@ object MealReplay {
         val missMgdl: Float? get() = actualAtScoreMgdl?.let { abs(forecastAtScoreMgdl - it) }
     }
 
-    /** Carb entries grouped into meals, oldest first. */
+    /**
+     * Carb entries grouped into meals, oldest first. An entry within [SAME_MEAL_MS] of the
+     * previous entry joins its meal, so a meal logged food by food stays one meal however
+     * long the run; the meal keeps the time of its first entry.
+     */
     fun meals(entries: List<JournalEntry>): List<Meal> {
         val carbs = entries
             .filter { it.type == JournalEntryType.CARBS && (it.amount ?: 0f) > 0f }
             .sortedBy { it.timestamp }
         val out = ArrayList<Meal>()
+        var previousEntryAt = Long.MIN_VALUE
         for (entry in carbs) {
             val last = out.lastOrNull()
-            if (last != null && entry.timestamp - last.timestamp <= SAME_MEAL_MS) {
+            if (last != null && entry.timestamp - previousEntryAt <= SAME_MEAL_MS) {
                 out[out.lastIndex] = last.copy(grams = last.grams + entry.amount!!)
             } else {
                 out += Meal(entry.timestamp, entry.amount!!)
             }
+            previousEntryAt = entry.timestamp
         }
         return out
     }
 
-    /** Meals that can be scored alone by [nowMs]. */
+    /**
+     * Meals that can be scored alone by [nowMs]. Only meals of [MIN_CARBS_GRAMS] or more count
+     * as neighbours, as in the study: a smaller snack nearby does not drop a meal, and the
+     * what-if still includes it, since it reads every logged treatment.
+     */
     fun isolatedMeals(entries: List<JournalEntry>, nowMs: Long): List<Meal> {
-        val all = meals(entries)
+        val all = meals(entries).filter { it.grams >= MIN_CARBS_GRAMS }
         val window = SCORE_AFTER_MINUTES * MINUTE_MS
         return all.filterIndexed { index, meal ->
-            meal.grams >= MIN_CARBS_GRAMS &&
-                meal.timestamp + window <= nowMs &&
+            meal.timestamp + window <= nowMs &&
                 (index == 0 || meal.timestamp - all[index - 1].timestamp >= CLEAR_BEFORE_MS) &&
                 (index == all.lastIndex || all[index + 1].timestamp - meal.timestamp > window)
         }

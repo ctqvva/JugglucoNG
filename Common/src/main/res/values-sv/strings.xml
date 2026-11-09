@@ -3229,6 +3229,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_replay_carbs_only">%1$s g, inget insulin loggat</string>
     <string name="meal_replay_no_outcome">Inget mätvärde 4 timmar efter</string>
     <string name="meal_replay_reading_at_4h">Mätvärde efter 4 timmar</string>
+    <string name="meal_replay_failed">Det gick inte att läsa historik eller dagbok</string>
+    <string name="meal_replay_retry">Försök igen</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Experimentellt · lärd från %d dags mätvärden</item>
         <item quantity="other">Experimentellt · lärd från %d dagars mätvärden</item>

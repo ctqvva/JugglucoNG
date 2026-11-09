@@ -3231,6 +3231,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_replay_carbs_only">%1$s g, sem insulina registada</string>
     <string name="meal_replay_no_outcome">Sem leitura 4 horas depois</string>
     <string name="meal_replay_reading_at_4h">Leitura às 4 horas</string>
+    <string name="meal_replay_failed">Não foi possível ler o histórico ou o diário</string>
+    <string name="meal_replay_retry">Tentar novamente</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Experimental · aprendida com %d dia de leituras</item>
         <item quantity="other">Experimental · aprendida com %d dias de leituras</item>

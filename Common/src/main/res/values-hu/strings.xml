@@ -3298,6 +3298,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="meal_replay_carbs_only">%1$s g, nincs naplózott inzulin</string>
     <string name="meal_replay_no_outcome">Nincs mérés 4 órával utána</string>
     <string name="meal_replay_reading_at_4h">Mérés 4 óránál</string>
+    <string name="meal_replay_failed">Az előzmények vagy a napló nem olvasható</string>
+    <string name="meal_replay_retry">Újra</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Kísérleti · %d nap méréseiből tanult</item>
         <item quantity="other">Kísérleti · %d nap méréseiből tanult</item>

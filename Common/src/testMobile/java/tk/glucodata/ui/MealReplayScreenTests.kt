@@ -16,9 +16,11 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import java.io.File
 import kotlin.math.PI
 import kotlin.math.sin
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -90,13 +92,15 @@ class MealReplayScreenTests {
         }
     }
 
+    private var retried = 0
+
     private fun show(state: MealReplayState?) {
         compose.setContent {
             JugglucoTheme(themeMode = ThemeMode.DARK) {
                 androidx.compose.material3.Surface(Modifier.fillMaxSize().testTag("screen"), color = MaterialTheme.colorScheme.surface) {
                     MealReplayContent(
                         state = state, selected = 0, isMmol = false, targetLowMgdl = 70f, targetHighMgdl = 180f,
-                        onSelect = {}, onCarbRatio = { _, _ -> }, onSensitivity = { _, _ -> }, onReset = {},
+                        onSelect = {}, onCarbRatio = { _, _ -> }, onSensitivity = { _, _ -> }, onReset = {}, onRetry = { retried++ },
                     )
                 }
             }
@@ -127,5 +131,14 @@ class MealReplayScreenTests {
     fun withNoMealsItSaysWhatAMealNeeds() {
         show(MealReplayState(emptyList(), emptyList()))
         compose.onNodeWithText("No meals to replay yet", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun aFailedLoadSaysSoAndOffersToTryAgain() {
+        show(MealReplayState(emptyList(), emptyList(), failed = true))
+        compose.onNodeWithText("Couldn't read your history or journal").assertIsDisplayed()
+        compose.onNodeWithText("No meals to replay yet", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Try again").performClick()
+        assertEquals(1, retried)
     }
 }

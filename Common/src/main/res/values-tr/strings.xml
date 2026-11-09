@@ -3257,6 +3257,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="meal_replay_carbs_only">%1$s g, insülin kaydı yok</string>
     <string name="meal_replay_no_outcome">4 saat sonra ölçüm yok</string>
     <string name="meal_replay_reading_at_4h">4. saatteki ölçüm</string>
+    <string name="meal_replay_failed">Geçmiş veya günlük okunamadı</string>
+    <string name="meal_replay_retry">Tekrar dene</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Deneysel · %d günlük okumadan öğrendi</item>
         <item quantity="other">Deneysel · %d günlük okumadan öğrendi</item>

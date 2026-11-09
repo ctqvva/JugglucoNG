@@ -3275,6 +3275,8 @@
     <string name="meal_replay_carbs_only">%1$s g, brak zapisanej insuliny</string>
     <string name="meal_replay_no_outcome">Brak odczytu 4 godziny po</string>
     <string name="meal_replay_reading_at_4h">Odczyt po 4 godzinach</string>
+    <string name="meal_replay_failed">Nie udało się odczytać historii ani dziennika</string>
+    <string name="meal_replay_retry">Spróbuj ponownie</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Eksperymentalne · wyuczona na %d dniu odczytów</item>
         <item quantity="few">Eksperymentalne · wyuczona na %d dniach odczytów</item>

@@ -3414,6 +3414,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="meal_replay_carbs_only">%1$s g, insulin lama diiwaangelin</string>
     <string name="meal_replay_no_outcome">Akhris ma jiro 4 saacadood kadib</string>
     <string name="meal_replay_reading_at_4h">Akhriska 4 saacadood</string>
+    <string name="meal_replay_failed">Taariikhda ama buug-xusuuseedka lama akhrin karin</string>
+    <string name="meal_replay_retry">Isku day mar kale</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Tijaabo · laga bartay %d maalin oo akhris ah</item>
         <item quantity="other">Tijaabo · laga bartay %d maalmood oo akhris ah</item>

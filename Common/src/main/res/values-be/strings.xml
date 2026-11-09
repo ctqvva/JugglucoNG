@@ -3305,6 +3305,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_replay_carbs_only">%1$s г, інсулін не запісаны</string>
     <string name="meal_replay_no_outcome">Няма паказання праз 4 гадзіны</string>
     <string name="meal_replay_reading_at_4h">Паказанне праз 4 гадзіны</string>
+    <string name="meal_replay_failed">Не ўдалося прачытаць гісторыю або дзённік</string>
+    <string name="meal_replay_retry">Паўтарыць</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Эксперыментальна · навучаны на %d дні паказанняў</item>
         <item quantity="few">Эксперыментальна · навучаны на %d днях паказанняў</item>

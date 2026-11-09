@@ -3310,6 +3310,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="meal_replay_carbs_only">%1$s г, інсулін не записано</string>
     <string name="meal_replay_no_outcome">Немає показника через 4 години</string>
     <string name="meal_replay_reading_at_4h">Показник через 4 години</string>
+    <string name="meal_replay_failed">Не вдалося прочитати історію або щоденник</string>
+    <string name="meal_replay_retry">Повторити</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="one">Експериментально · навчений на %d дні показів</item>
         <item quantity="few">Експериментально · навчений на %d днях показів</item>

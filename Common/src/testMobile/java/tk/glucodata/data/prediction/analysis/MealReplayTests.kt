@@ -78,15 +78,17 @@ class MealReplayTests {
         val entries = listOf(
             carbs(1, t0, 40f),                    // alone: kept
             carbs(2, t0 + 5 * hour, 30f),         // another meal 1.5 h after it: dropped
-            carbs(3, t0 + 6 * hour + 30 * minute, 4f),
-            carbs(4, t0 + 12 * hour, 3f),         // under 5 g: dropped
-            carbs(5, t0 + 20 * hour, 20f),        // two foods for one plate...
-            carbs(6, t0 + 20 * hour + 5 * minute, 25f), // ...are one meal of 45 g
-            carbs(7, t0 + 30 * hour, 50f),        // not yet 4 hours old
+            carbs(3, t0 + 6 * hour + 30 * minute, 12f), // and 1.5 h after that one: dropped
+            carbs(4, t0 + 12 * hour, 3f),         // under 5 g: not a meal...
+            carbs(5, t0 + 13 * hour, 40f),        // ...so this one, an hour later, is still alone
+            carbs(6, t0 + 20 * hour, 20f),        // three foods for one plate, each within
+            carbs(7, t0 + 20 * hour + 5 * minute, 25f), // 10 minutes of the one before...
+            carbs(8, t0 + 20 * hour + 14 * minute, 5f), // ...are one meal of 50 g
+            carbs(9, t0 + 30 * hour, 50f),        // not yet 4 hours old
         )
         val meals = MealReplay.isolatedMeals(entries, nowMs = t0 + 32 * hour)
-        assertEquals(listOf(t0, t0 + 20 * hour), meals.map { it.timestamp })
-        assertEquals(45f, meals[1].grams, 1e-4f)
+        assertEquals(listOf(t0, t0 + 13 * hour, t0 + 20 * hour), meals.map { it.timestamp })
+        assertEquals(50f, meals[2].grams, 1e-4f)
     }
 
     @Test
