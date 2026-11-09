@@ -67,6 +67,7 @@ static final private String LOG_ID="NumAlarm";
                 if(scheduleProfileAlarm.equals(action)) {
                         if(Natives.set2Schedule()) {
                             SuperGattCallback.initAlarmTalk();
+                            VoiceReadings.changed();
                             }
                         }
                 }

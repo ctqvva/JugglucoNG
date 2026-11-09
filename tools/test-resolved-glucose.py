@@ -58,8 +58,10 @@ def main():
 #include <cstring>
 #include <ctime>
 #include <fstream>
+#include <mutex>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 using namespace std;
 #define LOGGER(...) ((void)0)
@@ -81,25 +83,43 @@ float gconvert(int value) { return value; }
 /* SCANDATA */;
 struct Info { uint32_t caliNr = 1, viewMode = 0, starttime = 1760000000, pollcount = 0, pollstart = 0; uint16_t nightiter = 0; CaliPara caliPara[1]; };
 struct SensorGlucoseData {
+    static recursive_mutex &pollWriteMutex() { static recursive_mutex lock; return lock; }
+    // Whether the calling thread holds the poll write lock: it is a recursive mutex,
+    // so only another thread's failed try_lock can tell.
+    static bool lockHeld() {
+        bool taken = false;
+        thread([&] { taken = pollWriteMutex().try_lock(); if (taken) pollWriteMutex().unlock(); }).join();
+        return !taken;
+    }
     string id;
     Info info;
+    // While watching, every read of the poll state counts as made with or without the lock.
+    mutable bool watching = false;
+    mutable int readsHeld = 0, readsUnheld = 0;
+    void noteRead() const {
+        if (watching) ++(lockHeld() ? readsHeld : readsUnheld);
+    }
     string_view sensid() const { return id; }
     const Info *getinfo() const { return &info; }
     bool error() const { return false; }
     sensorname_t alias{};
     const sensorname_t *shortsensorname() const { return &alias; }
     ScanData polls[12]{};
-    ScanData *getPollsData() { return polls; }
-    const ScanData *getPollsData() const { return polls; }
+    ScanData *getPollsData() { noteRead(); return polls; }
+    const ScanData *getPollsData() const { noteRead(); return polls; }
     struct RawData { uint16_t raw; } rawpolls[12]{};
     uint16_t temppolls[12]{};
-    const RawData *getRawPollsData() const { return rawpolls; }
-    int getTempForPoll(int) const { return 0; }
+    const RawData *getRawPollsData() const { noteRead(); return rawpolls; }
+    int getTempForPoll(int) const { noteRead(); return 0; }
     bool validPollIndex(int i) const { return i >= 0 && i < 12; }
-    bool hasStreamID(int i) const { return polls[i].getmgdL() > 0; }
+    bool dex = false;
+    int dexSlot = -1;
+    bool isDexcom() const { return dex; }
+    int dexSlotFor(uint32_t) const { noteRead(); return dexSlot; }
+    bool hasStreamID(int i) const { noteRead(); return polls[i].getmgdL() > 0; }
     int getRawForPoll(const ScanData *) const { return 0; }
     size_t pollStorageCapacity() const { return 12; }
-    int pollcount() const { return info.pollcount; }
+    int pollcount() const { noteRead(); return info.pollcount; }
     void backstream(int) {}
     void backhistory(int) {}
     Info *getinfo() { return &info; }
@@ -222,6 +242,41 @@ char *writev3entry(char *out, const ScanData *value, const sensorname_t *, bool,
     code += r'''
 int main() {
     static_assert(sizeof(ScanData) == 20);
+    {
+        // Dexcom: the writer stores at the slot the store picks, on the
+        // 5-minute grid, and never replaces a slot the sensor already filled.
+        const uint32_t t0 = 1760000000;
+        SensorGlucoseData dexcom{"DEX-123456789ABC"};
+        dexcom.dex = true;
+        dexcom.polls[0] = {t0, 0, 100, 0, 0};
+        dexcom.polls[1] = {t0 + 300, 1, 105, 0, 0};
+        dexcom.info.pollcount = 2;
+        // The writer reads the store (slot, what the slot holds, the end) and then
+        // writes it. All of that has to happen under the poll write lock, or a slot
+        // repair on another instance runs between the read and the write.
+        const auto store = [&](uint32_t t, float glucose) {
+            dexcom.watching = true;
+            dexcom.readsHeld = dexcom.readsUnheld = 0;
+            const bool stored = storeGlucoseStreamSample(&dexcom, dexcom.id.c_str(), t, glucose, 0, 0,
+                                                         true, true, true, nullptr, true);
+            dexcom.watching = false;
+            assert(dexcom.readsHeld >= 3 && dexcom.readsUnheld == 0);
+            assert(!SensorGlucoseData::lockHeld());
+            return stored;
+        };
+        dexcom.dexSlot = 1;
+        assert(!store(t0 + 420, 13));
+        assert(dexcom.polls[1].getmgdL() == 105 && dexcom.pollcount() == 2);
+        dexcom.dexSlot = 4;
+        assert(store(t0 + 1210, 13));
+        assert(dexcom.pollcount() == 5);
+        assert(dexcom.polls[4].id == 4 && dexcom.polls[4].t == t0 + 1210 && dexcom.polls[4].getmgdL() == 130);
+        assert(dexcom.polls[3].id == 3 && !dexcom.polls[3].g && dexcom.polls[3].t == t0 + 910);
+        assert(dexcom.polls[2].id == 2 && !dexcom.polls[2].g && dexcom.polls[2].t == t0 + 610);
+        dexcom.dexSlot = 3; // a missed slot below the end is filled
+        assert(store(t0 + 905, 12));
+        assert(dexcom.polls[3].getmgdL() == 120 && dexcom.pollcount() == 5);
+    }
     // Old storage contains automatic glucose, with no representation marker.
     struct LegacyScan { uint32_t t; int32_t id, g, tr; float ch; };
     static_assert(sizeof(LegacyScan) == sizeof(ScanData));
@@ -361,7 +416,7 @@ int main() {
         binary = Path(directory) / "test"
         source.write_text(code)
         subprocess.run(shlex.split(os.environ.get("CXX", "c++")) + [
-            "-std=c++20", str(source), "-o", str(binary),
+            "-std=c++20", "-pthread", str(source), "-o", str(binary),
         ], check=True)
         subprocess.run([str(binary)], cwd=directory, check=True)
 

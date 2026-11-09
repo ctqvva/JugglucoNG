@@ -222,6 +222,18 @@ static LibreHist librehistory(SensorGlucoseData *sensdata, uint32_t starttime,
       return {.notsend = streamlen};
     }
   }
+  // Past the official end the readings stay unsent, and the cursor stays where it was so
+  // switching the option off sends them. The bucket straddling the end is dropped with them,
+  // as for any period that is not whole yet.
+  const uint32_t cutoff = libreviewCutoff(sensdata);
+  while (laststream->t > cutoff) {
+    do {
+      if (--laststream < firststream) {
+        LOGAR("no hist: all past the official end");
+        return {.notsend = static_cast<uint32_t>(notsend)};
+      }
+    } while (!laststream->valid());
+  }
   int laststreamid = laststream->id;
   constexpr int periodmin = 15;
   constexpr int periodright = 15 / 2;
@@ -498,9 +510,12 @@ static void addoldcurrents(char *&uitptr, const SensorGlucoseData *sens,
     return;
   const auto &viewed = sens->viewed;
   const ScanData *startstream = sens->beginpolls();
+  const uint32_t cutoff = libreviewCutoff(sens);
   for (int i : viewed) {
     if (i >= start && i < current) {
       const ScanData *el = startstream + i;
+      if (el->gettime() > cutoff)
+        continue;
       uitptr = onecurrent(sens, *el, i, uitptr, true);
       *uitptr++ = ',';
     }
@@ -525,11 +540,14 @@ static int addcurrents(char *&uitptr, time_t nu,
     return ends;
   }
   const time_t old = nu - 5 * 60;
+  const uint32_t cutoff = libreviewCutoff(sens);
   const ScanData *startstream = sens->beginpolls();
   for (int i = ends; i >= start; i--) {
     const ScanData *el = startstream + i;
     if (el->current(i)) {
       auto wastime = el->gettime();
+      if (wastime > cutoff)
+        continue;
       if (wastime < old)
         return 0;
       //        const auto &viewed=sens->viewed;
@@ -662,7 +680,19 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
                  "lastscan=%d scancount=%d\n",
                  info->startedwithStreamhistory, scanoff, startid, lastscan,
                  sensdata->scancount());
-          nrscans += (sensdata->scancount() - lastscan);
+          const uint32_t scancutoff = libreviewCutoff(sensdata);
+          if (scancutoff == UINT32_MAX) {
+            nrscans += (sensdata->scancount() - lastscan);
+          } else {
+            // Scans held back past the official end are not pending, or this sensor
+            // would look unfinished on every upload until it leaves the period.
+            auto scans = sensdata->getScandata();
+            for (size_t scan = std::max(lastscan, 0); scan < scans.size(); ++scan) {
+              if (scans[scan].gettime() > scancutoff)
+                break;
+              ++nrscans;
+            }
+          }
 
           if (usedsensor > 5) {
             startsensor = i;
@@ -883,10 +913,16 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
         }
         LOGGER("scanoff=%d startid=%d end=%d\n", scanoff, startid,
                scans.size());
+        // Scans past the official end stay unsent and the cursor stays on the first of
+        // them, like the history, so switching the option off sends them.
+        const uint32_t cutoff = libreviewCutoff(sensdata);
         for (const ScanData *iter = &scans[scanoff + startid]; iter < endscans;
              ++iter) {
+          const bool valid = iter->valid();
+          if (valid && iter->gettime() > cutoff)
+            break;
           ++id;
-          if (iter->valid() && iter->gettime() > starttimeiter) {
+          if (valid && iter->gettime() > starttimeiter) {
             uitptr = libreScanel(sensdata, *iter, id, uitptr);
             *uitptr++ = ',';
             ++scansiter;
@@ -1062,7 +1098,7 @@ static int askhasnewcurrent2(time_t nu) {
       continue;
     if (!sens->isLibre2())
       continue;
-    if (sens->getmaxtime() < nu)
+    if (sens->getmaxtime() < nu || libreviewPastCutoff(sens, nu))
       continue;
     int start = sens->getinfo()->libreCurrentIter;
     const int pollstart = sens->getinfo()->pollstart;

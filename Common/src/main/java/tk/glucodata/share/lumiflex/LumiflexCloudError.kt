@@ -25,8 +25,8 @@ object LumiflexCloudError {
     private const val VENDOR_SESSION_REPLACED = 802
 
     fun classify(code: Int, body: String?): Kind = when {
-        code == HTTP_UNAUTHORIZED || code == VENDOR_SESSION_REPLACED -> Kind.UNAUTHORIZED
-        bodyCode(body) == HTTP_UNAUTHORIZED || bodyCode(body) == VENDOR_SESSION_REPLACED ->
+        code in setOf(HTTP_UNAUTHORIZED, 800, 801, VENDOR_SESSION_REPLACED) -> Kind.UNAUTHORIZED
+        bodyCode(body) in setOf(HTTP_UNAUTHORIZED, 800, 801, VENDOR_SESSION_REPLACED) ->
             Kind.UNAUTHORIZED
         code == TRANSPORT_FAILURE_CODE -> Kind.TRANSIENT
         code in HTTP_SERVER_ERROR..599 -> Kind.TRANSIENT
@@ -38,7 +38,7 @@ object LumiflexCloudError {
         val parsed = runCatching { JSONObject(body.orEmpty()) }.getOrNull()
         val text = parsed?.optString("msg", "").orEmpty()
             .ifBlank { parsed?.optString("message", "").orEmpty() }
-        if (text.isNotBlank()) return text
+        if (parsed != null) return text.take(MESSAGE_LIMIT)
         return body.orEmpty().trim().take(MESSAGE_LIMIT)
     }
 

@@ -50,6 +50,11 @@ public final class AlertDeliveryPolicy {
         return disturb || shouldAttemptAlarmWindow(normalizedMode);
     }
 
+    /** Recovery is a message-only status event; its cue must not speak a glucose value. */
+    public static boolean shouldSpeakGlucose(int kind) {
+        return (kind < 2 || kind > 4) && kind != 14;
+    }
+
     // --- Quiet window -------------------------------------------------------
     //
     // A quiet window is a temporary, self-expiring reduction of alarm *output*:

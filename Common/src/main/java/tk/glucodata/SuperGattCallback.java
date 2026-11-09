@@ -248,6 +248,24 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
     }
 
+    /**
+     * True while something has paused this driver: the user, Clone, a handover
+     * release, or teardown. Automatic switching reads it so it does not resume a
+     * sensor that someone else paused.
+     */
+    public final boolean pauseRequested() {
+        return stop;
+    }
+
+    /**
+     * Whether this sensor connects only to deliver each reading and hangs up in
+     * between. For those, "no connection right now" is the normal state, and
+     * ownership has to be judged by recent readings instead.
+     */
+    public boolean connectsPerReading() {
+        return false;
+    }
+
     public synchronized void setPause(boolean pause) {
         this.stop = pause;
         if (pause) {

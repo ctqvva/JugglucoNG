@@ -1051,6 +1051,10 @@ public class Natives {
         public static native boolean removeSensorById(String sensorId);
 
         public static native boolean finishSensorById(String sensorId);
+        /** Why activeSensors leaves this sensor out ("listed" when it does not). */
+        public static native String activeSensorReason(String sensorId);
+        /** True when every native slot of this id is finished or removed; false for an id native does not know. */
+        public static native boolean sensorFinishedById(String sensorId);
 
         public static native void unfinishSensor(long dataptr);
 
@@ -1199,6 +1203,11 @@ public class Natives {
         public static native void setLibreIsViewed(boolean val);
 
         public static native boolean getLibreIsViewed();
+
+        /** LibreView: stop uploading a Libre 2 sensor's readings at its official end. */
+        public static native void setLibreOfficialEnd(boolean val);
+
+        public static native boolean getLibreOfficialEnd();
 
         public static native void setRTL(boolean val);
 
@@ -1377,6 +1386,10 @@ public class Natives {
         public static native boolean isAuthenticated(long dataptr);
 
         public static native String dexPairingCode(long dataptr);
+        /** The scan a Dexcom record was set up from, for replaying on the watch. */
+        public static native String dexScanPayload(long dataptr);
+        public static native long[] dexPeerAnchor(long dataptr);
+        public static native String addDexcomScanFromPeer(String scan, long[] anchor);
 
         public static native int getDexCertSize(byte[] ar);
 

@@ -151,6 +151,36 @@ class OttaiCloudHeadersTests {
     }
 
     @Test
+    fun syaiMobileProfileLookupUsesTheIdentityTheWebTokenWasIssuedTo() {
+        // #857: the watch identity gets 401 "invalid appName or deviceId" for a web JWT.
+        val web = OttaiCloudClient.webGetUserHeaders("https://www.syai.com/api/cgm/web", 123L, "t")
+        val headers = OttaiCloudClient.syaiWebIdentityMobileHeaders(123L, "test-token")
+
+        assertEquals("cgm", headers["appName"])
+        assertEquals(web["deviceFingerprinting"], headers["deviceId"])
+        assertEquals("test-token", headers["Authorization"])
+        assertFalse(headers.containsKey("packageName"))
+    }
+
+    @Test
+    fun profileSourceWithoutUsernameDoesNotHideOneThatHasIt() {
+        val bare = org.json.JSONObject().put("email", "a@b.c")
+        val named = org.json.JSONObject().put("userName", "u123")
+
+        assertEquals(named, OttaiCloudClient.firstProfileWithUserName({ null }, { bare }, { named }))
+        assertEquals(null, OttaiCloudClient.firstProfileWithUserName({ null }, { null }))
+    }
+
+    @Test
+    fun usernameLessProfileLeavesTheLookupRetryable() {
+        // A non-null profile is final in upgradeWebSession; only null lets its retry run.
+        val bare = org.json.JSONObject().put("email", "a@b.c")
+
+        assertEquals(null, OttaiCloudClient.firstProfileWithUserName({ null }, { bare }))
+        assertEquals("account profile has no username", OttaiCloudClient.lastError)
+    }
+
+    @Test
     fun ottaiGetUserRetainsExistingDeviceIdentity() {
         val headers = OttaiCloudClient.webGetUserHeaders(
             webBase = "https://www.ottai.com/api/cgm/web",

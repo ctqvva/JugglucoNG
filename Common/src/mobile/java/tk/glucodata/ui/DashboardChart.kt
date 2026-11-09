@@ -105,6 +105,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -144,6 +145,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.layout.positionOnScreen
@@ -155,6 +157,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -210,6 +213,13 @@ private const val ACTIVE_INSULIN_EXPANDED_MAX_WIDTH_FRACTION = 0.58f
 private val PreviewWindowHeight = 58.dp
 // Band edges soften over this fraction of the preview strip's height.
 private const val PREVIEW_BAND_FADE_FRACTION = 0.025f
+
+// The insulin band's top edge is the main line. A dose's chip connector and each dose's own
+// curve are secondary: thin and subdued like the chip's outline, so they never compete with it.
+private const val INSULIN_EDGE_ALPHA = 0.6f
+private const val INSULIN_EDGE_WIDTH_DP = 1.5f
+private const val INSULIN_SECONDARY_LINE_ALPHA = 0.3f
+private const val INSULIN_SECONDARY_LINE_WIDTH_DP = 1f
 private val PreviewWindowOuterPadding = 12.dp
 
 private data class ChartRangeThresholds(
@@ -816,67 +826,69 @@ fun DashboardChartSection(
      * The host's side margin. With the backdrop showing, the chart has no visible edge of
      * its own, so its top-end date label lines up with the host's cards instead.
      */
-    backdropContentInset: androidx.compose.ui.unit.Dp = 16.dp
+    backdropContentInset: androidx.compose.ui.unit.Dp = 16.dp,
+    /**
+     * A control on the plot's header line, after the IOB pill (the voice readings switch).
+     * Told to be compact when the IOB pill shares the line.
+     */
+    headerAccessory: (@Composable (compact: Boolean) -> Unit)? = null
 ) {
     val chartContent: @Composable () -> Unit = {
         Column(modifier = Modifier.padding(bottom = 0.dp)) {
              Box(modifier = Modifier.weight(1f)) {
-                // With bounds the chart composes before its window has loaded:
-                // it has to, since it is the chart's viewport that says which
-                // window to load.
-                if (glucoseHistory.isNotEmpty() || dataBounds != null) {
-                    InteractiveGlucoseChart(
-                        fullData = glucoseHistory,
-                        primarySensorId = primarySensorId,
-                        dataBounds = dataBounds,
-                        onVisibleRangeChanged = onVisibleRangeChanged,
-                        multiSensorDisplay = multiSensorDisplay,
-                        mainSensorOwnership = mainSensorOwnership,
-                        peerPredictionSeries = peerPredictionSeries,
-                        journalMarkers = journalMarkers,
-                        activeInsulinSummary = activeInsulinSummary,
-                        activeCarbsGrams = activeCarbsGrams,
-                        stateDoseHint = stateDoseHint,
-                        activeInsulinFromRemote = activeInsulinFromRemote,
-                        showEiob = showEiob,
-                        appChartRangeColors = appChartRangeColors,
-                        predictionPoints = predictionPoints,
-                        predictionSeries = predictionSeries,
-                        graphSmoothingMinutes = graphSmoothingMinutes,
-                        graphCollapseMinutes = graphCollapseMinutes,
-                        previewWindowMode = previewWindowMode,
-                        graphLow = graphLow,
-                        graphHigh = graphHigh,
-                        targetLow = targetLow,
-                        targetHigh = targetHigh,
-                        veryLowThreshold = veryLowThreshold,
-                        veryHighThreshold = veryHighThreshold,
-                        unit = unit,
-                        viewMode = viewMode,
-                        calibrations = calibrations,
-                        onTimeRangeSelected = onTimeRangeSelected,
-                        selectedTimeRange = selectedTimeRange,
-                        isExpanded = isExpanded,
-                        expandedProgress = expandedProgress,
-                        expandedUnderlayBottom = expandedUnderlayBottom,
-                        onToggleExpanded = onToggleExpanded,
-                        onPointClick = onPointClick,
-                        onCalibrationClick = onCalibrationClick,
-                        onTimelineTap = onTimelineTap,
-                        journalActionTimestamp = journalActionTimestamp,
-                        journalActionDisplayValue = journalActionDisplayValue,
-                        journalActionAnchor = journalActionAnchor,
-                        onDismissJournalAction = onDismissJournalAction,
-                        onJournalMarkerClick = onJournalMarkerClick,
-                        chartBoostProgress = chartBoostProgress,
-                        resetToLatestOnResume = resetToLatestOnResume,
-                        onViewportSnapshotChanged = onViewportSnapshotChanged,
-                        backdropBleed = backdropBleed,
-                        backdropContentInset = backdropContentInset
-                    )
-                } else {
-                    Box(Modifier.fillMaxSize())
-                }
+                // Always composed: the grid, the target band and the range picker do not depend on
+                // readings, so they stay up while history loads and with no sensor at all. The
+                // viewport moves to the live edge when the first data arrives.
+                InteractiveGlucoseChart(
+                    fullData = glucoseHistory,
+                    primarySensorId = primarySensorId,
+                    dataBounds = dataBounds,
+                    onVisibleRangeChanged = onVisibleRangeChanged,
+                    multiSensorDisplay = multiSensorDisplay,
+                    mainSensorOwnership = mainSensorOwnership,
+                    peerPredictionSeries = peerPredictionSeries,
+                    journalMarkers = journalMarkers,
+                    activeInsulinSummary = activeInsulinSummary,
+                    activeCarbsGrams = activeCarbsGrams,
+                    stateDoseHint = stateDoseHint,
+                    activeInsulinFromRemote = activeInsulinFromRemote,
+                    showEiob = showEiob,
+                    appChartRangeColors = appChartRangeColors,
+                    predictionPoints = predictionPoints,
+                    predictionSeries = predictionSeries,
+                    graphSmoothingMinutes = graphSmoothingMinutes,
+                    graphCollapseMinutes = graphCollapseMinutes,
+                    previewWindowMode = previewWindowMode,
+                    graphLow = graphLow,
+                    graphHigh = graphHigh,
+                    targetLow = targetLow,
+                    targetHigh = targetHigh,
+                    veryLowThreshold = veryLowThreshold,
+                    veryHighThreshold = veryHighThreshold,
+                    unit = unit,
+                    viewMode = viewMode,
+                    calibrations = calibrations,
+                    onTimeRangeSelected = onTimeRangeSelected,
+                    selectedTimeRange = selectedTimeRange,
+                    isExpanded = isExpanded,
+                    expandedProgress = expandedProgress,
+                    expandedUnderlayBottom = expandedUnderlayBottom,
+                    onToggleExpanded = onToggleExpanded,
+                    onPointClick = onPointClick,
+                    onCalibrationClick = onCalibrationClick,
+                    onTimelineTap = onTimelineTap,
+                    journalActionTimestamp = journalActionTimestamp,
+                    journalActionDisplayValue = journalActionDisplayValue,
+                    journalActionAnchor = journalActionAnchor,
+                    onDismissJournalAction = onDismissJournalAction,
+                    onJournalMarkerClick = onJournalMarkerClick,
+                    chartBoostProgress = chartBoostProgress,
+                    resetToLatestOnResume = resetToLatestOnResume,
+                    onViewportSnapshotChanged = onViewportSnapshotChanged,
+                    backdropBleed = backdropBleed,
+                    backdropContentInset = backdropContentInset,
+                    headerAccessory = headerAccessory
+                )
                 }
         }
     }
@@ -942,6 +954,9 @@ private data class ChartBleedClipShape(
     }
 }
 
+/** Marks the chart's plot area, which is composed whether or not there are readings. */
+internal const val GLUCOSE_CHART_PLOT_TAG = "glucose_chart_plot"
+
 @Composable
 fun InteractiveGlucoseChart(
     fullData: List<GlucosePoint>,
@@ -999,7 +1014,8 @@ fun InteractiveGlucoseChart(
     onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null,
     /** See [DashboardChartSection]'s parameters of the same names. */
     backdropBleed: androidx.compose.ui.unit.Dp = 0.dp,
-    backdropContentInset: androidx.compose.ui.unit.Dp = 16.dp
+    backdropContentInset: androidx.compose.ui.unit.Dp = 16.dp,
+    headerAccessory: (@Composable (compact: Boolean) -> Unit)? = null
 ) {
     // --- THEME & PAINTS ---
     val isDark = tk.glucodata.ui.isAppInDarkTheme()
@@ -1692,6 +1708,9 @@ fun InteractiveGlucoseChart(
         visibleDuration,
         renderViewMode,
         chartModel,
+        // Separately from the model: a change that redraws nothing leaves an
+        // equal model, and a write under the old revision is refused.
+        renderedInputs.calibrationRevision,
     ) {
         if (!isResumed || renderData.isEmpty()) return@LaunchedEffect
         kotlinx.coroutines.delay(PresentedMinuteRecorder.SETTLE_MS)
@@ -1715,7 +1734,9 @@ fun InteractiveGlucoseChart(
                 )
             }
         }
-        PresentedMinuteRecorder.recordVisible(presentedRecorderRepository, visible)
+        PresentedMinuteRecorder.recordVisible(
+            presentedRecorderRepository, visible, renderedInputs.calibrationRevision
+        )
     }
 
     // Manual scaling establishes the baseline; visible outliers may temporarily expand it.
@@ -2026,6 +2047,7 @@ fun InteractiveGlucoseChart(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
+                .testTag(GLUCOSE_CHART_PLOT_TAG)
                 .onGloballyPositioned { gestureSurfaceOnScreen = it.positionOnScreen() }
                 .pointerInput(previewWindowReservedIntPx) {
                     // Manual Gesture Handler for:
@@ -2761,8 +2783,6 @@ fun InteractiveGlucoseChart(
                 val viewportEnd = centerTime + currentDur / 2
                 
                 // Data Access (Strict Guards)
-                if (renderData.isEmpty()) return@Canvas
-
                 // 2. SEARCH RANGE (With ample padding to prevent popping)
                 val padding = currentDur / 2 // 50% padding on each side
                 val searchStart = viewportStart - padding
@@ -3598,17 +3618,17 @@ fun InteractiveGlucoseChart(
                                 // The edge only where this insulin adds activity, so it never
                                 // lies on another insulin's edge in this colour. It fades where
                                 // the data stops, trail or not.
-                                edges += Path().apply { line(range) { upper[it] } } to fadingBrush(tint, 0.6f, range.first, range.last)
+                                edges += Path().apply { line(range) { upper[it] } } to fadingBrush(tint, INSULIN_EDGE_ALPHA, range.first, range.last)
                             }
                         }
                         // Edges over every fill, so each insulin's top stays crisp under the
                         // one stacked on it.
-                        val edgeStroke = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                        val edgeStroke = Stroke(width = INSULIN_EDGE_WIDTH_DP.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                         edges.forEach { (edge, brush) -> drawPath(edge, brush, style = edgeStroke) }
                         // Each dose on its own, as a light line from zero, over the band it
                         // adds to.
                         if (insulinStyle == InsulinChartStyle.STACKED_WITH_DOSES) {
-                            val doseStroke = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                            val doseStroke = Stroke(width = INSULIN_SECONDARY_LINE_WIDTH_DP.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                             fun firstSampleFrom(time: Long): Int {
                                 var low = 0
                                 var high = sampleCount
@@ -3629,7 +3649,7 @@ fun InteractiveGlucoseChart(
                                     if (sampleTimes[i] in dose.timestamp..until) InsulinActivityStack.rate(dose, sampleTimes[i]) else 0f
                                 drawPath(
                                     Path().apply { line(first..last, ::own) },
-                                    fadingBrush(layerTints[dose.layer], 0.45f, first, last),
+                                    fadingBrush(layerTints[dose.layer], INSULIN_SECONDARY_LINE_ALPHA, first, last),
                                     style = doseStroke
                                 )
                             }
@@ -3985,7 +4005,7 @@ fun InteractiveGlucoseChart(
             fun insulinCurveHeightFor(amount: Float?): Float =
                 with(journalCurveDensity) { insulinSeparateCurveHeight(amount, chartHeightPx) }
             val journalChipMaxTopPx = (chartHeightPx - with(LocalDensity.current) { 34.dp.toPx() }).coerceAtLeast(journalChipMinTopPx)
-            val connectorStrokePx = with(LocalDensity.current) { 1.5.dp.toPx() }
+            val connectorStrokePx = with(LocalDensity.current) { INSULIN_SECONDARY_LINE_WIDTH_DP.dp.toPx() }
             val connectorUnderlapPx = with(LocalDensity.current) { 8.dp.toPx() }
             val insulinConnectorY = chartHeightPx - with(LocalDensity.current) { 1.dp.toPx() }
 
@@ -4397,7 +4417,7 @@ fun InteractiveGlucoseChart(
                     } else {
                         chipRight - connectorUnderlapPx
                     }
-                    val connectorColor = Color(marker.accentColor).copy(alpha = 0.55f)
+                    val connectorColor = Color(marker.accentColor).copy(alpha = INSULIN_SECONDARY_LINE_ALPHA)
                     val chipY = (position.y + journalChipPillHeightPx / 2f).coerceIn(0f, chartHeightPx)
                     val anchorY = sourceY.coerceIn(0f, chartHeightPx)
                     val bandTop = bandTopAt[marker.timestamp]?.takeIf { marker.type == JournalEntryType.INSULIN }
@@ -4412,7 +4432,7 @@ fun InteractiveGlucoseChart(
                             cap = StrokeCap.Round
                         )
                         drawLine(
-                            color = Color(marker.accentColor).copy(alpha = 0.45f),
+                            color = connectorColor,
                             start = Offset(anchorX, bandTop),
                             end = Offset(anchorX, anchorY),
                             strokeWidth = connectorStrokePx,
@@ -4587,8 +4607,13 @@ fun InteractiveGlucoseChart(
             }
 
             val dateTextBaselinePx = chartHeaderTextBaseline(headerDate, backdropAlpha)
+            var headerDateWidthPx by remember { mutableIntStateOf(0) }
+            val headerDateEndInset = androidx.compose.ui.unit.lerp(16.dp, backdropContentInset, backdropAlpha)
 
-            if (activeInsulinSummary != null || activeCarbsGrams != null || stateDoseHint != null) {
+            val activeInsulinPillShown =
+                activeInsulinSummary != null || activeCarbsGrams != null || stateDoseHint != null
+            var activeInsulinPillWidthPx by remember { mutableIntStateOf(0) }
+            if (activeInsulinPillShown) {
                 val summary = activeInsulinSummary
                 val unitsLabel = { units: Float ->
                     if (units % 1f < 0.05f) {
@@ -4682,6 +4707,7 @@ fun InteractiveGlucoseChart(
                         .padding(start = 12.dp)
                         .chartHeaderBaseline(dateTextBaselinePx.roundToInt())
                         .widthIn(max = activeInsulinMaxWidth)
+                        .onSizeChanged { activeInsulinPillWidthPx = it.width }
                         .zIndex(1.6f)
                         .clip(activeInsulinShape)
                         .clickable(enabled = summary != null || activeCarbsGrams != null) { isActiveInsulinExpanded = !isActiveInsulinExpanded },
@@ -4802,6 +4828,36 @@ fun InteractiveGlucoseChart(
                             }
                         }
                     }
+                }
+            }
+
+            // Header-line control (voice readings): after the IOB pill, on the date chip's
+            // line and height, so it overlays the plot instead of pushing it down.
+            headerAccessory?.let { accessory ->
+                val headerDensity = LocalDensity.current
+                val afterPill = if (activeInsulinPillShown && activeInsulinPillWidthPx > 0) {
+                    with(headerDensity) { activeInsulinPillWidthPx.toDp() } + 8.dp
+                } else {
+                    0.dp
+                }
+                val beforeDate = if (showHeaderDate) {
+                    with(headerDensity) { headerDateWidthPx.toDp() } + headerDateEndInset + 8.dp
+                } else {
+                    0.dp
+                }
+                // Sharing the line, it shrinks to its glyph; it steps aside only when even
+                // that would touch the date (a past day with an IOB pill on a narrow screen).
+                val compact = activeInsulinPillShown || showHeaderDate
+                if (maxWidth - 12.dp - afterPill - beforeDate >= 40.dp) Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(
+                            start = 12.dp + afterPill,
+                            top = androidx.compose.ui.unit.lerp(16.dp, 0.dp, backdropAlpha)
+                        )
+                        .zIndex(1.6f)
+                ) {
+                    accessory(compact)
                 }
             }
 
@@ -5284,12 +5340,13 @@ fun InteractiveGlucoseChart(
                     .align(Alignment.TopEnd)
                     .padding(
                         top = androidx.compose.ui.unit.lerp(16.dp, 0.dp, backdropAlpha),
-                        end = androidx.compose.ui.unit.lerp(16.dp, backdropContentInset, backdropAlpha)
+                        end = headerDateEndInset
                     )
             ) {
                 Box(
                     modifier = Modifier
                         .height(32.dp)
+                        .onSizeChanged { headerDateWidthPx = it.width }
                         .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .padding(horizontal = 8.dp),

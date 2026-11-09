@@ -55,6 +55,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -93,6 +95,8 @@ fun LibreSetupWizard(
     onScanNfc: () -> Unit
 ) {
     val ui = rememberWizardUiMetrics()
+    val restrictedSetup = tk.glucodata.RestrictedMode.state
+        .collectAsStateWithLifecycle().value.locked
     val coroutineScope = rememberCoroutineScope()
     val initialAccountId = remember { Natives.getlibreAccountIDnumber() }
     val initialManualAccountId = remember { Natives.manualLibreAccountIDnumber() }
@@ -216,6 +220,12 @@ fun LibreSetupWizard(
         onDispose { saveSettings() }
     }
 
+    // Restricted again with the LibreView account step open (an adult left it a minute):
+    // back to the scan step, which is all a restricted phone gets.
+    LaunchedEffect(restrictedSetup) {
+        if (restrictedSetup && currentStep == 1) currentStep = 0
+    }
+
     BackHandler {
         if (currentStep > 0) currentStep-- else onDismiss()
     }
@@ -328,35 +338,39 @@ fun LibreSetupWizard(
                             Text(stringResource(R.string.scan_libre_sensor))
                         }
 
-                        SettingsItem(
-                            title = stringResource(R.string.libre_setup_step_libreview),
-                            subtitle = if (accountReady) {
-                                stringResource(R.string.libreview_account_ready)
-                            } else {
-                                stringResource(R.string.libreview_account_missing_desc)
-                            },
-                            icon = Icons.Default.Cloud,
-                            iconTint = MaterialTheme.colorScheme.primary,
-                            position = CardPosition.SINGLE,
-                            onClick = { currentStep = 1 }
-                        )
+                        // Restricted mode adds the sensor and nothing else: the LibreView
+                        // account and the NFC command mode stay behind full mode.
+                        if (!restrictedSetup) {
+                            SettingsItem(
+                                title = stringResource(R.string.libre_setup_step_libreview),
+                                subtitle = if (accountReady) {
+                                    stringResource(R.string.libreview_account_ready)
+                                } else {
+                                    stringResource(R.string.libreview_account_missing_desc)
+                                },
+                                icon = Icons.Default.Cloud,
+                                iconTint = MaterialTheme.colorScheme.primary,
+                                position = CardPosition.SINGLE,
+                                onClick = { currentStep = 1 }
+                            )
 
-                        LibreSetupAdvancedSection(
-                            expanded = showAdvancedNfc,
-                            onExpandedChange = { showAdvancedNfc = it },
-                            selectedMode = nfcCommandMode,
-                            onModeSelected = { mode ->
-                                nfcCommandMode = mode
-                                Libre3NfcSettings.setMode(mode)
-                            },
-                            nfcModes = nfcModes,
-                            nfcAutoLabel = nfcAutoLabel,
-                            nfcActivateLabel = nfcActivateLabel,
-                            nfcSwitchReceiverLabel = nfcSwitchReceiverLabel,
-                            nfcAutoDescription = nfcAutoDescription,
-                            nfcActivateDescription = nfcActivateDescription,
-                            nfcSwitchReceiverDescription = nfcSwitchReceiverDescription
-                        )
+                            LibreSetupAdvancedSection(
+                                expanded = showAdvancedNfc,
+                                onExpandedChange = { showAdvancedNfc = it },
+                                selectedMode = nfcCommandMode,
+                                onModeSelected = { mode ->
+                                    nfcCommandMode = mode
+                                    Libre3NfcSettings.setMode(mode)
+                                },
+                                nfcModes = nfcModes,
+                                nfcAutoLabel = nfcAutoLabel,
+                                nfcActivateLabel = nfcActivateLabel,
+                                nfcSwitchReceiverLabel = nfcSwitchReceiverLabel,
+                                nfcAutoDescription = nfcAutoDescription,
+                                nfcActivateDescription = nfcActivateDescription,
+                                nfcSwitchReceiverDescription = nfcSwitchReceiverDescription
+                            )
+                        }
                     }
                 }
 

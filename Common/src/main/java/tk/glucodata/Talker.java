@@ -297,6 +297,30 @@ public static void applyComposeSettings(Context context, boolean speakGlucose, b
         talk.setvalues();
         talk.setvoice();
         }
+    if(speakGlucose)
+        VoiceReadings.markUsed(context);
+    VoiceReadings.changed();
+    }
+
+/**
+ * Flips only "Speak glucose", keeping the voice, interval and every other speech option
+ * (alarm speech in particular) as they are. Quick controls (dashboard, notification) use this.
+ */
+public static void setSpeakGlucose(Context context,boolean on) {
+    if(DontTalk)
+        return;
+    getvalues();
+    SuperGattCallback.dotalk=on;
+    Natives.saveVoice(curspeed,curpitch,(int)(cursep/1000L),voicepos,on);
+    if(on) {
+        // Speak on the next reading rather than a full interval after the tap.
+        nexttime=0L;
+        if(SuperGattCallback.talker==null)
+            SuperGattCallback.newtalker(context);
+        }
+    else if(!shouldtalk()) {
+        SuperGattCallback.endtalk();
+        }
     }
 
 public static void finishComposeSession() {
@@ -311,6 +335,7 @@ public static void selectProfile(Context context,int profile) {
         return;
     Natives.setProfile(profile);
     SuperGattCallback.initAlarmTalk();
+    VoiceReadings.changed();
     ensureComposeTalker(context);
     notifyVoiceListeners();
     }
@@ -915,6 +940,7 @@ private static View makeConfigView(MainActivity context, boolean overlayMode, Ru
         if(position!=curProfile) {
            Natives.setProfile(position);
            SuperGattCallback.initAlarmTalk();
+           VoiceReadings.changed();
            if(overlayMode) {
                MainActivity.doonback();
                config(context);
@@ -1045,6 +1071,9 @@ private static View makeConfigView(MainActivity context, boolean overlayMode, Ru
             SuperGattCallback.endtalk();
             }
         Natives.saveVoice(curspeed,curpitch,(int)(cursep/1000L),voicepos,SuperGattCallback.dotalk);
+        if(SuperGattCallback.dotalk)
+            VoiceReadings.markUsed(context);
+        VoiceReadings.changed();
 
         if(onClose!=null)
             onClose.run();

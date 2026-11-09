@@ -65,6 +65,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -508,6 +509,12 @@ fun OttaiSetupWizard(
 ) {
     val tag = "OttaiSetupWizard"
     val ui = rememberWizardUiMetrics()
+    // Restricted mode: adding the sensor works as usual, including the cloud unbind a new
+    // sensor needs before it will connect (it releases the account binding and deletes
+    // nothing here). Deleting or exporting saved keys and the manual firmware entry need full
+    // mode: while restricted they say so, and the setup stays where it is.
+    val fullModeGuard = tk.glucodata.ui.restricted.rememberFullModeGuard()
+    val restrictedLocked = tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle().value.locked
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -565,6 +572,11 @@ fun OttaiSetupWizard(
     var connectedAddresses by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pendingDelete by remember { mutableStateOf<OttaiSavedSensor?>(null) }
     var exportTargetId by remember { mutableStateOf("") }
+    // Restricted again (an adult left a confirmation open for a minute): the full-mode
+    // confirmation closes. Unbinding stays open: changing sensors needs it.
+    LaunchedEffect(restrictedLocked) {
+        if (restrictedLocked) pendingDelete = null
+    }
     // Results of one-off acts (export, delete, unbind, a failed import) are said once and go.
     val snackbar = remember { SnackbarHostState() }
     fun announce(message: String) {
@@ -1266,7 +1278,10 @@ fun OttaiSetupWizard(
     }
     if (showFirmwareTest) {
         androidx.compose.runtime.key(firmwareLaunchId) {
+            // The manual firmware entry needs full mode; on relock it closes as soon as no
+            // transfer is running. Preparing a new sensor during setup carries on.
             OttaiFirmwareTestDialog(cloudId, bleAddress, prepareForSetup = setupAfterFirmware,
+                closeWhenIdle = restrictedLocked && !setupAfterFirmware,
                 onPrepared = {
                     showFirmwareTest = false
                     setupAfterFirmware = false
@@ -1375,17 +1390,21 @@ fun OttaiSetupWizard(
                 OttaiCloudClient.loadOtaSession(context),
                 OttaiConstants.normalizeBleAddress(bleAddress) != null,
                 OttaiFirmwareSession.hasPendingSetup(context, cloudId))) ({
-                setupAfterFirmware = false
-                firmwareLaunchId++
-                OttaiSetupScanHold.stopPanelScans()
-                showFirmwareTest = true
+                fullModeGuard {
+                    setupAfterFirmware = false
+                    firmwareLaunchId++
+                    OttaiSetupScanHold.stopPanelScans()
+                    showFirmwareTest = true
+                }
             }) else null,
             onSignIn = { openSignIn() },
             onExport = if (hasMaterials && hasSensorCode) {
                 {
-                    val id = canonicalSensorId.orEmpty()
-                    exportTargetId = id
-                    exportLauncher.launch("ottai_${id}.json")
+                    fullModeGuard {
+                        val id = canonicalSensorId.orEmpty()
+                        exportTargetId = id
+                        exportLauncher.launch("ottai_${id}.json")
+                    }
                 }
             } else null,
         )
@@ -1433,10 +1452,12 @@ fun OttaiSetupWizard(
                     },
                     onSelectSaved = selectSaved,
                     onExport = { sensor ->
-                        exportTargetId = sensor.sensorId
-                        exportLauncher.launch("ottai_${sensor.sensorId}.json")
+                        fullModeGuard {
+                            exportTargetId = sensor.sensorId
+                            exportLauncher.launch("ottai_${sensor.sensorId}.json")
+                        }
                     },
-                    onDelete = { pendingDelete = it },
+                    onDelete = { sensor -> fullModeGuard { pendingDelete = sensor } },
                     onSelectAccountDevice = selectAccountDevice,
                     onUnbind = { pendingCloudUnbind = it },
                     onImport = launchImport,

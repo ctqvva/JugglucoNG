@@ -97,6 +97,220 @@ class SensorIdentityTests {
     }
 
     @Test
+    fun resolveAvailableMainSensor_dropsFinishedSensorWhenNoActiveSensorsRemain() {
+        // Native lastsensorname() falls back to the newest slot, finished or not.
+        assertNull(
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "X-222227KUFY",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { it == "X-222227KUFY" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_keepsUnfinishedSensorOutsideTheActiveList() {
+        // Scan-only sensors never enter native's active list, yet they are in use.
+        assertEquals(
+            "scan-only",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "scan-only",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { false }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_finishedManagedMirrorDoesNotOutliveItsRemoval() {
+        // Startup can restore the managed slot from a finished Ottai/Sibionics mirror.
+        ManagedCurrentSensor.set("finished-mirror")
+        assertNull(
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished-mirror",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { it == "finished-mirror" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_keepsFollowerWithNoNativeSensor() {
+        // Followers live outside native, which reports their ids as not finished.
+        ManagedCurrentSensor.set("nightscout-follower")
+        assertEquals(
+            "nightscout-follower",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished-sensor",
+                preferredSensorId = null,
+                activeSensors = emptyArray(),
+                isFinished = { it == "finished-sensor" },
+                hasRecord = { it == "nightscout-follower" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_finishedSelectionFallsToActiveSensor() {
+        assertEquals(
+            "live-sensor",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished-sensor",
+                preferredSensorId = null,
+                activeSensors = arrayOf("live-sensor"),
+                isFinished = { it == "finished-sensor" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_retainedCallbackDoesNotKeepFinishedSensorMain() {
+        // The callback outlives native termination until sensorEnded() drops it.
+        assertNull(
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished",
+                preferredSensorId = null,
+                activeSensors = arrayOf("finished"),
+                isFinished = { true }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_retainedCallbackFallsToSecondLiveSensor() {
+        assertEquals(
+            "live-sensor",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "finished",
+                preferredSensorId = "finished",
+                activeSensors = arrayOf("finished", "live-sensor"),
+                isFinished = { it == "finished" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_retainedCallbackLeavesScanOnlySensorMain() {
+        assertEquals(
+            "scan-only",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = "scan-only",
+                preferredSensorId = null,
+                activeSensors = arrayOf("finished"),
+                isFinished = { it == "finished" }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_selectedManagedSensorSurvivesFinishedMirrorWhileConnected() {
+        // Re-adding a managed sensor leaves its mirror finished until the first reading.
+        ManagedCurrentSensor.set("X-2222268RXN")
+        assertEquals(
+            "X-2222268RXN",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = null,
+                preferredSensorId = null,
+                activeSensors = arrayOf("X-2222268RXN"),
+                isFinished = { true }
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_importedHistoryPinIsNotASensor() {
+        // Older imports pinned the synthetic id, or the file's newest real serial, which can
+        // belong to another phone: no driver record, no native slot, nothing to finish.
+        listOf("__imported_csv__", "imported", "other-phones-sensor").forEach { pin ->
+            ManagedCurrentSensor.set(pin)
+            assertNull(
+                pin,
+                SensorIdentity.resolveAvailableMainSensor(
+                    selectedMain = null,
+                    preferredSensorId = null,
+                    activeSensors = emptyArray(),
+                    isFinished = { false },
+                    hasRecord = { false }
+                )
+            )
+        }
+    }
+
+    @Test
+    fun lostMainRole_finishedSensorLeavingNoMainStillCounts() {
+        // Clone teardown finishes first: by then the sensor no longer resolves as main, and
+        // comparing the two would skip clearing the selection and stopping its alarm.
+        assertTrue(SensorIdentity.lostMainRole(null, "clone-sensor"))
+        assertTrue(SensorIdentity.lostMainRole("", "clone-sensor"))
+        assertTrue(SensorIdentity.lostMainRole("clone-sensor", "clone-sensor"))
+    }
+
+    @Test
+    fun lostMainRole_finishedSensorStillNativeCurrentCountsWithAnotherSensorLive() {
+        // The resolver already names the survivor, so only native current shows the selection
+        // has to move. Skipping it leaves the web server and watch value on the removed sensor.
+        assertTrue(SensorIdentity.lostMainRole("other-sensor", "removed-sensor", "removed-sensor"))
+    }
+
+    @Test
+    fun lostMainRole_managedMainKeepsItsRoleWhenNativeCurrentLagsOnTheRemovedSensor() {
+        ManagedCurrentSensor.set("X-2222268RXN")
+        assertFalse(SensorIdentity.lostMainRole("X-2222268RXN", "removed-sensor", "removed-sensor"))
+    }
+
+    @Test
+    fun lostMainRole_blankNativeCurrentNamesNoSensor() {
+        // matches() treats a blank expected id as a wildcard; a blank current must not.
+        assertFalse(SensorIdentity.lostMainRole("other-sensor", "removed-sensor", ""))
+    }
+
+    @Test
+    fun pickReplacementSensor_prefersTheLiveResolvedMainOverAnEarlierFinishedCallback() {
+        assertEquals(
+            "warm-up",
+            SensorIdentity.pickReplacementSensor(
+                listOf("finished-callback", "warm-up"), "warm-up", "removed", isFinished = { it == "finished-callback" }
+            )
+        )
+    }
+
+    @Test
+    fun pickReplacementSensor_skipsFinishedCandidatesWithoutAResolvedMain() {
+        assertEquals(
+            "warm-up",
+            SensorIdentity.pickReplacementSensor(
+                listOf("finished-callback", "warm-up"), null, "removed", isFinished = { it == "finished-callback" }
+            )
+        )
+    }
+
+    @Test
+    fun pickReplacementSensor_neverHandsTheRoleBackToTheRemovedSensor() {
+        assertEquals(
+            "other",
+            SensorIdentity.pickReplacementSensor(listOf("other"), "removed", "removed", isFinished = { false })
+        )
+    }
+
+    @Test
+    fun pickReplacementSensor_keepsAFinishedOnlyCandidate() {
+        // A re-added sensor stays finished until its first reading.
+        assertEquals(
+            "re-added",
+            SensorIdentity.pickReplacementSensor(listOf("re-added"), null, "removed", isFinished = { true })
+        )
+        assertNull(SensorIdentity.pickReplacementSensor(emptyList(), null, "removed", isFinished = { true }))
+    }
+
+    @Test
+    fun lostMainRole_anotherMainSensorIsLeftAlone() {
+        assertFalse(SensorIdentity.lostMainRole("other-sensor", "clone-sensor"))
+    }
+
+    @Test
     fun resolveAvailableMainSensor_returnsNullWhenNothingIsKnown() {
         assertNull(
             SensorIdentity.resolveAvailableMainSensor(

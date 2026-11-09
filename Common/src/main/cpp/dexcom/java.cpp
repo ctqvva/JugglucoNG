@@ -269,8 +269,13 @@ fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr) {
   dexcomstream *sdata = reinterpret_cast<dexcomstream *>(dataptr);
   SensorGlucoseData *sens = sdata->hist;
   auto *info = sens->getinfo();
-  const int last = info->pollcount - 1;
   const int was = info->lastLifeCountReceived;
+  int last = info->pollcount - 1;
+  // Readings once mirrored at minute indices (#767) can sit past the newest
+  // real slot with an older time, which made the window empty; end it at the
+  // newest reading that fits its own slot.
+  while (last > was && !sens->dexSlotTimeFits(last))
+    --last;
   uint32_t starttime = sens->getstarttime();
   if (last > was) {
     time_t starts = sens->getstream(was)->gettime() + 60;
@@ -571,6 +576,70 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(dexPairingCode)(JNIEnv *envin,
     code[i] = pin[i];
   }
   return envin->NewStringUTF(code);
+}
+
+// The scan payload the sensor was set up from (GS1 fields or the manual
+// pairing payload), as stored in its header. Replaying it on another device
+// builds the same record name, so both devices agree on which sensor it is.
+extern "C" JNIEXPORT jstring JNICALL fromjava(dexScanPayload)(JNIEnv *envin,
+                                                              jclass cl,
+                                                              jlong dataptr) {
+  if (!dataptr)
+    return nullptr;
+  const SensorGlucoseData *sens =
+      reinterpret_cast<const dexcomstream *>(dataptr)->hist;
+  if (!sens || !sens->isDexcom())
+    return nullptr;
+  const auto *info = sens->getinfo();
+  if (info->siIdlen == 0 || info->siIdlen > sizeof(info->siId))
+    return nullptr;
+  const std::string payload(reinterpret_cast<const char *>(info->siId),
+                            info->siIdlen);
+  if (!dexcom::parseScan(payload))
+    return nullptr;
+  // NewStringUTF needs modified UTF-8; the GS1 separator 0x1d is plain ASCII.
+  return envin->NewStringUTF(payload.c_str());
+}
+
+// What another device needs to count a G7's slots exactly as this one does:
+// {start, slot, time, mgdL, trend, change as float bits} of the newest reading
+// stored in its own slot, or null while there is none. The start a fresh
+// record holds before its first reading is a guess, and a start alone is not
+// enough: the copies the other device is sent are timed by this device's
+// clock, which drifts from the sensor's, and readings near a slot edge would
+// fall into the previous slot. A reading with its slot fixes the grid.
+extern "C" JNIEXPORT jlongArray JNICALL fromjava(dexPeerAnchor)(JNIEnv *envin,
+                                                               jclass cl,
+                                                               jlong dataptr) {
+  if (!dataptr)
+    return nullptr;
+  const SensorGlucoseData *sens =
+      reinterpret_cast<const dexcomstream *>(dataptr)->hist;
+  if (!sens || !sens->isDexcom())
+    return nullptr;
+  const uint32_t start = sens->getstarttime();
+  if (!Sensoren::validSensorStarttime(start))
+    return nullptr;
+  // Chosen and copied under the write lock: a live or backfilled reading
+  // stored into that slot meanwhile would give the watch a mixed sample, and
+  // it treats the anchor's slot as filled.
+  jlong values[6];
+  {
+    const std::lock_guard<std::recursive_mutex> reading(
+        SensorGlucoseData::pollWriteMutex());
+    const int id = sens->dexAnchorSlot();
+    if (id < 0)
+      return nullptr;
+    const ScanData poll = *sens->getstream(id);
+    int32_t changeBits;
+    memcpy(&changeBits, &poll.ch, sizeof(changeBits));
+    const jlong copied[6] = {start, id, poll.t, poll.g, poll.tr, changeBits};
+    memcpy(values, copied, sizeof(values));
+  }
+  jlongArray out = envin->NewLongArray(6);
+  if (out)
+    envin->SetLongArrayRegion(out, 0, 6, values);
+  return out;
 }
 
 extern bool encrypt8AES(const uint8_t *keybytes, const uint8_t *data,

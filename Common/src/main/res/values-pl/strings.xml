@@ -491,6 +491,8 @@
     <!-- Newly Extracted Strings -->
     <string name="import_history">Importuj Historię</string>
     <string name="import_history_desc">Importuj dane glukozy z eksportu JugglucoNG lub pliku CSV</string>
+    <string name="continue_without_sensor">Kontynuuj bez sensora</string>
+    <string name="continue_without_sensor_desc">Zapisuj insulinę, jedzenie i pomiary z palca w dzienniku</string>
     <string name="get_started_desc">Rozpocznij, dodając swój sensor</string>
     <string name="select_sensor">Wybierz Typ Sensora</string>
     <string name="select_sibionics_type">Wybierz sensor Sibionics</string>
@@ -761,7 +763,7 @@
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Zeskanuj matrycę danych na czujniku Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Konfiguracja Accu-Chek</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Dodaj sensor</string>
     <string name="advanced_title">Advanced</string>
     <string name="aidex_connected">Połączono!</string>
     <string name="aidex_connecting_to">Łączę z %1$s…</string>
@@ -901,6 +903,8 @@
     <string name="libreview_password">Hasło</string>
     <string name="libreview_resend">Wyślij ponownie dane</string>
     <string name="libreview_russia">Region Rosji</string>
+    <string name="libreview_official_end">Zatrzymaj w oficjalnym końcu sensora</string>
+    <string name="libreview_official_end_desc">Pomiń dodatkowe godziny po oficjalnym końcu sensora Libre 2</string>
     <string name="libreview_send_now">Wyślij teraz</string>
     <string name="libreview_send_numbers">Wyślij insulinę/węglowodany</string>
     <string name="libreview_settings_title">Ustawienia LibreView</string>
@@ -935,7 +939,7 @@
     <string name="newdata">"Nowe dane"</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">Brak podłączonego sensora</string>
     <string name="nonewdata">"Brak nowych danych"</string>
     <string name="not">Not</string>
     <string name="nothing"></string>
@@ -956,6 +960,7 @@
     <string name="raw">Raw</string>
     <string name="raw_auto">Raw+Auto</string>
     <string name="reconnect">Reconnect</string>
+    <string name="ican_reset_bluetooth_binding">Zresetuj powiązanie Bluetooth (dane zostaną zachowane)</string>
     <string name="reconnect_sensor_desc">This will reset the connection and attempt to reconnect.</string>
     <string name="reconnect_sensor_title">Reconnect Sensor?</string>
     <string name="remove_sensor_desc">Spowoduje to trwałe usunięcie czujnika, wyczyszczenie kluczy parowania i zatrzymanie sesji. Aby móc ponownie używać czujnika, należy go ponownie sparować.</string>
@@ -3317,4 +3322,99 @@
     <string name="ican_health_show_password">Show password</string>
     <string name="ican_health_hide_password">Hide password</string>
     <string name="ican_health_secure_storage_failed">Could not securely save the iCan Health session</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Tryb ograniczony</string>
+    <string name="restricted_mode_desc">Ukrywa ustawienia i sterowanie</string>
+    <string name="restricted_full_mode_title">Na razie tryb pełny</string>
+    <string name="restricted_full_mode_desc">Tryb ograniczony wróci minutę po wyjściu z aplikacji lub gdy go zablokujesz.</string>
+    <string name="restricted_lock_now">Zablokuj teraz</string>
+    <string name="restricted_section_unlock">Przejście do trybu pełnego</string>
+    <string name="restricted_pin_title">PIN</string>
+    <string name="restricted_pin_set">Wł. · wymagany przed trybem pełnym</string>
+    <string name="restricted_pin_not_set">Wył. · każdy może przejść do trybu pełnego</string>
+    <string name="restricted_biometric_title">Odcisk palca lub twarz</string>
+    <string name="restricted_biometric_desc">Odblokowuj też biometrią telefonu</string>
+    <string name="restricted_biometric_needs_pin">Najpierw ustaw PIN</string>
+    <string name="restricted_section_allowed">Dozwolone w trybie ograniczonym</string>
+    <string name="restricted_section_available">Dostępne teraz</string>
+    <string name="restricted_allow_sensor_change">Zmiana czujników</string>
+    <string name="restricted_allow_sensor_change_desc">Dodaj nowy czujnik i odłącz stary</string>
+    <string name="restricted_sensor_types_label">Czujniki, które można dodać</string>
+    <string name="restricted_sensor_types_none">Wybierz co najmniej jeden, inaczej nie da się dodać czujnika.</string>
+    <string name="restricted_handover_on">Automatyczne przejęcie czujnika jest włączone: nowy czujnik przejmie pomiary, gdy stary się skończy.</string>
+    <string name="restricted_handover_off">Automatyczne przejęcie czujnika jest wyłączone. Włącz je, aby nowy czujnik przejął pomiary, gdy stary się skończy.</string>
+    <string name="restricted_turn_on_handover">Włącz przejęcie</string>
+    <string name="restricted_allow_journal">Wpisy dziennika</string>
+    <string name="restricted_allow_journal_desc">Dodawanie i edycja insuliny, posiłków i notatek</string>
+    <string name="restricted_allow_calibration_desc">Dodawanie i edycja kalibracji</string>
+    <string name="restricted_allow_alarm_stop">Wyłączanie alarmów</string>
+    <string name="restricted_allow_alarm_stop_desc">Gdy wyłączone, alarmy można tylko drzemać</string>
+    <string name="restricted_always_hidden">Pozostałe ustawienia, resetowanie czujnika, zaawansowane sterowanie czujnikiem i usuwanie danych zawsze wymagają trybu pełnego.</string>
+    <string name="restricted_pin_options_desc">Zmień PIN lub usuń go, aby tryb pełny otwierał się jednym dotknięciem.</string>
+    <string name="restricted_change_pin">Zmień PIN</string>
+    <string name="restricted_remove_pin">Usuń PIN</string>
+    <string name="restricted_use_biometric">Użyj odcisku palca lub twarzy</string>
+    <string name="restricted_unlock_title">Przejdź do trybu pełnego</string>
+    <string name="restricted_unlock_desc">Otworzą się ustawienia i całe sterowanie czujnikiem. Zamkną się minutę po wyjściu z aplikacji.</string>
+    <string name="restricted_unlock_desc_pin">Wpisz PIN, aby otworzyć ustawienia i całe sterowanie czujnikiem. Zamkną się minutę po wyjściu z aplikacji.</string>
+    <string name="restricted_needs_full_mode">Najpierw przejdź do trybu pełnego w ustawieniach.</string>
+    <string name="restricted_wrong_pin">Błędny PIN</string>
+    <string name="restricted_pin_locked_out">Za dużo prób · odczekaj %1$s</string>
+    <string name="restricted_choose_pin">Ustaw PIN</string>
+    <string name="restricted_confirm_pin">Wpisz PIN ponownie</string>
+    <string name="restricted_choose_pin_desc">Od %1$d do %2$d cyfr</string>
+    <string name="restricted_pin_mismatch">Kody PIN się nie zgadzają. Ustaw PIN ponownie.</string>
+    <string name="restricted_delete_digit">Usuń cyfrę</string>
+    <string name="restricted_disconnect_desc">Ten telefon przestanie odczytywać czujnik. Dotychczasowe odczyty zostaną zachowane.</string>
+    <string name="restricted_sensors_locked">Dodanie czujnika wymaga trybu pełnego.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">wpisano %d cyfrę</item>
+        <item quantity="few">wpisano %d cyfry</item>
+        <item quantity="many">wpisano %d cyfr</item>
+        <item quantity="other">wpisano %d cyfry</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">Koniec w ciągu godziny</string>
+    <string name="restricted_sensor_ended">Zakończony</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">Koniec za %d dzień</item>
+        <item quantity="few">Koniec za %d dni</item>
+        <item quantity="many">Koniec za %d dni</item>
+        <item quantity="other">Koniec za %d dnia</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">Koniec za %d godzinę</item>
+        <item quantity="few">Koniec za %d godziny</item>
+        <item quantity="many">Koniec za %d godzin</item>
+        <item quantity="other">Koniec za %d godziny</item>
+    </plurals>
+    <string name="restricted_section_settings">Ustawienia otwarte w trybie ograniczonym</string>
+    <string name="restricted_allow_alarm_settings_desc">Zmiana progów i dźwięków lub wyłączanie alertów</string>
+    <string name="restricted_allow_voice_desc">Odczytywanie wartości i alarmów</string>
+    <string name="restricted_allow_display_desc">Zakres docelowy, wykresy, powiadomienia, pływająca glukoza i ekran blokady</string>
+    <string name="lumiflex_remove_follower_confirm">Odebrać użytkownikowi %1$s dostęp do Twoich odczytów?</string>
+    <string name="lumiflex_discard_changes_title">Odrzucić zmiany?</string>
+    <string name="lumiflex_discard_changes_message">Zmiany ustawień tego obserwatora nie zostały zapisane.</string>
+    <string name="lumiflex_follower_alerts">Powiadomienia obserwatora</string>
+    <string name="lumiflex_follow_mode">Odbieraj</string>
+    <string name="lumiflex_upload_mode">Wysyłaj</string>
+    <string name="lumiflex_follow_subtitle">Odbieraj glukozę z Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Odbieranie odczytów</string>
+    <string name="lumiflex_follow_current">Odebrano odczyty</string>
+    <string name="lumiflex_follow_failed">Nie udało się odebrać odczytów</string>
+    <string name="lumiflex_no_providers">Brak udostępnionych kont. Poproś właściciela sensora o dodanie Twojego konta jako obserwatora.</string>
+    <string name="lumiflex_follow_refresh">Odśwież</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Odczyty głosowe</string>
+    <string name="voice_turn_off">Wyłącz głos</string>
+    <string name="voice_turn_on">Włącz głos</string>
+    <string name="voice_every_reading">Każdy odczyt</string>
+    <string name="voice_every_minutes">Co %1$d min</string>
+    <string name="voice_resumes_at">Od %1$s</string>
+    <string name="voice_quick_dashboard">Pokaż na pulpicie</string>
+    <string name="voice_quick_dashboard_desc">Przełącznik u góry wykresu</string>
+    <string name="voice_quick_notification">Pokaż w powiadomieniu</string>
+    <string name="voice_quick_notification_desc">Przycisk głosu w powiadomieniu o glukozie</string>
+    <string name="aidex_keys_before_connect">Przed połączeniem zaimportuj lub pobierz klucze tego sensora.</string>
+    <string name="aidex_delete_keys_message">Usunąć z tego telefonu zapisane klucze parowania dla %1$s? Najpierw je wyeksportuj, jeśli mogą być jeszcze potrzebne.</string>
 </resources>

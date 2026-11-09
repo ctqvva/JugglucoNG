@@ -133,10 +133,11 @@ fun ExpressiveSettingsScreen(
         runCatching { ICanHealthCloudSettings.isSetUp(context) }.getOrDefault(false) ||
             hasActiveICanSensor()
     }
-    val showLumiflex = remember {
-        runCatching { LumiflexCloudSettings.isSetUp(context) }.getOrDefault(false) ||
-            hasActiveAiDexSensor()
-    }
+
+    val isRussianLanguage = LocalConfiguration.current.locales[0]?.language == "ru"
+    // A cloud follower has no local AiDex sensor to make this entry visible.
+    val showLumiflex = isRussianLanguage
+
     val showOttaiSettings = remember {
         SensorBluetooth.mygatts().any { callback ->
             (callback as? tk.glucodata.drivers.ottai.OttaiDriver)?.isUiEnabled() == true
@@ -320,6 +321,23 @@ fun ExpressiveSettingsScreen(
         }
     )
 
+    // Restricted mode: the tab opens to the switch to full mode and a few safe settings.
+    val restrictedState by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
+    // Back to restricted with a full-mode dialog still open (the app came back after the
+    // grace): close it. Theme and language stay, as they are open while restricted too.
+    LaunchedEffect(restrictedState.locked) {
+        if (!restrictedState.locked) return@LaunchedEffect
+        showUnitDialog = false
+        showClearHistoryDialog = false
+        showClearDataDialog = false
+        showFactoryResetDialog = false
+        showExportDialog = false
+        showScheduledBackupDialog = false
+        showSealGraceDialog = false
+        pendingSettingsImportUri = null
+        pendingExportPackageImportUri = null
+    }
+
     fun openSearchResult(entry: SettingsSearchEntry) {
         focusManager.clearFocus()
         when (val target = entry.target) {
@@ -351,6 +369,30 @@ fun ExpressiveSettingsScreen(
     ) {
         item(key = "title") {
             TabScreenHeader(title = stringResource(R.string.settings))
+        }
+
+        if (restrictedState.locked) {
+            item(key = "restricted_full_mode") {
+                tk.glucodata.ui.restricted.RestrictedFullModeCard()
+            }
+            item(key = "restricted_allowed_label") {
+                SectionLabel(stringResource(R.string.restricted_section_available))
+            }
+            item(key = "restricted_allowed_group") {
+                tk.glucodata.ui.restricted.RestrictedAllowedSettings(
+                    config = restrictedState.config,
+                    themeIcon = if (themeMode == ThemeMode.LIGHT) Icons.Default.LightMode else Icons.Default.DarkMode,
+                    themeLabel = themeLabel,
+                    languageLabel = currentLangName,
+                    alertsEnabled = alertsMasterEnabled,
+                    floatingAllowed = floatingOverlayAllowed,
+                    lockScreenEnabled = aodServiceEnabled,
+                    onTheme = { showThemeDialog = true },
+                    onLanguage = { showLanguageDialog = true },
+                    onOpen = { route -> navController.navigate(route) },
+                )
+            }
+            return@LazyColumn
         }
 
         item(key = "search") {
@@ -606,8 +648,8 @@ fun ExpressiveSettingsScreen(
                 }
                 if (showLumiflex) {
                     SettingsItem(
-                        title = "Lumiflex Cloud",
-                        subtitle = "Upload glucose to Lumiflex",
+                        title = stringResource(R.string.lumiflex_cloud_title),
+                        subtitle = stringResource(R.string.lumiflex_cloud_subtitle),
                         icon = Icons.Default.CloudUpload,
                         iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
@@ -739,6 +781,7 @@ fun ExpressiveSettingsScreen(
 
         item(key = "advanced_group") {
             val advancedColor = MaterialTheme.colorScheme.onSurfaceVariant
+            val restrictedMode by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsItem(
                     title = stringResource(R.string.debug_logs),
@@ -784,7 +827,19 @@ fun ExpressiveSettingsScreen(
                     onClick = { showSealGraceDialog = true },
                     icon = Icons.Default.Lock,
                     iconTint = advancedColor,
-                    position = CardPosition.BOTTOM
+                    position = CardPosition.MIDDLE
+                )
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.restricted_mode_title),
+                    subtitle = stringResource(R.string.restricted_mode_desc),
+                    checked = restrictedMode.config.enabled,
+                    onCheckedChange = { on ->
+                        tk.glucodata.RestrictedMode.update(context) { it.copy(enabled = on) }
+                    },
+                    onClick = { navController.navigate("settings/restricted-mode") },
+                    icon = Icons.Default.ChildCare,
+                    iconTint = advancedColor,
+                    position = CardPosition.BOTTOM,
                 )
             }
         }
@@ -973,10 +1028,7 @@ fun ExpressiveSettingsScreen(
                                 Toast.LENGTH_LONG
                             ).show()
                             if (summary.historyReadings > 0) {
-                                // Pin the imported serial for display (when idle) so the
-                                // dashboard chart shows the imported glucose. Persisted, so
-                                // it survives the restart below.
-                                viewModel.onHistoryImported(summary.historyDisplaySerial)
+                                viewModel.onHistoryImported()
                             } else {
                                 viewModel.refreshData()
                             }

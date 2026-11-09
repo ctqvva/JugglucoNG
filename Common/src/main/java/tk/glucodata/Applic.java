@@ -514,6 +514,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
         // The teardown frees every callback, including a Nightscout follower that never used
         // Bluetooth, and cancels its poll alarm with it.
         tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE.ensureFollowerRunning(app);
+        tk.glucodata.share.lumiflex.LumiflexFollowerRegistry.refresh(app);
         if (Natives.activeBackupHostNr() <= 0) {
             keeprunning.stop();
         }
@@ -735,6 +736,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
                             ;
                             tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
                                     .recoverOnNetworkAvailable(Applic.this);
+                            tk.glucodata.share.lumiflex.LumiflexFollowerRegistry.refresh(Applic.this);
                             final boolean wearos = useWearos();
                             if (wearos) {
                                 Natives.networkpresent();
@@ -978,6 +980,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
             // can repair polling without waiting for MainActivity to initialize Bluetooth.
             tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
                     .restoreConfiguredFollower(this);
+            tk.glucodata.share.lumiflex.LumiflexFollowerRegistry.reconcile(this);
             initialize();
 
             // Load the glucose colour palette + per-band overrides before any

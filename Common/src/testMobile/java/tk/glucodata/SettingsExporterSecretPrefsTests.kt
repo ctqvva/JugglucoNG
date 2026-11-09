@@ -28,6 +28,7 @@ class SettingsExporterSecretPrefsTests {
         assertTrue(SettingsExporter.isSecretPreferenceFile("lumiflex_cloud"))
         assertTrue(SettingsExporter.isSecretPreferenceFile("ican_cloud"))
         assertTrue(SettingsExporter.isSecretPreferenceFile("dexcom_share"))
+        assertTrue(SettingsExporter.isSecretPreferenceFile(tk.glucodata.RestrictedMode.PREFS_NAME))
         assertFalse(SettingsExporter.isSecretPreferenceFile("tk.glucodata_preferences"))
     }
 

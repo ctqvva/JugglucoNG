@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.ExpandableEditorCard
 import tk.glucodata.ui.components.AdaptiveTrailingRow
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
@@ -320,131 +321,76 @@ private fun DestinationCard(
     } else {
         MaterialTheme.colorScheme.surfaceContainer
     }
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = cardShape(CardPosition.SINGLE),
-        color = container
+    ExpandableEditorCard(
+        title = destination.resolvedName(), subtitle = stringResource(presetTitle(destination.normalizedPreset())),
+        expanded = expanded, onToggleExpanded = onToggleExpanded, onDelete = onDelete,
+        leadingContent = { DestinationIcon(destination.normalizedPreset(), destination.enabled) },
+        containerColor = container, expandedAlpha = if (destination.enabled) 1f else 0.68f,
+        headerControls = { StyledSwitch(checked = destination.enabled, onCheckedChange = onEnabledChange) },
     ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onToggleExpanded)
-                    .heightIn(min = 76.dp)
-                    .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                DestinationIcon(destination.normalizedPreset(), destination.enabled)
-                Column(modifier = Modifier.weight(1f)) {
+        DestinationEditor(
+            destination = destination,
+            showSecret = showSecret,
+            onShowSecretChange = onShowSecretChange,
+            onChange = onChange,
+            onChangePreset = onChangePreset
+        )
+        DestinationStatus(destination = destination)
+        var confirmTestSms by remember(destination.id) { mutableStateOf(false) }
+        if (confirmTestSms) {
+            val recipientCount = destination.smsPolicy.numbers().size
+            AlertDialog(
+                onDismissRequest = { confirmTestSms = false },
+                icon = { Icon(Icons.Filled.Sms, contentDescription = null) },
+                title = { Text(stringResource(R.string.sms_test_confirm_title)) },
+                text = {
                     Text(
-                        text = destination.resolvedName(),
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        stringResource(
+                            R.string.sms_test_confirm_message,
+                            recipientCount
+                        )
                     )
-                    Text(
-                        text = stringResource(presetTitle(destination.normalizedPreset())),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                StyledSwitch(
-                    checked = destination.enabled,
-                    onCheckedChange = onEnabledChange
-                )
-                IconButtonTooltip(stringResource(R.string.delete)) {
-                    IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
-                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmTestSms = false
+                        onSendTest()
+                    },
+            shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                        Text(stringResource(R.string.sms_send_test))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmTestSms = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                        Text(stringResource(R.string.cancel))
                     }
                 }
-                IconButtonTooltip(if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)) {
-                    IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                            contentDescription = if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)
-                        )
+            )
+        }
+        Button(
+            // A test SMS is charged and lands on somebody else's phone, so it
+            // always goes through a confirmation step.
+            onClick = { if (destination.isSms()) confirmTestSms = true else onSendTest() },
+            enabled = destination.isReady(),
+            modifier = Modifier.fillMaxWidth(),
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.ContentPadding
+        ) {
+            Icon(
+                if (destination.isSms()) Icons.Filled.Sms else Icons.Filled.Send,
+                contentDescription = null
+            )
+            Text(
+                text = stringResource(
+                    if (destination.isSms()) {
+                        R.string.sms_send_test
+                    } else {
+                        R.string.outbound_api_send_test
                     }
-                }
-            }
-
-            AnimatedVisibility(visible = expanded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-                        .alpha(if (destination.enabled) 1f else 0.68f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f))
-                    DestinationEditor(
-                        destination = destination,
-                        showSecret = showSecret,
-                        onShowSecretChange = onShowSecretChange,
-                        onChange = onChange,
-                        onChangePreset = onChangePreset
-                    )
-                    DestinationStatus(destination = destination)
-                    var confirmTestSms by remember(destination.id) { mutableStateOf(false) }
-                    if (confirmTestSms) {
-                        val recipientCount = destination.smsPolicy.numbers().size
-                        AlertDialog(
-                            onDismissRequest = { confirmTestSms = false },
-                            icon = { Icon(Icons.Filled.Sms, contentDescription = null) },
-                            title = { Text(stringResource(R.string.sms_test_confirm_title)) },
-                            text = {
-                                Text(
-                                    stringResource(
-                                        R.string.sms_test_confirm_message,
-                                        recipientCount
-                                    )
-                                )
-                            },
-                            confirmButton = {
-                                TextButton(onClick = {
-                                    confirmTestSms = false
-                                    onSendTest()
-                                },
-                        shapes = ButtonDefaults.shapes(),
-                                contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                                    Text(stringResource(R.string.sms_send_test))
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { confirmTestSms = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                                    Text(stringResource(R.string.cancel))
-                                }
-                            }
-                        )
-                    }
-                    Button(
-                        // A test SMS is charged and lands on somebody else's phone, so it
-                        // always goes through a confirmation step.
-                        onClick = { if (destination.isSms()) confirmTestSms = true else onSendTest() },
-                        enabled = destination.isReady(),
-                        modifier = Modifier.fillMaxWidth(),
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding
-                    ) {
-                        Icon(
-                            if (destination.isSms()) Icons.Filled.Sms else Icons.Filled.Send,
-                            contentDescription = null
-                        )
-                        Text(
-                            text = stringResource(
-                                if (destination.isSms()) {
-                                    R.string.sms_send_test
-                                } else {
-                                    R.string.outbound_api_send_test
-                                }
-                            ),
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
-                    }
-                }
-            }
+                ),
+                modifier = Modifier.padding(start = 8.dp)
+            )
         }
     }
 }
@@ -928,7 +874,8 @@ internal fun ToggleRow(
     title: String,
     subtitle: String?,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier
@@ -936,6 +883,7 @@ internal fun ToggleRow(
             .heightIn(min = if (subtitle.isNullOrBlank()) 64.dp else 88.dp)
             .toggleable(
                 value = checked,
+                enabled = enabled,
                 role = Role.Switch,
                 onValueChange = onCheckedChange
             )
@@ -959,6 +907,7 @@ internal fun ToggleRow(
         }
         StyledSwitch(
             checked = checked,
+            enabled = enabled,
             onCheckedChange = null
         )
     }

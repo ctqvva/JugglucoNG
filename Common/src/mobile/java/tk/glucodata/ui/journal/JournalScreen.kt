@@ -213,83 +213,81 @@ fun JournalScreen(
                 )
             }
 
-            if (sortedHistory.isNotEmpty()) {
-                item(key = "journal-chart") {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(if (showTitle) 324.dp else 348.dp)
-                    ) {
-                        FontScaleCap {
-                            DashboardChartSection(
-                                modifier = Modifier.matchParentSize(),
-                                appChartRangeColors = chartRangeColors,
-                                glucoseHistory = sortedHistory,
-                                dataBounds = timelineExtents?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
-                                onVisibleRangeChanged = onVisibleRangeChanged,
-                                journalMarkers = markers,
-                                graphSmoothingMinutes = graphSmoothingMinutes,
-                                graphCollapseMinutes = graphCollapseMinutes,
-                                previewWindowMode = previewWindowMode,
-                                graphLow = graphLow,
-                                graphHigh = graphHigh,
-                                targetLow = targetLow,
-                                targetHigh = targetHigh,
-                                unit = unit,
-                                viewMode = viewMode,
-                                calibrations = calibrations,
-                                onTimeRangeSelected = { selectedChartRange = it },
-                                selectedTimeRange = selectedChartRange,
-                                isExpanded = false,
-                                expandedProgress = 0f,
-                                onToggleExpanded = null,
-                                onPointClick = {
-                                    clearChartAction()
-                                    onPointClick?.invoke(it)
-                                },
-                                onCalibrationClick = null,
-                                onTimelineTap = { suggestion ->
-                                    if (chartActionTimestamp != null && !suggestion.forceMenu) {
-                                        clearChartAction()
-                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                    } else {
-                                        chartActionTimestamp = suggestion.timestamp
-                                        chartActionDisplayValue = suggestion.suggestedDisplayGlucose
-                                        chartActionAmountFraction = suggestion.normalizedYFraction
-                                        view.performHapticFeedback(
-                                            if (suggestion.forceMenu) HapticFeedbackConstants.LONG_PRESS
-                                            else HapticFeedbackConstants.CLOCK_TICK
-                                        )
-                                    }
-                                },
-                                journalActionTimestamp = chartActionTimestamp,
-                                journalActionDisplayValue = chartActionDisplayValue,
-                                journalActionAnchor = chartActionAnchor,
-                                onDismissJournalAction = { clearChartAction() },
-                                onJournalMarkerClick = { entryId ->
-                                    entriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
-                                },
-                                onViewportSnapshotChanged = { viewportSnapshot = it }
-                            )
-                        }
-
-                        JournalFloatingActionMenu(
-                            selectedTimestamp = chartActionTimestamp,
-                            anchor = chartActionAnchor,
-                            onDismissRequest = { clearChartAction() },
-                            onTypeSelected = { type, actionTimestamp ->
-                                onAddJournalEntry(
-                                    actionTimestamp,
-                                    type,
-                                    chartActionDisplayValue,
-                                    chartActionAmountFraction
-                                )
+            item(key = "journal-chart") {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (showTitle) 324.dp else 348.dp)
+                ) {
+                    FontScaleCap {
+                        DashboardChartSection(
+                            modifier = Modifier.matchParentSize(),
+                            appChartRangeColors = chartRangeColors,
+                            glucoseHistory = sortedHistory,
+                            dataBounds = timelineExtents?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
+                            onVisibleRangeChanged = onVisibleRangeChanged,
+                            journalMarkers = markers,
+                            graphSmoothingMinutes = graphSmoothingMinutes,
+                            graphCollapseMinutes = graphCollapseMinutes,
+                            previewWindowMode = previewWindowMode,
+                            graphLow = graphLow,
+                            graphHigh = graphHigh,
+                            targetLow = targetLow,
+                            targetHigh = targetHigh,
+                            unit = unit,
+                            viewMode = viewMode,
+                            calibrations = calibrations,
+                            onTimeRangeSelected = { selectedChartRange = it },
+                            selectedTimeRange = selectedChartRange,
+                            isExpanded = false,
+                            expandedProgress = 0f,
+                            onToggleExpanded = null,
+                            onPointClick = {
                                 clearChartAction()
-                                fabExpanded = false
-                            }
+                                onPointClick?.invoke(it)
+                            },
+                            onCalibrationClick = null,
+                            onTimelineTap = { suggestion ->
+                                if (chartActionTimestamp != null && !suggestion.forceMenu) {
+                                    clearChartAction()
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                } else {
+                                    chartActionTimestamp = suggestion.timestamp
+                                    chartActionDisplayValue = suggestion.suggestedDisplayGlucose
+                                    chartActionAmountFraction = suggestion.normalizedYFraction
+                                    view.performHapticFeedback(
+                                        if (suggestion.forceMenu) HapticFeedbackConstants.LONG_PRESS
+                                        else HapticFeedbackConstants.CLOCK_TICK
+                                    )
+                                }
+                            },
+                            journalActionTimestamp = chartActionTimestamp,
+                            journalActionDisplayValue = chartActionDisplayValue,
+                            journalActionAnchor = chartActionAnchor,
+                            onDismissJournalAction = { clearChartAction() },
+                            onJournalMarkerClick = { entryId ->
+                                entriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
+                            },
+                            onViewportSnapshotChanged = { viewportSnapshot = it }
                         )
                     }
+
+                    JournalFloatingActionMenu(
+                        selectedTimestamp = chartActionTimestamp,
+                        anchor = chartActionAnchor,
+                        onDismissRequest = { clearChartAction() },
+                        onTypeSelected = { type, actionTimestamp ->
+                            onAddJournalEntry(
+                                actionTimestamp,
+                                type,
+                                chartActionDisplayValue,
+                                chartActionAmountFraction
+                            )
+                            clearChartAction()
+                            fabExpanded = false
+                        }
+                    )
                 }
             }
 
@@ -524,7 +522,7 @@ private fun JournalMetricsPanel(
     val eiobUnits = activeInsulin?.eiobUnits?.coerceAtLeast(0f) ?: 0f
     val activeUntilFormatter = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val eiobText = if (showEiob) {
-        stringResource(R.string.journal_metric_eiob, formatJournalMetric(eiobUnits))
+        stringResource(R.string.journal_metric_eiob, formatJournalIob(eiobUnits))
     } else {
         null
     }
@@ -554,7 +552,7 @@ private fun JournalMetricsPanel(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             JournalMetricCard(
                 title = stringResource(R.string.journal_metric_iob),
-                value = stringResource(R.string.unit_insulin_value, formatJournalMetric(iobUnits)),
+                value = stringResource(R.string.unit_insulin_value, formatJournalIob(iobUnits)),
                 detail = activeInsulinDetail,
                 icon = Icons.Default.Vaccines,
                 type = JournalEntryType.INSULIN,
@@ -607,7 +605,7 @@ private fun JournalMetricsPanel(
                                 append(
                                     stringResource(
                                         R.string.journal_iob_expanded,
-                                        formatJournalMetric(summary.iobUnits.coerceAtLeast(0f))
+                                        formatJournalIob(summary.iobUnits.coerceAtLeast(0f))
                                     )
                                 )
                                 if (showEiob) {
@@ -615,7 +613,7 @@ private fun JournalMetricsPanel(
                                     append(
                                         stringResource(
                                             R.string.journal_eiob_expanded,
-                                            formatJournalMetric(summary.eiobUnits.coerceAtLeast(0f))
+                                            formatJournalIob(summary.eiobUnits.coerceAtLeast(0f))
                                         )
                                     )
                                 }
@@ -626,7 +624,7 @@ private fun JournalMetricsPanel(
                             text = stringResource(
                                 R.string.journal_active_insulin_summary,
                                 summary.activeEntryCount,
-                                formatJournalMetric(summary.totalUnits),
+                                formatJournalDose(summary.totalUnits),
                                 summary.weightedActivityPercent
                             ),
                             style = MaterialTheme.typography.titleSmall
@@ -655,7 +653,7 @@ private fun JournalMetricsPanel(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             JournalMetricCard(
                 title = stringResource(R.string.journal_metric_insulin_today),
-                value = stringResource(R.string.unit_insulin_value, formatJournalMetric(insulinToday)),
+                value = stringResource(R.string.unit_insulin_value, formatJournalDose(insulinToday)),
                 detail = stringResource(R.string.journal_type_insulin),
                 icon = Icons.Default.Vaccines,
                 type = JournalEntryType.INSULIN,
@@ -841,6 +839,14 @@ private fun findClosestPoint(
     }
     return closestPoint.takeIf { closestDistance <= maxDistanceMillis }
 }
+
+/** Doses are entered in 0.1 U or finer steps, so a total keeps its decimals (10.5 stays 10.5). */
+internal fun formatJournalDose(value: Float): String =
+    java.text.DecimalFormat("0.##", java.text.DecimalFormatSymbols(Locale.getDefault())).format(value.toDouble())
+
+/** Insulin on board is a small fractional quantity; one decimal at every size, never whole units. */
+internal fun formatJournalIob(value: Float): String =
+    String.format(Locale.getDefault(), "%.1f", value)
 
 private fun formatJournalMetric(value: Float, wholeNumber: Boolean = false): String {
     val pattern = when {

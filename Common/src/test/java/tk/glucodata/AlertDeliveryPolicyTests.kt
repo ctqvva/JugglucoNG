@@ -6,6 +6,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AlertDeliveryPolicyTests {
+    @Test
+    fun recoveryDoesNotSpeakAnUnrelatedGlucoseValue() {
+        assertFalse(AlertDeliveryPolicy.shouldSpeakGlucose(tk.glucodata.alerts.AlertType.SIGNAL_RESTORED.id))
+        assertFalse(AlertDeliveryPolicy.shouldSpeakGlucose(tk.glucodata.alerts.AlertType.LOSS.id))
+        assertTrue(AlertDeliveryPolicy.shouldSpeakGlucose(tk.glucodata.alerts.AlertType.LOW.id))
+        assertTrue(AlertDeliveryPolicy.shouldSpeakGlucose(tk.glucodata.alerts.AlertType.VERY_HIGH.id))
+    }
 
     @Test
     fun normalizeAcceptsStoredAndLegacyModeNames() {

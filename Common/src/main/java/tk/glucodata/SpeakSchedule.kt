@@ -20,6 +20,7 @@ object SpeakSchedule {
 
     fun setEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply()
+        VoiceReadings.changed()
     }
 
     fun getStartMinutes(context: Context): Int =
@@ -30,10 +31,12 @@ object SpeakSchedule {
 
     fun setStartMinutes(context: Context, minutes: Int) {
         prefs(context).edit().putInt(KEY_START, minutes.coerceIn(0, 1439)).apply()
+        VoiceReadings.changed()
     }
 
     fun setEndMinutes(context: Context, minutes: Int) {
         prefs(context).edit().putInt(KEY_END, minutes.coerceIn(0, 1440)).apply()
+        VoiceReadings.changed()
     }
 
     fun isWithinSchedule(context: Context): Boolean {

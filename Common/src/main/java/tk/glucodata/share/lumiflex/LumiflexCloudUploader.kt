@@ -1,8 +1,6 @@
 package tk.glucodata.share.lumiflex
 
 import android.content.Context
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
 import tk.glucodata.Applic
 import tk.glucodata.Natives
 import tk.glucodata.SensorSourceResolver
@@ -16,6 +14,7 @@ class LumiflexCloudUploader(
     private val sensorIds: (String) -> LumiflexCloudClient.DeviceList = {
         LumiflexCloudClient.DeviceList.Ok(emptyMap())
     },
+    private val bindingSensors: () -> List<LumiflexCloudSensor> = { emptyList() },
 ) {
 
     data class Row(
@@ -25,49 +24,103 @@ class LumiflexCloudUploader(
         val trendIndex: Int,
     )
 
-    private data class Session(
-        val token: String,
-        val userId: String,
-        val account: String,
-        val generation: Long,
-    )
-
     sealed class FlushResult {
         data class Success(val uploaded: Int) : FlushResult()
+        data class WaitingForSensor(val uploaded: Int) : FlushResult()
         data class Unauthorized(val uploaded: Int) : FlushResult()
-        data class Failed(val uploaded: Int, val code: Int, val message: String) : FlushResult()
+        data class Failed(
+            val uploaded: Int, val code: Int, val message: String,
+            val kind: LumiflexCloudError.Kind = LumiflexCloudError.classify(code, null),
+        ) : FlushResult()
     }
 
     @Synchronized
-    fun flush(): FlushResult {
-        if (!settings.enabled) return FlushResult.Success(0)
-        val session = Session(settings.token, settings.userId, settings.account, settings.sessionGeneration)
-        if (session.token.isBlank()) return FlushResult.Unauthorized(0)
-
-        queue.clearIfOwnerMismatch(session.account)
-
-        val pending = queue.peek()
-        val unusable = pending.filter { it.mgdl <= 0 }
-        if (unusable.isNotEmpty() && !queue.remove(unusable, session.account)) {
-            return FlushResult.Success(0)
+    fun flush(session: LumiflexCloudSettings.Session = settings.session()): FlushResult {
+        if (!settings.uploadEnabled || !settings.isCurrent(session)) return FlushResult.Success(0)
+        settings.recordSync(session, LumiflexCloudSettings.SyncState.SYNCING, queue.size())
+        val result = flushSession(session)
+        val pending = queue.size()
+        val (state, uploaded, message) = when (result) {
+            is FlushResult.Success -> Triple(
+                if (pending > 0 && settings.uploadEnabled) LumiflexCloudSettings.SyncState.QUEUED
+                else if (result.uploaded > 0 || settings.lastSyncMs > 0) LumiflexCloudSettings.SyncState.SYNCED
+                else LumiflexCloudSettings.SyncState.IDLE, result.uploaded, "",
+            )
+            is FlushResult.WaitingForSensor -> Triple(LumiflexCloudSettings.SyncState.WAITING_FOR_SENSOR, result.uploaded, "")
+            is FlushResult.Failed -> Triple(LumiflexCloudSettings.SyncState.ERROR, result.uploaded, result.message)
+            is FlushResult.Unauthorized -> Triple(LumiflexCloudSettings.SyncState.SIGN_IN_REQUIRED, result.uploaded, "")
         }
-        val usable = pending.filter { it.mgdl > 0 }
-        if (usable.isEmpty()) return FlushResult.Success(0)
+        settings.recordSync(session, state, pending, message, uploaded,
+            retrying = result is FlushResult.Failed && result.kind == LumiflexCloudError.Kind.TRANSIENT)
+        return result
+    }
+
+    private fun flushSession(session: LumiflexCloudSettings.Session): FlushResult {
+        if (!session.signedIn) return FlushResult.Unauthorized(0)
+
+        var usable: List<CgmRecord> = emptyList()
+        if (!settings.withCurrentSession(session) {
+            queue.clearIfOwnerMismatch(session.account)
+            val pending = queue.peek()
+            val unusable = pending.filter { it.mgdl <= 0 }
+            if (unusable.isNotEmpty()) queue.remove(unusable, session.account)
+            usable = pending.filter { it.mgdl > 0 }
+        }) return FlushResult.Success(0)
+        val localSensors = bindingSensors().filter { it.complete }
+        if (usable.isEmpty() && localSensors.isEmpty()) return FlushResult.Success(0)
 
         var uploaded = 0
-        val sensorIdBySerial = when (val devices = sensorIds(session.token)) {
+        var missingSensor = false
+        var sensorIdBySerial = when (val devices = sensorIds(session.token)) {
             is LumiflexCloudClient.DeviceList.Ok -> devices.sensorIdBySerial
             LumiflexCloudClient.DeviceList.Unauthorized -> {
-                if (isCurrent(session)) clearTokenIfCurrent(session.token)
+                settings.invalidateSession(session)
                 return FlushResult.Unauthorized(0)
             }
             is LumiflexCloudClient.DeviceList.Failed -> {
-                return FlushResult.Failed(0, devices.code, devices.message)
+                return FlushResult.Failed(0, devices.code, devices.message, devices.kind)
+            }
+        }
+        val ourSerials = (localSensors.map { it.serial } + usable.map { it.serial })
+            .map { AiDexSerialIdentity.bareSerial(it) }.distinct()
+        fun publishBindings() = settings.recordBindings(session,
+            ourSerials.filter { sensorIdFor(sensorIdBySerial, it) != null }.toSet())
+        publishBindings()
+        for (sensor in localSensors) {
+            if (!settings.isCurrent(session) || !settings.uploadEnabled) return FlushResult.Success(0)
+            if (sensorIdFor(sensorIdBySerial, sensor.serial) != null) continue
+            when (val registration = client.registerSensor(session.token, session.userId, sensor)) {
+                LumiflexCloudClient.SyncResult.Ok -> Unit
+                is LumiflexCloudClient.SyncResult.Failed -> {
+                    if (registration.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
+                        settings.invalidateSession(session)
+                        return FlushResult.Unauthorized(0)
+                    }
+                    return FlushResult.Failed(0, registration.code, registration.message, registration.kind)
+                }
+            }
+            if (!settings.isCurrent(session)) return FlushResult.Success(0)
+            // A successful POST alone is not proof that the server associated this sensor.
+            when (val refreshed = sensorIds(session.token)) {
+                is LumiflexCloudClient.DeviceList.Ok -> sensorIdBySerial = refreshed.sensorIdBySerial
+                LumiflexCloudClient.DeviceList.Unauthorized -> {
+                    settings.invalidateSession(session)
+                    return FlushResult.Unauthorized(0)
+                }
+                is LumiflexCloudClient.DeviceList.Failed -> return FlushResult.Failed(0, refreshed.code, refreshed.message, refreshed.kind)
+            }
+            publishBindings()
+            if (sensorIdFor(sensorIdBySerial, sensor.serial) == null) {
+                missingSensor = true
+                continue
             }
         }
         usable.groupBy { it.serial }.forEach { (serial, items) ->
             val sensorId = sensorIdFor(sensorIdBySerial, serial)
-            if (sensorId.isNullOrBlank()) return@forEach
+            if (sensorId.isNullOrBlank()) {
+                missingSensor = true
+                return@forEach
+            }
             var index = 0
             while (index < items.size) {
                 val end = minOf(index + LumiflexCloudConstants.BATCH_SIZE, items.size)
@@ -76,9 +129,10 @@ class LumiflexCloudUploader(
                 var success = false
                 var lastCode = 0
                 var lastMessage = ""
+                var lastKind = LumiflexCloudError.Kind.OTHER
                 while (attempt < LumiflexCloudConstants.RETRY_LIMIT && !success) {
-                    if (!settings.enabled) return FlushResult.Success(uploaded)
-                    if (!isCurrent(session)) return FlushResult.Success(uploaded)
+                    if (!settings.uploadEnabled) return FlushResult.Success(uploaded)
+                    if (!settings.isCurrent(session)) return FlushResult.Success(uploaded)
                     attempt++
                     val result = client.uploadGlucose(
                         token = session.token,
@@ -91,9 +145,13 @@ class LumiflexCloudUploader(
                         is LumiflexCloudClient.SyncResult.Failed -> {
                             lastCode = result.code
                             lastMessage = result.message
+                            lastKind = result.kind
                             if (result.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
-                                if (isCurrent(session)) clearTokenIfCurrent(session.token)
+                                settings.invalidateSession(session)
                                 return FlushResult.Unauthorized(uploaded)
+                            }
+                            if (result.kind != LumiflexCloudError.Kind.TRANSIENT) {
+                                return FlushResult.Failed(uploaded, result.code, result.message, result.kind)
                             }
                             if (attempt < LumiflexCloudConstants.RETRY_LIMIT) {
                                 sleep(backoffMs(attempt))
@@ -101,38 +159,26 @@ class LumiflexCloudUploader(
                         }
                     }
                 }
-                if (!success) return FlushResult.Failed(uploaded, lastCode, lastMessage)
+                if (!success) return FlushResult.Failed(uploaded, lastCode, lastMessage, lastKind)
                 // A late reply must not delete the backlog of a session that replaced this one.
-                if (!queue.remove(batch, session.account)) return FlushResult.Success(uploaded)
+                var removed = false
+                if (!settings.withCurrentSession(session) { removed = queue.remove(batch, session.account) } || !removed) {
+                    return FlushResult.Success(uploaded)
+                }
                 uploaded += batch.size
+                settings.recordSync(session, LumiflexCloudSettings.SyncState.SYNCING, queue.size(), uploaded = batch.size)
                 index = end
             }
         }
-        if (uploaded > 0) settings.lastSyncMs = System.currentTimeMillis()
-        return FlushResult.Success(uploaded)
-    }
-
-    /** True while the stored session is still the one this flush started with. */
-    private fun isCurrent(session: Session): Boolean =
-        settings.token == session.token &&
-            settings.userId == session.userId &&
-            settings.account == session.account &&
-            settings.sessionGeneration == session.generation
-
-    /** A 401 that belongs to a session the patient has already replaced must not sign them out. */
-    private fun clearTokenIfCurrent(session: String) {
-        if (settings.token == session) settings.token = ""
+        return if (missingSensor) FlushResult.WaitingForSensor(uploaded) else FlushResult.Success(uploaded)
     }
 
     companion object {
         private const val LOG_ID = "LumiflexCloud"
-        private const val THREAD_NAME = "LumiflexCloudSend"
         private const val INITIAL_BACKOFF_MS = 100L
 
-        private val executor: ScheduledExecutorService =
-            Executors.newSingleThreadScheduledExecutor { runnable -> Thread(runnable, THREAD_NAME) }
-
         private val lock = Any()
+        private val flushLock = Any()
         private var state: State? = null
 
         private class State(
@@ -158,14 +204,18 @@ class LumiflexCloudUploader(
             if (sensorSerial.isEmpty() || rows.isEmpty()) return
             try {
                 val context: Context = Applic.app ?: return
-                if (!LumiflexCloudSettings.isEnabled(context)) return
+                if (!LumiflexCloudSettings(context).uploadEnabled) return
                 if (!shouldUpload(sensorSerial)) return
                 val current = stateFor(context)
                 val start = sensorStartProvider(sensorSerial)
                 val records = toRecords(rows, start)
                 if (records.isEmpty()) return
-                current.queue.enqueueAll(records, current.settings.account)
-                requestFlush(context)
+                val session = current.settings.session()
+                if (!current.settings.withCurrentSession(session) {
+                    current.queue.enqueueAll(records, session.account)
+                    current.settings.recordSync(session, LumiflexCloudSettings.SyncState.QUEUED, current.queue.size())
+                }) return
+                LumiflexCloudSyncWorker.enqueue(context)
             } catch (error: Throwable) {
                 tk.glucodata.Log.stack(LOG_ID, "onHistoryStored", error)
             }
@@ -211,24 +261,29 @@ class LumiflexCloudUploader(
             }
         }
 
-        private fun requestFlush(context: Context) {
-            synchronized(lock) {
-                executor.execute { runFlush(context.applicationContext) }
-            }
+        fun pendingCount(context: Context): Int {
+            val current = stateFor(context)
+            return if (current.queue.owner() == current.settings.account) current.queue.size() else 0
         }
 
-        private fun runFlush(context: Context) {
+        /** Worker and manual requests share one queue and one in-process upload lock. */
+        fun flushNow(context: Context, expected: LumiflexCloudSettings.Session? = null): FlushResult = synchronized(flushLock) {
+            val current = stateFor(context)
+            val session = expected ?: current.settings.session()
             try {
-                val current = stateFor(context)
                 val uploader = LumiflexCloudUploader(
                     client = current.client,
                     settings = current.settings,
                     queue = current.queue,
                     sensorIds = { token -> current.client.devicesBySensorSerial(token) },
+                    bindingSensors = { LumiflexCloudSensor.pairedLocally(context) },
                 )
-                uploader.flush()
+                uploader.flush(session)
             } catch (error: Throwable) {
                 tk.glucodata.Log.stack(LOG_ID, "runFlush", error)
+                current.settings.recordSync(session, LumiflexCloudSettings.SyncState.ERROR,
+                    current.queue.size(), error.message.orEmpty(), retrying = true)
+                FlushResult.Failed(0, -1, error.message.orEmpty())
             }
         }
 

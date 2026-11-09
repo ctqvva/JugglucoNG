@@ -62,7 +62,9 @@ internal val sensorTypeOptions = listOf(
 @Composable
 fun SensorTypePicker(
     onDismiss: () -> Unit,
-    onSensorSelected: (SensorType) -> Unit
+    onSensorSelected: (SensorType) -> Unit,
+    /** Restricted mode's allowed families; null offers every family. */
+    allowedTypes: Set<SensorType>? = null,
 ) {
     val metrics = rememberAdaptiveWindowMetrics()
     val compact = metrics.isCompact
@@ -99,7 +101,7 @@ fun SensorTypePicker(
             }
 
             items(
-                items = sensorTypeOptions,
+                items = sensorTypeOptions.filter { allowedTypes == null || it.type in allowedTypes },
                 key = { it.type.name }
             ) { entry ->
                 SensorTypeItem(
