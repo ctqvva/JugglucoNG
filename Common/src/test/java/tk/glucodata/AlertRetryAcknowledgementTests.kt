@@ -497,6 +497,7 @@ class AlertRetryAcknowledgementTests {
                         static float resolve(AlertType type, AlertConfig config, boolean mmol, float value) { return 180; }
                     }
                     static CurrentDisplaySource.Snapshot resolveNotificationCurrentSnapshot() { return null; }
+                    static float currentAlarmRate() { return Float.NaN; }
                     static String glucosestr(float value) { return "" + value; }
                     static String alertChannelForKind(int kind) { return "test"; }
                     static void allowNextAlertEffectsForTest() {}

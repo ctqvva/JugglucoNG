@@ -106,6 +106,14 @@ class AlarmActivity : ComponentActivity() {
                     canStop.value = tk.glucodata.RestrictedMode.allowsAlarmStop()
                 }
             }
+            // Read off the main thread; the trace draws itself in once it is here.
+            val trace = androidx.compose.runtime.produceState<AlarmTrace?>(null, model) {
+                value = if (showsTrace(model, customAlertId)) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadAlarmTrace() }
+                } else {
+                    null
+                }
+            }
             AlarmScreen(
                 primaryGlucose = model.primaryGlucose,
                 secondaryGlucose = model.secondaryGlucose,
@@ -129,9 +137,36 @@ class AlarmActivity : ComponentActivity() {
                     }
                 } else {
                     null
-                }
+                },
+                trace = trace.value
             )
         }
+    }
+
+    /** Alarms about the glucose value get its past hour; signal, expiry and missed-reading alarms do not. */
+    private fun showsTrace(model: AlarmUiModel, customAlertId: String?): Boolean {
+        if (model.primaryGlucose == "---") return false
+        if (!customAlertId.isNullOrBlank()) return true
+        return model.alertType in TRACE_ALERT_TYPES
+    }
+
+    private fun loadAlarmTrace(): AlarmTrace? {
+        val endMs = System.currentTimeMillis()
+        val startMs = endMs - TRACE_SPAN_MS
+        val points = try {
+            Notify.alarmTracePoints(TRACE_SPAN_MS).map { AlarmTracePoint(it.timestamp, it.value) }
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "loadAlarmTrace", t)
+            return null
+        }
+        if (points.size < 2) return null
+        val isMmol = tk.glucodata.Applic.unit == 1
+        return AlarmTrace(
+            points = points,
+            startMs = startMs,
+            endMs = maxOf(endMs, points.last().timeMs),
+            minSpan = if (isMmol) 2f else 36f
+        )
     }
 
     private fun buildUiModel(intent: Intent): AlarmUiModel {
@@ -386,6 +421,12 @@ class AlarmActivity : ComponentActivity() {
         const val EXTRA_ALERT_TYPE_ID = "EXTRA_ALERT_TYPE_ID"
         const val EXTRA_RATE = "EXTRA_RATE"
         private const val ALARM_SCREEN_WAKE_HOLD_MS = 45_000L
+        private const val TRACE_SPAN_MS = 60 * 60_000L
+        private val TRACE_ALERT_TYPES = setOf(
+            AlertType.LOW, AlertType.VERY_LOW, AlertType.PRE_LOW,
+            AlertType.HIGH, AlertType.VERY_HIGH, AlertType.PRE_HIGH, AlertType.PERSISTENT_HIGH,
+            AlertType.FALLING_FAST, AlertType.RISING_FAST
+        )
         private const val LOG_ID = "AlarmActivity"
 
         fun createIntent(

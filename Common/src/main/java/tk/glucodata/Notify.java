@@ -1152,6 +1152,72 @@ public class Notify {
         }
     }
 
+    /**
+     * The main line of the last {@code spanMs}, for the alarm window's trace. Resolved by the
+     * same builder as the notification chart and the dashboard, from the same rows, so the
+     * alarm cannot draw a curve the chart never showed. Empty when nothing is recorded.
+     */
+    public static List<tk.glucodata.chart.ChartPointModel> alarmTracePoints(long spanMs) {
+        try {
+            final long startT = System.currentTimeMillis() - spanMs;
+            final boolean isMmol = Applic.unit == 1;
+            final String serial = resolveNotificationSensorSerial();
+            if (serial == null || serial.isEmpty()) {
+                return java.util.Collections.emptyList();
+            }
+            final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot(serial);
+            List<GlucosePoint> points = NotificationHistorySource.getDisplayHistory(startT, isMmol, serial);
+            points = DisplayTrendSource.augmentHistory(points, current, serial, startT);
+            final int viewMode = current != null ? current.getViewMode() : resolveSensorViewMode(serial);
+            final tk.glucodata.chart.HistoryChartModel model = NotificationChartModelSource.build(
+                    Applic.app, points, serial, viewMode,
+                    NightscoutCalibration.hasCalibrationForViewMode(serial, viewMode),
+                    java.util.Collections.<NotificationChartDrawer.PeerSeries>emptyList(), startT);
+            final tk.glucodata.chart.ChartSeriesModel primary = model != null ? model.getPrimary() : null;
+            if (primary == null) {
+                return java.util.Collections.emptyList();
+            }
+            final java.util.ArrayList<tk.glucodata.chart.ChartPointModel> out = new java.util.ArrayList<>();
+            long last = Long.MIN_VALUE;
+            for (tk.glucodata.chart.ChartRun run : primary.getRuns()) {
+                for (tk.glucodata.chart.ChartPointModel point : run.getPoints()) {
+                    // Consecutive runs share their boundary point; take it once.
+                    if (point.getTimestamp() < startT || point.getTimestamp() <= last) continue;
+                    if (!Float.isFinite(point.getValue()) || point.getValue() <= 0.1f) continue;
+                    out.add(point);
+                    last = point.getTimestamp();
+                }
+            }
+            return out;
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "alarmTracePoints", th);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
+     * The rate a test alarm carries: the one the current reading shows, so a test draws the
+     * arrow a real alarm would draw now. NaN when nothing is current; the window then reads
+     * the rate itself, as it does for a real alarm.
+     */
+    private static float currentAlarmRate() {
+        final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
+        if (current != null && Float.isFinite(current.getRate())) {
+            return current.getRate();
+        }
+        try {
+            final strGlucose latest = Natives.lastglucose();
+            if (latest != null && Float.isFinite(latest.rate)) {
+                return latest.rate;
+            }
+        } catch (Throwable th) {
+            if (doLog) {
+                Log.i(LOG_ID, "currentAlarmRate latest lookup failed: " + th);
+            }
+        }
+        return Float.NaN;
+    }
+
     private static long latestNotificationTimestamp(List<GlucosePoint> historyPoints) {
         if (historyPoints == null || historyPoints.isEmpty()) {
             return 0L;
@@ -1789,24 +1855,13 @@ public class Notify {
         return TimeUnit.SECONDS.toMillis(sanitizedDurationSeconds);
     }
 
-    private static float resolveAlarmRate(float requestedRate, boolean isHigh, boolean isTest) {
+    private static float resolveAlarmRate(float requestedRate) {
         if (Float.isFinite(requestedRate)) {
             return requestedRate;
         }
-        try {
-            final strGlucose latest = Natives.lastglucose();
-            if (latest != null && Float.isFinite(latest.rate)) {
-                return latest.rate;
-            }
-        } catch (Throwable th) {
-            if (doLog) {
-                Log.i(LOG_ID, "resolveAlarmRate latest lookup failed: " + th);
-            }
-        }
-        if (isTest) {
-            return isHigh ? 1.2f : -1.2f;
-        }
-        return Float.NaN;
+        // A test used to invent ±1.2 here when nothing was current; it now shows what a real
+        // alarm would: the current rate, or no arrow at all.
+        return currentAlarmRate();
     }
 
     private static void cancelRetryScheduleLocked() {
@@ -3034,8 +3089,10 @@ public class Notify {
                     AlertStateTracker.INSTANCE.shouldTrigger(alertType, config);
                     onenot.lossofsignalalarm(kind, R.drawable.loss, message, typeStr, true, true);
                 } else {
-                    notGlucose dummyGlucose = new notGlucose(System.currentTimeMillis(), String.valueOf(dummyValue), 0f,
-                            0);
+                    // The current reading's rate, not a flat 0: a test shows the arrow a real
+                    // alarm fired now would show.
+                    notGlucose dummyGlucose = new notGlucose(System.currentTimeMillis(), String.valueOf(dummyValue),
+                            currentAlarmRate(), 0);
                     onenot.arrowglucosealarm(kind, dummyValue, message, dummyGlucose, typeStr, true);
                 }
             }
@@ -3095,7 +3152,7 @@ public class Notify {
                         : defaultName;
 
                 String typeStr = alertChannelForKind(kind);
-                final float resolvedRate = resolveAlarmRate(rate, isHigh, isTest);
+                final float resolvedRate = resolveAlarmRate(rate);
                 notGlucose glucoseStr = new notGlucose(System.currentTimeMillis(), String.valueOf(glucoseValue),
                         resolvedRate, 0);
 
