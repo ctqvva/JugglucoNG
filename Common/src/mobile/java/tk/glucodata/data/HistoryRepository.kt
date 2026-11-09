@@ -1483,20 +1483,23 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
     }
 
     /**
-     * Where a sync from the sensor's own store resumes: the newest reading this phone has seen
-     * for the sensor, kept or deliberately removed. After "Clear history" nothing is stored, but
-     * every cleared row is tombstoned; without counting those, each sync would start from zero
-     * and re-read the whole sensor history just to drop it again until a new reading arrived.
+     * Where a sync from the sensor's own store resumes: the newest stored reading. When the
+     * sensor has none stored, the newest tombstoned one: after "Clear history" every row is
+     * tombstoned and nothing is stored, and without that each sync would start from zero and
+     * re-read the whole sensor history just to drop it again until a new reading arrived.
+     *
+     * Tombstones count only then. They also arrive from a Clone peer, possibly newer than
+     * anything stored here, and letting one of those move the tail would skip native readings
+     * this phone is still missing.
      */
     suspend fun getSyncTailForSensor(serial: String): Long {
         val serials = resolveQuerySensorSerials(serial)
         if (serials.isEmpty()) return 0L
         return withContext(Dispatchers.IO) {
             try {
-                maxOf(
-                    dao.getLatestReadingForSensors(serials)?.timestamp ?: 0L,
-                    dao.getLatestDeletedTimestampForSensors(serials) ?: 0L,
-                )
+                dao.getLatestReadingForSensors(serials)?.timestamp
+                    ?: dao.getLatestDeletedTimestampForSensors(serials)
+                    ?: 0L
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting sync tail for sensor $serial", e)
                 0L

@@ -176,9 +176,74 @@ class ClearHistoryTests {
     }
 
     @Test
+    fun aNewerTombstoneFromAPeerDoesNotMoveTheSyncTailPastStoredReadings() = runBlocking {
+        val rows = seedReadings(3)
+        val storedNewest = rows.maxOf { it.timestamp }
+        // A Clone peer deleted a reading this phone never stored, a day later than anything here.
+        database.historyDao().insertDeletedReadings(
+            listOf(DeletedHistoryReading(storedNewest + 24 * 60 * 60_000L, serial, 1L))
+        )
+
+        assertEquals(
+            "native readings between the two are still missing and must be read",
+            storedNewest,
+            repository.getSyncTailForSensor(serial),
+        )
+    }
+
+    @Test
     fun clearingAnEmptyStoreIsHarmless() = runBlocking {
         assertEquals(0, repository.clearAllReadings())
         assertEquals(0L, repository.getSyncTailForSensor(serial))
+    }
+
+    // ── Both halves in one transaction ──
+
+    @Test
+    fun clearingBothRemovesReadingsAndEntriesTogether() = runBlocking {
+        seedReadings(2)
+        database.journalDao().upsertEntry(entry(1, JournalEntrySource.MANUAL))
+
+        val deleted = database.clearHistoryRows(ClearScope.BOTH)
+
+        assertEquals(1, deleted?.count)
+        assertEquals(0, database.historyDao().getCount())
+        assertTrue(database.journalDao().getEntries().isEmpty())
+    }
+
+    @Test
+    fun clearingOneScopeLeavesTheOtherAlone() = runBlocking {
+        seedReadings(2)
+        database.journalDao().upsertEntry(entry(1, JournalEntrySource.MANUAL))
+
+        val readingsOnly = database.clearHistoryRows(ClearScope.READINGS)
+        assertEquals("the journal was not part of it", null, readingsOnly)
+        assertEquals(0, database.historyDao().getCount())
+        assertEquals(1, database.journalDao().getEntries().size)
+
+        seedReadings(2)
+        val journalOnly = database.clearHistoryRows(ClearScope.JOURNAL)
+        assertEquals(1, journalOnly?.count)
+        assertEquals(2, database.historyDao().getCount())
+        assertTrue(database.journalDao().getEntries().isEmpty())
+    }
+
+    @Test
+    fun clearingBothLeavesTheReadingsAloneWhenTheJournalHalfFails() = runBlocking {
+        seedReadings(3)
+        database.journalDao().upsertEntry(entry(1, JournalEntrySource.MANUAL))
+        // Make the journal half fail partway through the transaction.
+        database.openHelper.writableDatabase.execSQL("ALTER TABLE journal_entries RENAME TO journal_entries_gone")
+
+        val failure = runCatching { database.clearHistoryRows(ClearScope.BOTH) }.exceptionOrNull()
+
+        assertTrue("the clear should have failed", failure != null)
+        assertEquals("readings must not be half-cleared", 3, database.historyDao().getCount())
+        assertTrue(
+            "no tombstones from the rolled-back clear",
+            database.historyDao().getLatestDeletedTimestampForSensors(listOf(serial)) == null,
+        )
+        assertEquals(3, database.readingDisplayDao().getCount())
     }
 
     // ── Journal ──

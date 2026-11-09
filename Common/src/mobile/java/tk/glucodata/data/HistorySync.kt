@@ -263,35 +263,55 @@ object HistorySync {
      * via [Natives.getGlucoseHistoryForSensor].
      */
     private suspend fun doSyncAllSensors(forceFull: Boolean) {
-        syncGate.withLock {
-            try {
-                BatteryTrace.bump(
-                    key = "history.sync.all.run",
-                    logEvery = 20L,
-                    detail = if (forceFull) "forceFull=true" else null
-                )
-                val sensorsToSync = linkedSetOfSensors(
-                    Natives.activeSensors(),
-                    Natives.lastsensorname()
-                ).filter(SensorIdentity::shouldUseNativeHistorySync)
-                if (sensorsToSync.isEmpty()) {
-                    Log.w(TAG, "No active sensors and no main sensor — nothing to sync")
-                    lastSyncTimeMs = 0L
-                    return@withLock
-                }
+        syncGate.withLock { syncAllSensorsLocked(forceFull) }
+    }
 
-                for (serial in sensorsToSync) {
-                    doSyncSensor(serial, forceFull)
-                }
-
-                lastSyncTimeMs = System.currentTimeMillis()
-                if (!initialSyncDone) {
-                    initialSyncDone = true
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error syncing all sensors: ${e.message}")
+    /** The body of [doSyncAllSensors]; the caller holds [syncGate]. */
+    private suspend fun syncAllSensorsLocked(forceFull: Boolean) {
+        try {
+            BatteryTrace.bump(
+                key = "history.sync.all.run",
+                logEvery = 20L,
+                detail = if (forceFull) "forceFull=true" else null
+            )
+            val sensorsToSync = linkedSetOfSensors(
+                Natives.activeSensors(),
+                Natives.lastsensorname()
+            ).filter(SensorIdentity::shouldUseNativeHistorySync)
+            if (sensorsToSync.isEmpty()) {
+                Log.w(TAG, "No active sensors and no main sensor — nothing to sync")
+                lastSyncTimeMs = 0L
+                return
             }
+
+            for (serial in sensorsToSync) {
+                doSyncSensor(serial, forceFull)
+            }
+
+            lastSyncTimeMs = System.currentTimeMillis()
+            if (!initialSyncDone) {
+                initialSyncDone = true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error syncing all sensors: ${e.message}")
         }
+    }
+
+    /**
+     * Brings Room level with what the sensors hold natively, then runs [block] before any other
+     * sync pass can write. "Clear history" runs inside it, for two reasons that one pass of
+     * [syncGate] settles:
+     *  - A reading the sensor already holds but the periodic sync has not mirrored yet has no
+     *    Room row to tombstone, so it would be imported right after the clear. The catch-up
+     *    mirrors it first, and the clear tombstones it with the rest.
+     *  - A pass already running has filtered its batch against the tombstones that existed when
+     *    it started; it must finish before the clear, not write behind it.
+     *
+     * Drivers that write straight to Room do not take [syncGate].
+     */
+    suspend fun <T> catchUpThen(block: suspend () -> T): T = syncGate.withLock {
+        syncAllSensorsLocked(forceFull = false)
+        block()
     }
 
     private fun linkedSetOfSensors(activeSensors: Array<String?>?, mainSensor: String?): LinkedHashSet<String> {

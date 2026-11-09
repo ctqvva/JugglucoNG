@@ -424,8 +424,16 @@ class JournalRepository {
      *
      * @return how many entries were deleted
      */
-    suspend fun deleteAllEntries(): Int {
-        val deleted = database.deleteAllJournalEntries()
+    suspend fun deleteAllEntries(): Int = announceDeletion(database.deleteAllJournalEntries())
+
+    /**
+     * Tells Clone peers, Nightscout and the IOB and calibration consumers that [deleted] is gone.
+     * Call once the transaction that removed the entries has committed, so what they read back
+     * is the state after it.
+     *
+     * @return how many entries were deleted
+     */
+    internal fun announceDeletion(deleted: DeletedJournalEntries): Int {
         if (deleted.count == 0) return 0
         if (deleted.cloneTombstoned || deleted.affectsIob) {
             tk.glucodata.OutboundApiJournalSnapshot.journalChanged()

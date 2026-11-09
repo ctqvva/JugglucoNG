@@ -2,13 +2,16 @@ package tk.glucodata.data
 
 import android.content.Context
 import android.util.Log
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import tk.glucodata.Applic
 import tk.glucodata.Natives
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.data.journal.DeletedJournalEntries
 import tk.glucodata.data.journal.JournalRepository
+import tk.glucodata.data.journal.deleteAllJournalEntries
 
 /** What "Clear history" removes. The three are exclusive: the dialog offers one of them. */
 enum class ClearScope { READINGS, JOURNAL, BOTH }
@@ -31,8 +34,10 @@ object DataManagement {
      * bring them back; see [HistoryRepository.clearAllReadings]. Journal entries leave the way
      * a deleted entry does, with Clone and Nightscout told.
      *
-     * Runs to the end even if the caller leaves the screen: an interrupted clear would roll back
-     * one half and leave the other done.
+     * All of it is one database transaction ([clearHistoryRows]): a failure leaves the readings
+     * and the journal as they were, never one of the two cleared. Clearing readings also waits
+     * its turn among the native syncs ([HistorySync.catchUpThen]). It runs to the end even if
+     * the caller leaves the screen.
      */
     suspend fun clearHistory(
         scope: ClearScope = ClearScope.READINGS,
@@ -40,12 +45,13 @@ object DataManagement {
     ): Boolean {
         return withContext(Dispatchers.IO + NonCancellable) {
             try {
-                if (scope != ClearScope.JOURNAL) {
-                    HistoryRepository(context).clearAllReadings()
+                val database = HistoryDatabase.getInstance(context)
+                val deletedJournal = if (scope == ClearScope.JOURNAL) {
+                    database.clearHistoryRows(scope)
+                } else {
+                    HistorySync.catchUpThen { database.clearHistoryRows(scope) }
                 }
-                if (scope != ClearScope.READINGS) {
-                    JournalRepository().deleteAllEntries()
-                }
+                deletedJournal?.let { JournalRepository().announceDeletion(it) }
                 UiRefreshBus.requestDataRefresh()
                 true
             } catch (e: Exception) {
@@ -111,3 +117,18 @@ object DataManagement {
         }
     }
 }
+
+/**
+ * The database half of [DataManagement.clearHistory]: the readings and the journal entries of
+ * [scope] go in one transaction, so a failure in either leaves both as they were.
+ *
+ * @return what the journal clear removed, for [JournalRepository.announceDeletion] to pass on once
+ * this has committed; `null` when the journal was not part of [scope]
+ */
+internal suspend fun HistoryDatabase.clearHistoryRows(scope: ClearScope): DeletedJournalEntries? =
+    withTransaction {
+        if (scope != ClearScope.JOURNAL) {
+            HistoryRepository(this@clearHistoryRows).clearAllReadings()
+        }
+        if (scope != ClearScope.READINGS) deleteAllJournalEntries() else null
+    }
