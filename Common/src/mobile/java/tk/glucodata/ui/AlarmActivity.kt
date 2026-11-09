@@ -144,7 +144,7 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
-    /** Alarms about the glucose value get its past hour; signal, expiry and missed-reading alarms do not. */
+    /** Alarms about the glucose value get their past hours; signal, expiry and missed-reading alarms do not. */
     private fun showsTrace(model: AlarmUiModel, customAlertId: String?): Boolean {
         if (model.primaryGlucose == "---") return false
         if (!customAlertId.isNullOrBlank()) return true
@@ -157,8 +157,8 @@ class AlarmActivity : ComponentActivity() {
         val isMmol = tk.glucodata.Applic.unit == 1
         val points = try {
             if (model.isTest) {
-                // A test's hour: ends at the test value, arriving at the test's rate, so the
-                // curve, the value and the arrow tell one story. The live hour would end
+                // A test's stretch: ends at the test value, arriving at the test's rate, so the
+                // curve, the value and the arrow tell one story. The live trace would end
                 // wherever glucose is now, nowhere near the alarm being tested.
                 val value = model.valueNumber ?: return null
                 val rate = model.trendResult.velocity.takeIf { it.isFinite() } ?: return null
@@ -429,9 +429,9 @@ class AlarmActivity : ComponentActivity() {
         val timeText: String,
         val alertType: AlertType?,
         val snoozeMinutes: Int,
-        /** The value as a number in the display unit, for drawing a test's hour to it. */
+        /** The value as a number in the display unit, for drawing a test's trace to it. */
         val valueNumber: Float? = null,
-        /** Opened by a test: the window draws the test's story rather than the live hour. */
+        /** Opened by a test: the window draws the test's story rather than the live trace. */
         val isTest: Boolean = false
     )
 
@@ -442,7 +442,8 @@ class AlarmActivity : ComponentActivity() {
         const val EXTRA_ALERT_TYPE_ID = "EXTRA_ALERT_TYPE_ID"
         const val EXTRA_RATE = "EXTRA_RATE"
         private const val ALARM_SCREEN_WAKE_HOLD_MS = 45_000L
-        private const val TRACE_SPAN_MS = 60 * 60_000L
+        /** As the notification chart: enough to see where the alarm came from. */
+        private const val TRACE_SPAN_MS = 3 * 60 * 60_000L
         private val TRACE_ALERT_TYPES = setOf(
             AlertType.LOW, AlertType.VERY_LOW, AlertType.PRE_LOW,
             AlertType.HIGH, AlertType.VERY_HIGH, AlertType.PRE_HIGH, AlertType.PERSISTENT_HIGH,

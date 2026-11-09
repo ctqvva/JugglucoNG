@@ -103,7 +103,7 @@ fun AlarmScreen(
     onSnooze: () -> Unit,
     /** Null on a restricted phone that may only snooze: Snooze becomes the main action. */
     onDismiss: (() -> Unit)?,
-    /** The past hour under the value, for alarms about glucose; null draws none. */
+    /** The past three hours under the value, for alarms about glucose; null draws none. */
     trace: AlarmTrace? = null
 ) {
     val colorScheme = remember(severity) { severityColorScheme(severity) }

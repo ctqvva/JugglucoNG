@@ -32,12 +32,15 @@ class AlertTestSampleTests {
         val end = 10_000_000L
         val rate = -1.4f
         val trace = AlertTestSample.trace(2.7f, rate, isMmol = true, endMs = end)
-        assertEquals(61, trace.size)
+        assertEquals(181, trace.size)
         assertEquals(end, trace.last().first)
-        assertEquals(end - 60 * 60_000L, trace.first().first)
+        assertEquals(end - 180 * 60_000L, trace.first().first)
         assertEquals(2.7f, trace.last().second, 0.001f)
-        // Came down into the low: an hour ago it was higher, and the last minutes fall at the rate.
+        // Came down into the low: three hours ago it was higher, and the last minutes fall at the rate.
         assertTrue(trace.first().second > 4.5f)
+        // Level before the last hour, so a long window does not start somewhere absurd.
+        assertTrue(trace.first().second < 5.6f)
+        assertEquals(trace.first().second, trace[trace.size - 61].second, 0.6f)
         val lastSlopeMgdl = (trace.last().second - trace[trace.size - 6].second) * 18.0182f / 5f
         assertEquals(rate, lastSlopeMgdl, 0.3f)
     }

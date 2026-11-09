@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 data class AlarmTracePoint(val timeMs: Long, val value: Float)
 
 /**
- * The past hour of the main line, drawn under the value on a glucose alarm. The points come
+ * The past hours of the main line, drawn under the value on a glucose alarm. The points come
  * from the resolved chart model, so this is the dashboard's own curve, not a lookalike.
  */
 @Immutable
@@ -54,7 +54,7 @@ data class AlarmTrace(
     val startMs: Long,
     val endMs: Long,
     /**
-     * The smallest value span the height stands for, so a steady hour reads as steady
+     * The smallest value span the height stands for, so a steady stretch reads as steady
      * instead of magnifying a 0.1 wobble into a mountain range.
      */
     val minSpan: Float,
@@ -67,10 +67,10 @@ internal const val ALARM_TRACE_GAP_MS = 15 * 60_000L
 private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
 
 /**
- * The trace laid out in a [width] by [height] box: one list per unbroken stretch. The hour
+ * The trace laid out in a [width] by [height] box: one list per unbroken stretch. The span
  * runs from the left edge to [endInset] short of the right one, so the present lands on the
  * content's edge rather than under the bezel; a reading missing at either end leaves its
- * part of the hour empty rather than stretching what is there.
+ * part of the span empty rather than stretching what is there.
  */
 internal fun alarmTraceSegments(
     trace: AlarmTrace,
@@ -130,15 +130,18 @@ private fun lineYAt(segments: List<List<Offset>>, x: Float): Float? {
 private val TraceStroke = 2.dp
 /** Room above and below the line for the marker, so the present never sits on the trace's edge. */
 private val TraceVerticalPad = 16.dp
-/** The hour ends on the content's right edge, under the arrow column, not under the bezel. */
-private val TraceEndInset = 24.dp
+/**
+ * Where the span ends, from the right edge: far enough in that the marker's glow and ripples
+ * finish on screen instead of being cut by the bezel.
+ */
+private val TraceEndInset = 40.dp
 private val MarkerSize = 22.dp
 private val MarkerGap = 3.dp
 private val HaloRadius = 30.dp
-private val RippleReach = 38.dp
+private val RippleReach = 36.dp
 
 /**
- * The trace itself: a thin line that draws itself across the hour and eases into the present.
+ * The trace itself: a thin line that draws itself across the span and eases into the present.
  * The present is the one vivid thing on it: an M3 shape that morphs from a dot into a cookie
  * as it lands and turns slowly, with a breathing glow, ripples and a faint guide down the
  * minute it stands for. Everything that moves stops with the alarm's motion window.
@@ -219,7 +222,7 @@ fun AlarmTraceLine(
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
                 )
             }
-            // The hour comes in from the edge of the screen rather than starting at a hard cut.
+            // The past comes in from the edge of the screen rather than starting at a hard cut.
             drawRect(
                 brush = Brush.horizontalGradient(
                     0f to Color.Transparent,
