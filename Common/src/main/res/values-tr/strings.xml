@@ -522,11 +522,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="import_unsupported_file">Desteklenmeyen dosya. Bir JugglucoNG dışa aktarımı veya glikoz geçmişi CSV dosyası seçin.</string>
     <string name="delete_reading_title">Okuma silinsin mi?</string>
     <string name="delete_reading_confirmation">Bu glikoz okumasını yerel geçmişten kaldır. Bu işlem geri alınamaz.</string>
-    <string name="factory_reset_title">⚠️ Fabrika Ayarlarına Sıfırla?</string>
-    <string name="factory_reset_intro">Bu HER ŞEYİ SİLECEKTİR:</string>
-    <string name="factory_reset_outcome">Uygulama başlangıç durumuna dönecektir.</string>
-    <string name="cannot_be_undone_critical">BU İŞLEM GERİ ALINAMAZ!</string>
-    <string name="reset_everything_button">HER ŞEYİ SIFIRLA</string>
     <string name="alert_sound">Uyarı Sesi</string>
     <string name="vibrate_only">Sadece Titreşim</string>
     <string name="sound_vibrate">Ses ve Titreşim</string>
@@ -812,8 +807,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="enternums">Enter amounts on</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Fabrika ayarlarına sıfırlansın mı?</string>
+    <string name="factory_reset_message">Tüm okumaları, günlük kayıtlarını, sensörleri ve ayarları, ayrıca verdiğiniz izinleri siler, ardından uygulamayı kapatır. Bir sensörü yeniden kurana kadar glikoz izleme ve alarmlar durur ve bu işlem geri alınamaz.</string>
+    <string name="factory_reset_action">Her şeyi sil</string>
+    <string name="factory_reset_failed">Uygulama sıfırlanamadı</string>
     <string name="fiasp">Fiasp</string>
     <string name="finddevices">"Find devices"</string>
     <string name="finish_setup">Bitiş</string>

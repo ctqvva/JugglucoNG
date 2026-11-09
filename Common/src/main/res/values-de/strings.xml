@@ -577,11 +577,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="import_unsupported_file">Nicht unterstützte Datei. Wählen Sie einen JugglucoNG-Export oder eine CSV-Datei mit Glukoseverlauf.</string>
     <string name="delete_reading_title">Messwert löschen?</string>
     <string name="delete_reading_confirmation">Diesen Glukosewert aus der lokalen Historie entfernen. Diese Aktion kann nicht rückgängig gemacht werden.</string>
-    <string name="factory_reset_title">⚠️ Werkseinstellungen?</string>
-    <string name="factory_reset_intro">Dies ENTFERNT ALLES:</string>
-    <string name="factory_reset_outcome">Die App wird in den ersten Ausführungszustand zurückgesetzt.</string>
-    <string name="cannot_be_undone_critical">DIES KANN NICHT RÜCKGÄNGIG GEMACHT WERDEN!</string>
-    <string name="reset_everything_button">ALLES ZURÜCKSETZEN</string>
     <string name="alert_sound">Alarmton</string>
     <string name="vibrate_only">Nur Vibrieren</string>
     <string name="sound_vibrate">Ton &amp; Vibrieren</string>
@@ -903,8 +898,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="expired">Abgelaufen</string>
     <string name="days_short">%1$d T</string>
     <string name="hours_short">%1$d h</string>
-    <string name="factory_reset_alert">ALLES wird entfernt. Kann nicht rückgängig gemacht werden!</string>
-    <string name="factory_reset_confirm">Werkseinstellungen?</string>
+    <string name="factory_reset_confirm">Auf Werkseinstellungen zurücksetzen?</string>
+    <string name="factory_reset_message">Löscht alle Messwerte, Journaleinträge, Sensoren und Einstellungen sowie die erteilten Berechtigungen und schließt dann die App. Glukoseüberwachung und Alarme sind aus, bis Sie wieder einen Sensor einrichten, und das kann nicht rückgängig gemacht werden.</string>
+    <string name="factory_reset_action">Alles löschen</string>
+    <string name="factory_reset_failed">App konnte nicht zurückgesetzt werden</string>
     <string name="fiasp">Fiasp</string>
     <string name="finish_setup">Fertig</string>
     <string name="forget_sensor_desc">Entfernt den Sensor aus der Liste. Nach erneutem Scannen kann er wieder erscheinen.</string>

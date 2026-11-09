@@ -477,11 +477,6 @@
     <string name="import_unsupported_file">不支持此文件。请选择 JugglucoNG 导出文件或血糖历史 CSV 文件。</string>
     <string name="delete_reading_title">删除读数？</string>
     <string name="delete_reading_confirmation">从本地历史记录中删除这条血糖读数。此操作无法撤销。</string>
-    <string name="factory_reset_title">⚠️ 恢复出厂设置？</string>
-    <string name="factory_reset_intro">这将删除所有内容：</string>
-    <string name="factory_reset_outcome">应用程序将恢复到初始状态。</string>
-    <string name="cannot_be_undone_critical">这无法撤销！</string>
-    <string name="reset_everything_button">重置所有</string>
     <string name="alert_sound">警报声音</string>
     <string name="vibrate_only">仅振动</string>
     <string name="sound_vibrate">声音和振动</string>
@@ -781,8 +776,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchangedata">交换数据</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">恢复出厂设置？</string>
+    <string name="factory_reset_message">删除所有读数、日志条目、传感器和设置，以及已授予的权限，然后关闭应用。在重新设置传感器之前，血糖监测和警报将停止，且此操作无法撤销。</string>
+    <string name="factory_reset_action">全部删除</string>
+    <string name="factory_reset_failed">无法重置应用</string>
     <string name="fiasp">Fiasp</string>
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>

@@ -568,11 +568,6 @@
     <string name="import_history_sub">Восстановить показания глюкозы из экспорта JugglucoNG или CSV-файла</string>
     <string name="delete_reading_title">Удалить показание?</string>
     <string name="delete_reading_confirmation">Удалить это показание глюкозы из локальной истории. Это действие необратимо.</string>
-    <string name="factory_reset_title">⚠️ Сброс к заводским?</string>
-    <string name="factory_reset_intro">Это УДАЛИТ ВСЕ:</string>
-    <string name="factory_reset_outcome">Приложение вернется к исходному состоянию.</string>
-    <string name="cannot_be_undone_critical">ЭТО НЕОБРАТИМО!</string>
-    <string name="reset_everything_button">СБРОСИТЬ ВСЕ</string>
     <string name="alert_sound">Звук тревоги</string>
     <string name="vibrate_only">Только вибрация</string>
     <string name="sound_vibrate">Звук и вибрация</string>
@@ -878,8 +873,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enternums">Enter amounts on</string>
     <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="exclude">Exclude</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Сбросить к заводским настройкам?</string>
+    <string name="factory_reset_message">Удаляет все показания, записи журнала, датчики и настройки, а также выданные разрешения, затем закрывает приложение. Мониторинг глюкозы и оповещения остановятся, пока вы снова не настроите датчик, и отменить это нельзя.</string>
+    <string name="factory_reset_action">Удалить всё</string>
+    <string name="factory_reset_failed">Не удалось сбросить приложение</string>
     <string name="fiasp">Fiasp</string>
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>

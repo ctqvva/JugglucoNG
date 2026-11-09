@@ -470,11 +470,6 @@
     <string name="import_unsupported_file">Filen stöds inte. Välj en JugglucoNG-export eller en CSV-fil med glukoshistorik.</string>
     <string name="delete_reading_title">Ta bort avläsning?</string>
     <string name="delete_reading_confirmation">Ta bort denna glukosavläsning från den lokala historiken. Detta kan inte ångras.</string>
-    <string name="factory_reset_title">⚠️ Fabriksåterställning?</string>
-    <string name="factory_reset_intro">Detta TAR BORT ALLT:</string>
-    <string name="factory_reset_outcome">Appen återställs till ursprungligt skick.</string>
-    <string name="cannot_be_undone_critical">DETTA KAN INTE ÅNGRAS!</string>
-    <string name="reset_everything_button">ÅTERSTÄLL ALLT</string>
     <string name="alert_sound">Larm ljud</string>
     <string name="vibrate_only">Endast vibration</string>
     <string name="sound_vibrate">Ljud &amp; Vibration</string>
@@ -769,8 +764,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchangedata">Utbyta data</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Återställa till fabriksinställningar?</string>
+    <string name="factory_reset_message">Raderar alla avläsningar, journalposter, sensorer och inställningar samt de beviljade behörigheterna och stänger sedan appen. Glukosövervakning och larm är avstängda tills du ställer in en sensor igen, och det kan inte ångras.</string>
+    <string name="factory_reset_action">Radera allt</string>
+    <string name="factory_reset_failed">Det gick inte att återställa appen</string>
     <string name="fiasp">Fiasp</string>
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>

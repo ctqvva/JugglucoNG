@@ -1,5 +1,6 @@
 package tk.glucodata.data
 
+import android.app.ActivityManager
 import android.content.Context
 import android.util.Log
 import androidx.room.withTransaction
@@ -7,7 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import tk.glucodata.Applic
-import tk.glucodata.Natives
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.data.journal.DeletedJournalEntries
 import tk.glucodata.data.journal.JournalRepository
@@ -21,7 +21,7 @@ enum class ClearScope { READINGS, JOURNAL, BOTH }
  * Provides 2 levels of data clearing:
  * 1. Clear history: glucose readings, journal entries, or both. Settings, sensors and the
  *    journal's libraries (insulin presets, foods) stay.
- * 2. Factory reset (everything including settings)
+ * 2. Factory reset: the system erases the whole app (see [factoryReset])
  */
 object DataManagement {
     
@@ -62,59 +62,39 @@ object DataManagement {
     }
     
     /**
-     * Factory reset - clear EVERYTHING.
-     * App returns to first-run state.
-     * Settings, history, cache, and native data all wiped.
+     * Factory reset: asks the system to erase the app, exactly as "Clear data" does in Android's
+     * own settings.
+     *
+     * The system stops the app first and then removes its databases, preferences, files,
+     * cache, scheduled alarms and granted permissions, so nothing running here can write a
+     * file back in the middle of it. Deleting those files from inside a live process could:
+     * a sensor callback or worker that touched a preference after its file was gone would
+     * recreate it from the copy held in memory, with the old settings in it.
+     *
+     * `true` means the system accepted the request, not that the erase has finished: it does the
+     * erasing after stopping the app. The process is killed, so a caller normally never sees
+     * `true`; the app starts from its first-run state the next time it is opened. `false` means
+     * the request was refused and nothing was erased.
+     *
+     * @param eraseUserData the request itself, replaceable so a test need not erase the app
      */
-    suspend fun factoryReset(context: Context = Applic.app): Boolean {
+    suspend fun factoryReset(
+        context: Context = Applic.app,
+        eraseUserData: (Context) -> Boolean = ::askSystemToEraseUserData,
+    ): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // 1. Clear Room database
-                val db = HistoryDatabase.getInstance(context)
-                db.clearAllTables()
-                
-                // 2. Clear all cache
-                context.cacheDir.deleteRecursively()
-                context.codeCacheDir?.deleteRecursively()
-                
-                // 3. Clear SharedPreferences
-                val prefsDir = context.applicationInfo.dataDir + "/shared_prefs"
-                val prefsFolder = java.io.File(prefsDir)
-                prefsFolder.deleteRecursively()
-                
-                // 4. Clear native data files
-                clearNativeDataFiles(context)
-                
-                Log.d(TAG, "Factory reset complete")
-                true
+                eraseUserData(context)
             } catch (e: Exception) {
                 Log.e(TAG, "Error during factory reset", e)
                 false
             }
         }
     }
-    
-    /**
-     * Helper to clear ALL native C++ data files.
-     * Deletes everything in filesDir to fully wipe sensor data, calibrations, etc.
-     */
-    private fun clearNativeDataFiles(context: Context) {
-        try {
-            // Delete ALL files in filesDir (not just specific extensions)
-            // This is where C++ stores sensor data, calibrations, etc.
-            context.filesDir.listFiles()?.forEach { file ->
-                val deleted = file.deleteRecursively()
-                Log.d(TAG, "Deleted ${file.name}: $deleted")
-            }
-            
-            // Also clear databases directory
-            context.databaseList()?.forEach { dbName ->
-                context.deleteDatabase(dbName)
-                Log.d(TAG, "Deleted database: $dbName")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error clearing native files", e)
-        }
+
+    private fun askSystemToEraseUserData(context: Context): Boolean {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        return activityManager.clearApplicationUserData()
     }
 }
 

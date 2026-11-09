@@ -564,11 +564,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="delete_reading_confirmation">Verwijder deze glucosemeting uit de lokale geschiedenis. Deze actie kan niet ongedaan worden gemaakt.</string>
     
     
-    <string name="factory_reset_title">⚠️ Fabrieksinstellingen herstellen?</string>
-    <string name="factory_reset_intro">Dit VERWIJDERT ALLES:</string>
-    <string name="factory_reset_outcome">De app keert terug naar de eerste staat.</string>
-    <string name="cannot_be_undone_critical">DIT KAN NIET ONGEDAAN WORDEN GEMAAKT!</string>
-    <string name="reset_everything_button">ALLES RESETTEN</string>
     
     <string name="alert_sound">Melding geluid</string>
     <string name="vibrate_only">Trillen</string>
@@ -849,8 +844,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="enabled_status">Enabled</string>
     <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="expired">Expired</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Fabrieksinstellingen herstellen?</string>
+    <string name="factory_reset_message">Verwijdert alle metingen, dagboekitems, sensoren en instellingen, plus de verleende rechten, en sluit daarna de app. Glucosebewaking en alarmen stoppen totdat je opnieuw een sensor instelt, en dit kan niet ongedaan worden gemaakt.</string>
+    <string name="factory_reset_action">Alles wissen</string>
+    <string name="factory_reset_failed">App terugzetten is mislukt</string>
     <string name="fiasp">Fiasp</string>
     <string name="finish_setup">Afwerking</string>
     <string name="floatglucoseshort">@string/floatglucose</string>

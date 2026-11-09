@@ -804,8 +804,10 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clear_history">Előzmények törlése</string>
     <string name="factory_reset">Gyári visszaállítás</string>
     <string name="factory_reset_desc">Minden törlése, visszatérés az első indítás állapotához</string>
-    <string name="factory_reset_alert">MINDEN törlése. Nem vonható vissza!</string>
     <string name="factory_reset_confirm">Gyári visszaállítás?</string>
+    <string name="factory_reset_message">Törli az összes mérést, naplóbejegyzést, szenzort és beállítást, valamint a megadott engedélyeket, majd bezárja az alkalmazást. A glükózfigyelés és a riasztások leállnak, amíg újra be nem állít egy szenzort, és ez nem vonható vissza.</string>
+    <string name="factory_reset_action">Minden törlése</string>
+    <string name="factory_reset_failed">Az alkalmazás visszaállítása nem sikerült</string>
     <string name="clean_history_confirm">Előzmények törlése?</string>
     <string name="clear_history_desc">Mérések, naplóbejegyzések vagy mindkettő törlése</string>
     <string name="clear_history_scope_readings">Törli az összes glükózmérést ezen a telefonon, és nem vonható vissza. A napló, a szenzorok és a beállítások megmaradnak.</string>
@@ -928,11 +930,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="import_history_sub">Glükózértékek visszaállítása JugglucoNG-exportból vagy CSV-fájlból</string>
     <string name="delete_reading_title">Mérés törlése?</string>
     <string name="delete_reading_confirmation">A glükózérték eltávolítása a helyi előzményekből. A művelet nem vonható vissza.</string>
-    <string name="factory_reset_title">⚠️ Gyári visszaállítás?</string>
-    <string name="factory_reset_intro">Ez MINDENT TÖRÖL:</string>
-    <string name="factory_reset_outcome">Az alkalmazás az első indítás állapotába kerül.</string>
-    <string name="cannot_be_undone_critical">EZ NEM VONHATÓ VISSZA!</string>
-    <string name="reset_everything_button">MINDEN VISSZAÁLLÍTÁSA</string>
     <string name="alert_sound">Riasztási hang</string>
     <string name="about_text">GPL-3.0 • Juggluco-változat</string>
     <string name="refreshing">Frissítés...</string>

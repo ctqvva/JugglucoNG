@@ -910,18 +910,21 @@ fun ExpressiveSettingsScreen(
         onDismiss = { showClearHistoryDialog = false }
     )
     if (showFactoryResetDialog) ConfirmActionDialog(
-        stringResource(R.string.factory_reset_confirm), 
-        stringResource(R.string.factory_reset_alert), 
-        Icons.Filled.Warning, 
-        { 
-            scope.launch { 
-                tk.glucodata.data.DataManagement.factoryReset()
-                // Full restart to kill process and clear native memory
-                context.findActivity()?.fullRestart()
+        stringResource(R.string.factory_reset_confirm),
+        stringResource(R.string.factory_reset_message),
+        Icons.Filled.Warning,
+        {
+            showFactoryResetDialog = false
+            scope.launch {
+                // On success the system ends this process, so nothing below runs.
+                if (!tk.glucodata.data.DataManagement.factoryReset()) {
+                    Toast.makeText(context, R.string.factory_reset_failed, Toast.LENGTH_LONG).show()
+                }
             }
-        }, 
-        { showFactoryResetDialog = false }, 
-        isDestructive = true
+        },
+        { showFactoryResetDialog = false },
+        isDestructive = true,
+        confirmLabel = stringResource(R.string.factory_reset_action)
     )
     
     if (showExportDialog) {
@@ -1644,7 +1647,8 @@ private fun ConfirmActionDialog(
     icon: ImageVector,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    isDestructive: Boolean = false
+    isDestructive: Boolean = false,
+    confirmLabel: String? = null
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1657,7 +1661,7 @@ private fun ConfirmActionDialog(
                 colors = if (isDestructive) ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error) else ButtonDefaults.textButtonColors(),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding
-            ) { Text(if (isDestructive) stringResource(R.string.delete) else stringResource(R.string.ok)) }
+            ) { Text(confirmLabel ?: if (isDestructive) stringResource(R.string.delete) else stringResource(R.string.ok)) }
         },
         dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) } }
     )

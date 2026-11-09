@@ -370,11 +370,6 @@
     <string name="import_unsupported_file">Arquivo não compatível. Selecione uma exportação do JugglucoNG ou um CSV de histórico de glicose.</string>
     <string name="delete_reading_title">Excluir leitura?</string>
     <string name="delete_reading_confirmation">Remova esta leitura de glicose do histórico local. Esta ação não pode ser desfeita.</string>
-    <string name="factory_reset_title">⚠️ Reset de Fábrica?</string>
-    <string name="factory_reset_intro">Isso REMOVERÁ TUDO:</string>
-    <string name="factory_reset_outcome">O app voltará ao estado inicial.</string>
-    <string name="cannot_be_undone_critical">ISSO NÃO PODE SER DESFEITO!</string>
-    <string name="reset_everything_button">RESETAR TUDO</string>
     <string name="alert_sound">Som de Alerta</string>
     <string name="vibrate_only">Apenas Vibrar</string>
     <string name="sound_vibrate">Som e Vibração</string>
@@ -691,8 +686,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Repor definições de fábrica?</string>
+    <string name="factory_reset_message">Apaga todas as leituras, entradas do diário, sensores e definições, bem como as permissões concedidas, e depois fecha a aplicação. A monitorização da glicose e os alertas param até configurar um sensor novamente, e não pode ser anulado.</string>
+    <string name="factory_reset_action">Apagar tudo</string>
+    <string name="factory_reset_failed">Não foi possível repor a aplicação</string>
     <string name="fiasp">Fiasp</string>
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>
