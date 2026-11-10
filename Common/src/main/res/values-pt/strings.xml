@@ -1069,7 +1069,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Auto-added statistics explainer strings -->
     <string name="a1c_gmi_label">A1C (GMI)</string>
     <string name="cv_description">Coeficiente de variação: desvio padrão dividido pela glicose média. Valores mais baixos indicam glicose mais estável.</string>
-    <string name="std_dev_short">Desvio padrão</string>
+    <string name="std_dev_short">Desenvolvimento padrão</string>
     <string name="std_dev_description">Desvio padrão: distância típica das leituras em relação à sua glicose média.</string>
 
     <string name="stats">Estatísticas</string>
@@ -1135,7 +1135,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hourly_pattern">Padrão horário</string>
     <string name="tir">TIR</string>
     <string name="total_readings">Leituras totais</string>
-    <string name="cv">CV</string>
+    <string name="cv">currículo</string>
     <string name="lowest">Mais baixo</string>
     <string name="highest">Mais alto</string>
     <string name="typical">Típico</string>

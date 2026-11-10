@@ -1058,7 +1058,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Auto-added statistics explainer strings -->
     <string name="a1c_gmi_label">A1C (GMI)</string>
     <string name="cv_description">Coefficiente di variazione: deviazione standard divisa per il glucosio medio. Valori più bassi indicano un glucosio più stabile.</string>
-    <string name="std_dev_short">Dev. std</string>
+    <string name="std_dev_short">Sviluppo std</string>
     <string name="std_dev_description">Deviazione standard: distanza tipica delle letture dalla glicemia media.</string>
 
     <string name="stats">Statistiche</string>

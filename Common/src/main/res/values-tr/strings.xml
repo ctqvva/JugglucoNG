@@ -1096,7 +1096,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <!-- Auto-added statistics explainer strings -->
     <string name="a1c_gmi_label">A1C (GMI)</string>
     <string name="cv_description">Değişim katsayısı: standart sapmanın ortalama glikoza bölümü. Daha düşük değerler daha istikrarlı glikozu gösterir.</string>
-    <string name="std_dev_short">Std. sapma</string>
+    <string name="std_dev_short">Standart geliştirme</string>
     <string name="std_dev_description">Standart sapma: okumaların ortalama glikoz değerinizden tipik uzaklığı.</string>
 
     <string name="stats">İstatistikler</string>

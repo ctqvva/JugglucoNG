@@ -788,7 +788,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="forget_sensor_title">Forget Sensor?</string>
     <string name="glulisine">Insulin Glulisine/Apidra</string>
     <string name="googlescan">Google scan</string>
-    <string name="gvi">GVI</string>
+    <string name="gvi">总收入指数</string>
     <string name="gvi_excellent">优异的稳定性</string>
     <string name="gvi_good">稳定性好</string>
     <string name="gvi_moderate">适度的变化</string>
@@ -899,7 +899,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="prelowglucose">" Soon LOW glucose!"</string>
     <string name="prelowglucosealarm">Alarm when soon below</string>
     <string name="profile">"Profile "</string>
-    <string name="psg">PSG</string>
+    <string name="psg">巴黎圣日耳曼</string>
     <string name="psg_elevated">基线升高</string>
     <string name="psg_low">低基线</string>
     <string name="psg_stable">稳定的基线</string>
@@ -1150,7 +1150,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hourly_pattern">每小时模式</string>
     <string name="tir">TIR</string>
     <string name="total_readings">总阅读数</string>
-    <string name="cv">CV</string>
+    <string name="cv">简历</string>
     <string name="lowest">最低</string>
     <string name="highest">最高</string>
     <string name="typical">典型</string>

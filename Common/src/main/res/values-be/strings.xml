@@ -881,7 +881,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="prelowglucose">" Soon LOW glucose!"</string>
     <string name="prelowglucosealarm">Alarm when soon below</string>
     <string name="profile">"Profile "</string>
-    <string name="psg">PSG</string>
+    <string name="psg">ПСЖ</string>
     <string name="psg_elevated">Павышаны базавы ўзровень</string>
     <string name="psg_low">Нізкі базавы ўзровень</string>
     <string name="psg_stable">Стабільная базавая лінія</string>
@@ -1067,7 +1067,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Auto-added statistics explainer strings -->
     <string name="a1c_gmi_label">A1C (GMI)</string>
     <string name="cv_description">Каэфіцыент варыяцыі: стандартнае адхіленне, падзеленае на сярэдні ўзровень глюкозы. Ніжэйшыя значэнні паказваюць на больш стабільны ўзровень глюкозы.</string>
-    <string name="std_dev_short">Станд. адх.</string>
+    <string name="std_dev_short">Стандартнае распрацоўка</string>
     <string name="std_dev_description">Стандартнае адхіленне: тыповая адлегласць паказанняў ад вашага сярэдняга ўзроўню глюкозы.</string>
 
     <string name="stats">Статыстыка</string>

@@ -111,8 +111,8 @@ class StatsPortraitLayoutTests {
             for (d in listOf(null, 23f, -100f)) {
                 compose.runOnIdle { scale = s; percent = p; delta = d }
                 val ring = compose.onNodeWithContentDescription("${p.toInt()}% TIR", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-                // A selected arc is 14dp thick, extending 1dp farther into the opening.
-                val innerRadius = ring.width / 2f - 13f
+                // A selected arc is 17dp thick, extending 1dp farther into the opening.
+                val innerRadius = ring.width / 2f - 16f
                 for (text in listOf("${p.toInt()}%", "TIR")) {
                     val node = compose.onNodeWithText(text, useUnmergedTree = true)
                     node.layout().assertFits()
