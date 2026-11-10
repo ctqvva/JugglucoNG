@@ -353,7 +353,9 @@ class FoodLibraryTests {
             val importing = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
                 tk.glucodata.data.CloneHistoryRecoveryStore(history, library).importPackage(file, manifest, "clone")
             }
-            assertFalse("Clone import must wait before starting its Room transaction", importing.isCompleted)
+            assertNull("Clone import must wait while library ID allocation is paused",
+                kotlinx.coroutines.withTimeoutOrNull(1000) { importing.await(); true })
+            assertTrue(realDao.getEntries().isEmpty())
             release.complete(Unit)
             val localId = editing.await()
             importing.await()
@@ -376,7 +378,9 @@ class FoodLibraryTests {
 
     @org.robolectric.annotation.Implements(tk.glucodata.OutboundApiJournalSnapshot::class)
     class OutboundSink {
-        @org.robolectric.annotation.Implementation fun mirroredJournalChanged() {}
+        companion object {
+            @JvmStatic @org.robolectric.annotation.Implementation fun mirroredJournalChanged() {}
+        }
     }
 
 }

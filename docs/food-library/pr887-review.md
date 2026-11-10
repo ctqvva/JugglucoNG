@@ -45,3 +45,34 @@ An emulator smoke test was attempted through the Device panel. The agent-device
 `apps` command failed twice with `adb timed out after 10000ms`, including after
 its recommended adb-server restart. No app UI was driven, so emulator behavior
 remains unverified.
+
+## Fresh reviews after dcd906df6
+
+All seven new comments (six distinct concerns) were checked against source:
+
+- Refocusing search now cancels scanner work without resetting the query or results.
+- English alias matches return the owned translated food, including edited nutrients
+  and remembered quantities. The regression now requires that exact library ID.
+- Clone journal recovery acquires the library write lock before its history
+  transaction, and recovers pending writes before importing. This preserves lock
+  order and prevents Clone auto-inserts from taking an allocated library ID. A
+  real package-import test pauses ID allocation, verifies that import waits, then
+  checks both food definitions and the imported entry's association.
+- Switching weight/volume invalidates remembered quantities and portion indices.
+- Reopening zero-carb entries can infer quantity from saved protein or fat. If no
+  ratio is known, or the saved nutrients disagree with today's food definition,
+  the picker retains a weightless snapshot of the saved meal totals. It never
+  records that reconstructed quantity as a new library use, and adding a food
+  preserves the previous totals.
+- Snapshot queries use the same saved-food ordering as the observer and suggestions.
+
+Validation: 5,710 Mobile tests and 4,143 Wear tests; zero failures or errors, with
+one Mobile and nine Wear skips. Updated arm64 Mobile debug APK built and installed
+in place on the connected Pixel 8 Pro. UI guardrails and whitespace checks pass.
+On the Pixel, 1 g of apple converted to 0.0054945056 pieces and back to 1 g with
+unchanged carbs; decrementing 5 g retained 5 g. No test meal was saved to history.
+
+The Pixel also retained the `rice` query and its result list after hiding and
+reopening the keyboard. Search activation/cancellation itself is covered by the
+focused state regression; live barcode completion during edits remains covered
+by the deterministic delayed-response tests rather than a physical barcode scan.
