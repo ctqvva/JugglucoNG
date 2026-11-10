@@ -87,28 +87,27 @@ class FoodLibraryInteractionTests {
     }
 
     @Test
-    fun largeLibraryStartsWithSourceAndAddControlsBeforeSearch() {
+    fun largeLibraryKeepsSourceAboveSearchAndAddInPinnedFab() {
         var enabled by mutableStateOf(true)
         var created = 0
         compose.setContent {
             JugglucoTheme(ThemeMode.DARK) {
-                FoodLibraryContent(largeLibrary(), false, enabled, true,
+                FoodLibraryLayout(largeLibrary(), false, enabled, true, {},
                     FoodLibraryActions({ enabled = it }, {}, {}, { created++ }, {}, {}, {}))
             }
         }
-        val add = compose.onNodeWithText(Applic.app.getString(R.string.journal_add_food))
+        val add = compose.onNodeWithContentDescription(Applic.app.getString(R.string.journal_add_food))
         val source = compose.onNodeWithText(Applic.app.getString(R.string.open_food_facts))
         val search = compose.onNode(hasSetTextAction())
         add.assertIsDisplayed()
         source.assertIsDisplayed()
         search.assertIsDisplayed()
-        assertTrue(source.fetchSemanticsNode().boundsInRoot.bottom <= add.fetchSemanticsNode().boundsInRoot.top)
-        assertTrue(add.fetchSemanticsNode().boundsInRoot.bottom <= search.fetchSemanticsNode().boundsInRoot.top)
+        assertTrue(source.fetchSemanticsNode().boundsInRoot.bottom <= search.fetchSemanticsNode().boundsInRoot.top)
         add.performClick()
         assertEquals(1, created)
-        compose.onNodeWithText(Applic.app.getString(R.string.journal_food_library)).performClick()
+        compose.onNode(hasText(Applic.app.getString(R.string.journal_food_library)) and hasClickAction()).performClick()
         assertFalse(enabled)
-        add.assertIsNotEnabled()
+        add.assertDoesNotExist()
         compose.onNodeWithText(Applic.app.getString(R.string.journal_food_search)).assertIsNotEnabled()
     }
 

@@ -25,18 +25,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import tk.glucodata.R
 
 /** The round selection marker used by the calibration and food lists. */
 @Composable
-fun SelectionIndicator(visible: Boolean, selected: Boolean) {
+fun SelectionIndicator(visible: Boolean, selected: Boolean, gap: Dp = 12.dp) {
     AnimatedVisibility(visible = visible, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
         Row {
             Icon(if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                 contentDescription = null,
                 tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(gap))
         }
     }
 }

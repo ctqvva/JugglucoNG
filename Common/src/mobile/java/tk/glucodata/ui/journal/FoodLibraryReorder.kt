@@ -2,20 +2,39 @@ package tk.glucodata.ui.journal
 
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.DragGestureDetector
 import sh.calvin.reorderable.ReorderableLazyListState
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalFood
 
 internal typealias MoveFoods = (Set<Long>, Long?, (Boolean) -> Unit) -> Unit
+
+/** Horizontal movement belongs to swipe actions, even when it starts on the reorder handle. */
+private object VerticalFoodDragDetector : DragGestureDetector {
+    override suspend fun PointerInputScope.detect(
+        onDragStart: (Offset) -> Unit,
+        onDragEnd: () -> Unit,
+        onDragCancel: () -> Unit,
+        onDrag: (PointerInputChange, Offset) -> Unit
+    ) {
+        detectVerticalDragGestures(onDragStart, onDragEnd, onDragCancel) { change, delta ->
+            onDrag(change, Offset(0f, delta))
+        }
+    }
+}
 
 /** Only IDs are previewed during a drag. Nutrient definitions always come from the live library. */
 @Stable
@@ -84,20 +103,21 @@ internal fun rememberFoodLibraryReorder(list: LazyListState, foods: List<Journal
 internal fun LazyItemScope.FoodReorderableRow(
     food: JournalFood,
     reorder: FoodLibraryReorder,
+    enabled: Boolean,
     content: @Composable (Modifier) -> Unit
 ) {
     val moveUp = stringResource(R.string.food_move_up)
     val moveDown = stringResource(R.string.food_move_down)
-    ReorderableItem(reorder.state, key = "managed_food:${food.id}") {
+    ReorderableItem(reorder.state, key = "managed_food:${food.id}", enabled = enabled) {
         val index = reorder.draft.order(reorder.ids).indexOf(food.id)
         val accessibilityActions = buildList {
-            if (index > 0) add(CustomAccessibilityAction(moveUp) {
+            if (enabled && index > 0) add(CustomAccessibilityAction(moveUp) {
                 reorder.draft.start(food.id, reorder.ids)
                 reorder.draft.move(food.id, reorder.draft.order(reorder.ids)[index - 1], reorder.ids)
                 reorder.draft.finish(reorder.ids, reorder.persist)
                 true
             })
-            if (index >= 0 && index < reorder.ids.lastIndex) add(CustomAccessibilityAction(moveDown) {
+            if (enabled && index >= 0 && index < reorder.ids.lastIndex) add(CustomAccessibilityAction(moveDown) {
                 reorder.draft.start(food.id, reorder.ids)
                 reorder.draft.move(food.id, reorder.draft.order(reorder.ids)[index + 1], reorder.ids)
                 reorder.draft.finish(reorder.ids, reorder.persist)
@@ -105,6 +125,8 @@ internal fun LazyItemScope.FoodReorderableRow(
             })
         }
         content(Modifier.draggableHandle(
+            enabled = enabled,
+            dragGestureDetector = VerticalFoodDragDetector,
             onDragStarted = { reorder.draft.start(food.id, reorder.ids) },
             onDragStopped = { reorder.draft.finish(reorder.ids, reorder.persist) }
         ).testTag("food_drag:${food.id}").semantics(mergeDescendants = true) { customActions = accessibilityActions })

@@ -37,7 +37,9 @@ class FoodLibraryManagementTests {
     }
     private fun actions(onEdit: (JournalFood) -> Unit = {}, onDelete: (Set<Long>) -> Unit = {},
         onMove: MoveFoods = { _, _, done -> done(true) }, onArchive: (Set<Long>, Boolean) -> Unit = { _, _ -> }) =
-        FoodLibraryActions({}, {}, onEdit, {}, {}, {}, {}, onDelete = onDelete, onMove = onMove, onArchive = onArchive)
+        FoodLibraryActions({}, {}, onEdit, {}, {}, {}, {},
+            onDelete = { ids, done -> onDelete(ids); done(true) }, onMove = onMove,
+            onArchive = { ids, disabled, done -> onArchive(ids, disabled); done(true) })
 
     @Test
     fun longPressAndSelectAllSupportBulkDeletionWithConfirmation() {
@@ -112,8 +114,12 @@ class FoodLibraryManagementTests {
         show(actions(onEdit = { edited = true }, onDelete = { deleted = it },
             onArchive = { ids, disabled -> assertTrue(disabled); archived = ids }))
         compose.onNodeWithText("Alba").performScrollTo().performTouchInput { swipeLeft() }
+        compose.mainClock.advanceTimeBy(1500)
+        compose.waitForIdle()
         assertEquals(setOf(1L), deleted)
         compose.onNodeWithText("Beta").performTouchInput { swipeRight() }
+        compose.mainClock.advanceTimeBy(1500)
+        compose.waitForIdle()
         assertEquals(setOf(2L), archived)
         assertFalse(edited)
     }

@@ -269,6 +269,20 @@ class FoodLibraryTests {
     }
 
     @Test
+    fun singleAndBulkDeletePreserveBuiltinDefaultsWhileAllowingDisable() = runBlocking {
+        val builtin = library.upsert(JournalFoodInput(displayName = "Default", carbsGrams = 15f,
+            absorptionMinutes = 60, accentColor = 0, isBuiltIn = true))
+        val custom = library.keep(apple)
+        library.delete(builtin)
+        assertEquals(2, library.foods().size)
+        val removed = library.delete(setOf(builtin, custom))
+        assertEquals(listOf(custom), removed.rows.map { it.id })
+        assertEquals(builtin, library.foods().single().id)
+        library.setArchived(setOf(builtin), true)
+        assertTrue(library.foods().single().isArchived)
+    }
+
+    @Test
     fun customDefinitionsCompareAllMacrosAndKeepAbsorptionInferred() = runBlocking {
         val food = customItem("Label", 20f).copy(protein = 2f, fat = 1f)
         library.noteUses(listOf(JournalFoodUse(food, FoodAmount(25f))))

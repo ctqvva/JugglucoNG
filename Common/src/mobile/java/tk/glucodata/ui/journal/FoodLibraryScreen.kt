@@ -37,6 +37,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -63,6 +64,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -106,8 +108,8 @@ internal class FoodLibraryActions(
     val onImport: () -> Unit,
     val onExport: () -> Unit,
     val onCreateFromBarcode: (String) -> Unit = { onCreate() },
-    val onDelete: (Set<Long>) -> Unit = {},
-    val onArchive: (Set<Long>, Boolean) -> Unit = { _, _ -> },
+    val onDelete: (Set<Long>, (Boolean) -> Unit) -> Unit = { _, done -> done(true) },
+    val onArchive: (Set<Long>, Boolean, (Boolean) -> Unit) -> Unit = { _, _, done -> done(true) },
     val onMove: MoveFoods = { _, _, done -> done(true) }
 )
 
@@ -129,9 +131,10 @@ fun JournalFoodLibraryScreen(
     val showFailure: () -> Unit = {
         Toast.makeText(context, R.string.food_manage_failed, Toast.LENGTH_LONG).show()
     }
-    val deleteFoods: (Set<Long>) -> Unit = { ids ->
+    val deleteFoods: (Set<Long>, (Boolean) -> Unit) -> Unit = { ids, done ->
         viewModel.deleteJournalFoods(ids) { result ->
             result.fold(onSuccess = { deleted ->
+                done(true)
                 if (deleted.rows.isNotEmpty()) scope.launch {
                     snackbar.currentSnackbarData?.dismiss()
                     val response = snackbar.showSnackbar(
@@ -141,7 +144,7 @@ fun JournalFoodLibraryScreen(
                         viewModel.undoDeleteJournalFoods(deleted) { success -> if (!success) showFailure() }
                     }
                 }
-            }, onFailure = { showFailure() })
+            }, onFailure = { done(false); showFailure() })
         }
     }
 
@@ -207,7 +210,10 @@ fun JournalFoodLibraryScreen(
             onImport = { importLauncher.launch(arrayOf("text/*", "application/json", "application/octet-stream")) },
             onExport = { exportLauncher.launch(FoodLibraryTransfer.DEFAULT_FILE_NAME) },
             onDelete = deleteFoods,
-            onArchive = { ids, archived -> viewModel.setJournalFoodsArchived(ids, archived) { if (!it) showFailure() } },
+            onArchive = { ids, archived, done -> viewModel.setJournalFoodsArchived(ids, archived) {
+                if (!it) showFailure()
+                done(it)
+            } },
             onMove = { ids, before, done -> viewModel.moveJournalFoodsBefore(ids, before) {
                 if (!it) showFailure()
                 done(it)
@@ -240,9 +246,11 @@ fun JournalFoodLibraryScreen(
                 viewModel.saveJournalFood(it)
                 editingFood = null
             },
-            onDelete = {
-                deleteFoods(setOf(food.id))
+            onDelete = if (food.isBuiltIn) null else {
+                {
+                deleteFoods(setOf(food.id)) {}
                 editingFood = null
+                }
             }
         )
     }
@@ -268,10 +276,11 @@ internal fun FoodLibraryLayout(
     BackHandler(enabled = management.selecting, onBack = management::cancel)
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            if (management.selecting) Box(Modifier.fillMaxWidth().padding(16.dp),
-                contentAlignment = Alignment.Center) {
-                FoodManagementToolbar(foods, management, actions)
+        floatingActionButton = {
+            if (!management.selecting && libraryEnabled) {
+                FloatingActionButton(onClick = actions.onCreate) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.journal_add_food))
+                }
             }
         },
         topBar = {
@@ -292,8 +301,12 @@ internal fun FoodLibraryLayout(
             )
         }
     ) { padding ->
-        FoodLibraryContent(foods, macrosEnabled, libraryEnabled, onlineEnabled, actions,
-            modifier = Modifier.padding(padding), management = management)
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            FoodLibraryContent(foods, macrosEnabled, libraryEnabled, onlineEnabled, actions,
+                management = management)
+            if (management.selecting) FoodManagementToolbar(foods, management, actions,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
+        }
     }
     FoodManagementDialogs(foods, management, actions)
     if (showTransfer) {
@@ -403,11 +416,10 @@ internal fun FoodLibraryContent(
 
     LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
+        modifier = modifier.fillMaxSize().testTag("food_library_list"),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        if (!management.selecting) {
         libraryItem(key = "food_library_enabled") {
             MasterSwitchCard(
                 title = stringResource(R.string.journal_food_library),
@@ -429,22 +441,6 @@ internal fun FoodLibraryContent(
                 enabled = libraryEnabled,
                 position = CardPosition.SINGLE
             )
-        }
-
-        libraryItem(key = "food_add") {
-            FilledTonalButton(
-                onClick = actions.onCreate,
-                enabled = libraryEnabled,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.ContentPadding
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(text = stringResource(R.string.journal_add_food))
-            }
         }
 
         libraryItem(key = "food_search") {
@@ -472,11 +468,9 @@ internal fun FoodLibraryContent(
             )
         }
 
-        }
-
         if (!libraryEnabled) return@LazyColumn
 
-        if (picker.scanning && onlineEnabled && !management.selecting) {
+        if (picker.scanning && onlineEnabled) {
             libraryItem(key = "food_scanner") {
                 FoodBarcodeScanner(
                     lookup = picker.barcode,
@@ -502,7 +496,6 @@ internal fun FoodLibraryContent(
         } else {
             val shelves = picker.shelves
             managedFoodGroup(myFoodsLabel, ownMatches, macrosEnabled, management, actions)
-            if (!management.selecting) {
             val toggle: (FoodItem) -> Unit = { food ->
                 focusManager.clearFocus()
                 expandedKey = food.key.takeIf { it != expandedKey }
@@ -547,7 +540,6 @@ internal fun FoodLibraryContent(
                 libraryItem(key = "food_online") {
                     FoodCaption(stringResource(R.string.food_online_empty))
                 }
-            }
             }
         }
     }

@@ -145,12 +145,12 @@ class FoodLibrary(
 
     suspend fun delete(foodId: Long) = writes.withLock {
         recoverWrite()
-        deleteLocked(foodId)
+        if (journalDao.getFoodById(foodId)?.isBuiltIn != true) deleteLocked(foodId)
     }
 
     suspend fun delete(ids: Set<Long>): DeletedFoods = writes.withLock {
         recoverWrite()
-        val rows = journalDao.getFoods().filter { it.id in ids }
+        val rows = journalDao.getFoods().filter { it.id in ids && !it.isBuiltIn }
         val actualIds = rows.map { it.id }
         val details = detailsDao.getAll().filter { it.foodId in ids }
         // Older Android SQLite builds limit the bind parameters in an IN clause to 999.
