@@ -89,7 +89,8 @@ internal fun Modifier.foodDragSelection(
 private fun LazyListState.foodAt(position: Offset, nearest: Boolean = false): Long? {
     val info = layoutInfo
     if (!nearest && (position.x < 0 || position.x > info.viewportSize.width)) return null
-    val y = position.y - info.beforeContentPadding
+    val y = position.y
+    // Item offsets are relative to the list container, so no content-padding adjustment is needed.
     val foods = info.visibleItemsInfo.filter { (it.key as? String)?.startsWith("managed_food:") == true }
     val row = foods.firstOrNull { y >= it.offset && y < it.offset + it.size }
         ?: if (nearest) foods.minByOrNull { kotlin.math.abs(y - (it.offset + it.size / 2f)) } else null
