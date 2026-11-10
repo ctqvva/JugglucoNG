@@ -1460,6 +1460,7 @@ internal fun JournalEntryDraft.toInput(
                 proteinGrams = if (foodMacrosEnabled) proteinText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
                 fatGrams = if (foodMacrosEnabled) fatText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
                 // A food still at zero was never filled in; the library has nothing to learn from it.
+                foodItemCount = foodItems.size,
                 foodUses = foodItems.takeIf { recordFoodUses }.orEmpty()
                     .filter { it.rememberUse && it.amount.quantity > 0f && it.food.name.isNotBlank() }
                     .map { JournalFoodUse(it.food, it.amount) }

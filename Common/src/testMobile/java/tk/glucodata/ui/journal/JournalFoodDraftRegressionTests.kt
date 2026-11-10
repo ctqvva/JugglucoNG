@@ -67,6 +67,9 @@ class JournalFoodDraftRegressionTests {
             .withFoodItems(listOf(restored, JournalDraftFoodItem(food.toFoodItem(), FoodAmount(50f))), true)
             .toInput("mmol/L", null, emptyMap(), true)!!
         assertEquals(52f, added.proteinGrams!!, 0f)
+        assertEquals(2, added.foodItemCount)
+        assertEquals(1, added.foodUses.size)
+        assertNull(added.withRememberedFoodIds(listOf(99L)).foodId)
     }
 
     @Test
@@ -84,6 +87,19 @@ class JournalFoodDraftRegressionTests {
         val fallback = restoredFoodItem(food.copy(proteinGrams = null), entry)
         val editedFallback = reopened.withFoodItems(listOf(fallback.copy(amount = FoodAmount(2f))), true)
         assertTrue(editedFallback.toInput("mmol/L", null, emptyMap(), true)!!.foodUses.isEmpty())
+    }
+
+    @Test
+    fun aNewSingleFoodStillGetsItsRememberedLibraryId() {
+        val custom = FoodItem("custom:test", FoodSource.CUSTOM, "Entered food", referenceGrams = 100f, carbs = 20f)
+        val input = JournalEntryDraft(type = JournalEntryType.CARBS, timestamp = 0)
+            .withFoodItems(listOf(JournalDraftFoodItem(custom, FoodAmount(50f))), true)
+            .toInput("mmol/L", null, emptyMap(), true)!!
+        val saved = input.withRememberedFoodIds(listOf(99L))
+        assertEquals(1, input.foodItemCount)
+        assertEquals(99L, saved.foodId)
+        assertTrue(saved.foodUses.isEmpty())
+        assertEquals(10f, saved.amount!!, 0f)
     }
 
 }

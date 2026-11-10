@@ -120,6 +120,8 @@ data class JournalEntryInput(
     val originSource: JournalEntrySource? = null,
     /** The foods a new carbs entry was built from. Not stored with it; the library keeps them. */
     val foodUses: List<JournalFoodUse> = emptyList(),
+    /** All meal items, including snapshots/unfinished items excluded from usage recording. */
+    val foodItemCount: Int = foodUses.size,
 )
 
 /**

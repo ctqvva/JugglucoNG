@@ -89,7 +89,7 @@ class JournalRepository {
             .onFailure { tk.glucodata.Log.stack("JournalRepository", "noteUses", it) }
             .getOrDefault(emptyList())
         return upsertEntryRow(
-            input.copy(foodId = foodIds.singleOrNull() ?: input.foodId, foodUses = emptyList())
+            input.withRememberedFoodIds(foodIds)
         )
     }
 
@@ -981,3 +981,9 @@ private fun JournalInsulinPresetEntity.toModel(): JournalInsulinPreset {
     )
 }
 
+
+/** Usage eligibility does not determine whether the saved meal contains a single food. */
+internal fun JournalEntryInput.withRememberedFoodIds(foodIds: List<Long>): JournalEntryInput = copy(
+    foodId = if (foodItemCount == 1) foodIds.singleOrNull() ?: foodId else null,
+    foodUses = emptyList()
+)

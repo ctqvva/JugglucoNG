@@ -116,3 +116,16 @@ regressions cover a French online result saved while searching in English on a
 Russian screen, scanner availability, and the sheet's measured shrink behavior.
 The final scanner cancel-control adjustment also passed the rendered suite and
 APK assembly. No test journal entry was saved on the Pixel.
+
+## Mixed fallback-meal association
+
+A subsequent Greptile finding was confirmed: usage filtering could leave one
+rememberable food in a two-item meal, causing the repository to link the entire
+meal to that one new food. The entry input now carries the full meal item count
+separately from its eligible usage records. Single-food association is based on
+that full count; eligible foods are still remembered independently. Regressions
+cover the fallback-plus-new-food case and a newly entered single food receiving
+its saved library ID. The history schema is unchanged.
+
+All 373 targeted journal/food tests and the final arm64 Mobile debug APK build passed,
+with UI guardrails and whitespace checks also passing.
