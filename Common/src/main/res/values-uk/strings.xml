@@ -3467,14 +3467,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- /food catalogue -->
 
     <!-- Food library management -->
-    <string name="food_select">Вибрати продукти</string>
-    <string name="food_actions">Дії з продуктами</string>
-    <string name="food_move">Перемістити</string>
-    <string name="food_move_title">Перемістити продукти (%1$d)</string>
-    <string name="food_move_before">Перед «%1$s»</string>
-    <string name="food_move_first">На початок списку</string>
-    <string name="food_move_last">У кінець списку</string>
     <string name="food_delete_title">Видалити продукти (%1$d)?</string>
     <string name="food_deleted">Видалено продуктів: %1$d</string>
     <string name="food_manage_failed">Не вдалося змінити базу їжі</string>
+    <string name="food_reorder">Змінити порядок</string>
+    <string name="food_move_up">Перемістити вище</string>
+    <string name="food_move_down">Перемістити нижче</string>
 </resources>

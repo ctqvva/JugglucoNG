@@ -3499,14 +3499,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- /food catalogue -->
 
     <!-- Food library management -->
-    <string name="food_select">Выбрать продукты</string>
-    <string name="food_actions">Действия с продуктами</string>
-    <string name="food_move">Переместить</string>
-    <string name="food_move_title">Переместить продукты (%1$d)</string>
-    <string name="food_move_before">Перед «%1$s»</string>
-    <string name="food_move_first">В начало списка</string>
-    <string name="food_move_last">В конец списка</string>
     <string name="food_delete_title">Удалить продукты (%1$d)?</string>
     <string name="food_deleted">Удалено продуктов: %1$d</string>
     <string name="food_manage_failed">Не удалось изменить базу еды</string>
+    <string name="food_reorder">Изменить порядок</string>
+    <string name="food_move_up">Переместить выше</string>
+    <string name="food_move_down">Переместить ниже</string>
 </resources>

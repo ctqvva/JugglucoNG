@@ -3374,14 +3374,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- /food catalogue -->
 
     <!-- Food library management -->
-    <string name="food_select">Selecionar alimentos</string>
-    <string name="food_actions">Ações dos alimentos</string>
-    <string name="food_move">Mover</string>
-    <string name="food_move_title">Mover alimentos (%1$d)</string>
-    <string name="food_move_before">Antes de %1$s</string>
-    <string name="food_move_first">Mover para o início</string>
-    <string name="food_move_last">Mover para o fim</string>
     <string name="food_delete_title">Eliminar alimentos (%1$d)?</string>
     <string name="food_deleted">Alimentos eliminados: %1$d</string>
     <string name="food_manage_failed">Não foi possível atualizar a biblioteca de alimentos</string>
+    <string name="food_reorder">Reordenar alimentos</string>
+    <string name="food_move_up">Mover para cima</string>
+    <string name="food_move_down">Mover para baixo</string>
 </resources>

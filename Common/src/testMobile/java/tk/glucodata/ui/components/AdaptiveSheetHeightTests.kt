@@ -2,6 +2,7 @@ package tk.glucodata.ui.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -9,10 +10,12 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,6 +46,7 @@ class AdaptiveSheetHeightTests {
     @Test
     fun transientBottomInsetsDoNotBecomePermanentContentHeight() {
         var bottomInset by mutableIntStateOf(0)
+        var dialogImeBottom = -1
         compose.setContent {
             JugglucoTheme(ThemeMode.DARK) {
                 StableModalBottomSheet(
@@ -54,6 +58,8 @@ class AdaptiveSheetHeightTests {
                     // animated padding still fills the viewport. No food layout changes.
                     contentWindowInsets = { WindowInsets(bottom = bottomInset) },
                 ) {
+                    val actualImeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+                    SideEffect { dialogImeBottom = actualImeBottom }
                     Box(Modifier.fillMaxWidth()
                         .animateSheetContentSize(isImeVisible = bottomInset > 0)
                         .height(420.dp))
@@ -64,6 +70,9 @@ class AdaptiveSheetHeightTests {
         val compact = height()
         compose.runOnIdle { bottomInset = 2000 }
         settle()
+        // The former height lock read the dialog's real IME inset, not this fixture's
+        // content padding. They are deliberately independent: real IME gone, padding retained.
+        assertEquals(0, dialogImeBottom)
         assertTrue(height() > compact + 100f)
         compose.runOnIdle { bottomInset = 0 }
         settle()
@@ -122,7 +131,14 @@ class AdaptiveSheetHeightTests {
         settle()
         val expanded = height()
         compose.mainClock.autoAdvance = false
-        compose.runOnIdle { bottomInset = 0 }
+        // Retain the padded dismissal frame, then remove padding over multiple inset frames.
+        for (inset in listOf(1300, 1100, 800, 500, 200, 0)) {
+            compose.runOnIdle { bottomInset = inset }
+            compose.mainClock.advanceTimeByFrame()
+            compose.waitForIdle()
+            assertTrue("tall sheet must stay at $expanded with remaining inset $inset, got ${height()}",
+                height() >= expanded - 2f)
+        }
         repeat(60) {
             compose.mainClock.advanceTimeByFrame()
             compose.waitForIdle()

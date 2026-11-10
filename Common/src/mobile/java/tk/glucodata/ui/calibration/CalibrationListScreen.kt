@@ -1317,23 +1317,8 @@ private fun CalibrationItemContent(
                 .defaultMinSize(minHeight = 48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Selection checkbox with standard M3 scale animation
-            AnimatedVisibility(
-                visible = isSelectionMode,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut()
-            ) {
-                Row {
-                    Icon(
-                        imageVector = if (isSelected) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
-                        contentDescription = null,
-                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
-            }
-            
+            tk.glucodata.ui.components.SelectionIndicator(isSelectionMode, isSelected)
+
             // Values & Info
             Column(modifier = Modifier.weight(1f).graphicsLayer { alpha = cardAlpha }) {
                 // Primary: Sensor → Calibrated

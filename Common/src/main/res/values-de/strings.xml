@@ -3485,14 +3485,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <!-- /food catalogue -->
 
     <!-- Food library management -->
-    <string name="food_select">Lebensmittel auswählen</string>
-    <string name="food_actions">Lebensmittelaktionen</string>
-    <string name="food_move">Verschieben</string>
-    <string name="food_move_title">Lebensmittel verschieben (%1$d)</string>
-    <string name="food_move_before">Vor %1$s</string>
-    <string name="food_move_first">An den Anfang</string>
-    <string name="food_move_last">Ans Ende</string>
     <string name="food_delete_title">Lebensmittel löschen (%1$d)?</string>
     <string name="food_deleted">Gelöschte Lebensmittel: %1$d</string>
     <string name="food_manage_failed">Die Lebensmittelsammlung konnte nicht aktualisiert werden</string>
+    <string name="food_reorder">Lebensmittel umordnen</string>
+    <string name="food_move_up">Nach oben</string>
+    <string name="food_move_down">Nach unten</string>
 </resources>

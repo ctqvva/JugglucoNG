@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkAdd
@@ -32,7 +33,6 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -108,7 +108,7 @@ internal class FoodLibraryActions(
     val onCreateFromBarcode: (String) -> Unit = { onCreate() },
     val onDelete: (Set<Long>) -> Unit = {},
     val onArchive: (Set<Long>, Boolean) -> Unit = { _, _ -> },
-    val onMove: (Set<Long>, Long?) -> Unit = { _, _ -> }
+    val onMove: MoveFoods = { _, _, done -> done(true) }
 )
 
 @Composable
@@ -208,7 +208,10 @@ fun JournalFoodLibraryScreen(
             onExport = { exportLauncher.launch(FoodLibraryTransfer.DEFAULT_FILE_NAME) },
             onDelete = deleteFoods,
             onArchive = { ids, archived -> viewModel.setJournalFoodsArchived(ids, archived) { if (!it) showFailure() } },
-            onMove = { ids, before -> viewModel.moveJournalFoodsBefore(ids, before) { if (!it) showFailure() } }
+            onMove = { ids, before, done -> viewModel.moveJournalFoodsBefore(ids, before) {
+                if (!it) showFailure()
+                done(it)
+            } }
         )
     )
 
@@ -258,12 +261,15 @@ internal fun FoodLibraryLayout(
 ) {
     var showTransfer by remember { mutableStateOf(false) }
     val management = remember { FoodLibraryManagement() }
+    LaunchedEffect(management.selectedIds) {
+        if (management.selectedIds.isEmpty()) management.selecting = false
+    }
     val focusManager = LocalFocusManager.current
     BackHandler(enabled = management.selecting, onBack = management::cancel)
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-            if (management.selecting) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            if (management.selecting) Box(Modifier.fillMaxWidth().padding(16.dp),
                 contentAlignment = Alignment.Center) {
                 FoodManagementToolbar(foods, management, actions)
             }
@@ -273,13 +279,6 @@ internal fun FoodLibraryLayout(
                 title = stringResource(R.string.journal_food_library),
                 onNavigateBack = { if (management.selecting) management.cancel() else onNavigateBack() },
                 actions = {
-                    IconButtonTooltip(stringResource(R.string.food_select)) {
-                        IconButton(onClick = { focusManager.clearFocus(); management.selecting = true },
-                            enabled = libraryEnabled && foods.isNotEmpty() && !management.selecting,
-                            shapes = IconButtonDefaults.shapes()) {
-                            Icon(Icons.Default.Checklist, contentDescription = stringResource(R.string.food_select))
-                        }
-                    }
                     val label = stringResource(R.string.food_file_title)
                     IconButtonTooltip(label) {
                         IconButton(
@@ -399,12 +398,16 @@ internal fun FoodLibraryContent(
     val myFoodsLabel = stringResource(R.string.food_my_foods)
     val recentLabel = stringResource(R.string.food_recent)
     val disabledLabel = stringResource(R.string.journal_food_disabled_library)
+    val listState = rememberLazyListState()
+    val reorder = rememberFoodLibraryReorder(listState, mine, actions.onMove)
 
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
+        if (!management.selecting) {
         libraryItem(key = "food_library_enabled") {
             MasterSwitchCard(
                 title = stringResource(R.string.journal_food_library),
@@ -469,9 +472,11 @@ internal fun FoodLibraryContent(
             )
         }
 
+        }
+
         if (!libraryEnabled) return@LazyColumn
 
-        if (picker.scanning && onlineEnabled) {
+        if (picker.scanning && onlineEnabled && !management.selecting) {
             libraryItem(key = "food_scanner") {
                 FoodBarcodeScanner(
                     lookup = picker.barcode,
@@ -491,12 +496,13 @@ internal fun FoodLibraryContent(
         }
 
         if (picker.query.isBlank()) {
-            managedFoodGroup(myFoodsLabel, mine, macrosEnabled, management, foods, actions)
-            managedFoodGroup(recentLabel, remembered, macrosEnabled, management, foods, actions)
-            managedFoodGroup(disabledLabel, disabled, macrosEnabled, management, foods, actions)
+            managedFoodGroup(myFoodsLabel, reorder.ordered(mine), macrosEnabled, management, actions, reorder)
+            managedFoodGroup(recentLabel, remembered, macrosEnabled, management, actions)
+            managedFoodGroup(disabledLabel, disabled, macrosEnabled, management, actions)
         } else {
             val shelves = picker.shelves
-            managedFoodGroup(myFoodsLabel, ownMatches, macrosEnabled, management, foods, actions)
+            managedFoodGroup(myFoodsLabel, ownMatches, macrosEnabled, management, actions)
+            if (!management.selecting) {
             val toggle: (FoodItem) -> Unit = { food ->
                 focusManager.clearFocus()
                 expandedKey = food.key.takeIf { it != expandedKey }
@@ -541,6 +547,7 @@ internal fun FoodLibraryContent(
                 libraryItem(key = "food_online") {
                     FoodCaption(stringResource(R.string.food_online_empty))
                 }
+            }
             }
         }
     }

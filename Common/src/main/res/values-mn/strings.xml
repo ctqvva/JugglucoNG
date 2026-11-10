@@ -3473,14 +3473,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <!-- /food catalogue -->
 
     <!-- Food library management -->
-    <string name="food_select">Хүнс сонгох</string>
-    <string name="food_actions">Хүнсний үйлдлүүд</string>
-    <string name="food_move">Зөөх</string>
-    <string name="food_move_title">Хүнс зөөх (%1$d)</string>
-    <string name="food_move_before">%1$s өмнө</string>
-    <string name="food_move_first">Эхэнд зөөх</string>
-    <string name="food_move_last">Төгсгөлд зөөх</string>
     <string name="food_delete_title">Хүнс устгах уу (%1$d)?</string>
     <string name="food_deleted">Устгасан хүнс: %1$d</string>
     <string name="food_manage_failed">Хүнсний санг шинэчилж чадсангүй</string>
+    <string name="food_reorder">Хүнсний дарааллыг өөрчлөх</string>
+    <string name="food_move_up">Дээш зөөх</string>
+    <string name="food_move_down">Доош зөөх</string>
 </resources>

@@ -176,3 +176,33 @@ check: the drag handle remained at row 175 in all 75 decoded frames covering
 keyboard dismissal. Selecting a food after hiding search's keyboard and opening
 and closing its quantity keyboard both left the form at its compact height.
 No test journal entry was saved.
+
+## Food database management
+
+The food list now follows Calibration's interaction: tap to edit, long-press to
+select, round selection indicators, and direct select-all/disable/enable/delete
+actions in the floating toolbar. Both lists use the same selection indicator and
+toolbar components. Selection mode hides the food settings and add controls.
+There are no row menus or move-destination chooser. Normal saved-food rows have
+drag handles for reordering; TalkBack also offers move-up/move-down actions.
+Swipe left deletes with Undo, and swipe right disables or enables a food.
+
+Saved rows are individual lazy items. Reordering previews IDs locally, supports
+variable-height rows and edge scrolling, and persists on release. Changes to order
+and enabled state update only those fields under the food library's write lock.
+Bulk delete captures the complete definitions and usage details for Undo, and an
+intervening restore cannot be overwritten by Undo. Large selections are batched
+to fit older SQLite parameter limits. All new copy is present in all 16 locales.
+
+Validation: all 156 related food, journal and component tests passed without
+failures/errors/skips, including a rendered drag gesture, filtered selection,
+direct bulk actions, swipe actions, a 1,100-food selection, exact delete/undo
+round-trips and failed/concurrent drag previews. The final Mobile arm64 debug APK
+built and was installed on the Pixel. Its circular markers and direct toolbar
+were inspected on the device. UI guardrails, string XML and whitespace checks pass.
+
+The latest Cubic keyboard-test comment is also covered: the fixture explicitly
+asserts that the dialog's real IME inset is zero while simulated content padding
+remains nonzero, then retains a padded frame and removes the padding across
+multiple animation frames. The animation guard's padding test is distinct from
+the real IME inset that the former permanent height lock consulted.

@@ -24,7 +24,7 @@ import tk.glucodata.ui.ThemeMode
 class FoodLibraryManagementTests {
     class TestApplication : Applic() { override fun onCreate() {} }
     @get:Rule val compose = createComposeRule()
-    private val foods = listOf("Alba", "Beta", "Gamma").mapIndexed { index, name ->
+    private val foods = listOf("Alba", "Beta", "Gamma", "Delta").mapIndexed { index, name ->
         JournalFood(index + 1L, name, 10f, null, null, 90, 0, false, false, index)
     }
     private fun label(id: Int, vararg args: Any) = Applic.app.getString(id, *args)
@@ -36,7 +36,7 @@ class FoodLibraryManagementTests {
         }
     }
     private fun actions(onEdit: (JournalFood) -> Unit = {}, onDelete: (Set<Long>) -> Unit = {},
-        onMove: (Set<Long>, Long?) -> Unit = { _, _ -> }, onArchive: (Set<Long>, Boolean) -> Unit = { _, _ -> }) =
+        onMove: MoveFoods = { _, _, done -> done(true) }, onArchive: (Set<Long>, Boolean) -> Unit = { _, _ -> }) =
         FoodLibraryActions({}, {}, onEdit, {}, {}, {}, {}, onDelete = onDelete, onMove = onMove, onArchive = onArchive)
 
     @Test
@@ -49,42 +49,42 @@ class FoodLibraryManagementTests {
         compose.onNodeWithText("Beta").performClick()
         compose.onNodeWithText(label(R.string.selected_count, 2)).assertIsDisplayed()
         compose.onNodeWithContentDescription(label(R.string.select_all)).performClick()
-        compose.onNodeWithText(label(R.string.selected_count, 3)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.selected_count, 4)).assertIsDisplayed()
         compose.onNodeWithContentDescription(label(R.string.delete)).performClick()
         assertTrue(deleted.isEmpty())
-        compose.onNodeWithText(label(R.string.food_delete_title, 3)).assertExists()
+        compose.onNodeWithText(label(R.string.food_delete_title, 4)).assertExists()
         compose.onNodeWithText(label(R.string.delete)).performClick()
-        assertEquals(setOf(1L, 2L, 3L), deleted)
-        compose.onNodeWithText(label(R.string.selected_count, 3)).assertDoesNotExist()
+        assertEquals(setOf(1L, 2L, 3L, 4L), deleted)
+        compose.onNodeWithText(label(R.string.selected_count, 4)).assertDoesNotExist()
     }
 
     @Test
-    fun selectionCanMoveTogetherBeforeADestination() {
+    fun draggingTheHandleReordersWithoutEnteringSelectionMode() {
         var moved = emptySet<Long>()
         var destination: Long? = null
-        show(actions(onMove = { ids, before -> moved = ids; destination = before }))
-        compose.onNodeWithText("Alba").performScrollTo().performTouchInput { longClick() }
-        compose.onNodeWithText("Gamma").performClick()
-        compose.onNodeWithContentDescription(label(R.string.food_actions)).performClick()
-        compose.onNodeWithText(label(R.string.food_move)).performClick()
-        compose.onNodeWithText(label(R.string.food_move_before, "Beta")).performClick()
-        assertEquals(setOf(1L, 3L), moved)
-        assertEquals(2L, destination)
-        compose.onNodeWithText(label(R.string.food_move_title, 2)).assertDoesNotExist()
+        show(actions(onMove = { ids, before, done -> moved = ids; destination = before; done(true) }))
+        compose.onNodeWithText("Alba").performScrollTo()
+        val handle = compose.onNodeWithTag("food_drag:1")
+        val delta = compose.onNodeWithText("Gamma").fetchSemanticsNode().boundsInRoot.center.y -
+            compose.onNodeWithText("Alba").fetchSemanticsNode().boundsInRoot.center.y
+        handle.performTouchInput {
+            swipe(center, center + androidx.compose.ui.geometry.Offset(0f, delta), durationMillis = 1000)
+        }
+        compose.waitForIdle()
+        assertEquals(setOf(1L), moved)
+        assertEquals(4L, destination)
+        compose.onNodeWithText(label(R.string.selected_count, 1)).assertDoesNotExist()
     }
 
     @Test
-    fun rowMenuEditsTheRightFoodAndBulkDisableUsesOnlyTheSelection() {
+    fun tappingEditsAndSelectionHasDirectCalibrationStyleActions() {
         var edited: Long? = null
         var archived = emptySet<Long>()
         show(actions(onEdit = { edited = it.id }, onArchive = { ids, disabled -> assertTrue(disabled); archived = ids }))
-        compose.onNodeWithText("Alba").performScrollTo()
-        compose.onAllNodesWithContentDescription(label(R.string.food_actions))[0].performClick()
-        compose.onNodeWithText(label(R.string.edit)).performClick()
+        compose.onNodeWithText("Alba").performScrollTo().performClick()
         assertEquals(1L, edited)
         compose.onNodeWithText("Beta").performTouchInput { longClick() }
-        compose.onNodeWithContentDescription(label(R.string.food_actions)).performClick()
-        compose.onNodeWithText(label(R.string.disable)).performClick()
+        compose.onNodeWithContentDescription(label(R.string.disable)).assertIsDisplayed().performClick()
         assertEquals(setOf(2L), archived)
     }
 
@@ -93,15 +93,15 @@ class FoodLibraryManagementTests {
         var deleted = emptySet<Long>()
         show(actions(onDelete = { deleted = it }))
         compose.onNodeWithText(label(R.string.journal_food_search)).performClick()
-        compose.onAllNodes(hasSetTextAction())[0].performTextInput("Beta")
+        compose.onAllNodes(hasSetTextAction())[0].performTextInput("ta")
         compose.mainClock.advanceTimeBy(1200)
         compose.waitForIdle()
-        compose.onNodeWithContentDescription(label(R.string.food_select)).performClick()
+        compose.onNodeWithText("Beta").performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithContentDescription(label(R.string.select_all)).performClick()
-        compose.onNodeWithText(label(R.string.selected_count, 1)).assertExists()
+        compose.onNodeWithText(label(R.string.selected_count, 2)).assertExists()
         compose.onNodeWithContentDescription(label(R.string.delete)).performClick()
         compose.onNodeWithText(label(R.string.delete)).performClick()
-        assertEquals(setOf(2L), deleted)
+        assertEquals(setOf(2L, 4L), deleted)
     }
 
     @Test
@@ -112,9 +112,7 @@ class FoodLibraryManagementTests {
         show(actions(onEdit = { edited = true }, onDelete = { deleted = it },
             onArchive = { ids, disabled -> assertTrue(disabled); archived = ids }))
         compose.onNodeWithText("Alba").performScrollTo().performTouchInput { swipeLeft() }
-        compose.onNodeWithText(label(R.string.food_delete_title, 1)).assertExists()
-        compose.onNodeWithText(label(R.string.cancel)).performClick()
-        assertTrue(deleted.isEmpty())
+        assertEquals(setOf(1L), deleted)
         compose.onNodeWithText("Beta").performTouchInput { swipeRight() }
         assertEquals(setOf(2L), archived)
         assertFalse(edited)

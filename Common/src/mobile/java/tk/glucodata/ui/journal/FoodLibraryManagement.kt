@@ -4,6 +4,8 @@
 
 package tk.glucodata.ui.journal
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -35,7 +37,6 @@ internal class FoodLibraryManagement {
     var selectedIds by mutableStateOf(emptySet<Long>())
     var visibleIds by mutableStateOf(emptySet<Long>())
     var deletingIds by mutableStateOf(emptySet<Long>())
-    var movingIds by mutableStateOf(emptySet<Long>())
 
     fun cancel() { selecting = false; selectedIds = emptySet() }
     fun toggle(id: Long) {
@@ -53,15 +54,21 @@ internal fun LazyListScope.managedFoodGroup(
     foods: List<JournalFood>,
     macrosEnabled: Boolean,
     management: FoodLibraryManagement,
-    allFoods: List<JournalFood>,
-    actions: FoodLibraryActions
+    actions: FoodLibraryActions,
+    reorder: FoodLibraryReorder? = null
 ) {
     if (foods.isEmpty()) return
     item(key = "group:$title") { SectionLabel(title, topPadding = 12.dp) }
-    itemsIndexed(foods, key = { _, food -> "managed_food:${food.id}" }) { index, food ->
-        Box(Modifier.padding(bottom = 2.dp)) {
-            ManagedFoodRow(food, macrosEnabled, foodCardPosition(index, foods.size), management, allFoods, actions)
+    itemsIndexed(foods, key = { _, food -> "managed_food:${food.id}" }) { _, food ->
+        val content: @Composable (Modifier) -> Unit = { handle ->
+            Box(Modifier.padding(bottom = 8.dp)) {
+                ManagedFoodRow(food, macrosEnabled, management, actions, handle)
+            }
         }
+        if (reorder != null && !management.selecting) {
+            FoodReorderableRow(food, reorder, content)
+        } else content(Modifier)
+
     }
 }
 
@@ -69,17 +76,16 @@ internal fun LazyListScope.managedFoodGroup(
 private fun ManagedFoodRow(
     food: JournalFood,
     macrosEnabled: Boolean,
-    position: CardPosition,
     management: FoodLibraryManagement,
-    allFoods: List<JournalFood>,
-    actions: FoodLibraryActions
+    actions: FoodLibraryActions,
+    handle: Modifier
 ) {
-    val shape = cardShape(position)
+    val shape = RoundedCornerShape(12.dp)
     val swipe = rememberSwipeToDismissBoxState(
         positionalThreshold = { it * 0.4f },
         confirmValueChange = { value ->
             when (value) {
-                SwipeToDismissBoxValue.EndToStart -> management.deletingIds = setOf(food.id)
+                SwipeToDismissBoxValue.EndToStart -> actions.onDelete(setOf(food.id))
                 SwipeToDismissBoxValue.StartToEnd -> actions.onArchive(setOf(food.id), !food.isArchived)
                 else -> Unit
             }
@@ -89,7 +95,7 @@ private fun ManagedFoodRow(
     val row: @Composable () -> Unit = {
         val selected = food.id in management.selectedIds
         Surface(shape = shape,
-            color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainer,
             modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.clip(shape)
@@ -100,13 +106,12 @@ private fun ManagedFoodRow(
                         onLongClick = { management.toggle(food.id) }
                     )
                     .semantics { if (management.selecting) toggleableState = ToggleableState(selected) }
-                    .heightIn(min = 72.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+                    .animateContentSize()
+                    .padding(16.dp).defaultMinSize(minHeight = 48.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (management.selecting) {
-                    Checkbox(checked = selected, onCheckedChange = null)
-                    Spacer(Modifier.width(12.dp))
-                } else {
+                SelectionIndicator(management.selecting, selected)
+                if (!management.selecting) {
                     IconTile(Icons.Default.Restaurant, tint = if (food.isArchived) MaterialTheme.colorScheme.onSurfaceVariant
                         else androidx.compose.ui.graphics.Color(food.accentColor))
                     Spacer(Modifier.width(IconTileDefaults.Gap))
@@ -117,7 +122,12 @@ private fun ManagedFoodRow(
                     Text(foodSummary(food.toFoodItem(), macrosEnabled), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (!management.selecting) FoodActionsMenu(listOf(food), allFoods, management, actions)
+                if (!management.selecting && handle != Modifier) {
+                    Box(handle.size(48.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.DragHandle, contentDescription = stringResource(R.string.food_reorder),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
     }
@@ -125,52 +135,14 @@ private fun ManagedFoodRow(
         SwipeToDismissBox(state = swipe, backgroundContent = {
             val deleting = swipe.dismissDirection == SwipeToDismissBoxValue.EndToStart
             Box(Modifier.fillMaxSize().clip(shape)
-                .background(if (deleting) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer)
+                .background(if (deleting) MaterialTheme.colorScheme.error else if (food.isArchived) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary)
                 .padding(horizontal = 24.dp),
                 contentAlignment = if (deleting) Alignment.CenterEnd else Alignment.CenterStart) {
-                Icon(if (deleting) Icons.Default.Delete else if (food.isArchived) Icons.Default.CheckCircle else Icons.Default.Block,
+                Icon(if (deleting) Icons.Default.Delete else if (food.isArchived) Icons.Default.Check else Icons.Default.Close,
                     contentDescription = null,
-                    tint = if (deleting) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer)
+                    tint = androidx.compose.ui.graphics.Color.White)
             }
         }) { row() }
-    }
-}
-
-@Composable
-internal fun FoodActionsMenu(
-    selected: List<JournalFood>,
-    foods: List<JournalFood>,
-    management: FoodLibraryManagement,
-    actions: FoodLibraryActions,
-    includeDelete: Boolean = true
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val ids = selected.mapTo(HashSet()) { it.id }
-    val canMove = selected.isNotEmpty() && selected.all { it.kept && !it.isArchived } &&
-        foods.any { it.kept && !it.isArchived && it.id !in ids }
-    Box {
-        IconButtonTooltip(stringResource(R.string.food_actions)) {
-            IconButton(onClick = { expanded = true }, enabled = selected.isNotEmpty(), shapes = IconButtonDefaults.shapes()) {
-                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.food_actions))
-            }
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            if (selected.size == 1) DropdownMenuItem(text = { Text(stringResource(R.string.edit)) },
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                onClick = { expanded = false; management.cancel(); actions.onEdit(selected.single()) })
-            if (canMove) DropdownMenuItem(text = { Text(stringResource(R.string.food_move)) },
-                leadingIcon = { Icon(Icons.Default.LowPriority, contentDescription = null) },
-                onClick = { expanded = false; management.movingIds = ids })
-            if (selected.any { !it.isArchived }) DropdownMenuItem(text = { Text(stringResource(R.string.disable)) },
-                leadingIcon = { Icon(Icons.Default.Block, contentDescription = null) },
-                onClick = { expanded = false; actions.onArchive(ids, true); management.cancel() })
-            if (selected.any { it.isArchived }) DropdownMenuItem(text = { Text(stringResource(R.string.enable)) },
-                leadingIcon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
-                onClick = { expanded = false; actions.onArchive(ids, false); management.cancel() })
-            if (includeDelete) DropdownMenuItem(text = { Text(stringResource(R.string.delete)) },
-                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
-                onClick = { expanded = false; management.deletingIds = ids })
-        }
     }
 }
 
@@ -180,7 +152,18 @@ internal fun FoodManagementToolbar(foods: List<JournalFood>, management: FoodLib
     SelectionToolbar(selectedCount = selected.size,
         allSelected = management.visibleIds.isNotEmpty() && management.selectedIds == management.visibleIds,
         onCancel = management::cancel, onToggleSelectAll = management::toggleAll) {
-        FoodActionsMenu(selected, foods, management, actions, includeDelete = false)
+        IconButtonTooltip(stringResource(R.string.disable)) {
+            IconButton(onClick = { actions.onArchive(management.selectedIds, true); management.cancel() },
+                enabled = selected.any { !it.isArchived }, shapes = IconButtonDefaults.shapes()) {
+                Icon(Icons.Default.Block, contentDescription = stringResource(R.string.disable))
+            }
+        }
+        IconButtonTooltip(stringResource(R.string.enable)) {
+            IconButton(onClick = { actions.onArchive(management.selectedIds, false); management.cancel() },
+                enabled = selected.any { it.isArchived }, shapes = IconButtonDefaults.shapes()) {
+                Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.enable))
+            }
+        }
         IconButtonTooltip(stringResource(R.string.delete)) {
             FilledTonalIconButton(onClick = { management.deletingIds = management.selectedIds },
                 enabled = selected.isNotEmpty(), shapes = IconButtonDefaults.shapes(),
@@ -215,46 +198,4 @@ internal fun FoodManagementDialogs(foods: List<JournalFood>, management: FoodLib
             }
         }
     )
-    val moving = foods.filter { it.id in management.movingIds && it.kept && !it.isArchived }
-    if (moving.isNotEmpty()) {
-        val ids = moving.mapTo(HashSet()) { it.id }
-        FoodMoveSheet(foods.filter { it.kept && !it.isArchived && it.id !in ids }, moving.size,
-            onDismiss = { management.movingIds = emptySet() },
-            onMove = { before ->
-                actions.onMove(ids, before); management.movingIds = emptySet(); management.cancel()
-            })
-    }
-}
-
-@Composable
-internal fun FoodMoveSheet(destinations: List<JournalFood>, count: Int, onDismiss: () -> Unit, onMove: (Long?) -> Unit) {
-    StableModalBottomSheet(onDismissRequest = onDismiss, adaptiveHeight = true,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = { CompactSheetDragHandle() }) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.food_move_title, count), style = MaterialTheme.typography.headlineSmallEmphasized,
-                modifier = Modifier.weight(1f))
-            IconButton(onClick = onDismiss, shapes = IconButtonDefaults.shapes()) {
-                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
-            }
-        }
-        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            item {
-                AdaptiveButtonRow(Modifier.padding(bottom = 12.dp)) {
-                    OutlinedButton(onClick = { onMove(destinations.firstOrNull()?.id) },
-                        shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding,
-                        modifier = Modifier.heightIn(min = 56.dp)) { Text(stringResource(R.string.food_move_first)) }
-                    OutlinedButton(onClick = { onMove(null) }, shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding, modifier = Modifier.heightIn(min = 56.dp)) {
-                        Text(stringResource(R.string.food_move_last))
-                    }
-                }
-            }
-            itemsIndexed(destinations, key = { _, food -> food.id }) { index, food ->
-                SettingsItem(title = stringResource(R.string.food_move_before, food.displayName),
-                    icon = Icons.Default.LowPriority, position = foodCardPosition(index, destinations.size),
-                    onClick = { onMove(food.id) })
-            }
-        }
-    }
 }
