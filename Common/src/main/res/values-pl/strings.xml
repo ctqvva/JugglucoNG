@@ -2355,7 +2355,7 @@
     <string name="risk_low">Niskie</string>
     <string name="risk_moderate">Umiarkowane</string>
     <string name="risk_high">Wysokie</string>
-    <string name="stats_coverage_active">CGM aktywny %1$d%%</string>
+    <string name="stats_coverage_active">Aktywny %1$d%%</string>
     <string name="stats_tight_range_chip">Wąski %1$d%%</string>
     <string name="stats_tight_range">Wąski zakres</string>
     <string name="stats_tight_range_description">Czas w zakresie %1$s — o stopień węższym niż Twój zakres docelowy, pokazuje, jak blisko wartości niecukrzycowych trzyma się doba.</string>

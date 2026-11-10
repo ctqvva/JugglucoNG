@@ -2321,7 +2321,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">Låg</string>
     <string name="risk_moderate">Måttlig</string>
     <string name="risk_high">Hög</string>
-    <string name="stats_coverage_active">CGM aktiv %1$d%%</string>
+    <string name="stats_coverage_active">Aktiv %1$d%%</string>
     <string name="stats_tight_range_chip">Snävt %1$d%%</string>
     <string name="stats_tight_range">Snävt målområde</string>
     <string name="stats_tight_range_description">Tid inom %1$s — ett steg snävare än ditt målområde, för att följa hur nära dygnet ligger icke-diabetiska nivåer.</string>

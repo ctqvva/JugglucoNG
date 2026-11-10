@@ -3,6 +3,7 @@
 package tk.glucodata.ui.stats
 
 import tk.glucodata.ui.components.AdaptiveButtonRow
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -179,14 +180,54 @@ fun StatsRangeSelectorControl(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
+        AdaptiveTrailingRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            trailingContent = {
+                Surface(
+                    modifier = Modifier.heightIn(min = 36.dp),
+                    onClick = onCustomRangeClick,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    color = if (selectedRange == null) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                    contentColor = if (selectedRange == null) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .animateContentSize()
+                            .heightIn(min = 36.dp)
+                            .padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DateRange,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        AnimatedContent(
+                            targetState = subtitle ?: stringResource(R.string.statistics_subtitle),
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "statsRangeSubtitle"
+                        ) { targetSubtitle ->
+                            Text(
+                                text = targetSubtitle,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
         ) {
             if (hasData && readingCount > 0) {
-                // Reading count and sensor coverage are both facts about the window, so
-                // they belong on the window's own line rather than inside a result card.
                 val countText = "${java.text.NumberFormat.getIntegerInstance().format(readingCount)} ${stringResource(countLabelResId)}"
                 Text(
                     text = coveragePercent
@@ -194,57 +235,8 @@ fun StatsRangeSelectorControl(
                         ?: countText,
                     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
                     color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 16.dp),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    modifier = Modifier.padding(start = 16.dp)
                 )
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
-            }
-
-            Surface(
-                modifier = Modifier.heightIn(min = 36.dp),
-                onClick = onCustomRangeClick,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-                color = if (selectedRange == null) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-                contentColor = if (selectedRange == null) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .animateContentSize()
-                        .heightIn(min = 36.dp)
-                        .padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.DateRange,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    AnimatedContent(
-                        targetState = subtitle ?: stringResource(R.string.statistics_subtitle),
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "statsRangeSubtitle"
-                    ) { targetSubtitle ->
-                        Text(
-                            text = targetSubtitle,
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
             }
         }
 

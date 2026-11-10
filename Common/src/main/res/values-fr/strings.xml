@@ -2327,7 +2327,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">Faible</string>
     <string name="risk_moderate">Modéré</string>
     <string name="risk_high">Élevé</string>
-    <string name="stats_coverage_active">MCG actif %1$d%%</string>
+    <string name="stats_coverage_active">Actif %1$d%%</string>
     <string name="stats_tight_range_chip">Étroit %1$d%%</string>
     <string name="stats_tight_range">Plage étroite</string>
     <string name="stats_tight_range_description">Temps passé dans %1$s — un cran plus strict que votre cible, pour suivre à quel point la journée reste proche de valeurs non diabétiques.</string>

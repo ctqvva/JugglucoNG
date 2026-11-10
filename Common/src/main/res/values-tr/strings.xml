@@ -2349,7 +2349,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="risk_low">Düşük</string>
     <string name="risk_moderate">Orta</string>
     <string name="risk_high">Yüksek</string>
-    <string name="stats_coverage_active">CGM etkin %%%1$d</string>
+    <string name="stats_coverage_active">Etkin %%%1$d</string>
     <string name="stats_tight_range_chip">Dar %%%1$d</string>
     <string name="stats_tight_range">Dar aralık</string>
     <string name="stats_tight_range_description">%1$s aralığındaki süre — hedef bandınızdan bir kademe dar; günün diyabetsiz değerlere ne kadar yakın kaldığını gösterir.</string>

@@ -150,6 +150,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import tk.glucodata.ui.components.TabScreenDefaults
 import tk.glucodata.ui.components.TabScreenHeader
 import tk.glucodata.R
@@ -1316,7 +1317,7 @@ private fun EmptyStateCard(title: String, subtitle: String) {
 }
 
 @Composable
-private fun GlycemicOverviewCard(
+internal fun GlycemicOverviewCard(
     summary: StatsSummary,
     targets: StatsTargets,
     unit: GlucoseUnit,
@@ -1383,15 +1384,7 @@ private fun GlycemicOverviewCard(
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                // The band rows are what decide this, not a round number.
-                //
-                // A row needs its label, a 62 dp range column and a 50 dp percentage
-                // column; below about 180 dp it starts eliding the labels. So the ring
-                // keeps whatever is left over and the two only stop sharing a line when
-                // the ring would have to drop under 96 dp — a threshold of 340 dp put a
-                // 360 dp phone into the stacked layout with 150 dp of width to spare,
-                // which is the ring taking a whole row on someone else's device while it
-                // looked fine on a Pixel.
+                // Both the band columns and the ring's actual text determine whether they fit.
                 val compactText = maxWidth < 372.dp
                 val columns = rememberTirColumnWidths(rows.map { it.rangeLabel }, compactText)
                 // What the widest row actually needs at the current text size: label, range
@@ -1402,11 +1395,13 @@ private fun GlycemicOverviewCard(
                     widestLabel + columns.range + columns.percent + 8.dp * 3
                 )
                 val ringSpacing = 8.dp
-                val ringMin = 88.dp
-                val ringMax = 176.dp
+                val ringMin = overviewRingMinimumSize(summary.comparison)
+                val ringMax = maxOf(176.dp, ringMin)
                 val isCompact = maxWidth < ringMin + ringSpacing + minRowsWidth
                 val ringSize = if (isCompact) {
-                    (maxWidth * 0.55f).coerceIn(118.dp, 206.dp)
+                    (maxWidth * 0.55f)
+                        .coerceIn(maxOf(118.dp, ringMin), maxOf(206.dp, ringMin))
+                        .coerceAtMost(maxWidth)
                 } else {
                     (maxWidth * 0.34f)
                         .coerceIn(ringMin, ringMax)
@@ -1474,8 +1469,36 @@ private fun GlycemicOverviewCard(
     }
 }
 
+/** Diameter needed to keep the text rectangle inside the ring's circular opening. */
 @Composable
-private fun OverviewRing(
+internal fun overviewRingMinimumSize(comparison: StatsComparison?): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    // Reserve three digits even when the animated value crosses 99 -> 100.
+    val percent = measurer.measure(
+        String.format(Locale.getDefault(), "%.0f%%", 100f),
+        style = MaterialTheme.typography.headlineLarge.copy(fontFeatureSettings = "tnum")
+    ).size
+    val label = measurer.measure(
+        stringResource(R.string.tir), style = MaterialTheme.typography.titleMedium
+    ).size
+    val delta = comparison?.takeIf { abs(it.inRangeDelta) >= 1f }?.let {
+        measurer.measure(
+            abs(it.inRangeDelta).roundToInt().toString(),
+            style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum")
+        ).size
+    }
+    val deltaWidth = delta?.let { it.width + with(density) { 17.dp.roundToPx() } } ?: 0
+    val deltaHeight = delta?.let { maxOf(it.height, with(density) { 16.dp.roundToPx() }) } ?: 0
+    val width = maxOf(percent.width, label.width, deltaWidth).toFloat()
+    val height = (percent.height + label.height + deltaHeight).toFloat()
+    val diagonal = kotlin.math.sqrt(width * width + height * height)
+    // Two 15dp strokes, plus breathing room for the selected segment's thicker stroke.
+    return with(density) { diagonal.toDp() } + 30.dp + 8.dp
+}
+
+@Composable
+internal fun OverviewRing(
     tir: TimeInRangeBreakdown,
     comparison: StatsComparison?,
     selectedBand: TirBand?,
@@ -1737,6 +1760,56 @@ private fun TirCompactRow(
     }
 }
 
+@Composable
+internal fun PatternsHeader(subtitle: String, primary: String, secondary: String) {
+    AdaptiveTrailingRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp),
+        trailingContent = {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 190.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = primary,
+                    style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                        fontFeatureSettings = "tnum"
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = secondary,
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.stats_patterns),
+                style = MaterialTheme.typography.headlineSmallEmphasized
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+            )
+        }
+    }
+}
+
 /**
  * Key metric tile with left accent strip — matches GVI/PSG ScoreTile design language.
  * Used for Average and A1c in the GlycemicOverviewCard.
@@ -1864,60 +1937,16 @@ private fun PatternsCard(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                val subtitle = when (selectedTab) {
+            PatternsHeader(
+                subtitle = when (selectedTab) {
                     PatternTab.AGP -> stringResource(R.string.hourly_patterns)
                     PatternTab.DAILY -> stringResource(R.string.daily_trends)
                     PatternTab.TIME_OF_DAY -> stringResource(R.string.stats_time_of_day_subtitle)
                     PatternTab.WEEKDAY -> stringResource(R.string.stats_weekday_subtitle)
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.stats_patterns),
-                        style = MaterialTheme.typography.headlineSmallEmphasized
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
-                    )
-                }
-                Column(
-                    modifier = Modifier
-                        .padding(start = 12.dp, top = 2.dp)
-                        .width(190.dp),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = headerPrimary,
-                        style = MaterialTheme.typography.titleMediumEmphasized.copy(
-                            fontFeatureSettings = "tnum"
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.End,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = headerSecondary,
-                        style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        textAlign = TextAlign.End,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+                },
+                primary = headerPrimary,
+                secondary = headerSecondary
+            )
 
             if (availableTabs.size > 1) {
                 val tabLabels = mapOf(

@@ -2322,7 +2322,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">Baixo</string>
     <string name="risk_moderate">Moderado</string>
     <string name="risk_high">Alto</string>
-    <string name="stats_coverage_active">MCG ativo %1$d%%</string>
+    <string name="stats_coverage_active">Ativo %1$d%%</string>
     <string name="stats_tight_range_chip">Estreito %1$d%%</string>
     <string name="stats_tight_range">Intervalo estreito</string>
     <string name="stats_tight_range_description">Tempo dentro de %1$s — um grau mais exigente do que o seu intervalo-alvo, para acompanhar o quanto o dia se mantém perto de valores não diabéticos.</string>

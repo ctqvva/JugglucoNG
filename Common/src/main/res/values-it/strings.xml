@@ -2311,7 +2311,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">Basso</string>
     <string name="risk_moderate">Moderato</string>
     <string name="risk_high">Alto</string>
-    <string name="stats_coverage_active">CGM attivo %1$d%%</string>
+    <string name="stats_coverage_active">Attivo %1$d%%</string>
     <string name="stats_tight_range_chip">Stretto %1$d%%</string>
     <string name="stats_tight_range">Range stretto</string>
     <string name="stats_tight_range_description">Tempo entro %1$s — un gradino più stretto del tuo range obiettivo, per seguire quanto la giornata resta vicina a valori non diabetici.</string>
