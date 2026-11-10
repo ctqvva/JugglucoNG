@@ -171,6 +171,7 @@ class ICanHealthBleManager(
 
     private val gattQueue = ArrayDeque<GattOp>()
     @Volatile private var gattOpActive = false
+    @Volatile private var gattOpInFlight: GattOp? = null
 
     private var cgmService: BluetoothGattService? = null
     private var disService: BluetoothGattService? = null
@@ -392,17 +393,36 @@ class ICanHealthBleManager(
         beginServiceDiscovery(gatt, "mtu-timeout")
     }
 
-    private val gattOpTimeoutRunnable: Runnable = object : Runnable {
-        override fun run() {
-            if (gattOpActive) {
-                if (rejectUnverifiedBindingCandidate("GATT operation timed out before identity verification")) return
-                Log.w(TAG, "GATT op timeout — forcing queue drain")
-                gattOpActive = false
-                handler.removeCallbacks(this)
-                drainGattQueue()
-                maybeHandleQueueDrained()
-            }
+    private var gattOpTimeoutRunnable: Runnable? = null
+
+    @Synchronized
+    private fun handleGattOperationTimeout(owner: BluetoothGatt, operation: GattOp) {
+        if (owner !== mBluetoothGatt || operation !== gattOpInFlight || !gattOpActive) return
+        if (rejectUnverifiedBindingCandidate("GATT operation timed out before identity verification")) return
+        Log.w(TAG, "GATT op timeout — retiring transport before reconnect")
+        val reconnectPlan = computeReconnectPlan(System.currentTimeMillis())
+        if (reconnectPlan.refreshSessionMetadata) {
+            forceSessionMetadataRefresh = true
+            shouldRequestAuthenticatedHistoryBackfill = true
         }
+        if (awaitingFreshStatusForHistoryBackfill) shouldRequestAuthenticatedHistoryBackfill = true
+        // Android supplies no operation token in read/write/descriptor callbacks. Once
+        // a completion is missing, reusing this GATT's slot would let its late callback
+        // complete a newer operation on the same characteristic. Detach it first, so
+        // late callbacks fail the current-GATT guard, then discard all queued work.
+        closeGattTransport()
+        connectedGatt = null
+        hasAuthenticatedReconnectHint = false
+        lastConnectionStartedAtMs = 0L
+        resetConnectionAttemptState()
+        clearGattTransportState()
+        setUiStatus(when {
+            uiPaused -> UiStatusKind.NONE
+            reconnectPlan.exactAlarm -> UiStatusKind.WAITING_FOR_NEXT_READING
+            else -> UiStatusKind.DISCONNECTED
+        })
+        if (!stop && !uiPaused) scheduleReconnect(reconnectPlan)
+        UiRefreshBus.requestStatusRefresh()
     }
 
     private data class ReconnectPlan(
@@ -649,7 +669,7 @@ class ICanHealthBleManager(
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
         handler.removeCallbacks(sensorInfoFallbackRunnable)
         handler.removeCallbacks(mtuRequestTimeoutRunnable)
-        handler.removeCallbacks(gattOpTimeoutRunnable)
+        gattOpTimeoutRunnable?.let { handler.removeCallbacks(it) }
         correctCodeRecheckRunnable?.let { handler.removeCallbacks(it) }
         correctCodeRecheckRunnable = null
         historyBackfillRequested = false
@@ -4776,9 +4796,12 @@ class ICanHealthBleManager(
         if (gattOpActive || gattQueue.isEmpty()) return
         val gatt = mBluetoothGatt ?: return
         val op = gattQueue.poll() ?: return
+        gattOpInFlight = op
         gattOpActive = true
-        handler.removeCallbacks(gattOpTimeoutRunnable)
-        handler.postDelayed(gattOpTimeoutRunnable, GATT_OP_TIMEOUT_MS)
+        gattOpTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        val timeout = Runnable { handleGattOperationTimeout(gatt, op) }
+        gattOpTimeoutRunnable = timeout
+        handler.postDelayed(timeout, GATT_OP_TIMEOUT_MS)
 
         when (op) {
             is GattOp.EnableNotify -> {
@@ -5003,11 +5026,14 @@ class ICanHealthBleManager(
         resetCorrectCodeState()
         gattQueue.clear()
         gattOpActive = false
+        gattOpInFlight = null
+        gattWriteInFlight = null
         handler.removeCallbacks(noDataWatchdog)
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
         handler.removeCallbacks(sensorInfoFallbackRunnable)
         handler.removeCallbacks(mtuRequestTimeoutRunnable)
-        handler.removeCallbacks(gattOpTimeoutRunnable)
+        gattOpTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        gattOpTimeoutRunnable = null
         if (clearReconnect) {
             cancelScheduledReconnect()
         }
@@ -5076,7 +5102,9 @@ class ICanHealthBleManager(
     }
 
     private fun finishGattOp() {
-        handler.removeCallbacks(gattOpTimeoutRunnable)
+        gattOpTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        gattOpTimeoutRunnable = null
+        gattOpInFlight = null
         gattWriteInFlight = null
         gattOpActive = false
         drainGattQueue()

@@ -92,6 +92,8 @@ class ICanHealthCorrectCodeReadbackTests {
         notify(0x1c, 0xf2, 1)
         shadowOf(handler.looper).idle()
         notify(0x1c, 0xf6, 1, 0xff, 0xff)
+        manager.onCharacteristicWrite(gatt, characteristic, BluetoothGatt.GATT_SUCCESS)
+        shadowOf(handler.looper).idle()
         assertFalse(get("correctCodeChainActive") as Boolean)
         shadowOf(handler.looper).idleFor(Duration.ofSeconds(25))
         assertEquals("F6 0xFFFF", manager.getSensorDetailTelemetry())
@@ -148,6 +150,85 @@ class ICanHealthCorrectCodeReadbackTests {
         notify(0x1c, 0xf2, 1)
         shadowOf(handler.looper).idleFor(Duration.ofSeconds(25))
         assertEquals(0, readbackCount())
+        assertFalse(get("correctCodeChainActive") as Boolean)
+    }
+
+    @Test fun aTimedOutEarlierWriteCannotCompleteTheFinalChunkWithItsLateCallback() {
+        armChain(index = 1, completeWrite = false)
+        notify(0x1c, 0xf2, 1)
+        shadowOf(handler.looper).idleFor(Duration.ofMillis(250))
+        // The final chunk is queued behind the previous F2's outstanding GATT callback.
+        assertTrue(radio.writes.isEmpty())
+        (get("gattOpTimeoutRunnable") as Runnable).run()
+        notify(0x1c, 0xf2, 1)
+        shadowOf(handler.looper).idle()
+        manager.onCharacteristicWrite(gatt, characteristic, BluetoothGatt.GATT_SUCCESS)
+        shadowOf(handler.looper).idle()
+        assertEquals(0, readbackCount())
+        assertTrue("No queued chunk may be dispatched on the timed-out GATT", radio.writes.isEmpty())
+        assertNull(SuperGattCallback::class.java.getDeclaredField("mBluetoothGatt")
+            .apply { isAccessible = true }.get(manager))
+        assertNull(get("gattWriteInFlight"))
+        assertTrue(radio.closed)
+        assertFalse(get("correctCodeChainActive") as Boolean)
+        assertEquals(ICanHealthBleManager.Phase.IDLE, manager.phase)
+        assertTrue((get("scheduledReconnectAtMs") as Long) > System.currentTimeMillis())
+    }
+
+    @Test fun aLateFailureFromTheTimedOutGattCannotAbortAReplacementWrite() {
+        armChain(index = 1, completeWrite = false)
+        notify(0x1c, 0xf2, 1)
+        shadowOf(handler.looper).idleFor(Duration.ofMillis(250))
+        (get("gattOpTimeoutRunnable") as Runnable).run()
+        val retiredGatt = gatt
+        val service = radio.service!!
+        gatt = Shadow.newInstanceOf(BluetoothGatt::class.java)
+        radio = Shadow.extract(gatt)
+        radio.service = service
+        SuperGattCallback::class.java.getDeclaredField("mBluetoothGatt").apply { isAccessible = true }
+            .set(manager, gatt)
+        set("cgmService", service)
+        set("charSpecificOps", characteristic)
+        set("isAuthenticated", true)
+        set("postAuthSetupStarted", true)
+        set("phase", ICanHealthBleManager.Phase.STREAMING)
+        set("lastSensorInfoMarker", 0xffff)
+        set("lastAuthChallenge", byteArrayOf(1, 2, 3, 4))
+        armChain(completeWrite = false)
+        notify(0x1c, 0xf2, 1)
+        shadowOf(handler.looper).idle()
+        manager.onCharacteristicWrite(retiredGatt, characteristic, BluetoothGatt.GATT_FAILURE)
+        shadowOf(handler.looper).idle()
+        assertTrue(get("correctCodeChainActive") as Boolean)
+        assertEquals(0, readbackCount())
+        manager.onCharacteristicWrite(gatt, characteristic, BluetoothGatt.GATT_SUCCESS)
+        shadowOf(handler.looper).idle()
+        assertEquals(1, readbackCount())
+    }
+
+    @Test fun anObsoleteTimeoutCannotRetireTheNextOperation() {
+        armChain(index = 1, completeWrite = false)
+        val obsoleteTimeout = get("gattOpTimeoutRunnable") as Runnable
+        manager.onCharacteristicWrite(gatt, characteristic, BluetoothGatt.GATT_SUCCESS)
+        shadowOf(handler.looper).idle()
+        notify(0x1c, 0xf2, 1)
+        shadowOf(handler.looper).idleFor(Duration.ofMillis(250))
+        obsoleteTimeout.run()
+        assertFalse(radio.closed)
+        assertTrue(get("correctCodeChainActive") as Boolean)
+        notify(0x1c, 0xf2, 1)
+        shadowOf(handler.looper).idle()
+        manager.onCharacteristicWrite(gatt, characteristic, BluetoothGatt.GATT_SUCCESS)
+        shadowOf(handler.looper).idle()
+        assertEquals(1, readbackCount())
+    }
+
+    @Test fun aTimedOutPausedConnectionDoesNotScheduleReconnect() {
+        armChain(completeWrite = false)
+        set("uiPaused", true)
+        (get("gattOpTimeoutRunnable") as Runnable).run()
+        assertTrue(radio.closed)
+        assertEquals(0L, get("scheduledReconnectAtMs"))
         assertFalse(get("correctCodeChainActive") as Boolean)
     }
 
@@ -246,11 +327,12 @@ class ICanCorrectCodeGatt {
     var service: BluetoothGattService? = null
     val writes = mutableListOf<ByteArray>()
     var writeStarts = true
+    var closed = false
     @Implementation fun getService(uuid: UUID): BluetoothGattService? = service?.takeIf { it.uuid == uuid }
     @Implementation fun writeCharacteristic(characteristic: BluetoothGattCharacteristic): Boolean {
         writes.add(characteristic.value.copyOf())
         return writeStarts
     }
     @Implementation fun disconnect() {}
-    @Implementation fun close() {}
+    @Implementation fun close() { closed = true }
 }
