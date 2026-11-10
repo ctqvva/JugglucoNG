@@ -2934,6 +2934,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="aidex_pairing_key_deleted">Párosítási kulcs törölve</string>
     <string name="rearm_margin_label">Újraélesítési küszöbkülönbség</string>
     <string name="rearm_min_interval_label">Riasztások közötti minimális idő</string>
+    <string name="pre_low_evidence_label">Aktív inzulin és a közelmúltbeli glükóz figyelembevétele</string>
+    <string name="pre_low_evidence_description">Késleltetheti az előrejelzési riasztást a tartós csökkenés megerősítéséhez</string>
     <string name="pre_high_iob_coverage_label">Inzulinfedezet</string>
     <string name="alert_feature_off">Ki</string>
     <string name="same_direction_suppression_title">Csendes időszak trendriasztás után</string>
