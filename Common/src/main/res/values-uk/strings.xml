@@ -3408,4 +3408,55 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_notification_desc">Кнопка голосу в сповіщенні з глюкозою</string>
     <string name="aidex_keys_before_connect">Імпортуйте або запросіть ключі цього сенсора перед підключенням.</string>
     <string name="aidex_delete_keys_message">Видалити збережені ключі сполучення сенсора %1$s із цього телефона? Спочатку експортуйте їх, якщо вони можуть знадобитися знову.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Сканувати штрихкод</string>
+    <string name="food_recent">Нещодавні</string>
+    <string name="food_my_foods">Мої продукти</string>
+    <string name="food_common_foods">Звичайні продукти</string>
+    <string name="food_reference_tables">Таблиці продуктів (англ.)</string>
+    <string name="food_search_online">Шукати в Open Food Facts</string>
+    <string name="food_online_empty">В Open Food Facts нічого не знайдено</string>
+    <string name="food_online_failed">Не вдалося зв’язатися з Open Food Facts</string>
+    <string name="food_enter_values">Ввести значення для «%1$s»</string>
+    <string name="food_enter_label_values">Ввести значення з етикетки</string>
+    <string name="food_barcode_looking">Шукаємо %1$s…</string>
+    <string name="food_barcode_not_found">В Open Food Facts немає продукту зі штрихкодом %1$s</string>
+    <string name="food_try_again">Повторити</string>
+    <string name="food_carbs">Вуглеводи</string>
+    <string name="food_carbs_value">%1$s г вуглеводів</string>
+    <string name="food_amount_ml">%1$s мл</string>
+    <string name="food_unit_ml">мл</string>
+    <string name="food_one_serving">1 порція</string>
+    <string name="food_servings">Порції</string>
+    <string name="food_weight">Вага</string>
+    <string name="food_volume">Об’єм</string>
+    <string name="food_portion_piece">штука</string>
+    <string name="food_portion_slice">скибка</string>
+    <string name="food_portion_cup">чашка</string>
+    <string name="food_portion_glass">склянка</string>
+    <string name="food_portion_tbsp">ст. л.</string>
+    <string name="food_portion_tsp">ч. л.</string>
+    <string name="food_portion_serving">порція</string>
+    <string name="food_portion_package">упаковка</string>
+    <string name="food_per_100g_label">У 100 г, з етикетки</string>
+    <string name="food_sources">Джерела</string>
+    <string name="food_online_desc">Пошук в інтернеті та штрихкоди</string>
+    <string name="food_file_title">Імпорт та експорт</string>
+    <string name="food_import">Імпорт</string>
+    <string name="food_file_hint">Таблиця CSV або JSON зі стовпцями name, carbs, protein, fat і per_grams. Без per_grams значення вважаються на 100 г.</string>
+    <string name="food_import_empty">У цьому файлі продуктів не знайдено. Потрібні стовпці name і carbs.</string>
+    <string name="food_fiber">Клітковина</string>
+    <string name="food_energy">Енергія</string>
+    <string name="food_kcal_value">%1$s ккал</string>
+    <string name="food_values_for">Значення вказано на</string>
+    <string name="food_serving_weight">Вага порції</string>
+    <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_delete_title">Видалити продукти (%1$d)?</string>
+    <string name="food_deleted">Видалено продуктів: %1$d</string>
+    <string name="food_manage_failed">Не вдалося змінити базу їжі</string>
+    <string name="food_reorder">Змінити порядок</string>
+    <string name="food_move_up">Перемістити вище</string>
+    <string name="food_move_down">Перемістити нижче</string>
 </resources>

@@ -3341,4 +3341,55 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="voice_quick_notification_desc">Glukoz bildiriminde ses düğmesi</string>
     <string name="aidex_keys_before_connect">Bağlanmadan önce bu sensörün anahtarlarını içe aktarın veya talep edin.</string>
     <string name="aidex_delete_keys_message">Bu telefondan %1$s için kaydedilmiş eşleştirme anahtarları kaldırılsın mı? Daha sonra gerekebilecekse önce dışa aktarın.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Barkod tara</string>
+    <string name="food_recent">Son kullanılanlar</string>
+    <string name="food_my_foods">Besinlerim</string>
+    <string name="food_common_foods">Yaygın besinler</string>
+    <string name="food_reference_tables">Besin tabloları (İngilizce)</string>
+    <string name="food_search_online">Open Food Facts’te ara</string>
+    <string name="food_online_empty">Open Food Facts’te sonuç bulunamadı</string>
+    <string name="food_online_failed">Open Food Facts’e ulaşılamadı</string>
+    <string name="food_enter_values">“%1$s” için değerleri gir</string>
+    <string name="food_enter_label_values">Etiketteki değerleri gir</string>
+    <string name="food_barcode_looking">%1$s aranıyor…</string>
+    <string name="food_barcode_not_found">Open Food Facts’te %1$s barkodlu ürün yok</string>
+    <string name="food_try_again">Tekrar dene</string>
+    <string name="food_carbs">Karbonhidrat</string>
+    <string name="food_carbs_value">%1$s g karbonhidrat</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 porsiyon</string>
+    <string name="food_servings">Porsiyon</string>
+    <string name="food_weight">Ağırlık</string>
+    <string name="food_volume">Hacim</string>
+    <string name="food_portion_piece">adet</string>
+    <string name="food_portion_slice">dilim</string>
+    <string name="food_portion_cup">fincan</string>
+    <string name="food_portion_glass">bardak</string>
+    <string name="food_portion_tbsp">yemek kaşığı</string>
+    <string name="food_portion_tsp">çay kaşığı</string>
+    <string name="food_portion_serving">porsiyon</string>
+    <string name="food_portion_package">paket</string>
+    <string name="food_per_100g_label">100 g’da, etikete göre</string>
+    <string name="food_sources">Kaynaklar</string>
+    <string name="food_online_desc">Çevrimiçi arama ve barkodlar</string>
+    <string name="food_file_title">İçe ve dışa aktarma</string>
+    <string name="food_import">İçe aktar</string>
+    <string name="food_file_hint">name, carbs, protein, fat ve per_grams sütunları olan bir CSV veya JSON tablosu. per_grams yoksa değerler 100 g için sayılır.</string>
+    <string name="food_import_empty">Bu dosyada besin bulunamadı. name ve carbs sütunları gerekli.</string>
+    <string name="food_fiber">Lif</string>
+    <string name="food_energy">Enerji</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Değerler şunun için</string>
+    <string name="food_serving_weight">Porsiyon ağırlığı</string>
+    <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_delete_title">Yiyecekler silinsin mi (%1$d)?</string>
+    <string name="food_deleted">Silinen yiyecekler: %1$d</string>
+    <string name="food_manage_failed">Yiyecek kitaplığı güncellenemedi</string>
+    <string name="food_reorder">Yiyecekleri yeniden sırala</string>
+    <string name="food_move_up">Yukarı taşı</string>
+    <string name="food_move_down">Aşağı taşı</string>
 </resources>

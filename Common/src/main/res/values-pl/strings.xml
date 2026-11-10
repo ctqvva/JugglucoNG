@@ -3373,4 +3373,55 @@
     <string name="voice_quick_notification_desc">Przycisk głosu w powiadomieniu o glukozie</string>
     <string name="aidex_keys_before_connect">Przed połączeniem zaimportuj lub pobierz klucze tego sensora.</string>
     <string name="aidex_delete_keys_message">Usunąć z tego telefonu zapisane klucze parowania dla %1$s? Najpierw je wyeksportuj, jeśli mogą być jeszcze potrzebne.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Skanuj kod kreskowy</string>
+    <string name="food_recent">Ostatnie</string>
+    <string name="food_my_foods">Moje produkty</string>
+    <string name="food_common_foods">Popularne produkty</string>
+    <string name="food_reference_tables">Tabele produktów (ang.)</string>
+    <string name="food_search_online">Szukaj w Open Food Facts</string>
+    <string name="food_online_empty">Nic nie znaleziono w Open Food Facts</string>
+    <string name="food_online_failed">Nie udało się połączyć z Open Food Facts</string>
+    <string name="food_enter_values">Wpisz wartości dla „%1$s”</string>
+    <string name="food_enter_label_values">Wpisz wartości z etykiety</string>
+    <string name="food_barcode_looking">Szukam %1$s…</string>
+    <string name="food_barcode_not_found">W Open Food Facts nie ma produktu o kodzie %1$s</string>
+    <string name="food_try_again">Spróbuj ponownie</string>
+    <string name="food_carbs">Węglowodany</string>
+    <string name="food_carbs_value">%1$s g węglowodanów</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 porcja</string>
+    <string name="food_servings">Porcje</string>
+    <string name="food_weight">Waga</string>
+    <string name="food_volume">Objętość</string>
+    <string name="food_portion_piece">sztuka</string>
+    <string name="food_portion_slice">kromka</string>
+    <string name="food_portion_cup">filiżanka</string>
+    <string name="food_portion_glass">szklanka</string>
+    <string name="food_portion_tbsp">łyżka</string>
+    <string name="food_portion_tsp">łyżeczka</string>
+    <string name="food_portion_serving">porcja</string>
+    <string name="food_portion_package">opakowanie</string>
+    <string name="food_per_100g_label">W 100 g, z etykiety</string>
+    <string name="food_sources">Źródła</string>
+    <string name="food_online_desc">Wyszukiwanie online i kody kreskowe</string>
+    <string name="food_file_title">Import i eksport</string>
+    <string name="food_import">Importuj</string>
+    <string name="food_file_hint">Tabela CSV lub JSON z kolumnami name, carbs, protein, fat i per_grams. Bez per_grams wartości liczą się na 100 g.</string>
+    <string name="food_import_empty">W tym pliku nie znaleziono produktów. Potrzebne są kolumny name i carbs.</string>
+    <string name="food_fiber">Błonnik</string>
+    <string name="food_energy">Energia</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Wartości podane na</string>
+    <string name="food_serving_weight">Waga porcji</string>
+    <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_delete_title">Usunąć produkty (%1$d)?</string>
+    <string name="food_deleted">Usunięte produkty: %1$d</string>
+    <string name="food_manage_failed">Nie udało się zaktualizować bazy żywności</string>
+    <string name="food_reorder">Zmień kolejność produktów</string>
+    <string name="food_move_up">Przenieś w górę</string>
+    <string name="food_move_down">Przenieś w dół</string>
 </resources>

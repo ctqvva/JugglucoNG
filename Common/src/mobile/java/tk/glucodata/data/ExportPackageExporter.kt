@@ -19,6 +19,9 @@ import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.CloneJournalIdentity
+import tk.glucodata.data.food.FoodDetailsBackup
+import tk.glucodata.data.food.FoodLibrary
+import tk.glucodata.data.food.FoodLibraryDatabase
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalPendingDeleteEntity
@@ -41,6 +44,7 @@ object ExportPackageExporter {
     private const val PROGRESS_LOG_READINGS = 100_000
     private const val HISTORY_READINGS = "history.readings"
     private const val HISTORY_DELETED_READINGS = "history.deletedReadings"
+    private const val HISTORY_FOOD_DETAILS = "journalFoodDetails"
     private val historyImportMutex = Mutex()
 
     data class ExportRequest(
@@ -533,7 +537,7 @@ object ExportPackageExporter {
             database.journalDao().getEntries()
         }
         val insulinPresets = database.journalDao().getInsulinPresets()
-        val foods = database.journalDao().getFoods()
+        val (foods, foodDetails) = FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(context).foodDetailsDao()).snapshot()
         val pendingJournalDeletes = database.journalDao().getPendingNightscoutDeletes()
             .filter { it.deletedAt >= startMillis }
 
@@ -641,6 +645,8 @@ object ExportPackageExporter {
                     foods.forEach { array.put(it.toJson()) }
                 }
             )
+            // Skipped by a build that does not know the key; its foods are then plain presets.
+            .put(HISTORY_FOOD_DETAILS, FoodDetailsBackup.toJson(foodDetails))
             .put(
                 "deletedReadings",
                 StreamedJsonArray { emit -> deletedReadings.forEach { emit(it.toJson()) } }
@@ -867,7 +873,9 @@ object ExportPackageExporter {
         flushReadings()
         flushTombstones()
         if (foods.isNotEmpty()) {
-            database.journalDao().insertFoods(foods)
+            FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(context).foodDetailsDao()).restore(
+                foods, FoodDetailsBackup.fromJson(history.optJSONArray(HISTORY_FOOD_DETAILS))
+            )
         }
         if (insulinPresets.isNotEmpty()) {
             database.journalDao().insertInsulinPresets(insulinPresets)

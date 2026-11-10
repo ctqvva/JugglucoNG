@@ -13,6 +13,9 @@ import tk.glucodata.Natives
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.CloneJournalTombstoneEntity
 import tk.glucodata.data.journal.CloneJournalIdentity
+import tk.glucodata.data.food.FoodDetailsBackup
+import tk.glucodata.data.food.FoodLibrary
+import tk.glucodata.data.food.FoodLibraryDatabase
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import java.io.File
@@ -465,6 +468,7 @@ object SettingsExporter {
 
     private suspend fun buildJournalData(context: Context): JSONObject {
         val journalDao = HistoryDatabase.getInstance(context).journalDao()
+        val (foods, foodDetails) = FoodLibrary(journalDao, FoodLibraryDatabase.getInstance(context).foodDetailsDao()).snapshot()
         return JSONObject()
             .put(
                 "entries",
@@ -481,8 +485,14 @@ object SettingsExporter {
             .put(
                 "foods",
                 JSONArray().also { array ->
-                    journalDao.getFoods().forEach { array.put(it.toJson()) }
+                    foods.forEach { array.put(it.toJson()) }
                 }
+            )
+            // What the food library knows beyond those rows. An older build skips the key and
+            // reads every food as the plain preset it used to be.
+            .put(
+                FoodDetailsBackup.KEY,
+                FoodDetailsBackup.toJson(foodDetails)
             )
             .put(
                 "cloneTombstones",
@@ -512,10 +522,9 @@ object SettingsExporter {
         journalDao.deleteAllInsulinPresets()
         journalDao.deleteAllCloneJournalTombstones()
         if (hasFoods) {
-            journalDao.deleteAllFoods()
-            if (foods.isNotEmpty()) {
-                journalDao.insertFoods(foods)
-            }
+            FoodLibrary(journalDao, FoodLibraryDatabase.getInstance(context).foodDetailsDao()).restore(
+                foods, FoodDetailsBackup.fromJson(journalData.optJSONArray(FoodDetailsBackup.KEY)), replaceAll = true
+            )
         }
         if (insulinPresets.isNotEmpty()) {
             journalDao.insertInsulinPresets(insulinPresets)

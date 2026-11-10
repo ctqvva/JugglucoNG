@@ -1,0 +1,101 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "dbf37617d0ba30b2c1ec2622478c3049",
+    "entities": [
+      {
+        "tableName": "food_details",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`foodId` INTEGER NOT NULL, `referenceGrams` REAL, `portions` TEXT NOT NULL, `fiberGrams` REAL, `kcal` REAL, `brand` TEXT, `barcode` TEXT, `sourceKey` TEXT, `isLiquid` INTEGER NOT NULL, `kept` INTEGER NOT NULL, `useCount` INTEGER NOT NULL, `lastUsedAt` INTEGER NOT NULL, `lastQuantity` REAL, `lastPortionIndex` INTEGER, PRIMARY KEY(`foodId`))",
+        "fields": [
+          {
+            "fieldPath": "foodId",
+            "columnName": "foodId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "referenceGrams",
+            "columnName": "referenceGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "portions",
+            "columnName": "portions",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fiberGrams",
+            "columnName": "fiberGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "kcal",
+            "columnName": "kcal",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "brand",
+            "columnName": "brand",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "barcode",
+            "columnName": "barcode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceKey",
+            "columnName": "sourceKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isLiquid",
+            "columnName": "isLiquid",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kept",
+            "columnName": "kept",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "useCount",
+            "columnName": "useCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUsedAt",
+            "columnName": "lastUsedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastQuantity",
+            "columnName": "lastQuantity",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "lastPortionIndex",
+            "columnName": "lastPortionIndex",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "foodId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'dbf37617d0ba30b2c1ec2622478c3049')"
+    ]
+  }
+}
