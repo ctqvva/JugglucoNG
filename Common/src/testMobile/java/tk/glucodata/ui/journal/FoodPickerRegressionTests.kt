@@ -10,12 +10,25 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.ConscryptMode
 import tk.glucodata.data.food.*
+import tk.glucodata.data.journal.JournalFood
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 @ConscryptMode(ConscryptMode.Mode.OFF)
 class FoodPickerRegressionTests {
     private val food = FoodItem("off:1", FoodSource.OPEN_FOOD_FACTS, "Scanned", referenceGrams = 100f, carbs = 10f)
+
+    @Test
+    fun addedFeedbackMatchesSourceIdentityAndBarcodeRatherThanTranslatedNames() {
+        val common = food.copy(key = "common:apple", source = FoodSource.COMMON, name = "Apple")
+        val saved = JournalFood(7, "Яблоко", 10f, null, null, 90, 0, false, false, 0, sourceKey = common.key)
+        assertEquals(saved.toFoodItem().mealKey(listOf(saved)), common.mealKey(listOf(saved)))
+        assertNotEquals(common.mealKey(listOf(saved)), common.copy(key = "common:other").mealKey(listOf(saved)))
+        val online = food.copy(key = "off:3017620422003", barcode = "3017620422003")
+        val savedProduct = saved.copy(sourceKey = null, barcode = online.barcode)
+        assertEquals(savedProduct.toFoodItem().mealKey(listOf(savedProduct)), online.mealKey(listOf(savedProduct)))
+        assertNotEquals(food.mealKey(emptyList()), food.copy(key = "off:other").mealKey(emptyList()))
+    }
 
     @Test
     fun lookupAppendsToTheCurrentDraftAfterEditsAndRemovals() = runBlocking {

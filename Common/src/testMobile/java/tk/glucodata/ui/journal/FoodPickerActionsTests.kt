@@ -2,6 +2,7 @@ package tk.glucodata.ui.journal
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Assert.*
@@ -141,5 +142,41 @@ class FoodPickerActionsTests {
         assertEquals(75f, input.amount!!, 0f)
         assertEquals(listOf(1L, 2L), input.foodUses.map { it.food.libraryId })
         assertEquals(2, input.foodItemCount)
+    }
+
+    @Test
+    fun mealStaysAboveResultsAndRowsAndButtonsTrackAddedAndRemovedIngredients() {
+        show {}
+        search()
+        fun result() = compose.onNode(hasText("Meal oats") and
+            hasAnyDescendant(hasContentDescription(label(R.string.journal_add_food))))
+        fun addButton() = compose.onNode(hasContentDescription(label(R.string.journal_add_food)) and
+            hasAnyAncestor(hasText("Meal oats")))
+        result().assertIsNotSelected()
+        plus("Meal oats")
+        val summary = compose.onNodeWithTag("food_meal_summary").fetchSemanticsNode().boundsInRoot
+        val results = compose.onNodeWithText(label(R.string.food_my_foods)).fetchSemanticsNode().boundsInRoot
+        assertTrue("the meal must appear before My foods", summary.bottom <= results.top)
+        result().assertIsSelected()
+        addButton().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
+            Applic.app.getString(R.string.selected_count, 1)))
+        plus("Meal oats")
+        addButton().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
+            Applic.app.getString(R.string.selected_count, 2)))
+        capture("meal-above-results-with-added-feedback")
+        fun removeChip() {
+            compose.onAllNodes(hasText("Meal oats") and hasContentDescription(label(R.string.remove)) and
+                hasAnyAncestor(hasTestTag("food_meal_summary")))[0].performClick()
+            settle()
+        }
+        removeChip()
+        result().assertIsSelected()
+        addButton().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
+            Applic.app.getString(R.string.selected_count, 1)))
+        removeChip()
+        result().assertIsNotSelected()
+        addButton().assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
+        compose.onNodeWithTag("food_meal_summary").assertDoesNotExist()
+        assertSearchStillOpen()
     }
 }
