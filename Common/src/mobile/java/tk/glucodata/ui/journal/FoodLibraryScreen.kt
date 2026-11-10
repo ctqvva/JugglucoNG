@@ -248,8 +248,8 @@ fun JournalFoodLibraryScreen(
             },
             onDelete = if (food.isBuiltIn) null else {
                 {
-                deleteFoods(setOf(food.id)) {}
-                editingFood = null
+                    deleteFoods(setOf(food.id)) {}
+                    editingFood = null
                 }
             }
         )

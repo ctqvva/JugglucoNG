@@ -182,10 +182,13 @@ No test journal entry was saved.
 The food list now follows Calibration's interaction: tap to edit, long-press to
 select, round selection indicators, and direct select-all/disable/enable/delete
 actions in the floating toolbar. Both lists use the same selection indicator and
-toolbar components. Selection mode hides the food settings and add controls.
+toolbar components. Selection now updates in place without removing settings or
+search rows. The toolbar floats over the list instead of reserving a bottom bar.
+Add food is a bottom-end FAB, replaced by the floating toolbar during selection.
 There are no row menus or move-destination chooser. Normal saved-food rows have
 drag handles for reordering; TalkBack also offers move-up/move-down actions.
-Swipe left deletes with Undo, and swipe right disables or enables a food.
+Swipe left deletes custom foods with Undo, and swipe right disables or enables a
+food. Built-in presets retain their original deletion protection and can be disabled.
 
 Saved rows are individual lazy items. Reordering previews IDs locally, supports
 variable-height rows and edge scrolling, and persists on release. Changes to order
@@ -206,3 +209,27 @@ asserts that the dialog's real IME inset is zero while simulated content padding
 remains nonzero, then retains a padded frame and removes the padding across
 multiple animation frames. The animation guard's padding test is distinct from
 the real IME inset that the former permanent height lock consulted.
+
+## Stable selection and swipe feedback
+
+Selection no longer replaces the reorder and swipe wrappers. Leading and trailing
+row slots retain their dimensions, keeping text wrapping, row height and the
+scroll anchor unchanged. The list viewport also remains unchanged when the
+floating selection toolbar appears, so rows continue behind it instead of ending
+at an opaque bottom strip. Settings and search stay in the same lazy-list slots.
+
+Reorder handles now recognize only vertical drags: they previously intercepted
+horizontal swipes starting at the trailing edge. Swipe actions execute once after
+settling, outside the target-confirmation callback. Failed deletions reset the
+row, archive gestures reset on completion, and dismissed row state is not saved
+across Undo. Threshold and completion haptics use the platform feedback API.
+
+All 161 related tests passed without failures/errors/skips. New rendered tests
+check text position and viewport bounds on every frame while selecting and
+cancelling a row in a 100-food list; haptic events and exact-once swipe actions;
+failed-write retries; below-threshold stationary release; and immediate Undo
+during removal animation. The built-in deletion guard has a database regression.
+The final arm64 debug APK built and was installed on the Pixel. Further physical
+input stopped when device navigation overlapped with the user's testing; native
+haptic feel was not independently assessed. No journal entry or existing food
+definition was saved during this follow-up's device check.
