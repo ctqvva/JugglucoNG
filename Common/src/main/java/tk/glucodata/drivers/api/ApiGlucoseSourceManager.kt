@@ -59,6 +59,10 @@ class ApiGlucoseSourceManager(
     @Volatile private var phase: Phase = Phase.IDLE
     @Volatile private var status: String = localizedString(R.string.api_source_status_idle, "API source idle")
     @Volatile private var lastImportedHistoryTailMs: Long = 0L
+    // Snapshot parsed from the current poll, committed only once the refresh is
+    // known to still be active (see refresh()): parsing must not mutate the
+    // shared ApiIobSnapshot while a disable/terminate may be racing it.
+    @Volatile private var pendingIobSnapshot: ApiIobSnapshot.RemoteIob? = null
     @Volatile private var latestReadingTimeMs: Long = 0L
     @Volatile private var latestReadingMgdl: Float = Float.NaN
     @Volatile private var latestAutoMgdl: Float = Float.NaN
@@ -172,6 +176,7 @@ class ApiGlucoseSourceManager(
     override fun softDisconnect() {
         stop = true
         handler.removeCallbacksAndMessages(null)
+        dropApiIobSnapshot()
         setStatus(Phase.IDLE, localizedString(R.string.api_source_status_paused, "API source paused"))
     }
 
@@ -184,6 +189,7 @@ class ApiGlucoseSourceManager(
     override fun terminateManagedSensor(wipeData: Boolean) {
         stop = true
         handler.removeCallbacksAndMessages(null)
+        dropApiIobSnapshot()
         if (wipeData) {
             Applic.app?.let { ApiGlucoseSourceRegistry.disableSourceSensor(it) }
         }
@@ -218,7 +224,15 @@ class ApiGlucoseSourceManager(
         setStatus(Phase.SYNCING, localizedString(R.string.api_source_status_syncing, "Refreshing API source"))
         try {
             VirtualGlucoseSensorBridge.pruneFutureHistory(SerialNumber, "API source")
+            pendingIobSnapshot = null
             val readings = fetchReadings()
+            if (stop) {
+                // Disabled or terminated while the network request was in flight:
+                // drop what it brought back instead of resurrecting cleared state.
+                dropApiIobSnapshot()
+                return
+            }
+            commitPendingIobSnapshot()
             if (readings.isEmpty()) {
                 setStatus(Phase.IDLE, localizedString(R.string.api_source_status_no_readings, "No API readings yet"))
                 scheduleRefresh(pollIntervalMs)
@@ -470,6 +484,7 @@ class ApiGlucoseSourceManager(
         val trimmed = body.trim()
         if (trimmed.isEmpty()) return emptyList()
         importJournalPayload(trimmed)
+        noteIobSnapshot(ApiIobSnapshot.parse(trimmed))
         val objects = when {
             trimmed.startsWith("[") -> jsonArrayObjects(JSONArray(trimmed))
             else -> {
@@ -669,6 +684,9 @@ class ApiGlucoseSourceManager(
             ?: fields["RAW_MMOL"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
             ?: fields["RAW"]?.toDoubleOrNull()?.let(::inferCompactGlucoseMgdl)
             ?: Double.NaN
+        // GlucoWatch text carries the sender's IOB/COB alongside glucose; keep
+        // the snapshot so the follower shows the sender's numbers (see parseOutboundJson).
+        noteIobSnapshot(ApiIobSnapshot.fromTextFields(fields))
         return VirtualGlucoseSensorBridge.Reading(
             timestampMs = timestamp,
             glucoseMgdl = glucoseMgdl.toFloat(),
@@ -749,17 +767,7 @@ class ApiGlucoseSourceManager(
     private fun importJournalPayload(raw: String): Int {
         if (raw.isBlank()) return 0
         return runCatching {
-            val type = Class.forName("tk.glucodata.OutboundApiJournalSnapshot")
-            val sourcePrefix = "api:$SerialNumber"
-            val method = runCatching {
-                type.getMethod("importFromJsonForSource", String::class.java, String::class.java)
-            }.getOrNull()
-            if (method != null) {
-                (method.invoke(null, raw, sourcePrefix) as? Int) ?: 0
-            } else {
-                val legacyMethod = type.getMethod("importFromJson", String::class.java)
-                (legacyMethod.invoke(null, raw) as? Int) ?: 0
-            }
+            tk.glucodata.JournalSnapshotAccess.importFromJsonForSource(raw, "api:$SerialNumber")
         }.onSuccess { imported ->
             if (imported > 0) {
                 Log.i(TAG, "Imported $imported API journal entries")
@@ -768,6 +776,31 @@ class ApiGlucoseSourceManager(
         }.onFailure {
             Log.w(TAG, "journal import ignored: ${it.message}")
         }.getOrDefault(0)
+    }
+
+    /** Stage a snapshot parsed mid-poll; the newest timestamp wins across messages. */
+    private fun noteIobSnapshot(remote: ApiIobSnapshot.RemoteIob?) {
+        if (remote == null) return
+        val current = pendingIobSnapshot
+        if (current == null || remote.timestampMillis > current.timestampMillis) {
+            pendingIobSnapshot = remote
+        }
+    }
+
+    /** Publish the staged snapshot now that the refresh is known to still be active. */
+    private fun commitPendingIobSnapshot() {
+        val pending = pendingIobSnapshot
+        pendingIobSnapshot = null
+        if (pending != null && ApiIobSnapshot.update(pending)) {
+            tk.glucodata.JournalSnapshotAccess.invalidateBroadcastIobCache()
+        }
+    }
+
+    /** Forget local and remote API IOB state: the source is gone, nothing may linger. */
+    private fun dropApiIobSnapshot() {
+        pendingIobSnapshot = null
+        ApiIobSnapshot.clear()
+        tk.glucodata.JournalSnapshotAccess.invalidateBroadcastIobCache()
     }
 
     private fun firstFinite(vararg values: Double): Double? =

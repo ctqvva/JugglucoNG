@@ -21,6 +21,7 @@
 #ifndef SENSOREN_H
 #define SENSOREN_H
 #include "SensorGlucoseData.hpp"
+#include "libre3/nfcmetadata.hpp"
 #include "inout.hpp"
 #include "settings/settings.hpp"
 #include <algorithm>
@@ -354,6 +355,18 @@ private:
   }
 
 public:
+  // True when the slot is populated but its per-sensor directory is gone. A
+  // mapping opened before the removal keeps hist[ind] looking healthy, so
+  // getSensorData() never reaches its self-heal; callers that list active
+  // sensors use this to stop treating such a ghost as a live sensor.
+  bool sensorDirectoryMissing(const int ind) const {
+    if (!populatedSensorSlot(ind))
+      return false;
+    pathconcat sdir(inbasedir, sensorlist()[ind].fullname());
+    struct stat dirstat;
+    return stat(sdir.data(), &dirstat) != 0;
+  }
+
   void deletelast() {
     if (const int l = last(); l >= 0 && l < maxhist) {
       auto *old = hist[l];
@@ -487,7 +500,9 @@ public:
              minimumPollRecords);
     }
     auto *info = hist[ind]->getinfo();
-    if (starttime > 0) {
+    // A Dexcom's start comes from the sensor, and its slots are counted from
+    // it. A start guessed from mirrored readings must not move it.
+    if (starttime > 0 && !(info && info->dexcom)) {
       if (info && (info->starttime == 0 || starttime < info->starttime)) {
         info->starttime = starttime;
       }
@@ -510,9 +525,10 @@ public:
   }
 
   bool needsScan(const int ind) const {
+    const auto *data = getSensorData(ind);
     const sensor *sens = getsensor(ind);
     const auto res = sens->halfdays >= (stdMaxDaysSI * 2) ||
-                     sens->halfdays == (maxdaysDex * 2);
+                     (data && data->isDexcom());
     LOGGER("needsScan(%d,%s)=%d\n", ind, sens->name, res);
     return res;
   }
@@ -535,7 +551,12 @@ public:
   int makelibre3sensorindex(std::string_view shortname, uint32_t starttime,
                             const uint32_t pin, const char *deviceaddress,
                             uint32_t now, uint16_t warmup,
-                            uint16_t wearduration) {
+                            uint16_t wearduration, bool fromNfc = false) {
+    const libre3nfc::NfcMetadata nfc{starttime, pin, deviceaddress, warmup, wearduration};
+    if (fromNfc && (shortname.size() != 9 || !nfc.valid(now))) {
+      LOGAR("Libre 3 NFC metadata invalid");
+      return -1;
+    }
     const auto name = namelibre3(shortname);
 
 #ifndef NOLOG
@@ -551,15 +572,25 @@ public:
       LOGGER("known sensor %s\n", sensgegs->showsensorname());
       const int sensindex = sensgegs - sensorlist();
       SensorGlucoseData *sens = getSensorData(sensindex);
-      if (pin) {
-        sens->getinfo()->pin = pin;
+      if (!sens)
+        return -1;
+      if (fromNfc) {
+        if (libre3nfc::refreshNfcMetadata(*sens->getinfo(), nfc) !=
+            libre3nfc::NfcRefresh::updated) {
+          LOGAR("Libre 3 NFC activation conflicts with retained history or storage; unchanged");
+          return -1;
+        }
+        sensgegs->starttime = sens->getstarttime();
+        sensgegs->halfdays = 2 * sens->getweardurationMIN() / (24 * 60);
+        sensgegs->endtime = 0;
+        LOGAR("Libre 3 NFC connection metadata refreshed");
+      } else {
+        if (pin)
+          sens->getinfo()->pin = pin;
+        if (deviceaddress && !*sens->deviceaddress())
+          strcpy(sens->deviceaddress(), deviceaddress);
+        sens->getinfo()->haskAuth = false;
       }
-      if (deviceaddress) {
-        char *address = sens->deviceaddress();
-        if (!*address)
-          strcpy(address, deviceaddress);
-      }
-      sens->getinfo()->haskAuth = false;
       sendKAuth(sens);
       sensgegs->finished = 0;
 
@@ -575,6 +606,18 @@ public:
                                    warmup, wearduration);
     const int ind = addsensor(std::string_view(name.data(), name.size()));
     sensor *sen = getsensor(ind);
+    if (fromNfc) {
+      // A sensor directory can survive after its roster entry was removed.
+      // mkdatabase3 deliberately retains it, so validate that path as well.
+      auto *sens = getSensorData(ind);
+      if (!sens || libre3nfc::refreshNfcMetadata(*sens->getinfo(), nfc) !=
+                       libre3nfc::NfcRefresh::updated) {
+        sen->markRemovedByUser();
+        LOGAR("Libre 3 NFC retained directory conflicts with activation");
+        return -1;
+      }
+      sen->starttime = sens->getstarttime();
+    }
     sen->halfdays = 2 * wearduration / (24 * 60);
     sen->initialized = true;
     return ind;
@@ -608,69 +651,117 @@ public:
   }
 #endif
 #ifdef DEXCOM
+  static constexpr std::string_view manualDexcomPrefix =
+      dexcom::manualPrefix;
+
+  sensor *findUnboundManualDexcom(const char *pin, int wearDays) {
+    for (int index = last(); index >= 0; --index) {
+      sensor *candidate = getsensor(index);
+      if (!candidate->present || candidate->finished)
+        continue;
+      SensorGlucoseData *data = getSensorData(index);
+      if (!data || !data->isDexcom())
+        continue;
+      const auto *info = data->getinfo();
+      // The PIN is not a sensor identity. Reuse it only to recover an empty,
+      // unbound record left by interrupted setup; an established sensor with
+      // the same PIN must retain its own identity, key, and history.
+      if (!info || info->pollcount || info->scancount || info->endhistory ||
+          info->DexDeviceName[0] ||
+          info->sharedKey != std::array<uint8_t, 16>{} ||
+          info->siIdlen != 55 ||
+          memcmp(info->siId, manualDexcomPrefix.data(),
+                 manualDexcomPrefix.size()))
+        continue;
+      if (info->wearduration != dexcom::wearMinutes(wearDays))
+        continue;
+      const auto storedPin = data->getDexPin();
+      if (!memcmp(storedPin.data(), pin, storedPin.size()))
+        return getsensor(index);
+    }
+    return nullptr;
+  }
+
   std::pair<int, SensorGlucoseData *>
-  makeDexComSensorindex(const char *pin, std::string_view gegs, uint32_t now) {
-    std::array<char, 16> name;
-    if (gegs.size() == 55) {
-      std::copy_n(&gegs[19], 12, name.data());
-    } else {
-      if (gegs.size() >= 15) {
-        std::copy_n(gegs.end() - 15, 7, name.data());
-        std::copy_n(&gegs[5], 5, name.data() + 7);
-      } else {
-        const char *end = gegs.end();
-        int uitit = 0;
-        for (const char *iter = gegs.data(); uitit < 11; ++iter) {
-          if (iter == end) {
-            return {-1, nullptr};
-          }
-          if (isprint(*iter)) {
-            name[uitit++] = *iter;
-          }
+  makeDexComSensorindex(const dexcom::ScanIdentity &scan, uint32_t now,
+                        uint32_t sensorStart = 0) {
+    if (!validSensorStarttime(sensorStart) || sensorStart > now)
+      sensorStart = 0;
+    const auto &name = scan.name;
+    const char *pin = name.data() + 12;
+    removeunused();
+    sensor *sensgegs = findsensorm(std::string_view(name.data(), name.size()));
+    if (!sensgegs && scan.manual) {
+      sensgegs = findUnboundManualDexcom(pin, scan.days);
+    }
+    if (!sensgegs && !scan.manual) {
+      // Older compact scans derived the directory name from byte offsets. Match
+      // the stored GS1 identity so rescanning keeps their key/history/directory.
+      for (int index = last(); index >= 0; --index) {
+        const auto *data = getSensorData(index);
+        if (!data || !data->isDexcom()) continue;
+        const auto *info = data->getinfo();
+        if (info->siIdlen > sizeof(info->siId)) continue;
+        const auto stored = dexcom::parseScan(std::string_view(
+            reinterpret_cast<const char *>(info->siId), info->siIdlen));
+        if (stored && !stored->manual && stored->name == scan.name) {
+          sensgegs = getsensor(index);
+          break;
         }
       }
     }
-    std::copy_n(pin, 4, name.data() + 12);
-    LOGGER("makeDexComSensorindex %s name=%.16s\n", pin, name.data());
-    removeunused();
-    if (sensor *sensgegs =
-            findsensorm(std::string_view(name.data(), name.size()))) {
+    if (sensgegs) {
       LOGGER("known sensor %s\n", sensgegs->showsensorname());
       const int sensindex = sensgegs - sensorlist();
       SensorGlucoseData *sens = getSensorData(sensindex);
+      if (!sens) return {-1, nullptr};
+      if (!sens->isDexcom()) {
+        // A watch builds a plain record under this exact name from the
+        // phone's mirrored history (WearSync2) long before it is handed the
+        // sensor itself. Taking that record as the Dexcom one left it without
+        // a Dexcom header, so nothing could ever connect to it. Only such a
+        // mirror is replaced: a record some other driver established under
+        // this name keeps its files.
+        if (!sens->isMirrorShell()) {
+          LOGGER("makeDexComSensorindex: %s is not a mirrored record\n",
+                 sensgegs->showsensorname());
+          return {-1, nullptr};
+        }
+        return convertMirrorToDexcom(sensindex, scan, now, sensorStart);
+      }
+      sensgegs = getsensor(sensindex);
+      auto *info = sens->getinfo();
+      info->wearduration = std::max<uint16_t>(info->wearduration,
+          static_cast<uint16_t>(dexcom::wearMinutes(scan.days)));
+      info->days = std::max<uint8_t>(info->days, scan.days + 2);
+      sensgegs->halfdays = info->days * 2;
       sendKAuth(sens);
       sendsiScan(sens);
       setstreaming(sens);
       sensgegs->finished = 0;
-      auto *info = sens->getinfo();
       info->lastscantime = now;
-      if (!info->pollcount)
-        info->starttime = now; // Not needed
+      if (!info->pollcount) {
+        info->starttime = sensorStart ? sensorStart : now;
+        // The list is kept in start order; a start set in place breaks it.
+        setSensorStarttime(sensindex, info->starttime);
+      }
       void resensordata(int sensorindex);
       resensordata(sensindex);
       return {sensindex, sens};
     }
     const pathconcat sensordir(inbasedir, name);
-    SensorGlucoseData::mkdatabaseDex(sensordir, gegs, now);
+    if (!SensorGlucoseData::mkdatabaseDex(sensordir, scan.payload, now, scan.days,
+                                          sensorStart))
+      return {-1, nullptr};
     const int ind = addsensor(name);
     sensor *sen = getsensor(ind);
+    if (sensorStart) setSensorStarttime(ind, sensorStart);
     sen->initialized = true;
-    sen->halfdays = maxdaysDex * 2;
+    sen->halfdays = (scan.days + 2) * 2;
     return {ind, getSensorData(ind)};
   }
 
 private:
-  static bool dexcomEnd(const char *endcode) {
-    if (!memcmp(endcode - 7, "240", 3)) {
-      const char *pin = endcode - 4;
-      for (auto *iter = pin; iter < endcode; ++iter) {
-        if (!isdigit(*iter))
-          return false;
-      }
-      return true;
-    }
-    return false;
-  }
 #endif
 
   // Scanned: 01040156300880101125031317260203211R000162641
@@ -726,27 +817,142 @@ private:
     return {ind, getSensorData(ind)};
   }
 
+  // A CareSens Air scan in PhotoScan's canonical framing, or null. Strict on
+  // purpose: the record is stored as is and the pairing PIN is read back from
+  // a fixed offset.
+  static const careSenseAirScan_t *asCareSensAirScan(std::string_view scanned) {
+    if (scanned.size() != sizeof(careSenseAirScan_t))
+      return nullptr;
+    const auto *scan =
+        reinterpret_cast<const careSenseAirScan_t *>(scanned.data());
+    const auto digits = [](const char *field, size_t len) {
+      return std::all_of(field, field + len,
+                         [](char c) { return c >= '0' && c <= '9'; });
+    };
+    // GS1 dates and the GTIN are digits; the rest only has to be printable.
+    const auto printable = [](const char *field, size_t len) {
+      return std::all_of(field, field + len,
+                         [](char c) { return isgraph((unsigned char)c); });
+    };
+    // AI 21 and 240 are variable length, so a GS ends each before the next AI.
+    const auto ai = [](const char *field, const char *expected) {
+      return !memcmp(field, expected, strlen(expected));
+    };
+    if (!ai(scan->start, "\x1D"
+                         "01") ||
+        !ai(scan->tus17, "17") || !ai(scan->tus21, "21") ||
+        !ai(scan->start2, "\x1D"
+                          "240") ||
+        !ai(scan->start3, "\x1D"
+                          "250"))
+      return nullptr;
+    if (!digits(scan->gtin, sizeof(scan->gtin)) ||
+        !digits(scan->expiry, sizeof(scan->expiry)) ||
+        !printable(scan->serial, sizeof(scan->serial)) ||
+        !printable(scan->pinCode, sizeof(scan->pinCode)) ||
+        !printable(scan->sensorCode, sizeof(scan->sensorCode)))
+      return nullptr;
+    return scan;
+  }
+  // Named <expiry YYMM><serial>, as upstream Juggluco does.
+  std::pair<int, SensorGlucoseData *>
+  makeAirSensorindex(const careSenseAirScan_t &scan, uint32_t now) {
+    std::array<char, 16> longname;
+    memcpy(longname.data(), scan.expiry, 4);
+    memcpy(longname.data() + 4, scan.serial, sizeof(scan.serial));
+    const std::string_view name(longname.data(), longname.size());
+    LOGGER("makeAirSensorindex %.16s\n", longname.data());
+    removeunused();
+    if (sensor *sensgegs = findsensorm(name)) {
+      LOGGER("known sensor %s\n", sensgegs->showsensorname());
+      const int sensindex = sensgegs - sensorlist();
+      SensorGlucoseData *sens = getSensorData(sensindex);
+      sensgegs->finished = 0;
+      auto *info = sens->getinfo();
+      sendsiScan(sens);
+      info->lastscantime = now;
+      if (!info->pollcount)
+        info->starttime = now; // Not needed
+      void resensordata(int sensorindex);
+      resensordata(sensindex);
+      return {sensindex, sens};
+    }
+    const pathconcat sensordir(inbasedir, name);
+    SensorGlucoseData::mkdatabaseAir(sensordir, scan, now);
+    const int ind = addsensor(name);
+    sensor *sen = getsensor(ind);
+    sen->initialized = true;
+    sen->halfdays = maxdaysAir * 2;
+    return {ind, getSensorData(ind)};
+  }
+
+#ifdef DEXCOM
+  /**
+   * Turns a mirrored (non-Dexcom) record into a fresh Dexcom record of the
+   * same name and slot. The mirror's files are moved aside rather than
+   * rewritten: other threads may still hold its SensorGlucoseData, which keeps
+   * its open mappings of the moved files, so it is deliberately not deleted.
+   * Its readings were copies of the phone's and are served again.
+   */
+  std::pair<int, SensorGlucoseData *>
+  convertMirrorToDexcom(const int ind, const dexcom::ScanIdentity &scan,
+                        const uint32_t now, const uint32_t sensorStart) {
+    sensorlistmap();
+    const auto fullname = sensorlist()[ind].fullname();
+    if (fullname.empty()) return {-1, nullptr};
+    const pathconcat sensordir(inbasedir, fullname);
+    char aside[PATH_MAX];
+    snprintf(aside, sizeof(aside), "%s.mirror%u", sensordir.data(), now);
+    if (rename(sensordir.data(), aside) != 0) {
+      LOGGER("convertMirrorToDexcom rename %s failed\n", sensordir.data());
+      return {-1, nullptr};
+    }
+    // The mirror's start was guessed from the first reading it was sent, and
+    // later readings moved it; the slots are counted from the real one.
+    if (!SensorGlucoseData::mkdatabaseDex(sensordir, scan.payload, now, scan.days,
+                                          sensorStart)) {
+      LOGGER("convertMirrorToDexcom mkdatabaseDex %s failed\n", sensordir.data());
+      // The directory mkdatabaseDex made would stop the mirror moving back.
+      rmdir(sensordir.data());
+      if (rename(aside, sensordir.data()) != 0)
+        LOGGER("convertMirrorToDexcom restoring %s failed\n", aside);
+      return {-1, nullptr};
+    }
+    hist[ind] = nullptr; // reopened below; the old object is left alive on purpose
+    sensor *sen = getsensor(ind);
+    sen->initialized = true;
+    sen->finished = 0;
+    sen->halfdays = (scan.days + 2) * 2;
+    setSensorStarttime(ind, sensorStart ? sensorStart : now);
+    LOGGER("converted mirrored record %s to Dexcom\n", sensordir.data());
+    return {ind, getSensorData(ind)};
+  }
+#endif
+
 public:
 #ifdef SIBIONICS
   std::pair<int, SensorGlucoseData *> makeSIsensorindex(std::string_view gegsSI,
-                                                        uint32_t now) {
+                                                        uint32_t now,
+                                                        uint32_t dexcomStart = 0) {
+
+#ifdef DEXCOM
+    if (const auto scan = dexcom::parseScan(gegsSI))
+      return makeDexComSensorindex(*scan, now, dexcomStart);
+#endif
 
 #ifndef NOLOG
-    LOGGER("makeSIsensorindex(%s) len=%d\n", gegsSI.data(), gegsSI.size());
+    // Length only: a CareSens Air code carries the pairing PIN.
+    LOGGER("makeSIsensorindex() len=%zu\n", gegsSI.size());
 #endif
     bool hasnum = std::ranges::contains_subrange(gegsSI, sibionicsRecognition);
-    const auto *endcode = gegsSI.end();
     /*   bool
      * hasnum=std::search(gegsSI.begin(),endcode,sibionicsRecognition.begin(),sibionicsRecognition.end())!=endcode;
      */
     if (!hasnum) {
       std::string_view si = "(SI)";
       if (gegsSI.size() < 36 || !std::ranges::contains_subrange(gegsSI, si)) {
-        if (dexcomEnd(endcode)) {
-          if (const auto res = makeDexComSensorindex(endcode - 4, gegsSI, now);
-              res.first >= 0)
-            return res;
-        }
+        if (const auto *air = asCareSensAirScan(gegsSI))
+          return makeAirSensorindex(*air, now);
         return makeAccuCheckSensorindex(gegsSI, now);
       }
     }
@@ -1096,6 +1302,8 @@ public:
     if (hist[ind]) {
       const bool error = hist[ind]->error();
       if (!error) {
+        if (hist[ind]->isDexcom())
+          sensorlist()[ind].halfdays = hist[ind]->getinfo()->days * 2;
         if (hist[ind]->infowrong()) {
           LOGGER("hist[%d] %s: infoblock wrong", ind, name);
           goto INFOWRONGERROR;
@@ -1247,6 +1455,13 @@ public:
     return sens->showsensorname();
   }
 
+  // The selected sensor only, without shortsensorname_chars()'s last() fallback:
+  // null when nothing is selected.
+  const char *currentshortsensorname_chars() const {
+    if (int l = infoblockptr()->current; populatedSensorSlot(l))
+      return shortsensorname_chars(l);
+    return nullptr;
+  }
   const char *shortsensorname_chars() const {
     if (int l = infoblockptr()->current; populatedSensorSlot(l))
       return shortsensorname_chars(l);
@@ -1339,6 +1554,33 @@ public:
   }
 
   vector<int> bluetoothactive(uint32_t tim, uint32_t nu) {
+    return bluetoothactive(tim, nu, [](int, const char *) {});
+  }
+  // Why the sensor at target is or is not one Bluetooth is kept for: the walk
+  // bluetoothactive makes, reported for that sensor. When it is dropped, its
+  // driver is removed and the sensor leaves the app (#872).
+  std::string bluetoothactiveReason(const int target, uint32_t tim, uint32_t nu) {
+    std::string why;
+    int stoppedAt = -1;
+    const auto out = bluetoothactive(tim, nu, [&](int i, const char *reason) {
+      if (i == target)
+        why = reason;
+      else if (!strcmp(reason, "stops the walk"))
+        stoppedAt = i;
+    });
+    if (std::find(out.begin(), out.end(), target) != out.end())
+      return "listed";
+    if (!why.empty())
+      return why;
+    if (stoppedAt >= 0)
+      return std::string("not reached: the walk stopped at ") +
+             showsensorname(stoppedAt) + ", started later, no data for 24 days";
+    return "not in the sensor list walk";
+  }
+  // Walks the sensors from the latest started back; report(index, reason) is
+  // told why each one left out was left out.
+  template <typename Report>
+  vector<int> bluetoothactive(uint32_t tim, uint32_t nu, Report &&report) {
     vector<int> out;
     const uint32_t oldsecs = nu - maxSIhours * 60 * 60;
     const uint32_t newsecs = nu - youngsensorsecs;
@@ -1351,6 +1593,8 @@ public:
           setindices();
         prev = sensor.prev;
         if (sensor.finished) {
+          report(i, sensor.wasRemovedByUser() ? "removed by the user"
+                                              : "finished");
           continue;
         }
         if (sensor.endtime < newsecs) {
@@ -1362,10 +1606,12 @@ public:
             } else {
               LOGSTRING("hist==null\n");
             }
+            report(i, "its data could not be opened");
             continue;
           }
           if (!sensor.starttime) {
             if (!repairMissingStarttime(i, sensor, hist, false)) {
+              report(i, "no start time");
               continue;
             }
             repairedOrder = true;
@@ -1378,30 +1624,48 @@ public:
           const auto sensmax = hist->lastused();  // Use actual last data time, not expected max time
           if (sensmax <= oldsecs) {
             LOGGER("blueactive %s old %u\n", showsensorname(i), sensmax);
+            // The list is in start order, so the sensors before this one
+            // started earlier still, and are taken to be over too. Not when
+            // this one started recently and only has no data (a record set up
+            // and never read, a shell): an earlier sensor may still be live,
+            // and stopping here dropped it and removed its driver.
+            if (sensor.starttime > oldsecs) {
+              report(i, "started within 24 days, no data");
+              continue;
+            }
+            report(i, "stops the walk");
             break;
           }
           const auto lasttime = hist->lastused();
           bool canuse = hist->canusestreaming();
           // If in reset mode, ignore gap timeout to allow backfill.
           // isInResetMode() handles auto-clearing when gap closes.
-          if (!canuse ||
-              (lasttime && lasttime < tim && !hist->isInResetMode())) {
+          if (!canuse) {
+            report(i, "not a Bluetooth sensor");
+            continue;
+          }
+          if (lasttime && lasttime < tim && !hist->isInResetMode()) {
+            report(i, "no data for a day");
             continue;
           }
         } else {
           SensorGlucoseData *hist = getSensorData(i);
           if (!hist) {
             LOGSTRING("hist==null\n");
+            report(i, "its data could not be opened");
             continue;
           }
           if (!sensor.starttime) {
             if (!repairMissingStarttime(i, sensor, hist, false)) {
+              report(i, "no start time");
               continue;
             }
             repairedOrder = true;
           }
-          if (!hist->canusestreaming())
+          if (!hist->canusestreaming()) {
+            report(i, "not a Bluetooth sensor");
             continue;
+          }
         }
         out.push_back(i);
       }
@@ -1555,40 +1819,61 @@ public:
                      uint16_t &startSendCalibrate) {
     const int lastsens = last();
     const int first = startSendCalibrate;
-    if (lastsens < first)
-      return 2;
     extern std::mutex caliMutex;
-    std::lock_guard<std::mutex> lock(caliMutex);
     extern std::string javaExportCalibrationProfile(const char *serial);
-    int did = 0;
-    for (int sindex = first; sindex <= lastsens; ++sindex) {
-      SensorGlucoseData *sens = getSensorData(sindex);
-      if (!sens)
-        return 0;
-      alignMirrorRemoteBase(sens, sindex);
-      int res = sens->updateCali(pass, connect, ind, sindex);
-      if (!res)
-        return 0;
-      did |= res;
-      const char *serial = getsensor(sindex)->shortsensorname_chars();
-      if (serial && serial[0]) {
-        if (std::string json = javaExportCalibrationProfile(serial);
-            !json.empty()) {
-          std::string relpath = "mirror/calibration/";
-          relpath += serial;
-          relpath += ".json";
-          if (!connect->senddata(pass, 0,
-                        reinterpret_cast<const senddata_t *>(json.data()),
-                        static_cast<int>(json.size()), relpath)) {
-            LOGGER("sendCalibrates: failed sending Kotlin profile for %s\n",
-                   serial);
-            return 0;
-          }
-          did |= 1;
-        }
+    extern std::vector<std::string> javaMirrorCalibrationSensorIds();
+    auto profileIds = javaMirrorCalibrationSensorIds();
+    int did = 2;
+    {
+      std::lock_guard<std::mutex> lock(caliMutex);
+      for (int sindex = first; sindex <= lastsens; ++sindex) {
+        SensorGlucoseData *sens = getSensorData(sindex);
+        if (!sens)
+          return 0;
+        alignMirrorRemoteBase(sens, sindex);
+        int res = sens->updateCali(pass, connect, ind, sindex);
+        if (!res)
+          return 0;
+        did |= res;
       }
     }
-    startSendCalibrate = lastsens;
+    // Return discovery covers the whole shared sensor roster, even when the
+    // forward native calibration cursor has advanced past an uncalibrated sensor.
+    for (int sindex = 0; sindex <= lastsens; ++sindex) {
+      const char *serial = getsensor(sindex)->shortsensorname_chars();
+      if (serial && serial[0] &&
+          std::none_of(profileIds.begin(), profileIds.end(), [&](const auto &id) {
+            return id == serial || sensorindex(id) == sindex || sensorindexshort(id) == sindex;
+          }))
+        profileIds.emplace_back(serial);
+    }
+    // A managed driver's profile must not depend on a native shell or cursor.
+    // Keep the existing per-sensor path/JSON so older receivers can import it.
+    for (const auto &id : profileIds) {
+      if (id.empty() || id.find_first_of("/\\") != std::string::npos ||
+          id == "." || id == "..")
+        continue;
+      const char *serial = id.c_str();
+      if (std::string json = javaExportCalibrationProfile(serial);
+          !json.empty()) {
+        std::string relpath = "mirror/calibration/";
+        relpath += serial;
+        relpath += ".json";
+        if (!connect->senddata(pass, 0,
+                      reinterpret_cast<const senddata_t *>(json.data()),
+                      static_cast<int>(json.size()), relpath)) {
+          LOGGER("sendCalibrates: failed sending Kotlin profile for %s\n",
+                 serial);
+          return 0;
+        }
+        did |= 1;
+      }
+      // Pull even when this device cannot export a profile for the sensor.
+      if (!connect->pullMirrorCalibrationProfile(pass, id))
+        return 0;
+    }
+    if (lastsens >= first)
+      startSendCalibrate = lastsens;
     return did;
   }
   int update(crypt_t *pass, Connect *connect, const int ind, int &startupdate,

@@ -97,7 +97,8 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
         } else {
             0L
         }
-        val sensorWearDays = runCatching { getSensorReportedWearDays() }.getOrDefault(-1)
+        // Display life: the card and the dashboard only. Reading cutoffs use getSensorReportedWearDays().
+        val sensorWearDays = runCatching { getDisplayWearDays() }.getOrDefault(-1)
         val reportedOfficialEndMs = if (startMs > 0L && sensorWearDays > 0) {
             startMs + (sensorWearDays.toLong() * 24L * 3600_000L)
         } else {
@@ -145,8 +146,11 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
             rssi = callback.readrssi,
             dataptr = dataptr,
             viewMode = viewMode,
+            customAlgorithmEnabled = isCustomAlgorithmEnabled(),
+            customAlgorithmMode = getCustomAlgorithmMode(),
             supportsDisplayModes = supportsDisplayModes(),
             supportsManualCalibration = supportsManualCalibration(),
+            supportsHardwareReset = runCatching { supportsResetAction() }.getOrDefault(true),
             isVendorPaired = runCatching { isVendorPaired() }.getOrDefault(false),
             vendorCalibrations = calibrations,
             isVendorConnected = runCatching { isVendorConnected() }.getOrDefault(false),
@@ -157,6 +161,7 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
             vendorFirmware = runCatching { vendorFirmwareVersion }.getOrDefault(""),
             vendorHardware = runCatching { vendorHardwareVersion }.getOrDefault(""),
             vendorModel = runCatching { vendorModelName }.getOrDefault(""),
+            vendorBrand = runCatching { vendorBrandName }.getOrDefault(""),
             resetCompensationActive = runCatching { resetCompensationEnabled }.getOrDefault(false),
             resetCompensationStatus = runCatching { getCompensationStatusText() }.getOrDefault(""),
         )
@@ -196,6 +201,12 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
     /** Sensor-reported wear duration in days (-1 = unknown). */
     fun getSensorReportedWearDays(): Int = -1
 
+    /**
+     * Life shown on the card and the dashboard (-1 = unknown): the sensor-reported days
+     * resolved against the model's rated life. Never used to stop or drop readings.
+     */
+    fun getDisplayWearDays(): Int = getSensorReportedWearDays()
+
     /** Whether legacy native expiry may be used when the driver has no sensor-reported wear days. */
     fun shouldUseNativeOfficialEndFallback(): Boolean = true
 
@@ -207,6 +218,9 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
 
     /** Model name from startup metadata / vendor device-info (e.g. "GX-01S"). */
     val vendorModelName: String
+
+    /** Product brand the sensor advertises when it is a rebrand ("LUMI"), else blank. Badge only. */
+    val vendorBrandName: String get() = ""
 
     // ── Lifecycle ───────────────────────────────────────────────────────
 
@@ -241,6 +255,21 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
 
     /** Remove vendor pairing (delete bond + keys). Returns true on success. */
     override fun unpairSensor(): Boolean
+
+    /**
+     * The confirmed unpair that follows is the delete-with-unbind path. Do not open the
+     * post-unpair broadcast scan: that path starts the scan and tears the driver down in the
+     * same second, and stopping a scan before the platform finishes registering it leaves
+     * later setup scans in this process with no advertisements.
+     */
+    fun suppressPostUnpairBroadcastScan() {}
+
+    /**
+     * The delete-with-unbind coroutine was cancelled before the sensor was removed.
+     * Drop the suppression, and if the unpair already landed, start the one broadcast
+     * scan that suppression skipped.
+     */
+    fun releasePostUnpairBroadcastScanSuppression() {}
 
     /** Initiate re-pairing from scratch. */
     override fun rePairSensor()

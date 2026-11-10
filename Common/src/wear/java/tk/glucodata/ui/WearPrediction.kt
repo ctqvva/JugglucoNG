@@ -24,20 +24,8 @@ import tk.glucodata.data.prediction.GlucoseTreatmentCurves
  * ratios are whatever the user set there.
  */
 object WearPrediction {
-    private const val PREFS = "tk.glucodata_preferences"
+    private const val PREFS = tk.glucodata.settings.SettingsRegistry.FILE
 
-    private const val KEY_ENABLED = "dashboard_predictive_simulation_enabled"
-    private const val KEY_MOMENTUM = "dashboard_prediction_trend_momentum_enabled"
-    private const val KEY_CARB_RATIO = "dashboard_prediction_carb_ratio_g_per_u"
-    private const val KEY_SENSITIVITY = "dashboard_prediction_insulin_sensitivity_mgdl_per_u"
-    private const val KEY_CARB_ABSORPTION = "dashboard_prediction_carb_absorption_g_per_h"
-    private const val KEY_HORIZON = "dashboard_prediction_horizon_minutes"
-
-    private const val CARB_RATIO_DEFAULT = 10f
-    private const val SENSITIVITY_DEFAULT = 54f
-    private const val CARB_ABSORPTION_DEFAULT = 35f
-    private const val HORIZON_DEFAULT = 120
-    private const val ENABLED_DEFAULT = true
     private const val STEP_MINUTES = 5
 
     /** Treatments older than this cannot still be acting. */
@@ -48,7 +36,9 @@ object WearPrediction {
 
     // Defaults track the phone's readers: predictive simulation and momentum
     // are both on there unless the user turned them off.
-    fun isEnabled(): Boolean = prefs()?.getBoolean(KEY_ENABLED, ENABLED_DEFAULT) ?: false
+    fun isEnabled(): Boolean = prefs()?.let {
+        tk.glucodata.settings.SettingsRegistry.PREDICTION_ENABLED.readBool(it)
+    } ?: false
 
     /**
      * The forecast from the end of [history], or empty when the simulation is
@@ -61,14 +51,15 @@ object WearPrediction {
         useRaw: Boolean = false,
     ): List<GlucosePredictionPoint> {
         val preferences = prefs() ?: return emptyList()
-        if (!preferences.getBoolean(KEY_ENABLED, ENABLED_DEFAULT)) return emptyList()
+        val registry = tk.glucodata.settings.SettingsRegistry
+        if (!registry.PREDICTION_ENABLED.readBool(preferences)) return emptyList()
         if (history.size < 2) return emptyList()
 
-        val carbRatio = preferences.getFloat(KEY_CARB_RATIO, CARB_RATIO_DEFAULT).coerceAtLeast(1f)
-        val sensitivityMgdl = preferences.getFloat(KEY_SENSITIVITY, SENSITIVITY_DEFAULT)
-        val absorption = preferences.getFloat(KEY_CARB_ABSORPTION, CARB_ABSORPTION_DEFAULT)
-        val horizon = preferences.getInt(KEY_HORIZON, HORIZON_DEFAULT)
-        val momentum = preferences.getBoolean(KEY_MOMENTUM, true)
+        val carbRatio = registry.PREDICTION_CARB_RATIO.readFloat(preferences).coerceAtLeast(1f)
+        val sensitivityMgdl = registry.PREDICTION_INSULIN_SENSITIVITY.readFloat(preferences)
+        val absorption = registry.PREDICTION_CARB_ABSORPTION.readFloat(preferences)
+        val horizon = registry.PREDICTION_HORIZON.readInt(preferences)
+        val momentum = registry.PREDICTION_TREND_MOMENTUM.readBool(preferences)
         // The kernel works in display units throughout, so the sensitivity has
         // to be converted once here rather than per treatment.
         val sensitivityDisplay = if (isMmol) sensitivityMgdl / 18.0182f else sensitivityMgdl

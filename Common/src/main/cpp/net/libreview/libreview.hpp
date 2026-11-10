@@ -115,6 +115,18 @@ extern bool	libresendmeasurements(bool libre3,const char *measurements,const int
 
 extern bool sendlibre3viewdata(bool,uint32_t);
 
+//Libre 2 sensors keep streaming for 12 hours past their official wear period, hours that
+//Abbott's own app never reports. With the "stop at the official end" option on, nothing
+//stamped after the returned time is sent to LibreView; without it the cap is UINT32_MAX,
+//and so it is for every sensor that is not a real Libre 1/2 (managed drivers' stream shells
+//also pass isLibre2(), see mkrealhistory.cpp).
+extern uint32_t libreviewCutoff(const SensorGlucoseData *sens);
+//True once the sensor is past its official end and the option cuts it off, so there is
+//nothing left to wait for on it.
+inline bool libreviewPastCutoff(const SensorGlucoseData *sens,const uint32_t nu) {
+	return libreviewCutoff(sens)<nu;
+	}
+
 //The journal's contribution to the LibreView measurement log; see journalentries.cpp.
 //prepare() renders and caches the pending entries and returns their total size, write()
 //copies one array into the payload, and exactly one of commit()/discard() closes the pass.
@@ -123,23 +135,24 @@ extern int libreviewJournalPrepare(bool libre3);
 extern int libreviewJournalWrite(char *out,const int kind);
 extern void libreviewJournalCommit();
 extern void libreviewJournalDiscard();
+extern void libreviewJournalInit(JNIEnv *env);
 
 //Every other exchange output -- Nightscout, the webserver, the watch, CSV export -- publishes
 //the value the app itself shows, the user's calibration and the exchange smoothing included.
 //LibreView was the one destination still sending the stored sensor lane, so a calibrated
 //user's LibreLinkUp followers saw numbers that matched nothing on their phone.
 extern int resolveExportedMgdlAt(const SensorGlucoseData *sens,const sensorname_t *sensorname,
-                                 const uint32_t tim,const int storedMgdl,const int rawCurrent);
+                                 const uint32_t tim,const int storedMgdl,const int rawCurrent,const bool primaryIsResolved);
 
 //rawCurrent stays 0 for records that are not polls -- scans and the 15-minute history --
 //because raw values only exist in the polls array and there is nothing to look them up by.
 //A raw-primary sensor then keeps its auto lane there rather than being calibrated against a
 //value that is not present.
 inline int libreviewExportedMgdl(const SensorGlucoseData *sens,const uint32_t tim,
-                                 const int storedMgdl,const int rawCurrent=0) {
+                                 const int storedMgdl,const int rawCurrent=0,const bool primaryIsResolved=false) {
 	if(!sens||storedMgdl<=0)
 		return storedMgdl;
-	const int exported=resolveExportedMgdlAt(sens,sens->shortsensorname(),tim,storedMgdl,rawCurrent);
+	const int exported=resolveExportedMgdlAt(sens,sens->shortsensorname(),tim,storedMgdl,rawCurrent,primaryIsResolved);
 	return exported>0?exported:storedMgdl;
 	}
 #include "settings/mixpass.hpp"

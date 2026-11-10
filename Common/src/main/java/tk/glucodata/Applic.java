@@ -79,7 +79,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import tk.glucodata.nums.AllData;
 import tk.glucodata.nums.numio;
 import tk.glucodata.settings.Broadcasts;
 import java.util.concurrent.Executors;
@@ -117,7 +116,8 @@ public class Applic extends Application implements androidx.work.Configuration.P
         return Natives.getLabels();
     }
 
-    public tk.glucodata.nums.AllData numdata = null;
+    /** The numbers / ConnectIQ hub; the phone's, or a no-op. See NumberDataHub. */
+    public NumberDataHub numdata = NumberDataAccess.get();
     public GlucoseCurve curve = null;
     public static int unit = 0;
 
@@ -198,9 +198,6 @@ public class Applic extends Application implements androidx.work.Configuration.P
         mintimefilter.addAction(Intent.ACTION_TIME_TICK);
         mHandler = new Handler(Looper.getMainLooper());
         uiThreadId = Thread.currentThread().getId();
-        if (!isWearable) {
-            numdata = new AllData();
-        }
     }
 
 
@@ -216,23 +213,15 @@ public class Applic extends Application implements androidx.work.Configuration.P
         ;
     }
 
-    public static boolean isWatchNotifyEnabled() {
-        return Notify.alertwatch;
-    }
-
-    public static void setWatchNotifyEnabled(boolean on) {
-        if (app != null) {
-            app.setnotify(on);
-        } else {
-            Notify.alertwatch = on;
-        }
-    }
-
     public void setunit(int unit) {
+        // First label legacy rows using the old preference, then refresh their
+        // display projection after changing it. Startup sets units separately.
+        CalibrationProfileAccess.onDisplayUnitChanged();
         if (Applic.unit != unit)
             SuperGattCallback.previousglucosevalue = 0.0f;
         Natives.setunit(unit);
         Notify.mkunitstr(app, unit);
+        CalibrationProfileAccess.onDisplayUnitChanged();
     }
 
     public void sendlabels() {
@@ -326,9 +315,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
     public void onTerminate() {
         super.onTerminate();
         if (!isWearable) {
-            if (numdata != null) {
-                numdata.onCleared();
-            }
+            numdata.onCleared();
         }
     }
 
@@ -524,6 +511,10 @@ public class Applic extends Application implements androidx.work.Configuration.P
         }
         ;
         SensorBluetooth.destructor();
+        // The teardown frees every callback, including a Nightscout follower that never used
+        // Bluetooth, and cancels its poll alarm with it.
+        tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE.ensureFollowerRunning(app);
+        tk.glucodata.share.lumiflex.LumiflexFollowerRegistry.refresh(app);
         if (Natives.activeBackupHostNr() <= 0) {
             keeprunning.stop();
         }
@@ -558,7 +549,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
         }
         ;
         if (!isWearable) {
-            if (Natives.getusegarmin() && numdata.devices == null)
+            if (Natives.getusegarmin() && !numdata.hasGarminDevices())
                 numdata.initIQ(context);
         }
 
@@ -583,7 +574,8 @@ public class Applic extends Application implements androidx.work.Configuration.P
         SensorBluetooth.start(usebluetooth);
 
         if (!isWearable) {
-            BluetoothGlucoseMeter.startDevices();
+            var meters = BluetoothMeterAccess.get();
+            if (meters != null) meters.startDevices();
         }
     }
 
@@ -671,20 +663,6 @@ public class Applic extends Application implements androidx.work.Configuration.P
                 break;
         }
     }
-    /*
-     * public static void sendsettings() {
-     * {if(doLog) {Log.i(LOG_ID,"sendsettings");};};
-     * if(!MessageSender.cansend()) {
-     * {if(doLog) {Log.i(LOG_ID,"!cansend()");};};
-     * return;
-     * }
-     * var sender=tk.glucodata.MessageSender.getMessageSender();
-     * if(sender!=null) {
-     * sender.sendsettings();
-     * }
-     * }
-     */
-
     static private boolean MessageReceiverEnabled() {
         if (!isWearable) {
             try {
@@ -758,6 +736,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
                             ;
                             tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
                                     .recoverOnNetworkAvailable(Applic.this);
+                            tk.glucodata.share.lumiflex.LumiflexFollowerRegistry.refresh(Applic.this);
                             final boolean wearos = useWearos();
                             if (wearos) {
                                 Natives.networkpresent();
@@ -1001,6 +980,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
             // can repair polling without waiting for MainActivity to initialize Bluetooth.
             tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
                     .restoreConfiguredFollower(this);
+            tk.glucodata.share.lumiflex.LumiflexFollowerRegistry.reconcile(this);
             initialize();
 
             // Load the glucose colour palette + per-band overrides before any
@@ -1021,11 +1001,21 @@ public class Applic extends Application implements androidx.work.Configuration.P
                 String currentSensor = Natives.lastsensorname();
                 if (currentSensor != null && !currentSensor.isEmpty()
                         && !tk.glucodata.SensorIdentity.hasNativeSensorBacking(currentSensor)) {
-                    tk.glucodata.ManagedCurrentSensor.set(currentSensor);
-                    Natives.setcurrentsensor("");
-                    Log.i("Applic", "Moved virtual current sensor '" + currentSensor + "' out of native lastsensorname");
-                    currentSensor = "";
+                    if (tk.glucodata.SensorIdentity.nativeMirrorSensorName(currentSensor) != null) {
+                        // A driver's native mirror (Ottai, Sibionics, followers) is a real native
+                        // sensor; native current must stay on it for the web server and watch value.
+                        if (tk.glucodata.ManagedCurrentSensor.get() == null) {
+                            tk.glucodata.ManagedCurrentSensor.set(currentSensor);
+                        }
+                    } else {
+                        tk.glucodata.ManagedCurrentSensor.set(currentSensor);
+                        Natives.setcurrentsensor("");
+                        Log.i("Applic", "Moved virtual current sensor '" + currentSensor + "' out of native lastsensorname");
+                        currentSensor = "";
+                    }
                 }
+                tk.glucodata.CurrentSensorSelection.syncNativeToManaged(
+                        tk.glucodata.SensorIdentity.resolveMainSensor());
                 String[] active = Natives.activeSensors();
                 if ((currentSensor == null || currentSensor.isEmpty())
                         && tk.glucodata.ManagedCurrentSensor.get() == null
@@ -1069,10 +1059,17 @@ public class Applic extends Application implements androidx.work.Configuration.P
             } else if (useWearos()) {
                 MessageSender.sendnetinfo();
             }
-            Specific.start(this);
+            VariantBootstrapAccess.create().start(this);
             SensorOwnershipRuntime.start();
+            if (!isWearable) {
+                // Widgets keep their last picture across a process death, but the expiry
+                // alarm does not survive it. Redraw them from the saved reading: a fresh
+                // one re-arms its expiry, an expired one becomes "No new value since …".
+                GlucoseUpdateBroadcaster.send(this);
+            }
             if (isWearable) {
-                tk.glucodata.glucosecomplication.GlucoseValue.updateall();
+                var refresh = GlucoseValueRefreshAccess.get();
+                if (refresh != null) refresh.updateAll();
                 // Direct sensor mode has to survive a restart of the watch app,
                 // otherwise a handoff silently stops scanning.
                 WearSensorClaim.restoreOnStart();
@@ -1121,10 +1118,13 @@ public class Applic extends Application implements androidx.work.Configuration.P
         // Before anything else: Application.onCreate precedes every component
         // (boot receiver, restarted service, activity), so this is the only
         // place that guarantees the trend/alert bridges exist before the first
-        // reading is evaluated. Waiting for Specific.start() at the end of
+        // reading is evaluated. Waiting for the variant start() at the end of
         // initproc() left a post-reboot window where forecast alerts fired on
         // the degraded two-point slope.
         Specific.registerBridges();
+        // The field was filled when this object was constructed, before any bridge
+        // existed, so on the phone it still holds the no-op. Take the registered hub.
+        numdata = NumberDataAccess.get();
         enlargeCursorWindow();
         updateWearMessageReceiverComponent();
         if (DiskSpace.check(this)) {
@@ -1320,7 +1320,8 @@ public class Applic extends Application implements androidx.work.Configuration.P
                     }
                     ;
                     if (Build.VERSION.SDK_INT >= 28) {
-                        HealthConnection.Companion.writeAll(sensorptr, SerialNumber);
+                        var health = HealthConnectAccess.get();
+                        if (health != null) health.writeAll(sensorptr, SerialNumber);
                     }
                 }
             }
@@ -1419,7 +1420,6 @@ public class Applic extends Application implements androidx.work.Configuration.P
 
     private static void initbroadcasts() {
         if (isWearable) {
-            Specific.setclose(!Natives.getdontuseclose());
         }
 
         Floating.init();
@@ -1512,14 +1512,14 @@ public class Applic extends Application implements androidx.work.Configuration.P
     @Keep
     static void setinittext(String str) {
         RunOnUiThread(() -> {
-            Specific.settext(str);
+            VariantBootstrapAccess.create().settext(str);
         });
     }
 
     @Keep
     static void rminitlayout() {
         RunOnUiThread(() -> {
-            Specific.rmlayout();
+            VariantBootstrapAccess.create().rmlayout();
         });
     }
 

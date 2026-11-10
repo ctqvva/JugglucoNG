@@ -1,7 +1,21 @@
 package tk.glucodata
 
+import tk.glucodata.data.calibration.CalibrationTuning
+
+/**
+ * Registration seam for the phone's calibration engine (plan P1/Q1).
+ *
+ * `src/main` used to resolve `tk.glucodata.data.calibration.CalibrationManager`
+ * by name and reach every method reflectively, which is why
+ * `proguard-rules.my` carried a hand-kept list of its members. The mobile
+ * `Specific.registerBridges` registers
+ * [tk.glucodata.data.calibration.MobileCalibrationProvider]; the watch registers
+ * [SyncedWearCalibrationProvider]. Every method keeps the old reflective failure
+ * contract: a failure degrades to the default instead of reaching the shared
+ * caller.
+ */
 object CalibrationAccess {
-    private const val CLASS_NAME = "tk.glucodata.data.calibration.CalibrationManager"
+    private const val TAG = "CalibrationAccess"
 
     @Volatile
     private var provider: CalibrationProvider? = null
@@ -11,149 +25,61 @@ object CalibrationAccess {
         this.provider = provider
     }
 
-    private val holder by lazy { runCatching { Class.forName(CLASS_NAME) }.getOrNull() }
-    private val instance by lazy { runCatching { holder?.getField("INSTANCE")?.get(null) }.getOrNull() }
-    private val hasActiveCalibrationMethod by lazy {
-        runCatching {
-            holder?.getMethod("hasActiveCalibration", Boolean::class.javaPrimitiveType, String::class.java)
-        }.getOrNull()
-    }
-    private val getCalibratedValueMethod by lazy {
-        runCatching {
-            holder?.getMethod(
-                "getCalibratedValue",
-                Float::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType,
-                String::class.java
-            )
-        }.getOrNull()
-    }
-    private val shouldHideInitialMethod by lazy {
-        runCatching { holder?.getMethod("shouldHideInitialWhenCalibrated") }.getOrNull()
-    }
-    private val notifyExternalPipelineMethod by lazy {
-        runCatching { holder?.getMethod("notifyExternalCalibrationPipelineChanged") }.getOrNull()
-    }
-    private val getActiveCalibrationAnchorsMethod by lazy {
-        runCatching {
-            holder?.getMethod(
-                "getActiveCalibrationAnchors",
-                String::class.java,
-                Boolean::class.javaPrimitiveType,
-            )
-        }.getOrNull()
-    }
-    private val getIntegratedCalibrationAnchorsMethod by lazy {
-        runCatching {
-            holder?.getMethod(
-                "getIntegratedCalibrationAnchors",
-                String::class.java,
-                Boolean::class.javaPrimitiveType,
-            )
-        }.getOrNull()
-    }
-    private val isCalibrationStateLoadedMethod by lazy {
-        runCatching { holder?.getMethod("isCalibrationStateLoaded") }.getOrNull()
-    }
-    private val tuningForModeMethod by lazy {
-        runCatching {
-            holder?.getMethod("tuningForMode", Boolean::class.javaPrimitiveType)
-        }.getOrNull()
-    }
-    private val shouldOverwriteSensorValuesMethod by lazy {
-        runCatching { holder?.getMethod("shouldOverwriteSensorValues") }.getOrNull()
-    }
-    private val getRevisionMethod by lazy {
-        runCatching {
-            holder?.methods?.firstOrNull { method ->
-                method.name == "getRevision" &&
-                    method.parameterTypes.isEmpty() &&
-                    method.returnType == Long::class.javaPrimitiveType
-            }
-        }.getOrNull()
-    }
-    private val getIntegratedCalibratedSeriesMethod by lazy {
-        runCatching {
-            holder?.getMethod(
-                "getIntegratedCalibratedSeries",
-                FloatArray::class.java,
-                LongArray::class.java,
-                Boolean::class.javaPrimitiveType,
-                String::class.java,
-            )
-        }.getOrNull()
-    }
-    private val getIntegratedCalibrationFingerprintMethod by lazy {
-        runCatching {
-            holder?.getMethod(
-                "getIntegratedCalibrationFingerprint",
-                String::class.java,
-                Boolean::class.javaPrimitiveType,
-            )
-        }.getOrNull()
-    }
-    private val seedIntegratedCalibrationBaselineMethod by lazy {
-        runCatching {
-            holder?.getMethod(
-                "seedIntegratedCalibrationBaseline",
-                FloatArray::class.java,
-                LongArray::class.java,
-                Boolean::class.javaPrimitiveType,
-                String::class.java,
-            )
-        }.getOrNull()
+    /** Tests only: drop a provider installed with [register]. */
+    internal fun unregisterForTests() {
+        provider = null
     }
 
-    private val setEnabledForModeMethod by lazy {
-        runCatching {
-            holder?.getMethod(
-                "setEnabledForMode",
-                Boolean::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType,
-                String::class.java,
-            )
-        }.getOrNull()
-    }
-    private val clearAllMethod by lazy {
-        runCatching { holder?.getMethod("clearAllBlocking") }.getOrNull()
-    }
+    /** Registration-completeness check (plan §6 Q1). */
+    @JvmStatic
+    fun isRegistered(): Boolean = provider != null
 
     /** Enable or disable calibration for both lanes of the current sensor. */
     @JvmStatic
-    fun setEnabled(enabled: Boolean): Boolean = runCatching {
-        val method = setEnabledForModeMethod ?: return false
-        method.invoke(instance, false, enabled, null)
-        method.invoke(instance, true, enabled, null)
-        true
-    }.getOrDefault(false)
-
-    private val deleteCalibrationAtMethod by lazy {
-        runCatching {
-            holder?.getMethod("deleteCalibrationAtBlocking", Long::class.javaPrimitiveType)
-        }.getOrNull()
-    }
-    private val updateCalibrationValueMethod by lazy {
-        runCatching {
-            holder?.getMethod(
-                "updateCalibrationUserValueBlocking",
-                Long::class.javaPrimitiveType,
-                Float::class.javaPrimitiveType,
-            )
-        }.getOrNull()
+    fun setEnabled(enabled: Boolean): Boolean {
+        val engine = provider ?: return false
+        return runCatching {
+            if (!engine.setEnabledForMode(false, enabled, null)) return@runCatching false
+            engine.setEnabledForMode(true, enabled, null)
+            true
+        }.onFailure { Log.stack(TAG, "setEnabled failed", it) }.getOrDefault(false)
     }
 
-    private val addCalibrationMethod by lazy {
-        runCatching {
-            holder?.getMethod(
-                "addCalibrationFromWearAtBlocking",
-                Long::class.javaPrimitiveType,
-                Float::class.javaPrimitiveType,
-                Float::class.javaPrimitiveType,
-            )
-        }.getOrNull()
+    /** Delete every stored calibration. */
+    @JvmStatic
+    fun clearAll(): Boolean =
+        runCatching { provider?.clearAllBlocking() }
+            .onFailure { Log.stack(TAG, "clearAll failed", it) }
+            .getOrNull() ?: false
+
+    /**
+     * Move one sensor's calibrations to [archiveId]. For a driver whose serial outlives its disposable
+     * sensor: the old electrode's calibration must not apply to the replacement.
+     */
+    @JvmStatic
+    fun declareSessionBoundary(sensorId: String, archiveId: String, cutoffMs: Long) {
+        runCatching { provider?.declareSessionBoundary(sensorId, archiveId, cutoffMs) }
+            .onFailure { Log.stack(TAG, "declareSessionBoundary failed", it) }
     }
+
+    @JvmStatic
+    fun archiveSensorCalibrations(sensorId: String, archiveId: String, cutoffMs: Long): Boolean =
+        runCatching { provider?.archiveSensorCalibrationsBlocking(sensorId, archiveId, cutoffMs) }
+            .onFailure { Log.stack(TAG, "archiveSensorCalibrations failed", it) }
+            .getOrNull() ?: false
+
+    @JvmStatic
+    fun deleteCalibrationAt(timestamp: Long): Boolean =
+        runCatching { provider?.deleteCalibrationAtBlocking(timestamp) }
+            .onFailure { Log.stack(TAG, "deleteCalibrationAt failed", it) }
+            .getOrNull() ?: false
+
+    /** Change the fingerstick value of the calibration recorded at [timestamp]. */
+    @JvmStatic
+    fun updateCalibrationUserValue(timestamp: Long, userValueMgdl: Float): Boolean =
+        runCatching { provider?.updateCalibrationUserValueBlocking(timestamp, userValueMgdl) }
+            .onFailure { Log.stack(TAG, "updateCalibrationUserValue failed", it) }
+            .getOrNull() ?: false
 
     /**
      * Record a fingerstick calibration. [timestampMs] picks the reading it is
@@ -168,37 +94,16 @@ object CalibrationAccess {
         userValueMgdl: Float,
         timestampMs: Long = 0L,
         sensorStockMgdl: Float = Float.NaN,
-    ): Boolean = runCatching {
-        addCalibrationMethod?.invoke(instance, timestampMs, userValueMgdl, sensorStockMgdl) as? Boolean
-            ?: false
-    }.getOrDefault(false)
-
-    /** Delete the calibration recorded at [timestamp]. */
-    @JvmStatic
-    fun deleteCalibrationAt(timestamp: Long): Boolean = runCatching {
-        deleteCalibrationAtMethod?.invoke(instance, timestamp) as? Boolean ?: false
-    }.getOrDefault(false)
-
-    /** Change the fingerstick value of the calibration recorded at [timestamp]. */
-    @JvmStatic
-    fun updateCalibrationUserValue(timestamp: Long, userValueMgdl: Float): Boolean = runCatching {
-        updateCalibrationValueMethod?.invoke(instance, timestamp, userValueMgdl) as? Boolean ?: false
-    }.getOrDefault(false)
-
-    /** Delete every stored calibration. */
-    @JvmStatic
-    fun clearAll(): Boolean = runCatching {
-        clearAllMethod?.invoke(instance) ?: return false
-        true
-    }.getOrDefault(false)
+    ): Boolean =
+        runCatching { provider?.addCalibrationFromWearAtBlocking(timestampMs, userValueMgdl, sensorStockMgdl) }
+            .onFailure { Log.stack(TAG, "addCalibration failed", it) }
+            .getOrNull() ?: false
 
     @JvmStatic
-    fun hasActiveCalibration(isRawMode: Boolean, sensorId: String? = null): Boolean {
-        provider?.let { return it.hasActiveCalibration(isRawMode, sensorId) }
-        return runCatching {
-            hasActiveCalibrationMethod?.invoke(instance, isRawMode, sensorId) as? Boolean
-        }.getOrNull() ?: false
-    }
+    fun hasActiveCalibration(isRawMode: Boolean, sensorId: String? = null): Boolean =
+        runCatching { provider?.hasActiveCalibration(isRawMode, sensorId) }
+            .onFailure { Log.stack(TAG, "hasActiveCalibration failed", it) }
+            .getOrNull() ?: false
 
     @JvmStatic
     @JvmOverloads
@@ -208,71 +113,52 @@ object CalibrationAccess {
         isRawMode: Boolean,
         emitDiagnostics: Boolean = false,
         sensorIdOverride: String? = null
-    ): Float {
-        provider?.let {
-            return it.getCalibratedValue(
-                value,
-                timestamp,
-                isRawMode,
-                emitDiagnostics,
-                sensorIdOverride,
-            )
-        }
-        return runCatching {
-            getCalibratedValueMethod?.invoke(
-                instance,
-                value,
-                timestamp,
-                isRawMode,
-                emitDiagnostics,
-                sensorIdOverride
-            ) as? Float
-        }.getOrNull() ?: value
-    }
+    ): Float =
+        runCatching { provider?.getCalibratedValue(value, timestamp, isRawMode, emitDiagnostics, sensorIdOverride) }
+            .onFailure { Log.stack(TAG, "getCalibratedValue failed", it) }
+            .getOrNull() ?: value
 
     @JvmStatic
-    fun shouldHideInitialWhenCalibrated(): Boolean {
-        provider?.let { return it.shouldHideInitialWhenCalibrated() }
-        return runCatching {
-            shouldHideInitialMethod?.invoke(instance) as? Boolean
-        }.getOrNull() ?: false
-    }
+    fun shouldHideInitialWhenCalibrated(): Boolean =
+        runCatching { provider?.shouldHideInitialWhenCalibrated() }
+            .onFailure { Log.stack(TAG, "shouldHideInitialWhenCalibrated failed", it) }
+            .getOrNull() ?: false
 
     @JvmStatic
     fun notifyExternalCalibrationPipelineChanged() {
-        runCatching { notifyExternalPipelineMethod?.invoke(instance) }
+        runCatching { provider?.notifyExternalCalibrationPipelineChanged() }
+            .onFailure { Log.stack(TAG, "notifyExternalCalibrationPipelineChanged failed", it) }
     }
 
     @JvmStatic
-    fun getActiveCalibrationAnchors(sensorId: String?, isRawMode: Boolean = false): DoubleArray {
-        provider?.let { return it.getActiveCalibrationAnchors(sensorId, isRawMode) }
-        return runCatching {
-            getActiveCalibrationAnchorsMethod?.invoke(instance, sensorId, isRawMode) as? DoubleArray
-        }.getOrNull() ?: DoubleArray(0)
-    }
+    fun getActiveCalibrationAnchors(sensorId: String?, isRawMode: Boolean = false): DoubleArray =
+        runCatching { provider?.getActiveCalibrationAnchors(sensorId, isRawMode) }
+            .onFailure { Log.stack(TAG, "getActiveCalibrationAnchors failed", it) }
+            .getOrNull() ?: DoubleArray(0)
 
     /**
      * The anchors a driver-integrated evaluation fits against, rebased onto
-     * stock values. Empty where there is no CalibrationManager, which is also
+     * stock values. Empty where there is no calibration engine, which is also
      * where nothing integrates locally.
      */
     @JvmStatic
     fun getIntegratedCalibrationAnchors(sensorId: String?, isRawMode: Boolean): DoubleArray =
-        runCatching {
-            getIntegratedCalibrationAnchorsMethod?.invoke(instance, sensorId, isRawMode) as? DoubleArray
-        }.getOrNull() ?: DoubleArray(0)
+        runCatching { provider?.getIntegratedCalibrationAnchors(sensorId, isRawMode) }
+            .onFailure { Log.stack(TAG, "getIntegratedCalibrationAnchors failed", it) }
+            .getOrNull() ?: DoubleArray(0)
 
     /**
      * False when the phone's calibrations are not in memory, so callers do not
      * mistake a failed load for "this sensor has no calibration". True where
-     * there is no CalibrationManager at all (the watch), which has nothing to
+     * there is no calibration engine at all (the watch), which has nothing to
      * load.
      */
     @JvmStatic
     fun isCalibrationStateLoaded(): Boolean {
-        if (holder == null) return true
-        return runCatching { isCalibrationStateLoadedMethod?.invoke(instance) as? Boolean }
-            .getOrNull() ?: false
+        val engine = provider ?: return true
+        return runCatching { engine.isCalibrationStateLoaded() }
+            .onFailure { Log.stack(TAG, "isCalibrationStateLoaded failed", it) }
+            .getOrDefault(false)
     }
 
     /**
@@ -280,31 +166,22 @@ object CalibrationAccess {
      * numbers with the shared computation.
      */
     @JvmStatic
-    fun tuningForMode(isRawMode: Boolean): tk.glucodata.data.calibration.CalibrationTuning =
-        runCatching {
-            tuningForModeMethod?.invoke(instance, isRawMode)
-                as? tk.glucodata.data.calibration.CalibrationTuning
-        }.getOrNull() ?: tk.glucodata.data.calibration.CalibrationTuning.DEFAULT
+    fun tuningForMode(isRawMode: Boolean): CalibrationTuning =
+        runCatching { provider?.tuningForMode(isRawMode) }
+            .onFailure { Log.stack(TAG, "tuningForMode failed", it) }
+            .getOrNull() ?: CalibrationTuning.DEFAULT
 
     @JvmStatic
-    fun shouldOverwriteSensorValues(): Boolean {
-        provider?.let { return it.shouldOverwriteSensorValues() }
-        return runCatching {
-            shouldOverwriteSensorValuesMethod?.invoke(instance) as? Boolean
-        }.getOrNull() ?: false
-    }
+    fun shouldOverwriteSensorValues(): Boolean =
+        runCatching { provider?.shouldOverwriteSensorValues() }
+            .onFailure { Log.stack(TAG, "shouldOverwriteSensorValues failed", it) }
+            .getOrNull() ?: false
 
     @JvmStatic
-    fun getRevision(): Long {
-        provider?.let { return it.getRevision() }
-        return runCatching {
-            when (val value = getRevisionMethod?.invoke(instance)) {
-                is Long -> value
-                is Number -> value.toLong()
-                else -> null
-            }
-        }.getOrNull() ?: 0L
-    }
+    fun getRevision(): Long =
+        runCatching { provider?.getRevision() }
+            .onFailure { Log.stack(TAG, "getRevision failed", it) }
+            .getOrNull() ?: 0L
 
     @JvmStatic
     fun getIntegratedCalibratedSeries(
@@ -314,39 +191,17 @@ object CalibrationAccess {
         sensorIdOverride: String?,
     ): FloatArray {
         if (values.size != timestamps.size) return values.copyOf()
-        // The watch has no CalibrationManager, so this used to hand the driver
-        // its own values straight back: a sensor whose driver folds calibration
-        // into what it stores wrote stock numbers for as long as the watch owned
-        // it, and both devices then displayed them as if they were corrected.
-        provider?.let {
-            return it.getIntegratedCalibratedSeries(values, timestamps, isRawMode, sensorIdOverride)
-        }
         return runCatching {
-            getIntegratedCalibratedSeriesMethod?.invoke(
-                instance,
-                values,
-                timestamps,
-                isRawMode,
-                sensorIdOverride,
-            ) as? FloatArray
-        }.getOrNull()?.takeIf { it.size == values.size } ?: values.copyOf()
+            provider?.getIntegratedCalibratedSeries(values, timestamps, isRawMode, sensorIdOverride)
+        }.onFailure { Log.stack(TAG, "getIntegratedCalibratedSeries failed", it) }
+            .getOrNull()?.takeIf { it.size == values.size } ?: values.copyOf()
     }
 
     @JvmStatic
-    fun getIntegratedCalibrationFingerprint(sensorIdOverride: String?, isRawMode: Boolean): Long {
-        provider?.let { return it.getIntegratedCalibrationFingerprint(sensorIdOverride, isRawMode) }
-        return runCatching {
-            when (val value = getIntegratedCalibrationFingerprintMethod?.invoke(
-                instance,
-                sensorIdOverride,
-                isRawMode,
-            )) {
-                is Long -> value
-                is Number -> value.toLong()
-                else -> 0L
-            }
-        }.getOrDefault(0L)
-    }
+    fun getIntegratedCalibrationFingerprint(sensorIdOverride: String?, isRawMode: Boolean): Long =
+        runCatching { provider?.getIntegratedCalibrationFingerprint(sensorIdOverride, isRawMode) }
+            .onFailure { Log.stack(TAG, "getIntegratedCalibrationFingerprint failed", it) }
+            .getOrNull() ?: 0L
 
     @JvmStatic
     fun seedIntegratedCalibrationBaseline(
@@ -357,13 +212,7 @@ object CalibrationAccess {
     ) {
         if (values.size != timestamps.size || values.isEmpty()) return
         runCatching {
-            seedIntegratedCalibrationBaselineMethod?.invoke(
-                instance,
-                values,
-                timestamps,
-                isRawMode,
-                sensorIdOverride,
-            )
-        }
+            provider?.seedIntegratedCalibrationBaseline(values, timestamps, isRawMode, sensorIdOverride)
+        }.onFailure { Log.stack(TAG, "seedIntegratedCalibrationBaseline failed", it) }
     }
 }

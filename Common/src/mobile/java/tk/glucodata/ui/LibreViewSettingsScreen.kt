@@ -1,5 +1,8 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -12,8 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Public
@@ -33,7 +36,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -54,6 +56,7 @@ import kotlinx.coroutines.launch
 import tk.glucodata.Libre3NfcSettings
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
@@ -73,6 +76,7 @@ fun LibreViewSettingsScreen(navController: NavController) {
     var libreCurrent by remember { mutableStateOf(Natives.getLibreCurrent()) }
     var libreIsViewed by remember { mutableStateOf(Natives.getLibreIsViewed()) }
     var sendNumbers by remember { mutableStateOf(Natives.getSendNumbers()) }
+    var stopAtOfficialEnd by remember { mutableStateOf(Natives.getLibreOfficialEnd()) }
     var showPassword by remember { mutableStateOf(false) }
     var statusText by remember { mutableStateOf(tk.glucodata.Libreview.getStatus()) }
     var accountId by remember { mutableLongStateOf(initialAccountId) }
@@ -108,10 +112,16 @@ fun LibreViewSettingsScreen(navController: NavController) {
         if (includeUploadPreference) {
             Natives.setuselibreview(isActive)
         }
-        Natives.setLibreCountry(if (isRussia) 4 else 0)
+        val currentCountry = Natives.getLibreCountry()
+        Natives.setLibreCountry(
+            if (isRussia) 4
+            else if (currentCountry == 4) 0
+            else currentCountry
+        )
         Natives.setLibreCurrent(libreCurrent)
         Natives.setLibreIsViewed(libreIsViewed)
         Natives.setSendNumbers(sendNumbers)
+        Natives.setLibreOfficialEnd(stopAtOfficialEnd)
         Libre3NfcSettings.setMode(nfcCommandMode)
     }
 
@@ -167,13 +177,9 @@ fun LibreViewSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.libreview_settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
-                    }
-                }
+            AppTopBar(
+                title = stringResource(R.string.libreview_settings_title),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -225,13 +231,13 @@ fun LibreViewSettingsScreen(navController: NavController) {
 
             if (isManualAccountId) {
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(18.dp),
+                            .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedTextField(
@@ -257,7 +263,9 @@ fun LibreViewSettingsScreen(navController: NavController) {
                         OutlinedButton(
                             onClick = { saveManualAccountId() },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !isBusy
+                            enabled = !isBusy,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Text(saveText)
                         }
@@ -289,15 +297,17 @@ fun LibreViewSettingsScreen(navController: NavController) {
                 },
                 trailingIcon = {
                     val image = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    IconButton(onClick = { showPassword = !showPassword }) {
-                        Icon(
-                            imageVector = image,
-                            contentDescription = if (showPassword) {
-                                stringResource(R.string.hide_password)
-                            } else {
-                                stringResource(R.string.show_password)
-                            }
-                        )
+                    IconButtonTooltip(if (showPassword) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                        IconButton(onClick = { showPassword = !showPassword }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                imageVector = image,
+                                contentDescription = if (showPassword) {
+                                    stringResource(R.string.hide_password)
+                                } else {
+                                    stringResource(R.string.show_password)
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -330,7 +340,9 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = canSendData
+                enabled = canSendData,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 if (isSendingNow) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -368,7 +380,9 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = canSendData
+                enabled = canSendData,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 if (isResendingData) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -412,7 +426,9 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = hasCredentials && !isBusy
+                enabled = hasCredentials && !isBusy,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 if (isFetchingAccountId) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -455,6 +471,15 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     onCheckedChange = { sendNumbers = it },
                     icon = Icons.Default.Insights,
                     iconTint = MaterialTheme.colorScheme.secondary,
+                    position = CardPosition.MIDDLE
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.libreview_official_end),
+                    subtitle = stringResource(R.string.libreview_official_end_desc),
+                    checked = stopAtOfficialEnd,
+                    onCheckedChange = { stopAtOfficialEnd = it },
+                    icon = Icons.Default.EventBusy,
+                    iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.BOTTOM
                 )
             }
@@ -468,14 +493,14 @@ private fun LibreViewStatusCard(
     statusText: String
 ) {
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = if (accountId > 0L) {
@@ -483,9 +508,7 @@ private fun LibreViewStatusCard(
                 } else {
                     stringResource(R.string.libreview_account_missing_desc)
                 },
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
-            )
+                style = MaterialTheme.typography.titleSmallEmphasized,)
 
             if (accountId > 0L) {
                 Text(

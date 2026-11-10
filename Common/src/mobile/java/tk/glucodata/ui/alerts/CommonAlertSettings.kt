@@ -1,6 +1,10 @@
 package tk.glucodata.ui.alerts
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,7 +19,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
 import tk.glucodata.alerts.AlertConfig
@@ -32,10 +35,9 @@ import tk.glucodata.ui.util.ConnectedButtonGroup
  * The body every alert shares: master, standard and custom.
  *
  * What most people set sits first and needs no label to be read - the three
- * feedback toggles, the intensity under them, the notification/alarm choice,
- * the duration, the sound. Everything a typical user never touches is under
- * one collapsed "Advanced" row: silent-mode override, delayed sound, active
- * hours, retries, the default snooze, and whatever the alert adds through
+ * feedback toggles and the sound choice. Overall intensity, sound volume,
+ * notification/alarm choice and duration sit under one collapsed "Advanced" row,
+ * alongside delayed sound, retries, the default snooze, and whatever the alert adds through
  * [advancedContent].
  */
 @Composable
@@ -45,6 +47,10 @@ fun CommonAlertSettings(
     onPickSound: (AlertConfig) -> Unit,
     onTest: () -> Unit,
     showTestButton: Boolean = true,
+    // Put every editable setting back to the alert's defaults. The button only
+    // shows while [isModified] says there is something to undo.
+    onReset: (() -> Unit)? = null,
+    isModified: Boolean = false,
     // What the alert is about: thresholds, durations, look-ahead.
     headerContent: (@Composable () -> Unit)? = null,
     // The alert's own power-user options, rendered inside the Advanced section.
@@ -72,7 +78,8 @@ fun CommonAlertSettings(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = sectionHorizontalPadding),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(vertical = 8.dp),
+                shapes = ButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
@@ -80,7 +87,7 @@ fun CommonAlertSettings(
             }
         }
 
-        // === Feedback: sound / vibrate / flash, and how hard ===
+        // === Feedback: sound / vibrate / flash ===
         // The buttons say what they are; a label over them repeated them.
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -193,9 +200,9 @@ fun CommonAlertSettings(
                 startMinute = config.activeStartMinute,
                 endHour = config.activeEndHour,
                 endMinute = config.activeEndMinute,
-                onEnabledChange = { onConfigChange(config.copy(timeRangeEnabled = it)) },
-                onStartChange = { hour, minute -> onConfigChange(config.copy(activeStartHour = hour, activeStartMinute = minute)) },
-                onEndChange = { hour, minute -> onConfigChange(config.copy(activeEndHour = hour, activeEndMinute = minute)) }
+                onEnabledChange = { onConfigChange(config.withTimeRangeEnabled(it)) },
+                onStartChange = { hour, minute -> onConfigChange(config.withActiveStart(hour, minute)) },
+                onEndChange = { hour, minute -> onConfigChange(config.withActiveEnd(hour, minute)) }
             )
 
             // === Advanced: collapsed, one row, everything set once and left alone ===
@@ -203,136 +210,178 @@ fun CommonAlertSettings(
                 expanded = advancedExpanded,
                 onToggle = { advancedExpanded = !advancedExpanded }
             )
-        }
-        AnimatedVisibility(visible = advancedExpanded) {
-            Column(modifier = Modifier.padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                // === Intensity: soft to escalating ===
-                AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled) {
-                    Column(modifier = Modifier.padding(horizontal = sectionHorizontalPadding)) {
-                        run {
-                            val hapticProfileLabels = HapticProfile.entries.associateWith { it.localizedName() }
-                            ConnectedButtonGroup(
-                                options = listOf(
-                                    HapticProfile.SOFT,
-                                    HapticProfile.STEADY,
-                                    HapticProfile.STRONG,
-                                    HapticProfile.ESCALATING
-                                ),
-                                selectedOption = config.hapticProfile,
-                                onOptionSelected = { onConfigChange(config.copy(hapticProfile = it)) },
-                                labelText = { hapticProfileLabels[it] ?: it.displayName },
-                                label = { Text(hapticProfileLabels[it] ?: it.displayName, style = MaterialTheme.typography.labelMedium) },
-                                modifier = Modifier.fillMaxWidth(),
-                                itemHeight = 36.dp,
-                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                unselectedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
-                                unselectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+            // The expanded body and the reset button stay inside this unspaced
+            // column: a hidden AnimatedVisibility in the spaced parent would
+            // still claim its 16dp gap and leave a blank band under the card.
+            AnimatedVisibility(visible = advancedExpanded) {
+                Column(modifier = Modifier.padding(top = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // === Overall alert intensity ===
+                    AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled) {
+                        Column(modifier = Modifier.padding(horizontal = sectionHorizontalPadding)) {
+                            run {
+                                val hapticProfileLabels = HapticProfile.entries.associateWith { it.localizedName() }
+                                ConnectedButtonGroup(
+                                    options = listOf(
+                                        HapticProfile.SOFT,
+                                        HapticProfile.STEADY,
+                                        HapticProfile.STRONG,
+                                        HapticProfile.ESCALATING
+                                    ),
+                                    selectedOption = config.hapticProfile,
+                                    onOptionSelected = { onConfigChange(config.copy(hapticProfile = it)) },
+                                    labelText = { hapticProfileLabels[it] ?: it.displayName },
+                                    label = { Text(hapticProfileLabels[it] ?: it.displayName, style = MaterialTheme.typography.labelMedium) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    itemHeight = 36.dp,
+                                    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    unselectedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                                    unselectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
                     }
-                }
 
-                // === Notification / alarm / both ===
-                Column(modifier = Modifier.padding(horizontal = sectionHorizontalPadding)) {
-                    val deliveryModeLabels = AlertDeliveryMode.entries.associateWith { it.localizedName() }
-                    ConnectedButtonGroup(
-                        options = AlertDeliveryMode.entries,
-                        selectedOption = config.deliveryMode,
-                        onOptionSelected = { onConfigChange(config.copy(deliveryMode = it)) },
-                        labelText = { deliveryModeLabels[it] ?: it.displayName },
-                        label = { Text(deliveryModeLabels[it] ?: it.displayName, style = MaterialTheme.typography.labelLarge) },
-                        modifier = Modifier.fillMaxWidth(),
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedContentColor = MaterialTheme.colorScheme.onPrimary,
-                        unselectedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
-                        unselectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-
-                // === Duration ===
-                AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled || config.flashEnabled) {
-                    DurationSlider(
-                        label = stringResource(R.string.duration_label),
-                        value = config.alarmDurationSeconds,
-                        range = MIN_ALERT_DURATION_SECONDS..MAX_ALERT_DURATION_SECONDS,
-                        stepSize = 1,
-                        onValueChange = { onConfigChange(config.copy(alarmDurationSeconds = it)) },
-                        modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
-                        valueText = { seconds -> "$seconds ${stringResource(R.string.sec)}" }
-                    )
-                }
-
-                Column {
-                // === Sound delay (vibrate first, audio after N seconds) ===
-                // Only meaningful when both sound and vibration are on: otherwise there
-                // is nothing to delay, or a silent gap with no signal at all.
-                AnimatedVisibility(visible = config.soundEnabled && config.vibrationEnabled) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ClickableToggleRow(
-                            title = stringResource(R.string.sound_delay_title),
-                            subtitle = stringResource(R.string.sound_delay_desc),
-                            checked = config.soundDelayEnabled,
-                            onCheckedChange = { onConfigChange(config.copy(soundDelayEnabled = it)) }
+                    AnimatedVisibility(visible = config.soundEnabled) {
+                        DurationSlider(
+                            label = stringResource(R.string.alert_sound_volume),
+                            value = config.soundVolumePercent,
+                            range = tk.glucodata.alerts.AlertSoundVolume.MIN_PERCENT..tk.glucodata.alerts.AlertSoundVolume.MAX_PERCENT,
+                            stepSize = 5,
+                            onValueChange = { onConfigChange(config.copy(soundVolumePercent = it)) },
+                            modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
+                            valueText = { "$it%" }
                         )
-                        AnimatedVisibility(visible = config.soundDelayEnabled) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                val maxDelay = maxSoundDelaySecondsFor(config.type)
-                                DurationSlider(
-                                    label = stringResource(R.string.sound_delay_label),
-                                    value = config.soundDelaySeconds.coerceIn(0, maxDelay),
-                                    range = 0..maxDelay,
-                                    stepSize = 5,
-                                    onValueChange = { onConfigChange(config.copy(soundDelaySeconds = it)) },
-                                    modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
-                                    valueText = { seconds -> "$seconds ${stringResource(R.string.sec)}" }
-                                )
-                                if (config.type == AlertType.LOW || config.type == AlertType.VERY_LOW) {
-                                    Row(
+                    }
+
+                    // === Notification / alarm / both ===
+                    Column(modifier = Modifier.padding(horizontal = sectionHorizontalPadding)) {
+                        val deliveryModeLabels = AlertDeliveryMode.entries.associateWith { it.localizedName() }
+                        ConnectedButtonGroup(
+                            options = AlertDeliveryMode.entries,
+                            selectedOption = config.deliveryMode,
+                            onOptionSelected = { onConfigChange(config.copy(deliveryMode = it)) },
+                            labelText = { deliveryModeLabels[it] ?: it.displayName },
+                            label = { Text(deliveryModeLabels[it] ?: it.displayName, style = MaterialTheme.typography.labelLarge) },
+                            modifier = Modifier.fillMaxWidth(),
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedContentColor = MaterialTheme.colorScheme.onPrimary,
+                            unselectedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                            unselectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                    // === Duration ===
+                    AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled || config.flashEnabled) {
+                        DurationSlider(
+                            label = stringResource(R.string.duration_label),
+                            value = config.alarmDurationSeconds,
+                            range = MIN_ALERT_DURATION_SECONDS..MAX_ALERT_DURATION_SECONDS,
+                            stepSize = 1,
+                            onValueChange = { onConfigChange(config.copy(alarmDurationSeconds = it)) },
+                            modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
+                            valueText = { seconds -> "$seconds ${stringResource(R.string.sec)}" }
+                        )
+                    }
+
+                    Column {
+                    // === Sound delay (vibrate first, audio after N seconds) ===
+                    // Only meaningful when both sound and vibration are on: otherwise there
+                    // is nothing to delay, or a silent gap with no signal at all.
+                    AnimatedVisibility(visible = config.soundEnabled && config.vibrationEnabled) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ClickableToggleRow(
+                                title = stringResource(R.string.sound_delay_title),
+                                subtitle = stringResource(R.string.sound_delay_desc),
+                                checked = config.soundDelayEnabled,
+                                onCheckedChange = { onConfigChange(config.copy(soundDelayEnabled = it)) }
+                            )
+                            AnimatedVisibility(visible = config.soundDelayEnabled) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    val maxDelay = maxSoundDelaySecondsFor(config.type)
+                                    DurationSlider(
+                                        label = stringResource(R.string.sound_delay_label),
+                                        value = config.soundDelaySeconds.coerceIn(0, maxDelay),
+                                        range = 0..maxDelay,
+                                        stepSize = 5,
+                                        onValueChange = { onConfigChange(config.copy(soundDelaySeconds = it)) },
                                         modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Warning,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Text(
-                                            stringResource(R.string.sound_delay_hypo_warning),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.error
-                                        )
+                                        valueText = { seconds -> "$seconds ${stringResource(R.string.sec)}" }
+                                    )
+                                    if (config.type == AlertType.LOW || config.type == AlertType.VERY_LOW) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Warning,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Text(
+                                                stringResource(R.string.sound_delay_hypo_warning),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+
+                    // === Retry ===
+                    RetrySettings(
+                        enabled = config.retryEnabled,
+                        intervalMinutes = config.retryIntervalMinutes,
+                        retryCount = config.retryCount,
+                        onEnabledChange = { onConfigChange(config.copy(retryEnabled = it)) },
+                        onIntervalChange = { onConfigChange(config.copy(retryIntervalMinutes = it)) },
+                        onCountChange = { onConfigChange(config.copy(retryCount = it)) }
+                    )
+                    }
+
+                    // === Snooze ===
+                    DurationSlider(
+                        label = stringResource(R.string.default_snooze),
+                        value = config.defaultSnoozeMinutes,
+                        range = 5..60,
+                        stepSize = 5,
+                        onValueChange = { onConfigChange(config.copy(defaultSnoozeMinutes = it)) },
+                        modifier = Modifier.padding(horizontal = sectionHorizontalPadding)
+                    )
+
+                    advancedContent?.invoke()
                 }
+            }
 
-                // === Retry ===
-                RetrySettings(
-                    enabled = config.retryEnabled,
-                    intervalMinutes = config.retryIntervalMinutes,
-                    retryCount = config.retryCount,
-                    onEnabledChange = { onConfigChange(config.copy(retryEnabled = it)) },
-                    onIntervalChange = { onConfigChange(config.copy(retryIntervalMinutes = it)) },
-                    onCountChange = { onConfigChange(config.copy(retryCount = it)) }
-                )
+            // === Reset: the card's last word, and only while there is something to undo ===
+            // Same outlined shape as Test alert above so the card's two actions
+            // read as a pair; it earns its place by appearing, so it needs no
+            // extra emphasis. Once it shows, it takes over the card's bottom
+            // margin from the Advanced row.
+            onReset?.let { reset ->
+                AnimatedVisibility(
+                    visible = isModified,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    OutlinedButton(
+                        onClick = reset,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = sectionHorizontalPadding)
+                            .padding(bottom = 16.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                        shapes = ButtonDefaults.shapes()
+                    ) {
+                        Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.alert_reset_defaults))
+                    }
                 }
-
-                // === Snooze ===
-                DurationSlider(
-                    label = stringResource(R.string.default_snooze),
-                    value = config.defaultSnoozeMinutes,
-                    range = 5..60,
-                    stepSize = 5,
-                    onValueChange = { onConfigChange(config.copy(defaultSnoozeMinutes = it)) },
-                    modifier = Modifier.padding(horizontal = sectionHorizontalPadding)
-                )
-
-                advancedContent?.invoke()
             }
         }
     }
@@ -350,10 +399,10 @@ val LocalAlertsAdvancedOpen = compositionLocalOf<MutableState<Boolean>> { mutabl
  * The "Advanced" row inside a card body: a hairline above it so it reads as a
  * section break rather than one more row, the label set like the card's own
  * headline slider label, a chevron that turns, nothing else - it is not a
- * setting. It is always the last thing in a card, so while collapsed it owns
- * the card's bottom margin: the ripple runs to the card edge instead of
- * stopping short of it. Hosts pad their top only; expanded content pads its
- * own bottom.
+ * setting. It is the last thing in a card unless a reset button follows, so
+ * while collapsed it owns the card's bottom margin: the ripple runs to the
+ * card edge instead of stopping short of it. Hosts pad their top only;
+ * expanded content pads its own bottom.
  */
 @Composable
 internal fun AdvancedSectionHeader(expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
@@ -374,7 +423,6 @@ internal fun AdvancedSectionHeader(expanded: Boolean, onToggle: () -> Unit, modi
             Text(
                 stringResource(R.string.advanced),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )

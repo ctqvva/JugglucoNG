@@ -7,6 +7,7 @@ import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import tk.glucodata.Applic
 import tk.glucodata.CurrentDisplaySource
+import tk.glucodata.LiveReadingLanes
 import tk.glucodata.Notify
 import tk.glucodata.alerts.AlertEpisodeState
 import tk.glucodata.alerts.CustomAlertConfig
@@ -36,19 +37,19 @@ object CustomAlertManager {
     private var activeSession: ActiveSession? = null
 
     fun checkAndTrigger(context: Context, glucose: Float, rate: Float, timestamp: Long) {
-        checkAndTrigger(context, glucose, rate, timestamp, null, 0)
+        checkAndTrigger(context, LiveReadingLanes.stock(glucose, Float.NaN), rate, timestamp, null, 0)
     }
 
     fun checkAndTrigger(
         context: Context,
-        glucose: Float,
+        reading: LiveReadingLanes,
         rate: Float,
         timestamp: Long,
         sensorId: String?,
         sensorGen: Int
     ) {
         val snapshot = CurrentDisplaySource.resolveIncomingReading(
-            liveNumericValue = glucose,
+            reading = reading,
             rate = rate,
             targetTimeMillis = timestamp,
             preferredSensorId = sensorId,
@@ -228,7 +229,8 @@ object CustomAlertManager {
             config.overrideDnd,
             config.id,
             config.name,
-            rate
+            rate,
+            config.soundVolumePercent
         )
     }
 

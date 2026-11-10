@@ -44,12 +44,14 @@ internal fun hasActiveCloneReceiver(
         connection.receivesData
 }
 
+/** A sender the pairing window created is removed again only while no phone has used it. */
 internal fun shouldDeleteAnnouncementSender(
     connection: MirrorConnectionSnapshot?,
-    ownedByAnnouncement: Boolean
+    ownedByAnnouncement: Boolean,
+    kind: QuickPairKind = QuickPairKind.LOCAL,
 ): Boolean = ownedByAnnouncement &&
     connection != null &&
-    reusableQuickPairIndex(listOf(connection), QuickPairKind.LOCAL) == connection.index
+    reusableQuickPairIndex(listOf(connection), kind) == connection.index
 
 internal fun mirrorDisplayPort(isIce: Boolean, rawPort: String?): String? =
     rawPort.takeUnless { isIce }
@@ -63,4 +65,15 @@ internal fun formatNetworkEndpoint(host: String?, port: Int): String? {
         value
     }
     return "$displayHost:$port"
+}
+
+/** Localize generated names only for display; stored names also identify pending pairings. */
+internal fun localizedMirrorConnectionLabel(
+    storedLabel: String?,
+    localLabel: String,
+    hybridLabel: String
+): String? = when (storedLabel) {
+    "Local Clone" -> localLabel
+    "Hybrid Clone" -> hybridLabel
+    else -> storedLabel
 }

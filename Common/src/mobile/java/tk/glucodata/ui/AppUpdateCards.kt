@@ -2,6 +2,9 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.LinearWavyProgressIndicator
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -43,7 +46,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -64,6 +66,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.R
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
@@ -255,7 +258,7 @@ internal fun AppUpdateStatusCard(
             ),
             icon = Icons.Filled.Download,
             content = {
-                LinearProgressIndicator(
+                LinearWavyProgressIndicator(
                     progress = { state.downloadFraction },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -274,7 +277,7 @@ internal fun AppUpdateStatusCard(
             title = stringResource(R.string.app_updates_verifying_title),
             body = stringResource(R.string.app_updates_verifying_body),
             icon = Icons.Filled.Security,
-            content = { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+            content = { LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth()) }
         )
 
         // Reached when the system prompt was dismissed or the install failed. The normal path
@@ -463,18 +466,19 @@ internal fun AppUpdateCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         modifier = Modifier.weight(1f)
                     )
                     if (onDismiss != null) {
-                        IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
+                        IconButtonTooltip(stringResource(R.string.cgm_readiness_dismiss_action)) {
+                            IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp), shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -512,23 +516,16 @@ internal fun AppUpdateCard(
 /** Same tile as a settings row's icon: 40 dp, 12 dp radius, 12 % tint, 24 dp glyph. */
 @Composable
 private fun AppUpdateIconTile(icon: ImageVector, color: Color) {
-    Surface(
-        modifier = Modifier.size(40.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = color.copy(alpha = 0.12f),
-        contentColor = color
-    ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-        }
-    }
+    IconTile(icon = icon, tint = color)
 }
 
 @Composable
 internal fun AppUpdateFilledAction(label: String, accent: Color, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = accent)
+        colors = ButtonDefaults.buttonColors(containerColor = accent),
+        shapes = ButtonDefaults.shapes(),
+        contentPadding = ButtonDefaults.ContentPadding
     ) {
         Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -536,7 +533,7 @@ internal fun AppUpdateFilledAction(label: String, accent: Color, onClick: () -> 
 
 @Composable
 internal fun AppUpdateTextAction(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick) {
+    TextButton(onClick = onClick, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
         Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

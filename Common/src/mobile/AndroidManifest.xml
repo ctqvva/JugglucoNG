@@ -9,6 +9,8 @@
 
 
 <!-- s/^[	 ]*\(.*\)[	 ]*$/<uses-permission android:name="\1"\/>/g -->
+<!-- Restricted mode: unlock full mode with fingerprint or face (normal permission, granted at install). -->
+<uses-permission android:name="android.permission.USE_BIOMETRIC"/>
 <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE"/>
 <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
 <uses-permission android:name="android.permission.health.READ_STEPS"/>
@@ -98,6 +100,11 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/expressive_widget_info" />
         </receiver>
+
+        <receiver
+            android:name=".MeterRecheckAlarm"
+            android:enabled="true"
+            android:exported="false" />
 
         <receiver
             android:name=".receivers.AapsJournalReceiver"
@@ -196,6 +203,8 @@
                 <data android:host="*" android:pathPrefix="/netinfo" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/wake" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/wakestream" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/protocol" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/alertack" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/askforstart" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/calibrate" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/sync2" android:scheme="wear" />
@@ -209,7 +218,6 @@
                 <data android:host="*" android:pathPrefix="/glucosecolors" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/sensorclaimstatus" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/sensorhandoff" android:scheme="wear" />
-                <data android:host="*" android:pathPrefix="/settings" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/start" android:scheme="wear" />
 </intent-filter>
         </service>

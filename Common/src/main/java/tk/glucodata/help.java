@@ -53,7 +53,7 @@ import static tk.glucodata.MainActivity.systembarBottom;
 import static tk.glucodata.MainActivity.systembarLeft;
 import static tk.glucodata.MainActivity.systembarRight;
 import static tk.glucodata.MainActivity.systembarTop;
-import static tk.glucodata.Specific.useclose;
+import static tk.glucodata.VariantBootstrapAccess.useCloseButton;
 import static tk.glucodata.settings.Settings.removeContentView;
 
 
@@ -123,7 +123,7 @@ public static   void basehelp(int res,Activity act,Consumer<ViewGroup> okproc) {
               var width=MainActivity.screenwidth;
               int sidepad=(int)(width*.12);
               helpview.setPadding(sidepad,0,sidepad,(int)(MainActivity.screenheight*.20));
-              if(useclose)
+              if(useCloseButton())
                    ok.setText(R.string.ok);
               else
                    ok.setVisibility(View.INVISIBLE);
@@ -274,7 +274,7 @@ public static   void help(String text,Activity act,Consumer<ViewGroup>  okproc,P
        }
 
      if(isWearable)
-             ok.setVisibility(useclose?View.VISIBLE:View.INVISIBLE);
+             ok.setVisibility(useCloseButton()?View.VISIBLE:View.INVISIBLE);
      else {
          ok.setY(MainActivity.systembarTop*.71f);
          var width=GlucoseCurve.getwidth();
@@ -340,7 +340,7 @@ public static void showkeyboard(Activity activity,View focus) {
         }
 
 public static void sethelpbutton(int vis) {
-if(useclose)
+if(useCloseButton())
     if(okbutton!=null) {
         Button ok = okbutton.get();
         if (ok != null) {

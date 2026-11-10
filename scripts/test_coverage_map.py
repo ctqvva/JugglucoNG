@@ -20,7 +20,6 @@ SRC_ROOTS = [
     "Common/src/mobileSiGoogle/java",
     "Common/src/mobileSiNogoogle/java",
     "Common/src/nosi/java",
-    "Common/src/small/java",
     "Common/src/dex/java",
     "Common/src/libre3/java",
     "Common/src/libreOld/java",

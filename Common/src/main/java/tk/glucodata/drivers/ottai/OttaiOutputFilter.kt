@@ -25,6 +25,43 @@ object OttaiOutputFilter {
     const val SINGLE_SAMPLE_DELTA_MMOL = 1.5f
     const val RAW_EXCURSION_RATIO = 0.18f
 
+    /** Smallest history frame worth judging as a whole; a couple of records prove nothing. */
+    const val MISFRAMED_MIN_RECORDS = 8
+
+    /**
+     * Temperatures no body-worn sensor reports, however cold or hot its surroundings. Well
+     * outside the hard gate's 15–45 C on purpose: a sensor outdoors in winter really does sit
+     * below 15 C, and its frame must not be mistaken for a misframed one.
+     */
+    const val IMPOSSIBLE_TEMPERATURE_LOW_C = 0.0
+    const val IMPOSSIBLE_TEMPERATURE_HIGH_C = 60.0
+
+    /**
+     * True when a history frame is almost certainly decoded at the wrong record width.
+     *
+     * A frame read at the wrong width is not a few bad records among good ones: nearly all of
+     * it fails the hard gate, and the few survivors are coincidences where the two grids line
+     * up (2026-09-26: 2 of 17 passed, as a constant ~4.5 mmol/L). Those survivors are still
+     * plausible-looking glucose, so they are worse than the rejects — the frame is judged
+     * whole and none of it is stored.
+     *
+     * Failing the hard gate is not proof on its own: a cold sensor fails it on temperature
+     * with every record correctly framed, and its few passing readings are real. So the frame
+     * must also be mostly physically impossible temperatures (the trace: 76–535 C), which a
+     * correctly framed record never decodes to. Withholding real readings on a guess is not
+     * allowed; this only drops what cannot be a reading.
+     */
+    fun isMisframedFrame(readings: List<OttaiReading>): Boolean {
+        if (readings.size < MISFRAMED_MIN_RECORDS) return false
+        val accepted = readings.count { hardRejectReason(it.record, it.adjustGlucose.toFloat()) == null }
+        if (accepted * 4 >= readings.size) return false
+        val impossible = readings.count { isImpossibleTemperature(it.record.temperatureC) }
+        return impossible * 2 > readings.size
+    }
+
+    private fun isImpossibleTemperature(celsius: Double): Boolean =
+        !celsius.isFinite() || celsius < IMPOSSIBLE_TEMPERATURE_LOW_C || celsius > IMPOSSIBLE_TEMPERATURE_HIGH_C
+
     fun hardRejectReason(record: OttaiRecord, mmol: Float): String? {
         if (!mmol.isFinite() || mmol <= 0f) return "glucose=$mmol"
         if (mmol > MAX_GLUCOSE_MMOL) return "glucose=$mmol"

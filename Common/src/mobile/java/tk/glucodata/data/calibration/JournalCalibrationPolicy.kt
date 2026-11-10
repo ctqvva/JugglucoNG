@@ -13,7 +13,9 @@ import kotlin.math.abs
  *
  * The plan is a full reconciliation rather than an append: journal entries get
  * edited, re-timed and deleted, and the calibration derived from one has to
- * follow. Anything the user entered by hand is left strictly alone.
+ * follow. Anything the user entered by hand is left strictly alone, and a point
+ * the user removed stays removed: the journal entry behind it is still there, so
+ * without that record every pass would derive it straight back.
  */
 object JournalCalibrationPolicy {
     /**
@@ -31,6 +33,10 @@ object JournalCalibrationPolicy {
      * and the journal entry is skipped, so one measurement never lands twice.
      */
     const val DUPLICATE_WINDOW_MS = 60L * 1000L
+
+    /** Shared by journal reconciliation and manual-profile import. */
+    fun manualPointTakesPrecedence(timestamp: Long, manualTimestamps: Iterable<Long>): Boolean =
+        manualTimestamps.any { abs(it - timestamp) <= DUPLICATE_WINDOW_MS }
 
     /** Values outside a plausible meter range are treated as mistyped, not as truth. */
     const val MIN_MGDL = 20f
@@ -71,6 +77,9 @@ object JournalCalibrationPolicy {
      *
      * [existing] is the whole calibration table; rows belonging to other sensors
      * are ignored rather than deleted, since their history was never loaded.
+     *
+     * [dismissedTimestamps] are moments the user took a calibration away from. An
+     * entry there counts as settled, the same way one beside a manual point does.
      */
     fun plan(
         entries: List<JournalBloodGlucose>,
@@ -80,18 +89,20 @@ object JournalCalibrationPolicy {
         isMmol: Boolean,
         nowMillis: Long,
         matchesSensor: (String, String) -> Boolean,
+        dismissedTimestamps: Set<Long>,
     ): Plan {
         if (sensorId.isBlank()) return Plan()
 
         val ownRows = existing.filter { matchesSensor(it.sensorId, sensorId) }
         val derivedRows = ownRows.filter { it.journalEntryId != null }
-        val manualTimestamps = ownRows.filter { it.journalEntryId == null }.map { it.timestamp }
+        val settledTimestamps = ownRows.filter { it.journalEntryId == null }.map { it.timestamp } +
+            dismissedTimestamps
 
         val orderedHistory = history.sortedBy { it.timestamp }
         val desired = LinkedHashMap<Long, CalibrationEntity>()
 
         eligibleEntries(entries, nowMillis).forEach { entry ->
-            if (manualTimestamps.any { abs(it - entry.timestamp) <= DUPLICATE_WINDOW_MS }) return@forEach
+            if (manualPointTakesPrecedence(entry.timestamp, settledTimestamps)) return@forEach
             val lanes = nearestLanes(orderedHistory, entry.timestamp) ?: return@forEach
             val autoValue = lanes.autoValue.takeIf { it.isFinite() && it > 0f }
                 ?: lanes.rawValue.takeIf { it.isFinite() && it > 0f }
@@ -105,6 +116,7 @@ object JournalCalibrationPolicy {
                 userValue = displayValue(entry.glucoseMgDl, isMmol),
                 isRawMode = false,
                 journalEntryId = entry.entryId,
+                valueUnit = if (isMmol) 1 else 0,
             )
         }
 

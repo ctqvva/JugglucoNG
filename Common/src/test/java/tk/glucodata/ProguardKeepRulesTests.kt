@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import java.io.File
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -58,12 +59,26 @@ class ProguardKeepRulesTests {
     }
 
     @Test
-    fun theHistoryRepositoryLookupNamesAreKept() {
-        // The 713631f9 case: this one method was the omission, and its absence cost a full history
-        // re-pull per reconnect.
+    fun theHistoryRepositoryLookupNamesAreNoLongerNeeded() {
+        // The 713631f9 omitting lookup is gone: HistoryRepositoryAccess now reaches
+        // the repository through the registered HistoryRepositoryBridge, so the
+        // hand-kept name list was deleted. This guards against it being re-added as
+        // a duplicate of the interface call.
         val text = activeRules()
-        assertTrue(text.contains("-keepnames class tk.glucodata.data.HistoryRepository"))
-        assertTrue(text.contains("getHistoryTimestampsForSensorBlocking"))
+        assertFalse(text.contains("-keepnames class tk.glucodata.data.HistoryRepository"))
+        assertFalse(text.contains("-keepnames class tk.glucodata.data.HistorySync"))
+    }
+
+    @Test
+    fun theCalibrationManagerLookupNamesAreNoLongerNeeded() {
+        // CalibrationAccess reached CalibrationManager reflectively, so its members needed a
+        // hand-kept keep list or the watch's calibration mutations silently returned
+        // "applied=false" in release builds. It now goes through the registered
+        // CalibrationProvider, so the list is gone. This guards against it being re-added as a
+        // duplicate of the interface call.
+        val text = activeRules()
+        assertFalse(text.contains("-keepnames class tk.glucodata.data.calibration.CalibrationManager"))
+        assertFalse(text.contains("tk.glucodata.data.calibration.CalibrationManager {"))
     }
 
     @Test
@@ -76,14 +91,14 @@ class ProguardKeepRulesTests {
     }
 
     @Test
-    fun theLibreviewJournalBridgeIsKept() {
-        // Two name-based hops with nothing R8 can see: journalentries.cpp does FindClass on
-        // LibreviewJournal, and LibreviewJournal does Class.forName on LibreviewJournalEntries.
+    fun theLibreviewJournalJniEntryPointIsKept() {
+        // journalentries.cpp does FindClass/GetStaticMethodID on LibreviewJournal with nothing
+        // R8 can see, so its own name and methods must survive. The second hop --
+        // LibreviewJournalEntries, resolved by Class.forName -- is gone: it goes through the
+        // registered LibreviewJournalEntriesBridge now.
         val text = activeRules()
         assertTrue(text.contains("-keep class tk.glucodata.LibreviewJournal { *; }"))
-        assertTrue(text.contains("-keepnames class tk.glucodata.data.journal.LibreviewJournalEntries"))
-        listOf("prepare(boolean)", "foodEntries()", "insulinEntries()", "noteEntries()", "commit()", "discard()")
-            .forEach { assertTrue("proguard-rules.my must keep $it", text.contains(it)) }
+        assertFalse(text.contains("-keepnames class tk.glucodata.data.journal.LibreviewJournalEntries"))
     }
 
     @Test

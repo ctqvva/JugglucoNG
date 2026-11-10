@@ -5,14 +5,14 @@ import android.content.Context
 /**
  * Bridge from the shared code to the app's custom-alert engine.
  *
- * This used to find the engine by name at runtime, via
- * `Class.forName("tk.glucodata.logic.CustomAlertManager")` plus `getField`/`getMethod`. The class
- * lookup itself survived, because R8 folds `Class.forName` of a literal into a direct class
- * reference. The members did not: in a release build that class becomes `a71`, whose entire member
- * list is `<clinit> a b c d e`, so `getField("INSTANCE")` and `getMethod("checkAndTrigger", ...)`
- * threw. `runCatching` swallowed that, [checkAndTrigger] returned having done nothing, and custom
- * alerts silently never fired in a release build. Notify's dismissal path carried its own copy of
- * the same lookup, so they could not be dismissed either.
+ * This used to find the engine by name at runtime, via a literal class lookup plus
+ * `getField`/`getMethod`. The class lookup itself survived, because R8 folds a
+ * literal lookup into a direct class reference. The members did not: in a release
+ * build that class becomes `a71`, whose entire member list is `<clinit> a b c d e`,
+ * so the field and method lookups threw. `runCatching` swallowed that,
+ * [checkAndTrigger] returned having done nothing, and custom alerts silently never
+ * fired in a release build. Notify's dismissal path carried its own copy of the same
+ * lookup, so they could not be dismissed either.
  *
  * No keep rule protects any of this, and adding one would only pin the names the detour depends on.
  * The sibling bridge to the TrendEngine happens to still work, purely because R8's allocator handed
@@ -32,6 +32,10 @@ object CustomAlertAccess {
         this.controller = controller
     }
 
+    /** Registration-completeness check (plan §6 Q1). */
+    @JvmStatic
+    fun isRegistered(): Boolean = controller != null
+
     @JvmStatic
     fun checkAndTrigger(context: Context, glucose: Float, rate: Float, timestampMillis: Long) {
         checkAndTrigger(context, glucose, rate, timestampMillis, null, 0)
@@ -46,13 +50,25 @@ object CustomAlertAccess {
         sensorId: String?,
         sensorGen: Int
     ) {
+        checkAndTrigger(context, LiveReadingLanes.stock(glucose, Float.NaN), rate, timestampMillis, sensorId, sensorGen)
+    }
+
+    @JvmStatic
+    fun checkAndTrigger(
+        context: Context,
+        reading: LiveReadingLanes,
+        rate: Float,
+        timestampMillis: Long,
+        sensorId: String?,
+        sensorGen: Int
+    ) {
         val target = controller
         if (target == null) {
             warnMissing("checkAndTrigger")
             return
         }
         runCatching {
-            target.checkAndTrigger(context, glucose, rate, timestampMillis, sensorId, sensorGen)
+            target.checkAndTrigger(context, reading, rate, timestampMillis, sensorId, sensorGen)
         }.onFailure { Log.stack(LOG_ID, "checkAndTrigger", it) }
     }
 
@@ -70,15 +86,32 @@ object CustomAlertAccess {
     }
 
     /**
-     * Wear alarm actions. The controller interface only exposes dismissal, so
-     * snooze stops the current alarm and relies on the engine's own re-trigger
-     * spacing; a per-alert timed snooze needs a controller-level API first.
+     * Snooze and ignore are what the notification actions need beyond dismissal.
+     * Like the rest, they no-op when no engine is registered (the watch has none).
      */
     @JvmStatic
-    fun snoozeAlert(alertId: String, snoozeMinutes: Int): Boolean = dismissAlert(alertId)
+    fun snoozeAlert(alertId: String, snoozeMinutes: Int): Boolean {
+        val target = controller
+        if (target == null) {
+            warnMissing("snoozeAlert")
+            return false
+        }
+        return runCatching { target.snoozeAlert(alertId, snoozeMinutes); true }
+            .onFailure { Log.stack(LOG_ID, "snoozeAlert", it) }
+            .getOrDefault(false)
+    }
 
     @JvmStatic
-    fun ignoreAlert(alertId: String): Boolean = dismissAlert(alertId)
+    fun ignoreAlert(alertId: String): Boolean {
+        val target = controller
+        if (target == null) {
+            warnMissing("ignoreAlert")
+            return false
+        }
+        return runCatching { target.ignoreAlert(alertId); true }
+            .onFailure { Log.stack(LOG_ID, "ignoreAlert", it) }
+            .getOrDefault(false)
+    }
 
     // Deliberately not behind doLog: without the engine registered, custom alerts do not fire at
     // all. That is precisely the failure that went unnoticed for as long as this was reflection.

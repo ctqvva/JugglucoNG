@@ -59,8 +59,46 @@ fromjava(getSiBluetoothNum)(JNIEnv *envin, jclass cl, jlong dataptr) {
 }
 
 extern int newGlucoseMeter(std::string_view scangegs);
+struct DexcomPeerAnchor {
+  uint32_t start = 0;
+  int slot = -1;
+  uint32_t time = 0;
+  int glu = 0;
+  int trend = 0;
+  float change = 0;
+};
+static jstring addScanGetName(JNIEnv *env, jstring jgegs, jintArray jindexptr,
+                              const DexcomPeerAnchor *anchor);
 extern "C" JNIEXPORT jstring JNICALL fromjava(addSIscangetName)(
     JNIEnv *env, jclass cl, jstring jgegs, jintArray jindexptr) {
+  return addScanGetName(env, jgegs, jindexptr, nullptr);
+}
+// A Dexcom scan another device set the sensor up from, with that device's
+// anchor (dexPeerAnchor): the record takes the sensor's start and that
+// reading in its slot, so the copies of the other device's readings it is sent
+// next, and its own readings, all land on the sensor's slots.
+extern "C" JNIEXPORT jstring JNICALL fromjava(addDexcomScanFromPeer)(
+    JNIEnv *env, jclass cl, jstring jgegs, jlongArray janchor) {
+  if (!janchor || env->GetArrayLength(janchor) < 6)
+    return nullptr;
+  jlong values[6];
+  env->GetLongArrayRegion(janchor, 0, 6, values);
+  DexcomPeerAnchor anchor;
+  if (values[0] <= 0 || values[0] > UINT32_MAX || values[1] < 0 ||
+      values[1] > INT32_MAX || values[2] <= values[0] || values[2] > UINT32_MAX ||
+      values[3] <= 0 || values[3] > INT32_MAX)
+    return nullptr;
+  anchor.start = static_cast<uint32_t>(values[0]);
+  anchor.slot = static_cast<int>(values[1]);
+  anchor.time = static_cast<uint32_t>(values[2]);
+  anchor.glu = static_cast<int>(values[3]);
+  anchor.trend = static_cast<int>(values[4]);
+  const int32_t changeBits = static_cast<int32_t>(values[5]);
+  memcpy(&anchor.change, &changeBits, sizeof(changeBits));
+  return addScanGetName(env, jgegs, nullptr, &anchor);
+}
+static jstring addScanGetName(JNIEnv *env, jstring jgegs, jintArray jindexptr,
+                              const DexcomPeerAnchor *anchor) {
   if (!jgegs) {
     LOGAR("addSIscangetName(null)");
     return nullptr;
@@ -74,15 +112,30 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(addSIscangetName)(
       [jgegs, gegs, env]() { env->ReleaseStringUTFChars(jgegs, gegs); });
   const size_t gegslen = env->GetStringUTFLength(jgegs);
   std::string_view scangegs{gegs, gegslen};
-  auto [sensindex, sens] = sensors->makeSIsensorindex(scangegs, time(nullptr));
+  // A peer's setup is only ever a Dexcom one; anything else must not reach the
+  // generic factory, which would set up whatever sensor the text names.
+  if (anchor && !dexcom::parseScan(scangegs)) {
+    LOGAR("addDexcomScanFromPeer: not a Dexcom scan");
+    return nullptr;
+  }
+  auto [sensindex, sens] = sensors->makeSIsensorindex(
+      scangegs, time(nullptr), anchor ? anchor->start : 0);
+  if (anchor && !(sens && sens->isDexcom()))
+    return nullptr;
   if (sens) {
+    if (anchor &&
+        !sens->takeDexcomPeerAnchor(anchor->start, anchor->slot, anchor->time,
+                                    anchor->glu, anchor->trend, anchor->change))
+      LOGGER("addDexcomScanFromPeer: anchor slot %d not taken\n", anchor->slot);
     const char *name = sens->shortsensorname()->data();
-    LOGGER("addSIscangetName(%s)=%s\n", gegs, name);
+    // Not the scanned text: a CareSens Air code carries the pairing PIN.
+    LOGGER("addSIscangetName()=%s\n", name);
     sendstreaming(sens); // TODO??
     backup->resendResetDevices();
     backup->wakebackup(Backup::wakeall);
     return env->NewStringUTF(name);
   } else {
+    if (!jindexptr) return nullptr;
     if (int meterIndex = newGlucoseMeter(scangegs); meterIndex >= 0) {
       CritArSave<jint> indexptr(env, jindexptr);
       *indexptr.data() = meterIndex;

@@ -4,7 +4,10 @@ import kotlin.math.roundToInt
 
 /**
  * Single source of truth for insulin-on-board math, shared by the journal UI,
- * the outbound API snapshot and the glucodata.Minute broadcast.
+ * the outbound API snapshot and the glucodata.Minute broadcast. The arithmetic
+ * itself is [JournalIobMath] in `src/main` -- the watch computes IOB/COB from
+ * its synced journal (plan §4 category W, D1) and cannot see Room, so this
+ * object keeps the phone's entry points and delegates.
  *
  * Two distinct quantities are computed from the same dose list:
  *  - [Result.iobUnits]: classic IOB — remaining future action,
@@ -76,60 +79,24 @@ object JournalIobCalculator {
     }
 
     fun compute(doses: List<Dose>, atMillis: Long): Result {
-        var iob = 0.0
-        var eiob = 0.0
-        doses.forEach { dose ->
-            val remaining = remainingCurveFraction(dose.curvePoints, dose.timestampMillis, atMillis)
-            val activity = activityFractionAt(dose.curvePoints, dose.timestampMillis, atMillis)
-            iob += (dose.amountUnits * remaining).toDouble()
-            eiob += (dose.amountUnits * remaining * activity).toDouble()
-        }
-        return Result(iob.toFloat(), eiob.toFloat())
+        val result = JournalIobMath.compute(
+            doses.map { IobDose(it.timestampMillis, it.amountUnits, it.curvePoints) },
+            atMillis,
+        )
+        return Result(result.iobUnits, result.eiobUnits)
     }
 
     fun remainingCurveFraction(
         points: List<JournalCurvePoint>,
         doseTimestampMillis: Long,
         atMillis: Long
-    ): Float {
-        if (points.size < 2 || atMillis < doseTimestampMillis) return 0f
-        val elapsedMinutes = ((atMillis - doseTimestampMillis) / 60_000f).coerceAtLeast(0f)
-        val total = integrateCurve(points, points.last().minute.toFloat())
-        if (total <= 0.0001f) return 0f
-        val delivered = (integrateCurve(points, elapsedMinutes) / total).coerceIn(0f, 1f)
-        return (1f - delivered).coerceIn(0f, 1f)
-    }
+    ): Float = JournalIobMath.remainingCurveFraction(points, doseTimestampMillis, atMillis)
 
     fun activityFractionAt(
         points: List<JournalCurvePoint>,
         doseTimestampMillis: Long,
         atMillis: Long
-    ): Float {
-        val elapsedMinutes = ((atMillis - doseTimestampMillis) / 60_000f).coerceAtLeast(0f)
-        return interpolateJournalCurve(points, elapsedMinutes)
-    }
-
-    private fun integrateCurve(
-        points: List<JournalCurvePoint>,
-        upToMinute: Float
-    ): Float {
-        if (points.size < 2 || upToMinute <= points.first().minute) return 0f
-        var area = 0f
-        for (index in 0 until points.lastIndex) {
-            val start = points[index]
-            val end = points[index + 1]
-            if (upToMinute <= start.minute) break
-            val segmentEndMinute = minOf(upToMinute, end.minute.toFloat())
-            val segmentWidth = segmentEndMinute - start.minute
-            if (segmentWidth <= 0f) continue
-            val fullWidth = (end.minute - start.minute).coerceAtLeast(1).toFloat()
-            val endFraction = ((segmentEndMinute - start.minute) / fullWidth).coerceIn(0f, 1f)
-            val segmentEndActivity = start.activity + ((end.activity - start.activity) * endFraction)
-            area += ((start.activity + segmentEndActivity) * 0.5f) * segmentWidth
-            if (upToMinute <= end.minute) break
-        }
-        return area
-    }
+    ): Float = JournalIobMath.activityFractionAt(points, doseTimestampMillis, atMillis)
 
     fun buildActiveInsulinSummary(
         entries: List<JournalEntry>,

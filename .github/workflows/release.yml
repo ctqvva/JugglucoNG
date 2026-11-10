@@ -1,0 +1,86 @@
+name: Release
+run-name: Release ${{ inputs.tag }} from trusted main
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Exact appVersionName committed on main (e.g. 1.2.3-Alpha)
+        type: string
+        required: true
+      prerelease:
+        description: Mark as prerelease (otherwise becomes latest)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'ctqvva/JugglucoNG' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate version and unused release tag
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/dist/release-preflight.py
+  build:
+    needs: prepare
+    uses: ./.github/workflows/signed-build.yml
+    # Required for the called job to resolve protected environment secrets.
+    secrets: inherit
+    with:
+      target: all
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release-publication
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: distribution-all-${{ github.sha }}
+          path: build/dist/all
+      - name: Verify and publish complete release
+        env:
+          TAG: ${{ inputs.tag }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/dist/publish-release.py
+  update-readme:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: write # Start read-only CI for the post-release README commit.
+    # Same repository-wide lock as manual/release-event refreshes. Publication
+    # does not hold it during building; the helper reads releases inside the job.
+    concurrency:
+      group: readme-downloads
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Refresh README manual downloads after publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/dist/update-readme-downloads.py

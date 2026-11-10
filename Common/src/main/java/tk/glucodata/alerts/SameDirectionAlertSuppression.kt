@@ -1,5 +1,7 @@
 package tk.glucodata.alerts
 
+import tk.glucodata.TrendArrowAngle
+
 /** The direction an alert speaks about for cross-family suppression. */
 internal enum class AlertDirection { FALLING, RISING }
 
@@ -26,11 +28,26 @@ internal data class SameDirectionSuppressor(val type: AlertType, val firedAtMs: 
  * sound somewhere": an alarm that fired while the user was away, or that a
  * quiet window silenced, was never seen, so it must not take the early warning
  * of the next one away. LOW, VERY_LOW and VERY_HIGH are exempt by construction.
- * HIGH can optionally join the rising group. A window of zero disables the
- * mechanism.
+ * HIGH can optionally join the rising group. Acknowledgement belongs to the
+ * delivery, not the current episode: clearing a forecast or expiring a snooze
+ * does not end the window. A fresh trend in the opposite direction does end
+ * it, using the same flat boundary as the displayed arrow. A window of zero
+ * disables the mechanism.
  */
 internal class SameDirectionAlertSuppression {
     private val lastFired = mutableMapOf<AlertDirection, SameDirectionSuppressor>()
+    private var lastTrendReadingTimeMs = 0L
+
+    /** Flat, unavailable and repeated readings cannot turn an existing trend around. */
+    fun observeTrend(readingTimeMs: Long, rate: Float, trendTrusted: Boolean) {
+        if (!trendTrusted || !rate.isFinite() || readingTimeMs <= lastTrendReadingTimeMs) return
+        lastTrendReadingTimeMs = readingTimeMs
+        val angle = TrendArrowAngle.rotationDegrees(rate)
+        when {
+            angle < 0f -> lastFired.remove(AlertDirection.FALLING)
+            angle > 0f -> lastFired.remove(AlertDirection.RISING)
+        }
+    }
 
     /**
      * Returns the alert that keeps [type] quiet at [nowMs], or null when it may
@@ -48,7 +65,7 @@ internal class SameDirectionAlertSuppression {
         val direction = directionOf(type, acknowledgedHighCoverage) ?: return null
         val last = lastFired[direction] ?: return null
         if (last.type == type) return null
-        // An unseen first alert covers nothing; see the class note.
+        // Query acknowledgement of that delivery, even if its episode/snooze has ended.
         if (!isAcknowledged(last.type)) return null
         return if (nowMs - last.firedAtMs < windowMs) last else null
     }
@@ -61,6 +78,7 @@ internal class SameDirectionAlertSuppression {
 
     fun clear() {
         lastFired.clear()
+        lastTrendReadingTimeMs = 0L
     }
 
     companion object {

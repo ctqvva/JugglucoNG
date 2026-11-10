@@ -41,9 +41,9 @@ sha256() {
 # phone-only feature and a wear artifact must never be offered to a phone install.
 application_id_for() {
   case "$1" in
+    *-wear*)    echo "" ;;
     *-dub2.apk) echo "tk.glucodata.ng.dub2" ;;
     *-dub.apk)  echo "tk.glucodata.ng.dub" ;;
-    *-wear*)    echo "" ;;
     *-debug*)   echo "" ;;
     JugglucoNG-*.apk) echo "tk.glucodata.ng" ;;
     *) echo "" ;;

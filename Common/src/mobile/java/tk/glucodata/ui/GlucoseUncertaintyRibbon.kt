@@ -1,6 +1,5 @@
 package tk.glucodata.ui
 
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -36,8 +35,8 @@ internal object GlucoseUncertaintyRibbon {
      * 16% tint under another translucent layer disappears. Restrained is the
      * goal; imperceptible is a bug.
      */
-    private const val BAND_ALPHA = 0.26f
-    private const val EDGE_ALPHA = 0.42f
+    private const val BAND_ALPHA = tk.glucodata.chart.UncertaintyBands.FILL_ALPHA
+    private const val EDGE_ALPHA = tk.glucodata.chart.UncertaintyBands.EDGE_ALPHA
     private const val EDGE_WIDTH_PX = 1.5f
 
     /** Bands thinner than this add visual noise without telling the reader anything. */
@@ -46,15 +45,21 @@ internal object GlucoseUncertaintyRibbon {
     /**
      * Draws the band for [renderData] over `[startIndex, endIndex)`.
      *
-     * @param centerValueAt the value actually drawn for a point, which may
-     *   differ from `point.value` when an app-level calibration is applied. The
-     *   band is shifted by the same amount so it stays around the line it
-     *   describes rather than around the uncalibrated value.
+     * Bounds have already followed calibration and smoothing in the shared
+     * chart model; both renderers consume the same resolved interval.
      * @param gapThresholdMs elapsed time that breaks a run, matching the line's
      *   own gap convention so band and line break in the same places.
      */
+    /** One chart-owned workspace, reused across runs, series, and animation frames. */
+    class Paths {
+        val fill = Path()
+        val upper = Path()
+        val lower = Path()
+        val edgeStroke = androidx.compose.ui.graphics.drawscope.Stroke(width = EDGE_WIDTH_PX)
+    }
+
     fun DrawScope.drawUncertaintyRibbon(
-        renderData: List<GlucosePoint>,
+        renderData: List<tk.glucodata.chart.ChartPointModel>,
         startIndex: Int,
         endIndex: Int,
         viewportStartMs: Long,
@@ -64,110 +69,65 @@ internal object GlucoseUncertaintyRibbon {
         yScale: Float,
         gapThresholdMs: Long,
         color: Color,
-        centerValueAt: (Int) -> Float,
+        paths: Paths = Paths(),
     ) {
         if (endIndex <= startIndex || yScale <= 0f) return
-
-        val upperPoints = ArrayList<Offset>(32)
-        val lowerPoints = ArrayList<Offset>(32)
-        var lastTimestamp = Long.MIN_VALUE
-        var lastSensorSerial: String? = null
-        var anyDrawn = false
-
-        fun flush() {
-            if (upperPoints.size >= 2) {
-                drawBand(upperPoints, lowerPoints, color)
-                anyDrawn = true
-            }
-            upperPoints.clear()
-            lowerPoints.clear()
-        }
-
-        for (i in startIndex until endIndex) {
-            val point = renderData[i]
-            val uncertainty = point.uncertainty
-            val center = centerValueAt(i)
-
-            if (uncertainty == null || !uncertainty.isUsable ||
-                !center.isFinite() || center <= 0.1f
-            ) {
-                flush()
-                lastTimestamp = Long.MIN_VALUE
-                lastSensorSerial = point.sensorSerial
-                continue
-            }
-
-            val sensorChanged = lastSensorSerial != null && point.sensorSerial != null &&
-                point.sensorSerial != lastSensorSerial
-            val gapExceeded = lastTimestamp != Long.MIN_VALUE &&
-                (point.timestamp - lastTimestamp) > gapThresholdMs
-            if (sensorChanged || gapExceeded) flush()
-
-            // Keep the band around the line as drawn: a calibration that shifts
-            // the value shifts the interval that describes it by the same amount.
-            val shift = center - point.value
-            val x = (point.timestamp - viewportStartMs) * timeScale
-            val upperY = chartHeight - ((uncertainty.upper + shift - yMin) * yScale)
-            val lowerY = chartHeight - ((uncertainty.lower + shift - yMin) * yScale)
-            if (!x.isFinite() || !upperY.isFinite() || !lowerY.isFinite()) {
-                flush()
-                lastTimestamp = Long.MIN_VALUE
-                lastSensorSerial = point.sensorSerial
-                continue
-            }
-
-            // Clipped generously rather than exactly: a band that leaves the
-            // top of the viewport should still enter and exit through the edge
-            // instead of disappearing.
-            val clampedUpper = upperY.coerceIn(-CLIP_MARGIN_PX, chartHeight + CLIP_MARGIN_PX)
-            val clampedLower = lowerY.coerceIn(-CLIP_MARGIN_PX, chartHeight + CLIP_MARGIN_PX)
-            upperPoints += Offset(x, clampedUpper)
-            lowerPoints += Offset(x, clampedLower)
-
-            lastTimestamp = point.timestamp
-            lastSensorSerial = point.sensorSerial
-        }
-        flush()
-        if (!anyDrawn) return
-    }
-
-    private fun DrawScope.drawBand(
-        upperPoints: List<Offset>,
-        lowerPoints: List<Offset>,
-        color: Color,
-    ) {
+        var runStart = -1
         var maxHeight = 0f
-        for (index in upperPoints.indices) {
-            val height = lowerPoints[index].y - upperPoints[index].y
-            if (height > maxHeight) maxHeight = height
-        }
-        if (maxHeight < MIN_VISIBLE_HEIGHT_PX) return
-
-        val path = Path().apply {
-            moveTo(upperPoints.first().x, upperPoints.first().y)
-            for (index in 1 until upperPoints.size) {
-                lineTo(upperPoints[index].x, upperPoints[index].y)
+        var previous: tk.glucodata.chart.ChartPointModel? = null
+        fun x(timestamp: Long) = (timestamp - viewportStartMs) * timeScale
+        fun y(value: Float) = (chartHeight - (value - yMin) * yScale)
+            .coerceIn(-CLIP_MARGIN_PX, chartHeight + CLIP_MARGIN_PX)
+        fun flush(end: Int) {
+            if (runStart < 0 || end - runStart < 2 || maxHeight < MIN_VISIBLE_HEIGHT_PX) return
+            for (index in end - 1 downTo runStart) {
+                val point = renderData[index]
+                paths.fill.lineTo(x(point.timestamp), y(requireNotNull(point.uncertainty).lower))
             }
-            for (index in lowerPoints.indices.reversed()) {
-                lineTo(lowerPoints[index].x, lowerPoints[index].y)
+            paths.fill.close()
+            drawPath(paths.fill, color.copy(alpha = BAND_ALPHA))
+            drawPath(paths.upper, color.copy(alpha = EDGE_ALPHA), style = paths.edgeStroke)
+            drawPath(paths.lower, color.copy(alpha = EDGE_ALPHA), style = paths.edgeStroke)
+        }
+        // Stream the visible slice directly into reusable paths. Do not construct
+        // run lists or boxed Offset arrays for every point on every animation frame.
+        for (index in startIndex until endIndex) {
+            val point = renderData[index]
+            val interval = point.uncertainty
+            if (interval?.isUsable != true || !point.value.isFinite() || point.value <= 0.1f) {
+                flush(index)
+                runStart = -1
+                previous = null
+                continue
             }
-            close()
+            val before = previous
+            if (before != null && (point.timestamp - before.timestamp > gapThresholdMs ||
+                    (before.sensorId != null && point.sensorId != null &&
+                        !tk.glucodata.SensorIdentity.matches(before.sensorId, point.sensorId)))) {
+                flush(index)
+                runStart = -1
+            }
+            val px = x(point.timestamp)
+            val upperY = y(interval.upper)
+            val lowerY = y(interval.lower)
+            if (runStart < 0) {
+                runStart = index
+                maxHeight = 0f
+                paths.fill.rewind()
+                paths.upper.rewind()
+                paths.lower.rewind()
+                paths.fill.moveTo(px, upperY)
+                paths.upper.moveTo(px, upperY)
+                paths.lower.moveTo(px, lowerY)
+            } else {
+                paths.fill.lineTo(px, upperY)
+                paths.upper.lineTo(px, upperY)
+                paths.lower.lineTo(px, lowerY)
+            }
+            maxHeight = maxOf(maxHeight, lowerY - upperY)
+            previous = point
         }
-        drawPath(path, color.copy(alpha = BAND_ALPHA))
-        drawEdge(upperPoints, color)
-        drawEdge(lowerPoints, color)
-    }
-
-    private fun DrawScope.drawEdge(points: List<Offset>, color: Color) {
-        val edge = Path().apply {
-            moveTo(points.first().x, points.first().y)
-            for (index in 1 until points.size) lineTo(points[index].x, points[index].y)
-        }
-        drawPath(
-            edge,
-            color.copy(alpha = EDGE_ALPHA),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = EDGE_WIDTH_PX),
-        )
+        flush(endIndex)
     }
 
     private const val CLIP_MARGIN_PX = 2000f

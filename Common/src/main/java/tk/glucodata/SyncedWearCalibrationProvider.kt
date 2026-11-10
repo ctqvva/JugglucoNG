@@ -281,12 +281,29 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
 
     private fun matchingPayload(sensorId: String?): WearCalibrationPayload? {
         restoreLocked()
-        if (payloads.isEmpty()) return null
-        val requested = sensorId?.trim()?.takeIf { it.isNotEmpty() }
-            ?: return payloads.values.maxByOrNull { it.revision }
-        payloads[keyOf(requested)]?.let { return it }
-        // Fall back to an identity match: the phone may name the sensor
-        // differently from the id the caller happens to hold.
-        return payloads.values.firstOrNull { SensorIdentity.matches(it.sensorId, requested) }
+        return selectPayload(payloads.values, sensorId, resolveMainSensorId())
+    }
+
+    private fun resolveMainSensorId(): String? =
+        runCatching { SensorIdentity.resolveMainSensor() }.getOrNull()
+
+    /**
+     * Picks the payload for a reading: the sensor the caller named, else the device's own main
+     * sensor. With no sensor context at all only a single payload is unambiguous — choosing the
+     * highest revision is how a second sensor got the first one's calibration (direction.md §6 Q2).
+     * Pure, so the choice is testable on its own.
+     */
+    internal fun selectPayload(
+        candidates: Collection<WearCalibrationPayload>,
+        requestedSensorId: String?,
+        mainSensorId: String?,
+    ): WearCalibrationPayload? {
+        if (candidates.isEmpty()) return null
+        val requested = requestedSensorId?.trim()?.takeIf { it.isNotEmpty() }
+            ?: mainSensorId?.trim()?.takeIf { it.isNotEmpty() }
+        if (requested == null) return candidates.singleOrNull()
+        candidates.firstOrNull { keyOf(it.sensorId) == keyOf(requested) }?.let { return it }
+        // An identity match: the phone may name the sensor differently from the id the caller holds.
+        return candidates.firstOrNull { SensorIdentity.matches(it.sensorId, requested) }
     }
 }

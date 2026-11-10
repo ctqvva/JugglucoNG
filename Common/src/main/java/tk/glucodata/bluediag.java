@@ -65,7 +65,7 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static tk.glucodata.Applic.isWearable;
 import static tk.glucodata.Log.doLog;
 import static tk.glucodata.NumberView.avoidSpinnerDropdownFocus;
-import static tk.glucodata.Specific.useclose;
+import static tk.glucodata.VariantBootstrapAccess.useCloseButton;
 import static tk.glucodata.help.help;
 import static tk.glucodata.help.helplight;
 import static tk.glucodata.settings.Settings.removeContentView;
@@ -417,7 +417,7 @@ public class bluediag {
         var close = getbutton(act, R.string.closename);
         var height = GlucoseCurve.getheight();
         var width = GlucoseCurve.getwidth();
-        if (!useclose)
+        if (!useCloseButton())
             close.setVisibility(GONE);
 
         var help = getbutton(act, R.string.helpname);
@@ -478,7 +478,7 @@ public class bluediag {
      * var close=getbutton(act,R.string.closename);
      * var height=GlucoseCurve.getheight();
      * var width=GlucoseCurve.getwidth();
-     * if(!useclose)
+     * if(!useCloseButton())
      * close.setVisibility(GONE);
      * Layout layout = new Layout(act, (l, w, h) -> {
      * l.setX((width-w)/2);
@@ -916,7 +916,7 @@ public class bluediag {
 
         Button close = view.findViewById(R.id.close);
         close.setOnClickListener(v -> act.doonback());
-        if (!useclose)
+        if (!useCloseButton())
             close.setVisibility(GONE);
 
         view.setBackgroundColor(Applic.backgroundcolor);
@@ -971,8 +971,8 @@ public class bluediag {
             scheduled.cancel(false);
             act.setfineres(null);
             removeContentView(showview);
-            if (Menus.on) {
-                Menus.show(act);
+            if (LegacyScreensAccess.getMenusOn()) {
+                LegacyScreensAccess.get().openMenus(act);
             }
 
         });
@@ -1170,7 +1170,7 @@ public class bluediag {
         final ArrayList<SuperGattCallback> gatts = SensorBluetooth.mygatts();
         if (gatts == null || gatts.size() == 0) {
             if (isWearable)
-                Specific.wearnosensors(act);
+                VariantBootstrapAccess.create().wearnosensors(act);
             else
                 MirrorSensors.show(act);
             return;

@@ -31,6 +31,80 @@ class AiDexManagedSensorIdentityAdapterTests {
     }
 
     @Test
+    fun smartAdvertisement_usesRealSerialForCanonicalAndProtocolIdentity() {
+        for (name in listOf("Smart-22222BZTJ3", "SMART-22222BZTJ3", " smart-22222bztj3 ")) {
+            assertEquals("X-22222BZTJ3", AiDexSerialIdentity.canonicalFromAdvertisement(name))
+            assertEquals("22222BZTJ3", AiDexSerialIdentity.bareSerial(name))
+        }
+    }
+
+    @Test
+    fun smartAdvertisement_rejectsMalformedSerialsAndUnknownWordPrefixes() {
+        for (name in listOf(
+            "Smart-1234567",
+            "Smart-123456789012345",
+            "Smart-22222BZTJ3!",
+            "Smart-22222BZTJ3-extra",
+            "Smartwatch-22222BZTJ3",
+            "Unknown-22222BZTJ3",
+        )) {
+            assertNull(name, AiDexSerialIdentity.canonicalFromAdvertisement(name))
+        }
+    }
+
+    @Test
+    fun indiaAdvertisement_usesRealSerialBehindGluedGenerationLetter() {
+        for (name in listOf("IndiaX-22222E7T6K", "INDIAX-22222E7T6K", " indiax-22222e7t6k ", "India-22222E7T6K")) {
+            assertEquals("X-22222E7T6K", AiDexSerialIdentity.canonicalFromAdvertisement(name))
+            assertEquals("22222E7T6K", AiDexSerialIdentity.bareSerial(name))
+        }
+        for (name in listOf("IndiaXY-22222E7T6K", "Indiana-22222E7T6K", "IndiaX-22222E7T6K-extra")) {
+            assertNull(name, AiDexSerialIdentity.canonicalFromAdvertisement(name))
+        }
+    }
+
+    @Test
+    fun indiaMacFallback_recoversProtocolSerialWithoutRenamingStoredIdentity() {
+        val storedSensorId = AiDexSerialIdentity.fallbackCanonicalFromAddress("40:38:02:0A:45:17")
+        assertEquals("X-4038020A4517", storedSensorId)
+        assertEquals(
+            "22222E7T6K",
+            AiDexSerialIdentity.advertisedProtocolSerialForMacFallback(
+                storedSensorId = storedSensorId,
+                address = "40:38:02:0A:45:17",
+                advertisedName = "IndiaX-22222E7T6K",
+            )
+        )
+    }
+
+    @Test
+    fun smartMacFallback_recoversProtocolSerialWithoutRenamingStoredIdentity() {
+        val storedSensorId = AiDexSerialIdentity.fallbackCanonicalFromAddress("6C:A0:42:3B:65:E2")
+        assertEquals("X-6CA0423B65E2", storedSensorId)
+        assertEquals(
+            "22222BZTJ3",
+            AiDexSerialIdentity.advertisedProtocolSerialForMacFallback(
+                storedSensorId = storedSensorId,
+                address = "6C:A0:42:3B:65:E2",
+                advertisedName = "Smart-22222BZTJ3",
+            )
+        )
+    }
+
+    @Test
+    fun smartMacFallback_doesNotOverrideRealSerialOrDifferentAddress() {
+        for (storedSensorId in listOf("X-2222267V4E", "X-6CA0423B65E3")) {
+            assertNull(
+                AiDexSerialIdentity.advertisedProtocolSerialForMacFallback(
+                    storedSensorId = storedSensorId,
+                    address = "6C:A0:42:3B:65:E2",
+                    advertisedName = "Smart-22222BZTJ3",
+                )
+            )
+        }
+    }
+
+    @Test
     fun macFallback_usesAdvertisedSerialForProtocolOnlyWhenIdentityMatchesAddress() {
         assertEquals(
             "22222FZXKT",

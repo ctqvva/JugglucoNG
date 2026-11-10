@@ -2,6 +2,10 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.LinearWavyProgressIndicator
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
@@ -17,28 +21,27 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Bloodtype
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -61,12 +64,16 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import tk.glucodata.GlucoseMeterManager
 import tk.glucodata.GlucoseMeterSnapshot
+import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.glucosemeter.MeterSyncPacing
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.util.BleDeviceScanner
+import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.rememberBleScanner
 import java.text.DateFormat
 import java.util.Date
@@ -83,11 +90,7 @@ private data class NearbyGlucoseMeter(
 private val satelliteMeterServiceUuid =
     UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
 
-private val glucoseMeterServiceUuids = listOf(
-    UUID.fromString("00001808-0000-1000-8000-00805f9b34fb"),
-    UUID.fromString("af9df7a1-e595-11e3-96b4-0002a5d5c51b"),
-    satelliteMeterServiceUuid,
-)
+private const val satelliteMeterNamePrefix = "Satellite"
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -100,6 +103,12 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
     var scanRequest by remember { mutableIntStateOf(0) }
     var satelliteCode by remember { mutableStateOf(GlucoseMeterManager.satelliteCode()) }
     var pendingSatellite by remember { mutableStateOf<NearbyGlucoseMeter?>(null) }
+    var pendingForget by remember { mutableStateOf<GlucoseMeterSnapshot?>(null) }
+    var recheckMinutes by remember { mutableStateOf(GlucoseMeterManager.recheckMinutes()) }
+    val recheckNow = stringResource(R.string.glucose_meter_recheck_now)
+    val recheckLabel: (Int) -> String = { minutes ->
+        if (minutes == 0) recheckNow else context.getString(R.string.minutes_short_format, minutes)
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -125,7 +134,12 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
         nearby = emptyList()
         scanning = true
         scanner.startScan(
-            serviceUuids = glucoseMeterServiceUuids,
+            // Unfiltered: not every meter advertises the glucose service (or the
+            // Verio one), and Android filters the advertisement away before the
+            // app ever sees it, so a filtered scan just reports nothing at all.
+            // This is a foreground, user-driven scan, so the screen-off limits
+            // on unfiltered scans do not apply here.
+            serviceUuids = emptyList(),
             onResult = { result ->
                 val device = result.device
                 val address = runCatching { device.address }.getOrNull() ?: return@startScan
@@ -133,8 +147,13 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                     ?: result.scanRecord?.deviceName
                     ?: return@startScan
                 if (nearby.none { it.address == address }) {
+                    // The Satellite does not advertise any service UUID at all
+                    // (services=null in the trace), so fall back to its name -
+                    // otherwise the code dialog never shows and the meter can
+                    // only be added without a code.
                     val requiresSatelliteCode = result.scanRecord?.serviceUuids
-                        ?.any { it.uuid == satelliteMeterServiceUuid } == true
+                        ?.any { it.uuid == satelliteMeterServiceUuid } == true ||
+                        name.startsWith(satelliteMeterNamePrefix, ignoreCase = true)
                     nearby = nearby + NearbyGlucoseMeter(
                         device = device,
                         name = name,
@@ -156,6 +175,9 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
         delay(15_000L)
         scanner.stopScan()
         scanning = false
+        if (nearby.isEmpty()) {
+            Log.i("GlucoseMeterSettings", "no nearby devices found in 15s")
+        }
     }
 
     DisposableEffect(Unit) {
@@ -170,6 +192,32 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
         } else {
             Toast.makeText(context, R.string.wentwrong, Toast.LENGTH_LONG).show()
         }
+    }
+
+    pendingForget?.let { meter ->
+        AlertDialog(
+            onDismissRequest = { pendingForget = null },
+            title = { Text(stringResource(R.string.glucose_meter_forget_title)) },
+            text = { Text(stringResource(R.string.glucose_meter_forget_desc, meter.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        GlucoseMeterManager.forget(meter.index)
+                        meters = GlucoseMeterManager.configuredMeters()
+                        pendingForget = null
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
+                ) {
+                    Text(stringResource(R.string.glucose_meter_forget))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingForget = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 
     pendingSatellite?.let { candidate ->
@@ -204,12 +252,14 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                         pendingSatellite = null
                     },
                     enabled = GlucoseMeterManager.isSatelliteCodeValid(satelliteCode),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
                 ) {
                     Text(stringResource(R.string.pair))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingSatellite = null }) {
+                TextButton(onClick = { pendingSatellite = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -219,13 +269,9 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.meterlist)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                }
+            AppTopBar(
+                title = stringResource(R.string.meterlist),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -238,7 +284,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(28.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
@@ -249,19 +295,18 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                         Surface(
                             color = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
-                            shape = RoundedCornerShape(18.dp),
+                            shape = RoundedCornerShape(16.dp),
                         ) {
                             Icon(
                                 Icons.Filled.Bloodtype,
                                 contentDescription = null,
-                                modifier = Modifier.padding(14.dp).size(28.dp),
+                                modifier = Modifier.padding(16.dp).size(28.dp),
                             )
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 stringResource(R.string.glucose_meters_desc),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.titleMediumEmphasized,
                             )
                             Text(
                                 stringResource(R.string.glucose_meters_journal_desc),
@@ -300,17 +345,57 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                     } else {
                         stringResource(R.string.glucose_meter_no_readings)
                     }
-                    SettingsSwitchItem(
-                        title = meter.name,
-                        subtitle = "$status · $lastReading",
-                        checked = meter.active,
-                        icon = Icons.Filled.Bloodtype,
-                        iconTint = MaterialTheme.colorScheme.primary,
-                        onCheckedChange = { enabled ->
-                            GlucoseMeterManager.setEnabled(meter.index, enabled)
-                            meters = GlucoseMeterManager.configuredMeters()
-                        },
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsSwitchItem(
+                            title = meter.name,
+                            subtitle = "$status · $lastReading",
+                            checked = meter.active,
+                            icon = Icons.Filled.Bloodtype,
+                            iconTint = MaterialTheme.colorScheme.primary,
+                            onCheckedChange = { enabled ->
+                                GlucoseMeterManager.setEnabled(meter.index, enabled)
+                                meters = GlucoseMeterManager.configuredMeters()
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButtonTooltip(stringResource(R.string.glucose_meter_forget)) {
+                            IconButton(onClick = { pendingForget = meter }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    Icons.Filled.Delete,
+                                    contentDescription = stringResource(R.string.glucose_meter_forget),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Only a meter that never sleeps waits between checks, so the choice shows with one.
+            if (meters.any { it.staysOn }) {
+                item("recheck") {
+                    Column {
+                        SectionLabel(stringResource(R.string.glucose_meter_recheck))
+                        ConnectedButtonGroup(
+                            options = MeterSyncPacing.CHOICES_MINUTES,
+                            selectedOption = recheckMinutes,
+                            onOptionSelected = { minutes ->
+                                recheckMinutes = minutes
+                                GlucoseMeterManager.setRecheckMinutes(minutes)
+                            },
+                            labelText = recheckLabel,
+                            label = { minutes -> Text(recheckLabel(minutes)) },
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            stringResource(R.string.glucose_meter_recheck_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
                 }
             }
 
@@ -328,13 +413,15 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                         else permissionLauncher.launch(missing.toTypedArray())
                     },
                     enabled = !scanning,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
                 ) {
                     Icon(Icons.AutoMirrored.Filled.BluetoothSearching, contentDescription = null)
-                    Spacer(Modifier.size(10.dp))
+                    Spacer(Modifier.size(8.dp))
                     Text(stringResource(if (scanning) R.string.scanning_devices else R.string.finddevices))
                 }
-                if (scanning) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
+                if (scanning) LinearWavyProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
             }
             items(nearby, key = NearbyGlucoseMeter::address) { candidate ->
                 SettingsItem(

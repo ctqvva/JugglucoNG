@@ -665,7 +665,8 @@ public class Floating extends View {
     private boolean startedMain = false;
 
     public boolean onTouchEvent(MotionEvent event) {
-        if (Natives.turnoffalarm())
+        // Restricted mode may leave alarms snooze-only; touching the overlay must not stop one.
+        if (Natives.turnoffalarm() && RestrictedMode.allowsAlarmStop())
             Notify.stopalarm();
         {
             if (doLog) {

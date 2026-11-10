@@ -27,7 +27,12 @@ data class PredictiveSimulationSettings(
     val carbAbsorptionGramsPerHour: Float = 35f,
     val foodMacrosEnabled: Boolean = false,
     val modelProfile: PredictionModelProfile? = null,
-    val profileTimeZone: TimeZone = TimeZone.getDefault()
+    val profileTimeZone: TimeZone = TimeZone.getDefault(),
+    /**
+     * Draw the adaptive forecast ([AdaptiveGlucoseForecast]) instead of the standard one.
+     * Off by default; alerts and dose hints never read it.
+     */
+    val adaptive: Boolean = false,
 ) {
     fun modelParametersAt(timestamp: Long): PredictionModelParameters {
         return modelProfile?.parametersAt(timestamp, profileTimeZone)
@@ -152,6 +157,7 @@ private fun JournalEntry.projectedDisplayDelta(
                 )
         }
         JournalEntryType.FINGERSTICK,
+        JournalEntryType.TEMP_BASAL,
         JournalEntryType.NOTE -> 0f
     }
 }

@@ -17,6 +17,8 @@ local.properties
 
 # Keystores (keep them private)
 *.jks
+*.keystore
+/.local/
 
 # Misc
 *.iml
@@ -48,6 +50,7 @@ lint/generated/
 
 # Crash logs
 hs_err_pid*
+replay_pid*
 
 .kotlin/errors
 
@@ -61,3 +64,9 @@ Common/printmappingout.txt
 /Common/mobile/
 /Common/wear/
 /update-manifest.json
+
+__pycache__/
+*.pyc
+
+# Private algorithm replays and local build artifacts
+/.local/

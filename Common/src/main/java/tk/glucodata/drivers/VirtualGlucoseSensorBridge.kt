@@ -43,13 +43,15 @@ object VirtualGlucoseSensorBridge {
             }
         },
         rebaseShell = { serial, startSeconds -> Natives.rebaseDirectStreamWindow(serial, startSeconds) },
-        writeBatch = { timestampsSec, glucose, raws, serial ->
-            Natives.addGlucoseStreamBatchWithRawTemp(
+        writeBatch = { timestampsSec, glucose, raws, serial, primaryIsResolved ->
+            if (primaryIsResolved) Natives.addResolvedGlucoseStreamBatchWithRawTemp(
                 timestampsSec,
                 glucose,
                 raws,
                 FloatArray(timestampsSec.size),
                 serial,
+            ) else Natives.addGlucoseStreamBatchWithRawTemp(
+                timestampsSec, glucose, raws, FloatArray(timestampsSec.size), serial,
             )
         },
     )
@@ -63,10 +65,39 @@ object VirtualGlucoseSensorBridge {
         sensorSerial: String,
         readings: List<Reading>,
         logLabel: String,
+        nativeFamily: ManagedSensorUiFamily,
+        primaryIsResolved: Boolean = true,
     ): Int = synchronized(mirrorLock) {
-        runCatching { nativeMirror.mirror(sensorSerial, readings, logLabel) }
+        val stored = runCatching { nativeMirror.mirror(sensorSerial, readings, logLabel, primaryIsResolved) }
             .onFailure { Log.stack(TAG, "mirrorIntoNative($sensorSerial)", it) }
             .getOrDefault(0)
+        // Stamp only once a shell exists: the stamp call would otherwise create one.
+        // Without it the mirror is Libre 2 by elimination to anything reading the
+        // native record, including the xDrip source name and a Clone recipient.
+        if (stored > 0 && nativeFamily != ManagedSensorUiFamily.GENERIC) {
+            runCatching { Natives.setSensorManagedFamily(sensorSerial, nativeFamily.nativeCode) }
+                .onFailure { Log.stack(TAG, "mirrorIntoNative(setSensorManagedFamily)", it) }
+        }
+        stored
+    }
+
+    /**
+     * Native mirror only, for a driver that stores and publishes its readings itself (stock
+     * lanes, Room) but owns no native shell. Without it the built-in web server's
+     * /api/v1/entries, which reads native records only, never sees the sensor.
+     */
+    @JvmStatic
+    fun mirrorToNative(
+        sensorSerial: String,
+        readings: List<Reading>,
+        logLabel: String,
+        nativeFamily: ManagedSensorUiFamily,
+    ): Int {
+        if (sensorSerial.isBlank()) return 0
+        val nowMs = System.currentTimeMillis()
+        val valid = readings.filter { isUsableHistoryReading(it, nowMs) }
+        if (valid.isEmpty()) return 0
+        return mirrorIntoNative(sensorSerial, valid, logLabel, nativeFamily, primaryIsResolved = false)
     }
 
     data class Reading(
@@ -93,6 +124,7 @@ object VirtualGlucoseSensorBridge {
         nearDuplicateWindowMs: Long = 0L,
         mirrorToNative: Boolean = false,
         source: String = GlucoseReadingSource.SENSOR,
+        nativeFamily: ManagedSensorUiFamily = ManagedSensorUiFamily.GENERIC,
     ): Int {
         if (sensorSerial.isBlank() || readings.isEmpty()) return 0
         val nowMs = System.currentTimeMillis()
@@ -108,7 +140,7 @@ object VirtualGlucoseSensorBridge {
         // addressed by minute slot and idempotent, so re-offering the whole page
         // each poll is what refills a mirror that started out behind.
         if (mirrorToNative) {
-            mirrorIntoNative(sensorSerial, validReadings, logLabel)
+            mirrorIntoNative(sensorSerial, validReadings, logLabel, nativeFamily)
         }
         val latestRoomTimestamp = if (backfill) 0L else HistorySyncAccess.getLatestTimestampForSensor(sensorSerial)
         val existingTimestamps = if (nearDuplicateWindowMs > 0L) {
@@ -220,6 +252,7 @@ object VirtualGlucoseSensorBridge {
         logLabel: String = "virtual",
         mirrorToNative: Boolean = false,
         source: String = GlucoseReadingSource.SENSOR,
+        nativeFamily: ManagedSensorUiFamily = ManagedSensorUiFamily.GENERIC,
     ) {
         if (sensorSerial.isBlank()) return
         if (!isUsableCurrentReading(reading, System.currentTimeMillis())) {
@@ -238,7 +271,7 @@ object VirtualGlucoseSensorBridge {
             source,
         )
         if (mirrorToNative) {
-            mirrorIntoNative(sensorSerial, listOf(reading), logLabel)
+            mirrorIntoNative(sensorSerial, listOf(reading), logLabel, nativeFamily)
         }
 
         val primaryMgdl = reading.primaryGlucoseMgdl
@@ -247,9 +280,11 @@ object VirtualGlucoseSensorBridge {
         } else {
             primaryMgdl
         }
+        // Resolved: a follower publishes the upstream app's own final number
+        // (its calibrated value when it sends one), not a stock lane to calibrate.
         SuperGattCallback.processExternalCurrentReading(
             sensorSerial,
-            glucoseDisplay,
+            tk.glucodata.LiveReadingLanes.resolved(glucoseDisplay),
             rate,
             reading.timestampMs,
             sensorGen,

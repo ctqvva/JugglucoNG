@@ -118,3 +118,73 @@ internal class AnytimeConnectModeState {
     fun retryDelayMs(baseDelayMs: Long, readingIntervalMs: Long): Long =
         connectRetryDelayMs(consecutiveConnectTimeouts, baseDelayMs, readingIntervalMs)
 }
+
+/**
+ * Ceiling for the reconnect delay once whole sessions keep dying.
+ *
+ * A session that never delivers data is no better than an attempt that never
+ * connected, but the cost of waiting is different: the transmitter is reachable
+ * right now, so a shorter ceiling than one reading interval still recovers
+ * quickly while taking the pressure off a sensor that is not answering.
+ */
+internal const val SESSION_RETRY_MAX_DELAY_MS = 30_000L
+
+/**
+ * Delay before reconnecting after [consecutiveFailedSessions] GATT sessions that
+ * connected, handshook and then died without delivering a single frame.
+ *
+ * Doubles from [baseDelayMs], capped at [capMs]. The 2026-10-27 CT-14 trace is
+ * what this exists for: from 12:12:45 the transmitter answered every handshake
+ * and then stopped acknowledging writes, so each session ended on a write-ACK
+ * timeout. [connectRetryDelayMs] never saw a connect timeout, stayed at zero and
+ * reconnected every 2 seconds — 16 connect/handshake cycles in 165 seconds, all
+ * of them re-binding a sensor that was already busy.
+ */
+internal fun sessionRetryDelayMs(
+    consecutiveFailedSessions: Int,
+    baseDelayMs: Long,
+    capMs: Long,
+): Long {
+    if (consecutiveFailedSessions <= 0 || baseDelayMs <= 0L) return baseDelayMs
+    val cap = maxOf(capMs, baseDelayMs)
+    val scaled = baseDelayMs shl consecutiveFailedSessions.coerceAtMost(MAX_CONNECT_BACKOFF_DOUBLINGS)
+    return scaled.coerceIn(baseDelayMs, cap)
+}
+
+/**
+ * How many GATT sessions in a row failed before delivering any sensor data.
+ *
+ * Kept apart from [AnytimeConnectModeState] because it answers a different
+ * question. That class asks whether this phone can reach the transmitter at all;
+ * this one asks whether a session that was established stays usable. A CT-14 can
+ * connect, handshake and never produce a reading, which leaves the connect policy
+ * at zero failures for as long as the outage lasts.
+ *
+ * Any decoded frame ends the run: the link demonstrably works, so a later drop is
+ * a new event rather than more evidence about this one.
+ */
+internal class AnytimeSessionChurnState {
+
+    @Volatile
+    var consecutiveFailedSessions: Int = 0
+        private set
+
+    @Synchronized
+    fun onSessionDeliveredData() {
+        consecutiveFailedSessions = 0
+    }
+
+    /** Called once per GATT session, after it is over. */
+    @Synchronized
+    fun onSessionEnded(deliveredData: Boolean) {
+        if (deliveredData) {
+            consecutiveFailedSessions = 0
+        } else {
+            consecutiveFailedSessions += 1
+        }
+    }
+
+    @Synchronized
+    fun retryDelayMs(baseDelayMs: Long, capMs: Long = SESSION_RETRY_MAX_DELAY_MS): Long =
+        sessionRetryDelayMs(consecutiveFailedSessions, baseDelayMs, capMs)
+}

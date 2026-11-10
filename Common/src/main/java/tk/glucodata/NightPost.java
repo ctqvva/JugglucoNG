@@ -30,7 +30,7 @@ import static tk.glucodata.Log.doLog;
 import static tk.glucodata.Log.stackline;
 import static tk.glucodata.Natives.setNightUploader;
 import static tk.glucodata.RingTones.EnableControls;
-import static tk.glucodata.Specific.useclose;
+import static tk.glucodata.VariantBootstrapAccess.useCloseButton;
 import static tk.glucodata.bluediag.datestr;
 import static tk.glucodata.help.help;
 import static tk.glucodata.settings.Settings.editoptions;
@@ -76,9 +76,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import tk.glucodata.drivers.ManagedSensorUiFamily;
+import tk.glucodata.drivers.api.ApiGlucoseSourceIdentityAdapter;
+import tk.glucodata.drivers.medtrum.MedtrumPersistence;
+
 import javax.net.ssl.SSLContext;
 
-import tk.glucodata.settings.LibreNumbers;
 
 public class NightPost  {
     private static final String LOG_ID="NightPost";
@@ -94,6 +97,7 @@ public class NightPost  {
     private static final int ANCILLARY_TOKEN_CONNECT_TIMEOUT_MS = 10_000;
     private static final int ANCILLARY_TOKEN_READ_TIMEOUT_MS = 15_000;
     private static final AtomicBoolean deviceStatusUploadInFlight = new AtomicBoolean(false);
+    private static final AtomicBoolean sensorStartUploadInFlight = new AtomicBoolean(false);
     /**
      * Outcome of the IOB devicestatus upload, for the settings screen. The status card
      * otherwise only reports the native entries uploader, so a dead devicestatus path was
@@ -231,10 +235,15 @@ static public boolean deleteUrl(String urlstring,String secret) {
  */
 @Keep
 static public int deleteUrlCode(String urlstring,String secret) {
+    return deleteUrlCode(urlstring,secret,true);
+    }
+
+private static int deleteUrlCode(String urlstring,String secret,boolean retryRejectedToken) {
     patch();
     uploadtime=System.currentTimeMillis();
     {if(doLog) {Log.i(LOG_ID,"deleteUrl "+urlstring);};};
     HttpURLConnection urlConnection=null;
+    String auth=null;
     try {
         URL url = new URL(urlstring);
     uploadstatus=" start deleteURL "+urlstring;
@@ -244,7 +253,7 @@ static public int deleteUrlCode(String urlstring,String secret) {
         if(secret!=null)
                 urlConnection.setRequestProperty("api-secret", secret);
         else {
-            final String auth = gettoken(
+            auth = gettoken(
                     uploadtime,
                     UPLOAD_CONNECT_TIMEOUT_MS,
                     UPLOAD_READ_TIMEOUT_MS,
@@ -259,6 +268,11 @@ static public int deleteUrlCode(String urlstring,String secret) {
         urlConnection.setRequestMethod("DELETE");
 
         final int code=urlConnection.getResponseCode();
+        if(code==HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && auth!=null) {
+            dropRejectedToken(auth);
+            urlConnection.disconnect();
+            return deleteUrlCode(urlstring,secret,false);
+            }
         String res=getstring(urlConnection);
         lastPrimaryResponseBody=res;
         if(code==HTTP_OK || code==HttpURLConnection.HTTP_NO_CONTENT) {
@@ -411,6 +425,34 @@ private static synchronized String getCachedToken(long now) {
     return now<expire ? token : "";
     }
 
+/**
+ * Forgets the cached token after Nightscout answered it with 401.
+ *
+ * <p>Nightscout signs its JWTs with a key that a restart can replace (a redeploy or image
+ * update regenerates it), and every token it handed out before then is refused from that
+ * moment on. This class used to keep sending the refused one until its own expiry, eight
+ * hours by default, so a server restart looked like a connection only an app restart could
+ * bring back (#716).
+ *
+ * <p>Only clears the cache while {@code rejected} is still what it holds: requests carrying
+ * the same old token run concurrently (device status has its own thread), and the first 401
+ * may already have fetched a good replacement. Callers retry once either way, so the later
+ * ones pick that replacement up instead of failing the pass.
+ */
+private static synchronized void dropRejectedToken(String rejected) {
+    if(rejected==null || rejected.isEmpty() || !rejected.equals(token))
+        return;
+    Log.i(LOG_ID,"Nightscout refused the cached token; exchanging a new one");
+    token="";
+    expire=0L;
+    }
+
+/** For v3 requests made outside this class: the header from {@link #getV3AuthorizationHeader} got a 401. */
+@Keep
+static public void dropRejectedV3AuthorizationHeader(String rejected) {
+    dropRejectedToken(rejected);
+    }
+
 private static long ancillaryTokenAttemptTime=0L;
 
 /**
@@ -438,26 +480,18 @@ private static long uploadtime=System.currentTimeMillis();
 
 /**
  * Uploads journal-derived treatments (insulin / carbs / fingerstick) to Nightscout.
- * Replaces the legacy native uploadtreatments() path. Looked up via reflection so
- * the wearable build (which doesn't include the journal Room database) can no-op.
+ * Replaces the legacy native uploadtreatments() path. The phone registers its
+ * implementation from Specific.registerBridges (plan P1/Q1); the wearable build
+ * (which doesn't include the journal Room database) registers nothing and this
+ * no-ops.
  */
 @Keep
 static public boolean uploadJournalTreatments(boolean useV3) {
     try {
-        Class<?> uploader = Class.forName("tk.glucodata.data.journal.JournalTreatmentUploader");
-        if(!Natives.getpostTreatments()) {
-            java.lang.reflect.Method receiveMethod = uploader.getMethod("getReceiveTreatments");
-            if(!Boolean.TRUE.equals(receiveMethod.invoke(null))) {
-                return true;
-                }
+        if(!Natives.getpostTreatments() && !JournalTreatmentUploadAccess.getReceiveTreatments()) {
+            return true;
             }
-        java.lang.reflect.Method method = uploader.getMethod("uploadAll", boolean.class);
-        Object result = method.invoke(null, useV3);
-        return Boolean.TRUE.equals(result);
-        }
-    catch(ClassNotFoundException nfe) {
-        // Wearable build: no journal DB compiled in. Treat as success.
-        return true;
+        return JournalTreatmentUploadAccess.uploadAll(useV3);
         }
     catch(Throwable th) {
         Log.e(LOG_ID,"uploadJournalTreatments error:\n"+stackline(th));
@@ -495,6 +529,7 @@ static public int batteryPercent() {
 
 private static final String PREFS_NAME="tk.glucodata_preferences";
 private static final String PREF_UPLOAD_IOB="nightscout_upload_iob";
+private static final String PREF_UPLOAD_SENSOR_START="nightscout_upload_sensor_start";
 private static long iobStatusUploadTime=0L;
 private static float iobStatusLastIob=Float.NaN;
 private static float iobStatusLastEiob=Float.NaN;
@@ -523,6 +558,48 @@ static public void setUploadIob(boolean enabled) {
             .edit()
             .putBoolean(PREF_UPLOAD_IOB, enabled)
             .apply();
+    }
+
+/**
+ * Default on: posts "Sensor Start" treatments so that Nightscout's
+ * sage plugin shows sensor age.
+ */
+@Keep
+static public boolean getUploadSensorStart() {
+    final Context context = Applic.getContext();
+    if(context == null)
+        return false;
+    return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(PREF_UPLOAD_SENSOR_START, true);
+    }
+
+@Keep
+static public void setUploadSensorStart(boolean enabled) {
+    final Context context = Applic.getContext();
+    if(context == null)
+        return;
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(PREF_UPLOAD_SENSOR_START, enabled)
+            .apply();
+    }
+
+@Keep
+static public String getSensorStartLabel(String sensorId) {
+    return SensorSourceResolver.resolveSourceInfo(sensorId, SensorSourceResolver.SENSOR_KIND_UNKNOWN);
+    }
+
+@Keep
+static public long getSensorStartTime(String sensorId, long nativeStartTime, int managedFamilyCode) {
+    if(managedFamilyCode==ManagedSensorUiFamily.GENERIC.getNativeCode() &&
+            ApiGlucoseSourceIdentityAdapter.INSTANCE.resolveCanonicalSensorId(sensorId)!=null)
+        return 0L;
+    if(managedFamilyCode!=ManagedSensorUiFamily.MEDTRUM.getNativeCode())
+        return nativeStartTime;
+    final Context context=Applic.getContext();
+    if(context==null || sensorId==null || !sensorId.equals(MedtrumPersistence.INSTANCE.getSensorId(context)))
+        return 0L;
+    return MedtrumPersistence.INSTANCE.getSensorStartMs(context)/1000L;
     }
 
 /**
@@ -628,6 +705,40 @@ static public boolean uploadDeviceStatusAsync(
     return uploadDeviceStatusAsync(httpurl,postdata,secret,put,false);
     }
 
+/** Adds Sensor Start to the same bounded queue as device status. */
+@Keep
+static public boolean uploadSensorStartAsync(
+        String httpurl,
+        byte[] postdata,
+        String secret,
+        boolean put
+) {
+    if(!sensorStartUploadInFlight.compareAndSet(false, true))
+        return false;
+    try {
+        deviceStatusExecutor.execute(() -> {
+            try {
+                final int code=uploadWithTimeouts(
+                        httpurl,postdata,secret,put?"PUT":"POST",
+                        DEVICE_STATUS_CONNECT_TIMEOUT_MS,DEVICE_STATUS_READ_TIMEOUT_MS,false,"sensor-start");
+                if(code==HTTP_OK || code==HttpURLConnection.HTTP_CREATED)
+                    Log.i(LOG_ID,"sensor-start upload accepted code="+code);
+                else if(code!=ERROR_NO_TOKEN)
+                    Log.e(LOG_ID,"sensor-start upload failed code="+code);
+            }
+            finally {
+                sensorStartUploadInFlight.set(false);
+            }
+        });
+        return true;
+    }
+    catch(Throwable th) {
+        sensorStartUploadInFlight.set(false);
+        Log.e(LOG_ID,"sensor-start scheduling failure:\n"+stackline(th));
+        return false;
+    }
+    }
+
 /**
  * @param iobChannel true for the journal IOB document, false for the uploader battery.
  *        Both share this queue, but only the IOB channel reports its outcome to the
@@ -688,6 +799,30 @@ private static int uploadWithTimeouts(
         boolean updateVisibleStatus,
         String requestKind
 ) {
+    return uploadWithTimeouts(
+            httpurl,
+            postdata,
+            secret,
+            requestMethod,
+            connectTimeoutMs,
+            readTimeoutMs,
+            updateVisibleStatus,
+            requestKind,
+            true
+    );
+    }
+
+private static int uploadWithTimeouts(
+        String httpurl,
+        byte[] postdata,
+        String secret,
+        String requestMethod,
+        int connectTimeoutMs,
+        int readTimeoutMs,
+        boolean updateVisibleStatus,
+        String requestKind,
+        boolean retryRejectedToken
+) {
     if(updateVisibleStatus)
         patch();
     final long requestTime=System.currentTimeMillis();
@@ -696,6 +831,7 @@ private static int uploadWithTimeouts(
     final int payloadLength=postdata==null ? 0 : postdata.length;
     {if(doLog) {Log.i(LOG_ID,requestKind+" upload("+httpurl+",#"+payloadLength+","+requestMethod+")");};};
     HttpURLConnection urlConnection=null;
+    String auth=null;
     try {
 
       if(httpurl==null || !(httpurl.startsWith("https://") || httpurl.startsWith("http://"))) {
@@ -729,7 +865,7 @@ private static int uploadWithTimeouts(
             // nothing refills it, so device status stayed dead until a manual resend
             // happened to trigger a primary upload. It now fetches a token itself, but
             // throttled: a refusing server is asked once per interval, not per attempt.
-            final String auth = updateVisibleStatus
+            auth = updateVisibleStatus
                     ? gettoken(requestTime, connectTimeoutMs, readTimeoutMs, true)
                     : getAncillaryToken(requestTime);
             if(auth.isEmpty()) {
@@ -746,6 +882,22 @@ private static int uploadWithTimeouts(
             outputPost.flush();
         }
         final int code=urlConnection.getResponseCode();
+        // A 401 stored nothing, so sending the same document again with a fresh token is safe.
+        if(code==HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && auth!=null) {
+            dropRejectedToken(auth);
+            urlConnection.disconnect();
+            return uploadWithTimeouts(
+                    httpurl,
+                    postdata,
+                    secret,
+                    requestMethod,
+                    connectTimeoutMs,
+                    readTimeoutMs,
+                    updateVisibleStatus,
+                    requestKind,
+                    false
+            );
+            }
         String res=getstring(urlConnection);
         if(updateVisibleStatus)
             lastPrimaryResponseBody=res;
@@ -815,6 +967,8 @@ public static void  config(MainActivity act, View settingsview) {
     wake.setOnClickListener(v-> Natives.wakeuploader());
     Button help;
     CheckBox treatments=getcheckbox(act,R.string.sendamounts,Natives.getpostTreatments());
+    CheckBox sensorStart=getcheckbox(act,R.string.nightscout_upload_sensor_start,getUploadSensorStart());
+    sensorStart.setOnCheckedChangeListener((buttonView,isChecked)->setUploadSensorStart(isChecked));
     if(!isWearable) {
         help=getbutton(act,R.string.helpname);
         help.setOnClickListener(v-> help(R.string.NightPost,act));
@@ -841,13 +995,13 @@ public static void  config(MainActivity act, View settingsview) {
       var statusview=getlabel(act,datestr(uploadtime)+": "+uploadstatus);
       int statuspad=  (int)tk.glucodata.GlucoseCurve.metrics.density*7;
     statusview.setPadding(statuspad,statuspad,statuspad,statuspad);
-    if(!useclose)
+    if(!useCloseButton())
         cancel.setVisibility(GONE);
    Layout layout;
    if(isWearable) {
       var space1=new Space(act);
       var space2=new Space(act);
-       layout=new Layout(act, (lay, w, h) -> { return new int[] {w,h};}, new View[]{secretlabel},new View[]{visible},new View[]{editsecret},new View[]{urllabel},new View[]{url},new View[]{statusview},new View[]{treatments},new View[]{clear},new View[]{wake},new View[]{space1,activebox,cancel,space2},new View[]{save});
+       layout=new Layout(act, (lay, w, h) -> { return new int[] {w,h};}, new View[]{secretlabel},new View[]{visible},new View[]{editsecret},new View[]{urllabel},new View[]{url},new View[]{statusview},new View[]{treatments,sensorStart},new View[]{clear},new View[]{wake},new View[]{space1,activebox,cancel,space2},new View[]{save});
    }
       else {
     layout=new Layout(act, (lay, w, h) -> {
@@ -861,7 +1015,7 @@ public static void  config(MainActivity act, View settingsview) {
                                 };
 
             lay.setY(MainActivity.systembarTop);
-                        return new int[] {w,h};}, new View[]{urllabel,url},new View[]{secretlabel,editsecret,visible},new View[]{statusview},new View[]{activebox,v3box,clear,wake},new View[]{treatments,help,cancel,save});
+                        return new int[] {w,h};}, new View[]{urllabel,url},new View[]{secretlabel,editsecret,visible},new View[]{statusview},new View[]{activebox,v3box,clear,wake},new View[]{treatments,sensorStart,help,cancel,save});
 
       }
         int laypar;
@@ -890,7 +1044,8 @@ public static void  config(MainActivity act, View settingsview) {
                     case 0: {
                         ++nochangeamounts[0];
                         treatments.setChecked(!isChecked);
-                        LibreNumbers.mklayout(act,1,treatments,nochangeamounts,layout);
+                        var numbers = LibreNumbersAccess.get();
+                        if (numbers != null) numbers.configureNightNumbers(act,1,treatments,nochangeamounts,layout);
                         };break;
                     case  2: Natives.setpostTreatments(isChecked);break;
 

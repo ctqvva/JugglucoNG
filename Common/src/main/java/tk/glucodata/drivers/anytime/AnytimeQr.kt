@@ -16,6 +16,9 @@
 //   K_3d   = (00[1-9]|0[1-9][0-9]|[1-9][0-9][0-9]) ← 3 digits in [001..999], scaled to K = nnn/100
 //   R_3d   = same shape, scaled to R = nnn/10  (the official app's `Tool.getDecimalOneNumber`)
 //
+//   The Anytime 5 app's .so adds a "00"-lead variant; CT5 querySSN answers in
+//   it and in an alpha-lead form, both with K/R in the trailing digits.
+//
 // 2. A 7-character manual code. The official app decodes:
 //      K = code[2] + "." + code[3..4], R = code[5].
 //
@@ -63,9 +66,13 @@ data class AnytimeQrCalibration(
     val voltageFlag: Int,
     val calibrationCount: Int,
 ) {
-    enum class Format { A, B, C, D, MANUAL, UDI }
+    enum class Format { A, B, C, D, MANUAL, UDI, DEFAULT }
 
     val isFactoryCalibration: Boolean
+        get() = format != Format.UDI && format != Format.DEFAULT && k > 0f && r > 0f
+
+    /** K/R that may be written to a transmitter: a factory code or the CT5 default, never a UDI label. */
+    val hasTransmitterKr: Boolean
         get() = format != Format.UDI && k > 0f && r > 0f
 
     companion object {
@@ -88,6 +95,14 @@ data class AnytimeQrCalibration(
             Regex("^([1-9A-ZABDEFYTSRQ])([1-9])([A-Z0-9])([0-9])$MONTH$THREE_DIGIT$THREE_DIGIT([0-9]{6})([0-9A-Z]{3})$")
         @JvmField
         val PATTERN_MANUAL: Regex = Regex("^[A-Z0-9]{7}$")
+        /**
+         * The "00"-lead pattern from the Anytime 5 app's libalgorithm-jni.so. CT5
+         * querySSN answers in it (0056131041576115100F1); K/R sit in the trailing
+         * digits, as in the alpha-lead SSN.
+         */
+        @JvmField
+        val PATTERN_CT5_SSN_00: Regex =
+            Regex("^00([A-Z0-9])([0-9])$MONTH$THREE_DIGIT$THREE_DIGIT([0-9]{6})([0-9A-Z]{3})$")
         @JvmField
         val PATTERN_GS1_UDI: Regex = Regex("^01(\\d{14})11(\\d{6})17(\\d{6})10(.+)$")
     }
@@ -126,8 +141,45 @@ object AnytimeQr {
         return null
     }
 
+    /**
+     * K/R for CT5 setParameters when querySSN did not decode: the stored calibration
+     * if it carries transmitter K/R, otherwise [ct5Default]. A UDI label's K=0.30
+     * R=50 are linear-fallback placeholders and must never reach the transmitter.
+     */
+    @JvmStatic
+    fun ct5SetupCalibration(stored: AnytimeQrCalibration?, voltageFlag: Int): AnytimeQrCalibration =
+        stored?.takeIf { it.hasTransmitterKr } ?: ct5Default(voltageFlag)
+
+    /**
+     * Last-resort CT5 calibration when the transmitter's SSN is unreadable and
+     * no factory code was scanned. Not a decoded code: [AnytimeQrCalibration.isFactoryCalibration]
+     * is false, but [AnytimeQrCalibration.hasTransmitterKr] lets setup finish.
+     */
+    @JvmStatic
+    fun ct5Default(voltageFlag: Int): AnytimeQrCalibration =
+        AnytimeQrCalibration(
+            rawQr = "",
+            format = AnytimeQrCalibration.Format.DEFAULT,
+            k = AnytimeConstants.CT5_DEFAULT_K,
+            r = AnytimeConstants.CT5_DEFAULT_R,
+            lifeTime = AnytimeConstants.DEFAULT_RATED_LIFETIME_DAYS,
+            productMonth = 0,
+            productYear = 0,
+            electrodeType = "",
+            electrodeTecNo = "",
+            enzymeTecNo = "",
+            membraneTecNo = "",
+            marketNo = "",
+            serialNo = "",
+            sensorNo = "",
+            unitOrder = 0,
+            voltageFlag = voltageFlag,
+            calibrationCount = 0,
+        )
+
     private fun parseTrailingKrFactoryCode(qr: String): AnytimeQrCalibration? {
-        if (qr.length != 21 || qr.firstOrNull() !in 'A'..'C') return null
+        if (qr.length != 21) return null
+        if (qr.first() !in 'A'..'C' && !AnytimeQrCalibration.PATTERN_CT5_SSN_00.matches(qr)) return null
         val kDigits = qr.substring(13, 16)
         val rDigits = qr.substring(16, 18)
         if (kDigits.any { it !in '0'..'9' } || rDigits.any { it !in '0'..'9' }) return null

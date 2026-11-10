@@ -633,7 +633,7 @@ class SibionicsAlgorithmContext(
         return true
     }
 
-    private fun resetCustomModels() {
+    internal fun resetCustomModels() {
         adaptiveCore.reset()
         balancedCore.reset()
         responsiveCore.reset()

@@ -23,12 +23,12 @@
 #ifndef WEAROS
 constexpr static std::string_view delabels[] = {
     "Kohlenhydra", "Dextrose", "Ins schnell", "Langes Insu",
-    "radeln",      "Walk",     "Blut"};
+    "radeln",      "Gehen",     "Blut"};
 constexpr static Shortcut_t deshortinit[] = {
-    {"Bread", .48},         {"Currantbun1", .56f}, {"Currantbun2", .595f},
-    {"Grapes", .165f},      {"FruitYog", .058f},   {"Rice", .75f},
-    {"Macaroni", .65f},     {"Tomato", .03f},      {"Mexican mix", .078f},
-    {"OrangeJuice", .109f}, {"Mix(Carrot)", .07f}, {"Mix mushro", .07300000f}};
+    {"Brot", .48},         {"Rosinenbr1", .56f}, {"Rosinenbr2", .595f},
+    {"Trauben", .165f},      {"Fruchtjogh.", .058f},   {"Reis", .75f},
+    {"Makkaroni", .65f},     {"Tomate", .03f},      {"Mexiko-Mix", .078f},
+    {"Orangensaft", .109f}, {"Möhrenmix", .07f}, {"Pilzmix", .07300000f}};
 #endif
 #endif // INJUGGLUCO
 // DIT IS EEN NIEUWE FILE
@@ -50,13 +50,13 @@ jugglucotext detext{
     .noconnectionerror = ": Keine Verbindung",
     .stsensorerror = ": Sensorfehler",
     .streplacesensor = ": Sensor ersetzen?",
-    .endedformat = "Sensor %s funktioniert nicht mehr. state=%d",
-    .notreadyformat = "Sensor %s nicht bereit. state=%d",
+    .endedformat = "Sensor %s funktioniert nicht mehr. Status=%d",
+    .notreadyformat = "Sensor %s nicht bereit. Status=%d",
 #ifndef WEAROS
     .median = "Median",
     .middle = "mittlere",
 #endif
-    .history = "History",
+    .history = "Verlauf",
 
     .historyinfo = "Einmal alle 15 Minuten.\nAuf dem Sensor gespeichert für 8 "
                    "Stunden.\nDurch das Scannen werden sie an dieses Programm "
@@ -78,16 +78,16 @@ jugglucotext detext{
     .timeactive = "%.1f%% der Zeit aktiv",
     .nrmeasurement = "Anzahl Messungen: %d",
     .EstimatedA1C = "Geschätzter HbA1c: %.1f%% (%d mmol/mol)",
-    .GMI = "Glucose Management Indicator: %.1f%% (%d mmol/mol)",
+    .GMI = "Glukose-Management-Indikator: %.1f%% (%d mmol/mol)",
     .SD = "SD: %.2f",
     .glucose_variability = "Glukosevariabilität: %.1f%%",
-    .menustr0 = {"System UI       ", "Menus", "Uhren", "Sensor",
+    .menustr0 = {"Systemoberfläche", "Menüs", "Uhren", "Sensor",
                  "Einstellungen",
 
 #if defined(SIBIONICS)
                  "Foto",
 #else
-                 "About",
+                 "Über die App",
 #endif
                  "Schließen", "Alarm stoppen"},
     .menustr1 = {"Export", "Klon", detext.newamount, "Liste",
@@ -97,7 +97,7 @@ jugglucotext detext{
                  "Statistiken",
 #ifdef INJUGGLUCO
                  "Sprechen", "Schweben       "},
-    .menustr2 = {"Kalibriert", "Scans", "Stream", "History", "Mengen",
+    .menustr2 = {"Kalibriert", "Scans", "Stream", "Verlauf", "Mengen",
                  "Mahlzeiten", "Dunkelmodus       "},
     .menustr3 = {hourminstr, "Suche", "Datum", "Vortag", "Tag später",
                  "Woche zurück", "Woche später"},
@@ -106,7 +106,7 @@ jugglucotext detext{
 #else
     .amount = "Menge",
     .menustr0 = {"        Klon", "Sensor", "Anzeige", "Einstellen",
-                 "Stop Alarm"},
+                 "Alarm stoppen"},
     .menustr2 = {"Datum      ", hourminstr, "Vortag                         ",
                  detext.amount},
 #endif
@@ -151,7 +151,7 @@ jugglucotext detext{
     .libre3zeroID =
         {"Fehler: Konto-ID null?",
          R"(Verwenden Sie Linkes Menü->Einstellungen->Daten austauschen->Libreview->"Konto-ID erhalten", um eine Konto-ID ungleich null festzulegen.)"},
-    .needsandroid8 = "Needs minimally Android 8"sv,
+    .needsandroid8 = "Benötigt mindestens Android 8"sv,
 #ifndef WEAROS
     .advancedstart = R"(<h1>Geändertes Gerät</h1>
 <p>Eine der von dieser Anwendung verwendeten Bibliotheken hat einen BUG, der sie zum Absturz bringt, wenn sie bestimmte Dateien erkennt. Ihr Gerät enthält einige dieser Dateien. Dieses Programm enthält einen Hack, um diesen BUG zu umgehen, aber es ist wahrscheinlich besser, diese Dateien auf andere Weise unauffindbar zu machen. Magisk hat beispielsweise die Möglichkeit, Root für bestimmte Anwendungen zu verbergen (Magiskhide oder Denylist) und den eigenen Namen zu ändern, beides wird benötigt. In Ihrem Fall hat es Probleme mit der folgenden Datei)",
@@ -181,7 +181,7 @@ jugglucotext detext{
 
 #endif // INJUGGLUCO
     ,
-    .summarygraph = "Überblick Graph"sv,
+    .summarygraph = "Übersichtsdiagramm"sv,
     .logdays = "Tage"sv,
     .unhide = "Einblenden"sv}
 

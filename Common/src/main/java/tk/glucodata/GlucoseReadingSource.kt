@@ -6,6 +6,7 @@ object GlucoseReadingSource {
     const val NIGHTSCOUT = "nightscout"
     const val API = "api"
     const val MQ_FOLLOWER = "mq_follower"
+    const val LUMIFLEX_FOLLOWER = "lumiflex_follower"
     const val IMPORT = "import"
     const val CLONE = "clone"
     const val CLONE_LOCAL_ICE = "clone_local_ice"

@@ -1,0 +1,132 @@
+/*      This file is part of Juggluco, an Android app to receive and display         */
+/*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
+/*                                                                                   */
+/*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com>         */
+/*                                                                                   */
+/*      Juggluco is free software: you can redistribute it and/or modify             */
+/*      it under the terms of the GNU General Public License as published            */
+/*      by the Free Software Foundation, either version 3 of the License, or         */
+/*      (at your option) any later version.                                          */
+/*                                                                                   */
+/*      Juggluco is distributed in the hope that it will be useful, but              */
+/*      WITHOUT ANY WARRANTY; without even the implied warranty of                   */
+/*      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                         */
+/*      See the GNU General Public License for more details.                         */
+/*                                                                                   */
+/*      You should have received a copy of the GNU General Public License            */
+/*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
+/*                                                                                   */
+/*      Fri Jan 27 15:32:11 CET 2023                                                 */
+
+
+package tk.glucodata;
+
+import static tk.glucodata.Log.doLog;
+
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+
+public class XInfuus {
+private static final String LOG_ID="XInfuus";
+private static String[] librenames;
+private static final Object activationLock = new Object();
+private static String lastActivatedSerial;
+private static long lastActivatedStartSec;
+    private static void sendIntent(Context context,Intent intent) {
+	intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+	for(var name:librenames) {
+		intent.setPackage(name);
+		context.sendBroadcast(intent);
+		{if(doLog) {Log.i(LOG_ID,"send to "+name);};};
+		}
+    }
+
+static public void setlibrenames() {
+	if(Applic.isWearable)
+		return;
+	librenames=Natives.librelinkRecepters();
+	}
+
+    private static Bundle setSerial(String serial) {
+        final String stableSerial = SensorIdentity.resolveAppSensorId(serial);
+        Bundle bundle = new Bundle();
+        bundle.putString("sensorSerial", stableSerial != null ? stableSerial : serial);
+        return bundle;
+    }
+/*
+    private static Bundle getSensorFields(Sensor sensor) {
+        Bundle bundle = new Bundle();
+        bundle.putLong("sensorStartTime", sensor.getSensorStartTime().getTime());
+        return bundle;
+    } 
+
+    private static Bundle setCurrent(boolean val) {
+        Bundle bundle = new Bundle();
+        bundle.putBundle("currentSensor", val);
+        return bundle;
+    }
+
+    */
+public static final String glucoseaction=
+	Applic.isWearable ? "" : "com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING";
+public static void sendGlucoseBroadcast(String serial, double currentGlucose,float rate,long mmsec,long sensorStartmsec) {
+	if(Applic.isWearable)
+		return;
+	final Context context=Applic.app;
+        final String stableSerial = SensorIdentity.resolveAppSensorId(serial) != null
+                ? SensorIdentity.resolveAppSensorId(serial)
+                : serial;
+        if(sensorStartmsec>0L) {
+            maybeSendSensorActivateBroadcast(context, stableSerial, sensorStartmsec/1000L);
+        }
+        Intent intent = new Intent(glucoseaction);
+        intent.putExtra("glucose", currentGlucose);
+        intent.putExtra("timestamp", mmsec);
+        intent.putExtra("bleManager", setSerial(stableSerial));
+        sendIntent(context,intent);
+    }
+
+public static void sendGlucoseBroadcast(String serial, double currentGlucose,float rate,long mmsec) {
+        sendGlucoseBroadcast(serial, currentGlucose, rate, mmsec, 0L);
+    }
+
+    private static Bundle getSensorFields(long startmmsec) {
+        Bundle bundle = new Bundle();
+        bundle.putLong("sensorStartTime", startmmsec);
+        return bundle;
+    }
+
+    private static void maybeSendSensorActivateBroadcast(Context context,String serial,long startsec) {
+        final String stableSerial = SensorIdentity.resolveAppSensorId(serial) != null
+                ? SensorIdentity.resolveAppSensorId(serial)
+                : serial;
+        if(stableSerial==null||stableSerial.isEmpty()||startsec<=0L) {
+            return;
+        }
+        synchronized (activationLock) {
+            if(stableSerial.equals(lastActivatedSerial) && lastActivatedStartSec == startsec) {
+                return;
+            }
+            lastActivatedSerial = stableSerial;
+            lastActivatedStartSec = startsec;
+        }
+        sendSensorActivateBroadcastInternal(context, stableSerial, startsec);
+    }
+
+    private static void sendSensorActivateBroadcastInternal(Context context,String serial,long startsec) {
+        if(serial==null||serial.isEmpty()||startsec<=0L) {
+            return;
+        }
+        Intent intent = new Intent("com.librelink.app.ThirdPartyIntegration.SENSOR_ACTIVATE");
+        intent.putExtra("sensor", getSensorFields(startsec*1000L));
+        intent.putExtra("bleManager", setSerial(serial));
+        sendIntent(context, intent);
+    }
+
+    public static void sendSensorActivateBroadcast(Context context,String serial,long startsec) {
+        if(Applic.isWearable)
+            return;
+        maybeSendSensorActivateBroadcast(context, serial, startsec);
+    } 
+}

@@ -226,4 +226,47 @@ class NightscoutFollowerRegistryTests {
     fun matchesSensorId_mismatch_returnsFalse() {
         assertFalse(NightscoutFollowerRegistry.matchesSensorId("NSF-ABC123", "NSF-DEF456"))
     }
+
+    // ---------- shared poll alarm ----------
+
+    private class Follower(val serial: String)
+
+    private fun sharesAlarmWith(self: Follower): (Follower) -> Boolean =
+        { other -> NightscoutFollowerRegistry.matchesSensorId(other.serial, self.serial) }
+
+    @Test
+    fun registeredFollowerMayCancelItsAlarm() {
+        val live = Follower("NSF-ABC123")
+        assertTrue(
+            NightscoutFollowerRegistry.mayCancelSharedAlarm(live, listOf(live), sharesAlarmWith(live))
+        )
+    }
+
+    @Test
+    fun discardedDuplicateLeavesTheLiveFollowersAlarmAlone() {
+        // Same serial, same PendingIntent: the duplicate's close() used to cancel the poll the
+        // registered follower was waiting on.
+        val live = Follower("NSF-ABC123")
+        val duplicate = Follower("nsf-abc123")
+        assertFalse(
+            NightscoutFollowerRegistry.mayCancelSharedAlarm(duplicate, listOf(live), sharesAlarmWith(duplicate))
+        )
+    }
+
+    @Test
+    fun followerForAnotherServerDoesNotBlockCancelling() {
+        val closing = Follower("NSF-ABC123")
+        val other = Follower("NSF-DEF456")
+        assertTrue(
+            NightscoutFollowerRegistry.mayCancelSharedAlarm(closing, listOf(closing, other), sharesAlarmWith(closing))
+        )
+    }
+
+    @Test
+    fun followerAlreadyRemovedFromTheRosterMayCancel() {
+        val closing = Follower("NSF-ABC123")
+        assertTrue(
+            NightscoutFollowerRegistry.mayCancelSharedAlarm(closing, emptyList(), sharesAlarmWith(closing))
+        )
+    }
 }

@@ -41,6 +41,18 @@ object DisplayTrendSource {
         }
 
         val candidate = GlucosePoint(current.timeMillis, autoValue, rawValue)
+        candidate.sensorSerial = current.sensorId ?: activeSensorSerial
+        // The live tail can replace the persisted point of the same minute.
+        // Carry that minute's interval and record, never an older sensor's band.
+        history.asReversed().firstOrNull { point ->
+            point.timestamp / 60_000L == candidate.timestamp / 60_000L &&
+                (point.sensorSerial == null || candidate.sensorSerial == null ||
+                    SensorIdentity.matches(point.sensorSerial, candidate.sensorSerial))
+        }?.let { point ->
+            candidate.uncertainty = point.uncertainty?.shifted(candidate.value - point.value)
+            candidate.sealedDisplayValue = point.sealedDisplayValue
+            candidate.sealedDisplayViewMode = point.sealedDisplayViewMode
+        }
         if (history.isEmpty()) {
             return listOf(candidate)
         }
@@ -63,6 +75,23 @@ object DisplayTrendSource {
             merged.add(candidate)
         }
         return merged
+    }
+
+    /**
+     * [historyPoints] cut at the reading [shown] presents. With Fewer readings on the current
+     * value, [CurrentDisplaySource.resolveCurrent] shows the last completed interval's reading,
+     * older than the newest stored one; an arrow or Δ beside that value must end there too.
+     * Only for surfaces that show [shown] itself, not ones that send the newest reading.
+     */
+    @JvmStatic
+    fun endingAtShown(
+        historyPoints: List<GlucosePoint>?,
+        shown: CurrentDisplaySource.Snapshot?
+    ): List<GlucosePoint> {
+        val history = historyPoints ?: return emptyList()
+        val shownAt = shown?.timeMillis ?: return history
+        if ((history.lastOrNull()?.timestamp ?: Long.MIN_VALUE) <= shownAt) return history
+        return history.filter { it.timestamp <= shownAt }
     }
 
     /**

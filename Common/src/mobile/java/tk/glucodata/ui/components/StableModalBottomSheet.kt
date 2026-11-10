@@ -1,8 +1,15 @@
 package tk.glucodata.ui.components
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -13,10 +20,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -33,6 +40,10 @@ import androidx.compose.ui.unit.dp
  * its expanded anchor stable while nested scrolling continues to work normally. Change
  * [contentKey] when one sheet instance swaps between layouts with fundamentally different
  * intrinsic heights.
+ *
+ * Forms that grow and shrink opt into [adaptiveHeight]. Their top inset is reserved outside the
+ * moving surface, keeping the viewport stable without a height lock. Keyboard padding and tall
+ * search results can then disappear without leaving a permanent minimum height behind.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,15 +62,15 @@ fun StableModalBottomSheet(
     contentWindowInsets: @Composable () -> WindowInsets = { BottomSheetDefaults.windowInsets },
     properties: ModalBottomSheetProperties = ModalBottomSheetProperties(),
     contentKey: Any? = Unit,
+    adaptiveHeight: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val heightPolicy = remember(sheetState, contentKey) { StableSheetHeightPolicy() }
-    val density = LocalDensity.current
-    val isImeVisible = WindowInsets.ime.getBottom(density) > 0
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        modifier = modifier.stabilizeViewportHeight(heightPolicy, isImeVisible),
+        modifier = if (adaptiveHeight) modifier.reserveSheetTopInset()
+            else modifier.stabilizeViewportHeight(heightPolicy),
         sheetState = sheetState,
         sheetMaxWidth = sheetMaxWidth,
         sheetGesturesEnabled = sheetGesturesEnabled,
@@ -98,10 +109,34 @@ internal class StableSheetHeightPolicy {
     }
 }
 
+/** Read in the dialog window, before Material consumes top insets based on the sheet's offset. */
+private fun Modifier.reserveSheetTopInset(): Modifier = composed {
+    windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+}
+
+/**
+ * Animate changes to a form, but let the IME's own inset animation resize its viewport directly.
+ * Keeping a second size animation during IME dismissal briefly subtracts the keyboard's padding
+ * before the form catches up, pulling the sheet down and back up. Removing the modifier while
+ * the IME is present also initializes it at the new viewport when the keyboard finishes closing.
+ */
+fun Modifier.animateSheetContentSize(isImeVisible: Boolean): Modifier =
+    if (isImeVisible) this else animateContentSize(animationSpec = spring(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = 380f
+    ))
+
+/**
+ * The sheet is a window of its own, and the keyboard's inset has to come from that window: it is
+ * what pads the sheet. The window behind can see the keyboard gone while the sheet is still
+ * padded for it, which a back gesture does, and a sheet measured then would look like content
+ * that fills the viewport. Hence composed, which resolves inside the sheet, and reading the inset
+ * during measurement, so it can't lag the padding it explains.
+ */
 private fun Modifier.stabilizeViewportHeight(
     policy: StableSheetHeightPolicy,
-    isImeVisible: Boolean,
-): Modifier =
+): Modifier = composed {
+    val ime = WindowInsets.ime
     layout { measurable, constraints ->
         val minimumHeight = policy.minimumHeight(
             maxHeight = constraints.maxHeight,
@@ -117,10 +152,11 @@ private fun Modifier.stabilizeViewportHeight(
             measuredHeight = placeable.height,
             maxHeight = constraints.maxHeight,
             hasBoundedHeight = constraints.hasBoundedHeight,
-            isImeVisible = isImeVisible,
+            isImeVisible = ime.getBottom(this) > 0,
         )
 
         layout(placeable.width, placeable.height) {
             placeable.placeRelative(0, 0)
         }
     }
+}

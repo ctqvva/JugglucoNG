@@ -67,6 +67,53 @@ class SibionicsExactV116ACoreTest {
     }
 
     @Test
+    fun restoresA11xContextOnlyCheckpoint() {
+        // 1.1.x wrote header + context only (version 1). Rejecting it made every
+        // V120 sensor replay its whole life on the first start after updating.
+        val rows = startupRows()
+        val uninterrupted = SibionicsExactV116ACore(decodedSensitivity = 1.44f)
+        val restored = SibionicsExactV116ACore(decodedSensitivity = 1.44f)
+        rows.takeWhile { it.index <= 70 }.forEach { row ->
+            uninterrupted.process(row.rawMmol, row.temperatureC, row.index)
+        }
+        val current = uninterrupted.snapshot()
+        val legacy = current.copyOfRange(0, 12 + 0x9ac).also { it[4] = 1 }
+
+        assertTrue(restored.restore(legacy))
+
+        var observationResumed = false
+        rows.dropWhile { it.index <= 70 }.forEach { row ->
+            assertEquals(
+                "legacy V116A continuation at ${row.index}",
+                uninterrupted.process(row.rawMmol, row.temperatureC, row.index),
+                restored.process(row.rawMmol, row.temperatureC, row.index),
+            )
+            assertEquals("legacy V116A state at ${row.index}", uninterrupted.stateHash(), restored.stateHash())
+            // The held terms come back at the next stage refresh, never from a
+            // mid-stage slot; from then on the observation matches exactly.
+            val observation = restored.latestSensorObservation
+            if (observation != null) observationResumed = true
+            if (observationResumed) {
+                assertEquals(
+                    "legacy V116A observation at ${row.index}",
+                    uninterrupted.latestSensorObservation,
+                    observation,
+                )
+            }
+        }
+        assertTrue("observation never resumed after a legacy restore", observationResumed)
+    }
+
+    @Test
+    fun rejectsATruncatedOrUnknownVersionCheckpoint() {
+        val source = SibionicsExactV116ACore(decodedSensitivity = 1.44f)
+        startupRows().take(20).forEach { source.process(it.rawMmol, it.temperatureC, it.index) }
+        val current = source.snapshot()
+        assertFalse(SibionicsExactV116ACore(1.44f).restore(current.copyOfRange(0, 12 + 0x9ac)))
+        assertFalse(SibionicsExactV116ACore(1.44f).restore(current.copyOf().also { it[4] = 9 }))
+    }
+
+    @Test
     fun v120FamiliesUseV116AAndStillEmitEveryMinute() {
         val rows = startupRows()
         for (variant in listOf(

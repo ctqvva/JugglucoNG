@@ -17,8 +17,9 @@ import org.junit.Test
  * only connectable near its 3-minute push, and three direct connects in a row reported their first
  * callback at 30016ms, 30027ms and 30038ms — Android's connect timer expiring, status 147 — for 96
  * seconds of dead air. That is the number noteFirstGattCallback exists to collect, so the Anytime
- * driver may answer it; every other driver still has nothing in the dataset deciding between the
- * modes (a modelled 1071s saved to 280s lost) and keeps inheriting the application-wide setting.
+ * driver may answer it. Issue #519 later reports recovery with fresh direct connections in classic
+ * Juggluco using the same Libre 2 sensor, while NG can reuse a failed GATT. Libre 2 therefore uses
+ * fresh direct attempts; other drivers keep inheriting the application-wide setting.
  * These are source scans because the classes involved need the Android runtime and the native
  * library to be constructed at all.
  */
@@ -66,11 +67,18 @@ class ConnectModeLeverTests {
         // R2(a) is a lever, not a change of behaviour: an override appearing here means some
         // driver now connects in a mode the 2026-08-01 dataset never measured. The Anytime
         // files are listed because the 2026-09-09 CT5 trace did measure it — see the next test
-        // for what that override is still held to.
+        // for what that override is still held to. Libre 2's fresh direct connections follow the
+        // same-sensor classic Juggluco recovery trace reported in issue #519. Dexcom's
+        // timeout/background-connect comparison is reported in issue #594 and its linked commit.
+        // Libre 3's endless status=147 direct-connect loop with two sensors is issue #728;
+        // upstream j-kaltes/Juggluco#491/#493 report the same loop ending under autoConnect.
         val measured = setOf(
             "AnytimeBleManager.kt",
             "AnytimeConnectRetryPolicy.kt",
             "AnytimeConnectRetryPolicyTests.kt",
+            "Libre2GattCallback.java",
+            "Libre3GattCallback.java",
+            "DexGattCallback.java",
         )
         val overriders = sources("Common/src")
             .filter { it.name != "SuperGattCallback.java" && it.name != "ConnectModeLeverTests.kt" }
@@ -108,6 +116,29 @@ class ConnectModeLeverTests {
                 "direct connect decide it; AnytimeConnectModeState is that one place",
             2,
             Regex("directConnectUnreachable = (true|false)").findAll(policy).count(),
+        )
+    }
+
+    @Test
+    fun libre3FallsBackOnlyAfterAnAttemptThatNeverConnected() {
+        // #728: a link that came up and dropped says nothing about whether a direct connect
+        // can reach the sensor; only a timed-out attempt that never connected does.
+        val text = File(
+            repoRoot(),
+            "Common/src/libre3/java/tk/glucodata/Libre3GattCallback.java",
+        ).readText().replace(Regex("\\s+"), " ")
+        assertTrue(
+            "the Libre 3 override must start from the application-wide setting",
+            text.contains("return super.useAutoConnect() || directConnectUnreachable;"),
+        )
+        assertEquals(1, Regex("directConnectUnreachable = true").findAll(text).count())
+        assertTrue(
+            "the fallback must be gated on a never-connected attempt timing out",
+            text.contains(
+                "if (!reachedSensor && !directConnectUnreachable " +
+                    "&& (status == BluetoothGatt.GATT_CONNECTION_TIMEOUT || status == 133)) " +
+                    "{ directConnectUnreachable = true;"
+            ),
         )
     }
 

@@ -41,16 +41,20 @@ internal object GlucoseComplicationData {
 
     fun tapAction(): PendingIntent = Notify.mkpending()
 
-    fun currentReading(): Reading? {
+    /** The sensor the phone shows first; the complications follow it too. */
+    private fun displaySensor(): String? =
+        runCatching { tk.glucodata.ui.WearSensorSelection.resolve() }.getOrNull()
+
+    fun currentReading(sensor: String? = displaySensor()): Reading? {
         val snapshot = runCatching {
-            CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout)
-        }.getOrNull() ?: return syncedReading()
+            CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout, sensor)
+        }.getOrNull() ?: return syncedReading(sensor)
         val now = System.currentTimeMillis()
         if (snapshot.timeMillis <= 0L || now - snapshot.timeMillis >= Notify.glucosetimeout) {
-            return syncedReading()
+            return syncedReading(sensor)
         }
         if (!snapshot.primaryValue.isFinite() || snapshot.primaryValue <= 0.0f || snapshot.primaryStr.isBlank()) {
-            return syncedReading()
+            return syncedReading(sensor)
         }
         return Reading(
             value = snapshot.primaryValue,
@@ -69,37 +73,33 @@ internal object GlucoseComplicationData {
      * screens read the merged history for the same reason. Without this the watch
      * face and every complication sat blank on a watch that had current data.
      */
-    private fun syncedReading(): Reading? {
+    private fun syncedReading(sensor: String?): Reading? {
         val isMmol = runCatching { Applic.unit == 1 }.getOrDefault(false)
         val newest = runCatching {
-            val sensor = tk.glucodata.NotificationHistorySource.resolveSensorSerial()
             tk.glucodata.NotificationHistorySource
                 .getDisplayHistory(System.currentTimeMillis() - Notify.glucosetimeout, isMmol, sensor)
                 .lastOrNull()
         }.getOrNull() ?: return null
         if (!newest.value.isFinite() || newest.value <= 0f) return null
         if (System.currentTimeMillis() - newest.timestamp >= Notify.glucosetimeout) return null
-        val rate = runCatching {
-            tk.glucodata.TrendAccess.calculateVelocity(
-                tk.glucodata.NotificationHistorySource.getDisplayHistory(
-                    newest.timestamp - 35 * 60_000L,
-                    isMmol,
-                    tk.glucodata.NotificationHistorySource.resolveSensorSerial(),
-                ),
-                false,
-                isMmol,
+        // Resolve the synced lanes through the same calibration, smoothing and
+        // sensor view mode as live data; raw-primary peers must not become auto.
+        val resolved = runCatching {
+            CurrentDisplaySource.resolveIncomingReading(
+                reading = tk.glucodata.LiveReadingLanes.stock(newest.value, newest.rawValue),
+                rate = Float.NaN,
+                targetTimeMillis = newest.timestamp,
+                preferredSensorId = sensor,
             )
-        }.getOrNull()?.takeIf { it.isFinite() } ?: 0f
+        }.getOrNull() ?: return null
         return Reading(
-            value = newest.value,
-            text = tk.glucodata.ui.util.GlucoseFormatter.format(newest.value, isMmol),
-            isMmol = isMmol,
-            timeMillis = newest.timestamp,
-            rate = rate,
-            index = 0,
-            sensorId = runCatching {
-                tk.glucodata.NotificationHistorySource.resolveSensorSerial()
-            }.getOrNull(),
+            value = resolved.primaryValue,
+            text = resolved.primaryStr,
+            isMmol = resolved.isMmol,
+            timeMillis = resolved.timeMillis,
+            rate = resolved.rate,
+            index = resolved.index,
+            sensorId = resolved.sensorId,
         )
     }
 

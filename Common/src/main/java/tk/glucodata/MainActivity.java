@@ -115,7 +115,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     // public class MainActivity extends CarActivity implements
     // NfcAdapter.ReaderCallback {
     // boolean hideSystem=true;
-    LaunchShit permHealth = isWearable ? null : new LaunchShit(this);
+    HealthPermissionRequester permHealth = isWearable ? null : HealthPermissionsAccess.create(this);
     public GlucoseCurve curve = null;
     // Button okbutton=null;
     private static final String LOG_ID = "MainActivity";
@@ -137,7 +137,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         Applic.postDelayed(() -> tk.glucodata.settings.Settings.set(this), 1000L);
                     }
                 } else {
-                    Specific.initScreen(this);
+                    VariantBootstrapAccess.create().initScreen(this);
                 }
             }
         }
@@ -304,10 +304,24 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
     }
 
+    /**
+     * The export screen's status line. A local rather than five repetitions of the
+     * null-check, and it tolerates a registry that was never registered (a flavour without
+     * the export screen), which is what a flavour without a Dialogs now has.
+     */
+    private void exportStatus(int resId) {
+        LegacyScreensAccess.get().setExportStatus(resId);
+    }
+
+    private void exportStatus(CharSequence text) {
+        LegacyScreensAccess.get().setExportStatus(text);
+    }
+
     @Keep
     public static void openSensorListPanel() {
         if (thisone != null) {
-            thisone.runOnUiThread(() -> tk.glucodata.MeterList.show(thisone, null));
+            thisone.runOnUiThread(() -> {
+                tk.glucodata.LegacyScreensAccess.get().openMeterList(thisone, null); });
         }
     }
 
@@ -485,7 +499,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
 
         if (isWearable) {
-            Specific.splash(this);
+            VariantBootstrapAccess.create().splash(this);
         }
         if (Applic.stopprogram > 0) {
             Log.e(LOG_ID, "Stop program");
@@ -496,7 +510,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
             return;
         }
-        if (!Specific.historyDatabaseCompatible(this)) {
+        if (!VariantBootstrapAccess.create().historyDatabaseCompatible(this)) {
             showHistoryDatabaseIncompatible();
             return;
         }
@@ -520,8 +534,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             return;
         startall();
         Natives.onCreate();
-        if (Menus.on)
-            Menus.show(this);
+        if (LegacyScreensAccess.getMenusOn())
+            LegacyScreensAccess.get().openMenus(this);
 
         initComposeUI();
 
@@ -547,17 +561,17 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     static boolean composeUIActive;
 
     private void initComposeUI() {
-        // Mobile resolves the mobile ComposeHost, wear its own; the legacy
-        // `small` flavor has neither and falls back to the native View UI.
+        // Each flavour registers its Compose host in Specific.registerBridges; the
+        // legacy `small` flavor registers none and falls back to the native View UI.
+        tk.glucodata.ui.ComposeHost host = tk.glucodata.ui.ComposeHostAccess.get();
+        if (host == null) {
+            Log.i(LOG_ID, "Compose UI not found (normal for Legacy)");
+            return;
+        }
         try {
-            Class<?> clazz = Class.forName("tk.glucodata.ui.ComposeHostKt");
-            java.lang.reflect.Method method = clazz.getMethod("setComposeContent",
-                    androidx.appcompat.app.AppCompatActivity.class, android.view.View.class);
-            method.invoke(null, this, curve);
+            host.setComposeContent(this, curve);
             composeUIActive = true;
             Log.i(LOG_ID, "Initialized Compose UI and hid legacy view");
-        } catch (ClassNotFoundException e) {
-            Log.i(LOG_ID, "Compose UI not found (normal for Legacy)");
         } catch (Exception e) {
             Log.e(LOG_ID, "Failed to init Compose UI: " + e);
         }
@@ -839,8 +853,19 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
             ;
         }
-        // Force notification update on resume/launch
-        Notify.showoldglucose();
+        // Resolve stored values and render notification charts on the notification worker.
+        Notify.scheduleStoredGlucoseRefresh();
+        if (Applic.Nativesloaded) {
+            // A Nightscout follower shows whatever its last poll fetched, and the next poll
+            // can be minutes away. Opening the app is when someone is looking: fetch now.
+            try {
+                tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
+                        .refreshOnForeground(this);
+                tk.glucodata.share.lumiflex.LumiflexFollowerRegistry.refresh(this);
+            } catch (Throwable th) {
+                Log.stack(LOG_ID, "onResume follower refresh", th);
+            }
+        }
         if (Applic.isWearable && Applic.Nativesloaded) {
             // The companion stream routinely stalls while the watch app is
             // backgrounded/dozed; ask the phone for the stream immediately on
@@ -917,7 +942,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 if (tryHealth > 0) {
                     if (Natives.gethealthConnect() && Build.VERSION.SDK_INT >= 28) {
                         --tryHealth;
-                        HealthConnection.Companion.init(this);
+                        var health = HealthConnectAccess.get();
+                        if (health != null) health.start(this);
                     } else
                         tryHealth = 0;
                 }
@@ -930,8 +956,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 if (!DontTalk) {
                     talkbackon(this);
                 }
-                if (!Menus.on)
-                    Menus.show(this);
+                if (!LegacyScreensAccess.getMenusOn())
+                    LegacyScreensAccess.get().openMenus(this);
             } else {
                 if (!DontTalk) {
                     talkbackoff();
@@ -1023,9 +1049,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                             // intent (the background receiver handing a pen on) arrives on
                             // it, and a pen read is seconds of I/O — same split as below.
                             if (Thread.currentThread().equals(Looper.getMainLooper().getThread())) {
-                                new Thread(() -> tk.glucodata.NovoPen.Scan.onTag(this, tag)).start();
+                                new Thread(() -> {
+                                    var scan = NovoPenAccess.get();
+                                    if (scan != null) scan.onTag(this, tag); }).start();
                             } else {
-                                tk.glucodata.NovoPen.Scan.onTag(this, tag);
+                                var scan = NovoPenAccess.get();
+                                if (scan != null) scan.onTag(this, tag);
                             }
                             // A full pen read takes seconds. Taps that arrived while it
                             // was running are queued on this monitor and would each start
@@ -1335,7 +1364,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             if (!isWearable) {
                 if (Natives.gethealthConnect()) {
                     if (Build.VERSION.SDK_INT >= 28) {
-                        HealthConnection.Companion.init(this);
+                        var health = HealthConnectAccess.get();
+                        if (health != null) health.start(this);
                     }
                 }
             }
@@ -1766,7 +1796,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         int type = requestCode & 0xF;
                         Uri uri;
                         if (data == null || (uri = data.getData()) == null) {
-                            curve.dialogs.exportlabel.setText(R.string.nodata);
+                            exportStatus(R.string.nodata);
                             return;
                         }
                         int fd = -1;
@@ -1775,24 +1805,24 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                             if (parcelFileDescriptor != null)
                                 fd = parcelFileDescriptor.detachFd();
                             else {
-                                curve.dialogs.exportlabel.setText("Can't save: parcelFileDescriptor == null");
+                                exportStatus("Can't save: parcelFileDescriptor == null");
                                 return;
                             }
 
                         } catch (IOException e) {
 
                             Log.stack(LOG_ID, e);
-                            curve.dialogs.exportlabel.setText(R.string.failedbyexception);
+                            exportStatus(R.string.failedbyexception);
                             return;
                         }
-                        if (Natives.exportdata(type, fd, Dialogs.showdays)) {
-                            curve.dialogs.exportlabel.setText(R.string.saved);
+                        if (Natives.exportdata(type, fd, LegacyScreensAccess.getExportShowDays())) {
+                            exportStatus(R.string.saved);
                         } else {
-                            curve.dialogs.exportlabel.setText(R.string.savefailed);
+                            exportStatus(R.string.savefailed);
                         }
                     } else {
 
-                        curve.dialogs.exportlabel.setText(R.string.notsaved);
+                        exportStatus(R.string.notsaved);
                     }
 
                 } catch (Throwable th) {
@@ -1985,8 +2015,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             curve.render.stepresult = 0;
             curve.render.badscan = 0;
             hideSystemUI();
-            if (Menus.on)
-                Menus.show(this);
+            if (LegacyScreensAccess.getMenusOn())
+                LegacyScreensAccess.get().openMenus(this);
             else
                 curve.requestRender();
             return true;

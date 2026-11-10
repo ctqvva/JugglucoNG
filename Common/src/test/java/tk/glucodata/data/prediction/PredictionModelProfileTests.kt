@@ -127,4 +127,17 @@ class PredictionModelProfileTests {
         assertEquals(54f, profile.parametersAtMinute(600).insulinSensitivityMgDlPerUnit, 0f)
         assertEquals(10f, profile.parametersAtMinute(600).carbRatioGramsPerUnit, 0f)
     }
+
+    @Test
+    fun halfGramCarbRatioSurvivesStorage() {
+        val profile = PredictionModelProfile.single(10f, 54f)
+            .updateBlock(startMinuteOfDay = 0, carbRatioGramsPerUnit = 6.5f)
+
+        val decoded = PredictionModelProfile.decode(
+            profile.encode(),
+            PredictionModelParameters(10f, 54f, 35f)
+        )
+
+        assertEquals(6.5f, decoded.parametersAtMinute(0).carbRatioGramsPerUnit, 0f)
+    }
 }

@@ -19,7 +19,8 @@ enum class AlertType(val id: Int, val nameResId: Int) {
     PERSISTENT_HIGH(10, R.string.alert_persistent_high),
     SENSOR_EXPIRY(11, R.string.alert_sensor_expiry),
     FALLING_FAST(12, R.string.alert_falling_fast),
-    RISING_FAST(13, R.string.alert_rising_fast);
+    RISING_FAST(13, R.string.alert_rising_fast),
+    SIGNAL_RESTORED(14, R.string.alert_signal_restored);
 
     companion object {
         fun fromId(id: Int): AlertType? = entries.find { it.id == id }
@@ -39,6 +40,7 @@ enum class AlertType(val id: Int, val nameResId: Int) {
             MISSED_READING,
             PERSISTENT_HIGH,
             LOSS,
+            SIGNAL_RESTORED,
             SENSOR_EXPIRY,
             FALLING_FAST,
             RISING_FAST
@@ -148,6 +150,7 @@ data class AlertConfig(
     
     // Sound & vibration
     val soundEnabled: Boolean = true,
+    val soundVolumePercent: Int = AlertSoundVolume.DEFAULT_PERCENT,
     val customSoundUri: String? = null,     // null = use default
     val vibrationEnabled: Boolean = true,
     val hapticProfile: HapticProfile = HapticProfile.STRONG,
@@ -218,6 +221,44 @@ data class AlertConfig(
             currentMins >= startMins || currentMins < endMins
         }
     }
+
+    /**
+     * Turns the time range on or off. Turning it on also stores the window the editor shows
+     * for an end that was never set ([AlertDefaults.TIME_RANGE_DEFAULT_START_HOUR] /
+     * [AlertDefaults.TIME_RANGE_DEFAULT_END_HOUR]): storing only the flag left the range
+     * incomplete, which [isActiveAtMinutes] reads as "no restriction", so the alert fired
+     * around the clock under a screen that said otherwise. Turning it off keeps the window.
+     */
+    fun withTimeRangeEnabled(enabled: Boolean): AlertConfig =
+        if (enabled) withTimeRangeFilledIn().copy(timeRangeEnabled = true) else copy(timeRangeEnabled = false)
+
+    /** Moves the start; an end that was never set is stored as the one the editor shows. */
+    fun withActiveStart(hour: Int, minute: Int): AlertConfig =
+        withTimeRangeFilledIn().copy(activeStartHour = hour, activeStartMinute = minute)
+
+    /** Moves the end; a start that was never set is stored as the one the editor shows. */
+    fun withActiveEnd(hour: Int, minute: Int): AlertConfig =
+        withTimeRangeFilledIn().copy(activeEndHour = hour, activeEndMinute = minute)
+
+    /**
+     * The range as a custom alert stores it (minutes of the day, end exclusive). An
+     * incomplete range restricts nothing here, so it maps to the whole day (0 -> 1440)
+     * rather than 0 -> 0, which a custom alert reads as never active.
+     */
+    fun timeRangeStartMinutesOfDay(): Int =
+        if (activeStartHour == null || activeEndHour == null) 0
+        else activeStartHour * 60 + (activeStartMinute ?: 0)
+
+    fun timeRangeEndMinutesOfDay(): Int =
+        if (activeStartHour == null || activeEndHour == null) CustomAlertConfig.MINUTES_PER_DAY
+        else activeEndHour * 60 + (activeEndMinute ?: 0)
+
+    private fun withTimeRangeFilledIn(): AlertConfig = copy(
+        activeStartHour = activeStartHour ?: AlertDefaults.TIME_RANGE_DEFAULT_START_HOUR,
+        activeStartMinute = activeStartMinute ?: 0,
+        activeEndHour = activeEndHour ?: AlertDefaults.TIME_RANGE_DEFAULT_END_HOUR,
+        activeEndMinute = activeEndMinute ?: 0
+    )
 }
 
 /**
@@ -244,6 +285,10 @@ object AlertDefaults {
     const val SAME_DIRECTION_SUPPRESSION_MINUTES = 5
     const val SAME_DIRECTION_SUPPRESSION_MAX_MINUTES = 30
     const val ACKNOWLEDGED_HIGH_COVERAGE_ENABLED = true
+
+    // The window the time-range editor shows, and stores, for an end that was never set.
+    const val TIME_RANGE_DEFAULT_START_HOUR = 22
+    const val TIME_RANGE_DEFAULT_END_HOUR = 8
 
     // Default thresholds (mmol/L - converted to mg/dL at runtime if needed)
     const val LOW_THRESHOLD_MMOL = 3.6f
@@ -423,6 +468,13 @@ object AlertDefaults {
                 soundEnabled = true,
                 defaultSnoozeMinutes = 120,
                 expiryWarningMinutes = setOf(DEFAULT_EXPIRY_WARNING_MINUTES)
+            )
+            AlertType.SIGNAL_RESTORED -> AlertConfig(
+                type = type,
+                enabled = false,
+                deliveryMode = AlertDeliveryMode.NOTIFICATION_ONLY,
+                hapticProfile = HapticProfile.SOFT,
+                defaultSnoozeMinutes = 30
             )
             AlertType.LOSS -> AlertConfig(
                 type = type,

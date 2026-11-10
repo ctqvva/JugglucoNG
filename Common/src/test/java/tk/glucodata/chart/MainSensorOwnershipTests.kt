@@ -72,8 +72,8 @@ class MainSensorOwnershipTests {
 
     @Test
     fun theBoundaryIsTheGraceWindowMeasuredFromTheMinute() {
-        val justSealed = NOW - MainSensorOwnership.SEAL_GRACE_MS - MINUTE
-        val justSettling = NOW - MainSensorOwnership.SEAL_GRACE_MS + MINUTE
+        val justSealed = NOW - MainSensorOwnership.DEFAULT_SEAL_GRACE_MS - MINUTE
+        val justSettling = NOW - MainSensorOwnership.DEFAULT_SEAL_GRACE_MS + MINUTE
         val o = ownership(
             mapOf(
                 MainSensorOwnership.minuteOf(justSealed) to "A",
@@ -83,4 +83,34 @@ class MainSensorOwnershipTests {
         assertEquals("A", o.mainSensorAt(justSealed))
         assertNull(o.mainSensorAt(justSettling))
     }
+    @Test
+    fun resumingAfterClockAdvanceKeepsUnchangedOwnershipEqual() {
+        val records = mapOf(MainSensorOwnership.minuteOf(SEALED) to "A")
+        val before = MainSensorOwnership(records, NOW)
+        val resumed = MainSensorOwnership(records, NOW + 20 * MINUTE)
+        assertEquals(before, resumed)
+        assertEquals(before.hashCode(), resumed.hashCode())
+        assertEquals(MainSensorOwnership.NONE, MainSensorOwnership(emptyMap(), NOW))
+    }
+
+    @Test
+    fun resumingAfterARecordedMinuteSealsChangesOwnership() {
+        val minute = MainSensorOwnership.minuteOf(SETTLING)
+        val records = mapOf(minute to "B")
+        val before = MainSensorOwnership(records, NOW)
+        val resumed = MainSensorOwnership(records, minute + MainSensorOwnership.DEFAULT_SEAL_GRACE_MS)
+        assertFalse(before == resumed)
+        assertNull(before.mainSensorAt(minute))
+        assertEquals("B", resumed.mainSensorAt(minute))
+    }
+
+    @Test
+    fun resumedOwnershipIncludesRecordsAddedWhileHidden() {
+        val minute = MainSensorOwnership.minuteOf(SEALED)
+        val before = MainSensorOwnership(mapOf(minute to "A"), NOW)
+        val resumed = MainSensorOwnership(mapOf(minute to "B"), NOW + MINUTE)
+        assertFalse(before == resumed)
+        assertEquals("B", resumed.mainSensorAt(minute))
+    }
+
 }

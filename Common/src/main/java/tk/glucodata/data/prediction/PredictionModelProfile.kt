@@ -136,11 +136,14 @@ data class PredictionModelProfile private constructor(
         const val MAX_BLOCKS = 8
         const val CARB_RATIO_MIN = 3f
         const val CARB_RATIO_MAX = 30f
+        /** Ratios are commonly written to the half gram, as in 1:6.5. */
+        const val CARB_RATIO_STEP = 0.5f
         const val INSULIN_SENSITIVITY_MIN = 10f
         const val INSULIN_SENSITIVITY_MAX = 180f
         const val CARB_ABSORPTION_MIN = 10f
         const val CARB_ABSORPTION_MAX = 90f
-        const val DEFAULT_CARB_ABSORPTION_GRAMS_PER_HOUR = 35f
+        const val DEFAULT_CARB_ABSORPTION_GRAMS_PER_HOUR =
+            tk.glucodata.settings.DEFAULT_PREDICTION_CARB_ABSORPTION_G_PER_H
 
         private const val BLOCK_SEPARATOR = ";"
         private const val FIELD_SEPARATOR = ","
@@ -254,30 +257,22 @@ data class PredictionModelProfile private constructor(
 
 object PredictionModelProfileStore {
     const val PROFILE_KEY = "dashboard_prediction_model_profile_v1"
-    const val CARB_RATIO_KEY = "dashboard_prediction_carb_ratio_g_per_u"
-    const val INSULIN_SENSITIVITY_KEY = "dashboard_prediction_insulin_sensitivity_mgdl_per_u"
-    const val CARB_ABSORPTION_KEY = "dashboard_prediction_carb_absorption_g_per_h"
-    const val DEFAULT_CARB_RATIO_GRAMS_PER_UNIT = 10f
-    const val DEFAULT_INSULIN_SENSITIVITY_MGDL_PER_UNIT = 54f
+    const val CARB_RATIO_KEY = tk.glucodata.settings.KEY_PREDICTION_CARB_RATIO
+    const val INSULIN_SENSITIVITY_KEY = tk.glucodata.settings.KEY_PREDICTION_INSULIN_SENSITIVITY
+    const val CARB_ABSORPTION_KEY = tk.glucodata.settings.KEY_PREDICTION_CARB_ABSORPTION
+    const val DEFAULT_CARB_RATIO_GRAMS_PER_UNIT = tk.glucodata.settings.DEFAULT_PREDICTION_CARB_RATIO_G_PER_U
+    const val DEFAULT_INSULIN_SENSITIVITY_MGDL_PER_UNIT =
+        tk.glucodata.settings.DEFAULT_PREDICTION_INSULIN_SENSITIVITY_MGDL_PER_U
 
     @JvmStatic
     fun load(preferences: SharedPreferences): PredictionModelProfile {
         val fallback = PredictionModelParameters(
-            carbRatioGramsPerUnit = preferences
-                .getFloat(CARB_RATIO_KEY, DEFAULT_CARB_RATIO_GRAMS_PER_UNIT)
-                .coerceIn(PredictionModelProfile.CARB_RATIO_MIN, PredictionModelProfile.CARB_RATIO_MAX),
-            insulinSensitivityMgDlPerUnit = preferences
-                .getFloat(INSULIN_SENSITIVITY_KEY, DEFAULT_INSULIN_SENSITIVITY_MGDL_PER_UNIT)
-                .coerceIn(
-                    PredictionModelProfile.INSULIN_SENSITIVITY_MIN,
-                    PredictionModelProfile.INSULIN_SENSITIVITY_MAX
-                ),
-            carbAbsorptionGramsPerHour = preferences
-                .getFloat(CARB_ABSORPTION_KEY, PredictionModelProfile.DEFAULT_CARB_ABSORPTION_GRAMS_PER_HOUR)
-                .coerceIn(
-                    PredictionModelProfile.CARB_ABSORPTION_MIN,
-                    PredictionModelProfile.CARB_ABSORPTION_MAX
-                )
+            carbRatioGramsPerUnit =
+                tk.glucodata.settings.SettingsRegistry.PREDICTION_CARB_RATIO.readFloatClamped(preferences),
+            insulinSensitivityMgDlPerUnit =
+                tk.glucodata.settings.SettingsRegistry.PREDICTION_INSULIN_SENSITIVITY.readFloatClamped(preferences),
+            carbAbsorptionGramsPerHour =
+                tk.glucodata.settings.SettingsRegistry.PREDICTION_CARB_ABSORPTION.readFloatClamped(preferences)
         )
         return PredictionModelProfile.decode(preferences.getString(PROFILE_KEY, null), fallback)
     }
@@ -314,5 +309,6 @@ object PredictionModelProfileStore {
             preferences.contains(CARB_RATIO_KEY)
 }
 
-private const val DEFAULT_CARB_RATIO_GRAMS_PER_UNIT = 10f
-private const val DEFAULT_INSULIN_SENSITIVITY_MGDL_PER_UNIT = 54f
+private const val DEFAULT_CARB_RATIO_GRAMS_PER_UNIT = tk.glucodata.settings.DEFAULT_PREDICTION_CARB_RATIO_G_PER_U
+private const val DEFAULT_INSULIN_SENSITIVITY_MGDL_PER_UNIT =
+    tk.glucodata.settings.DEFAULT_PREDICTION_INSULIN_SENSITIVITY_MGDL_PER_U

@@ -7,6 +7,7 @@ import tk.glucodata.data.prediction.GlucosePredictionSeries
 import tk.glucodata.data.prediction.GlucosePredictionSeriesKind
 import tk.glucodata.data.prediction.PredictiveSimulationSettings
 import tk.glucodata.data.prediction.buildGlucosePrediction
+import tk.glucodata.data.prediction.analysis.AdaptivePredictionStore
 
 internal enum class PredictionHistorySource {
     AUTO,
@@ -70,7 +71,8 @@ internal fun buildDisplayHistoryForPrediction(
         val baseValue = if (useRaw) point.rawValue else point.value
         val sensorId = point.sensorSerial?.takeIf { it.isNotBlank() }
         // The prediction extrapolates the line the user is looking at, so it has
-        // to read the same values that line draws — a recorded one included.
+        // to read the same values that line draws — a recorded one included,
+        // in whichever lane it was recorded, as the main line does.
         val sealed = if (useCalibration) {
             point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
         } else {
@@ -139,8 +141,9 @@ internal fun buildPredictionSeriesForChart(
         kind: GlucosePredictionSeriesKind,
         source: PredictionHistorySource
     ): GlucosePredictionSeries? {
-        val seriesPoints = buildGlucosePrediction(
-            history = buildDisplayHistoryForPrediction(predictionHistory, source),
+        val history = buildDisplayHistoryForPrediction(predictionHistory, source)
+        fun standard(settings: PredictiveSimulationSettings) = buildGlucosePrediction(
+            history = history,
             journalEntries = journalEntries,
             insulinPresetsById = insulinPresetsById,
             unit = unit,
@@ -148,15 +151,49 @@ internal fun buildPredictionSeriesForChart(
             targetHigh = targetHigh,
             settings = settings
         )
-        return seriesPoints.takeIf { it.size >= 2 }?.let { GlucosePredictionSeries(kind, it) }
+        if (!settings.adaptive) {
+            return standard(settings).takeIf { it.size >= 2 }?.let { GlucosePredictionSeries(kind, it) }
+        }
+        val rawLane = source == PredictionHistorySource.RAW || source == PredictionHistorySource.CALIBRATED_RAW
+        val adaptive = tk.glucodata.Applic.app?.let { context ->
+            runCatching {
+                AdaptivePredictionStore.forecastPoints(
+                    context = context,
+                    history = history,
+                    isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
+                    rawLane = rawLane,
+                    horizonMinutes = settings.horizonMinutes,
+                )
+            }.getOrNull()
+        }
+        // Until the adaptive forecast can answer, the standard forecast without momentum:
+        // on the benchmark it never did worse than "no change", which the momentum term did.
+        val points = adaptive ?: standard(settings.copy(trendMomentumEnabled = false))
+        return points.takeIf { it.size >= 2 }?.let { GlucosePredictionSeries(kind, it, adaptiveFallback = adaptive == null) }
     }
 
+    // Without a calibration the primary lane's own forecast is the primary
+    // forecast, so it has to start where the main line ends — on a recorded
+    // value when there is one, even one recorded in the other lane. The
+    // calibrated source is record-aware and, with no calibration active, is
+    // the lane's own value everywhere else. Secondary lanes stay plain.
+    val primaryLaneIsRecordAware = !hasCalibration
     return buildList {
         if (drawRaw) {
-            buildSeries(GlucosePredictionSeriesKind.RAW, PredictionHistorySource.RAW)?.let(::add)
+            val source = if (isRawMode && primaryLaneIsRecordAware) {
+                PredictionHistorySource.CALIBRATED_RAW
+            } else {
+                PredictionHistorySource.RAW
+            }
+            buildSeries(GlucosePredictionSeriesKind.RAW, source)?.let(::add)
         }
         if (drawAuto) {
-            buildSeries(GlucosePredictionSeriesKind.AUTO, PredictionHistorySource.AUTO)?.let(::add)
+            val source = if (!isRawMode && primaryLaneIsRecordAware) {
+                PredictionHistorySource.CALIBRATED_AUTO
+            } else {
+                PredictionHistorySource.AUTO
+            }
+            buildSeries(GlucosePredictionSeriesKind.AUTO, source)?.let(::add)
         }
         if (hasCalibration) {
             buildSeries(
@@ -180,6 +217,21 @@ internal fun buildSmoothedConsumerHistory(
     points: List<GlucosePoint>,
     evaluationSmoothingMinutes: Int,
     collapseChunks: Boolean
+): List<GlucosePoint> = buildSmoothedConsumerHistory(
+    points,
+    evaluationSmoothingMinutes,
+    evaluationCollapseMinutes = if (collapseChunks && evaluationSmoothingMinutes > 0) {
+        DataSmoothing.collapseIntervalMinutes(evaluationSmoothingMinutes)
+    } else {
+        0
+    }
+)
+
+/** As above, thinned to one reading per [evaluationCollapseMinutes] (0 = every reading), smoothed or not. */
+internal fun buildSmoothedConsumerHistory(
+    points: List<GlucosePoint>,
+    evaluationSmoothingMinutes: Int,
+    evaluationCollapseMinutes: Int
 ): List<GlucosePoint> {
     if (points.isEmpty()) {
         return points
@@ -189,7 +241,7 @@ internal fun buildSmoothedConsumerHistory(
     } else {
         points
     }
-    if (evaluationSmoothingMinutes <= 0) {
+    if (evaluationSmoothingMinutes <= 0 && evaluationCollapseMinutes <= 0) {
         return source
     }
 
@@ -199,7 +251,7 @@ internal fun buildSmoothedConsumerHistory(
         val smoothed = DataSmoothing.smoothNativePoints(
             segment.map { tk.glucodata.GlucosePoint(it.timestamp, it.value, it.rawValue) },
             evaluationSmoothingMinutes,
-            collapseChunks
+            evaluationCollapseMinutes
         )
 
         smoothed.forEach { point ->
@@ -212,6 +264,8 @@ internal fun buildSmoothedConsumerHistory(
                     rawValue = point.rawValue,
                     rate = source?.rate,
                     sensorSerial = source?.sensorSerial,
+                    sealedDisplayValue = source?.sealedDisplayValue,
+                    sealedDisplayViewMode = source?.sealedDisplayViewMode,
                     // Smoothing displaces the value, so the interval follows it
                     // rather than being dropped or left behind around the
                     // unsmoothed one. The width is the estimator's claim and
@@ -223,6 +277,26 @@ internal fun buildSmoothedConsumerHistory(
         }
     }
     return processed
+}
+
+/**
+ * The peer sensors as the reading rows show them: through the same window as the main
+ * sensor's rows ([buildSmoothedConsumerHistory] over [evaluationSmoothingMinutes]), so a
+ * row never pairs a smoothed main value with an as-measured peer value — and the newest
+ * row agrees with the hero's peer chip, which resolves through the same window.
+ *
+ * Never thinned, even when the main rows are: rows look their peers up by the main
+ * reading's minute, and thinning only selects points, so the unthinned series carries the
+ * same value at every minute a thinned one would have kept.
+ */
+internal fun buildSmoothedPeerReadings(
+    display: MultiSensorDisplayData,
+    evaluationSmoothingMinutes: Int
+): MultiSensorDisplayData {
+    if (display.isEmpty || evaluationSmoothingMinutes <= 0) return display
+    return MultiSensorDisplay.mapSeriesPoints(display) { points ->
+        buildSmoothedConsumerHistory(points, evaluationSmoothingMinutes, evaluationCollapseMinutes = 0)
+    }
 }
 
 internal fun buildDisplayReadings(
@@ -293,8 +367,9 @@ internal fun readingDeltaTexts(
     anchorTimestamps: List<Long>,
     history: List<GlucosePoint>,
     isMmol: Boolean,
-    deltaIntervalMinutes: Int
-): List<String?> = readingDeltas(anchorTimestamps, history, isMmol, deltaIntervalMinutes)
+    deltaIntervalMinutes: Int,
+    useRaw: Boolean = false
+): List<String?> = readingDeltas(anchorTimestamps, history, isMmol, deltaIntervalMinutes, useRaw)
     .map { it?.text }
 
 /**
@@ -305,9 +380,12 @@ internal fun readingDeltas(
     anchorTimestamps: List<Long>,
     history: List<GlucosePoint>,
     isMmol: Boolean,
-    deltaIntervalMinutes: Int
+    deltaIntervalMinutes: Int,
+    useRaw: Boolean = false
 ): List<ReadingDelta?> {
     if (anchorTimestamps.isEmpty()) return emptyList()
+    fun valueOf(point: GlucosePoint): Float =
+        if (useRaw && point.rawValue > 0f) point.rawValue else point.value
     val newestFirst = history.asReversed()
     val minGap = tk.glucodata.GlucoseDelta.minGapMillis(deltaIntervalMinutes)
     var anchorIndex = 0
@@ -323,13 +401,13 @@ internal fun readingDeltas(
         // only shrinks further for the older anchors that follow.
         while (previousIndex < newestFirst.size) {
             val candidate = newestFirst[previousIndex]
-            if (candidate.value > 0.1f && anchor.timestamp - candidate.timestamp >= minGap) break
+            if (valueOf(candidate) > 0.1f && anchor.timestamp - candidate.timestamp >= minGap) break
             previousIndex++
         }
         val previous = newestFirst.getOrNull(previousIndex) ?: return@map null
         val delta = tk.glucodata.GlucoseDelta.delta(
-            anchor.timestamp, anchor.value,
-            previous.timestamp, previous.value,
+            anchor.timestamp, valueOf(anchor),
+            previous.timestamp, valueOf(previous),
             deltaIntervalMinutes
         )
         val text = tk.glucodata.GlucoseDelta.format(delta, isMmol).takeIf { it.isNotEmpty() }

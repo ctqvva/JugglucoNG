@@ -1,5 +1,7 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.AdaptiveTrailingRow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -29,6 +31,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -42,7 +45,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.util.Locale
@@ -52,19 +54,21 @@ import tk.glucodata.R
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.ExpandableSettingsCard
 import tk.glucodata.ui.components.cardShape
+import tk.glucodata.ui.components.SettingsSearchReveal
+import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 
 @Composable
 fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
-    val unit by viewModel.unit.collectAsState()
+    val unit by viewModel.unit.collectAsStateWithLifecycle()
     val isMmol = GlucoseFormatter.isMmol(unit)
-    val chartLowValue by viewModel.graphLow.collectAsState()
-    val chartHighValue by viewModel.graphHigh.collectAsState()
-    val targetLowValue by viewModel.targetLow.collectAsState()
-    val targetHighValue by viewModel.targetHigh.collectAsState()
-    val veryLowValue by viewModel.veryLowThreshold.collectAsState()
-    val veryHighValue by viewModel.veryHighThreshold.collectAsState()
+    val chartLowValue by viewModel.graphLow.collectAsStateWithLifecycle()
+    val chartHighValue by viewModel.graphHigh.collectAsStateWithLifecycle()
+    val targetLowValue by viewModel.targetLow.collectAsStateWithLifecycle()
+    val targetHighValue by viewModel.targetHigh.collectAsStateWithLifecycle()
+    val veryLowValue by viewModel.veryLowThreshold.collectAsStateWithLifecycle()
+    val veryHighValue by viewModel.veryHighThreshold.collectAsStateWithLifecycle()
 
     val valueStep = if (isMmol) 0.1f else 1f
     val targetLowBounds = if (isMmol) 2.0f..8.0f else 40f..140f
@@ -113,6 +117,10 @@ fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
     }
     var chartExpanded by rememberSaveable { mutableStateOf(false) }
     var glucoseExpanded by rememberSaveable { mutableStateOf(false) }
+    // A search for Target range opens this card; the controls then mark themselves.
+    LaunchedEffect(Unit) {
+        if (SettingsSearchReveal.isPending(SettingsSearchAnchors.TARGET_RANGE)) glucoseExpanded = true
+    }
 
     val targetSummary = formatRangeSummary(targetLowSlider, targetHighSlider, isMmol)
     val chartSummary = formatRangeSummary(chartLowSlider, chartHighSlider, isMmol)
@@ -188,37 +196,45 @@ fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
                     viewModel.setVeryLowHighThresholds(veryLowSlider, veryHighSlider)
                 }
             )
-            GlucoseThresholdSliderRow(
-                label = stringResource(R.string.high_label),
-                value = targetHighSlider,
-                bounds = targetHighBounds,
-                isMmol = isMmol,
-                colorBand = Band.HIGH,
-                onValueChange = { candidate ->
-                    targetHighSlider = clampUpperRangeValue(
-                        candidate, targetLowSlider, targetHighBounds, valueStep, isMmol
-                    )
-                },
-                onValueChangeFinished = {
-                    viewModel.setTargetRange(targetLowSlider, targetHighSlider)
-                }
-            )
-            TargetRangeColorRow()
-            GlucoseThresholdSliderRow(
-                label = stringResource(R.string.low_label),
-                value = targetLowSlider,
-                bounds = targetLowBounds,
-                isMmol = isMmol,
-                colorBand = Band.LOW,
-                onValueChange = { candidate ->
-                    targetLowSlider = clampLowerRangeValue(
-                        candidate, targetHighSlider, targetLowBounds, valueStep, isMmol
-                    )
-                },
-                onValueChangeFinished = {
-                    viewModel.setTargetRange(targetLowSlider, targetHighSlider)
-                }
-            )
+            // The target range: its two limits and its colours. A search for it lands here.
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.settingsSearchAnchor(
+                    SettingsSearchAnchors.TARGET_RANGE, RoundedCornerShape(12.dp), outset = 8.dp
+                )
+            ) {
+                GlucoseThresholdSliderRow(
+                    label = stringResource(R.string.high_label),
+                    value = targetHighSlider,
+                    bounds = targetHighBounds,
+                    isMmol = isMmol,
+                    colorBand = Band.HIGH,
+                    onValueChange = { candidate ->
+                        targetHighSlider = clampUpperRangeValue(
+                            candidate, targetLowSlider, targetHighBounds, valueStep, isMmol
+                        )
+                    },
+                    onValueChangeFinished = {
+                        viewModel.setTargetRange(targetLowSlider, targetHighSlider)
+                    }
+                )
+                TargetRangeColorRow()
+                GlucoseThresholdSliderRow(
+                    label = stringResource(R.string.low_label),
+                    value = targetLowSlider,
+                    bounds = targetLowBounds,
+                    isMmol = isMmol,
+                    colorBand = Band.LOW,
+                    onValueChange = { candidate ->
+                        targetLowSlider = clampLowerRangeValue(
+                            candidate, targetHighSlider, targetLowBounds, valueStep, isMmol
+                        )
+                    },
+                    onValueChangeFinished = {
+                        viewModel.setTargetRange(targetLowSlider, targetHighSlider)
+                    }
+                )
+            }
             GlucoseThresholdSliderRow(
                 label = stringResource(R.string.very_low_label),
                 value = veryLowSlider,
@@ -309,19 +325,20 @@ private fun GlucoseRangeSliderRow(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            AdaptiveTrailingRow(
+                trailingContent = {
+                    Text(
+                        text = formatRangeValue(value, isMmol),
+                        style = MaterialTheme.typography.titleLargeEmphasized.copy(
+                            fontFeatureSettings = "tnum"
+                        )
+                    )
+                }
+            ) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = formatRangeValue(value, isMmol),
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontFeatureSettings = "tnum"
-                    ),
-                    fontWeight = FontWeight.SemiBold
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Slider(

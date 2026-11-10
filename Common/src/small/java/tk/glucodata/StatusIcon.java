@@ -1,1 +1,0 @@
-../../../../wear/java/tk/glucodata/StatusIcon.java

@@ -1,10 +1,11 @@
 package tk.glucodata
 
+import tk.glucodata.drivers.api.ApiIobSnapshot
 import tk.glucodata.drivers.nightscout.NightscoutFollowerDeviceStatus
 
 /** One remote insulin/carb state used consistently by every app surface. */
 object RemoteIobSnapshot {
-    enum class Source { CLONE, NIGHTSCOUT }
+    enum class Source { CLONE, NIGHTSCOUT, API }
 
     data class Values(
         val iobUnits: Float,
@@ -30,7 +31,8 @@ object RemoteIobSnapshot {
         cloneRegistered: Boolean,
         clone: Values?,
         nightscout: Values?,
-    ): Values? = if (cloneReceptionEnabled && cloneRegistered) clone ?: nightscout else nightscout
+        api: Values? = null,
+    ): Values? = if (cloneReceptionEnabled && cloneRegistered) clone ?: nightscout ?: api else nightscout ?: api
 
     @JvmStatic
     @JvmOverloads
@@ -38,6 +40,7 @@ object RemoteIobSnapshot {
         nowMillis: Long,
         allowClone: Boolean = true,
         allowNightscout: Boolean = true,
+        allowApi: Boolean = true,
     ): Values? {
         val clone = if (allowClone) {
             CloneIobSnapshot.fresh(nowMillis)?.let {
@@ -63,11 +66,21 @@ object RemoteIobSnapshot {
                 source = Source.NIGHTSCOUT,
             )
         } else null
+        val api = if (allowApi) ApiIobSnapshot.fresh(nowMillis)?.let {
+            Values(
+                iobUnits = it.iobUnits,
+                eiobUnits = it.eiobUnits,
+                cobGrams = it.cobGrams,
+                timestampMillis = it.timestampMillis,
+                source = Source.API,
+            )
+        } else null
         return select(
             cloneReceptionEnabled = allowClone && CloneSensorRegistry.isReceptionEnabled(),
             cloneRegistered = allowClone && CloneSensorRegistry.hasAnyCloneSensor(),
             clone = clone,
             nightscout = nightscout,
+            api = api,
         )
     }
 }

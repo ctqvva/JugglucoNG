@@ -27412,19 +27412,34 @@ internal class SibionicsExactV116ACore(decodedSensitivity: Float = 1.27f) {
     }
 
     fun restore(snapshot: ByteArray?): Boolean {
-        if (snapshot == null || snapshot.size != HEADER_SIZE + CONTEXT_SIZE + HELD_STATE_SIZE) {
-            return false
-        }
+        if (snapshot == null || snapshot.size < HEADER_SIZE) return false
         val header = Ptr(snapshot)
-        if (readI32(header) != SNAPSHOT_MAGIC || readI32(header.plus(4)) != SNAPSHOT_VERSION) {
-            return false
+        if (readI32(header) != SNAPSHOT_MAGIC) return false
+        val version = readI32(header.plus(4))
+        val expectedSize = when (version) {
+            SNAPSHOT_VERSION -> HEADER_SIZE + CONTEXT_SIZE + HELD_STATE_SIZE
+            CONTEXT_ONLY_SNAPSHOT_VERSION -> HEADER_SIZE + CONTEXT_SIZE
+            else -> return false
         }
+        if (snapshot.size != expectedSize) return false
         if (readI32(header.plus(8)) != decodedSensitivity.toRawBits()) return false
         context = snapshot.copyOfRange(HEADER_SIZE, HEADER_SIZE + CONTEXT_SIZE)
-        val held = Ptr(snapshot).plus(HEADER_SIZE + CONTEXT_SIZE)
-        heldCalibrationOffsetMmol = Float.fromBits(readI32(held))
-        lastStageEsaBits = readI64(held.plus(4))
-        hasStageState = readI32(held.plus(12)) != 0
+        if (version == SNAPSHOT_VERSION) {
+            val held = Ptr(snapshot).plus(HEADER_SIZE + CONTEXT_SIZE)
+            heldCalibrationOffsetMmol = Float.fromBits(readI32(held))
+            lastStageEsaBits = readI64(held.plus(4))
+            hasStageState = readI32(held.plus(12)) != 0
+        } else {
+            // A 1.1.x checkpoint has no held stage terms. The exact context is
+            // complete, so the stock output continues unchanged; the observation
+            // waits for the next stage refresh instead of latching the current
+            // slot mid-stage (the five-minute sample-and-hold trap).
+            heldCalibrationOffsetMmol = 0f
+            lastStageEsaBits = readF64(Ptr(context).plus(DECONVOLUTION_INPUT_OFFSET)).toRawBits()
+            hasStageState = false
+        }
+        latestChemicalSignal = null
+        latestSensorObservation = null
         return true
     }
 
@@ -27435,10 +27450,12 @@ internal class SibionicsExactV116ACore(decodedSensitivity: Float = 1.27f) {
         private const val SNAPSHOT_MAGIC = 0x5331_3136
 
         /**
-         * 2 adds the held sensor-state terms. A version-1 snapshot restores as
-         * false, which is the existing signal to rebuild rather than continue.
+         * 2 adds the held sensor-state terms. A version-1 snapshot still restores
+         * its exact context; see [restore].
          */
         private const val SNAPSHOT_VERSION = 2
+        /** Written by 1.1.x: header and exact context, no held stage terms. */
+        private const val CONTEXT_ONLY_SNAPSHOT_VERSION = 1
         private const val HEADER_SIZE = 12
 
         /** offset (f32) + last ESA bits (i64) + hasStageState (i32). */

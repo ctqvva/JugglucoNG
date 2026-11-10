@@ -1,10 +1,15 @@
 package tk.glucodata.data.journal
 
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.Keep
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.Applic
+import tk.glucodata.JournalTreatmentUploadBridge
 import tk.glucodata.Log
 import tk.glucodata.Natives
 import tk.glucodata.NightPost
@@ -15,6 +20,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import java.util.Locale
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Sends Kotlin Journal entries to Nightscout as treatments. Replaces the legacy C++
@@ -25,7 +32,7 @@ import java.util.Locale
  * deletes are queued in journal_pending_deletes so they survive process death.
  */
 @Keep
-object JournalTreatmentUploader {
+object JournalTreatmentUploader : JournalTreatmentUploadBridge {
     private const val LOG_ID = "JournalTreatmentUploader"
     private const val ID_PREFIX = "jng-j-"
     private const val LOOKBACK_MILLIS = 30L * 24 * 60 * 60 * 1000  // mirrors C++ nighttimeback (30 days)
@@ -37,6 +44,7 @@ object JournalTreatmentUploader {
     private const val SEND_BACKOFF_FIRST_MILLIS = 60_000L
     private const val SEND_BACKOFF_MAX_MILLIS = 30L * 60_000L
     private const val RECEIVE_ERROR_LOG_INTERVAL_MILLIS = 5L * 60 * 1000
+    private const val RECEIVE_MIN_INTERVAL_MILLIS = 5L * 60 * 1000
 
     /**
      * Refused deletes the tombstone survives before it is dropped. A document Nightscout
@@ -210,6 +218,50 @@ object JournalTreatmentUploader {
 
     private val receiveErrorLog = RepeatedErrorLog(RECEIVE_ERROR_LOG_INTERVAL_MILLIS)
 
+    /**
+     * Lower bound on how often treatments are read back. The read is the newest 240 documents
+     * every time (a few hundred KB on a busy site), and it runs on every treatment pass, so
+     * anything that makes passes frequent multiplies it directly: the receive/wake loop did
+     * about one pass every two seconds, tens of MB in ten minutes. Nightscout gives no way to
+     * ask only for what changed that covers v1-written documents (they carry no srvModified,
+     * so v3 history misses them, and a created_at window misses back-dated entries), so the
+     * rate is what gets bounded. A pass inside the interval is not dropped: one wake is
+     * booked for when the interval ends, so a remote change still arrives without waiting
+     * for the next local edit.
+     *
+     * Keyed by server and API version, so pointing the app at a different site reads it at once.
+     */
+    internal class ReceiveFloor(private val intervalMillis: Long) {
+        private var lastKey: String? = null
+        private var lastReadAt = 0L
+
+        /** 0 when a read may go now, otherwise how long until it may. */
+        fun waitMillis(key: String, nowMillis: Long): Long {
+            if (key != lastKey || lastReadAt == 0L) return 0L
+            val elapsed = nowMillis - lastReadAt
+            if (elapsed < 0 || elapsed >= intervalMillis) return 0L
+            return intervalMillis - elapsed
+        }
+
+        /** Only a read that succeeded starts the interval; a failure is the native backoff's. */
+        fun recordRead(key: String, nowMillis: Long) {
+            lastKey = key
+            lastReadAt = nowMillis
+        }
+    }
+
+    private val receiveFloor = ReceiveFloor(RECEIVE_MIN_INTERVAL_MILLIS)
+    private val deferredReceiveBooked = AtomicBoolean(false)
+
+    private fun bookDeferredReceive(delayMillis: Long) {
+        if (!deferredReceiveBooked.compareAndSet(false, true)) return
+        Handler(Looper.getMainLooper()).postDelayed({
+            deferredReceiveBooked.set(false)
+            runCatching { Natives.waketreatments() }
+                .onFailure { Log.e(LOG_ID, "deferred receive wake failed: ${Log.stackline(it)}") }
+        }, delayMillis)
+    }
+
     /** Path only: the host is already known and repeating it just crowds the line. */
     internal fun endpointPath(endpoint: String): String =
         runCatching { URL(endpoint).path }.getOrNull()?.takeIf { it.isNotBlank() } ?: endpoint
@@ -221,20 +273,66 @@ object JournalTreatmentUploader {
         return false
     }
 
-    @JvmStatic
+    /**
+     * One pass at a time, whichever side asked. Two at once would both read the same pending
+     * rows and post each of them twice.
+     */
+    private val passLock = Mutex()
+
     @Keep
-    fun uploadAll(useV3: Boolean): Boolean = runBlocking {
+    override fun uploadAll(useV3: Boolean): Boolean = runBlocking {
         try {
-            uploadInternal(useV3)
+            passLock.withLock {
+                uploadInternal(useV3, Natives.getpostTreatments(), getReceiveTreatments())
+            }
         } catch (th: Throwable) {
             Log.e(LOG_ID, "uploadAll failed: ${Log.stackline(th)}")
             false
         }
     }
 
-    @JvmStatic
+    private val followerExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "NightscoutFollowerTreatments").apply { isDaemon = true }
+    }
+    private val followerPassQueued = AtomicBoolean(false)
+
+    /**
+     * A follower's send pass. Follow mode runs no native uploader, so this has its own thread;
+     * a failure is retried by the next follower poll, and [sendBackoff] still keeps a refused
+     * entry from being knocked on every time. Send only: the follower already reads the
+     * server's treatments on every poll, and reading them a second time here would be waste.
+     */
     @Keep
-    fun getReceiveTreatments(): Boolean =
+    override fun sendAsFollower() {
+        if (!followerPassQueued.compareAndSet(false, true)) return
+        followerExecutor.execute {
+            followerPassQueued.set(false)
+            try {
+                runBlocking { passLock.withLock { sendAsFollowerLocked() } }
+            } catch (th: Throwable) {
+                Log.e(LOG_ID, "sendAsFollower failed: ${Log.stackline(th)}")
+            }
+        }
+    }
+
+    private suspend fun sendAsFollowerLocked() {
+        if (!tk.glucodata.NightscoutUploadWake.followerSendsTreatments()) return
+        val config = NightscoutFollowerRegistry.loadConfig(Applic.app)
+        // The v3 write path authenticates with the uploader's URL and secret. The settings
+        // screen keeps them the same as the follower's; if something else changed one, do not
+        // post this phone's entries to a server it is not following.
+        val uploaderSecret = Natives.getnightuploadsecret().orEmpty().trim()
+        if (!sameServer(Natives.getnightuploadurl(), config.url) || uploaderSecret != config.secret.trim()) {
+            Log.e(LOG_ID, "follower send skipped: uploader server settings differ from the followed server")
+            return
+        }
+        NightscoutJournalFollowerImporter.followerSendLock.withLock {
+            uploadInternal(config.useV3, sendEnabled = true, receiveEnabled = false)
+        }
+    }
+
+    @Keep
+    override fun getReceiveTreatments(): Boolean =
         Applic.app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
             .getBoolean(PREF_RECEIVE_TREATMENTS, false)
 
@@ -262,9 +360,17 @@ object JournalTreatmentUploader {
             .apply()
     }
 
-    private suspend fun uploadInternal(useV3: Boolean): Boolean {
-        val sendEnabled = Natives.getpostTreatments()
-        val receiveEnabled = getReceiveTreatments()
+    /** The native side drops an "/api/..." tail the follower keeps; neither cares about case. */
+    internal fun sameServer(uploaderUrl: String?, followedUrl: String?): Boolean {
+        fun key(url: String?) = NightscoutFollowerRegistry.normalizeUrl(url)
+            .substringBefore("/api/")
+            .trimEnd('/')
+            .lowercase(Locale.US)
+        val uploader = key(uploaderUrl)
+        return uploader.isNotEmpty() && uploader == key(followedUrl)
+    }
+
+    private suspend fun uploadInternal(useV3: Boolean, sendEnabled: Boolean, receiveEnabled: Boolean): Boolean {
         val sendLongInsulin = getSendLongInsulin()
         if (!sendEnabled && !receiveEnabled) return true
         val baseUrl = Natives.getnightuploadurl()?.takeIf { it.isNotBlank() } ?: return true
@@ -642,9 +748,16 @@ object JournalTreatmentUploader {
         optString("_id").trim().takeIf { it.isNotBlank() }
             ?: optString("id").trim().takeIf { it.isNotBlank() }
 
-    private fun receiveRemoteTreatments(baseUrl: String, secret: String, useV3: Boolean): Boolean =
-        runCatching {
+    private fun receiveRemoteTreatments(baseUrl: String, secret: String, useV3: Boolean): Boolean {
+        val floorKey = "${if (useV3) "v3" else "v1"} ${NightscoutFollowerRegistry.normalizeUrl(baseUrl)}"
+        val waitMillis = receiveFloor.waitMillis(floorKey, System.currentTimeMillis())
+        if (waitMillis > 0L) {
+            bookDeferredReceive(waitMillis)
+            return true
+        }
+        return runCatching {
             val body = fetchTreatmentsJson(baseUrl, secret, useV3)
+            receiveFloor.recordRead(floorKey, System.currentTimeMillis())
             if (body.isBlank() || body == "[]") return@runCatching true
             val sensorId = NightscoutFollowerRegistry.deriveSensorId(baseUrl)
             val imported = NightscoutJournalFollowerImporter.importTreatments(sensorId, body)
@@ -663,21 +776,27 @@ object JournalTreatmentUploader {
                 Log.e(LOG_ID, if (repeats == 0) message else "$message (repeated ${repeats + 1}x)")
             }
         }.getOrDefault(false)
+    }
 
-    private fun fetchTreatmentsJson(baseUrl: String, secret: String, useV3: Boolean): String {
+    private fun fetchTreatmentsJson(
+        baseUrl: String,
+        secret: String,
+        useV3: Boolean,
+        retryRejectedToken: Boolean = true,
+    ): String {
         val normalized = NightscoutFollowerRegistry.normalizeUrl(baseUrl)
         if (normalized.isBlank()) return "[]"
         val endpoint = treatmentFetchUrl(normalized, useV3)
+        // v3 reads want the same bearer token the v3 upload path already obtains and
+        // caches; the configured secret is an access token there, and hashing it into an
+        // api-secret header is what the 401 was.
+        val v3Auth = if (useV3) NightPost.getV3AuthorizationHeader() else ""
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
             readTimeout = 30_000
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "JugglucoNG Nightscout journal sync")
-            // v3 reads want the same bearer token the v3 upload path already obtains and
-            // caches; the configured secret is an access token there, and hashing it into an
-            // api-secret header is what the 401 was.
-            val v3Auth = if (useV3) NightPost.getV3AuthorizationHeader() else ""
             if (v3Auth.isNotEmpty()) {
                 setRequestProperty("Authorization", v3Auth)
             } else {
@@ -686,6 +805,12 @@ object JournalTreatmentUploader {
         }
         try {
             val code = connection.responseCode
+            // The cached JWT outlived the key that signed it (Nightscout restarted, #716).
+            if (code == HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && v3Auth.isNotEmpty()) {
+                NightPost.dropRejectedV3AuthorizationHeader(v3Auth)
+                connection.disconnect()
+                return fetchTreatmentsJson(baseUrl, secret, useV3, retryRejectedToken = false)
+            }
             val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()
                 ?.use { it.readText() }

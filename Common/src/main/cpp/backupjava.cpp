@@ -701,6 +701,29 @@ extern "C" JNIEXPORT void JNICALL fromjava(wakehereonly)(JNIEnv *env,
   }
 }
 
+// A new reading: the same wake the native drivers give their readings. Clone
+// sends the stream over the open link; a reconnect would redo the handshake
+// and every profile push once a minute, keeping the phone off deep sleep.
+// The stream carries polls only, so a host still lacking a sensor's entry in
+// sensors.dat (a sensor started since its last full update) gets the full update
+// instead, still without reconnecting; it can't place the readings until it
+// knows the sensor. Per host: one that stays offline must not cost the others.
+extern "C" JNIEXPORT void JNICALL fromjava(wakestreamonly)(JNIEnv *env,
+                                                           jclass cl) {
+  if (!backup)
+    return;
+  const int lastsensor = sensors ? sensors->last() : -1;
+  const auto *data = backup->getupdatedata();
+  backup->wakeeach([data, lastsensor](int h) {
+    const updateone &host = data->tosend[h];
+    return (host.sendstream || host.sendscans) &&
+                   !data->allhosts[host.allindex].deactivated &&
+                   host.startsensors <= lastsensor
+               ? Backup::wakeall
+               : Backup::wakestream;
+  });
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 fromjava(getHostDeactivated)(JNIEnv *envin, jclass cl, jint pos) {
   if (pos < backup->getupdatedata()->hostnr) {
@@ -921,7 +944,8 @@ extern "C" JNIEXPORT void JNICALL fromjava(setTurnServer)(
 extern "C" JNIEXPORT void JNICALL fromjava(setCloneICEConfig)(
     JNIEnv *env, jclass cl, jstring rendezvousHost, jint rendezvousPort,
     jboolean useTurnForStun, jboolean verifyRendezvousCertificate,
-    jboolean useLocalDiscovery, jboolean preferIPv4) {
+    jboolean useLocalDiscovery, jboolean preferIPv4,
+    jboolean allowFallbackServers) {
 #ifdef __ANDROID__
   extern void initializeLocalICEMulticast(JNIEnv *env);
   initializeLocalICEMulticast(env);
@@ -940,7 +964,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(setCloneICEConfig)(
                       ? static_cast<uint16_t>(rendezvousPort)
                       : static_cast<uint16_t>(6789),
                   useTurnForStun, verifyRendezvousCertificate,
-                  useLocalDiscovery, preferIPv4);
+                  useLocalDiscovery, preferIPv4, allowFallbackServers);
 }
 
 extern "C" JNIEXPORT void JNICALL fromjava(deleteTurnServer)(JNIEnv *env,

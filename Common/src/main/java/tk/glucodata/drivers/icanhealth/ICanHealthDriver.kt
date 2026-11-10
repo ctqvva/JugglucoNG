@@ -1,5 +1,6 @@
 package tk.glucodata.drivers.icanhealth
 
+import tk.glucodata.Applic
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.ManagedBluetoothSensorDriver
@@ -16,6 +17,9 @@ data class ICanHealthCurrentSnapshot(
 )
 
 interface ICanHealthDriver : ManagedBluetoothSensorDriver {
+    /** Read-only calibration marker (F6) shown in the sensor details. */
+    fun getSensorDetailTelemetry(): String = ""
+
 
     override fun canConnectWithoutDataptr(): Boolean = true
 
@@ -68,7 +72,8 @@ interface ICanHealthDriver : ManagedBluetoothSensorDriver {
         }
         return ManagedSensorUiSnapshot(
             serial = sensorSerial,
-            displayName = runCatching { callback.mygetDeviceName() }.getOrDefault(sensorSerial),
+            displayName = runCatching { ICanHealthRegistry.boxSerialFor(Applic.app, sensorSerial) }.getOrNull()
+                ?: runCatching { callback.mygetDeviceName() }.getOrDefault(sensorSerial),
             deviceAddress = callback.mActiveDeviceAddress ?: "Unknown",
             uiFamily = ManagedSensorUiFamily.ICAN,
             connectionStatus = passiveConnectionStatus,
@@ -91,6 +96,7 @@ interface ICanHealthDriver : ManagedBluetoothSensorDriver {
             sensorAgeHours = runCatching { getSensorAgeHours() }.getOrDefault(-1),
             vendorFirmware = runCatching { vendorFirmwareVersion }.getOrDefault(""),
             vendorModel = runCatching { vendorModelName }.getOrDefault(""),
+            sensorDetailTelemetry = runCatching { getSensorDetailTelemetry() }.getOrDefault(""),
         )
     }
 

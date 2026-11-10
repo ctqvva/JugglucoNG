@@ -60,6 +60,27 @@ class SibionicsSampleJournalTest {
         }
     }
 
+    @Test
+    fun firstMissingIndexFindsTheHoleBelowTheCursor() {
+        val directory = Files.createTempDirectory("sibionics-journal-missing").toFile()
+        try {
+            val journal = SibionicsSampleJournal(File(directory, "samples.dat"))
+            assertEquals(1, journal.firstMissingIndex(1, 10))
+            journal.appendAll(listOf(sample(1), sample(2), sample(3), sample(6), sample(7)))
+            assertEquals(4, journal.firstMissingIndex(1, 8))
+            assertEquals(4, journal.firstMissingIndex(4, 8))
+            assertEquals(5, journal.firstMissingIndex(5, 8))
+            assertEquals(null, journal.firstMissingIndex(6, 8))
+            assertEquals(null, journal.firstMissingIndex(1, 4))
+            assertEquals(null, journal.firstMissingIndex(0, 4))
+            journal.appendAll(listOf(sample(4), sample(5)))
+            assertEquals(null, journal.firstMissingIndex(1, 8))
+            assertEquals(8, journal.firstMissingIndex(1, 9))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
     private fun sample(index: Int, raw: Float = 5f) = SibionicsSourceSample(
         index = index,
         timestampMs = 1_700_000_000_000L + index * 60_000L,

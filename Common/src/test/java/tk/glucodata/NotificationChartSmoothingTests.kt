@@ -13,6 +13,7 @@ class NotificationChartSmoothingTests {
                 it.sensorSerial = "A"
                 it.sealedDisplayValue = 125f
                 it.sealedDisplayViewMode = 0
+                it.uncertainty = GlucoseUncertainty(value - 20f, value + 10f)
             }
         }
         val smoothed = NotificationChartModelSource.smoothPoints(points, 3, false)
@@ -27,6 +28,9 @@ class NotificationChartSmoothingTests {
             MainSensorOwnership.NONE, HistoryChartModelBuilder.Calibration { _, _, _, _ -> null },
         )
         assertEquals(125f, model.primary!!.valueAt(points[2].timestamp)!!, 0.001f)
+        val interval = model.primary!!.runs.first().points[2].uncertainty!!
+        assertEquals(105f, interval.lower, 0.001f)
+        assertEquals(135f, interval.upper, 0.001f)
     }
 
     @Test fun neverSmoothsAcrossSensorReplacement() {

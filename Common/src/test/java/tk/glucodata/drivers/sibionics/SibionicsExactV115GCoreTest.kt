@@ -189,6 +189,57 @@ class SibionicsExactV115GCoreTest {
         }
     }
 
+    @Test
+    fun restoresA11xCheckpointWithoutTheHeldStageTerms() {
+        // 1.2 appended the held stage terms and bumped the version; rejecting the
+        // 1.1.x checkpoint forced a replay of the sensor's whole life on update.
+        val rows = replayRows()
+        val uninterrupted = SibionicsExactV115GCore(decodedSensitivity = 1.40f)
+        val restored = SibionicsExactV115GCore(decodedSensitivity = 1.40f)
+        val splitAt = rows.indexOfFirst { it.index == 7_500 }
+        require(splitAt > 0)
+        rows.take(splitAt).forEach { row ->
+            uninterrupted.process(row.rawMmol, row.temperatureC, row.index)
+        }
+
+        assertTrue(restored.restore(asPreObservationSnapshot(uninterrupted.snapshot())))
+
+        rows.drop(splitAt).forEach { row ->
+            val expected = uninterrupted.process(row.rawMmol, row.temperatureC, row.index)
+            val actual = restored.process(row.rawMmol, row.temperatureC, row.index)
+            if (expected == null) {
+                assertNull("legacy-restored non-display index ${row.index}", actual)
+            } else {
+                assertNotNull("legacy-restored missing display index ${row.index}", actual)
+                assertEquals("legacy-restored display index ${row.index}", expected, actual!!, 0.0001f)
+            }
+        }
+    }
+
+    @Test
+    fun rejectsALegacyCheckpointForADifferentSensitivity() {
+        val source = SibionicsExactV115GCore(decodedSensitivity = 1.40f)
+        replayRows().take(200).forEach { source.process(it.rawMmol, it.temperatureC, it.index) }
+        val other = SibionicsExactV115GCore(decodedSensitivity = 1.27f)
+        assertFalse(other.restore(asPreObservationSnapshot(source.snapshot())))
+    }
+
+    /**
+     * Rewrites a current (v3) snapshot into the 1.1.x (v2) layout: the same
+     * fields without heldBase (f32), heldEsaCompensation (f32) and
+     * hasStageState (bool), which sit just before the trailing clip block.
+     */
+    private fun asPreObservationSnapshot(current: ByteArray): ByteArray {
+        val buffer = java.nio.ByteBuffer.wrap(current)
+        val clipSize = (current.size - 4 downTo 1).first { size ->
+            buffer.getInt(current.size - 4 - size) == size
+        }
+        val heldStart = current.size - 4 - clipSize - 9
+        val legacy = current.copyOfRange(0, heldStart) + current.copyOfRange(heldStart + 9, current.size)
+        java.nio.ByteBuffer.wrap(legacy).putInt(4, 2)
+        return legacy
+    }
+
     private fun replayRows(): List<ReplayRow> =
         resourceLines("sibionics_exact_v115g_replay.csv")
             .asSequence()

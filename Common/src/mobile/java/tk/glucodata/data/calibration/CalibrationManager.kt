@@ -3,11 +3,14 @@ package tk.glucodata.data.calibration
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.room.withTransaction
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -40,11 +43,18 @@ object CalibrationManager {
     private const val KEY_OVERWRITE_SENSOR_VALUES = "calibration_overwrite_sensor_values"
     private const val KEY_FREEZE_DISPLAYED_VALUES = "calibration_freeze_displayed_values"
     private const val KEY_FREEZE_MIGRATED_FROM_OVERWRITE = "calibration_freeze_migrated_from_overwrite"
+    private const val KEY_DISPLAY_SEAL_GRACE_HOURS = "calibration_display_seal_grace_hours"
+    private val DEFAULT_DISPLAY_SEAL_GRACE_HOURS =
+        (tk.glucodata.chart.MainSensorOwnership.DEFAULT_SEAL_GRACE_MS / 3_600_000L).toInt()
     private const val KEY_VISUAL_CONTINUITY = "calibration_visual_continuity"
     private const val KEY_CALIBRATE_FROM_JOURNAL = "calibration_from_journal_bg"
+    private const val KEY_JOURNAL_DISMISSED_TIMESTAMPS = "calibration_journal_dismissed_timestamps"
     private const val KEY_KEEP_DISABLED_HISTORY = "calibration_keep_disabled_history"
     private const val KEY_WEIGHT_MODE = "calibration_weight_mode"
     private const val KEY_PROFILE_REVISION_PREFIX = "calibration_profile_revision_"
+    private const val KEY_POINT_ADDED_AT_PREFIX = "calibration_point_added_at_"
+    private const val KEY_POINT_SWITCHES_PREFIX = "calibration_point_switches_"
+    private val calibrationLoadOrder = CalibrationLoadOrder()
     private const val HOUR_MS = 3_600_000.0
     private const val PAST_BLEND_WINDOW_MS = 30L * 60L * 1000L
     private const val INTEGRATED_ANCHOR_MATCH_MS = 2L * 60L * 1000L
@@ -181,7 +191,11 @@ object CalibrationManager {
     
     // Reactive list of calibrations
     private val _calibrations = MutableStateFlow<List<CalibrationEntity>>(emptyList())
-    val calibrations: StateFlow<List<CalibrationEntity>> = _calibrations
+    val calibrations: StateFlow<List<CalibrationEntity>>
+        get() {
+            ensureCalibrationStateLoaded()
+            return _calibrations
+        }
     
     // Calibration enablement is per sensor and mode. An absent sensor ID is enabled by
     // default, matching the historical global default without leaking one sensor's toggle
@@ -210,6 +224,17 @@ object CalibrationManager {
      */
     private val _freezeDisplayedValues = MutableStateFlow(true)
     val freezeDisplayedValues: StateFlow<Boolean> = _freezeDisplayedValues
+
+    /** The choices offered for [displaySealGraceHours], shortest first. */
+    val DISPLAY_SEAL_GRACE_HOURS_CHOICES = listOf(1, 3, 6, 12, 24)
+
+    /**
+     * How long a displayed value stays revisable before it is kept — see
+     * `tk.glucodata.data.ReadingDisplay.isSealedAt`. One of
+     * [DISPLAY_SEAL_GRACE_HOURS_CHOICES].
+     */
+    private val _displaySealGraceHours = MutableStateFlow(DEFAULT_DISPLAY_SEAL_GRACE_HOURS)
+    val displaySealGraceHours: StateFlow<Int> = _displaySealGraceHours
 
     private val _visualContinuity = MutableStateFlow(true)
     val visualContinuity: StateFlow<Boolean> = _visualContinuity
@@ -240,8 +265,10 @@ object CalibrationManager {
     private var calibrationRevision = 0L
     private val _revision = MutableStateFlow(0L)
     val revision: StateFlow<Long> = _revision
-    @Volatile
-    private var suppressMirrorSyncCount = 0
+    // Includes aliases and different connections: no receiver may compare against
+    // a revision whose replacement is still being published by another receiver.
+    private val mirrorProfileLock = Any()
+    private val suppressMirrorSync = ThreadLocal.withInitial { false }
     private val calibrationCache = object : LinkedHashMap<CalibrationCacheKey, Float>(512, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<CalibrationCacheKey, Float>?): Boolean {
             return size > 4096
@@ -274,6 +301,9 @@ object CalibrationManager {
         _keepDisabledHistory.value = prefs.getBoolean(KEY_KEEP_DISABLED_HISTORY, false)
         _overwriteSensorValues.value = prefs.getBoolean(KEY_OVERWRITE_SENSOR_VALUES, false)
         _freezeDisplayedValues.value = prefs.getBoolean(KEY_FREEZE_DISPLAYED_VALUES, true)
+        _displaySealGraceHours.value = prefs.getInt(KEY_DISPLAY_SEAL_GRACE_HOURS, DEFAULT_DISPLAY_SEAL_GRACE_HOURS)
+            .takeIf { it in DISPLAY_SEAL_GRACE_HOURS_CHOICES }
+            ?: DEFAULT_DISPLAY_SEAL_GRACE_HOURS
         _visualContinuity.value = prefs.getBoolean(KEY_VISUAL_CONTINUITY, true)
         _calibrateFromJournal.value = prefs.getBoolean(KEY_CALIBRATE_FROM_JOURNAL, false)
         _weightMode.value = CalibrationWeightMode.fromStorage(
@@ -303,6 +333,7 @@ object CalibrationManager {
 
     private fun ensureCalibrationStateLoaded(): Boolean {
         if (calibrationStateLoaded && ::dao.isInitialized && ::prefs.isInitialized) {
+            refreshDisplayUnits()
             return true
         }
         if (!ensureInitialized()) {
@@ -315,19 +346,38 @@ object CalibrationManager {
             val list = runCatching {
                 runBlocking(Dispatchers.IO) {
                     migrateCalibrationSensorIdsIfPossible()
-                    dao.getAllSync()
+                    dao.labelLegacyUnits(if (Applic.unit == 1) 1 else 0)
+                    dao.getAllSync().map { it.inUnit(Applic.unit) }
                 }
             }.onFailure {
                 Log.w(TAG, "Failed to load calibrations for background access", it)
             }.getOrNull() ?: return false
-            _calibrations.value = list
-            calibrationStateLoaded = true
+            synchronized(boundaryLock) {
+                _calibrations.value = relabelBeforeBoundaries(list)
+                calibrationStateLoaded = true
+            }
             invalidateComputationCache("ensureCalibrationStateLoaded")
         }
         return true
     }
 
+    private fun refreshDisplayUnits() {
+        val changed = synchronized(boundaryLock) {
+            val converted = _calibrations.value.map { it.inUnit(Applic.unit) }
+            if (converted == _calibrations.value) false else {
+                _calibrations.value = converted
+                true
+            }
+        }
+        if (changed) invalidateComputationCache("displayUnits")
+    }
+
     private fun invalidateComputationCache(reason: String) {
+        dropComputations()
+        announceRevision(reason)
+    }
+
+    private fun dropComputations() {
         calibrationRevision++
         _revision.value = calibrationRevision
         synchronized(calibrationCache) {
@@ -342,6 +392,10 @@ object CalibrationManager {
         synchronized(seriesCalibrators) {
             seriesCalibrators.clear()
         }
+    }
+
+    /** Outside every lock: drivers act on it. */
+    private fun announceRevision(reason: String) {
         Log.d(TAG, "Calibration cache invalidated: $reason")
         runCatching {
             tk.glucodata.drivers.ManagedSensorRuntime.notifyUserCalibrationRevisionChanged(calibrationRevision)
@@ -699,22 +753,18 @@ object CalibrationManager {
         return points
     }
 
-    private inline fun <T> withoutMirrorSync(block: () -> T): T {
-        suppressMirrorSyncCount++
-        return try {
-            block()
-        } finally {
-            suppressMirrorSyncCount--
-        }
-    }
-
-    private fun shouldMirrorSync(): Boolean = suppressMirrorSyncCount <= 0
+    private fun shouldMirrorSync(): Boolean = suppressMirrorSync.get() != true
 
     private fun profileRevisionKey(sensorId: String) = KEY_PROFILE_REVISION_PREFIX + sensorId
 
     private fun storedProfileRevision(sensorId: String): Long {
         if (!::prefs.isInitialized || sensorId.isBlank()) return 0L
-        return runCatching { prefs.getLong(profileRevisionKey(sensorId), 0L) }.getOrDefault(0L)
+        // Native paths use short names; Room profiles can use canonical/full
+        // names. Both spellings must see the same last edit, including deletion.
+        return prefs.all.asSequence().filter { (key, value) ->
+            value is Long && key.startsWith(KEY_PROFILE_REVISION_PREFIX) &&
+                sensorMatches(key.removePrefix(KEY_PROFILE_REVISION_PREFIX), sensorId)
+        }.maxOfOrNull { it.value as Long } ?: 0L
     }
 
     private fun setStoredProfileRevision(sensorId: String, revision: Long) {
@@ -726,7 +776,7 @@ object CalibrationManager {
     private fun localProfileRevision(sensorId: String): Long {
         val newestRow = _calibrations.value
             .asSequence()
-            .filter { sensorMatches(it.sensorId, sensorId) }
+            .filter { it.journalEntryId == null && sensorMatches(it.sensorId, sensorId) }
             .maxOfOrNull { it.timestamp } ?: 0L
         return MirrorCalibrationProfilePolicy.localRevision(
             storedRevision = storedProfileRevision(sensorId),
@@ -956,6 +1006,21 @@ object CalibrationManager {
         return _freezeDisplayedValues.value
     }
 
+    fun setDisplaySealGraceHours(hours: Int) {
+        if (hours !in DISPLAY_SEAL_GRACE_HOURS_CHOICES || _displaySealGraceHours.value == hours) return
+        _displaySealGraceHours.value = hours
+        if (::prefs.isInitialized) {
+            prefs.edit().putInt(KEY_DISPLAY_SEAL_GRACE_HOURS, hours).apply()
+        }
+        requestUiRefreshAfterCalibrationChange()
+        Log.i(TAG, "Display seal grace: ${hours}h")
+    }
+
+    fun displaySealGraceMs(): Long {
+        ensureInitialized()
+        return _displaySealGraceHours.value * 3_600_000L
+    }
+
     /**
      * Retires the old "overwrite sensor values in history DB" switch.
      *
@@ -1005,8 +1070,9 @@ object CalibrationManager {
     /**
      * Turns every blood-glucose entry in the journal — a meter reading or a
      * finger stick typed in by hand — into a calibration point. Switching it off
-     * removes the derived points again; hand-entered calibrations are untouched
-     * either way.
+     * removes the derived points again and forgets which ones the user removed, so
+     * switching it back on starts from the whole journal; hand-entered calibrations
+     * are untouched either way.
      */
     fun setCalibrateFromJournal(enabled: Boolean) {
         if (_calibrateFromJournal.value == enabled) return
@@ -1021,6 +1087,54 @@ object CalibrationManager {
     fun shouldCalibrateFromJournal(): Boolean {
         ensureInitialized()
         return _calibrateFromJournal.value
+    }
+
+    /**
+     * Moments the user took a calibration away from, which the journal must not
+     * fill again. The entry behind a derived point outlives the point, and a manual
+     * point can be all that was holding an entry back, so removing either would
+     * otherwise bring a point back on the next pass.
+     *
+     * Kept by time rather than by entry so the duplicate window applies, as it does
+     * to a manual point: a second entry for the same finger stick stays out too.
+     * Kept in preferences, not a table, so it reaches backups without a schema
+     * version an older build could not open. Mutated only between syncs.
+     *
+     * Anything before [sinceMillis] can no longer pair with a reading and is dropped.
+     */
+    fun dismissedJournalTimestamps(sinceMillis: Long): Set<Long> {
+        val stored = readDismissedJournalTimestamps()
+        val live = stored.filterTo(linkedSetOf()) { it >= sinceMillis }
+        if (live.size != stored.size) persistDismissedJournalTimestamps(live)
+        return live
+    }
+
+    private fun readDismissedJournalTimestamps(): Set<Long> {
+        if (!ensureInitialized()) return emptySet()
+        return prefs.getStringSet(KEY_JOURNAL_DISMISSED_TIMESTAMPS, emptySet())
+            .orEmpty()
+            .mapNotNullTo(linkedSetOf()) { it.toLongOrNull() }
+    }
+
+    private fun persistDismissedJournalTimestamps(timestamps: Set<Long>) {
+        prefs.edit()
+            .putStringSet(KEY_JOURNAL_DISMISSED_TIMESTAMPS, timestamps.mapTo(linkedSetOf()) { it.toString() })
+            .apply()
+    }
+
+    private fun dismissJournalTimestamps(timestamps: Collection<Long>) {
+        if (timestamps.isEmpty() || !shouldCalibrateFromJournal()) return
+        persistDismissedJournalTimestamps(readDismissedJournalTimestamps() + timestamps)
+    }
+
+    /**
+     * Only a derived point gives its moment back. A manual one holds the entry off
+     * by itself, and the moment it shares may be a removal made on another sensor.
+     */
+    private fun undismissJournalTimestamps(restored: Collection<CalibrationEntity>) {
+        val timestamps = restored.filter { it.journalEntryId != null }.mapTo(hashSetOf()) { it.timestamp }
+        val stored = readDismissedJournalTimestamps()
+        if (stored.any { it in timestamps }) persistDismissedJournalTimestamps(stored - timestamps)
     }
 
     fun setWeightMode(mode: CalibrationWeightMode) {
@@ -1090,7 +1204,21 @@ object CalibrationManager {
         val message: String
     )
 
-    fun exportProfileForSensorAsJson(sensorId: String): String? {
+    /** Room owns manual points even when a driver has no native sensor shell. */
+    fun mirrorProfileSensorIds(): Array<String> {
+        if (!ensureCalibrationStateLoaded()) return emptyArray()
+        val sensorIds = linkedSetOf<String>()
+        _calibrations.value.filter { it.journalEntryId == null }
+            .mapTo(sensorIds) { it.sensorId }
+        // Revisions survive deleting the last point and process restarts. Keep
+        // offering that empty profile so an offline peer can catch up later.
+        prefs.all.keys.filter { it.startsWith(KEY_PROFILE_REVISION_PREFIX) }
+            .mapTo(sensorIds) { it.removePrefix(KEY_PROFILE_REVISION_PREFIX) }
+        return sensorIds.map(::normalizeSensorId).filter { it.isNotBlank() }
+            .distinct().sorted().toTypedArray()
+    }
+
+    fun exportProfileForSensorAsJson(sensorId: String): String? = synchronized(mirrorProfileLock) {
         val normalizedSensorId = normalizeSensorId(sensorId)
         if (normalizedSensorId.isBlank()) return null
         ensureCalibrationStateLoaded()
@@ -1102,8 +1230,10 @@ object CalibrationManager {
             .filter { it.journalEntryId == null && sensorMatches(it.sensorId, normalizedSensorId) }
             .sortedByDescending { it.timestamp }
 
+        val exportUnit = if (Applic.unit == 1) 1 else 0
         val root = JSONObject()
         root.put("version", 2)
+        root.put("units", if (exportUnit == 1) "mmol/L" else "mg/dL")
         root.put("sensorId", normalizedSensorId)
         root.put("createdAt", System.currentTimeMillis())
         root.put("revision", localProfileRevision(normalizedSensorId))
@@ -1120,12 +1250,14 @@ object CalibrationManager {
         root.put("autoAlgorithm", _algorithmForAuto.value.storageValue)
 
         val payload = JSONArray()
-        rows.forEach { row ->
+        rows.forEach { stored ->
+            val row = stored.inUnit(exportUnit)
             val obj = JSONObject()
             obj.put("timestamp", row.timestamp)
             obj.put("sensorId", if (row.sensorId.isBlank()) normalizedSensorId else row.sensorId)
             obj.put("sensorValue", row.sensorValue.toDouble())
             obj.put("sensorValueRaw", row.sensorValueRaw.toDouble())
+            obj.put("sensorValueStock", row.sensorValueStock.toDouble())
             obj.put("userValue", row.userValue.toDouble())
             obj.put("isEnabled", row.isEnabled)
             obj.put("isRawMode", row.isRawMode)
@@ -1139,7 +1271,8 @@ object CalibrationManager {
     suspend fun importProfileFromJson(
         json: String,
         replaceExisting: Boolean,
-        overrideSensorId: String? = null
+        overrideSensorId: String? = null,
+        preserveJournalCalibrations: Boolean = false
     ): CalibrationProfileImportResult {
         val root = JSONObject(json)
         val sourceSensorId = root.optString("sensorId", "").ifBlank { resolveSensorId() }
@@ -1181,6 +1314,15 @@ object CalibrationManager {
         val rawAlgorithm = CalibrationAlgorithm.fromStorage(root.optString("rawAlgorithm", ""))
         val autoAlgorithm = CalibrationAlgorithm.fromStorage(root.optString("autoAlgorithm", ""))
 
+        // Peers can display different units. Legacy profiles omitted this field
+        // and retain their historical same-unit interpretation.
+        val importUnit = if (Applic.unit == 1) 1 else 0
+        val unitFactor = when (root.optString("units", "")) {
+            "mmol/L" -> if (importUnit == 1) 1f else tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL
+            "mg/dL" -> if (importUnit == 1) 1f / tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL else 1f
+            else -> 1f
+        }
+
         val array = root.optJSONArray("calibrations") ?: JSONArray()
         val incoming = mutableListOf<CalibrationEntity>()
         for (i in 0 until array.length()) {
@@ -1193,44 +1335,62 @@ object CalibrationManager {
                     id = 0,
                     timestamp = timestamp,
                     sensorId = targetSensorId,
-                    sensorValue = obj.optDouble("sensorValue", 0.0).toFloat(),
-                    sensorValueRaw = obj.optDouble("sensorValueRaw", 0.0).toFloat(),
-                    userValue = obj.optDouble("userValue", 0.0).toFloat(),
+                    sensorValue = obj.optDouble("sensorValue", 0.0).toFloat() * unitFactor,
+                    sensorValueRaw = obj.optDouble("sensorValueRaw", 0.0).toFloat() * unitFactor,
+                    sensorValueStock = obj.optDouble("sensorValueStock", 0.0).toFloat() * unitFactor,
+                    userValue = obj.optDouble("userValue", 0.0).toFloat() * unitFactor,
                     isEnabled = obj.optBoolean("isEnabled", true),
-                    isRawMode = obj.optBoolean("isRawMode", false)
+                    isRawMode = obj.optBoolean("isRawMode", false),
+                    valueUnit = importUnit
                 )
             )
         }
 
-        val replaced = if (replaceExisting) dao.deleteForSensor(targetSensorId) else 0
-
-        val existing = if (replaceExisting) emptyList() else dao.getAllSync().filter { sensorMatches(it.sensorId, targetSensorId) }
-        val deduped = mutableListOf<CalibrationEntity>()
-        var skipped = 0
-        incoming.forEach { row ->
-            val duplicate = existing.any { old ->
-                old.isRawMode == row.isRawMode &&
-                    abs(old.timestamp - row.timestamp) <= 30_000L &&
-                    abs(old.userValue - row.userValue) <= 0.05f &&
-                    abs(old.sensorValue - row.sensorValue) <= 0.05f &&
-                    abs(old.sensorValueRaw - row.sensorValueRaw) <= 0.05f
-            } || deduped.any { added ->
-                added.isRawMode == row.isRawMode &&
-                    abs(added.timestamp - row.timestamp) <= 30_000L &&
-                    abs(added.userValue - row.userValue) <= 0.05f &&
-                    abs(added.sensorValue - row.sensorValue) <= 0.05f &&
-                    abs(added.sensorValueRaw - row.sensorValueRaw) <= 0.05f
+        val (imported, skipped, replaced) = database.withTransaction {
+            val replaced = when {
+                !replaceExisting -> 0
+                preserveJournalCalibrations -> {
+                    val ids = dao.getAllSync().filter {
+                        it.journalEntryId == null && sensorMatches(it.sensorId, targetSensorId)
+                    }.map { it.id }
+                    if (ids.isNotEmpty()) dao.deleteByIds(ids)
+                    ids.size
+                }
+                else -> dao.deleteForSensor(targetSensorId)
             }
 
-            if (duplicate) {
-                skipped++
-            } else {
-                deduped.add(row)
-            }
-        }
+            val existing = if (replaceExisting) emptyList() else dao.getAllSync().filter {
+                it.journalEntryId == null && sensorMatches(it.sensorId, targetSensorId)
+            }.map { it.inUnit(importUnit) }
+            val deduped = mutableListOf<CalibrationEntity>()
+            var skipped = 0
+            incoming.forEach { row ->
+                val duplicate = existing.any { old ->
+                    old.isRawMode == row.isRawMode &&
+                        abs(old.timestamp - row.timestamp) <= 30_000L &&
+                        abs(old.userValue - row.userValue) <= 0.05f &&
+                        abs(old.sensorValue - row.sensorValue) <= 0.05f &&
+                        abs(old.sensorValueRaw - row.sensorValueRaw) <= 0.05f
+                } || deduped.any { added ->
+                    added.isRawMode == row.isRawMode &&
+                        abs(added.timestamp - row.timestamp) <= 30_000L &&
+                        abs(added.userValue - row.userValue) <= 0.05f &&
+                        abs(added.sensorValue - row.sensorValue) <= 0.05f &&
+                        abs(added.sensorValueRaw - row.sensorValueRaw) <= 0.05f
+                }
 
-        if (deduped.isNotEmpty()) {
-            dao.insertAll(deduped)
+                if (duplicate) {
+                    skipped++
+                } else {
+                    deduped.add(row)
+                }
+            }
+
+            if (deduped.isNotEmpty()) {
+                dao.insertAll(deduped)
+            }
+            removeJournalPointsShadowedByManual(setOf(targetSensorId))
+            Triple(deduped.size, skipped, replaced)
         }
 
         setEnabledForMode(isRawMode = true, enabled = rawEnabled, sensorIdOverride = targetSensorId)
@@ -1252,25 +1412,146 @@ object CalibrationManager {
 
         return CalibrationProfileImportResult(
             sensorId = targetSensorId,
-            imported = deduped.size,
+            imported = imported,
             skipped = skipped,
             replaced = replaced,
-            message = "Imported ${deduped.size} calibration(s) for $targetSensorId"
+            message = "Imported $imported calibration(s) for $targetSensorId"
         )
     }
     
     suspend fun loadCalibrations() {
         if (::dao.isInitialized) {
-            val list = withContext(Dispatchers.IO) {
+            val (load, list) = withContext(Dispatchers.IO) {
                 migrateCalibrationSensorIdsIfPossible()
-                dao.getAllSync()
+                // The transaction holds the write lock, so no write lands between
+                // the read and its number: a higher number has seen a newer table.
+                database.withTransaction {
+                    dao.labelLegacyUnits(if (Applic.unit == 1) 1 else 0)
+                    calibrationLoadOrder.begin() to dao.getAllSync().map { it.inUnit(Applic.unit) }
+                }
             }
-            if (calibrationStateLoaded && _calibrations.value == list) return
-            _calibrations.value = list
-            calibrationStateLoaded = true
-            invalidateComputationCache("loadCalibrations")
+            val changed = synchronized(boundaryLock) {
+                if (!calibrationLoadOrder.mayApply(load)) return@synchronized false
+                val relabeled = relabelBeforeBoundaries(list)
+                if (calibrationStateLoaded && _calibrations.value == relabeled) return@synchronized false
+                if (calibrationStateLoaded) unsettledChanges.addLast(_calibrations.value to relabeled)
+                _calibrations.value = relabeled
+                calibrationStateLoaded = true
+                // The revision moves with the table: from here on a chart still
+                // drawing the old points cannot record them, so what is released
+                // below stays released. See HistoryRepository.recordPresentedMinutes.
+                dropComputations()
+                true
+            }
+            if (!changed) return
+            announceRevision("loadCalibrations")
+            beforeSettlingForTests?.invoke()
+            // Not cancellable: a closing screen must not strand a point that has
+            // already left the table with its records still in place.
+            withContext(Dispatchers.IO + kotlinx.coroutines.NonCancellable) { settleInOrder() }
             requestUiRefreshAfterCalibrationChange()
         }
+    }
+
+    /**
+     * Each applied load's table before and after, in the order they were applied.
+     * Guarded by [boundaryLock].
+     */
+    private val unsettledChanges = ArrayDeque<Pair<List<CalibrationEntity>, List<CalibrationEntity>>>()
+    private val settleMutex = kotlinx.coroutines.sync.Mutex()
+
+    /** Lets a test hold a load between publishing its table and settling it. */
+    @Volatile internal var beforeSettlingForTests: (() -> Unit)? = null
+
+    /**
+     * Settles every applied load in order, whichever load gets here first. Out of
+     * order, a point added and removed in quick succession would be looked up
+     * before its arrival was written and leave that entry behind for good.
+     * Every queued change already has its revision, since both move together.
+     */
+    private suspend fun settleInOrder() = settleMutex.withLock {
+        while (true) {
+            val (before, after) = synchronized(boundaryLock) { unsettledChanges.removeFirstOrNull() } ?: break
+            settleRecordsOfChangedPoints(before, after)
+        }
+    }
+
+    private fun pointKey(point: CalibrationEntity) =
+        "${normalizeSensorId(point.sensorId)}_${CalibrationPointChanges.identity(point)}"
+
+    private fun pointAddedAtKey(point: CalibrationEntity) = KEY_POINT_ADDED_AT_PREFIX + pointKey(point)
+
+    private fun pointSwitchesKey(point: CalibrationEntity) = KEY_POINT_SWITCHES_PREFIX + pointKey(point)
+
+    private fun pointSwitches(point: CalibrationEntity) =
+        CalibrationPointSwitches.parse(prefs.getString(pointSwitchesKey(point), null))
+
+    /**
+     * Notes when each point arrived and when it was switched, and takes back what
+     * a departed one wrote into the record after the fact.
+     *
+     * The table has no such column, and bumping the calibration database locks
+     * older builds out of it. A point from before this was tracked has no entry
+     * and releases nothing, which is how every removal behaved until now.
+     */
+    private suspend fun settleRecordsOfChangedPoints(
+        before: List<CalibrationEntity>,
+        after: List<CalibrationEntity>,
+    ) {
+        if (!::prefs.isInitialized) return
+        val changes = CalibrationPointChanges.between(before, after)
+        if (changes.isEmpty) return
+        val addedAt = changes.gone.associateWith { prefs.getLong(pointAddedAtKey(it), 0L) }
+        val switches = changes.gone.associateWith { pointSwitches(it) }
+        val now = System.currentTimeMillis()
+        prefs.edit().apply {
+            // A second point at the same moment still needs the entry.
+            val stillHeld = after.mapTo(HashSet()) { pointAddedAtKey(it) }
+            changes.gone.filterNot { pointAddedAtKey(it) in stillHeld }.forEach {
+                remove(pointAddedAtKey(it))
+                remove(pointSwitchesKey(it))
+            }
+            // An identical point already in place keeps its arrival: the two share
+            // the entry, and once both are gone the minutes recorded under the
+            // first alone are theirs too. Removing just one releases those as
+            // well, and they come back as they were, the other being the same point.
+            val kept = after.filterNot { row -> changes.arrived.any { it === row } }
+                .mapTo(HashSet()) { pointAddedAtKey(it) }
+            changes.arrived.forEach {
+                val twinInPlace = pointAddedAtKey(it) in kept && prefs.contains(pointAddedAtKey(it))
+                if (!twinInPlace) putLong(pointAddedAtKey(it), now)
+                val since = if (twinInPlace) pointSwitches(it) else emptyList()
+                putString(
+                    pointSwitchesKey(it),
+                    CalibrationPointSwitches.encode(CalibrationPointSwitches.thenSwitched(since, !it.isEnabled, now)),
+                )
+            }
+            changes.switched.forEach {
+                putString(
+                    pointSwitchesKey(it),
+                    CalibrationPointSwitches.encode(CalibrationPointSwitches.thenSwitched(pointSwitches(it), !it.isEnabled, now)),
+                )
+            }
+        }.apply()
+
+        var released = 0
+        addedAt.forEach { (point, since) ->
+            if (since <= 0L) return@forEach
+            released += runCatching {
+                tk.glucodata.data.HistoryRepository().releaseRecordsMadeUnderCalibration(
+                    sensorId = point.sensorId,
+                    addedAt = since,
+                    rawLane = matchesMode(point, isRawMode = true),
+                    autoLane = matchesMode(point, isRawMode = false),
+                    pointSwitches = switches.getValue(point),
+                )
+            }.onFailure {
+                Log.w(TAG, "Failed releasing records of calibration ${point.id}", it)
+            }.getOrDefault(0)
+        }
+        // A released minute may come back with the very value this guard
+        // remembers, and it would never be recorded again in this process.
+        if (released > 0) tk.glucodata.ui.PresentedMinuteRecorder.reset()
     }
 
     @JvmOverloads
@@ -1284,7 +1565,9 @@ object CalibrationManager {
             timestamp = timestamp,
             sensorId = resolvedSensorId,
             sensorValue = sensorValue,
-            sensorValueRaw = sensorValueRaw,
+            // A source without a raw lane hands us NaN here (iCan); storing it would fail the
+            // NOT NULL column because SQLite keeps NaN as NULL.
+            sensorValueRaw = CalibrationMath.sensorValueRawForStorage(sensorValueRaw),
             userValue = userValue,
             isRawMode = isRawMode,
             sensorValueStock = sensorValueStock.takeIf { it.isFinite() && it > 0f } ?: 0f
@@ -1298,6 +1581,23 @@ object CalibrationManager {
         return true
     }
 
+    /** Caller keeps the manual/journal writes and this cleanup in one Room transaction. */
+    private suspend fun removeJournalPointsShadowedByManual(sensorIds: Set<String>) {
+        if (sensorIds.isEmpty()) return
+        val rows = dao.getAllSync()
+        val deleteIds = linkedSetOf<Int>()
+        sensorIds.forEach { sensorId ->
+            val own = rows.filter { sensorMatches(it.sensorId, sensorId) }
+            val manualTimestamps = own.filter { it.journalEntryId == null }.map { it.timestamp }
+            own.filter { it.journalEntryId != null }.forEach { derived ->
+                if (JournalCalibrationPolicy.manualPointTakesPrecedence(derived.timestamp, manualTimestamps)) {
+                    deleteIds += derived.id
+                }
+            }
+        }
+        if (deleteIds.isNotEmpty()) dao.deleteByIds(deleteIds.toList())
+    }
+
     /**
      * Applies one reconciliation of the journal-derived calibrations in a single
      * pass. Journal syncs touch many rows at once — a meter handing over its
@@ -1307,10 +1607,13 @@ object CalibrationManager {
     suspend fun applyJournalCalibrationPlan(plan: JournalCalibrationPolicy.Plan, reason: String) {
         if (plan.isEmpty) return
         if (!ensureInitialized()) return
-        withContext(Dispatchers.IO) {
+        database.withTransaction {
             if (plan.deleteIds.isNotEmpty()) dao.deleteByIds(plan.deleteIds)
             if (plan.inserts.isNotEmpty()) dao.insertAll(plan.inserts)
             plan.updates.forEach { dao.update(it) }
+            // Planning happens asynchronously. A manual profile may have been
+            // imported since that snapshot, so enforce precedence at commit too.
+            removeJournalPointsShadowedByManual((plan.inserts + plan.updates).map { it.sensorId }.toSet())
         }
         deferGlucoseAlertsUntilNextReading()
         loadCalibrations()
@@ -1326,6 +1629,7 @@ object CalibrationManager {
     /** Drops every calibration derived from a journal entry, keeping manual ones. */
     suspend fun purgeJournalCalibrations() {
         if (!ensureInitialized()) return
+        persistDismissedJournalTimestamps(emptySet())
         val removed = withContext(Dispatchers.IO) { dao.deleteJournalDerived() }
         if (removed <= 0) return
         deferGlucoseAlertsUntilNextReading()
@@ -1336,27 +1640,39 @@ object CalibrationManager {
     }
 
     suspend fun restoreCalibration(entity: CalibrationEntity) {
-        withContext(Dispatchers.IO) { dao.insert(entity) }
+        JournalCalibrationSync.betweenSyncs {
+            undismissJournalTimestamps(listOf(entity))
+            withContext(Dispatchers.IO) { dao.insert(entity) }
+            loadCalibrations()
+        }
         deferGlucoseAlertsUntilNextReading()
-        loadCalibrations()
         refreshDiagnosticsPreview(isRawMode = entity.isRawMode, force = true)
         requestMirrorCalibrationSync(entity.sensorId)
         Log.i(TAG, "Restored calibration: id=${entity.id}")
     }
 
     suspend fun deleteCalibration(entity: CalibrationEntity) {
-        withContext(Dispatchers.IO) { dao.delete(entity) }
+        JournalCalibrationSync.betweenSyncs {
+            dismissJournalTimestamps(listOf(entity.timestamp))
+            withContext(Dispatchers.IO) { dao.delete(entity) }
+            loadCalibrations()
+        }
         deferGlucoseAlertsUntilNextReading()
-        loadCalibrations()
         refreshDiagnosticsPreview(isRawMode = entity.isRawMode, force = true)
         requestMirrorCalibrationSync(entity.sensorId)
         Log.i(TAG, "Deleted calibration: id=${entity.id}")
     }
     
     suspend fun updateCalibration(entity: CalibrationEntity) {
-        withContext(Dispatchers.IO) { dao.update(entity) }
+        JournalCalibrationSync.betweenSyncs {
+            // A point moved in time leaves its entry behind, unclaimed.
+            _calibrations.value.firstOrNull { it.id == entity.id }
+                ?.takeIf { it.timestamp != entity.timestamp }
+                ?.let { dismissJournalTimestamps(listOf(it.timestamp)) }
+            withContext(Dispatchers.IO) { dao.update(entity) }
+            loadCalibrations()
+        }
         deferGlucoseAlertsUntilNextReading()
-        loadCalibrations()
         refreshDiagnosticsPreview(isRawMode = entity.isRawMode, force = true)
         requestMirrorCalibrationSync(entity.sensorId)
     }
@@ -1371,7 +1687,7 @@ object CalibrationManager {
         userValueMgdl: Float,
         sensorStockMgdl: Float = Float.NaN,
     ): Boolean = kotlinx.coroutines.runBlocking {
-        val snapshot = tk.glucodata.CurrentDisplaySource.resolveCurrentForExchange()
+        val snapshot = tk.glucodata.CurrentDisplaySource.resolveCurrentMeasured()
             ?: return@runBlocking false
         val autoValue = snapshot.autoValue.takeIf { it.isFinite() && it > 0f }
             ?: snapshot.primaryValue.takeIf { it.isFinite() && it > 0f }
@@ -1479,19 +1795,115 @@ object CalibrationManager {
 
     suspend fun clearAll() {
         val affectedSensors = _calibrations.value.map { it.sensorId }
-        withContext(Dispatchers.IO) { dao.deleteAll() }
+        JournalCalibrationSync.betweenSyncs {
+            withContext(Dispatchers.IO) {
+                dismissJournalTimestamps(dao.getAllSync().map { it.timestamp })
+                dao.deleteAll()
+            }
+            loadCalibrations()
+        }
         deferGlucoseAlertsUntilNextReading()
-        loadCalibrations()
         refreshDiagnosticsPreview(isRawMode = true, force = true)
         refreshDiagnosticsPreview(isRawMode = false, force = true)
         requestMirrorCalibrationSyncForSensors(affectedSensors)
         Log.i(TAG, "Cleared all calibrations")
     }
 
-    suspend fun restoreAll(calibrations: List<CalibrationEntity>) {
-        withContext(Dispatchers.IO) { dao.insertAll(calibrations) }
+    /** A process that has not read the rows yet, as after a background restart. */
+    internal fun resetLoadedStateForTests(keepBoundaries: Boolean = true) {
+        synchronized(boundaryLock) {
+            if (!keepBoundaries) sessionBoundaries.clear()
+            unsettledChanges.clear()
+            calibrationStateLoaded = false
+            _calibrations.value = emptyList()
+        }
+    }
+
+    /** A replaced sensor's insertion: points of [sensorId] taken before [cutoffMs] are filed as [archiveId]. */
+    private data class SessionBoundary(val archiveId: String, val cutoffMs: Long)
+
+    private val sessionBoundaries = java.util.concurrent.ConcurrentHashMap<String, SessionBoundary>()
+
+    /**
+     * Orders a boundary against the loaders: a snapshot read before the boundary was declared is
+     * relabelled when it is applied, and a boundary declared while the rows are not loaded yet is
+     * not lost, so an older snapshot cannot bring the previous electrode's points back.
+     */
+    private val boundaryLock = Any()
+
+    private fun relabelBeforeBoundaries(rows: List<CalibrationEntity>): List<CalibrationEntity> {
+        if (sessionBoundaries.isEmpty()) return rows
+        return rows.map { row ->
+            val boundary = sessionBoundaries.entries
+                .firstOrNull { sensorMatches(row.sensorId, it.key) && row.timestamp < it.value.cutoffMs }
+                ?.value
+            if (boundary == null) row else row.copy(sensorId = boundary.archiveId)
+        }
+    }
+
+    /**
+     * Makes the session boundary effective in lookups right away, without touching the database:
+     * a driver calls it on its BLE thread before it publishes the replacement's first reading, so
+     * the previous electrode's points cannot correct it while the persisted move is still queued.
+     * Only points taken before [cutoffMs] are affected, so a calibration entered for the replacement
+     * is never swept along.
+     */
+    fun declareSessionBoundary(sensorId: String, archiveId: String, cutoffMs: Long) {
+        val target = normalizeSensorId(sensorId)
+        if (archiveId.isBlank() || target.isBlank() || cutoffMs <= 0L) return
+        val boundary = SessionBoundary(archiveId, cutoffMs)
+        val changed = synchronized(boundaryLock) {
+            if (sessionBoundaries.put(target, boundary) == boundary) return@synchronized false
+            if (!calibrationStateLoaded) return@synchronized false // the loaders apply it when the rows arrive
+            val current = _calibrations.value
+            val relabeled = relabelBeforeBoundaries(current)
+            if (relabeled == current) return@synchronized false
+            _calibrations.value = relabeled
+            true
+        }
+        if (changed) invalidateComputationCache("sessionBoundary")
+    }
+
+    /** Blocking entry point for a driver on its own thread (see [archiveSensorCalibrations]). */
+    fun archiveSensorCalibrationsBlocking(sensorId: String, archiveId: String, cutoffMs: Long): Int =
+        kotlinx.coroutines.runBlocking { archiveSensorCalibrations(sensorId, archiveId, cutoffMs) }
+
+    /**
+     * Re-files the calibrations of [sensorId] taken before [cutoffMs] (the replacement's insertion)
+     * under [archiveId]. Nothing is deleted: the rows keep their values and only stop matching the
+     * live sensor, so the replacement electrode is not corrected by an offset measured on the
+     * previous one. Points at or after the cutoff belong to the replacement and stay. Returns how
+     * many rows moved, or -1 when the engine could not do it yet, so a caller that must not lose
+     * the request can retry.
+     */
+    suspend fun archiveSensorCalibrations(sensorId: String, archiveId: String, cutoffMs: Long = Long.MAX_VALUE): Int {
+        if (!ensureInitialized()) return -1
+        val target = normalizeSensorId(sensorId)
+        if (archiveId.isBlank() || target.isBlank()) return 0
+        val moved = withContext(Dispatchers.IO) {
+            dao.getAllSync()
+                .filter { sensorMatches(it.sensorId, target) && it.timestamp < cutoffMs }
+                .sumOf { dao.updateSensorId(it.id, archiveId) }
+        }
+        // The rows are in the database under the archive id now; the in-memory rule has done its job.
+        sessionBoundaries.remove(target, SessionBoundary(archiveId, cutoffMs))
+        if (moved == 0) return 0
         deferGlucoseAlertsUntilNextReading()
         loadCalibrations()
+        refreshDiagnosticsPreview(isRawMode = true, force = true)
+        refreshDiagnosticsPreview(isRawMode = false, force = true)
+        requestMirrorCalibrationSync(target)
+        Log.i(TAG, "Archived $moved calibrations of $target as $archiveId")
+        return moved
+    }
+
+    suspend fun restoreAll(calibrations: List<CalibrationEntity>) {
+        JournalCalibrationSync.betweenSyncs {
+            undismissJournalTimestamps(calibrations)
+            withContext(Dispatchers.IO) { dao.insertAll(calibrations) }
+            loadCalibrations()
+        }
+        deferGlucoseAlertsUntilNextReading()
         refreshDiagnosticsPreview(isRawMode = true, force = true)
         refreshDiagnosticsPreview(isRawMode = false, force = true)
         requestMirrorCalibrationSyncForSensors(calibrations.map { it.sensorId })
@@ -1516,7 +1928,7 @@ object CalibrationManager {
     fun importMirrorProfileFromJsonBlocking(
         json: String,
         overrideSensorId: String? = null
-    ): CalibrationProfileImportResult {
+    ): CalibrationProfileImportResult = synchronized(mirrorProfileLock) {
         ensureCalibrationStateLoaded()
         val root = runCatching { JSONObject(json) }.getOrNull()
             ?: return CalibrationProfileImportResult(
@@ -1558,14 +1970,13 @@ object CalibrationManager {
             )
         }
 
-        val result = withoutMirrorSync {
-            runBlocking {
-                importProfileFromJson(
-                    json,
-                    replaceExisting = true,
-                    overrideSensorId = targetSensorId
-                )
-            }
+        val result = runBlocking(suppressMirrorSync.asContextElement(true)) {
+            importProfileFromJson(
+                json,
+                replaceExisting = true,
+                overrideSensorId = targetSensorId,
+                preserveJournalCalibrations = true
+            )
         }
         setStoredProfileRevision(targetSensorId, incomingRevision)
         return result

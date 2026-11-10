@@ -18,7 +18,6 @@
 /*                                                                                   */
 /*      Fri Jan 27 15:31:05 CET 2023                                                 */
 
-
 package tk.glucodata
 
 //import androidx.activity.Context
@@ -41,7 +40,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 //import tk.glucodata.Applic.messagesender
-
 
 class MessageSender(val activity: Context):CapabilityClient.OnCapabilityChangedListener {
     private val messageClient by lazy { Wearable.getMessageClient(activity) }
@@ -66,6 +64,7 @@ class MessageSender(val activity: Context):CapabilityClient.OnCapabilityChangedL
         if (wasEmpty != ns.isEmpty()) {
             runCatching { SensorOwnershipRuntime.onPeerReachabilityChanged(!ns.isEmpty()) }
         }
+        ns.forEach { WearAlertSync.pushTo(it.id) }
         sendnetinfo();
     }
     public fun nulltimes() {
@@ -78,7 +77,7 @@ suspend fun findWearDevicesWithApp() {
         return
     }
     Log.i(LOG_ID,"start findWearDevicesWithApp nodesbusy=$nodesbusy")
-    if(nodesbusy)        
+    if(nodesbusy)
         return;
     nodesbusy=true;
     try {
@@ -134,16 +133,16 @@ public fun finddevices() {
 /*
     public fun startActivity() {
     val data=Natives.bytesettings()
-      sendmessage(START_PATH, data) 
+      sendmessage(WearMessagePath.START, data)
     } */
 
 public fun startWearOSActivity(nodeName:String) {
     val data=Natives.bytesettings()
-    nameSendMessage(nodeName,START_PATH,data)
+    nameSendMessage(nodeName,WearMessagePath.START,data)
     }
 public fun toDefaults(node:Node) {
     val nodata:ByteArray=byteArrayOf(0)
-    nodeSendmessage(node,DEFAULTS_PATH,nodata)
+    nodeSendmessage(node,WearMessagePath.DEFAULTS,nodata)
     }
 /*
 private fun startnodedetection(context: Context):String? {
@@ -154,16 +153,15 @@ private fun startnodedetection(context: Context):String? {
 */
 //private var transcriptionNodeId: String? = null
 
-
-
 override fun onCapabilityChanged(cap: CapabilityInfo) {
         scope.launch {
             setnodes(cap.nodes)
         }
     }
-    private fun sendmessage(path:String,data:ByteArray) {
+    private fun sendmessage(messagePath: WearMessagePath,data:ByteArray) {
+        val path = messagePath.wire
             if (!outgoingAllowed()) {
-                if (doLog) { Log.i(LOG_ID, "sendmessage($path) skipped: companion disabled") }
+                if (doLog) { Log.i(LOG_ID, "sendmessage($messagePath) skipped: companion disabled") }
                 return
             }
             try {
@@ -195,9 +193,10 @@ override fun onCapabilityChanged(cap: CapabilityInfo) {
                 Log.d(LOG_ID, "Starting activity failed: $exception")
         }
     }
-private fun nameSendMessage(name:String, path:String, data:ByteArray) {
+private fun nameSendMessage(name:String, messagePath: WearMessagePath, data:ByteArray) {
+        val path = messagePath.wire
     if (!outgoingAllowed()) {
-        if (doLog) { Log.i(LOG_ID, "nameSendMessage($path) skipped: companion disabled") }
+        if (doLog) { Log.i(LOG_ID, "nameSendMessage($messagePath) skipped: companion disabled") }
         return
     }
     scope.launch {
@@ -211,15 +210,16 @@ private fun nameSendMessage(name:String, path:String, data:ByteArray) {
             }
         }
     }
-private fun nameSendMessageResult(name:String, path:String, data:ByteArray):Boolean {
+private fun nameSendMessageResult(name:String, messagePath: WearMessagePath, data:ByteArray, timeoutSeconds: Long = 60L):Boolean {
+        val path = messagePath.wire
         if (!outgoingAllowed()) {
-            if (doLog) { Log.i(LOG_ID, "nameSendMessageResult($path) skipped: companion disabled") }
+            if (doLog) { Log.i(LOG_ID, "nameSendMessageResult($messagePath) skipped: companion disabled") }
             return false
         }
         try {
 //            val len=data.size
 //            val timeout:Long= (len / 20L).coerceAtMost(1L)
-            val timeout:Long= 60L
+            val timeout:Long= timeoutSeconds
         val res=Tasks.await(messageClient.sendMessage(name, path, data),timeout,TimeUnit.SECONDS)
         Log.i(LOG_ID,"nameSendMessageResult "+res)
         return true
@@ -231,83 +231,82 @@ private fun nameSendMessageResult(name:String, path:String, data:ByteArray):Bool
 
     }
 
-private fun nodeSendmessage(node:Node,path:String,data:ByteArray) {
-    nameSendMessage(node.id,path,data);
+private fun nodeSendmessage(node:Node,messagePath: WearMessagePath,data:ByteArray) {
+    nameSendMessage(node.id,messagePath,data);
     }
-        
+
     public fun sendnetinfo(data:ByteArray) {
-    sendmessage(NET_PATH,data);
+    sendmessage(WearMessagePath.NETINFO,data);
         }
     public fun sendnetinfo( node:Node,data:ByteArray) {
-    nodeSendmessage(node,NET_PATH,data);
+    nodeSendmessage(node,WearMessagePath.NETINFO,data);
         }
     public fun sendnetinfo( node:String,data:ByteArray) {
-        nameSendMessage(node,NET_PATH,data);
+        nameSendMessage(node,WearMessagePath.NETINFO,data);
         }
-    /*
-    public fun sendsettings() {
-    val data=Natives.bytesettings()
-    sendmessage(SETTINGS_PATH,data)
-    } */
     /** Broadcasts the glucose colour scheme so the watch paints what the phone does. */
     public fun sendGlucoseColors(data:ByteArray) {
-        sendmessage(GLUCOSE_COLORS_PATH,data)
+        sendmessage(WearMessagePath.GLUCOSE_COLORS,data)
      }
     public fun sendGlucoseColors(nodeName:String,data:ByteArray) {
-        nameSendMessage(nodeName,GLUCOSE_COLORS_PATH,data)
+        nameSendMessage(nodeName,WearMessagePath.GLUCOSE_COLORS,data)
      }
     /** Phone: reports the state of the on/off switches the watch can operate. */
     public fun sendToggleState(data:ByteArray) {
-        sendmessage(TOGGLE_STATE_PATH,data)
+        sendmessage(WearMessagePath.TOGGLES,data)
      }
     public fun sendToggleState(nodeName:String,data:ByteArray) {
-        nameSendMessage(nodeName,TOGGLE_STATE_PATH,data)
+        nameSendMessage(nodeName,WearMessagePath.TOGGLES,data)
      }
     /** Watch: asks the phone to flip a switch. */
     public fun sendToggleCommand(data:ByteArray) {
-        sendmessage(TOGGLE_CMD_PATH,data)
+        sendmessage(WearMessagePath.TOGGLES_SET,data)
      }
     /** Watch: asks the phone for the current state of every switch. */
     public fun requestToggles() {
-        sendmessage(TOGGLE_REQ_PATH, byteArrayOf(1))
+        sendmessage(WearMessagePath.TOGGLES_REQ, byteArrayOf(1))
+     }
+    /** Watch: asks the phone to change its sensor selection (primary, or shown/hidden). */
+    public fun sendMainSensorCommand(data:ByteArray) {
+        sendmessage(WearMessagePath.DISPLAY_PREFS_MAINSENSOR,data)
      }
     /** Watch: asks the phone for the display preferences and colour scheme. */
     public fun requestWearPrefs() {
-        sendmessage(WEAR_PREFS_REQ_PATH, byteArrayOf(1))
+        sendmessage(WearMessagePath.DISPLAY_PREFS_REQ, byteArrayOf(1))
      }
     /** Broadcasts the mirrored display preferences (smoothing, prediction). */
     public fun sendWearPrefs(data:ByteArray) {
-        sendmessage(WEAR_PREFS_PATH,data)
+        sendmessage(WearMessagePath.DISPLAY_PREFS,data)
      }
     public fun sendWearPrefs(nodeName:String,data:ByteArray) {
-        nameSendMessage(nodeName,WEAR_PREFS_PATH,data)
+        nameSendMessage(nodeName,WearMessagePath.DISPLAY_PREFS,data)
      }
     public fun sendbluetooth( node:Node,on:Boolean) {
          sendbluetooth( node.id,on);
      }
     public fun sendbluetooth( name:String,on:Boolean) {
-        sendbool(BLUETOOTH_PATH,name,on)
+        sendbool(WearMessagePath.BLUETOOTH,name,on)
      }
     public fun sendSensorHandoff(name:String, data:ByteArray): Boolean {
-        return nameSendMessageResult(name, SENSOR_HANDOFF_PATH, data)
+        return nameSendMessageResult(name, WearMessagePath.SENSOR_HANDOFF, data)
      }
     private fun sendOnmessages( node:String,on:Boolean) {
         if(doLog) {Log.i(LOG_ID,"sendNameMessageOn($node,$on)");}
-        sendbool(MESSAGES_PATH,node,on)
+        sendbool(WearMessagePath.MESSAGES,node,on)
         }
      /*
     public fun sendbluetooth(on:Boolean) {
-    sendbool(BLUETOOTH_PATH,on)
+    sendbool(WearMessagePath.BLUETOOTH,on)
      }
-    public fun sendbool(String path,on:Boolean) {
+    public fun sendbool(String messagePath,on:Boolean) {
         val onbyte:Byte=if(on) 1;else 0;
         val onar:ByteArray= byteArrayOf(onbyte)
-    sendmessage(path,onar)
+    sendmessage(messagePath,onar)
      } */
-    public fun sendbool( path:String,nodeName:String,on:Boolean) {
+    public fun sendbool( messagePath: WearMessagePath,nodeName:String,on:Boolean) {
         val onbyte:Byte=if(on) 1;else 0;
         val onar:ByteArray= byteArrayOf(onbyte)
-       nameSendMessage(nodeName,path,onar)
+       nameSendMessage(nodeName,messagePath,onar)
      }
 
    public fun     findnodeid(id:String):Int {
@@ -329,40 +328,11 @@ private fun nodeSendmessage(node:Node,path:String,data:ByteArray) {
         }
     }
 
-
 companion object {
     private var findIter=0;
     private const val LOG_ID = "MessageSender"
     private const val API_UNAVAILABLE_STATUS = 17
     private const val WEAR_API_UNAVAILABLE_LOG_INTERVAL_MS = 60_000L
-    const val WAKE_PATH = "/wake"
-    const val WAKESTREAM_PATH = "/wakestream"
-    const val NET_PATH = "/netinfo"
-    const val START_PATH = "/start"
-    const val ASKFORSTART_PATH = "/askforstart"
-    const val DEFAULTS_PATH = "/defaults"
-    const val SETTINGS_PATH = "/settings"
-    const val GLUCOSE_COLORS_PATH = "/glucosecolors"
-    const val WEAR_PREFS_PATH = "/displayprefs"
-    const val WEAR_PREFS_REQ_PATH = "/displayprefs/req"
-    const val TOGGLE_STATE_PATH = "/toggles"
-    const val TOGGLE_CMD_PATH = "/toggles/set"
-    const val TOGGLE_REQ_PATH = "/toggles/req"
-    const val BLUETOOTH_PATH = "/bluetooth"
-    const val DATA_PATH = "/data"
-    const val MESSAGES_PATH = "/messages"
-    const val CALIBRATE_PATH = "/calibrate"
-    const val SENSOR_HANDOFF_PATH = "/sensorhandoff"
-    const val SENSOR_CLAIM_STATUS_PATH = "/sensorclaimstatus"
-    const val SYNC2_REQ_PATH = "/sync2/req"
-    const val SYNC2_CHUNK_PATH = "/sync2/chunk"
-    const val SYNC2_CAL_PATH = "/sync2/cal"
-    const val CALIBRATION_CMD_PATH = "/sync2/calcmd"
-    const val SYNC2_REMOVE_PATH = "/sync2/remove"
-    const val JOURNAL_REQ_PATH = "/sync2/journal/req"
-    const val JOURNAL_DATA_PATH = "/sync2/journal"
-    const val JOURNAL_CMD_PATH = "/sync2/journal/cmd"
-    const val SENSOR_OWNERSHIP_PATH = "/sync2/own"
     val scope = CoroutineScope(Dispatchers.IO+SupervisorJob()  )
     private var messagesender: MessageSender? = null
     @Volatile private var wearableApiUnavailable = false
@@ -379,7 +349,7 @@ companion object {
         if (!isWearable) return
         val sender = messagesender ?: return
         sender.sendmessage(
-            SENSOR_CLAIM_STATUS_PATH,
+            WearMessagePath.SENSOR_CLAIM_STATUS,
             byteArrayOf(WearSensorClaim.currentStateValue().toByte()),
         )
     }
@@ -463,7 +433,7 @@ companion object {
         if (!GoogleServices.isPlayServicesAvailable(context)) return false
         return runCatching {
             Wearable.getMessageClient(context)
-                .sendMessage(nodeId, BLUETOOTH_PATH, byteArrayOf(0))
+                .sendMessage(nodeId, WearMessagePath.BLUETOOTH.wire, byteArrayOf(0))
                 .addOnFailureListener { th ->
                     Log.stack(LOG_ID, "stop direct sensor on $nodeId", th)
                 }
@@ -516,8 +486,57 @@ companion object {
     public fun sendaskforstart() {
         val sender = messagesender ?: return
         val ar = byteArrayOf(0);
-        sender.sendmessage(ASKFORSTART_PATH, ar)
+        sender.sendmessage(WearMessagePath.ASKFORSTART, ar)
+        // Advertise the protocol version on the same handshake, so the phone can answer with its
+        // own and both sides can see a mismatched build (plan §6 Q2). A missed report is harmless:
+        // each managed message also carries its own version.
+        sender.sendmessage(WearMessagePath.PROTOCOL, WearProtocol.versionLine().toByteArray(Charsets.UTF_8))
       }
+
+    /** Advertises this build's protocol version (plan §6 Q2). */
+    @JvmStatic
+    public fun sendProtocol() {
+        val sender = messagesender ?: return
+        sender.sendmessage(WearMessagePath.PROTOCOL, WearProtocol.versionLine().toByteArray(Charsets.UTF_8))
+    }
+
+    /** Advertises this build's protocol version to one peer. */
+    @JvmStatic
+    public fun sendProtocol(nodeName: String?) {
+        val target = nodeName ?: return
+        val sender = messagesender ?: return
+        sender.nameSendMessage(target, WearMessagePath.PROTOCOL, WearProtocol.versionLine().toByteArray(Charsets.UTF_8))
+    }
+
+    @JvmStatic
+    public fun sendAlertAcknowledgement(nodeId: String?, data: ByteArray) {
+        if (!outgoingAllowed()) return
+        val sender = messagesender ?: return
+        val targets = nodeId?.let { listOf(it) } ?: sender.nodes?.map { it.id }.orEmpty()
+        if (targets.isEmpty()) {
+            sender.finddevices() // Discovery replays the persisted action.
+            return
+        }
+        targets.forEach { target ->
+            scope.launch {
+                repeat(3) { attempt ->
+                    try {
+                        withTimeout(5_000) {
+                            sender.messageClient.sendMessage(target, WearMessagePath.ALERT_ACK.wire, data).await()
+                        }
+                        return@launch
+                    } catch (timeout: TimeoutCancellationException) {
+                        Log.w(LOG_ID, "alert acknowledgement timed out for $target")
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (failure: Throwable) {
+                        Log.stack(LOG_ID, "alert acknowledgement to $target", failure)
+                    }
+                    if (attempt < 2) delay(1_000)
+                }
+            }
+        }
+    }
 
     // Watch → phone: relay a fingerstick calibration (mg/dL) to the side that
     // owns the BLE connection in companion mode.
@@ -525,7 +544,7 @@ companion object {
     public fun sendcalibrate(glucoseMgDl: Int) {
         val sender = messagesender ?: return
         val data = java.nio.ByteBuffer.allocate(4).putInt(glucoseMgDl).array()
-        sender.sendmessage(CALIBRATE_PATH, data)
+        sender.sendmessage(WearMessagePath.CALIBRATE, data)
     }
 
     @JvmStatic
@@ -538,21 +557,21 @@ companion object {
     public fun sendwake() {
         val sender = messagesender ?: return
         val ar = byteArrayOf(0);
-        sender.sendmessage(WAKE_PATH, ar)
+        sender.sendmessage(WearMessagePath.WAKE, ar)
     }
 
     @JvmStatic
     public fun sendwakestream() {
         val sender = messagesender ?: return
         val ar = byteArrayOf(0);
-        sender.sendmessage(WAKESTREAM_PATH, ar)
+        sender.sendmessage(WearMessagePath.WAKESTREAM, ar)
     }
 
     @JvmStatic
     /** @return false when there is no wear transport to send through. */
-    public fun sendSyncMessage(path: String, data: ByteArray): Boolean {
+    public fun sendSyncMessage(messagePath: WearMessagePath, data: ByteArray): Boolean {
         val sender = messagesender ?: return false
-        sender.sendmessage(path, data)
+        sender.sendmessage(messagePath, data)
         return true
     }
 
@@ -562,19 +581,28 @@ companion object {
      * of concurrent best-effort sends that arrive out of order or disappear.
      */
     @JvmStatic
-    public fun sendSyncMessageAwait(path: String, data: ByteArray): Boolean {
+    public fun sendSyncMessageAwait(messagePath: WearMessagePath, data: ByteArray, timeoutSeconds: Long = 60L): Boolean {
         if (!outgoingAllowed()) return false
         val sender = messagesender ?: return false
         val targets = sender.nodes?.takeIf { it.isNotEmpty() } ?: return false
-        return targets.all { node -> sender.nameSendMessageResult(node.id, path, data) }
+        return targets.all { node -> sender.nameSendMessageResult(node.id, messagePath, data, timeoutSeconds = timeoutSeconds) }
     }
 
     @Keep
     @JvmStatic
     public fun sendDatawithName(ident: String, data: ByteArray): Boolean {
+        if (!Applic.isWearable) {
+            // Wear v2 (d12ce176b): the watch ingests nothing over /data; WearSync2 owns the
+            // companion's store. Every byte that would leave here for a wear peer is a dead
+            // letter, so drop it before it reaches the radio. Report success: the native
+            // sender must keep treating the tunnel as healthy, or a "failure" turns into
+            // reconnect churn (see the open→teardown note in netinfo.cpp).
+            if (doLog) Log.i(LOG_ID, "dropped /data for $ident: dead letter (Wear v2)")
+            return true
+        }
         val sender = messagesender ?: return false
     if(doLog) {Log.i(LOG_ID,"start sendDatawithName $ident");}
-        val res=sender.nameSendMessageResult(ident, DATA_PATH, data)
+        val res=sender.nameSendMessageResult(ident, WearMessagePath.DATA, data)
     if(doLog) {Log.i(LOG_ID,"end sendDatawithName $ident");}
     return res;
     }
@@ -614,7 +642,7 @@ companion object {
             return false
         }
     Log.i(LOG_ID,"start sendData")
-        val res=sender.nameSendMessageResult(nodes.elementAt(0).id, DATA_PATH, data)
+        val res=sender.nameSendMessageResult(nodes.elementAt(0).id, WearMessagePath.DATA, data)
     Log.i(LOG_ID,"end sendData "+res)
     return res;
     }
@@ -658,7 +686,7 @@ companion object {
 @JvmStatic
 public fun sendDatawithInt(ident: Int, data: ByteArray) {
         try {
-        messagesender?.nameSendMessage(getNodeName(ident), DATA_PATH, data)
+        messagesender?.nameSendMessage(getNodeName(ident), WearMessagePath.DATA, data)
         } catch (th: Throwable) {
         Log.stack(LOG_ID, "sendData $ident", th);
         }
@@ -774,8 +802,8 @@ public fun sendDatawithInt(ident: Int, data: ByteArray) {
         }
 
         @JvmStatic     public fun sendnetinfo(id: String) {
-        scope.launch {    
-                inargsendnetinfo(id) 
+        scope.launch {
+                inargsendnetinfo(id)
             }
         }
     private fun insendnetinfo() {
@@ -820,27 +848,27 @@ public fun sendDatawithInt(ident: Int, data: ByteArray) {
               }
             if (isWearable) {
                 sender.sendmessage(
-                    SENSOR_CLAIM_STATUS_PATH,
+                    WearMessagePath.SENSOR_CLAIM_STATUS,
                     byteArrayOf(WearSensorClaim.currentStateValue().toByte()),
                 )
             }
         }
       @JvmStatic    public fun sendnetinfo() {
-        scope.launch {    
+        scope.launch {
                 insendnetinfo()
             }
         }
-     @JvmStatic     
+     @JvmStatic
      public fun isGalaxy(node:Node): Boolean {
          val name=node.getDisplayName()
-         val res= name.startsWith("Galaxy Watch") 
+         val res= name.startsWith("Galaxy Watch")
          Log.i(LOG_ID,"isGalaxy($name)=$res")
          if(Applic.ALLGALAXY)
                 return true;
          return res;
        }
 
-     @JvmStatic     
+     @JvmStatic
      public fun reinit() {
         if (wearableApiUnavailable) {
             Log.i(LOG_ID, "reinit skipped: Wearable.API unavailable")

@@ -15,7 +15,7 @@ class HistoryChartModelBuilderTests {
     private companion object {
         const val MINUTE = MainSensorOwnership.MINUTE_MS
         const val NOW = 1_800_000_000_000L
-        val SEALED_START = NOW - 3L * 60L * MINUTE
+        val SEALED_START = NOW - MainSensorOwnership.DEFAULT_SEAL_GRACE_MS - 3L * 60L * MINUTE
     }
 
     private fun point(ts: Long, value: Float, serial: String, sealed: Float = Float.NaN) =
@@ -28,27 +28,56 @@ class HistoryChartModelBuilderTests {
     private val plusOne = HistoryChartModelBuilder.Calibration { v, _, _, _ -> v + 1f }
 
     @Test
-    fun aRecordSpeaksOnlyForTheLaneItWasShownOn() {
-        // Sealed while the raw lane was main (mode 1): the record is the raw
-        // line's number. Resolving the auto lane must not take it.
+    fun aRecordHoldsTheMainLineWhicheverLaneIsSelectedNow() {
+        // Sealed while the raw lane was main (mode 1). Switching to auto must
+        // not re-derive it: the record is the number the user was shown.
         val p = GlucosePoint(NOW, 5f, 9f).also {
             it.sensorSerial = "A"; it.sealedDisplayValue = 9.5f; it.sealedDisplayViewMode = 1
         }
         assertEquals(9.5f, HistoryChartModelBuilder.resolveValue(p, isRawMode = true, "A", plusOne)!!, 0.001f)
-        assertEquals(6f, HistoryChartModelBuilder.resolveValue(p, isRawMode = false, "A", plusOne)!!, 0.001f)
-        // Auto+raw (mode 2) is an auto-main mode; its record is the auto line's.
+        assertEquals(9.5f, HistoryChartModelBuilder.resolveValue(p, isRawMode = false, "A", plusOne)!!, 0.001f)
         val q = GlucosePoint(NOW, 5f, 9f).also {
             it.sensorSerial = "A"; it.sealedDisplayValue = 5.5f; it.sealedDisplayViewMode = 2
         }
         assertEquals(5.5f, HistoryChartModelBuilder.resolveValue(q, isRawMode = false, "A", plusOne)!!, 0.001f)
-        assertEquals(10f, HistoryChartModelBuilder.resolveValue(q, isRawMode = true, "A", plusOne)!!, 0.001f)
+        assertEquals(5.5f, HistoryChartModelBuilder.resolveValue(q, isRawMode = true, "A", plusOne)!!, 0.001f)
     }
 
     @Test
-    fun aRecordWithNoLaneIsTakenAtFaceValue() {
-        val p = point(NOW, 5f, "A", sealed = 7f) // sealedDisplayViewMode left at -1
-        assertEquals(7f, HistoryChartModelBuilder.resolveValue(p, false, "A", plusOne)!!, 0.001f)
-        assertEquals(7f, HistoryChartModelBuilder.resolveValue(p, true, "A", plusOne)!!, 0.001f)
+    fun aLaneSwitchKeepsTheRecordedLineAndPreviewsTheSelectedLane() {
+        // The 2026-10-17 AiDEX store: minutes recorded on the auto line, viewed
+        // after a switch to raw with a raw calibration added. The main line
+        // keeps the auto record; the calibrated raw value shows as the preview.
+        fun recordedOnAuto(ts: Long) = GlucosePoint(ts, 66f, 72f).also {
+            it.sensorSerial = "A"; it.sealedDisplayValue = 66f; it.sealedDisplayViewMode = 0
+        }
+        val a = HistoryChartModelBuilder.SeriesInput(
+            "A", isPrimary = true, viewMode = 1, colorArgb = 0,
+            points = listOf(recordedOnAuto(NOW), recordedOnAuto(NOW + MINUTE)),
+        )
+        val model = HistoryChartModelBuilder.build(listOf(a), MainSensorOwnership.NONE, plusOne, hasCalibration = true)
+        assertEquals(listOf(66f, 66f), model.primary!!.runs.flatMap { it.points }.map { it.value })
+        val preview = model.primary!!.secondaryLanes.single { it.kind == ChartLaneKind.CALIBRATION_PREVIEW }
+        assertEquals(listOf(73f, 73f), preview.runs.flatMap { it.points }.map { it.value })
+    }
+
+    @Test
+    fun aRecordThatOutlivedItsCalibrationStillShowsTheLiveValueBesideIt() {
+        // Recorded at 13 under a calibration that has since been deleted: the
+        // main line keeps 13, and the sensor's own 5 is previewed even though no
+        // calibration applies any more.
+        val a = series("A", primary = true, point(NOW, 5f, "A", sealed = 13f), point(NOW + MINUTE, 5f, "A", sealed = 13f))
+        val model = HistoryChartModelBuilder.build(listOf(a), MainSensorOwnership.NONE, noCalibration)
+        assertEquals(listOf(13f, 13f), model.primary!!.runs.flatMap { it.points }.map { it.value })
+        val preview = model.primary!!.secondaryLanes.single { it.kind == ChartLaneKind.CALIBRATION_PREVIEW }
+        assertEquals(listOf(5f, 5f), preview.runs.flatMap { it.points }.map { it.value })
+    }
+
+    @Test
+    fun noPreviewWithoutARecord() {
+        val a = series("A", primary = true, point(NOW, 5f, "A"), point(NOW + MINUTE, 5f, "A"))
+        val model = HistoryChartModelBuilder.build(listOf(a), MainSensorOwnership.NONE, noCalibration)
+        assertTrue(model.primary!!.secondaryLanes.none { it.kind == ChartLaneKind.CALIBRATION_PREVIEW })
     }
 
     @Test
@@ -166,6 +195,43 @@ class HistoryChartModelBuilderTests {
         assertEquals(listOf(5f, 5.1f), peer.runs.flatMap { it.points }.map { it.value })
         val raw = peer.secondaryLanes.single { it.kind == ChartLaneKind.RAW }
         assertEquals(listOf(2.8f, 2.9f), raw.runs.flatMap { it.points }.map { it.value })
+    }
+
+    @Test
+    fun hiddenSourceStaysHiddenWhenCalibratedSensorBecomesAPeer() {
+        // Ottai auto and AiDex raw are single-lane modes. The hide preference
+        // must survive switching either calibrated sensor behind an uncalibrated one.
+        for (mode in listOf(0, 1)) {
+            val calibrated = series("calibrated", true,
+                point(NOW, 5f, "calibrated"), point(NOW + MINUTE, 5f, "calibrated")
+            ).copy(viewMode = mode, hasCalibration = true)
+            val uncalibrated = series("other", false,
+                point(NOW, 8f, "other"), point(NOW + MINUTE, 8f, "other")
+            )
+            val calibration = HistoryChartModelBuilder.Calibration { value, _, _, sensor ->
+                if (sensor == "calibrated") value + 1f else null
+            }
+            for (calibratedIsPrimary in listOf(true, false)) {
+                for (hideSource in listOf(true, false)) {
+                    val model = HistoryChartModelBuilder.build(
+                        listOf(calibrated.copy(isPrimary = calibratedIsPrimary),
+                            uncalibrated.copy(isPrimary = !calibratedIsPrimary)),
+                        MainSensorOwnership.NONE, calibration,
+                        hasCalibration = calibratedIsPrimary,
+                        hideInitialWhenCalibrated = hideSource,
+                    )
+                    val trace = model.series.single { it.sensorId == "calibrated" }
+                    assertEquals(listOf(6f, 6f), trace.runs.flatMap { it.points }.map { it.value })
+                    assertEquals(if (hideSource) 0 else 1, trace.secondaryLanes.size)
+                    if (!hideSource) {
+                        assertEquals(listOf(5f, 5f), trace.secondaryLanes.single().runs.flatMap { it.points }.map { it.value })
+                    }
+                    val other = model.series.single { it.sensorId == "other" }
+                    assertTrue(other.secondaryLanes.isEmpty())
+                    assertEquals(listOf(8f, 8f), other.runs.flatMap { it.points }.map { it.value })
+                }
+            }
+        }
     }
 
     @Test

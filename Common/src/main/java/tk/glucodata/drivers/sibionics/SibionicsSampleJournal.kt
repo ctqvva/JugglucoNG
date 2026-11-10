@@ -86,6 +86,22 @@ internal class SibionicsSampleJournal(
         return true
     }
 
+    /**
+     * First index in `[from, untilExclusive)` the journal does not hold, or null
+     * when that whole range is present. A backfill asks the sensor for this page
+     * next; it is cheap enough to re-evaluate after every batch.
+     */
+    @Synchronized
+    fun firstMissingIndex(from: Int, untilExclusive: Int): Int? {
+        ensureLoaded()
+        var index = from.coerceAtLeast(1)
+        while (index < untilExclusive) {
+            if (!samples.containsKey(index)) return index
+            index++
+        }
+        return null
+    }
+
     @Synchronized
     fun clear() {
         samples.clear()

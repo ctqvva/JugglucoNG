@@ -5,19 +5,30 @@ import android.net.Uri
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.BuildConfig
 import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.HistorySourceProvenance
+import tk.glucodata.Log
 import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.CloneJournalIdentity
+import tk.glucodata.data.food.FoodDetailsBackup
+import tk.glucodata.data.food.FoodLibrary
+import tk.glucodata.data.food.FoodLibraryDatabase
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalPendingDeleteEntity
+import tk.glucodata.drivers.sibionics.SibionicsSourceJournalBackup
+import tk.glucodata.drivers.aidex.AiDexSourceJournalBackup
+import tk.glucodata.drivers.aidex.AiDexSampleJournal
+import tk.glucodata.drivers.aidex.native.ble.AiDexBleManager
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -25,8 +36,16 @@ import java.util.concurrent.TimeUnit
 
 object ExportPackageExporter {
     internal const val SCHEMA = "tk.glucodata.export-package"
+    private const val TAG = "ExportPackage"
     private const val SCHEMA_VERSION = 2
     private const val SQLITE_BIND_CHUNK = 900
+    private const val EXPORT_PAGE_SIZE = 2_000
+    private const val IMPORT_CHUNK = 2_000
+    private const val PROGRESS_LOG_READINGS = 100_000
+    private const val HISTORY_READINGS = "history.readings"
+    private const val HISTORY_DELETED_READINGS = "history.deletedReadings"
+    private const val HISTORY_FOOD_DETAILS = "journalFoodDetails"
+    private val historyImportMutex = Mutex()
 
     data class ExportRequest(
         val includeSettings: Boolean,
@@ -64,10 +83,7 @@ object ExportPackageExporter {
         val journalFoods: Int,
         val insulinPresets: Int,
         val calibrations: Int,
-        val restartRequired: Boolean,
-        // Serial to display on the dashboard for the imported glucose (may be a
-        // synthetic "imported"/"__imported_csv__" id when the file had no serial).
-        val historyDisplaySerial: String? = null
+        val restartRequired: Boolean
     )
 
     data class BackupValidationSummary(
@@ -87,16 +103,14 @@ object ExportPackageExporter {
 
     // Result of importing only the glucose/history section.
     data class HistoryOnlyImport(
-        val readings: Int,
-        val displaySerial: String?
+        val readings: Int
     )
 
     private data class HistoryImportSummary(
         val readings: Int = 0,
         val journalEntries: Int = 0,
         val journalFoods: Int = 0,
-        val insulinPresets: Int = 0,
-        val displaySerial: String? = null
+        val insulinPresets: Int = 0
     )
 
     suspend fun exportToUri(
@@ -116,7 +130,8 @@ object ExportPackageExporter {
                     payload = payload,
                     compression = request.compression
                 )
-                summary
+                // Streamed sections are only counted once they have been written.
+                summary()
             }
         }
     }
@@ -125,7 +140,7 @@ object ExportPackageExporter {
         val appContext = context.applicationContext
         return withContext(Dispatchers.IO) {
             runCatching {
-                readPayload(appContext, uri).optString("schema") == SCHEMA
+                readSchema(appContext, uri) == SCHEMA
             }.getOrDefault(false)
         }
     }
@@ -134,13 +149,16 @@ object ExportPackageExporter {
         val appContext = context.applicationContext
         return withContext(Dispatchers.IO) {
             runCatching {
-                classifyPayload(readPayload(appContext, uri))
+                classifySchema(readSchema(appContext, uri))
             }.getOrDefault(ImportFileType.OTHER)
         }
     }
 
-    internal fun classifyPayload(payload: JSONObject): ImportFileType {
-        return when (payload.optString("schema")) {
+    internal fun classifyPayload(payload: JSONObject): ImportFileType =
+        classifySchema(payload.optString("schema"))
+
+    private fun classifySchema(schema: String?): ImportFileType {
+        return when (schema) {
             SettingsExporter.SCHEMA -> ImportFileType.SETTINGS
             SCHEMA -> ImportFileType.EXPORT_PACKAGE
             else -> ImportFileType.OTHER
@@ -150,11 +168,40 @@ object ExportPackageExporter {
     suspend fun validateBackup(context: Context, uri: Uri): Result<BackupValidationSummary> {
         val appContext = context.applicationContext
         return withContext(Dispatchers.IO) {
-            runCatching { validateBackupPayload(readPayload(appContext, uri)) }
+            runCatching {
+                val readings = StreamedRecords { it.toHistoryReading() }
+                val deletedReadings = StreamedRecords { it.toDeletedReading() }
+                val payload = readPayload(
+                    appContext,
+                    uri,
+                    mapOf(HISTORY_READINGS to readings.sink, HISTORY_DELETED_READINGS to deletedReadings.sink)
+                )
+                validateBackupPayload(payload, readings, deletedReadings)
+            }
         }
     }
 
-    internal fun validateBackupPayload(payload: JSONObject): BackupValidationSummary {
+    /**
+     * Counts one streamed array: how many elements it had and how many parsed. Only a backup
+     * whose arrays parse in full is accepted, so validation keeps the counts, not the records.
+     */
+    private class StreamedRecords(parse: (JSONObject) -> Any?) {
+        var parsed = 0
+            private set
+        val sink = StreamedArraySink { element ->
+            if (element != null && parse(element) != null) parsed++
+        }
+    }
+
+    internal fun validateBackupPayload(payload: JSONObject): BackupValidationSummary =
+        validateBackupPayload(payload, readings = null, deletedReadings = null)
+
+    /** With [readings]/[deletedReadings] set, those arrays were streamed out of [payload]. */
+    private fun validateBackupPayload(
+        payload: JSONObject,
+        readings: StreamedRecords?,
+        deletedReadings: StreamedRecords?
+    ): BackupValidationSummary {
         return when (classifyPayload(payload)) {
             ImportFileType.SETTINGS -> {
                 val settings = SettingsExporter.validatePayload(payload)
@@ -167,12 +214,16 @@ object ExportPackageExporter {
                     calibrations = 0
                 )
             }
-            ImportFileType.EXPORT_PACKAGE -> validateExportPackagePayload(payload)
+            ImportFileType.EXPORT_PACKAGE -> validateExportPackagePayload(payload, readings, deletedReadings)
             ImportFileType.OTHER -> error("Unsupported backup file")
         }
     }
 
-    private fun validateExportPackagePayload(payload: JSONObject): BackupValidationSummary {
+    private fun validateExportPackagePayload(
+        payload: JSONObject,
+        streamedReadings: StreamedRecords?,
+        streamedDeletedReadings: StreamedRecords?
+    ): BackupValidationSummary {
         val schemaVersion = payload.optInt("schemaVersion", 0)
         require(schemaVersion in 1..SCHEMA_VERSION) {
             "Unsupported export package version: $schemaVersion"
@@ -194,16 +245,36 @@ object ExportPackageExporter {
             SettingsExporter.validatePayload(settings, requireJournalData = false)
         }
         val history = payload.optJSONObject("history")
-        val readings = history?.requiredArray("readings").toHistoryReadings()
+        val readingCount = when {
+            history == null -> 0
+            streamedReadings != null -> {
+                require(streamedReadings.sink.present) { "Backup field is missing: readings" }
+                requireFullyParsed("history readings", streamedReadings.sink.elements, streamedReadings.parsed)
+                streamedReadings.parsed
+            }
+            else -> {
+                val source = history.requiredArray("readings")
+                source.toHistoryReadings().size.also { requireFullyParsed("history readings", source, it) }
+            }
+        }
         val journalEntries = history?.requiredArray("journalEntries").toJournalEntries()
         val insulinPresets = history?.requiredArray("journalInsulinPresets").toInsulinPresets()
         val foods = history?.requiredArray("journalFoods").toFoods()
         // Both tombstone arrays arrived after the first packages shipped; the importer
         // treats them as optional, so validation must too or every older export fails.
-        val deletedReadings = history?.optJSONArray("deletedReadings").toDeletedReadings()
         val pendingDeletes = history?.optJSONArray("pendingJournalDeletes").toPendingJournalDeletes()
         if (history != null) {
-            requireFullyParsed("history readings", history.getJSONArray("readings"), readings.size)
+            if (streamedDeletedReadings != null) {
+                requireFullyParsed(
+                    "deleted history readings",
+                    streamedDeletedReadings.sink.elements,
+                    streamedDeletedReadings.parsed
+                )
+            } else {
+                history.optJSONArray("deletedReadings")?.let { source ->
+                    requireFullyParsed("deleted history readings", source, source.toDeletedReadings().size)
+                }
+            }
             requireFullyParsed("journal entries", history.getJSONArray("journalEntries"), journalEntries.size)
             requireFullyParsed(
                 "insulin presets",
@@ -211,12 +282,10 @@ object ExportPackageExporter {
                 insulinPresets.size
             )
             requireFullyParsed("food presets", history.getJSONArray("journalFoods"), foods.size)
-            history.optJSONArray("deletedReadings")?.let { source ->
-                requireFullyParsed("deleted history readings", source, deletedReadings.size)
-            }
             history.optJSONArray("pendingJournalDeletes")?.let { source ->
                 requireFullyParsed("pending Nightscout deletes", source, pendingDeletes.size)
             }
+            validateSensorSourceJournals(history.optJSONObject("sensorSourceJournals"))
         }
 
         val calibrationsSection = payload.optJSONObject("calibrations")
@@ -237,7 +306,7 @@ object ExportPackageExporter {
 
         return BackupValidationSummary(
             settingsIncluded = payload.optJSONObject("settings") != null,
-            historyReadings = readings.size,
+            historyReadings = readingCount,
             journalEntries = journalEntries.size,
             journalFoods = foods.size,
             insulinPresets = insulinPresets.size,
@@ -248,9 +317,12 @@ object ExportPackageExporter {
     private fun JSONObject.requiredArray(name: String): JSONArray =
         optJSONArray(name) ?: error("Backup field is missing: $name")
 
-    private fun requireFullyParsed(label: String, source: JSONArray, parsedCount: Int) {
-        require(parsedCount == source.length()) {
-            "$label contains ${source.length() - parsedCount} invalid record(s)"
+    private fun requireFullyParsed(label: String, source: JSONArray, parsedCount: Int) =
+        requireFullyParsed(label, source.length(), parsedCount)
+
+    private fun requireFullyParsed(label: String, elements: Int, parsedCount: Int) {
+        require(parsedCount == elements) {
+            "$label contains ${elements - parsedCount} invalid record(s)"
         }
     }
 
@@ -258,33 +330,38 @@ object ExportPackageExporter {
         val appContext = context.applicationContext
         return withContext(Dispatchers.IO) {
             runCatching {
-                val payload = readPayload(appContext, uri)
-                require(payload.optString("schema") == SCHEMA) { "Unsupported export package" }
-                val schemaVersion = payload.optInt("schemaVersion", 0)
-                require(schemaVersion in 1..SCHEMA_VERSION) {
-                    "Unsupported export package version: $schemaVersion"
-                }
+                historyImportMutex.withLock {
+                    val drivers = activeAiDexWriters()
+                    val imported = readPayloadForImport(appContext, uri)
+                    val payload = imported.payload
+                    require(payload.optString("schema") == SCHEMA) { "Unsupported export package" }
+                    val schemaVersion = payload.optInt("schemaVersion", 0)
+                    require(schemaVersion in 1..SCHEMA_VERSION) {
+                        "Unsupported export package version: $schemaVersion"
+                    }
+                    val aidex = prepareAiDexImport(appContext, uri, imported, drivers)
 
-                val settingsResult = payload.optJSONObject("settings")?.let { settings ->
-                    SettingsExporter.importPayload(appContext, settings).getOrThrow()
-                }
-                val historySummary = payload.optJSONObject("history")?.let { history ->
-                    importHistorySection(appContext, history)
-                } ?: HistoryImportSummary()
-                val calibrationCount = payload.optJSONObject("calibrations")?.let { calibrations ->
-                    importCalibrationSection(appContext, calibrations)
-                } ?: 0
+                    val settingsResult = payload.optJSONObject("settings")?.let { settings ->
+                        SettingsExporter.importPayload(appContext, settings).getOrThrow()
+                            .also { aidex.settingsImported() }
+                    }
+                    val historySummary = payload.optJSONObject("history")?.let { history ->
+                        importHistorySection(appContext, uri, history, aidex)
+                    } ?: HistoryImportSummary()
+                    val calibrationCount = payload.optJSONObject("calibrations")?.let { calibrations ->
+                        importCalibrationSection(appContext, calibrations)
+                    } ?: 0
 
-                ImportSummary(
-                    settingsImported = settingsResult != null,
-                    historyReadings = historySummary.readings,
-                    journalEntries = historySummary.journalEntries,
-                    journalFoods = historySummary.journalFoods,
-                    insulinPresets = historySummary.insulinPresets,
-                    calibrations = calibrationCount,
-                    restartRequired = settingsResult != null,
-                    historyDisplaySerial = historySummary.displaySerial
-                )
+                    ImportSummary(
+                        settingsImported = settingsResult != null,
+                        historyReadings = historySummary.readings,
+                        journalEntries = historySummary.journalEntries,
+                        journalFoods = historySummary.journalFoods,
+                        insulinPresets = historySummary.insulinPresets,
+                        calibrations = calibrationCount,
+                        restartRequired = settingsResult != null
+                    )
+                }
             }
         }
     }
@@ -298,15 +375,20 @@ object ExportPackageExporter {
         val appContext = context.applicationContext
         return withContext(Dispatchers.IO) {
             runCatching {
-                val payload = readPayload(appContext, uri)
-                require(payload.optString("schema") == SCHEMA) { "Unsupported export package" }
-                val schemaVersion = payload.optInt("schemaVersion", 0)
-                require(schemaVersion in 1..SCHEMA_VERSION) {
-                    "Unsupported export package version: $schemaVersion"
+                historyImportMutex.withLock {
+                    val drivers = activeAiDexWriters()
+                    val imported = readPayloadForImport(appContext, uri)
+                    val payload = imported.payload
+                    require(payload.optString("schema") == SCHEMA) { "Unsupported export package" }
+                    val schemaVersion = payload.optInt("schemaVersion", 0)
+                    require(schemaVersion in 1..SCHEMA_VERSION) {
+                        "Unsupported export package version: $schemaVersion"
+                    }
+                    val history = payload.optJSONObject("history") ?: return@withLock null
+                    val aidex = prepareAiDexImport(appContext, uri, imported, drivers, validateSettings = false)
+                    val summary = importHistorySection(appContext, uri, history, aidex)
+                    HistoryOnlyImport(readings = summary.readings)
                 }
-                val history = payload.optJSONObject("history") ?: return@runCatching null
-                val summary = importHistorySection(appContext, history)
-                HistoryOnlyImport(readings = summary.readings, displaySerial = summary.displaySerial)
             }
         }
     }
@@ -360,12 +442,13 @@ object ExportPackageExporter {
         return "Juggluco_Report_$date.txt"
     }
 
+    /** The summary is a function because the history section is only counted while it is written. */
     private suspend fun buildPayload(
         context: Context,
         request: ExportRequest
-    ): Pair<JSONObject, ExportSummary> {
+    ): Pair<JSONObject, () -> ExportSummary> {
         if (request.isSettingsOnly) {
-            return SettingsExporter.buildExportPayload(context) to ExportSummary(
+            val summary = ExportSummary(
                 settingsIncluded = true,
                 historyReadings = 0,
                 journalEntries = 0,
@@ -373,6 +456,7 @@ object ExportPackageExporter {
                 insulinPresets = 0,
                 calibrations = 0
             )
+            return SettingsExporter.buildExportPayload(context) to { summary }
         }
 
         val sections = JSONArray()
@@ -389,13 +473,13 @@ object ExportPackageExporter {
             root.put("settings", SettingsExporter.buildExportPayload(context, includeJournalData = false))
         }
 
-        val historySummary = if (request.includeHistory) {
+        val historySummary: () -> HistorySummary = if (request.includeHistory) {
             sections.put("history")
             val (history, summary) = buildHistorySection(context, request.historyDays)
             root.put("history", history)
             summary
         } else {
-            HistorySummary()
+            { HistorySummary() }
         }
 
         val calibrationCount = if (request.includeCalibrations) {
@@ -409,14 +493,17 @@ object ExportPackageExporter {
 
         root.put("sections", sections)
 
-        return root to ExportSummary(
-            settingsIncluded = request.includeSettings,
-            historyReadings = historySummary.readings,
-            journalEntries = historySummary.journalEntries,
-            journalFoods = historySummary.journalFoods,
-            insulinPresets = historySummary.insulinPresets,
-            calibrations = calibrationCount
-        )
+        return root to {
+            val history = historySummary()
+            ExportSummary(
+                settingsIncluded = request.includeSettings,
+                historyReadings = history.readings,
+                journalEntries = history.journalEntries,
+                journalFoods = history.journalFoods,
+                insulinPresets = history.insulinPresets,
+                calibrations = calibrationCount
+            )
+        }
     }
 
     private fun buildAppInfo(context: Context): JSONObject {
@@ -437,13 +524,12 @@ object ExportPackageExporter {
     private suspend fun buildHistorySection(
         context: Context,
         historyDays: Long?
-    ): Pair<JSONObject, HistorySummary> {
+    ): Pair<JSONObject, () -> HistorySummary> {
         val database = HistoryDatabase.getInstance(context)
         val endMillis = System.currentTimeMillis()
         val startMillis = historyDays
             ?.let { endMillis - TimeUnit.DAYS.toMillis(it.coerceAtLeast(1L)) }
             ?: 0L
-        val readings = database.historyDao().getReadingsSince(startMillis)
         val deletedReadings = database.historyDao().getDeletedReadingsSince(startMillis)
         val journalEntries = if (startMillis > 0L) {
             database.journalDao().getEntriesBetween(startMillis, endMillis)
@@ -451,7 +537,7 @@ object ExportPackageExporter {
             database.journalDao().getEntries()
         }
         val insulinPresets = database.journalDao().getInsulinPresets()
-        val foods = database.journalDao().getFoods()
+        val (foods, foodDetails) = FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(context).foodDetailsDao()).snapshot()
         val pendingJournalDeletes = database.journalDao().getPendingNightscoutDeletes()
             .filter { it.deletedAt >= startMillis }
 
@@ -461,38 +547,91 @@ object ExportPackageExporter {
         val isMmol = tk.glucodata.Applic.unit == 1
         val viewModeOf = ExportCalibration.viewModeResolver()
         // Readings whose displayed value was recorded export that value rather
-        // than a fresh recomputation — see ReadingDisplay.
-        val sealedByKey: Map<Long, Float> = if (
+        // than a fresh recomputation — see ReadingDisplay. The whole record is
+        // kept (not just the number) so the lane it was shown on survives: a
+        // raw-line record must not stand in for the auto line, and emitting the
+        // record itself is what makes a wrong-lane freeze diagnosable instead
+        // of visible only through its effect on the calibrated column.
+        val freezeDisplayedValues =
             runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
-        ) {
-            val nowMs = System.currentTimeMillis()
-            runCatching {
-                database.readingDisplayDao().getAllSince(0L)
-                    .filter { it.isUsable && it.isSealedAt(nowMs) }
-                    .associate { sealedDisplayKey(it.timestamp) to it.displayMgdl }
-            }.getOrDefault(emptyMap())
-        } else {
-            emptyMap()
+        val nowMs = System.currentTimeMillis()
+        val graceMs = ReadingDisplay.sealGraceMs()
+        val displayDao = database.readingDisplayDao()
+        val sealedIn: suspend (Long, Long) -> Map<Long, ReadingDisplay> = { fromMs, toMs ->
+            if (!freezeDisplayedValues) {
+                emptyMap()
+            } else {
+                runCatching {
+                    displayDao.getBetween(fromMs, toMs)
+                        .filter { it.isUsable && it.isSealedAt(nowMs, graceMs) }
+                        .associateBy { sealedDisplayKey(it.timestamp) }
+                }.getOrDefault(emptyMap())
+            }
         }
-        val sealedOf: (HistoryReading) -> Float? = { reading ->
-            sealedByKey[sealedDisplayKey(reading.timestamp)]
+
+        // Summarised a page at a time: like the readings, a whole table of minutes does not fit.
+        var sealedMinutes = 0
+        val sealedViewModes = sortedSetOf<Int>()
+        val sealedSerials = sortedSetOf<String>()
+        if (freezeDisplayedValues) {
+            var afterMs = Long.MIN_VALUE
+            while (true) {
+                val page = runCatching { displayDao.getPageAfter(afterMs, EXPORT_PAGE_SIZE) }
+                    .getOrDefault(emptyList())
+                if (page.isEmpty()) break
+                page.filter { it.isUsable && it.isSealedAt(nowMs, graceMs) }.forEach { display ->
+                    sealedMinutes++
+                    sealedViewModes += display.viewMode
+                    sealedSerials += display.sensorSerial
+                }
+                afterMs = page.last().timestamp
+            }
+        }
+        val readingDisplaySummary = JSONObject()
+            .put("sealedMinutes", sealedMinutes)
+            .put("viewModes", JSONArray().also { array -> sealedViewModes.forEach(array::put) })
+            .put("sensorSerials", JSONArray().also { array -> sealedSerials.forEach(array::put) })
+
+        var exportedReadings = 0
+        val readings = StreamedJsonArray { emit ->
+            val historyDao = database.historyDao()
+            var afterTimestamp = Long.MIN_VALUE
+            var afterSerial = ""
+            val startedAt = System.currentTimeMillis()
+            while (true) {
+                val page = historyDao.getReadingsPageSince(
+                    startMillis,
+                    afterTimestamp,
+                    afterSerial,
+                    EXPORT_PAGE_SIZE
+                )
+                if (page.isEmpty()) break
+                val sealedByKey = sealedIn(
+                    sealedDisplayKey(page.first().timestamp),
+                    sealedDisplayKey(page.last().timestamp)
+                )
+                val sealedOf: (HistoryReading) -> ReadingDisplay? = { reading ->
+                    sealedByKey[sealedDisplayKey(reading.timestamp)]
+                }
+                page.forEach { emit(it.toJson(isMmol, viewModeOf, sealedOf)) }
+                if ((exportedReadings + page.size) / PROGRESS_LOG_READINGS > exportedReadings / PROGRESS_LOG_READINGS) {
+                    Log.i(TAG, "Exported ${exportedReadings + page.size} readings in ${System.currentTimeMillis() - startedAt} ms")
+                }
+                exportedReadings += page.size
+                afterTimestamp = page.last().timestamp
+                afterSerial = page.last().sensorSerial
+            }
         }
 
         return JSONObject()
             .put("rangeStartEpochMillis", if (startMillis > 0L) startMillis else JSONObject.NULL)
             .put("rangeEndEpochMillis", endMillis)
             .put("storedUnit", "mg/dL")
-            .put(
-                "readings",
-                JSONArray().also { array ->
-                    readings.forEach { array.put(it.toJson(isMmol, viewModeOf, sealedOf)) }
-                }
-            )
+            .put("readingDisplay", readingDisplaySummary)
+            .put("readings", readings)
             .put(
                 "journalEntries",
-                JSONArray().also { array ->
-                    journalEntries.forEach { array.put(it.toJson()) }
-                }
+                StreamedJsonArray { emit -> journalEntries.forEach { emit(it.toJson()) } }
             )
             .put(
                 "journalInsulinPresets",
@@ -506,23 +645,80 @@ object ExportPackageExporter {
                     foods.forEach { array.put(it.toJson()) }
                 }
             )
+            // Skipped by a build that does not know the key; its foods are then plain presets.
+            .put(HISTORY_FOOD_DETAILS, FoodDetailsBackup.toJson(foodDetails))
             .put(
                 "deletedReadings",
-                JSONArray().also { array ->
-                    deletedReadings.forEach { array.put(it.toJson()) }
-                }
+                StreamedJsonArray { emit -> deletedReadings.forEach { emit(it.toJson()) } }
             )
             .put(
                 "pendingJournalDeletes",
                 JSONArray().also { array ->
                     pendingJournalDeletes.forEach { array.put(it.toJson()) }
                 }
-            ) to HistorySummary(
-            readings = readings.size,
-            journalEntries = journalEntries.size,
-            journalFoods = foods.size,
-            insulinPresets = insulinPresets.size
-        )
+            )
+            // Raw sensor samples the Sibionics driver rebuilds its history from.
+            // Not range-limited: a rebuild needs the journal whole from idx=1, and a
+            // restore without it re-downloads the sensor's entire life over BLE.
+            .put("sensorSourceJournals", buildSensorSourceJournals(context)) to {
+            HistorySummary(
+                readings = exportedReadings,
+                journalEntries = journalEntries.size,
+                journalFoods = foods.size,
+                insulinPresets = insulinPresets.size
+            )
+        }
+    }
+
+    private fun buildSensorSourceJournals(context: Context): JSONObject {
+        val result = JSONObject()
+        SibionicsSourceJournalBackup.collect(context.filesDir).forEach { (relativePath, file) ->
+            result.put(
+                relativePath,
+                JSONObject()
+                    .put("byteCount", file.length())
+                    .put("base64", android.util.Base64.encodeToString(file.readBytes(), android.util.Base64.NO_WRAP))
+            )
+        }
+        AiDexSourceJournalBackup.collect(context.filesDir).forEach { (relativePath, bytes) ->
+            result.put(relativePath, JSONObject().put("byteCount", bytes.size)
+                .put("base64", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)))
+        }
+        return result
+    }
+
+    /** Returns the number of source samples the local journals did not already hold. */
+    private fun importSensorSourceJournals(context: Context, journals: JSONObject?): Int {
+        if (journals == null) return 0
+        var imported = 0
+        val names = journals.keys()
+        while (names.hasNext()) {
+            val relativePath = names.next()
+            val entry = journals.optJSONObject(relativePath) ?: continue
+            val encoded = entry.optString("base64").takeIf { it.isNotBlank() } ?: continue
+            val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+            imported += if (AiDexSourceJournalBackup.isJournalPath(relativePath)) {
+                AiDexSourceJournalBackup.restore(context.filesDir, relativePath, bytes)
+            } else SibionicsSourceJournalBackup.restore(context.filesDir, relativePath, bytes)
+        }
+        return imported
+    }
+
+    private fun validateSensorSourceJournals(journals: JSONObject?) {
+        if (journals == null) return
+        val names = journals.keys()
+        while (names.hasNext()) {
+            val relativePath = names.next()
+            require(SibionicsSourceJournalBackup.isJournalPath(relativePath) || AiDexSourceJournalBackup.isJournalPath(relativePath)) {
+                "Backup contains an unsupported sensor journal: $relativePath"
+            }
+            val entry = journals.optJSONObject(relativePath)
+                ?: error("Invalid sensor journal entry: $relativePath")
+            val encoded = entry.optString("base64")
+            require(encoded.isNotBlank()) { "Sensor journal data is missing: $relativePath" }
+            val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+            if (AiDexSourceJournalBackup.isJournalPath(relativePath)) AiDexSampleJournal.decode(bytes)
+        }
     }
 
     private suspend fun buildCalibrationSection(context: Context): Pair<JSONObject, Int> {
@@ -576,35 +772,110 @@ object ExportPackageExporter {
             ) to rows.size
     }
 
+    private data class ImportPayload(val payload: JSONObject, val readingsBySensor: Map<String, Int>)
+
+    private fun activeAiDexWriters() = tk.glucodata.SensorBluetooth.mygatts()
+        .filterIsInstance<AiDexBleManager>().sortedBy { it.SerialNumber }
+
+    /** Only mutation holds writer locks; preflight/model fitting never blocks live storage. */
+    private fun <T> withAiDexHistoryWriters(sensorIds: Set<String>, work: (List<AiDexBleManager>) -> T): T {
+        val drivers = activeAiDexWriters().filter { it.SerialNumber.uppercase(Locale.ROOT) in sensorIds }
+        fun locked(index: Int): T = if (index == drivers.size) work(drivers)
+            else drivers[index].withHistoryImportLock { locked(index + 1) }
+        return locked(0)
+    }
+
+    private suspend fun prepareAiDexImport(context: Context, uri: Uri, imported: ImportPayload, drivers: List<AiDexBleManager>, validateSettings: Boolean = true): AiDexHistoryImport {
+        if (validateSettings) imported.payload.optJSONObject("settings")?.let { SettingsExporter.validatePayload(it, requireJournalData = false) }
+        validateSensorSourceJournals(imported.payload.optJSONObject("history")?.optJSONObject("sensorSourceJournals"))
+        val plan = AiDexHistoryImport.prepare(context, imported.payload, imported.readingsBySensor, drivers)
+        // Validate all conflicting minutes before touching preferences or Room.
+        readPayload(context, uri, mapOf(HISTORY_READINGS to StreamedArraySink { element ->
+            element?.toHistoryReading()?.let(plan::validate)
+        }, HISTORY_DELETED_READINGS to StreamedArraySink {}))
+        plan.rebuildConflicts()
+        withAiDexHistoryWriters(plan.sensorIds) { current ->
+            // Local applied modes can change while preflight computes. Never
+            // install an old output under a newer selection.
+            drivers.filter { it.SerialNumber.uppercase(Locale.ROOT) in plan.sensorIds }
+                .forEach { old -> check(current.any { it === old }) { "AiDex sensor changed during import" } }
+            plan.establishOwnership(current) {
+                importSensorSourceJournals(context, imported.payload.optJSONObject("history")?.optJSONObject("sensorSourceJournals"))
+            }
+            plan.checkOwnership(current)
+        }
+        return plan
+    }
+
+    /**
+     * Parses the whole package once with the large arrays discarded, so a truncated or corrupt
+     * file fails before anything is written; [importHistorySection] streams them in a second pass.
+     */
+    private suspend fun readPayloadForImport(context: Context, uri: Uri): ImportPayload {
+        val counts = HashMap<String, Int>()
+        val readings = StreamedArraySink { element -> element?.toHistoryReading()?.let { row ->
+            counts[row.sensorSerial] = (counts[row.sensorSerial] ?: 0) + 1
+        } }
+        val payload = readPayload(context, uri, mapOf(
+            HISTORY_READINGS to readings,
+            HISTORY_DELETED_READINGS to StreamedArraySink {},
+        ))
+        // The discarded array cannot decide ownership. Keep counts per sensor,
+        // so an unrelated sensor's reading never replaces local AiDex state.
+        return ImportPayload(payload, counts)
+    }
+
+    /** [history] comes from [readPayloadForImport]; its readings and tombstones are re-read from [uri]. */
     private suspend fun importHistorySection(
         context: Context,
-        history: JSONObject
+        uri: Uri,
+        history: JSONObject,
+        aidex: AiDexHistoryImport,
     ): HistoryImportSummary {
+        withAiDexHistoryWriters(aidex.sensorIds) { current -> aidex.checkOwnership(current) }
         val database = HistoryDatabase.getInstance(context)
-        val readings = history.optJSONArray("readings").toHistoryReadings()
         val entries = history.optJSONArray("journalEntries").toJournalEntries()
         val insulinPresets = history.optJSONArray("journalInsulinPresets").toInsulinPresets()
         val foods = history.optJSONArray("journalFoods").toFoods()
-        val deletedReadings = history.optJSONArray("deletedReadings").toDeletedReadings()
         val pendingJournalDeletes = history.optJSONArray("pendingJournalDeletes").toPendingJournalDeletes()
 
-        if (readings.isNotEmpty()) {
-            database.withTransaction {
-                val dao = database.historyDao()
-                val existingByKey = HashMap<Pair<String, Long>, HistoryReading>()
-                readings.groupBy(HistoryReading::sensorSerial).forEach { (serial, rows) ->
-                    rows.map(HistoryReading::timestamp).distinct().chunked(SQLITE_BIND_CHUNK)
-                        .forEach { timestamps ->
-                            dao.getSensorReadingsAtTimestamps(serial, timestamps).forEach { existing ->
-                                existingByKey[serial to existing.timestamp] = existing
-                            }
-                        }
-                }
-                dao.insertAll(preserveImportedHistoryProvenance(readings, existingByKey))
-            }
+        // A full history does not fit in memory as one list (#627), so readings are merged a
+        // chunk at a time; the first pass has already shown the file parses to the end.
+        var importedReadings = 0
+        val pendingReadings = ArrayList<HistoryReading>(IMPORT_CHUNK)
+        val pendingTombstones = ArrayList<DeletedHistoryReading>(IMPORT_CHUNK)
+        suspend fun flushReadings() {
+            if (pendingReadings.isEmpty()) return
+            insertImportedReadings(database, pendingReadings, aidex)
+            importedReadings += pendingReadings.size
+            pendingReadings.clear()
         }
+        suspend fun flushTombstones() {
+            if (pendingTombstones.isEmpty()) return
+            database.historyDao().insertDeletedReadings(pendingTombstones.toList())
+            pendingTombstones.clear()
+        }
+        readPayload(
+            context,
+            uri,
+            mapOf(
+                HISTORY_READINGS to StreamedArraySink { element ->
+                    val reading = element?.toHistoryReading() ?: return@StreamedArraySink
+                    pendingReadings += reading
+                    if (pendingReadings.size >= IMPORT_CHUNK) flushReadings()
+                },
+                HISTORY_DELETED_READINGS to StreamedArraySink { element ->
+                    pendingTombstones += element?.toDeletedReading() ?: return@StreamedArraySink
+                    if (pendingTombstones.size >= IMPORT_CHUNK) flushTombstones()
+                }
+            )
+        )
+        flushReadings()
+        flushTombstones()
         if (foods.isNotEmpty()) {
-            database.journalDao().insertFoods(foods)
+            FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(context).foodDetailsDao()).restore(
+                foods, FoodDetailsBackup.fromJson(history.optJSONArray(HISTORY_FOOD_DETAILS))
+            )
         }
         if (insulinPresets.isNotEmpty()) {
             database.journalDao().insertInsulinPresets(insulinPresets)
@@ -616,27 +887,54 @@ object ExportPackageExporter {
             // other and would otherwise sit until something unrelated woke the uploader.
             tk.glucodata.NightscoutUploadWake.afterJournalChange()
         }
-        if (deletedReadings.isNotEmpty()) {
-            database.historyDao().insertDeletedReadings(deletedReadings)
-        }
         if (pendingJournalDeletes.isNotEmpty()) {
             for (tombstone in pendingJournalDeletes) {
                 database.journalDao().enqueuePendingNightscoutDelete(tombstone)
             }
             tk.glucodata.NightscoutUploadWake.afterJournalChange()
         }
-
-        // Serial to key the dashboard on: the newest reading's serial (already
-        // normalized to "imported" by toHistoryReadings() when the file had none).
-        val displaySerial = readings.maxByOrNull { it.timestamp }?.sensorSerial
-
         return HistoryImportSummary(
-            readings = readings.size,
+            readings = importedReadings,
             journalEntries = entries.size,
             journalFoods = foods.size,
-            insulinPresets = insulinPresets.size,
-            displaySerial = displaySerial
+            insulinPresets = insulinPresets.size
         )
+    }
+
+    private suspend fun insertImportedReadings(database: HistoryDatabase, readings: List<HistoryReading>, aidex: AiDexHistoryImport) {
+        withAiDexHistoryWriters(aidex.sensorIds) { current -> runBlocking {
+            aidex.checkOwnership(current)
+            database.withTransaction {
+                val dao = database.historyDao()
+                val existingByKey = HashMap<Pair<String, Long>, HistoryReading>()
+                readings.groupBy(HistoryReading::sensorSerial).forEach { (serial, rows) ->
+                    rows.map(HistoryReading::timestamp).distinct().chunked(SQLITE_BIND_CHUNK)
+                        .forEach { timestamps ->
+                            dao.getSensorReadingsAtTimestamps(serial, timestamps).forEach { existing ->
+                                existingByKey[serial to existing.timestamp] = existing
+                            }
+                        }
+                }
+                val normalized = readings.map { row -> row to aidex.normalized(row) }
+                val merged = normalized.map { (row, rebuilt) -> if (rebuilt == null) row else row.copy(
+                    value = rebuilt.glucoseMgDl, rawValue = rebuilt.source.rawMgDl.takeIf { it.isFinite() } ?: 0f,
+                    rate = rebuilt.rateMgDlPerMinute.takeIf { it.isFinite() },
+                ) }
+                dao.insertAll(preserveImportedHistoryProvenance(merged, existingByKey))
+                val rebuiltRows = normalized.filter { it.second != null }
+                val uncertainty = database.readingUncertaintyDao()
+                rebuiltRows.groupBy { it.first.sensorSerial }.forEach { (serial, rows) ->
+                    rows.map { it.first.timestamp / 60_000L * 60_000L }.distinct().chunked(SQLITE_BIND_CHUNK)
+                        .forEach { uncertainty.deleteForSensorMinutes(serial, it) }
+                }
+                uncertainty.insertAll(rebuiltRows.mapNotNull { (row, rebuilt) -> rebuilt!!.uncertainty?.let { estimate ->
+                    ReadingUncertainty(row.sensorSerial, row.timestamp / 60_000L * 60_000L,
+                        estimate.lower90Mmol * tk.glucodata.drivers.aidex.adaptive2.AiDexAdaptiveV2.MGDL_PER_MMOL,
+                        estimate.upper90Mmol * tk.glucodata.drivers.aidex.adaptive2.AiDexAdaptiveV2.MGDL_PER_MMOL,
+                        0.9f, estimate.confidence, estimate.artifactProbability).takeIf { it.isUsable }
+                } })
+            }
+        } }
     }
 
     private suspend fun importCalibrationSection(
@@ -737,8 +1035,9 @@ object ExportPackageExporter {
     private fun HistoryReading.toJson(
         isMmol: Boolean,
         viewModeOf: (String?) -> Int,
-        sealedOf: (HistoryReading) -> Float?
+        sealedOf: (HistoryReading) -> ReadingDisplay?
     ): JSONObject {
+        val sealed = sealedOf(this)
         val calibratedMgDl = ExportCalibration.calibratedMgDl(
             autoMgDl = value,
             rawMgDl = rawValue,
@@ -746,7 +1045,8 @@ object ExportPackageExporter {
             sensorId = sensorSerial,
             viewMode = viewModeOf(sensorSerial),
             isMmol = isMmol,
-            sealedMgDl = sealedOf(this)
+            sealedMgDl = sealed?.displayMgdl,
+            sealedViewMode = sealed?.viewMode
         )
         return JSONObject()
             .put("timestamp", timestamp)
@@ -754,6 +1054,9 @@ object ExportPackageExporter {
             .put("valueMgDl", value.toDouble())
             .put("rawValueMgDl", rawValue.toDouble())
             .put("calibratedValueMgDl", calibratedMgDl?.toDouble() ?: JSONObject.NULL)
+            .put("sealedMgDl", sealed?.displayMgdl?.toDouble() ?: JSONObject.NULL)
+            .put("sealedViewMode", sealed?.viewMode ?: JSONObject.NULL)
+            .put("sealedSensorSerial", sealed?.sensorSerial ?: JSONObject.NULL)
             .put("rate", rate?.toDouble() ?: JSONObject.NULL)
             .put("source", source)
             .put("firstStoredAt", firstStoredAt)
@@ -831,6 +1134,8 @@ object ExportPackageExporter {
             .put("sensorId", sensorId)
             .put("sensorValue", sensorValue.toDouble())
             .put("sensorValueRaw", sensorValueRaw.toDouble())
+            .put("sensorValueStock", sensorValueStock.toDouble())
+            .put("valueUnit", valueUnit)
             .put("userValue", userValue.toDouble())
             .put("isEnabled", isEnabled)
             .put("isRawMode", isRawMode)
@@ -857,27 +1162,28 @@ object ExportPackageExporter {
         if (this == null) return emptyList()
         return buildList {
             for (index in 0 until length()) {
-                val item = optJSONObject(index) ?: continue
-                val timestamp = item.optLong("timestamp", 0L)
-                val sensorSerial = item.optString("sensorSerial", "").ifBlank { "imported" }
-                val value = item.optDouble("valueMgDl", 0.0).toFloat()
-                val rawValue = item.optDouble("rawValueMgDl", 0.0).toFloat()
-                if (timestamp <= 0L || value <= 0f) continue
-                add(
-                    HistoryReading(
-                        timestamp = timestamp,
-                        sensorSerial = sensorSerial,
-                        value = value,
-                        rawValue = rawValue,
-                        rate = item.optNullableFloat("rate"),
-                        source = item.optString("source", GlucoseReadingSource.SENSOR)
-                            .ifBlank { GlucoseReadingSource.SENSOR },
-                        firstStoredAt = item.optLong("firstStoredAt", System.currentTimeMillis())
-                            .takeIf { it > 0L } ?: System.currentTimeMillis(),
-                    )
-                )
+                optJSONObject(index)?.toHistoryReading()?.let(::add)
             }
         }
+    }
+
+    private fun JSONObject.toHistoryReading(): HistoryReading? {
+        val timestamp = optLong("timestamp", 0L)
+        val sensorSerial = optString("sensorSerial", "").ifBlank { "imported" }
+        val value = optDouble("valueMgDl", 0.0).toFloat()
+        val rawValue = optDouble("rawValueMgDl", 0.0).toFloat()
+        if (timestamp <= 0L || value <= 0f) return null
+        return HistoryReading(
+            timestamp = timestamp,
+            sensorSerial = sensorSerial,
+            value = value,
+            rawValue = rawValue,
+            rate = optNullableFloat("rate"),
+            source = optString("source", GlucoseReadingSource.SENSOR)
+                .ifBlank { GlucoseReadingSource.SENSOR },
+            firstStoredAt = optLong("firstStoredAt", System.currentTimeMillis())
+                .takeIf { it > 0L } ?: System.currentTimeMillis(),
+        )
     }
 
     internal fun preserveImportedHistoryProvenance(
@@ -1012,6 +1318,8 @@ object ExportPackageExporter {
                         sensorValue = item.optDouble("sensorValue", 0.0).toFloat(),
                         sensorValueRaw = item.optDouble("sensorValueRaw", 0.0).toFloat(),
                         userValue = item.optDouble("userValue", 0.0).toFloat(),
+                        sensorValueStock = item.optDouble("sensorValueStock", 0.0).toFloat(),
+                        valueUnit = item.optInt("valueUnit", if (tk.glucodata.Applic.unit == 1) 1 else 0),
                         isEnabled = item.optBoolean("isEnabled", true),
                         isRawMode = item.optBoolean("isRawMode", false),
                         journalEntryId = item.optNullableLong("journalEntryId")
@@ -1025,19 +1333,20 @@ object ExportPackageExporter {
         if (this == null) return emptyList()
         return buildList {
             for (index in 0 until length()) {
-                val item = optJSONObject(index) ?: continue
-                val timestamp = item.optLong("timestamp", 0L)
-                val sensorSerial = item.optString("sensorSerial", "")
-                if (timestamp <= 0L || sensorSerial.isBlank()) continue
-                add(
-                    DeletedHistoryReading(
-                        timestamp = timestamp,
-                        sensorSerial = sensorSerial,
-                        deletedAt = item.optLong("deletedAt", timestamp)
-                    )
-                )
+                optJSONObject(index)?.toDeletedReading()?.let(::add)
             }
         }
+    }
+
+    private fun JSONObject.toDeletedReading(): DeletedHistoryReading? {
+        val timestamp = optLong("timestamp", 0L)
+        val sensorSerial = optString("sensorSerial", "")
+        if (timestamp <= 0L || sensorSerial.isBlank()) return null
+        return DeletedHistoryReading(
+            timestamp = timestamp,
+            sensorSerial = sensorSerial,
+            deletedAt = optLong("deletedAt", timestamp)
+        )
     }
 
     private fun JSONArray?.toPendingJournalDeletes(): List<JournalPendingDeleteEntity> {
@@ -1077,10 +1386,19 @@ object ExportPackageExporter {
         return if (isNull(name) || !has(name)) null else optLong(name)
     }
 
-    private fun readPayload(context: Context, uri: Uri): JSONObject {
+    private suspend fun readPayload(
+        context: Context,
+        uri: Uri,
+        streamed: Map<String, StreamedArraySink> = emptyMap()
+    ): JSONObject {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: error("Could not open import source")
-        val text = ExportPackageCodec.readUtf8(inputStream)
-        return JSONObject(text)
+        return inputStream.use { ExportPackageCodec.readJson(it, streamed) }
+    }
+
+    private fun readSchema(context: Context, uri: Uri): String? {
+        val inputStream = context.contentResolver.openInputStream(uri)
+            ?: error("Could not open import source")
+        return inputStream.use(ExportPackageCodec::readSchema)
     }
 }

@@ -111,8 +111,10 @@ static public void show(MainActivity context) {
     status.setVisibility(usegarmin?VISIBLE:INVISIBLE);
     kerfstok.setOnCheckedChangeListener(
              (buttonView,  isChecked) -> {
-             if(isChecked&&!usegarmin)
-                Applic.app.numdata.reinit(context);
+             if(isChecked&&!usegarmin) {
+                var numdata = tk.glucodata.nums.AllDataAccess.phone();
+                if (numdata != null) numdata.reinit(context);
+                }
             status.setVisibility(isChecked?VISIBLE:INVISIBLE);
              });
     var useWearos=Applic.useWearos();
@@ -153,7 +155,8 @@ static public void show(MainActivity context) {
     layout.setBackgroundColor( Applic.backgroundcolor);
     context.addContentView(layout, new ViewGroup.LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
     status.setOnClickListener(v->{
-            new GarminStatus(context,Applic.app.numdata,layout);
+            var numdata = tk.glucodata.nums.AllDataAccess.phone();
+            if (numdata != null) new GarminStatus(context,numdata,layout);
             });
     wearossettings.setOnClickListener(v->{
             Wearos.show(context,layout);
@@ -164,14 +167,15 @@ static public void show(MainActivity context) {
                Natives.setusegarmin(!usegarmin);
             if(usegarmin) {
                 Natives.sethasgarmin(false);
-                Applic.app.numdata.stop();
+                var numdata = tk.glucodata.nums.AllDataAccess.phone();
+                if (numdata != null) numdata.stop();
                 }
                }
         context.poponback();
         removeContentView(layout);
         context.hideSystemUI(); 
-        if(Menus.on) {
-            Menus.show(context);
+        if(LegacyScreensAccess.getMenusOn()) {
+            LegacyScreensAccess.get().openMenus(context);
             }
         });
 

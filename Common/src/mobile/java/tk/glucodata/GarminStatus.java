@@ -378,7 +378,8 @@ class GarminStatus {
 		});
 		var blackmode = getcheckbox(context,R.string.darkmode, getkerfstokblack());
 		blackmode.setOnCheckedChangeListener((buttonView, isChecked) -> {
-			Applic.app.numdata.setcolor(isChecked);
+			var numdata = tk.glucodata.nums.AllDataAccess.phone();
+			if (numdata != null) numdata.setcolor(isChecked);
 			setkerfstokblack(isChecked);
 		});
 		var Help = getbutton(context, R.string.helpname);

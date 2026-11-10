@@ -1,0 +1,201 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "5c063b28ef394d057001c48da1b69b5c",
+    "entities": [
+      {
+        "tableName": "food_details",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`foodId` INTEGER NOT NULL, `referenceGrams` REAL, `portions` TEXT NOT NULL, `fiberGrams` REAL, `kcal` REAL, `brand` TEXT, `barcode` TEXT, `sourceKey` TEXT, `isLiquid` INTEGER NOT NULL, `kept` INTEGER NOT NULL, `useCount` INTEGER NOT NULL, `lastUsedAt` INTEGER NOT NULL, `lastQuantity` REAL, `lastPortionIndex` INTEGER, `hasOwnAbsorption` INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(`foodId`))",
+        "fields": [
+          {
+            "fieldPath": "foodId",
+            "columnName": "foodId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "referenceGrams",
+            "columnName": "referenceGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "portions",
+            "columnName": "portions",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fiberGrams",
+            "columnName": "fiberGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "kcal",
+            "columnName": "kcal",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "brand",
+            "columnName": "brand",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "barcode",
+            "columnName": "barcode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceKey",
+            "columnName": "sourceKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isLiquid",
+            "columnName": "isLiquid",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kept",
+            "columnName": "kept",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "useCount",
+            "columnName": "useCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUsedAt",
+            "columnName": "lastUsedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastQuantity",
+            "columnName": "lastQuantity",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "lastPortionIndex",
+            "columnName": "lastPortionIndex",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "hasOwnAbsorption",
+            "columnName": "hasOwnAbsorption",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "foodId"
+          ]
+        }
+      },
+      {
+        "tableName": "pending_food_write",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`operationId` INTEGER NOT NULL, `detailsJson` TEXT, `food_id` INTEGER NOT NULL, `food_displayName` TEXT NOT NULL, `food_carbsGrams` REAL NOT NULL, `food_proteinGrams` REAL, `food_fatGrams` REAL, `food_absorptionMinutes` INTEGER NOT NULL, `food_accentColor` INTEGER NOT NULL, `food_isBuiltIn` INTEGER NOT NULL, `food_isArchived` INTEGER NOT NULL, `food_sortOrder` INTEGER NOT NULL, `food_createdAt` INTEGER NOT NULL, `food_updatedAt` INTEGER NOT NULL, PRIMARY KEY(`operationId`))",
+        "fields": [
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detailsJson",
+            "columnName": "detailsJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "food.id",
+            "columnName": "food_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "food.displayName",
+            "columnName": "food_displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "food.carbsGrams",
+            "columnName": "food_carbsGrams",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "food.proteinGrams",
+            "columnName": "food_proteinGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "food.fatGrams",
+            "columnName": "food_fatGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "food.absorptionMinutes",
+            "columnName": "food_absorptionMinutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "food.accentColor",
+            "columnName": "food_accentColor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "food.isBuiltIn",
+            "columnName": "food_isBuiltIn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "food.isArchived",
+            "columnName": "food_isArchived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "food.sortOrder",
+            "columnName": "food_sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "food.createdAt",
+            "columnName": "food_createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "food.updatedAt",
+            "columnName": "food_updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "operationId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5c063b28ef394d057001c48da1b69b5c')"
+    ]
+  }
+}

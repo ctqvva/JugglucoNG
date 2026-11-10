@@ -55,15 +55,26 @@ import androidx.annotation.NonNull;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import tk.glucodata.glucosemeter.MeterLinkOutcome;
+import tk.glucodata.glucosemeter.MeterLinkPacer;
+import tk.glucodata.glucosemeter.MeterSyncPacing;
 import tk.glucodata.glucosemeter.SatelliteMeterCredentials;
 import tk.glucodata.glucosemeter.SatelliteMeterProtocol;
 import tk.glucodata.glucosemeter.SatelliteMeterSession;
 import tk.glucodata.glucosemeter.SatelliteSessionUpdate;
+import tk.glucodata.glucosemeter.VerioSession;
 
 public  class GlucoseMeterGatt  extends BluetoothGattCallback {
     MeterList.MeterView view=null;
     final static private String LOG_ID="GlucoseMeterGatt";
-    static    final boolean autoconnect=true;
+    // Direct connect (false) right after we've just seen the device advertise -
+    // from the picker or from MeterScanner matching a configured meter - then
+    // back to the whitelist-based background connect (true) once we're in.
+    // Meters like the Contour Plus advertise in sub-second bursts with long
+    // gaps; the whitelist scan behind autoConnect=true is nowhere near
+    // aggressive enough to catch that window, so a fresh sighting always
+    // needs a direct connectGatt() to have a real chance of landing.
+    private boolean autoConnect=true;
     protected BluetoothGatt mBluetoothGatt;
     public BluetoothDevice mActiveBluetoothDevice;
     public final int meterIndex;
@@ -95,6 +106,10 @@ public String getDeviceName() {
         if(device!=null) {
             String address = device.getAddress();
             setDeviceAddress(address);
+            // We were just handed this device from a scan result (picker pairing or
+            // MeterScanner matching a configured meter), so it is advertising right
+            // now - connect directly instead of waiting on the whitelist scan.
+            autoConnect=false;
             }
         }
 long foundtime=0L;
@@ -106,6 +121,9 @@ long foundtime=0L;
  private static final String IsensTimeCharUUID ="0000fff1-0000-1000-8000-00805f9b34fb";
  private static final String SatelliteRxCharUUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
  private static final String SatelliteTxCharUUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+ private static final String VerioWriteCharUUID = "af9df7a2-e595-11e3-96b4-0002a5d5c51b";
+ private static final String VerioNotifyCharUUID = "af9df7a3-e595-11e3-96b4-0002a5d5c51b";
+ private static final String GlucoseServiceUUID = "00001808-0000-1000-8000-00805f9b34fb";
 
 
 
@@ -121,6 +139,57 @@ private BluetoothGattCharacteristic SatelliteTxChar;
 private SatelliteMeterSession satelliteSession;
 private boolean satelliteMode=false;
 
+// Reconnect pacing (MeterSyncPacing), all guarded by this. A link is answered once the meter
+// has replied to the record request, cleanly (it may have had nothing new) or with an error.
+private boolean linkAnswered=false;
+private boolean linkFailed=false;
+private boolean linkBroughtNew=false;
+private final MeterLinkPacer pacer=new MeterLinkPacer();
+// A MeterRecheckAlarm is set for this meter.
+private boolean pacedWaiting=false;
+// Bumped by every cancel, so an alarm already being delivered sees it is stale.
+private long pacedTicket=0L;
+private synchronized void markLinkAnswered() { linkAnswered=true; }
+private synchronized void markLinkFailed() { linkAnswered=linkFailed=true; }
+private synchronized void markLinkBroughtNew() { linkBroughtNew=true; }
+private synchronized void resetLink() { linkAnswered=linkFailed=linkBroughtNew=false; }
+/** The last link found a meter that never sleeps (only the Satellite, so far). */
+boolean staysOn() { return satelliteMode; }
+synchronized void cancelPacedReconnect() {
+    ++pacedTicket;
+    if(!pacedWaiting) return;
+    pacedWaiting=false;
+    MeterRecheckAlarm.cancel(meterIndex);
+}
+private synchronized long pacedReconnectDelay() {
+    final MeterLinkOutcome outcome=linkBroughtNew?MeterLinkOutcome.NEW_READINGS
+        :linkFailed?MeterLinkOutcome.FAILED
+        :linkAnswered?MeterLinkOutcome.NOTHING_NEW
+        :MeterLinkOutcome.UNANSWERED;
+    resetLink();
+    return pacer.linkEnded(outcome,staysOn(),MeterSyncPacing.minutes());
+}
+private synchronized void schedulePacedReconnect(long wait) {
+    cancelPacedReconnect();
+    pacedWaiting=true;
+    MeterRecheckAlarm.set(meterIndex,pacedTicket,wait);
+}
+synchronized void runPacedReconnect(long ticket) {
+    // Cancelled, removed, or connected some other way since: never touch a newer link.
+    if(ticket!=pacedTicket || stop || mBluetoothGatt!=null) return;
+    pacedWaiting=false;
+    openGatt();
+}
+/** The interval was changed: a meter waiting under the old one is dialled now. */
+synchronized void pacingChanged() {
+    if(!pacedWaiting) return;
+    cancelPacedReconnect();
+    if(mBluetoothGatt==null && !stop) openGatt();
+}
+private BluetoothGattCharacteristic VerioWriteChar;
+private BluetoothGattCharacteristic VerioNotifyChar;
+private final VerioSession verioSession=new VerioSession();
+
 
 
 private boolean discovered=false;
@@ -131,9 +200,19 @@ private boolean discover(BluetoothGatt bluetoothGatt) {
     SatelliteRxChar=null;
     SatelliteTxChar=null;
     satelliteSession=null;
+    VerioWriteChar=null;
+    VerioNotifyChar=null;
+    verioSession.reset();
     for(var ser:services) {
         if(doLog) Log.i(LOG_ID,"service: "+ser.getUuid().toString());
         final boolean satelliteService=ser.getUuid().equals(SatelliteMeterProtocol.SERVICE_UUID);
+        final boolean verioService=ser.getUuid().equals(VerioSession.SERVICE_UUID);
+        // Some meters (Accu-Chek Instant confirmed by an HCI capture) carry a second,
+        // vendor-private service with its own characteristic that reuses the standard
+        // Record Access Control Point UUID. Without this guard the vendor one is
+        // discovered last and silently overwrites the real one, so every RACP write
+        // lands on the wrong attribute and the meter rejects it with ATT error 0x81.
+        final boolean glucoseService=ser.getUuid().toString().equals(GlucoseServiceUUID);
         var chars=ser.getCharacteristics();
         for(var s:chars) {
             var uuid=s.getUuid().toString();
@@ -145,9 +224,11 @@ private boolean discover(BluetoothGatt bluetoothGatt) {
                 case IsensTimeCharUUID: IsensTimeChar=s;break;
                 case GlucoseCharUUID: GlucoseChar=s;success=true;break;
                 case ContextCharUUID: ContextChar=s;break;
-                case RecordsCharUUID: RecordsChar=s;break;
+                case RecordsCharUUID: if(glucoseService || RecordsChar==null) RecordsChar=s;break;
                 case SatelliteRxCharUUID: if(satelliteService) SatelliteRxChar=s;break;
                 case SatelliteTxCharUUID: if(satelliteService) SatelliteTxChar=s;break;
+                case VerioWriteCharUUID: if(verioService) VerioWriteChar=s;break;
+                case VerioNotifyCharUUID: if(verioService) VerioNotifyChar=s;break;
                 }
             }
         }
@@ -157,8 +238,21 @@ private boolean discover(BluetoothGatt bluetoothGatt) {
         if(doLog) Log.i(LOG_ID,"Satellite Nordic UART service discovered");
         beginSatelliteSession(bluetoothGatt);
     }
+    else if(VerioWriteChar!=null && VerioNotifyChar!=null) {
+        // OneTouch Verio Flex: no glucose service at all, just this vendor pair
+        success=true;
+        if(doLog) Log.i(LOG_ID,"OneTouch Verio service discovered");
+        if(!enableNotification(bluetoothGatt,VerioNotifyChar)) {
+            Log.e(LOG_ID,"Could not enable Verio notifications");
+            success=false;
+            }
+        }
     else if(success)  {
         if(doLog) Log.i(LOG_ID,"discover succesfull");
+        if(ManufacturerNameChar==null) {
+            Log.e(LOG_ID,"no manufacturer name characteristic");
+            return false;
+            }
         tryer( ()->
             {
             return bluetoothGatt.readCharacteristic(ManufacturerNameChar);
@@ -172,10 +266,65 @@ private boolean discover(BluetoothGatt bluetoothGatt) {
     return success;
     }
 
+private void beginVerioSession(BluetoothGatt gatt) {
+    verioSession.begin();
+    writeNextVerioCommand(gatt);
+    }
+
+private void writeNextVerioCommand(BluetoothGatt gatt) {
+    final byte[] command=verioSession.take();
+    if(command==null)
+        return;
+    if(doLog) Log.showbytes(LOG_ID+": verio write",command);
+    if(!writeVerio(gatt,command)) {
+        // no write callback will follow, so keep the command for the next try
+        Log.e(LOG_ID,"verio write failed, command kept");
+        verioSession.putBack(command);
+        }
+    }
+
+private void processVerioResponse(BluetoothGatt gatt, byte[] value) {
+    if(doLog) Log.showbytes(LOG_ID+": verio notification",value);
+    verioSession.onNotification(value,Natives.GlucoseMeterGetLastPos(meterIndex));
+    final var readings=verioSession.takeReadings();
+    if(!readings.isEmpty())
+        persistVerioReadings(readings);
+    if(verioSession.isDone()) {
+        if(verioSession.isFailed()) markLinkFailed();
+        else markLinkAnswered();
+        }
+    // the answer queues the ack and the next request, and no write is in
+    // flight any more, so drain it here
+    writeNextVerioCommand(gatt);
+    }
+
+private void persistVerioReadings(List<VerioSession.Reading> readings) {
+    for(final var reading:readings) {
+        final long[] saved=Natives.GlucoseMeterSaveDecodedResult(
+            meterIndex,reading.getTimestampMillis(),reading.getMgdlTenths());
+        if(saved==null || saved.length<2) continue;
+        GlucoseMeterJournalBridge.record(meterIndex,saved[0],saved[1]);
+        // Stored at all means newer than the meter's last reading; saved[2] only says it is
+        // recent and has a legacy label.
+        markLinkBroughtNew();
+        if(saved.length>=3 && saved[2]!=0L)
+            newvalues=true;
+        final int stored=Natives.GlucoseMeterGetLastPos(meterIndex);
+        if(reading.getRecord()>stored)
+            Natives.GlucoseMeterSetLastPos(meterIndex,reading.getRecord());
+        }
+    receivedTime=System.currentTimeMillis();
+    updateview();
+    Applic.app.redraw();
+    }
+
 private void beginSatelliteSession(BluetoothGatt gatt) {
     final String pin=SatelliteMeterProtocol.resolvePin(SatelliteMeterCredentials.load());
     if(pin==null) {
         Log.e(LOG_ID,"Satellite meter code is missing or invalid");
+        Applic.argToaster(app, R.string.satellite_meter_code_missing, android.widget.Toast.LENGTH_LONG);
+        // A failed link: never redialled and toasted twice a minute; saving a code retries at once.
+        markLinkFailed();
         return;
     }
     satelliteSession=new SatelliteMeterSession(pin,System.currentTimeMillis());
@@ -196,10 +345,14 @@ boolean newvalues=false;
             case SatelliteTxCharUUID:
                 processSatelliteResponse(gatt,value);
                 break;
+            case VerioNotifyCharUUID:
+                processVerioResponse(gatt,value);
+                break;
             case GlucoseCharUUID:
                 final long[] saved = Natives.GlucoseMeterSaveResult(meterIndex,value);
                 if(saved != null && saved.length >= 2) {
                     GlucoseMeterJournalBridge.record(meterIndex, saved[0], saved[1]);
+                    markLinkBroughtNew();
                 }
                 if(saved != null && saved.length >= 3 && saved[2] != 0L) {
                     newvalues=true;
@@ -209,6 +362,9 @@ boolean newvalues=false;
                     }
                 break;
             case RecordsCharUUID:
+                // The RACP response closes the transfer: records sent, none stored, or an error.
+                if(MeterSyncPacing.racpReportSucceeded(value)) markLinkAnswered();
+                else markLinkFailed();
                 if(Natives.recordCharacteristicChanged(value)) {
                     newvalues=true;
                     Applic.app.redraw();
@@ -235,6 +391,8 @@ private synchronized void processSatelliteResponse(BluetoothGatt gatt, byte[] va
     if(update.getComplete()) {
         persistSatelliteReadings(update.getReadings());
         satelliteSession=null;
+        if(update.getError()!=null) markLinkFailed();
+        else markLinkAnswered();
         return;
     }
     final byte[] command=update.getCommand();
@@ -251,7 +409,11 @@ private void persistSatelliteReadings(List<SatelliteMeterProtocol.Reading> readi
         if(saved==null || saved.length<2) continue;
         stored=true;
         GlucoseMeterJournalBridge.record(meterIndex,saved[0],saved[1]);
-        if(saved.length>=3 && saved[2]!=0L) newvalues=true;
+        // Stored at all means newer than the meter's last reading; saved[2] only says it is
+        // recent and has a legacy label.
+        markLinkBroughtNew();
+        if(saved.length>=3 && saved[2]!=0L)
+            newvalues=true;
     }
     if(stored) {
         receivedTime=System.currentTimeMillis();
@@ -262,6 +424,11 @@ private void persistSatelliteReadings(List<SatelliteMeterProtocol.Reading> readi
 
 
 private boolean firstRecordonly=false;
+// Roche meters (Accu-Chek Instant confirmed by trace) accept the write of a
+// filtered RACP "records >= sequence" request but then never answer and drop
+// the link, unlike xDrip which only ever sends them the plain ALL_RECORDS
+// request. newerRecords stays on for every other manufacturer.
+private boolean allRecordsOnly=false;
 static private final boolean newerRecords=true;
 
 protected  final boolean enableNotification(BluetoothGatt bluetoothGatt1, BluetoothGattCharacteristic bluetoothGattCharacteristic) {
@@ -287,6 +454,7 @@ private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
         if(doLog)
             Log.i(LOG_ID,"handleManufactory "+ manufacturer);
         if(manufacturer.startsWith("Roche")) {
+                allRecordsOnly=true;
                 if(doLog)
                         Log.i(LOG_ID,"read DateTime");
                 tryer(()->gatt.readCharacteristic(DateTimeChar));
@@ -350,6 +518,13 @@ private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
         switch(uuid) {
             case IsensTimeCharUUID: tryer(()->enableNotification(gatt, GlucoseChar));break;
 
+            case VerioWriteCharUUID:
+                // the meter takes one command at a time, so send the next queued one
+                if(status!=GATT_SUCCESS)
+                    Log.e(LOG_ID,"verio write status: "+status);
+                writeNextVerioCommand(gatt);
+                break;
+
             default:
             }
     }
@@ -370,6 +545,13 @@ boolean connected=false;
          isBonded=bondstate==BOND_BONDED;
          connectedTime=tim;
          updateview();
+         // The fresh-sighting direct connect (if that is what got us here) has done
+         // its job; go back to the battery-friendly whitelist reconnect for whenever
+         // this link drops later.
+         autoConnect=true;
+         resetLink();
+         // Connected some other way while a paced reconnect waited.
+         cancelPacedReconnect();
         if(stop) {
             close();
             return;
@@ -409,12 +591,31 @@ boolean connected=false;
                       close();
                         }
                   else {
-                     if(autoconnect)  {
-                        if(useConnect)
+                     if(autoConnect)  {
+                        final boolean paced;
+                        // One hold of the lock pacingChanged takes, so an interval change
+                        // cannot slip between reading the interval and arming the alarm.
+                        synchronized(this) {
+                            final long wait=pacedReconnectDelay();
+                            paced=wait>0L;
+                            if(paced) {
+                                if(doLog) Log.i(LOG_ID,meterIndex+" stays on, nothing new, reconnect in "+wait/1000+"s");
+                                close();
+                                schedulePacedReconnect(wait);
+                                }
+                            }
+                        if(!paced && useConnect)
                             bluetoothGatt.connect();
                         }
-                    else
+                    else {
+                        // The one direct attempt a fresh sighting earns did not land.
+                        // Fall back to the whitelist connect: retrying directly would
+                        // keep the radio dialing for as long as the meter stays silent,
+                        // which for a meter is most of the day. The next sighting
+                        // (MeterScanner or the picker, via setDevice) earns another try.
+                        autoConnect=true;
                         connectActiveOrScan(0);
+                        }
                       }
                  }
          }
@@ -431,9 +632,6 @@ boolean connected=false;
         if(doLog)
                 Log.i(LOG_ID,"onDescriptorRead/4 "+status);
     }
-
-static private          byte[] VerioGetTimeCMD={0x20, 0x02};
-static private          byte[] VerioGetTcounterCMD={0x20, 0x02};
 
   private boolean writer(BluetoothGatt mBluetoothGatt,BluetoothGattCharacteristic cha, byte[] data) {
         if (!cha.setValue(data)) {
@@ -457,6 +655,15 @@ private boolean writeSatellite(BluetoothGatt gatt,byte[] command) {
     final boolean written=gatt.writeCharacteristic(characteristic);
     if(doLog) Log.i(LOG_ID,written ? "Satellite command written" : "Satellite command write failed");
     return written;
+}
+
+private boolean writeVerio(BluetoothGatt gatt,byte[] command) {
+    final BluetoothGattCharacteristic characteristic=VerioWriteChar;
+    if(characteristic==null || !characteristic.setValue(command)) {
+        Log.e(LOG_ID,"Could not prepare Verio command");
+        return false;
+        }
+    return gatt.writeCharacteristic(characteristic);
 }
 //s/\<\([a-zA-Z0-9]*\).writeCharacteristic(\([^,]*\),\([^)]*\))/writer(\1,\2,\3)
 
@@ -485,6 +692,13 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
                     if(command!=null) tryer(()->writeSatellite(bluetoothGatt,command));
                 }
                 break;
+           case VerioNotifyCharUUID:
+                if(status!=GATT_SUCCESS) {
+                    Log.e(LOG_ID,"Verio notification descriptor failed: "+status);
+                    break;
+                    }
+                beginVerioSession(bluetoothGatt);
+                break;
            case GlucoseCharUUID:
                 tryer(()->enableIndication(bluetoothGatt, RecordsChar));
                 break;
@@ -494,6 +708,10 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
            case RecordsCharUUID:
                 if(firstRecordonly) {
                       byte[] cmd={1,(byte)0x5};
+                      tryer(()->writer(bluetoothGatt, RecordsChar,cmd));
+                      }
+                else if(allRecordsOnly) {
+                      byte[] cmd={1,(byte)0x1};
                       tryer(()->writer(bluetoothGatt, RecordsChar,cmd));
                       }
                 else {
@@ -563,59 +781,99 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
     public void onServicesDiscovered(BluetoothGatt gatt, int status) {
         if(doLog)
             Log.i(LOG_ID,"onServicesDiscovered "+status);
+        if(status==GATT_SUCCESS && requestBond(gatt))
+            // bonded() calls discoverServices() again once BOND_BONDED arrives
+            return;
         discover(gatt);
+    }
+
+    // Classic BLE bonding, like xDrip does for the same meters. Glucose meters
+    // keep their glucose characteristic encrypted, so without a bond every read
+    // fails with GATT_INSUFFICIENT_AUTHENTICATION and the meter stays silent.
+    // A meter that is not in pairing mode simply never answers, so fall back to
+    // an unbonded attempt via bonded()'s BOND_NONE branch.
+    private boolean requestBond(BluetoothGatt gatt) {
+        if(hasNordicUartService(gatt))
+            return false; // Satellite does its own PIN authentication over NUS and rejects bonding
+        final var device=gatt.getDevice();
+        final int bondstate=device.getBondState();
+        if(bondstate==BOND_BONDED)
+            return false;
+        if(bondstate==BluetoothDevice.BOND_BONDING)
+            return true; // wait for BOND_BONDED
+        if(doLog) {Log.i(LOG_ID, "createBond(), the meter must be in pairing mode");};
+        return device.createBond();
+    }
+
+    private boolean hasNordicUartService(BluetoothGatt gatt) {
+        final var services=gatt.getServices();
+        if(services==null)
+            return false;
+        for(var service:services) {
+            if(service.getUuid().equals(SatelliteMeterProtocol.SERVICE_UUID))
+                return true;
+            }
+        return false;
     }
 
 
     private Runnable getConnectDevice() {
         disconnect();
         return () -> {
-             close();
-            if(doLog) {Log.i(LOG_ID,"getConnectDevice Runnable "+ meterIndex);};
-            if(!BluetoothGlucoseMeter.bluetoothIsEnabled()) {
-                Log.e(LOG_ID, "!bluetoothIsEnabled() ");
-                return ;
-                }
-            var device= mActiveBluetoothDevice;
-            if(device==null) {
-                Log.e(LOG_ID, meterIndex +" "+"device==null");
-                return;
-                }
-        
-            if (mBluetoothGatt != null) {
-                if(doLog) {Log.d(LOG_ID, meterIndex + " mBluetoothGatt!=null");};
-                return;
-                }
-            if(doLog) {
-                var devname=device.getName();
-                if(devname!=null) {
-                        if(doLog)
-                            Log.d(LOG_ID, meterIndex + " Try connection to " + device.getAddress()+ " "+devname);;
-                        }
-                }
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    mBluetoothGatt = device.connectGatt(app, autoconnect, this, BluetoothDevice.TRANSPORT_LE);
-                } else {
-                    mBluetoothGatt = device.connectGatt(app, autoconnect, this);
-                    }
-
-            if(doLog) {Log.i(LOG_ID,meterIndex+" after connectGatt ="+mBluetoothGatt);};
-            } catch (SecurityException se) {
-                var mess = se.getMessage();
-                mess = mess == null ? "" : mess;
-                String uit = ((Build.VERSION.SDK_INT > 30) ? Applic.getContext().getString(R.string.turn_on_nearby_devices_permission)  : mess) ;
-                Applic.Toaster(uit);
-
-                Log.stack(LOG_ID, meterIndex +" "+ "connectGatt", se);
-            } catch (Throwable e) {
-                Log.stack(LOG_ID, meterIndex +" "+ "connectGatt", e);
-
+            synchronized(this) {
+                close();
+                if(doLog) {Log.i(LOG_ID,"getConnectDevice Runnable "+ meterIndex);};
+                // A delayed connect can outlive removal of the meter.
+                if(!stop) openGatt();
                 }
         };
     }
 
-    public void close() {
+    // Callers hold this and have closed any previous transport.
+    private void openGatt() {
+        if(!BluetoothGlucoseMeter.bluetoothIsEnabled()) {
+            Log.e(LOG_ID, "!bluetoothIsEnabled() ");
+            return;
+            }
+        var device= mActiveBluetoothDevice;
+        if(device==null) {
+            Log.e(LOG_ID, meterIndex +" "+"device==null");
+            return;
+            }
+        
+        if (mBluetoothGatt != null) {
+            if(doLog) {Log.d(LOG_ID, meterIndex + " mBluetoothGatt!=null");};
+            return;
+            }
+        if(doLog) {
+            var devname=device.getName();
+            if(devname!=null) {
+                    if(doLog)
+                        Log.d(LOG_ID, meterIndex + " Try connection to " + device.getAddress()+ " "+devname);;
+                    }
+            }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                mBluetoothGatt = device.connectGatt(app, autoConnect, this, BluetoothDevice.TRANSPORT_LE);
+            } else {
+                mBluetoothGatt = device.connectGatt(app, autoConnect, this);
+                }
+
+        if(doLog) {Log.i(LOG_ID,meterIndex+" after connectGatt ="+mBluetoothGatt);};
+        } catch (SecurityException se) {
+            var mess = se.getMessage();
+            mess = mess == null ? "" : mess;
+            String uit = ((Build.VERSION.SDK_INT > 30) ? Applic.getContext().getString(R.string.turn_on_nearby_devices_permission)  : mess) ;
+            Applic.Toaster(uit);
+
+            Log.stack(LOG_ID, meterIndex +" "+ "connectGatt", se);
+        } catch (Throwable e) {
+            Log.stack(LOG_ID, meterIndex +" "+ "connectGatt", e);
+
+            }
+    }
+
+    public synchronized void close() {
        if(doLog) {Log.i(LOG_ID,"close "+meterIndex);};
         var tmpgatt=mBluetoothGatt ;
         if (tmpgatt != null) {
@@ -653,7 +911,10 @@ public void disconnect() {
 void retrySatelliteSession() {
     if(satelliteMode) {
         satelliteSession=null;
-        disconnect();
+        resetLink();
+        cancelPacedReconnect();
+        if(mBluetoothGatt!=null) disconnect();
+        else connectActiveDevice(0L);
     }
 }
  public boolean connectActiveDevice(long delayMillis) {
@@ -736,6 +997,12 @@ boolean askDevice() {
                          disconnect();
                         }    
                     } 
+                };break;
+            case BOND_NONE: {
+                // createBond() did not take, try the unbonded reads anyway
+                if(doLog) {Log.i(LOG_ID, "bonded: BOND_NONE");};
+                if(!discovered && mBluetoothGatt!=null)
+                    discover(mBluetoothGatt);
                 };break;
         }
     }

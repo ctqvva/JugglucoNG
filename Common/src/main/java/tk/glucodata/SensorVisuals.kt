@@ -31,8 +31,8 @@ object SensorVisuals {
      */
     const val LANE_IDENTITY_TINT = 0.28f
 
-    private const val PREFS_NAME = "tk.glucodata_preferences"
-    private const val KEY_COLOR_OVERRIDES = "sensor_color_overrides_argb"
+    private const val PREFS_NAME = tk.glucodata.settings.SettingsRegistry.FILE
+    private const val KEY_COLOR_OVERRIDES = tk.glucodata.settings.KEY_SENSOR_COLORS
 
     @Volatile
     private var cachedOverrides: Map<String, Int>? = null
@@ -126,6 +126,14 @@ object SensorVisuals {
                 .apply()
         }
         cachedOverrides = updated
+        // The watch paints peer traces in these colours too.
+        if (!Applic.isWearable) runCatching { WearPrefsSync.push() }
+    }
+
+    /** The stored overrides were written by something else (the phone's mirror). */
+    @JvmStatic
+    fun invalidateOverrides() {
+        cachedOverrides = null
     }
 
     private fun normalizedSensorId(sensorId: String?): String? =

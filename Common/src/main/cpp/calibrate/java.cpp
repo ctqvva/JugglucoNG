@@ -55,19 +55,22 @@ extern bool shouldexclude(const uint32_t time);
 extern "C" JNIEXPORT void JNICALL fromjava(requestMirrorCalibrationSync)(JNIEnv *env,
                                                                          jclass cl,
                                                                          jstring jsensorId) {
-    if(!jsensorId || !sensors) {
+    if(!jsensorId) {
         return;
     }
     const char *sensorId = env->GetStringUTFChars(jsensorId, nullptr);
     if(!sensorId) {
         return;
     }
-    int sensorindex = sensors->sensorindexshort(sensorId);
-    if(sensorindex < 0) {
+    int sensorindex = sensors ? sensors->sensorindexshort(sensorId) : -1;
+    if(sensorindex < 0 && sensors) {
         sensorindex = sensors->sensorindex(sensorId);
     }
     env->ReleaseStringUTFChars(jsensorId, sensorId);
     if(sensorindex >= 0) {
         setCalibrates(sensorindex);
     }
+    // Room-only drivers have no native index. Their profiles still need a
+    // sender wake, including edits/deletions while no glucose is arriving.
+    wakeupall();
 }

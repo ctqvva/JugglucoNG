@@ -58,7 +58,6 @@ import java.util.Date;
 import java.util.Locale;
 
 
-import tk.glucodata.nums.AllData;
 import tk.glucodata.nums.numio;
 
 import static android.widget.LinearLayout.VERTICAL;
@@ -80,7 +79,7 @@ import static tk.glucodata.Log.doLog;
 import static tk.glucodata.MainActivity.systembarLeft;
 import static tk.glucodata.MainActivity.systembarRight;
 import static tk.glucodata.RingTones.EnableControls;
-import static tk.glucodata.Specific.useclose;
+import static tk.glucodata.VariantBootstrapAccess.useCloseButton;
 import static tk.glucodata.settings.Settings.editoptions;
 import static tk.glucodata.settings.Settings.getGenSpin;
 import static tk.glucodata.settings.Settings.removeContentView;
@@ -247,7 +246,7 @@ public   View addnumberview(MainActivity context,final int bron,final long time,
         helpbutton.setOnClickListener(v-> help.helplight(R.string.newamount,context));
         }
     else {
-       if(!useclose) cancelbutton.setVisibility(GONE);
+       if(!useCloseButton()) cancelbutton.setVisibility(GONE);
         }
       Layout layout;
 
@@ -256,7 +255,7 @@ public   View addnumberview(MainActivity context,final int bron,final long time,
         int width=GlucoseCurve.getwidth();
       getMargins(timebutton).rightMargin= getMargins(datebutton).leftMargin =(int)(width*0.08f);
 //      getMargins(timebutton).rightMargin=(int)(width*0.10f);
-      if(useclose)  {
+      if(useCloseButton())  {
    //      getMargins(deletebutton).rightMargin=getMargins(savebutton).leftMargin =(int)(width*0.05f);
 //      getMargins(deletebutton).rightMargin=getMargins(savebutton).leftMargin =(int)(width*0.12f);
           layout = new Layout(context, (lay,w,h) -> { 
@@ -403,9 +402,9 @@ public   View addnumberview(MainActivity context,final int bron,final long time,
             ((Applic) act.getApplication()). redraw();
               MainActivity.poponback();
 
-             if(Menus.on) {
+             if(LegacyScreensAccess.getMenusOn()) {
                 if(deletebutton.getVisibility()==GONE) {
-                        Menus.show(context);
+                        LegacyScreensAccess.get().openMenus(context);
                         }
                 }
             } 
@@ -501,8 +500,8 @@ public   View addnumberview(MainActivity context,final int bron,final long time,
             currentnum=0L;
             }
         else {
-             if(Menus.on) {
-                Menus.show(context);
+             if(LegacyScreensAccess.getMenusOn()) {
+                LegacyScreensAccess.get().openMenus(context);
                 }
             }
 
@@ -566,7 +565,7 @@ void deletedialog(View v,int[] mealptr) {
                     int pos=Natives.hitremove(currentnum);
                     int last=numio.getlastnum(index);
                     if(!isWearable) {
-                        AllData alldata=((Applic) ((Activity) v.getContext()).getApplication()).numdata;
+                        NumberDataHub alldata=((Applic) ((Activity) v.getContext()).getApplication()).numdata;
                         alldata.deletelast(index,last,waslast);
                         if(pos<last)
                              alldata.changedback(index);
@@ -578,8 +577,8 @@ void deletedialog(View v,int[] mealptr) {
                 }
                 /*
             else  {
-             if(Menus.on) {
-                Menus.show(context);
+             if(LegacyScreensAccess.getMenusOn()) {
+                LegacyScreensAccess.get().openMenus(context);
                 }
                 } */
          newnumview.setVisibility(GONE);
@@ -606,7 +605,7 @@ private void seedelete() {
     deletebutton.setVisibility(VISIBLE);
     if(isWearable) {
         int width=GlucoseCurve.getwidth();
-         if(useclose)  {
+         if(useCloseButton())  {
              getMargins(deletebutton).rightMargin=getMargins(savebutton).leftMargin =(int)(width*0.05f);
              }
          else {
@@ -679,7 +678,7 @@ private boolean saveamount(Activity activity,TextView timeview,TextView value,in
         Natives.hitchange(currentnum,dat/1000L,val,labelsel,mealptr);
         int index=Natives.gethitindex(currentnum);
         if(!isWearable) {
-            tk.glucodata.nums.AllData  alldata=Applic.app.numdata;
+            NumberDataHub alldata=Applic.app.numdata;
             alldata.changedback(index);
             }
         Natives.freehitptr(currentnum);
@@ -700,7 +699,7 @@ private boolean saveamount(Activity activity,TextView timeview,TextView value,in
         final int index=1;
         Natives.saveNum(numio.numptrs[index],dat/1000,val,labelsel,mealptr);
         if(!isWearable) {
-           tk.glucodata.nums.AllData  alldata=Applic.app.numdata;
+           NumberDataHub alldata=Applic.app.numdata;
             alldata.changedback(index);
             }
         }
@@ -755,7 +754,7 @@ public Layout getdateviewal(MainActivity activity, long date, Dater erdate) {
         });
     int laypar;
     if(isWearable) {
-         if(!useclose)
+         if(!useCloseButton())
             cancel.setVisibility(GONE);
         datepicker=new Layout(activity,
                 (lay, w, h)->{
@@ -803,8 +802,8 @@ activity.setonback(()->{
     if(newnumview!=null)
         EnableControls(newnumview,true);
     else {
-        if(Menus.on)
-                    Menus.show(activity);
+        if(LegacyScreensAccess.getMenusOn())
+                    LegacyScreensAccess.get().openMenus(activity);
         }
         });
 
@@ -883,7 +882,7 @@ final  boolean buttonsunder=false;
     View[][] views;
      int layparwidth,layparheight;
 if(isWearable) {
-      if(!useclose) cancel.setVisibility(GONE);
+      if(!useCloseButton()) cancel.setVisibility(GONE);
            views=new View[][]{new View[]{cancel},new View[]{pick},new View[]{ok}};
          layparheight=layparwidth=MATCH_PARENT;
 

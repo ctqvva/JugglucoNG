@@ -31,13 +31,14 @@ import tk.glucodata.DataSmoothing
 import tk.glucodata.MultiSensorSelection
 import tk.glucodata.Notify
 import tk.glucodata.SensorBluetooth
-import tk.glucodata.ManagedCurrentSensor
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.HistorySync
 import tk.glucodata.data.journal.AapsJournalImport
+import tk.glucodata.data.journal.JournalDashboardVisibility
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryInput
+import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalFoodInput
 import tk.glucodata.data.journal.JournalInsulinPreset
@@ -47,6 +48,8 @@ import tk.glucodata.data.prediction.DoseTarget
 import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.data.prediction.PredictionModelProfileStore
 import tk.glucodata.data.prediction.StateDoseHintCalculator
+import tk.glucodata.ui.PeerCurrentReading
+import tk.glucodata.ui.SecondarySensorDisplay
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.inDisplayUnit
 import tk.glucodata.data.journal.JournalRepository
@@ -55,12 +58,15 @@ import tk.glucodata.alerts.CustomAlertRepository
 import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.ManagedSensorStatusPolicy
 import tk.glucodata.drivers.ManagedSensorUiFamily
+import tk.glucodata.drivers.aidex.native.protocol.AiDexWearProfile
 import tk.glucodata.ui.util.resolveDashboardSensorStatus
 import kotlin.math.roundToInt
 
 internal object DashboardHistoryCollectionPolicy {
-    fun shouldCoalesceEmission(mode: DashboardViewModel.CollectionMode, hasSeenHistoryEmission: Boolean): Boolean =
-        mode == DashboardViewModel.CollectionMode.DASHBOARD && hasSeenHistoryEmission
+    fun shouldCoalesceEmission(
+        mode: DashboardViewModel.CollectionMode,
+        hasSeenHistoryEmission: Boolean,
+    ): Boolean = mode == DashboardViewModel.CollectionMode.DASHBOARD && hasSeenHistoryEmission
 
     /**
      * Whether the current sensor's stored history is behind enough to ask native
@@ -148,15 +154,6 @@ class DashboardViewModel(
         }
     }
 
-    /** Latest displayable reading of a peer (non-primary) selected sensor. */
-    data class PeerCurrentReading(
-        val sensorId: String,
-        val primaryStr: String,
-        val secondaryStr: String?,
-        val rate: Float,
-        val timeMillis: Long
-    )
-
     private companion object {
         const val TARGET_RANGE_DEFAULTS_MIGRATION_KEY = "target_range_defaults_v2"
         const val UI_RECOVERY_SYNC_MIN_INTERVAL_MS = 30_000L
@@ -182,8 +179,10 @@ class DashboardViewModel(
         const val DASHBOARD_PEER_HISTORY_WINDOW_MS = 72L * 60L * 60L * 1000L
         const val JOURNAL_DOSE_CALCULATOR_KEY = "dashboard_journal_dose_calculator_enabled"
         const val JOURNAL_NAVIGATION_TAB_KEY = "dashboard_journal_navigation_tab_enabled"
+        const val SENSOR_SETUP_SKIPPED_KEY = "dashboard_sensor_setup_skipped"
         const val JOURNAL_FOOD_MACROS_KEY = "dashboard_journal_food_macros_enabled"
         const val JOURNAL_FOOD_LIBRARY_KEY = "dashboard_journal_food_library_enabled"
+        const val JOURNAL_FOOD_ONLINE_KEY = "dashboard_journal_food_online_enabled"
         const val JOURNAL_EIOB_DISPLAY_KEY = "dashboard_journal_eiob_display_enabled"
         const val JOURNAL_QUICKADD_ALWAYS_NOW_KEY = "dashboard_journal_quickadd_always_now"
         const val JOURNAL_DASHBOARD_QUICKADD_KEY = "dashboard_journal_quickadd_button"
@@ -193,21 +192,24 @@ class DashboardViewModel(
         const val APP_CHART_RANGE_COLORS_KEY = "glucose_app_chart_range_colors_enabled"
         const val DASHBOARD_SHOW_DELTA_KEY = "dashboard_show_delta"
         const val DASHBOARD_ROWS_SHOW_DELTA_KEY = "dashboard_rows_show_delta"
+        const val DASHBOARD_SHOW_READING_AGE_KEY = "dashboard_show_reading_age"
         const val DELTA_INTERVAL_KEY = "delta_interval_minutes"
         const val JOURNAL_HEALTH_CONNECT_ACTIVITY_KEY = "dashboard_journal_health_connect_activity_enabled"
-        const val PREDICTION_CARB_RATIO_KEY = "dashboard_prediction_carb_ratio_g_per_u"
-        const val PREDICTION_INSULIN_SENSITIVITY_KEY = "dashboard_prediction_insulin_sensitivity_mgdl_per_u"
-        const val PREDICTION_HORIZON_MINUTES_KEY = "dashboard_prediction_horizon_minutes"
+        const val PREDICTION_CARB_RATIO_KEY = tk.glucodata.settings.KEY_PREDICTION_CARB_RATIO
+        const val PREDICTION_INSULIN_SENSITIVITY_KEY = tk.glucodata.settings.KEY_PREDICTION_INSULIN_SENSITIVITY
+        const val PREDICTION_HORIZON_MINUTES_KEY = tk.glucodata.settings.KEY_PREDICTION_HORIZON
         const val PREDICTION_NOTIFICATION_CHART_KEY = "dashboard_prediction_notification_chart_enabled"
         const val PREDICTION_DOSE_TARGET_KEY = "dashboard_prediction_dose_target_mgdl"
         const val STATE_DOSE_HINT_KEY = "dashboard_state_dose_hint_enabled"
         const val STATE_DOSE_HINT_HORIZON_KEY = "dashboard_state_dose_hint_horizon_minutes"
         const val STATE_DOSE_HINT_PROFILE_NOTICE_KEY = "dashboard_state_dose_hint_profile_notice_ack"
         const val STATE_DOSE_HINT_IN_RANGE_KEY = "dashboard_state_dose_hint_in_range_enabled"
-        const val PREDICTION_CARB_RATIO_DEFAULT = 10f
-        const val PREDICTION_INSULIN_SENSITIVITY_DEFAULT = 54f
-        const val PREDICTION_CARB_ABSORPTION_DEFAULT = 35f
-        const val PREDICTION_HORIZON_MINUTES_DEFAULT = 120
+        const val PREDICTION_CARB_RATIO_DEFAULT = tk.glucodata.settings.DEFAULT_PREDICTION_CARB_RATIO_G_PER_U
+        const val PREDICTION_INSULIN_SENSITIVITY_DEFAULT =
+            tk.glucodata.settings.DEFAULT_PREDICTION_INSULIN_SENSITIVITY_MGDL_PER_U
+        const val PREDICTION_CARB_ABSORPTION_DEFAULT =
+            tk.glucodata.settings.DEFAULT_PREDICTION_CARB_ABSORPTION_G_PER_H
+        const val PREDICTION_HORIZON_MINUTES_DEFAULT = tk.glucodata.settings.DEFAULT_PREDICTION_HORIZON_MINUTES
 
         private val processUiRecoveryLock = Any()
         private val processHistoryRecoveryLock = Any()
@@ -271,8 +273,14 @@ class DashboardViewModel(
     private val _glucodataBroadcastEnabled = MutableStateFlow(false)
     val glucodataBroadcastEnabled = _glucodataBroadcastEnabled.asStateFlow()
 
+    private val _xdripFollowerEnabled = MutableStateFlow(false)
+    val xdripFollowerEnabled = _xdripFollowerEnabled.asStateFlow()
+
     private val _broadcastComputedTrend = MutableStateFlow(false)
     val broadcastComputedTrend = _broadcastComputedTrend.asStateFlow()
+
+    private val _xdripReportAsLibre2 = MutableStateFlow(false)
+    val xdripReportAsLibre2 = _xdripReportAsLibre2.asStateFlow()
 
     /**
      * The chart's line: every sensor that covers the visible window, merged.
@@ -410,14 +418,11 @@ class DashboardViewModel(
     private val _chartSmoothingMinutes = MutableStateFlow(0)
     val chartSmoothingMinutes = _chartSmoothingMinutes.asStateFlow()
 
-    private val _dataSmoothingGraphOnly = MutableStateFlow(true)
-    val dataSmoothingGraphOnly = _dataSmoothingGraphOnly.asStateFlow()
+    private val _dataSmoothingTargets = MutableStateFlow(DataSmoothing.Targets.ALL)
+    val dataSmoothingTargets = _dataSmoothingTargets.asStateFlow()
 
-    private val _dataSmoothingCollapseChunks = MutableStateFlow(false)
-    val dataSmoothingCollapseChunks = _dataSmoothingCollapseChunks.asStateFlow()
-
-    private val _dataSmoothingExchangeOnly = MutableStateFlow(false)
-    val dataSmoothingExchangeOnly = _dataSmoothingExchangeOnly.asStateFlow()
+    private val _dataSmoothingCausal = MutableStateFlow(false)
+    val dataSmoothingCausal = _dataSmoothingCausal.asStateFlow()
 
     private val _previewWindowMode = MutableStateFlow(0)
     val previewWindowMode = _previewWindowMode.asStateFlow()
@@ -427,6 +432,18 @@ class DashboardViewModel(
 
     private val _journalNavigationTabEnabled = MutableStateFlow(false)
     val journalNavigationTabEnabled = _journalNavigationTabEnabled.asStateFlow()
+
+    // Read here rather than with the other settings: the first frame decides between the
+    // first-run screen and the dashboard, so a later read would flash the wrong one.
+    private val _sensorSetupSkipped = MutableStateFlow(
+        tk.glucodata.Applic.app
+            .getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+            .getBoolean(SENSOR_SETUP_SKIPPED_KEY, false)
+    )
+    val sensorSetupSkipped = _sensorSetupSkipped.asStateFlow()
+
+    private val _journalDashboardHiddenTypes = MutableStateFlow<Set<JournalEntryType>>(emptySet())
+    val journalDashboardHiddenTypes = _journalDashboardHiddenTypes.asStateFlow()
 
     private val _journalDoseCalculatorEnabled = MutableStateFlow(false)
     val journalDoseCalculatorEnabled = _journalDoseCalculatorEnabled.asStateFlow()
@@ -461,6 +478,10 @@ class DashboardViewModel(
     private val _journalFoodLibraryEnabled = MutableStateFlow(true)
     val journalFoodLibraryEnabled = _journalFoodLibraryEnabled.asStateFlow()
 
+    /** Whether the food search offers Open Food Facts and the barcode scanner. */
+    private val _journalFoodOnlineEnabled = MutableStateFlow(true)
+    val journalFoodOnlineEnabled = _journalFoodOnlineEnabled.asStateFlow()
+
     private val _journalEiobDisplayEnabled = MutableStateFlow(true)
     val journalEiobDisplayEnabled = _journalEiobDisplayEnabled.asStateFlow()
 
@@ -491,6 +512,9 @@ class DashboardViewModel(
     private val _dashboardRowsShowDelta = MutableStateFlow(false)
     val dashboardRowsShowDelta = _dashboardRowsShowDelta.asStateFlow()
 
+    private val _dashboardShowReadingAge = MutableStateFlow(false)
+    val dashboardShowReadingAge = _dashboardShowReadingAge.asStateFlow()
+
     private val _deltaIntervalMinutes = MutableStateFlow(tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES)
     val deltaIntervalMinutes = _deltaIntervalMinutes.asStateFlow()
 
@@ -508,6 +532,12 @@ class DashboardViewModel(
 
     private val _predictionTrendMomentumEnabled = MutableStateFlow(true)
     val predictionTrendMomentumEnabled = _predictionTrendMomentumEnabled.asStateFlow()
+
+    private val _predictionAnalysisEnabled = MutableStateFlow(false)
+    val predictionAnalysisEnabled = _predictionAnalysisEnabled.asStateFlow()
+
+    private val _predictionAdaptiveEnabled = MutableStateFlow(false)
+    val predictionAdaptiveEnabled = _predictionAdaptiveEnabled.asStateFlow()
 
     private val _predictionCarbRatioGramsPerUnit = MutableStateFlow(PREDICTION_CARB_RATIO_DEFAULT)
     val predictionCarbRatioGramsPerUnit = _predictionCarbRatioGramsPerUnit.asStateFlow()
@@ -535,6 +565,11 @@ class DashboardViewModel(
 
     private val _journalEntries = MutableStateFlow<List<JournalEntry>>(emptyList())
     val journalEntries = _journalEntries.asStateFlow()
+
+    // AAPS temp basal segments, kept apart from the journal rows: the chart hangs them as
+    // icicles, and nothing that lists, counts or doses journal rows should see them.
+    private val _journalTempBasals = MutableStateFlow<List<JournalEntry>>(emptyList())
+    val journalTempBasals = _journalTempBasals.asStateFlow()
 
     private val _journalInsulinPresets = MutableStateFlow<List<JournalInsulinPreset>>(emptyList())
     val journalInsulinPresets = _journalInsulinPresets.asStateFlow()
@@ -589,13 +624,6 @@ class DashboardViewModel(
     private var currentSensorTailJob: Job? = null
     private var activeHistoryMode: CollectionMode? = null
     private var activeHistoryStartTimeMs: Long? = null
-    /**
-     * Change gate for [refreshMainSensorOwnership]: the ownership answer embeds
-     * the current minute, so re-resolving it on every collection restart would
-     * emit on any return more than a minute later and rebuild the chart for
-     * nothing. Peer-data changes refresh it through the peer flow instead.
-     */
-    private var lastOwnershipRefreshConfig: MultiSensorHistoryQueryConfig? = null
 
     init {
         _journalEnabled.value = readJournalEnabledPreference()
@@ -616,7 +644,13 @@ class DashboardViewModel(
     private fun ensureJournalEntriesObserved() {
         if (journalEntriesJob?.isActive == true) return
         journalEntriesJob = viewModelScope.launch {
-            journalRepository.observeEntries().collect { _journalEntries.value = it }
+            journalRepository.observeEntriesWithTempBasal()
+                .map { entries -> entries.partition { it.type == JournalEntryType.TEMP_BASAL } }
+                .flowOn(Dispatchers.Default)
+                .collect { (tempBasals, rows) ->
+                    _journalEntries.value = rows
+                    _journalTempBasals.value = tempBasals
+                }
         }
     }
 
@@ -795,19 +829,12 @@ class DashboardViewModel(
 
     /**
      * Call after a glucose history import so the dashboard chart shows the
-     * imported readings. Only pins the imported serial as the display sensor
-     * when there is no current/live sensor to show — never hijacks a live
-     * sensor. [displaySerial] may be a synthetic "imported" id for files
-     * without a sensor serial.
+     * imported readings. An imported file is not a sensor, so nothing is selected:
+     * with no main sensor the chart already shows every stored reading.
      */
-    fun onHistoryImported(displaySerial: String?) {
+    fun onHistoryImported() {
         val currentSerial = SensorIdentity.resolveMainSensor()?.takeIf { it.isNotBlank() }
         if (currentSerial == null) {
-            // No live sensor: pin the imported serial so the dashboard shows it.
-            if (!displaySerial.isNullOrBlank()) {
-                ManagedCurrentSensor.set(displaySerial)
-                glucoseRepository.refreshSensorSerial(displaySerial)
-            }
             refreshData()
         } else {
             // Sensor already present: fold overlapping imported data into it now,
@@ -836,13 +863,15 @@ class DashboardViewModel(
         migrateTargetRangeDefaultsIfNeeded(prefs, isMmol)
         _notificationChartEnabled.value = prefs.getBoolean("notification_chart_enabled", true)
         _chartSmoothingMinutes.value = DataSmoothing.getMinutes(context)
-        _dataSmoothingGraphOnly.value = DataSmoothing.isGraphOnly(context)
-        _dataSmoothingCollapseChunks.value = DataSmoothing.collapseChunks(context)
-        _dataSmoothingExchangeOnly.value = DataSmoothing.smoothOnlyExchangeOutputs(context)
+        _dataSmoothingTargets.value = DataSmoothing.targets(context)
+        _dataSmoothingCausal.value = DataSmoothing.useCausalFilter(context)
         _previewWindowMode.value = prefs.getInt("dashboard_chart_preview_window_mode", 0)
         val journalEnabled = prefs.getBoolean("dashboard_journal_enabled", true)
         _journalEnabled.value = journalEnabled
         _journalNavigationTabEnabled.value = prefs.getBoolean(JOURNAL_NAVIGATION_TAB_KEY, false)
+        _journalDashboardHiddenTypes.value = JournalDashboardVisibility.decode(
+            prefs.getStringSet(JournalDashboardVisibility.HIDDEN_TYPES_KEY, null)
+        )
         _journalDoseCalculatorEnabled.value = prefs.getBoolean(JOURNAL_DOSE_CALCULATOR_KEY, false)
         _stateDoseHintEnabled.value = prefs.getBoolean(STATE_DOSE_HINT_KEY, true)
         _stateDoseHintCorrectInRange.value = prefs.getBoolean(STATE_DOSE_HINT_IN_RANGE_KEY, true)
@@ -855,6 +884,7 @@ class DashboardViewModel(
             )
         _journalFoodMacrosEnabled.value = prefs.getBoolean(JOURNAL_FOOD_MACROS_KEY, false)
         _journalFoodLibraryEnabled.value = prefs.getBoolean(JOURNAL_FOOD_LIBRARY_KEY, true)
+        _journalFoodOnlineEnabled.value = prefs.getBoolean(JOURNAL_FOOD_ONLINE_KEY, true)
         _journalEiobDisplayEnabled.value = prefs.getBoolean(JOURNAL_EIOB_DISPLAY_KEY, true)
         _journalQuickAddAlwaysNow.value = prefs.getBoolean(JOURNAL_QUICKADD_ALWAYS_NOW_KEY, false)
         _journalDashboardQuickAddButton.value = prefs.getBoolean(JOURNAL_DASHBOARD_QUICKADD_KEY, false)
@@ -865,20 +895,25 @@ class DashboardViewModel(
         _glucoseAppChartRangeColorsEnabled.value = prefs.getBoolean(APP_CHART_RANGE_COLORS_KEY, false)
         _dashboardShowDelta.value = prefs.getBoolean(DASHBOARD_SHOW_DELTA_KEY, false)
         _dashboardRowsShowDelta.value = prefs.getBoolean(DASHBOARD_ROWS_SHOW_DELTA_KEY, false)
+        _dashboardShowReadingAge.value = prefs.getBoolean(DASHBOARD_SHOW_READING_AGE_KEY, false)
         _deltaIntervalMinutes.value = tk.glucodata.GlucoseDelta.sanitizeIntervalMinutes(
             prefs.getInt(DELTA_INTERVAL_KEY, tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES)
         )
         _journalHealthConnectActivityEnabled.value = prefs.getBoolean(JOURNAL_HEALTH_CONNECT_ACTIVITY_KEY, false)
         _aapsJournalImportEnabled.value = AapsJournalImport.isEnabled(context)
-        _predictiveSimulationEnabled.value = prefs.getBoolean("dashboard_predictive_simulation_enabled", true)
+        _predictiveSimulationEnabled.value =
+            tk.glucodata.settings.SettingsRegistry.PREDICTION_ENABLED.readBool(prefs)
         _predictiveSimulationNotificationChartEnabled.value = prefs.getBoolean(PREDICTION_NOTIFICATION_CHART_KEY, true)
-        _predictionTrendMomentumEnabled.value = prefs.getBoolean("dashboard_prediction_trend_momentum_enabled", true)
-        _predictionCarbRatioGramsPerUnit.value = prefs
-            .getFloat(PREDICTION_CARB_RATIO_KEY, PREDICTION_CARB_RATIO_DEFAULT)
-            .coerceIn(3f, 30f)
-        _predictionInsulinSensitivityMgDlPerUnit.value = prefs
-            .getFloat(PREDICTION_INSULIN_SENSITIVITY_KEY, PREDICTION_INSULIN_SENSITIVITY_DEFAULT)
-            .coerceIn(10f, 180f)
+        _predictionTrendMomentumEnabled.value =
+            tk.glucodata.settings.SettingsRegistry.PREDICTION_TREND_MOMENTUM.readBool(prefs)
+        _predictionAnalysisEnabled.value =
+            tk.glucodata.settings.SettingsRegistry.PREDICTION_ANALYSIS.readBool(prefs)
+        _predictionAdaptiveEnabled.value =
+            tk.glucodata.settings.SettingsRegistry.PREDICTION_ADAPTIVE.readBool(prefs)
+        _predictionCarbRatioGramsPerUnit.value =
+            tk.glucodata.settings.SettingsRegistry.PREDICTION_CARB_RATIO.readFloatClamped(prefs)
+        _predictionInsulinSensitivityMgDlPerUnit.value =
+            tk.glucodata.settings.SettingsRegistry.PREDICTION_INSULIN_SENSITIVITY.readFloatClamped(prefs)
         _predictionModelProfile.value = PredictionModelProfileStore.load(prefs)
         _predictionModelProfileSaved.value = PredictionModelProfileStore.isSaved(prefs)
         _predictionCarbRatioGramsPerUnit.value = _predictionModelProfile.value.blocks.first().carbRatioGramsPerUnit
@@ -886,9 +921,8 @@ class DashboardViewModel(
             _predictionModelProfile.value.blocks.first().insulinSensitivityMgDlPerUnit
         _predictionCarbAbsorptionGramsPerHour.value =
             _predictionModelProfile.value.blocks.first().carbAbsorptionGramsPerHour
-        _predictionHorizonMinutes.value = prefs
-            .getInt(PREDICTION_HORIZON_MINUTES_KEY, PREDICTION_HORIZON_MINUTES_DEFAULT)
-            .coerceIn(30, 360)
+        _predictionHorizonMinutes.value =
+            tk.glucodata.settings.SettingsRegistry.PREDICTION_HORIZON.readIntClamped(prefs)
         _predictionDoseTargetMgDl.value = prefs
             .getFloat(PREDICTION_DOSE_TARGET_KEY, DoseTarget.DEFAULT_MGDL)
             .coerceIn(DoseTarget.MIN_MGDL, DoseTarget.MAX_MGDL)
@@ -907,7 +941,9 @@ class DashboardViewModel(
         _xDripBroadcastEnabled.value = Natives.getxbroadcast()
         _patchedLibreBroadcastEnabled.value = Natives.getlibrelinkused()
         _glucodataBroadcastEnabled.value = Natives.getJugglucobroadcast()
+        _xdripFollowerEnabled.value = tk.glucodata.XdripFollowerSend.isEnabled(context)
         _broadcastComputedTrend.value = prefs.getBoolean(tk.glucodata.BroadcastTrendRate.PREF_KEY, false)
+        _xdripReportAsLibre2.value = prefs.getBoolean(tk.glucodata.XdripReportAsLibre2.PREF_KEY, false)
 
         _hasLowAlarm.value = Natives.hasalarmlow()
         _lowAlarmThreshold.value = Natives.alarmlow()
@@ -928,20 +964,10 @@ class DashboardViewModel(
     }
 
     private fun refreshSensorSnapshot() {
+        // Never fall back to the name cached here: that is how a removed sensor stayed on the
+        // dashboard. The resolver already keeps every sensor that is still in use.
         var sName = SensorIdentity.resolveMainSensor()
         val activeSensors = Natives.activeSensors()
-
-        val cachedSerial = _sensorName.value.takeIf { it.isNotBlank() }
-            ?: glucoseRepository.currentSerial.value.takeIf { it.isNotBlank() }
-        val fallbackSerial = SensorIdentity.resolveAvailableMainSensor(
-            selectedMain = sName,
-            preferredSensorId = cachedSerial,
-            activeSensors = activeSensors
-        ) ?: cachedSerial
-
-        if (sName.isNullOrBlank()) {
-            sName = fallbackSerial
-        }
 
         val availableDisplaySensors = availableDisplaySensorIds(activeSensors, sName)
         val selectedDisplaySensors = MultiSensorSelection.selectedAvailable(
@@ -988,7 +1014,7 @@ class DashboardViewModel(
                 if (managedSnapshot?.uiFamily == ManagedSensorUiFamily.AIDEX ||
                     sName.startsWith("X-", ignoreCase = true)
                 ) {
-                    15
+                    AiDexWearProfile.ratedDays(managedSnapshot?.vendorModel) ?: 15
                 } else {
                     14
                 }
@@ -1043,6 +1069,7 @@ class DashboardViewModel(
                 _currentDay.value = lifecycle.currentDay
             }
         } else {
+            glucoseRepository.refreshSensorSerial()
             _sensorName.value = ""
             _sensorStatus.value = ""
             _viewMode.value = 0
@@ -1081,7 +1108,13 @@ class DashboardViewModel(
     }
 
     private fun refreshCurrentDisplaySnapshot() {
-        refreshCurrentDisplayAfterSmoothingChange()
+        CurrentDisplaySource.resolveCurrent(
+            maxAgeMillis = Notify.glucosetimeout,
+            preferredSensorId = preferredDashboardSensorId()
+        )?.let { resolved ->
+            _currentGlucose.value = resolved.primaryStr
+            _currentRate.value = resolved.rate.takeIf { it.isFinite() } ?: 0f
+        }
     }
 
     private fun startHistoryCollectionForMode(mode: CollectionMode) {
@@ -1126,13 +1159,14 @@ class DashboardViewModel(
         // HistoryRepository.observeMergedWindow for why the answer is still the
         // whole timeline's.
         historyJob = viewModelScope.launch {
+            val hasRetainedHistory = _glucoseHistory.value.isNotEmpty()
             var hasSeenHistoryEmission = false
             // A warm cache is already painted: skip the quick-sample stage,
             // or the chart would jump back to the first-paint window and
             // forward again on every return. The tail flow below takes over
             // live; an unchanged signature resolves to the cached list
             // instance, so collectors see no emission at all.
-            var firstPainted = _glucoseHistory.value.isNotEmpty()
+            var firstPainted = hasRetainedHistory
             val tailFlow = _liveTailStart.flatMapLatest { tailStart ->
                 kotlinx.coroutines.flow.flow {
                     // First paint: the default range and its margin, read once
@@ -1181,6 +1215,9 @@ class DashboardViewModel(
                     logEvery = 20L,
                     detail = "mode=$mode size=${rawHistory.size}"
                 )
+                if (tk.glucodata.BuildConfig.DEBUG) {
+                    android.util.Log.d("DashboardHistory", "publish mode=$mode count=${rawHistory.size} latest=${rawHistory.lastOrNull()?.timestamp} previous=${_glucoseHistory.value.lastOrNull()?.timestamp}")
+                }
                 _glucoseHistory.value = resolveHistoryDisplayList(rawHistory, unitStr, signature)
                 _isLoading.value = false
             }
@@ -1394,12 +1431,9 @@ class DashboardViewModel(
                 // both change on the same events: a swap, or the record gaining
                 // a minute. With a single sensor there is nothing to contest,
                 // but the answer is still the record's to give.
-                // Only on change: a restart with the same config would resolve
-                // a minute-drifted duplicate and pointlessly rebuild the chart.
-                if (config != lastOwnershipRefreshConfig) {
-                    lastOwnershipRefreshConfig = config
-                    refreshMainSensorOwnership(startTimeMs)
-                }
+                // Equality compares effective ownership, so a warm refresh can
+                // pick up newly sealed minutes without emitting for clock drift.
+                refreshMainSensorOwnership(startTimeMs)
                 if (peerSensors.isEmpty()) {
                     _multiSensorRawHistory.value = PeerRawHistory.EMPTY
                     _peerCurrentReadings.value = emptyList()
@@ -1449,23 +1483,7 @@ class DashboardViewModel(
             return
         }
         _peerCurrentReadings.value = withContext(Dispatchers.IO) {
-            peerSensors.mapNotNull { sensorId ->
-                runCatching {
-                    CurrentDisplaySource.resolveCurrent(
-                        Notify.glucosetimeout,
-                        sensorId,
-                        tk.glucodata.DisplayTrendSource.TREND_WINDOW_MS
-                    )
-                }.getOrNull()?.let { snapshot ->
-                    PeerCurrentReading(
-                        sensorId = sensorId,
-                        primaryStr = snapshot.primaryStr,
-                        secondaryStr = snapshot.secondaryStr,
-                        rate = snapshot.rate,
-                        timeMillis = snapshot.timeMillis
-                    )
-                }
-            }
+            SecondarySensorDisplay.resolvePeers(peerSensors)
         }
     }
 
@@ -1686,6 +1704,13 @@ class DashboardViewModel(
         _broadcastComputedTrend.value = enabled
     }
 
+    fun setXdripReportAsLibre2(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(tk.glucodata.XdripReportAsLibre2.PREF_KEY, enabled).apply()
+        _xdripReportAsLibre2.value = enabled
+    }
+
     fun toggleGlucodataBroadcast(enabled: Boolean) {
         val context = tk.glucodata.Applic.app
         if (enabled) {
@@ -1699,6 +1724,11 @@ class DashboardViewModel(
              tk.glucodata.JugglucoSend.setreceivers()
         }
         _glucodataBroadcastEnabled.value = Natives.getJugglucobroadcast()
+    }
+
+    fun setXdripFollowerEnabled(enabled: Boolean) {
+        tk.glucodata.XdripFollowerSend.setEnabled(tk.glucodata.Applic.app, enabled)
+        _xdripFollowerEnabled.value = enabled
     }
 
     fun toggleNotificationChart(enabled: Boolean) {
@@ -1726,32 +1756,17 @@ class DashboardViewModel(
         refreshCurrentDisplayAfterSmoothingChange()
     }
 
-    fun setDataSmoothingGraphOnly(enabled: Boolean) {
+    fun setDataSmoothingTargets(targets: DataSmoothing.Targets) {
         val context = tk.glucodata.Applic.app
-        if (enabled) {
-            DataSmoothing.setSmoothOnlyExchangeOutputs(context, false)
-            _dataSmoothingExchangeOnly.value = false
-        }
-        DataSmoothing.setGraphOnly(context, enabled)
-        _dataSmoothingGraphOnly.value = enabled
+        DataSmoothing.setTargets(context, targets)
+        _dataSmoothingTargets.value = targets
         refreshCurrentDisplayAfterSmoothingChange()
     }
 
-    fun setDataSmoothingCollapseChunks(enabled: Boolean) {
+    fun setDataSmoothingCausal(enabled: Boolean) {
         val context = tk.glucodata.Applic.app
-        DataSmoothing.setCollapseChunks(context, enabled)
-        _dataSmoothingCollapseChunks.value = enabled
-        refreshCurrentDisplayAfterSmoothingChange()
-    }
-
-    fun setDataSmoothingExchangeOnly(enabled: Boolean) {
-        val context = tk.glucodata.Applic.app
-        if (enabled) {
-            DataSmoothing.setGraphOnly(context, false)
-            _dataSmoothingGraphOnly.value = false
-        }
-        DataSmoothing.setSmoothOnlyExchangeOutputs(context, enabled)
-        _dataSmoothingExchangeOnly.value = enabled
+        DataSmoothing.setUseCausalFilter(context, enabled)
+        _dataSmoothingCausal.value = enabled
         refreshCurrentDisplayAfterSmoothingChange()
     }
 
@@ -1781,6 +1796,25 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean(JOURNAL_NAVIGATION_TAB_KEY, enabled).apply()
         _journalNavigationTabEnabled.value = enabled
+    }
+
+    /** Leave the first-run screen for the regular app. Without a sensor, the journal is the app. */
+    fun skipSensorSetup() {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(SENSOR_SETUP_SKIPPED_KEY, true).apply()
+        _sensorSetupSkipped.value = true
+        setJournalEnabled(true)
+        setJournalNavigationTabEnabled(true)
+        setJournalDashboardQuickAddButton(true)
+    }
+
+    fun setJournalTypeShownOnDashboard(type: JournalEntryType, visible: Boolean) {
+        val hidden = JournalDashboardVisibility.toggled(_journalDashboardHiddenTypes.value, type, visible)
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putStringSet(JournalDashboardVisibility.HIDDEN_TYPES_KEY, JournalDashboardVisibility.encode(hidden)).apply()
+        _journalDashboardHiddenTypes.value = hidden
     }
 
     fun setJournalDoseCalculatorEnabled(enabled: Boolean) {
@@ -1837,6 +1871,13 @@ class DashboardViewModel(
         _journalFoodLibraryEnabled.value = enabled
     }
 
+    fun setJournalFoodOnlineEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(JOURNAL_FOOD_ONLINE_KEY, enabled).apply()
+        _journalFoodOnlineEnabled.value = enabled
+    }
+
     fun setJournalEiobDisplayEnabled(enabled: Boolean) {
         val context = tk.glucodata.Applic.app
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
@@ -1886,6 +1927,13 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean(DASHBOARD_ROWS_SHOW_DELTA_KEY, enabled).apply()
         _dashboardRowsShowDelta.value = enabled
+    }
+
+    fun setDashboardShowReadingAge(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(DASHBOARD_SHOW_READING_AGE_KEY, enabled).apply()
+        _dashboardShowReadingAge.value = enabled
     }
 
     /**
@@ -1992,6 +2040,22 @@ class DashboardViewModel(
         refreshNotificationPredictionSurfaces(context)
     }
 
+    fun setPredictionAnalysisEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences(tk.glucodata.settings.SettingsRegistry.FILE, android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(tk.glucodata.settings.KEY_PREDICTION_ANALYSIS, enabled).apply()
+        _predictionAnalysisEnabled.value = enabled
+    }
+
+    fun setPredictionAdaptiveEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences(tk.glucodata.settings.SettingsRegistry.FILE, android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(tk.glucodata.settings.KEY_PREDICTION_ADAPTIVE, enabled).apply()
+        _predictionAdaptiveEnabled.value = enabled
+        if (enabled) tk.glucodata.data.prediction.analysis.AdaptivePredictionStore.requestRefresh(context)
+        refreshNotificationPredictionSurfaces(context)
+    }
+
     fun setPredictionCarbRatioGramsPerUnit(value: Float) {
         updatePredictionModelBlock(
             startMinuteOfDay = 0,
@@ -2026,7 +2090,7 @@ class DashboardViewModel(
         insulinSensitivityMgDlPerUnit: Float? = null,
         carbAbsorptionGramsPerHour: Float? = null
     ) {
-        val normalizedCarbRatio = carbRatioGramsPerUnit?.roundToStep(1f)
+        val normalizedCarbRatio = carbRatioGramsPerUnit?.roundToStep(PredictionModelProfile.CARB_RATIO_STEP)
         val normalizedSensitivity = insulinSensitivityMgDlPerUnit?.roundToStep(1f)
         val normalizedAbsorption = carbAbsorptionGramsPerHour?.roundToStep(1f)
         persistPredictionModelProfile(
@@ -2126,9 +2190,31 @@ class DashboardViewModel(
         }
     }
 
+    fun keepJournalFood(food: tk.glucodata.data.food.FoodItem, onSaved: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                journalRepository.keepFood(food)
+                onSaved(true)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                tk.glucodata.Log.stack("FoodLibrary", "save", failure)
+                onSaved(false)
+            }
+        }
+    }
+
     fun saveJournalFood(input: JournalFoodInput) {
         viewModelScope.launch {
             journalRepository.upsertFood(input)
+        }
+    }
+
+    /** Adds [foods] to the library; [onDone] gets how many were new and how many replaced a food. */
+    fun importJournalFoods(foods: List<JournalFoodInput>, onDone: (added: Int, replaced: Int) -> Unit) {
+        viewModelScope.launch {
+            val (added, replaced) = journalRepository.importFoods(foods)
+            onDone(added, replaced)
         }
     }
 
@@ -2136,6 +2222,31 @@ class DashboardViewModel(
         viewModelScope.launch {
             journalRepository.deleteFood(foodId)
         }
+    }
+
+    fun deleteJournalFoods(ids: Set<Long>, onDone: (Result<tk.glucodata.data.food.DeletedFoods>) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.deleteFoods(ids) }) }
+    }
+
+    fun undoDeleteJournalFoods(deleted: tk.glucodata.data.food.DeletedFoods, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.undoDeleteFoods(deleted) }.isSuccess) }
+    }
+
+    fun setJournalFoodsArchived(ids: Set<Long>, archived: Boolean, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.setFoodsArchived(ids, archived) }.isSuccess) }
+    }
+
+    fun moveJournalFoodsBefore(ids: Set<Long>, beforeId: Long?, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.moveFoodsBefore(ids, beforeId) }.isSuccess) }
+    }
+
+    private suspend fun <T> foodLibraryAction(block: suspend () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        tk.glucodata.Log.stack("FoodLibrary", "manage", failure)
+        Result.failure(failure)
     }
 
     // Floating Glucose Logic
@@ -2185,13 +2296,7 @@ class DashboardViewModel(
     }
 
     private fun refreshCurrentDisplayAfterSmoothingChange() {
-        CurrentDisplaySource.resolveCurrent(
-            maxAgeMillis = Notify.glucosetimeout,
-            preferredSensorId = preferredDashboardSensorId()
-        )?.let { resolved ->
-            _currentGlucose.value = resolved.primaryStr
-            _currentRate.value = resolved.rate.takeIf { it.isFinite() } ?: 0f
-        }
+        refreshCurrentDisplaySnapshot()
         // Every smoothing setter funnels through here, so this is the one place
         // the watch needs telling; it smooths with the same settings.
         tk.glucodata.WearPrefsSync.push()
@@ -2258,23 +2363,8 @@ class DashboardViewModel(
         )
     }
 
-    private fun preferredDashboardSensorId(): String? {
-        val nativeCurrent = SensorIdentity.resolveMainSensor()
-            ?.takeIf { it.isNotBlank() }
-        if (nativeCurrent != null) {
-            return nativeCurrent
-        }
-        val cachedSerial = _sensorName.value.takeIf { it.isNotBlank() }
-            ?: glucoseRepository.currentSerial.value.takeIf { it.isNotBlank() }
-        if (!cachedSerial.isNullOrBlank()) {
-            return cachedSerial
-        }
-        return SensorIdentity.resolveAvailableMainSensor(
-            selectedMain = nativeCurrent,
-            preferredSensorId = null,
-            activeSensors = Natives.activeSensors()
-        )
-    }
+    private fun preferredDashboardSensorId(): String? =
+        SensorIdentity.resolveMainSensor()?.takeIf { it.isNotBlank() }
 
     private fun Float.roundToStep(step: Float): Float {
         if (!isFinite() || step <= 0f) return this

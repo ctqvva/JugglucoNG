@@ -26,6 +26,9 @@
 #include "jniclass.hpp"
 #include "streamdata.hpp"
 #include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <string_view>
 #include <time.h>
 /*
 bed-datatype:
@@ -52,8 +55,9 @@ Composed(19,19,0,11,[
 // drivers built without the Dexcom flavour can share it.
 int rate2changeindex(float rate) { return ratetolegacytrendindex(rate); }
 
-constexpr const int dexmaxtime = 907500; //  907385
 constexpr const int DEXSECONDS = 5 * 60;
+// Trend byte meaning "no trend available" (as xDrip4iOS reads it); not +12.7 mg/dL/min.
+constexpr const int8_t DEXNOTREND = 0x7F;
 
 extern jlong glucoseback(uint32_t nu, uint32_t glval, float drate,
                          SensorGlucoseData *hist);
@@ -100,7 +104,9 @@ struct glucoseinput {
   };
 #endif
 
-  float getRateofChange() const { return (float)trend / 10.0f; }
+  float getRateofChange() const {
+    return trend == DEXNOTREND ? NAN : (float)trend / 10.0f;
+  }
 
   void save(SensorGlucoseData *sens, uint32_t wastime, int index) const {
     const auto rate = getRateofChange();
@@ -131,6 +137,7 @@ struct glucoseinput {
 #endif
     const auto wastime = nowsec - age;
 
+    const int dexmaxtime = sens->getDexMaxSecs();
     if (secsSinceStart <= dexmaxtime && mgdL >= 39 && mgdL <= 501 &&
         secsSinceStart >= sens->getWarmupSEC() &&
         index < sens->maxstreampos()) {
@@ -155,7 +162,7 @@ struct glucoseinput {
       }
     } else {
       if (secsSinceStart > dexmaxtime &&
-          sens->getinfo()->lastLifeCountReceived < maxdexcount) {
+          sens->getinfo()->lastLifeCountReceived < sens->getmaxdexcount()) {
         LOGGER("over endtime and only %d received\n",
                sens->getinfo()->lastLifeCountReceived);
         sensor *sensor = sensors->getsensor(sensorindex);
@@ -262,8 +269,13 @@ fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr) {
   dexcomstream *sdata = reinterpret_cast<dexcomstream *>(dataptr);
   SensorGlucoseData *sens = sdata->hist;
   auto *info = sens->getinfo();
-  const int last = info->pollcount - 1;
   const int was = info->lastLifeCountReceived;
+  int last = info->pollcount - 1;
+  // Readings once mirrored at minute indices (#767) can sit past the newest
+  // real slot with an older time, which made the window empty; end it at the
+  // newest reading that fits its own slot.
+  while (last > was && !sens->dexSlotTimeFits(last))
+    --last;
   uint32_t starttime = sens->getstarttime();
   if (last > was) {
     time_t starts = sens->getstream(was)->gettime() + 60;
@@ -285,8 +297,9 @@ fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr) {
     return mkbackfillcmd(envin, start, end);
   } else {
     auto now = time(nullptr);
+    const int dexmaxtime = sens->getDexMaxSecs();
     if ((now - starttime) > dexmaxtime) {
-      if (was < maxdexcount) {
+      if (was < sens->getmaxdexcount()) {
         int start;
         if (was > 0) {
           time_t starts = sens->getstream(was)->gettime() + 60;
@@ -305,17 +318,40 @@ fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr) {
   return nullptr;
 }
 
+// What getDexbackfillcmd decides from, so the sensor log can say why no
+// backfill was asked for.
+extern "C" JNIEXPORT jintArray JNICALL
+fromjava(dexBackfillState)(JNIEnv *envin, jclass _cl, jlong dataptr) {
+  if (!dataptr)
+    return nullptr;
+  const SensorGlucoseData *sens =
+      reinterpret_cast<const dexcomstream *>(dataptr)->hist;
+  if (!sens)
+    return nullptr;
+  const auto *info = sens->getinfo();
+  const jint state[2] = {static_cast<jint>(info->lastLifeCountReceived),
+                         static_cast<jint>(info->pollcount - 1)};
+  jintArray uit = envin->NewIntArray(2);
+  envin->SetIntArrayRegion(uit, 0, 2, state);
+  return uit;
+}
+
 struct dexbackfill {
   int32_t secsSinceStart;
-  int16_t mgdL;
+  // Glucose in the low 12 bits, flags in the top 4, 0xFFFF when there is none,
+  // as in the live reading's mgdL:12/donly:4.
+  uint16_t mgdL;
   uint8_t type;
   uint8_t extra;
   int8_t trend;
 
   [[nodiscard]] int getpredictedmgdL() const { return 0; }
   [[nodiscard]] int getindex() const { return secsSinceStart / DEXSECONDS; }
+  [[nodiscard]] int glucose() const { return mgdL & 0x0FFF; }
   [[nodiscard]] bool usable() const {
-    return type == 0x6 || type == 0x7 || type == 0xe;
+    // Same value range the live reading must pass in actual().
+    return (type == 0x6 || type == 0x7 || type == 0xe) && mgdL != 0xFFFF &&
+           glucose() >= 39 && glucose() <= 501;
   }
   [[nodiscard]] uint32_t gettime(const uint32_t sensorstarttime) const {
     return sensorstarttime + secsSinceStart;
@@ -328,11 +364,13 @@ void showdata(const uint32_t sensorstart) const {
 %s",secsSinceStart,mgdL,(float)mgdL/18.0,gettrend(),ctime(&was));
   }; */
 
-  float getRateofChange() const { return (float)trend / 10.0f; }
+  float getRateofChange() const {
+    return trend == DEXNOTREND ? NAN : (float)trend / 10.0f;
+  }
 
   void save(SensorGlucoseData *sens, uint32_t wastime, int index) const {
     const auto rate = getRateofChange();
-    sens->savepollallIDs<DEXSECONDS>(wastime, index, mgdL,
+    sens->savepollallIDs<DEXSECONDS>(wastime, index, glucose(),
                                      rate2changeindex(rate), rate);
   }
   void backfill(SensorGlucoseData *sens) const {
@@ -356,23 +394,47 @@ void showdata(const uint32_t sensorstart) const {
 } __attribute__((packed));
 extern "C" JNIEXPORT jboolean JNICALL fromjava(dexbackfill)(
     JNIEnv *envin, jclass cl, jlong dataptr, jbyteArray bluetoothdata) {
-  const auto arlen = envin->GetArrayLength(bluetoothdata);
-  if (arlen < sizeof(struct dexbackfill)) {
-    LOGGER("dexbackffill: too small %d<%d\n", arlen,
-           sizeof(struct dexbackfill));
+  if (!dataptr || !bluetoothdata) {
+    LOGAR("dexbackfill null input");
+    return false;
+  }
+  constexpr jsize recordsize = sizeof(struct dexbackfill);
+  static_assert(recordsize == 9, "Unexpected Dexcom backfill record size");
+  const jsize arlen = envin->GetArrayLength(bluetoothdata);
+  if (arlen < recordsize || arlen % recordsize != 0) {
+    LOGGER("dexbackfill invalid length=%d; expected a multiple of %d\n",
+           arlen, recordsize);
     return false;
   }
   dexcomstream *sdata = reinterpret_cast<dexcomstream *>(dataptr);
   SensorGlucoseData *sens = sdata->hist;
-  const CritAr bluedata(envin, bluetoothdata);
-  const dexbackfill *back = reinterpret_cast<decltype(back)>(bluedata.data());
-  if (!back->usable()) {
-    LOGAR("dexbackfill unusable");
+  if (!sens) {
+    LOGAR("dexbackfill SensorGlucoseData==null");
     return false;
   }
-  back->backfill(sens);
-  LOGAR("dexbackfill saved");
-  return true;
+  const CritAr bluedata(envin, bluetoothdata);
+  const auto *bytes = reinterpret_cast<const unsigned char *>(bluedata.data());
+  int saved = 0;
+  // A notification can carry multiple consecutive nine-byte records.
+  for (jsize offset = 0; offset < arlen; offset += recordsize) {
+    struct dexbackfill back;
+    std::memcpy(&back, bytes + offset, sizeof(back));
+    if (!back.usable()) {
+      LOGGER("dexbackfill unusable offset=%d type=%u\n", offset,
+             static_cast<unsigned>(back.type));
+      continue;
+    }
+    const int id = back.getindex();
+    if (back.secsSinceStart < 0 || id >= sens->maxstreampos()) {
+      LOGGER("dexbackfill invalid offset=%d secsSinceStart=%d index=%d\n",
+             offset, back.secsSinceStart, id);
+      continue;
+    }
+    back.backfill(sens);
+    ++saved;
+  }
+  LOGGER("dexbackfill saved=%d records=%d\n", saved, arlen / recordsize);
+  return saved != 0;
 }
 extern bool validate12(const PCert &cert); // 01?
 extern bool validate3(const EC_POINT *g1, const EC_POINT *g2,
@@ -494,6 +556,92 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(isAuthenticated)(JNIEnv *envin,
   return res;
 }
 
+// The 4-digit sensor code (scanned or typed) is the tail of the sensor
+// directory name. The sensor card shows it, so pairing again does not need
+// the sensor packaging.
+extern "C" JNIEXPORT jstring JNICALL fromjava(dexPairingCode)(JNIEnv *envin,
+                                                              jclass cl,
+                                                              jlong dataptr) {
+  if (!dataptr)
+    return nullptr;
+  const SensorGlucoseData *sens =
+      reinterpret_cast<const dexcomstream *>(dataptr)->hist;
+  if (!sens || !sens->isDexcom())
+    return nullptr;
+  const auto pin = sens->getDexPin();
+  char code[5]{};
+  for (int i = 0; i < 4; ++i) {
+    if (pin[i] < '0' || pin[i] > '9')
+      return nullptr;
+    code[i] = pin[i];
+  }
+  return envin->NewStringUTF(code);
+}
+
+// The scan payload the sensor was set up from (GS1 fields or the manual
+// pairing payload), as stored in its header. Replaying it on another device
+// builds the same record name, so both devices agree on which sensor it is.
+extern "C" JNIEXPORT jstring JNICALL fromjava(dexScanPayload)(JNIEnv *envin,
+                                                              jclass cl,
+                                                              jlong dataptr) {
+  if (!dataptr)
+    return nullptr;
+  const SensorGlucoseData *sens =
+      reinterpret_cast<const dexcomstream *>(dataptr)->hist;
+  if (!sens || !sens->isDexcom())
+    return nullptr;
+  const auto *info = sens->getinfo();
+  if (info->siIdlen == 0 || info->siIdlen > sizeof(info->siId))
+    return nullptr;
+  const std::string payload(reinterpret_cast<const char *>(info->siId),
+                            info->siIdlen);
+  if (!dexcom::parseScan(payload))
+    return nullptr;
+  // NewStringUTF needs modified UTF-8; the GS1 separator 0x1d is plain ASCII.
+  return envin->NewStringUTF(payload.c_str());
+}
+
+// What another device needs to count a G7's slots exactly as this one does:
+// {start, slot, time, mgdL, trend, change as float bits} of the newest reading
+// stored in its own slot, or null while there is none. The start a fresh
+// record holds before its first reading is a guess, and a start alone is not
+// enough: the copies the other device is sent are timed by this device's
+// clock, which drifts from the sensor's, and readings near a slot edge would
+// fall into the previous slot. A reading with its slot fixes the grid.
+extern "C" JNIEXPORT jlongArray JNICALL fromjava(dexPeerAnchor)(JNIEnv *envin,
+                                                               jclass cl,
+                                                               jlong dataptr) {
+  if (!dataptr)
+    return nullptr;
+  const SensorGlucoseData *sens =
+      reinterpret_cast<const dexcomstream *>(dataptr)->hist;
+  if (!sens || !sens->isDexcom())
+    return nullptr;
+  const uint32_t start = sens->getstarttime();
+  if (!Sensoren::validSensorStarttime(start))
+    return nullptr;
+  // Chosen and copied under the write lock: a live or backfilled reading
+  // stored into that slot meanwhile would give the watch a mixed sample, and
+  // it treats the anchor's slot as filled.
+  jlong values[6];
+  {
+    const std::lock_guard<std::recursive_mutex> reading(
+        SensorGlucoseData::pollWriteMutex());
+    const int id = sens->dexAnchorSlot();
+    if (id < 0)
+      return nullptr;
+    const ScanData poll = *sens->getstream(id);
+    int32_t changeBits;
+    memcpy(&changeBits, &poll.ch, sizeof(changeBits));
+    const jlong copied[6] = {start, id, poll.t, poll.g, poll.tr, changeBits};
+    memcpy(values, copied, sizeof(values));
+  }
+  jlongArray out = envin->NewLongArray(6);
+  if (out)
+    envin->SetLongArrayRegion(out, 0, 6, values);
+  return out;
+}
+
 extern bool encrypt8AES(const uint8_t *keybytes, const uint8_t *data,
                         unsigned char *uit);
 extern "C" JNIEXPORT jboolean JNICALL
@@ -597,15 +745,11 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(dexKnownSensor)(JNIEnv *env,
 }
 
 static bool isG7(const char *deviceName) {
-  if (memcmp(deviceName, "DX", 2))
+  if (!deviceName)
     return false;
-  const char *const rest = deviceName + 2;
-  const char conti[][3] = {"CM", "02", "01"};
-  for (const char *el : conti) {
-    if (!memcmp(el, rest, 2))
-      return true;
-  }
-  return false;
+  const std::string_view name(deviceName);
+  return name.starts_with("DXCM") || name.starts_with("DX02") ||
+         name.starts_with("DX01") || name.starts_with("DX04");
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

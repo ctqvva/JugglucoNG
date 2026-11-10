@@ -1,0 +1,109 @@
+{
+  "files": [
+    {
+      "path": "Common/build.gradle",
+      "description": "Flavours, the extra source directories each variant compiles, dependencies, and release minification settings.",
+      "scope": [
+        "Common/src/**",
+        "Common/*.gradle",
+        "Common/proguard-rules*"
+      ]
+    },
+    {
+      "path": "Common/src/main/java/tk/glucodata/LiveReadingLanes.kt",
+      "description": "Provenance of a live value: stock lanes still need this app's calibration, a resolved value is final. Both are in display units.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/LiveReading*",
+        "Common/src/**/java/tk/glucodata/CurrentDisplay*",
+        "Common/src/**/java/tk/glucodata/SuperGattCallback.java",
+        "Common/src/**/java/tk/glucodata/Notify*",
+        "Common/src/**/java/tk/glucodata/drivers/**",
+        "Common/src/**/java/tk/glucodata/ui/viewmodel/**",
+        "Common/src/**/java/tk/glucodata/data/calibration/**"
+      ]
+    },
+    {
+      "path": "Common/src/main/java/tk/glucodata/ExchangeOutputPolicy.kt",
+      "description": "Per-destination delivery gates for the exchange outputs sent from SuperGattCallback.emitExchangeOutputs.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/Exchange*",
+        "Common/src/**/java/tk/glucodata/Send*.java",
+        "Common/src/**/java/tk/glucodata/XInfuus.java",
+        "Common/src/**/java/tk/glucodata/JugglucoSend.java",
+        "Common/src/**/java/tk/glucodata/OutboundApi*",
+        "Common/src/**/java/tk/glucodata/SuperGattCallback.java",
+        "Common/src/**/java/tk/glucodata/WearInt*",
+        "Common/src/**/java/tk/glucodata/Gadgetbridge*"
+      ]
+    },
+    {
+      "path": "Common/src/main/java/tk/glucodata/ExchangeGlucosePayload.java",
+      "description": "The one payload every exchange output sends: its fields, their units, and which reading they come from.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/Exchange*",
+        "Common/src/**/java/tk/glucodata/Send*.java",
+        "Common/src/**/java/tk/glucodata/XInfuus.java",
+        "Common/src/**/java/tk/glucodata/JugglucoSend.java",
+        "Common/src/**/java/tk/glucodata/OutboundApi*",
+        "Common/src/**/java/tk/glucodata/SuperGattCallback.java",
+        "Common/src/**/java/tk/glucodata/WearInt*",
+        "Common/src/**/java/tk/glucodata/Gadgetbridge*"
+      ]
+    },
+    {
+      "path": "Common/src/main/java/tk/glucodata/ExchangeToggles.kt",
+      "description": "Exchange outputs that are plain on/off switches and can be flipped from the watch; their ids travel on the wire.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/Exchange*",
+        "Common/src/**/java/tk/glucodata/WearSync*",
+        "Common/src/**/java/tk/glucodata/settings/**",
+        "Common/src/mobile/java/tk/glucodata/ui/**"
+      ]
+    },
+    {
+      "path": "docs/architecture/storage-ownership.md",
+      "description": "Which component writes which data, record identities and phone/watch synchronisation. Dated observations and open questions should be checked against current code.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/data/**",
+        "Common/src/**/java/tk/glucodata/History*",
+        "Common/src/**/java/tk/glucodata/*Calibration*",
+        "Common/src/**/java/tk/glucodata/*Ownership*",
+        "Common/src/**/java/tk/glucodata/WearSync*",
+        "Common/src/main/cpp/sensoren.hpp"
+      ]
+    },
+    {
+      "path": "docs/outbound-api.md",
+      "description": "Outbound HTTP API payloads and destination configuration; check details against the current API code.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/OutboundApi*",
+        "Common/src/**/java/tk/glucodata/ui/*OutboundApi*"
+      ]
+    },
+    {
+      "path": "docs/clone.md",
+      "description": "Phone-to-phone clone protocol, recovery and deduplication.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/**/*Clone*",
+        "Common/src/main/cpp/*clone*",
+        "Common/src/main/cpp/net/**"
+      ]
+    },
+    {
+      "path": "docs/architecture/notification-modernization.md",
+      "description": "What the glucose notification does when a reading goes stale, and which lifecycle fixes are merged versus proposed.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/Notify*",
+        "Common/src/**/java/tk/glucodata/**/*otification*"
+      ]
+    },
+    {
+      "path": "Common/proguard-rules.my",
+      "description": "Keep rules for classes reached by reflection; minified release builds break silently without them.",
+      "scope": [
+        "Common/src/main/java/**",
+        "Common/proguard-rules*"
+      ]
+    }
+  ]
+}

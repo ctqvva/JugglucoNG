@@ -80,4 +80,23 @@ class WearToggleSyncTests {
         assertEquals(null, ExchangeToggles.byId("nope"))
         assertEquals(null, ExchangeToggles.byId(null))
     }
+
+    @Test
+    fun thePayloadCarriesTheProtocolVersionAndALegacyOneStillDecodes() {
+        val encoded = WearToggleSync.encode(listOf(toggle(WearToggleSync.SCOPE_PREF, "prediction", true)))
+            .toString(Charsets.UTF_8)
+        assertTrue("the version line is first", encoded.startsWith("${WearProtocol.versionLine()}\n"))
+
+        // A payload from a build before the version line is still accepted.
+        val legacy = "p:prediction=true\n".toByteArray()
+        val decoded = WearToggleSync.decode(legacy)
+        assertEquals(1, decoded.size)
+        assertEquals("prediction", decoded[0].id)
+    }
+
+    @Test
+    fun togglesFromANewerProtocolAreIgnored() {
+        val future = "v:${WearProtocol.VERSION + 1}\np:prediction=true\n".toByteArray()
+        assertTrue(WearToggleSync.decode(future).isEmpty())
+    }
 }

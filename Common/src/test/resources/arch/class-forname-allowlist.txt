@@ -1,0 +1,12 @@
+# Files in src/main that reach mobile- or watch-only code via Class.forName (plan §6 Q1,
+# ArchitectureGateTests). Each needs a ProGuard keep rule that only breaks in a minified build --
+# see ProguardKeepRulesTests -- and src/main should not know a variant class by name at all
+# (plan P1: register the bridge from Application.onCreate instead).
+#
+# Log.java's dynamic lookup is not a phone/watch bridge and is excluded from the scan entirely,
+# not listed here (direction.md §2.3).
+#
+# This list may only shrink: a new file added to it, or a stale line for one already fixed, fails
+# the build (ArchitectureGateTests.classForNameFromMainDoesNotGrow).
+# Empty since the calibration and alarm-activity seams landed (plan §6 Q1); Log.java is excluded
+# above, so `src/main` no longer resolves a variant class by name.

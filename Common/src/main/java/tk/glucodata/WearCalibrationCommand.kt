@@ -48,7 +48,7 @@ object WearCalibrationCommand {
             buf.putLong(timestamp)
             buf.putFloat(userValueMgdl)
             buf.putFloat(stockMgdl)
-            val sent = MessageSender.sendSyncMessage(MessageSender.CALIBRATION_CMD_PATH, buf.array())
+            val sent = MessageSender.sendSyncMessage(WearMessagePath.SYNC2_CALCMD, buf.array())
             if (doLog) {
                 Log.i(
                     LOG_ID,

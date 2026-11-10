@@ -11,9 +11,10 @@ import android.content.Context
  * minification: see [CustomAlertAccess].
  */
 interface CustomAlertController {
+    /** [reading] says whether the value was already calibrated; see [LiveReadingLanes]. */
     fun checkAndTrigger(
         context: Context,
-        glucose: Float,
+        reading: LiveReadingLanes,
         rate: Float,
         timestampMillis: Long,
         sensorId: String?,
@@ -21,4 +22,8 @@ interface CustomAlertController {
     )
 
     fun dismissAlert(alertId: String)
+
+    fun snoozeAlert(alertId: String, snoozeMinutes: Int)
+
+    fun ignoreAlert(alertId: String)
 }

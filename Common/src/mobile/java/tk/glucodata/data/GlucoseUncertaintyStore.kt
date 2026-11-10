@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import tk.glucodata.Applic
+import tk.glucodata.GlucoseUncertaintyBridge
 
 /**
  * Sensor-agnostic store for per-reading credible intervals.
@@ -18,7 +19,7 @@ import tk.glucodata.Applic
  * minified builds unless `proguard-rules.my` is updated to match.
  */
 @Keep
-object GlucoseUncertaintyStore {
+object GlucoseUncertaintyStore : GlucoseUncertaintyBridge {
 
     private const val TAG = "GlucoseUncertainty"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -41,9 +42,8 @@ object GlucoseUncertaintyStore {
      * @param confidences NaN entries are stored as null.
      * @param artifactProbabilities NaN entries are stored as null.
      */
-    @JvmStatic
     @Keep
-    fun storeBatch(
+    override fun storeBatch(
         sensorSerial: String?,
         timestamps: LongArray,
         lowerMgdl: FloatArray,
@@ -116,9 +116,8 @@ object GlucoseUncertaintyStore {
     private var lastPruneMs = 0L
 
     /** Single-reading convenience for the live path. */
-    @JvmStatic
     @Keep
-    fun storeReading(
+    override fun storeReading(
         sensorSerial: String?,
         timestamp: Long,
         lowerMgdl: Float,
@@ -140,9 +139,8 @@ object GlucoseUncertaintyStore {
      * Drops intervals a rebuild is about to invalidate. Called before an
      * algorithm replay so stale bands cannot outlive the values they described.
      */
-    @JvmStatic
     @Keep
-    fun deleteForSensorAfter(sensorSerial: String?, timestamp: Long) {
+    override fun deleteForSensorAfter(sensorSerial: String?, timestamp: Long) {
         val serial = sensorSerial?.trim()?.takeIf { it.isNotEmpty() } ?: return
         scope.launch {
             runCatching { dao?.deleteForSensorAfter(serial, timestamp) }
@@ -151,9 +149,8 @@ object GlucoseUncertaintyStore {
     }
 
     /** Drops every interval for a sensor; see [GlucoseUncertaintyAccess.clearForSensor]. */
-    @JvmStatic
     @Keep
-    fun clearForSensor(sensorSerial: String?) {
+    override fun clearForSensor(sensorSerial: String?) {
         val serial = sensorSerial?.trim()?.takeIf { it.isNotEmpty() } ?: return
         scope.launch {
             runCatching { HistoryRepository().clearUncertaintyForSensor(serial) }

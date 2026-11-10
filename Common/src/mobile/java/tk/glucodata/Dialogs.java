@@ -68,6 +68,33 @@ public class Dialogs {
         this.density = density;
     }
 
+    /**
+     * The instance the shared export path talks to. It used to hang off GlucoseCurve, which
+     * shared code reached as a field; it is owned by MobileLegacyScreens now, and the
+     * constructor is package-private, so shared code cannot build one itself.
+     */
+    public static Dialogs create(float density) {
+        return new Dialogs(density);
+    }
+
+    /**
+     * The status line under the export options. Public because the shared caller is in
+     * another package, and null-safe because the label only exists once showexport() has
+     * run -- which is the window this is called in, and on a flavour with no export screen
+     * at all it stays null forever.
+     */
+    public void setExportStatus(CharSequence text) {
+        if (exportlabel != null) {
+            exportlabel.setText(text);
+        }
+    }
+
+    public void setExportStatus(int resId) {
+        if (exportlabel != null) {
+            exportlabel.setText(resId);
+        }
+    }
+
     private Button exportbutton(MainActivity activity, String label, int type) {
         Button but = new Button(activity);
         but.setText(label);
@@ -210,8 +237,8 @@ public class Dialogs {
                 ;
                 parent.setVisibility(VISIBLE);
             } else {
-                if (Menus.on)
-                    Menus.show(activity);
+                if (LegacyScreensAccess.getMenusOn())
+                    LegacyScreensAccess.get().openMenus(activity);
             }
         });
     }
@@ -229,8 +256,6 @@ public class Dialogs {
         algexporter(context, type, prefix, ".tsv", days);
     }
 
-    static public float showdays = 0;
-
     static private void exportdata(MainActivity context, int type, String name, float days) {
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -239,7 +264,7 @@ public class Dialogs {
         intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
         int request = MainActivity.REQUEST_EXPORT | type;
         try {
-            showdays = days;
+            tk.glucodata.LegacyScreensAccess.setExportShowDays(days);
             context.startActivityForResult(intent, request);
         } catch (Throwable th) {
             Log.stack(LOG_ID, "ACTION_CREATE_DOCUMENT", th);

@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -22,6 +23,30 @@ import tk.glucodata.ui.DisplayValues
  * acceptance criteria) and identical glyph decisions at the dead-zone edge.
  */
 class TrendConsumerPointListTests {
+    @Test fun aLiveTailKeepsOnlyItsOwnMinutesIntervalAndRecordedValue() {
+        val source = GlucosePoint(60_000L, 100f, 95f).also {
+            it.sensorSerial = "sensor"; it.uncertainty = GlucoseUncertainty(80f, 110f)
+            it.sealedDisplayValue = 105f; it.sealedDisplayViewMode = 0
+        }
+        val live = snapshot(60_001L, 102f).copy(sensorId = "sensor")
+        val tail = DisplayTrendSource.augmentHistory(listOf(source), live, "sensor", 0L).last()
+        assertEquals(82f, tail.uncertainty!!.lower, 0f)
+        assertEquals(112f, tail.uncertainty!!.upper, 0f)
+        assertEquals(105f, tail.sealedDisplayValue, 0f)
+        assertEquals("sensor", tail.sensorSerial)
+        assertNull(DisplayTrendSource.augmentHistory(listOf(source), live.copy(timeMillis = 120_000L), "sensor", 0L).last().uncertainty)
+        assertNull(DisplayTrendSource.augmentHistory(listOf(source), live.copy(sensorId = "other"), "other", 0L).last().uncertainty)
+    }
+
+    @Test fun anArrowBesideAnOlderShownReadingEndsAtThatReading() {
+        // Fewer readings shows 12:09 at 12:13: the falling 12:10–12:13 readings must not count.
+        val history = (0..13).map { GlucosePoint(it * 60_000L, if (it <= 9) 100f + it else 120f - it, 0f) }
+        val cut = DisplayTrendSource.endingAtShown(history, snapshot(9 * 60_000L, 109f))
+        assertEquals(9 * 60_000L, cut.last().timestamp)
+        assertEquals(10, cut.size)
+        assertTrue(DisplayTrendSource.endingAtShown(history, snapshot(13 * 60_000L, 107f)) === history)
+        assertTrue(DisplayTrendSource.endingAtShown(history, null) === history)
+    }
 
     @Before
     fun registerProductionTrendProvider() {

@@ -1,0 +1,421 @@
+{
+  "encoder": "afconvert m4af aacl@48000 mono -b 160000 -r 127 -q 127, MP4 creation/modification timestamps zeroed",
+  "assets": {
+    "alert_contour_low": {
+      "file": "alert_contour_low.m4a",
+      "sha256": "0ea8dcef860a20930c01f7ff19d9d50e1c7afbbe8d4c437e46cfbdff96d02911",
+      "frames": 103680,
+      "seconds": 2.16
+    },
+    "alert_contour_high": {
+      "file": "alert_contour_high.m4a",
+      "sha256": "0c2c508c42983e0660029ecbf1f81cd15008c18bf8d3583ec93150f73de23c09",
+      "frames": 91200,
+      "seconds": 1.9
+    },
+    "alert_contour_urgent_low": {
+      "file": "alert_contour_urgent_low.m4a",
+      "sha256": "8339872ce680e414adc22ccc65b6d659df9da0ae9cadd292a59cf6c8fa021380",
+      "frames": 114720,
+      "seconds": 2.39
+    },
+    "alert_contour_urgent_high": {
+      "file": "alert_contour_urgent_high.m4a",
+      "sha256": "aef1d4539d7b701eb31f11f54814deeb19d3b34fa6c974b3d19f106de2d015f4",
+      "frames": 109920,
+      "seconds": 2.29
+    },
+    "alert_contour_falling": {
+      "file": "alert_contour_falling.m4a",
+      "sha256": "317350cda72d70f0b361c97f117a5aca7b371dbf85f852d00bb0916ce6203221",
+      "frames": 79200,
+      "seconds": 1.65
+    },
+    "alert_contour_rising": {
+      "file": "alert_contour_rising.m4a",
+      "sha256": "fee166862b8b261563a3df2f89e2dfc7a32266735ec06188b503811cd2ce79fd",
+      "frames": 84480,
+      "seconds": 1.76
+    },
+    "alert_contour_signal": {
+      "file": "alert_contour_signal.m4a",
+      "sha256": "278b602cb5c9217611b38cbcf0fdd8d62970fb2b1ffbb1f5bb6f657e36146861",
+      "frames": 93600,
+      "seconds": 1.95
+    },
+    "alert_contour_reminder": {
+      "file": "alert_contour_reminder.m4a",
+      "sha256": "f7e1bea0b1e6a61669471c48e9f0cb9d53e24082ea5b3b92a029a9124e7f6ecf",
+      "frames": 98880,
+      "seconds": 2.06
+    },
+    "alert_contour_notice": {
+      "file": "alert_contour_notice.m4a",
+      "sha256": "3efa924962d3c7f3c37bffbf7bc9341c19dde0ea3582bbad1012b00505941a5b",
+      "frames": 66960,
+      "seconds": 1.395
+    },
+    "alert_porcelain_low": {
+      "file": "alert_porcelain_low.m4a",
+      "sha256": "31a7a503884955631afd05257ef7d67c9c28764cb1bc4a9c9bf86469cb82449d",
+      "frames": 102720,
+      "seconds": 2.14
+    },
+    "alert_porcelain_high": {
+      "file": "alert_porcelain_high.m4a",
+      "sha256": "aa465db0f4680c341d576d1d8da46a346bc28401e9efd08f697400c9312dad50",
+      "frames": 106080,
+      "seconds": 2.21
+    },
+    "alert_porcelain_urgent_low": {
+      "file": "alert_porcelain_urgent_low.m4a",
+      "sha256": "afca6203c53b3f0696a36b1a6cafccf13756d87bd1e46c1b2d43eb019dc45f15",
+      "frames": 123840,
+      "seconds": 2.58
+    },
+    "alert_porcelain_urgent_high": {
+      "file": "alert_porcelain_urgent_high.m4a",
+      "sha256": "5017008bd799c5d49e02f4b63518d536f9f70a0ef43e931f5832e7268a1d4f84",
+      "frames": 123360,
+      "seconds": 2.57
+    },
+    "alert_porcelain_falling": {
+      "file": "alert_porcelain_falling.m4a",
+      "sha256": "3e02b106365fba1ebdf3c7730a03e5056c9d30e2d00b0244b0b94a452c08ff93",
+      "frames": 79200,
+      "seconds": 1.65
+    },
+    "alert_porcelain_rising": {
+      "file": "alert_porcelain_rising.m4a",
+      "sha256": "f991572a48da7ea471d9e6c31e66a2da7f4058b900de90cd7e14c9b313987fa0",
+      "frames": 84480,
+      "seconds": 1.76
+    },
+    "alert_porcelain_signal": {
+      "file": "alert_porcelain_signal.m4a",
+      "sha256": "7880d755ea89ca31a47ce9e2e550e2aa51435f845e82ad2658248c95e3c88229",
+      "frames": 108480,
+      "seconds": 2.26
+    },
+    "alert_porcelain_reminder": {
+      "file": "alert_porcelain_reminder.m4a",
+      "sha256": "27ca470fa6ad7da48903247c316e6525b529a3ef2ba8099a19130b72426c43dc",
+      "frames": 93120,
+      "seconds": 1.94
+    },
+    "alert_porcelain_notice": {
+      "file": "alert_porcelain_notice.m4a",
+      "sha256": "55ad5e2ebb168612ef0e39c3838d88cfd8e4ac3fac95c7a86ce9c88e32ec2b46",
+      "frames": 69120,
+      "seconds": 1.44
+    },
+    "alert_halo_low": {
+      "file": "alert_halo_low.m4a",
+      "sha256": "b2686df2593350a406e1ad24ae325304001d6df46a8b18765c9af3d48d8a6bab",
+      "frames": 98400,
+      "seconds": 2.05
+    },
+    "alert_halo_high": {
+      "file": "alert_halo_high.m4a",
+      "sha256": "d8e4576c0b8f85bf8b5ae5d28a4aed9e0d64c167dc69d52dc7a38c4cddd0a6fc",
+      "frames": 89760,
+      "seconds": 1.87
+    },
+    "alert_halo_urgent_low": {
+      "file": "alert_halo_urgent_low.m4a",
+      "sha256": "f027a24748990be01892f3a0248d821a6435d5112735f659064aa0fe07a46b62",
+      "frames": 108480,
+      "seconds": 2.26
+    },
+    "alert_halo_urgent_high": {
+      "file": "alert_halo_urgent_high.m4a",
+      "sha256": "158f14e40078f0c6991ab804e1da251c9ffea755fd14023d1f81bde2d8ef5249",
+      "frames": 110400,
+      "seconds": 2.3
+    },
+    "alert_halo_falling": {
+      "file": "alert_halo_falling.m4a",
+      "sha256": "44404b59b4cc766ac12e1602e85e81cc5d1fe93a3e84ad9047afd7c86ae98325",
+      "frames": 79200,
+      "seconds": 1.65
+    },
+    "alert_halo_rising": {
+      "file": "alert_halo_rising.m4a",
+      "sha256": "4adb01b9a68fbf874b0265b62ecb11a1b84808f8842e7e321fc623fd2f48ebdd",
+      "frames": 84480,
+      "seconds": 1.76
+    },
+    "alert_halo_signal": {
+      "file": "alert_halo_signal.m4a",
+      "sha256": "ced2d2189f4d06da8da06fe80007984594cd6566c7fffd2cef644114aa52cdce",
+      "frames": 92160,
+      "seconds": 1.92
+    },
+    "alert_halo_reminder": {
+      "file": "alert_halo_reminder.m4a",
+      "sha256": "36f8481f1c50443998526e98d4ca7f41902bb23961589fcc27f5688696ad844b",
+      "frames": 98400,
+      "seconds": 2.05
+    },
+    "alert_halo_notice": {
+      "file": "alert_halo_notice.m4a",
+      "sha256": "e4be49b442b20f56d66ebdf6a588df08bc994e921f4f223630df446a0e858d91",
+      "frames": 69120,
+      "seconds": 1.44
+    },
+    "alert_timber_low": {
+      "file": "alert_timber_low.m4a",
+      "sha256": "ab6be20d35eeb562cadf79c9d347ade2949d08baf11e02ac8323feedcaab76cd",
+      "frames": 756864,
+      "seconds": 15.768
+    },
+    "alert_timber_high": {
+      "file": "alert_timber_high.m4a",
+      "sha256": "d2489a65fa494af52a79e688009d02889808d7f2f5fe66f90d977b54e180b24e",
+      "frames": 385920,
+      "seconds": 8.04
+    },
+    "alert_timber_urgent_low": {
+      "file": "alert_timber_urgent_low.m4a",
+      "sha256": "e940dacf5a45982073eed5aced8adb8e29dff36f9e3fee89957f0846bf58a25c",
+      "frames": 372096,
+      "seconds": 7.752
+    },
+    "alert_timber_urgent_high": {
+      "file": "alert_timber_urgent_high.m4a",
+      "sha256": "a49415211fef2cfa8919ad3777f11b8b745d2e38120205d5b15639a46029f3b3",
+      "frames": 235008,
+      "seconds": 4.896
+    },
+    "alert_timber_falling": {
+      "file": "alert_timber_falling.m4a",
+      "sha256": "98e6924e60d8f82f6db97a9694bc0f9e01e4fc77079cb95511dc7ca97d7630f8",
+      "frames": 452736,
+      "seconds": 9.432
+    },
+    "alert_timber_rising": {
+      "file": "alert_timber_rising.m4a",
+      "sha256": "80b9c9e906cae2a5deae7f263b5f862dca5e74f4aa85d58a98a41fe9d67c6fb5",
+      "frames": 371147,
+      "seconds": 7.7322291666666665
+    },
+    "alert_timber_signal": {
+      "file": "alert_timber_signal.m4a",
+      "sha256": "09939535d5dd9a6528c9d3c03163713d9dca4395c2c1cb1637c69c61e5c19780",
+      "frames": 198002,
+      "seconds": 4.125041666666666
+    },
+    "alert_timber_reminder": {
+      "file": "alert_timber_reminder.m4a",
+      "sha256": "1a8ba76bf185551cc007a58792fa99b9ab32b7fe240ed888454de63410870883",
+      "frames": 306412,
+      "seconds": 6.383583333333333
+    },
+    "alert_timber_notice": {
+      "file": "alert_timber_notice.m4a",
+      "sha256": "a94df624eee84ee274264ecbc2b0be5d476d1a171b074723ef00200ee3d075dd",
+      "frames": 427991,
+      "seconds": 8.916479166666667
+    },
+    "alert_ember_low": {
+      "file": "alert_ember_low.m4a",
+      "sha256": "7eb9e8da082102786d07a0c573fe63a78ed9f66d4ed33c9225a4210250bdb4f9",
+      "frames": 756864,
+      "seconds": 15.768
+    },
+    "alert_ember_high": {
+      "file": "alert_ember_high.m4a",
+      "sha256": "17a87c8f048ea925a0f237af17b680a97e78bb244ef68b64970483ff192f323b",
+      "frames": 385920,
+      "seconds": 8.04
+    },
+    "alert_ember_urgent_low": {
+      "file": "alert_ember_urgent_low.m4a",
+      "sha256": "8d7cfd5df43266efa42834d03197ecd0ba130200baa309c4872bad13e4d4d9a4",
+      "frames": 372096,
+      "seconds": 7.752
+    },
+    "alert_ember_urgent_high": {
+      "file": "alert_ember_urgent_high.m4a",
+      "sha256": "08284d3810f42acdc31f25da6667e5a897662c323568faf4b050777c9abbee3d",
+      "frames": 235008,
+      "seconds": 4.896
+    },
+    "alert_ember_falling": {
+      "file": "alert_ember_falling.m4a",
+      "sha256": "1d345bae40ae0e3af187d619c917c0352e75d92950c86d644c1c3ede5049c09a",
+      "frames": 452736,
+      "seconds": 9.432
+    },
+    "alert_ember_rising": {
+      "file": "alert_ember_rising.m4a",
+      "sha256": "8360700b1246c324ad1576ae47afc910127a1152486fb6336a424e502cbd4f9e",
+      "frames": 371147,
+      "seconds": 7.7322291666666665
+    },
+    "alert_ember_signal": {
+      "file": "alert_ember_signal.m4a",
+      "sha256": "60aa596c58f0869a5c0ee226d18433cf3520bd2eebb3506aee2793ffe81abd03",
+      "frames": 198002,
+      "seconds": 4.125041666666666
+    },
+    "alert_ember_reminder": {
+      "file": "alert_ember_reminder.m4a",
+      "sha256": "14f41a878d57326a83cbf6e9222710a38fa30a03a71bb987affcba422dd4dc29",
+      "frames": 306412,
+      "seconds": 6.383583333333333
+    },
+    "alert_ember_notice": {
+      "file": "alert_ember_notice.m4a",
+      "sha256": "ff290bfbc5b98950dd9122bb15bb1dcba101f6f9a7018a2a7e1f5b86f11d8837",
+      "frames": 427991,
+      "seconds": 8.916479166666667
+    },
+    "alert_juggluco_low": {
+      "file": "alert_juggluco_low.m4a",
+      "sha256": "82704ca7e4d0f686299bfbe968126a89a47eeb8e5f3dbc789a2ee1b0559fb08c",
+      "frames": 756864,
+      "seconds": 15.768
+    },
+    "alert_juggluco_high": {
+      "file": "alert_juggluco_high.m4a",
+      "sha256": "3b368b138d1b12021e5ed92a7b939a9b61f151a5aae0ef52bcbc96f602941316",
+      "frames": 385920,
+      "seconds": 8.04
+    },
+    "alert_juggluco_urgent_low": {
+      "file": "alert_juggluco_urgent_low.m4a",
+      "sha256": "26a4eb32a9c6730dcbadcaff251412216c2843b89c7d3e2f7c9b8d793a4d52a2",
+      "frames": 372096,
+      "seconds": 7.752
+    },
+    "alert_juggluco_urgent_high": {
+      "file": "alert_juggluco_urgent_high.m4a",
+      "sha256": "fe09a78f183585e4c7ef1a381341c08ab5e681d915a1c6785cc930424efdb6e7",
+      "frames": 235008,
+      "seconds": 4.896
+    },
+    "alert_juggluco_falling": {
+      "file": "alert_juggluco_falling.m4a",
+      "sha256": "aef615ef8a0ee54a21b4607d2c7b2da9648d43fe1fc1f6ea89407f03f49c3032",
+      "frames": 452736,
+      "seconds": 9.432
+    },
+    "alert_juggluco_rising": {
+      "file": "alert_juggluco_rising.m4a",
+      "sha256": "e5a9812a72c50f38960dce9d6cca52a5066c62f582d4ca2e591cd9b53be97e1c",
+      "frames": 371147,
+      "seconds": 7.7322291666666665
+    },
+    "alert_juggluco_signal": {
+      "file": "alert_juggluco_signal.m4a",
+      "sha256": "7ae04da2c997b224052166eb8e6b4504a0c5d1a8a5bab313519ab16302476c58",
+      "frames": 198002,
+      "seconds": 4.125041666666666
+    },
+    "alert_juggluco_reminder": {
+      "file": "alert_juggluco_reminder.m4a",
+      "sha256": "6457883dad488c706ffc2c9d6e639165e3b6e5bc50ea505d052da5b7017e3621",
+      "frames": 306412,
+      "seconds": 6.383583333333333
+    },
+    "alert_juggluco_notice": {
+      "file": "alert_juggluco_notice.m4a",
+      "sha256": "68cdcfb167e8f00b970826441e11835f79916a20c07a054a455ebad10607bc86",
+      "frames": 427991,
+      "seconds": 8.916479166666667
+    },
+    "alert_xdrip_low": {
+      "file": "alert_xdrip_low.m4a",
+      "sha256": "467d4dfc589a85012c9c81f288c5bd328f0ee93784146ddbe8fd2acdcedb1684",
+      "frames": 288000,
+      "seconds": 6.0
+    },
+    "alert_xdrip_high": {
+      "file": "alert_xdrip_high.m4a",
+      "sha256": "699e3f2bc976e5b6c3f966a8dd29789760279cd6353f1811ec05b9ce7a0793e6",
+      "frames": 288000,
+      "seconds": 6.0
+    },
+    "alert_xdrip_urgent_low": {
+      "file": "alert_xdrip_urgent_low.m4a",
+      "sha256": "f0e0c018143a1ba60b78d523f6455d4714bde3151b53cea019b4205cc64f6f51",
+      "frames": 288000,
+      "seconds": 6.0
+    },
+    "alert_xdrip_urgent_high": {
+      "file": "alert_xdrip_urgent_high.m4a",
+      "sha256": "0c8d7285de6cd0880f82584d77af3db273f1677b181bf38bbc41e4d418d7d61c",
+      "frames": 288000,
+      "seconds": 6.0
+    },
+    "alert_xdrip_falling": {
+      "file": "alert_xdrip_falling.m4a",
+      "sha256": "b376f9f9f5c6f77e2b5229bd55097cda184016616de886749882e9c3ca18b7a6",
+      "frames": 288000,
+      "seconds": 6.0
+    },
+    "alert_xdrip_rising": {
+      "file": "alert_xdrip_rising.m4a",
+      "sha256": "7649ecbf93a5d16d3c993fcb8117e0b6f64ceffd82ed9a141b42255672da2153",
+      "frames": 288000,
+      "seconds": 6.0
+    },
+    "alert_xdrip_signal": {
+      "file": "alert_xdrip_signal.m4a",
+      "sha256": "00352192a41b28dcca27a0dc3d7ad06ff473f4fe47fbdc5c6bde98a5545dab10",
+      "frames": 288000,
+      "seconds": 6.0
+    },
+    "alert_xdrip_reminder": {
+      "file": "alert_xdrip_reminder.m4a",
+      "sha256": "a484f7da6037111a8d8b5fbbb38b83c90f1d1a61bfddb64a806be0112902d5d0",
+      "frames": 192000,
+      "seconds": 4.0
+    },
+    "alert_xdrip_notice": {
+      "file": "alert_xdrip_notice.m4a",
+      "sha256": "bb0d53eb608ef087e3e29d05586286a648dd6ef6a639e1bbd93e33a34a5ff922",
+      "frames": 144000,
+      "seconds": 3.0
+    }
+  },
+  "legacy": {
+    "siren": {
+      "file": "siren.mp3",
+      "sha256": "3e923aad141b44412868c99233c05ece0f2f53b1b236cf5d4fb4e26856dccef2"
+    },
+    "classic": {
+      "file": "classic.mp3",
+      "sha256": "aad762f08c6d687b09ecbe0945599a7d56cc6924cb7f02fa4f173dd98863dab9"
+    },
+    "ghost": {
+      "file": "ghost.ogg",
+      "sha256": "2123ddbe148c8adf9a3243547c291aadceb4aae531bbf5f1ef6871f602cbfad1"
+    },
+    "nudge": {
+      "file": "nudge.ogg",
+      "sha256": "37f17196911afdc221691aa6cc1d7842366a62897cb33c04980303e5d0b1bd40"
+    },
+    "elves": {
+      "file": "elves.ogg",
+      "sha256": "00bef6f66116211e1a45d171b0ae87aebc0673c2699a6e54272f4870d934f2a9"
+    },
+    "verylow": {
+      "file": "verylow.mp3",
+      "sha256": "fe9bddf26b5a635fd4e06b5dbd4116ed559a46b73130aa20a6944b49d6423c09"
+    },
+    "veryhigh": {
+      "file": "veryhigh.mp3",
+      "sha256": "dfece2e4bbe9c80eb5212dfdd8359f938b5794f94f78b67b481fbbcdb2cf1a79"
+    },
+    "lowsoon": {
+      "file": "lowsoon.mp3",
+      "sha256": "697fb45d641a29f58b901b5796e05d6a2a3d70df3701ca5efd3107747b2b4d4f"
+    },
+    "highsoon": {
+      "file": "highsoon.mp3",
+      "sha256": "89ce38de35e0b87adb11ff00c931044a1b224206df7d42879ad799fcd9cf2ea1"
+    }
+  }
+}

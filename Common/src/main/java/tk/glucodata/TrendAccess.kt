@@ -31,6 +31,10 @@ object TrendAccess {
         this.provider = provider
     }
 
+    /** Registration-completeness check (plan §6 Q1). */
+    @JvmStatic
+    fun isRegistered(): Boolean = provider != null
+
     /**
      * Whether the real estimator is available. Forecast alerts check this: a
      * two-point fallback slope is tolerable for an arrow, but scaled over a

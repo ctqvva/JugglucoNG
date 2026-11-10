@@ -5,6 +5,8 @@
 
 package tk.glucodata.ui.setup
 
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ButtonDefaults
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.os.Build
@@ -22,12 +24,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.AlertDialog
@@ -37,8 +39,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -66,6 +66,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.drivers.mq.MQBootstrapClient
@@ -155,13 +156,10 @@ fun MQSetupWizard(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.mq_setup_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cancel))
-                    }
-                }
+            AppTopBar(
+                title = stringResource(R.string.mq_setup_title),
+                onNavigateBack = onDismiss,
+                navigationContentDescription = stringResource(R.string.cancel),
             )
         }
     ) { padding ->
@@ -380,7 +378,7 @@ private fun MQScanStep(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -395,25 +393,13 @@ private fun MQScanStep(
                 tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             }
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(R.string.mq_searching_sensors),
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    TextButton(onClick = { showAllDevices = !showAllDevices }) {
-                        Text(
-                            if (showAllDevices) stringResource(R.string.show_sensors_only)
-                            else stringResource(R.string.see_all_devices)
-                        )
-                    }
-                }
+                ScanFilterHeader(
+                    title = stringResource(R.string.mq_searching_sensors),
+                    showAllDevices = showAllDevices,
+                    onToggleFilter = { showAllDevices = !showAllDevices },
+                )
             }
-            items(devices) { device ->
-                if (!showAllDevices && !device.isLikelyMq) return@items
+            items(devices.filter { showAllDevices || it.isLikelyMq }) { device ->
                 val title = device.displayName.ifBlank { stringResource(R.string.unknown) }
                 val supporting = when {
                     device.advertisesNus -> stringResource(R.string.mq_detected_label, device.address)
@@ -463,7 +449,9 @@ private fun MQScanStep(
                         }
                         OutlinedButton(
                             onClick = onShowManualQrEntry,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Text(stringResource(R.string.enter_code_manually))
                         }
@@ -527,7 +515,9 @@ private fun MQScanStep(
                                         }
                                     }
                                 },
-                                modifier = Modifier.height(ui.buttonHeight)
+                                modifier = Modifier.heightIn(min = ui.buttonHeight),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
                             ) {
                                 Text(stringResource(buttonRes))
                             }
@@ -579,12 +569,12 @@ private fun MQManualQrEntryDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(normalized) }, enabled = isValid) {
+            TextButton(onClick = { onConfirm(normalized) }, enabled = isValid, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         },

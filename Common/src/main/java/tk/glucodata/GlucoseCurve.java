@@ -125,7 +125,6 @@ static View[] reopen=new View[5];
 static int reopennr=0;
     //    SearchLayout search;
     Layout search;
-    public Dialogs dialogs;
     private static final String LOG_ID = "GlucoseCurve";
 static   public float smallfontsize;
     Calendar cal = Calendar.getInstance();
@@ -184,8 +183,8 @@ if(!isWearable) {
         hidemealsearch();
 
     hidekeyboard(); reopener();
-    if(Menus.on)
-        Menus.show(activity);
+    if(LegacyScreensAccess.getMenusOn())
+        LegacyScreensAccess.get().openMenus(activity);
 
     } );
     }
@@ -326,8 +325,8 @@ void getnumcontrol(MainActivity activity) {
     activity.setonback(()-> {
         numcontrol.setVisibility(GONE);
         Natives.endnumlist();
-         if(Menus.on) {
-             Menus.show(activity);
+         if(LegacyScreensAccess.getMenusOn()) {
+             LegacyScreensAccess.get().openMenus(activity);
              }
         else
              requestRender();
@@ -366,7 +365,6 @@ static public float getDensity() {
 public GlucoseCurve(MainActivity context) {
     super(context);
     metrics= getResources().getDisplayMetrics();
-    dialogs=new Dialogs(metrics.density);
     }
 
 /**

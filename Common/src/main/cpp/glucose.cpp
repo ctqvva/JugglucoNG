@@ -46,6 +46,9 @@ void SensorGlucoseData::backcalibrated(int pos, bool history) {
   }
 }
 void SensorGlucoseData::backstream(int pos) {
+  // The Dexcom slot repair lowers these cursors under this lock; a rewind
+  // interleaved with it could write back the higher value it read first.
+  const std::lock_guard<std::recursive_mutex> writing(pollWriteMutex());
   const int maxind = backup->getupdatedata()->sendnr;
   auto *updateptr = getinfo()->update;
   for (int i = 0; i < maxind; i++) {
@@ -260,6 +263,32 @@ int SensorGlucoseData::updatescan(crypt_t *pass, Connect *connect, int ind,
           vect.push_back({meminfo.data() + offsetof(Info, siIdlen),
                           offsetof(Info, siIdlen),
                           sizeof(Info::siIdlen) + sizeof(Info::siId)});
+          if (!connect->senddata(pass, vect, infopath)) {
+            LOGSTRING("GLU: senddata info.data failed\n");
+            return 0;
+          }
+          getinfo()->update[ind].siScan = true;
+          return 5;
+        } else {
+          if (getinfo()->update[ind].sendstreaming) {
+            getinfo()->update[ind].sendstreaming = false;
+            return 5;
+          }
+        }
+        return 2;
+      } else if (isAir()) {
+        if (!getinfo()->update[ind].siScan && getinfo()->airData.pinCode[0]) {
+          std::vector<subdata> vect;
+          vect.reserve(3);
+          vect.push_back({meminfo.data(), 0,
+                          offsetof(Info, lastHistoricLifeCountReceivedPos)});
+          // The air flag is a bitfield in the byte after customCalIndex.
+          constexpr const int offair =
+              offsetof(Info, customCalIndex) + sizeof(Info::customCalIndex);
+          static_assert(offair < offsetof(Info, resetModeStartTime));
+          vect.push_back({meminfo.data() + offair, offair, 1});
+          vect.push_back({meminfo.data() + offsetof(Info, airData),
+                          offsetof(Info, airData), sizeof(Info::airData)});
           if (!connect->senddata(pass, vect, infopath)) {
             LOGSTRING("GLU: senddata info.data failed\n");
             return 0;
@@ -621,6 +650,12 @@ std::vector<int> usedsensorssnapshot(uint32_t nu) {
 
 std::vector<int> usedsensorssnapshot() {
   return usedsensorssnapshot(time(nullptr));
+}
+
+std::string usedsensorreason(int ind) {
+  std::lock_guard<std::mutex> lock(usedsensorsmutex);
+  const uint32_t nu = time(nullptr);
+  return sensors->bluetoothactiveReason(ind, nu - daysecs, nu);
 }
 
 extern std::vector<int> usedsensors;

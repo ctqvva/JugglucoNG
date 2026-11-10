@@ -18,20 +18,33 @@ import java.util.Locale
 import tk.glucodata.GlucosePoint as NativeGlucosePoint
 import tk.glucodata.ui.GlucosePoint as UiGlucosePoint
 
+internal fun buildNotificationPredictionHistory(
+    source: List<NativeGlucosePoint>,
+    calibrationSensorId: String?
+): List<UiGlucosePoint> {
+    // This formatter belongs to one calculation; SimpleDateFormat is not thread-safe.
+    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    return source.map { point ->
+        UiGlucosePoint(
+            value = point.value,
+            rawValue = point.rawValue,
+            timestamp = point.timestamp,
+            time = timeFormat.format(Date(point.timestamp)),
+            sensorSerial = point.sensorSerial?.takeIf { it.isNotBlank() } ?: calibrationSensorId,
+            sealedDisplayValue = point.sealedDisplayValue.takeIf { it.isFinite() && it > 0.1f },
+            sealedDisplayViewMode = point.sealedDisplayViewMode.takeIf { it >= 0 }
+        )
+    }
+}
+
 @Keep
-object NotificationPredictionOverlay {
-    private const val PREFS_NAME = "tk.glucodata_preferences"
-    private const val MASTER_KEY = "dashboard_predictive_simulation_enabled"
+object NotificationPredictionOverlay : NotificationPredictionBridge {
+    private const val PREFS_NAME = tk.glucodata.settings.SettingsRegistry.FILE
     private const val NOTIFICATION_CHART_KEY = "dashboard_prediction_notification_chart_enabled"
-    private const val TREND_MOMENTUM_KEY = "dashboard_prediction_trend_momentum_enabled"
     private const val JOURNAL_KEY = "dashboard_journal_enabled"
     private const val FOOD_MACROS_KEY = "dashboard_journal_food_macros_enabled"
-    private const val CARB_ABSORPTION_KEY = "dashboard_prediction_carb_absorption_g_per_h"
-    private const val HORIZON_MINUTES_KEY = "dashboard_prediction_horizon_minutes"
     private const val JOURNAL_LOOKBACK_MS = 36L * 60L * 60L * 1000L
     private const val CACHE_MAX_AGE_MS = 30_000L
-    private const val PREDICTION_CARB_ABSORPTION_DEFAULT = 35f
-    private const val PREDICTION_HORIZON_MINUTES_DEFAULT = 120
 
     private data class JournalSnapshot(
         val loadedAt: Long,
@@ -45,8 +58,7 @@ object NotificationPredictionOverlay {
     private var cachedJournalSnapshot: JournalSnapshot? = null
 
     @Keep
-    @JvmStatic
-    fun buildPredictionSeries(
+    override fun buildPredictionSeries(
         context: Context,
         data: List<NativeGlucosePoint>?,
         isMmol: Boolean,
@@ -57,7 +69,9 @@ object NotificationPredictionOverlay {
         targetHigh: Float
     ): List<NotificationPredictionSeries> {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        if (!prefs.getBoolean(MASTER_KEY, true) || !prefs.getBoolean(NOTIFICATION_CHART_KEY, true)) {
+        if (!tk.glucodata.settings.SettingsRegistry.PREDICTION_ENABLED.readBool(prefs) ||
+            !prefs.getBoolean(NOTIFICATION_CHART_KEY, true)
+        ) {
             return emptyList()
         }
         val source = data?.filter { point ->
@@ -66,22 +80,12 @@ object NotificationPredictionOverlay {
         if (source.size < 2) return emptyList()
 
         val unit = if (isMmol) "mmol/L" else "mg/dL"
-        val uiHistory = source.map { point ->
-            UiGlucosePoint(
-                value = point.value,
-                rawValue = point.rawValue,
-                timestamp = point.timestamp,
-                time = timeLabel(point.timestamp),
-                sensorSerial = calibrationSensorId
-            )
-        }
+        val uiHistory = buildNotificationPredictionHistory(source, calibrationSensorId)
         val baselineTime = uiHistory.lastOrNull { point ->
             point.timestamp > 0L && ((point.value.isFinite() && point.value > 0.1f) ||
                 (point.rawValue.isFinite() && point.rawValue > 0.1f))
         }?.timestamp ?: return emptyList()
-        val horizonMinutes = prefs
-            .getInt(HORIZON_MINUTES_KEY, PREDICTION_HORIZON_MINUTES_DEFAULT)
-            .coerceIn(30, 360)
+        val horizonMinutes = tk.glucodata.settings.SettingsRegistry.PREDICTION_HORIZON.readIntClamped(prefs)
         val journalSnapshot = if (prefs.getBoolean(JOURNAL_KEY, true)) {
             loadJournalSnapshot(baselineTime, horizonMinutes)
         } else {
@@ -104,13 +108,13 @@ object NotificationPredictionOverlay {
             targetHigh = targetHigh,
             settings = PredictiveSimulationSettings(
                 enabled = true,
-                trendMomentumEnabled = prefs.getBoolean(TREND_MOMENTUM_KEY, true),
+                trendMomentumEnabled = tk.glucodata.settings.SettingsRegistry.PREDICTION_TREND_MOMENTUM.readBool(prefs),
                 horizonMinutes = horizonMinutes,
-                carbAbsorptionGramsPerHour = prefs
-                    .getFloat(CARB_ABSORPTION_KEY, PREDICTION_CARB_ABSORPTION_DEFAULT)
-                    .coerceIn(10f, 90f),
+                carbAbsorptionGramsPerHour =
+                    tk.glucodata.settings.SettingsRegistry.PREDICTION_CARB_ABSORPTION.readFloatClamped(prefs),
                 foodMacrosEnabled = prefs.getBoolean(JOURNAL_KEY, true) && prefs.getBoolean(FOOD_MACROS_KEY, false),
-                modelProfile = PredictionModelProfileStore.load(prefs)
+                modelProfile = PredictionModelProfileStore.load(prefs),
+                adaptive = tk.glucodata.settings.SettingsRegistry.PREDICTION_ADAPTIVE.readBool(prefs)
             )
         )
         return predictionSeries.mapNotNull { series ->
@@ -175,9 +179,5 @@ object NotificationPredictionOverlay {
             entries = emptyList(),
             presetsById = emptyMap()
         )
-    }
-
-    private fun timeLabel(timestamp: Long): String {
-        return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
     }
 }

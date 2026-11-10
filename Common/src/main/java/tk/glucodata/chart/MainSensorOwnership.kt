@@ -31,8 +31,10 @@ class MainSensorOwnership(
     /** Recorded owner per minute, keyed by [minuteOf]. */
     private val recorded: Map<Long, String>,
     private val nowMs: Long,
+    /** The user's grace window; see [DEFAULT_SEAL_GRACE_MS]. */
+    private val sealGraceMs: Long = DEFAULT_SEAL_GRACE_MS,
 ) {
-    private val sealHorizonMs: Long = nowMs - SEAL_GRACE_MS
+    private val sealedOwners = recorded.filterKeys { it <= nowMs - sealGraceMs }
 
     /**
      * The recorded main sensor at [timestampMs], or null where the record has
@@ -40,8 +42,7 @@ class MainSensorOwnership(
      */
     fun mainSensorAt(timestampMs: Long): String? {
         val minute = minuteOf(timestampMs)
-        if (minute > sealHorizonMs) return null
-        return recorded[minute]
+        return sealedOwners[minute]
     }
 
     /**
@@ -57,27 +58,30 @@ class MainSensorOwnership(
     /** Whether the record has anything to say inside this window at all. */
     val hasRecordedOwnership: Boolean get() = recorded.isNotEmpty()
 
-    // Equal when they would answer every question the same way: same record,
-    // same minute of horizon. A refresh that found nothing new is then equal to
-    // the last one, and a chart keyed on this does not rebuild for it.
+    // Clock movement alone does not change the rendered ownership. A newly
+    // sealed record does, including when returning after the UI was stopped.
     override fun equals(other: Any?): Boolean =
         other is MainSensorOwnership &&
-            other.recorded == recorded &&
-            minuteOf(other.sealHorizonMs) == minuteOf(sealHorizonMs)
+            other.sealedOwners == sealedOwners &&
+            other.hasRecordedOwnership == hasRecordedOwnership
 
-    override fun hashCode(): Int = 31 * recorded.hashCode() + minuteOf(sealHorizonMs).hashCode()
+    override fun hashCode(): Int = 31 * sealedOwners.hashCode() + hasRecordedOwnership.hashCode()
 
     companion object {
         const val MINUTE_MS = 60_000L
 
         /**
-         * How long a presented minute stays revisable before it is history.
+         * How long a presented minute stays revisable before it is history,
+         * unless the user picked another window (Settings → Keep displayed
+         * values).
          *
-         * An hour, so that a calibration entered well after the fingerstick it
-         * refers to still moves the line it was meant to correct. The single
-         * definition; the record's own constant points here.
+         * Three hours. One was too short for the two things the window is for:
+         * a fingerstick is often logged an hour or two after it was taken, and
+         * its calibration should still move the line it was meant to correct;
+         * and a passing state — calibration switched off, an algorithm rebuild,
+         * a raw/auto switch — should be undone before it seals, not after.
          */
-        const val SEAL_GRACE_MS = 60L * 60L * 1000L
+        const val DEFAULT_SEAL_GRACE_MS = 3L * 60L * 60L * 1000L
 
         /** The minute a timestamp belongs to. */
         fun minuteOf(timestampMs: Long): Long = (timestampMs / MINUTE_MS) * MINUTE_MS

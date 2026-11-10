@@ -1,0 +1,98 @@
+# Classes that exist in both src/mobile and src/wear with the same fully-qualified
+# name. The watch copy is a stub or a diverged fork of the phone one, and nothing
+# checks they agree — change the phone class and the watch build still compiles
+# while the watch feature silently does nothing.
+#
+# This list may only shrink. NoDuplicateFqnTest fails if a new pair appears, and
+# also if an entry here is no longer a duplicate (a stale line means a pair was
+# fixed but not removed from the list, so the guard would stop noticing it).
+#
+# Removed so far: tk.glucodata.receivers.AlarmLaunchReceiver (T5.1).
+#   tk.glucodata.Stats, tk.glucodata.Watch (category P): their watch stubs had no
+#   caller anywhere in src/main or src/wear, so they were deleted.
+#   tk.glucodata.settings.LabelsClass, tk.glucodata.IOB, tk.glucodata.Libreview,
+#   tk.glucodata.MeterList, tk.glucodata.Nightscout (category P): shared code now opens
+#   them through the LegacyScreens registry, and their watch copies were dead no-ops,
+#   so the stubs were deleted.
+#   tk.glucodata.BluetoothGlucoseMeter, tk.glucodata.NovoPen.Scan,
+#   tk.glucodata.settings.LibreNumbers (category P): phone-only libraries and resources,
+#   so they stay in src/mobile and shared code reaches them through their own registry
+#   (BluetoothMeterAccess, NovoPenAccess, LibreNumbersAccess).
+#   tk.glucodata.HealthConnection, tk.glucodata.LaunchShit (category P): androidx.health,
+#   reached through HealthConnectAccess and HealthPermissionsAccess. LaunchShit needs a
+#   factory, not a ready instance, because its ActivityResultLauncher has to be registered
+#   while the activity is still being constructed.
+#   tk.glucodata.Dialogs (category P): shared code only ever reached showexport and the
+#   export label, so those became openExport/setExportStatus on LegacyScreens and the
+#   GlucoseCurve field is gone. Its showdays was read by shared code, so it moved to
+#   LegacyScreensAccess.exportShowDays.
+#   tk.glucodata.FloatingConfig (category S): both sides are real (298 and 305 lines of
+#   near-identical fork), so both are renamed -- MobileFloatingConfig and
+#   WearFloatingConfig -- and both register behind FloatingConfigScreenAccess. The contract
+#   is the one method the settings screen calls.
+#   tk.glucodata.WearOngoingActivity (category S): the phone copy was two @JvmStatic no-ops
+#   and both shared callers sit inside if(isWearable), so it existed only to make the
+#   reference compile. Deleted, not renamed: the watch class was already named for the watch.
+#   tk.glucodata.glucosecomplication.GlucoseValue (category S): the phone copy was two
+#   lines, the shared contract is the single updateall(), and the phone registers nothing.
+#   The watch class is WearComplicationValue -- not WearGlucoseValue, which is a composable
+#   in ui/screens -- behind GlucoseValueRefreshAccess. Its static updateall() stays, because
+#   wear code calls it directly.
+#   tk.glucodata.ui.AlarmActivity is the one pair that cannot be renamed: the shared
+#   manifest (src/main/AndroidManifest.xml) and src/wear/AndroidManifest.xml both declare
+#   android:name=".ui.AlarmActivity", so Android requires a class of exactly that name in
+#   both flavours. Renaming it means a full copy of each activity element per flavour plus
+#   tools:node="remove" for the inherited one, and a duplicated set of attributes to keep in
+#   step -- on the alarm screen, where a manifest mistake only shows on a device.
+#   The defect this list guards against is not present here: the contract is already behind
+#   AlarmActivityAccess, both MobileAlarmActivityHost and WearAlarmActivityHost register from
+#   Specific.registerBridges(), BridgeRegistrationTest asserts it on both flavours, and no
+#   ProGuard keep rule is involved any more since the Class.forName lookup went in #443.
+#   Known gap, not addressed here: nothing checks a manifest's android:name against the
+#   source sets, so a one-sided rename would compile and fail only at runtime. A real gate
+#   needs the variant's authoritative source-set list (build.gradle adds src/dex,
+#   src/libre3, src/mobileSi and others) rather than a hardcoded one; a naive check already
+#   reports false positives for UnifiedScanActivity and the wear Chart*DataSourceServices.
+#   tk.glucodata.glucosecomplication.ColorConfig (category S): the phone copy was a
+#   five-line shell and the only shared caller is the complications button, which is
+#   inside if(isWearable). So the phone class is deleted rather than renamed, and the
+#   watch's real one is WearColorConfig behind ComplicationConfigAccess.
+#   tk.glucodata.nums.AllData (category P): shared code held it as the public field
+#   Applic.numdata, so the field is typed as the NumberDataHub interface instead, the phone
+#   class implements it, and Specific supplies the instance. Its devices field is no longer
+#   read from shared code -- NumberDataHub.hasGarminDevices(). The watch copy was all no-ops
+#   and its devices was never filled, so the watch now gets a no-op from src/main.
+#   tk.glucodata.Menus (category P): show() became openMenus on LegacyScreens, and its
+#   on/off flag -- read by shared code in about a dozen places, written by ScanNfcV and by
+#   show() itself -- became LegacyScreensAccess.menusOn. The watch copy held the flag and an
+#   empty show(), and both moved, so nothing was left of it.
+#   tk.glucodata.settings.SetColors (category S): both sides are real -- 144 lines on the
+#   phone, 96 on the watch, and the watch's adjusts the light bars and opens its own colour
+#   dialog -- so both are renamed (MobileSetColors, WearSetColors) and both register behind
+#   SetColorsScreenAccess. The contract is the one method the settings screen calls.
+#   Worth writing down how this duplicate hid from the compiler: Settings is in the same
+#   package, and show was package-private on both sides, so shared code called a phone class
+#   by a name the watch happened to share as well.
+#   tk.glucodata.GlucoseAlarms (category S): the alert path, so it was characterised before
+#   being changed (GlucoseAlarmsAsymmetryTests pins the phone/watch differences). The shape
+#   was a held reference, not a call: shared code held SuperGattCallback.glucosealarms as
+#   the concrete class and both construction sites were in src/main. The field is now typed
+#   to GlucoseAlarmHandler (src/main; SuperGlucoseAlarms implements it and handlealarm() is
+#   the flavour override), and the instance comes from a factory each flavour registers in
+#   GlucoseAlarmsAccess. The classes are MobileGlucoseAlarms and WearGlucoseAlarms.
+#   tk.glucodata.Specific (category S): the per-variant composition root, and this duplicate is
+#   the design rather than an accident. src/main cannot name a class in src/mobile or
+#   src/wear, so the two flavours keep a class of the same name for shared code to have
+#   anything to call. Each is now a shim with exactly one member, registerBridges(), which
+#   also registers the VariantBootstrap (src/main; MobileVariantBootstrap and
+#   WearVariantBootstrap implement it) that the other eight members moved behind. The
+#   alternative was a per-variant Application subclass, which needs android:name repointed in
+#   two flavour manifests plus tools:replace, and moves the registration out of
+#   Applic.onCreate() -- the ordering that closed the post-reboot window where forecast alerts
+#   fired on the two-point slope. A mistake there only shows at runtime. Same reason
+#   ui.AlarmActivity stays.
+#   Pinned by SpecificCompositionRootTests.theShimDeclaresOnlyRegisterBridges, because
+#   BridgeRegistrationTest covers what the shim registers and not what the class declares.
+tk.glucodata.Meal
+tk.glucodata.Specific
+tk.glucodata.ui.AlarmActivity

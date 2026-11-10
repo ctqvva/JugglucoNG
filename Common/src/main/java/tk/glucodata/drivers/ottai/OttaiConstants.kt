@@ -21,6 +21,9 @@ object OttaiConstants {
 
     val SERVICE_DEVICE_INFO: UUID = UUID.fromString("0000180a-0000-1000-8000-00805f9b34fb")
     val CHAR_SOFTWARE_VERSION: UUID = UUID.fromString("00002a28-0000-1000-8000-00805f9b34fb")
+    val SERVICE_OTA: UUID = UUID.fromString("1d14d6ee-fd63-4fa1-bfa4-8f47b42119f0")
+    val CHAR_OTA_CONTROL: UUID = UUID.fromString("f7bf3564-fb6d-4e53-88a4-5e37e0326063")
+    val CHAR_OTA_DATA: UUID = UUID.fromString("984227f3-34fc-4045-a5d0-2c581f81a153")
     val CHAR_CURRENT_TIME: UUID = UUID.fromString("00002a2b-0000-1000-8000-00805f9b34fb")
     val CHAR_MAX_ACTIVE_TIME: UUID = UUID.fromString("b8fd9848-0ccd-423f-bd34-2419aa7ea004")
     val CHAR_CGM_INFO_NOTIFY: UUID = UUID.fromString("cb627922-4e79-42e3-b107-a10e816f6caa")
@@ -64,6 +67,8 @@ object OttaiConstants {
     const val EP_GET_USER = "$PREFIX/user/getUser"
     const val EP_VALIDATE_BY_MAC = "$PREFIX/device/validateDeviceByMacV2"
     const val EP_VALIDATE_BY_MAC_V3 = "$PREFIX/device/validateDeviceByMacV3"
+    const val EP_MAC_OR_SN_INFO = "$PREFIX/device/getDeviceMacOrSnInfo"
+    const val EP_MAC_OR_SN_INFO_V2 = "$PREFIX/device/getDeviceMacOrSnInfo2"
     const val EP_BIND = "$PREFIX/deviceBind/composite/bind"
     const val EP_BIND_V3 = "$PREFIX/deviceBind/composite/bindV3"
     // Server side of the CN V3 Active_Auth handshake: the app reads authDev/authFlag off the sensor
@@ -75,6 +80,10 @@ object OttaiConstants {
     const val EP_GET_BIND_DEVICE = "$PREFIX/deviceBind/getBindDevice"
     const val EP_DEVICE_LIST = "$PREFIX/deviceBind/list"  // account's bound + past sensors (paged)
     const val EP_DOWNLOAD_GLUCOSE = "$PREFIX/search/downloadGlucose"
+    const val OTA_SECURE_PREFIX = "/cgm/security/app/server"
+    // Relative to OTA_SECURE_PREFIX; these routes require the regional network-security envelope.
+    const val EP_OTA_JUDGE = "/ota/upgradeVersion/judge"
+    const val EP_OTA_REPORT = "/device/ota/upgrade"
 
     /**
      * Default phone-app headers (matches the working bind helper). The four
@@ -90,6 +99,24 @@ object OttaiConstants {
 
     private val MAC_COLON = Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE)
     private val MAC_PLAIN = Regex("^[0-9A-F]{12}$", RegexOption.IGNORE_CASE)
+    private val BOX_SERIAL = Regex("^[A-Z0-9]{12}$")
+
+    /** Setup accepts a box serial as lookup input; only the resolved MAC is a sensor identity. */
+    fun isBoxSerial(value: String?): Boolean {
+        val code = value?.trim()?.uppercase(Locale.ROOT).orEmpty()
+        return BOX_SERIAL.matches(code) && !looksLikeMac(code)
+    }
+
+    fun extractSetupCode(value: String?): String? {
+        val raw = value?.trim()?.uppercase(Locale.ROOT).orEmpty()
+        if (looksLikeMac(raw)) return canonicalSensorId(raw)
+        if (isBoxSerial(raw)) return raw
+        // The variable-length GS1 serial (AI 21) ends at FNC1, the next parenthesized
+        // application identifier, or the end of the symbol. Read it before GTIN hex heuristics.
+        Regex("(?:\\(21\\)|\\u001D21|^21)([A-Z0-9]{12})(?=$|\\u001D|\\()")
+            .find(raw)?.groupValues?.get(1)?.let { return it }
+        return extractMacFromQr(raw)
+    }
 
     @JvmStatic
     fun isProvisionalSensorId(name: String?): Boolean =
@@ -369,7 +396,13 @@ object OttaiConstants {
     const val PREF_PREHEAT_PERIOD_PREFIX = "ottai_preheat_period_"
     const val PREF_RETAIN_TIME_PREFIX = "ottai_retain_time_"      // retainTime ms (destruction value)
     const val PREF_DEVICE_VERSION_PREFIX = "ottai_device_version_"
+    const val PREF_CALIBRATION_K_PREFIX = "ottai_calibration_k_"
+    const val PREF_CALIBRATION_B_PREFIX = "ottai_calibration_b_"
     const val PREF_LAST_DATA_NO_PREFIX = "ottai_last_datano_"
+    // Realtime delivery high-water. Unlike Room's newest timestamp, this records only a sample
+    // that actually claimed the alert/voice/exchange path, so history imports cannot suppress a
+    // later live delivery after the manager is recreated.
+    const val PREF_LAST_PUBLISHED_GLUCOSE_PREFIX = "ottai_last_published_glucose_"
     // BLE record layout (8 or 9) once a payload big enough to prove it has been seen. Held
     // per sensor so a short live notify, which cannot tell the two apart, never re-decides it.
     const val PREF_RECORD_SIZE_PREFIX = "ottai_record_size_"

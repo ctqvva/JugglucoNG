@@ -61,8 +61,14 @@ import tk.glucodata.ui.components.TrendArrowCanvas
 
 private const val TICK_MS = 30_000L
 
+// Resolved for the selection's primary, not for whatever native calls current:
+// with two sensors syncing the latter changed with every chunk.
 private fun currentSnapshot(): CurrentDisplaySource.Snapshot? =
-    runCatching { CurrentDisplaySource.resolveCurrent() }.getOrNull()
+    runCatching {
+        CurrentDisplaySource.resolveCurrent(
+            preferredSensorId = tk.glucodata.ui.WearSensorSelection.resolve(),
+        )
+    }.getOrNull()
 
 private fun sensorPresent(): Boolean = runCatching {
     Natives.activeSensors()?.isNotEmpty() == true
@@ -143,7 +149,18 @@ fun MainScreen(
     // One pass over the shared history gives every row its own arrow, instead of
     // each row walking the snapshot again on the main thread.
     val velocities = remember(storeSnapshot, recent, isMmol) {
-        rowVelocities(storeSnapshot.points, recent, storeSnapshot.isRawMode, isMmol)
+        rowVelocities(storeSnapshot.readings, recent, storeSnapshot.isRawMode, isMmol)
+    }
+    val rowPeers = remember(storeSnapshot, recent, isMmol) {
+        readingPeers(recent, storeSnapshot.peers, isMmol)
+    }
+    val primaryIdentity = remember(storeSnapshot.sensorId, storeSnapshot.peers) {
+        if (storeSnapshot.peers.isEmpty()) null
+        else tk.glucodata.ui.WearSensorSelection.colorOf(storeSnapshot.sensorId)
+    }
+    // The other shown sensors' newest readings, for the hero's peer chips.
+    val peerReadings = remember(storeSnapshot, isMmol, now / TICK_MS) {
+        peerReadings(storeSnapshot.peers, isMmol, now)
     }
 
     ScreenScaffold(timeText = { TimeText() }) {
@@ -188,7 +205,10 @@ fun MainScreen(
                             stale = status.isStale,
                             sensorId = snap?.sensorId,
                             velocity = velocities[newestReading.timestamp] ?: 0f,
+                            peers = peerReadings,
                             onClick = { onCalibrateReading(newestReading) },
+                            // As on the phone's hero: a peer's chip promotes it.
+                            onPeerClick = { tk.glucodata.ui.WearSensorSelection.makePrimary(it) },
                             // Sits as high as the clock allows so the big value
                             // overlaps as little of the curve as possible.
                             modifier = Modifier
@@ -226,6 +246,8 @@ fun MainScreen(
                         isMmol = isMmol,
                         viewMode = viewMode,
                         velocity = velocities[point.timestamp] ?: 0f,
+                        peers = rowPeers[point.timestamp].orEmpty(),
+                        primaryColorArgb = primaryIdentity,
                         // Tapping a reading acts on that reading, as on the
                         // phone: it calibrates against it, or edits the
                         // calibration it already carries.
@@ -340,6 +362,8 @@ private fun ReadingRow(
     viewMode: Int,
     velocity: Float,
     onClick: () -> Unit,
+    peers: List<WearReadingPeer> = emptyList(),
+    primaryColorArgb: Int? = null,
     onAddJournal: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -349,7 +373,7 @@ private fun ReadingRow(
     Row(
         modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -367,7 +391,7 @@ private fun ReadingRow(
                 if (onAddJournal != null) {
                     Box(
                         Modifier
-                            .padding(start = 6.dp)
+                            .padding(start = 4.dp)
                             .size(20.dp)
                             .clip(androidx.compose.foundation.shape.CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
@@ -396,25 +420,7 @@ private fun ReadingRow(
                 )
             }
         }
-        WearGlucoseValue(
-            point = point,
-            isMmol = isMmol,
-            viewMode = viewMode,
-            style = readingValueStyle(viewMode),
-            primaryColor = tk.glucodata.ui.WearGlucoseColors.valueColor(
-                primaryLaneValue(point, viewMode),
-                isMmol,
-                MaterialTheme.colorScheme.onSurface,
-            ),
-        )
-        // The phone puts a trend arrow on every reading row; the watch showed it
-        // on the hero alone, so a row said nothing about direction.
-        TrendArrowCanvas(
-            velocity = velocity,
-            pulseKey = null,
-            modifier = Modifier.size(14.dp).padding(start = 6.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        ReadingValues(point, viewMode, isMmol, velocity, peers, primaryColorArgb)
     }
 }
 
@@ -482,7 +488,9 @@ internal fun HeroCard(
     stale: Boolean,
     sensorId: String?,
     velocity: Float,
+    peers: List<PeerReading> = emptyList(),
     onClick: (() -> Unit)? = null,
+    onPeerClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // The big number must be the same value the readings row below shows: the
@@ -506,15 +514,19 @@ internal fun HeroCard(
         androidx.compose.ui.graphics.lerp(scrim, tone.copy(alpha = scrim.alpha), fraction)
     } ?: scrim
     // Floating pill over the chart: wraps content, translucent scrim so the
-    // curve stays visible behind it.
-    Row(
+    // curve stays visible behind it. The peers' chips sit in a row under the
+    // value, as they do in the phone's hero.
+    Column(
         modifier = modifier
             .clip(RoundedCornerShape(24.dp))
             .background(background)
-            // Tapping the hero acts on the reading it shows, as tapping a row
-            // acts on that row's — the phone's hero behaves the same way.
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 12.dp, vertical = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+    Row(
+        // Tapping the hero acts on the reading it shows, as tapping a row
+        // acts on that row's — the phone's hero behaves the same way.
+        modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val dvs = remember(point.timestamp, point.value, point.rawValue, viewMode, isMmol) {
@@ -560,5 +572,113 @@ internal fun HeroCard(
             modifier = Modifier.size(28.dp).padding(start = 4.dp),
             color = valueColor,
         )
+    }
+    if (peers.isNotEmpty()) {
+        HeroPeerStrip(
+            peers = peers,
+            contentColor = neutral,
+            onPeerClick = onPeerClick,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
+    }
+    }
+}
+
+/** A peer's newest reading, for a chip in the hero. */
+internal data class PeerReading(
+    val sensorId: String,
+    val primaryStr: String,
+    val secondaryStr: String?,
+    val velocity: Float,
+    val colorArgb: Int,
+)
+
+/**
+ * The newest reading of each peer that has one inside the staleness window,
+ * formatted in that peer's own view mode. Nothing is shown for a peer that has
+ * gone quiet — the phone's hero drops those chips too.
+ */
+internal fun peerReadings(
+    peers: List<WearGlucoseStore.PeerSeries>,
+    isMmol: Boolean,
+    now: Long,
+): List<PeerReading> = peers.mapNotNull { peer ->
+    val newest = peer.readings.lastOrNull() ?: return@mapNotNull null
+    if (now - newest.timestamp >= tk.glucodata.Notify.glucosetimeout) return@mapNotNull null
+    val dvs = tk.glucodata.ui.DisplayValueResolver.resolve(
+        autoValue = newest.value,
+        rawValue = newest.rawValue,
+        viewMode = peer.viewMode,
+        isMmol = isMmol,
+    )
+    val velocity = rowVelocities(peer.readings, listOf(newest), peer.isRawMode, isMmol)[newest.timestamp] ?: 0f
+    PeerReading(peer.sensorId, dvs.primaryStr, dvs.secondaryStr, velocity, peer.colorArgb)
+}
+
+/**
+ * Compact per-peer chips: identity dot, the value (and second lane when the
+ * peer's mode has one), a small arrow. The phone's hero has the same strip,
+ * and tapping a chip there makes that sensor the primary; here too.
+ */
+@Composable
+private fun HeroPeerStrip(
+    peers: List<PeerReading>,
+    contentColor: Color,
+    onPeerClick: ((String) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        peers.forEach { peer ->
+            val identity = Color(peer.colorArgb)
+            val textColor = androidx.compose.ui.graphics.lerp(
+                contentColor,
+                identity,
+                tk.glucodata.SensorVisuals.PEER_TEXT_BLEND,
+            )
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(identity.copy(alpha = 0.14f))
+                    .then(
+                        onPeerClick?.let { act -> Modifier.clickable { act(peer.sensorId) } } ?: Modifier,
+                    )
+                    .padding(horizontal = 7.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier
+                        .size(5.dp)
+                        .background(identity.copy(alpha = 0.9f), androidx.compose.foundation.shape.CircleShape),
+                )
+                Text(
+                    peer.primaryStr,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontFeatureSettings = "tnum",
+                    ),
+                    color = textColor,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+                peer.secondaryStr?.let { secondary ->
+                    Text(
+                        " · $secondary",
+                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                        color = textColor.copy(alpha = 0.72f),
+                        maxLines = 1,
+                    )
+                }
+                TrendArrowCanvas(
+                    velocity = peer.velocity,
+                    pulseKey = null,
+                    modifier = Modifier.size(12.dp).padding(start = 3.dp),
+                    color = textColor,
+                )
+            }
+        }
     }
 }

@@ -40,55 +40,6 @@
 # Keep AiDex vendor bridge classes/fields/methods used by libblecomm-lib JNI.
 -keep class com.microtechmd.blecomm.** { *; }
 
-# Keep HistorySync/HistoryRepository names and reflected members stable.
-# HistorySyncAccess in src/main resolves these mobile-only classes by name.
-# This list is a duplicate of the getMethod() names in HistorySyncAccess, and nothing checks
-# that the two agree. They did not: getHistoryTimestampsForSensorBlocking was missing here, so
-# in every minified build the lookup threw, the bridge answered "no rows", and the Ottai driver
-# read that as "nothing stored" and re-pulled the sensor's whole history on every reconnect --
-# silently, because tk.glucodata.Log is stripped by proguard-rules.log. The members below now
-# also carry @Keep at their declaration, which cannot drift; keep both in sync when adding one.
--keepnames class tk.glucodata.data.HistoryRepository
--keepclassmembers class tk.glucodata.data.HistoryRepository {
-    public static void resetBackfillFlag();
-    public static java.util.List getHistoryForNotificationForSensor(java.lang.String,long,boolean);
-    public static tk.glucodata.chart.MainSensorOwnership getMainSensorOwnershipForNotification(long);
-    public static long getLatestTimestampForSensorBlocking(java.lang.String);
-    public static long[] getHistoryTimestampsForSensorBlocking(java.lang.String,long,long);
-    public static int deleteReadingsForSensorAfterBlocking(java.lang.String,long);
-    public static void storeReadingAsync(long,float,int);
-    public static void storeReadingAsync(long,float,float,float);
-    public static void storeReadingAsync(long,float,float,float,java.lang.String);
-    public static void storeHistoryBatchAsync(java.lang.String,long[],float[],float[]);
-    public static boolean storeHistoryBatchBlocking(java.lang.String,long[],float[],float[]);
-}
-
--keepnames class tk.glucodata.data.HistorySync
--keepclassmembers class tk.glucodata.data.HistorySync {
-    public static final tk.glucodata.data.HistorySync INSTANCE;
-    public final void syncSensorFromNative(java.lang.String,boolean);
-    public final void syncRecentSensorFromNative(java.lang.String,long);
-    public final void forceFullSyncForSensor(java.lang.String);
-    public final void mergeFullSyncForSensor(java.lang.String);
-    public final void markSensorReset(java.lang.String);
-}
-
-# Keep GlucoseUncertaintyStore names and reflected members stable.
-# GlucoseUncertaintyAccess in src/main resolves this mobile-only class by name, and the same
-# failure mode as HistoryRepository above applies: without these rules the lookup throws only
-# in minified builds, the bridge silently stores nothing, and every chart renders without its
-# uncertainty ribbon with no error anywhere. The members also carry @Keep at their declaration;
-# keep both in sync when adding one.
--keepnames class tk.glucodata.data.GlucoseUncertaintyStore
--keepclassmembers class tk.glucodata.data.GlucoseUncertaintyStore {
-    public static final tk.glucodata.data.GlucoseUncertaintyStore INSTANCE;
-    public static void storeBatch(java.lang.String,long[],float[],float[],float,float[],float[]);
-    public static void storeReading(java.lang.String,long,float,float,float,float,float);
-    public static void clearForSensor(java.lang.String);
-    public static void deleteForSensorAfter(java.lang.String,long);
-    public static void pruneOlderThan(long);
-}
-
 # Keep the hidden-framework connection-parameter callback.
 # BluetoothGattCallback#onConnectionUpdated exists since Android O but is absent from the SDK
 # stubs, so SuperGattCallback declares it without @Override and nothing in the compiled code
@@ -103,49 +54,6 @@
     public void onConnectionUpdated(android.bluetooth.BluetoothGatt, int, int, int, int);
 }
 
-# Keep CalibrationManager names and reflected members stable.
-# JournalAccess in src/main resolves this mobile-only facade by name. Without
-# these the watch journal silently does nothing in minified builds.
--keepnames class tk.glucodata.data.journal.WearJournalBridge
--keepclassmembers class tk.glucodata.data.journal.WearJournalBridge {
-    public static final tk.glucodata.data.journal.WearJournalBridge INSTANCE;
-    public final byte[] serveEntries(long);
-    public final boolean applyCommand(byte[]);
-    public final boolean isJournalEnabled();
-}
-
-# CalibrationAccess in src/main resolves these mobile-only methods by name.
--keepnames class tk.glucodata.data.calibration.CalibrationManager
--keepclassmembers class tk.glucodata.data.calibration.CalibrationManager {
-    public static final tk.glucodata.data.calibration.CalibrationManager INSTANCE;
-    public final boolean hasActiveCalibration(boolean,java.lang.String);
-    public final float getCalibratedValue(float,long,boolean,boolean,java.lang.String);
-    public final boolean shouldHideInitialWhenCalibrated();
-    public final boolean shouldOverwriteSensorValues();
-    public final long getRevision();
-    public static void notifyExternalCalibrationPipelineChanged();
-    public static double[] getActiveCalibrationAnchors(java.lang.String,boolean);
-    public static double[] getIntegratedCalibrationAnchors(java.lang.String,boolean);
-    public final tk.glucodata.data.calibration.CalibrationTuning tuningForMode(boolean);
-    public static boolean isCalibrationStateLoaded();
-    public static float[] getIntegratedCalibratedSeries(float[],long[],boolean,java.lang.String);
-    public static long getIntegratedCalibrationFingerprint(java.lang.String,boolean);
-    public static void seedIntegratedCalibrationBaseline(float[],long[],boolean,java.lang.String);
-    public final java.lang.String exportProfileForSensorAsJson(java.lang.String);
-    public final *** importProfileFromJsonBlocking(java.lang.String,boolean,java.lang.String);
-    public final *** importMirrorProfileFromJsonBlocking(java.lang.String,java.lang.String);
-    # The mutations WearCalibrationCommand relays from the watch. These have no
-    # non-reflective caller under their exact name, so R8 renamed
-    # setEnabledForMode and deleted the four *Blocking methods outright: every
-    # calibration action taken on the watch logged "applied=false" in release
-    # builds while working in debug.
-    public final void setEnabledForMode(boolean,boolean,java.lang.String);
-    public final boolean addCalibrationFromWearAtBlocking(long,float,float);
-    public final boolean deleteCalibrationAtBlocking(long);
-    public final boolean updateCalibrationUserValueBlocking(long,float);
-    public final void clearAllBlocking();
-}
-
 -keep class tk.glucodata.CalibrationProfileAccess { *; }
 
 # Keep the native exported-value bridge stable. uploader.cpp and common.cpp resolve
@@ -155,28 +63,11 @@
 # @Keep; keep the two in sync.
 -keep class tk.glucodata.NightscoutCalibration { *; }
 
-# Keep the LibreView journal bridge stable. journalentries.cpp resolves LibreviewJournal by
-# FindClass/GetStaticMethodID, and LibreviewJournal resolves the mobile-only
-# LibreviewJournalEntries by name -- neither is a reference R8 can see. Without these the
-# journal's food/insulin/notes silently stop reaching LibreView in minified builds only,
-# which is exactly how this feature looked before it existed.
+# Keep the LibreView journal bridge stable. journalentries.cpp resolves
+# LibreviewJournal by FindClass/GetStaticMethodID, so its own name and methods must
+# survive R8. It no longer resolves LibreviewJournalEntries by name -- that goes
+# through the registered LibreviewJournalEntriesBridge -- so those rules are gone.
 -keep class tk.glucodata.LibreviewJournal { *; }
--keepnames class tk.glucodata.data.journal.LibreviewJournalEntries
--keepclassmembers class tk.glucodata.data.journal.LibreviewJournalEntries {
-    public static int prepare(boolean);
-    public static java.lang.String foodEntries();
-    public static java.lang.String insulinEntries();
-    public static java.lang.String noteEntries();
-    public static void commit();
-    public static void discard();
-}
-
-# Keep notification/AOD predictive chart bridge stable. NotificationChartDrawer
-# resolves the mobile-only helper by name so main/wear source sets do not take a
-# direct dependency on mobile prediction/journal classes.
--keep class tk.glucodata.NotificationPredictionOverlay { *; }
--keep class tk.glucodata.NotificationPredictionPoint { *; }
--keep class tk.glucodata.NotificationPredictionSeries { *; }
 
 # Keep TrendEngine names and reflected members stable.
 # TrendAccess in src/main resolves these mobile-only methods by name for
@@ -190,26 +81,6 @@
 -keepnames class tk.glucodata.logic.TrendEngine$TrendResult
 -keepclassmembers class tk.glucodata.logic.TrendEngine$TrendResult {
     public final float getVelocity();
-}
-
-# Keep OutboundApiJournalSnapshot name and reflected members stable.
-# OutboundApi, ApiGlucoseSourceManager and JugglucoSend (src/main) resolve this
-# mobile-only object by name: snapshotJson() backs the {iob}/{cob}/{journal}/
-# {journal_events} message-template tokens, importFromJson*() ingests API
-# journal payloads, and broadcastIobSnapshot() feeds the glucodata.Minute
-# IOB/eIOB/COB extras. Without this, R8 renames/strips the class and the
-# reflection silently yields an empty snapshot (tokens render as
-# "0 - 0 - 0 - 0 -  -") / a broadcast without IOB.
--keepnames class tk.glucodata.OutboundApiJournalSnapshot
--keepclassmembers class tk.glucodata.OutboundApiJournalSnapshot {
-    public static java.lang.String snapshotJson(long);
-    public static int importFromJson(java.lang.String);
-    public static int importFromJsonForSource(java.lang.String,java.lang.String);
-    public static float[] broadcastIobSnapshot(long);
-    public static java.lang.String cloneIobSnapshotJson(long);
-    public static boolean importCloneIobSnapshot(java.lang.String);
-    public static java.lang.String cloneJournalSnapshotJson(long);
-    public static boolean importCloneJournalSnapshot(java.lang.String,int);
 }
 
 #-keep class tk.glucodata.watchface.WatchFaceService
@@ -240,10 +111,5 @@
 -keep class tk.glucodata.update.AppUpdateCheckWorker { public <init>(...); }
 -keep class tk.glucodata.update.AppUpdateInstallReceiver { public <init>(...); }
 
-# Keep the Compose UI entry point stable. MainActivity resolves
-# tk.glucodata.ui.ComposeHostKt#setComposeContent by name (mobile and wear each
-# provide their own implementation); without this the reflective lookup fails
-# only in minified builds and the app silently falls back to the legacy View UI.
--keep class tk.glucodata.ui.ComposeHostKt {
-    public static void setComposeContent(androidx.appcompat.app.AppCompatActivity, android.view.View);
-}
+# Looked up by name from native code (g.cpp isManagedDirectStreamSensorId); R8 would otherwise rename it.
+-keep class tk.glucodata.SensorIdentity { public static boolean usesNativeDirectStreamShell(java.lang.String); }

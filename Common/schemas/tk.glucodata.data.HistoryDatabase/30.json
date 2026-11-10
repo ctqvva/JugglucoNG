@@ -1,0 +1,744 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 30,
+    "identityHash": "436f4a64963e595104a711e4627e489f",
+    "entities": [
+      {
+        "tableName": "history_readings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestamp` INTEGER NOT NULL, `sensorSerial` TEXT NOT NULL, `value` REAL NOT NULL, `rawValue` REAL NOT NULL, `rate` REAL, `source` TEXT NOT NULL, `firstStoredAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sensorSerial",
+            "columnName": "sensorSerial",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawValue",
+            "columnName": "rawValue",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rate",
+            "columnName": "rate",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstStoredAt",
+            "columnName": "firstStoredAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_history_readings_timestamp_sensorSerial",
+            "unique": true,
+            "columnNames": [
+              "timestamp",
+              "sensorSerial"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_history_readings_timestamp_sensorSerial` ON `${TABLE_NAME}` (`timestamp`, `sensorSerial`)"
+          },
+          {
+            "name": "index_history_readings_sensorSerial",
+            "unique": false,
+            "columnNames": [
+              "sensorSerial"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_history_readings_sensorSerial` ON `${TABLE_NAME}` (`sensorSerial`)"
+          },
+          {
+            "name": "index_history_readings_sensorSerial_timestamp",
+            "unique": false,
+            "columnNames": [
+              "sensorSerial",
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_history_readings_sensorSerial_timestamp` ON `${TABLE_NAME}` (`sensorSerial`, `timestamp`)"
+          }
+        ]
+      },
+      {
+        "tableName": "history_deleted_readings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`timestamp` INTEGER NOT NULL, `sensorSerial` TEXT NOT NULL, `deletedAt` INTEGER NOT NULL, PRIMARY KEY(`timestamp`, `sensorSerial`))",
+        "fields": [
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sensorSerial",
+            "columnName": "sensorSerial",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "timestamp",
+            "sensorSerial"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_history_deleted_readings_sensorSerial",
+            "unique": false,
+            "columnNames": [
+              "sensorSerial"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_history_deleted_readings_sensorSerial` ON `${TABLE_NAME}` (`sensorSerial`)"
+          }
+        ]
+      },
+      {
+        "tableName": "reading_uncertainty",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`sensorSerial` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `lowerMgdl` REAL NOT NULL, `upperMgdl` REAL NOT NULL, `intervalMass` REAL NOT NULL, `confidence` REAL, `artifactProbability` REAL, PRIMARY KEY(`sensorSerial`, `timestamp`))",
+        "fields": [
+          {
+            "fieldPath": "sensorSerial",
+            "columnName": "sensorSerial",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lowerMgdl",
+            "columnName": "lowerMgdl",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upperMgdl",
+            "columnName": "upperMgdl",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "intervalMass",
+            "columnName": "intervalMass",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "artifactProbability",
+            "columnName": "artifactProbability",
+            "affinity": "REAL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "sensorSerial",
+            "timestamp"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reading_uncertainty_timestamp",
+            "unique": false,
+            "columnNames": [
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_uncertainty_timestamp` ON `${TABLE_NAME}` (`timestamp`)"
+          }
+        ]
+      },
+      {
+        "tableName": "reading_display",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`timestamp` INTEGER NOT NULL, `sensorSerial` TEXT NOT NULL, `displayMgdl` REAL NOT NULL, `viewMode` INTEGER NOT NULL, `calibrationFingerprint` INTEGER NOT NULL, `recordedAt` INTEGER NOT NULL, PRIMARY KEY(`timestamp`))",
+        "fields": [
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sensorSerial",
+            "columnName": "sensorSerial",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayMgdl",
+            "columnName": "displayMgdl",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "viewMode",
+            "columnName": "viewMode",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calibrationFingerprint",
+            "columnName": "calibrationFingerprint",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordedAt",
+            "columnName": "recordedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "timestamp"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reading_display_sensorSerial",
+            "unique": false,
+            "columnNames": [
+              "sensorSerial"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_display_sensorSerial` ON `${TABLE_NAME}` (`sensorSerial`)"
+          }
+        ]
+      },
+      {
+        "tableName": "journal_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestamp` INTEGER NOT NULL, `sensorSerial` TEXT, `entryType` TEXT NOT NULL, `title` TEXT NOT NULL, `note` TEXT, `amount` REAL, `glucoseValueMgDl` REAL, `durationMinutes` INTEGER, `intensity` TEXT, `insulinPresetId` INTEGER, `foodId` INTEGER, `proteinGrams` REAL, `fatGrams` REAL, `source` TEXT NOT NULL, `originSource` TEXT, `sourceRecordId` TEXT, `recoveryId` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `nsUploadedAt` INTEGER, `nsRemoteId` TEXT, `insulinCurveJsonSnapshot` TEXT, `insulinCurveProfileId` TEXT, `insulinCurveModelVersion` INTEGER, `insulinCurveEvidence` TEXT, `insulinBodyWeightKg` REAL, `insulinCurveWasApproximated` INTEGER NOT NULL DEFAULT 0, `lvUploadedAt` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sensorSerial",
+            "columnName": "sensorSerial",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "entryType",
+            "columnName": "entryType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "glucoseValueMgDl",
+            "columnName": "glucoseValueMgDl",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "durationMinutes",
+            "columnName": "durationMinutes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "intensity",
+            "columnName": "intensity",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "insulinPresetId",
+            "columnName": "insulinPresetId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "foodId",
+            "columnName": "foodId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "proteinGrams",
+            "columnName": "proteinGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "fatGrams",
+            "columnName": "fatGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originSource",
+            "columnName": "originSource",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceRecordId",
+            "columnName": "sourceRecordId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "recoveryId",
+            "columnName": "recoveryId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nsUploadedAt",
+            "columnName": "nsUploadedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "nsRemoteId",
+            "columnName": "nsRemoteId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "insulinCurveJsonSnapshot",
+            "columnName": "insulinCurveJsonSnapshot",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "insulinCurveProfileId",
+            "columnName": "insulinCurveProfileId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "insulinCurveModelVersion",
+            "columnName": "insulinCurveModelVersion",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "insulinCurveEvidence",
+            "columnName": "insulinCurveEvidence",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "insulinBodyWeightKg",
+            "columnName": "insulinBodyWeightKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "insulinCurveWasApproximated",
+            "columnName": "insulinCurveWasApproximated",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "lvUploadedAt",
+            "columnName": "lvUploadedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_journal_entries_timestamp",
+            "unique": false,
+            "columnNames": [
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_journal_entries_timestamp` ON `${TABLE_NAME}` (`timestamp`)"
+          },
+          {
+            "name": "index_journal_entries_entryType",
+            "unique": false,
+            "columnNames": [
+              "entryType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_journal_entries_entryType` ON `${TABLE_NAME}` (`entryType`)"
+          },
+          {
+            "name": "index_journal_entries_insulinPresetId",
+            "unique": false,
+            "columnNames": [
+              "insulinPresetId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_journal_entries_insulinPresetId` ON `${TABLE_NAME}` (`insulinPresetId`)"
+          },
+          {
+            "name": "index_journal_entries_foodId",
+            "unique": false,
+            "columnNames": [
+              "foodId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_journal_entries_foodId` ON `${TABLE_NAME}` (`foodId`)"
+          },
+          {
+            "name": "index_journal_entries_sourceRecordId",
+            "unique": true,
+            "columnNames": [
+              "sourceRecordId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_journal_entries_sourceRecordId` ON `${TABLE_NAME}` (`sourceRecordId`)"
+          },
+          {
+            "name": "index_journal_entries_recoveryId",
+            "unique": true,
+            "columnNames": [
+              "recoveryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_journal_entries_recoveryId` ON `${TABLE_NAME}` (`recoveryId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "journal_foods",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `displayName` TEXT NOT NULL, `carbsGrams` REAL NOT NULL, `proteinGrams` REAL, `fatGrams` REAL, `absorptionMinutes` INTEGER NOT NULL, `accentColor` INTEGER NOT NULL, `isBuiltIn` INTEGER NOT NULL, `isArchived` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "carbsGrams",
+            "columnName": "carbsGrams",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proteinGrams",
+            "columnName": "proteinGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "fatGrams",
+            "columnName": "fatGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "absorptionMinutes",
+            "columnName": "absorptionMinutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accentColor",
+            "columnName": "accentColor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isBuiltIn",
+            "columnName": "isBuiltIn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isArchived",
+            "columnName": "isArchived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_journal_foods_isArchived_sortOrder",
+            "unique": false,
+            "columnNames": [
+              "isArchived",
+              "sortOrder"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_journal_foods_isArchived_sortOrder` ON `${TABLE_NAME}` (`isArchived`, `sortOrder`)"
+          },
+          {
+            "name": "index_journal_foods_displayName",
+            "unique": false,
+            "columnNames": [
+              "displayName"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_journal_foods_displayName` ON `${TABLE_NAME}` (`displayName`)"
+          }
+        ]
+      },
+      {
+        "tableName": "journal_insulin_presets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `displayName` TEXT NOT NULL, `onsetMinutes` INTEGER NOT NULL, `durationMinutes` INTEGER NOT NULL, `accentColor` INTEGER NOT NULL, `curveJson` TEXT NOT NULL, `isBuiltIn` INTEGER NOT NULL, `isArchived` INTEGER NOT NULL, `countsTowardIob` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL, `useForCalculation` INTEGER NOT NULL DEFAULT 1, `curveProfileId` TEXT, `curveModelVersion` INTEGER NOT NULL DEFAULT 0, `curveEvidence` TEXT NOT NULL DEFAULT 'unverified')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "onsetMinutes",
+            "columnName": "onsetMinutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMinutes",
+            "columnName": "durationMinutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accentColor",
+            "columnName": "accentColor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "curveJson",
+            "columnName": "curveJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isBuiltIn",
+            "columnName": "isBuiltIn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isArchived",
+            "columnName": "isArchived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "countsTowardIob",
+            "columnName": "countsTowardIob",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "useForCalculation",
+            "columnName": "useForCalculation",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "curveProfileId",
+            "columnName": "curveProfileId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "curveModelVersion",
+            "columnName": "curveModelVersion",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "curveEvidence",
+            "columnName": "curveEvidence",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'unverified'"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_journal_insulin_presets_sortOrder",
+            "unique": false,
+            "columnNames": [
+              "sortOrder"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_journal_insulin_presets_sortOrder` ON `${TABLE_NAME}` (`sortOrder`)"
+          }
+        ]
+      },
+      {
+        "tableName": "journal_pending_deletes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`entryId` INTEGER NOT NULL, `nsRemoteId` TEXT NOT NULL, `deletedAt` INTEGER NOT NULL, `attempts` INTEGER NOT NULL, `lastAttemptAt` INTEGER NOT NULL, PRIMARY KEY(`entryId`))",
+        "fields": [
+          {
+            "fieldPath": "entryId",
+            "columnName": "entryId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nsRemoteId",
+            "columnName": "nsRemoteId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempts",
+            "columnName": "attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastAttemptAt",
+            "columnName": "lastAttemptAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "entryId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '436f4a64963e595104a711e4627e489f')"
+    ]
+  }
+}

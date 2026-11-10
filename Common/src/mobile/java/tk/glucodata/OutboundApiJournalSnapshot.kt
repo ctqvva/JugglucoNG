@@ -16,6 +16,7 @@ import java.util.Calendar
 import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.data.HistoryDatabase
+import tk.glucodata.data.journal.CarbEntry
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalEntrySource
 import tk.glucodata.data.journal.JournalEntryType
@@ -23,13 +24,14 @@ import tk.glucodata.data.journal.CloneJournalIdentity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalIobCalculator
+import tk.glucodata.data.journal.JournalIobMath
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.data.journal.JournalTreatmentTransfer
 import tk.glucodata.data.journal.isCloneJournalExportSource
 import tk.glucodata.data.prediction.PredictionModelProfileStore
 
-object OutboundApiJournalSnapshot {
+object OutboundApiJournalSnapshot : JournalSnapshotBridge {
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val SNAPSHOT_EVENT_WINDOW_MS = 12L * 60L * 60L * 1000L
     private const val DEFAULT_ACTIVE_WINDOW_MS = 24L * 60L * 60L * 1000L
@@ -39,10 +41,11 @@ object OutboundApiJournalSnapshot {
     private const val CLONE_JOURNAL_MAX_EVENTS = 128
     private const val CLONE_JOURNAL_TOMBSTONE_WINDOW_MS = 30L * 24L * 60L * 60L * 1000L
     private const val CLONE_JOURNAL_MAX_TOMBSTONES = 256
+    private const val CLONE_JOURNAL_NEWEST_TOMBSTONES = 192
+    private val cloneJournalTombstoneRotation = java.util.concurrent.atomic.AtomicInteger()
     private val cloneJournalImportMutex = Mutex()
 
-    @JvmStatic
-    fun snapshotJson(timeMillis: Long): String = runBlocking {
+    override fun snapshotJson(timeMillis: Long): String = runBlocking {
         withContext(Dispatchers.IO) {
             buildSnapshot(timeMillis.takeIf { it > 0L } ?: System.currentTimeMillis()).toString()
         }
@@ -126,8 +129,7 @@ object OutboundApiJournalSnapshot {
      * Results are cached briefly; on the main thread the cache (possibly
      * stale) is returned instead of blocking on Room.
      */
-    @JvmStatic
-    fun broadcastIobSnapshot(timeMillis: Long): FloatArray? {
+    override fun broadcastIobSnapshot(timeMillis: Long): FloatArray? {
         val atMillis = timeMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
         val cached = broadcastIobCache
         if (cached != null && atMillis - cached.atMillis < BROADCAST_IOB_CACHE_MS) return cached.values
@@ -141,16 +143,22 @@ object OutboundApiJournalSnapshot {
         return fresh
     }
 
+    override fun invalidateBroadcastIobCache() {
+        broadcastIobCache = null
+    }
+
     private suspend fun buildBroadcastIob(
         atMillis: Long,
         allowCloneRemote: Boolean = true,
         allowNightscoutRemote: Boolean = true,
+        allowApiRemote: Boolean = true,
     ): FloatArray? {
         val app = Applic.app ?: return null
         val remote = RemoteIobSnapshot.fresh(
             atMillis,
             allowClone = allowCloneRemote,
             allowNightscout = allowNightscoutRemote,
+            allowApi = allowApiRemote,
         )
         val prefs = app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
         if (!prefs.getBoolean(JOURNAL_ENABLED_KEY, true)) {
@@ -189,7 +197,9 @@ object OutboundApiJournalSnapshot {
         // A fresh devicestatus from the uploading device replaces the local
         // journal math: IOB, eIOB and COB switch source together because they
         // come from one document and one computation — mixing them would be
-        // inconsistent. The one exception is a field the document lacks (an
+        // inconsistent. The same holds for the HTTP API follower snapshot: it
+        // is one sender's computation, preferred over the local one while
+        // fresh. The one exception is a field the document lacks (an
         // uploader without carb data omits cob): that field alone stays
         // local. The 30-minute-window projections keep the local values in
         // either case; they only feed the notification risk tint and have no
@@ -208,25 +218,26 @@ object OutboundApiJournalSnapshot {
     }
 
     @Keep
-    @JvmStatic
-    fun cloneIobSnapshotJson(timeMillis: Long): String = runBlocking {
+    override fun cloneIobSnapshotJson(timeMillis: Long): String = runBlocking {
         val atMillis = timeMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
         val values = withContext(Dispatchers.IO) {
             // Never forward a snapshot received from another Clone. That would
             // turn a receiver into a timestamp-refreshing echo and keep stale
             // IOB alive after the authoritative sender disappeared. Local
             // journal state and a configured Nightscout follower remain valid
-            // sources for this phone's outbound snapshot.
+            // sources for this phone's outbound snapshot; the direct HTTP API
+            // follower snapshot is excluded for the same no-echo reason.
+            // (Journal entries imported from the API source still flow through
+            // the local computation, as before.)
             runCatching {
-                buildBroadcastIob(atMillis, allowCloneRemote = false)
+                buildBroadcastIob(atMillis, allowCloneRemote = false, allowApiRemote = false)
             }.getOrNull()
         } ?: return@runBlocking ""
         CloneIobSnapshot.encode(values, atMillis)
     }
 
     /** Local journal state only; remote snapshots must never be timestamp-refreshed into Nightscout. */
-    @JvmStatic
-    fun nightscoutUploadIobSnapshot(timeMillis: Long): FloatArray? = runBlocking {
+    override fun nightscoutUploadIobSnapshot(timeMillis: Long): FloatArray? = runBlocking {
         val atMillis = timeMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
         withContext(Dispatchers.IO) {
             runCatching {
@@ -234,6 +245,7 @@ object OutboundApiJournalSnapshot {
                     atMillis,
                     allowCloneRemote = false,
                     allowNightscoutRemote = false,
+                    allowApiRemote = false,
                 )
             }.getOrNull()
         }
@@ -259,8 +271,7 @@ object OutboundApiJournalSnapshot {
     }
 
     @Keep
-    @JvmStatic
-    fun importCloneIobSnapshot(raw: String): Boolean {
+    override fun importCloneIobSnapshot(raw: String): Boolean {
         val remote = CloneIobSnapshot.parse(raw) ?: return false
         if (!CloneIobSnapshot.update(remote)) return false
         broadcastIobCache = null
@@ -273,8 +284,7 @@ object OutboundApiJournalSnapshot {
     }
 
     @Keep
-    @JvmStatic
-    fun cloneJournalSnapshotJson(timeMillis: Long): String = runBlocking {
+    override fun cloneJournalSnapshotJson(timeMillis: Long): String = runBlocking {
         val atMillis = timeMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
         withContext(Dispatchers.IO) {
             runCatching { buildCloneJournalSnapshot(atMillis).toString() }
@@ -283,8 +293,7 @@ object OutboundApiJournalSnapshot {
     }
 
     @Keep
-    @JvmStatic
-    fun importCloneJournalSnapshot(raw: String, transportCode: Int): Boolean {
+    override fun importCloneJournalSnapshot(raw: String, transportCode: Int): Boolean {
         val envelope = runCatching { parseCloneJournalEnvelope(raw) }
             .onFailure { Log.e("CloneJournal", "Snapshot rejected: ${Log.stackline(it)}") }
             .getOrNull()
@@ -306,8 +315,7 @@ object OutboundApiJournalSnapshot {
         }
     }
 
-    @JvmStatic
-    fun importFromJsonForSource(raw: String, sourcePrefix: String): Int = runBlocking {
+    override fun importFromJsonForSource(raw: String, sourcePrefix: String): Int = runBlocking {
         withContext(Dispatchers.IO) {
             importJournal(raw, sourcePrefix.trim().ifBlank { API_SOURCE_PREFIX })
         }
@@ -334,7 +342,9 @@ object OutboundApiJournalSnapshot {
         val eventWindowStart = atMillis - SNAPSHOT_EVENT_WINDOW_MS
         val events = JSONArray()
         entries
-            .filter { it.timestamp >= eventWindowStart }
+            // AAPS sets a temp basal every few minutes; left in, they would push the
+            // boluses and meals out of the capped event list.
+            .filter { it.timestamp >= eventWindowStart && it.entryType != JournalEntryType.TEMP_BASAL.storageValue }
             .takeLast(64)
             .forEach { entry ->
                 events.put(entry.toTransferJson(presetEntitiesById, foodsById, includeRecoveryId = false))
@@ -425,10 +435,12 @@ object OutboundApiJournalSnapshot {
                 events.put(entry.toTransferJson(presetsById, foodsById, includeRecoveryId = true))
             }
         val deleted = JSONArray()
-        dao.getCloneJournalTombstonesSince(
-            (atMillis - CLONE_JOURNAL_TOMBSTONE_WINDOW_MS).coerceAtLeast(0L)
+        cloneJournalTombstonesForSnapshot(
+            dao.getCloneJournalTombstonesSince(
+                (atMillis - CLONE_JOURNAL_TOMBSTONE_WINDOW_MS).coerceAtLeast(0L)
+            ),
+            cloneJournalTombstoneRotation.getAndIncrement(),
         )
-            .takeLast(CLONE_JOURNAL_MAX_TOMBSTONES)
             .forEach { tombstone ->
                 deleted.put(
                     JSONObject()
@@ -442,6 +454,25 @@ object OutboundApiJournalSnapshot {
             .put("origin", CloneJournalIdentity.originId())
             .put("events", events)
             .put("deleted", deleted)
+    }
+
+    /**
+     * The tombstones one snapshot carries, from [oldestFirst]. A receiver accepts at most
+     * [CLONE_JOURNAL_MAX_TOMBSTONES]: up to that many all go. Beyond it, as after clearing a long
+     * journal, the newest [CLONE_JOURNAL_NEWEST_TOMBSTONES] go every time, so a fresh deletion is
+     * never kept waiting, and the older ones take turns in the slots left, one slice per
+     * snapshot ([rotation] counts them). A peer is told of every deletion within a few
+     * snapshots, where cutting the list to its newest part would leave the rest unannounced
+     * until they expire.
+     */
+    internal fun <T> cloneJournalTombstonesForSnapshot(oldestFirst: List<T>, rotation: Int): List<T> {
+        if (oldestFirst.size <= CLONE_JOURNAL_MAX_TOMBSTONES) return oldestFirst
+        val newest = oldestFirst.takeLast(CLONE_JOURNAL_NEWEST_TOMBSTONES)
+        val older = oldestFirst.subList(0, oldestFirst.size - CLONE_JOURNAL_NEWEST_TOMBSTONES)
+        val slice = CLONE_JOURNAL_MAX_TOMBSTONES - CLONE_JOURNAL_NEWEST_TOMBSTONES
+        val slices = (older.size + slice - 1) / slice
+        val from = Math.floorMod(rotation, slices) * slice
+        return older.subList(from, minOf(from + slice, older.size)) + newest
     }
 
     internal data class CloneJournalEnvelope(
@@ -706,21 +737,17 @@ object OutboundApiJournalSnapshot {
     private fun activeCarbsGrams(entries: List<JournalEntryEntity>, atMillis: Long): Float {
         val prefs = Applic.app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
         val profile = PredictionModelProfileStore.load(prefs)
-        return entries.sumOf { entry ->
-            if (JournalEntryType.fromStorage(entry.entryType) != JournalEntryType.CARBS) return@sumOf 0.0
-            val grams = entry.amount?.takeIf { it.isFinite() && it > 0f } ?: return@sumOf 0.0
-            val absorptionMinutes = entry.durationMinutes?.toFloat()
-                ?: (grams / profile.parametersAt(entry.timestamp).carbAbsorptionGramsPerHour * 60f)
-                    .coerceIn(30f, 360f)
-            val progress = linearProgress(entry.timestamp, absorptionMinutes, atMillis)
-            (grams * (1f - progress)).coerceAtLeast(0f).toDouble()
-        }.toFloat()
-    }
-
-    private fun linearProgress(startMillis: Long, durationMinutes: Float, atMillis: Long): Float {
-        if (atMillis <= startMillis) return 0f
-        val elapsedMinutes = (atMillis - startMillis) / 60_000f
-        return (elapsedMinutes / durationMinutes.coerceAtLeast(1f)).coerceIn(0f, 1f)
+        // The absorption arithmetic is shared (plan §4 category W, D1: the watch
+        // computes COB from its synced journal); the profile stays here because
+        // it is time-dependent and this is where the phone's entries are.
+        val carbs = entries.mapNotNull { entry ->
+            if (JournalEntryType.fromStorage(entry.entryType) != JournalEntryType.CARBS) return@mapNotNull null
+            val grams = entry.amount?.takeIf { it.isFinite() && it > 0f } ?: return@mapNotNull null
+            CarbEntry(entry.timestamp, grams, entry.durationMinutes?.toFloat())
+        }
+        return JournalIobMath.activeCarbsGrams(carbs, atMillis) { timestampMillis ->
+            profile.parametersAt(timestampMillis).carbAbsorptionGramsPerHour
+        }
     }
 
     private fun toPresetModel(entity: JournalInsulinPresetEntity): JournalInsulinPreset =
@@ -751,6 +778,7 @@ object OutboundApiJournalSnapshot {
             JournalEntryType.FINGERSTICK -> "BG Check"
             JournalEntryType.ACTIVITY -> "Exercise"
             JournalEntryType.NOTE -> "Note"
+            JournalEntryType.TEMP_BASAL -> "Temp Basal"
         }
 
     private fun finiteOrNull(value: Float?): Any? =

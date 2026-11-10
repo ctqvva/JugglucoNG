@@ -12,8 +12,9 @@ object NotificationMultiSensorSource {
         @JvmField val colorArgb: Int
     )
 
+    /** Every sensor that could be displayed: the primary, native's, and the connected ones. */
     @JvmStatic
-    fun selectedSensorIds(primarySensorId: String?): List<String> {
+    fun candidateSensorIds(primarySensorId: String?): List<String?> {
         val candidates = ArrayList<String?>()
         candidates.add(primarySensorId)
         runCatching { Natives.activeSensors()?.forEach { candidates.add(it) } }
@@ -22,8 +23,12 @@ object NotificationMultiSensorSource {
                 candidates.add(callback.SerialNumber)
             }
         }
-        return MultiSensorSelection.selectedAvailable(candidates, primarySensorId)
+        return candidates
     }
+
+    @JvmStatic
+    fun selectedSensorIds(primarySensorId: String?): List<String> =
+        MultiSensorSelection.selectedAvailable(candidateSensorIds(primarySensorId), primarySensorId)
 
     /**
      * Resolves every selected peer once per notification/AOD update. The result

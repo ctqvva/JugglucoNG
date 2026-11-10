@@ -65,58 +65,30 @@ final static private String LOG_ID="Specific";
 // see the mobile Specific for why start() is too late after a reboot.
 static void registerBridges() {
     TrendAccess.register(tk.glucodata.logic.TrendEngineVelocityProvider.INSTANCE);
-}
-
-static void start(Object context) {
-    registerBridges();
+    tk.glucodata.ui.ComposeHostAccess.register(tk.glucodata.ui.WearComposeHost.INSTANCE);
     CalibrationAccess.register(SyncedWearCalibrationProvider.INSTANCE);
+    tk.glucodata.ui.AlarmActivityAccess.register(tk.glucodata.ui.WearAlarmActivityHost.INSTANCE);
+    // start() calls this again; build each instance once.
+    if (!ComplicationConfigAccess.isRegistered())
+        ComplicationConfigAccess.register(new tk.glucodata.glucosecomplication.WearColorConfig());
+    GlucoseValueRefreshAccess.register(tk.glucodata.glucosecomplication.WearGlucoseValueRefresh.INSTANCE);
+    OngoingNotificationAccess.register(WearOngoingActivity.INSTANCE);
+    if (!FloatingConfigScreenAccess.isRegistered())
+        FloatingConfigScreenAccess.register(new WearFloatingConfig());
+    if (!SetColorsScreenAccess.isRegistered())
+        SetColorsScreenAccess.register(new tk.glucodata.settings.WearSetColors());
+    GlucoseAlarmsAccess.register(new tk.glucodata.GlucoseAlarmsAccess.Factory() {
+        @Override
+        public tk.glucodata.GlucoseAlarmHandler create(android.app.Application application) {
+            return new tk.glucodata.WearGlucoseAlarms(application);
+        }
+    });
+
+	VariantBootstrapAccess.register(new VariantBootstrapAccess.Factory() {
+		@Override
+		public VariantBootstrap create() {
+			return new WearVariantBootstrap();
+		}
+	});
 }
-
-static    void splash(AppCompatActivity act) {
-       SplashScreen.installSplashScreen(act);
-      }
-static boolean historyDatabaseCompatible(Context context) {
-    return true;
 }
-@SuppressLint("StaticFieldLeak")
-static ViewGroup layout=null;
-@SuppressLint("StaticFieldLeak")
-static TextView text=null;
-
-static boolean settext(String str) {
-   var t=text;
-   if(t!=null) {
-       t.setText(str);
-       return true;
-    }
-   return false;
-   }
-static void rmlayout() {
-   var lay=layout;
-   if(lay!=null) {
-      text=null;
-      layout=null;
-      removeContentView(lay); 
-      }
-   }
-static void initScreen(MainActivity act) {
-    LayoutInflater flater= LayoutInflater.from(act);
-    ViewGroup layout = (ViewGroup) flater.inflate(R.layout.startview ,null, false);
-    text=layout.findViewById(R.id.text2);
-    Specific.layout=layout;
-    act.addContentView(layout, new ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT));
-   }
-
-static void   blockedNum(MainActivity  act) {
-    help.basehelp(R.string.staticnum,act,xzy->{ });
-    }
-
-static public boolean useclose=false;
-static public void setclose(boolean val) {
-   useclose=val;
-   }
-
-static void wearnosensors(MainActivity act) {
-    Switch.wearnosensors(act);
-    }
-};

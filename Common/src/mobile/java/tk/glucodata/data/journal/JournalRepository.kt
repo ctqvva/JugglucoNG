@@ -10,23 +10,40 @@ import android.content.Context
 import tk.glucodata.Applic
 import tk.glucodata.R
 import tk.glucodata.data.HistoryDatabase
+import tk.glucodata.data.food.FoodLibrary
+import tk.glucodata.data.food.FoodLibraryDatabase
 
 class JournalRepository {
     private companion object {
         const val PREFS_NAME = "tk.glucodata_preferences"
         const val DEFAULT_PRESETS_SEEDED_KEY = "journal_default_presets_seeded_v6"
+        const val DEFAULT_PRESETS_CURVE_MODEL_KEY = "journal_default_presets_curve_model"
         const val DEFAULT_FOODS_SEEDED_KEY = "journal_default_foods_seeded_v2"
+        const val SENDER_ONLY_NOTES_SWEPT_KEY = "journal_aaps_sender_only_notes_swept_v1"
+        const val DELETE_CHUNK = 500
     }
 
     private val database = HistoryDatabase.getInstance(Applic.app)
     private val dao = database.journalDao()
     private val prefs = Applic.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val foodLibrary = FoodLibrary(dao, FoodLibraryDatabase.getInstance(Applic.app).foodDetailsDao())
 
     // Room runs the query on its own executor, but the map runs wherever the
     // flow is collected — the view model's main-thread scope — so every journal
     // write re-mapped every entry ever written on the main thread. flowOn keeps
     // the mapping with the query.
     fun observeEntries(): Flow<List<JournalEntry>> {
+        return observeEntriesWithTempBasal()
+            // Temp basal is an AAPS-imported graph segment, not a journal row.
+            .map { it.withoutTempBasal() }
+            .flowOn(Dispatchers.Default)
+    }
+
+    /**
+     * Every stored row, temp basal included. Only the chart wants the temp basal segments;
+     * everything that lists, counts or doses journal rows uses [observeEntries].
+     */
+    fun observeEntriesWithTempBasal(): Flow<List<JournalEntry>> {
         return dao.observeEntries()
             .map { entries -> entries.map(JournalEntryEntity::toModel) }
             .flowOn(Dispatchers.Default)
@@ -39,13 +56,15 @@ class JournalRepository {
     }
 
     fun observeFoods(): Flow<List<JournalFood>> {
-        return dao.observeFoods()
-            .map { foods -> foods.map(JournalFoodEntity::toModel) }
-            .flowOn(Dispatchers.Default)
+        return foodLibrary.observe().flowOn(Dispatchers.Default)
     }
 
     suspend fun ensureDefaultInsulinPresets() {
-        if (prefs.getBoolean(DEFAULT_PRESETS_SEEDED_KEY, false)) return
+        // A curve model bump must reach already-seeded installs too, or their
+        // built-in presets keep the old curve while new doses resolve the new one.
+        if (prefs.getBoolean(DEFAULT_PRESETS_SEEDED_KEY, false) &&
+            prefs.getInt(DEFAULT_PRESETS_CURVE_MODEL_KEY, 0) >= JournalInsulinCurveCatalogue.MODEL_VERSION
+        ) return
         database.withTransaction {
             val existing = dao.getInsulinPresets()
             if (existing.isEmpty()) {
@@ -53,11 +72,28 @@ class JournalRepository {
             } else {
                 dao.insertInsulinPresets(mergeBuiltInPresets(existing))
             }
-            prefs.edit().putBoolean(DEFAULT_PRESETS_SEEDED_KEY, true).apply()
+            prefs.edit()
+                .putBoolean(DEFAULT_PRESETS_SEEDED_KEY, true)
+                .putInt(DEFAULT_PRESETS_CURVE_MODEL_KEY, JournalInsulinCurveCatalogue.MODEL_VERSION)
+                .apply()
         }
     }
 
+    /**
+     * Saves an entry. The foods a meal was built from go to the food library first, so they
+     * are there to pick the next time; a meal of one food keeps the link to it.
+     */
     suspend fun upsertEntry(input: JournalEntryInput): Long {
+        if (input.foodUses.isEmpty()) return upsertEntryRow(input)
+        val foodIds = runCatching { foodLibrary.noteUses(input.foodUses) }
+            .onFailure { tk.glucodata.Log.stack("JournalRepository", "noteUses", it) }
+            .getOrDefault(emptyList())
+        return upsertEntryRow(
+            input.withRememberedFoodIds(foodIds)
+        )
+    }
+
+    private suspend fun upsertEntryRow(input: JournalEntryInput): Long {
         val (id, entity, existing) = database.withTransaction {
             val sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() }
             val recoveryId = CloneJournalIdentity.normalizeRecoveryId(input.recoveryId)
@@ -79,11 +115,13 @@ class JournalRepository {
             } else {
                 null
             }
-            val existing = idMatch
-                ?: recoveryMatch
-                ?: overlap?.keeper
-                ?: sourceMatch
-                ?: remoteMatch
+            val existing = existingEntry(
+                idMatch = idMatch,
+                recoveryMatch = recoveryMatch,
+                overlapKeeper = overlap?.keeper,
+                sourceMatch = sourceMatch,
+                remoteMatch = remoteMatch,
+            )
             val writeIdentity = preserveMirroredJournalIdentity(
                 existingSource = existing?.source,
                 existingSourceRecordId = existing?.sourceRecordId,
@@ -314,17 +352,61 @@ class JournalRepository {
         return adopted
     }
 
-    suspend fun deleteEntriesBySourceRecordIds(sourceRecordIds: List<String>) {
+    /**
+     * Removes what an importer wrote under these names.
+     *
+     * Importers pass every alias a treatment could have been stored under, and most of them
+     * match nothing, so what counts is the rows that actually went. Nothing gone, nothing to
+     * tell anyone. Rows that came from another system are signalled the way their write was:
+     * no Nightscout wake, since nothing is queued for it to send. Waking it anyway closed a
+     * loop — the Nightscout follower's own receive pass deleted its stale aliases, that woke
+     * the uploader, whose next pass received again — three times a second, redrawing the
+     * notification and widgets every time.
+     *
+     * @return how many rows were deleted
+     */
+    suspend fun deleteEntriesBySourceRecordIds(sourceRecordIds: List<String>): Int {
         val ids = sourceRecordIds
             .map { it.trim() }
             .filter { it.isNotBlank() }
             .distinct()
-        if (ids.isNotEmpty()) {
-            dao.deleteEntriesBySourceRecordIds(ids)
-            tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
-            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
-            tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        if (ids.isEmpty()) return 0
+        val deleted = database.withTransaction {
+            val rows = dao.getEntriesBySourceRecordIds(ids)
+            if (rows.isNotEmpty()) dao.deleteEntriesBySourceRecordIds(ids)
+            rows
         }
+        if (deleted.isEmpty()) return 0
+        if (sourceRecordDeleteWakesUploads(deleted.map { JournalEntrySource.fromStorage(it.source) })) {
+            tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+            tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        } else {
+            tk.glucodata.OutboundApiJournalSnapshot.mirroredJournalChanged()
+        }
+        if (deleted.any { it.glucoseValueMgDl != null }) {
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+        }
+        return deleted.size
+    }
+
+    /**
+     * Deletes the notes earlier imports made out of nothing but AAPS's sender stamp, one per
+     * temp basal or profile switch. The parser no longer writes them, so this runs once.
+     *
+     * @return how many rows were deleted
+     */
+    suspend fun deleteAapsSenderOnlyNotesOnce(): Int {
+        if (prefs.getBoolean(SENDER_ONLY_NOTES_SWEPT_KEY, false)) return 0
+        val ids = dao.getImportedEntriesOfType(
+            JournalEntryType.NOTE.storageValue,
+            listOf(JournalEntrySource.AAPS.storageValue, JournalEntrySource.NIGHTSCOUT.storageValue)
+        )
+            .filter { JournalTreatmentTransfer.isAapsSenderOnlyNote(it.note) }
+            .mapNotNull { it.sourceRecordId }
+        // A few hundred a day add up; keep each IN list under SQLite's variable limit.
+        val deleted = ids.chunked(DELETE_CHUNK).sumOf { deleteEntriesBySourceRecordIds(it) }
+        prefs.edit().putBoolean(SENDER_ONLY_NOTES_SWEPT_KEY, true).apply()
+        return deleted
     }
 
     suspend fun deleteEntry(entryId: Long) {
@@ -335,25 +417,8 @@ class JournalRepository {
             val existing = dao.getEntryById(entryId)
             deletedType = existing?.entryType
             deletedGlucose = existing?.glucoseValueMgDl
-            if (existing != null && isCloneJournalExportSource(existing.source)) {
-                dao.upsertCloneJournalTombstone(
-                    CloneJournalTombstoneEntity(
-                        entryId = existing.id,
-                        deletedAt = System.currentTimeMillis(),
-                        recoveryId = existing.recoveryId,
-                    )
-                )
-                cloneDeleteQueued = true
-            }
-            val remoteId = existing?.nightscoutDeleteRemoteId()
-            if (remoteId != null) {
-                dao.enqueuePendingNightscoutDelete(
-                    JournalPendingDeleteEntity(
-                        entryId = entryId,
-                        nsRemoteId = remoteId,
-                        deletedAt = System.currentTimeMillis()
-                    )
-                )
+            if (existing != null) {
+                cloneDeleteQueued = dao.recordEntryDeletion(existing, System.currentTimeMillis())
             }
             dao.deleteEntryById(entryId)
         }
@@ -365,6 +430,34 @@ class JournalRepository {
         }
         // A deletion queues a tombstone, which is the uploader's to carry out.
         tk.glucodata.NightscoutUploadWake.afterJournalChange()
+    }
+
+    /**
+     * Deletes every entry, as deleting each one in turn would: Clone peers and Nightscout are
+     * told, and what the entries fed (IOB, calibrations from fingersticks) is recomputed. The
+     * insulin presets and the food library stay.
+     *
+     * @return how many entries were deleted
+     */
+    suspend fun deleteAllEntries(): Int = announceDeletion(database.deleteAllJournalEntries())
+
+    /**
+     * Tells Clone peers, Nightscout and the IOB and calibration consumers that [deleted] is gone.
+     * Call once the transaction that removed the entries has committed, so what they read back
+     * is the state after it.
+     *
+     * @return how many entries were deleted
+     */
+    internal fun announceDeletion(deleted: DeletedJournalEntries): Int {
+        if (deleted.count == 0) return 0
+        if (deleted.cloneTombstoned || deleted.affectsIob) {
+            tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+        }
+        if (deleted.hadGlucose) {
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+        }
+        tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        return deleted.count
     }
 
     /** Applies sender tombstones without turning a receiver-side delete into outbound work. */
@@ -471,11 +564,6 @@ class JournalRepository {
     private fun isMirroredSource(source: JournalEntrySource): Boolean =
         isExternalJournalMirrorSource(source)
 
-    private fun affectsIob(entryType: String?): Boolean {
-        return entryType == JournalEntryType.INSULIN.storageValue ||
-            entryType == JournalEntryType.CARBS.storageValue
-    }
-
     suspend fun getInsulinPresetsSnapshot(): List<JournalInsulinPreset> {
         return dao.getInsulinPresets().map(JournalInsulinPresetEntity::toModel)
     }
@@ -491,49 +579,47 @@ class JournalRepository {
 
     suspend fun ensureDefaultFoods() {
         if (prefs.getBoolean(DEFAULT_FOODS_SEEDED_KEY, false)) return
-        database.withTransaction {
-            val existing = dao.getFoods()
-            if (existing.isEmpty()) {
-                dao.insertFoods(defaultFoods())
-            } else {
-                val builtIns = existing.filter { it.isBuiltIn }
-                val missingDefaults = defaultFoods().filter { preset ->
-                    builtIns.none { existingFood ->
-                        existingFood.sortOrder == preset.sortOrder ||
-                            existingFood.displayName.equals(preset.displayName, ignoreCase = true)
+        foodLibrary.withWrites {
+            database.withTransaction {
+                val existing = dao.getFoods()
+                if (existing.isEmpty()) {
+                    dao.insertFoods(defaultFoods())
+                } else {
+                    val builtIns = existing.filter { it.isBuiltIn }
+                    val missingDefaults = defaultFoods().filter { preset ->
+                        builtIns.none { existingFood ->
+                            existingFood.sortOrder == preset.sortOrder ||
+                                existingFood.displayName.equals(preset.displayName, ignoreCase = true)
+                        }
+                    }
+                    if (missingDefaults.isNotEmpty()) {
+                        dao.insertFoods(missingDefaults)
                     }
                 }
-                if (missingDefaults.isNotEmpty()) {
-                    dao.insertFoods(missingDefaults)
-                }
+                prefs.edit().putBoolean(DEFAULT_FOODS_SEEDED_KEY, true).apply()
             }
-            prefs.edit().putBoolean(DEFAULT_FOODS_SEEDED_KEY, true).apply()
         }
     }
 
-    suspend fun upsertFood(input: JournalFoodInput): Long {
-        val existing = input.id?.let { dao.getFoodById(it) }
-        val now = System.currentTimeMillis()
-        val entity = JournalFoodEntity(
-            id = existing?.id ?: (input.id ?: 0L),
-            displayName = input.displayName.trim(),
-            carbsGrams = input.carbsGrams.coerceAtLeast(0f),
-            proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
-            fatGrams = input.fatGrams?.coerceAtLeast(0f),
-            absorptionMinutes = input.absorptionMinutes.coerceIn(15, 480),
-            accentColor = input.accentColor,
-            isBuiltIn = existing?.isBuiltIn ?: input.isBuiltIn,
-            isArchived = input.isArchived,
-            sortOrder = input.sortOrder,
-            createdAt = existing?.createdAt ?: now,
-            updatedAt = now
-        )
-        return dao.upsertFood(entity)
-    }
+    suspend fun keepFood(food: tk.glucodata.data.food.FoodItem): Long = foodLibrary.keep(food)
 
-    suspend fun deleteFood(foodId: Long) {
-        dao.deleteFoodById(foodId)
-    }
+    suspend fun upsertFood(input: JournalFoodInput): Long = foodLibrary.upsert(input)
+
+    suspend fun deleteFood(foodId: Long) = foodLibrary.delete(foodId)
+
+    suspend fun deleteFoods(ids: Set<Long>) = foodLibrary.delete(ids)
+
+    suspend fun undoDeleteFoods(deleted: tk.glucodata.data.food.DeletedFoods) = foodLibrary.undoDelete(deleted)
+
+    suspend fun setFoodsArchived(ids: Set<Long>, archived: Boolean) = foodLibrary.setArchived(ids, archived)
+
+    suspend fun moveFoodsBefore(ids: Set<Long>, beforeId: Long?) = foodLibrary.moveBefore(ids, beforeId)
+
+    /** Adds a table of foods; returns how many were new and how many replaced a food of that name. */
+    suspend fun importFoods(foods: List<JournalFoodInput>): Pair<Int, Int> = foodLibrary.import(foods)
+
+    /** The library as it stands, for export. */
+    suspend fun foods(): List<JournalFood> = foodLibrary.foods()
 
     private fun defaultPresets(): List<JournalInsulinPresetEntity> {
         val app = Applic.app
@@ -648,6 +734,27 @@ class JournalRepository {
     }
 }
 
+/**
+ * Which row an incoming entry is the same entry as, in the order the identities are trusted.
+ *
+ * Split out of [JournalRepository.upsertEntry] because that is the whole of what makes a repeated
+ * command idempotent, and nothing tested it: a watch that re-sends an add (#511) relies on
+ * `sourceRecordId` landing here and matching the row it wrote the first time.
+ *
+ * The order is deliberate and not alphabetical. An explicit id is the strongest claim, a clone
+ * recovery id is next, then the clone/Nightscout overlap (which resolves two rows the server already
+ * ties together), then the source's own record id, and only then a Nightscout remote id -- the
+ * weakest, because the server can hand one document several ids.
+ */
+internal fun existingEntry(
+    idMatch: JournalEntryEntity?,
+    recoveryMatch: JournalEntryEntity?,
+    overlapKeeper: JournalEntryEntity?,
+    sourceMatch: JournalEntryEntity?,
+    remoteMatch: JournalEntryEntity?,
+): JournalEntryEntity? =
+    idMatch ?: recoveryMatch ?: overlapKeeper ?: sourceMatch ?: remoteMatch
+
 internal fun matchExistingBuiltInPreset(
     newPreset: JournalInsulinPresetEntity,
     existing: List<JournalInsulinPresetEntity>
@@ -749,6 +856,10 @@ internal fun preserveMirroredJournalIdentity(
     }
 }
 
+/** Only a deleted row of this device's own is anything for the uploaders to act on. */
+internal fun sourceRecordDeleteWakesUploads(deletedSources: Collection<JournalEntrySource>): Boolean =
+    deletedSources.any { !isExternalJournalMirrorSource(it) }
+
 internal fun isExternalJournalMirrorSource(source: JournalEntrySource): Boolean =
     source == JournalEntrySource.AAPS ||
         source == JournalEntrySource.NIGHTSCOUT ||
@@ -823,7 +934,7 @@ internal fun isEarlierJournalRow(
 ): Boolean = firstCreatedAt < secondCreatedAt ||
     (firstCreatedAt == secondCreatedAt && firstId <= secondId)
 
-private fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? =
+internal fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? =
     nightscoutDeleteRemoteId(source, nsRemoteId)
 
 internal fun nightscoutDeleteRemoteId(source: String, nsRemoteId: String?): String? {
@@ -884,17 +995,9 @@ private fun JournalInsulinPresetEntity.toModel(): JournalInsulinPreset {
     )
 }
 
-private fun JournalFoodEntity.toModel(): JournalFood {
-    return JournalFood(
-        id = id,
-        displayName = displayName,
-        carbsGrams = carbsGrams,
-        proteinGrams = proteinGrams,
-        fatGrams = fatGrams,
-        absorptionMinutes = absorptionMinutes,
-        accentColor = accentColor,
-        isBuiltIn = isBuiltIn,
-        isArchived = isArchived,
-        sortOrder = sortOrder
-    )
-}
+
+/** Usage eligibility does not determine whether the saved meal contains a single food. */
+internal fun JournalEntryInput.withRememberedFoodIds(foodIds: List<Long>): JournalEntryInput = copy(
+    foodId = if (foodItemCount == 1) foodIds.singleOrNull() ?: foodId else null,
+    foodUses = emptyList()
+)

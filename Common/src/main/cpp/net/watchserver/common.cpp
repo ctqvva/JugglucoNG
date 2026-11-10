@@ -46,9 +46,13 @@ static bool ensureexportvalueclass(JNIEnv *env) {
 //raw-primary sensor on its auto lane rather than calibrating against a value that is not
 //there.
 int resolveExportedMgdlAt(const SensorGlucoseData *sens,const sensorname_t *sensorname,
-                          const uint32_t tim,const int storedMgdl,const int rawCurrent) {
+                          const uint32_t tim,const int storedMgdl,const int rawCurrent,const bool primaryIsResolved) {
     if(!sens||!sensorname||storedMgdl<=0)
         return 0;
+    // Upstream primary values are already final, before either the native or
+    // Java calibration layer. The same contract applies on a Clone receiver.
+    if(primaryIsResolved)
+        return storedMgdl;
     int autoMgdl=storedMgdl;
     if(settings->data()->DoCalibrate) {
         if(double calibrated=calibrateONE(sens,tim,(double)storedMgdl);!isnan(calibrated))
@@ -94,7 +98,7 @@ int resolveExportedMgdl(const SensorGlucoseData *sens, const ScanData *val,
     if(!sens||!val||!sensorname)
         return 0;
     return resolveExportedMgdlAt(sens,sensorname,val->gettime(),val->getmgdL(),
-                                 sens->getRawForPoll(val));
+                                 sens->getRawForPoll(val),val->hasResolvedGlucose());
     }
 
 const ScanData *makeExportedScan(const SensorGlucoseData *sens,
@@ -153,6 +157,35 @@ int getExchangeOutputIntervalSeconds() {
         }
     return seconds>0?seconds:0;
     }
+/*
+ * The name a Nightscout entry is known by.
+ *
+ * Sensor id plus the reading's own timestamp in hex, the same shape the treatment uploader uses
+ * (JournalTreatmentUploader.datedIdentifier: a stable name derived from what the entry *is*, not
+ * from a counter). Two reasons it is not the position in this device's poll series, which is what
+ * mkv1streamid/mkv3streamid build from:
+ *  - a position is not the same number on the other device. The watch fills its series from the
+ *    phone's chunk, so its positions are its own, and both sides would create two documents for one
+ *    reading.
+ *  - a position moves when the series is compacted, so a re-post could name a different document.
+ * The same timestamp with the same value is the same reading, which is what an update needs.
+ */
+int mksgvidentifier(char *outiter,const std::string_view &sensorid,const uint32_t timsec) {
+	const size_t idlen=std::min<size_t>(sensorid.size(),64);
+	memcpy(outiter,sensorid.data(),idlen);
+	char *out=outiter+idlen;
+	*out++='-';
+	// The failure branch is inside the if on purpose: the structured binding is scoped to the
+	// init-statement, so `ec` is not in scope after it.
+	if(auto [ptr,ec]=std::to_chars(out,out+12,static_cast<unsigned long long>(timsec)*1000ULL,16);
+		ec==std::errc())
+		return int(ptr-outiter);
+	else
+		LOGGER("tochar failed: %s\n",std::make_error_code(ec).message().c_str());
+	*out='0';
+	return int(out-outiter)+1;
+	}
+
 int mkv3streamid(char *outiter,const sensorname_t *name,int num) { 
 //LOGGER("sensorname=%s\n",name->data());
 const uint16_t *gets=reinterpret_cast<const uint16_t*>(name->data());
@@ -184,7 +217,8 @@ return len;
 //0fffffff-ffff-ffff-ffff-17500fffffff"
 //c149bacfb000007f
 }
-char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorname,bool server) {
+char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorname,bool server,
+	const std::string_view &uploadid) {
 	char *outptr=outin;
 	addar(outptr,R"({"app":"Juggluco","device":")");
 	memcpy(outptr,sensorname->data(),sensorname->size());
@@ -225,9 +259,17 @@ char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorn
 	if(server)
 		addar(outptr,R"(,"utcOffset":0)");
 	addar(outptr,R"(,"identifier":")");
-	outptr+=mkv3streamid(outptr,sensorname,val->id);
+	// An upload names the document after the reading, so a retry updates it and the other device
+	// computes the same name. The /pebble response keeps the name it has always sent: nothing
+	// dedups on a field in a response.
+	if(server)
+		outptr+=mkv3streamid(outptr,sensorname,val->id);
+	else
+		outptr+=mksgvidentifier(outptr,uploadid,val->gettime());
+	addar(outptr,R"(")");
 	if(server) {
-		addar(outptr,R"(","created_at":")");
+		// The identifier's closing quote is written above for both branches.
+		addar(outptr,R"(,"created_at":")");
 		struct tm tmbuf;
 		gmtime_r(&tim, &tmbuf);
 		outptr+=sprintf(outptr,R"(%04d-%02d-%02dT%02d:%02d:%02d)",tmbuf.tm_year+1900,tmbuf.tm_mon+1,tmbuf.tm_mday, tmbuf.tm_hour, tmbuf.tm_min,tmbuf.tm_sec);
@@ -250,9 +292,7 @@ char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorn
 		addar(outptr,R"(000})");
 		}
 	else {
-		addar(outptr,R"(","_id":")");
-		outptr+=mkv1streamid(outptr,sensorname,val->id);
-		addar(outptr,R"("})");
+		addar(outptr,R"(})");
 		}
 	return outptr;
 	}

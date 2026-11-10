@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.ButtonDefaults
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.DeveloperMode
@@ -37,7 +37,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -46,7 +45,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,6 +61,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import tk.glucodata.BuildConfig
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
@@ -92,16 +91,9 @@ fun AppUpdatesScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_updates_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                }
+            AppTopBar(
+                title = stringResource(R.string.app_updates_title),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -176,7 +168,7 @@ fun AppUpdatesScreen(navController: NavController) {
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 10.dp, start = 16.dp, end = 16.dp)
+                        .padding(top = 8.dp, start = 16.dp, end = 16.dp)
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -251,18 +243,18 @@ private fun CheckForUpdatesButton(
     val content: @Composable RowScope.() -> Unit = {
         if (checking) {
             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.app_updates_state_checking))
         } else {
             Icon(Icons.Filled.Refresh, contentDescription = null)
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.app_updates_action_check))
         }
     }
     if (emphasised) {
-        Button(onClick = onClick, enabled = !checking, modifier = modifier, content = content)
+        Button(onClick = onClick, enabled = !checking, modifier = modifier, content = content, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding)
     } else {
-        OutlinedButton(onClick = onClick, enabled = !checking, modifier = modifier, content = content)
+        OutlinedButton(onClick = onClick, enabled = !checking, modifier = modifier, content = content, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding)
     }
 }
 
@@ -343,19 +335,19 @@ private fun UpdateSourceDialog(
                 )
                 if (!isDefault) {
                     Spacer(Modifier.height(4.dp))
-                    TextButton(onClick = { onSave(null) }) {
+                    TextButton(onClick = { onSave(null) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                         Text(stringResource(R.string.app_updates_source_reset))
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(enabled = valid, onClick = { onSave(text) }) {
+            TextButton(enabled = valid, onClick = { onSave(text) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.app_updates_action_save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
         }
     )
 }

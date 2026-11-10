@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 <string name="libresetalllabels">Geben Sie zunächst (auf dem Begleittelefon) für jedes Etikett an, was damit geschehen soll.</string>
+    <string name="colors_style_setting">@string/colors</string>
+    <string name="ambient_style_name">Ruhemodus</string>
+    <string name="red_style_name">Rot</string>
+    <string name="green_style_name">Grün</string>
+    <string name="blue_style_name">Blau</string>
+    <string name="gray_style_name">Grau</string>
+    <string name="yellow_style_name">Gelb</string>
+    <string name="white_style_name">Weiß</string>
+    <string name="title_activity_watch_face_config">Konfiguration</string>
 <string name="wear_sensor_day_label">Tag</string>
 <string name="wear_sensor_day_format">Tag %1$s</string>
     <string name="wear_return_sensor_to_phone">Sensor an Telefon zurückgeben</string>
@@ -21,5 +30,9 @@
     <string name="wear_calibration_edit">Kalibrierung bearbeiten</string>
     <string name="wear_journal_delete">Löschen</string>
     <string name="wear_sensor_forget">Sensor entfernen</string>
+    <!-- Journal-derived, not the phone's device-status snapshot (#500). -->
+    <string name="wear_journal_derived_title">Journal: IOB / COB</string>
+    <string name="wear_journal_iob">IOB %1$s</string>
+    <string name="wear_journal_cob">COB %1$s</string>
 </resources>
 

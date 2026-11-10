@@ -40,6 +40,9 @@ object GlucoseColorSync {
     /** Serialises a scheme. Pure, so the wire format is testable on its own. */
     @JvmStatic
     fun encodeScheme(scheme: Scheme): ByteArray = buildString {
+        // The protocol version, first. An old receiver skips a line with no '=', so the scheme
+        // still arrives; a newer receiver checks it before applying (plan §6 Q2).
+        append(WearProtocol.versionLine()).append('\n')
         append(KEY_PALETTE).append('=').append(scheme.palette).append('\n')
         GlucoseRangeColors.Band.values().forEach { band ->
             append(GlucoseRangeColors.PREF_OVERRIDE_KEYS[band.ordinal])
@@ -56,8 +59,19 @@ object GlucoseColorSync {
     @JvmStatic
     fun decodeScheme(data: ByteArray?): Scheme? {
         if (data == null || data.isEmpty()) return null
-        val fields = try {
+        val text = try {
             data.toString(Charsets.UTF_8)
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "decode", t)
+            return null
+        }
+        val declaredVersion = WearProtocol.declaredVersion(text)
+        if (!WearProtocol.accepts(declaredVersion)) {
+            Log.w(LOG_ID, "ignoring colour payload from a newer protocol: v$declaredVersion")
+            return null
+        }
+        val fields = try {
+            text
                 .lineSequence()
                 .mapNotNull { line ->
                     val separator = line.indexOf('=')

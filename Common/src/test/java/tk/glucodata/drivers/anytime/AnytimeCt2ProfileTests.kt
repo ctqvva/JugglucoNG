@@ -66,4 +66,36 @@ class AnytimeCt2ProfileTests {
         assertEquals(AnytimeConstants.Family.CT2, entry.family)
         assertTrue(AnytimeConstants.supportsSelfTest(entry.family))
     }
+
+    @Test
+    fun genericAdvertisedNameFallsBackToTheSerial() {
+        // Stored-address reconnect on the main build: registry keeps the generic
+        // "CGM Sensor" advert and gatt.device.name repeats it, so the SN## serial
+        // must win or the CT-14 is driven with the CT3/CT2.5 check handshake.
+        assertEquals(
+            "SN08402178",
+            AnytimeConstants.resolveHandshakeName("CGM Sensor", "CGM Sensor", null, "SN08402178"),
+        )
+        assertEquals(AnytimeConstants.Family.CT2, AnytimeProfileResolver.resolve(
+            AnytimeConstants.resolveHandshakeName("CGM Sensor", "", null, "SN08402178"),
+        ).family)
+    }
+
+    @Test
+    fun aKnownAdvertisedNameBeatsTheSerial() {
+        assertEquals("SN08-device", AnytimeConstants.resolveHandshakeName("", "SN08-device", null, "SN08402178"))
+    }
+
+    @Test
+    fun warmupGateIsSampleBased() {
+        val anchor = 1_000_000L
+        val window = 60 * 60_000L
+        assertTrue(AnytimeConstants.isWithinWarmup(anchor, anchor + window - 1, window))
+        assertFalse(AnytimeConstants.isWithinWarmup(anchor, anchor + window, window))
+        // No authoritative anchor, no sample, or no window disables the gate rather
+        // than blanking readings on a guess.
+        assertFalse(AnytimeConstants.isWithinWarmup(0L, anchor + 1, window))
+        assertFalse(AnytimeConstants.isWithinWarmup(anchor, 0L, window))
+        assertFalse(AnytimeConstants.isWithinWarmup(anchor, anchor + 1, 0L))
+    }
 }

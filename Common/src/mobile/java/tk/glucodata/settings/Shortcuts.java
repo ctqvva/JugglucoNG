@@ -133,7 +133,8 @@ void saveall(View v) {
 			}
 		Natives.setnrshortcuts(nr);
 		if(!isWearable) {
-			((Applic)(((Activity)v.getContext()).getApplication())).numdata.sendshortcuts(shortcuts);
+			var numdata = tk.glucodata.nums.AllDataAccess.phone();
+			if (numdata != null) numdata.sendshortcuts(shortcuts);
 			}
 		 Applic.wakemirrors();
 		 removeContentView(shortedit);

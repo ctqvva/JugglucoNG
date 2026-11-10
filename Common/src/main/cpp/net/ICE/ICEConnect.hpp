@@ -21,6 +21,7 @@
 /*      Fri Nov 21 11:08:14 CET 2025                                                 */
 #pragma once
 #include <condition_variable>
+#include <thread>
 #include <memory>
 #include <utility>
 #include "datbackup.hpp"
@@ -34,6 +35,9 @@
 #include "net/Connect.hpp"
 #include "ICE_data.hpp"
 #include "ICEConfig.hpp"
+#include "RendezvousFailover.hpp"
+#include "TurnRelayPool.hpp"
+#include "TurnStreamRelay.hpp"
 #include "LocalICESignal.hpp"
 #include "RecoveryWakeLease.hpp"
 #define LOGGERICE(...) LOGGER("ICE: " __VA_ARGS__)
@@ -88,15 +92,38 @@ std::atomic_bool remoteDescriptionSet{false};
 std::atomic_bool remoteDescriptionWasLocal{false};
 std::mutex localSignalMutex;
 std::shared_ptr<LocalICESignalSession> localSignal;
-ICE_data   icedata[2]{{allindex,side},{allindex,!side}};
+// The rendezvous /address reader may outlive initAgent(): after the START
+// handshake the server can still hold its poll. It feeds candidates into the
+// agent, so it must be joined before that agent is destroyed.
+std::mutex candidateReaderMutex;
+std::jthread candidateReader;
+std::atomic_bool candidateReaderFinished{true};
+ICE_data   icedata[2]{{this,allindex,side},{this,allindex,!side}};
 std::atomic<juice_agent*> agent;
 std::atomic<uint64_t> agentGeneration{0};
 std::atomic<int> selectedCloneTransport{clone_transport_unknown};
 char sdp[JUICE_MAX_SDP_STRING_LEN];
 int sdplen;
+// Primary rendezvous server; it also carries the peer generation watch.
 std::string rendezvousHost;
 uint16_t rendezvousPort;
 bool verifyRendezvousCertificate;
+// Every server this connection may use, primary first. Rewritten only by
+// reloadNetworkConfig() in newConnection(), while no attempt runs.
+std::vector<RendezvousEndpoint> rendezvousEndpoints;
+std::mutex activeRendezvousMutex;
+RendezvousEndpoint activeRendezvous;
+std::atomic<size_t> activeRendezvousIndex{0};
+// Survive agent replacement: a struggling primary keeps the other servers in
+// play until a negotiation connects through the primary again.
+std::atomic_bool rendezvousEscalated{false};
+std::atomic_bool rendezvousExchangedUnconnected{false};
+TurnRelayRotation turnRelayRotation;
+std::vector<std::unique_ptr<TurnStreamRelay>> turnStreams;
+void stopTurnStreams() {
+        for(auto &stream:turnStreams) stream->cancel();
+        turnStreams.clear();
+        }
 bool useLocalDiscovery;
 RecoveryWakeLease recoveryWake;
 
@@ -106,6 +133,8 @@ void reloadNetworkConfig(const passhost_t &host);
         finish=true;
         endConnectionHere();
         cancelLocalSignal();
+        stopCandidateReader();
+        stopTurnStreams();
         }
 void endConnectionHere() {
        LOGGERICE("%d: endConnectionHere\n",side);
@@ -199,11 +228,65 @@ void replaceLocalSignal(std::shared_ptr<LocalICESignalSession> replacement) {
 void cancelLocalSignal() {
         replaceLocalSignal(nullptr);
         }
+RendezvousEndpoint activeRendezvousEndpoint() {
+        std::lock_guard<std::mutex> lock(activeRendezvousMutex);
+        return activeRendezvous;
+        }
+void setActiveRendezvous(size_t index) {
+        std::lock_guard<std::mutex> lock(activeRendezvousMutex);
+        activeRendezvous=rendezvousEndpoints[index];
+        activeRendezvousIndex.store(index,std::memory_order_release);
+        }
+template<class Function,class... Args>
+void startCandidateReader(Function &&function,Args &&...args) {
+        // A previous reader was cancelled with its own rendezvous generation;
+        // cancelling here would hit the negotiation that is starting.
+        joinCandidateReader();
+        candidateReaderFinished.store(false,std::memory_order_release);
+        std::lock_guard<std::mutex> lock(candidateReaderMutex);
+        candidateReader=std::jthread(
+            [this](std::stop_token,auto function,auto... args) {
+                function(std::move(args)...);
+                candidateReaderFinished.store(true,std::memory_order_release);
+                },
+            std::forward<Function>(function),std::forward<Args>(args)...);
+        }
+void joinCandidateReader() {
+        std::jthread reader;
+        {
+        std::lock_guard<std::mutex> lock(candidateReaderMutex);
+        reader=std::move(candidateReader);
+        }
+        if(!reader.joinable())
+            return;
+        if(reader.get_id()==std::this_thread::get_id()) {
+            reader.detach();
+            return;
+            }
+        reader.join();
+        }
+void stopCandidateReader() {
+        cancelRendezvous();
+        joinCandidateReader();
+        }
+bool isICE() const override { return true; }
 virtual int setindex(int in) override{
         LOGGER("setindex(%d)\n",in);
+        const bool moved=in!=allindex;
         icedata[1].allindex=in;
         icedata[0].allindex=in;
-        return Connect::setindex(in);
+        const int res=Connect::setindex(in);
+        if(moved) {
+            // deletehost moved this host down a slot. Whatever runs against the old
+            // slot stops; the receiver wakes, sees the move and restarts at the new one.
+            endConnectionHere();
+            {
+            std::lock_guard<std::mutex> lck(receiveThreadMutex);
+            wakeReceiver=true;
+            }
+            receiveThreadCon.notify_one();
+            }
+        return res;
         }
 int cloneTransportCode() const override {
         const juice_state_t currentState = state.load();
@@ -245,6 +328,8 @@ void releaseReceiverThread() {
         cancelRendezvous();
         cancelGenerationWatch();
         cancelLocalSignal();
+        stopCandidateReader();
+        turnRelayRotation.failedAttempt(currentAgentGeneration());
         auto wasagent=agent.exchange(nullptr);
         advanceAgentGeneration();
         if(wasagent) {
@@ -257,6 +342,7 @@ void releaseReceiverThread() {
             juice_set_log_level(juice_log_level);
             #endif
             }
+        stopTurnStreams();
         icedata[1].reCreated(); 
         icedata[0].reCreated(); 
         resetStart();
@@ -280,6 +366,7 @@ void releaseReceiverThread() {
 
         juice_agent *theagent=createAgent(allindex);
         if(!theagent) {
+                stopTurnStreams();
                 phase=FailedInitAgent;
                 endConnect=true;
                 recoveryWake.cancel();
@@ -293,6 +380,8 @@ void releaseReceiverThread() {
                 phase=FailedInitAgent;
                 cancelGenerationWatch();
                 LOGGER("end ICEConnect::newConnection failed allindex=%d, juice_destroy(%p)\n",allindex,theagent);
+                stopCandidateReader();
+                turnRelayRotation.failedAttempt(currentAgentGeneration());
                 auto current=agent.exchange(nullptr);
                 advanceAgentGeneration();
                 if(current) {
@@ -304,6 +393,7 @@ void releaseReceiverThread() {
                     juice_set_log_level(juice_log_level);
                 #endif
                     }
+                stopTurnStreams();
                 endConnect=true;
                 recoveryWake.cancel();
                 return -1;
@@ -333,6 +423,8 @@ void endConnection() override{
                 }
         destruct _{[this]{initrunning.clear();}};
         LOGGERICE("%d: ICEConnect::endConnection allindex=%d agent=%p\n",side,allindex,agent.load());
+        stopCandidateReader();
+        turnRelayRotation.failedAttempt(currentAgentGeneration());
         juice_agent *wasagent=agent.exchange(nullptr);
         advanceAgentGeneration();
         if(wasagent) {
@@ -345,6 +437,7 @@ void endConnection() override{
             juice_set_log_level(juice_log_level);
             #endif
             } 
+        stopTurnStreams();
 #ifndef NOLOG
         LOGGERICE("%d: end ICEConnect::endConnection allindex=%d set agent=%p\n",side,allindex, wasagent);
 #endif
@@ -429,7 +522,11 @@ virtual ssize_t  s_recvni(void *buf, size_t len) override {
            LOGGERICE("ICEConnect::s_recvni(%p,%d) not connected\n",buf,len);
            return -1;
            }
-        auto ret= icedata[0].receive(agent.load(),(char *)buf, len);
+        // The sender only reads handshake replies and acks. Once a reconnect
+        // left the two sides' transaction ids one apart, each waited for the
+        // other forever with the link up; TCP's 60 s SO_RCVTIMEO ends that wait,
+        // so give ICE the same and let the sender reconnect.
+        auto ret= icedata[0].receive(agent.load(),(char *)buf, len,60);
         LOGGERICE("ICEConnect::s_recvni(%p,%d)=%d\n",buf,len,ret);
         return ret;
         }

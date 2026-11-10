@@ -57,6 +57,7 @@ object AapsJournalImport {
         if (treatments.isEmpty()) return emptyResult()
 
         val repository = JournalRepository()
+        repository.deleteAapsSenderOnlyNotesOnce()
         if (action == ACTION_REMOVED_TREATMENT) {
             val sourceIds = treatments.flatMap { treatment ->
                 JournalTreatmentTransfer.sourceRecordIdsForTreatment(treatment, SOURCE_PREFIX)

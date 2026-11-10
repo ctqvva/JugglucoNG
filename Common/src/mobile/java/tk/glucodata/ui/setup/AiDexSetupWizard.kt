@@ -14,27 +14,38 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
+import tk.glucodata.drivers.aidex.AiDexSetupKeyGate
+import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.BleDeviceScanner
@@ -44,6 +55,7 @@ import java.util.UUID
 enum class AiDexSetupStep {
     SCAN,
     KEY_MANAGEMENT,
+    SAVED_SENSORS,
     CONNECTING,
     SUCCESS
 }
@@ -55,15 +67,40 @@ fun AiDexSetupWizard(
     onNavigateToReadiness: () -> Unit = {},
     onComplete: () -> Unit
 ) {
+    val fullModeGuard = tk.glucodata.ui.restricted.rememberFullModeGuard()
+    val restrictedLocked = tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle().value.locked
     val tag = "AiDexSetupWizard"
     val ui = rememberWizardUiMetrics()
     var currentStep by remember { mutableStateOf(AiDexSetupStep.SCAN) }
+    // Restricted again with key management open: back to the scan, where keys are not touched.
+    LaunchedEffect(restrictedLocked) {
+        if (restrictedLocked && currentStep in setOf(AiDexSetupStep.KEY_MANAGEMENT, AiDexSetupStep.SAVED_SENSORS)) currentStep = AiDexSetupStep.SCAN
+    }
     var selectedDeviceName by remember { mutableStateOf("") }
+    var selectedSensor by remember { mutableStateOf<AiDexKeySensor?>(null) }
+    var requiredSerial by remember { mutableStateOf<String?>(null) }
+    var connectionStarting by remember { mutableStateOf(false) }
+    var nearbyKeySensors by remember { mutableStateOf<List<AiDexKeySensor>>(emptyList()) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val keyForm = remember { AiDexKeyManagementState(accountLabel = AiDexProvisioningStore.accountLabel(context)) }
     var signedIn by remember { mutableStateOf(AiDexProvisioningStore.hasSession(context)) }
+    DisposableEffect(context) {
+        val removeListener = AiDexProvisioningStore.addSessionListener(context) {
+            signedIn = AiDexProvisioningStore.hasSession(context)
+        }
+        signedIn = AiDexProvisioningStore.hasSession(context)
+        onDispose { removeListener() }
+    }
     val navigateBack = {
-        if (currentStep == AiDexSetupStep.SCAN) onDismiss() else currentStep = AiDexSetupStep.SCAN
+        when (currentStep) {
+            AiDexSetupStep.SCAN -> onDismiss()
+            AiDexSetupStep.SAVED_SENSORS -> {
+                keyForm.refreshKeys()
+                currentStep = AiDexSetupStep.KEY_MANAGEMENT
+            }
+            else -> currentStep = AiDexSetupStep.SCAN
+        }
     }
     BackHandler {
         navigateBack()
@@ -76,15 +113,49 @@ fun AiDexSetupWizard(
         }
     }
 
+    val connectSensor: (AiDexKeySensor) -> Unit = connect@{ sensor ->
+        if (connectionStarting) return@connect
+        connectionStarting = true
+        val bare = AiDexPairingMaterialFile.normalizeSerial(sensor.serial)
+        val name = bare?.let { "X-$it" } ?: sensor.serial.trim()
+        selectedDeviceName = name
+        keyForm.selectSerial(bare ?: name)
+        selectedSensor = sensor
+        scope.launch {
+            try {
+                val allowed = withContext(Dispatchers.IO) {
+                    AiDexSetupKeyGate.mayConnect(context, name, sensor.name)
+                }
+                if (!allowed) {
+                    requiredSerial = name
+                    fullModeGuard { currentStep = AiDexSetupStep.KEY_MANAGEMENT }
+                    return@launch
+                }
+                requiredSerial = null
+                currentStep = AiDexSetupStep.CONNECTING
+                AiDexProvisioningStore.installSaved(context, name)
+                SensorBluetooth.addAiDexSensor(context, name, sensor.address)
+                delay(2000)
+                currentStep = AiDexSetupStep.SUCCESS
+            } catch (t: kotlinx.coroutines.CancellationException) {
+                throw t
+            } catch (t: Throwable) {
+                Log.e(tag, "Failed to add/select AiDex sensor: ${t.message}")
+                Toast.makeText(context, context.getString(R.string.nobluetooth), Toast.LENGTH_LONG).show()
+                currentStep = AiDexSetupStep.SCAN
+            } finally {
+                connectionStarting = false
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.aidex_setup_title)) },
-                navigationIcon = {
-                    IconButton(onClick = navigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
-                    }
-                }
+            AppTopBar(
+                title = stringResource(if (currentStep == AiDexSetupStep.SAVED_SENSORS)
+                    R.string.ottai_saved_sensors_title else R.string.aidex_setup_title),
+                onNavigateBack = navigateBack,
+                navigationContentDescription = stringResource(R.string.cancel),
             )
         }
     ) { padding ->
@@ -97,54 +168,41 @@ fun AiDexSetupWizard(
                 AiDexSetupStep.SCAN -> AiDexScanStep(
                     ui = ui,
                     onNavigateToReadiness = onNavigateToReadiness,
-                    onManageKeys = { currentStep = AiDexSetupStep.KEY_MANAGEMENT },
-                    onDeviceSelected = { selectedName, address ->
-                        try {
-                            val name = selectedName.trim()
-                            if (name.isEmpty()) {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.aidex_parse_error, selectedName),
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                return@AiDexScanStep
-                            }
-
-                            selectedDeviceName = name
-                            currentStep = AiDexSetupStep.CONNECTING
-
-                            // Initiate Connection Logic
-                            scope.launch {
-                                try {
-                                    // Saved material is optional. With none present, the BLE driver
-                                    // always tries the serial-derived key first and reports a
-                                    // missing-key status only if the sensor rejects it.
-                                    AiDexProvisioningStore.installSaved(context, name)
-                                    SensorBluetooth.addAiDexSensor(context, name, address)
-
-                                    // 2. Wait a bit then show success
-                                    kotlinx.coroutines.delay(2000)
-                                    currentStep = AiDexSetupStep.SUCCESS
-                                } catch (t: Throwable) {
-                                    Log.e(tag, "Failed to add/select AiDex sensor: ${t.message}")
-                                    Toast.makeText(context, context.getString(R.string.nobluetooth), Toast.LENGTH_LONG).show()
-                                    currentStep = AiDexSetupStep.SCAN
-                                }
-                            }
-                        } catch (t: Throwable) {
-                            Log.e(tag, "onDeviceSelected failed: ${t.message}")
-                            Toast.makeText(context, context.getString(R.string.nobluetooth), Toast.LENGTH_LONG).show()
-                            currentStep = AiDexSetupStep.SCAN
-                        }
+                    // Saved pairing keys can be deleted there: full mode on a restricted phone.
+                    onManageKeys = { fullModeGuard { currentStep = AiDexSetupStep.KEY_MANAGEMENT } },
+                    onSensorsChanged = { if (it.isNotEmpty()) nearbyKeySensors = it },
+                    onDeviceSelected = { selectedName, address, advertisedName ->
+                        connectSensor(AiDexKeySensor(selectedName, advertisedName, address))
                     }
                 )
-                AiDexSetupStep.KEY_MANAGEMENT -> AiDexKeyManagementScreen(
+                AiDexSetupStep.KEY_MANAGEMENT -> {
+                    val scan = rememberAiDexKeyScan(nearbyKeySensors + listOfNotNull(selectedSensor))
+                    LaunchedEffect(scan.sensors) {
+                        if (scan.sensors.isNotEmpty()) nearbyKeySensors = scan.sensors
+                    }
+                    AiDexKeyManagementScreen(
+                        ui = ui,
+                        initialSerial = AiDexPairingMaterialFile.normalizeSerial(selectedDeviceName).orEmpty(),
+                        signedIn = signedIn,
+                        onSignedIn = { signedIn = true },
+                        onSignedOut = { signedIn = false },
+                        sensors = scan.sensors,
+                        requiredSerial = requiredSerial,
+                        onConnect = connectSensor,
+                        formState = keyForm,
+                        searching = scan.searching,
+                        scanError = scan.error,
+                        onOpenSavedSensors = { currentStep = AiDexSetupStep.SAVED_SENSORS },
+                    )
+                }
+                AiDexSetupStep.SAVED_SENSORS -> AiDexSavedSensorsScreen(
                     ui = ui,
-                    initialSerial = selectedDeviceName,
-                    signedIn = signedIn,
-                    onSignedIn = { signedIn = true },
-                    onSignedOut = { signedIn = false },
-                    onClose = { currentStep = AiDexSetupStep.SCAN },
+                    knownSensors = nearbyKeySensors,
+                    selectedSerial = keyForm.serialInput.value,
+                    onSelect = { serial ->
+                        keyForm.selectSerial(serial)
+                        currentStep = AiDexSetupStep.KEY_MANAGEMENT
+                    },
                 )
                 AiDexSetupStep.CONNECTING -> Box(
                     modifier = Modifier.fillMaxSize(),
@@ -170,11 +228,12 @@ fun AiDexSetupWizard(
 }
 
 @Composable
-fun AiDexScanStep(
+internal fun AiDexScanStep(
     ui: WizardUiMetrics,
     onNavigateToReadiness: () -> Unit,
     onManageKeys: () -> Unit,
-    onDeviceSelected: (String, String) -> Unit
+    onSensorsChanged: (List<AiDexKeySensor>) -> Unit = {},
+    onDeviceSelected: (String, String, String) -> Unit
 ) {
     data class ScanCandidate(
         val address: String,
@@ -194,6 +253,12 @@ fun AiDexScanStep(
     var scanError by remember { mutableStateOf<BleDeviceScanner.ScanStartError?>(null) }
     var requestedPermissionOnce by remember { mutableStateOf(false) }
     var showAllDevices by remember { mutableStateOf(false) }
+
+    LaunchedEffect(devices) {
+        onSensorsChanged(devices.mapNotNull { candidate ->
+            candidate.serial?.let { AiDexKeySensor(it, candidate.rawName, candidate.address) }
+        })
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -256,6 +321,7 @@ fun AiDexScanStep(
                     advertisedServiceUuids = record?.serviceUuids?.map { it.uuid }
                 )
 
+                candidate.serial?.let { AiDexSetupKeyGate.requiresKeys(context, it, candidate.displayName) }
                 if (!showAllDevices && !candidate.isLikelyAiDex) return@startScan
                 val next = ScanCandidate(
                     address = address,
@@ -294,83 +360,88 @@ fun AiDexScanStep(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        tk.glucodata.ui.CgmReadinessSetupBanner(
-            modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
-            onOpenReadiness = onNavigateToReadiness
-        )
-        Spacer(Modifier.height(ui.spacerMedium))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = ui.horizontalPadding),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                stringResource(R.string.aidex_searching_sensors),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium
-            )
-            TextButton(
-                onClick = { showAllDevices = !showAllDevices }
-            ) {
-                Text(
-                    if (showAllDevices) {
-                        stringResource(R.string.show_sensors_only)
-                    } else {
-                        stringResource(R.string.see_all_devices)
-                    }
+        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+        PinnedOrScrollingList(
+            modifier = Modifier.weight(1f),
+            header = {
+                tk.glucodata.ui.CgmReadinessSetupBanner(
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
+                    onOpenReadiness = onNavigateToReadiness
                 )
-            }
-        }
-        if (!scanPermissionGranted || !bluetoothEnabled || scanError != null) {
-            Spacer(Modifier.height(ui.spacerMedium))
-            Card(
-                modifier = Modifier
-                    .padding(horizontal = ui.horizontalPadding)
-                    .fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    val messageRes = when {
-                        !scanPermissionGranted && Build.VERSION.SDK_INT >= 31 -> R.string.turn_on_nearby_devices_permission
-                        !scanPermissionGranted -> R.string.turn_on_location_permission
-                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.bluetooth_is_turned_off
-                        else -> R.string.nobluetooth
-                    }
-                    Text(
-                        text = stringResource(messageRes),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                Spacer(Modifier.height(ui.spacerMedium))
+                ScanFilterHeader(
+                    title = stringResource(R.string.aidex_searching_sensors),
+                    showAllDevices = showAllDevices,
+                    onToggleFilter = { showAllDevices = !showAllDevices },
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+                )
+                if (!scanPermissionGranted || !bluetoothEnabled || scanError != null) {
                     Spacer(Modifier.height(ui.spacerMedium))
-                    val buttonRes = when {
-                        !scanPermissionGranted -> R.string.permission
-                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.enable_bluetooth
-                        else -> R.string.search_bluetooth
-                    }
-                    Button(
-                        onClick = {
-                            when {
-                                !scanPermissionGranted -> requestScanPermission()
-                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> {
-                                    enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
-                                }
-                                else -> {
-                                    scanError = null
-                                    scanPermissionGranted = hasBleScanPermissions(context)
-                                    bluetoothEnabled = scanner.isBluetoothEnabled()
-                                    scanRetryKey += 1
-                                }
-                            }
-                        },
-                        modifier = Modifier.height(ui.buttonHeight)
+                    Card(
+                        modifier = Modifier
+                            .padding(horizontal = ui.horizontalPadding)
+                            .fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                     ) {
-                        Text(stringResource(buttonRes))
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            val messageRes = when {
+                                !scanPermissionGranted && Build.VERSION.SDK_INT >= 31 -> R.string.turn_on_nearby_devices_permission
+                                !scanPermissionGranted -> R.string.turn_on_location_permission
+                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.bluetooth_is_turned_off
+                                else -> R.string.nobluetooth
+                            }
+                            Text(
+                                text = stringResource(messageRes),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(Modifier.height(ui.spacerMedium))
+                            val buttonRes = when {
+                                !scanPermissionGranted -> R.string.permission
+                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.enable_bluetooth
+                                else -> R.string.search_bluetooth
+                            }
+                            Button(
+                                onClick = {
+                                    when {
+                                        !scanPermissionGranted -> requestScanPermission()
+                                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> {
+                                            enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                                        }
+                                        else -> {
+                                            scanError = null
+                                            scanPermissionGranted = hasBleScanPermissions(context)
+                                            bluetoothEnabled = scanner.isBluetoothEnabled()
+                                            scanRetryKey += 1
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.heightIn(min = ui.buttonHeight),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
+                            ) {
+                                Text(stringResource(buttonRes))
+                            }
+                        }
                     }
                 }
-            }
-        }
-        LazyColumn(modifier = Modifier.weight(1f)) {
+            },
+            footer = {
+                SettingsItem(
+                    title = stringResource(R.string.aidex_key_management_title),
+                    subtitle = stringResource(R.string.aidex_key_management_entry_desc),
+                    icon = Icons.Default.Key,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    position = CardPosition.SINGLE,
+                    onClick = onManageKeys,
+                    modifier = Modifier
+                        .padding(
+                            start = ui.horizontalPadding,
+                            end = ui.horizontalPadding,
+                            bottom = ui.spacerMedium,
+                        ),
+                )
+            },
+        ) {
             items(devices) { device ->
                 val name = device.rawName.ifBlank { stringResource(R.string.unknown) }
                 val serial = device.serial
@@ -401,30 +472,92 @@ fun AiDexScanStep(
                         onDeviceSelected(
                             device.selectionName,
                             device.address,
+                            device.rawName,
                         )
                     }
                 )
                 HorizontalDivider()
             }
         }
-        SettingsItem(
-            title = stringResource(R.string.aidex_key_management_title),
-            subtitle = stringResource(R.string.aidex_key_management_entry_desc),
-            icon = Icons.Default.Key,
-            iconTint = MaterialTheme.colorScheme.primary,
-            position = CardPosition.SINGLE,
-            onClick = onManageKeys,
-            modifier = Modifier
-                .padding(
-                    start = ui.horizontalPadding,
-                    end = ui.horizontalPadding,
-                    bottom = ui.spacerMedium,
-                ),
-        )
     }
 }
 
-private data class AiDexScanDetection(
+/**
+ * A header and footer pinned around a scrolling list, while the list keeps room for at least one
+ * row. When they would squeeze it shut (short window, large text), all three scroll as one list.
+ */
+@Composable
+internal fun PinnedOrScrollingList(
+    modifier: Modifier = Modifier,
+    header: @Composable ColumnScope.() -> Unit,
+    footer: @Composable () -> Unit,
+    listContent: LazyListScope.() -> Unit,
+) {
+    // Natural heights, measured in either layout (unbounded, so a squeezed footer still reports
+    // what it needs); the same content at the same width has the same height.
+    var headerHeight by remember { mutableIntStateOf(0) }
+    var footerHeight by remember { mutableIntStateOf(0) }
+    val handOver = remember { ListHandOver() }
+    BoxWithConstraints(modifier) {
+        val minListHeight = with(LocalDensity.current) {
+            (MinPinnedListHeight * fontScale.coerceAtLeast(1f)).roundToPx()
+        }
+        val pinned = constraints.maxHeight - headerHeight - footerHeight >= minListHeight
+        // The list being replaced hands over its place, so a switch (a banner appearing, rotation,
+        // font size) doesn't jump back to the top. The scrolling list has the header as item 0.
+        val listState = rememberSaveable(pinned, saver = LazyListState.Saver) {
+            val from = handOver.state
+            val index = from?.firstVisibleItemIndex ?: 0
+            val offset = from?.firstVisibleItemScrollOffset ?: 0
+            when {
+                from == null -> LazyListState()
+                pinned -> if (index == 0) LazyListState() else LazyListState(index - 1, offset)
+                index == 0 && offset == 0 -> LazyListState()
+                else -> LazyListState(index + 1, offset)
+            }
+        }
+        SideEffect { handOver.state = listState }
+        val measuredHeader: @Composable () -> Unit = {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(Alignment.Top, unbounded = true)
+                    .onSizeChanged { headerHeight = it.height },
+                content = header,
+            )
+        }
+        val measuredFooter: @Composable () -> Unit = {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(Alignment.Top, unbounded = true)
+                    .onSizeChanged { footerHeight = it.height }
+            ) { footer() }
+        }
+        if (pinned) {
+            Column(Modifier.fillMaxSize()) {
+                measuredHeader()
+                LazyColumn(modifier = Modifier.weight(1f), state = listState, content = listContent)
+                measuredFooter()
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
+                item { measuredHeader() }
+                listContent()
+                item { measuredFooter() }
+            }
+        }
+    }
+}
+
+// One two-line list row.
+private val MinPinnedListHeight = 72.dp
+
+private class ListHandOver {
+    var state: LazyListState? = null
+}
+
+internal data class AiDexScanDetection(
     val displayName: String,
     val selectionName: String,
     val serial: String?,
@@ -436,7 +569,7 @@ private val AIDEX_CGM_SERVICE_UUID: UUID = UUID.fromString("0000181f-0000-1000-8
 private val AIDEX_VENDOR_SERVICE_UUID: UUID = UUID.fromString("0000f000-0000-1000-8000-00805f9b34fb")
 private val AIDEX_FF30_SERVICE_UUID: UUID = UUID.fromString("0000ff30-0000-1000-8000-00805f9b34fb")
 
-private fun detectAiDexCandidate(
+internal fun detectAiDexCandidate(
     address: String,
     deviceName: String?,
     scanRecordName: String?,

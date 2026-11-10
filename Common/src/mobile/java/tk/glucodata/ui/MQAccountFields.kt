@@ -1,5 +1,7 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -39,7 +41,6 @@ fun MQAccountFields(
     title: String? = null,
     supportingText: String? = null,
 ) {
-    var showPassword by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier,
@@ -73,30 +74,9 @@ fun MQAccountFields(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        tk.glucodata.ui.components.AccountPasswordField(
             value = password,
             onValueChange = onPasswordChange,
-            label = { Text(stringResource(R.string.password)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            visualTransformation = if (showPassword) {
-                VisualTransformation.None
-            } else {
-                PasswordVisualTransformation()
-            },
-            trailingIcon = {
-                IconButton(onClick = { showPassword = !showPassword }) {
-                    Icon(
-                        imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = if (showPassword) {
-                            stringResource(R.string.hide_password)
-                        } else {
-                            stringResource(R.string.show_password)
-                        },
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = apiBaseUrl,

@@ -304,4 +304,42 @@ class OttaiParserTests {
         assertEquals(8000, r.rawCurrent)
         assertEquals(35.0, r.temperatureC, 1e-9)
     }
+
+    @Test
+    fun eightByteHistoryPageBeatsANineByteVersionString() {
+        // 2026-09-26 trace: a sensor whose version maps to the 9-byte family sends 20 8-byte
+        // records per 168-byte page, then 16-byte live notifies (header + one 8-byte record).
+        val version = "E1.2.3(V1.7.SH2542.1)"
+        val page = ByteArray(168).also { p ->
+            for (i in 0 until 20) {
+                val src = 8 + i * 8
+                p[src + 4] = 0x0C; p[src + 5] = 0x1E              // current = 7692 LE
+                p[src + 6] = 0xA4.toByte(); p[src + 7] = 0x0C     // temp = 32.36 C LE
+            }
+        }
+        assertEquals(OttaiParser.BLE_RECORD_SIZE, OttaiParser.decisiveRecordSize(page, version))
+        assertEquals(OttaiParser.BLE_RECORD_SIZE, OttaiParser.chooseRecordSize(page, version))
+        assertEquals(20, OttaiParser.frameRecords(page, version).size)
+
+        // Once learned, the live notify frames as one record instead of none.
+        val live = hex("00000000d067ffff1e18fd54722ef70b")
+        val recs = OttaiParser.frameRecords(live, version, OttaiParser.BLE_RECORD_SIZE)
+        assertEquals(1, recs.size)
+        assertEquals(30.63, OttaiParser.parseRecord(recs[0]).temperatureC, 1e-9)
+    }
+
+    @Test
+    fun sixteenByteLiveNotifyCannotBeFramedAsNineByte() {
+        // First live frame of a fresh sensor: nothing learned, and the version maps to the
+        // 9-byte family. An 8-byte body holds no 9-byte record, so the width must fall to 8.
+        val live = hex("00000000d067ffff1e18fd54722ef70b")
+        val version = "E1.2.3(V1.7.SH2542.1)"
+        assertEquals(OttaiParser.BLE_RECORD_SIZE, OttaiParser.chooseRecordSize(live, version))
+        assertEquals(1, OttaiParser.frameRecords(live, version).size)
+        // A stale learned 9 is ignored for the same reason.
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE,
+            OttaiParser.chooseRecordSize(live, version, OttaiParser.BLE_RECORD_SIZE_E12),
+        )
+    }
 }

@@ -95,10 +95,11 @@
                 <data android:host="*" android:pathPrefix="/messages" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/netinfo" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/sensorhandoff" android:scheme="wear" />
-                <data android:host="*" android:pathPrefix="/settings" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/start" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/wake" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/wakestream" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/protocol" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/alertack" android:scheme="wear" />
                 <data android:host="*" android:pathPrefix="/sync2" android:scheme="wear" />
                 <!-- Every path this service handles must be listed: a
                      WearableListenerService is only delivered the prefixes its
@@ -113,6 +114,15 @@
          </service>
 
       <!--  android:icon="@drawable/ic_launcher" -->
+  <service
+            android:name="tk.glucodata.tile.GlucoseTileService"
+            android:exported="true"
+            android:label="@string/wear_glucose_tile_label"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
   <service
             android:name=".glucosecomplication.ArrowDataSourceService"
             android:exported="true"
@@ -202,6 +212,34 @@
             <meta-data
                 android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="0" />
+        </service>
+        <service
+            android:name=".glucosecomplication.MultiSensorDataSourceService"
+            android:exported="true"
+            android:icon="@drawable/valuemgdl"
+            android:label="@string/wear_multi_sensor_complication"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SMALL_IMAGE,LONG_TEXT,LARGE_IMAGE" />
+            <meta-data android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="300" />
+        </service>
+        <service
+            android:name=".glucosecomplication.MultiSensorArrowDataSourceService"
+            android:exported="true"
+            android:icon="@drawable/valuemgdl"
+            android:label="@string/wear_multi_sensor_arrow_complication"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SMALL_IMAGE,LONG_TEXT,LARGE_IMAGE" />
+            <meta-data android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="300" />
         </service>
   <service
             android:name=".glucosecomplication.NumberDataSourceService"

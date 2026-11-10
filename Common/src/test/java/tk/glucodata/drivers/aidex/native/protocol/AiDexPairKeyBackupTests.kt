@@ -23,6 +23,21 @@ class AiDexPairKeyBackupTests {
     }
 
     @Test
+    fun fingerprintIsShortStableAndNotTheKey() {
+        val fp = AiDexPairKeyVault.fingerprint(pairKey)
+
+        assertEquals(8, fp.length)
+        assertEquals(fp, AiDexPairKeyVault.fingerprint(pairKey.copyOf()))
+        assertEquals("none", AiDexPairKeyVault.fingerprint(null))
+        // One flipped byte is a different credential in the log.
+        val other = pairKey.copyOf().also { it[0] = (it[0] + 1).toByte() }
+        assertTrue(fp != AiDexPairKeyVault.fingerprint(other))
+        // And the tag is a hash prefix, not a slice of the key material.
+        val keyHex = pairKey.joinToString("") { "%02x".format(it) }
+        assertTrue(!keyHex.contains(fp))
+    }
+
+    @Test
     fun tamperedCredentialIsRejected() {
         val payload = AiDexPairKeyBackup.encode("X-2222267V4E", pairKey)!!
         val tampered = payload.replace("pair_key=03", "pair_key=04")

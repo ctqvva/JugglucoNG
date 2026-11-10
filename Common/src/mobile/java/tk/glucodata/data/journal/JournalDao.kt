@@ -5,10 +5,14 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface JournalDao {
+    @Query("SELECT COALESCE((SELECT seq FROM sqlite_sequence WHERE name = 'journal_foods'), 0) + 1")
+    suspend fun nextFoodId(): Long
+
     @Query("SELECT * FROM journal_entries ORDER BY timestamp DESC, id DESC")
     fun observeEntries(): Flow<List<JournalEntryEntity>>
 
@@ -196,7 +200,7 @@ interface JournalDao {
     @Query("SELECT * FROM journal_foods WHERE id = :id LIMIT 1")
     suspend fun getFoodById(id: Long): JournalFoodEntity?
 
-    @Query("SELECT * FROM journal_foods")
+    @Query("SELECT * FROM journal_foods ORDER BY isArchived ASC, sortOrder ASC, displayName COLLATE NOCASE ASC")
     suspend fun getFoods(): List<JournalFoodEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -214,6 +218,20 @@ interface JournalDao {
     @Query("DELETE FROM journal_foods WHERE id = :id")
     suspend fun deleteFoodById(id: Long)
 
+    @Query("DELETE FROM journal_foods WHERE id IN (:ids)")
+    suspend fun deleteFoodsByIds(ids: List<Long>)
+
+    @Query("UPDATE journal_foods SET isArchived = :archived, updatedAt = :now WHERE id IN (:ids)")
+    suspend fun setFoodsArchived(ids: List<Long>, archived: Boolean, now: Long)
+
+    @Query("UPDATE journal_foods SET sortOrder = :position, updatedAt = :now WHERE id = :id")
+    suspend fun setFoodPosition(id: Long, position: Int, now: Long)
+
+    @Transaction
+    suspend fun setFoodOrder(ids: List<Long>, now: Long) {
+        ids.forEachIndexed { position, id -> setFoodPosition(id, position, now) }
+    }
+
     @Query(
         """
         SELECT * FROM journal_entries
@@ -229,6 +247,9 @@ interface JournalDao {
 
     @Query("SELECT nsRemoteId FROM journal_entries WHERE nsUploadedAt IS NOT NULL AND nsRemoteId IS NOT NULL")
     suspend fun getOwnUploadedNightscoutRemoteIds(): List<String>
+
+    @Query("SELECT * FROM journal_entries WHERE entryType = :entryType AND source IN (:sources) AND sourceRecordId IS NOT NULL")
+    suspend fun getImportedEntriesOfType(entryType: String, sources: List<String>): List<JournalEntryEntity>
 
     @Query(
         """

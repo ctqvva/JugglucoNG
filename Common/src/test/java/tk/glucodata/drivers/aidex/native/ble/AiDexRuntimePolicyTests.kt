@@ -34,21 +34,37 @@ class AiDexRuntimePolicyTests {
             AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
             AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true, explicitPairRequested = true)
         )
-        // Nothing automatic replaces a key either, even after it has failed its retries.
+        // An unbonded phone never replaces a key on its own, even after it has failed its
+        // retries: the sensor refuses F001 while another device holds the bond slot.
         assertEquals(
             AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
             AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true, savedKeyExhausted = true)
         )
+        // Being bonded alone is not a reason to touch a key that still works.
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.USE_SAVED_KEY,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true, bonded = true)
+        )
     }
 
     @Test
-    fun pairKeyStartAction_userPressingPairIsTheOnlyWayOffADeadSavedKey() {
+    fun pairKeyStartAction_deadSavedKeyIsReplacedByPairOrByTheBondedPhone() {
         assertEquals(
             AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
             AiDexRuntimePolicy.decidePairKeyStartAction(
                 hasSavedPairKey = true,
                 savedKeyExhausted = true,
                 explicitPairRequested = true,
+            )
+        )
+        // The reporter's case: bond state 12, saved key rejected three times. This phone is
+        // the device the sensor accepts F001 from, so it re-pairs without a button press.
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(
+                hasSavedPairKey = true,
+                savedKeyExhausted = true,
+                bonded = true,
             )
         )
     }
@@ -63,14 +79,117 @@ class AiDexRuntimePolicyTests {
             AiDexRuntimePolicy.KeyExchangeFailureAction.BROADCAST_ONLY,
             AiDexRuntimePolicy.decideKeyExchangeFailureAction(3, 3)
         )
+        // A fresh pair that keeps failing parks, bonded or not: there is no other key to try.
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.BROADCAST_ONLY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(3, 3, usedSavedKey = false, bonded = true)
+        )
+    }
+
+    @Test
+    fun keyExchangeFailures_exhaustedSavedKeyOnABondedLinkIsReplacedNotParked() {
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.RETRY_CLEAN_GATT,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(2, 3, usedSavedKey = true, bonded = true)
+        )
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.REPLACE_SAVED_KEY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(3, 3, usedSavedKey = true, bonded = true)
+        )
+        // Counters persist across a process death, so a count past the limit must not
+        // fall back into retrying.
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.REPLACE_SAVED_KEY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(5, 3, usedSavedKey = true, bonded = true)
+        )
+        // Unbonded: the user decides, the status line tells them to press Pair.
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.BROADCAST_ONLY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(3, 3, usedSavedKey = true, bonded = false)
+        )
     }
 
     @Test
     fun persistedPairKeyClearsOnlyAfterSuccessfulDeleteBondAck() {
-        assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(false, 0x00))
-        assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0x01))
+        // AiDex ACKs success with 0x01; every DELETE_BOND in the field logs answered 0x01.
+        assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(false, 0x01))
+        assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0x00))
         assertFalse(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0xFF))
-        assertTrue(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0x00))
+        assertTrue(AiDexRuntimePolicy.shouldClearPersistedPairKey(true, 0x01))
+    }
+
+    @Test
+    fun clearStorageIsConfirmedOnlyByAnAcceptedAck() {
+        // 1.6.0 / 1.7.1 / 1.8.0: `F3 01 crc crc`, then history newest=1 and a zeroed session.
+        assertTrue(AiDexRuntimePolicy.isClearStorageConfirmed(responseLength = 4, responseStatus = 0x01))
+        assertTrue(AiDexRuntimePolicy.isClearStorageConfirmed(responseLength = 2, responseStatus = 0x01))
+        // 1.8.3: `0x00`, and the old history was still there afterwards.
+        assertFalse(AiDexRuntimePolicy.isClearStorageConfirmed(responseLength = 4, responseStatus = 0x00))
+        assertFalse(AiDexRuntimePolicy.isClearStorageConfirmed(responseLength = 1, responseStatus = 0xFF))
+        // A payload is not an ACK, whatever its second byte happens to be.
+        assertFalse(AiDexRuntimePolicy.isClearStorageConfirmed(responseLength = 18, responseStatus = 0x01))
+    }
+
+    @Test
+    fun pairKeyStartAction_aConfirmedResetPairsFreshOverTheKeptKey() {
+        // The reporter's case: reset acknowledged, key still stored, sensor wiped its own.
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = true, pairKeyResetPending = true)
+        )
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(
+                hasSavedPairKey = true,
+                bonded = true,
+                pairKeyResetPending = true,
+            )
+        )
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(hasSavedPairKey = false, pairKeyResetPending = true)
+        )
+    }
+
+    @Test
+    fun keyExchangeFailures_aFailingPostResetFreshPairFallsBackToTheKeptKey() {
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.RETRY_CLEAN_GATT,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(2, 3, freshPairAfterReset = true)
+        )
+        // A reset that did not rotate the credential must not strand the sensor.
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.RESTORE_SAVED_KEY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(3, 3, freshPairAfterReset = true)
+        )
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.RESTORE_SAVED_KEY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(3, 3, bonded = true, freshPairAfterReset = true)
+        )
+        // Without a reset behind it, a failing fresh pair still parks.
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.BROADCAST_ONLY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(3, 3, bonded = true)
+        )
+    }
+
+    @Test
+    fun lifecycleResetIsWithheldFromFirmware183AndLater() {
+        assertTrue(AiDexRuntimePolicy.supportsLifecycleReset("1.6.0"))
+        assertTrue(AiDexRuntimePolicy.supportsLifecycleReset("1.7.1.3"))
+        assertTrue(AiDexRuntimePolicy.supportsLifecycleReset("1.8"))
+        assertTrue(AiDexRuntimePolicy.supportsLifecycleReset("1.8.1"))
+        assertTrue(AiDexRuntimePolicy.supportsLifecycleReset("1.8.2"))
+        assertFalse(AiDexRuntimePolicy.supportsLifecycleReset("1.8.3"))
+        assertFalse(AiDexRuntimePolicy.supportsLifecycleReset(" 1.8.3 "))
+        assertFalse(AiDexRuntimePolicy.supportsLifecycleReset("1.8.3.1"))
+        assertFalse(AiDexRuntimePolicy.supportsLifecycleReset("1.9.3"))
+        assertFalse(AiDexRuntimePolicy.supportsLifecycleReset("1.10.0"))
+        assertFalse(AiDexRuntimePolicy.supportsLifecycleReset("2.0"))
+        // Not read yet, or not a version: no grounds to hide the action.
+        assertTrue(AiDexRuntimePolicy.supportsLifecycleReset(""))
+        assertTrue(AiDexRuntimePolicy.supportsLifecycleReset(null))
+        assertTrue(AiDexRuntimePolicy.supportsLifecycleReset("V1.8.3"))
     }
 
     @Test
@@ -282,6 +401,21 @@ class AiDexRuntimePolicyTests {
                 hasSensorReportedWearDays = false,
             )
         )
+    }
+
+    @Test
+    fun shouldRequestStartupDeviceInfo_retriesAFewSpacedTimesPerConnection() {
+        val spacing = AiDexRuntimePolicy.STARTUP_DEVICE_INFO_RETRY_SPACING_MS
+        val max = AiDexRuntimePolicy.STARTUP_DEVICE_INFO_MAX_ATTEMPTS
+        assertTrue(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(false, 0, 0L, 1_000L))
+        // An unanswered request is retried, but not on the very next pass.
+        assertFalse(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(false, 1, 1_000L, 1_000L + spacing - 1))
+        assertTrue(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(false, 1, 1_000L, 1_000L + spacing))
+        assertTrue(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(false, max - 1, 1_000L, 1_000L + spacing))
+        // Bounded: a sensor that never answers is not polled for the rest of the connection.
+        assertFalse(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(false, max, 1_000L, 10L * 60_000L))
+        // Nothing to ask once the startup metadata is complete.
+        assertFalse(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(true, 0, 0L, 1_000L))
     }
 
     @Test
@@ -521,6 +655,150 @@ class AiDexRuntimePolicyTests {
                 cccdChainComplete = false,
                 challengeWritten = false,
                 bondDataRead = false,
+            )
+        )
+    }
+
+    @Test
+    fun cccdStartDelay_holdsTheFirstWriteUntilTheMtuBearerHasBeenQuiet() {
+        // Reconnect on a cached GATT db: services discovered ~50ms after our MTU callback,
+        // the sensor's own exchange still to come. Wait out the rest of the window.
+        assertEquals(
+            700L,
+            AiDexRuntimePolicy.cccdStartDelayMs(lastMtuCallbackAtMs = 10_000L, nowMs = 10_050L, settleMs = 750L)
+        )
+        // First connect: full discovery took longer than the window, write immediately.
+        assertEquals(
+            0L,
+            AiDexRuntimePolicy.cccdStartDelayMs(lastMtuCallbackAtMs = 10_000L, nowMs = 11_200L, settleMs = 750L)
+        )
+        assertEquals(
+            0L,
+            AiDexRuntimePolicy.cccdStartDelayMs(lastMtuCallbackAtMs = 10_000L, nowMs = 10_750L, settleMs = 750L)
+        )
+    }
+
+    @Test
+    fun cccdStartDelay_noMtuCallbackMeansNoHold() {
+        // Stack never delivered onMtuChanged and the fallback started discovery.
+        assertEquals(
+            0L,
+            AiDexRuntimePolicy.cccdStartDelayMs(lastMtuCallbackAtMs = 0L, nowMs = 10_050L, settleMs = 750L)
+        )
+    }
+
+    @Test
+    fun cccdStartDelay_clockStepBackwardsWaitsAFullWindow() {
+        assertEquals(
+            750L,
+            AiDexRuntimePolicy.cccdStartDelayMs(lastMtuCallbackAtMs = 10_000L, nowMs = 9_000L, settleMs = 750L)
+        )
+    }
+
+    @Test
+    fun mtuExchangeCrossedPendingCccd_onlyWhileAChainWriteIsOutstanding() {
+        assertTrue(
+            AiDexRuntimePolicy.mtuExchangeCrossedPendingCccd(
+                phase = AiDexBleManager.Phase.CCCD_CHAIN,
+                cccdWriteInProgress = true,
+                hasPendingCccd = true,
+            )
+        )
+        // Chain queued but not started: the settle window simply restarts.
+        assertFalse(
+            AiDexRuntimePolicy.mtuExchangeCrossedPendingCccd(
+                phase = AiDexBleManager.Phase.CCCD_CHAIN,
+                cccdWriteInProgress = false,
+                hasPendingCccd = false,
+            )
+        )
+        // Our own first exchange, before discovery.
+        assertFalse(
+            AiDexRuntimePolicy.mtuExchangeCrossedPendingCccd(
+                phase = AiDexBleManager.Phase.DISCOVERING_SERVICES,
+                cccdWriteInProgress = false,
+                hasPendingCccd = false,
+            )
+        )
+        // Post-key-exchange CCCD re-registration is not the setup chain.
+        assertFalse(
+            AiDexRuntimePolicy.mtuExchangeCrossedPendingCccd(
+                phase = AiDexBleManager.Phase.KEY_EXCHANGE,
+                cccdWriteInProgress = true,
+                hasPendingCccd = true,
+            )
+        )
+    }
+
+    @Test
+    fun decideMissingCccdCallbackAction_reconnectsAtTheFirstWindowWhenAnMtuExchangeCrossedTheWrite() {
+        assertEquals(
+            AiDexRuntimePolicy.MissingCccdCallbackAction.RECOVER_WEDGED_GATT,
+            AiDexRuntimePolicy.decideMissingCccdCallbackAction(
+                cccdWriteInProgress = true,
+                hasPendingCccd = true,
+                timeoutRetries = 0,
+                maxRetries = 1,
+                canInferComplete = true,
+                mtuExchangeCrossedWrite = true,
+            )
+        )
+        // The callback did arrive after all: nothing pending, nothing to recover.
+        assertEquals(
+            AiDexRuntimePolicy.MissingCccdCallbackAction.IGNORE,
+            AiDexRuntimePolicy.decideMissingCccdCallbackAction(
+                cccdWriteInProgress = false,
+                hasPendingCccd = false,
+                timeoutRetries = 0,
+                maxRetries = 1,
+                canInferComplete = true,
+                mtuExchangeCrossedWrite = true,
+            )
+        )
+    }
+
+    @Test
+    fun shortBondRead_isRereadOnceThenCountsAsAKeyExchangeFailure() {
+        // 19:52 journal: unbonded phone, saved key, F002 answers a lone 00 and the sensor
+        // hangs up 7s later. Before this the loop never touched keyExchangeFailures.
+        assertEquals(
+            AiDexRuntimePolicy.ShortBondReadAction.ACCEPT,
+            AiDexRuntimePolicy.decideShortBondReadAction(replyLength = 17, rereads = 0, maxRereads = 1)
+        )
+        assertEquals(
+            AiDexRuntimePolicy.ShortBondReadAction.REREAD,
+            AiDexRuntimePolicy.decideShortBondReadAction(replyLength = 1, rereads = 0, maxRereads = 1)
+        )
+        assertEquals(
+            AiDexRuntimePolicy.ShortBondReadAction.FAIL_KEY_EXCHANGE,
+            AiDexRuntimePolicy.decideShortBondReadAction(replyLength = 1, rereads = 1, maxRereads = 1)
+        )
+        assertEquals(
+            AiDexRuntimePolicy.ShortBondReadAction.ACCEPT,
+            AiDexRuntimePolicy.decideShortBondReadAction(replyLength = 17, rereads = 1, maxRereads = 1)
+        )
+    }
+
+    @Test
+    fun refusedBondRead_endsInPressPairForAnUnbondedPhoneAndReplaceForABondedOne() {
+        // Three refusals on an unbonded link: hold in broadcast-only, tell the user to Pair;
+        // the Pair button then runs FRESH_PAIR because the saved key is exhausted.
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.BROADCAST_ONLY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(
+                consecutiveFailures = 3, maxFailures = 3, usedSavedKey = true, bonded = false,
+            )
+        )
+        assertEquals(
+            AiDexRuntimePolicy.PairKeyStartAction.FRESH_PAIR,
+            AiDexRuntimePolicy.decidePairKeyStartAction(
+                hasSavedPairKey = true, savedKeyExhausted = true, explicitPairRequested = true, bonded = false,
+            )
+        )
+        assertEquals(
+            AiDexRuntimePolicy.KeyExchangeFailureAction.REPLACE_SAVED_KEY,
+            AiDexRuntimePolicy.decideKeyExchangeFailureAction(
+                consecutiveFailures = 3, maxFailures = 3, usedSavedKey = true, bonded = true,
             )
         )
     }

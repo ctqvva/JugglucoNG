@@ -59,7 +59,7 @@ class IconValueDataSourceService: SuspendingComplicationDataSourceService()  {
         )
     }
 
-private var glview: GlucoseValue? =null
+private var glview: WearComplicationValue? =null
 
     override fun onComplicationActivated( complicationInstanceId: Int, type: ComplicationType) {
         Log.d(LOG_ID, "onComplicationActivated(): $complicationInstanceId")
@@ -67,13 +67,13 @@ private var glview: GlucoseValue? =null
     override fun onComplicationDeactivated(complicationInstanceId: Int) {
         Log.d(LOG_ID, "onComplicationDeactivated(): $complicationInstanceId")
     }
-fun getview(type: ComplicationType):GlucoseValue {
+fun getview(type: ComplicationType):WearComplicationValue {
      if(glview==null) {
         val width:Int = 150
         val height:Int = 150
-         glview= GlucoseValue(width,height)
+         glview= WearComplicationValue(width,height)
          }
-      return glview as GlucoseValue;
+      return glview as WearComplicationValue;
       }
     override fun getPreviewData(type: ComplicationType): ComplicationData {
         val reading = GlucoseComplicationData.previewReading()

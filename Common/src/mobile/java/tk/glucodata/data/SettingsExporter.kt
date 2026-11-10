@@ -13,6 +13,9 @@ import tk.glucodata.Natives
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.CloneJournalTombstoneEntity
 import tk.glucodata.data.journal.CloneJournalIdentity
+import tk.glucodata.data.food.FoodDetailsBackup
+import tk.glucodata.data.food.FoodLibrary
+import tk.glucodata.data.food.FoodLibraryDatabase
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import java.io.File
@@ -22,6 +25,19 @@ import java.util.Locale
 
 object SettingsExporter {
     private const val TAG = "SettingsExporter"
+
+    /**
+     * Preference files too sensitive to export: vendor credentials, and restricted mode (a
+     * restored backup must not lift a child's restrictions, and its PIN hash is not something
+     * to hand around in a file). They never enter an export (values or raw XML) and are
+     * therefore never restored by an import either.
+     */
+    internal val SECRET_PREFERENCE_FILES = setOf(
+        "lumiflex_cloud", "ican_cloud", "dexcom_share", tk.glucodata.RestrictedMode.PREFS_NAME,
+    )
+
+    internal fun isSecretPreferenceFile(name: String): Boolean =
+        name in SECRET_PREFERENCE_FILES
     internal const val SCHEMA = "tk.glucodata.settings-export"
     private const val SCHEMA_VERSION = 4
 
@@ -181,7 +197,7 @@ object SettingsExporter {
 
     private suspend fun importPayloadUnchecked(
         context: Context,
-        payload: JSONObject
+        payload: JSONObject,
     ): ImportSummary {
         require(payload.optString("schema") == SCHEMA) { "Unsupported settings export" }
         val schemaVersion = payload.optInt("schemaVersion", 0)
@@ -191,7 +207,7 @@ object SettingsExporter {
 
         val preferencesSummary = importSharedPreferences(
             context,
-            payload.optJSONObject("sharedPreferences") ?: JSONObject()
+            payload.optJSONObject("sharedPreferences") ?: JSONObject(),
         )
         val nativeFileCount = importNativeSettingsFiles(
             context,
@@ -244,7 +260,10 @@ object SettingsExporter {
         val result = JSONObject()
         val prefsDir = File(context.applicationInfo.dataDir, "shared_prefs")
         val prefFiles = prefsDir
-            .listFiles { file -> file.isFile && file.extension == "xml" }
+            .listFiles { file ->
+                file.isFile && file.extension == "xml" &&
+                    !isSecretPreferenceFile(file.name.removeSuffix(".xml"))
+            }
             ?.sortedBy { it.name }
             .orEmpty()
 
@@ -270,30 +289,46 @@ object SettingsExporter {
         return result
     }
 
-    private fun importSharedPreferences(
+    internal fun importSharedPreferences(
         context: Context,
-        exportedPreferences: JSONObject
+        exportedPreferences: JSONObject,
     ): Pair<Int, Int> {
-        val importedNames = exportedPreferences.keySet()
+        val aidexName = "AiDexNativePrefs"
+        fun historyKey(key: String) = key.startsWith("algorithmAppliedMode_") ||
+            key.startsWith("algorithmEverAdaptive_") || key.startsWith("algorithmSourceBootstrapped_")
+        // Settings change requests, not the provenance of retained glucose.
+        fun importEditor(name: String): android.content.SharedPreferences.Editor {
+            val prefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+            val editor = prefs.edit()
+            if (name == aidexName) {
+                // Leave ownership keys untouched, including changes committed
+                // by a writer during import; don't restore an earlier snapshot.
+                prefs.all.keys.filterNot(::historyKey).forEach(editor::remove)
+            } else editor.clear()
+            return editor
+        }
+        val importedNames = exportedPreferences.keySet().filterNot(::isSecretPreferenceFile)
         discoverSharedPreferenceNames(context)
             .filterNot { it in importedNames }
             .forEach { name ->
-                context.getSharedPreferences(name, Context.MODE_PRIVATE)
-                    .edit()
-                    .clear()
-                    .commit()
+                importEditor(name).commit()
             }
 
         var importedValueCount = 0
         importedNames.sorted().forEach { name ->
             val entry = exportedPreferences.optJSONObject(name) ?: return@forEach
             val values = entry.optJSONObject("values") ?: JSONObject()
-            val editor = context.getSharedPreferences(name, Context.MODE_PRIVATE)
-                .edit()
-                .clear()
+            val editor = importEditor(name)
 
-            values.keySet().sorted().forEach { key ->
+            values.keySet().sorted().forEach valueLoop@ { key ->
+                if (name == aidexName && historyKey(key)) return@valueLoop
                 putPreferenceValue(editor, key, values.getJSONObject(key))
+                if (name == aidexName && key.startsWith("algorithmMode_")) {
+                    // An imported request cannot claim that local history has
+                    // already been rewritten, even when the backup lacks a mode.
+                    val appliedKey = key.replaceFirst("algorithmMode_", "algorithmAppliedMode_")
+                    if (!context.getSharedPreferences(name, Context.MODE_PRIVATE).contains(appliedKey)) editor.putInt(appliedKey, 0)
+                }
                 importedValueCount++
             }
 
@@ -433,6 +468,7 @@ object SettingsExporter {
 
     private suspend fun buildJournalData(context: Context): JSONObject {
         val journalDao = HistoryDatabase.getInstance(context).journalDao()
+        val (foods, foodDetails) = FoodLibrary(journalDao, FoodLibraryDatabase.getInstance(context).foodDetailsDao()).snapshot()
         return JSONObject()
             .put(
                 "entries",
@@ -449,8 +485,14 @@ object SettingsExporter {
             .put(
                 "foods",
                 JSONArray().also { array ->
-                    journalDao.getFoods().forEach { array.put(it.toJson()) }
+                    foods.forEach { array.put(it.toJson()) }
                 }
+            )
+            // What the food library knows beyond those rows. An older build skips the key and
+            // reads every food as the plain preset it used to be.
+            .put(
+                FoodDetailsBackup.KEY,
+                FoodDetailsBackup.toJson(foodDetails)
             )
             .put(
                 "cloneTombstones",
@@ -480,10 +522,9 @@ object SettingsExporter {
         journalDao.deleteAllInsulinPresets()
         journalDao.deleteAllCloneJournalTombstones()
         if (hasFoods) {
-            journalDao.deleteAllFoods()
-            if (foods.isNotEmpty()) {
-                journalDao.insertFoods(foods)
-            }
+            FoodLibrary(journalDao, FoodLibraryDatabase.getInstance(context).foodDetailsDao()).restore(
+                foods, FoodDetailsBackup.fromJson(journalData.optJSONArray(FoodDetailsBackup.KEY)), replaceAll = true
+            )
         }
         if (insulinPresets.isNotEmpty()) {
             journalDao.insertInsulinPresets(insulinPresets)
@@ -723,6 +764,8 @@ object SettingsExporter {
         return prefsDir
             .listFiles { file -> file.isFile && file.extension == "xml" }
             ?.mapTo(mutableSetOf()) { it.name.removeSuffix(".xml") }
+            ?.filterNot(::isSecretPreferenceFile)
+            ?.toMutableSet()
             .orEmpty()
     }
 

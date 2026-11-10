@@ -376,6 +376,51 @@ class OttaiReconnectPolicyTests {
         assertEquals(3_000L, OttaiBleManager.reconnectDelayAfterDisconnectMs(8, fastReArmAllowed = false))
     }
 
+    /**
+     * A single outage-driven storm: the phone can neither reach the peripheral
+     * nor establish a link, and the flat 3s default (justified above for an
+     * isolated drop) just re-tries at the same cadence forever. Escalating
+     * after a few consecutive failures bounds how long a stuck reconnect can
+     * hammer the radio before backing off.
+     */
+    @Test
+    fun repeatedFailuresEscalateBackoffInsteadOfRetryingFlat() {
+        assertEquals(
+            3_000L,
+            OttaiBleManager.reconnectDelayAfterDisconnectMs(147, fastReArmAllowed = true, consecutiveFailures = 0),
+        )
+        assertEquals(
+            3_000L,
+            OttaiBleManager.reconnectDelayAfterDisconnectMs(147, fastReArmAllowed = true, consecutiveFailures = 2),
+        )
+        assertEquals(
+            6_000L,
+            OttaiBleManager.reconnectDelayAfterDisconnectMs(147, fastReArmAllowed = true, consecutiveFailures = 3),
+        )
+        assertEquals(
+            12_000L,
+            OttaiBleManager.reconnectDelayAfterDisconnectMs(147, fastReArmAllowed = true, consecutiveFailures = 4),
+        )
+        assertEquals(
+            30_000L,
+            OttaiBleManager.reconnectDelayAfterDisconnectMs(147, fastReArmAllowed = true, consecutiveFailures = 10),
+        )
+    }
+
+    /**
+     * status=8's fast re-arm is the one evidence-based exception in this table
+     * (see aSupervisionTimeoutReArmsSooner) — a failure streak must not
+     * override it, or a genuinely recoverable supervision timeout would be
+     * punished for outages it was not part of.
+     */
+    @Test
+    fun supervisionTimeoutFastReArmIgnoresTheFailureStreak() {
+        assertEquals(
+            1_500L,
+            OttaiBleManager.reconnectDelayAfterDisconnectMs(8, fastReArmAllowed = true, consecutiveFailures = 5),
+        )
+    }
+
     @Test
     fun aStatusOneThreeThreeRightAfterAShortenedReArmWithdrawsIt() {
         assertTrue(OttaiBleManager.fastReArmBounced(133, now, now - 1_800L))

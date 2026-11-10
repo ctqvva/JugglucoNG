@@ -82,8 +82,8 @@ public class MyConnectIQListener implements ConnectIQ.ConnectIQListener {
             dialog.show().setCanceledOnTouchOutside(false);
         }
 	void setdata() {
-		tk.glucodata.Applic app=(tk.glucodata.Applic)context.getApplicationContext();
-		app.numdata.loadDevices(context); 
+		AllData numdata=AllDataAccess.phone();
+		if(numdata!=null) numdata.loadDevices(context);
 //	    if(context instanceof DeviceActivity) ((DeviceActivity)context).usedev();
 	}
         @Override

@@ -77,11 +77,15 @@ import static tk.glucodata.settings.Settings.removeContentView;
 import tk.glucodata.settings.Settings;
 
 public class Menus {
-	static public boolean on = false;
+    private static void setMenusOn(boolean value) {
+        tk.glucodata.LegacyScreensAccess.setMenusOn(value);
+    }
+
+	/** The on/off flag is shared state now: see tk.glucodata.LegacyScreensAccess. */
 	static private final String LOG_ID = "Menus";
 
 	static public void show(MainActivity act) {
-		on = true;
+		setMenusOn(true);
 		LayoutInflater flater = LayoutInflater.from(act);
 		View view = flater.inflate(R.layout.menus, null, false);
 		view.setAccessibilityDelegate(Layout.accessDeli);
@@ -96,7 +100,7 @@ public class Menus {
 				;
 			}
 			;
-			on = false;
+			setMenusOn(false);
 			removeContentView(view);
 			act.requestRender();
 		});
@@ -113,7 +117,7 @@ public class Menus {
 		var menusview = view.findViewById(R.id.menus);
 		menusview.setOnClickListener(v -> {
 			act.poponback();
-			on = false;
+			setMenusOn(false);
 
 			act.lightBars(!getInvertColors());
 			removeContentView(view);
@@ -169,7 +173,8 @@ public class Menus {
 				;
 				act.lightBars(!getInvertColors());
 				removeContentView(view);
-				c.dialogs.showexport(act, c.getWidth(), c.getHeight(), null);
+				var screens = tk.glucodata.LegacyScreensAccess.get();
+				if (screens != null) screens.openExport(act, c.getWidth(), c.getHeight(), null);
 			}
 
 		});

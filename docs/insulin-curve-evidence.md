@@ -6,7 +6,7 @@ JugglucoNG uses an insulin curve as relative glucose-lowering activity over time
 
 Model version 2 uses pharmacodynamic glucose infusion rate (GIR) profiles from euglycaemic clamp studies where a usable source exists. Each curve is normalized to its own maximum because NG needs relative activity; absolute GIR cannot be transferred between people as a personalized effect size. Insulin sensitivity remains a separate prediction parameter.
 
-The 100% point is the maximum of the selected mean GIR profile. It is the modelled peak, not the onset of action and not 100% of an injected dose. Where a label reports first measurable effect, NG stores that timing separately instead of inventing a non-zero activity magnitude at the onset anchor.
+The 100% point is the maximum of the selected mean GIR profile. It is the modelled peak, not the onset of action and not 100% of an injected dose. Where a label reports first measurable effect, NG stores that timing separately instead of inventing a non-zero activity magnitude at the onset anchor. That timing must never zero out activity the plotted GIR shows: Fiasp's label gives 16–20 min, yet its GIR figure rises from ~5 min, so its curve and onset follow the figure.
 
 These are population-average reference models, not clinical validation for an individual. Injection site, dose, exercise, temperature, illness, renal or hepatic function, and within-person variation can change insulin action substantially.
 
@@ -29,7 +29,7 @@ These are population-average reference models, not clinical validation for an in
 | NovoRapid / NovoLog | aspart | Unverified | No complete standalone general GIR curve in the selected label | Existing approximation retained and labelled. |
 | Humalog | lispro | Unverified | Meal-response data, not a complete standalone GIR curve | Existing approximation retained and labelled. |
 | Apidra | glulisine | Unverified | Comparative meal data and an obese subgroup GIR plot | Existing approximation retained rather than generalising a subgroup curve. |
-| Fiasp | aspart | Single dose | 0.1, 0.2 and 0.4 U/kg | Three GIR profiles and exact label timing anchors; interpolate only inside the observed dose range. |
+| Fiasp | aspart | Single dose | 0.1, 0.2 and 0.4 U/kg | Three GIR profiles with exact label peak anchors; onset is read from the plotted GIR (~5 min), not the label's 16–20 min "first measurable effect"; interpolate only inside the observed dose range. |
 | Lyumjev | lispro-aabc | Single dose | 7, 15 and 30 U | Three GIR profiles and exact label timing anchors; interpolate only inside the observed dose range. |
 | Afrezza | human | Single dose | 4, 12 and 48 U | Three baseline-corrected GIR profiles and exact label timing anchors. |
 | Humulin N / Novolin N | NPH human | Reference | 0.4 U/kg | Median maximum effect is 6.5 h; the clamp ends near 22 h with GIR remaining, so calculation stays off. |
@@ -58,7 +58,7 @@ This table compares the original NG catalogue with model version 2. “Observed 
 | NovoRapid / NovoLog | Generic rapid polynomial | Retained but explicitly unverified because the label graph is a meal glucose response, not GIR |
 | Humalog | Undocumented polynomial, peak 60 min | Retained but explicitly unverified because the label graph is a meal glucose response, not GIR |
 | Apidra | Undocumented polynomial, peak 65 min | Retained but explicitly unverified; available GIR is from an obese subgroup |
-| Fiasp | Undocumented polynomial, peak 55 min, 6 h span | 0.1/0.2/0.4 U/kg GIR profiles; reference onset 20 min, peak 91 min, observed end 5 h |
+| Fiasp | Undocumented polynomial, peak 55 min, 6 h span | 0.1/0.2/0.4 U/kg GIR profiles; reference onset 5 min (model version 3; version 2 held activity at zero until 20 min), peak 91 min, observed end 5 h |
 | Lyumjev | Approximation, onset 15 min, peak 95 min, 370 min span | 7/15/30 U GIR profiles; reference onset 17 min, peak 120 min, end 276 min |
 | Afrezza | Approximation, onset 12 min, peak 45 min, 210 min span | 4/12/48 U GIR profiles; 12 U reference onset 12 min, peak 45 min, end 180 min |
 | Humulin N / Novolin N | Approximation, onset 90 min, peak 6 h, 12 h span | 0.4 U/kg mean GIR, median maximum 6.5 h, observed to 22 h with incomplete tail |

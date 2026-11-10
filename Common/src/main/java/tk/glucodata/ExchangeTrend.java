@@ -153,6 +153,12 @@ public final class ExchangeTrend {
         sensorTrendCache.put(key, new Sample(timeMillis, trend));
     }
 
+    /** A replacement AiDex model must derive direction from its own values. */
+    public static void clearAiDexTrend(String sensorId) {
+        final String key = cacheKey(sensorId);
+        if (key != null) sensorTrendCache.remove(key);
+    }
+
     private static ExchangeTrend fromRate(float rateMgdlPerMinute, String source) {
         if (!Float.isFinite(rateMgdlPerMinute)) {
             return unknown();

@@ -1,0 +1,21 @@
+# Composable files that call Applic.* directly (plan §2.3, ArchitectureGateTests).
+#
+# This list may only shrink: a new file added to it, or a stale line for one already fixed, fails
+# the build (ArchitectureGateTests.composablesDoNotGrowInCallsToApplic).
+src/mobile/java/tk/glucodata/ui/DashboardComponents.kt
+src/mobile/java/tk/glucodata/ui/ExchangeSettingsScreens.kt
+src/mobile/java/tk/glucodata/ui/InsulinPenSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/MirrorSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/OutboundApiSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/alerts/AlertSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/alerts/SoundPicker.kt
+src/mobile/java/tk/glucodata/ui/journal/JournalCompose.kt
+src/mobile/java/tk/glucodata/ui/setup/SibionicsSetupWizard.kt
+src/mobile/java/tk/glucodata/ui/stats/StatsViewModel.kt
+src/mobile/java/tk/glucodata/ui/util/BleDeviceScanner.kt
+src/wear/java/tk/glucodata/ui/WearApp.kt
+src/wear/java/tk/glucodata/ui/screens/AlertsScreen.kt
+src/wear/java/tk/glucodata/ui/screens/CalibrationScreen.kt
+src/wear/java/tk/glucodata/ui/screens/CalibrationsScreen.kt
+src/wear/java/tk/glucodata/ui/screens/SensorScreen.kt

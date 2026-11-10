@@ -2,6 +2,7 @@ package tk.glucodata.webserver
 
 import java.io.ByteArrayInputStream
 import java.math.BigInteger
+import java.net.InetAddress
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.cert.CertificateExpiredException
@@ -98,7 +99,15 @@ class SelfSignedCertificateTests {
         val addresses = certificate.subjectAlternativeNames!!
             .filter { it[0] == 7 }
             .map { it[1] as String }
-        assertEquals(listOf("0:0:0:0:0:0:0:1"), addresses)
+        assertEquals(1, addresses.size)
+        // The platform X.509 parser's own choice of IPv6 string form for a SAN entry is not
+        // part of what this class round-trips (see the class doc) and is not stable across
+        // JDKs: Temurin 17 writes the uncompressed "0:0:0:0:0:0:0:1"; Temurin 21 writes the
+        // RFC 5952 compressed form, "::1". A literal expectation here passed on the JDK it
+        // was written against and failed on CI's newer one for reasons that have nothing to
+        // do with the encoder. Parse whichever string the platform produced back into an
+        // address and compare bytes instead.
+        assertArrayEquals(loopbackV6, InetAddress.getByName(addresses[0]).address)
     }
 
     @Test

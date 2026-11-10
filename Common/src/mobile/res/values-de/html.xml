@@ -310,7 +310,7 @@ Nightscout/xDrip-Webserver-Befehlen finden Sie unter
 </string>
 <string name="about" formatted="false">
 <![CDATA[
-<p><a href="https://www.juggluco.nl/Jugglucohelp/be/about.html">be</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/de/about.html">de</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/fr/about.html">fr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/it/about.html">it</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/nl/about.html">nl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pl/about.html">pl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pt/about.html">pt</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/ru/about.html">ru</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/sv/about.html">sv</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/tr/about.html">tr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/uk/about.html">uk</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/zh/about.html">zh</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/about.html?lang=en">en</a>&emsp;&emsp;</p><h1><font face="Times New Roman">About</font></h1>
+<p><a href="https://www.juggluco.nl/Jugglucohelp/be/about.html">be</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/de/about.html">de</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/fr/about.html">fr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/it/about.html">it</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/nl/about.html">nl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pl/about.html">pl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pt/about.html">pt</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/ru/about.html">ru</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/sv/about.html">sv</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/tr/about.html">tr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/uk/about.html">uk</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/zh/about.html">zh</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/about.html?lang=en">en</a>&emsp;&emsp;</p><h1><font face="Times New Roman">Über die App</font></h1>
 <p><font face="Liberation Serif, serif"><font size="3" style="font-size: 12pt">Juggluco
 wurde von&nbsp;<a href="https://www.juggluco.nl/Juggluco">Jaap
 Korthals Altes</a> geschrieben.</font></font></p>
@@ -421,7 +421,7 @@ angeben, welche Daten gesendet werden sollen.</p>
 Dosis, Lebensmittel und Sportdaten, die Sie angegeben haben.</p>
 <p align="left" style="line-height: 100%; margin-bottom: 0in"><b>Scans</b>:
 Daten, die durch das Scannen des Sensors empfangen wurden (Scans und
-History).</p>
+Verlauf).</p>
 <p align="left" style="line-height: 100%; margin-bottom: 0in"><b>Stream</b>:
 die über Bluetooth empfangenen Daten.</p>
 <p align="left" style="line-height: 100%; margin-bottom: 0in">Manchmal
@@ -842,9 +842,9 @@ geben Sie die 32-stellige Hex-Zeichenfolge ein.&nbsp;Juggluco auf
 einem Gerät kann nur mit einer Uhren-App auf einer Uhr verbunden
 werden.&nbsp;Änderungen führen zu Datenverlust.</span></span></span></span></font></font></span></p>
 <h2 class="western" style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; orphans: 2; widows: 2; margin-top: 0.14in; margin-bottom: 0.08in; background: transparent">
-<font face="Liberation Sans, sans-serif"><font size="4" style="font-size: 16pt">Shortcuts</font></font></h2>
+<font face="Liberation Sans, sans-serif"><font size="4" style="font-size: 16pt">Kurzbefehle</font></font></h2>
 <p style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; orphans: 2; widows: 2">
-<font face="Times New Roman"><font size="4" style="font-size: 14pt">Shortcuts
+<font face="Times New Roman"><font size="4" style="font-size: 14pt">Kurzbefehle
 werden an die Garmin-Uhren-App Kerfstok gesendet, um bestimmte Werte
 einfach einzufügen.</font></font></p>
 <h2 class="western" style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; orphans: 2; widows: 2; margin-top: 0.14in; margin-bottom: 0.08in; background: transparent">
@@ -956,7 +956,7 @@ Libreview-Format speichern. Dies ermöglicht den Import von Daten von
 Nicht-Freestyle-Libre-Sensoren in Programme und Webdienste, die
 dieses Format benötigen. Für Dexcom-Sensoren werden die
 5-Minuten-Werte gespeichert, für Sibionics-Sensoren alle 5 Minuten
-ein Stream-Wert. Auch die Historywerte der Libre-Sensoren 0, 2 und 3
+ein Stream-Wert. Auch die Verlaufswerte der Libre-Sensoren 0, 2 und 3
 werden gespeichert. Insulindosen, Kohlenhydrate und Bemerkungen
 werden erst gespeichert, nachdem Sie diesen <a href="https://www.juggluco.nl/Jugglucohelp/de/setlibrenumtype.html">Kategorien</a> unter linkem
 Menü → Einstellungen → Daten austauschen → Libreview → <a href="https://www.juggluco.nl/Jugglucohelp/de/librenumhelp.html">Mengen senden</a> Etiketten zugewiesen haben.</p>
@@ -1100,7 +1100,7 @@ zwischen zwei Fingern ändern.</font></font></p>
 	</tr>
 	<tr>
 		<td width="138" valign="top" style="border: none; padding: 0in"><p style="orphans: 2; widows: 2; background: transparent">
-			History&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[x]</p>
+			Verlauf&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[x]</p>
 		</td>
 	</tr>
 	<tr>
@@ -1128,7 +1128,7 @@ dass Scans in der Grafik angezeigt werden.&nbsp;Ein Scan ist der
 aktuelle Glukosewert, den Sie erhalten, wenn Sie Ihren Sensor
 scannen.&nbsp;Beim Scannen werden auch 15-Minuten-Messungen der
 letzten 8 Stunden vom Sensor auf das Smartphone übertragen.&nbsp;Die
-Anzeige dieser Werte kann durch Berühren von&nbsp;<i>History</i>&nbsp;gesteuert
+Anzeige dieser Werte kann durch Berühren von&nbsp;<i>Verlauf</i>&nbsp;gesteuert
 werden. <i>Stream</i>&nbsp;steht für Glukosewerte, die jede Minute
 per Bluetooth von einem Freestyle libre 2 Sensor an dieses Applet
 gesendet werden.</font></font></p>
@@ -1213,7 +1213,7 @@ Glukosewerte über Bluetooth empfangen hat, können Sie einige
 Statistiken anzeigen, indem Sie </span></span></span></span></font></font></span><span style="font-variant: normal"><font face="Times New Roman"><font size="4" style="font-size: 14pt"><span style="letter-spacing: normal"><span lang="de-DE"><span style="font-style: normal"><b>Statistik</b></span></span></span></font></font></span><span style="font-variant: normal"><span style="letter-spacing: normal">&nbsp;</span></span><span style="font-variant: normal"><span style="text-decoration: none"><font face="Times New Roman"><font size="4" style="font-size: 14pt"><span style="letter-spacing: normal"><span lang="de-DE"><span style="font-style: normal"><span style="font-weight: normal">berühren</span></span></span></span></font></font></span></span><span style="font-variant: normal"><span style="text-decoration: none"><span style="letter-spacing: normal">&nbsp;</span></span></span><span style="font-variant: normal"><font face="Times New Roman"><font size="4" style="font-size: 14pt"><span style="letter-spacing: normal"><span lang="de-DE"><span style="font-style: normal"><span style="font-weight: normal">.&nbsp;Es
 zeigt den Prozentsatz der Messungen in bestimmten Glukosebereichen,
 den Glukose-Management-Indikator (ein Prädiktor für HbA1c), die
-Glukosevariabilität und ein Überblick Graph, das den Glukosewert
+Glukosevariabilität und ein Übersichtsdiagramm, das den Glukosewert
 zeigt, unter dem 100 %, 95 %, 75 %, 50 %, 25 % und 0% der Werte
 liegen zu jedem Zeitpunkt des Tages.</span></span></span></span></font></font></span></p>
 <p style="font-variant: normal; letter-spacing: normal; font-weight: normal; line-height: 0.17in; orphans: 2; widows: 2; margin-bottom: 0.08in; background: transparent">
@@ -1244,7 +1244,7 @@ liegen zu jedem Zeitpunkt des Tages.</span></span></span></span></font></font></
 	</tr>
 	<tr>
 		<td width="96" height="26" valign="top" style="border: none; padding: 0in"><p style="orphans: 2; widows: 2; background: transparent">
-			About</p>
+			Über die App</p>
 		</td>
 	</tr>
 	<tr>
@@ -1378,9 +1378,9 @@ an Libreview gesendet werden sollen.</p>
 <p><a href="https://www.juggluco.nl/Jugglucohelp/be/libreview.html">be</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/de/libreview.html">de</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/fr/libreview.html">fr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/nl/libreview.html">nl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pl/libreview.html">pl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pt/libreview.html">pt</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/ru/libreview.html">ru</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/tr/libreview.html">tr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/uk/libreview.html">uk</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/zh/libreview.html">zh</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/libreview.html?lang=en">en</a>&emsp;&emsp;</p><h1>Libreview</h1>
 <p>Juggluco kann Glukosedaten und -mengen an Libreview senden. Bei
 Verwendung von Libre 0- oder 3-Sensoren, US/CA/AU Libre 2-Sensoren
-oder anderen Libre 2-Sensoren mit eingestelltem <i>Bluetooth History,</i>
-sendet Juggluco die Historywerte an Libreview. <span style="font-variant: normal"><span style="font-style: normal">Wenn
-Libre 2-Sensoren ohne</span></span> „<i>Bluetooth History</i>“
+oder anderen Libre 2-Sensoren mit eingestelltem <i>Bluetooth-Verlauf,</i>
+sendet Juggluco die Verlaufswerte an Libreview. <span style="font-variant: normal"><span style="font-style: normal">Wenn
+Libre 2-Sensoren ohne</span></span> „<i>Bluetooth-Verlauf</i>“
 verwendet werden , verwendet Juggluco die über Bluetooth empfangenen
 Stream-Daten, um diese 15-Minuten-Punkte zu erstellen, indem die
 Stream-Werte um jeden Punkt herum gemittelt werden.</p>
@@ -1439,11 +1439,11 @@ beispielsweise an, dass 100 % der Zeit aktiv sind, während der
 Statistikbildschirm von Juggluco 96,0 % anzeigt. Außerdem werden
 einige hohe und niedrige Werte gemittelt, so dass Libreview eine
 etwas höhere <i>Zielzeit</i> angibt als der Statistikbildschirm von
-Juggluco. Da die auf den Sensoren erstellten History-Werte weniger
+Juggluco. Da die auf den Sensoren erstellten Verlaufswerte weniger
 extrem sind als der Durchschnitt der Stream-Werte um einen
-History-wert herum, ist dieser Unterschied größer, wenn Libreview
-auf den History-<span style="font-variant: normal"><span style="font-style: normal">Werten</span></span>
-basiert , wie wenn „Bluetooth History“ in Juggluco aktiviert ist
+Verlaufswert herum, ist dieser Unterschied größer, wenn Libreview
+auf den Verlaufs-<span style="font-variant: normal"><span style="font-style: normal">Werten</span></span>
+basiert , wie wenn „Bluetooth-Verlauf“ in Juggluco aktiviert ist
 oder Librelink verwendet wird .</p>
 <p>Juggluco kann mit mehreren Sensoren gleichzeitig verbunden werden,
 während Librelink jeweils nur einen Sensor verwaltet. Juggluco
@@ -1808,7 +1808,7 @@ den angegebenen Zahlen</b></span></font></font>&nbsp;<span lang="de-DE">.&nbsp;B
 10 – 999, um nach Werten zwischen 10 und 999 zu suchen.</span></font></font></p>
 <p style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; orphans: 2; widows: 2; margin-bottom: 0in; background: transparent">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt">Glukosewerte
-werden in Scan, History und Stream getrennt.</font></font></p>
+werden in Scan, Verlauf und Stream getrennt.</font></font></p>
 <p style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; orphans: 2; widows: 2; margin-bottom: 0in; background: transparent">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt"><font face="Cambria, serif"><font size="3" style="font-size: 12pt"><span style="letter-spacing: 0.8pt"><span lang="de-DE"><i>Scan</i></span></span></font></font><font face="Cambria, serif"><font size="3" style="font-size: 12pt"><span style="letter-spacing: 0.8pt"><span lang="de-DE"><i>s</i></span></span></font></font>&nbsp;<span lang="de-DE">:
 Wert, der unmittelbar nach dem Scannen angezeigt wird.</span></font></font></p>
@@ -1838,7 +1838,7 @@ angeben, die Sie interessiert. Wenn Sie an Hypos zwischen 22:00 Uhr
 abends und 07:00 Uhr morgens interessiert sind, drücken Sie auf die
 erste Zeitanzeige (Anzeige 00:00 Uhr beim Start) und ändern Sie es
 auf 22:00 und ändern Sie die zweite Zeitanzeige auf 07:00 (Sie
-müssen auch Stream und/oder History auswählen und einen
+müssen auch Stream und/oder Verlauf auswählen und einen
 Wertebereich von 0 bis 3,9 mmol/L (70 mg/dL) angeben).</span></font></font></p>
 <p style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; orphans: 2; widows: 2; margin-bottom: 0in; background: transparent">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt"><span lang="de-DE">Durch
@@ -1890,17 +1890,17 @@ einen US-ähnlichen Sensor.</font></p>
 der Standortberechtigung für die Suche nach einer
 Bluetooth-Geräteadresse verwendet werden kann, aber auch für die
 spätere Kontaktaufnahme mit Bluetooth-Geräten benötigt wird.</font></p>
-<p style="border: none; padding: 0in"><i><b>Bluetooth history: </b></i>Bei
-Libre 0 und 2 handelt es sich beim History um Werte der Vergangenheit
+<p style="border: none; padding: 0in"><i><b>Bluetooth-Verlauf: </b></i>Bei
+Libre 0 und 2 handelt es sich beim Verlauf um Werte der Vergangenheit
 im 15-Minuten-Intervall. Bisher wurden sie nur durch Scannen
-empfangen. Wenn Sie diese Option aktivieren, werden die History-Werte
+empfangen. Wenn Sie diese Option aktivieren, werden die Verlaufswerte
 auch über Bluetooth empfangen. Auch andere Dinge werden anders
-funktionieren. An Libreview werden die History-Werte anstelle der
+funktionieren. An Libreview werden die Verlaufswerte anstelle der
 Durchschnittswerte der Streamwerte gesendet. Der Nachteil ist, dass
 es langsamer ist. Dies kann bei WearOS-Uhren ein Problem sein. Diese
 Option ist für Libre 3-Sensoren und US Libre 2-Sensoren immer
 aktiviert.</p>
-<p><b>Bug</b>: Nur unter WearOS für Libre 3 vorhanden. Dies muss auf der Samsung Galaxy Watch 5 und höher eingestellt werden, bis Samsung diesen Fehler behebt. Ohne diese Option werden die Glukosewerte im Abstand von 2 statt 1 Minute empfangen.</p>
+<p><b>Fehlerumgehung</b>: Nur unter WearOS für Libre 3 vorhanden. Dies muss auf der Samsung Galaxy Watch 5 und höher eingestellt werden, bis Samsung diesen Fehler behebt. Ohne diese Option werden die Glukosewerte im Abstand von 2 statt 1 Minute empfangen.</p>
 <p>⏰: Lassen Sie Juggluco eine Weckerfunktion verwenden, um den
 richtigen Zeitpunkt für die Verbindung mit Dexcom G7/ONE+-Sensoren
 sicherzustellen. Wenn sich das Gerät sonst im Tiefschlaf befindet
@@ -2128,11 +2128,11 @@ Sprache.</p>
 <string name="shortcuthelp" formatted="false">
 <![CDATA[
 <p><a href="https://www.juggluco.nl/Jugglucohelp/be/shortcuthelp.html">be</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/de/shortcuthelp.html">de</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/fr/shortcuthelp.html">fr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/it/shortcuthelp.html">it</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/nl/shortcuthelp.html">nl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pl/shortcuthelp.html">pl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pt/shortcuthelp.html">pt</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/ru/shortcuthelp.html">ru</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/tr/shortcuthelp.html">tr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/uk/shortcuthelp.html">uk</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/zh/shortcuthelp.html">zh</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/shortcuthelp.html?lang=en">en</a>&emsp;&emsp;</p><p align="left" style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; line-height: 0.19in; orphans: 2; widows: 2; margin-bottom: 0.14in">
-<font face="Times New Roman"><font size="4" style="font-size: 14pt"><font face="Cambria, serif"><b>Shortcuts</b></font><font face="Cambria, serif">
+<font face="Times New Roman"><font size="4" style="font-size: 14pt"><font face="Cambria, serif"><b>Kurzbefehle</b></font><font face="Cambria, serif">
 können in Kerfstok</font>&nbsp;verwendet werden.</font></font></p>
 <p align="left" style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; line-height: 0.19in; orphans: 2; widows: 2; margin-bottom: 0.14in">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt">In
-der Zahleneingabemaske auf der Uhr gelangt man zum Shortcuts-Screen
+der Zahleneingabemaske auf der Uhr gelangt man zum Kurzbefehle-Screen
 (auf meiner Vivoactive 3 Uhr durch Wischen nach links).&nbsp;Hier
 sehen Sie eine Liste von Etikette;&nbsp;Durch Drücken auf einen von
 ihnen wird ein entsprechender Wert in den Zahlenbildschirm
@@ -2141,18 +2141,18 @@ Operatoren in Kombination mit Zahlen sein, zB *0.5 um mit 0.5 zu
 multiplizieren.</font></font></p>
 <p align="left" style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; line-height: 0.19in; orphans: 2; widows: 2; margin-bottom: 0.14in">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt">Hier
-im Einstellungsmenü können Sie diese Shortcuts erstellen, entfernen
+im Einstellungsmenü können Sie diese Kurzbefehle erstellen, entfernen
 und bearbeiten.</font></font></p>
 <p align="left" style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; line-height: 0.19in; orphans: 2; widows: 2; margin-bottom: 0.14in">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt">Auf
 der linken Seite wird eine&nbsp;<font face="Cambria, serif"><font size="3" style="font-size: 13pt"><b>Liste</b></font></font>&nbsp;bestehender
-Shortcuts angezeigt. Nachdem Sie eine davon berührt haben, erscheint
-eine Anzeige, in der Sie die Shortcut löschen oder die Bezeichnung
+Kurzbefehle angezeigt. Nachdem Sie einen davon berührt haben, erscheint
+eine Anzeige, in der Sie den Kurzbefehl löschen oder die Bezeichnung
 oder den Wert ändern können.</font></font></p>
 <p align="left" style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; line-height: 0.19in; orphans: 2; widows: 2; margin-bottom: 0.14in">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt"><font face="Cambria, serif"><font size="3" style="font-size: 13pt"><b>Mit
 </b></font></font><font face="Cambria, serif"><font size="3" style="font-size: 13pt"><b>Neu</b></font></font>&nbsp;wird
-eine neue Shortcut erstellt&nbsp;.</font></font></p>
+ein neuer Kurzbefehl erstellt&nbsp;.</font></font></p>
 <p align="left" style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; line-height: 0.19in; orphans: 2; widows: 2; margin-bottom: 0.14in">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt">Änderungen
 werden erst nach Drücken der&nbsp;Schaltfläche&nbsp;<font face="Cambria, serif"><font size="3" style="font-size: 13pt"><b>Speichern</b></font></font><font face="Cambria, serif"><font size="3" style="font-size: 13pt"><b>
@@ -2225,7 +2225,7 @@ dass die Glukosewerte stärker vom Mittelwert abweichen.</font></font></p>
 <h3 class="western">Speichern</h3>
 <p><font face="Times New Roman" size="4" style="font-size: 14pt">Dies ist ein Bericht über Ihre Glukosewerte der angegebenen Tage. Er enthält Statistiken, eine Übersichtsgrafik und ein Bild der einzelnen Tage. Aktivieren Sie dazu linkes Menü → Einstellungen → Daten austauschen → Webserver. Die URL <a href="http://127.0.0.1:17580/x/report">http://127.0.0.1:17580/x/report</a> wird im Webbrowser geöffnet. Sie können ihn als PDF ausdrucken und per E-Mail an Ihren Arzt senden.
 </font></p>
-<h3 class="western">Überblick Graph</h3>
+<h3 class="western">Übersichtsdiagramm</h3>
 <p style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; line-height: 0.19in; orphans: 2; widows: 2; background: transparent">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt">(Nur
 vorhanden, wenn Stream-glukosewerte von mindestens 9 Tagen verfügbar
@@ -2233,7 +2233,7 @@ sind).</font></font></p>
 <p style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; line-height: 0.19in; orphans: 2; widows: 2; background: transparent">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt">Alle
 Stream-glukosewerte in diesem Zeitraum werden verwendet, um einen
-Überblick Graphen zu zeichnen, das für jede Minute des Tages zeigt,
+Übersichtsdiagrammen zu zeichnen, das für jede Minute des Tages zeigt,
 wie die Glukosewerte verteilt waren.&nbsp;Die schwarze oder weiße
 Mittellinie zeigt den Glukosewert, unter dem 50 Prozent der
 Glukosewerte in jeder Minute des Tages liegen.&nbsp;Das hellste Blau
@@ -2253,7 +2253,7 @@ mittleren Dunkelblau) 25 % der Werte, unterhalb der schwarzen Linie
 geglättet.</font></font></p>
 <p style="font-variant: normal; letter-spacing: normal; font-style: normal; font-weight: normal; line-height: 0.19in; orphans: 2; widows: 2; background: transparent">
 <font face="Times New Roman"><font size="4" style="font-size: 14pt">Tippen
-Sie auf den Bildschirm, um den Überblick Graphen zu schließen,
+Sie auf den Bildschirm, um den Übersichtsdiagrammen zu schließen,
 außer dass sich der Graph beim Tippen auf den linken oder rechten
 Rand im Tagesverlauf vor- oder zurückbewegt. Die Kurve kann auch
 durch Scrollen vor- und zurückbewegt werden. Die Zeitskala kann
@@ -2266,7 +2266,7 @@ bewegt werden.</font></font></p>
 </string>
 <string name="staticnum" formatted="false">
 <![CDATA[
-<p><a href="https://www.juggluco.nl/Jugglucohelp/be/staticnum.html">be</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/de/staticnum.html">de</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/fr/staticnum.html">fr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/nl/staticnum.html">nl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pl/staticnum.html">pl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/ru/staticnum.html">ru</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/tr/staticnum.html">tr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/uk/staticnum.html">uk</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/zh/staticnum.html">zh</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/staticnum.html?lang=en">en</a>&emsp;&emsp;</p><h1 align="center">Blocked</h1>
+<p><a href="https://www.juggluco.nl/Jugglucohelp/be/staticnum.html">be</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/de/staticnum.html">de</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/fr/staticnum.html">fr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/nl/staticnum.html">nl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pl/staticnum.html">pl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/ru/staticnum.html">ru</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/tr/staticnum.html">tr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/uk/staticnum.html">uk</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/zh/staticnum.html">zh</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/staticnum.html?lang=en">en</a>&emsp;&emsp;</p><h1 align="center">Mengeneingabe gesperrt</h1>
 <p style="line-height: 100%; margin-bottom: 0in"><span lang="de-DE"><b>Das
 Menü links in der Mitte -&gt; </b></span><span lang="de-DE"><b>Klon</b></span><span lang="de-DE"><b>
 -&gt; „</b></span><span lang="de-DE"><b>Mengen erhalten vom Klon</b></span><span lang="de-DE">“
@@ -2291,9 +2291,9 @@ Option.</p>
   <p><strong>Geschwindigkeit</strong>: Eine höhere Zahl bedeutet schnelleres Sprechen.</p>
   <p><strong>Tonhöhe</strong>: Eine höhere Zahl bedeutet eine höhere Tonhöhe.</p>
   <p><strong>Test</strong>: sagt den letzten Glukosewert aus.</p>
-  <p>Auf einigen Telefonen müssen die Android-Einstellungen für Text-zu-Sprache geändert werden, damit es funktioniert. Manchmal müssen die Daten einer Sprache installiert oder die Konfiguration geändert werden. Auf Samsung-Handys muss "<i>Speech Services by Google</i>" anstelle von "<i>Samsung Text-zu-Sprache</i> <i>Engine</i>" eingestellt werden, um zwischen verschiedenen Stimmen wählen zu können. Diese Optionen finden Sie, indem Sie in den Android-Einstellungen nach Text-to-Speech suchen oder zu <i>Sprache und Eingabe -&gt;</i> <i>Text-zu-Sprache</i> or S<i>ystem -&gt; Sprache und Eingabe -&gt; Sprachausgabe</i> gehen. Hier können Sie "<i>Google Sprachausgabe</i>" oder "<i>Speech services by</i> <i>Google</i>" auswählen und Sprachdaten installieren. Bei anderen Telefonen befindet es sich unter <i>Systemeinstellungen</i> <i>-&gt;</i> <i>Bedienungshilfen</i> <i>-&gt;</i> <i>Sehen -&gt;</i> <i>Text-in-Sprache-Einstellungen</i>.</p>
-  <h2>Talk touch</h2>
-  <p>Wenn Talk touch eingeschaltet ist, wird durch das Berühren bestimmter Stellen Sprechen erzeugt:</p>
+  <p>Auf einigen Telefonen müssen die Android-Einstellungen für Text-zu-Sprache geändert werden, damit es funktioniert. Manchmal müssen die Daten einer Sprache installiert oder die Konfiguration geändert werden. Auf Samsung-Handys muss "<i>Speech Services by Google</i>" anstelle von "<i>Samsung Text-zu-Sprache</i> <i>Engine</i>" eingestellt werden, um zwischen verschiedenen Stimmen wählen zu können. Diese Optionen finden Sie, indem Sie in den Android-Einstellungen nach Text-zu-Sprache suchen oder zu <i>Sprache und Eingabe -&gt;</i> <i>Text-zu-Sprache</i> oder S<i>ystem -&gt; Sprache und Eingabe -&gt; Sprachausgabe</i> gehen. Hier können Sie "<i>Google Sprachausgabe</i>" oder "<i>Speech services by</i> <i>Google</i>" auswählen und Sprachdaten installieren. Bei anderen Telefonen befindet es sich unter <i>Systemeinstellungen</i> <i>-&gt;</i> <i>Bedienungshilfen</i> <i>-&gt;</i> <i>Sehen -&gt;</i> <i>Text-in-Sprache-Einstellungen</i>.</p>
+  <h2>Bei Berührung vorlesen</h2>
+  <p>Wenn Bei Berührung vorlesen eingeschaltet ist, wird durch das Berühren bestimmter Stellen Sprechen erzeugt:</p>
   <ul>
     <li>
       <p>Berühren der aktuellen Glukose;</p>
@@ -2410,7 +2410,7 @@ oder <a href="https://play.google.com/store/apps/details?id=sk.trupici.gwatch.we
 Glukosewerte von Glucodata Broadcast empfangen (siehe linkes Menü -&gt;
 Einstellungen -&gt; <a href="https://www.juggluco.nl/Jugglucohelp/de/exchangehelp.html">Daten
 austauschen</a>).</p>
-<h2 class="western">xDrip Watch-Apps</h2>
+<h2 class="western">xDrip-Uhren-Apps</h2>
 <p>Juggluco enthält einen xDrip-Webserver.&nbsp;Dadurch ist es
 möglich, xDrip-Watch-Apps direkt mit Juggluco zu verwenden.&nbsp;xDrip
 zeigt nur alle 5 Minuten einen neuen Glukosewert an, während
@@ -2452,7 +2452,7 @@ http.&nbsp;Ich habe auch eine https-Version erstellt, aber das
 scheint ohne ein von einer Zertifizierungsstelle signiertes
 Zertifikat für Ihren Hostnamen nutzlos zu sein.&nbsp;Also habe ich
 es weggelassen.</p>
-<h2 class="western">Juggluco for WearOS</h2>
+<h2 class="western">Juggluco für Wear OS</h2>
 <p>Es gibt eine Version von Juggluco, die auf Wear OS portiert
 wurde.&nbsp;Die Anzeige wird an den kleineren Bildschirm angepasst
 und ein Watchface hinzugefügt.&nbsp;Das Watchface lässt sich wie
@@ -2698,7 +2698,7 @@ von Juggluco im linken Menü -&gt; Einstellungen -&gt; <a href="https://www.jugg
 </string>
 <string name="IOBhelp" formatted="false">
 <![CDATA[
-<p><a href="https://www.juggluco.nl/Jugglucohelp/de/IOBhelp.html">de</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/nl/IOBhelp.html">nl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/tr/IOBhelp.html">tr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/IOBhelp.html?lang=en">en</a>&emsp;&emsp;</p><h1>Insulin on Board (IOB)</h1>
+<p><a href="https://www.juggluco.nl/Jugglucohelp/de/IOBhelp.html">de</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/nl/IOBhelp.html">nl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/tr/IOBhelp.html">tr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/IOBhelp.html?lang=en">en</a>&emsp;&emsp;</p><h1>Aktives Insulin (IOB)</h1>
 <p>Der IOB gibt an, wie viel Insulin von vorherigen Insulingaben
 übrig bleibt. Vor Juggluco 9.2.0 wurde die
 Blutinsulinkonzentrationskurve von Insulin Aspart zur Schätzung des
@@ -2796,7 +2796,7 @@ xDrip-Uhren und einigen Nightscout-Apps verwendet werden kann.</p>
 <h2 class="western">Uploader</h2>
 <p align="left" style="margin-bottom: 0in">Auf einen
 Nightscout-Server hochladen.</p>
-<h2 class="western"><a href="https://www.juggluco.nl/Jugglucohelp/de/connectionoverview.html"><span lang="de-DE">Klon/Mirror</span></a></h2><p>Senden Sie alle Daten über eine Internetverbindung an eine andere
+<h2 class="western"><a href="https://www.juggluco.nl/Jugglucohelp/de/connectionoverview.html"><span lang="de-DE">Klon/Spiegelung</span></a></h2><p>Senden Sie alle Daten über eine Internetverbindung an eine andere
 Instanz von Juggluco und erstellen Sie so einen Klon von Juggluco auf
 einem anderen Gerät. Vorhandene Daten werden überschrieben.</p>
 <h2 class="western"><a href="https://www.juggluco.nl/Jugglucohelp/de/helpexport.html"><span lang="de-DE">Export</span></a></h2>
@@ -2854,7 +2854,7 @@ und wieder beim Scannen eines Sensors versehentlich OK berührt habe.</p>
 <p align="left" style="margin-bottom: 0in">Manche Leute fragen nach
 dem Hochformat, aber ich habe das ausgeschaltet, weil es für die
 Anzeige der Glukosekurve völlig ungeeignet ist.</p>
-<h2 class="western"><a href="https://www.juggluco.nl/Jugglucohelp/de/IOBhelp.html">Insulin onboard (IOB)</a></h2>
+<h2 class="western"><a href="https://www.juggluco.nl/Jugglucohelp/de/IOBhelp.html">Aktives Insulin (IOB)</a></h2>
 <p><span lang="de-DE">IOB ist ein Maß dafür, wie viel Insulin von
 früheren Insulindosen noch vorhanden ist. Hierzu müssen Sie
 Insulindosen unter einem Etikett in der Kategorie „ </span><span lang="de-DE"><i>Schnell
@@ -3114,7 +3114,7 @@ Nightscout/xDrip-Webserver in Juggluco, an Uhren gesendete
 Glukosewerte und Schwebende Glukose verwendet. Auf der rechten Seite
 von Juggluco wird der kalibrierte Wert in großer Schrift angezeigt,
 der unkalibrierte Wert dahinter in kleiner Schrift. Er wird nicht zum
-Senden an Libreview verwendet oder auf Scans oder History werte
+Senden an Libreview verwendet oder auf Scans oder Verlaufswerte
 angewendet.</p>
 <p>Die kalibrierten Glukosewerte können jederzeit angezeigt werden,
 indem Sie im rechten mittleren Menü auf „Kalibriert“ klicken.</p>

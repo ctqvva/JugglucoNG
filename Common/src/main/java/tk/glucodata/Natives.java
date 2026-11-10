@@ -164,6 +164,8 @@ public class Natives {
         public static native void setcurrentsensor(String name);
 
         public static native String lastsensorname();
+        /** Native current only; unlike {@link #lastsensorname()} no fallback to the last sensor. */
+        public static native String currentsensorname();
 
         public static native long laststarttime();
 
@@ -458,6 +460,9 @@ public class Natives {
 
         public static native void wakehereonly();
 
+        /** A new reading for Clone, without reconnecting; see wakebackup() for that. */
+        public static native void wakestreamonly();
+
         public static native void resetbackuphost(int pos);
 
         public static native void deletebackuphost(int pos);
@@ -718,6 +723,8 @@ public class Natives {
         public static native void closedynlib();
 
         public static native strGlucose lastglucose();
+        /** Latest valid stream reading for this sensor only; never falls back to a peer. */
+        public static native strGlucose lastglucoseForSensor(String sensorName);
 
         public static native long[] getGlucoseHistory(long starttime);
 
@@ -727,6 +734,17 @@ public class Natives {
          * Returns null if sensor not found or has no data.
          */
         public static native long[] getGlucoseHistoryForSensor(String sensorName, long starttime);
+
+        /**
+         * Libre 1/2 only: the sensor's own 15-minute history (FRAM, or the history
+         * values a BLE packet carries) as stored, [time_sec, mgdl*10, ...]; null for
+         * any other sensor. getGlucoseHistoryForSensor already exports it as the Raw
+         * lane; this tells a re-sync which stored rows were history rows.
+         */
+        public static native long[] getSensorHistoryLane(String sensorName, long starttime);
+
+        /** Whether getGlucoseHistoryForSensor exports this sensor as Stream (Auto) and History (Raw). */
+        public static native boolean hasSensorHistoryLane(long dataptr);
 
         public static native byte[] getmynetinfo(String name, boolean create, int watchhassensor, boolean galaxy,
                         int setnums);
@@ -754,6 +772,9 @@ public class Natives {
          * Arrays must be equal length; returns the number of samples stored.
          */
         public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
+
+        /** Stores an upstream final primary with persisted per-reading provenance. */
+        public static native int addResolvedGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 
         public static native long ensureSensorShell(String sensorId, long startTimeSec);
 
@@ -1029,7 +1050,16 @@ public class Natives {
 
         public static native boolean removeSensorById(String sensorId);
 
+        public static native boolean finishSensorById(String sensorId);
+        /** Why activeSensors leaves this sensor out ("listed" when it does not). */
+        public static native String activeSensorReason(String sensorId);
+        /** True when every native slot of this id is finished or removed; false for an id native does not know. */
+        public static native boolean sensorFinishedById(String sensorId);
+
         public static native void unfinishSensor(long dataptr);
+
+        /** Reactivates every native slot of this id, including one removed by the user; false for an unknown id. */
+        public static native boolean unfinishSensorById(String sensorId);
 
         public static native long manualLibreAccountIDnumber();
 
@@ -1177,6 +1207,11 @@ public class Natives {
 
         public static native boolean getLibreIsViewed();
 
+        /** LibreView: stop uploading a Libre 2 sensor's readings at its official end. */
+        public static native void setLibreOfficialEnd(boolean val);
+
+        public static native boolean getLibreOfficialEnd();
+
         public static native void setRTL(boolean val);
 
         public static native boolean getRTL();
@@ -1220,6 +1255,7 @@ public class Natives {
         public static native void setpostTreatments(boolean val);
 
         public static native long getSensorStartmsec(long dataptr);
+        public static native int getSensorWarmupMinutes(long dataptr);
 
         public static native long getSensorStartmsecFromSensorptr(long sensorptr);
 
@@ -1341,6 +1377,9 @@ public class Natives {
 
         public static native byte[] getDexbackfillcmd(long dataptr);
 
+        /** {last reading received without a gap before it, newest reading}, as stream indices. */
+        public static native int[] dexBackfillState(long dataptr);
+
         public static native boolean dexbackfill(long dataptr, byte[] bluetoothdata);
 
         public static native byte[] makeRound3bytes(long dataptr);
@@ -1348,6 +1387,12 @@ public class Natives {
         public static native byte[] dexChallenger(byte[] data);
 
         public static native boolean isAuthenticated(long dataptr);
+
+        public static native String dexPairingCode(long dataptr);
+        /** The scan a Dexcom record was set up from, for replaying on the watch. */
+        public static native String dexScanPayload(long dataptr);
+        public static native long[] dexPeerAnchor(long dataptr);
+        public static native String addDexcomScanFromPeer(String scan, long[] anchor);
 
         public static native int getDexCertSize(byte[] ar);
 
@@ -1558,6 +1603,19 @@ public class Natives {
 
         public static native long accuProcessData(long dataptr, byte[] value, long mmsec);
 
+        // CareSens Air (cpp/air/java.cpp)
+        public static native long airProcessData(long dataptr, byte[] value, long[] msecptr);
+
+        public static native int airGetLast(long dataptr);
+
+        public static native boolean airSaveSensorInfo(long dataptr, byte[] value);
+
+        public static native boolean airSaveSensorInfo2(long dataptr, byte[] value);
+
+        public static native void airSaveStartSensor(long dataptr, float eapp, float vref, int elapsedSecs);
+
+        public static native byte[] airGetPin(long dataptr);
+
         /**
          * Pass as {@code trendByte} when the AiDex frame carried no trend field — the direct F003
          * live frame does not, only the 0x11 broadcast sample does. Native stores NaN for the rate
@@ -1659,7 +1717,8 @@ public class Natives {
                                                      boolean useTurnForStun,
                                                      boolean verifyRendezvousCertificate,
                                                      boolean useLocalDiscovery,
-                                                     boolean preferIPv4);
+                                                     boolean preferIPv4,
+                                                     boolean allowFallbackServers);
 
         public static native int TurnServerNR();
 

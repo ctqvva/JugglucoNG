@@ -52,12 +52,16 @@ object UiRefreshBus {
         val now = System.currentTimeMillis()
         if (now - lastComplicationUpdateMs < COMPLICATION_MIN_INTERVAL_MS) return
         lastComplicationUpdateMs = now
-        runCatching { tk.glucodata.glucosecomplication.GlucoseValue.updateall() }
+        runCatching { tk.glucodata.GlucoseValueRefreshAccess.get()?.updateAll() }
     }
 
     @JvmStatic
     fun requestStatusRefresh() {
         _events.tryEmit(Event.StatusOnly)
         runCatching { Floating.invalidatefloat() }
+        // The phone ongoing notification reconciles through the same coalesced visual
+        // path as data changes (bounded debounce in Notify); status-only work never
+        // broadcasts, alarms, or retriggers alertwatch delivery.
+        runCatching { Notify.scheduleStatusChangedRefresh() }
     }
 }

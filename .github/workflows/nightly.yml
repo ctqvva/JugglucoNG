@@ -1,0 +1,77 @@
+name: Nightly prerelease
+run-name: Nightly from trusted main
+on:
+  schedule:
+    - cron: '23 0 * * *' # 00:23 UTC / 05:23 Asia/Yekaterinburg
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nightly-release
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'ctqvva/JugglucoNG' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      build: ${{ steps.prepare.outputs.build }}
+      tag: ${{ steps.prepare.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: prepare
+        name: Skip unchanged main or a snapshot without passing CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/dist/nightly.py prepare
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    uses: ./.github/workflows/signed-build.yml
+    secrets: inherit
+    with:
+      target: all
+  publish:
+    needs: [prepare, build]
+    if: >-
+      !cancelled() && github.repository == 'ctqvva/JugglucoNG' && github.ref == 'refs/heads/main' &&
+      needs.prepare.result == 'success' &&
+      (needs.prepare.outputs.build == 'false' || needs.build.result == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Main-only, no reviewer, no secrets: scheduled publication is unattended.
+    environment: nightly-publication
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        if: needs.prepare.outputs.build == 'true'
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        if: needs.prepare.outputs.build == 'true'
+        with:
+          name: distribution-all-${{ github.sha }}
+          path: build/dist/all
+      - name: Reverify and publish dated experimental prerelease
+        if: needs.prepare.outputs.build == 'true'
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/dist/nightly.py publish
+      - name: Maintain nightly retention even when the build is skipped
+        if: needs.prepare.outputs.build == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/dist/nightly.py prune

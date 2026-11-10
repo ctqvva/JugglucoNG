@@ -1,1 +1,0 @@
-./gradlew assembleMobileLibre3SiDexGoogleDebug

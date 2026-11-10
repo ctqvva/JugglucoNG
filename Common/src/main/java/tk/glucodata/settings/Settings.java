@@ -52,7 +52,7 @@ import static tk.glucodata.Natives.removeScheduleProfile;
 import static tk.glucodata.Natives.setthreshold;
 import static tk.glucodata.NumberView.avoidSpinnerDropdownFocus;
 import static tk.glucodata.RingTones.EnableControls;
-import static tk.glucodata.Specific.useclose;
+import static tk.glucodata.VariantBootstrapAccess.useCloseButton;
 import static tk.glucodata.help.help;
 import static tk.glucodata.util.getbutton;
 import static tk.glucodata.util.getcheckbox;
@@ -109,21 +109,24 @@ import tk.glucodata.Backup;
 import tk.glucodata.BooleanSupplier;
 import tk.glucodata.BuildConfig;
 import tk.glucodata.Floating;
+import tk.glucodata.FloatingConfigScreenAccess;
 import tk.glucodata.GlucoseCurve;
-import tk.glucodata.HealthConnection;
+import tk.glucodata.ComplicationConfigAccess;
+import tk.glucodata.HealthConnectAccess;
+import tk.glucodata.LegacyScreensAccess;
 import tk.glucodata.LabelAdapter;
 import tk.glucodata.Layout;
-import tk.glucodata.Libreview;
 import tk.glucodata.Log;
 import tk.glucodata.MainActivity;
-import tk.glucodata.Menus;
-import tk.glucodata.MeterList;
 import tk.glucodata.Natives;
 import tk.glucodata.Notify;
 import tk.glucodata.NumAlarm;
 import tk.glucodata.R;
+import tk.glucodata.SetColorsScreenAccess;
 import tk.glucodata.Specific;
 import tk.glucodata.SuperGattCallback;
+import tk.glucodata.VoiceReadings;
+import tk.glucodata.XdripFollowerSend;
 
 import java.text.DecimalFormat;
 import java.util.Locale;
@@ -196,8 +199,8 @@ private class Closerun implements Runnable {
         hidekeyboard();
         finish();
          activity.lightBars(!getInvertColors( ));
-        if(tk.glucodata.Menus.on)
-            tk.glucodata.Menus.show(activity);
+        if(LegacyScreensAccess.getMenusOn())
+            LegacyScreensAccess.get().openMenus(activity);
         }
     };
 private void makesettingsin(MainActivity act) {
@@ -218,8 +221,8 @@ private void makesettingsin(MainActivity act) {
         hidekeyboard();
         finish();
            act.lightBars(!getInvertColors( ));
-        if(tk.glucodata.Menus.on)
-            tk.glucodata.Menus.show(activity);
+        if(LegacyScreensAccess.getMenusOn())
+            LegacyScreensAccess.get().openMenus(activity);
 
         };
     act.setonback(closerun[0]);
@@ -245,6 +248,10 @@ void layoutweg() {
 public static void closeview() {
     if(thisone!=null)
         thisone.finish();
+    }
+/** The phone-only legacy screens, or null on a flavour that has none (the watch). */
+static tk.glucodata.LegacyScreens legacyScreens() {
+    return tk.glucodata.LegacyScreensAccess.get();
     }
 static void hideSystemUI() {
     }
@@ -876,6 +883,7 @@ new View[]{isvalue},new View[]{ringisvalue},new View[]{usealarm},new View[]{adva
                MainActivity.poponback();
                Natives.setProfile(position);
                SuperGattCallback.initAlarmTalk();
+               VoiceReadings.changed();
                alarmsettings(context,parview);
                }
             }
@@ -905,7 +913,7 @@ final private static String  codestr=String.valueOf(BuildConfig.VERSION_CODE);
 //static private final List<String> supportedlanguages= Arrays.asList("Language","be","de","en","fr","it","nl","pl","pt","sv","uk","zh");
 //  static private final List<String> supportedlanguages= Arrays.asList("Language","be","de","en","fr","it","nl","pl","pt","sv","uk");
 //static private final List<String> supportedlanguages= Arrays.asList("Language","be","de","en","fr","it","nl","pl","pt");
-static private final List<String> supportedlanguages= SPANISH?Arrays.asList("Language","be","de","en","es","fr","it","nl","pl","pt","ru","so","sv","tr","uk","zh"):Arrays.asList("Language","be","de","en","fr","it","nl","pl","pt","ru","so","sv","tr","uk","zh");
+static private final List<String> supportedlanguages= SPANISH?Arrays.asList("Language","be","de","en","es","fr","hu","it","nl","pl","pt","ru","so","sv","tr","uk","zh"):Arrays.asList("Language","be","de","en","fr","hu","it","nl","pl","pt","ru","so","sv","tr","uk","zh");
 
 //static private final List<String> supportedlanguages= IWRU?Arrays.asList("Language","be","de","en","es","fr","it","iw","nl","pl","pt","ru","sv","uk"):Arrays.asList("Language","be","de","en","es","fr","it","nl","pl","pt","sv","uk");
 static public Spinner getGenSpin(Activity context) {
@@ -1035,15 +1043,14 @@ static private void displaysettings(MainActivity context,Settings settings) {
                     }
                 }
             ); 
-    if(!useclose)
+    if(!useCloseButton())
           close.setVisibility(GONE);
     targetlabel.setPadding((int)(tk.glucodata.GlucoseCurve.metrics.density*8.0),0,0,0);
     graphlabel.setPadding((int)(tk.glucodata.GlucoseCurve.metrics.density*8.0),0,0,0);
     //colbut.setPadding(0,0,0,0);
     threslabel.setPadding((int)(tk.glucodata.GlucoseCurve.metrics.density*7.0),0,0,0);
-     var setuseclose=getcheckbox(context,R.string.useclose,useclose) ;
+     var setuseclose=getcheckbox(context,R.string.useclose,useCloseButton()) ;
     setuseclose.setOnCheckedChangeListener( (buttonView,  isChecked) -> { 
-         Specific.setclose(isChecked);
          Natives.setdontuseclose(!isChecked); 
          context.finish();
          context.startActivity(context.getIntent());
@@ -1072,7 +1079,7 @@ Scans.setOnCheckedChangeListener( (buttonView,  isChecked) -> { Natives.setshows
 //      var iob=getcheckbox(context,"IOB",Natives.getIOB());
       var iob=getbutton(context,"IOB");
       iob.setOnClickListener(v-> {
-        tk.glucodata.IOB.mkview(context);
+        legacyScreens().openIob(context);
         });
         var dexfuture=getcheckbox(context,R.string.dexfuture,Natives.getdexcomPredict());
          dexfuture.setOnCheckedChangeListener( (buttonView,  isChecked) -> Natives.setdexcomPredict(isChecked) );
@@ -1126,7 +1133,8 @@ Scans.setOnCheckedChangeListener( (buttonView,  isChecked) -> { Natives.setshows
    colbut.setOnClickListener(v-> {
            MainActivity.doonback();
         settings.finish();
-        SetColors.show(context);
+        var colors = SetColorsScreenAccess.get();
+        if (colors != null) colors.show(context);
         });
 
 Runnable closerun= () -> {
@@ -1207,7 +1215,7 @@ private    void mksettings(MainActivity context) {
              }
 
 
-      if(!useclose)
+      if(!useCloseButton())
      close.setVisibility(GONE);
 //    CheckBox bluetooth= new CheckBox(context);
    CheckBox globalscan = new CheckBox(context);
@@ -1271,7 +1279,7 @@ private    void mksettings(MainActivity context) {
             hidekeyboard();
             finish();
      context.lightBars(!getInvertColors( ));
-         if(tk.glucodata.Menus.on) tk.glucodata.Menus.show(context);
+         if(LegacyScreensAccess.getMenusOn()) LegacyScreensAccess.get().openMenus(context);
 
             });
    var displayview=getbutton(context,R.string.display);
@@ -1280,7 +1288,7 @@ private    void mksettings(MainActivity context) {
         changelabels.setText(R.string.numberlabels);
         changelabels.setOnClickListener(v-> {
                 hidekeyboard();
-                new LabelsClass(context).mklabellayout(thelayout[0]);});
+                legacyScreens().openLabels(context, thelayout[0]);});
               }
     Button numalarm=getbutton(context,R.string.remindersname);
     Button advanced=null;
@@ -1305,7 +1313,9 @@ private    void mksettings(MainActivity context) {
         Button complications;
         if(BuildConfig.minSDK>=26) {
             complications = getbutton(context, R.string.complications);
-            complications.setOnClickListener(v -> tk.glucodata.glucosecomplication.ColorConfig.show(context, thelayout[0]));
+            complications.setOnClickListener(v -> {
+                    var config = ComplicationConfigAccess.get();
+                    if (config != null) config.show(context, thelayout[0]); });
                         final var margins=getMargins(complications);
                         margins.topMargin= (int)(tk.glucodata.GlucoseCurve.metrics.density*3.0);
                         margins.bottomMargin= (int)(tk.glucodata.GlucoseCurve.metrics.density*4.0);
@@ -1320,7 +1330,8 @@ private    void mksettings(MainActivity context) {
 
         CheckBox floatglucose=new CheckBox(context);
       floatconfig.setOnClickListener(v-> {
-         tk.glucodata.FloatingConfig.show(context,thelayout[0]);
+         var floating = FloatingConfigScreenAccess.get();
+         if (floating != null) floating.show(context,thelayout[0]);
          });
         floatglucose.setText("   " );
      View[] talkrow;
@@ -1378,7 +1389,9 @@ private    void mksettings(MainActivity context) {
           else {
                 numdis= new View[]{changelabels,displayview};
                 }
-        floatconfig.setOnClickListener(v-> tk.glucodata.FloatingConfig.show(context,thelayout[0]));
+        floatconfig.setOnClickListener(v-> {
+                var floating = FloatingConfigScreenAccess.get();
+                if (floating != null) floating.show(context,thelayout[0]); });
 
         View[] rowglu=new View[]{floatconfig,calibration,glucosenotify};
 //        View[] rowglu=new View[]{floatconfig,glucosenotify};
@@ -1498,7 +1511,7 @@ static private void exchanges(MainActivity context, View parent) {
                 }
         );
    var ok = getbutton(context, R.string.closename);
-    if(!useclose)
+    if(!useCloseButton())
         ok.setVisibility(GONE);
     ok.setOnClickListener(
         v->{
@@ -1520,6 +1533,11 @@ static private void exchanges(MainActivity context, View parent) {
         var uploader = getbutton(context, R.string.uploader);
         uploader.setOnClickListener(v -> tk.glucodata.NightPost.config(context, thelayout[0]));
         final CheckBox librelinkbroadcast = new CheckBox(context);
+        final CheckBox xdripFollower = new CheckBox(context);
+        xdripFollower.setText(R.string.xdrip_follower_title);
+        xdripFollower.setChecked(XdripFollowerSend.isEnabled(context));
+        xdripFollower.setOnCheckedChangeListener((buttonView, isChecked) ->
+                XdripFollowerSend.setEnabled(context, isChecked));
         final CheckBox libreview = new CheckBox(context);
         final var healthconnect = (isWearable || Build.VERSION.SDK_INT < 28) ? null : getcheckbox(context, "Health Connect", Natives.gethealthConnect());
         final boolean wasxdrip = Natives.getuselibreview();
@@ -1534,10 +1552,12 @@ static private void exchanges(MainActivity context, View parent) {
                         Natives.sethealthConnect(isChecked);
                         if (isChecked) {
                             MainActivity.tryHealth = 5;
-                            HealthConnection.Companion.init(context);
+                            var health = HealthConnectAccess.get();
+                            if (health != null) health.start(context);
                         } else {
                             MainActivity.tryHealth = 0;
-                            HealthConnection.Companion.stop();
+                            var health = HealthConnectAccess.get();
+                            if (health != null) health.stop();
                         }
                     }
             );
@@ -1551,7 +1571,8 @@ static private void exchanges(MainActivity context, View parent) {
             }
         }
         var webserver = getbutton(context, R.string.webserver);
-        webserver.setOnClickListener(v -> tk.glucodata.Nightscout.show(context, thelayout[0]));
+        webserver.setOnClickListener(v -> {
+                legacyScreens().openNightscout(context, thelayout[0]);});
         uploader.setOnClickListener(v -> tk.glucodata.NightPost.config(context, thelayout[0]));
         final boolean[] donothing = {false};
         libreview.setOnCheckedChangeListener(
@@ -1559,7 +1580,7 @@ static private void exchanges(MainActivity context, View parent) {
                     if (!donothing[0]) {
                         donothing[0] = true;
                         libreview.setChecked(!isChecked);
-                        Libreview.config(context, thelayout[0], libreview, donothing);
+                        legacyScreens().configureLibreview(context, thelayout[0], libreview, donothing);
                     }
                 });
         final boolean[] xdripdonthing = {false};
@@ -1583,7 +1604,7 @@ static private void exchanges(MainActivity context, View parent) {
         lay = new Layout(context, (l, w, h) -> {
             int[] ret = {w, h};
             return ret;
-        }, new View[]{librelinkbroadcast, xdripbroadcast}, new View[]{jugglucobroadcast}, new View[]{webserver, uploader, libreview}, (Build.VERSION.SDK_INT >= 28) ? new View[]{healthconnect,exportview,mirrorview} :new View[]{exportview,mirrorview},
+        }, new View[]{librelinkbroadcast, xdripbroadcast}, new View[]{xdripFollower, jugglucobroadcast}, new View[]{webserver, uploader, libreview}, (Build.VERSION.SDK_INT >= 28) ? new View[]{healthconnect,exportview,mirrorview} :new View[]{exportview,mirrorview},
                 new View[]{help,meters, ok});
 
     final   int pad=(int)(tk.glucodata.GlucoseCurve.metrics.density*10.0);
@@ -1591,11 +1612,11 @@ static private void exchanges(MainActivity context, View parent) {
         exportview.setOnClickListener(v ->{
             var c=Applic.app.curve;
             if(c!=null) {
-                c.dialogs.showexport(context,c.getWidth(),c.getHeight(),lay);
+                legacyScreens().openExport(context,c.getWidth(),c.getHeight(),lay);
             }
         });
         meters.setOnClickListener(v->{
-            MeterList.show(context,lay); });
+            legacyScreens().openMeterList(context,lay); });
       }
 
     thelayout[0] = lay;

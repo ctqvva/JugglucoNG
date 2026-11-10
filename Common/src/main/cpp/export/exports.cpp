@@ -508,7 +508,8 @@ std::span<char> getmeals(int startpos, int len, uint32_t starttime, uint32_t end
 	}
 
 
-extern char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorname,bool) ;
+extern char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorname,bool,
+	const std::string_view &uploadid={}) ;
 
 char *nightexport(char *buffer,uint32_t starttime,uint32_t endtime,int maxcount,uint32_t &last) {
 	

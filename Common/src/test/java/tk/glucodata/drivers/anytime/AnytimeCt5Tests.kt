@@ -409,6 +409,30 @@ class AnytimeCt5Tests {
         assertFalse(shouldDeferLossOfSignalReconnect(0L, 1_000_000L, graceMs))
     }
 
+    // ---- Interrupted bind -------------------------------------------------
+
+    @Test
+    fun aCachedCipherThatNeverStreamedIsTreatedAsUnbound() {
+        // 2026-09-26: setID stored the cipher, querySSN failed, setParameters/init never
+        // went out. The next connect took the cached-cipher path and waited forever.
+        val streamingSince = 1_000_000L
+        assertTrue(AnytimeConstants.ct5CachedCipherLooksUnbound(-1, 0L, streamingSince))
+        // A frame from before this streaming session does not prove the new one.
+        assertTrue(AnytimeConstants.ct5CachedCipherLooksUnbound(-1, streamingSince - 1L, streamingSince))
+    }
+
+    @Test
+    fun aSensorThatHasEverDeliveredIsNeverRebound() {
+        val streamingSince = 1_000_000L
+        // Any 0x35/0x37 since streaming began proves the bind, including warm-up,
+        // no-glucose and malformed pushes: the caller stamps it before parsing.
+        assertFalse(AnytimeConstants.ct5CachedCipherLooksUnbound(-1, streamingSince, streamingSince))
+        // Any stored id, however silent the link is now, rules out a re-bind: that
+        // would re-initialise a running session.
+        assertFalse(AnytimeConstants.ct5CachedCipherLooksUnbound(0, 0L, streamingSince))
+        assertFalse(AnytimeConstants.ct5CachedCipherLooksUnbound(8175, 0L, streamingSince))
+    }
+
     // ---- History parsing ------------------------------------------------
 
     @Test

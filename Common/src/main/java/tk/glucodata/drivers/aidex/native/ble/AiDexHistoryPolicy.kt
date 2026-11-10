@@ -25,6 +25,7 @@ internal object AiDexHistoryPolicy {
         newest: Int,
         persistedRawNextIndex: Int,
         persistedBriefNextIndex: Int,
+        sourceRepairOffset: Int? = null,
     ): DownloadPlan {
         if (briefStart == 0 && rawStart == 0 && newest == 0) {
             return DownloadPlan(
@@ -35,14 +36,17 @@ internal object AiDexHistoryPolicy {
             )
         }
 
+        val repair = sourceRepairOffset?.takeIf { it >= maxOf(1, rawStart, briefStart) && it <= newest }
+        val rawCursor = repair?.let { minOf(it, persistedRawNextIndex) } ?: persistedRawNextIndex
+        val briefCursor = repair?.let { minOf(it, persistedBriefNextIndex) } ?: persistedBriefNextIndex
         val effectiveRawNextIndex = if (
-            persistedRawNextIndex <= newest &&
-            persistedBriefNextIndex > 0 &&
-            persistedRawNextIndex > persistedBriefNextIndex
+            rawCursor <= newest &&
+            briefCursor > 0 &&
+            rawCursor > briefCursor
         ) {
-            persistedBriefNextIndex
+            briefCursor
         } else {
-            persistedRawNextIndex
+            rawCursor
         }
 
         val rawNextIndex = normalizePersistedIndex(
@@ -51,7 +55,7 @@ internal object AiDexHistoryPolicy {
             newest = newest,
         )
         val briefNextIndex = normalizePersistedIndex(
-            persistedIndex = persistedBriefNextIndex,
+            persistedIndex = briefCursor,
             startIndex = briefStart,
             newest = newest,
         )
@@ -78,6 +82,13 @@ internal object AiDexHistoryPolicy {
                 action = InitialAction.COMPLETE_ALREADY_CAUGHT_UP,
             )
         }
+    }
+
+    /** Match Room/journal wall-clock minutes, including activation's seconds. */
+    fun sourceRepairOffset(timeMs: Long, sensorStartMs: Long, briefStart: Int, rawStart: Int, newest: Int): Int? {
+        if (sensorStartMs <= 0L || timeMs <= 0L) return null
+        val offset = timeMs / 60_000L - sensorStartMs / 60_000L
+        return offset.takeIf { it >= maxOf(1, briefStart, rawStart) && it <= newest.toLong() }?.toInt()
     }
 
     fun shouldEmitCatchUpBroadcast(

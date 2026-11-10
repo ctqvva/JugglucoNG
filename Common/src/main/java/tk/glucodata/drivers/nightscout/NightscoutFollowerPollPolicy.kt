@@ -34,6 +34,27 @@ object NightscoutFollowerPollPolicy {
     fun intervalMillis(minutes: Int): Long = sanitizeMinutes(minutes) * 60_000L
 
     /**
+     * How long until the next poll once the user picks a new interval. The pending alarm was
+     * booked with the old interval, so moving from thirty minutes to one would otherwise wait
+     * out the thirty. The new interval counts from the last completed refresh; a retry already
+     * due sooner, after a failure, keeps its place.
+     */
+    fun delayAfterIntervalChange(
+        lastCompletedElapsed: Long,
+        nextPollElapsed: Long,
+        nowElapsed: Long,
+        newIntervalMillis: Long,
+        failing: Boolean,
+    ): Long {
+        if (lastCompletedElapsed <= 0L || nowElapsed < lastCompletedElapsed) return 0L
+        var target = lastCompletedElapsed + newIntervalMillis
+        if (failing && nextPollElapsed > 0L) {
+            target = minOf(target, nextPollElapsed)
+        }
+        return (target - nowElapsed).coerceAtLeast(0L)
+    }
+
+    /**
      * What Doze does to this. An allow-while-idle alarm fires at most about every nine
      * minutes while the phone is idle, unless the app is exempt from battery optimisation.
      * A shorter interval is therefore a ceiling rather than a promise, which is worth saying

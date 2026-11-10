@@ -61,6 +61,11 @@ class HealthConnection(private val client: HealthConnectClient) {
 //TODO: test not already active
 @OptIn(ExperimentalStdlibApi::class)
 private  fun writeAllIns(sensorptr:Long, sensorName:String) {
+    // 0: the driver has no native record (yet), so there is nothing to export
+    if (sensorptr == 0L) {
+        if(doLog) {Log.i(LOG_ID, "writeAll $sensorName: no sensorptr");}
+        return
+    }
     if (active.getAndSet(true)) {
         if(doLog) {Log.i(LOG_ID, "writeAll already active");}
         return
@@ -115,9 +120,9 @@ private suspend fun checkPermissionsAndRun(act:MainActivity?) {
         } else {
             hasPermission = false
             if(act?.permHealth!=null) {
-                val launch=act.permHealth
+                val request=act.permHealth
                 withContext(Dispatchers.Main) {
-                    launch.permissionsLauncher.launch(PERMISSIONS)
+                    request.request(PERMISSIONS)
                 }
                 Log.i(LOG_ID,"requested")
                 }

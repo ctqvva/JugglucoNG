@@ -249,6 +249,55 @@ class DataSmoothingTests {
     }
 
     @Test
+    fun causalSmoothingFiltersBothLanesAndKeepsTimestamps() {
+        val minute = 60_000L
+        val points = (0 until 30).map { i ->
+            GlucosePoint(i * minute, 100f + (i % 2) * 6f, 90f + (i % 2) * 6f)
+        }
+        val out = DataSmoothing.smoothNativePointsCausal(points, smoothingMinutes = 5,
+            collapseChunks = false, mgdlPerUnit = 1f, nowMillis = Long.MAX_VALUE / 2)
+        assertEquals(points.map { it.timestamp }, out.map { it.timestamp })
+        assertTrue(out.last().value in 100f..106f)
+        assertTrue(out.last().rawValue in 90f..96f)
+        assertTrue(kotlin.math.abs(out.last().value - out[out.size - 2].value) < 3f)
+    }
+
+    @Test
+    fun causalSmoothingOfTheNewestPointIgnoresNothingButThePast() {
+        val minute = 60_000L
+        val base = (0 until 30).map { i -> GlucosePoint(i * minute, 100f + (i % 3) * 5f, 0f) }
+        val a = DataSmoothing.smoothNativePointsCausal(base.take(20), 5, false, 1f, Long.MAX_VALUE / 2)
+        val b = DataSmoothing.smoothNativePointsCausal(base, 5, false, 1f, Long.MAX_VALUE / 2)
+        assertEquals(a.last().value, b[19].value, 0f)
+    }
+
+    @Test
+    fun causalSmoothingIsOffWhenTheWindowIsOff() {
+        val points = listOf(GlucosePoint(0L, 100f, 0f), GlucosePoint(60_000L, 200f, 0f))
+        assertEquals(points, DataSmoothing.smoothNativePointsCausal(points, 0, false, 1f))
+    }
+
+    @Test
+    fun importedReadingsDoNotShareTheSelectedSensorsFilterState() {
+        val selected = GlucosePoint(0L, 100f, 90f).also { it.sensorSerial = "30211DF2J38" }
+        val alias = GlucosePoint(60_000L, 100f, 90f).also { it.sensorSerial = "30211df2j38" }
+        val imported = GlucosePoint(60_000L, 200f, 190f).also { it.sensorSerial = "__imported_csv__" }
+        val live = GlucosePoint(120_000L, 100f, 90f)
+
+        assertTrue(DataSmoothing.sameCausalSource(selected, alias))
+        assertTrue(DataSmoothing.sameCausalSource(selected, live))
+        assertFalse(DataSmoothing.sameCausalSource(selected, imported))
+    }
+
+    @Test
+    fun causalLiveSettingIsRegisteredMirroredAndOffByDefault() {
+        val definition = tk.glucodata.settings.SettingsRegistry.SMOOTHING_CAUSAL_LIVE
+        assertEquals("dashboard_data_smoothing_causal_live", definition.key)
+        assertEquals(false, definition.defaultValue)
+        assertTrue(tk.glucodata.settings.SettingsRegistry.definitions.contains(definition))
+    }
+
+    @Test
     fun exchangeSmoothingMinutesIsPulledBackInByCollapseUnderGraphOnly() {
         assertEquals(
             0,
@@ -267,6 +316,85 @@ class DataSmoothingTests {
                 exchangeOutputsOnly = false,
                 collapseChunks = true
             )
+        )
+    }
+
+    @Test
+    fun collapsePointsForDisplayKeepsASparseLaneTheLastReadingLacksAtItsOwnTime() {
+        // Libre's History lane is one value per 15 minutes.
+        val points = (0..5).map { minute ->
+            GlucosePoint(minute * 60_000L, (100 + minute).toFloat(), if (minute == 3) 130f else 0f)
+        }
+
+        val collapsed = DataSmoothing.collapsePointsForDisplay(
+            points = points,
+            smoothingMinutes = 3,
+            nowMillis = 60L * 60_000L
+        )
+
+        assertEquals(listOf(2L * 60_000L, 3L * 60_000L, 5L * 60_000L), collapsed.map { it.timestamp })
+        assertEquals(0f, collapsed[0].rawValue, 1e-6f)
+        assertEquals(130f, collapsed[1].rawValue, 1e-6f)
+        assertEquals(105f, collapsed[2].value, 1e-6f)
+        assertEquals(0f, collapsed[2].rawValue, 1e-6f)
+    }
+
+    @Test
+    fun everyTargetCombinationIsReachableAndEachTargetAnswersOnlyForItself() {
+        for (bits in 0..DataSmoothing.Targets.MAX_BITS) {
+            val targets = DataSmoothing.Targets.fromBits(bits)
+            assertEquals(bits, targets.toBits())
+            assertEquals(if (targets.chart) 5 else 0, DataSmoothing.graphSmoothingMinutes(5, targets))
+            assertEquals(if (targets.current) 5 else 0, DataSmoothing.localSmoothingMinutes(5, targets))
+            assertEquals(if (targets.sent) 5 else 0, DataSmoothing.exchangeSmoothingMinutes(5, targets))
+            assertEquals(if (targets.fewerChart) 5 else 0, DataSmoothing.graphCollapseMinutes(5, targets))
+            assertEquals(if (targets.fewerCurrent) 5 else 0, DataSmoothing.localCollapseMinutes(5, targets))
+            assertEquals(if (targets.fewerSent) 5 else 0, DataSmoothing.exchangeThrottleIntervalMinutes(5, targets))
+            assertEquals(0, DataSmoothing.exchangeSmoothingMinutes(0, targets))
+            assertEquals(0, DataSmoothing.exchangeThrottleIntervalMinutes(0, targets))
+        }
+    }
+
+    @Test
+    fun fewerReadingsCanThinSentReadingsAloneWhileTheAppKeepsEveryOne() {
+        val targets = DataSmoothing.Targets(chart = true, current = true, sent = true, fewerSent = true)
+        assertEquals(3, DataSmoothing.exchangeThrottleIntervalMinutes(3, targets))
+        assertEquals(0, DataSmoothing.graphCollapseMinutes(3, targets))
+        assertEquals(0, DataSmoothing.localCollapseMinutes(3, targets))
+        assertEquals(3, DataSmoothing.graphSmoothingMinutes(3, targets))
+        // Thinned without being smoothed, and capped like the smoothed case.
+        val rawSent = DataSmoothing.Targets(chart = true, current = true, sent = false, fewerSent = true)
+        assertEquals(0, DataSmoothing.exchangeSmoothingMinutes(10, rawSent))
+        assertEquals(5, DataSmoothing.exchangeThrottleIntervalMinutes(10, rawSent))
+    }
+
+    @Test
+    fun fewerReadingsWithoutSmoothingKeepsTheMeasuredValues() {
+        val points = (0..9).map { minute -> GlucosePoint(minute * 60_000L, (100 + minute * minute).toFloat(), 0f) }
+        val thinned = DataSmoothing.smoothNativePoints(points, 0, 5, nowMillis = 60L * 60_000L)
+        assertEquals(listOf(4L * 60_000L, 9L * 60_000L), thinned.map { it.timestamp })
+        assertEquals(listOf(116f, 181f), thinned.map { it.value })
+    }
+
+    @Test
+    fun legacySettingsMigrateToTheTargetsTheyUsedToMean() {
+        fun legacy(graphOnly: Boolean, exchangeOnly: Boolean, collapse: Boolean = false) =
+            DataSmoothing.legacyTargets(graphOnly, exchangeOnly, collapse)
+        assertEquals(DataSmoothing.Targets.ALL, legacy(graphOnly = false, exchangeOnly = false))
+        assertEquals(
+            DataSmoothing.Targets(true, true, true, fewerChart = true, fewerCurrent = true, fewerSent = true),
+            legacy(graphOnly = false, exchangeOnly = false, collapse = true)
+        )
+        assertEquals(DataSmoothing.Targets(true, false, false), legacy(graphOnly = true, exchangeOnly = false))
+        assertEquals(
+            DataSmoothing.Targets(true, false, true, fewerChart = true, fewerSent = true),
+            legacy(graphOnly = true, exchangeOnly = false, collapse = true)
+        )
+        assertEquals(DataSmoothing.Targets(false, false, true), legacy(graphOnly = false, exchangeOnly = true))
+        assertEquals(DataSmoothing.Targets(false, false, true), legacy(graphOnly = true, exchangeOnly = true))
+        assertEquals(
+            DataSmoothing.Targets(false, false, true, fewerSent = true),
+            legacy(graphOnly = false, exchangeOnly = true, collapse = true)
         )
     }
 }

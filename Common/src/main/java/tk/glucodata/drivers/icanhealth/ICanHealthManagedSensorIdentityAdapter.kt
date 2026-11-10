@@ -6,8 +6,11 @@ import tk.glucodata.Natives
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.ManagedSensorIdentityAdapter
+import tk.glucodata.drivers.ManagedSensorUiFamily
 
 object ICanHealthManagedSensorIdentityAdapter : ManagedSensorIdentityAdapter {
+    override val uiFamily = ManagedSensorUiFamily.ICAN
+
     private val STABLE_HEX_SENSOR_ID = Regex("^[0-9A-F]{16,32}$", RegexOption.IGNORE_CASE)
     private val STABLE_LETTERED_SENSOR_ID = Regex("^P\\d{9}[A-Z]{3}$", RegexOption.IGNORE_CASE)
     private val STABLE_LT_SENSOR_ID = Regex("^LT\\d{6,}[A-Z]{2,3}$", RegexOption.IGNORE_CASE)

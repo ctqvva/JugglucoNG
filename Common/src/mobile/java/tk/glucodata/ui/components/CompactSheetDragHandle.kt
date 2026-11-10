@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,7 +27,7 @@ fun CompactSheetDragHandle(
     ) {
         Surface(
             modifier = Modifier.size(width = 36.dp, height = 4.dp),
-            shape = RoundedCornerShape(2.dp),
+            shape = CircleShape,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
         ) {}
     }

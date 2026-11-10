@@ -16,6 +16,10 @@ class RemoteIobSnapshotTests {
         iobUnits = 2.1f,
         source = RemoteIobSnapshot.Source.NIGHTSCOUT,
     )
+    private val api = clone.copy(
+        iobUnits = 1.8f,
+        source = RemoteIobSnapshot.Source.API,
+    )
 
     @Test
     fun activeRegisteredCloneWinsOverNightscout() {
@@ -40,5 +44,34 @@ class RemoteIobSnapshotTests {
     @Test
     fun noRemoteSourceReturnsNull() {
         assertNull(RemoteIobSnapshot.select(true, true, null, null))
+        assertNull(RemoteIobSnapshot.select(true, true, null, null, null))
+    }
+
+    @Test
+    fun apiSnapshotFillsInWhenCloneAndNightscoutAreAbsent() {
+        assertEquals(
+            api,
+            RemoteIobSnapshot.select(true, true, null, null, api),
+        )
+        assertEquals(
+            api,
+            RemoteIobSnapshot.select(false, false, null, null, api),
+        )
+        assertEquals(
+            nightscout,
+            RemoteIobSnapshot.select(false, false, clone, nightscout, api),
+        )
+    }
+
+    @Test
+    fun cloneAndNightscoutKeepPrecedenceOverApi() {
+        assertEquals(
+            clone,
+            RemoteIobSnapshot.select(true, true, clone, nightscout, api),
+        )
+        assertEquals(
+            nightscout,
+            RemoteIobSnapshot.select(true, true, null, nightscout, api),
+        )
     }
 }

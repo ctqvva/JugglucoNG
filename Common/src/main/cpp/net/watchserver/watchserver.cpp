@@ -1165,7 +1165,8 @@ static bool getv3food(recdata *outdata) {
 
 extern char *nightexport(char *buffer,uint32_t starttime,uint32_t endtime,int maxcount,uint32_t &last);
 
-char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorname,bool server=true);
+char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorname,bool server=true,
+	const std::string_view &uploadid={});
 static bool getv3entries(const char *cmdstart,const char *cmdend,std::string_view origin,recdata *outdata) ;
 
 char *getdeltastr(char *start) {

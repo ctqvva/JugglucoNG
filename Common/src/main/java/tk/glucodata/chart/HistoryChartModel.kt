@@ -21,13 +21,17 @@ enum class ChartLook {
     SECONDARY,
 }
 
-data class ChartPointModel(
+data class ChartPointModel @JvmOverloads constructor(
     val timestamp: Long,
     val value: Float,
     /** The reading's owner; a merged primary series can contain several sensors. */
     val sensorId: String? = null,
     /** A shared boundary point retains its own look in both adjacent runs. */
     val look: ChartLook = ChartLook.MAIN,
+    /** Bounds already displaced to this lane's resolved value, in display units. */
+    val uncertainty: tk.glucodata.GlucoseUncertainty? = null,
+    /** Drawn from the record rather than resolved live. */
+    val fromRecord: Boolean = false,
 )
 
 /**
@@ -88,6 +92,49 @@ data class ChartSeriesModel(
     fun valueAt(timestamp: Long): Float? = valueByTimestamp[timestamp]
 
     /**
+     * Where this series' line passes at [timestamp], for pinning a mark onto the drawn
+     * curve: interpolated between the points either side when both are within
+     * [maxGapMillis], else the nearer one within it, else null. Unlike [valueAt] it does
+     * not need a reading in that very minute, so a 5-minute sensor still has a value
+     * between its readings.
+     */
+    fun lineValueNear(timestamp: Long, maxGapMillis: Long): Float? {
+        var best: Float? = null
+        var bestDistance = Long.MAX_VALUE
+        for (run in runs) {
+            val points = run.points
+            if (points.isEmpty()) continue
+            val found = points.binarySearchBy(timestamp) { it.timestamp }
+            if (found >= 0) {
+                val value = points[found].value
+                if (value.isFinite()) return value
+                continue
+            }
+            val insertion = -found - 1
+            val before = points.getOrNull(insertion - 1)?.takeIf { timestamp - it.timestamp <= maxGapMillis && it.value.isFinite() }
+            val after = points.getOrNull(insertion)?.takeIf { it.timestamp - timestamp <= maxGapMillis && it.value.isFinite() }
+            if (before != null && after != null) {
+                val fraction = (timestamp - before.timestamp).toFloat() / (after.timestamp - before.timestamp)
+                return before.value + (after.value - before.value) * fraction
+            }
+            val near = before ?: after ?: continue
+            val distance = kotlin.math.abs(near.timestamp - timestamp)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                best = near.value
+            }
+        }
+        return best
+    }
+
+    /** Only the Auto lane owns sensor uncertainty. Never borrow an older interval. */
+    fun uncertaintyAt(timestamp: Long, isRawLane: Boolean, sourceLane: Boolean): tk.glucodata.GlucoseUncertainty? {
+        if (isRawLane) return null
+        val selected = if (sourceLane) secondaryLanes.firstOrNull { it.kind == ChartLaneKind.AUTO }?.runs ?: return null else runs
+        return nearestInMinute(selected, timestamp)?.uncertainty?.takeIf { it.isUsable }
+    }
+
+    /**
      * Builds the lookup now, on the caller's thread. The first [valueAt] used
      * to build it — an entry per point of the whole timeline — wherever it
      * happened to be asked, which was the draw. A builder that resolves the
@@ -96,7 +143,76 @@ data class ChartSeriesModel(
     fun prepareLookups() {
         valueByTimestamp
     }
+
+    /**
+     * What this series paints in the minute holding [timestamp]: its line's
+     * point and each drawn thin lane's, the one nearest [timestamp] inside the
+     * minute. A cursor dot or tooltip row taken from anywhere else — the
+     * sensor's own point, before calibration, smoothing or a record — sits on
+     * a line nobody drew. The calibration preview is left out: it is a faint
+     * projection, not a line the cursor marks.
+     */
+    fun cursorAt(timestamp: Long): ChartCursor? {
+        val line = nearestInMinute(runs, timestamp)
+        val lanes = ArrayList<ChartLaneValue>(secondaryLanes.size)
+        for (lane in secondaryLanes) {
+            if (lane.kind == ChartLaneKind.CALIBRATION_PREVIEW) continue
+            val point = nearestInMinute(lane.runs, timestamp) ?: continue
+            lanes.add(ChartLaneValue(lane.kind, point.value))
+        }
+        if (line == null && lanes.isEmpty()) return null
+        return ChartCursor(line, lanes)
+    }
+
+    private fun nearestInMinute(runs: List<ChartRun>, timestamp: Long): ChartPointModel? {
+        var best: ChartPointModel? = null
+        for (run in runs) {
+            val candidate = nearestInMinuteOf(run.points, timestamp) { it.timestamp } ?: continue
+            if (best == null || closer(candidate.timestamp, best.timestamp, timestamp)) best = candidate
+        }
+        return best
+    }
 }
+
+/**
+ * The element of [sorted] (ascending by [timestampOf]) nearest [timestamp]
+ * inside the minute holding it; the later one on a tie. The one matching rule
+ * the cursor dots and the tooltip rows share, so they cannot pick different
+ * readings for one minute.
+ */
+fun <T> nearestInMinuteOf(sorted: List<T>, timestamp: Long, timestampOf: (T) -> Long): T? {
+    if (sorted.isEmpty()) return null
+    val minuteStart = MainSensorOwnership.minuteOf(timestamp)
+    val minuteEnd = minuteStart + MainSensorOwnership.MINUTE_MS
+    val insertion = sorted.binarySearchBy(timestamp, selector = timestampOf).let { if (it >= 0) return sorted[it] else -it - 1 }
+    val before = sorted.getOrNull(insertion - 1)?.takeIf { timestampOf(it) >= minuteStart }
+    val after = sorted.getOrNull(insertion)?.takeIf { timestampOf(it) < minuteEnd }
+    return when {
+        before == null -> after
+        after == null -> before
+        closer(timestampOf(after), timestampOf(before), timestamp) -> after
+        else -> before
+    }
+}
+
+/** Whether [a] is nearer [target] than [b], the later one winning a tie. */
+private fun closer(a: Long, b: Long, target: Long): Boolean {
+    val da = kotlin.math.abs(a - target)
+    val db = kotlin.math.abs(b - target)
+    return da < db || (da == db && a > b)
+}
+
+/** A thin lane's value under the cursor. */
+data class ChartLaneValue(val kind: ChartLaneKind, val value: Float)
+
+/**
+ * One series under the cursor. [line] is the point of the series' own line —
+ * main or secondary look, as ownership drew it — if it drew one there.
+ */
+data class ChartCursor(
+    val line: ChartPointModel?,
+    val lanes: List<ChartLaneValue>,
+)
 
 data class HistoryChartModel(
     val series: List<ChartSeriesModel>,
@@ -105,7 +221,7 @@ data class HistoryChartModel(
     val peers: List<ChartSeriesModel> get() = series.filter { !it.isPrimary }
 
     /** Includes every painted lane, so a preview or calibrated peer cannot be clipped. */
-    fun visibleValueRange(startTime: Long, endTime: Long): Pair<Float?, Float?> {
+    fun visibleValueRange(startTime: Long, endTime: Long, includeUncertainty: Boolean = false): Pair<Float?, Float?> {
         var low = Float.POSITIVE_INFINITY
         var high = Float.NEGATIVE_INFINITY
         for (s in series) {
@@ -119,6 +235,10 @@ data class HistoryChartModel(
                     if (value.isFinite() && value > 0.1f) {
                         low = minOf(low, value)
                         high = maxOf(high, value)
+                        if (includeUncertainty) pts[i].uncertainty?.takeIf { it.isUsable }?.let {
+                            low = minOf(low, it.lower)
+                            high = maxOf(high, it.upper)
+                        }
                     }
                 }
             }
@@ -126,7 +246,15 @@ data class HistoryChartModel(
         return low.takeIf { it.isFinite() } to high.takeIf { it.isFinite() }
     }
 
-    /** Main points actually inside the viewport, excluding borrowed stroke boundaries. */
+    /**
+     * Main points actually inside the viewport, excluding borrowed stroke
+     * boundaries, and those drawn from the record.
+     *
+     * A record is not something presented: its minute already holds that value,
+     * so recording it again can do nothing — unless the record has just been
+     * released and the points are older than the release, when it would write
+     * the released value straight back.
+     */
     fun presentedMainValues(startTime: Long, endTime: Long): List<PresentedChartValue> {
         val values = LinkedHashMap<Long, PresentedChartValue>()
         for (s in series) for (run in s.runs) {
@@ -136,7 +264,7 @@ data class HistoryChartModel(
             val to = pts.binarySearchBy(endTime) { it.timestamp }.let { if (it >= 0) it + 1 else -it - 1 }
             for (i in from until to) {
                 val p = pts[i]
-                if (p.look != ChartLook.MAIN) continue
+                if (p.look != ChartLook.MAIN || p.fromRecord) continue
                 val minute = MainSensorOwnership.minuteOf(p.timestamp)
                 values.putIfAbsent(minute, PresentedChartValue(minute, p.value, p.sensorId ?: s.sensorId, s.viewMode))
             }

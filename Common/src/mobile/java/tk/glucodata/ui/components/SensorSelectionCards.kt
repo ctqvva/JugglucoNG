@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -57,7 +58,9 @@ private fun jugglucoBrandFamily(weight: Int, width: Float): FontFamily {
 @Composable
 fun SensorSelectionCards(
     onSensorSelected: (SensorType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Restricted mode's allowed families; null offers every family. */
+    allowedTypes: Set<SensorType>? = null,
 ) {
     val compact = rememberAdaptiveWindowMetrics().isCompact
     val horizontalPadding = 0.dp
@@ -79,110 +82,18 @@ fun SensorSelectionCards(
             verticalArrangement = Arrangement.spacedBy(cardGap) // Generous spacing (M3 Expressive)
         ) {
 
-            // Libre 2/3
-            SensorCard(
-                icon = Icons.Default.Nfc,
-                title = stringResource(R.string.libre_sensor),
-                subtitle = stringResource(R.string.libre_sensor_desc),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                onClick = { onSensorSelected(SensorType.LIBRE) },
-                compact = compact
-            )
-
-            // Sibionics
-            SensorCard(
-                icon = Icons.Default.QrCodeScanner,
-                title = stringResource(R.string.sibionics_sensor),
-                subtitle = stringResource(R.string.sibionics_sensor_desc),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                onClick = { onSensorSelected(SensorType.SIBIONICS) },
-                compact = compact
-            )
-
-            // Dexcom
-            SensorCard(
-                icon = Icons.Default.QrCodeScanner,
-                title = stringResource(R.string.dexcom_sensor),
-                subtitle = stringResource(R.string.dexcom_sensor_desc),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                onClick = { onSensorSelected(SensorType.DEXCOM) },
-                compact = compact
-            )
-
-
-            // AiDex / LinX
-            SensorCard(
-                icon = Icons.Default.Bluetooth,
-                title = stringResource(R.string.aidex_sensor),
-                subtitle = stringResource(R.string.aidex_sensor_desc),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                onClick = { onSensorSelected(SensorType.AIDEX) },
-                compact = compact
-            )
-
-            SensorCard(
-                icon = Icons.Default.Bluetooth,
-                title = stringResource(R.string.icanhealth_sensor),
-                subtitle = stringResource(R.string.icanhealth_sensor_desc),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                onClick = { onSensorSelected(SensorType.ICANHEALTH) },
-                compact = compact
-            )
-            SensorCard(
-                icon = Icons.Default.Bluetooth,
-                title = stringResource(R.string.anytime_sensor),
-                subtitle = stringResource(R.string.anytime_sensor_desc),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                onClick = { onSensorSelected(SensorType.ANYTIME) },
-                compact = compact
-            )
-            SensorCard(
-                icon = Icons.Default.Bluetooth,
-                title = stringResource(R.string.mq_sensor),
-                subtitle = stringResource(R.string.mq_sensor_desc),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                onClick = { onSensorSelected(SensorType.MQ) },
-                compact = compact
-            )
-            SensorCard(
-                icon = Icons.Default.Bluetooth,
-                title = stringResource(R.string.ottai_sensor),
-                subtitle = stringResource(R.string.ottai_sensor_desc),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                onClick = { onSensorSelected(SensorType.OTTAI) },
-                compact = compact
-            )
-
-
-            // Accu-Chek SmartGuide
-            SensorCard(
-                icon = Icons.Default.QrCodeScanner,
-                title = stringResource(R.string.accuchek_sensor),
-                subtitle = stringResource(R.string.accuchek_sensor_desc),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                onClick = { onSensorSelected(SensorType.ACCUCHEK) },
-                compact = compact
-            )
-
-            // CareSens Air
-            SensorCard(
-                icon = Icons.Default.QrCodeScanner,
-                title = stringResource(R.string.caresens_air_sensor),
-                subtitle = stringResource(R.string.caresens_air_sensor_desc),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                onClick = { onSensorSelected(SensorType.CARESENS_AIR) },
-                compact = compact
-            )
+            sensorTypeOptions.filter { allowedTypes == null || it.type in allowedTypes }.forEach { option ->
+                val highlighted = option.type == SensorType.SIBIONICS
+                SensorCard(
+                    icon = option.icon,
+                    title = stringResource(option.titleRes),
+                    subtitle = stringResource(option.subtitleRes),
+                    containerColor = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                    onClick = { onSensorSelected(option.type) },
+                    compact = compact
+                )
+            }
         }
     }
 }
@@ -235,15 +146,13 @@ private fun SensorCard(
                 )
             }
             
-            Spacer(modifier = Modifier.width(if (compact) 10.dp else 12.dp))
+            Spacer(modifier = Modifier.width(if (compact) 8.dp else 12.dp))
             
             // Text content
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.titleMediumEmphasized,)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
@@ -254,7 +163,7 @@ private fun SensorCard(
                 )
             }
             
-            Spacer(modifier = Modifier.width(if (compact) 6.dp else 8.dp))
+            Spacer(modifier = Modifier.width(if (compact) 8.dp else 8.dp))
             
             // Filled tonal arrow indicator (M3 Expressive)
             Surface(
@@ -264,7 +173,7 @@ private fun SensorCard(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Navigate",
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .fillMaxSize()
@@ -280,6 +189,24 @@ private fun SensorCard(
  */
 @Composable
 fun ImportHistoryCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    SetupAlternativeCard(
+        icon = Icons.Default.Download,
+        title = stringResource(R.string.import_history),
+        description = stringResource(R.string.import_history_desc),
+        onClick = onClick,
+        modifier = modifier
+    )
+}
+
+/** One of the first-run screen's ways forward that does not involve connecting a sensor. */
+@Composable
+private fun SetupAlternativeCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -299,7 +226,7 @@ fun ImportHistoryCard(
                 modifier = Modifier.size(48.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Download,
+                    imageVector = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -312,12 +239,10 @@ fun ImportHistoryCard(
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.import_history),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
-                )
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall)
                 Text(
-                    text = stringResource(R.string.import_history_desc),
+                    text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -332,9 +257,14 @@ fun ImportHistoryCard(
 @Composable
 fun DashboardEmptyState(
     onSensorSelected: (SensorType) -> Unit,
-    onImportHistory: () -> Unit,
+    /** Null hides the choice. */
+    onImportHistory: (() -> Unit)?,
+    /** Null hides the choice. */
+    onContinueWithoutSensor: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    readinessContent: (@Composable () -> Unit)? = null
+    readinessContent: (@Composable () -> Unit)? = null,
+    /** Restricted mode's allowed families; null offers every family, empty offers none. */
+    allowedTypes: Set<SensorType>? = null,
 ) {
     val compact = rememberAdaptiveWindowMetrics().isCompact
     val sidePadding = 16.dp
@@ -362,7 +292,7 @@ fun DashboardEmptyState(
             .fillMaxSize()
             .verticalScroll(scrollState)
             .padding(horizontal = sidePadding)
-            .padding(top = if (compact) 10.dp else 16.dp)
+            .padding(top = if (compact) 8.dp else 16.dp)
             .padding(bottom = if (compact) 104.dp else 120.dp),
         horizontalAlignment = Alignment.Start
     ) {
@@ -383,37 +313,57 @@ fun DashboardEmptyState(
             Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
         }
 
-        SensorSelectionCards(
-            onSensorSelected = onSensorSelected
-        )
-        
-        Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
-        
-        // Divider with "or"
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = if (compact) 4.dp else 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            HorizontalDivider(modifier = Modifier.weight(1f))
-            Text(
-                text = stringResource(R.string.or_divider),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        val hasAlternative = onImportHistory != null || onContinueWithoutSensor != null
+        if (allowedTypes == null || allowedTypes.isNotEmpty()) {
+            SensorSelectionCards(
+                onSensorSelected = onSensorSelected,
+                allowedTypes = allowedTypes,
             )
-            HorizontalDivider(modifier = Modifier.weight(1f))
         }
+        // "or" only between the sensors and something else to choose.
+        if ((allowedTypes == null || allowedTypes.isNotEmpty()) && hasAlternative) {
+            Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
         
-        Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
+            // Divider with "or"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = if (compact) 4.dp else 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f))
+                Text(
+                    text = stringResource(R.string.or_divider),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                HorizontalDivider(modifier = Modifier.weight(1f))
+            }
         
-        // Import History card
-        ImportHistoryCard(
-            onClick = onImportHistory,
-            modifier = Modifier.padding(horizontal = if (compact) 4.dp else 8.dp)
-        )
+            Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
+        
+        }
 
-        Spacer(modifier = Modifier.height(if (compact) 10.dp else 12.dp))
+        if (onImportHistory != null) {
+            ImportHistoryCard(
+                onClick = onImportHistory,
+                modifier = Modifier.padding(horizontal = if (compact) 4.dp else 8.dp)
+            )
+        }
+
+        if (onContinueWithoutSensor != null) {
+            if (onImportHistory != null) Spacer(modifier = Modifier.height(8.dp))
+
+            SetupAlternativeCard(
+                icon = Icons.Default.EditNote,
+                title = stringResource(R.string.continue_without_sensor),
+                description = stringResource(R.string.continue_without_sensor_desc),
+                onClick = onContinueWithoutSensor,
+                modifier = Modifier.padding(horizontal = if (compact) 4.dp else 8.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
     }
 }
 
@@ -423,24 +373,26 @@ fun DashboardEmptyState(
 @Composable
 fun SensorsEmptyState(
     onSensorSelected: (SensorType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    allowedTypes: Set<SensorType>? = null,
 ) {
     val compact = rememberAdaptiveWindowMetrics().isCompact
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = if (compact) 10.dp else 16.dp),
+            .padding(vertical = if (compact) 8.dp else 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = stringResource(R.string.no_sensors_connected),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = if (compact) 10.dp else 16.dp)
+            modifier = Modifier.padding(bottom = if (compact) 8.dp else 16.dp)
         )
         
         SensorSelectionCards(
-            onSensorSelected = onSensorSelected
+            onSensorSelected = onSensorSelected,
+            allowedTypes = allowedTypes,
         )
     }
 }

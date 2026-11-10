@@ -72,6 +72,26 @@ object ICanHealthRegistry {
     }
 
     @JvmStatic
+    fun isDeviceSnRegistered(context: Context?, sn: String?): Boolean {
+        if (context == null) return false
+        val normalized = ICanHealthConstants.normalizeOnboardingDeviceSn(sn)
+        if (normalized.isEmpty()) return false
+        return readRecords(context).any { record ->
+            val stored = prefs(context).getString("${ICanHealthConstants.PREF_DEVICE_SN_PREFIX}${record.sensorId}", null)
+            ICanHealthConstants.normalizeOnboardingDeviceSn(stored) == normalized
+        }
+    }
+
+    @JvmStatic
+    fun boxSerialFor(context: Context?, sensorId: String?): String? {
+        if (context == null) return null
+        val record = findRecord(context, sensorId) ?: return null
+        return ICanHealthConstants.boxSerialForDisplay(
+            prefs(context).getString("${ICanHealthConstants.PREF_DEVICE_SN_PREFIX}${record.sensorId}", null)
+        )
+    }
+
+    @JvmStatic
     fun resolveCanonicalSensorId(context: Context?, sensorId: String?): String? {
         return findRecord(context, sensorId)?.sensorId
     }
@@ -80,6 +100,15 @@ object ICanHealthRegistry {
     fun persistedRecords(context: Context?): List<SensorRecord> {
         if (context == null) return emptyList()
         return readRecords(context).toList()
+    }
+
+    /** Keep identity, credentials and history; an empty address marks an unfinished repair. */
+    @JvmStatic
+    fun clearBindingAddress(context: Context?, sensorId: String) {
+        if (context == null) return
+        writeRecords(context, readRecords(context).map { record ->
+            if (record.matchesId(sensorId)) record.copy(address = "") else record
+        })
     }
 
     private fun resolvePersistedAuthUserId(context: Context, sensorId: String): String? {
@@ -104,6 +133,7 @@ object ICanHealthRegistry {
         configuredAesKey: String?,
     ) {
         callback.mActiveDeviceAddress = address.takeIf { it.isNotBlank() }
+        if (address.isBlank()) callback.requireFreshBindingIdentity()
         callback.setConfiguredAesKeyFromASCII(
             ICanHealthConstants.resolveConfiguredAesKey(configuredAesKey),
             explicit = configuredAesKey != null && configuredAesKey.length == ICanHealthConstants.AES_BLOCK_SIZE
@@ -220,7 +250,8 @@ object ICanHealthRegistry {
         if (canonicalId.isBlank()) {
             return
         }
-        prefs(context).edit()
+        val prefs = prefs(context)
+        val editor = prefs.edit()
             .remove("${ICanHealthConstants.PREF_AES_KEY_PREFIX}$canonicalId")
             .remove("${ICanHealthConstants.PREF_DEVICE_SN_PREFIX}$canonicalId")
             .remove("${ICanHealthConstants.PREF_AUTH_USER_ID_PREFIX}$canonicalId")
@@ -228,7 +259,14 @@ object ICanHealthRegistry {
             .remove("${ICanHealthConstants.PREF_AUTH_BYPASS_UNTIL_PREFIX}$canonicalId")
             .remove("${ICanHealthConstants.PREF_HISTORY_EDGE_SEQUENCE_PREFIX}$canonicalId")
             .remove("${ICanHealthConstants.PREF_HISTORY_EDGE_TIMESTAMP_PREFIX}$canonicalId")
-            .commit()
+        // The vendor code cache is keyed by the short box serial, not the sensor id.
+        val storedDeviceSn = prefs.getString("${ICanHealthConstants.PREF_DEVICE_SN_PREFIX}$canonicalId", null)
+        val normalizedStoredSn = ICanHealthConstants.normalizeOnboardingDeviceSn(storedDeviceSn)
+        if (normalizedStoredSn.isNotEmpty()) {
+            editor.remove("${ICanHealthConstants.PREF_CGM_CODE_PREFIX}$normalizedStoredSn")
+            ICanHealthCloudCode.cancelRetry(normalizedStoredSn)
+        }
+        editor.commit()
     }
 
     @JvmStatic

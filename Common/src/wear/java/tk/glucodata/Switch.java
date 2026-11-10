@@ -133,7 +133,7 @@ static void wearnosensors(MainActivity act) {
          });
     var switcher=getbutton(act,R.string.switchtowatch);
     var close=getbutton(act,R.string.closename);
-   if(!Specific.useclose)
+   if(!VariantBootstrapAccess.useCloseButton())
       close.setVisibility(GONE);
    if(wasused||!blueenabled) {
        switcher.setVisibility(GONE);

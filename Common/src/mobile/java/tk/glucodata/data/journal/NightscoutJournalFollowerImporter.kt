@@ -3,23 +3,45 @@ package tk.glucodata.data.journal
 import androidx.annotation.Keep
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import tk.glucodata.Applic
 import tk.glucodata.Log
+import tk.glucodata.NightscoutTreatmentImportBridge
 import tk.glucodata.data.HistoryDatabase
 
 @Keep
-object NightscoutJournalFollowerImporter {
+object NightscoutJournalFollowerImporter : NightscoutTreatmentImportBridge {
     private const val LOG_ID = "NightscoutJournalFollowerImporter"
 
-    @JvmStatic
+    /**
+     * Held while a follower posts its own entries to the server it reads. An import landing
+     * between a document's POST and the row being marked as uploaded would not yet know the
+     * document is ours, and would add it again as a Nightscout row.
+     *
+     * The import does not wait for it: it runs on the follower's poll, and a send held up by a
+     * slow server would hold up the next reading and its alerts with it. A batch skipped here
+     * is fetched again by the next poll.
+     */
+    internal val followerSendLock = Mutex()
+
     @Keep
-    fun importTreatments(sensorId: String, treatmentsJson: String): Int = runBlocking {
-        withContext(Dispatchers.IO) {
-            runCatching { importInternal(sensorId, treatmentsJson) }
-                .onFailure { Log.e(LOG_ID, "importTreatments failed: ${Log.stackline(it)}") }
-                .getOrDefault(0)
+    override fun importTreatments(sensorId: String, treatmentsJson: String): Int {
+        if (!followerSendLock.tryLock()) {
+            Log.i(LOG_ID, "Nightscout journal sync deferred: own entries are being sent")
+            return 0
+        }
+        try {
+            return runBlocking {
+                withContext(Dispatchers.IO) {
+                    runCatching { importInternal(sensorId, treatmentsJson) }
+                        .onFailure { Log.e(LOG_ID, "importTreatments failed: ${Log.stackline(it)}") }
+                        .getOrDefault(0)
+                }
+            }
+        } finally {
+            followerSendLock.unlock()
         }
     }
 
@@ -30,6 +52,7 @@ object NightscoutJournalFollowerImporter {
         if (array.length() == 0) return 0
 
         val repository = JournalRepository()
+        repository.deleteAapsSenderOnlyNotesOnce()
         repository.ensureDefaultInsulinPresets()
         val presets = repository.getInsulinPresetsSnapshot()
         val journalDao = HistoryDatabase.getInstance(Applic.app).journalDao()
@@ -63,8 +86,7 @@ object NightscoutJournalFollowerImporter {
             ) ?: continue
 
             if (parsed.deleteOnly) {
-                repository.deleteEntriesBySourceRecordIds(parsed.candidateSourceRecordIds)
-                deleted += parsed.candidateSourceRecordIds.size
+                deleted += repository.deleteEntriesBySourceRecordIds(parsed.candidateSourceRecordIds)
                 continue
             }
 
@@ -74,8 +96,7 @@ object NightscoutJournalFollowerImporter {
             }
             val importedIds = parsed.inputs.mapNotNull { it.sourceRecordId }.toSet()
             val staleIds = parsed.candidateSourceRecordIds.filterNot { it in importedIds }
-            repository.deleteEntriesBySourceRecordIds(staleIds)
-            deleted += staleIds.size
+            deleted += repository.deleteEntriesBySourceRecordIds(staleIds)
         }
 
         if (imported > 0 || deleted > 0) {

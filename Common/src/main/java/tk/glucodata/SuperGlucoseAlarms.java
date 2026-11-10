@@ -25,7 +25,13 @@ import android.app.Application;
 
 import static tk.glucodata.Natives.hasalarmloss;
 
-public class SuperGlucoseAlarms {
+/**
+ * Abstract since it implements GlucoseAlarmHandler without handlealarm(): the base is never
+ * instantiated on its own (nothing news it up), and requiring the override at compile time is
+ * the point -- today a flavour could forget handlealarm() and nothing would say so until the
+ * alarm fired.
+ */
+public abstract class SuperGlucoseAlarms implements GlucoseAlarmHandler {
     final private static String LOG_ID="SuperGlucoseAlarms";
 public SuperGlucoseAlarms(Application context) {
 	Notify.init(context);
@@ -47,6 +53,7 @@ public	static long waitmmsec() {
 
 boolean saidloss = false;
 
+    @Override
 public  void setLossAlarm() {
     if(hasalarmloss()) {
          saidloss = false;
@@ -57,6 +64,7 @@ public  void setLossAlarm() {
        }
 }
 
+    @Override
 public void setagealarm(final long numsec,long showtime) {
     Notify.stoplossalarm();
 

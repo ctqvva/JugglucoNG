@@ -146,4 +146,56 @@ class DisplayValueResolverTests {
         assertEquals("--", nan.primaryStr)
         assertEquals("--", negative.primaryStr)
     }
+
+    @Test
+    fun resolve_rawModeWithoutRawInput_keepsARecordedValueButNotALiveCalibration() {
+        // AiDEX stores rawValue = 0 when its raw signal is unusable. A minute
+        // recorded on the auto line and viewed after a switch to raw keeps its
+        // record, as the chart does; a live calibration of nothing does not.
+        val recorded = DisplayValueResolver.resolve(
+            autoValue = 6.1f,
+            rawValue = 0f,
+            viewMode = 1,
+            isMmol = true,
+            calibratedValue = 5.4f,
+            calibratedIsRecorded = true
+        )
+        assertEquals(5.4f, recorded.primaryValue, 0.001f)
+
+        val live = DisplayValueResolver.resolve(
+            autoValue = 6.1f,
+            rawValue = 0f,
+            viewMode = 1,
+            isMmol = true,
+            calibratedValue = 5.4f
+        )
+        assertEquals(6.1f, live.primaryValue, 0.001f)
+    }
+
+    @Test
+    fun resolve_rawPlusAutoWithoutRawInput_keepsAutoBesideTheRecord() {
+        for (isMmol in listOf(false, true)) {
+            val auto = if (isMmol) 6.1f else 110f
+            val recorded = if (isMmol) 5.4f else 97f
+            for (raw in listOf(0f, Float.NaN, -1f, 11_557f)) {
+                for (hideSource in listOf(false, true)) {
+                    val result = DisplayValueResolver.resolve(
+                        autoValue = auto,
+                        rawValue = raw,
+                        viewMode = 3,
+                        isMmol = isMmol,
+                        calibratedValue = recorded,
+                        hideInitialWhenCalibrated = hideSource,
+                        calibratedIsRecorded = true
+                    )
+                    assertEquals(recorded, result.primaryValue, 0.001f)
+                    assertEquals(auto, result.secondaryValue)
+                    assertEquals(null, result.tertiaryValue)
+                    val expected = if (isMmol) "5,4 · 6,1" else "97 · 110"
+                    assertEquals(expected, result.fullFormatted)
+                    assertEquals(if (isMmol) "6,1" else "110", result.secondaryStr)
+                }
+            }
+        }
+    }
 }

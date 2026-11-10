@@ -2,6 +2,7 @@ package tk.glucodata.drivers.aidex.native.protocol
 
 import android.content.Context
 import android.util.Log
+import java.security.MessageDigest
 
 /**
  * Redundant app-private storage for the stable AiDex PAIR credential.
@@ -22,6 +23,16 @@ object AiDexPairKeyVault {
         ALREADY_PRESENT,
         CONFLICT,
         INVALID,
+    }
+
+    /**
+     * Short, non-reversible tag for log lines: the first four bytes of SHA-256. Enough to tell
+     * whether two log lines talk about the same credential; never enough to rebuild one.
+     */
+    fun fingerprint(pairKey: ByteArray?): String {
+        if (pairKey == null) return "none"
+        val digest = MessageDigest.getInstance("SHA-256").digest(pairKey)
+        return digest.take(4).joinToString("") { "%02x".format(it) }
     }
 
     @Synchronized

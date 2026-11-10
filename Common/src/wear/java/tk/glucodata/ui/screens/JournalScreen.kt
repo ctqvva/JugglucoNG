@@ -43,10 +43,15 @@ import java.util.Date
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.R
 import tk.glucodata.WearJournalSync
+import tk.glucodata.data.journal.WearJournalIobDisplay
+
+/** Active insulin and carbs decay with time; once a minute is enough for a one-decimal figure. */
+private const val ACTIVITY_REFRESH_MS = 60_000L
 
 /**
  * The journal as the watch sees it: entries the phone served, and adding insulin
@@ -65,6 +70,22 @@ fun JournalScreen(
     val timeFormat = remember(context) { DateFormat.getTimeFormat(context) }
 
     LaunchedEffect(Unit) { WearJournalSync.requestSync() }
+
+    // Recomputed when the journal changes and once a minute. The maths is a handful of entries,
+    // so it runs inline rather than off the main thread.
+    // The tick only invalidates; the clock is read when computing, so a journal that changes
+    // between ticks is evaluated at the current time (a dose arriving after the tick would
+    // otherwise look future-dated and count as zero).
+    var tick by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(ACTIVITY_REFRESH_MS)
+            tick++
+        }
+    }
+    val activity = remember(journal, tick) {
+        WearJournalIobDisplay.of(journal, System.currentTimeMillis())
+    }
 
     ScreenScaffold(timeText = { TimeText() }) {
         ScalingLazyColumn(
@@ -106,6 +127,9 @@ fun JournalScreen(
                     )
                 }
             }
+            if (!activity.isEmpty) {
+                item { JournalActivityBlock(activity) }
+            }
             if (journal.entries.isEmpty()) {
                 item {
                     Text(
@@ -119,12 +143,45 @@ fun JournalScreen(
                 JournalEntryRow(
                     entry = entry,
                     time = timeFormat.format(Date(entry.timestampMs)),
-                    onDelete = {
-                        WearJournalSync.sendDelete(entry.id, entry.timestampMs)
-                        WearJournalSync.removeLocally(entry.id)
-                    },
+                    onDelete = { WearJournalSync.sendDelete(entry.id, entry.timestampMs) },
                 )
             }
+        }
+    }
+}
+
+/**
+ * Journal-derived IOB / eIOB / COB, in the screen's ordinary text colours: no risk tint (#500).
+ * Pending watch-only entries are not counted; their rows say "Waiting for the phone".
+ */
+@Composable
+private fun JournalActivityBlock(activity: WearJournalIobDisplay) {
+    val insulinLine = listOfNotNull(
+        activity.iob?.let {
+            stringResource(R.string.wear_journal_iob, stringResource(R.string.unit_insulin_value, it))
+        },
+        activity.eiob?.let {
+            stringResource(R.string.journal_metric_eiob, it)
+        },
+    ).joinToString(" · ")
+    val cobLine = activity.cob?.let {
+        stringResource(R.string.wear_journal_cob, stringResource(R.string.unit_carbs_value, it))
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(bottom = 8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.wear_journal_derived_title),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        if (insulinLine.isNotEmpty()) {
+            Text(text = insulinLine, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+        }
+        if (cobLine != null) {
+            Text(text = cobLine, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
         }
     }
 }
@@ -157,6 +214,16 @@ private fun JournalEntryRow(
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
             )
+            if (entry.pending) {
+                // Only the watch has this entry so far. Saying so is the difference between "saved"
+                // and "saved and delivered", which is the bug #502 was (#502).
+                Text(
+                    text = stringResource(R.string.wear_journal_pending),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
         }
         if (confirming) {
             Button(
@@ -265,30 +332,20 @@ fun JournalEntryScreen(
                     resultOk = null
                     scope.launch {
                         val ok = withContext(Dispatchers.IO) {
+                            // `ok` now means the entry is saved in the watch's outbox, not that
+                            // a transport took it, and the outbox publishes it as pending -- so
+                            // there is nothing to add here (#502).
                             WearJournalSync.sendAdd(
                                 timestampMs = timestampMs.takeIf { it > 0L } ?: System.currentTimeMillis(),
                                 type = if (isInsulin) WearJournalSync.TYPE_INSULIN else WearJournalSync.TYPE_CARBS,
                                 amount = value,
                                 presetId = if (isInsulin) preset?.id ?: 0L else 0L,
+                                title = format(value) + if (isInsulin) " U" else " g",
                             )
                         }
                         resultOk = ok
                         sending = false
-                        if (ok) {
-                            // Show it at once; the next serve replaces this with
-                            // the phone's own record.
-                            WearJournalSync.addLocally(
-                                WearJournalSync.Entry(
-                                    timestampMs = timestampMs.takeIf { it > 0L } ?: System.currentTimeMillis(),
-                                    id = 0L,
-                                    type = if (isInsulin) WearJournalSync.TYPE_INSULIN else WearJournalSync.TYPE_CARBS,
-                                    amount = value,
-                                    title = format(value) + if (isInsulin) " U" else " g",
-                                    presetId = if (isInsulin) preset?.id ?: 0L else 0L,
-                                )
-                            )
-                            onDone()
-                        }
+                        if (ok) onDone()
                     }
                 },
                 label = { Text(stringResource(R.string.save)) },

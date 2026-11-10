@@ -151,6 +151,26 @@ interface HistoryDao {
     @Query("SELECT * FROM history_readings WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     suspend fun getReadingsSince(startTime: Long): List<HistoryReading>
 
+    /**
+     * Keyset page on the unique (timestamp, sensorSerial) index; start after (Long.MIN_VALUE, "").
+     * The MAX() is what SQLite seeks to. Given only `timestamp >= :startTime` it walked the index
+     * from the start of history on every page, so a full backup grew with the square of its size.
+     */
+    @Query("""
+        SELECT * FROM history_readings
+        WHERE timestamp >= MAX(:startTime, :afterTimestamp)
+          AND (timestamp > :afterTimestamp
+               OR (timestamp = :afterTimestamp AND sensorSerial > :afterSensorSerial))
+        ORDER BY timestamp ASC, sensorSerial ASC
+        LIMIT :limit
+    """)
+    suspend fun getReadingsPageSince(
+        startTime: Long,
+        afterTimestamp: Long,
+        afterSensorSerial: String,
+        limit: Int
+    ): List<HistoryReading>
+
     @Query("""
         SELECT * FROM history_readings
         WHERE timestamp >= :startTime
@@ -159,6 +179,9 @@ interface HistoryDao {
     """)
     suspend fun getReadingsBetween(startTime: Long, endTime: Long): List<HistoryReading>
     
+    @Query("SELECT * FROM history_readings WHERE sensorSerial IN (:serials) AND timestamp >= :startTime AND timestamp <= :endTime ORDER BY timestamp ASC")
+    suspend fun getReadingsBetweenForSensors(serials: List<String>, startTime: Long, endTime: Long): List<HistoryReading>
+
     @Query("SELECT * FROM history_readings ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestReading(): HistoryReading?
 
@@ -217,6 +240,20 @@ interface HistoryDao {
 
     @Query("DELETE FROM history_deleted_readings")
     suspend fun deleteAllDeletedReadings()
+
+    /**
+     * Tombstones every stored reading, so a re-sync from the sensor's own store cannot bring
+     * back what the user just cleared. Same rows [insertDeletedReadings] writes for one
+     * deleted reading, in a single statement.
+     */
+    @Query("""
+        INSERT OR IGNORE INTO history_deleted_readings (timestamp, sensorSerial, deletedAt)
+        SELECT timestamp, sensorSerial, :deletedAt FROM history_readings
+    """)
+    suspend fun tombstoneAllReadings(deletedAt: Long)
+
+    @Query("SELECT MAX(timestamp) FROM history_deleted_readings WHERE sensorSerial IN (:serials)")
+    suspend fun getLatestDeletedTimestampForSensors(serials: List<String>): Long?
 
     @Query("""
         DELETE FROM history_readings

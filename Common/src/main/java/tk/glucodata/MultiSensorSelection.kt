@@ -5,9 +5,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object MultiSensorSelection {
-    private const val PREFS_NAME = "tk.glucodata_preferences"
-    private const val KEY_SELECTED_ORDER = "dashboard_multi_sensor_selection_order"
-    private const val SEPARATOR = "\n"
+    private const val PREFS_NAME = tk.glucodata.settings.SettingsRegistry.FILE
+    private const val KEY_SELECTED_ORDER = tk.glucodata.settings.KEY_SENSOR_SELECTION
+    const val SEPARATOR = "\n"
 
     private val _revision = MutableStateFlow(0L)
     val revision = _revision.asStateFlow()
@@ -35,6 +35,14 @@ object MultiSensorSelection {
             .edit()
             .putString(KEY_SELECTED_ORDER, distinct.joinToString(SEPARATOR))
             .apply()
+        _revision.value = _revision.value + 1L
+        // The watch draws the same selection; it learns of a change here, not
+        // on its next handshake.
+        if (!Applic.isWearable) runCatching { WearPrefsSync.push() }
+    }
+
+    /** The stored order was written by something else (the phone's mirror). */
+    fun notifyStoredChanged() {
         _revision.value = _revision.value + 1L
     }
 

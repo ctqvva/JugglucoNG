@@ -36,5 +36,19 @@ data class CalibrationEntity(
      * 0 means unknown — anchors from before this column, and lanes nothing
      * integrates — and falls back to the history match as before.
      */
-    val sensorValueStock: Float = 0f
-)
+    val sensorValueStock: Float = 0f,
+    /** Actual unit of all four values: 1 = mmol/L, 0 = mg/dL; -1 = legacy, unlabelled. */
+    val valueUnit: Int = if (tk.glucodata.Applic.unit == 1) 1 else 0
+) {
+    fun inUnit(unit: Int): CalibrationEntity {
+        val target = if (unit == 1) 1 else 0
+        if (valueUnit == target) return this
+        // Older databases had no provenance. Preserve their historical interpretation
+        // at first load, then persist it; never guess units from glucose magnitude.
+        if (valueUnit == -1) return copy(valueUnit = target)
+        val factor = if (target == 1) 1f / tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL
+            else tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL
+        return copy(sensorValue = sensorValue * factor, sensorValueRaw = sensorValueRaw * factor,
+            sensorValueStock = sensorValueStock * factor, userValue = userValue * factor, valueUnit = target)
+    }
+}

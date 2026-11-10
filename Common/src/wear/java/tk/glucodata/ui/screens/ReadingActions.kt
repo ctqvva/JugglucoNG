@@ -2,7 +2,6 @@ package tk.glucodata.ui.screens
 
 import tk.glucodata.CalibrationAccess
 import tk.glucodata.NotificationHistorySource
-import tk.glucodata.SensorIdentity
 import tk.glucodata.ui.WearGlucoseStore
 
 /**
@@ -36,7 +35,7 @@ object ReadingActions {
         val anchors = if (snapshot.isLoaded && snapshot.isRawMode == isRawMode) {
             snapshot.anchors
         } else {
-            val sensor = runCatching { SensorIdentity.resolveMainSensor() }.getOrNull()
+            val sensor = WearGlucoseStore.currentSensor()
             runCatching {
                 CalibrationAccess.getActiveCalibrationAnchors(sensor, isRawMode)
             }.getOrDefault(DoubleArray(0))
@@ -66,7 +65,7 @@ object ReadingActions {
     /** Readings for the History screen: a longer window than the home list. */
     @JvmStatic
     fun historyReadings(isMmol: Boolean, hours: Int = 24) = runCatching {
-        val sensor = NotificationHistorySource.resolveSensorSerial()
+        val sensor = WearGlucoseStore.currentSensor()
         NotificationHistorySource
             .getDisplayHistory(System.currentTimeMillis() - hours * 3_600_000L, isMmol, sensor)
             .asReversed()

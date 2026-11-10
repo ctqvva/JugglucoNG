@@ -15,7 +15,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,10 +52,29 @@ import tk.glucodata.ui.WearSectionTitle
 
 private const val SENSOR_TICK_MS = 60_000L
 
-private data class SensorRow(val serial: String, val isCurrent: Boolean, val isConnected: Boolean)
+private data class SensorRow(
+    val serial: String,
+    /** The primary: the one the chart, the hero and the complications show. */
+    val isCurrent: Boolean,
+    val isConnected: Boolean,
+    /** On the chart at all — the primary or a peer. */
+    val isShown: Boolean,
+    /** Drawn beside the primary on the chart, in this colour. */
+    val peerColorArgb: Int? = null,
+)
 
+/**
+ * Every sensor the watch knows, in the phone's order: the primary first, then
+ * the peers drawn with it, then the rest. The list used to come out in
+ * whatever order native and the driver registry happened to produce, with
+ * "current" following whichever sensor's chunk had landed last.
+ */
 private fun loadSensors(): List<SensorRow> = runCatching {
-    val current = ManagedCurrentSensor.get() ?: Natives.lastsensorname()
+    val selected = tk.glucodata.ui.WearSensorSelection.selected()
+    val current = selected.firstOrNull()
+        ?: ManagedCurrentSensor.get()
+        ?: Natives.lastsensorname()
+    val colors = tk.glucodata.ui.WearSensorSelection.colors()
     val active = Natives.activeSensors()?.toList().orEmpty()
     val connected = SensorBluetooth.mygatts()?.mapNotNull { it.SerialNumber }.orEmpty()
     // One physical sensor can appear under several ids at once (native alias
@@ -65,15 +88,31 @@ private fun loadSensors(): List<SensorRow> = runCatching {
         .filter { managedId ->
             visible.any { candidate -> tk.glucodata.SensorIdentity.matches(managedId, candidate) }
         }
-    val ordered = managed + connected + active
-    val kept = tk.glucodata.SensorIdentity.distinctLogicalSensorIds(ordered)
-    kept.map { id ->
-        SensorRow(
-            serial = id,
-            isCurrent = tk.glucodata.SensorIdentity.matches(id, current),
-            isConnected = connected.any { tk.glucodata.SensorIdentity.matches(it, id) },
-        )
+    // A sensor the phone displays stays listed for as long as it has a record
+    // here, whatever native's streaming heuristic says about it today.
+    val ordered = managed + connected + active + selected.filter {
+        tk.glucodata.WearSensorSelectionSync.hasLocalRecord(it)
     }
+    val kept = tk.glucodata.SensorIdentity.distinctLogicalSensorIds(ordered)
+    fun selectionIndex(id: String): Int =
+        selected.indexOfFirst { tk.glucodata.SensorIdentity.matches(id, it) }
+            .takeIf { it >= 0 } ?: Int.MAX_VALUE
+    kept.withIndex()
+        .sortedWith(compareBy<IndexedValue<String>> { selectionIndex(it.value) }.thenBy { it.index })
+        .map { (_, id) ->
+            val isCurrent = tk.glucodata.SensorIdentity.matches(id, current)
+            SensorRow(
+                serial = id,
+                isCurrent = isCurrent,
+                isConnected = connected.any { tk.glucodata.SensorIdentity.matches(it, id) },
+                isShown = isCurrent || selectionIndex(id) != Int.MAX_VALUE,
+                peerColorArgb = if (!isCurrent && selectionIndex(id) != Int.MAX_VALUE) {
+                    tk.glucodata.ui.WearSensorSelection.colorOf(id, colors)
+                } else {
+                    null
+                },
+            )
+        }
 }.getOrDefault(emptyList())
 
 @Composable
@@ -134,11 +173,17 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
                 val details = remember(row, revision, now / SENSOR_TICK_MS) {
                     loadWearSensorPresentation(row.serial, now)
                 }
-                // Tapping a sensor makes the rest of the app follow it; tapping the
-                // one already shown hands the choice back to "whichever is
-                // reporting". With two sensors there was previously no way to say.
                 val displayed = displayedSensor != null &&
                     tk.glucodata.SensorIdentity.matches(displayedSensor, row.serial)
+                // The check is the phone's sensor-card control: it shows or
+                // hides the sensor on the chart. With one sensor there is
+                // nothing to hide, so the card is not offered as pressable.
+                val selectable = sensors.size > 1
+                val identityColor = when {
+                    displayed || row.isCurrent -> MaterialTheme.colorScheme.primary
+                    row.peerColorArgb != null -> androidx.compose.ui.graphics.Color(row.peerColorArgb)
+                    else -> MaterialTheme.colorScheme.onSurface
+                }
                 Column(
                     Modifier.fillMaxWidth()
                         // Clip before the background and the click, so the ripple
@@ -150,10 +195,7 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
                         )
                         .combinedClickable(
                             onClick = {
-                                tk.glucodata.ui.WearSensorSelection.pin(
-                                    if (tk.glucodata.ui.WearSensorSelection.pinned() != null && displayed) null
-                                    else row.serial,
-                                )
+                                if (selectable) tk.glucodata.ui.WearSensorSelection.toggle(row.serial)
                             },
                             // Long press offers to drop a sensor this watch holds
                             // on its own, which the phone cannot remove for it.
@@ -161,18 +203,37 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
                         )
                         .padding(horizontal = 14.dp, vertical = 13.dp),
                 ) {
-                    Text(
-                        text = details.serial,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (displayed || row.isCurrent) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurface,
-                    )
+                    // The primary in the accent, a peer in the colour its trace
+                    // has on the chart, so the list doubles as the legend; a
+                    // hidden sensor is muted, as on the phone.
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        if (selectable) {
+                            androidx.wear.compose.material3.Icon(
+                                imageVector = if (row.isShown) {
+                                    Icons.Rounded.CheckCircle
+                                } else {
+                                    Icons.Rounded.RadioButtonUnchecked
+                                },
+                                contentDescription = stringResource(
+                                    if (row.isShown) R.string.sensor_display_selected
+                                    else R.string.sensor_display_select,
+                                ),
+                                tint = if (row.isShown) identityColor else identityColor.copy(alpha = 0.55f),
+                                modifier = Modifier.padding(end = 6.dp).size(18.dp),
+                            )
+                        }
+                        Text(
+                            text = details.serial,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (selectable && !row.isShown) identityColor.copy(alpha = 0.6f) else identityColor,
+                            maxLines = 1,
+                        )
+                    }
                     if (forgetTarget == row.serial) {
                         androidx.wear.compose.material3.Button(
                             onClick = {
                                 forgetTarget = null
-                                tk.glucodata.ui.WearSensorSelection.pin(null)
                                 tk.glucodata.WearSync2.forgetSensorLocally(row.serial)
                             },
                             label = { Text(stringResource(R.string.wear_sensor_forget)) },
@@ -220,8 +281,10 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
                         SensorDetailRow(stringResource(R.string.sensor_started), dateFormat.format(Date(it)))
                     }
                     details.lastReadingMs.takeIf { it > 0L }?.let {
+                        // A reading stamped by the phone can sit a few seconds
+                        // ahead of this clock; "in 0 minutes" is not an age.
                         val age = DateUtils.getRelativeTimeSpanString(
-                            it,
+                            minOf(it, now),
                             now,
                             DateUtils.MINUTE_IN_MILLIS,
                         ).toString()

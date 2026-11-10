@@ -48,7 +48,7 @@ class NumberDataSourceService: SuspendingComplicationDataSourceService()  {
         )
     }
 
-private val glview= GlucoseValue(100,100)
+private val glview= WearComplicationValue(100,100)
 
     override fun onComplicationActivated( complicationInstanceId: Int, type: ComplicationType) {
         Log.d(LOG_ID, "onComplicationActivated(): $complicationInstanceId")

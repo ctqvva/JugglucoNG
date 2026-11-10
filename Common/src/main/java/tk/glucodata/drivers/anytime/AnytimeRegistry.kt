@@ -123,6 +123,7 @@ object AnytimeRegistry {
         writeRecords(context, remaining)
         clearPerSensorState(context, canonical)
         AnytimeAlgorithm.clearCalibratorState(canonical)
+        AnytimeAlgorithm.clearNativePortState(canonical)
     }
 
     private fun writeRecords(context: Context, records: List<SensorRecord>) {
@@ -223,6 +224,20 @@ object AnytimeRegistry {
         val editor = prefs(c).edit()
         if (glucoseId > 0) editor.putInt(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + id, glucoseId)
         else editor.remove(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + id)
+        editor.apply()
+    }
+
+    /**
+     * CT3 native-port continuity state (the pure-Kotlin vendor chain), so a restart
+     * resumes the same series instead of re-warming the filters from zero.
+     */
+    @JvmStatic fun loadCt3NativeState(c: Context, id: String): String? =
+        prefs(c).getString(AnytimeConstants.PREF_CT3_NATIVE_STATE_PREFIX + id, null)
+
+    @JvmStatic fun saveCt3NativeState(c: Context, id: String, encoded: String?) {
+        val editor = prefs(c).edit()
+        if (encoded.isNullOrBlank()) editor.remove(AnytimeConstants.PREF_CT3_NATIVE_STATE_PREFIX + id)
+        else editor.putString(AnytimeConstants.PREF_CT3_NATIVE_STATE_PREFIX + id, encoded)
         editor.apply()
     }
 
@@ -695,6 +710,7 @@ object AnytimeRegistry {
             remove(AnytimeConstants.PREF_CALIBRATOR_TEMP_SMOOTH_PREV_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CALIBRATOR_FILTERED_PREV_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CALIBRATOR_LAST_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT3_NATIVE_STATE_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + sensorId)

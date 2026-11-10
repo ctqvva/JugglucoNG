@@ -45,8 +45,8 @@ import tk.glucodata.Notify
 import java.lang.Math.min
 
 class ArrowValueDataSourceService: SuspendingComplicationDataSourceService()  {
-private var glview: GlucoseValue? =null
-private val iconView = GlucoseValue(150,150)
+private var glview: WearComplicationValue? =null
+private val iconView = WearComplicationValue(150,150)
 
     override fun onComplicationActivated( complicationInstanceId: Int, type: ComplicationType) {
         Log.d(LOG_ID, "onComplicationActivated(): $complicationInstanceId")
@@ -54,7 +54,7 @@ private val iconView = GlucoseValue(150,150)
     override fun onComplicationDeactivated(complicationInstanceId: Int) {
         Log.d(LOG_ID, "onComplicationDeactivated(): $complicationInstanceId")
     }
-fun getview(type: ComplicationType):GlucoseValue {
+fun getview(type: ComplicationType):WearComplicationValue {
      if(glview==null) {
         val width:Int
         val height:Int
@@ -69,9 +69,9 @@ fun getview(type: ComplicationType):GlucoseValue {
              width = 150
              height = 150
             }
-         glview= GlucoseValue(width,height)
+         glview= WearComplicationValue(width,height)
          }
-      return glview as GlucoseValue;
+      return glview as WearComplicationValue;
       }
     override fun getPreviewData(type: ComplicationType): ComplicationData {
 

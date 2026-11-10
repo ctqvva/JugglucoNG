@@ -619,7 +619,11 @@ object OutboundApi {
         "test", "status", "status_emoji"
     )
 
-    private val PLACEHOLDER = Regex("\\{[^{}\\s]+}")
+    // The closing brace must be escaped: JVM java.util.regex tolerates a bare
+    // `}`, but Android's ICU-backed Pattern (Android 16) rejects it with
+    // PatternSyntaxException, which turns this object's <clinit> into an
+    // ExceptionInInitializerError and force-closes the app on every reading.
+    private val PLACEHOLDER = Regex("\\{[^{}\\s]+\\}")
 
     internal fun needsJournalSnapshot(template: String): Boolean =
         PLACEHOLDER.findAll(template).any { match ->
@@ -664,11 +668,7 @@ object OutboundApi {
     }
 
     private fun loadJournalSnapshot(timeMillis: Long): JournalSnapshot {
-        val raw = runCatching {
-            val type = Class.forName("tk.glucodata.OutboundApiJournalSnapshot")
-            val method = type.getMethod("snapshotJson", java.lang.Long.TYPE)
-            method.invoke(null, timeMillis) as? String
-        }.getOrNull() ?: return JournalSnapshot()
+        val raw = JournalSnapshotAccess.snapshotJson(timeMillis)
         if (raw.isBlank()) return JournalSnapshot()
         return runCatching {
             val json = JSONObject(raw)

@@ -4,7 +4,7 @@ To modify, change the html files in https://github.com/j-kaltes/Jugglucohelp -->
 <string name="IOBhelp" >Geben Sie zunächst das Etikett für das schnell wirkende Insulin im linken Menü → Einstellungen → Anzeige → IOB auf Ihrem Telefon an. Diese Einstellung wird zusammen mit den Mengen an die Uhr gesendet.</string>
 <string name="staticnum" >
 <![CDATA[
-<h1 align="center">Blocked</h1>
+<h1 align="center">Mengeneingabe gesperrt</h1>
 <p style="line-height: 100%; margin-bottom: 0in"><span lang="de-DE"><b>Das
 Menü links in der Mitte -&gt; </b></span><span lang="de-DE"><b>Klon</b></span><span lang="de-DE"><b>
 -&gt; „</b></span><span lang="de-DE"><b>Mengen erhalten vom Klon</b></span><span lang="de-DE">“

@@ -2,7 +2,10 @@
 
 package tk.glucodata.ui.journal
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
 import android.view.HapticFeedbackConstants
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -45,10 +48,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import tk.glucodata.ui.FontScaleCap
 import tk.glucodata.R
 import tk.glucodata.RemoteIobSnapshot
 import tk.glucodata.UiRefreshBus
@@ -105,7 +108,7 @@ fun JournalScreen(
     targetLow: Float,
     targetHigh: Float,
     graphSmoothingMinutes: Int,
-    collapseSmoothedData: Boolean,
+    graphCollapseMinutes: Int,
     previewWindowMode: Int,
     calibrations: List<tk.glucodata.data.calibration.CalibrationEntity>,
     journalEntries: List<JournalEntry>,
@@ -142,12 +145,15 @@ fun JournalScreen(
     var selectedChartRange by rememberSaveable { mutableStateOf(TimeRange.H3) }
     var viewportSnapshot by remember { mutableStateOf<ChartViewportSnapshot?>(null) }
     var selectedTypeFilters by rememberSaveable {
-        mutableStateOf(JournalEntryType.entries.map { it.name })
+        mutableStateOf(JournalEntryType.journalRowTypes.map { it.name })
     }
     var chartActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
+    // Where the chart draws the tapped time's dot, for the journal menu to grow from.
+    val chartActionAnchor = remember { tk.glucodata.ui.ChartActionAnchor() }
     var chartActionDisplayValue by remember { mutableStateOf<Float?>(null) }
     var chartActionAmountFraction by remember { mutableStateOf<Float?>(null) }
-    var fabExpanded by rememberSaveable { mutableStateOf(false) }
+    // Not saveable: leaving the screen by any route closes the menu, as it did the popup.
+    var fabExpanded by remember { mutableStateOf(false) }
 
     val selectedTypes = remember(selectedTypeFilters) {
         selectedTypeFilters.mapNotNull { name ->
@@ -207,14 +213,14 @@ fun JournalScreen(
                 )
             }
 
-            if (sortedHistory.isNotEmpty()) {
-                item(key = "journal-chart") {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(if (showTitle) 324.dp else 348.dp)
-                    ) {
+            item(key = "journal-chart") {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (showTitle) 324.dp else 348.dp)
+                ) {
+                    FontScaleCap {
                         DashboardChartSection(
                             modifier = Modifier.matchParentSize(),
                             appChartRangeColors = chartRangeColors,
@@ -223,7 +229,7 @@ fun JournalScreen(
                             onVisibleRangeChanged = onVisibleRangeChanged,
                             journalMarkers = markers,
                             graphSmoothingMinutes = graphSmoothingMinutes,
-                            collapseSmoothedData = collapseSmoothedData,
+                            graphCollapseMinutes = graphCollapseMinutes,
                             previewWindowMode = previewWindowMode,
                             graphLow = graphLow,
                             graphHigh = graphHigh,
@@ -258,35 +264,30 @@ fun JournalScreen(
                             },
                             journalActionTimestamp = chartActionTimestamp,
                             journalActionDisplayValue = chartActionDisplayValue,
+                            journalActionAnchor = chartActionAnchor,
                             onDismissJournalAction = { clearChartAction() },
                             onJournalMarkerClick = { entryId ->
                                 entriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
                             },
                             onViewportSnapshotChanged = { viewportSnapshot = it }
                         )
-
-                        chartActionTimestamp?.let { actionTimestamp ->
-                            JournalFloatingActionMenu(
-                                visible = true,
-                                selectedTimestamp = actionTimestamp,
-                                viewportSnapshot = viewportSnapshot,
-                                menuTopOffset = 40.dp,
-                                menuItemSpacing = 6.dp,
-                                menuYOffset = (-36).dp,
-                                modifier = Modifier.matchParentSize(),
-                                onTypeSelected = { type ->
-                                    onAddJournalEntry(
-                                        actionTimestamp,
-                                        type,
-                                        chartActionDisplayValue,
-                                        chartActionAmountFraction
-                                    )
-                                    clearChartAction()
-                                    fabExpanded = false
-                                }
-                            )
-                        }
                     }
+
+                    JournalFloatingActionMenu(
+                        selectedTimestamp = chartActionTimestamp,
+                        anchor = chartActionAnchor,
+                        onDismissRequest = { clearChartAction() },
+                        onTypeSelected = { type, actionTimestamp ->
+                            onAddJournalEntry(
+                                actionTimestamp,
+                                type,
+                                chartActionDisplayValue,
+                                chartActionAmountFraction
+                            )
+                            clearChartAction()
+                            fabExpanded = false
+                        }
+                    )
                 }
             }
 
@@ -327,11 +328,10 @@ fun JournalScreen(
                             text = section.label,
                             modifier = Modifier.padding(
                                 start = 16.dp,
-                                top = if (sectionIndex == 0) 12.dp else 18.dp,
+                                top = if (sectionIndex == 0) 12.dp else 16.dp,
                                 bottom = 8.dp
                             ),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleSmallEmphasized,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -404,9 +404,7 @@ fun JournalScreen(
                     null
                 )
             },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 20.dp)
+            modifier = Modifier.align(Alignment.BottomEnd)
         )
     }
 }
@@ -438,7 +436,7 @@ private fun JournalHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 22.dp),
+            .padding(bottom = 24.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -452,19 +450,23 @@ private fun JournalHeader(
             overflow = TextOverflow.Ellipsis
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onOpenFoodLibrary, modifier = Modifier.size(40.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Restaurant,
-                    contentDescription = stringResource(R.string.journal_food_library),
-                    tint = journalTypeColor(JournalEntryType.CARBS)
-                )
+            IconButtonTooltip(stringResource(R.string.journal_food_library)) {
+                IconButton(onClick = onOpenFoodLibrary, modifier = Modifier.size(40.dp), shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        imageVector = Icons.Default.Restaurant,
+                        contentDescription = stringResource(R.string.journal_food_library),
+                        tint = journalTypeColor(JournalEntryType.CARBS)
+                    )
+                }
             }
-            IconButton(onClick = onOpenInsulinLibrary, modifier = Modifier.size(40.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Vaccines,
-                    contentDescription = stringResource(R.string.journal_insulin_library),
-                    tint = journalTypeColor(JournalEntryType.INSULIN)
-                )
+            IconButtonTooltip(stringResource(R.string.journal_insulin_library)) {
+                IconButton(onClick = onOpenInsulinLibrary, modifier = Modifier.size(40.dp), shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        imageVector = Icons.Default.Vaccines,
+                        contentDescription = stringResource(R.string.journal_insulin_library),
+                        tint = journalTypeColor(JournalEntryType.INSULIN)
+                    )
+                }
             }
         }
     }
@@ -499,7 +501,7 @@ private fun JournalMetricsPanel(
     // Mirrors the dashboard chip and every outbound surface. A received or
     // cleared Clone snapshot updates immediately; the ticker retires stale
     // remote state on its own.
-    val iobRefreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
+    val iobRefreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
     val remoteInsulin = remember(nowMillis, iobRefreshRevision) {
         RemoteIobSnapshot.fresh(nowMillis)
     }
@@ -515,11 +517,12 @@ private fun JournalMetricsPanel(
         }
     }
     val activeInsulinFromRemote = remoteInsulin != null && activeInsulin != null
+    val cobGrams = rememberJournalCob(nowMillis, entries)
     val iobUnits = activeInsulin?.iobUnits?.coerceAtLeast(0f) ?: 0f
     val eiobUnits = activeInsulin?.eiobUnits?.coerceAtLeast(0f) ?: 0f
     val activeUntilFormatter = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val eiobText = if (showEiob) {
-        stringResource(R.string.journal_metric_eiob, formatJournalMetric(eiobUnits))
+        stringResource(R.string.journal_metric_eiob, formatJournalIob(eiobUnits))
     } else {
         null
     }
@@ -549,7 +552,7 @@ private fun JournalMetricsPanel(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             JournalMetricCard(
                 title = stringResource(R.string.journal_metric_iob),
-                value = "${formatJournalMetric(iobUnits)} U",
+                value = stringResource(R.string.unit_insulin_value, formatJournalIob(iobUnits)),
                 detail = activeInsulinDetail,
                 icon = Icons.Default.Vaccines,
                 type = JournalEntryType.INSULIN,
@@ -562,11 +565,22 @@ private fun JournalMetricsPanel(
             )
             JournalMetricCard(
                 title = stringResource(R.string.journal_type_food),
-                value = "${formatJournalMetric(foodToday, wholeNumber = true)} g",
-                detail = stringResource(
-                    R.string.journal_events_today,
-                    todaysEntries.count { it.type == JournalEntryType.CARBS }
+                value = stringResource(
+                    R.string.unit_carbs_value,
+                    formatJournalMetric(foodToday, wholeNumber = true)
                 ),
+                detail = listOfNotNull(
+                    cobGrams?.let { grams ->
+                        stringResource(
+                            R.string.journal_cob_value,
+                            stringResource(R.string.unit_carbs_value, formatJournalMetric(grams))
+                        )
+                    },
+                    stringResource(
+                        R.string.journal_events_today,
+                        todaysEntries.count { it.type == JournalEntryType.CARBS }
+                    )
+                ).joinToString(" · "),
                 icon = Icons.Default.Restaurant,
                 type = JournalEntryType.CARBS,
                 modifier = Modifier.weight(1f)
@@ -576,14 +590,14 @@ private fun JournalMetricsPanel(
             activeInsulin?.let { summary ->
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = journalTypeSelectedContainerColor(
                         JournalEntryType.INSULIN,
                         MaterialTheme.colorScheme.surfaceContainerHighest
                     ).copy(alpha = 0.68f)
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
@@ -591,7 +605,7 @@ private fun JournalMetricsPanel(
                                 append(
                                     stringResource(
                                         R.string.journal_iob_expanded,
-                                        formatJournalMetric(summary.iobUnits.coerceAtLeast(0f))
+                                        formatJournalIob(summary.iobUnits.coerceAtLeast(0f))
                                     )
                                 )
                                 if (showEiob) {
@@ -599,7 +613,7 @@ private fun JournalMetricsPanel(
                                     append(
                                         stringResource(
                                             R.string.journal_eiob_expanded,
-                                            formatJournalMetric(summary.eiobUnits.coerceAtLeast(0f))
+                                            formatJournalIob(summary.eiobUnits.coerceAtLeast(0f))
                                         )
                                     )
                                 }
@@ -610,7 +624,7 @@ private fun JournalMetricsPanel(
                             text = stringResource(
                                 R.string.journal_active_insulin_summary,
                                 summary.activeEntryCount,
-                                formatJournalMetric(summary.totalUnits),
+                                formatJournalDose(summary.totalUnits),
                                 summary.weightedActivityPercent
                             ),
                             style = MaterialTheme.typography.titleSmall
@@ -639,7 +653,7 @@ private fun JournalMetricsPanel(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             JournalMetricCard(
                 title = stringResource(R.string.journal_metric_insulin_today),
-                value = "${formatJournalMetric(insulinToday)} U",
+                value = stringResource(R.string.unit_insulin_value, formatJournalDose(insulinToday)),
                 detail = stringResource(R.string.journal_type_insulin),
                 icon = Icons.Default.Vaccines,
                 type = JournalEntryType.INSULIN,
@@ -672,7 +686,7 @@ private fun JournalMetricCard(
         onClick = onClick ?: {},
         enabled = onClick != null,
         modifier = modifier.heightIn(min = 74.dp),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = journalTypeSelectedContainerColor(
             type,
             MaterialTheme.colorScheme.surfaceContainerHighest
@@ -681,9 +695,9 @@ private fun JournalMetricCard(
         shadowElevation = 0.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Surface(
                 modifier = Modifier.size(34.dp),
@@ -709,8 +723,7 @@ private fun JournalMetricCard(
                 )
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -736,7 +749,7 @@ private fun JournalTypeFilter(
     val unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f)
     val unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
     ConnectedButtonGroup(
-        options = JournalEntryType.entries,
+        options = JournalEntryType.journalRowTypes,
         selectedOptions = selectedTypes,
         multiSelect = true,
         onOptionSelected = onToggle,
@@ -826,6 +839,14 @@ private fun findClosestPoint(
     }
     return closestPoint.takeIf { closestDistance <= maxDistanceMillis }
 }
+
+/** Doses are entered in 0.1 U or finer steps, so a total keeps its decimals (10.5 stays 10.5). */
+internal fun formatJournalDose(value: Float): String =
+    java.text.DecimalFormat("0.##", java.text.DecimalFormatSymbols(Locale.getDefault())).format(value.toDouble())
+
+/** Insulin on board is a small fractional quantity; one decimal at every size, never whole units. */
+internal fun formatJournalIob(value: Float): String =
+    String.format(Locale.getDefault(), "%.1f", value)
 
 private fun formatJournalMetric(value: Float, wholeNumber: Boolean = false): String {
     val pattern = when {

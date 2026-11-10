@@ -35,6 +35,39 @@ struct accustream : streamdata {
   accustream(int sensindex, SensorGlucoseData *sens)
       : streamdata(0x20, sensindex, sens) {};
 };
+
+#include "air/air.hpp"
+#include <sys/stat.h>
+// Maps one T from dir/name. A missing or short file is a sensor seen for the
+// first time; it starts from T's member defaults rather than zeros.
+template <typename T>
+inline Mmap<T> mmapWithDefaults(std::string_view dir, std::string_view name) {
+  const pathconcat path(dir, name);
+  struct stat st;
+  const bool fresh = stat(path, &st) != 0 || st.st_size < (off_t)sizeof(T);
+  Mmap<T> map(path, 1);
+  if (fresh && map.data())
+    *map.data() = T{};
+  return map;
+}
+struct airstream : streamdata {
+  Mmap<DeviceInfo3Obj> sensorInfo;
+  Mmap<air1_opcal4_arguments_t> generated;
+  int tmpiter = 0;
+  int tmptot = 0;
+  int ininfo = 0;
+  int errors = 0;
+  // Too large for the JNI thread's stack.
+  air_input input;
+  air1_opcal4_output_t output;
+  air1_opcal4_debug_t debug;
+  airstream(int sensindex, SensorGlucoseData *sens)
+      : streamdata(careSensAirKind, sensindex, sens),
+        sensorInfo(mmapWithDefaults<DeviceInfo3Obj>(hist->getsensordir(),
+                                                    sensorInfoStr)),
+        generated(hist->getsensordir(), generatedStr, 1) {}
+  bool setNumberNew(int nr);
+};
 #endif
 struct aidexstream : streamdata {
   aidexstream(int sensindex, SensorGlucoseData *sens)

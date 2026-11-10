@@ -44,6 +44,7 @@ import tk.glucodata.GlucosePoint
 import tk.glucodata.GlucoseUpdateBroadcaster
 import tk.glucodata.MainActivity
 import tk.glucodata.NotificationChartDrawer
+import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.WidgetDisplaySource
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -100,8 +101,13 @@ class ExpressiveAppWidget : GlanceAppWidget() {
         val viewMode = resolvedDisplay?.viewMode ?: WidgetDisplaySource.resolveViewMode(activeSensorSerial)
         val dataState = WidgetDisplaySource.resolveDataState(resolvedDisplay, chartHistory, activeSensorSerial)
         val hasCalibration = WidgetDisplaySource.hasCalibration(activeSensorSerial, viewMode)
+        if (dataState.isFresh) {
+            GlucoseUpdateBroadcaster.armFreshnessDeadline(dataState.latestTimestampMillis)
+        }
         return WidgetState(
-            currentDisplay = resolvedDisplay,
+            // Same rule as the dashboard hero: a reading past glucosetimeout is not
+            // shown as current, whether it came from the live source or from history.
+            currentDisplay = resolvedDisplay?.takeIf { dataState.isFresh },
             history = chartHistory,
             dataState = dataState,
             activeSensorSerial = activeSensorSerial,
@@ -186,7 +192,7 @@ class ExpressiveAppWidget : GlanceAppWidget() {
 
         val fallbackText = remember(dataState) {
             when {
-                dataState.isStale -> context.getString(R.string.nonewvalue)
+                dataState.isStale -> Notify.staleReadingStatus(dataState.latestTimestampMillis)
                 dataState.isAwaitingData || !dataState.sensorPresent -> context.getString(R.string.novalue)
                 else -> context.getString(R.string.novalue)
             }
@@ -237,7 +243,7 @@ class ExpressiveAppWidget : GlanceAppWidget() {
                             fontSize = 15.sp,
                             fontFamily = FontFamily("sans-serif")
                         ),
-                        maxLines = 1
+                        maxLines = 2
                     )
                 }
             }

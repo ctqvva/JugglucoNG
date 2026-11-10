@@ -1,5 +1,8 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -84,16 +87,28 @@ private class RejectedScan {
     @Volatile var atMs: Long = 0L
 }
 
+/** The sensor-pairing codes: what every setup wizard scans. */
+val SENSOR_CODE_FORMATS: List<Int> = listOf(Barcode.FORMAT_QR_CODE, Barcode.FORMAT_DATA_MATRIX)
+
+/** Retail product barcodes, for the meal scanner. */
+val PRODUCT_BARCODE_FORMATS: List<Int> = listOf(
+    Barcode.FORMAT_EAN_13,
+    Barcode.FORMAT_EAN_8,
+    Barcode.FORMAT_UPC_A
+)
+
 /**
  * @param onScanResult invoked with a decoded payload; return true if the caller accepted it, which
  *   stops the camera. Returning false leaves the scanner running — a stray code in frame (a box's
  *   "app download" QR, a code for a different sensor type) must not be able to end the scan.
+ * @param barcodeFormats ML Kit formats to decode; defaults to the sensor-pairing codes.
  */
 @Composable
 @SuppressLint("ClickableViewAccessibility")
 fun InlineQrScannerCard(
     modifier: Modifier = Modifier,
     scannerEnabled: Boolean = true,
+    barcodeFormats: List<Int> = SENSOR_CODE_FORMATS,
     onScanResult: (String) -> Boolean,
     onManualFallback: (() -> Unit)? = null,
     manualFallbackLabel: String? = null,
@@ -139,15 +154,13 @@ fun InlineQrScannerCard(
         )
     }
 
-    val scannerOptions = remember {
+    val scannerOptions = remember(barcodeFormats) {
+        val formats = barcodeFormats.ifEmpty { SENSOR_CODE_FORMATS }
         BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(
-                Barcode.FORMAT_QR_CODE,
-                Barcode.FORMAT_DATA_MATRIX
-            )
+            .setBarcodeFormats(formats.first(), *formats.drop(1).toIntArray())
             .build()
     }
-    val barcodeScannerResult = remember {
+    val barcodeScannerResult = remember(scannerOptions) {
         runCatching { BarcodeScanning.getClient(scannerOptions) }
     }
     val barcodeScanner = barcodeScannerResult.getOrNull()
@@ -155,6 +168,9 @@ fun InlineQrScannerCard(
         barcodeScannerResult.exceptionOrNull()?.let { throwable ->
             scannerError = throwable.message ?: throwable.javaClass.simpleName
         }
+    }
+    DisposableEffect(barcodeScanner) {
+        onDispose { barcodeScanner?.close() }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -178,7 +194,6 @@ fun InlineQrScannerCard(
             camera = null
             torchEnabled = false
             analyzerExecutor.shutdown()
-            barcodeScanner?.close()
         }
     }
 
@@ -336,7 +351,7 @@ fun InlineQrScannerCard(
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         tonalElevation = 3.dp,
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
@@ -420,25 +435,28 @@ fun InlineQrScannerCard(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(12.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = Color.Black.copy(alpha = 0.45f)
                 ) {
-                    IconButton(
-                        onClick = {
-                            val nextTorch = !torchEnabled
-                            try {
-                                camera?.cameraControl?.enableTorch(nextTorch)
-                                torchEnabled = nextTorch
-                            } catch (throwable: Throwable) {
-                                scannerError = throwable.message ?: throwable.javaClass.simpleName
-                            }
+                    IconButtonTooltip(stringResource(R.string.flash)) {
+                        IconButton(
+                            onClick = {
+                                val nextTorch = !torchEnabled
+                                try {
+                                    camera?.cameraControl?.enableTorch(nextTorch)
+                                    torchEnabled = nextTorch
+                                } catch (throwable: Throwable) {
+                                    scannerError = throwable.message ?: throwable.javaClass.simpleName
+                                }
+                            },
+                            shapes = IconButtonDefaults.shapes()
+                        ) {
+                            Icon(
+                                imageVector = if (torchEnabled) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                                contentDescription = stringResource(R.string.flash),
+                                tint = Color.White
+                            )
                         }
-                    ) {
-                        Icon(
-                            imageVector = if (torchEnabled) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
-                            contentDescription = stringResource(R.string.flash),
-                            tint = Color.White
-                        )
                     }
                 }
             }
@@ -448,25 +466,28 @@ fun InlineQrScannerCard(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(12.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = Color.Black.copy(alpha = 0.45f)
                 ) {
-                    IconButton(onClick = {
-                        if (touchActive) {
-                            touchActive = false
-                            onTouchInteractionChangedState.value?.invoke(false)
+                    IconButtonTooltip(stringResource(R.string.scan_qr_button)) {
+                        IconButton(onClick = {
+                            if (touchActive) {
+                                touchActive = false
+                                onTouchInteractionChangedState.value?.invoke(false)
+                            }
+                            camera = null
+                            torchEnabled = false
+                            previewView = null
+                            previewInstanceNonce++
+                            onManualFallback()
+                        },
+                        shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                imageVector = Icons.Filled.OpenInFull,
+                                contentDescription = stringResource(R.string.scan_qr_button),
+                                tint = Color.White
+                            )
                         }
-                        camera = null
-                        torchEnabled = false
-                        previewView = null
-                        previewInstanceNonce++
-                        onManualFallback()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.OpenInFull,
-                            contentDescription = stringResource(R.string.scan_qr_button),
-                            tint = Color.White
-                        )
                     }
                 }
             }
@@ -477,7 +498,7 @@ fun InlineQrScannerCard(
                         .align(Alignment.Center)
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         text = if (!hasPermission) {
@@ -497,12 +518,12 @@ fun InlineQrScannerCard(
                         )
                     }
 
-                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                         Text(stringResource(R.string.permission))
                     }
 
                     if (onManualFallback != null) {
-                        OutlinedButton(onClick = onManualFallback) {
+                        OutlinedButton(onClick = onManualFallback, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                             Text(manualFallbackLabel ?: stringResource(R.string.scanname))
                         }
                     }

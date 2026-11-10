@@ -4,7 +4,7 @@
 Decodes the committed low-bitrate MP3/OGG originals with macOS afconvert to the
 exact original-reference.json frame counts, then applies the same single-gain,
 headroom-limited mastering as the Timber/Ember collections: DC removal, one
-linear gain (-17.5 dBFS active RMS, -15.25 dBFS urgent, -3 dBFS peak ceiling),
+linear peak-normalizing gain (-1 dBFS PCM peak ceiling),
 5 ms raised-cosine fades and zero endpoints. No compression, saturation, pitch
 or time changes: the cues stay recognizably the originals, minus the harshness,
 DC offsets, hot peaks and click-prone endpoints.
@@ -81,7 +81,10 @@ def save_or_check(path: Path, data: bytes, check: bool):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true')
+    parser.add_argument('--wav-dir', default=None,
+                        help='Write WAVs here instead of Common/src/main/res/raw')
     args = parser.parse_args()
+    dest_dir = Path(args.wav_dir) if args.wav_dir else ROOT / 'Common/src/main/res/raw'
     references = json.loads((HERE / 'original-reference.json').read_text())
     assert set(references) == set(CUES)
     metrics = {}
@@ -93,10 +96,10 @@ def main():
             assert hashlib.sha256(source.read_bytes()).hexdigest() == references[cue]['sha256'], source.name
             pcm = decode_original(source, temp)
             assert len(pcm) == references[cue]['frames'], f'{cue}: {len(pcm)} != {references[cue]["frames"]}'
-            remastered = master(pcm, cue)
+            remastered = master(pcm, cue, peak_db=-1.0, peak_normalize=True)
             data = encode(remastered)
             name = f'alert_juggluco_{cue}.wav'
-            save_or_check(ROOT / 'Common/src/main/res/raw' / name, data, args.check)
+            save_or_check(dest_dir / name, data, args.check)
             metrics[name] = measure(remastered, data)
             reel.extend((remastered, np.zeros(RATE, dtype='<i2')))
         save_or_check(HERE / 'juggluco-preview.wav', encode(np.concatenate(reel)), args.check)

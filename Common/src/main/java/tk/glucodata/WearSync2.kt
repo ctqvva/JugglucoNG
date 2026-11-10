@@ -81,7 +81,7 @@ object WearSync2 {
                 buf.put(VERSION.toByte())
                 buf.put(serialBytes.size.toByte())
                 buf.put(serialBytes)
-                MessageSender.sendSyncMessage(MessageSender.SYNC2_REMOVE_PATH, buf.array())
+                MessageSender.sendSyncMessage(WearMessagePath.SYNC2_REMOVE, buf.array())
                 if (doLog) Log.i(LOG_ID, "pushed removal of $serial")
             }.onFailure { Log.stack(LOG_ID, "pushRemoval", it) }
         }
@@ -177,15 +177,22 @@ object WearSync2 {
     /** Handle an incoming request from the watch. */
     @JvmStatic
     fun onRequest(data: ByteArray?) {
-        val fromSec = runCatching {
+        // The optional byte after the start asks for the full horizon even when one went
+        // out less than DEEP_SERVE_MIN_INTERVAL_MS ago; a request without it is the older,
+        // shorter form. The only sender is a watch that has just moved its mirrored copy of
+        // a Dexcom aside (ManagedSensorHandoff), so it is a one-off, not a way round the
+        // throttle: it costs one extra full serve (~9000 readings, ~26 messages) and
+        // restarts the spacing window like any other full serve.
+        val (fromSec, force) = runCatching {
             val buf = ByteBuffer.wrap(data ?: return)
             if (buf.get().toInt() != VERSION) return
-            buf.long
+            val from = buf.long
+            from to (buf.hasRemaining() && buf.get().toInt() != 0)
         }.getOrNull() ?: return
         executor.execute {
             runCatching {
                 val requestedHorizon = fromSec <= System.currentTimeMillis() / 1000L - BACKFILL_HORIZON_SEC + 60L
-                if (!requestedHorizon || allowDeepServe(force = false)) {
+                if (!requestedHorizon || allowDeepServe(force = force)) {
                     serveSince(sanitizeFrom(fromSec))
                 } else {
                     serveSince(tailStartSec())
@@ -331,7 +338,7 @@ object WearSync2 {
             val raw10 = triples[base + 2].toInt()
             buf.putInt(if (GlucoseValuePlausibility.isPlausibleMgdl(raw10 / 10f)) raw10 else 0)
         }
-        return MessageSender.sendSyncMessageAwait(MessageSender.SYNC2_CHUNK_PATH, buf.array())
+        return MessageSender.sendSyncMessageAwait(WearMessagePath.SYNC2_CHUNK, buf.array(), timeoutSeconds = 5L)
     }
 
 
@@ -375,7 +382,7 @@ object WearSync2 {
             rawIntegration = WearCalibrationMode(canonicalIntegrationAnchors(serial, true)),
         )
         MessageSender.sendSyncMessage(
-            MessageSender.SYNC2_CAL_PATH,
+            WearMessagePath.SYNC2_CAL,
             WearCalibrationPayload.encode(payload),
         )
     }
@@ -409,11 +416,13 @@ object WearSync2 {
      * Ask the phone for what we are missing. [deep] asks for the whole horizon
      * (app open, empty store); the routine path only asks for the tail, so a
      * fortnight of readings is not re-sent — and re-decoded — every few
-     * minutes on a watch battery.
+     * minutes on a watch battery. The phone also spaces its full serves out;
+     * [force] is for a watch that has just thrown its stored copy away and so
+     * needs the whole horizon whatever the phone sent last.
      */
     @JvmStatic
     @JvmOverloads
-    fun requestSync(deep: Boolean = false) {
+    fun requestSync(deep: Boolean = false, force: Boolean = false) {
         executor.execute {
             runCatching {
                 val nowSec = System.currentTimeMillis() / 1000L
@@ -424,16 +433,24 @@ object WearSync2 {
                 } else {
                     (lastSec - INCREMENTAL_OVERLAP_SEC).coerceIn(horizonStart, nowSec)
                 }
-                val buf = ByteBuffer.allocate(9)
+                val buf = ByteBuffer.allocate(10)
                 buf.put(VERSION.toByte())
                 buf.putLong(fromSec)
-                MessageSender.sendSyncMessage(MessageSender.SYNC2_REQ_PATH, buf.array())
+                buf.put((if (force) 1 else 0).toByte())
+                MessageSender.sendSyncMessage(WearMessagePath.SYNC2_REQ, buf.array())
                 if (doLog) Log.i(LOG_ID, "requested sync from $fromSec")
             }.onFailure { Log.stack(LOG_ID, "requestSync", it) }
         }
     }
 
-    /** Ingest a chunk into native storage. */
+    private fun isLibre2NativeSensor(serial: String): Boolean {
+        // Managed direct-stream shells can also report kind 2 by elimination.
+        if (SensorIdentity.usesNativeDirectStreamShell(serial)) return false
+        val snapshot = Natives.getSensorUiSnapshot(serial) ?: return false
+        return snapshot.size >= 6 && snapshot[0] == 2L && snapshot[5] == 0L
+    }
+
+    /** Ingest a chunk into this device's history storage. */
     @JvmStatic
     fun onChunk(data: ByteArray?) {
         executor.execute {
@@ -465,6 +482,11 @@ object WearSync2 {
                     if (doLog) Log.i(LOG_ID, "ignored chunk for $serial: this device is reading it")
                     return@execute
                 }
+                // Libre 2's Abbott BLE IDs are not elapsed minutes. Importing
+                // minute-derived IDs into its phone polls advances the live BLE
+                // cursor and rejects real readings when ownership returns.
+                // The phone keeps synced data in Room; Wear needs native history.
+                val mirrorNative = Applic.isWearable || !isLibre2NativeSensor(serial)
                 var written = 0
                 var earliest = 0L
                 val stamps = LongArray(count)
@@ -482,7 +504,9 @@ object WearSync2 {
                         // Native scale contract (g.cpp addGlucoseStreamInternal):
                         // glucose param = mgdl/10 (native ×10), raw param = plain
                         // mgdl. Triples carry mgdl*10.
-                        Natives.ensureSensorShell(serial, (t - 3600L).coerceAtLeast(1L))
+                        if (mirrorNative) {
+                            Natives.ensureSensorShell(serial, (t - 3600L).coerceAtLeast(1L))
+                        }
                     }
                     val rawMgdl = if (raw10 > 0) raw10 / 10f else 0f
                     nativeSecs[written] = t
@@ -492,7 +516,7 @@ object WearSync2 {
                     raws[written] = rawMgdl
                     written++
                 }
-                if (written > 0) {
+                if (written > 0 && mirrorNative) {
                     // One JNI call for the chunk. Per reading, the native side
                     // re-seeded direct-stream state (stat + read + alloc), logged a
                     // line and rewound the stream cursor every time; a large chunk
@@ -531,16 +555,14 @@ object WearSync2 {
                     )
                 }
                 if (written > 0) {
-                    // The companion follows the phone's served sensor: after a
-                    // sensor swap the watch's stale current selection otherwise
-                    // sticks to the dead sensor ("No data" with fresh chunks
-                    // landing in the new one).
-                    runCatching {
-                        val current = Natives.lastsensorname()
-                        if (current.isNullOrEmpty() || !current.equals(serial, ignoreCase = true)) {
-                            Natives.setcurrentsensor(serial)
-                        }
-                    }
+                    // The receiver follows the mirrored selection, not the
+                    // sensor this chunk happens to carry: with two sensors
+                    // served in turn, moving the current slot to each chunk's
+                    // sensor made every surface flip between them. With no
+                    // selection yet the served sensor is adopted, so a watch
+                    // still gets off a dead sensor after a swap ("No data"
+                    // with fresh chunks landing in the new one).
+                    WearSensorSelectionSync.alignCurrentSensor(fallback = serial)
                     UiRefreshBus.requestDataRefresh()
                 }
                 if (doLog) Log.i(LOG_ID, "ingested $written/$count triples for $serial final=$final")

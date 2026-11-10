@@ -64,7 +64,7 @@ import static tk.glucodata.Natives.getInvertColors;
 import static tk.glucodata.Natives.getNumAlarm;
 import static tk.glucodata.NumberView.avoidSpinnerDropdownFocus;
 import static tk.glucodata.RingTones.EnableControls;
-import static tk.glucodata.Specific.useclose;
+import static tk.glucodata.VariantBootstrapAccess.useCloseButton;
 import static tk.glucodata.help.helplight;
 import static tk.glucodata.help.hidekeyboard;
 import static tk.glucodata.settings.Settings.editoptions;
@@ -117,7 +117,7 @@ if(genlayout==null) {
             var height=GlucoseCurve.getheight();
             recycle.setLayoutParams(new ViewGroup.LayoutParams(  WRAP_CONTENT,height));
             recycle.setPadding(0,0,0,(int)(tk.glucodata.GlucoseCurve.metrics.density*10.0f)); 
-          if(!useclose) {
+          if(!useCloseButton()) {
               recycle.setPadding(0,(int)(tk.glucodata.GlucoseCurve.metrics.density*10.0f),0,(int)(tk.glucodata.GlucoseCurve.metrics.density*10.0f));
              listclose.setVisibility(GONE);
                 }
@@ -378,7 +378,7 @@ void  mkitemlayout(Activity act,View parent) {
     if(isWearable) {
       var space1=new Space(act);
       var space2=new Space(act);
-      if(useclose)
+      if(useCloseButton())
     	views=new View[][] {new View[]{space1,startbut,alarmbut,space2},new View[] {spinner,value},new View[]{Cancel,Save},new View[]{Delete}};
       else {
 //         var space3=new Space(act);
@@ -395,7 +395,7 @@ void  mkitemlayout(Activity act,View parent) {
          l.setY(MainActivity.systembarTop);
          }
        else {
-            if(!useclose) {
+            if(!useCloseButton()) {
                if(height>h)
                   l.setY((height-h)/2);
                }
@@ -406,7 +406,7 @@ void  mkitemlayout(Activity act,View parent) {
     	return ret;
     	}, views);
    if(isWearable) {
-      if(useclose) {
+      if(useCloseButton()) {
       /*
          int butwidth=0;
          startbut.setMinWidth(butwidth);

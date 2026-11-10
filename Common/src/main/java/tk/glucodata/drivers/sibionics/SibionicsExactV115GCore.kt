@@ -597,7 +597,9 @@ internal class SibionicsExactV115GCore(
     fun restore(snapshot: ByteArray?): Boolean = runCatching {
         if (snapshot == null || snapshot.isEmpty()) return false
         DataInputStream(ByteArrayInputStream(snapshot)).use { input ->
-            if (input.readInt() != SNAPSHOT_MAGIC || input.readInt() != SNAPSHOT_VERSION) return false
+            if (input.readInt() != SNAPSHOT_MAGIC) return false
+            val version = input.readInt()
+            if (version != SNAPSHOT_VERSION && version != PRE_OBSERVATION_SNAPSHOT_VERSION) return false
             if (input.readFloat().toRawBits() != decodedSensitivity.toRawBits()) return false
             sensitivity = input.readFloat()
             lastIg = input.readFloat()
@@ -614,9 +616,19 @@ internal class SibionicsExactV115GCore(
             temperatureDownCount = input.readInt()
             temperatureUpSum = input.readFloat()
             temperatureDownSum = input.readFloat()
-            heldBase = input.readFloat()
-            heldEsaCompensation = input.readFloat()
-            hasStageState = input.readBoolean()
+            if (version == SNAPSHOT_VERSION) {
+                heldBase = input.readFloat()
+                heldEsaCompensation = input.readFloat()
+                hasStageState = input.readBoolean()
+            } else {
+                // A 1.1.x checkpoint predates the held stage terms. They only feed
+                // the sensor observation, never the stock output, and the next
+                // correction stage writes them again; rejecting the checkpoint
+                // for them forced a replay of the sensor's whole life.
+                heldBase = 0f
+                heldEsaCompensation = 0f
+                hasStageState = false
+            }
             val clipSize = input.readInt()
             if (clipSize !in 1..MAX_CLIP_SNAPSHOT_BYTES) return false
             val clipState = ByteArray(clipSize)
@@ -816,6 +828,8 @@ internal class SibionicsExactV115GCore(
         private const val SNAPSHOT_MAGIC = 0x5349_4233
         const val FAMILY_V115G = 115
         private const val SNAPSHOT_VERSION = 3
+        /** Written by 1.1.x: identical except for the held stage terms. */
+        private const val PRE_OBSERVATION_SNAPSHOT_VERSION = 2
         private const val MAX_CLIP_SNAPSHOT_BYTES = 8 * 1024
 
         private val COEFFICIENTS = floatArrayOf(

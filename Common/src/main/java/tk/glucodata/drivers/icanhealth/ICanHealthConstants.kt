@@ -3,8 +3,9 @@
 //
 // Protocol: Standard Bluetooth CGM Service (0x181F) with firmware-selected
 // hardcoded crypto:
-// - glucose payloads: AES-128-ECB
-// - F3/F4 auth: AES-128-CBC/PKCS7
+// - glucose payloads (live 19-byte frames and history): AES-128-CBC/PKCS7 with a
+//   challenge-derived IV
+// - F3/F4 auth: AES-128-CBC/PKCS7 (same IV scheme)
 // Reverse-engineered from iCanHealth app (com.sinocare.ican.health.ru v01.16.01.02).
 
 package tk.glucodata.drivers.icanhealth
@@ -36,6 +37,9 @@ object ICanHealthConstants {
     private val SERIAL_ALNUM_16_32: Regex = Regex("^[0-9A-Z]{16,32}$", RegexOption.IGNORE_CASE)
     private val FULL_CANONICAL_HEX_SENSOR_ID_REGEX = Regex("^[0-9A-Z]{16}$", RegexOption.IGNORE_CASE)
 
+    /** Serial token embedded in an advertised name, e.g. `iCGM-<16 hex>`. */
+    private val ADVERTISED_SERIAL_TOKEN: Regex = Regex("[0-9A-Za-z]{16,32}")
+
     const val TAG = "ICanHealth"
     const val MAX_NATIVE_SENSOR_ID_CHARS = 16
     const val PROVISIONAL_SENSOR_PREFIX = "ICN-"
@@ -48,6 +52,15 @@ object ICanHealthConstants {
     const val DEFAULT_OLD_AUTH_AES_KEY_ASCII = "92AFQU*u9c695826"
     const val DEFAULT_NEW_AUTH_AES_KEY_ASCII = "px@9k5K*23cV%YDc"
     const val DEFAULT_GLUCOSE_AES_KEY_ASCII = DEFAULT_OLD_GLUCOSE_AES_KEY_ASCII
+
+    /**
+     * correctCode (calibration parameter) chunk key: AES-128-ECB per `[F2 10]` write.
+     * Recovered from the vendor packer VM's own memory (arena diff between two encode
+     * runs, 2026-10-22). Challenge-independent constant, like the bundled keys above;
+     * validated by re-encoding two device sessions and 69 sweep lines byte-for-byte
+     * (PR #711; the plan document was kept out of the tree).
+     */
+    const val DEFAULT_CORRECT_CODE_AES_KEY_ASCII = "e4c\$E9gSvZv&c*65"
     const val DEFAULT_AUTH_USER_ID = ""
     // Late-life iCan firmware freezes its CGM-status offset at exactly 28 days
     // (see LAUNCHER_ENDED_STATUS_SEQUENCE_CAP_MINUTES below) — observed end-of-life
@@ -67,7 +80,7 @@ object ICanHealthConstants {
     // ---- CGM Service Characteristics ----
 
     /** CGM Measurement (Notify) — glucose notifications (encrypted)
-     *  Wire format: 3 bytes cleartext header + 16 bytes AES-128-ECB encrypted payload = 19 bytes */
+     *  Wire format: 3 bytes cleartext header + 16 bytes AES-128-CBC/PKCS7 payload = 19 bytes */
     val CGM_MEASUREMENT: UUID = UUID.fromString("00002aa7-0000-1000-8000-00805f9b34fb")
 
     /** CGM Status (Read) — time offset from session start */
@@ -107,7 +120,7 @@ object ICanHealthConstants {
 
     // ---- Protocol Constants ----
 
-    /** AES-128-ECB block size */
+    /** AES block size (16); live frames and history use CBC/PKCS7, the snippet helpers above stay ECB */
     const val AES_BLOCK_SIZE = 16
 
     /** Glucose notification total size (3 header + 16 encrypted) */
@@ -330,6 +343,40 @@ object ICanHealthConstants {
             expected.substring(2, 9) == observed.substring(1, 8)
     }
 
+    /**
+     * The serial printed on the box, for the sensor list. DIS only carries its first eight
+     * characters, padded with a vendor tail (`84F01FF13594A` -> `84F01FF100070000`), so the
+     * sensor id cannot show it. The onboarding serial is stored whole only when it is a short
+     * form of at least 12 characters; anything shorter is just the DIS prefix.
+     */
+    @JvmStatic
+    fun boxSerialForDisplay(onboardingDeviceSn: String?): String? =
+        normalizeOnboardingDeviceSn(onboardingDeviceSn).takeIf { it.length >= 12 }
+
+    /**
+     * True when [advertisedName] carries a serial token that belongs to a different sensor than
+     * [onboardingDeviceSn]. Only a token that is actually present is judged: names without one
+     * (`CGM`, `Sinocare CGM`) stay eligible, because the name check is deliberately broad so
+     * unknown OEM rebrands still pair, and the post-connection identity gate rejects a device
+     * that turns out not to be the onboarding sensor.
+     */
+    @JvmStatic
+    fun advertisedNameConflictsWithOnboarding(
+        onboardingDeviceSn: String?,
+        advertisedName: String?,
+    ): Boolean {
+        if (onboardingDeviceSn.isNullOrBlank()) {
+            return false
+        }
+        val name = advertisedName?.trim().orEmpty()
+        if (name.isEmpty()) {
+            return false
+        }
+        val serialToken = ADVERTISED_SERIAL_TOKEN.find(name)?.value ?: return false
+        return !matchesOnboardingIdentity(onboardingDeviceSn, serialToken) &&
+            !matchesOnboardingIdentity(onboardingDeviceSn, name)
+    }
+
     private fun sanitizeSensorIdentity(source: String?): String =
         source
             ?.trim()
@@ -404,6 +451,79 @@ object ICanHealthConstants {
         }
         val endTimestampMs = endedStatusEndTimestampMs(sessionStartEpochMs, sequenceNumber) ?: return false
         return tailTimestampMs >= endTimestampMs - toleranceMs.coerceAtLeast(0L)
+    }
+
+    /**
+     * Reconstructs the wall-clock time of [currentSequenceNumber] from a persisted covered edge
+     * `(persistedCoveredSequence, persistedCoveredTimestampMs)`, extrapolating by one minute per
+     * sequence step. This is the anchor the whole relative-timestamp path hangs off.
+     */
+    internal fun persistedCoveredAnchorMs(
+        persistedCoveredSequence: Int,
+        persistedCoveredTimestampMs: Long,
+        currentSequenceNumber: Int,
+        sequenceUnitMs: Long,
+    ): Long = persistedCoveredTimestampMs +
+        (currentSequenceNumber - persistedCoveredSequence).toLong() * sequenceUnitMs
+
+    /**
+     * Whether an anchor reconstructed by [persistedCoveredAnchorMs] may be used. The plausibility
+     * window is hours wide, so an edge that is merely an hour off passes it and then re-seeds
+     * itself with every reading. The counter read is a fresh wall-clock fix for the current
+     * sequence; the edge must agree with it as well.
+     */
+    internal fun isPersistedCoveredAnchorUsable(
+        anchorMs: Long,
+        sequenceObservedAtMs: Long,
+        divergenceToleranceMs: Long,
+        plausibleRange: LongRange,
+    ): Boolean {
+        if (anchorMs <= 0L || anchorMs !in plausibleRange) {
+            return false
+        }
+        return !isAnchorDivergentFromObservedSequence(anchorMs, sequenceObservedAtMs, divergenceToleranceMs)
+    }
+
+    /**
+     * True when the sensor's counter has not moved since the edge was persisted. The anchor then
+     * diverges from `now` because the sensor is silent, not because the edge is mis-anchored;
+     * re-anchoring it to `now` would re-import the same frozen records with fresh timestamps (see
+     * the 2026-10-27 trace: 3.4/3.6/3.7/3.9 re-saved at 11:09, 11:20 and 11:31 while the counter
+     * stayed at 9516).
+     */
+    internal fun isPersistedCoveredEdgeStalled(
+        persistedCoveredSequence: Int,
+        currentSequenceNumber: Int,
+    ): Boolean = persistedCoveredSequence >= 0 && currentSequenceNumber == persistedCoveredSequence
+
+    /**
+     * True when an edge-derived time for the sensor's current sequence disagrees with the moment
+     * that sequence was actually read. No observation yet means nothing to compare against.
+     */
+    internal fun isAnchorDivergentFromObservedSequence(
+        anchorMs: Long,
+        sequenceObservedAtMs: Long,
+        toleranceMs: Long,
+    ): Boolean {
+        if (sequenceObservedAtMs <= 0L) {
+            return false
+        }
+        return abs(anchorMs - sequenceObservedAtMs) > toleranceMs.coerceAtLeast(0L)
+    }
+
+    /**
+     * True when a measurement that has just arrived resolved to a time far behind the wall clock.
+     * Only the newest sequence qualifies: a lower one may be a legitimately delayed record.
+     */
+    internal fun isStaleLiveTimestamp(
+        sequenceNumber: Int,
+        currentSequenceNumber: Int,
+        resolvedMs: Long,
+        nowMs: Long,
+        maxLagMs: Long,
+    ): Boolean {
+        val isNewestSequence = currentSequenceNumber < 0 || sequenceNumber >= currentSequenceNumber
+        return isNewestSequence && nowMs - resolvedMs > maxLagMs
     }
 
     /**
@@ -548,30 +668,39 @@ object ICanHealthConstants {
     const val SN_HISTORY_RECORD_SIZE_ORIGINAL = 4
     const val SN_HISTORY_RECORD_SIZE_GLUCOSE = 2
 
-    // ---- Decrypted Payload Offsets (within 16-byte decrypted block) ----
+    // ---- Decrypted Payload Offsets ----
+    // Offsets within the PKCS7-unpadded 13-byte live frame (verified against the official iOS
+    // client's traffic, notes §10.8). The ECB read this replaced disagreed only at the IV byte
+    // positions, so the value/sequence offsets below were accidentally right all along.
 
-    /** Byte 0: constant 0x0D (size/flags marker) */
+    /** Byte 0: content length, constant 0x0D in the live frame */
     const val OFFSET_SIZE_FLAGS = 0
 
-    /** Byte 1: status byte */
+    /** Byte 1: launcher state (0x80 = RUNNING); misread as a "status byte" under ECB */
     const val OFFSET_STATUS = 1
 
-    /** Bytes 2-3: glucose value as u16 LE (mmol/L x 100) */
+    /** Bytes 2-3: glucose value as u16 LE (mmol/L x 100, or direct 16-bit variant) */
     const val OFFSET_GLUCOSE_U16LE = 2
 
     /** Bytes 4-5: sequence number as u16 LE (integrity check) */
     const val OFFSET_SEQ_CHECK_U16LE = 4
 
-    /** Bytes 9-10: processed electrochemical current (obfuscated u16 LE) */
+    /**
+     * Bytes 9-10: zero-filled tail of the live frame — the wire carries no current value live.
+     * The legacy vendor decode is kept for a future consumer / the history-family layout.
+     */
     const val OFFSET_CURRENT_U16LE = 9
 
-    /** Bytes 11-12: skin temperature as u16 LE / 10.0 */
+    /**
+     * Bytes 11-12: also zero fill in the live frame (no temperature live). The history family
+     * carries a real temperature at this offset.
+     */
     const val OFFSET_TEMPERATURE_U16LE = 11
 
     // ---- Device Name Patterns ----
 
     /** Known device name prefixes for iCanHealth sensors */
-    val KNOWN_PREFIXES = arrayOf("iCGM-", "Sinocare CGM", "Sinocare ", "P", "LT")
+    val KNOWN_PREFIXES = arrayOf("iCGM-", "Sinocare CGM", "Sinocare ", "LT")
 
     /** Check if a BLE device name matches an iCanHealth sensor */
     @JvmStatic
@@ -582,6 +711,50 @@ object ICanHealthConstants {
         if (KNOWN_PREFIXES.any { trimmed.startsWith(it) }) return true
         return isLikelyPersistedSensorName(trimmed)
     }
+
+    // ---- Onboarding candidate verification ----
+
+    /** Generic Access and Generic Attribute: every BLE peripheral has them, so they say nothing. */
+    private val GENERIC_GATT_SERVICES: Set<UUID> = setOf(
+        UUID.fromString("00001800-0000-1000-8000-00805f9b34fb"),
+        UUID.fromString("00001801-0000-1000-8000-00805f9b34fb"),
+    )
+
+    /**
+     * Consecutive connections that must show [isConclusivelyNotCgm] before onboarding drops an
+     * address it found by name. One is not enough: a stale or partial discovery on a real sensor
+     * looks the same once, and a rejected address stays hidden until the onboarding SN changes.
+     */
+    const val NON_CGM_CANDIDATE_REJECT_STRIKES = 2
+
+    /**
+     * Consecutive connection attempts that end without a GATT connection before onboarding sets
+     * aside an address it found by name. Such a peripheral never shows a GATT table, so
+     * [isConclusivelyNotCgm] cannot judge it.
+     */
+    const val UNREACHABLE_CANDIDATE_REJECT_STRIKES = 3
+
+    /**
+     * How long an unreachable candidate stays set aside. Unlike a non-CGM, it may be the real
+     * sensor that was briefly out of reach, so it gets another turn.
+     */
+    const val UNREACHABLE_CANDIDATE_COOLDOWN_MS = 10L * 60_000L
+
+    /**
+     * Consecutive connect attempts whose `connectGatt` never reports any GATT callback at all
+     * before an onboarding-awaiting sensor gives up on the bound address and rescans unfiltered.
+     */
+    const val SILENT_CONNECT_TIMEOUTS_BEFORE_RECOVERY = 3
+
+    /**
+     * True when a discovered GATT table is populated beyond the generic services and still has no
+     * CGM service, i.e. the peripheral answered and it is not a CGM. Name matching stays broad on
+     * purpose (rebrands and unknown naming schemes); this is what lets onboarding move past a
+     * non-CGM it picked by name instead of reconnecting to it forever.
+     */
+    @JvmStatic
+    fun isConclusivelyNotCgm(serviceUuids: Collection<UUID>): Boolean =
+        CGM_SERVICE !in serviceUuids && serviceUuids.any { it !in GENERIC_GATT_SERVICES }
 
     @JvmStatic
     fun isLikelyPersistedSensorName(name: String?): Boolean {
@@ -596,6 +769,75 @@ object ICanHealthConstants {
             else -> false
         }
     }
+
+    /**
+     * The sensor-info marker is the calibration scale the sensor holds, times 1000 (`0xFFFF` =
+     * nothing installed). Shown read-only so users can compare it with a meter.
+     */
+    @JvmStatic
+    fun formatCalibrationMarker(marker: Int?): String = when {
+        marker == null -> ""
+        marker == 0xFFFF -> "F6 0xFFFF"
+        else -> "F6 0x%04X (%d), x13 %.3f".format(java.util.Locale.US, marker, marker, marker / 1000f)
+    }
+
+    /** How long a stored address may go without a reading before the advertised name may replace it. */
+    const val STALE_ADDRESS_REBIND_MS = 10 * 60_000L
+
+    /**
+     * A stored address only matches that exact radio address. If the box now advertises under
+     * another one (replaced box, address change) the sensor is never found again. Rebind only
+     * when the advertised name is exactly this sensor's id and nothing has been received for
+     * [STALE_ADDRESS_REBIND_MS]. This selects a candidate only; DIS must verify its identity.
+     */
+    @JvmStatic
+    fun shouldRebindStaleAddress(
+        knownAddress: String?,
+        candidateAddress: String?,
+        advertisedName: String?,
+        sensorIds: List<String?>,
+        lastActivityMs: Long,
+        nowMs: Long,
+    ): Boolean {
+        if (knownAddress.isNullOrBlank() || candidateAddress.isNullOrBlank()) return false
+        if (knownAddress.equals(candidateAddress, ignoreCase = true)) return false
+        val name = canonicalSensorId(advertisedName)
+        if (name.isEmpty()) return false
+        if (sensorIds.none { id -> canonicalSensorId(id).let { it.isNotEmpty() && it.equals(name, ignoreCase = true) } }) {
+            return false
+        }
+        return nowMs - lastActivityMs >= STALE_ADDRESS_REBIND_MS
+    }
+
+    /**
+     * Widens [shouldRebindStaleAddress] to the iCan family names (`Sinocare CGM`, `iCGM-…`), which
+     * carry no serial in the advertisement. The candidate is only *selected* here; the DIS serial
+     * read after connecting must still match one of [savedIds], or the rebind is rejected.
+     */
+    @JvmStatic
+    fun shouldRebindStaleFamilyAddress(
+        knownAddress: String?,
+        candidateAddress: String?,
+        advertisedName: String?,
+        savedIds: List<String?>,
+        lastActivityMs: Long,
+        nowMs: Long,
+    ): Boolean {
+        if (knownAddress.isNullOrBlank() || candidateAddress.isNullOrBlank()) return false
+        if (knownAddress.equals(candidateAddress, ignoreCase = true)) return false
+        if (savedIds.none { !it.isNullOrBlank() }) return false
+        // Only a serial-less family name belongs to this wide path. A bare serial-shaped name is
+        // either this sensor (strict match) or another sensor's serial, which must stay rejected.
+        val name = advertisedName?.trim().orEmpty()
+        if (!name.startsWith("iCGM-", ignoreCase = true) && !name.startsWith("Sinocare", ignoreCase = true)) {
+            return false
+        }
+        return nowMs - lastActivityMs >= STALE_ADDRESS_REBIND_MS
+    }
+
+    @JvmStatic
+    fun shouldDropUnreachableOnboardingAddress(consecutiveSilentTimeouts: Int): Boolean =
+        consecutiveSilentTimeouts >= SILENT_CONNECT_TIMEOUTS_BEFORE_RECOVERY
 
     @JvmStatic
     fun canonicalSensorId(sensorId: String?): String {
@@ -765,4 +1007,23 @@ object ICanHealthConstants {
 
     /** Preference key prefix for the repair generation already applied to a given iCan sensor */
     const val PREF_HISTORY_TZ_REPAIR_PREFIX = "icanhealth_history_tz_repair_"
+
+    /**
+     * Preference key prefix holding the vendor `parameterCode` (correctCode) JSON fetched from
+     * the vendor iot cloud, keyed by the short box serial. Written and read by
+     * [tk.glucodata.drivers.icanhealth.ICanHealthCloudCode] and consumed by the F7/F2 write path.
+     */
+    const val PREF_CGM_CODE_PREFIX = "icanhealth_cgm_code_"
+
+    /**
+     * Per-install vendor iot-cloud credentials ([tk.glucodata.drivers.icanhealth.ICanCloudCreds]).
+     * These override `<filesDir>/ican-cloud-creds.json` and the bundled vendor SDK pair.
+     */
+    const val PREF_CLOUD_APP_ID = "icanhealth_cloud_app_id"
+
+    /** @see PREF_CLOUD_APP_ID */
+    const val PREF_CLOUD_APP_SECRET = "icanhealth_cloud_app_secret"
+
+    /** @see PREF_CLOUD_APP_ID */
+    const val PREF_CLOUD_BASE_URL = "icanhealth_cloud_base_url"
 }

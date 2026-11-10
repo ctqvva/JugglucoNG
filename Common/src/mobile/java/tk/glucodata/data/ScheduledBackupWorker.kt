@@ -4,8 +4,6 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.provider.DocumentsContract
-import android.provider.OpenableColumns
-import android.util.Log
 import androidx.annotation.Keep
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
@@ -13,6 +11,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.CancellationException
@@ -23,6 +22,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import tk.glucodata.R
+import tk.glucodata.Log
 
 @Keep
 class ScheduledBackupWorker(
@@ -49,9 +49,8 @@ class ScheduledBackupWorker(
 
         val startedAt = System.currentTimeMillis()
         val fileName = ScheduledBackupPolicy.fileName(startedAt, config.compression)
-        var documentUri: Uri? = null
         try {
-            documentUri = createDocument(destination, fileName, config.compression.mimeType)
+            Log.i(TAG, "Preparing scheduled backup: $fileName")
             val request = ExportPackageExporter.ExportRequest(
                 includeSettings = true,
                 includeHistory = true,
@@ -59,8 +58,21 @@ class ScheduledBackupWorker(
                 historyDays = null,
                 compression = config.compression
             )
-            val summary = ExportPackageExporter.exportToUri(context, documentUri, request).getOrThrow()
-            val metrics = summary.toMetrics(config.compression, queryFileSize(documentUri))
+            val backup = ScheduledBackupDocumentWriter.write(
+                cacheDirectory = context.cacheDir,
+                prepare = { file ->
+                    ExportPackageExporter.exportToUri(context, Uri.fromFile(file), request).getOrThrow()
+                },
+                createDocument = { createDocument(destination, fileName, config.compression.mimeType) },
+                openDocument = { uri -> context.contentResolver.openOutputStream(uri, "w") },
+                deleteDocument = { uri ->
+                    check(DocumentsContract.deleteDocument(context.contentResolver, uri)) {
+                        "Could not remove incomplete backup"
+                    }
+                },
+                onCleanupFailure = { Log.stack(TAG, "Could not remove incomplete backup", it) }
+            )
+            val metrics = backup.summary.toMetrics(config.compression, backup.byteSize)
             val anomaly = ScheduledBackupPolicy.detectAnomaly(config.baselineMetrics, metrics)
             val warningAlreadyPending = config.integrityWarning != null
 
@@ -102,17 +114,34 @@ class ScheduledBackupWorker(
                     )
                 }
             }
+            Log.i(
+                TAG,
+                "Scheduled backup completed: $fileName (${backup.byteSize} bytes, " +
+                    "${System.currentTimeMillis() - startedAt} ms)"
+            )
             if (!forced) appendNextRun(context, ScheduledBackupSettings.load(context))
             Result.success(Data.Builder().putString(KEY_OUTPUT_FILE, fileName).build())
         } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (exception: Exception) {
-            documentUri?.let { partial ->
-                runCatching { DocumentsContract.deleteDocument(context.contentResolver, partial) }
+            // WorkManager stops a run after ten minutes or when its constraints lapse. Unrecorded,
+            // that looked like a backup that never produced a result (#627). The app's own cancel
+            // (settings changed, schedule turned off) is not a failure.
+            val reason = stopReason
+            if (isStopped && reason != WorkInfo.STOP_REASON_CANCELLED_BY_APP) {
+                ScheduledBackupSettings.recordFailure(
+                    context,
+                    System.currentTimeMillis(),
+                    context.getString(R.string.scheduled_backup_stopped_by_system)
+                )
             }
+            Log.i(TAG, "Scheduled backup cancelled after ${System.currentTimeMillis() - startedAt} ms (stop reason $reason)")
+            throw cancelled
+        } catch (exception: Throwable) {
+            // An OutOfMemoryError is how a full-history export used to fail (#627). Escaping as
+            // an Error would skip the failure record and the log, and a failed run never
+            // appends the next scheduled one.
             val message = exception.localizedMessage ?: exception.javaClass.simpleName
             ScheduledBackupSettings.recordFailure(context, System.currentTimeMillis(), message)
-            Log.e(TAG, "Scheduled backup failed", exception)
+            Log.stack(TAG, "Scheduled backup failed", exception)
             if (exception is IOException && runAttemptCount < MAX_RETRIES) {
                 Result.retry()
             } else {
@@ -152,19 +181,6 @@ class ScheduledBackupWorker(
         ) ?: error(applicationContext.getString(R.string.scheduled_backup_folder_error))
     }
 
-    private fun queryFileSize(documentUri: Uri): Long {
-        return applicationContext.contentResolver.query(
-            documentUri,
-            arrayOf(OpenableColumns.SIZE),
-            null,
-            null,
-            null
-        )?.use { cursor ->
-            if (!cursor.moveToFirst()) return@use 0L
-            cursor.safeLong(cursor.getColumnIndex(OpenableColumns.SIZE))
-        } ?: 0L
-    }
-
     private fun removeExpiredBackups(treeUri: Uri, config: ScheduledBackupConfig) {
         val resolver = applicationContext.contentResolver
         val treeId = DocumentsContract.getTreeDocumentId(treeUri)
@@ -196,7 +212,7 @@ class ScheduledBackupWorker(
         ).forEach { entry ->
             val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId)
             runCatching { DocumentsContract.deleteDocument(resolver, uri) }
-                .onFailure { Log.w(TAG, "Could not remove expired backup ${entry.displayName}", it) }
+                .onFailure { Log.stack(TAG, "Could not remove expired backup ${entry.displayName}", it) }
         }
     }
 

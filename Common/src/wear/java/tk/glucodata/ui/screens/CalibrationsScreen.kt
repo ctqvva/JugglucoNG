@@ -28,7 +28,6 @@ import androidx.wear.compose.material3.TimeText
 import java.util.Date
 import tk.glucodata.Applic
 import tk.glucodata.CalibrationAccess
-import tk.glucodata.NotificationHistorySource
 import tk.glucodata.R
 import tk.glucodata.ui.WearNavigationRow
 import tk.glucodata.ui.WearSectionTitle
@@ -36,8 +35,10 @@ import tk.glucodata.ui.WearSectionTitle
 private data class WearCalibration(val sourceValue: Float, val userValue: Float, val timestamp: Long)
 
 private fun calibrations(): List<WearCalibration> {
-    val sensor = NotificationHistorySource.resolveSensorSerial()
-    val rawMode = runCatching { tk.glucodata.CurrentDisplaySource.resolveCurrent()?.viewMode in setOf(1, 3) }.getOrDefault(false)
+    val sensor = tk.glucodata.ui.WearGlucoseStore.currentSensor()
+    val rawMode = runCatching {
+        tk.glucodata.CurrentDisplaySource.resolveViewModeForSensor(sensor) in setOf(1, 3)
+    }.getOrDefault(false)
     val packed = CalibrationAccess.getActiveCalibrationAnchors(sensor, rawMode)
     return packed.indices.step(3).mapNotNull { offset ->
         if (offset + 2 >= packed.size) null else WearCalibration(

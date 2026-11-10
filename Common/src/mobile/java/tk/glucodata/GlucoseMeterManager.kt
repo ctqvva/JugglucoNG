@@ -11,6 +11,7 @@ import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntrySource
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalRepository
+import tk.glucodata.glucosemeter.MeterSyncPacing
 import tk.glucodata.glucosemeter.SatelliteMeterCredentials
 
 data class GlucoseMeterSnapshot(
@@ -20,10 +21,14 @@ data class GlucoseMeterSnapshot(
     val active: Boolean,
     val connected: Boolean,
     val lastReadingAt: Long,
+    /** Never sleeps, so the recheck interval applies to it (the Satellite). */
+    val staysOn: Boolean,
 )
 
 /** Compose-facing facade over the legacy, protocol-capable glucose meter runtime. */
 object GlucoseMeterManager {
+    private const val TAG = "GlucoseMeterManager"
+
     fun satelliteCode(): String = SatelliteMeterCredentials.load()
 
     fun isSatelliteCodeValid(code: String): Boolean = SatelliteMeterCredentials.isValid(code)
@@ -33,6 +38,13 @@ object GlucoseMeterManager {
         if (SatelliteMeterCredentials.isValid(code)) {
             BluetoothGlucoseMeter.retrySatelliteSessions()
         }
+    }
+
+    fun recheckMinutes(): Int = MeterSyncPacing.minutes()
+
+    fun setRecheckMinutes(minutes: Int) {
+        MeterSyncPacing.setMinutes(minutes)
+        BluetoothGlucoseMeter.pacingChanged()
     }
 
     fun configuredMeters(): List<GlucoseMeterSnapshot> =
@@ -46,6 +58,32 @@ object GlucoseMeterManager {
             BluetoothGlucoseMeter.removeDevice(index)
             Natives.GlucoseMeterSetActive(index, false)
         }
+    }
+
+    /**
+     * Forgets a meter completely: stops using it, drops the saved address and
+     * unpairs it from the phone, the way xDrip's "Forget Pair" does. Readings
+     * already stored in the journal are left alone.
+     */
+    @SuppressLint("MissingPermission")
+    fun forget(index: Int): Boolean {
+        val address = Natives.GlucoseMeterDeviceAddress(index)
+        setEnabled(index, false)
+        val unbound = if (address.isNullOrBlank()) {
+            true
+        } else {
+            runCatching {
+                // same reflection the anytime driver uses, removeBond is not
+                // visible to us directly
+                val device = BluetoothGlucoseMeter.mBluetoothAdapter?.getRemoteDevice(address)
+                    ?: return@runCatching false
+                (device.javaClass.getMethod("removeBond").invoke(device) as? Boolean) ?: false
+            }.onFailure { Log.stack(TAG, "removeBond", it) }.getOrDefault(false)
+        }
+        Natives.GlucoseMeterSetDeviceAddress(index, null)
+        // lastTime is deliberately kept: it is what stops the native store from
+        // taking the same readings a second time if this meter is paired again.
+        return unbound
     }
 
     @SuppressLint("MissingPermission")
@@ -67,14 +105,25 @@ object GlucoseMeterManager {
 
     private fun snapshot(index: Int): GlucoseMeterSnapshot? {
         val name = Natives.GlucoseMeterDeviceName(index)?.takeIf(String::isNotBlank) ?: return null
+        // The native table holds a row per supported meter model, and the name
+        // is on that row whether the meter was ever added or not, so a stored
+        // device address is what actually makes one configured. Filtering on the
+        // name alone lists every known model and leaves forget() with no row to
+        // remove. An active row still counts without one: the legacy meter list
+        // enables a meter before the scanner has found it, and hiding that row
+        // would leave no way to switch it off here.
+        val address = Natives.GlucoseMeterDeviceAddress(index)?.takeIf { it.isNotBlank() }
+        if (address == null && !Natives.GlucoseMeterGetActive(index)) return null
         val gatt = BluetoothGlucoseMeter.getExistingGatt(index)
         return GlucoseMeterSnapshot(
             index = index,
             name = name,
-            address = Natives.GlucoseMeterDeviceAddress(index),
+            address = address,
             active = Natives.GlucoseMeterGetActive(index),
             connected = gatt?.connected == true,
             lastReadingAt = Natives.GlucoseMeterGetLastTime(index),
+            // The name before the first link; what the link found after it.
+            staysOn = name.startsWith("Satellite", ignoreCase = true) || gatt?.staysOn() == true,
         )
     }
 }

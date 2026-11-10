@@ -81,4 +81,20 @@ class GlucoseColorSyncTests {
         assertTrue(decoded.valueRangeColors)
         assertEquals(Palette.VIBRANT.name, decoded.palette)
     }
+
+    @Test
+    fun thePayloadCarriesTheProtocolVersionAndALegacyOneStillDecodes() {
+        val encoded = GlucoseColorSync.encodeScheme(scheme()).toString(Charsets.UTF_8)
+        assertTrue("the version line is first", encoded.startsWith("${WearProtocol.versionLine()}\n"))
+
+        // A payload from a build before the version line is still accepted.
+        val legacy = "palette=${Palette.VIBRANT.name}\n".toByteArray()
+        assertEquals(Palette.VIBRANT.name, GlucoseColorSync.decodeScheme(legacy)?.palette)
+    }
+
+    @Test
+    fun aSchemeFromANewerProtocolIsRefused() {
+        val future = "v:${WearProtocol.VERSION + 1}\npalette=${Palette.VIBRANT.name}\n".toByteArray()
+        assertNull(GlucoseColorSync.decodeScheme(future))
+    }
 }

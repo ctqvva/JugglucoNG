@@ -61,7 +61,6 @@ import tk.glucodata.GlucosePoint
 import tk.glucodata.GlucoseRangeColors
 import tk.glucodata.GlucoseValuePlausibility
 import tk.glucodata.Natives
-import tk.glucodata.NotificationHistorySource
 import tk.glucodata.R
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.ui.WearGlucoseStore
@@ -89,6 +88,19 @@ private fun plausibleRawValue(point: GlucosePoint, isMmol: Boolean): Float? =
 
 internal data class ChartThresholds(val low: Float, val high: Float, val veryLow: Float, val veryHigh: Float)
 internal data class CalibrationMark(val timestamp: Long, val value: Float)
+
+/**
+ * A second sensor's trace, drawn under the primary in its own colour as the
+ * phone draws its peers. Only the lane the peer's view mode shows first is
+ * drawn; the watch has no room for two lanes per sensor.
+ */
+internal data class WearPeerSeries(
+    val sensorId: String,
+    val points: List<GlucosePoint>,
+    val useRaw: Boolean,
+    val color: Color,
+)
+
 internal data class WearChartData(
     val points: List<GlucosePoint>,
     val calibrations: List<CalibrationMark>,
@@ -101,6 +113,8 @@ internal data class WearChartData(
     val prediction: List<tk.glucodata.data.prediction.GlucosePredictionPoint> = emptyList(),
     /** Forward simulation of the raw lane, for the modes that show it. */
     val predictionRaw: List<tk.glucodata.data.prediction.GlucosePredictionPoint> = emptyList(),
+    /** The other selected sensors, in the phone's order. */
+    val peers: List<WearPeerSeries> = emptyList(),
 )
 
 private fun thresholds(isMmol: Boolean): ChartThresholds {
@@ -153,9 +167,12 @@ internal fun chartDataFrom(snapshot: WearGlucoseStore.Snapshot, hours: Int): Wea
         now + (duration * RIGHT_GAP_FRACTION).toLong(),
         minOf(forecastEnd, now + forecastRoom),
     )
+    val peers = snapshot.peers.map { peer ->
+        WearPeerSeries(peer.sensorId, peer.points, peer.isRawMode, Color(peer.colorArgb))
+    }
     return WearChartData(
         snapshot.points, marks, thresholds(isMmol), start, end, historyStart, isMmol,
-        prediction, predictionRaw,
+        prediction, predictionRaw, peers,
     )
 }
 
@@ -299,6 +316,7 @@ internal fun InteractiveWearChartPanel(
                 rawColor = labelColor.copy(alpha = 0.52f),
                 primaryRaw = primaryRaw,
                 showSecondary = showSecondary,
+                peerNeutralColor = labelColor,
                 targetColor = targetColor,
                 alarmColor = alarmColor,
                 gridColor = gridColor,
@@ -480,7 +498,7 @@ internal fun WearChartRangeChip(
 }
 
 private fun currentWearViewMode(): Int {
-    val sensor = NotificationHistorySource.resolveSensorSerial()
+    val sensor = tk.glucodata.ui.WearSensorSelection.resolve()
     return CurrentDisplaySource.resolveViewModeForSensor(sensor).coerceIn(0, 3)
 }
 
@@ -554,6 +572,8 @@ internal fun WearChart(
     rawColor: Color = Color.Transparent,
     primaryRaw: Boolean = false,
     showSecondary: Boolean = false,
+    /** What peer colours are toned down toward, as the phone tones its peers. */
+    peerNeutralColor: Color = Color.Gray,
     targetColor: Color,
     alarmColor: Color,
     gridColor: Color,
@@ -572,6 +592,11 @@ internal fun WearChart(
     val selectedState = rememberUpdatedState(selected)
     val viewportPoints = remember(data.points, viewportStart, viewportEnd) {
         data.points.filter { it.timestamp in viewportStart..viewportEnd }
+    }
+    val viewportPeers = remember(data.peers, viewportStart, viewportEnd) {
+        data.peers.map { peer ->
+            peer.copy(points = peer.points.filter { it.timestamp in viewportStart..viewportEnd })
+        }
     }
     fun pointAt(x: Float, width: Int): GlucosePoint? {
         if (width <= 0) return null
@@ -673,6 +698,17 @@ internal fun WearChart(
                     }
                 }
             }
+            // A peer that sits outside the primary's range is still on the
+            // chart, so the range fits both — the phone fits every series.
+            viewportPeers.forEach { peer ->
+                peer.points.forEach { point ->
+                    val value = if (peer.useRaw) plausibleRawValue(point, data.isMmol) else point.value
+                    if (value != null && value.isFinite() && value > 0f) {
+                        minValue = minOf(minValue, value)
+                        maxValue = maxOf(maxValue, value)
+                    }
+                }
+            }
             fun forecastFor(raw: Boolean) = if (raw) data.predictionRaw else data.prediction
             // Only the lanes actually drawn may stretch the range.
             val drawnForecasts = buildList {
@@ -698,10 +734,10 @@ internal fun WearChart(
             fun x(time: Long) = ((time - viewportStart).toFloat() / timeRange) * size.width
             fun y(value: Float) = plotBottom - ((value - minValue) / valueRange) * plotHeight
 
-            fun buildCurve(raw: Boolean): Path {
+            fun buildCurve(raw: Boolean, series: List<GlucosePoint> = viewportPoints): Path {
                 val curve = Path()
                 var previous: Offset? = null
-                viewportPoints.forEach { point ->
+                series.forEach { point ->
                     val value = if (raw) plausibleRawValue(point, data.isMmol) else point.value
                     if (value == null || !value.isFinite() || value <= 0f) {
                         previous = null
@@ -722,6 +758,14 @@ internal fun WearChart(
 
             val curve = buildCurve(primaryRaw)
             val secondaryCurve = if (showSecondary) buildCurve(!primaryRaw) else null
+            // Peers are toned toward neutral and drawn thinner, under the
+            // primary, the way the phone's chart keeps its peers legible
+            // without competing with the main trace.
+            val peerCurves = viewportPeers.mapNotNull { peer ->
+                if (peer.points.size < 2) return@mapNotNull null
+                val tone = androidx.compose.ui.graphics.lerp(peer.color, peerNeutralColor, 0.46f).copy(alpha = 0.76f)
+                buildCurve(peer.useRaw, peer.points) to tone
+            }
             // The trace is banded by height, as the phone's is: the stretch that
             // sits below target comes out low-coloured wherever it is in the
             // window. Colouring the whole line from the newest reading — what
@@ -837,6 +881,7 @@ internal fun WearChart(
                     )
                 }
                 secondaryCurve?.let { drawPath(it, rawColor, style = Stroke(1.35.dp.toPx())) }
+                peerCurves.forEach { (path, tone) -> drawPath(path, tone, style = Stroke(1.8.dp.toPx())) }
                 if (viewportPoints.size >= 2) {
                     val stroke = Stroke(2.6.dp.toPx())
                     if (curveBrush != null) drawPath(curve, curveBrush, style = stroke)

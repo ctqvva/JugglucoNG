@@ -164,8 +164,8 @@ private static void webPercentiles(Context context, int days) {
              Natives.endstats();
              {if(doLog) {Log.i(LOG_ID,"closeonback");};};
 
-             if(Menus.on)  {
-                Menus.show(act);
+             if(LegacyScreensAccess.getMenusOn())  {
+                LegacyScreensAccess.get().openMenus(act);
                 }
              else
                 act.requestRender();

@@ -89,7 +89,7 @@ import static tk.glucodata.Log.doLog;
 import static tk.glucodata.nums.numio.didreceivebackup;
 
 //public class AllData extends AndroidViewModel {
-public class AllData  {
+public class AllData implements tk.glucodata.NumberDataHub {
    String infostr="";
 //    private int  lastheart = 0, lastpress = 0;
 //    private File numdatfile;
@@ -100,6 +100,9 @@ public class AllData  {
 //    NumFragment numfrags[]={null,null};
 //    DeviceActivity activity=null;
 public    List<IQDevice> devices=null;
+    /** What shared code used to read straight off the field; see tk.glucodata.NumberDataHub. */
+    @Override
+    public boolean hasGarminDevices() { return devices!=null; }
    public int devused=0;
 //    public static final String IQDEVICE = "IQDevice";
 //   static public boolean isReleaseID= BuildConfig.isReleaseID==1;
@@ -137,6 +140,7 @@ public boolean sendtowatch=false;
 private List<Object> glucosemess=null;
 
 private static boolean gotgotglucose=false;
+@Override
 public void sendglucose(String ident,long tim,float glu,float rate,int off) {
    List<Object> uit = Arrays.asList(ident,tim,glu,rate,off,Applic.unit==1?1:0);
    if(!sendtowatch||isSending()) 
@@ -277,6 +281,7 @@ public boolean startglucose() {
       }
    return false;
    }
+@Override
 public void startall() {
    sendmessage(Arrays.asList(START));
    }
@@ -496,6 +501,7 @@ private boolean realchangedback(int base) {
       }
    return false;
    }
+@Override
 public void changedback(int base) {
    if(!usewatch)
       return;
@@ -590,6 +596,7 @@ private boolean deletelater(int base) {
       }
    return false;
    }
+@Override
 public void deletelast(int base,int pos,int end ) {
  if(!usewatch)
       return;
@@ -638,6 +645,7 @@ private boolean sendmessage(Object obj) {
     }
    }
    
+@Override
 public void sendmessages() {
       if(!usewatch)
          return;
@@ -814,6 +822,7 @@ public void sendshortcuts(ArrayList<ArrayList<Object>> shortcuts) {
 
     sendmessage(Arrays.asList(SHORTCUTS,shortcuts ));
    }
+@Override
 public void sendlabels() {
    if(!usewatch)
       return;
@@ -879,6 +888,7 @@ void realgetnums(int base) {
     }
 
 */
+@Override
 public void stopalarm() {
    {if(doLog) {Log.i(LOG_ID,"send stopalarm");};};
     sendmessage(Arrays.asList(STOPALARM ));
@@ -1049,6 +1059,7 @@ void unregister() {
       }
    }
 
+@Override
 public void   onCleared() {
         try {
       numio.close();
@@ -1074,6 +1085,7 @@ public boolean sdkready() {
    return mListener!=null&& mListener.sdkready();
    }   
 MyConnectIQListener mListener=null; 
+@Override
 public void initIQ(Context context) {
 try {
       mMyApp = new IQApp(Natives.getgarminid());

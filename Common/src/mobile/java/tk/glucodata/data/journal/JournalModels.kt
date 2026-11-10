@@ -1,5 +1,10 @@
 package tk.glucodata.data.journal
 
+import tk.glucodata.data.food.FoodAmount
+import tk.glucodata.data.food.FoodItem
+import tk.glucodata.data.food.FoodPortion
+import tk.glucodata.data.food.FoodSource
+
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -8,14 +13,29 @@ enum class JournalEntryType(val storageValue: String) {
     CARBS("carbs"),
     FINGERSTICK("fingerstick"),
     ACTIVITY("activity"),
-    NOTE("note");
+    NOTE("note"),
+
+    /**
+     * A temporary basal imported from AAPS. Not user-addable and not a journal row in the
+     * UI sense: it exists so the graph can hang an "icicle" bar for the segment.
+     * [JournalEntry.amount] holds the delivered rate in U/h, [JournalEntry.durationMinutes]
+     * the segment length.
+     */
+    TEMP_BASAL("temp_basal");
 
     companion object {
+        /** The types a person adds, edits and filters by; temp basal is imported chart data. */
+        val journalRowTypes: List<JournalEntryType> = entries.filterNot { it == TEMP_BASAL }
+
         fun fromStorage(value: String?): JournalEntryType {
             return entries.firstOrNull { it.storageValue == value } ?: NOTE
         }
     }
 }
+
+/** The journal rows proper: everything but the AAPS temp basal chart segments. */
+fun List<JournalEntry>.withoutTempBasal(): List<JournalEntry> =
+    filterNot { it.type == JournalEntryType.TEMP_BASAL }
 
 enum class JournalIntensity(val storageValue: String) {
     LIGHT("light"),
@@ -98,8 +118,18 @@ data class JournalEntryInput(
     val nsRemoteId: String? = null,
     /** Authoritative source supplied by an importer, distinct from its transport. */
     val originSource: JournalEntrySource? = null,
+    /** The foods a new carbs entry was built from. Not stored with it; the library keeps them. */
+    val foodUses: List<JournalFoodUse> = emptyList(),
+    /** All meal items, including snapshots/unfinished items excluded from usage recording. */
+    val foodItemCount: Int = foodUses.size,
 )
 
+/**
+ * A food in the person's library.
+ *
+ * [carbsGrams], [proteinGrams] and [fatGrams] are for [referenceGrams] of it. When that is
+ * null the food is an old-style preset: one serving of unrecorded weight, counted in servings.
+ */
 data class JournalFood(
     val id: Long,
     val displayName: String,
@@ -110,8 +140,47 @@ data class JournalFood(
     val accentColor: Int,
     val isBuiltIn: Boolean,
     val isArchived: Boolean,
-    val sortOrder: Int
-)
+    val sortOrder: Int,
+    val referenceGrams: Float? = null,
+    val portions: List<FoodPortion> = emptyList(),
+    val fiberGrams: Float? = null,
+    val kcal: Float? = null,
+    val brand: String? = null,
+    val barcode: String? = null,
+    /** The key this food had on the shelf it was taken from. */
+    val sourceKey: String? = null,
+    val isLiquid: Boolean = false,
+    /** Saved on purpose; false for a food only remembered because it was eaten. */
+    val kept: Boolean = true,
+    val useCount: Int = 0,
+    val lastUsedAt: Long = 0L,
+    val lastAmount: FoodAmount? = null,
+    /** Whether the person set [absorptionMinutes], or it is the estimate made on saving. */
+    val hasOwnAbsorption: Boolean = true
+) {
+    fun toFoodItem(): FoodItem = FoodItem(
+        key = LIBRARY_KEY_PREFIX + id,
+        source = FoodSource.LIBRARY,
+        name = displayName,
+        brand = brand,
+        referenceGrams = referenceGrams,
+        carbs = carbsGrams,
+        protein = proteinGrams,
+        fat = fatGrams,
+        fiber = fiberGrams,
+        kcal = kcal,
+        portions = portions,
+        isLiquid = isLiquid,
+        absorptionMinutes = absorptionMinutes.takeIf { hasOwnAbsorption },
+        libraryId = id,
+        barcode = barcode,
+        lastAmount = lastAmount
+    )
+
+    companion object {
+        const val LIBRARY_KEY_PREFIX = "lib:"
+    }
+}
 
 data class JournalFoodInput(
     val id: Long? = null,
@@ -123,13 +192,32 @@ data class JournalFoodInput(
     val accentColor: Int,
     val isBuiltIn: Boolean = false,
     val isArchived: Boolean = false,
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
+    val referenceGrams: Float? = null,
+    val portions: List<FoodPortion> = emptyList(),
+    val fiberGrams: Float? = null,
+    val kcal: Float? = null,
+    val brand: String? = null,
+    val barcode: String? = null,
+    val sourceKey: String? = null,
+    val isLiquid: Boolean = false,
+    val kept: Boolean = true,
+    val hasOwnAbsorption: Boolean = true
 )
 
-data class JournalCurvePoint(
-    val minute: Int,
-    val activity: Float
+/** A food that went into a meal, and how much of it: what the library learns from a save. */
+data class JournalFoodUse(
+    val food: FoodItem,
+    val amount: FoodAmount
 )
+
+/**
+ * The shared curve shape (plan §4 category W, D1). The watch computes against
+ * the same `(minute, activity)` points, so the type is the shared one and this
+ * name is a spelling of it -- which keeps every existing construction and
+ * signature in the phone's journal code compiling unchanged.
+ */
+typealias JournalCurvePoint = IobCurvePoint
 
 data class JournalInsulinPreset(
     val id: Long,
@@ -215,6 +303,8 @@ data class JournalChartMarker(
     val chartYFraction: Float? = null,
     val durationMinutes: Int? = null,
     val curvePoints: List<JournalCurvePoint> = emptyList(),
+    /** What [curvePoints] were measured as; a steady-state curve isn't one injection's action. */
+    val curveEvidence: JournalCurveEvidence? = null,
     val activeStartMillis: Long? = null,
     val activeEndMillis: Long? = null
 )
@@ -408,18 +498,8 @@ fun resolveJournalCurve(
     }
 }
 
-internal fun interpolateJournalCurve(points: List<JournalCurvePoint>, minute: Float): Float {
-    if (points.isEmpty()) return 0f
-    if (minute <= points.first().minute.toFloat()) return points.first().activity
-    if (minute >= points.last().minute.toFloat()) return points.last().activity
-
-    val upperIndex = points.indexOfFirst { it.minute >= minute }.takeIf { it >= 0 } ?: return 0f
-    val upper = points[upperIndex]
-    val lower = points.getOrNull(upperIndex - 1) ?: return upper.activity
-    val span = (upper.minute - lower.minute).toFloat().coerceAtLeast(1f)
-    val progress = ((minute - lower.minute) / span).coerceIn(0f, 1f)
-    return lower.activity + ((upper.activity - lower.activity) * progress)
-}
+internal fun interpolateJournalCurve(points: List<JournalCurvePoint>, minute: Float): Float =
+    JournalIobMath.interpolate(points, minute)
 
 private fun formatJournalCurveValue(value: Float): String {
     return ((value.coerceIn(0f, 1f) * 100f).roundToInt() / 100f).toString()

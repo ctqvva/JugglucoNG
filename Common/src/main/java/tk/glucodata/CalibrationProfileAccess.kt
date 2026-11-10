@@ -1,58 +1,62 @@
 package tk.glucodata
 
-import android.util.Log
 import androidx.annotation.Keep
 
+/**
+ * Bridge between the native calibration-profile transfer and the mobile-only
+ * [tk.glucodata.data.calibration.CalibrationManager].
+ *
+ * This object's own static methods are a **JNI contract**: `curve/javacurve.cpp`
+ * does `FindClass("tk/glucodata/CalibrationProfileAccess")` and
+ * `GetStaticMethodID` for both methods, so they keep their names (`@Keep` + the
+ * keep rule). Inside, it no longer resolves CalibrationManager by name: the phone
+ * registers its [CalibrationProfileBridge] from [Specific.registerBridges] and the
+ * methods delegate (plan P1/Q1).
+ *
+ * Every method keeps the old reflective failure contract: a failure degrades to
+ * null/false instead of reaching the caller.
+ */
 @Keep
 object CalibrationProfileAccess {
     private const val TAG = "CalibrationProfileAccess"
-    private const val CLASS_NAME = "tk.glucodata.data.calibration.CalibrationManager"
 
-    private val holder by lazy { runCatching { Class.forName(CLASS_NAME) }.getOrNull() }
-    private val instance by lazy { runCatching { holder?.getField("INSTANCE")?.get(null) }.getOrNull() }
-    private val exportMethod by lazy {
-        runCatching { holder?.getMethod("exportProfileForSensorAsJson", String::class.java) }.getOrNull()
+    @Volatile
+    private var bridge: CalibrationProfileBridge? = null
+
+    /** Registration-completeness check (plan §6 Q1). */
+    @JvmStatic
+    fun isRegistered(): Boolean = bridge != null
+
+    @JvmStatic
+    fun register(bridge: CalibrationProfileBridge) {
+        this.bridge = bridge
     }
-    private val importMirrorMethod by lazy {
-        runCatching {
-            holder?.getMethod(
-                "importMirrorProfileFromJsonBlocking",
-                String::class.java,
-                String::class.java
-            )
-        }.getOrNull()
+
+    @JvmStatic
+    fun onDisplayUnitChanged() {
+        runCatching { bridge?.onDisplayUnitChanged() }
+            .onFailure { Log.stack(TAG, "onDisplayUnitChanged failed", it) }
     }
+
+    @JvmStatic
+    fun mirrorProfileSensorIds(): Array<String> =
+        runCatching { bridge?.mirrorProfileSensorIds() ?: emptyArray() }
+            .onFailure { Log.stack(TAG, "mirrorProfileSensorIds failed", it) }
+            .getOrDefault(emptyArray())
 
     @JvmStatic
     fun exportProfileForSensorAsJson(sensorId: String?): String? {
         if (sensorId.isNullOrBlank()) return null
-        val method = exportMethod
-        val manager = instance
-        if (method == null || manager == null) {
-            Log.w(TAG, "exportProfileForSensorAsJson unavailable for sensor=$sensorId")
-            return null
-        }
-        return runCatching {
-            method.invoke(manager, sensorId) as? String
-        }.onFailure {
-            Log.w(TAG, "exportProfileForSensorAsJson failed for sensor=$sensorId", it)
-        }.getOrNull()
+        return runCatching { bridge?.exportProfileForSensorAsJson(sensorId) }
+            .onFailure { Log.stack(TAG, "exportProfileForSensorAsJson failed for sensor=$sensorId", it) }
+            .getOrNull()
     }
 
     @JvmStatic
     fun importMirrorProfileFromJson(json: String?, overrideSensorId: String? = null): Boolean {
         if (json.isNullOrBlank()) return false
-        val method = importMirrorMethod
-        val manager = instance
-        if (method == null || manager == null) {
-            Log.w(TAG, "importMirrorProfileFromJson unavailable for sensor=$overrideSensorId")
-            return false
-        }
-        return runCatching {
-            method.invoke(manager, json, overrideSensorId)
-            true
-        }.onFailure {
-            Log.w(TAG, "importMirrorProfileFromJson failed for sensor=$overrideSensorId", it)
-        }.getOrDefault(false)
+        return runCatching { bridge?.importMirrorProfileFromJson(json, overrideSensorId) }
+            .onFailure { Log.stack(TAG, "importMirrorProfileFromJson failed for sensor=$overrideSensorId", it) }
+            .getOrNull() ?: false
     }
 }

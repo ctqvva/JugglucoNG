@@ -1,6 +1,10 @@
 package tk.glucodata
 
 import android.content.Context
+import android.content.SharedPreferences
+import tk.glucodata.settings.SettingDefinition
+import tk.glucodata.settings.SettingType
+import tk.glucodata.settings.SettingsRegistry
 
 /**
  * Mirrors the phone's display preferences onto the watch.
@@ -10,52 +14,37 @@ import android.content.Context
  * was the first case to bite: the watch read [DataSmoothing] happily, found the
  * compiled-in defaults, and drew an unsmoothed curve beside a smoothed phone.
  *
- * Only the keys named in [MIRRORED] travel, so a watch-local setting is never
- * stamped on by the phone, and a payload from a newer phone carrying keys this
- * build has never heard of is ignored rather than mis-applied.
+ * The list of keys that travel is not kept here any more: it is
+ * [SettingsRegistry.mirrored], so a default is declared once and cannot disagree
+ * with itself (plan §2.4). This object only serialises it — the line format is
+ * unchanged, because an older peer has to keep reading it.
  *
- * Colours have their own channel ([GlucoseColorSync]) because applying them
- * means re-running the palette's own load, not just writing prefs.
+ * Colours travel over the same channel but with their own apply step
+ * ([SensorVisuals.invalidateOverrides]), so they are encoded here and
+ * re-applied on the receiving side by [MessageReceiver].
  */
 object WearPrefsSync {
     private const val LOG_ID = "WearPrefsSync"
-    private const val PREFS = "tk.glucodata_preferences"
+    private const val PREFS = SettingsRegistry.FILE
 
-    private const val TYPE_INT = "i"
-    private const val TYPE_BOOL = "b"
-    private const val TYPE_FLOAT = "f"
+    /** The sensor order the phone displays, primary first. */
+    const val KEY_SENSOR_SELECTION = tk.glucodata.settings.KEY_SENSOR_SELECTION
 
-    private class Mirrored(val type: String, val default: Any)
-
-    /**
-     * The keys the phone owns, with the type each is stored as and the default
-     * the phone reads it with.
-     *
-     * The default matters as much as the key. A setting the user has never
-     * touched is absent from the phone's preferences, so sending only what is
-     * stored sent nothing — and the watch fell back to its own default, which
-     * for the predictive simulation was the opposite of the phone's. It showed
-     * "off" on a phone where it was on. The effective value always travels now,
-     * and these defaults must stay in step with the phone's readers.
-     */
-    private val MIRRORED: Map<String, Mirrored> = mapOf(
-        // Data smoothing — the window, and the three switches that decide
-        // whether it reaches the graph at all.
-        "dashboard_chart_smoothing_minutes" to Mirrored(TYPE_INT, 0),
-        "dashboard_data_smoothing_graph_only" to Mirrored(TYPE_BOOL, false),
-        "dashboard_data_smoothing_collapse_chunks" to Mirrored(TYPE_BOOL, false),
-        "dashboard_data_smoothing_exchange_outputs_only" to Mirrored(TYPE_BOOL, false),
-        // Predictive simulation. Both switches default on, as the phone reads them.
-        "dashboard_predictive_simulation_enabled" to Mirrored(TYPE_BOOL, true),
-        "dashboard_prediction_trend_momentum_enabled" to Mirrored(TYPE_BOOL, true),
-        "dashboard_prediction_carb_ratio_g_per_u" to Mirrored(TYPE_FLOAT, 10f),
-        "dashboard_prediction_insulin_sensitivity_mgdl_per_u" to Mirrored(TYPE_FLOAT, 54f),
-        "dashboard_prediction_carb_absorption_g_per_h" to Mirrored(TYPE_FLOAT, 35f),
-        "dashboard_prediction_horizon_minutes" to Mirrored(TYPE_INT, 120),
-    )
-
+    private val KEY_SENSOR_COLORS = tk.glucodata.settings.KEY_SENSOR_COLORS
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    private fun mirrorValue(definition: SettingDefinition, source: SharedPreferences): String? {
+        definition.effectiveString?.let { return it() }
+        return when (definition.type) {
+            SettingType.INT -> definition.readInt(source).toString()
+            SettingType.BOOL -> definition.readBool(source).toString()
+            SettingType.FLOAT -> definition.readFloat(source).toString()
+            // A string with a line break in it would be read back as two keys; it
+            // is escaped on the way out and restored on the way in.
+            SettingType.STRING -> escapeLine(definition.readString(source))
+        }
+    }
 
     /** Serialises the mirrored keys this device currently holds. */
     @JvmStatic
@@ -63,20 +52,13 @@ object WearPrefsSync {
         if (context == null) return ByteArray(0)
         val source = prefs(context)
         val text = buildString {
-            MIRRORED.forEach { (key, spec) ->
-                val raw = when (spec.type) {
-                    TYPE_INT -> runCatching {
-                        source.getInt(key, spec.default as Int).toString()
-                    }.getOrNull()
-                    TYPE_BOOL -> runCatching {
-                        source.getBoolean(key, spec.default as Boolean).toString()
-                    }.getOrNull()
-                    TYPE_FLOAT -> runCatching {
-                        source.getFloat(key, spec.default as Float).toString()
-                    }.getOrNull()
-                    else -> null
-                } ?: return@forEach
-                append(spec.type).append(':').append(key).append('=').append(raw).append('\n')
+            // The protocol version, first. An old receiver has no `=` on this line and skips it, so
+            // the settings themselves still arrive; a newer receiver checks it before applying.
+            append(WearProtocol.versionLine()).append('\n')
+            SettingsRegistry.mirrored.forEach { definition ->
+                val raw = mirrorValue(definition, source) ?: return@forEach
+                if (raw.contains('\n')) return@forEach
+                append(definition.type.wire).append(':').append(definition.key).append('=').append(raw).append('\n')
             }
         }
         return text.toByteArray(Charsets.UTF_8)
@@ -90,15 +72,28 @@ object WearPrefsSync {
     @JvmStatic
     fun apply(context: Context?, data: ByteArray?): Int {
         if (context == null || data == null || data.isEmpty()) return 0
-        val lines = try {
-            data.toString(Charsets.UTF_8).lines()
+        val text = try {
+            data.toString(Charsets.UTF_8)
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "decode", t)
             return 0
         }
+        val declaredVersion = WearProtocol.declaredVersion(text)
+        if (!WearProtocol.accepts(declaredVersion)) {
+            // A newer peer's payload: applying a shape this build does not know is worse than
+            // leaving the settings alone. A legacy payload (no version line) is version 1.
+            Log.w(
+                LOG_ID,
+                "ignoring display prefs from a newer protocol: v$declaredVersion > v${WearProtocol.VERSION}",
+            )
+            return 0
+        }
+        val lines = text.lines()
 
         val editor = prefs(context).edit()
         var written = 0
+        var sensorSelectionChanged = false
+        var sensorColorsChanged = false
         lines.forEach { line ->
             val typeSplit = line.indexOf(':')
             val valueSplit = line.indexOf('=')
@@ -108,58 +103,92 @@ object WearPrefsSync {
             val raw = line.substring(valueSplit + 1)
             // An unknown key, or one that arrives as the wrong type, is skipped:
             // writing it would give this device a pref it cannot read back.
-            if (MIRRORED[key]?.type != type) return@forEach
-            when (type) {
-                TYPE_INT -> raw.toIntOrNull()?.let { editor.putInt(key, it); written++ }
-                TYPE_BOOL -> raw.toBooleanStrictOrNull()?.let { editor.putBoolean(key, it); written++ }
-                TYPE_FLOAT -> raw.toFloatOrNull()
+            val definition = SettingsRegistry.find(key) ?: return@forEach
+            if (definition.type.wire != type) return@forEach
+            when (definition.type) {
+                SettingType.INT -> raw.toIntOrNull()?.let { editor.putInt(key, it); written++ }
+                SettingType.BOOL -> raw.toBooleanStrictOrNull()?.let { editor.putBoolean(key, it); written++ }
+                SettingType.FLOAT -> raw.toFloatOrNull()
                     ?.takeIf { it.isFinite() }
                     ?.let { editor.putFloat(key, it); written++ }
+                SettingType.STRING -> {
+                    val value = when (key) {
+                        // Stored in the form MultiSensorSelection reads.
+                        KEY_SENSOR_SELECTION -> SettingsRegistry.selectionFromWire(raw)
+                            .joinToString(MultiSensorSelection.SEPARATOR)
+                        else -> unescapeLine(raw)
+                    }
+                    if (key == KEY_SENSOR_SELECTION && value != prefs(context).getString(key, "")) {
+                        sensorSelectionChanged = true
+                    }
+                    if (key == KEY_SENSOR_COLORS && value != prefs(context).getString(key, "")) {
+                        sensorColorsChanged = true
+                    }
+                    editor.putString(key, value)
+                    written++
+                }
             }
         }
         if (written == 0) return 0
         editor.apply()
+        if (sensorColorsChanged) SensorVisuals.invalidateOverrides()
+        if (sensorSelectionChanged) {
+            MultiSensorSelection.notifyStoredChanged()
+            // The native "current sensor" slot is what the complications and
+            // the watch face resolve through; keep it on the phone's primary.
+            if (Applic.isWearable) WearSensorSelectionSync.alignCurrentSensor()
+        }
         UiRefreshBus.requestDataRefresh()
         return written
     }
 
-    // What was last sent, so the periodic re-push stays silent while nothing
-    // changes. Same convergence story as the colour scheme: a watch that was off
-    // when the user changed a setting must still catch up on its own.
-    @Volatile private var lastSentHash: Int? = null
+    @JvmStatic
+    fun selectionToWire(sensorIds: List<String>): String = SettingsRegistry.selectionToWire(sensorIds)
+
+    @JvmStatic
+    fun selectionFromWire(raw: String): List<String> = SettingsRegistry.selectionFromWire(raw)
+
+    /** A string value on one payload line: line breaks and backslashes escaped. */
+    @JvmStatic
+    fun escapeLine(value: String): String =
+        value.replace("\\", "\\\\").replace("\n", "\\n")
+
+    @JvmStatic
+    fun unescapeLine(value: String): String {
+        val out = StringBuilder(value.length)
+        var index = 0
+        while (index < value.length) {
+            val c = value[index]
+            if (c == '\\' && index + 1 < value.length) {
+                when (value[index + 1]) {
+                    'n' -> { out.append('\n'); index += 2; continue }
+                    '\\' -> { out.append('\\'); index += 2; continue }
+                }
+            }
+            out.append(c)
+            index++
+        }
+        return out.toString()
+    }
+
+    // MessageClient completion does not acknowledge application on the watch. Answer every
+    // request with a snapshot: the next request retries a lost reply, independently per node.
+    private val delivery = WearPrefsDelivery(
+        encode = { encode(Applic.app) },
+        send = { node, payload ->
+            MessageSender.getMessageSender()?.let { sender ->
+                if (node == null) sender.sendWearPrefs(payload) else sender.sendWearPrefs(node, payload)
+            }
+        },
+    )
 
     @JvmStatic
     fun push() {
-        runCatching {
-            val payload = encode(Applic.app)
-            if (payload.isEmpty()) return
-            MessageSender.getMessageSender()?.sendWearPrefs(payload)
-            lastSentHash = payload.contentHashCode()
-        }.onFailure { Log.stack(LOG_ID, "push", it) }
+        runCatching { delivery.push() }.onFailure { Log.stack(LOG_ID, "push", it) }
     }
 
     @JvmStatic
     fun pushTo(nodeName: String?) {
-        val target = nodeName ?: return
-        runCatching {
-            val payload = encode(Applic.app)
-            if (payload.isEmpty()) return
-            MessageSender.getMessageSender()?.sendWearPrefs(target, payload)
-            lastSentHash = payload.contentHashCode()
-        }.onFailure { Log.stack(LOG_ID, "pushTo", it) }
-    }
-
-    /** Pushes only when something changed since the last send. */
-    @JvmStatic
-    fun pushIfChanged(nodeName: String?) {
-        val target = nodeName ?: return
-        runCatching {
-            val payload = encode(Applic.app)
-            if (payload.isEmpty()) return
-            val hash = payload.contentHashCode()
-            if (hash == lastSentHash) return
-            MessageSender.getMessageSender()?.sendWearPrefs(target, payload)
-            lastSentHash = hash
-        }.onFailure { Log.stack(LOG_ID, "pushIfChanged", it) }
+        runCatching { delivery.pushTo(nodeName) }.onFailure { Log.stack(LOG_ID, "pushTo", it) }
     }
 }

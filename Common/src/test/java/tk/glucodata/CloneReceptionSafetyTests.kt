@@ -97,7 +97,7 @@ class CloneReceptionSafetyTests {
 
         val reconcile = registry.substring(registry.indexOf("fun reconcilePrimaryCloneSensor"))
         assertTrue(reconcile.contains("whileReceptionEnabled"))
-        assertTrue(access.contains("return CloneSensorRegistry.whileReceptionEnabled"))
+        assertTrue(access.contains("CloneSensorRegistry.whileReceptionEnabled"))
 
         val importStart = snapshots.indexOf("fun importCloneIobSnapshot")
         val importEnd = snapshots.indexOf("fun importFromJson", importStart)
@@ -203,10 +203,20 @@ class CloneReceptionSafetyTests {
         assertTrue(https.contains("deadline.pollMilliseconds()"))
         assertTrue(https.contains("cancelled->load(std::memory_order_acquire)"))
         assertTrue(https.contains("elapsedRealtimeMilliseconds()"))
+        val attemptWait = ice.substring(
+            ice.indexOf("static bool waitForAttempt"),
+            ice.indexOf("static RendezvousAttemptResult stoppedAttempt"),
+        )
+
         assertTrue(ice.contains(".timeoutMilliseconds=10000"))
-        assertTrue(ice.contains("waitForCurrentAgent(con,agent,5)"))
+        assertTrue(ice.contains(".superseded=attempt?attempt->superseded:nullptr"))
+        assertTrue(https.contains("superseded->load(std::memory_order_acquire)"))
+        assertTrue(ice.contains("waitForAttempt(con,agent,attempt,5)"))
         assertTrue(retryWait.contains("std::min<int64_t>(remaining,250)"))
         assertTrue(!retryWait.contains("sleep(1)"))
+        assertTrue(attemptWait.contains("std::min<int64_t>(remaining,250)"))
+        assertTrue(attemptWait.contains("!attempt.isSuperseded()"))
+        assertTrue(!attemptWait.contains("sleep(1)"))
         assertTrue(connection.contains("cancelRendezvous();"))
     }
 
@@ -325,18 +335,32 @@ class CloneReceptionSafetyTests {
         val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
             .replace(Regex("\\s+"), " ")
         val waitForDescription = ice.substring(
-            ice.indexOf("static bool waitonDescription"),
-            ice.indexOf("static bool putDescription"),
+            ice.indexOf("static RendezvousAttemptResult waitonDescription"),
+            ice.indexOf("static bool prepareLocalDescription"),
         )
         val putDescription = ice.substring(
-            ice.indexOf("static bool putDescription"),
+            ice.indexOf("static RendezvousAttemptResult putDescription"),
+            ice.indexOf("static bool exchangeDescriptions"),
+        )
+        val exchange = ice.substring(
+            ice.indexOf("static bool exchangeDescriptions"),
             ice.indexOf("bool initAgent"),
         )
 
+        // Only the LAN source may abandon a rendezvous request; a remote
+        // description fetched through rendezvous must not skip the answer.
         assertTrue(waitForDescription.contains("if(con->remoteDescriptionWasLocal.load())"))
-        assertFalse(waitForDescription.contains("if(con->remoteDescriptionSet.load())"))
+        assertFalse(waitForDescription.contains("if(con->remoteDescriptionSet.load()) { con->beginRendezvous()"))
         assertTrue(putDescription.contains("if(con->remoteDescriptionWasLocal.load())"))
-        assertFalse(putDescription.contains("if(con->remoteDescriptionSet.load())"))
+        assertFalse(putDescription.contains("if(con->remoteDescriptionSet.load()) { con->beginRendezvous()"))
+        // The answer upload never looks at remoteDescriptionSet before its PUT;
+        // the flag only settles side 0 when another server's answer won.
+        assertFalse(putDescription.substringBefore("putRequest(").contains("remoteDescriptionSet"))
+        assertTrue(putDescription.indexOf("remoteDescriptionSet") >
+            putDescription.indexOf("if(side!=givefirst|| applyRemoteDescription("))
+        // The attempt that fetched the offer goes on to upload this side's answer.
+        val afterOffer = exchange.substringAfter("if(offer!=RendezvousAttemptResult::Won) return offer;")
+        assertTrue(afterOffer.indexOf("prepareLocalDescription(") in 0 until afterOffer.indexOf("putDescription("))
     }
 
     @Test
@@ -391,6 +415,46 @@ class CloneReceptionSafetyTests {
             "receiver-connect-begin", "receiver-connect-end").forEach {
             assertTrue("Missing recovery stage $it", ice.contains("\"$it\""))
         }
+    }
+
+    /**
+     * Managed-driver readings wake the stream without reconnecting, but the stream carries polls
+     * only: a host lacking a sensor in sensors.dat gets one full update first, and
+     * only that host, so one that stays offline costs the others nothing.
+     */
+    @Test
+    fun streamOnlyWakeSendsANewSensorFirst() {
+        val jni = source("Common/src/main/cpp/backupjava.cpp").replace(Regex("\\s+"), " ")
+
+        assertTrue(jni.contains("host.startsensors <= lastsensor"))
+        assertTrue(jni.contains("backup->wakeeach([data, lastsensor](int h)"))
+        assertTrue(jni.contains("? Backup::wakeall : Backup::wakestream;"))
+    }
+
+    /** A web request asks only the phones this one mirrors from to send; it reconnected every peer. */
+    @Test
+    fun webRequestsWakeOnlyTheHostsThisPhoneReceivesFrom() {
+        val backup = source("Common/src/main/cpp/datbackup.cpp").replace(Regex("\\s+"), " ")
+
+        assertTrue(backup.contains("else if(sourcesOnly&&!host.receivedatafrom()) {"))
+        assertTrue(backup.contains("void wakesender() { backup->getupdatedata()->wakesender(8 /*wakeall*/,true); }"))
+    }
+
+    /**
+     * 2026-11-02: after overlapping reconnects the sender sat in s_recvni for hours waiting
+     * for a handshake reply the receiver had already given up on. Its reads end like a TCP
+     * socket's 60 s SO_RCVTIMEO; the receiver's stay open, since it idles between readings.
+     */
+    @Test
+    fun senderReadsEndWhileReceiverReadsWait() {
+        val transport = source("Common/src/main/cpp/net/ICE/ICE_data.cpp")
+            .replace(Regex("\\s+"), " ")
+        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
+            .replace(Regex("\\s+"), " ")
+
+        assertTrue(connection.contains("icedata[0].receive(agent.load(),(char *)buf, len,60)"))
+        assertTrue(connection.contains("icedata[1].receive(agent.load(),(char *)buf, len)"))
+        assertTrue(transport.contains("std::chrono::steady_clock::now()+std::chrono::seconds(timeoutSecs)"))
     }
 
     @Test

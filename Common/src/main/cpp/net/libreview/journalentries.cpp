@@ -27,13 +27,10 @@ bool journallookupfailed = false;
 
 std::string pendingfood, pendinginsulin, pendingnotes;
 
-bool ensurejournalclass(JNIEnv *env) {
-    if (journalclass != nullptr)
-        return true;
-    if (journallookupfailed)
-        return false;
-    constexpr const char classstr[] = "tk/glucodata/LibreviewJournal";
-    if (jclass cl = env->FindClass(classstr)) {
+constexpr const char journalclassstr[] = "tk/glucodata/LibreviewJournal";
+
+bool lookupjournalclass(JNIEnv *env) {
+    if (jclass cl = env->FindClass(journalclassstr)) {
         journalclass = (jclass)env->NewGlobalRef(cl);
         env->DeleteLocalRef(cl);
         if (journalclass != nullptr)
@@ -41,8 +38,18 @@ bool ensurejournalclass(JNIEnv *env) {
         }
     if (env->ExceptionCheck())
         env->ExceptionClear();
+    LOGGER("FindClass(%s) failed\n", journalclassstr);
+    return false;
+    }
+
+bool ensurejournalclass(JNIEnv *env) {
+    if (journalclass != nullptr)
+        return true;
+    if (journallookupfailed)
+        return false;
+    if (lookupjournalclass(env))
+        return true;
     journallookupfailed = true;
-    LOGGER("FindClass(%s) failed\n", classstr);
     return false;
     }
 
@@ -88,6 +95,16 @@ void callvoid(const char *name) {
     }
 
 } // namespace
+
+//Resolves the class on the thread that loads the library (JNI_OnLoad via initlibreviewjni),
+//like tk/glucodata/Libreview. The uploads run on libreviewthread, a std::thread that getenv()
+//attaches itself; FindClass there searches only the system class loader, never finds an app
+//class, and the lookup above then gave up for the life of the process -- so the journal only
+//reached LibreView when the first upload happened to start from a Java thread.
+void libreviewJournalInit(JNIEnv *env) {
+    if (journalclass == nullptr)
+        lookupjournalclass(env);
+    }
 
 int libreviewJournalPrepare(bool libre3) {
     pendingfood.clear();

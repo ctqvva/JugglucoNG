@@ -8,6 +8,32 @@ import org.junit.Test
 
 class AiDexHistoryPolicyTests {
 
+    @Test fun sourceRepairRewindsBothTracksAfterStockReleaseAdvancedTheirCursors() {
+        val start = 1_791_584_291_000L
+        val missing = start + 6358L * 60_000L
+        val offset = AiDexHistoryPolicy.sourceRepairOffset(missing, start, 1, 1, 6489)
+        assertEquals(6358, offset)
+        val plan = AiDexHistoryPolicy.planInitialDownload(1, 1, 6489, 6479, 6479, offset)
+        assertEquals(AiDexHistoryPolicy.InitialAction.REQUEST_RAW, plan.action)
+        assertEquals(6358, plan.rawNextIndex)
+        assertEquals(6358, plan.briefNextIndex)
+        // Reconnect still repairs the hole even if an interrupted repair advanced cursors.
+        assertEquals(6358, AiDexHistoryPolicy.planInitialDownload(1, 1, 6499, 6490, 6490, offset).requestOffset)
+    }
+
+    @Test fun sourceRepairMatchesWallClockMinuteAndRejectsUnavailableSessions() {
+        val start = 1_791_584_291_000L
+        val roundedRoomTime = (start + 6358L * 60_000L) / 60_000L * 60_000L
+        assertEquals(6358, AiDexHistoryPolicy.sourceRepairOffset(roundedRoomTime, start, 1, 1, 6489))
+        assertNull(AiDexHistoryPolicy.sourceRepairOffset(start - 60_000L, start, 1, 1, 6489))
+        assertNull(AiDexHistoryPolicy.sourceRepairOffset(start + 60_000L, start, 2, 1, 6489))
+        assertNull(AiDexHistoryPolicy.sourceRepairOffset(start + 60_000L, start, 1, 2, 6489))
+        assertNull(AiDexHistoryPolicy.sourceRepairOffset(start + 6490L * 60_000L, start, 1, 1, 6489))
+        assertNull(AiDexHistoryPolicy.sourceRepairOffset(roundedRoomTime, 0L, 1, 1, 6489))
+        assertEquals(AiDexHistoryPolicy.InitialAction.COMPLETE_ALREADY_CAUGHT_UP,
+            AiDexHistoryPolicy.planInitialDownload(1, 1, 6489, 6490, 6490, 0).action)
+    }
+
     @Test
     fun planInitialDownload_completesImmediatelyForEmptyRange() {
         val plan = AiDexHistoryPolicy.planInitialDownload(

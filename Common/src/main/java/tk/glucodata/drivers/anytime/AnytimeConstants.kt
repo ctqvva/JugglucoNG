@@ -340,6 +340,48 @@ object AnytimeConstants {
      */
     const val CT5_WARMUP_MINUTES = 40
 
+    /**
+     * K/R sent in CT5 setParameters when neither the transmitter SSN nor a scanned
+     * code yields a calibration. Both SSNs seen so far decode to R=1.0 with
+     * K=1.09 and K=1.15; the transmitter computes Auto glucose from these, so a
+     * scanned code replaces them as soon as the user has one.
+     */
+    const val CT5_DEFAULT_K = 1.10f
+    const val CT5_DEFAULT_R = 1.0f
+
+    /**
+     * Whether a sample falls inside the post-activation settling window and so must
+     * not be published, stored or exported.
+     *
+     * Deliberately a property of the SAMPLE rather than of the wall clock (the same
+     * shape as `OttaiConstants.isWithinWarmup`): a history replay of the same records
+     * then reaches the same verdict on every pass and across restarts, instead of
+     * re-admitting during warm-up whatever the live path already refused.
+     *
+     * [anchorMs] must be an authoritative activation instant — pass 0 to disable the
+     * gate rather than feeding it a provisional start. The window is per family
+     * ([AnytimeProfile.warmupMs]), so CT2 SN06/SN12 (180 min) and the 60-minute
+     * families get their own horizon.
+     */
+    @JvmStatic
+    fun isWithinWarmup(anchorMs: Long, sampleMs: Long, windowMs: Long): Boolean =
+        anchorMs > 0L &&
+            sampleMs > 0L &&
+            windowMs > 0L &&
+            sampleMs < anchorMs + windowMs
+
+    /**
+     * Whether a CT5 that entered streaming should be re-bound: the sensor has never
+     * delivered a frame ([lastGlucoseId] < 0) and no 0x35/0x37 notification of any kind
+     * ([lastDataRxAtMs], set before parsing) arrived since streaming began. Content is
+     * irrelevant — a malformed or glucose-less push still proves a measuring
+     * transmitter — and a sensor that has ever produced data is never re-bound, so
+     * this cannot re-initialise a running session.
+     */
+    @JvmStatic
+    fun ct5CachedCipherLooksUnbound(lastGlucoseId: Int, lastDataRxAtMs: Long, streamingSinceMs: Long): Boolean =
+        lastGlucoseId < 0 && lastDataRxAtMs < streamingSinceMs
+
     /** Watchdog — official app's pullDataDelay is 190 s. */
     const val PULL_WATCHDOG_SECONDS = 190L
 
@@ -476,6 +518,7 @@ object AnytimeConstants {
         FamilyEntry("SN29", Family.CT3_ULTRASONIC, 12, 3380),
         FamilyEntry("SN43", Family.CT3_ULTRASONIC, 9, 6740),
         FamilyEntry("SN47", Family.CT3_ULTRASONIC, 9, 6740),
+        FamilyEntry("SN91", Family.CT3_ULTRASONIC, 10, 6740),
         FamilyEntry("SN96", Family.CT3_ULTRASONIC, 12, 6740),
         FamilyEntry("SN98", Family.CT3_ULTRASONIC, 12, 6740),
         // ---- CT4 (voltage-switching) ----
@@ -507,6 +550,30 @@ object AnytimeConstants {
         FAMILY_TABLE.firstOrNull { entry -> upper.startsWith(entry.matchUpper) }
             ?.let { return it }
         return FAMILY_UNKNOWN
+    }
+
+    /**
+     * A known SN## identity beats the shared "Anytime" brand prefix, regardless of
+     * source: SN91 was observed changing its BLE name to "Anytime  4pro" at the
+     * same address on reconnect. Prefer connect-time names over GATT/cache/serial
+     * within that specificity, and only select CT5 by brand when no SN## is known.
+     * If none classify, keep the first non-blank name.
+     */
+    @JvmStatic
+    fun resolveHandshakeName(
+        cachedName: String?,
+        connectedName: String?,
+        activeName: String?,
+        serial: String?,
+    ): String {
+        val trimmed = listOf(connectedName, activeName, cachedName, serial)
+            .map { it?.trim().orEmpty() }
+        return trimmed.firstOrNull {
+            val family = resolveFamily(it).family
+            family != Family.UNKNOWN && family != Family.CT5
+        }
+            ?: trimmed.firstOrNull { resolveFamily(it).family != Family.UNKNOWN }
+            ?: trimmed.firstOrNull { it.isNotBlank() }.orEmpty()
     }
 
     @JvmStatic
@@ -622,6 +689,7 @@ object AnytimeConstants {
     const val PREF_CALIBRATOR_TEMP_SMOOTH_PREV_PREFIX = "anytime_calib_temp_smooth_"
     const val PREF_CALIBRATOR_FILTERED_PREV_PREFIX = "anytime_calib_filtered_"
     const val PREF_CALIBRATOR_LAST_ID_PREFIX = "anytime_calib_last_id_"
+    const val PREF_CT3_NATIVE_STATE_PREFIX = "anytime_ct3_native_state_"
     const val PREF_TEMPERATURE_HISTORY_PREFIX = "anytime_temp_history_"
     const val PREF_CT5_CIPHER_KEY_PREFIX = "anytime_ct5_cipher_"
 

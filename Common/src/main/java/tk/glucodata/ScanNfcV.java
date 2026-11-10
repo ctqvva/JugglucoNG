@@ -286,10 +286,10 @@ public class ScanNfcV {
         askpermission = false;
         MainActivity main = (MainActivity) (curve.getContext());
         if (!isWearable) {
-            if (Menus.on) {
+            if (LegacyScreensAccess.getMenusOn()) {
                 Applic.RunOnUiThread(() -> {
                     main.doonback();
-                    Menus.on = true;
+                    LegacyScreensAccess.setMenusOn(true);
                 });
             }
         }
@@ -334,7 +334,16 @@ public class ScanNfcV {
                 {
                     var isLibre3 = uid.length == 8 && uid[6] != 7;
                     byte[] info = AlgNfcV.nfcinfotimes(tag, (isLibre3 || doLog) ? 1 : 10);
-                    if (info == null || info.length != 6) {
+                    // Restricted mode: a tap may still read a sensor this phone already has,
+                    // but activating or adding one needs Libre on the adult's list.
+                    final boolean restrictedRefusal = RestrictedMode.refusesNfcSensor(isLibre3,
+                            (info != null && info.length == 6) ? Natives.getserial(uid, info) : null);
+                    if (restrictedRefusal) {
+                        ret = 17;
+                        vibrator.cancel();
+                        Applic.argToaster(main, main.getString(R.string.restricted_sensors_locked),
+                                android.widget.Toast.LENGTH_LONG);
+                    } else if (info == null || info.length != 6) {
                         if (isLibre3) {
                             int[] uit = libre3scan(curve, main, vibrator, tag);
                             ret = uit[0];

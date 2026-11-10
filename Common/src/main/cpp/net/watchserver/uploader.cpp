@@ -55,6 +55,7 @@ static std::atomic<int> lastNightUploadResponseCode{0};
 static std::atomic<long long> lastNightUploadAttemptTime{0};
 static std::atomic<long long> lastNightUploadSuccessTime{0};
 static std::atomic<int> lastNightUploadWaitMinutes{0};
+static std::atomic<time_t> lastSensorStartAttempt{0};
 static bool lastNightUploadConfigError = false;
 struct NightUploadRange {
     uint32_t start{};
@@ -239,7 +240,9 @@ bool inituploader(JNIEnv *env) {
     return true;
        }
 
-static int getNightscoutCalibrationOverrideForItem(SensorGlucoseData *sens,const char *sensorname,int autoMgdl,int rawCurrent,long long timestampMillis) {
+static int getNightscoutCalibrationOverrideForItem(SensorGlucoseData *sens,const char *sensorname,int autoMgdl,int rawCurrent,long long timestampMillis,bool primaryIsResolved) {
+    if(primaryIsResolved)
+        return autoMgdl;
     if(nightscoutcalibrationclass==nullptr)
         return 0;
     auto env=getenv();
@@ -295,13 +298,8 @@ static NightUploadRange *getRecentNightUploadRange(const int sensorid,const bool
 static void rememberRecentNightUpload(const int sensorid,const uint32_t start,const uint32_t end) {
     if(!start || !end)
         return;
-    auto *range=getRecentNightUploadRange(sensorid,true);
-    if(!range)
-        return;
-    if(!range->start || start<range->start)
-        range->start=start;
-    if(end>range->end)
-        range->end=end;
+    if(auto *range=getRecentNightUploadRange(sensorid,true))
+        *range={start,end};
     }
 
 static void pruneRecentNightUpload(const int sensorid,const uint32_t tim) {
@@ -346,6 +344,7 @@ static void reset() {
     settings->data()->lastuploadtime=0;
     for(auto &range:recentNightUploads)
         range={};
+    lastSensorStartAttempt=0;
     for(int sensorid=0;sensorid<=last;sensorid++) {
         if(SensorGlucoseData *sens=sensors->getSensorData(sensorid)) {
             __atomic_store_n(&sens->getinfo()->nightiter,0,__ATOMIC_RELAXED);
@@ -399,8 +398,7 @@ static bool devicestatusIsV3() {
     return settings->data()->nightscoutV3 && jnightuploadDevicestatus3url!=nullptr;
     }
 
-static bool queueNightuploadDevicestatus(const char *data,int len) {
-    jstring url=devicestatusIsV3()?jnightuploadDevicestatus3url:jnightuploadDevicestatusurl;
+static bool queueNightuploadAsync(jstring url,const char *data,int len,const bool sensorStart=false) {
     if(url==nullptr || nightpostclass==nullptr)
         return false;
     auto env=getenv();
@@ -411,7 +409,13 @@ static bool queueNightuploadDevicestatus(const char *data,int len) {
         "uploadDeviceStatusAsync",
         "(Ljava/lang/String;[BLjava/lang/String;Z)Z"
     );
-    if(uploadAsync==nullptr) {
+    const static jmethodID sensorAsync=env->GetStaticMethodID(
+        nightpostclass,
+        "uploadSensorStartAsync",
+        "(Ljava/lang/String;[BLjava/lang/String;Z)Z"
+    );
+    const auto method=sensorStart?sensorAsync:uploadAsync;
+    if(method==nullptr) {
         if(env->ExceptionCheck())
             env->ExceptionClear();
         LOGSTRING("Nightscout device-status async method unavailable\n");
@@ -428,7 +432,7 @@ static bool queueNightuploadDevicestatus(const char *data,int len) {
         }
     const jboolean queued=env->CallStaticBooleanMethod(
         nightpostclass,
-        uploadAsync,
+        method,
         url,
         payload,
         jnightuploadsecret,
@@ -506,7 +510,8 @@ static bool uploadDeviceStatus() {
     else
         addar(ptr,R"(,"type":"PHONE"}}])");
     *ptr='\0';
-    const bool queued=queueNightuploadDevicestatus(buf,ptr-buf);
+    jstring url=v3?jnightuploadDevicestatus3url:jnightuploadDevicestatusurl;
+    const bool queued=queueNightuploadAsync(url,buf,ptr-buf);
     LOGGER("Nightscout device-status battery=%d queued=%d\n",battery,queued);
     return queued;
     }
@@ -540,10 +545,117 @@ static void uploadIobDeviceStatus() {
     }
 
 
+static bool isNightscoutFollowerSensor(const SensorGlucoseData *sens);
+
+//"Sensor Start" treatments so Nightscout's sage plugin shows the sensor age. One per sensor
+//started in the last 30 days. It's fine to send this treatment repeatedly since Nightscout
+//deduplicates it.
+static int nextSensorStartIndex=-1;
+static void uploadSensorStarts(const bool useV3) {
+    jstring url=useV3?jnightuploadTreatments3url:jnightuploadTreatmentsurl;
+    if(nightpostclass==nullptr || url==nullptr)
+        return;
+    const time_t nu=time(nullptr);
+    const time_t lastAttempt=lastSensorStartAttempt.load();
+    if(lastAttempt && nu>=lastAttempt && nu-lastAttempt<devicestatusintervalsecs)
+        return;
+    auto env=getenv();
+    if(env==nullptr)
+        return;
+    const static jmethodID enabledmid=env->GetStaticMethodID(nightpostclass,"getUploadSensorStart","()Z");
+    const static jmethodID labelmid=env->GetStaticMethodID(nightpostclass,"getSensorStartLabel","(Ljava/lang/String;)Ljava/lang/String;");
+    const static jmethodID starttimemid=env->GetStaticMethodID(nightpostclass,"getSensorStartTime","(Ljava/lang/String;JI)J");
+    if(enabledmid==nullptr || labelmid==nullptr || starttimemid==nullptr) {
+        if(env->ExceptionCheck())
+            env->ExceptionClear();
+        return;
+        }
+    const jboolean enabled=env->CallStaticBooleanMethod(nightpostclass,enabledmid);
+    if(env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return;
+        }
+    if(!enabled)
+        return;
+    const uint32_t oldest=nu-30*24*60*60;
+    const int last=sensors->last();
+    if(last<0) return;
+    if(nextSensorStartIndex<0 || nextSensorStartIndex>last) nextSensorStartIndex=last;
+    for(int checked=0,sensorid=nextSensorStartIndex;checked<=last;
+        ++checked,sensorid=sensorid>0?sensorid-1:last) {
+        const SensorGlucoseData *sens=sensors->getSensorData(sensorid);
+        if(!sens || !sens->getinfo() || isNightscoutFollowerSensor(sens))
+            continue;
+        const auto *info=sens->getinfo();
+        const unsigned family=info->managedFamilyCode();
+        uint32_t start=sens->getstarttime();
+        if(!start || start<oldest || start>nu+3600)
+            continue;
+        const std::string sensorId(sens->sensid());
+        jstring startid=env->NewStringUTF(sensorId.c_str());
+        if(!startid) return;
+        const jlong resolved=env->CallStaticLongMethod(
+            nightpostclass,starttimemid,startid,static_cast<jlong>(start),static_cast<jint>(family));
+        env->DeleteLocalRef(startid);
+        if(env->ExceptionCheck()) {
+            env->ExceptionClear();
+            return;
+            }
+        if(resolved<=0)
+            continue;
+        start=static_cast<uint32_t>(resolved);
+        if(start<oldest || start>nu+3600)
+            continue;
+        const std::string_view serial=sens->showsensorname();
+        const std::string_view sid=sens->sensid();
+        jstring jid=env->NewStringUTF(sensorId.c_str());
+        if(!jid) return;
+        auto jlabel=static_cast<jstring>(env->CallStaticObjectMethod(nightpostclass,labelmid,jid));
+        env->DeleteLocalRef(jid);
+        if(env->ExceptionCheck()) {
+            env->ExceptionClear();
+            return;
+            }
+        if(!jlabel) return;
+        const char *labelChars=env->GetStringUTFChars(jlabel,nullptr);
+        if(!labelChars) {
+            env->DeleteLocalRef(jlabel);
+            return;
+            }
+        const std::string label(labelChars);
+        env->ReleaseStringUTFChars(jlabel,labelChars);
+        env->DeleteLocalRef(jlabel);
+        // JSON escaping can expand each input byte to six bytes.
+        std::vector<char> buf(256+6*(label.size()+serial.size()+std::min(sid.size(),size_t{64})));
+        char *ptr=buf.data();
+        if(!useV3)
+            *ptr++='[';
+        addar(ptr,R"({"eventType":"Sensor Start","created_at":")");
+        addNightscoutDateStringGMT(ptr,start);
+        addar(ptr,R"(","date":)");
+        addjsonint(ptr,(long long)start*1000LL);
+        addar(ptr,R"(,"enteredBy":"JugglucoNG","app":"JugglucoNG","notes":")");
+        addjsonescaped(ptr,label);
+        *ptr++=' ';
+        addjsonescaped(ptr,serial);
+        addar(ptr,R"(","identifier":"sensorstart-)");
+        addjsonescaped(ptr,sid.substr(0,64));
+        addar(ptr,R"("})");
+        if(!useV3)
+            *ptr++=']';
+        *ptr='\0';
+        if(queueNightuploadAsync(url,buf.data(),ptr-buf.data(),true)) {
+            lastSensorStartAttempt=nu;
+            nextSensorStartIndex=sensorid>0?sensorid-1:last;
+            }
+        return;
+        }
+    }
+
+
 extern double     calibrateONEtest(const SensorGlucoseData *sens,const ScanData &value);
 extern double getdelta(float change);
 extern std::string_view getdeltaname(float change);
-extern int mkv1streamid(char *outiter,const sensorname_t *name,int num);
 
 //Every other exchange output gets data smoothing applied in Java, by
 //CurrentDisplaySource.resolveCurrentForExchange. The Nightscout uploader builds its
@@ -640,7 +752,15 @@ static int smoothPollWindow(std::span<const ScanData> gdata,const int pos,Getval
 //Deliberately never calls ScanData::valid(): that patches a zero timestamp from the
 //preceding entry as a side effect, which a read-only averaging pass must not do.
 static int smoothedUploadMgdl(std::span<const ScanData> gdata,const int pos) {
-    return smoothPollWindow(gdata,pos,[gdata](const int i) {
+    // A resolved primary already matches live publishing. Keep the upstream
+    // final value in both upload paths, even when stock history is smoothed.
+    if(pos<0||pos>=(int)gdata.size()||gdata[pos].hasResolvedGlucose())
+        return 0;
+    return smoothPollWindow(gdata,pos,[gdata,pos](const int i) {
+        // An upgrade can leave both stock and final samples in this window.
+        // Average only the representation to which the caller's calibration applies.
+        if(gdata[i].hasResolvedGlucose()!=gdata[pos].hasResolvedGlucose())
+            return 0;
         const int g=gdata[i].getmgdL();
         return (g>0&&g<552)?g:0;
         });
@@ -656,7 +776,7 @@ static int smoothedUploadRaw(const SensorGlucoseData *sens,std::span<const ScanD
 
 //gdata/pos locate item inside the poll series so a rate can be derived when the driver reported
 //none (AiDex, Libre 3 backfill). Without it those sensors upload direction:"" and delta:0 forever.
-template <class T> int mkuploaditem(SensorGlucoseData *sens,char *buf,const sensorname_t *sensorname,const T &item,std::span<const ScanData> gdata,const int pos,const bool includeId=false,const bool trailingComma=true) {
+template <class T> int mkuploaditem(SensorGlucoseData *sens,char *buf,const sensorname_t *sensorname,const T &item,std::span<const ScanData> gdata,const int pos,const bool trailingComma=true) {
     const time_t tim=item.gettime();
     const std::string_view sensornameView=fixedsensorview(sensorname);
     char sensornameStr[64];
@@ -667,11 +787,11 @@ template <class T> int mkuploaditem(SensorGlucoseData *sens,char *buf,const sens
     //this yields the same series the app's own smoothed display and broadcasts carry.
     ScanData smoothed=item;
     if(const int avg=smoothedUploadMgdl(gdata,pos);avg>0)
-        smoothed.g=avg;
+        smoothed.setmgdL(avg);
     int autoMgdl=smoothed.getmgdL();
     if(double calibrated=calibrateONEtest(sens,smoothed);!isnan(calibrated))
         autoMgdl=(int)round(calibrated);
-    int mgdL=getNightscoutCalibrationOverrideForItem(sens,sensornameStr,autoMgdl,rawCurrent,tim*1000LL);
+    int mgdL=getNightscoutCalibrationOverrideForItem(sens,sensornameStr,autoMgdl,rawCurrent,tim*1000LL,item.hasResolvedGlucose());
     if(mgdL<=0)
         mgdL=autoMgdl;
     const float change=effectivechange(gdata,pos,item);
@@ -695,11 +815,9 @@ template <class T> int mkuploaditem(SensorGlucoseData *sens,char *buf,const sens
     addar(out,R"(,"unfiltered":)");
     addjsonint(out,mgdL*1000LL);
     addar(out,R"(,"rssi":100)");
-    if(includeId) {
-        addar(out,R"(,"_id":")");
-        out+=mkv1streamid(out,sensorname,item.getid());
-        addar(out,R"(")");
-        }
+    addar(out,R"(,"identifier":")");
+    out+=mksgvidentifier(out,sens->sensid(),tim);
+    addar(out,R"(")");
     if(trailingComma)
         addar(out,R"(},)");
     else
@@ -740,7 +858,7 @@ static bool uploadRecentV1(const int sensorid,SensorGlucoseData *sens,const sens
         char buf[512];
         char *ptr=buf;
         *ptr++='[';
-        ptr+=mkuploaditem(sens,ptr,sensorname,el,gdata,iter,true,false);
+        ptr+=mkuploaditem(sens,ptr,sensorname,el,gdata,iter,false);
         *ptr++=']';
         *ptr='\0';
         const int res=nightuploadEntries(buf,ptr-buf);
@@ -766,7 +884,7 @@ static bool uploadV1ChunkIndividually(const int sensorid,SensorGlucoseData *sens
         char buf[512];
         char *ptr=buf;
         *ptr++='[';
-        ptr+=mkuploaditem(sens,ptr,sensorname,el,gdata,iter,true,false);
+        ptr+=mkuploaditem(sens,ptr,sensorname,el,gdata,iter,false);
         *ptr++=']';
         *ptr='\0';
         const int res=nightuploadEntries(buf,ptr-buf);
@@ -777,14 +895,15 @@ static bool uploadV1ChunkIndividually(const int sensorid,SensorGlucoseData *sens
     }
 
 static const char *writeNightscoutV3UploadEntry(char *buf,SensorGlucoseData *sens,const sensorname_t *sensorname,const ScanData *el,std::span<const ScanData> gdata,const int pos) {
-extern char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorname,bool server=true);
+extern char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorname,bool server=true,
+	const std::string_view &uploadid={});
     char sensornameStr[64];
     copyfixedsensorname(sensornameStr,sizeof(sensornameStr),sensorname);
     //Average before calibrating, not after: calibrateONE is affine in the value, so
     //this yields the same series the app's own smoothed display and broadcasts carry.
     ScanData smoothed=*el;
     if(const int avg=smoothedUploadMgdl(gdata,pos);avg>0)
-        smoothed.g=avg;
+        smoothed.setmgdL(avg);
     int autoMgdl=smoothed.getmgdL();
     if(double calibrated=calibrateONEtest(sens,smoothed);!isnan(calibrated))
         autoMgdl=(int)round(calibrated);
@@ -796,15 +915,16 @@ extern char * writev3entry(char *outin,const ScanData *val, const sensorname_t *
         sensornameStr,
         autoMgdl,
         rawSmoothed>0?rawSmoothed:sens->getRawForPoll(el),
-        el->gettime()*1000LL
+        el->gettime()*1000LL,
+        el->hasResolvedGlucose()
     );
     ScanData outel=*el;
     if(overrideValue>0)
-        outel.g=overrideValue;
+        outel.setmgdL(overrideValue);
     else
-        outel.g=autoMgdl;
+        outel.setmgdL(autoMgdl);
     outel.ch=effectivechange(gdata,pos,*el);
-    return writev3entry(buf,&outel,sensorname,false);
+    return writev3entry(buf,&outel,sensorname,false,sens->sensid());
     }
 
 static bool uploadRecentV3(const int sensorid,SensorGlucoseData *sens,const sensorname_t *sensorname,std::span<const ScanData> gdata,const uint32_t mintime) {
@@ -831,6 +951,33 @@ static bool uploadRecentV3(const int sensorid,SensorGlucoseData *sens,const sens
     return true;
     }
 
+//nightsensor persists across restarts and sensor rotations. An index cached for a
+//removed sensor stays past sensors->last() indefinitely, and the upload loops below
+//then visit zero sensors while reporting success: glucose silently stops reaching
+//Nightscout while device-status and treatments keep working, and an ordinary Resend
+//(wakeall) never clears the stale value. Re-seed whenever the cached index is unset
+//or out of range so a pass always covers the live sensor list.
+static int resolveNightStartSensor(const int last,const uint32_t mintime) {
+    const int cached=settings->data()->nightsensor;
+    if(!cached||cached>last) {
+        const int reseeded=sensors->firstafter(mintime);
+        if(reseeded!=cached)
+            LOGGER("nightsensor %d out of range (last=%d), reseeding to %d\n",cached,last,reseeded);
+        settings->data()->nightsensor=reseeded;
+        return reseeded;
+        }
+    return cached;
+    }
+
+/* A Nightscout follower's readings were read from Nightscout. Upload and Follow are exclusive,
+   so in Upload mode they are only what is left over from following: posting them sends the
+   server its own readings back under this phone's device name, and a Resend posts all of them. */
+static bool isNightscoutFollowerSensor(const SensorGlucoseData *sens) {
+    constexpr std::string_view prefix{"NSF-"};
+    const std::string_view id=sens->sensid();
+    return id.size()>=prefix.size()&&id.substr(0,prefix.size())==prefix;
+    }
+
 static bool uploadCGM3(const bool prioritizeRecent=false) {
     LOGSTRING("upload\n");
     uploadSmoothingSeconds=getExchangeSmoothingSeconds();
@@ -841,9 +988,7 @@ static bool uploadCGM3(const bool prioritizeRecent=false) {
         }
     time_t nu=time(nullptr);
     uint32_t mintime=nu-nighttimeback;
-    if(!settings->data()->nightsensor)
-        settings->data()->nightsensor=sensors->firstafter(mintime);
-    int startsensor= settings->data()->nightsensor;
+    int startsensor=resolveNightStartSensor(last,mintime);
 
 /*    constexpr const auto twoweeks=15*24*60*60;
     time_t old=nu-twoweeks; */
@@ -851,6 +996,8 @@ static bool uploadCGM3(const bool prioritizeRecent=false) {
     int newstartsensor=startsensor;
     for(int sensorid=last;sensorid>=startsensor;--sensorid) {
         if(SensorGlucoseData *sens=sensors->getSensorData(sensorid)) {
+            if(isNightscoutFollowerSensor(sens))
+                continue;
             std::span<const ScanData> gdata=sens->getPolldata();
             const sensorname_t *sensorname=sens->shortsensorname();
             int len=gdata.size();
@@ -921,9 +1068,7 @@ static bool uploadCGM(const bool prioritizeRecent=false) {
         }
     time_t nu=time(nullptr);
     uint32_t mintime=nu-nighttimeback;
-    if(!settings->data()->nightsensor)
-        settings->data()->nightsensor=sensors->firstafter(mintime);
-    int startsensor= settings->data()->nightsensor;
+    int startsensor=resolveNightStartSensor(last,mintime);
     constexpr const int itemsize=512;
 /*
     constexpr const auto twoweeks=15*24*60*60;
@@ -933,6 +1078,8 @@ static bool uploadCGM(const bool prioritizeRecent=false) {
     constexpr const int maxuploaditems=120;
     for(int sensorid=last;sensorid>=startsensor;--sensorid) {
         if(SensorGlucoseData *sens=sensors->getSensorData(sensorid)) {
+            if(isNightscoutFollowerSensor(sens))
+                continue;
             std::span<const ScanData> gdata=sens->getPolldata();
             const sensorname_t *sensorname=sens->shortsensorname();
             const int totallen=gdata.size();
@@ -970,7 +1117,7 @@ static bool uploadCGM(const bool prioritizeRecent=false) {
                             if(isRecentNightUploadCovered(sensorid,el.gettime())) {
                                 continue;
                                 }
-                            ptr+=mkuploaditem(sens,ptr,sensorname,el,gdata,iter,false,true);
+                            ptr+=mkuploaditem(sens,ptr,sensorname,el,gdata,iter,true);
                             }
                         }
                     LOGGER("%d new positer=%d\n",sensorid,chunkend);
@@ -1179,6 +1326,7 @@ static void uploaderthread() {
             //overwrites the primary glucose uploader status or blocks this serialized upload loop.
             uploadDeviceStatus();
             uploadIobDeviceStatus();
+            uploadSensorStarts(useV3);
             }
         if(glucosefailed)
             waitmin=lastNightUploadConfigError?1:15;

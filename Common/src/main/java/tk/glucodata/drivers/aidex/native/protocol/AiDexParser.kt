@@ -259,6 +259,11 @@ object AiDexParser {
     fun parseStartupDeviceInfoPayload(payload: ByteArray): StartupDeviceInfo? {
         if (payload.size < 16) return null
         if (u16LE(payload, 0) != 0) return null
+        return parseStartupDeviceInfoBody(payload)
+    }
+
+    private fun parseStartupDeviceInfoBody(payload: ByteArray): StartupDeviceInfo? {
+        if (payload.size < 16) return null
 
         val fwMajor = payload[2].toInt() and 0xFF
         val fwMinor = payload[3].toInt() and 0xFF
@@ -290,7 +295,14 @@ object AiDexParser {
         val payload = frame.copyOfRange(1, payloadEndExclusive)
         parseStartupDeviceInfoPayload(payload)?.let { return it }
         if (payloadEndExclusive <= 2) return null
-        return parseStartupDeviceInfoPayload(frame.copyOfRange(2, payloadEndExclusive))
+        val body = frame.copyOfRange(2, payloadEndExclusive)
+        parseStartupDeviceInfoPayload(body)?.let { return it }
+        // Live sensors answer [0x10, 0x01 ACK, ...]. Upstream Juggluco (aidexx deviceInfo) reads
+        // the next u16 as a device-model code, not a status: a fw 1.7.1 Lumi GX-01S sends 0x8000.
+        // Accept a non-zero code only after the ACK byte and with a readable model name.
+        if ((frame[1].toInt() and 0xFF) != 0x01) return null
+        return parseStartupDeviceInfoBody(body)
+            ?.takeIf { info -> info.modelName.all { it in ' '..'~' } }
     }
 
     /**

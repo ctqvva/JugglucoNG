@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import java.io.File
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -28,19 +29,24 @@ class RemoteIobSnapshotSafetyTests {
     }
 
     @Test
-    fun reflectedCloneIobMethodsSurviveReleaseMinification() {
+    fun cloneIobMethodsAreRegisteredAndSurviveReleaseMinification() {
         val snapshots = source("Common/src/mobile/java/tk/glucodata/OutboundApiJournalSnapshot.kt")
+            .replace(Regex("\\s+"), " ")
+        val access = source("Common/src/main/java/tk/glucodata/JournalSnapshotAccess.kt")
             .replace(Regex("\\s+"), " ")
         val rules = source("Common/proguard-rules.my")
             .replace(Regex("\\s+"), " ")
 
-        assertTrue(snapshots.contains("@Keep @JvmStatic fun cloneIobSnapshotJson"))
-        assertTrue(snapshots.contains("@Keep @JvmStatic fun importCloneIobSnapshot"))
-        assertTrue(snapshots.contains("@Keep @JvmStatic fun cloneJournalSnapshotJson"))
-        assertTrue(snapshots.contains("@Keep @JvmStatic fun importCloneJournalSnapshot"))
-        assertTrue(rules.contains("java.lang.String cloneIobSnapshotJson(long);"))
-        assertTrue(rules.contains("boolean importCloneIobSnapshot(java.lang.String);"))
-        assertTrue(rules.contains("java.lang.String cloneJournalSnapshotJson(long);"))
-        assertTrue(rules.contains("boolean importCloneJournalSnapshot(java.lang.String,int);"))
+        // Reached through JournalSnapshotBridge instead of by name, so R8 keeps the
+        // implementations because the interface calls reach them.
+        assertTrue(snapshots.contains("object OutboundApiJournalSnapshot : JournalSnapshotBridge"))
+        assertTrue(snapshots.contains("@Keep override fun cloneIobSnapshotJson"))
+        assertTrue(snapshots.contains("@Keep override fun importCloneIobSnapshot"))
+        assertTrue(snapshots.contains("@Keep override fun cloneJournalSnapshotJson"))
+        assertTrue(snapshots.contains("@Keep override fun importCloneJournalSnapshot"))
+        assertTrue(access.contains("fun cloneIobSnapshotJson("))
+        assertTrue(access.contains("fun importCloneJournalSnapshot("))
+        // The reflection-era keep rules are gone; the names no longer need pinning.
+        assertFalse(rules.contains("tk.glucodata.OutboundApiJournalSnapshot"))
     }
 }

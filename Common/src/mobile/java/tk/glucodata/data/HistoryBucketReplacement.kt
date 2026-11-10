@@ -67,6 +67,20 @@ internal object HistoryBucketReplacement {
         return ranges
     }
 
+    /**
+     * Whether a batch streamed in chunks of [chunkSize] may close before a
+     * reading at [nextTimestampMs]. Never inside a bucket the chunk already
+     * holds: a replace keeps only the rows it writes in a bucket, so the next
+     * chunk would replace the better row of that bucket with its own.
+     */
+    fun mayCloseChunk(
+        chunk: List<HistoryReading>,
+        nextTimestampMs: Long,
+        chunkSize: Int,
+        bucketDurationMs: Long,
+    ): Boolean = chunk.size >= chunkSize &&
+        nextTimestampMs / bucketDurationMs != chunk.last().timestamp / bucketDurationMs
+
     fun collapseReadings(
         readings: List<HistoryReading>,
         bucketDurationMs: Long,

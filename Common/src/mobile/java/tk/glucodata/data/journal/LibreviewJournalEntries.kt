@@ -20,7 +20,7 @@ import tk.glucodata.data.HistoryDatabase
  * caller strips the last one.
  */
 @Keep
-object LibreviewJournalEntries {
+object LibreviewJournalEntries : tk.glucodata.LibreviewJournalEntriesBridge {
     private const val LOG_ID = "LibreviewJournal"
 
     /** Mirrors the native LibreView send window: older entries are the cloud's problem. */
@@ -48,9 +48,8 @@ object LibreviewJournalEntries {
      * Renders everything not yet delivered to LibreView and returns its size in bytes, or
      * 0 when there is nothing to send. Always paired with [commit] or [discard].
      */
-    @JvmStatic
     @Keep
-    fun prepare(libre3: Boolean): Int {
+    override fun prepare(libre3: Boolean): Int {
         pending = null
         return try {
             if (!Natives.getSendNumbers()) return 0
@@ -66,22 +65,18 @@ object LibreviewJournalEntries {
         }
     }
 
-    @JvmStatic
     @Keep
-    fun foodEntries(): String = pending?.food.orEmpty()
+    override fun foodEntries(): String = pending?.food.orEmpty()
 
-    @JvmStatic
     @Keep
-    fun insulinEntries(): String = pending?.insulin.orEmpty()
+    override fun insulinEntries(): String = pending?.insulin.orEmpty()
 
-    @JvmStatic
     @Keep
-    fun noteEntries(): String = pending?.generic.orEmpty()
+    override fun noteEntries(): String = pending?.generic.orEmpty()
 
     /** Marks the prepared rows delivered. Called only after LibreView accepted the document. */
-    @JvmStatic
     @Keep
-    fun commit() {
+    override fun commit() {
         val sent = pending ?: return
         pending = null
         if (sent.ids.isEmpty()) return
@@ -95,9 +90,8 @@ object LibreviewJournalEntries {
         }
     }
 
-    @JvmStatic
     @Keep
-    fun discard() {
+    override fun discard() {
         pending = null
     }
 

@@ -9,11 +9,10 @@ import androidx.core.app.NotificationCompat
 import androidx.wear.ongoing.OngoingActivity
 import androidx.wear.ongoing.Status
 
-object WearOngoingActivity {
+object WearOngoingActivity : OngoingNotification {
     private const val LOG_ID = "WearOngoingActivity"
 
-    @JvmStatic
-    fun attach(context: Context, notification: Notification, notificationId: Int): Notification {
+    override fun attach(context: Context, notification: Notification, notificationId: Int): Notification {
         return try {
             val builder = NotificationCompat.Builder(context, notification)
             OngoingActivity.Builder(context, notificationId, builder)
@@ -32,8 +31,7 @@ object WearOngoingActivity {
         }
     }
 
-    @JvmStatic
-    fun updateStatus(context: Context?, notificationId: Int) {
+    override fun updateStatus(context: Context?, notificationId: Int) {
         context ?: return
         try {
             OngoingActivity.recoverOngoingActivity(context, notificationId)

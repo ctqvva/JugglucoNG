@@ -58,4 +58,20 @@ class CloneSensorAliasTests {
         assertTrue(registry.contains("now - seen < MIRROR_LIVE_WINDOW_MS"))
         assertTrue(registry.contains("now - processStartedAt < MIRROR_LIVE_WINDOW_MS"))
     }
+
+    /**
+     * A sync that saw the Clone flag before the user took the sensor over must
+     * not pause it afterwards: the pause re-checks the flag under the roster
+     * lock, and take-over clears the flag under that same lock.
+     */
+    @Test
+    fun theClonePauseRechecksTheFlagUnderTheRosterLock() {
+        val bluetooth = File(repoRoot(), "Common/src/main/java/tk/glucodata/SensorBluetooth.java")
+            .readText().replace(Regex("\\s+"), " ")
+        val block = bluetooth.substringAfter("public static void blockLocalCloneConnection(String sensorId)")
+            .substringBefore("callback.setPause(true)")
+        assertTrue(block.contains("synchronized (gattcallbacks)"))
+        assertTrue(block.contains("if (!CloneSensorRegistry.isCloneSensor(sensorId)) return;"))
+        assertTrue(registry.contains("SensorBluetooth.withCallbackRoster { synchronized(lock) {"))
+    }
 }

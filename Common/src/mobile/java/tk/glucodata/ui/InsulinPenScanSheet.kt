@@ -5,6 +5,8 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
@@ -93,8 +95,7 @@ fun InsulinPenScanSheetHost() {
             // No icon tile on the header: everything in the sheet then shares one left edge.
             Text(
                 stringResource(R.string.insulin_pen_name, result.serial),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleLargeEmphasized,
             )
             Spacer(Modifier.size(4.dp))
             Text(
@@ -116,6 +117,8 @@ fun InsulinPenScanSheetHost() {
                         selected = preset.id == chosenInsulin?.id,
                         onClick = { chosenInsulinId = preset.id },
                         label = { Text(preset.displayName) },
+                        shapes = FilterChipDefaults.shapes(),
+                        colors = FilterChipDefaults.filterChipColors(),
                     )
                 }
             }
@@ -138,7 +141,9 @@ fun InsulinPenScanSheetHost() {
                         } else {
                             offered.map(PenDose::relativeSeconds).toSet()
                         }
-                    }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) {
                     Text(
                         stringResource(
@@ -205,6 +210,8 @@ fun InsulinPenScanSheetHost() {
                 },
                 enabled = selected.isNotEmpty() && chosenInsulin != null,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding,
             ) {
                 Text(stringResource(R.string.insulin_pen_add_doses, selected.size))
             }
@@ -281,7 +288,7 @@ private fun DoseRow(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp),
                     )
-                    Spacer(Modifier.width(3.dp))
+                    Spacer(Modifier.width(4.dp))
                     Text(
                         at,
                         style = MaterialTheme.typography.labelMedium,

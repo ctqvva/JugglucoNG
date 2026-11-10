@@ -91,7 +91,7 @@ import static tk.glucodata.Natives.getbackupHasHostname;
 import static tk.glucodata.Natives.isWearOS;
 import static tk.glucodata.Natives.mirrorStatus;
 import static tk.glucodata.RingTones.EnableControls;
-import static tk.glucodata.Specific.useclose;
+import static tk.glucodata.VariantBootstrapAccess.useCloseButton;
 import static tk.glucodata.UseWifi.usewifi;
 import static tk.glucodata.help.help;
 import static tk.glucodata.help.hidekeyboard;
@@ -880,7 +880,7 @@ CheckBox ICE;
       ViewGroup layall;
 
       if(isWearable) {
-          if(!useclose) close.setVisibility(GONE);
+          if(!useCloseButton()) close.setVisibility(GONE);
          var space1=new Space(act);
          var space2=getlabel(act,"      ");
           Layout layout=new Layout(act,new View[]{space1,deactive,modify,space2}, new View[]{info},new View[]{close});
@@ -1012,11 +1012,14 @@ CheckBox ICE;
       staticnum.setOnCheckedChangeListener( (buttonView,  isChecked)-> {
         Natives.setstaticnum(isChecked);
         if(!isWearable) {
-            if(isChecked) {
-                BluetoothGlucoseMeter.stopDevices();
-                }
-            else {
-                BluetoothGlucoseMeter.startDevices();
+            var meters = BluetoothMeterAccess.get();
+            if(meters!=null) {
+                if(isChecked) {
+                    meters.stopDevices();
+                    }
+                else {
+                    meters.startDevices();
+                    }
                 }
             }
         });
@@ -1045,7 +1048,7 @@ CheckBox ICE;
             else
                UseWifi.stopusewifi();
             });
-         if(!useclose) Cancel.setVisibility(INVISIBLE);
+         if(!useCloseButton()) Cancel.setVisibility(INVISIBLE);
          final var width=GlucoseCurve.getwidth();
          getMargins(labport).leftMargin=(int)(width*0.12);
          getMargins(Save).rightMargin=(int)(width*0.12);
@@ -1123,8 +1126,8 @@ CheckBox ICE;
          act.showui=false;
          if(!isWearable)
             Applic.app.getHandler().postDelayed(act::hideSystemUI,1);
-         if(Menus.on)
-            Menus.show(act);
+         if(LegacyScreensAccess.getMenusOn())
+            LegacyScreensAccess.get().openMenus(act);
 
          };
       act.setonback(closerun);    
