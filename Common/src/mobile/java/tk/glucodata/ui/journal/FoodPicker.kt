@@ -60,6 +60,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -347,35 +349,35 @@ internal fun LazyListScope.journalFoodRows(
         if (state.query.isBlank()) {
             if (suggestions.recent.isNotEmpty()) {
                 row("food_shelf_recent") {
-                    FoodShelf(stringResource(R.string.food_recent), suggestions.recent, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
+                    FoodShelf(stringResource(R.string.food_recent), suggestions.recent, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood, state.library)
                 }
             }
             if (suggestions.mine.isNotEmpty()) {
                 row("food_shelf_mine") {
-                    FoodShelf(stringResource(R.string.food_my_foods), suggestions.mine, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
+                    FoodShelf(stringResource(R.string.food_my_foods), suggestions.mine, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood, state.library)
                 }
             }
         } else {
             val shelves = state.shelves
             if (shelves.library.isNotEmpty()) {
                 row("food_shelf_mine") {
-                    FoodShelf(stringResource(R.string.food_my_foods), shelves.library, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
+                    FoodShelf(stringResource(R.string.food_my_foods), shelves.library, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood, state.library)
                 }
             }
             if (shelves.common.isNotEmpty()) {
                 row("food_shelf_common") {
-                    FoodShelf(stringResource(R.string.food_common_foods), shelves.common, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
+                    FoodShelf(stringResource(R.string.food_common_foods), shelves.common, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood, state.library)
                 }
             }
             val found = (state.online as? FoodOnlineSearch.Done)?.foods.orEmpty()
             if (found.isNotEmpty()) {
                 row("food_shelf_online") {
-                    FoodShelf(stringResource(R.string.open_food_facts), found, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
+                    FoodShelf(stringResource(R.string.open_food_facts), found, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood, state.library)
                 }
             }
             if (shelves.reference.isNotEmpty()) {
                 row("food_shelf_reference") {
-                    FoodShelf(stringResource(R.string.food_reference_tables), shelves.reference, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
+                    FoodShelf(stringResource(R.string.food_reference_tables), shelves.reference, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood, state.library)
                 }
             }
             row("food_search_actions") {
@@ -563,7 +565,8 @@ internal fun FoodShelf(
     onAdd: (FoodItem) -> Unit,
     onSelect: (FoodItem) -> Unit,
     countInMeal: (FoodItem) -> Int,
-    onRemove: (FoodItem) -> Unit
+    onRemove: (FoodItem) -> Unit,
+    library: List<JournalFood>
 ) {
     val focusManager = LocalFocusManager.current
     val haptics = LocalHapticFeedback.current
@@ -574,6 +577,7 @@ internal fun FoodShelf(
                 FoodResultRow(
                     food = food,
                     addedCount = countInMeal(food),
+                    accent = library.firstOrNull { food.isLibraryCopy(it) }?.accentColor?.let { Color(it) },
                     macrosEnabled = macrosEnabled,
                     position = foodCardPosition(index, foods.size),
                     onAdd = {
@@ -600,6 +604,7 @@ internal fun FoodShelf(
 private fun FoodResultRow(
     food: FoodItem,
     addedCount: Int,
+    accent: Color?,
     macrosEnabled: Boolean,
     position: CardPosition,
     onAdd: () -> Unit,
@@ -608,8 +613,9 @@ private fun FoodResultRow(
 ) {
     val added = addedCount > 0
     val countDescription = stringResource(R.string.selected_count, addedCount)
+    val baseColor = if (added) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
     val rowColor by animateColorAsState(
-        if (added) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        accent?.let { lerp(baseColor, it, 0.18f) } ?: baseColor,
         ExpressiveMotion.fastEffects(), label = "foodAddedRow")
     val buttonColor by animateColorAsState(
         if (added) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
