@@ -50,16 +50,23 @@ class FoodPickerActionsTests {
         settle()
     }
     private fun search() {
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(label(R.string.journal_food_search)))
         compose.onNodeWithText(label(R.string.journal_food_search)).performScrollTo().performClick()
         compose.onAllNodes(hasSetTextAction())[0].performTextInput("Meal")
         settle()
     }
     private fun plus(name: String) {
-        compose.onNode(hasContentDescription(label(R.string.journal_add_food)) and hasAnyAncestor(hasText(name)))
-            .performScrollTo().performClick()
+        val button = hasContentDescription(label(R.string.journal_add_food)) and hasAnyAncestor(hasText(name))
+        compose.onNode(hasScrollAction()).performScrollToNode(button)
+        compose.onNode(button).performScrollTo().performClick()
         settle()
     }
+    private fun mealAmount(): SemanticsNodeInteraction {
+        compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("food_meal_list"))
+        return compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("food_meal_list")))
+    }
     private fun assertSearchStillOpen() {
+        compose.onNode(hasScrollAction()).performScrollToNode(hasSetTextAction() and hasText("Meal"))
         compose.onNode(hasSetTextAction() and hasText("Meal")).assertExists()
         compose.onNodeWithText(label(R.string.close)).assertExists()
     }
@@ -108,8 +115,7 @@ class FoodPickerActionsTests {
         search()
         compose.onNodeWithText("Meal oats").performScrollTo().performClick()
         settle()
-        compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("food_meal_list")))
-            .performScrollTo().performTextReplacement("2")
+        mealAmount().performScrollTo().performTextReplacement("2")
         settle()
         search()
         compose.onNodeWithText("Meal yogurt").performScrollTo().performClick()
@@ -154,12 +160,11 @@ class FoodPickerActionsTests {
         compose.onNodeWithText("Meal oats").performScrollTo().performClick()
         settle()
         search()
-        compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("food_meal_list")))
-            .performScrollTo().performTextReplacement("2")
+        mealAmount().performScrollTo().performTextReplacement("2")
         settle()
         plus("Meal yogurt")
         assertSearchStillOpen()
-        capture("editable-meal-above-results")
+        capture("editable-meal-below-results")
         compose.onNodeWithText(label(R.string.close)).performScrollTo().performClick()
         settle()
         save()
@@ -171,7 +176,7 @@ class FoodPickerActionsTests {
     }
 
     @Test
-    fun mealStaysAboveResultsAndRowsAndButtonsTrackAddedAndRemovedIngredients() {
+    fun mealSitsBetweenSearchResultsAndCarbsAndAddedFeedbackTracksRemoval() {
         show {}
         search()
         fun result() = compose.onNode(hasText("Meal oats") and
@@ -180,17 +185,25 @@ class FoodPickerActionsTests {
             hasAnyAncestor(hasText("Meal oats")))
         result().assertIsNotSelected()
         plus("Meal oats")
-        val summary = compose.onNodeWithTag("food_meal_list").fetchSemanticsNode().boundsInRoot
-        val results = compose.onNodeWithText(label(R.string.food_my_foods)).fetchSemanticsNode().boundsInRoot
-        assertTrue("the meal must appear before My foods", summary.bottom <= results.top)
+        val carbs = hasSetTextAction() and
+            SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("45"))
+        compose.onNode(hasScrollAction()).performScrollToNode(carbs)
+        val meal = compose.onNodeWithTag("food_meal_list").fetchSemanticsNode().boundsInRoot
+        val searchEnd = compose.onNodeWithText(Applic.app.getString(R.string.food_enter_values, "Meal"))
+            .fetchSemanticsNode().boundsInRoot
+        val carbsBounds = compose.onNode(carbs).fetchSemanticsNode().boundsInRoot
+        assertTrue("the meal must follow search results", searchEnd.bottom <= meal.top)
+        assertTrue("the meal must precede total carbs", meal.bottom <= carbsBounds.top)
+        capture("meal-below-results-above-carbs")
         result().assertIsSelected()
         addButton().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
             Applic.app.getString(R.string.selected_count, 1)))
         plus("Meal oats")
         addButton().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
             Applic.app.getString(R.string.selected_count, 2)))
-        capture("meal-above-results-with-added-feedback")
+        capture("search-results-with-added-feedback")
         fun removeIngredient() {
+            compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("food_meal_list"))
             compose.onNode(hasContentDescription(label(R.string.remove)) and
                 hasAnyAncestor(hasTestTag("food_meal_list"))).performClick()
             settle()
@@ -214,8 +227,7 @@ class FoodPickerActionsTests {
         compose.onNodeWithText("Meal oats").performScrollTo().performClick()
         settle()
         search()
-        compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("food_meal_list")))
-            .performScrollTo().performTextReplacement("2")
+        mealAmount().performScrollTo().performTextReplacement("2")
         settle()
         plus("Meal oats")
         plus("Meal yogurt")
@@ -224,12 +236,12 @@ class FoodPickerActionsTests {
         val minusBounds = minus().fetchSemanticsNode().boundsInRoot
         val plusBounds = compose.onNode(hasContentDescription(label(R.string.journal_add_food)) and
             hasAnyAncestor(result())).fetchSemanticsNode().boundsInRoot
-        assertTrue("minus must be left of plus", minusBounds.right <= plusBounds.left)
+        assertTrue("minus and plus must have a visible gap", minusBounds.right < plusBounds.left)
         capture("result-minus-and-plus")
         minus().performScrollTo().performClick()
         settle()
         assertSearchStillOpen()
-        compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("food_meal_list"))).assert(
+        mealAmount().assert(
             SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("2")))
         compose.onNode(result()).assertIsSelected()
         minus().performScrollTo().performClick()

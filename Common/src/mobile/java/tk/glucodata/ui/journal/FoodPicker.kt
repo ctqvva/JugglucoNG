@@ -335,21 +335,6 @@ internal fun LazyListScope.journalFoodRows(
         )
     }
 
-    if (items.isNotEmpty()) {
-        row("food_meal") {
-            FoodMealList(
-                items = items,
-                openItem = state.openItem,
-                macrosEnabled = macrosEnabled,
-                onOpen = { state.openItem = it },
-                onChange = { index, item ->
-                    onItemsChange(items.toMutableList().also { it[index] = item })
-                },
-                onRemove = remove
-            )
-        }
-    }
-
     if (state.scanning) {
         row("food_scanner") {
             FoodBarcodeScanner(
@@ -409,6 +394,20 @@ internal fun LazyListScope.journalFoodRows(
         }
     }
 
+    if (items.isNotEmpty()) {
+        row("food_meal") {
+            FoodMealList(
+                items = items,
+                openItem = state.openItem,
+                macrosEnabled = macrosEnabled,
+                onOpen = { state.openItem = it },
+                onChange = { index, item ->
+                    onItemsChange(items.toMutableList().also { it[index] = item })
+                },
+                onRemove = remove
+            )
+        }
+    }
 }
 
 /**
@@ -657,6 +656,7 @@ private fun FoodResultRow(
                             modifier = Modifier.size(20.dp))
                     }
                 }
+                Spacer(Modifier.width(4.dp))
             }
             IconButtonTooltip(stringResource(R.string.journal_add_food)) {
                 BadgedBox(badge = {
