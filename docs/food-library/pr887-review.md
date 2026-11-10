@@ -146,3 +146,30 @@ arm64 Mobile debug APK built and was installed on the Pixel. UI guardrails, stri
 XML parsing and whitespace checks passed. Final device interaction stopped when
 the Pixel entered the screenshot editor; the new transfer sheet was verified by
 the rendered UI tests rather than claiming a completed physical-device check.
+
+## Keyboard dismissal and sheet motion
+
+The Pixel reproduction exposed two separate size problems. A temporary keyboard
+padding measurement could permanently lock the short journal form at full height;
+then, even after removing that lock, its content-height spring lagged behind the
+disappearing keyboard padding and pulled the sheet down and back up.
+
+The journal now reserves the top safe inset outside the moving sheet surface,
+keeping a stable viewport without a permanent minimum height. Content changes use
+a spring without overshoot when the keyboard is absent. While the keyboard is
+present its own inset animation controls sizing directly, and the content-size
+animation starts fresh when the keyboard finishes closing. Other sheets retain
+their existing default sizing policy.
+
+Rendered regressions reproduce both failures: the old lock retained 3,000 px for
+a 1,404 px form, and the competing keyboard/content animations briefly shrank a
+3,000 px sheet to 1,700 px. Additional checks cover tall-to-short content while
+insets remain, returning from food search to Glucose, and frame-by-frame type
+transitions without a height rebound.
+
+Validation: all 78 related journal/component tests passed, with zero skips,
+failures or errors. The arm64 Mobile debug APK built and was installed on the
+Pixel. UI guardrails and whitespace checks passed. The gap fix was checked on
+the Pixel across search dismissal, food selection, quantity-keyboard dismissal,
+Glucose and Insulin. The final motion adjustment passes the rendered frame test;
+its last physical-device check is pending because the Pixel is locked.

@@ -166,9 +166,8 @@ import tk.glucodata.data.food.FoodCatalog
 import tk.glucodata.data.food.FoodMath
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.components.CompactSheetDragHandle
-import tk.glucodata.ui.components.SheetContentHeightAnimation
 import tk.glucodata.ui.components.StableModalBottomSheet
-import tk.glucodata.ui.components.animateSheetContentHeight
+import tk.glucodata.ui.components.animateSheetContentSize
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -603,7 +602,6 @@ fun JournalEntrySheet(
         }
     }
 
-    val sheetContentHeight = remember { SheetContentHeightAnimation() }
     StableModalBottomSheet(
         modifier = Modifier.testTag("journal_entry_sheet"),
         onDismissRequest = onDismiss,
@@ -611,11 +609,7 @@ fun JournalEntrySheet(
         dragHandle = { CompactSheetDragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        contentKey = listOf(
-            draft.type, foodLibraryEnabled, foodPicker.searching, foodPicker.scanning,
-            foodPicker.barcode::class, draft.foodItems.size, foodPicker.openItem
-        ),
-        contentHeight = sheetContentHeight,
+        adaptiveHeight = true,
     ) {
         // Inside the sheet, for its own window's keyboard inset.
         val keyboard = WindowInsets.ime
@@ -629,7 +623,8 @@ fun JournalEntrySheet(
                 .fillMaxWidth()
                 // The sheet's top edge follows the list's height. Without this a type switch
                 // jumps the whole sheet to its new height in one frame.
-                .animateSheetContentHeight(sheetContentHeight, ExpressiveMotion.defaultSpatial())
+                // The viewport boundary must converge without rebounding past its target.
+                .animateSheetContentSize(isImeVisible = keyboard.getBottom(density) > 0)
                 .padding(horizontal = 20.dp)
                 .navigationBarsPadding(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 20.dp),
