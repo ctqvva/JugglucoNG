@@ -19,6 +19,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
 import org.robolectric.shadow.api.Shadow
+import org.robolectric.shadows.ShadowSystemClock
 import tk.glucodata.Applic
 import tk.glucodata.SuperGattCallback
 
@@ -181,19 +182,7 @@ class ICanHealthCorrectCodeReadbackTests {
         shadowOf(handler.looper).idleFor(Duration.ofMillis(250))
         (get("gattOpTimeoutRunnable") as Runnable).run()
         val retiredGatt = gatt
-        val service = radio.service!!
-        gatt = Shadow.newInstanceOf(BluetoothGatt::class.java)
-        radio = Shadow.extract(gatt)
-        radio.service = service
-        SuperGattCallback::class.java.getDeclaredField("mBluetoothGatt").apply { isAccessible = true }
-            .set(manager, gatt)
-        set("cgmService", service)
-        set("charSpecificOps", characteristic)
-        set("isAuthenticated", true)
-        set("postAuthSetupStarted", true)
-        set("phase", ICanHealthBleManager.Phase.STREAMING)
-        set("lastSensorInfoMarker", 0xffff)
-        set("lastAuthChallenge", byteArrayOf(1, 2, 3, 4))
+        replaceTransport()
         armChain(completeWrite = false)
         notify(0x1c, 0xf2, 1)
         shadowOf(handler.looper).idle()
@@ -230,6 +219,27 @@ class ICanHealthCorrectCodeReadbackTests {
         assertTrue(radio.closed)
         assertEquals(0L, get("scheduledReconnectAtMs"))
         assertFalse(get("correctCodeChainActive") as Boolean)
+    }
+
+    @Test fun repeatedTimeoutsBackOffAcrossConnectionResetsAndRemainCapped() {
+        val expectedDelays = listOf(8_000L, 30_000L, 60_000L, 120_000L, 240_000L, 300_000L, 300_000L)
+        for ((index, expected) in expectedDelays.withIndex()) {
+            if (index > 0) replaceTransport()
+            armChain(completeWrite = false)
+            timeoutAndAssertRetryDelay(expected)
+        }
+    }
+
+    @Test fun anIsolatedTimeoutAfterAQuietIntervalUsesTheQuickRetryAgain() {
+        repeat(3) {
+            if (it > 0) replaceTransport()
+            armChain(completeWrite = false)
+            (get("gattOpTimeoutRunnable") as Runnable).run()
+        }
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(31))
+        replaceTransport()
+        armChain(completeWrite = false)
+        timeoutAndAssertRetryDelay(8_000L)
     }
 
     @Test fun pausingBeforeThePostedAckDoesNotRequestF6() {
@@ -303,6 +313,32 @@ class ICanHealthCorrectCodeReadbackTests {
             shadowOf(handler.looper).idle()
         }
         radio.writes.clear()
+    }
+
+    private fun replaceTransport() {
+        val service = radio.service!!
+        gatt = Shadow.newInstanceOf(BluetoothGatt::class.java)
+        radio = Shadow.extract(gatt)
+        radio.service = service
+        SuperGattCallback::class.java.getDeclaredField("mBluetoothGatt").apply { isAccessible = true }
+            .set(manager, gatt)
+        set("cgmService", service)
+        set("charSpecificOps", characteristic)
+        set("isAuthenticated", true)
+        set("postAuthSetupStarted", true)
+        set("startCommandIssuedThisConnection", true)
+        set("phase", ICanHealthBleManager.Phase.STREAMING)
+        set("lastSensorInfoMarker", 0xffff)
+        set("lastAuthChallenge", byteArrayOf(1, 2, 3, 4))
+    }
+
+    private fun timeoutAndAssertRetryDelay(expected: Long) {
+        val before = System.currentTimeMillis()
+        (get("gattOpTimeoutRunnable") as Runnable).run()
+        val after = System.currentTimeMillis()
+        val deadline = get("scheduledReconnectAtMs") as Long
+        assertTrue("Expected a $expected ms retry, got a deadline in ${deadline - after} ms",
+            deadline in (before + expected)..(after + expected))
     }
 
     @Suppress("DEPRECATION")

@@ -63,6 +63,9 @@ class ICanHealthBleManager(
 
         private const val CONNECTION_ATTEMPT_TIMEOUT_MS = 120_000L
         private const val GATT_OP_TIMEOUT_MS = 10_000L
+        private const val GATT_TIMEOUT_RETRY_BASE_MS = 30_000L
+        private const val GATT_TIMEOUT_RETRY_MAX_MS = 5 * 60_000L
+        private const val GATT_TIMEOUT_STREAK_RESET_MS = 30 * 60_000L
         private const val REBIND_CANDIDATE_TIMEOUT_MS = 45_000L
         private const val REBIND_RETRY_BACKOFF_MS = 60_000L
         private const val MTU_REQUEST_TIMEOUT_MS = 12_000L
@@ -213,6 +216,9 @@ class ICanHealthBleManager(
     @Volatile private var lastConnectionStartedAtMs = 0L
     @Volatile private var receivedGlucoseThisConnection = false
     @Volatile private var lastGlucoseReceiptRealtimeMs = 0L
+    // Survives transport resets; a timeout-free interval expires the failure streak.
+    private var lastGattTimeoutElapsedMs: Long? = null
+    private var gattTimeoutRetryFloorMs = 0L
     private val createdAtMs = System.currentTimeMillis()
     @Volatile private var sessionStartEpochMs = 0L
     @Volatile private var loggedSessionTimelineDriftMs = 0L
@@ -400,7 +406,9 @@ class ICanHealthBleManager(
         if (owner !== mBluetoothGatt || operation !== gattOpInFlight || !gattOpActive) return
         if (rejectUnverifiedBindingCandidate("GATT operation timed out before identity verification")) return
         Log.w(TAG, "GATT op timeout — retiring transport before reconnect")
-        val reconnectPlan = computeReconnectPlan(System.currentTimeMillis())
+        val basePlan = computeReconnectPlan(System.currentTimeMillis())
+        val retryFloorMs = if (stop || uiPaused) 0L else nextGattTimeoutRetryFloorMs()
+        val reconnectPlan = basePlan.copy(delayMs = maxOf(basePlan.delayMs, retryFloorMs))
         if (reconnectPlan.refreshSessionMetadata) {
             forceSessionMetadataRefresh = true
             shouldRequestAuthenticatedHistoryBackfill = true
@@ -423,6 +431,18 @@ class ICanHealthBleManager(
         })
         if (!stop && !uiPaused) scheduleReconnect(reconnectPlan)
         UiRefreshBus.requestStatusRefresh()
+    }
+
+    private fun nextGattTimeoutRetryFloorMs(): Long {
+        val now = SystemClock.elapsedRealtime()
+        val previous = lastGattTimeoutElapsedMs
+        gattTimeoutRetryFloorMs = when {
+            previous == null || now - previous >= GATT_TIMEOUT_STREAK_RESET_MS -> 0L
+            gattTimeoutRetryFloorMs == 0L -> GATT_TIMEOUT_RETRY_BASE_MS
+            else -> (gattTimeoutRetryFloorMs * 2).coerceAtMost(GATT_TIMEOUT_RETRY_MAX_MS)
+        }
+        lastGattTimeoutElapsedMs = now
+        return gattTimeoutRetryFloorMs
     }
 
     private data class ReconnectPlan(
