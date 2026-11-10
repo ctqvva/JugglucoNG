@@ -6,7 +6,7 @@ package tk.glucodata.ui.journal
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -26,6 +26,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import kotlinx.coroutines.launch
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,8 +41,13 @@ internal class FoodLibraryManagement {
     var selectedIds by mutableStateOf(emptySet<Long>())
     var visibleIds by mutableStateOf(emptySet<Long>())
     var deletingIds by mutableStateOf(emptySet<Long>())
+    var dragging by mutableStateOf(false)
+        private set
+    private var anchor: Long? = null
+    private var selectionBeforeDrag = emptySet<Long>()
+    private var addingRange = true
 
-    fun cancel() { selecting = false; selectedIds = emptySet() }
+    fun cancel() { endDrag(); selecting = false; selectedIds = emptySet() }
     fun toggle(id: Long) {
         selecting = true
         selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
@@ -49,6 +55,28 @@ internal class FoodLibraryManagement {
     fun toggleAll() {
         selectedIds = if (selectedIds == visibleIds) emptySet() else visibleIds
     }
+
+    fun startDrag(id: Long, orderedIds: List<Long>) {
+        anchor = id
+        selectionBeforeDrag = selectedIds
+        addingRange = id !in selectedIds
+        dragging = true
+        selecting = true
+        dragTo(id, orderedIds)
+    }
+
+    fun dragTo(id: Long, orderedIds: List<Long>): Boolean {
+        val start = orderedIds.indexOf(anchor)
+        val end = orderedIds.indexOf(id)
+        if (start < 0 || end < 0) return false
+        val range = orderedIds.subList(minOf(start, end), maxOf(start, end) + 1).toSet()
+        val next = if (addingRange) selectionBeforeDrag + range else selectionBeforeDrag - range
+        if (next == selectedIds) return false
+        selectedIds = next
+        return true
+    }
+
+    fun endDrag() { dragging = false; anchor = null; selectionBeforeDrag = emptySet() }
 }
 
 /** Each saved food is a lazy item, rather than one eager column containing the entire database. */
@@ -84,6 +112,7 @@ private fun ManagedFoodRow(
     handle: Modifier
 ) {
     val shape = RoundedCornerShape(12.dp)
+    val selectLabel = stringResource(R.string.select)
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     var width by remember(food.id) { mutableIntStateOf(0) }
@@ -127,7 +156,6 @@ private fun ManagedFoodRow(
     val selected = food.id in management.selectedIds
     SwipeToDismissBox(
         state = swipe,
-        enableDismissFromEndToStart = !food.isBuiltIn,
         gesturesEnabled = !management.selecting && !pending,
         modifier = Modifier.onSizeChanged { width = it.width },
         backgroundContent = {
@@ -150,13 +178,14 @@ private fun ManagedFoodRow(
             modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.clip(shape)
-                    .combinedClickable(
+                    .clickable(
                         role = if (management.selecting) Role.Checkbox else Role.Button,
-                        onClick = { if (management.selecting) management.toggle(food.id) else actions.onEdit(food) },
-                        onLongClickLabel = stringResource(R.string.select),
-                        onLongClick = { management.toggle(food.id) }
+                        onClick = { if (management.selecting) management.toggle(food.id) else actions.onEdit(food) }
                     )
-                    .semantics { if (management.selecting) toggleableState = ToggleableState(selected) }
+                    .semantics {
+                        if (management.selecting) toggleableState = ToggleableState(selected)
+                        onLongClick(label = selectLabel) { management.toggle(food.id); true }
+                    }
                     .padding(16.dp).defaultMinSize(minHeight = 48.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -204,7 +233,7 @@ internal fun FoodManagementToolbar(foods: List<JournalFood>, management: FoodLib
         }
         IconButtonTooltip(stringResource(R.string.delete)) {
             FilledTonalIconButton(onClick = { management.deletingIds = management.selectedIds },
-                enabled = selected.isNotEmpty() && selected.none { it.isBuiltIn }, shapes = IconButtonDefaults.shapes(),
+                enabled = selected.isNotEmpty(), shapes = IconButtonDefaults.shapes(),
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer)) {
@@ -216,7 +245,7 @@ internal fun FoodManagementToolbar(foods: List<JournalFood>, management: FoodLib
 
 @Composable
 internal fun FoodManagementDialogs(foods: List<JournalFood>, management: FoodLibraryManagement, actions: FoodLibraryActions) {
-    val deleting = foods.filter { it.id in management.deletingIds && !it.isBuiltIn }
+    val deleting = foods.filter { it.id in management.deletingIds }
     if (deleting.isNotEmpty()) AlertDialog(
         onDismissRequest = { management.deletingIds = emptySet() },
         title = { Text(stringResource(R.string.food_delete_title, deleting.size)) },

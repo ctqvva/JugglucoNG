@@ -37,7 +37,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -246,11 +246,9 @@ fun JournalFoodLibraryScreen(
                 viewModel.saveJournalFood(it)
                 editingFood = null
             },
-            onDelete = if (food.isBuiltIn) null else {
-                {
-                    deleteFoods(setOf(food.id)) {}
-                    editingFood = null
-                }
+            onDelete = {
+                deleteFoods(setOf(food.id)) {}
+                editingFood = null
             }
         )
     }
@@ -269,8 +267,8 @@ internal fun FoodLibraryLayout(
 ) {
     var showTransfer by remember { mutableStateOf(false) }
     val management = remember { FoodLibraryManagement() }
-    LaunchedEffect(management.selectedIds) {
-        if (management.selectedIds.isEmpty()) management.selecting = false
+    LaunchedEffect(management.selectedIds, management.dragging) {
+        if (management.selectedIds.isEmpty() && !management.dragging) management.selecting = false
     }
     val focusManager = LocalFocusManager.current
     BackHandler(enabled = management.selecting, onBack = management::cancel)
@@ -278,8 +276,10 @@ internal fun FoodLibraryLayout(
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
             if (!management.selecting && libraryEnabled) {
-                FloatingActionButton(onClick = actions.onCreate) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.journal_add_food))
+                ExtendedFloatingActionButton(onClick = actions.onCreate) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(12.dp))
+                    Text(stringResource(R.string.journal_add_food))
                 }
             }
         },
@@ -413,10 +413,13 @@ internal fun FoodLibraryContent(
     val disabledLabel = stringResource(R.string.journal_food_disabled_library)
     val listState = rememberLazyListState()
     val reorder = rememberFoodLibraryReorder(listState, mine, actions.onMove)
+    val orderedMine = reorder.ordered(mine)
+    val selectionOrder = if (picker.query.isBlank()) orderedMine + remembered + disabled else ownMatches
 
     LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxSize().testTag("food_library_list"),
+        modifier = modifier.fillMaxSize().testTag("food_library_list")
+            .foodDragSelection(listState, management, selectionOrder.map { it.id }, libraryEnabled && !picker.scanning),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
@@ -490,7 +493,7 @@ internal fun FoodLibraryContent(
         }
 
         if (picker.query.isBlank()) {
-            managedFoodGroup(myFoodsLabel, reorder.ordered(mine), macrosEnabled, management, actions, reorder)
+            managedFoodGroup(myFoodsLabel, orderedMine, macrosEnabled, management, actions, reorder)
             managedFoodGroup(recentLabel, remembered, macrosEnabled, management, actions)
             managedFoodGroup(disabledLabel, disabled, macrosEnabled, management, actions)
         } else {

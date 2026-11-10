@@ -96,7 +96,7 @@ class FoodLibraryInteractionTests {
                     FoodLibraryActions({ enabled = it }, {}, {}, { created++ }, {}, {}, {}))
             }
         }
-        val add = compose.onNodeWithContentDescription(Applic.app.getString(R.string.journal_add_food))
+        val add = compose.onNodeWithText(Applic.app.getString(R.string.journal_add_food))
         val source = compose.onNodeWithText(Applic.app.getString(R.string.open_food_facts))
         val search = compose.onNode(hasSetTextAction())
         add.assertIsDisplayed()
@@ -105,6 +105,9 @@ class FoodLibraryInteractionTests {
         assertTrue(source.fetchSemanticsNode().boundsInRoot.bottom <= search.fetchSemanticsNode().boundsInRoot.top)
         add.performClick()
         assertEquals(1, created)
+        compose.onNodeWithTag("food_library_list").performScrollToNode(hasText("Saved food 70"))
+        add.assertIsDisplayed()
+        compose.onNodeWithTag("food_library_list").performScrollToIndex(0)
         compose.onNode(hasText(Applic.app.getString(R.string.journal_food_library)) and hasClickAction()).performClick()
         assertFalse(enabled)
         add.assertDoesNotExist()

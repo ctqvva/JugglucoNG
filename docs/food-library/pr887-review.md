@@ -184,11 +184,12 @@ select, round selection indicators, and direct select-all/disable/enable/delete
 actions in the floating toolbar. Both lists use the same selection indicator and
 toolbar components. Selection now updates in place without removing settings or
 search rows. The toolbar floats over the list instead of reserving a bottom bar.
-Add food is a bottom-end FAB, replaced by the floating toolbar during selection.
+Add food is a labelled bottom-end FAB, replaced by the floating toolbar during selection.
 There are no row menus or move-destination chooser. Normal saved-food rows have
 drag handles for reordering; TalkBack also offers move-up/move-down actions.
-Swipe left deletes custom foods with Undo, and swipe right disables or enables a
-food. Built-in presets retain their original deletion protection and can be disabled.
+Swipe left deletes foods with Undo, and swipe right disables or enables a food.
+Built-in defaults can also be deleted, individually or in bulk, at the user's
+explicit request. The one-time seed does not recreate intentionally deleted defaults.
 
 Saved rows are individual lazy items. Reordering previews IDs locally, supports
 variable-height rows and edge scrolling, and persists on release. Changes to order
@@ -228,8 +229,30 @@ All 161 related tests passed without failures/errors/skips. New rendered tests
 check text position and viewport bounds on every frame while selecting and
 cancelling a row in a 100-food list; haptic events and exact-once swipe actions;
 failed-write retries; below-threshold stationary release; and immediate Undo
-during removal animation. The built-in deletion guard has a database regression.
+during removal animation. Built-in deletion and Undo have a database regression.
 The final arm64 debug APK built and was installed on the Pixel. Further physical
 input stopped when device navigation overlapped with the user's testing; native
 haptic feel was not independently assessed. No journal entry or existing food
 definition was saved during this follow-up's device check.
+
+## Hold-and-drag selection
+
+Holding a saved food now starts range selection. Sliding over following or preceding
+rows selects that range; reversing restores rows outside the current range to their
+prior selection. Holding an already selected row removes that range instead. Edge
+scrolling continues the same selection into offscreen rows, with selection haptics
+when the range changes. The list retains the pointer while lazy rows are recycled.
+Normal scrolling, horizontal swipes and immediate vertical handle dragging keep their
+existing gestures. TalkBack retains the row's long-click selection action.
+
+The Add food FAB now displays its translated label beside the plus icon. Built-in
+foods use the same swipe, editor and bulk-delete paths as other saved foods, with
+the same definition-preserving Undo action; their built-in identity survives Undo.
+
+All 164 related food, journal and shared-component tests passed without failures,
+errors or skips. Rendered gesture regressions cover holding and dragging across
+four rows, reversing back to two, dragging an already selected range to deselect,
+edge-scrolling into offscreen rows, unchanged row geometry, built-in bulk deletion,
+and the labelled FAB remaining visible after scrolling. Existing tap, swipe,
+haptic, reorder and data round-trip regressions also pass. The arm64 debug APK
+built successfully; UI guardrails and whitespace checks pass.

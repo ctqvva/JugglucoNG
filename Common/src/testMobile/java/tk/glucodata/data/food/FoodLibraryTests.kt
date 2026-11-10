@@ -269,17 +269,21 @@ class FoodLibraryTests {
     }
 
     @Test
-    fun singleAndBulkDeletePreserveBuiltinDefaultsWhileAllowingDisable() = runBlocking {
+    fun singleAndBulkDeleteAllowBuiltinDefaultsAndUndoRestoresTheirIdentity() = runBlocking {
         val builtin = library.upsert(JournalFoodInput(displayName = "Default", carbsGrams = 15f,
             absorptionMinutes = 60, accentColor = 0, isBuiltIn = true))
         val custom = library.keep(apple)
         library.delete(builtin)
-        assertEquals(2, library.foods().size)
-        val removed = library.delete(setOf(builtin, custom))
-        assertEquals(listOf(custom), removed.rows.map { it.id })
-        assertEquals(builtin, library.foods().single().id)
-        library.setArchived(setOf(builtin), true)
-        assertTrue(library.foods().single().isArchived)
+        assertEquals(listOf(custom), library.foods().map { it.id })
+        val secondBuiltin = library.upsert(JournalFoodInput(displayName = "Another default", carbsGrams = 15f,
+            absorptionMinutes = 60, accentColor = 0, isBuiltIn = true))
+        val before = library.foods()
+        val removed = library.delete(setOf(secondBuiltin, custom))
+        assertEquals(setOf(secondBuiltin, custom), removed.rows.map { it.id }.toSet())
+        assertTrue(library.foods().isEmpty())
+        library.undoDelete(removed)
+        assertEquals(before, library.foods())
+        assertTrue(library.foods().single { it.id == secondBuiltin }.isBuiltIn)
     }
 
     @Test

@@ -86,7 +86,7 @@ class FoodLibraryMotionTests {
         assertStableFrames()
         compose.onNodeWithContentDescription(label(R.string.cancel)).performClick()
         assertStableFrames()
-        compose.onNodeWithContentDescription(label(R.string.journal_add_food)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.journal_add_food)).assertIsDisplayed()
     }
 
     @Test
