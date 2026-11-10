@@ -3,6 +3,7 @@
 package tk.glucodata.ui.journal
 
 import android.content.Context
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.horizontalScroll
@@ -30,11 +31,15 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -64,10 +69,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.util.Locale
+import java.text.NumberFormat
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -271,8 +279,8 @@ internal fun customFood(name: String, barcode: String? = null): FoodItem = FoodI
  * The food part of the journal's entry sheet, as rows of the sheet's own list: the search
  * field, what it found, and the meal put together so far.
  *
- * One tap on a food adds it at the amount it is usually eaten in; the amount is then changed
- * on the food's own card, where it stays visible, instead of before adding.
+ * Both a row tap and its plus append an ingredient. The row closes search; the plus keeps
+ * it open. Amounts start from the usual quantity and can be changed on each food's own card.
  *
  * @param row adds one keyed row to the sheet.
  */
@@ -286,9 +294,21 @@ internal fun LazyListScope.journalFoodRows(
     onItemsChange: (List<JournalDraftFoodItem>) -> Unit,
     onAddFood: (FoodItem) -> Unit
 ) {
-    val add: (FoodItem) -> Unit = { food ->
+    val mealCounts = items.groupingBy { it.food.mealKey(state.library) }.eachCount()
+    val countInMeal: (FoodItem) -> Int = { mealCounts[it.mealKey(state.library)] ?: 0 }
+    val remove: (Int) -> Unit = { index ->
+        onItemsChange(items.filterIndexed { itemIndex, _ -> itemIndex != index })
+        state.openItem = (index - 1).coerceAtLeast(0)
+    }
+    val addAndClose: (FoodItem) -> Unit = { food ->
         onAddFood(food)
         state.close()
+    }
+    val removeFood: (FoodItem) -> Unit = { food ->
+        // Undo the latest matching addition, preserving earlier edited quantities.
+        val key = food.mealKey(state.library)
+        val index = items.indexOfLast { it.food.mealKey(state.library) == key }
+        if (index >= 0) remove(index)
     }
 
     row("food_search") {
@@ -319,43 +339,43 @@ internal fun LazyListScope.journalFoodRows(
         row("food_scanner") {
             FoodBarcodeScanner(
                 lookup = state.barcode,
-                onBarcode = { code -> state.lookUp(code, add) },
-                onEnterValues = { code -> add(customFood(name = code, barcode = code)) }
+                onBarcode = { code -> state.lookUp(code, addAndClose) },
+                onEnterValues = { code -> addAndClose(customFood(name = code, barcode = code)) }
             )
         }
     } else if (state.searching) {
         if (state.query.isBlank()) {
             if (suggestions.recent.isNotEmpty()) {
                 row("food_shelf_recent") {
-                    FoodShelf(stringResource(R.string.food_recent), suggestions.recent, macrosEnabled, add)
+                    FoodShelf(stringResource(R.string.food_recent), suggestions.recent, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
             if (suggestions.mine.isNotEmpty()) {
                 row("food_shelf_mine") {
-                    FoodShelf(stringResource(R.string.food_my_foods), suggestions.mine, macrosEnabled, add)
+                    FoodShelf(stringResource(R.string.food_my_foods), suggestions.mine, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
         } else {
             val shelves = state.shelves
             if (shelves.library.isNotEmpty()) {
                 row("food_shelf_mine") {
-                    FoodShelf(stringResource(R.string.food_my_foods), shelves.library, macrosEnabled, add)
+                    FoodShelf(stringResource(R.string.food_my_foods), shelves.library, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
             if (shelves.common.isNotEmpty()) {
                 row("food_shelf_common") {
-                    FoodShelf(stringResource(R.string.food_common_foods), shelves.common, macrosEnabled, add)
+                    FoodShelf(stringResource(R.string.food_common_foods), shelves.common, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
             val found = (state.online as? FoodOnlineSearch.Done)?.foods.orEmpty()
             if (found.isNotEmpty()) {
                 row("food_shelf_online") {
-                    FoodShelf(stringResource(R.string.open_food_facts), found, macrosEnabled, add)
+                    FoodShelf(stringResource(R.string.open_food_facts), found, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
             if (shelves.reference.isNotEmpty()) {
                 row("food_shelf_reference") {
-                    FoodShelf(stringResource(R.string.food_reference_tables), shelves.reference, macrosEnabled, add)
+                    FoodShelf(stringResource(R.string.food_reference_tables), shelves.reference, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
             row("food_search_actions") {
@@ -364,13 +384,13 @@ internal fun LazyListScope.journalFoodRows(
                     online = state.online.takeIf { onlineEnabled },
                     canSearchOnline = state.query.trim().length >= FoodCatalog.MIN_QUERY_LENGTH,
                     onSearchOnline = state::searchOnline,
-                    onEnterValues = { add(customFood(state.query)) }
+                    onEnterValues = { addAndClose(customFood(state.query)) }
                 )
             }
         }
     } else if (items.isEmpty() && suggestions.recent.isNotEmpty()) {
         row("food_recent_chips") {
-            FoodRecentChips(foods = suggestions.recent, onAdd = add)
+            FoodRecentChips(foods = suggestions.recent, onAdd = addAndClose)
         }
     }
 
@@ -384,10 +404,7 @@ internal fun LazyListScope.journalFoodRows(
                 onChange = { index, item ->
                     onItemsChange(items.toMutableList().also { it[index] = item })
                 },
-                onRemove = { index ->
-                    onItemsChange(items.filterIndexed { itemIndex, _ -> itemIndex != index })
-                    state.openItem = (index - 1).coerceAtLeast(0)
-                }
+                onRemove = remove
             )
         }
     }
@@ -543,21 +560,35 @@ internal fun FoodShelf(
     title: String,
     foods: List<FoodItem>,
     macrosEnabled: Boolean,
-    onAdd: (FoodItem) -> Unit
+    onAdd: (FoodItem) -> Unit,
+    onSelect: (FoodItem) -> Unit,
+    countInMeal: (FoodItem) -> Int,
+    onRemove: (FoodItem) -> Unit
 ) {
     val focusManager = LocalFocusManager.current
+    val haptics = LocalHapticFeedback.current
     Column {
         SectionLabel(text = title, topPadding = 4.dp)
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             foods.forEachIndexed { index, food ->
                 FoodResultRow(
                     food = food,
+                    addedCount = countInMeal(food),
                     macrosEnabled = macrosEnabled,
                     position = foodCardPosition(index, foods.size),
                     onAdd = {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onAdd(food)
+                    },
+                    onRemove = {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onRemove(food)
+                    },
+                    onSelect = {
                         // The keyboard has done its part once a food is picked.
                         focusManager.clearFocus()
-                        onAdd(food)
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onSelect(food)
                     }
                 )
             }
@@ -568,14 +599,31 @@ internal fun FoodShelf(
 @Composable
 private fun FoodResultRow(
     food: FoodItem,
+    addedCount: Int,
     macrosEnabled: Boolean,
     position: CardPosition,
-    onAdd: () -> Unit
+    onAdd: () -> Unit,
+    onRemove: () -> Unit,
+    onSelect: () -> Unit
 ) {
+    val added = addedCount > 0
+    val countDescription = stringResource(R.string.selected_count, addedCount)
+    val rowColor by animateColorAsState(
+        if (added) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        ExpressiveMotion.fastEffects(), label = "foodAddedRow")
+    val buttonColor by animateColorAsState(
+        if (added) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+        ExpressiveMotion.fastEffects(), label = "foodAddedButton")
+    val buttonContent by animateColorAsState(
+        if (added) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
+        ExpressiveMotion.fastEffects(), label = "foodAddedButtonContent")
     Surface(
-        onClick = onAdd,
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        onClick = onSelect,
+        modifier = Modifier.fillMaxWidth().semantics {
+            selected = added
+            if (added) stateDescription = countDescription
+        },
+        color = rowColor,
         shape = cardShape(position, FoodGroupRadius)
     ) {
         Row(
@@ -600,20 +648,41 @@ private fun FoodResultRow(
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
-            // Says what the tap does; the row is the button.
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                shape = CircleShape,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+            if (added) {
+                IconButtonTooltip(stringResource(R.string.remove)) {
+                    IconButton(onClick = onRemove, modifier = Modifier.size(48.dp),
+                        shapes = IconButtonDefaults.shapes()) {
+                        Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.remove),
+                            modifier = Modifier.size(20.dp))
+                    }
+                }
+                Spacer(Modifier.width(4.dp))
+            }
+            IconButtonTooltip(stringResource(R.string.journal_add_food)) {
+                BadgedBox(badge = {
+                    if (added) Badge(containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
+                        Text(NumberFormat.getIntegerInstance().format(addedCount))
+                    }
+                }) {
+                    FilledTonalIconButton(onClick = onAdd, modifier = Modifier.size(48.dp).semantics {
+                        if (added) stateDescription = countDescription
+                    }, colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = buttonColor, contentColor = buttonContent),
+                        shapes = IconButtonDefaults.shapes()) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = stringResource(R.string.journal_add_food),
+                            modifier = Modifier.size(20.dp))
+                    }
                 }
             }
         }
     }
 }
+
+/** A saved copy and its source result share feedback without comparing translated names. */
+internal fun FoodItem.mealKey(library: List<JournalFood>): String =
+    library.firstOrNull { isLibraryCopy(it) }?.let { JournalFood.LIBRARY_KEY_PREFIX + it.id }
+        ?: ProductBarcode.normalize(barcode)?.let { "barcode:$it" } ?: key
 
 /** Under the results: ask Open Food Facts, or type the food in from its label. */
 @Composable
