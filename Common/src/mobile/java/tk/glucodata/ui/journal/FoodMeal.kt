@@ -4,15 +4,12 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -21,7 +18,6 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -57,7 +53,6 @@ import tk.glucodata.data.food.FoodPortionKind
 import tk.glucodata.data.food.FoodSource
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.ui.components.CardPosition
-import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.ConnectedButtonGroup
@@ -65,26 +60,6 @@ import tk.glucodata.ui.util.ExpressiveMotion
 
 /** The portions offered beside the base unit; more would not fit one row of buttons. */
 private const val MAX_PORTION_UNITS = 3
-
-/** The meal stays visible above results while picking; tapping a chip removes that ingredient. */
-@Composable
-internal fun FoodMealSummary(items: List<JournalDraftFoodItem>, onRemove: (Int) -> Unit) {
-    Column(Modifier.testTag("food_meal_summary")) {
-        SectionLabel(stringResource(R.string.mealname), topPadding = 4.dp)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            items.forEachIndexed { index, item ->
-                key(index, item.food.key) {
-                    InputChip(selected = true, onClick = { onRemove(index) },
-                        label = { Text(item.food.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = 160.dp)) },
-                        trailingIcon = { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.remove),
-                            modifier = Modifier.size(18.dp)) })
-                }
-            }
-        }
-    }
-}
 
 /**
  * The meal so far: one row per food. The row being worked on is open, with its amount, the
@@ -99,7 +74,7 @@ internal fun FoodMealList(
     onChange: (Int, JournalDraftFoodItem) -> Unit,
     onRemove: (Int) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(Modifier.testTag("food_meal_list"), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         items.forEachIndexed { index, item ->
             key(index, item.food.key) {
                 FoodMealRow(

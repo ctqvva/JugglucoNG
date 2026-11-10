@@ -126,21 +126,26 @@ class FoodPickerActionsTests {
     }
 
     @Test
-    fun plusAddsToAnAlreadySelectedFoodInsteadOfReplacingIt() {
+    fun selectedFoodAmountStaysEditableDuringSearchAndIsPreservedWhenBuildingAMeal() {
         var saved: JournalEntryInput? = null
         show { saved = it }
         search()
         compose.onNodeWithText("Meal oats").performScrollTo().performClick()
         settle()
         search()
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("food_meal_list")))
+            .performScrollTo().performTextReplacement("2")
+        settle()
         plus("Meal yogurt")
         assertSearchStillOpen()
+        capture("editable-meal-above-results")
         compose.onNodeWithText(label(R.string.close)).performScrollTo().performClick()
         settle()
         save()
         val input = requireNotNull(saved)
-        assertEquals(75f, input.amount!!, 0f)
+        assertEquals(120f, input.amount!!, 0f)
         assertEquals(listOf(1L, 2L), input.foodUses.map { it.food.libraryId })
+        assertEquals(listOf(2f, 1f), input.foodUses.map { it.amount.quantity })
         assertEquals(2, input.foodItemCount)
     }
 
@@ -154,7 +159,7 @@ class FoodPickerActionsTests {
             hasAnyAncestor(hasText("Meal oats")))
         result().assertIsNotSelected()
         plus("Meal oats")
-        val summary = compose.onNodeWithTag("food_meal_summary").fetchSemanticsNode().boundsInRoot
+        val summary = compose.onNodeWithTag("food_meal_list").fetchSemanticsNode().boundsInRoot
         val results = compose.onNodeWithText(label(R.string.food_my_foods)).fetchSemanticsNode().boundsInRoot
         assertTrue("the meal must appear before My foods", summary.bottom <= results.top)
         result().assertIsSelected()
@@ -164,19 +169,19 @@ class FoodPickerActionsTests {
         addButton().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
             Applic.app.getString(R.string.selected_count, 2)))
         capture("meal-above-results-with-added-feedback")
-        fun removeChip() {
-            compose.onAllNodes(hasText("Meal oats") and hasContentDescription(label(R.string.remove)) and
-                hasAnyAncestor(hasTestTag("food_meal_summary")))[0].performClick()
+        fun removeIngredient() {
+            compose.onNode(hasContentDescription(label(R.string.remove)) and
+                hasAnyAncestor(hasTestTag("food_meal_list"))).performClick()
             settle()
         }
-        removeChip()
+        removeIngredient()
         result().assertIsSelected()
         addButton().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
             Applic.app.getString(R.string.selected_count, 1)))
-        removeChip()
+        removeIngredient()
         result().assertIsNotSelected()
         addButton().assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
-        compose.onNodeWithTag("food_meal_summary").assertDoesNotExist()
+        compose.onNodeWithTag("food_meal_list").assertDoesNotExist()
         assertSearchStillOpen()
     }
 }

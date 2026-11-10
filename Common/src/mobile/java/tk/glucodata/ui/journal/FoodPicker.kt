@@ -335,20 +335,16 @@ internal fun LazyListScope.journalFoodRows(
 
     if (items.isNotEmpty()) {
         row("food_meal") {
-            if (state.searching || state.scanning) {
-                FoodMealSummary(items = items, onRemove = remove)
-            } else {
-                FoodMealList(
-                    items = items,
-                    openItem = state.openItem,
-                    macrosEnabled = macrosEnabled,
-                    onOpen = { state.openItem = it },
-                    onChange = { index, item ->
-                        onItemsChange(items.toMutableList().also { it[index] = item })
-                    },
-                    onRemove = remove
-                )
-            }
+            FoodMealList(
+                items = items,
+                openItem = state.openItem,
+                macrosEnabled = macrosEnabled,
+                onOpen = { state.openItem = it },
+                onChange = { index, item ->
+                    onItemsChange(items.toMutableList().also { it[index] = item })
+                },
+                onRemove = remove
+            )
         }
     }
 
