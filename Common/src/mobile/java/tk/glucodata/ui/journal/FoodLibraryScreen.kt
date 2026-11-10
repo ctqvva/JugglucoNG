@@ -284,7 +284,7 @@ internal fun FoodLibraryContent(
                 },
                 active = picker.scanning,
                 onActivate = picker::activateSearch,
-                onClose = if (picker.scanning) picker::close else null,
+                onClose = if (picker.scanning && picker.barcode is FoodBarcodeLookup.Looking) picker::close else null,
                 onScan = if (onlineEnabled) {
                     {
                         focusManager.clearFocus()

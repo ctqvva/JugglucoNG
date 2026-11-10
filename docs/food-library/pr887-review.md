@@ -88,3 +88,31 @@ zero-carb reconstruction test checks the remembered amount too.
 
 Validation for this follow-up: all 80 focused food/journal tests passed, along
 with UI guardrails and whitespace checks.
+
+## Settings library and adaptive sheet follow-up
+
+The settings library now offers the same barcode scanner as the meal picker.
+Found products open in the library for inspection/saving; missing products can be
+entered manually with their scanned barcode retained. Offline/library switches
+cancel scanner work and control whether scanning is offered.
+
+The reported French product had been saved, but its name did not match the
+English `apple` query. The online row continued offering Save, so repeated taps
+could create duplicates. Saved online identities now appear under My foods for
+the active search, the online Save row goes away, and the result is acknowledged.
+Explicit shelf saves are serialized and idempotent by library ID/source/barcode;
+keeping a remembered food preserves its usage, amounts and edited definition.
+Existing duplicate rows are preserved rather than deleting user data.
+
+The meal sheet's viewport-height lock now resets when its search/camera/ingredient
+layout changes. A rendered regression fills the sheet with search results and
+checks that closing the search restores its original short height. On the Pixel,
+the camera opened from Settings → Food library, and closing the meal camera
+returned the meal sheet to its compact height without the large bottom gap.
+
+Validation: 5,716 Mobile and 4,143 Wear tests, zero failures/errors (1/9 skips),
+arm64 Mobile debug APK assembly, UI guardrails, and whitespace checks. Rendered
+regressions cover a French online result saved while searching in English on a
+Russian screen, scanner availability, and the sheet's measured shrink behavior.
+The final scanner cancel-control adjustment also passed the rendered suite and
+APK assembly. No test journal entry was saved on the Pixel.
