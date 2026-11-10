@@ -128,10 +128,9 @@ fun ExpressiveSettingsScreen(
         runCatching { DexcomShareSettings.isSetUp(context) }.getOrDefault(false) ||
             hasActiveDexcomSensor()
     }
-    val showLumiflex = remember {
-        runCatching { LumiflexCloudSettings.isSetUp(context) }.getOrDefault(false) ||
-            hasActiveAiDexSensor()
-    }
+    val isRussianLanguage = LocalConfiguration.current.locales[0]?.language == "ru"
+    // A cloud follower has no local AiDex sensor to make this entry visible.
+    val showLumiflex = isRussianLanguage
     val showOttaiSettings = remember {
         SensorBluetooth.mygatts().any { callback ->
             (callback as? tk.glucodata.drivers.ottai.OttaiDriver)?.isUiEnabled() == true
@@ -199,7 +198,6 @@ fun ExpressiveSettingsScreen(
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
-    var showClearDataDialog by remember { mutableStateOf(false) }
     var showFactoryResetDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showScheduledBackupDialog by remember { mutableStateOf(false) }
@@ -315,6 +313,22 @@ fun ExpressiveSettingsScreen(
         }
     )
 
+    // Restricted mode: the tab opens to the switch to full mode and a few safe settings.
+    val restrictedState by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
+    // Back to restricted with a full-mode dialog still open (the app came back after the
+    // grace): close it. Theme and language stay, as they are open while restricted too.
+    LaunchedEffect(restrictedState.locked) {
+        if (!restrictedState.locked) return@LaunchedEffect
+        showUnitDialog = false
+        showClearHistoryDialog = false
+        showFactoryResetDialog = false
+        showExportDialog = false
+        showScheduledBackupDialog = false
+        showSealGraceDialog = false
+        pendingSettingsImportUri = null
+        pendingExportPackageImportUri = null
+    }
+
     fun openSearchResult(entry: SettingsSearchEntry) {
         focusManager.clearFocus()
         when (val target = entry.target) {
@@ -332,7 +346,6 @@ fun ExpressiveSettingsScreen(
                 SettingsSearchAction.IMPORT -> importLauncher.launch(importMimeTypes)
                 SettingsSearchAction.RESTART -> context.findActivity()?.fullRestart()
                 SettingsSearchAction.CLEAR_HISTORY -> showClearHistoryDialog = true
-                SettingsSearchAction.CLEAR_APP_DATA -> showClearDataDialog = true
                 SettingsSearchAction.FACTORY_RESET -> showFactoryResetDialog = true
             }
         }
@@ -346,6 +359,30 @@ fun ExpressiveSettingsScreen(
     ) {
         item(key = "title") {
             TabScreenHeader(title = stringResource(R.string.settings))
+        }
+
+        if (restrictedState.locked) {
+            item(key = "restricted_full_mode") {
+                tk.glucodata.ui.restricted.RestrictedFullModeCard()
+            }
+            item(key = "restricted_allowed_label") {
+                SectionLabel(stringResource(R.string.restricted_section_available))
+            }
+            item(key = "restricted_allowed_group") {
+                tk.glucodata.ui.restricted.RestrictedAllowedSettings(
+                    config = restrictedState.config,
+                    themeIcon = if (themeMode == ThemeMode.LIGHT) Icons.Default.LightMode else Icons.Default.DarkMode,
+                    themeLabel = themeLabel,
+                    languageLabel = currentLangName,
+                    alertsEnabled = alertsMasterEnabled,
+                    floatingAllowed = floatingOverlayAllowed,
+                    lockScreenEnabled = aodServiceEnabled,
+                    onTheme = { showThemeDialog = true },
+                    onLanguage = { showLanguageDialog = true },
+                    onOpen = { route -> navController.navigate(route) },
+                )
+            }
+            return@LazyColumn
         }
 
         item(key = "search") {
@@ -591,8 +628,8 @@ fun ExpressiveSettingsScreen(
                 }
                 if (showLumiflex) {
                     SettingsItem(
-                        title = "Lumiflex Cloud",
-                        subtitle = "Upload glucose to Lumiflex",
+                        title = stringResource(R.string.lumiflex_cloud_title),
+                        subtitle = stringResource(R.string.lumiflex_cloud_subtitle),
                         icon = Icons.Default.CloudUpload,
                         iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
@@ -724,6 +761,7 @@ fun ExpressiveSettingsScreen(
 
         item(key = "advanced_group") {
             val advancedColor = MaterialTheme.colorScheme.onSurfaceVariant
+            val restrictedMode by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsItem(
                     title = stringResource(R.string.debug_logs),
@@ -769,7 +807,19 @@ fun ExpressiveSettingsScreen(
                     onClick = { showSealGraceDialog = true },
                     icon = Icons.Default.Lock,
                     iconTint = advancedColor,
-                    position = CardPosition.BOTTOM
+                    position = CardPosition.MIDDLE
+                )
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.restricted_mode_title),
+                    subtitle = stringResource(R.string.restricted_mode_desc),
+                    checked = restrictedMode.config.enabled,
+                    onCheckedChange = { on ->
+                        tk.glucodata.RestrictedMode.update(context) { it.copy(enabled = on) }
+                    },
+                    onClick = { navController.navigate("settings/restricted-mode") },
+                    icon = Icons.Default.ChildCare,
+                    iconTint = advancedColor,
+                    position = CardPosition.BOTTOM,
                 )
             }
         }
@@ -789,19 +839,11 @@ fun ExpressiveSettingsScreen(
                 )
                 DangerItem(
                     title = stringResource(R.string.clear_history),
-                    subtitle = stringResource(R.string.clear_history_desc_short),
+                    subtitle = stringResource(R.string.clear_history_desc),
                     icon = Icons.Filled.History,
                     position = CardPosition.MIDDLE,
-                    severity = DangerSeverity.LOW,
-                    onClick = { showClearHistoryDialog = true }
-                )
-                DangerItem(
-                    title = stringResource(R.string.clear_app_data),
-                    subtitle = stringResource(R.string.clear_app_data_desc),
-                    icon = Icons.Filled.Delete,
-                    position = CardPosition.MIDDLE,
                     severity = DangerSeverity.MEDIUM,
-                    onClick = { showClearDataDialog = true }
+                    onClick = { showClearHistoryDialog = true }
                 )
                 DangerItem(
                     title = stringResource(R.string.factory_reset),
@@ -853,35 +895,36 @@ fun ExpressiveSettingsScreen(
     }, { showUnitDialog = false })
     if (showThemeDialog) ThemePickerDialog(themeMode, { onThemeChanged(it); showThemeDialog = false }, { showThemeDialog = false })
     if (showLanguageDialog) LanguagePickerDialog { showLanguageDialog = false }
-    if (showClearHistoryDialog) ConfirmActionDialog(stringResource(R.string.clean_history_confirm), stringResource(R.string.clear_history_desc_long), Icons.Filled.History, { scope.launch { tk.glucodata.data.DataManagement.clearHistory() }; showClearHistoryDialog = false }, { showClearHistoryDialog = false })
-    if (showClearDataDialog) ConfirmActionDialog(
-        stringResource(R.string.clean_data_confirm), 
-        stringResource(R.string.clear_app_data_desc), 
-        Icons.Filled.Delete, 
-        { 
-            scope.launch { 
-                tk.glucodata.data.DataManagement.clearAppData()
-                // Full restart to kill process and clear native memory
-                context.findActivity()?.fullRestart()
+    if (showClearHistoryDialog) ClearHistoryDialog(
+        onConfirm = { clearScope ->
+            showClearHistoryDialog = false
+            scope.launch {
+                val cleared = tk.glucodata.data.DataManagement.clearHistory(clearScope)
+                Toast.makeText(
+                    context,
+                    if (cleared) R.string.clear_history_done else R.string.clear_history_failed,
+                    Toast.LENGTH_LONG
+                ).show()
             }
-            showClearDataDialog = false 
-        }, 
-        { showClearDataDialog = false }, 
-        isDestructive = true
+        },
+        onDismiss = { showClearHistoryDialog = false }
     )
     if (showFactoryResetDialog) ConfirmActionDialog(
-        stringResource(R.string.factory_reset_confirm), 
-        stringResource(R.string.factory_reset_alert), 
-        Icons.Filled.Warning, 
-        { 
-            scope.launch { 
-                tk.glucodata.data.DataManagement.factoryReset()
-                // Full restart to kill process and clear native memory
-                context.findActivity()?.fullRestart()
+        stringResource(R.string.factory_reset_confirm),
+        stringResource(R.string.factory_reset_message),
+        Icons.Filled.Warning,
+        {
+            showFactoryResetDialog = false
+            scope.launch {
+                // On success the system ends this process, so nothing below runs.
+                if (!tk.glucodata.data.DataManagement.factoryReset()) {
+                    Toast.makeText(context, R.string.factory_reset_failed, Toast.LENGTH_LONG).show()
+                }
             }
-        }, 
-        { showFactoryResetDialog = false }, 
-        isDestructive = true
+        },
+        { showFactoryResetDialog = false },
+        isDestructive = true,
+        confirmLabel = stringResource(R.string.factory_reset_action)
     )
     
     if (showExportDialog) {
@@ -1604,7 +1647,8 @@ private fun ConfirmActionDialog(
     icon: ImageVector,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    isDestructive: Boolean = false
+    isDestructive: Boolean = false,
+    confirmLabel: String? = null
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1617,7 +1661,7 @@ private fun ConfirmActionDialog(
                 colors = if (isDestructive) ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error) else ButtonDefaults.textButtonColors(),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding
-            ) { Text(if (isDestructive) stringResource(R.string.delete) else stringResource(R.string.ok)) }
+            ) { Text(confirmLabel ?: if (isDestructive) stringResource(R.string.delete) else stringResource(R.string.ok)) }
         },
         dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) } }
     )

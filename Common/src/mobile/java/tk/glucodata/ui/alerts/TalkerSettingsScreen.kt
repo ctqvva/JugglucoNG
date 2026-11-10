@@ -41,6 +41,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SpaceDashboard
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolumeUp
@@ -93,6 +95,7 @@ import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SpeakSchedule
 import tk.glucodata.Talker
+import tk.glucodata.VoiceReadings
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
@@ -138,6 +141,8 @@ fun TalkerSettingsScreen(navController: NavController) {
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
     var chimeBeforeGlucose by remember { mutableStateOf(Talker.getChimeBeforeGlucose(activity)) }
+    var showOnDashboard by remember { mutableStateOf(VoiceReadings.showOnDashboard(activity)) }
+    var showInNotification by remember { mutableStateOf(VoiceReadings.showInNotification(activity)) }
 
     LaunchedEffect(uiState.separationSeconds) {
         separationText = uiState.separationSeconds.toString()
@@ -490,6 +495,34 @@ fun TalkerSettingsScreen(navController: NavController) {
                         onClick = { showEndPicker = true }
                     )
                 }
+            }
+
+            // Where the one-tap on/off switch shows (#840); each can be turned off on its own.
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.voice_quick_dashboard),
+                    subtitle = stringResource(R.string.voice_quick_dashboard_desc),
+                    checked = showOnDashboard,
+                    onCheckedChange = {
+                        showOnDashboard = it
+                        VoiceReadings.setShowOnDashboard(activity, it)
+                    },
+                    icon = Icons.Default.SpaceDashboard,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    position = CardPosition.TOP
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.voice_quick_notification),
+                    subtitle = stringResource(R.string.voice_quick_notification_desc),
+                    checked = showInNotification,
+                    onCheckedChange = {
+                        showInNotification = it
+                        VoiceReadings.setShowInNotification(activity, it)
+                    },
+                    icon = Icons.Default.Notifications,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    position = CardPosition.BOTTOM
+                )
             }
 
             FilledTonalButton(

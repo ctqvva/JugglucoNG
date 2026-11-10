@@ -68,6 +68,181 @@ class ICanHealthAddressRebindTests {
         manager.destroy()
     }
 
+    @Test fun manualRepairCancelsAutomaticRebindAndClearsBothPersistedBindings() {
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+        val authKey = ICanHealthConstants.PREF_AUTH_USER_ID_PREFIX + sensor
+        val historyKey = ICanHealthConstants.PREF_HISTORY_EDGE_SEQUENCE_PREFIX + sensor
+        prefs.edit().putString(authKey, "123456789").putInt(historyKey, 123).commit()
+        val otherSensor = "7BF00099C665AABB"
+        val otherAddress = "AA:BB:CC:DD:EE:05"
+        ICanHealthRegistry.promoteSensorIdentity(context, otherSensor, otherSensor, otherAddress, "Other sensor")
+        val retiredGatt = gatt
+        manager.rePairBinding()
+        assertNull(get("pendingAddressRebind"))
+        assertNull(manager.mActiveDeviceAddress)
+        assertNull(manager.mActiveBluetoothDevice)
+        assertNull(ICanRebindNatives.address)
+        assertEquals("", ICanHealthRegistry.findRecord(context, sensor)?.address)
+        assertEquals("123456789", prefs.getString(authKey, null))
+        assertEquals(123, prefs.getInt(historyKey, -1))
+        assertEquals(otherAddress, ICanHealthRegistry.findRecord(context, otherSensor)?.address)
+        (get("rebindTimeoutRunnable") as Runnable).run()
+        manager.onConnectionStateChange(retiredGatt, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED)
+        assertNull(manager.mActiveDeviceAddress)
+        assertNull(currentGatt())
+        assertEquals(sensor, get("expectedSerialAfterRepair"))
+    }
+
+    @Test fun manualRepairWithCachedMetadataVerifiesBeforeAuthAndPersistsOnlyMatchingBinding() {
+        startManualRepairCandidate()
+        addCgmSurface(withAuth = true)
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        assertEquals(listOf(ICanHealthConstants.SERIAL_NUMBER), radio.reads)
+        assertEquals(ICanHealthBleManager.Phase.AUTH_PRIME, manager.phase)
+        assertNull(ICanRebindNatives.address)
+        assertEquals("", ICanHealthRegistry.findRecord(context, sensor)?.address)
+        deliverSerial(sensor)
+        assertEquals(candidateAddress, ICanHealthRegistry.findRecord(context, sensor)?.address)
+        assertNull(get("expectedSerialAfterRepair"))
+        assertEquals(sensor, manager.SerialNumber)
+    }
+
+    @Test fun manualRepairWithoutAuthCharacteristicStillReadsFreshSerial() {
+        startManualRepairCandidate()
+        addCgmSurface()
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        assertEquals(listOf(ICanHealthConstants.SERIAL_NUMBER), radio.reads)
+        deliverSerial(sensor)
+        assertEquals(candidateAddress, ICanHealthRegistry.findRecord(context, sensor)?.address)
+        assertNull(get("expectedSerialAfterRepair"))
+    }
+
+    @Test fun manualRepairMismatchPreservesIdentityAndExpectationForNextCandidate() {
+        startManualRepairCandidate()
+        addCgmSurface()
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        deliverSerial("7BF00099C664AABB")
+        assertManualRepairStillUnbound()
+        assertEquals(sensor, get("rawSerialFromDevice"))
+        assertFalse(manager.matchDeviceName(sensor, candidateAddress))
+        val nextAddress = "AA:BB:CC:DD:EE:03"
+        assertTrue(manager.matchDeviceName(sensor, nextAddress))
+        manager.setDevice(BluetoothAdapter.getDefaultAdapter().getRemoteDevice(nextAddress))
+        newGatt(manager.mActiveBluetoothDevice)
+        addCgmSurface()
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        assertEquals(listOf(ICanHealthConstants.SERIAL_NUMBER), radio.reads)
+        deliverSerial(sensor)
+        assertEquals(nextAddress, ICanHealthRegistry.findRecord(context, sensor)?.address)
+    }
+
+    @Test fun manualRepairMissingSerialCannotFallThroughToSetup() {
+        startManualRepairCandidate()
+        addCgmSurface(withSerial = false)
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        assertManualRepairStillUnbound()
+    }
+
+    @Test fun manualRepairFailedSerialCannotFallThroughToSetup() {
+        startManualRepairCandidate()
+        addCgmSurface()
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        deliverSerial(sensor, BluetoothGatt.GATT_FAILURE)
+        assertManualRepairStillUnbound()
+    }
+
+    @Test fun manualRepairEmptySerialCannotFallThroughToSetup() {
+        startManualRepairCandidate()
+        addCgmSurface()
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        deliverSerial("")
+        assertManualRepairStillUnbound()
+    }
+
+    @Test fun manualRepairReadRefusedCannotFallThroughToSetup() {
+        startManualRepairCandidate()
+        addCgmSurface()
+        radio.readStarts = false
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        assertManualRepairStillUnbound()
+    }
+
+    @Test fun manualRepairReadTimeoutCannotFallThroughToSetup() {
+        startManualRepairCandidate()
+        addCgmSurface()
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        (get("gattOpTimeoutRunnable") as Runnable).run()
+        assertManualRepairStillUnbound()
+    }
+
+    @Test fun manualRepairCandidateDeadlineReturnsToScan() {
+        startManualRepairCandidate()
+        (get("rebindTimeoutRunnable") as Runnable).run()
+        assertManualRepairStillUnbound()
+    }
+
+    @Test fun manualRepairDisconnectReturnsToScan() {
+        startManualRepairCandidate()
+        manager.onConnectionStateChange(gatt, BluetoothGatt.GATT_FAILURE, BluetoothProfile.STATE_DISCONNECTED)
+        assertManualRepairStillUnbound()
+    }
+
+    @Test fun manualRepairFailedDiscoveryReturnsToScan() {
+        startManualRepairCandidate()
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_FAILURE)
+        assertManualRepairStillUnbound()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test fun manualRepairIgnoresAuthNotificationsAndRetiredSerialCallbacks() {
+        startManualRepairCandidate()
+        addCgmSurface(withAuth = true)
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        val auth = BluetoothGattCharacteristic(ICanHealthConstants.CGM_SPECIFIC_OPS,
+            BluetoothGattCharacteristic.PROPERTY_INDICATE, 0)
+        auth.value = byteArrayOf(0x06, 0xF3.toByte(), 0x01, 1, 2, 3, 4)
+        manager.onCharacteristicChanged(gatt, auth)
+        assertNull(get("lastAuthChallenge"))
+        manager.rePairBinding()
+        deliverSerial("7BF00099C664AABB")
+        assertManualRepairStillUnbound()
+        assertEquals(sensor, get("rawSerialFromDevice"))
+    }
+
+    @Test fun manualRepairRestoresUnboundAndStillVerifiesAfterRestart() {
+        manager.rePairBinding()
+        manager.destroy()
+        manager = ICanHealthRegistry.createRestoredCallback(context, sensor, 0L) as ICanHealthBleManager
+        assertNull(manager.mActiveDeviceAddress)
+        assertEquals(sensor, get("expectedSerialAfterRepair"))
+        assertTrue(manager.matchDeviceName(sensor, candidateAddress))
+        manager.setDevice(BluetoothAdapter.getDefaultAdapter().getRemoteDevice(candidateAddress))
+        newGatt(manager.mActiveBluetoothDevice)
+        addCgmSurface()
+        manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
+        deliverSerial("7BF00099C664AABB")
+        assertManualRepairStillUnbound()
+    }
+
+    private fun startManualRepairCandidate() {
+        manager.rePairBinding()
+        assertTrue(manager.matchDeviceName(sensor, candidateAddress))
+        manager.setDevice(BluetoothAdapter.getDefaultAdapter().getRemoteDevice(candidateAddress))
+        newGatt(manager.mActiveBluetoothDevice)
+    }
+
+    private fun assertManualRepairStillUnbound() {
+        assertEquals(sensor, manager.SerialNumber)
+        assertEquals(sensor, get("expectedSerialAfterRepair"))
+        assertNull(manager.mActiveDeviceAddress)
+        assertNull(manager.mActiveBluetoothDevice)
+        assertNull(ICanRebindNatives.address)
+        assertEquals("", ICanHealthRegistry.findRecord(context, sensor)?.address)
+        assertNull(ICanHealthRegistry.findRecord(context, "7BF00099C664AABB"))
+        assertFalse(get("postAuthSetupStarted") as Boolean)
+        assertTrue(radio.closed)
+    }
+
     @Test fun missingCgmServiceRestoresDeviceAddressAndSavedIdentity() {
         manager.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
         assertRolledBack()

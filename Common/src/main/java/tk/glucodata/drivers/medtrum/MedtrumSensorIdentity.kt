@@ -71,24 +71,26 @@ object MedtrumSensorSession {
 }
 
 /**
- * The native layer keeps a mirror of a patch under a shortened name: the serial 2329895446 came
- * back as `95446`. Unrecognised, that name was built into a generic Libre callback, which showed
- * up as a second, phantom sensor.
+ * The native layer keeps a mirror of a patch under a shortened name: the serial without its first
+ * [NATIVE_DROPPED_PREFIX] characters, so 2329895446 came back as `95446` and the nine-digit
+ * 177195435 as `5435`. Unrecognised, that name was built into a generic Libre callback, which
+ * showed up as a second, phantom sensor, and the patch never took the main-sensor slot (#876:
+ * "No sensors connected" over a streaming patch).
  *
- * Only that name is an alias. Every valid serial has at least [MIN_SERIAL_LENGTH] digits, so a
- * five-digit name cannot be another patch's full serial, whereas treating any shorter numeric
- * ending as the same patch would merge `2329895446` with `329895446`.
+ * Only that exact name is an alias. Treating any shorter numeric ending as the same patch would
+ * merge `2329895446` with `329895446`, both valid serials.
  */
 object MedtrumSerialAlias {
 
-    const val NATIVE_SHORT_NAME_LENGTH = 5
-    const val MIN_SERIAL_LENGTH = 6
+    /** `sensor::shortsensorname_chars()` in sensoren.hpp: `name + 5`, whatever the length. */
+    const val NATIVE_DROPPED_PREFIX = 5
+    const val MIN_SERIAL_LENGTH = NATIVE_DROPPED_PREFIX + 1
 
     fun isShortForm(candidate: String?, serial: String?): Boolean {
         val short = candidate?.trim().orEmpty()
         val full = serial?.trim().orEmpty()
-        if (short.length != NATIVE_SHORT_NAME_LENGTH || full.length < MIN_SERIAL_LENGTH) return false
+        if (short.isEmpty() || full.length < MIN_SERIAL_LENGTH) return false
         if (!short.all { it.isDigit() } || !full.all { it.isDigit() }) return false
-        return full.endsWith(short)
+        return short == full.substring(NATIVE_DROPPED_PREFIX)
     }
 }

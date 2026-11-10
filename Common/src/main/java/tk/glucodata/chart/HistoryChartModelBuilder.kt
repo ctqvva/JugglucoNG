@@ -150,7 +150,7 @@ object HistoryChartModelBuilder {
                 null -> defaultLook
             }
             val interval = if (isRawMode) null else point.uncertainty?.takeIf { it.isUsable }?.shifted(value - point.value)
-            val model = ChartPointModel(point.timestamp, value, sensorId, look, interval)
+            val model = ChartPointModel(point.timestamp, value, sensorId, look, interval, recordedMainValue(point) != null)
 
             val gap = lastTimestamp != Long.MIN_VALUE && (point.timestamp - lastTimestamp) > gapThresholdMs
             if (gap || sensorChanged) {

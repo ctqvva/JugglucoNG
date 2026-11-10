@@ -700,7 +700,7 @@ object ICanHealthConstants {
     // ---- Device Name Patterns ----
 
     /** Known device name prefixes for iCanHealth sensors */
-    val KNOWN_PREFIXES = arrayOf("iCGM-", "Sinocare CGM", "Sinocare ", "P", "LT")
+    val KNOWN_PREFIXES = arrayOf("iCGM-", "Sinocare CGM", "Sinocare ", "LT")
 
     /** Check if a BLE device name matches an iCanHealth sensor */
     @JvmStatic
@@ -739,6 +739,12 @@ object ICanHealthConstants {
      * sensor that was briefly out of reach, so it gets another turn.
      */
     const val UNREACHABLE_CANDIDATE_COOLDOWN_MS = 10L * 60_000L
+
+    /**
+     * Consecutive connect attempts whose `connectGatt` never reports any GATT callback at all
+     * before an onboarding-awaiting sensor gives up on the bound address and rescans unfiltered.
+     */
+    const val SILENT_CONNECT_TIMEOUTS_BEFORE_RECOVERY = 3
 
     /**
      * True when a discovered GATT table is populated beyond the generic services and still has no
@@ -802,6 +808,36 @@ object ICanHealthConstants {
         }
         return nowMs - lastActivityMs >= STALE_ADDRESS_REBIND_MS
     }
+
+    /**
+     * Widens [shouldRebindStaleAddress] to the iCan family names (`Sinocare CGM`, `iCGM-…`), which
+     * carry no serial in the advertisement. The candidate is only *selected* here; the DIS serial
+     * read after connecting must still match one of [savedIds], or the rebind is rejected.
+     */
+    @JvmStatic
+    fun shouldRebindStaleFamilyAddress(
+        knownAddress: String?,
+        candidateAddress: String?,
+        advertisedName: String?,
+        savedIds: List<String?>,
+        lastActivityMs: Long,
+        nowMs: Long,
+    ): Boolean {
+        if (knownAddress.isNullOrBlank() || candidateAddress.isNullOrBlank()) return false
+        if (knownAddress.equals(candidateAddress, ignoreCase = true)) return false
+        if (savedIds.none { !it.isNullOrBlank() }) return false
+        // Only a serial-less family name belongs to this wide path. A bare serial-shaped name is
+        // either this sensor (strict match) or another sensor's serial, which must stay rejected.
+        val name = advertisedName?.trim().orEmpty()
+        if (!name.startsWith("iCGM-", ignoreCase = true) && !name.startsWith("Sinocare", ignoreCase = true)) {
+            return false
+        }
+        return nowMs - lastActivityMs >= STALE_ADDRESS_REBIND_MS
+    }
+
+    @JvmStatic
+    fun shouldDropUnreachableOnboardingAddress(consecutiveSilentTimeouts: Int): Boolean =
+        consecutiveSilentTimeouts >= SILENT_CONNECT_TIMEOUTS_BEFORE_RECOVERY
 
     @JvmStatic
     fun canonicalSensorId(sensorId: String?): String {

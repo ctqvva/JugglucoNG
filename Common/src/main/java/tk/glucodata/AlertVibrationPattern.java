@@ -4,6 +4,7 @@ import static tk.glucodata.alerts.AlertConfigKt.MAX_SOUND_DELAY_SECONDS;
 import static tk.glucodata.alerts.AlertConfigKt.sanitizeAlertDurationSeconds;
 
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 final class AlertVibrationPattern {
@@ -75,6 +76,59 @@ final class AlertVibrationPattern {
             amplitudes[i] = amplitudeList.get(i);
         }
         return new AlertVibrationPattern(timings, amplitudes);
+    }
+
+    /**
+     * A stored haptic profile name as the switch statements below spell it. Custom alerts
+     * store theirs in lower case ("escalating"), and a plain toUpperCase() follows the phone's
+     * language: in Turkish or Azerbaijani "i" becomes the dotted capital "\u0130", so
+     * "escalating" turned into "ESCALAT\u0130NG", matched no profile and fell back to STRONG.
+     */
+    static String normalizeProfileName(String name) {
+        return name == null ? "" : name.trim().toUpperCase(Locale.ROOT);
+    }
+
+    /** Amplitude scale of a haptic profile; 0 for SILENT, 1 for STRONG and anything unknown. */
+    static float profileScale(String name) {
+        switch (normalizeProfileName(name)) {
+            case "SOFT":
+            case "LOW":
+                return 0.45f;
+            case "STEADY":
+            case "MEDIUM":
+                return 0.70f;
+            case "SILENT":
+                return 0.0f;
+            default:
+                return 1.0f; // STRONG, HIGH, VIBRATE_ONLY, ESCALATING (ramps up to full)
+        }
+    }
+
+    /** Whether a haptic profile ramps its amplitude up over the pattern. */
+    static boolean profileAscending(String name) {
+        switch (normalizeProfileName(name)) {
+            case "ESCALATING":
+            case "ASCENDING":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /** The haptic profile a pre-haptic "volume" setting stands for. */
+    static String profileForLegacyVolume(String legacyVolume) {
+        switch (normalizeProfileName(legacyVolume)) {
+            case "MEDIUM":
+                return "STEADY";
+            case "ASCENDING":
+                return "ESCALATING";
+            case "LOW":
+                return "SOFT";
+            case "SILENT":
+                return "SILENT";
+            default:
+                return "STRONG"; // HIGH, VIBRATE_ONLY
+        }
     }
 
     long totalDurationMs() {

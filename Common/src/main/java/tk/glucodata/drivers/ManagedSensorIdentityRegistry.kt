@@ -27,6 +27,7 @@ object ManagedSensorIdentityRegistry {
         OttaiManagedSensorIdentityAdapter,
         SibionicsManagedSensorIdentityAdapter,
         NightscoutFollowerIdentityAdapter,
+        tk.glucodata.share.lumiflex.LumiflexFollowerRegistry,
         ApiGlucoseSourceIdentityAdapter,
     )
 

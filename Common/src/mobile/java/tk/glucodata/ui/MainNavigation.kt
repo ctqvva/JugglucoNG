@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LegendToggle
@@ -71,7 +72,18 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.material.icons.filled.OpenInFull
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.navigation.NavBackStackEntry
 import tk.glucodata.InsulinPenManager
+import tk.glucodata.RestrictedMode
+import tk.glucodata.ui.restricted.LocalRequestFullMode
+import tk.glucodata.ui.restricted.RestrictedModeRoutes
+import tk.glucodata.ui.restricted.RestrictedModeSettingsScreen
+import tk.glucodata.ui.restricted.RestrictedPinSetupScreen
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.journal.JournalEntry
@@ -195,6 +207,13 @@ private fun HistoryRoute(
     val calibrations by tk.glucodata.data.calibration.CalibrationManager.calibrations.collectAsStateWithLifecycle()
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
+    val restricted by RestrictedMode.state.collectAsStateWithLifecycle()
+    val fullModeGuard = tk.glucodata.ui.restricted.rememberFullModeGuard()
+    val journalGuard = tk.glucodata.ui.restricted.rememberRestrictedJournalGuard()
+    // Restricted again with the editor open (an adult left it a minute): close it.
+    LaunchedEffect(restricted.canEditJournal) {
+        if (!restricted.canEditJournal) journalEditorRequest = null
+    }
 
     // Journal entries are time-bound user events (insulin, food, fingersticks);
     // they must stay visible across sensor swaps. The History route deliberately
@@ -241,14 +260,20 @@ private fun HistoryRoute(
                 )
             )
         },
-        onDeleteReading = { point ->
-            dashboardViewModel.deleteHistoryReading(point, sensorName)
+        // Restricted mode: deleting readings is data clearing, and stays hidden.
+        onDeleteReading = if (restricted.canClearData) {
+            { point -> dashboardViewModel.deleteHistoryReading(point, sensorName) }
+        } else {
+            null
         },
         onJournalEntryClick = { entry ->
-            lastJournalType = entry.type
-            journalEditorRequest = JournalEditorRequest(entry.type, entry.timestamp, entry)
+            val open = {
+                lastJournalType = entry.type
+                journalEditorRequest = JournalEditorRequest(entry.type, entry.timestamp, entry)
+            }
+            if (restricted.canEditJournal) open() else fullModeGuard(open)
         },
-        onAddJournalEntry = { timestamp, suggestedType, suggestedDisplayGlucose ->
+        onAddJournalEntry = if (!restricted.canEditJournal) null else { timestamp, suggestedType, suggestedDisplayGlucose ->
             val type = suggestedType ?: lastJournalType
             val suggestedGlucoseMgDl = suggestedDisplayGlucose?.let {
                 if (tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit)) {
@@ -291,19 +316,25 @@ private fun HistoryRoute(
             existingEntry = request.existingEntry,
             onDismiss = { journalEditorRequest = null },
             onSave = { input ->
-                dashboardViewModel.saveJournalEntry(input)
-                lastJournalType = input.type
-                journalEditorRequest = null
+                journalGuard.save(request.existingEntry, listOf(input.type)) {
+                    dashboardViewModel.saveJournalEntry(input)
+                    lastJournalType = input.type
+                    journalEditorRequest = null
+                }
             },
             onSaveEntries = { inputs ->
-                inputs.forEach(dashboardViewModel::saveJournalEntry)
-                inputs.firstOrNull()?.let { lastJournalType = it.type }
-                journalEditorRequest = null
+                journalGuard.save(request.existingEntry, inputs.map { it.type }) {
+                    inputs.forEach(dashboardViewModel::saveJournalEntry)
+                    inputs.firstOrNull()?.let { lastJournalType = it.type }
+                    journalEditorRequest = null
+                }
             },
             onSaveFood = dashboardViewModel::saveJournalFood,
             onDelete = { entryId ->
-                dashboardViewModel.deleteJournalEntry(entryId)
-                journalEditorRequest = null
+                journalGuard.delete {
+                    dashboardViewModel.deleteJournalEntry(entryId)
+                    journalEditorRequest = null
+                }
             },
             sensorSerialProvider = { sensorName.ifBlank { null } }
         )
@@ -361,6 +392,7 @@ private fun JournalRoute(
     val calibrations by tk.glucodata.data.calibration.CalibrationManager.calibrations.collectAsStateWithLifecycle()
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
+    val journalGuard = tk.glucodata.ui.restricted.rememberRestrictedJournalGuard()
 
     fun openJournalEditor(
         timestamp: Long,
@@ -457,19 +489,25 @@ private fun JournalRoute(
             existingEntry = request.existingEntry,
             onDismiss = { journalEditorRequest = null },
             onSave = { input ->
-                dashboardViewModel.saveJournalEntry(input)
-                lastJournalType = input.type
-                journalEditorRequest = null
+                journalGuard.save(request.existingEntry, listOf(input.type)) {
+                    dashboardViewModel.saveJournalEntry(input)
+                    lastJournalType = input.type
+                    journalEditorRequest = null
+                }
             },
             onSaveEntries = { inputs ->
-                inputs.forEach(dashboardViewModel::saveJournalEntry)
-                inputs.firstOrNull()?.let { lastJournalType = it.type }
-                journalEditorRequest = null
+                journalGuard.save(request.existingEntry, inputs.map { it.type }) {
+                    inputs.forEach(dashboardViewModel::saveJournalEntry)
+                    inputs.firstOrNull()?.let { lastJournalType = it.type }
+                    journalEditorRequest = null
+                }
             },
             onSaveFood = dashboardViewModel::saveJournalFood,
             onDelete = { entryId ->
-                dashboardViewModel.deleteJournalEntry(entryId)
-                journalEditorRequest = null
+                journalGuard.delete {
+                    dashboardViewModel.deleteJournalEntry(entryId)
+                    journalEditorRequest = null
+                }
             },
             sensorSerialProvider = { sensorName.ifBlank { null } }
         )
@@ -705,8 +743,34 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     // Hoisted Calibration Sheet State
     var calibrationSheetState by remember { mutableStateOf<CalibrationSheetState>(CalibrationSheetState.Hidden) }
 
+    // Restricted mode: the switch to full mode lives on the Settings tab. Something closed
+    // that was reached by navigating (a locked screen, calibration) opens Settings and carries
+    // on, back where it was asked from, once full mode is on.
+    val restricted by RestrictedMode.state.collectAsStateWithLifecycle()
+    var pendingFullModeAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var fullModeReturnRoute by remember { mutableStateOf<String?>(null) }
+    val requestFullMode: (() -> Unit) -> Unit = { action ->
+        if (!RestrictedMode.isLocked()) {
+            action()
+        } else {
+            fullModeReturnRoute = navController.currentDestination?.route
+            pendingFullModeAction = action
+            navController.navigate("settings") {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
     val onTriggerCalibration: (CalibrationSheetState) -> Unit = { state ->
-        calibrationSheetState = state
+        if (RestrictedMode.current().canCalibrate) {
+            calibrationSheetState = state
+        } else {
+            requestFullMode { calibrationSheetState = state }
+        }
+    }
+    LaunchedEffect(restricted.canCalibrate) {
+        if (!restricted.canCalibrate) calibrationSheetState = CalibrationSheetState.Hidden
     }
     val navigationTapCatcher = remember { NavigationTapCatcher() }
     val context = LocalContext.current
@@ -718,7 +782,8 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     val currentRoute = currentBackStackEntry?.destination?.route
     val journalEnabled by dashboardViewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalNavigationTabEnabled by dashboardViewModel.journalNavigationTabEnabled.collectAsStateWithLifecycle()
-    val showJournalNav = journalEnabled && journalNavigationTabEnabled
+    val showJournalNav = journalEnabled && journalNavigationTabEnabled &&
+        (!restricted.locked || RestrictedModeRoutes.isOpenWhileLocked("journal", restricted.config))
 
     fun collectionModeForRoute(route: String?): DashboardViewModel.CollectionMode = when (route) {
         "dashboard", "sensors", "settings" -> DashboardViewModel.CollectionMode.DASHBOARD
@@ -746,6 +811,69 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         dashboardViewModel.onResume()
+    }
+
+    // Full mode lasts while the app is in use; a minute away and it is restricted again.
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { RestrictedMode.onAppForegrounded() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { RestrictedMode.onAppBackgrounded() }
+
+    // The one gate for every way a screen opens — tabs, dashboard links, notification taps.
+    // A closed screen reached while restricted goes to Settings, where full mode is switched
+    // on, and opens once it is; one left open when the session locks again just closes.
+    var gateWasLocked by remember { mutableStateOf(restricted.locked) }
+    LaunchedEffect(restricted, currentRoute) {
+        // The live state, not the collected one: unlocking and navigating happen in one
+        // tap, and the collected value can still read "locked" for that frame.
+        val live = RestrictedMode.current()
+        val justLocked = live.locked && !gateWasLocked
+        gateWasLocked = live.locked
+        if (live.locked && !RestrictedModeRoutes.isOpenWhileLocked(currentRoute, live.config)) {
+            val blocked = currentRoute
+            navController.popBackStack(navController.graph.findStartDestination().id, inclusive = false)
+            if (!justLocked && blocked != null) {
+                requestFullMode { navController.navigate(blocked) { launchSingleTop = true } }
+            }
+        }
+    }
+
+    // Full mode switched on from Settings: back to where it was asked for, then carry on.
+    LaunchedEffect(restricted.locked) {
+        if (restricted.locked) return@LaunchedEffect
+        val action = pendingFullModeAction ?: return@LaunchedEffect
+        val back = fullModeReturnRoute
+        pendingFullModeAction = null
+        fullModeReturnRoute = null
+        if (back != null && back != "settings" && navController.currentDestination?.route == "settings") {
+            navController.navigate(back) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+        action()
+    }
+    // Left Settings without switching: what was waiting is dropped, so unlocking later from
+    // the tab does not suddenly run it.
+    // The live destination, not the captured one: the gate above runs in the same frame for
+    // a closed route and has already moved on to Settings.
+    LaunchedEffect(currentRoute) {
+        val live = navController.currentDestination?.route
+        if (live != null && live != "settings") {
+            pendingFullModeAction = null
+            fullModeReturnRoute = null
+        }
+    }
+
+    // The TalkBack legacy menus live outside Compose, on MainActivity's back stack, and reach
+    // every setting. Left open when the session locks again, they are closed the way Back
+    // would close them: the menus and everything opened from them.
+    LaunchedEffect(restricted.locked) {
+        if (restricted.locked && tk.glucodata.LegacyScreensAccess.menusOn) {
+            var steps = 0
+            while (tk.glucodata.MainActivity.onbacknr() > 0 && steps++ < 32) {
+                tk.glucodata.MainActivity.doonback()
+            }
+        }
     }
 
     // A screen asked for from outside Compose — a notification's tap — is parked in
@@ -840,8 +968,15 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     val navigationTick = rememberNavigationTick()
     val onNavItemClick = { route: String ->
         if (route != selectedNavRoute) navigationTick.play()
-        onNavigate(route)
+        if (restricted.locked && !RestrictedModeRoutes.isOpenWhileLocked(route, restricted.config)) {
+            requestFullMode { onNavigate(route) }
+        } else {
+            onNavigate(route)
+        }
     }
+    // The Settings tab carries a small "open in full" mark while the phone is restricted: it
+    // opens to the page where full mode is switched on.
+    val tabLocked = { route: String -> restricted.locked && route == "settings" }
 
     // One NavHost in one place for both orientations. Rotation is handled by this activity
     // (configChanges), so the composition survives it; two NavHosts — one beside a rail, one
@@ -861,15 +996,17 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                                 ShortNavigationBarItem(
                                     iconPosition = NavigationItemIconPosition.Top,
                                     icon = {
-                                        TabIcon(
-                                            isSelected = isSelected,
-                                            selectedIcon = item.selectedIcon,
-                                            unselectedIcon = item.unselectedIcon,
-                                            description = item.label,
-                                            glyph = item.glyph,
-                                            pressed = pressed,
-                                            selectionKnown = selectionKnown
-                                        )
+                                        LockableTabIcon(locked = tabLocked(item.route)) {
+                                            TabIcon(
+                                                isSelected = isSelected,
+                                                selectedIcon = item.selectedIcon,
+                                                unselectedIcon = item.unselectedIcon,
+                                                description = item.label,
+                                                glyph = item.glyph,
+                                                pressed = pressed,
+                                                selectionKnown = selectionKnown
+                                            )
+                                        }
                                     },
                                     label = {
                                         FontScaleCap { AdaptiveNavigationLabel(item.label) }
@@ -900,15 +1037,17 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                                 WideNavigationRailItem(
                                     railExpanded = false,
                                     icon = {
-                                        TabIcon(
-                                            isSelected = isSelected,
-                                            selectedIcon = item.selectedIcon,
-                                            unselectedIcon = item.unselectedIcon,
-                                            description = item.label,
-                                            glyph = item.glyph,
-                                            pressed = pressed,
-                                            selectionKnown = selectionKnown
-                                        )
+                                        LockableTabIcon(locked = tabLocked(item.route)) {
+                                            TabIcon(
+                                                isSelected = isSelected,
+                                                selectedIcon = item.selectedIcon,
+                                                unselectedIcon = item.unselectedIcon,
+                                                description = item.label,
+                                                glyph = item.glyph,
+                                                pressed = pressed,
+                                                selectionKnown = selectionKnown
+                                            )
+                                        }
                                     },
                                     label = { FontScaleCap { Text(item.label) } },
                                     selected = isSelected,
@@ -921,7 +1060,10 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                     NavigationTapCatcherLayer(navigationTapCatcher)
                 }
             }
-            CompositionLocalProvider(LocalNavigationTapCatcher provides navigationTapCatcher) {
+            CompositionLocalProvider(
+                LocalNavigationTapCatcher provides navigationTapCatcher,
+                LocalRequestFullMode provides requestFullMode,
+            ) {
                 NavHost(
                     navController = navController,
                     startDestination = "dashboard",
@@ -961,6 +1103,50 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     )
 }
 
+/**
+ * The tab icon, with a small "open in full" mark while its screen needs full mode. Always inside the
+ * BadgedBox, so the icon keeps its state (and its one-shot glyph motion) when the mark
+ * comes and goes.
+ */
+@Composable
+private fun LockableTabIcon(locked: Boolean, icon: @Composable () -> Unit) {
+    BadgedBox(
+        badge = {
+            if (locked) {
+                Badge(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ) {
+                    Icon(
+                        Icons.Filled.OpenInFull,
+                        contentDescription = stringResource(R.string.restricted_unlock_title),
+                        modifier = Modifier.size(12.dp),
+                    )
+                }
+            }
+        },
+    ) { icon() }
+}
+
+/**
+ * A destination behind the restricted-mode gate. While a closed route is on screen for the
+ * moment it takes MainApp's gate to send it back, it draws nothing rather than its content.
+ */
+private fun NavGraphBuilder.gatedComposable(
+    route: String,
+    content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit,
+) = composable(route) { entry ->
+    // Collected so a change recomposes; the live state decides, so a relock the collector
+    // has not delivered yet still draws nothing.
+    val restricted by RestrictedMode.state.collectAsStateWithLifecycle()
+    val live = restricted.let { RestrictedMode.current() }
+    if (live.locked && !RestrictedModeRoutes.isOpenWhileLocked(route, live.config)) {
+        Box(Modifier.fillMaxSize())
+    } else {
+        content(entry)
+    }
+}
+
 private fun NavGraphBuilder.appDestinations(
     navController: NavHostController,
     dashboardViewModel: DashboardViewModel,
@@ -968,14 +1154,14 @@ private fun NavGraphBuilder.appDestinations(
     onThemeChanged: (ThemeMode) -> Unit,
     onTriggerCalibration: (CalibrationSheetState) -> Unit,
 ) {
-    composable("dashboard") {
+    gatedComposable("dashboard") {
         DashboardRoute(
             dashboardViewModel = dashboardViewModel,
             navController = navController,
             onTriggerCalibration = onTriggerCalibration
         )
     }
-    composable("history") {
+    gatedComposable("history") {
         HistoryRoute(
             dashboardViewModel = dashboardViewModel,
             title = stringResource(R.string.historyname),
@@ -984,108 +1170,110 @@ private fun NavGraphBuilder.appDestinations(
             onTriggerCalibration = onTriggerCalibration
         )
     }
-    composable("journal") {
+    gatedComposable("journal") {
         JournalRoute(
             dashboardViewModel = dashboardViewModel,
             navController = navController,
             onTriggerCalibration = onTriggerCalibration,
         )
     }
-    composable("stats") { FontScaleCap { tk.glucodata.ui.stats.StatsScreen() } }
-    composable("sensors") {
+    gatedComposable("stats") { FontScaleCap { tk.glucodata.ui.stats.StatsScreen() } }
+    gatedComposable("sensors") {
         SensorScreen(
             onNavigateToMqAccount = { navController.navigate("settings/mq-account") },
             onNavigateToReadiness = { navController.navigate("settings/cgm-readiness") }
         )
     }
-    composable("settings") { ExpressiveSettingsScreen(navController, themeMode, onThemeChanged, dashboardViewModel) }
-    composable("settings/nightscout") { NightscoutSettingsScreen(navController) }
-    composable("settings/libreview") { LibreViewSettingsScreen(navController) }
-    composable("settings/mq-account") { MQAccountSettingsScreen(navController) }
-    composable("settings/mq-follower") { MQFollowerSettingsScreen(navController) }
-    composable("settings/ottai") { tk.glucodata.ui.setup.OttaiSettingsScreen(navController) }
-    composable("settings/mirror") { MirrorSettingsScreen(navController) }
-    composable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
-    composable("settings/dexcom-share") { DexcomShareSettingsScreen(navController) }
-    composable("settings/lumiflex") { LumiflexCloudSettingsScreen(navController) }
-    composable("settings/lumiflex/followers") { LumiflexCloudFollowersScreen(navController) }
-    composable("settings/api-source") { ApiSourceSettingsScreen(navController) }
-    composable("settings/glucose-meters") { GlucoseMeterSettingsScreen(navController) }
-    composable("settings/insulin-pens") { InsulinPenSettingsScreen(navController) }
-    composable("settings/watch") { WatchSettingsScreen(navController) }
-    composable("settings/phone-apps") { PhoneAppsSettingsScreen(navController, dashboardViewModel) }
-    composable("settings/sensor-connection") { SensorConnectionSettingsScreen(navController) }
+    gatedComposable("settings") { ExpressiveSettingsScreen(navController, themeMode, onThemeChanged, dashboardViewModel) }
+    gatedComposable("settings/restricted-mode") { RestrictedModeSettingsScreen(navController) }
+    gatedComposable("settings/restricted-mode/pin") { RestrictedPinSetupScreen(navController) }
+    gatedComposable("settings/nightscout") { NightscoutSettingsScreen(navController) }
+    gatedComposable("settings/libreview") { LibreViewSettingsScreen(navController) }
+    gatedComposable("settings/mq-account") { MQAccountSettingsScreen(navController) }
+    gatedComposable("settings/mq-follower") { MQFollowerSettingsScreen(navController) }
+    gatedComposable("settings/ottai") { tk.glucodata.ui.setup.OttaiSettingsScreen(navController) }
+    gatedComposable("settings/mirror") { MirrorSettingsScreen(navController) }
+    gatedComposable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
+    gatedComposable("settings/dexcom-share") { DexcomShareSettingsScreen(navController) }
+    gatedComposable("settings/lumiflex") { LumiflexCloudSettingsScreen(navController) }
+    gatedComposable("settings/lumiflex/followers") { LumiflexCloudFollowersScreen(navController) }
+    gatedComposable("settings/api-source") { ApiSourceSettingsScreen(navController) }
+    gatedComposable("settings/glucose-meters") { GlucoseMeterSettingsScreen(navController) }
+    gatedComposable("settings/insulin-pens") { InsulinPenSettingsScreen(navController) }
+    gatedComposable("settings/watch") { WatchSettingsScreen(navController) }
+    gatedComposable("settings/phone-apps") { PhoneAppsSettingsScreen(navController, dashboardViewModel) }
+    gatedComposable("settings/sensor-connection") { SensorConnectionSettingsScreen(navController) }
     // Keep legacy route for backward compatibility.
-    composable("settings/weartransport") { WatchSettingsScreen(navController) }
-    composable("settings/watch/wearos-config") { WearOsConfigScreen(navController) }
-    composable("settings/watch/garmin-status") { GarminStatusScreen(navController) }
-    composable("settings/webserver") { WebServerSettingsScreen(navController) }
-    composable("settings/notification-display") {
+    gatedComposable("settings/weartransport") { WatchSettingsScreen(navController) }
+    gatedComposable("settings/watch/wearos-config") { WearOsConfigScreen(navController) }
+    gatedComposable("settings/watch/garmin-status") { GarminStatusScreen(navController) }
+    gatedComposable("settings/webserver") { WebServerSettingsScreen(navController) }
+    gatedComposable("settings/notification-display") {
         NotificationSettingsScreen(navController, dashboardViewModel)
     }
-    composable("settings/display-colors") {
+    gatedComposable("settings/display-colors") {
         DisplayAndColorSettingsScreen(navController, dashboardViewModel)
     }
-    composable("settings/data-smoothing") {
+    gatedComposable("settings/data-smoothing") {
         DataSmoothingSettingsScreen(navController, dashboardViewModel)
     }
-    composable("settings/predictive-simulation") {
+    gatedComposable("settings/predictive-simulation") {
         PredictiveSimulationSettingsScreen(navController, dashboardViewModel)
     }
-    composable("settings/predictive-simulation/model-profile") {
+    gatedComposable("settings/predictive-simulation/model-profile") {
         PredictionModelProfileScreen(navController, dashboardViewModel)
     }
-    composable("settings/predictive-simulation/analysis") {
+    gatedComposable("settings/predictive-simulation/analysis") {
         PredictionAnalysisScreen(navController, dashboardViewModel)
     }
-    composable("settings/predictive-simulation/analysis/forecasts") {
+    gatedComposable("settings/predictive-simulation/analysis/forecasts") {
         PredictionInspectorScreen(navController, dashboardViewModel)
     }
-    composable("settings/floating-display") {
+    gatedComposable("settings/floating-display") {
         FloatingGlucoseSettingsScreen(navController, dashboardViewModel)
     }
-    composable("settings/aod-display") { AodSettingsScreen(navController) }
+    gatedComposable("settings/aod-display") { AodSettingsScreen(navController) }
 
-    composable("settings/turnserver") { tk.glucodata.ui.TurnServerSettingsScreen(navController) }
-    composable("settings/debug") { DebugSettingsScreen(navController) }
-    composable("settings/cgm-readiness") { CgmReadinessScreen(navController) }
-    composable("settings/app-updates") { AppUpdatesScreen(navController) }
-    composable("settings/alerts") { tk.glucodata.ui.alerts.AlertSettingsScreen(navController) }
-    composable("settings/alerts/talker") { tk.glucodata.ui.alerts.TalkerSettingsScreen(navController) }
-    composable("settings/journal") { JournalSettingsScreen(navController, dashboardViewModel) }
-    composable("settings/journal/calculations") { JournalCalculationsSettingsScreen(navController, dashboardViewModel) }
-    composable("settings/journal/entry-types") { JournalEntryTypesSettingsScreen(navController, dashboardViewModel) }
-    composable("settings/journal/history") {
+    gatedComposable("settings/turnserver") { tk.glucodata.ui.TurnServerSettingsScreen(navController) }
+    gatedComposable("settings/debug") { DebugSettingsScreen(navController) }
+    gatedComposable("settings/cgm-readiness") { CgmReadinessScreen(navController) }
+    gatedComposable("settings/app-updates") { AppUpdatesScreen(navController) }
+    gatedComposable("settings/alerts") { tk.glucodata.ui.alerts.AlertSettingsScreen(navController) }
+    gatedComposable("settings/alerts/talker") { tk.glucodata.ui.alerts.TalkerSettingsScreen(navController) }
+    gatedComposable("settings/journal") { JournalSettingsScreen(navController, dashboardViewModel) }
+    gatedComposable("settings/journal/calculations") { JournalCalculationsSettingsScreen(navController, dashboardViewModel) }
+    gatedComposable("settings/journal/entry-types") { JournalEntryTypesSettingsScreen(navController, dashboardViewModel) }
+    gatedComposable("settings/journal/history") {
         JournalSettingsHistoryRoute(
             dashboardViewModel = dashboardViewModel,
             navController = navController,
             onTriggerCalibration = onTriggerCalibration
         )
     }
-    composable("settings/journal/foods") { JournalFoodLibraryScreen(navController, dashboardViewModel) }
-    composable("settings/journal/insulin") { JournalInsulinLibraryScreen(navController, dashboardViewModel) }
-    composable("settings/calibrations") {
+    gatedComposable("settings/journal/foods") { JournalFoodLibraryScreen(navController, dashboardViewModel) }
+    gatedComposable("settings/journal/insulin") { JournalInsulinLibraryScreen(navController, dashboardViewModel) }
+    gatedComposable("settings/calibrations") {
         CalibrationListRoute(
             dashboardViewModel = dashboardViewModel,
             navController = navController,
             onTriggerCalibration = onTriggerCalibration
         )
     }
-    composable("settings/calibrations/model-table") {
+    gatedComposable("settings/calibrations/model-table") {
         CalibrationModelTableRoute(
             dashboardViewModel = dashboardViewModel,
             navController = navController,
             onTriggerCalibration = onTriggerCalibration
         )
     }
-    composable("calibrations") {
+    gatedComposable("calibrations") {
         CalibrationListRoute(
             dashboardViewModel = dashboardViewModel,
             navController = navController,
             onTriggerCalibration = onTriggerCalibration
         )
     }
-    composable("calibrations/model-table") {
+    gatedComposable("calibrations/model-table") {
         CalibrationModelTableRoute(
             dashboardViewModel = dashboardViewModel,
             navController = navController,

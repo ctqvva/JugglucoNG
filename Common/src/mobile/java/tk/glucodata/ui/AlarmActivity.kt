@@ -23,6 +23,7 @@ import tk.glucodata.Notify
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.alerts.AlertDisplayText
 import tk.glucodata.alerts.AlertRepository
+import tk.glucodata.alerts.AlertTestSample
 import tk.glucodata.alerts.AlertType
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.logic.TrendEngine
@@ -95,6 +96,25 @@ class AlarmActivity : ComponentActivity() {
 
         window.decorView.optOutOfForceDark()
         setContent {
+            // Full mode can end while the alarm is up (the app has been off screen past the
+            // grace); look again so Stop goes away rather than quietly snoozing.
+            val canStop = androidx.compose.runtime.remember {
+                androidx.compose.runtime.mutableStateOf(tk.glucodata.RestrictedMode.allowsAlarmStop())
+            }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                while (true) {
+                    kotlinx.coroutines.delay(1_000L)
+                    canStop.value = tk.glucodata.RestrictedMode.allowsAlarmStop()
+                }
+            }
+            // Read off the main thread; the trace draws itself in once it is here.
+            val trace = androidx.compose.runtime.produceState<AlarmTrace?>(null, model) {
+                value = if (showsTrace(model, customAlertId)) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadAlarmTrace(model) }
+                } else {
+                    null
+                }
+            }
             AlarmScreen(
                 primaryGlucose = model.primaryGlucose,
                 secondaryGlucose = model.secondaryGlucose,
@@ -109,14 +129,61 @@ class AlarmActivity : ComponentActivity() {
                     )
                     leaveAlarmScreen()
                 },
-                onDismiss = {
-                    tk.glucodata.alerts.AlertActions.handle(
-                        model.alertType?.id ?: Notify.resolveAlertKind(-1), customAlertId
-                    )
-                    leaveAlarmScreen()
-                }
+                onDismiss = if (canStop.value) {
+                    {
+                        tk.glucodata.alerts.AlertActions.handle(
+                            model.alertType?.id ?: Notify.resolveAlertKind(-1), customAlertId
+                        )
+                        leaveAlarmScreen()
+                    }
+                } else {
+                    null
+                },
+                trace = trace.value
             )
         }
+    }
+
+    /** Alarms about the glucose value get their past hours; signal, expiry and missed-reading alarms do not. */
+    private fun showsTrace(model: AlarmUiModel, customAlertId: String?): Boolean {
+        if (model.primaryGlucose == "---") return false
+        if (!customAlertId.isNullOrBlank()) return true
+        return model.alertType in TRACE_ALERT_TYPES
+    }
+
+    private fun loadAlarmTrace(model: AlarmUiModel): AlarmTrace? {
+        // Ends when the alarm was raised, not when the window reads it: a window opened late
+        // or recreated minutes on would otherwise end on a newer reading than its value.
+        val endMs = model.presentedAtMs
+        val startMs = endMs - TRACE_SPAN_MS
+        val isMmol = tk.glucodata.Applic.unit == 1
+        val points = try {
+            if (model.isTest) {
+                // A test's stretch: ends at the test value, arriving at the test's rate, so the
+                // curve, the value and the arrow tell one story. The live trace would end
+                // wherever glucose is now, nowhere near the alarm being tested.
+                val value = model.valueNumber ?: return null
+                val rate = model.trendResult.velocity.takeIf { it.isFinite() } ?: return null
+                AlertTestSample.trace(value, rate, isMmol, endMs, (TRACE_SPAN_MS / 60_000L).toInt())
+                    .map { (time, v) -> AlarmTracePoint(time, v) }
+            } else {
+                // Reaching back from now as far as the alarm's three hours go.
+                val sinceAlarm = (System.currentTimeMillis() - endMs).coerceAtLeast(0L)
+                Notify.alarmTracePoints(TRACE_SPAN_MS + sinceAlarm)
+                    .filter { it.timestamp >= startMs && it.timestamp <= endMs + TRACE_END_SLACK_MS }
+                    .map { AlarmTracePoint(it.timestamp, it.value) }
+            }
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "loadAlarmTrace", t)
+            return null
+        }
+        if (points.size < 2) return null
+        return AlarmTrace(
+            points = points,
+            startMs = startMs,
+            endMs = maxOf(endMs, points.last().timeMs),
+            minSpan = if (isMmol) 2f else 36f
+        )
     }
 
     private fun buildUiModel(intent: Intent): AlarmUiModel {
@@ -180,6 +247,12 @@ class AlarmActivity : ComponentActivity() {
 
         val timeText = DateFormat.getTimeFormat(this).format(System.currentTimeMillis())
         val snoozeMinutes = alertType?.let { AlertRepository.loadConfig(it).defaultSnoozeMinutes } ?: 15
+        val presentedAtMs = intent.getLongExtra(tk.glucodata.WearAlertSync.EXTRA_PRESENTED_AT_MS, 0L)
+            .takeIf { it > 0L } ?: System.currentTimeMillis()
+        val valueNumber = glucoseParts.firstOrNull()
+            ?.replace(decimalSeparator(), '.')
+            ?.replace(',', '.')
+            ?.toFloatOrNull()
 
         return AlarmUiModel(
             primaryGlucose = primaryGlucose,
@@ -190,7 +263,10 @@ class AlarmActivity : ComponentActivity() {
             trendResult = trendResult,
             timeText = timeText,
             alertType = alertType,
-            snoozeMinutes = snoozeMinutes
+            snoozeMinutes = snoozeMinutes,
+            valueNumber = valueNumber,
+            isTest = intent.getBooleanExtra(Notify.EXTRA_ALARM_TEST, false),
+            presentedAtMs = presentedAtMs
         )
     }
 
@@ -361,7 +437,16 @@ class AlarmActivity : ComponentActivity() {
         val trendResult: TrendEngine.TrendResult,
         val timeText: String,
         val alertType: AlertType?,
-        val snoozeMinutes: Int
+        val snoozeMinutes: Int,
+        /** The value as a number in the display unit, for drawing a test's trace to it. */
+        val valueNumber: Float? = null,
+        /** Opened by a test: the window draws the test's story rather than the live trace. */
+        val isTest: Boolean = false,
+        /**
+         * When the alarm was raised. Where its trace ends, and what makes a repeat of the same
+         * figure a new alarm, so its window reads the hours again instead of keeping the last.
+         */
+        val presentedAtMs: Long = 0L
     )
 
     companion object {
@@ -371,6 +456,15 @@ class AlarmActivity : ComponentActivity() {
         const val EXTRA_ALERT_TYPE_ID = "EXTRA_ALERT_TYPE_ID"
         const val EXTRA_RATE = "EXTRA_RATE"
         private const val ALARM_SCREEN_WAKE_HOLD_MS = 45_000L
+        /** As the notification chart: enough to see where the alarm came from. */
+        private const val TRACE_SPAN_MS = 3 * 60 * 60_000L
+        /** A reading stamped a moment after the alarm went up is still the one it fired on. */
+        private const val TRACE_END_SLACK_MS = 30_000L
+        private val TRACE_ALERT_TYPES = setOf(
+            AlertType.LOW, AlertType.VERY_LOW, AlertType.PRE_LOW,
+            AlertType.HIGH, AlertType.VERY_HIGH, AlertType.PRE_HIGH, AlertType.PERSISTENT_HIGH,
+            AlertType.FALLING_FAST, AlertType.RISING_FAST
+        )
         private const val LOG_ID = "AlarmActivity"
 
         fun createIntent(

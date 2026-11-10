@@ -94,6 +94,12 @@ private int authSlot;
         showtime=6*60*1000L;
     }
 
+    /** A G7/ONE+ connects for a few seconds per 5-minute reading, then hangs up. */
+    @Override
+    public boolean connectsPerReading() {
+        return true;
+    }
+
     static private byte[] lencode(int which, int code) {
         byte[] output = new byte[6];
         output[0] = 0x0b;

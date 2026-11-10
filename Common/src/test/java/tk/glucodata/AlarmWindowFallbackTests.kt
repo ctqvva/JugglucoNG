@@ -33,7 +33,7 @@ class AlarmWindowFallbackTests {
     @Test fun blockedWindowFallsBackToTheAlarmNotification() {
         schedule("low")
         runDelayed()
-        assertEquals(listOf("low"), posted)
+        assertEquals(listOf("low:real"), posted)
     }
 
     @Test fun shownWindowKeepsTheNotificationOff() {
@@ -63,7 +63,23 @@ class AlarmWindowFallbackTests {
         schedule("low")
         schedule("very low")
         runDelayed()
-        assertEquals(listOf("very low"), posted)
+        assertEquals(listOf("very low:real"), posted)
+    }
+
+    @Test fun aTestsFallbackStillOpensAsTheTest() {
+        // The fallback builds its full-screen intent after the test has finished marking
+        // its window; without the mark that window draws the live hours under a test value.
+        compiled.getMethod("scheduleTest", String::class.java).invoke(null, "low")
+        runDelayed()
+        assertEquals(listOf("low:test"), posted)
+    }
+
+    @Test fun aRealAlarmsFallbackIsNotMarkedAsATest() {
+        schedule("low")
+        runDelayed()
+        compiled.getMethod("scheduleTest", String::class.java).invoke(null, "high")
+        runDelayed()
+        assertEquals(listOf("low:real", "high:test"), posted)
     }
 
     companion object {
@@ -93,11 +109,13 @@ class AlarmWindowFallbackTests {
             }
             val code = listOf(
                 "private static final long ALARM_WINDOW_CONFIRM_MS",
-                "private static volatile int alarmWindowCheckGeneration"
+                "private static volatile int alarmWindowCheckGeneration",
+                "private static final ThreadLocal<Boolean> buildingTestAlarm"
             ).joinToString("\n", transform = ::field) + "\n" + listOf(
                 "public static void setAlarmUiVisible(boolean visible)",
                 "private static void supersedeAlarmWindowFallback()",
                 "private static void postAlarmNotificationUnlessWindowShows(Runnable postNotification)",
+                "private static void asTestAlarm(Runnable body)",
                 "public static void cancelAlertNotification()"
             ).joinToString("\n", transform = ::block)
             val dir = java.nio.file.Files.createTempDirectory("alarm-window").toFile().also { scratch = it }
@@ -108,6 +126,7 @@ class AlarmWindowFallbackTests {
                     public static List<Runnable> delayed = new ArrayList<>();
                     public static boolean alarmUiVisible;
                     static int presentedStandardAlertKind = -1;
+                    static boolean presentedCustomAlert;
                     static int glucosealarmid = 81432;
                     static boolean doLog = false;
                     static String LOG_ID = "test";
@@ -120,7 +139,13 @@ class AlarmWindowFallbackTests {
                     }
                     static final Handler alarmWindowCheckHandler = new Handler();
                     public static void schedule(String name) {
-                        postAlarmNotificationUnlessWindowShows(() -> posted.add(name));
+                        postAlarmNotificationUnlessWindowShows(() -> posted.add(marked(name)));
+                    }
+                    public static void scheduleTest(String name) {
+                        asTestAlarm(() -> postAlarmNotificationUnlessWindowShows(() -> posted.add(marked(name))));
+                    }
+                    static String marked(String name) {
+                        return name + (buildingTestAlarm.get() ? ":test" : ":real");
                     }
                     public static void runDelayed() {
                         List<Runnable> due = new ArrayList<>(delayed);

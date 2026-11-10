@@ -66,6 +66,24 @@ class ICanHealthOnboardingCandidateTests {
     }
 
     @Test
+    fun aNameThatMerelyStartsWithPIsNotAnICanDevice() {
+        // juggluco-trace-20261105-211359.log: the pet-spray `Petkit_K3` passed the name check
+        // only because of a bare "P" prefix and became the bound sensor address.
+        assertFalse(ICanHealthConstants.isICanHealthDevice("Petkit_K3"))
+        assertFalse(ICanHealthConstants.isICanHealthDevice("Pixel 7"))
+        // A real P-serial still matches through the P-serials regex, not the prefix.
+        assertTrue(ICanHealthConstants.isICanHealthDevice("P123456789ABC"))
+    }
+
+    @Test
+    fun unreachableOnboardingAddressIsDroppedOnlyAfterTheThreshold() {
+        val threshold = ICanHealthConstants.SILENT_CONNECT_TIMEOUTS_BEFORE_RECOVERY
+        assertTrue(threshold >= 2)
+        assertFalse(ICanHealthConstants.shouldDropUnreachableOnboardingAddress(threshold - 1))
+        assertTrue(ICanHealthConstants.shouldDropUnreachableOnboardingAddress(threshold))
+    }
+
+    @Test
     fun aNamedCandidateNeedsGattDiscoveryEvenWhenItsAdvertListsAnotherService() {
         val nus = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
         assertTrue(ICanHealthConstants.isICanHealthDevice("SatelliteOnline5885"))
@@ -128,5 +146,49 @@ class ICanHealthOnboardingCandidateTests {
     fun withoutAnOnboardingSnNoCandidateIsFilteredByName() {
         assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding(null, "iCGM-0123456789ABCDEF"))
         assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding("", "iCGM-0123456789ABCDEF"))
+    }
+
+    @Test
+    fun aFamilyNameRebindsAStaleKnownAddress() {
+        // `Sinocare CGM` carries no serial; the DIS serial read after connecting is the check.
+        assertTrue(
+            ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                knownAddress = "AA:BB:CC:DD:EE:01",
+                candidateAddress = "AA:BB:CC:DD:EE:02",
+                advertisedName = "Sinocare CGM",
+                savedIds = listOf("AAAABBBBCCCCDDDD"),
+                lastActivityMs = 0L,
+                nowMs = ICanHealthConstants.STALE_ADDRESS_REBIND_MS,
+            )
+        )
+    }
+
+    @Test
+    fun aFamilyRebindNeedsAStaleWindowAndSomethingToVerifyAgainst() {
+        val stale = ICanHealthConstants.STALE_ADDRESS_REBIND_MS
+        assertFalse(
+            ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02", "Sinocare CGM",
+                listOf("AAAABBBBCCCCDDDD"), 0L, stale - 1,
+            )
+        )
+        assertFalse(
+            ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02", "Sinocare CGM",
+                emptyList(), 0L, stale,
+            )
+        )
+        assertFalse(
+            ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:01", "Sinocare CGM",
+                listOf("AAAABBBBCCCCDDDD"), 0L, stale,
+            )
+        )
+        assertFalse(
+            ICanHealthConstants.shouldRebindStaleFamilyAddress(
+                "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02", "Galaxy Buds",
+                listOf("AAAABBBBCCCCDDDD"), 0L, stale,
+            )
+        )
     }
 }

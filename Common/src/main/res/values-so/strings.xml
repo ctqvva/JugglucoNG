@@ -655,6 +655,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="libreview_get_account_id">Hel aqoonsiga Koontada</string>
     <string name="libreview_status">Xaalada</string>
     <string name="libreview_russia">Gobolka Ruushka</string>
+    <string name="libreview_official_end">Ku jooji dhammaadka rasmiga ah ee sensor-ka</string>
+    <string name="libreview_official_end_desc">Ka tag saacadaha dheeraadka ah ee ka dambeeya dhammaadka rasmiga ah ee sensor-ka Libre 2</string>
     
     <string name="low_label">Hoose</string>
     <string name="high_label">Sare</string>
@@ -677,6 +679,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="reconnect_sensor_title">Dib u xidhid Sensor?</string>
     <string name="reconnect_sensor_desc">Tani waxay dib u dajin doontaa isku xidhka waxayna isku dayi doontaa in dib loo xidho.</string>
     <string name="reconnect">Dib u xidhidh</string>
+    <string name="ican_reset_bluetooth_binding">Dib u deji xiriirka Bluetooth (xogta way sii socotaa)</string>
     
     <string name="forget_sensor_title">Ma ilowdaa Dareemka?</string>
     <string name="forget_sensor_desc">Tani waxay ka saari doontaa dareenka liiska. Waxaa laga yaabaa inay dib u soo baxdo haddii mar kale la sawiro.</string>
@@ -864,16 +867,19 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     
     <string name="danger_zone">Aagga Khatarta</string>
     <string name="clear_history">Nadiifi Taariikhda</string>
-    <string name="clear_history_desc_long">Ka saar dhammaan akhrinta gulukooska. Lama soo celin karo</string>
-    <string name="clear_history_desc_short">Ka saar dhammaan akhrinta gulukooska xogta xogta</string>
-    <string name="clear_app_data">Nadiifi xogta App-ka</string>
-    <string name="clear_app_data_desc">Ka saar taariikhda iyo kaydinta, ilaali dejinta</string>
     <string name="factory_reset">Dib u habaynta Warshada</string>
     <string name="factory_reset_desc">Ka saar wax walba, ku noqo gobolka ugu horeeya</string>
-    <string name="factory_reset_alert">Ka saar wax walba. Lama soo celin karo!</string>
     <string name="factory_reset_confirm">Dib u habayn warshadeed?</string>
+    <string name="factory_reset_message">Waxay tirtirtaa dhammaan akhriska, qoraallada joornaalka, dareemayaasha iyo dejinta, iyo oggolaanshaha la bixiyay, kadibna waxay xiraysaa abka. Kormeerka gulukooska iyo digniinaha way istaagayaan ilaa aad mar kale dejiso dareemaha, lamana soo celin karo.</string>
+    <string name="factory_reset_action">Wax walba tirtir</string>
+    <string name="factory_reset_failed">Abka dib looma habayn karin</string>
     <string name="clean_history_confirm">Taariikhda tirtiri?</string>
-    <string name="clean_data_confirm">Masaar xogta Appka?</string>
+    <string name="clear_history_desc">Ka saar akhriska, qoraallada joornaalka ama labadaba</string>
+    <string name="clear_history_scope_readings">Waxay ka saaraysaa dhammaan akhriska gulukooska taleefankan, lamana soo celin karo. Joornaalka, dareemayaasha iyo dejinta way hadhayaan.</string>
+    <string name="clear_history_scope_journal">Waxay ka saaraysaa dhammaan qoraallada joornaalka, iyo Nightscout haddii halkaas lagu diray, lamana soo celin karo. Akhriska, noocyada insulin iyo dejinta way hadhayaan.</string>
+    <string name="clear_history_scope_both">Waxay ka saaraysaa dhammaan akhriska gulukooska iyo qoraallada joornaalka, iyo Nightscout haddii halkaas lagu diray, lamana soo celin karo. Dareemayaasha, noocyada insulin iyo dejinta way hadhayaan.</string>
+    <string name="clear_history_done">Taariikhda waa la nadiifiyay</string>
+    <string name="clear_history_failed">Taariikhda lama nadiifin karin</string>
     
     <string name="graph_smoothing_title">Simidda xogta</string>
     <string name="graph_smoothing_desc">Xogta jaantuska jilicsan iyo, ilaa garaaf kaliya oo siman aan la damin, qiimayaasha gulukoosta la xaliyay</string>
@@ -980,27 +986,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="import_history_title">Soo dejinta Taariikhda</string>
     <string name="import_history_sub">Soo celi akhrinta gulukooska dhoofinta JugglucoNG ama faylka CSV</string>
     
-    <string name="clear_history_title">Taariikhda tirtiri?</string>
-    <string name="clear_history_confirmation">Tani waxay ka saari doontaa dhammaan akhrinta gulukooska ee kaydka xogta. Tallaabadan lama noqon karo.</string>
     <string name="delete_reading_title">Ma tirtirtaa Akhriska?</string>
     <string name="delete_reading_confirmation">Ka saar akhriska gulukoosta taariikhda deegaanka. Tallaabadan lama noqon karo.</string>
-    <string name="clear_button">Cad</string>
     
-    <string name="clear_app_data_title">Masaar xogta Appka?</string>
-    <string name="clear_app_data_intro">Tani waxay meesha ka saari doontaa:</string>
-    <string name="all_glucose_readings">• Dhammaan akhrinta gulukooska</string>
-    <string name="cache_files">• Cache files</string>
-    <string name="sensor_data">• Xogta dareemayaasha</string>
-    <string name="all_settings">Dhammaan goobaha</string>
-    <string name="settings_preserved">Dejinta waa la ilaalin doonaa</string>
-    <string name="cannot_be_undone_warning">Tallaabadan lama noqon karo.</string>
-    <string name="clear_data_button">Nadiifi Xogta</string>
     
-    <string name="factory_reset_title">⚠️ Dib u habayn warshadeed?</string>
-    <string name="factory_reset_intro">Tani waxay meesha ka saaraysaa wax walba:</string>
-    <string name="factory_reset_outcome">Abka waxa uu ku noqon doona gobolka ugu horeeya</string>
-    <string name="cannot_be_undone_critical">Tan lama soo celin karo!</string>
-    <string name="reset_everything_button">Dib u habeyn wax walba</string>
     
     <string name="alert_sound">Digniin Dhawaaq</string>
     <string name="about_text">GPL-3.0 • Fargeeto Juggluco</string>
@@ -3471,4 +3460,93 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="tts_trend_decreasing">hoos u dhacaya</string>
     <string name="tts_trend_rising_quickly">si degdeg ah kor ugu kacaya</string>
     <string name="tts_trend_falling_quickly">si degdeg ah hoos ugu dhacaya</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Habka xaddidan</string>
+    <string name="restricted_mode_desc">Qarinaya dejimaha iyo kontaroolada</string>
+    <string name="restricted_full_mode_title">Hadda habka buuxa</string>
+    <string name="restricted_full_mode_desc">Habka xaddidan wuxuu soo laabanayaa daqiiqad kadib markaad ka baxdo app-ka, ama markaad xirto.</string>
+    <string name="restricted_lock_now">Hadda xir</string>
+    <string name="restricted_section_unlock">U gudub habka buuxa</string>
+    <string name="restricted_pin_title">PIN</string>
+    <string name="restricted_pin_set">Shidan · waa la weydiiyaa ka hor habka buuxa</string>
+    <string name="restricted_pin_not_set">Dansan · qof walba wuu u gudbi karaa habka buuxa</string>
+    <string name="restricted_biometric_title">Faraha ama wejiga</string>
+    <string name="restricted_biometric_desc">Sidoo kale ku fur biometric-ka taleefanka</string>
+    <string name="restricted_biometric_needs_pin">Marka hore deji PIN</string>
+    <string name="restricted_section_allowed">Waa la oggol yahay xilliga xaddidan</string>
+    <string name="restricted_section_available">Hadda la heli karo</string>
+    <string name="restricted_allow_sensor_change">Beddel dareemayaasha</string>
+    <string name="restricted_allow_sensor_change_desc">Ku dar dareeme cusub oo ka saar kii hore</string>
+    <string name="restricted_sensor_types_label">Dareemayaasha lagu dari karo</string>
+    <string name="restricted_sensor_types_none">Dooro ugu yaraan hal, haddii kale dareeme lama dari karo.</string>
+    <string name="restricted_handover_on">Wareejinta tooska ah ee dareemaha waa shidan tahay: dareemaha cusub ayaa la wareegaya marka kii hore dhammaado.</string>
+    <string name="restricted_handover_off">Wareejinta tooska ah ee dareemaha waa dansan tahay. Shid si dareemaha cusub ula wareego marka kii hore dhammaado.</string>
+    <string name="restricted_turn_on_handover">Shid wareejinta</string>
+    <string name="restricted_allow_journal">Qoraallada joornaalka</string>
+    <string name="restricted_allow_journal_desc">Ku dar oo wax ka beddel insulin, cunto iyo qoraallo</string>
+    <string name="restricted_allow_calibration_desc">Ku dar oo wax ka beddel cabbir-hagaajinta</string>
+    <string name="restricted_allow_alarm_stop">Jooji alaarmiyada</string>
+    <string name="restricted_allow_alarm_stop_desc">Marka la damiyo, alaarmiyada waa la dib u dhigi karaa oo keliya</string>
+    <string name="restricted_always_hidden">Dejimaha kale, dib-u-dejinta dareemaha, kontaroolada horumarsan iyo tirtirista xogta had iyo jeer waxay u baahan yihiin habka buuxa.</string>
+    <string name="restricted_pin_options_desc">Beddel PIN-ka, ama ka saar si habka buuxa hal taabasho ugu furmo.</string>
+    <string name="restricted_change_pin">Beddel PIN</string>
+    <string name="restricted_remove_pin">Ka saar PIN</string>
+    <string name="restricted_use_biometric">Isticmaal faraha ama wejiga</string>
+    <string name="restricted_unlock_title">U gudub habka buuxa</string>
+    <string name="restricted_unlock_desc">Dejimaha iyo dhammaan kontaroolada dareemaha ayaa furmaya. Waxay xirmayaan hal daqiiqo ka dib markaad ka baxdo app-ka.</string>
+    <string name="restricted_unlock_desc_pin">Geli PIN-ka si aad u furto dejimaha iyo dhammaan kontaroolada dareemaha. Waxay xirmayaan hal daqiiqo ka dib markaad ka baxdo app-ka.</string>
+    <string name="restricted_needs_full_mode">Marka hore u gudub habka buuxa ee Dejimaha.</string>
+    <string name="restricted_wrong_pin">PIN khaldan</string>
+    <string name="restricted_pin_locked_out">Isku day badan · sug %1$s</string>
+    <string name="restricted_choose_pin">Dooro PIN</string>
+    <string name="restricted_confirm_pin">Mar kale geli PIN-ka</string>
+    <string name="restricted_choose_pin_desc">%1$d ilaa %2$d lambar</string>
+    <string name="restricted_pin_mismatch">PIN-yadu isma waafaqin. Mar kale dooro PIN.</string>
+    <string name="restricted_delete_digit">Tirtir lambarka</string>
+    <string name="restricted_disconnect_desc">Taleefankani wuu joojinayaa akhrinta dareemaha. Akhrisyadii hore waa la hayaa.</string>
+    <string name="restricted_sensors_locked">Ku darista dareeme waxay u baahan tahay habka buuxa.</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d lambar ayaa la geliyay</item>
+        <item quantity="other">%d lambar ayaa la geliyay</item>
+    </plurals>
+    <string name="restricted_sensor_ends_soon">In ka yar saacad ayaa hartay</string>
+    <string name="restricted_sensor_ended">Wuu dhammaaday</string>
+    <plurals name="restricted_sensor_ends_in_days">
+        <item quantity="one">%d maalin ayaa hartay</item>
+        <item quantity="other">%d maalmood ayaa hartay</item>
+    </plurals>
+    <plurals name="restricted_sensor_ends_in_hours">
+        <item quantity="one">%d saac ayaa hartay</item>
+        <item quantity="other">%d saacadood ayaa hartay</item>
+    </plurals>
+    <string name="restricted_section_settings">Dejimaha furan inta la xaddidan yahay</string>
+    <string name="restricted_allow_alarm_settings_desc">Beddel heerarka iyo codadka, ama dami digniinaha</string>
+    <string name="restricted_allow_voice_desc">Akhrinta iyo alaarmiyada codka ah</string>
+    <string name="restricted_allow_display_desc">Xadka bartilmaameedka, jaantusyada, ogeysiisyada, sonkorta sabaynaysa iyo shaashadda quful</string>
+    <string name="lumiflex_remove_follower_confirm">Ma ka qaadaysaa %1$s xaqa gelitaanka cabbirradaada?</string>
+    <string name="lumiflex_discard_changes_title">Ma tirtiraysaa isbeddellada?</string>
+    <string name="lumiflex_discard_changes_message">Isbeddellada qofkan ku raacaya lama kaydin.</string>
+    <string name="lumiflex_follower_alerts">Ogeysiisyada qofka ku raacaya</string>
+    <string name="lumiflex_follow_mode">Hel</string>
+    <string name="lumiflex_upload_mode">Dir</string>
+    <string name="lumiflex_follow_subtitle">Ka hel gulukoosta Lumiflex</string>
+    <string name="lumiflex_follow_refreshing">Cabbirrada waa la helayaa</string>
+    <string name="lumiflex_follow_current">Cabbirrada waa la helay</string>
+    <string name="lumiflex_follow_failed">Cabbirrada lama heli karin</string>
+    <string name="lumiflex_no_providers">Ma jiraan akoonno la wadaagay. Ka codso milkiilaha dareemaha inuu akoonkaaga ku daro raace ahaan.</string>
+    <string name="lumiflex_follow_refresh">Cusboonaysii</string>
+    <!-- Voice readings quick controls (#840) -->
+    <string name="voice_readings">Akhrinta codka</string>
+    <string name="voice_turn_off">Dami codka</string>
+    <string name="voice_turn_on">Shid codka</string>
+    <string name="voice_every_reading">Akhris kasta</string>
+    <string name="voice_every_minutes">%1$d daqiiqo kasta</string>
+    <string name="voice_resumes_at">Laga bilaabo %1$s</string>
+    <string name="voice_quick_dashboard">Ku muuji dashboard-ka</string>
+    <string name="voice_quick_dashboard_desc">Furaha xagga sare ee jaantuska</string>
+    <string name="voice_quick_notification">Ku muuji ogeysiiska</string>
+    <string name="voice_quick_notification_desc">Badhanka codka ee ogeysiiska gulukoosta</string>
+    <string name="aidex_keys_before_connect">Soo geli ama codso furayaasha dareemahan ka hor intaadan isku xidhin.</string>
+    <string name="aidex_delete_keys_message">Ma ka tirtiraysaa taleefankan furayaasha isku lammaaninta ee loo kaydiyey %1$s? Marka hore dhoofi haddii aad mar kale u baahan karto.</string>
 </resources>

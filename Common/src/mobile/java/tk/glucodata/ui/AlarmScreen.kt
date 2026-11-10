@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package tk.glucodata.ui
 
 import android.content.Context
@@ -10,6 +12,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
@@ -32,14 +35,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.TrendingDown
-import androidx.compose.material.icons.automirrored.rounded.TrendingFlat
-import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -54,7 +56,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -62,13 +63,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
-import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.logic.TrendEngine
 import tk.glucodata.ui.components.TrendIndicator
@@ -77,14 +78,17 @@ import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 
 enum class AlarmSeverity { LOW, HIGH, NEUTRAL }
 
-private const val ALARM_MOTION_ACTIVE_MS = 8_000L
+/**
+ * How long the alarm's motion runs: as long as the window keeps the screen awake
+ * (AlarmActivity's wake hold), then everything holds still so a screen left on the
+ * lockscreen stops redrawing.
+ */
+private const val ALARM_MOTION_ACTIVE_MS = 45_000L
 
 private enum class TrendDirection { UP, DOWN, FLAT, UNKNOWN }
 
 private data class Trend(
     val direction: TrendDirection,
-    val icon: ImageVector?,
-    val label: String,
     val verticalSign: Int
 )
 
@@ -103,12 +107,20 @@ fun AlarmScreen(
     trendResult: TrendEngine.TrendResult,
     timeText: String,
     onSnooze: () -> Unit,
-    onDismiss: () -> Unit
+    /** Null on a restricted phone that may only snooze: Snooze becomes the main action. */
+    onDismiss: (() -> Unit)?,
+    /** The past three hours under the value, for alarms about glucose; null draws none. */
+    trace: AlarmTrace? = null
 ) {
     val colorScheme = remember(severity) { severityColorScheme(severity) }
     val trend = remember(trendResult) { resolveTrend(trendResult) }
 
-    MaterialTheme(colorScheme = colorScheme, typography = AppTypography) {
+    // Expressive motion, as in the app: the trace and the buttons move on its springs.
+    MaterialExpressiveTheme(
+        colorScheme = colorScheme,
+        motionScheme = MotionScheme.expressive(),
+        typography = AppTypography
+    ) {
         val typographyChoice = rememberAlarmTypographyChoice()
         PixelAlarmContent(
             primaryGlucose = primaryGlucose,
@@ -117,6 +129,7 @@ fun AlarmScreen(
             trend = trend,
             trendResult = trendResult,
             typographyChoice = typographyChoice,
+            trace = trace,
             onSnooze = onSnooze,
             onDismiss = onDismiss
         )
@@ -131,8 +144,9 @@ private fun PixelAlarmContent(
     trend: Trend,
     trendResult: TrendEngine.TrendResult,
     typographyChoice: AlarmTypographyChoice,
+    trace: AlarmTrace?,
     onSnooze: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: (() -> Unit)?
 ) {
     BackHandler(enabled = true) {}
 
@@ -211,7 +225,19 @@ private fun PixelAlarmContent(
                         )
                     }
 
-                    Spacer(modifier = Modifier.weight(if (compact) 0.58f else 0.68f))
+                    // With a trace below it the value sits higher, so the two read as one block.
+                    // The trace is read off the main thread and can land after the screen is
+                    // up, so the value glides there rather than jumping.
+                    val aboveHero by animateFloatAsState(
+                        targetValue = when {
+                            trace != null -> if (compact) 0.36f else 0.44f
+                            compact -> 0.58f
+                            else -> 0.68f
+                        },
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>(),
+                        label = "alarm-hero-lift"
+                    )
+                    Spacer(modifier = Modifier.weight(aboveHero))
 
                     AnimatedVisibility(
                         visible = visible,
@@ -227,6 +253,25 @@ private fun PixelAlarmContent(
                             motionActive = motionActive,
                             arrowScale = arrowScale,
                             modifier = Modifier.offset { IntOffset(0, heroOffsetY.roundToInt()) }
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = trace != null,
+                        // No clip: the line reaches past the column's sides and the ripples past its height.
+                        enter = expandVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), clip = false) +
+                            fadeIn(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec())
+                    ) {
+                        val shown = trace ?: return@AnimatedVisibility
+                        AlarmTraceLine(
+                            trace = shown,
+                            motionActive = motionActive,
+                            modifier = Modifier
+                                .padding(top = 8.dp)
+                                // Edge to edge: out through the column's 24dp sides.
+                                .bleedHorizontally(24.dp)
+                                .fillMaxWidth()
+                                .height(if (compact) 112.dp else 144.dp)
                         )
                     }
 
@@ -279,7 +324,8 @@ private fun AlarmHeader(
                     fontFamily = fontFamily,
                     fontSize = titleFontSize,
                     lineHeight = titleLineHeight,
-                    fontWeight = FontWeight.W100,
+                    // A step up from hairline: the alarm's name has to read at arm's length.
+                    fontWeight = FontWeight.W300,
                     letterSpacing = 0.sp
                 ),
                 color = MaterialTheme.colorScheme.onSurface,
@@ -331,15 +377,14 @@ private fun HeroBlock(
     } else {
         0f
     }
-    val arrowOffsetX = when (trend.direction) {
-        TrendDirection.FLAT -> motionPhase * if (compact) 6f else 8f
-        TrendDirection.UNKNOWN -> 0f
-        else -> 0f
+    // The arrow moves along the way it points: a 45-degree arrow bobbing straight up and down
+    // (or a flat one sliding sideways while tilted) contradicts its own direction.
+    val arrowAngle = remember(trendResult.velocity) {
+        Math.toRadians(tk.glucodata.TrendArrowAngle.rotationDegrees(trendResult.velocity).toDouble())
     }
-    val arrowOffsetY = when (trend.direction) {
-        TrendDirection.UP, TrendDirection.DOWN -> motionPhase * trend.verticalSign * (if (compact) 7f else 9f)
-        else -> 0f
-    }
+    val bob = if (trend.direction == TrendDirection.UNKNOWN) 0f else motionPhase * if (compact) 7f else 9f
+    val arrowOffsetX = bob * kotlin.math.cos(arrowAngle).toFloat()
+    val arrowOffsetY = bob * kotlin.math.sin(arrowAngle).toFloat()
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -411,7 +456,7 @@ private fun HeroBlock(
 private fun ActionDock(
     compact: Boolean,
     onSnooze: () -> Unit,
-    onDismiss: () -> Unit,
+    onDismiss: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -426,33 +471,37 @@ private fun ActionDock(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            BoxWithConstraints(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                // A share of the dock at least, and as wide as its label needs: on a
-                // narrow (low-dp) screen a fixed share was too small and broke the word.
-                FilledTonalButton(
-                    onClick = onSnooze,
-                    modifier = Modifier
-                        .widthIn(min = maxWidth * if (compact) 0.42f else 0.36f, max = maxWidth)
-                        .heightIn(min = if (compact) 58.dp else 62.dp),
-                    shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
-                    contentPadding = PaddingValues(horizontal = 24.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            if (onDismiss != null) {
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterEnd
                 ) {
-                    Text(
-                        text = stringResource(R.string.snooze),
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    // Half of Stop at least, and as wide as its label needs: on a narrow
+                    // (low-dp) screen a fixed share was too small and broke the word.
+                    FilledTonalButton(
+                        onClick = onSnooze,
+                        modifier = Modifier
+                            .widthIn(min = maxWidth * 0.5f, max = maxWidth)
+                            .heightIn(min = if (compact) 58.dp else 62.dp),
+                        shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
+                        contentPadding = PaddingValues(horizontal = 24.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.snooze),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
                 }
             }
 
+            // The one large button stops the alarm; where stopping is not allowed it
+            // snoozes, with the same weight, so the alarm is still answered in one tap.
             Button(
-                onClick = onDismiss,
+                onClick = onDismiss ?: onSnooze,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = if (compact) 82.dp else 90.dp),
@@ -464,7 +513,7 @@ private fun ActionDock(
                 )
             ) {
                 Text(
-                    text = stringResource(R.string.stop),
+                    text = stringResource(if (onDismiss != null) R.string.stop else R.string.snooze),
                     style = MaterialTheme.typography.headlineSmall.copy(
                         letterSpacing = (-0.1).sp
                     )
@@ -558,22 +607,21 @@ private fun severityColorScheme(severity: AlarmSeverity) = when (severity) {
 private fun resolveTrend(trendResult: TrendEngine.TrendResult): Trend {
     val velocity = trendResult.velocity
     if (!velocity.isFinite() || trendResult.state == TrendEngine.TrendState.Unknown) {
-        return Trend(TrendDirection.UNKNOWN, null, "", 0)
+        return Trend(TrendDirection.UNKNOWN, 0)
     }
 
-    val label = Natives.getxDripTrendName(velocity)
     return when (trendResult.state) {
         TrendEngine.TrendState.DoubleUp,
         TrendEngine.TrendState.SingleUp,
-        TrendEngine.TrendState.FortyFiveUp -> Trend(TrendDirection.UP, Icons.AutoMirrored.Rounded.TrendingUp, label, -1)
+        TrendEngine.TrendState.FortyFiveUp -> Trend(TrendDirection.UP, -1)
 
-        TrendEngine.TrendState.Flat -> Trend(TrendDirection.FLAT, Icons.AutoMirrored.Rounded.TrendingFlat, label, 0)
+        TrendEngine.TrendState.Flat -> Trend(TrendDirection.FLAT, 0)
 
         TrendEngine.TrendState.FortyFiveDown,
         TrendEngine.TrendState.SingleDown,
-        TrendEngine.TrendState.DoubleDown -> Trend(TrendDirection.DOWN, Icons.AutoMirrored.Rounded.TrendingDown, label, 1)
+        TrendEngine.TrendState.DoubleDown -> Trend(TrendDirection.DOWN, 1)
 
-        TrendEngine.TrendState.Unknown -> Trend(TrendDirection.UNKNOWN, null, "", 0)
+        TrendEngine.TrendState.Unknown -> Trend(TrendDirection.UNKNOWN, 0)
     }
 }
 
@@ -598,10 +646,10 @@ private fun adaptiveAlarmTitleSize(
     availableWidth: Dp
 ) = (
     when {
-        availableWidth < 280.dp -> 52
-        availableWidth < 320.dp -> 58
-        availableWidth < 360.dp -> 64
-        else -> 70
+        availableWidth < 280.dp -> 58
+        availableWidth < 320.dp -> 64
+        availableWidth < 360.dp -> 72
+        else -> 80
     } -
         (if (compact) 4 else 0) -
         when ((words.maxOfOrNull { it.length } ?: 0)) {
@@ -616,4 +664,17 @@ private fun adaptiveAlarmTitleSize(
             words.size >= 2 -> 3
             else -> 0
         }
-    ).coerceAtLeast(40).sp
+    ).coerceAtLeast(44).sp
+
+/** Lays the content out [side] wider on each end than its slot, reaching through the parent's padding. */
+private fun Modifier.bleedHorizontally(side: Dp) = layout { measurable, constraints ->
+    val sidePx = side.roundToPx()
+    val wide = constraints.copy(
+        minWidth = constraints.minWidth + sidePx * 2,
+        maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + sidePx * 2 else constraints.maxWidth
+    )
+    val placeable = measurable.measure(wide)
+    layout(placeable.width - sidePx * 2, placeable.height) {
+        placeable.place(-sidePx, 0)
+    }
+}

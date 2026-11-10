@@ -406,7 +406,19 @@ struct Tings {
   int32_t reserved3;
   float64_t loadtime;
   uint32_t glucoseMeterNR;
-  uint32_t reserved4;
+  // Was `uint32_t reserved4`: zero in every settings file written so far, upstream's
+  // included. It keeps its size and place so the mmap'd layout does not move; bit 0 is
+  // "LibreView: stop at the sensor's official end", so a file written before it existed
+  // reads as off and uploads keep covering the sensor's grace hours.
+  uint32_t libreviewFlags;
+  static constexpr uint32_t libreviewOfficialEndBit = 1u;
+  bool libreviewOfficialEnd() const {
+    return libreviewFlags & libreviewOfficialEndBit;
+  }
+  void setLibreviewOfficialEnd(bool on) {
+    libreviewFlags = on ? (libreviewFlags | libreviewOfficialEndBit)
+                        : (libreviewFlags & ~libreviewOfficialEndBit);
+  }
   GlucoseMeter glucosemeters[maxglucosemeters];
 
   template <typename Self> auto *getGlucoseMeter(this Self &&self, int index) {

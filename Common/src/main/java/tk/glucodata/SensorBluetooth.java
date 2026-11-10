@@ -75,6 +75,13 @@ public class SensorBluetooth {
 
     public static SensorBluetooth blueone = null;
 
+    /**
+     * True once {@link #start} brought this instance up with Bluetooth on.
+     * {@link #syncNativeDevicesNoBluetooth} also creates or reuses an instance, as a
+     * holder for sensor records only, and it never connects anything.
+     */
+    public volatile boolean bluetoothStarted = false;
+
     public static void startscan() {
         if (blueone != null)
             blueone.scanStarter(0L);
@@ -854,7 +861,7 @@ public class SensorBluetooth {
     private static void onMainSensorCleared() {
         try {
             Notify.stoplossalarm();
-            GlucoseWidget.update();
+            GlucoseUpdateBroadcaster.sendNow();
             UiRefreshBus.requestDataRefresh();
         } catch (Throwable t) {
             Log.stack(LOG_ID, "onMainSensorCleared", t);
@@ -899,7 +906,13 @@ public class SensorBluetooth {
                 addReplacementCandidate(candidates, seen, cb.SerialNumber, removedSerial);
             }
         }
-        return candidates.isEmpty() ? null : candidates.get(0);
+        String resolvedMain = null;
+        try {
+            resolvedMain = SensorIdentity.resolveMainSensor();
+        } catch (Throwable t) {
+            Log.e(LOG_ID, "resolveReplacementSensorSerial resolveMainSensor failed: " + t.getMessage());
+        }
+        return SensorIdentity.pickReplacementSensor(candidates, resolvedMain, removedSerial);
     }
 
     public static String resolveReplacementSensorSerial(String removedSerial) {
@@ -914,7 +927,7 @@ public class SensorBluetooth {
         if (removedSerial == null || removedSerial.isEmpty()) {
             return;
         }
-        if (!SensorIdentity.lostMainRole(SensorIdentity.resolveMainSensor(), removedSerial)) {
+        if (!SensorIdentity.lostMainRole(removedSerial)) {
             return;
         }
         final String replacement = resolveReplacementSensorSerial(removedSerial, preferredCandidates);
@@ -958,6 +971,9 @@ public class SensorBluetooth {
                     gatt = gattcallbacks.get(i);
                     gatt.stopHealth = false;
                 }
+                // Only now does the roster stop naming it. A redraw before this could still
+                // resolve the removed sensor, and a replacement has no reading to trigger one.
+                GlucoseUpdateBroadcaster.sendNow();
                 return;
             } else {
                 gatt.stopHealth = false;
@@ -1253,10 +1269,11 @@ public class SensorBluetooth {
             }
             Natives.setmaxsensors(gattcallbacks.size());
         }
-        if (SensorIdentity.lostMainRole(SensorIdentity.resolveMainSensor(), sensorId)) {
+        if (SensorIdentity.lostMainRole(sensorId)) {
             final String replacement = resolveReplacementSensorSerial(sensorId);
             setCurrentSensorSelection(replacement != null ? replacement : "");
         }
+        GlucoseUpdateBroadcaster.sendNow();
     }
 
     // --- KOTLIN SENSORS (AiDex) SUPPORT ---
@@ -1328,6 +1345,7 @@ public class SensorBluetooth {
             if (blueone == null) {
                 blueone = new tk.glucodata.SensorBluetooth();
             }
+            blueone.bluetoothStarted = false;
             if (blueone.mBluetoothManager != null) {
                 blueone.stopScan(false);
             }
@@ -1384,6 +1402,23 @@ public class SensorBluetooth {
             return managed.matchesManagedSensorId(sensorId);
         }
         return false;
+    }
+
+    /**
+     * Why a driver with a native record is being removed: native no longer lists
+     * its sensor. A working sensor removed this way leaves the app altogether
+     * (#872), so the log says which check dropped it.
+     */
+    private static String removalReason(SuperGattCallback callback) {
+        if (callback == null || callback.dataptr == 0L || callback.SerialNumber == null) {
+            return "";
+        }
+        try {
+            final String why = Natives.activeSensorReason(callback.SerialNumber);
+            return why == null ? "" : ": native " + why;
+        } catch (Throwable t) {
+            return "";
+        }
     }
 
     private static int consumeMatchingDeviceIds(String[] sensors, SuperGattCallback callback) {
@@ -1575,14 +1610,11 @@ public class SensorBluetooth {
 
             for (int el = rem.size() - 1; el >= 0; el--) {
                 int weg = rem.get(el);
-                final String removedSerial = gattcallbacks.get(weg).SerialNumber;
-                {
-                    if (doLog) {
-                        Log.i(LOG_ID, "remove " + removedSerial);
-                    }
-                    ;
+                final SuperGattCallback removed = gattcallbacks.get(weg);
+                final String removedSerial = removed.SerialNumber;
+                if (doLog) {
+                    Log.i(LOG_ID, "remove " + removedSerial + removalReason(removed));
                 }
-                ;
                 gattcallbacks.get(weg).free();
                 gattcallbacks.remove(weg);
                 rehomeCurrentSensorAfterRemoval(removedSerial, allDevs);
@@ -1980,6 +2012,7 @@ public class SensorBluetooth {
                     blueone.addPersistedManagedCallbacks();
                 }
             }
+            if (blueone != null) blueone.bluetoothStarted = true;
         }
     }
 

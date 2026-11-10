@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import tk.glucodata.ui.restricted.sensorLifeFill
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -159,7 +160,7 @@ private fun BadgeLabel(
  * every card's name starts on the same x, tinted with the sensor's colour.
  */
 @Composable
-private fun SensorModelBadge(
+internal fun SensorModelBadge(
     badge: SensorBadge,
     vendor: SensorVendor,
     color: Color,
@@ -222,10 +223,13 @@ private fun SensorIdentityControl(
     color: Color,
     onToggle: () -> Unit,
     onPickColor: () -> Unit,
+    colorPickable: Boolean = true,
+    life: tk.glucodata.ui.restricted.SensorLife? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
-        val leadShape = ConnectedButtonShapes.Leading
+        // Alone (no colour segment beside it) the name is a whole pill.
+        val leadShape = if (colorPickable) ConnectedButtonShapes.Leading else RoundedCornerShape(percent = 50)
         Row(
             modifier = Modifier
                 .weight(1f)
@@ -233,6 +237,7 @@ private fun SensorIdentityControl(
                 .clip(leadShape)
                 .background(
                     when {
+                        life != null -> life.containerColor
                         // Nothing to toggle with one sensor, so the name sits on the same
                         // quiet surface as the reading chip instead of looking pressable.
                         !selectable -> MaterialTheme.colorScheme.surfaceContainer
@@ -240,6 +245,7 @@ private fun SensorIdentityControl(
                         else -> MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
                     }
                 )
+                .then(if (life != null) Modifier.sensorLifeFill(life) else Modifier)
                 .then(
                     if (selectable) {
                         Modifier.toggleable(
@@ -251,7 +257,7 @@ private fun SensorIdentityControl(
                         Modifier
                     }
                 )
-                .padding(start = 12.dp, end = 12.dp),
+                .padding(start = 12.dp, end = if (life != null) 16.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (selectable) {
@@ -272,25 +278,31 @@ private fun SensorIdentityControl(
             SensorNameText(
                 name = name,
                 muted = selectable && !selected,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f, fill = life != null),
             )
+            if (life != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                tk.glucodata.ui.restricted.SensorLifeDays(life)
+            }
         }
-        Spacer(modifier = Modifier.width(2.dp))
-        Box(
-            modifier = Modifier
-                .width(40.dp)
-                .fillMaxHeight()
-                .clip(ConnectedButtonShapes.Trailing)
-                .background(color.copy(alpha = 0.12f))
-                .clickable(onClick = onPickColor),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Default.ShowChart,
-                contentDescription = stringResource(R.string.sensor_color_title),
-                tint = color,
-                modifier = Modifier.size(18.dp),
-            )
+        if (colorPickable) {
+            Spacer(modifier = Modifier.width(2.dp))
+            Box(
+                modifier = Modifier
+                    .width(40.dp)
+                    .fillMaxHeight()
+                    .clip(ConnectedButtonShapes.Trailing)
+                    .background(color.copy(alpha = 0.12f))
+                    .clickable(onClick = onPickColor),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ShowChart,
+                    contentDescription = stringResource(R.string.sensor_color_title),
+                    tint = color,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }
@@ -397,12 +409,36 @@ private fun SensorCurrentValueChip(
     }
 }
 
+/**
+ * When the sensor's wear ends, for the lifetime fill and the restricted card's dates: AiDex
+ * trusts its official end, the others their expected end, and without either the rated
+ * wear (AiDex by model, 15 days) or 14 days from the start.
+ */
+internal fun tk.glucodata.ui.viewmodel.SensorInfo.lifetimeEndMs(): Long = when {
+    isAidex && officialEndMs > 0 -> officialEndMs
+    !isAidex && expectedEndMs > 0 -> expectedEndMs
+    officialEndMs > 0 -> officialEndMs
+    isAidex -> {
+        val days = tk.glucodata.drivers.aidex.native.protocol.AiDexWearProfile
+            .ratedDays(vendorModel) ?: 15
+        startMs + (days.toLong() * 24 * 3600 * 1000)
+    }
+    else -> startMs + (14L * 24 * 3600 * 1000)
+}
+
 @Composable
 fun SensorCard(
     sensor: tk.glucodata.ui.viewmodel.SensorInfo,
     viewModel: tk.glucodata.ui.viewmodel.SensorViewModel,
     sensorCount: Int = 1,
     onNavigateToMqAccount: () -> Unit = {},
+    /**
+     * Restricted mode: the same card with only what describes the sensor — name, status,
+     * newest reading, the dashboard's day of wear and fill, start and end — and no controls, except Disconnect when
+     * [allowDisconnect] (the adult allowed sensor changes).
+     */
+    restricted: Boolean = false,
+    allowDisconnect: Boolean = false,
 ) {
     val context = LocalContext.current
     var showTerminateDialog by remember { mutableStateOf(false) }
@@ -419,6 +455,7 @@ fun SensorCard(
     var showReconnectDialog by remember { mutableStateOf(false) }
     var showWipeDialog by remember { mutableStateOf(false) }
     var wipeDataChecked by remember { mutableStateOf(false) }
+    var rePairChecked by remember { mutableStateOf(false) }
     var removeHistoryChecked by remember { mutableStateOf(false) }
     // Ottai: Disconnect keeps the credentials and the account binding unless this is chosen.
     var forgetOttaiChecked by remember { mutableStateOf(false) }
@@ -479,6 +516,34 @@ fun SensorCard(
         }
     }
     var pendingAiDexKeyBackup by remember { mutableStateOf<String?>(null) }
+    // Restricted again with a full-card dialog or sheet still open (the app came back after
+    // the grace): close it, since its controls need full mode.
+    LaunchedEffect(restricted) {
+        if (!restricted) return@LaunchedEffect
+        showTerminateDialog = false
+        showForgetDialog = false
+        showResetDialog = false
+        showDexcomSlotDialog = false
+        showClearAllDialog = false
+        showUnifiedResetDialog = false
+        showReconnectDialog = false
+        showWipeDialog = false
+        showSibionicsCalSheet = false
+        showAiDexAlgorithmSheet = false
+        showColorSheet = false
+        showAiDexClearDialog = false
+        showSensorCalibrateDialog = false
+        showAnytimeClearCalibrationDialog = false
+        showAnytimeHistoryDialog = false
+        showAnytimeCredentialBackupDialog = false
+        showAiDexUnpairDialog = false
+        showAiDexKeyBackupDialog = false
+        showAiDexKeyDeleteConfirm = false
+        showMqRestoreSheet = false
+        showMqCalibrationSheet = false
+        pendingAnytimeCredentialBackup = null
+        pendingAiDexKeyBackup = null
+    }
     val aiDexKeyExportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/plain")
     ) { uri ->
@@ -758,6 +823,7 @@ fun SensorCard(
             onDismissRequest = {
                 showReconnectDialog = false
                 wipeDataChecked = false
+                rePairChecked = false
             },
             title = { Text(stringResource(R.string.reconnect_sensor_title)) },
             text = {
@@ -771,13 +837,27 @@ fun SensorCard(
                         )
                         Text(stringResource(R.string.wipe_data))
                     }
+                    if (sensor.isIcan) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = rePairChecked,
+                                onCheckedChange = { rePairChecked = it }
+                            )
+                            Text(stringResource(R.string.ican_reset_bluetooth_binding))
+                        }
+                    }
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.reconnectSensor(sensor.serial, wipeDataChecked)
+                    if (sensor.isIcan && rePairChecked) {
+                        viewModel.rePairSensor(sensor.serial)
+                    } else {
+                        viewModel.reconnectSensor(sensor.serial, wipeDataChecked)
+                    }
                     showReconnectDialog = false
                     wipeDataChecked = false
+                    rePairChecked = false
                 },
                     shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.reconnect)) }
@@ -786,6 +866,7 @@ fun SensorCard(
                 TextButton(onClick = {
                     showReconnectDialog = false
                     wipeDataChecked = false
+                    rePairChecked = false
                 },
                     shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
@@ -1861,17 +1942,7 @@ fun SensorCard(
         // --- Dynamic Background Logic ---
         val now = System.currentTimeMillis()
         val start = sensor.startMs
-        val end = when {
-            sensor.isAidex && sensor.officialEndMs > 0 -> sensor.officialEndMs
-            !sensor.isAidex && sensor.expectedEndMs > 0 -> sensor.expectedEndMs
-            sensor.officialEndMs > 0 -> sensor.officialEndMs
-            sensor.isAidex -> {
-                val days = tk.glucodata.drivers.aidex.native.protocol.AiDexWearProfile
-                    .ratedDays(sensor.vendorModel) ?: 15
-                start + (days.toLong() * 24 * 3600 * 1000)
-            }
-            else -> start + (14L * 24 * 3600 * 1000)
-        }
+        val end = sensor.lifetimeEndMs()
         
         val totalDuration = (end - start).coerceAtLeast(1) // Avoid div/0
         val usedDuration = (now - start).coerceAtLeast(0)
@@ -1889,7 +1960,8 @@ fun SensorCard(
             // 1. Dynamic Fill Layer
             // FIX: Only show fill if start date is valid (> Jan 1 2020)
             // Prevents "100% Red Fill" bug when startMs is 0 or invalid (1970).
-            if (sensor.startMs > 1577836800000L) {
+            // Restricted, the fill lives in the name's pill instead.
+            if (sensor.startMs > 1577836800000L && !restricted) {
                  Box(
                     modifier = Modifier
                         .fillMaxHeight()
@@ -1919,6 +1991,7 @@ fun SensorCard(
                         sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand)
                     }
                     val canToggleEnabled = sensorCount > 1
+                    val restrictedLife = if (restricted) tk.glucodata.ui.restricted.sensorLife(sensor) else null
 
                     // Identity and the controls that belong to it stay together on the left; the
                     // pause button is the one thing pinned to the far edge.
@@ -1940,18 +2013,22 @@ fun SensorCard(
                         SensorIdentityControl(
                             name = displayName,
                             selected = sensor.isSelectedForDisplay,
-                            selectable = canToggleEnabled,
+                            selectable = canToggleEnabled && !restricted,
                             color = sensorTint,
                             onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
                             onPickColor = { showColorSheet = true },
+                            colorPickable = !restricted,
+                            life = restrictedLife,
                             modifier = Modifier.weight(1f),
                         )
                         val cloneWithoutControl = sensor.isCloneSource && !sensor.canTakeOverClone
-                        if (!cloneWithoutControl) {
+                        if (!cloneWithoutControl && !restricted) {
                             Spacer(modifier = Modifier.width(8.dp))
                         }
 
-                        if (isHandedOff && !sensor.isCloneSource) {
+                        if (restricted) {
+                            // No controls here: the day of wear is inside the name's pill.
+                        } else if (isHandedOff && !sensor.isCloneSource) {
                             IconButtonTooltip(stringResource(R.string.return_sensor_to_phone)) {
                                 // A filled icon button, not a background behind a plain one: the
                                 // container itself takes the press shape.
@@ -2113,6 +2190,7 @@ fun SensorCard(
 //                } // Close Column (content)
 //            } // Close Row (color indicator wrapper)
 //            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            if (!restricted) {
             Spacer(modifier = Modifier.height(16.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -3414,6 +3492,14 @@ fun SensorCard(
                         }
                     }
                 }
+            }
+            } else {
+                tk.glucodata.ui.restricted.RestrictedSensorDetails(
+                    sensor = sensor,
+                    life = restrictedLife,
+                    viewModel = viewModel,
+                    allowDisconnect = allowDisconnect,
+                )
             }
             }
         }
