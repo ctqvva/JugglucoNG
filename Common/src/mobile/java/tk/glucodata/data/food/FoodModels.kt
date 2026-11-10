@@ -168,7 +168,7 @@ object FoodMath {
         } else {
             kotlin.math.floor(amount.quantity / step) * step
         }
-        return amount.copy(quantity = next.coerceIn(step, 5000f))
+        return amount.copy(quantity = if (direction < 0) next.coerceIn(minOf(step, amount.quantity), amount.quantity) else next.coerceIn(step, maxOf(5000f, amount.quantity)))
     }
 
     /** The same weight counted in another unit, so switching unit keeps what is on the plate. */
@@ -188,4 +188,22 @@ object FoodMath {
         val macroWindow = tk.glucodata.data.journal.journalFoodTailDurationMinutes(protein, fat)
         return kotlin.math.round(maxOf(carbWindow, macroWindow)).toInt().coerceIn(45, 480)
     }
+}
+
+/** Input shared by the amount fields and transfer parser, including Arabic label numbers. */
+object FoodNumbers {
+    fun normalize(text: String): String = buildString {
+        text.forEach { char ->
+            val digit = Character.digit(char, 10)
+            when {
+                digit >= 0 -> append('0' + digit)
+                char == ',' || char == '\u066b' -> append('.')
+                char == '\u066c' -> Unit
+                else -> append(char)
+            }
+        }
+    }
+
+    fun parse(text: String): Float? = normalize(text.trim()).toFloatOrNull()
+        ?.takeIf { it.isFinite() && it >= 0f }
 }

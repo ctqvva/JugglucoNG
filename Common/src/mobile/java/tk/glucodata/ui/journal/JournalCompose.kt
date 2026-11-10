@@ -197,7 +197,8 @@ data class JournalEntryDraft(
     val doseGlucoseMgDl: Float? = null,
     val pairWithDose: Boolean = false,
     val pairedAmountText: String = "",
-    val foodItems: List<JournalDraftFoodItem> = emptyList()
+    val foodItems: List<JournalDraftFoodItem> = emptyList(),
+    val recordFoodUses: Boolean = false
 )
 
 data class JournalDoseProfile(
@@ -443,6 +444,16 @@ fun JournalEntrySheet(
         insulinPresets
     ) {
         mutableStateOf(initialDraft)
+    }
+    var restoredFoodSelection by remember(existingEntry?.id) { mutableStateOf(false) }
+    LaunchedEffect(existingEntry?.id, foods) {
+        if (!restoredFoodSelection && draft.foodId == existingEntry?.foodId && draft.foodItems.isEmpty()) {
+            val saved = foods.firstOrNull { it.id == existingEntry?.foodId }
+            if (saved != null && existingEntry != null) {
+                draft = draft.copy(foodItems = listOf(restoredFoodItem(saved, existingEntry)))
+                restoredFoodSelection = true
+            }
+        }
     }
     var showDatePicker by remember(existingEntry?.id, initialType, selectedTimestamp) { mutableStateOf(false) }
     var showTimePicker by remember(existingEntry?.id, initialType, selectedTimestamp) { mutableStateOf(false) }
@@ -779,17 +790,22 @@ fun JournalEntrySheet(
                             items = draft.foodItems,
                             macrosEnabled = foodMacrosEnabled,
                             onlineEnabled = foodOnlineEnabled,
-                            onItemsChange = { draft = draft.withFoodItems(it, foodMacrosEnabled) }
+                            onItemsChange = { draft = draft.withFoodItems(it, foodMacrosEnabled) },
+                            onAddFood = { food ->
+                                foodPicker.openItem = draft.foodItems.size
+                                draft = draft.withFoodItems(draft.foodItems + JournalDraftFoodItem(food, FoodMath.defaultAmount(food)), foodMacrosEnabled)
+                            }
                         )
                     }
                     journalSheetItem(formFocus, key = "carbs_amount") {
                         JournalStepperField(
                             value = draft.amountText,
-                            onValueChange = { draft = draft.copy(amountText = it, amountSuggested = false) },
+                            onValueChange = { draft = draft.copy(amountText = it, amountSuggested = false, recordFoodUses = false) },
                             onStep = { delta ->
                                 draft = draft.copy(
                                     amountText = adjustDecimalDraft(draft.amountText, delta, carbHabit.step, amountStart),
-                                    amountSuggested = false
+                                    amountSuggested = false,
+                                    recordFoodUses = false
                                 )
                             },
                             label = stringResource(R.string.journal_type_food),
@@ -1164,6 +1180,13 @@ private fun LazyListScope.journalSheetItem(
     }
 }
 
+/** Only a single-food association is persisted; its old amount is inferred from entry carbs. */
+internal fun restoredFoodItem(food: JournalFood, entry: JournalEntry): JournalDraftFoodItem {
+    val item = food.toFoodItem()
+    val factor = if (food.carbsGrams > 0f && entry.amount != null) entry.amount / food.carbsGrams else 1f
+    return JournalDraftFoodItem(item, tk.glucodata.data.food.FoodAmount(factor * (food.referenceGrams ?: 1f)))
+}
+
 private fun buildDraft(
     existingEntry: JournalEntry?,
     initialType: JournalEntryType,
@@ -1235,7 +1258,7 @@ private fun JournalEntryDraft.withoutSuggestedAmount(): JournalEntryDraft =
  * The draft with its meal set to [items]: the amount, the macros and the title follow the
  * foods, and so does the time the meal takes, unless every food says its own.
  */
-private fun JournalEntryDraft.withFoodItems(
+internal fun JournalEntryDraft.withFoodItems(
     items: List<JournalDraftFoodItem>,
     foodMacrosEnabled: Boolean
 ): JournalEntryDraft {
@@ -1269,7 +1292,8 @@ private fun JournalEntryDraft.withFoodItems(
         proteinText = if (foodMacrosEnabled) formatFloatForEditor(roundToTenth(protein)) else "",
         fatText = if (foodMacrosEnabled) formatFloatForEditor(roundToTenth(fat)) else "",
         durationText = duration.coerceIn(15, 480).toString(),
-        foodItems = items
+        foodItems = items,
+        recordFoodUses = true
     )
 }
 
@@ -1358,7 +1382,7 @@ private fun JournalEntryDraft.normalizedForType(
     }
 }
 
-private fun JournalEntryDraft.toInput(
+internal fun JournalEntryDraft.toInput(
     unit: String,
     sensorSerial: String?,
     presetsById: Map<Long, JournalInsulinPreset>,
@@ -1402,7 +1426,7 @@ private fun JournalEntryDraft.toInput(
                 proteinGrams = if (foodMacrosEnabled) proteinText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
                 fatGrams = if (foodMacrosEnabled) fatText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
                 // A food still at zero was never filled in; the library has nothing to learn from it.
-                foodUses = foodItems
+                foodUses = foodItems.takeIf { recordFoodUses }.orEmpty()
                     .filter { it.amount.quantity > 0f && it.food.name.isNotBlank() }
                     .map { JournalFoodUse(it.food, it.amount) }
             )

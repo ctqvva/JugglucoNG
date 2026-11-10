@@ -53,8 +53,8 @@ object FoodSearch {
             }
         }
         return when {
-            name.folded == foldedQuery -> 0
-            name.folded.startsWith(foldedQuery) -> 1
+            name.words.joinToString(" ") == foldedQuery -> 0
+            name.words.joinToString(" ").startsWith(foldedQuery) -> 1
             !inside -> 2
             else -> 3
         }
@@ -65,6 +65,7 @@ object FoodSearch {
         items: List<T>,
         query: String,
         limit: Int,
+        preference: (T) -> Int = { 0 },
         name: (T) -> IndexedName
     ): List<T> {
         val queryWords = words(query)
@@ -77,6 +78,7 @@ object FoodSearch {
             }
             .sortedWith(
                 compareBy<Triple<T, Int, IndexedName>> { it.second }
+                    .thenByDescending { preference(it.first) }
                     .thenBy { it.third.folded.length }
                     .thenBy { it.third.folded }
             )

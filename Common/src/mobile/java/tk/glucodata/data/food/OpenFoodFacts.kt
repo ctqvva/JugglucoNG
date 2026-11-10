@@ -142,7 +142,8 @@ object OpenFoodFactsParser {
     }
 
     fun parse(product: JSONObject, language: String): FoodItem? {
-        val barcode = product.optString("code").trim().takeIf { it.isNotEmpty() && it.all(Char::isDigit) } ?: return null
+        val rawBarcode = product.optString("code").trim().takeIf { it.isNotEmpty() && it.all { char -> char in '0'..'9' } } ?: return null
+        val barcode = ProductBarcode.normalize(rawBarcode) ?: rawBarcode
         val name = listOf("product_name_$language", "product_name", "product_name_en", "generic_name")
             .map { product.optString(it).trim() }
             .firstOrNull { it.isNotEmpty() }
@@ -239,14 +240,14 @@ object OpenFoodFactsParser {
 object ProductBarcode {
     /** The lookup key (UPC-A padded to 13 digits), or null. */
     fun normalize(raw: String?): String? {
-        val digits = raw?.trim()?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) } ?: return null
+        val digits = raw?.trim()?.takeIf { it.isNotEmpty() && it.all { char -> char in '0'..'9' } } ?: return null
         if (digits.length !in setOf(8, 12, 13, 14)) return null
         if (!hasValidCheckDigit(digits)) return null
         return if (digits.length == 12) "0$digits" else digits
     }
 
     fun hasValidCheckDigit(digits: String): Boolean {
-        if (digits.length < 8 || !digits.all(Char::isDigit)) return false
+        if (digits.length < 8 || !digits.all { it in '0'..'9' }) return false
         var sum = 0
         for (i in digits.length - 2 downTo 0) {
             val digit = digits[i] - '0'

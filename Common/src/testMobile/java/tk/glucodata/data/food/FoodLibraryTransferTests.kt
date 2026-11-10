@@ -91,6 +91,7 @@ class FoodLibraryTransferTests {
         val portions = listOf(FoodPortion(FoodPortionKind.PIECE, 182f), FoodPortion(FoodPortionKind.SERVING, 12.5f, "Riegel: klein, 2"))
         val decoded = FoodPortions.decode(FoodPortions.encode(portions))
         assertEquals(portions[0], decoded[0])
+        assertEquals(portions, decoded)
         assertEquals(FoodPortionKind.SERVING, decoded[1].kind)
         assertEquals(12.5f, decoded[1].grams, 0.001f)
         assertTrue(FoodPortions.decode("nonsense:5,slice:-1,").isEmpty())
@@ -102,7 +103,38 @@ class FoodLibraryTransferTests {
             FoodDetailsEntity(7, 100f, "piece:182", 2.4f, 52f, "Brand", "3017620422003", "common:apple", false, false, 3, 1700000000000L, 1.5f, 0),
             FoodDetailsEntity(8, null, "", null, null, null, null, null, true, true, 0, 0L, null, null)
         )
-        assertEquals(rows, FoodDetailsBackup.fromJson(FoodDetailsBackup.toJson(rows)))
+        assertEquals(rows.map { it.copy(portions = FoodPortions.encode(FoodPortions.decode(it.portions))) }, FoodDetailsBackup.fromJson(FoodDetailsBackup.toJson(rows)))
         assertTrue(FoodDetailsBackup.fromJson(null).isEmpty())
     }
+    @Test
+    fun liquidMultilineNamesPunctuationAndInferredDurationsRoundTrip() {
+        val portion = FoodPortion(FoodPortionKind.SERVING, 125f, "small: bowl, 2\nlines \"quoted\"")
+        val original = food(1, "Kefir,\nplain", 4.5f, 100f, listOf(portion)).copy(isLiquid = true, hasOwnAbsorption = false)
+        val parsed = FoodLibraryTransfer.parse(FoodLibraryTransfer.export(listOf(original)))
+        assertEquals(0, parsed.skipped)
+        val result = parsed.foods.single()
+        assertEquals(original.displayName, result.displayName)
+        assertEquals(original.portions, result.portions)
+        assertTrue(result.isLiquid)
+        org.junit.Assert.assertFalse(result.hasOwnAbsorption)
+        val json = FoodLibraryTransfer.parse("""[{"name":"Milk","carbs":5,"is_liquid":true}]""").foods.single()
+        assertTrue(json.isLiquid)
+    }
+
+    @Test
+    fun quotedCommaDecimalsAndArabicNumbersAreParsedAsCompleteCells() {
+        val parsed = FoodLibraryTransfer.parse("name,carbs,protein\nA,\"12,5\",\"2,25\"\nB,١٢٫٥,٢٫٢٥\n")
+        assertEquals(2, parsed.foods.size)
+        parsed.foods.forEach {
+            assertEquals(12.5f, it.carbsGrams, 0f)
+            assertEquals(2.25f, it.proteinGrams!!, 0f)
+        }
+    }
+
+    @Test
+    fun scientificNotationUsedByFloatExportKeepsSmallNutrients() {
+        val original = food(1, "Trace", 0.0001f, 100f)
+        assertEquals(original.carbsGrams, FoodLibraryTransfer.parse(FoodLibraryTransfer.export(listOf(original))).foods.single().carbsGrams, 0f)
+    }
+
 }

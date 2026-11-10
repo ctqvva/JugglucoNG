@@ -199,7 +199,8 @@ data class JournalFoodInput(
     val barcode: String? = null,
     val sourceKey: String? = null,
     val isLiquid: Boolean = false,
-    val kept: Boolean = true
+    val kept: Boolean = true,
+    val hasOwnAbsorption: Boolean = true
 )
 
 /** A food that went into a meal, and how much of it: what the library learns from a save. */

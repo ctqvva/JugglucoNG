@@ -94,8 +94,7 @@ val SENSOR_CODE_FORMATS: List<Int> = listOf(Barcode.FORMAT_QR_CODE, Barcode.FORM
 val PRODUCT_BARCODE_FORMATS: List<Int> = listOf(
     Barcode.FORMAT_EAN_13,
     Barcode.FORMAT_EAN_8,
-    Barcode.FORMAT_UPC_A,
-    Barcode.FORMAT_UPC_E
+    Barcode.FORMAT_UPC_A
 )
 
 /**

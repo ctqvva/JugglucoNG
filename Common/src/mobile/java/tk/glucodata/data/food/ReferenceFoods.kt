@@ -59,8 +59,10 @@ object ReferenceFoods {
     /** Blocking (JNI); call off the main thread. */
     fun search(query: String, limit: Int): List<FoodItem> {
         val index = index() ?: return emptyList()
-        return FoodSearch.search(index.names, query, limit) { it.second }
+        return FoodSearch.search(index.names, query, index.names.size) { it.second }
+            .asSequence()
             .mapNotNull { (id, name) -> item(id, name.name, index.columns) }
+            .take(limit).toList()
     }
 
     private fun item(id: Int, name: String, columns: Columns): FoodItem? {

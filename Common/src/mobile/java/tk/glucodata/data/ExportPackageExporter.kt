@@ -20,6 +20,7 @@ import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.CloneJournalIdentity
 import tk.glucodata.data.food.FoodDetailsBackup
+import tk.glucodata.data.food.FoodLibrary
 import tk.glucodata.data.food.FoodLibraryDatabase
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
@@ -536,8 +537,7 @@ object ExportPackageExporter {
             database.journalDao().getEntries()
         }
         val insulinPresets = database.journalDao().getInsulinPresets()
-        val foods = database.journalDao().getFoods()
-        val foodDetails = FoodLibraryDatabase.getInstance(context).foodDetailsDao().getAll()
+        val (foods, foodDetails) = FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(context).foodDetailsDao()).snapshot()
         val pendingJournalDeletes = database.journalDao().getPendingNightscoutDeletes()
             .filter { it.deletedAt >= startMillis }
 
@@ -873,10 +873,8 @@ object ExportPackageExporter {
         flushReadings()
         flushTombstones()
         if (foods.isNotEmpty()) {
-            database.journalDao().insertFoods(foods)
-            val foodIds = foods.mapTo(HashSet()) { it.id }
-            FoodLibraryDatabase.getInstance(context).foodDetailsDao().upsertAll(
-                FoodDetailsBackup.fromJson(history.optJSONArray(HISTORY_FOOD_DETAILS)).filter { it.foodId in foodIds }
+            FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(context).foodDetailsDao()).restore(
+                foods, FoodDetailsBackup.fromJson(history.optJSONArray(HISTORY_FOOD_DETAILS))
             )
         }
         if (insulinPresets.isNotEmpty()) {

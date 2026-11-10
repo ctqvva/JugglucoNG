@@ -78,3 +78,10 @@ Rendered from the Compose code (Robolectric), not from a device.
 | From a label | Library | A food from a shelf |
 |---|---|---|
 | ![label](sheet-custom.png) | ![library](library.png) | ![shelf food](library-expanded.png) |
+
+Import/export preserves `is_liquid` (`true`/`false`; absent means grams). Leaving
+`absorption_min` empty keeps duration estimated for the quantity eaten, rather than
+fixing the estimate as a food's own duration. Portion text accepts the original
+`serving:125:bowl` shorthand and a JSON array, for example
+`[{"kind":"serving","grams":125,"label":"small: bowl, 2"}]`. Export uses JSON
+inside a quoted CSV cell so labels, punctuation and line breaks survive.

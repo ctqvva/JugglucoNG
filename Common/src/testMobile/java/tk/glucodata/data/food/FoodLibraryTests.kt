@@ -3,6 +3,7 @@ package tk.glucodata.data.food
 import android.content.Context
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -185,4 +186,108 @@ class FoodLibraryTests {
 
     private fun customItem(name: String, carbs: Float) =
         FoodItem(key = "custom:${System.nanoTime()}", source = FoodSource.CUSTOM, name = name, referenceGrams = 100f, carbs = carbs)
+    @Test
+    fun customDefinitionsCompareAllMacrosAndKeepAbsorptionInferred() = runBlocking {
+        val food = customItem("Label", 20f).copy(protein = 2f, fat = 1f)
+        library.noteUses(listOf(JournalFoodUse(food, FoodAmount(25f))))
+        val first = library.foods().single()
+        assertFalse(first.hasOwnAbsorption)
+        assertNull(first.toFoodItem().absorptionMinutes)
+        assertEquals(FoodMath.estimatedAbsorptionMinutes(5f, 0.5f, 0.25f), first.absorptionMinutes)
+        library.noteUses(listOf(JournalFoodUse(food.copy(protein = 3f), FoodAmount(50f))))
+        library.noteUses(listOf(JournalFoodUse(food.copy(fat = 3f), FoodAmount(50f))))
+        assertEquals(3, library.foods().size)
+    }
+
+    @Test
+    fun concurrentImportsAcrossLibraryInstancesDoNotDuplicateOrLoseUses() = runBlocking {
+        val input = JournalFoodInput(displayName = "Same", carbsGrams = 10f, absorptionMinutes = 90, accentColor = 0, referenceGrams = 100f)
+        val other = FoodLibrary(history.journalDao(), details.foodDetailsDao())
+        val jobs = (1..10).map { index ->
+            async(kotlinx.coroutines.Dispatchers.Default) { (if (index % 2 == 0) library else other).import(listOf(input)) }
+        }
+        jobs.forEach { it.await() }
+        assertEquals(1, library.foods().size)
+        val item = library.foods().single().toFoodItem()
+        val uses = (1..10).map { index ->
+            async(kotlinx.coroutines.Dispatchers.Default) { (if (index % 2 == 0) library else other).noteUses(listOf(JournalFoodUse(item, FoodAmount(20f)))) }
+        }
+        uses.forEach { it.await() }
+        assertEquals(10, library.foods().single().useCount)
+    }
+
+    @Test
+    fun oldHistoryRestoreClearsOnlyDetailsOfReplacedFoods() = runBlocking {
+        val oldId = library.noteUses(listOf(JournalFoodUse(apple, FoodAmount(1f, 0)))).single()
+        library.noteUses(listOf(JournalFoodUse(apple.copy(key = "common:other", name = "Other"), FoodAmount(1f, 0))))
+        val row = history.journalDao().getFoodById(oldId)!!.copy(displayName = "Old serving", carbsGrams = 60f)
+        library.restore(listOf(row), emptyList())
+        val restored = library.foods().first { it.id == oldId }
+        assertNull(restored.referenceGrams)
+        assertTrue(restored.portions.isEmpty())
+        assertNull(restored.barcode)
+        assertNull(details.foodDetailsDao().get(oldId))
+        assertEquals(1, details.foodDetailsDao().getAll().size)
+    }
+
+    @Test
+    fun pendingWriteRecoversBeforeAndAfterTheHistoryCommit() = runBlocking {
+        val id = library.noteUses(listOf(JournalFoodUse(apple, FoodAmount(1f, 0)))).single()
+        val row = history.journalDao().getFoodById(id)!!.copy(displayName = "Edited", carbsGrams = 42f)
+        val detail = details.foodDetailsDao().get(id)!!.copy(referenceGrams = 250f)
+        val pending = PendingFoodWrite(food = row, detailsJson = FoodDetailsBackup.toJson(listOf(detail)).toString())
+        // Process interruption with only the intent committed.
+        details.foodDetailsDao().stage(pending)
+        val fresh = FoodLibrary(history.journalDao(), details.foodDetailsDao())
+        assertEquals(250f, fresh.foods().single().referenceGrams)
+        assertEquals(42f, fresh.foods().single().carbsGrams, 0f)
+        assertNull(details.foodDetailsDao().pending())
+        // Interruption after the history commit but before the details commit; replay is safe.
+        details.foodDetailsDao().stage(pending)
+        history.journalDao().upsertFood(row)
+        assertEquals("Edited", fresh.foods().single().displayName)
+        assertEquals(1, fresh.foods().size)
+        assertNull(details.foodDetailsDao().pending())
+    }
+
+    @Test
+    fun deletingTheHighestIdDoesNotReuseItsJournalAssociation() = runBlocking {
+        val first = library.noteUses(listOf(JournalFoodUse(apple, FoodAmount(1f, 0)))).single()
+        library.delete(first)
+        val second = library.noteUses(listOf(JournalFoodUse(apple, FoodAmount(1f, 0)))).single()
+        assertTrue(second > first)
+    }
+
+    @Test
+    fun englishAliasStillFindsARememberedTranslatedFood() = runBlocking {
+        library.noteUses(listOf(JournalFoodUse(apple.copy(name = "Яблоко"), FoodAmount(100f))))
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val results = FoodCatalog.search(context, "apple", library.foods())
+        assertTrue(results.library.isNotEmpty() || results.common.any { it.key == "common:apple" })
+    }
+
+    @Test
+    fun versionOneDetailsMigrateWithoutTouchingHistory() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "food-library-v1-migration-test.db"
+        context.deleteDatabase(name)
+        val path = context.getDatabasePath(name)
+        path.parentFile!!.mkdirs()
+        android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(path, null).use { db ->
+            val schema = org.json.JSONObject(java.io.File("schemas/tk.glucodata.data.food.FoodLibraryDatabase/1.json").readText())
+            val table = schema.getJSONObject("database").getJSONArray("entities").getJSONObject(0)
+            db.execSQL(table.getString("createSql").replace("\${TABLE_NAME}", "food_details"))
+            db.execSQL("INSERT INTO food_details VALUES (1, 100, 'piece:182', NULL, NULL, NULL, NULL, 'common:apple', 0, 0, 1, 1, 1, 0)")
+            db.version = 1
+        }
+        val migrated = Room.databaseBuilder(context, FoodLibraryDatabase::class.java, name)
+            .addMigrations(FoodLibraryDatabase.MIGRATION_1_2).allowMainThreadQueries().build()
+        try {
+            val row = migrated.foodDetailsDao().getAll().single()
+            assertEquals(100f, row.referenceGrams)
+            assertFalse(row.hasOwnAbsorption)
+            assertNull(migrated.foodDetailsDao().pending())
+        } finally { migrated.close(); context.deleteDatabase(name) }
+    }
+
 }

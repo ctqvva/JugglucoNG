@@ -573,23 +573,25 @@ class JournalRepository {
 
     suspend fun ensureDefaultFoods() {
         if (prefs.getBoolean(DEFAULT_FOODS_SEEDED_KEY, false)) return
-        database.withTransaction {
-            val existing = dao.getFoods()
-            if (existing.isEmpty()) {
-                dao.insertFoods(defaultFoods())
-            } else {
-                val builtIns = existing.filter { it.isBuiltIn }
-                val missingDefaults = defaultFoods().filter { preset ->
-                    builtIns.none { existingFood ->
-                        existingFood.sortOrder == preset.sortOrder ||
-                            existingFood.displayName.equals(preset.displayName, ignoreCase = true)
+        foodLibrary.seed {
+            database.withTransaction {
+                val existing = dao.getFoods()
+                if (existing.isEmpty()) {
+                    dao.insertFoods(defaultFoods())
+                } else {
+                    val builtIns = existing.filter { it.isBuiltIn }
+                    val missingDefaults = defaultFoods().filter { preset ->
+                        builtIns.none { existingFood ->
+                            existingFood.sortOrder == preset.sortOrder ||
+                                existingFood.displayName.equals(preset.displayName, ignoreCase = true)
+                        }
+                    }
+                    if (missingDefaults.isNotEmpty()) {
+                        dao.insertFoods(missingDefaults)
                     }
                 }
-                if (missingDefaults.isNotEmpty()) {
-                    dao.insertFoods(missingDefaults)
-                }
+                prefs.edit().putBoolean(DEFAULT_FOODS_SEEDED_KEY, true).apply()
             }
-            prefs.edit().putBoolean(DEFAULT_FOODS_SEEDED_KEY, true).apply()
         }
     }
 

@@ -181,7 +181,7 @@ private fun FoodAmountEditor(
     JournalStepperField(
         value = item.amountText,
         onValueChange = { text ->
-            val typed = text.filter { it.isDigit() || it == ',' || it == '.' }.take(7)
+            val typed = text.filter { it.isDigit() || it == ',' || it == '.' || it == '\u066b' }.take(48)
             onChange(
                 item.copy(
                     amountText = typed,
@@ -217,8 +217,7 @@ private fun FoodAmountEditor(
             onOptionSelected = { index ->
                 // The plate stays as it is; only the unit it is counted in changes.
                 val converted = FoodMath.inUnit(food, item.amount, index)
-                val rounded = converted.copy(quantity = roundFoodQuantity(converted.quantity))
-                onChange(item.copy(amount = rounded, amountText = formatFoodQuantity(rounded.quantity)))
+                onChange(item.copy(amount = converted, amountText = formatFoodQuantity(converted.quantity)))
             },
             label = { },
             labelText = { labels[it].orEmpty() },
@@ -399,14 +398,18 @@ internal fun FoodPortionKind.labelRes(): Int = when (this) {
 
 // --- Numbers -------------------------------------------------------------------------------
 
-/** A number for a field: whole when it is whole, else up to two decimals, in the locale's form. */
+/** A field must round-trip even a tiny fraction of a package without changing the amount. */
 internal fun formatFoodQuantity(value: Float): String {
     if (!value.isFinite()) return ""
-    return if (abs(value - value.roundToInt()) < 0.005f) {
-        value.roundToInt().toString()
-    } else {
-        DecimalFormat("0.##", DecimalFormatSymbols(Locale.getDefault())).format(value)
-    }
+    val symbols = DecimalFormatSymbols(Locale.getDefault())
+    return java.math.BigDecimal(value.toString()).stripTrailingZeros().toPlainString()
+        .map { char ->
+            when {
+                char == '.' -> symbols.decimalSeparator
+                char in '0'..'9' -> symbols.zeroDigit + (char - '0')
+                else -> char
+            }
+        }.joinToString("")
 }
 
 /** A number to read: one decimal at most, none from 100 up. */
@@ -416,11 +419,4 @@ internal fun formatFoodNumber(value: Float): String {
     return DecimalFormat(pattern, DecimalFormatSymbols(Locale.getDefault())).format(value)
 }
 
-internal fun parseFoodQuantity(text: String): Float? =
-    text.trim().replace(',', '.').toFloatOrNull()?.takeIf { it.isFinite() && it >= 0f }
-
-/** A converted amount, without the noise of the division: grams whole, counts to a quarter. */
-internal fun roundFoodQuantity(value: Float): Float = when {
-    value >= 20f -> value.roundToInt().toFloat()
-    else -> (value * 4f).roundToInt() / 4f
-}.coerceAtLeast(0.25f)
+internal fun parseFoodQuantity(text: String): Float? = tk.glucodata.data.food.FoodNumbers.parse(text)

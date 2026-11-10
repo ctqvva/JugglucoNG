@@ -53,7 +53,7 @@ object FoodCatalog {
             food to FoodSearch.IndexedName(listOfNotNull(food.displayName, food.brand).joinToString(" "))
         }
         // A food eaten often is the likelier answer among equals.
-        return FoodSearch.search(indexed.sortedByDescending { it.first.useCount }, query, limit) { it.second }
+        return FoodSearch.search(indexed, query, limit, preference = { it.first.useCount }) { it.second }
             .map { it.first }
     }
 
@@ -65,7 +65,8 @@ object FoodCatalog {
             val mine = searchLibrary(active, needle).map { it.toFoodItem() }
             if (needle.length < MIN_QUERY_LENGTH) return@withContext Shelves(library = mine)
             // A food already in the library is shown once, as the person's own.
-            val owned = library.mapNotNullTo(HashSet()) { it.sourceKey }
+            val matchingIds = mine.mapNotNullTo(HashSet()) { it.libraryId }
+            val owned = active.filter { it.id in matchingIds }.mapNotNullTo(HashSet()) { it.sourceKey }
             val common = CommonFoods.get(context, appLocale(context))
                 .search(needle, COMMON_LIMIT + owned.size)
                 .filter { it.key !in owned }

@@ -78,7 +78,8 @@ internal data class FoodEditorDraft(
     val isArchived: Boolean = false,
     val basis: FoodBasis = FoodBasis.PER_100,
     /** The weight of one serving, when the person knows it. */
-    val servingText: String = ""
+    val servingText: String = "",
+    val isLiquid: Boolean = false
 )
 
 @Composable
@@ -216,9 +217,21 @@ internal fun FoodEditorForm(
             }
         }
 
+        item(key = "liquid") {
+            val labels = mapOf(false to stringResource(R.string.food_weight), true to stringResource(R.string.food_volume))
+            ConnectedButtonGroup(
+                options = listOf(false, true),
+                selectedOption = draft.isLiquid,
+                onOptionSelected = { onDraftChange(draft.copy(isLiquid = it)) },
+                label = { },
+                labelText = { contextLiquid -> labels[contextLiquid].orEmpty() },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         item(key = "basis") {
             val labels = mapOf(
-                FoodBasis.PER_100 to foodWeightText(100f, liquid = food?.isLiquid == true),
+                FoodBasis.PER_100 to foodWeightText(100f, liquid = draft.isLiquid),
                 FoodBasis.PER_SERVING to stringResource(R.string.food_one_serving)
             )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -271,7 +284,7 @@ internal fun FoodEditorForm(
                     onValueChange = { onDraftChange(draft.copy(servingText = it)) },
                     onStep = { delta -> onDraftChange(draft.copy(servingText = stepFoodNumber(draft.servingText, delta, 10f))) },
                     label = stringResource(R.string.food_serving_weight),
-                    suffix = stringResource(if (food?.isLiquid == true) R.string.food_unit_ml else R.string.unit_carbs_short),
+                    suffix = stringResource(if (draft.isLiquid) R.string.food_unit_ml else R.string.unit_carbs_short),
                     accentColor = Color(draft.accentColor),
                     placeholder = "—"
                 )
@@ -279,7 +292,7 @@ internal fun FoodEditorForm(
                     value = draft.absorptionText,
                     onValueChange = { updated -> onDraftChange(draft.copy(absorptionText = updated.filter(Char::isDigit))) },
                     onStep = { delta ->
-                        val current = draft.absorptionText.toIntOrNull() ?: 90
+                        val current = tk.glucodata.data.food.FoodNumbers.normalize(draft.absorptionText).toIntOrNull() ?: 90
                         onDraftChange(draft.copy(absorptionText = (current + delta * 15).coerceIn(15, 480).toString()))
                     },
                     label = stringResource(R.string.journal_food_absorption),
@@ -469,22 +482,24 @@ private fun FoodEditorField(
 
 internal fun foodEditorDraft(food: JournalFood?, nextSortOrder: Int): FoodEditorDraft {
     if (food == null) return FoodEditorDraft(sortOrder = nextSortOrder)
-    val per100 = food.referenceGrams == 100f
+    val per100 = food.referenceGrams != null
+    val factor = food.referenceGrams?.let { 100f / it } ?: 1f
     val serving = food.portions.firstOrNull { it.kind == FoodPortionKind.SERVING }?.grams
         ?: food.referenceGrams.takeIf { !per100 }
     return FoodEditorDraft(
         id = food.id,
         displayName = food.displayName,
-        carbsText = formatFoodQuantity(food.carbsGrams),
-        proteinText = food.proteinGrams?.let(::formatFoodQuantity).orEmpty(),
-        fatText = food.fatGrams?.let(::formatFoodQuantity).orEmpty(),
+        carbsText = formatFoodQuantity(food.carbsGrams * factor),
+        proteinText = food.proteinGrams?.let { formatFoodQuantity(it * factor) }.orEmpty(),
+        fatText = food.fatGrams?.let { formatFoodQuantity(it * factor) }.orEmpty(),
         absorptionText = food.absorptionMinutes.toString(),
         accentColor = food.accentColor,
         sortOrder = food.sortOrder,
         isBuiltIn = food.isBuiltIn,
         isArchived = food.isArchived,
         basis = if (per100) FoodBasis.PER_100 else FoodBasis.PER_SERVING,
-        servingText = serving?.let(::formatFoodQuantity).orEmpty()
+        servingText = serving?.let(::formatFoodQuantity).orEmpty(),
+        isLiquid = food.isLiquid
     )
 }
 
@@ -509,7 +524,7 @@ internal fun FoodEditorDraft.withBasis(basis: FoodBasis): FoodEditorDraft {
 internal fun foodEditorInput(draft: FoodEditorDraft, food: JournalFood?): JournalFoodInput? {
     val name = draft.displayName.trim().takeIf { it.isNotBlank() } ?: return null
     val carbs = parseFoodQuantity(draft.carbsText) ?: return null
-    val absorption = draft.absorptionText.toIntOrNull()?.coerceIn(15, 480) ?: return null
+    val absorption = tk.glucodata.data.food.FoodNumbers.normalize(draft.absorptionText).toIntOrNull()?.coerceIn(15, 480) ?: return null
     val serving = parseFoodQuantity(draft.servingText)?.takeIf { it > 0f }
     val reference = if (draft.basis == FoodBasis.PER_100) 100f else serving
     val otherPortions = food?.portions.orEmpty().filter { it.kind != FoodPortionKind.SERVING }
@@ -533,12 +548,13 @@ internal fun foodEditorInput(draft: FoodEditorDraft, food: JournalFood?): Journa
             else -> otherPortions
         },
         // Per 100 g these still hold; for a serving of another size they would be wrong.
-        fiberGrams = food?.fiberGrams?.takeIf { food.referenceGrams == reference },
-        kcal = food?.kcal?.takeIf { food.referenceGrams == reference },
+        fiberGrams = food?.fiberGrams?.let { value -> if (reference != null && food.referenceGrams != null) value * reference / food.referenceGrams else value.takeIf { food.referenceGrams == reference } },
+        kcal = food?.kcal?.let { value -> if (reference != null && food.referenceGrams != null) value * reference / food.referenceGrams else value.takeIf { food.referenceGrams == reference } },
         brand = food?.brand,
         barcode = food?.barcode,
         sourceKey = food?.sourceKey,
-        isLiquid = food?.isLiquid ?: false,
+        isLiquid = draft.isLiquid,
+        hasOwnAbsorption = food == null || food.hasOwnAbsorption || draft.absorptionText != food.absorptionMinutes.toString(),
         // Saving a food that was only remembered keeps it.
         kept = true
     )

@@ -1,6 +1,12 @@
 package tk.glucodata.data.food
 
 import android.content.Context
+import androidx.room.ColumnInfo
+import androidx.room.Embedded
+import androidx.room.Transaction
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import tk.glucodata.data.journal.JournalFoodEntity
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -14,7 +20,7 @@ import kotlinx.coroutines.flow.Flow
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal const val FOOD_LIBRARY_DATABASE_VERSION = 1
+internal const val FOOD_LIBRARY_DATABASE_VERSION = 2
 
 /**
  * What the food library knows about a food beyond the row in the journal's `journal_foods`
@@ -30,7 +36,7 @@ data class FoodDetailsEntity(
     val foodId: Long,
     /** The weight the journal row's nutrients are for; null when it was never recorded. */
     val referenceGrams: Float?,
-    /** [FoodPortions] text: "piece:182,serving:30:Riegel". */
+    /** [FoodPortions] JSON; the decoder also accepts the original colon-separated shorthand. */
     val portions: String,
     val fiberGrams: Float?,
     val kcal: Float?,
@@ -44,11 +50,36 @@ data class FoodDetailsEntity(
     val useCount: Int,
     val lastUsedAt: Long,
     val lastQuantity: Float?,
-    val lastPortionIndex: Int?
+    val lastPortionIndex: Int?,
+    @ColumnInfo(defaultValue = "1") val hasOwnAbsorption: Boolean = true
+)
+
+/** Durable intent: replaying either half after interruption is idempotent. */
+@Entity(tableName = "pending_food_write")
+data class PendingFoodWrite(
+    @PrimaryKey val operationId: Int = 1,
+    @Embedded(prefix = "food_") val food: JournalFoodEntity,
+    val detailsJson: String?
 )
 
 @Dao
 interface FoodDetailsDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun stage(write: PendingFoodWrite)
+
+    @Query("SELECT * FROM pending_food_write WHERE operationId = 1")
+    suspend fun pending(): PendingFoodWrite?
+
+    @Query("DELETE FROM pending_food_write")
+    suspend fun clearPending()
+
+    @Transaction
+    suspend fun finish(write: PendingFoodWrite) {
+        val details = FoodDetailsBackup.fromJson(write.detailsJson?.let(::JSONArray)).singleOrNull()
+        if (details == null) delete(write.food.id) else upsert(details)
+        clearPending()
+    }
+
     @Query("SELECT * FROM food_details")
     fun observeAll(): Flow<List<FoodDetailsEntity>>
 
@@ -79,11 +110,20 @@ interface FoodDetailsDao {
  * worth a version bump there: with this file a build without the library still opens the
  * history, and still finds every food in `journal_foods` as the preset it used to be.
  */
-@Database(entities = [FoodDetailsEntity::class], version = FOOD_LIBRARY_DATABASE_VERSION, exportSchema = true)
+@Database(entities = [FoodDetailsEntity::class, PendingFoodWrite::class], version = FOOD_LIBRARY_DATABASE_VERSION, exportSchema = true)
 abstract class FoodLibraryDatabase : RoomDatabase() {
     abstract fun foodDetailsDao(): FoodDetailsDao
 
     companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE food_details ADD COLUMN hasOwnAbsorption INTEGER NOT NULL DEFAULT 1")
+                // Version 1 only knew this distinction for remembered shelf foods.
+                db.execSQL("UPDATE food_details SET hasOwnAbsorption = 0 WHERE kept = 0")
+                db.execSQL("CREATE TABLE IF NOT EXISTS pending_food_write (operationId INTEGER NOT NULL, food_id INTEGER NOT NULL, food_displayName TEXT NOT NULL, food_carbsGrams REAL NOT NULL, food_proteinGrams REAL, food_fatGrams REAL, food_absorptionMinutes INTEGER NOT NULL, food_accentColor INTEGER NOT NULL, food_isBuiltIn INTEGER NOT NULL, food_isArchived INTEGER NOT NULL, food_sortOrder INTEGER NOT NULL, food_createdAt INTEGER NOT NULL, food_updatedAt INTEGER NOT NULL, detailsJson TEXT, PRIMARY KEY(operationId))")
+            }
+        }
+
         private const val FILE_NAME = "food_library.db"
 
         @Volatile
@@ -92,6 +132,7 @@ abstract class FoodLibraryDatabase : RoomDatabase() {
         fun getInstance(context: Context): FoodLibraryDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(context.applicationContext, FoodLibraryDatabase::class.java, FILE_NAME)
+                    .addMigrations(MIGRATION_1_2)
                     .build()
                     .also { instance = it }
             }
@@ -109,6 +150,7 @@ object FoodDetailsBackup {
                 .put("portions", row.portions)
                 .put("isLiquid", row.isLiquid)
                 .put("kept", row.kept)
+                .put("hasOwnAbsorption", row.hasOwnAbsorption)
                 .put("useCount", row.useCount)
                 .put("lastUsedAt", row.lastUsedAt)
             row.referenceGrams?.let { item.put("referenceGrams", it.toDouble()) }
@@ -146,7 +188,8 @@ object FoodDetailsBackup {
                 useCount = item.optInt("useCount", 0),
                 lastUsedAt = item.optLong("lastUsedAt", 0L),
                 lastQuantity = item.float("lastQuantity"),
-                lastPortionIndex = if (item.has("lastPortionIndex")) item.optInt("lastPortionIndex") else null
+                lastPortionIndex = if (item.has("lastPortionIndex")) item.optInt("lastPortionIndex") else null,
+                hasOwnAbsorption = item.optBoolean("hasOwnAbsorption", item.optBoolean("kept", true))
             )
         }
     }
@@ -154,16 +197,28 @@ object FoodDetailsBackup {
 
 /** The portions of a food as one line of text, for the database and for import and export. */
 object FoodPortions {
-    fun encode(portions: List<FoodPortion>): String = portions.joinToString(",") { portion ->
-        val grams = portion.grams.toString().removeSuffix(".0")
-        val label = portion.label?.replace(',', ' ')?.replace(':', ' ')?.trim().orEmpty()
-        if (label.isEmpty()) "${portion.kind.storageValue}:$grams" else "${portion.kind.storageValue}:$grams:$label"
-    }
+    fun encode(portions: List<FoodPortion>): String = JSONArray().also { array ->
+        portions.forEach { portion ->
+            array.put(JSONObject().put("kind", portion.kind.storageValue).put("grams", portion.grams.toDouble())
+                .also { item -> portion.label?.let { item.put("label", it) } })
+        }
+    }.toString()
 
-    fun decode(text: String?): List<FoodPortion> = text.orEmpty().split(',').mapNotNull { part ->
-        val fields = part.trim().split(':', limit = 3)
-        val kind = FoodPortionKind.fromStorage(fields.getOrNull(0)) ?: return@mapNotNull null
-        val grams = fields.getOrNull(1)?.toFloatOrNull()?.takeIf { it.isFinite() && it > 0f } ?: return@mapNotNull null
-        FoodPortion(kind, grams, fields.getOrNull(2)?.trim()?.takeIf { it.isNotEmpty() })
+    fun decode(text: String?): List<FoodPortion> {
+        if (text.orEmpty().trimStart().startsWith("[")) {
+            val array = runCatching { JSONArray(text) }.getOrNull() ?: return emptyList()
+            return (0 until array.length()).mapNotNull { index ->
+                val item = array.optJSONObject(index) ?: return@mapNotNull null
+                val kind = FoodPortionKind.fromStorage(item.optString("kind")) ?: return@mapNotNull null
+                val grams = item.optDouble("grams").toFloat().takeIf { it.isFinite() && it > 0f } ?: return@mapNotNull null
+                FoodPortion(kind, grams, if (item.has("label")) item.optString("label") else null)
+            }
+        }
+        return text.orEmpty().split(',').mapNotNull { part ->
+            val fields = part.trim().split(':', limit = 3)
+            val kind = FoodPortionKind.fromStorage(fields.getOrNull(0)) ?: return@mapNotNull null
+            val grams = fields.getOrNull(1)?.toFloatOrNull()?.takeIf { it.isFinite() && it > 0f } ?: return@mapNotNull null
+            FoodPortion(kind, grams, fields.getOrNull(2)?.trim()?.takeIf { it.isNotEmpty() })
+        }
     }
 }

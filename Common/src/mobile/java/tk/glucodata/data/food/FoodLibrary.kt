@@ -1,6 +1,8 @@
 package tk.glucodata.data.food
 
-import kotlin.math.abs
+import java.util.Locale
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import tk.glucodata.data.journal.JournalDao
@@ -21,37 +23,51 @@ class FoodLibrary(
     private val detailsDao: FoodDetailsDao
 ) {
     fun observe(): Flow<List<JournalFood>> =
-        journalDao.observeFoods().combine(detailsDao.observeAll()) { foods, details ->
-            val byFood = details.associateBy { it.foodId }
-            foods.map { it.toModel(byFood[it.id]) }
-        }
+        journalDao.observeFoods().combine(detailsDao.observeAll()) { _, _ -> foods() }
 
-    suspend fun foods(): List<JournalFood> {
+    suspend fun foods(): List<JournalFood> = writes.withLock {
+        recoverWrite()
         val byFood = detailsDao.getAll().associateBy { it.foodId }
-        return journalDao.getFoods().map { it.toModel(byFood[it.id]) }
+        journalDao.getFoods().map { it.toModel(byFood[it.id]) }
     }
 
-    suspend fun upsert(input: JournalFoodInput, now: Long = System.currentTimeMillis()): Long {
+    suspend fun snapshot(): Pair<List<JournalFoodEntity>, List<FoodDetailsEntity>> = writes.withLock {
+        recoverWrite()
+        journalDao.getFoods() to detailsDao.getAll()
+    }
+
+    /** Startup seeding shares the same lock as id allocation and pending-write recovery. */
+    suspend fun seed(block: suspend () -> Unit) = writes.withLock {
+        recoverWrite()
+        block()
+    }
+
+    suspend fun upsert(input: JournalFoodInput, now: Long = System.currentTimeMillis()): Long = writes.withLock {
+        recoverWrite()
+        upsertLocked(input, now)
+    }
+
+    private suspend fun upsertLocked(input: JournalFoodInput, now: Long = System.currentTimeMillis()): Long {
         val existing = input.id?.let { journalDao.getFoodById(it) }
-        val foodId = journalDao.upsertFood(
-            JournalFoodEntity(
-                id = existing?.id ?: 0L,
-                displayName = input.displayName.trim(),
-                carbsGrams = input.carbsGrams.coerceAtLeast(0f),
-                proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
-                fatGrams = input.fatGrams?.coerceAtLeast(0f),
-                absorptionMinutes = input.absorptionMinutes.coerceIn(15, 480),
-                accentColor = input.accentColor,
-                isBuiltIn = existing?.isBuiltIn ?: input.isBuiltIn,
-                isArchived = input.isArchived,
-                sortOrder = input.sortOrder,
-                createdAt = existing?.createdAt ?: now,
-                updatedAt = now
-            )
-        ).let { rowId -> existing?.id ?: rowId }
+        val foodId = existing?.id ?: journalDao.nextFoodId()
+        val row = JournalFoodEntity(
+            id = foodId,
+            displayName = input.displayName.trim(),
+            carbsGrams = input.carbsGrams.coerceAtLeast(0f),
+            proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
+            fatGrams = input.fatGrams?.coerceAtLeast(0f),
+            absorptionMinutes = input.absorptionMinutes.coerceIn(15, 480),
+            accentColor = input.accentColor,
+            isBuiltIn = existing?.isBuiltIn ?: input.isBuiltIn,
+            isArchived = input.isArchived,
+            sortOrder = input.sortOrder,
+            createdAt = existing?.createdAt ?: now,
+            updatedAt = now
+        )
         val old = detailsDao.get(foodId)
         val portions = input.portions.filter { it.grams > 0f }
-        detailsDao.upsert(
+        write(
+            row,
             FoodDetailsEntity(
                 foodId = foodId,
                 referenceGrams = input.referenceGrams?.takeIf { it > 0f },
@@ -63,11 +79,12 @@ class FoodLibrary(
                 sourceKey = input.sourceKey ?: old?.sourceKey,
                 isLiquid = input.isLiquid,
                 kept = input.kept,
+                hasOwnAbsorption = input.hasOwnAbsorption,
                 useCount = old?.useCount ?: 0,
                 lastUsedAt = old?.lastUsedAt ?: 0L,
                 // An amount counted in a portion that the edit removed or moved means nothing now.
-                lastQuantity = old?.lastQuantity?.takeIf { old.portions == FoodPortions.encode(portions) },
-                lastPortionIndex = old?.lastPortionIndex?.takeIf { old.portions == FoodPortions.encode(portions) }
+                lastQuantity = old?.lastQuantity?.takeIf { FoodPortions.decode(old.portions) == portions && (old.referenceGrams == null) == (input.referenceGrams == null) },
+                lastPortionIndex = old?.lastPortionIndex?.takeIf { FoodPortions.decode(old.portions) == portions && (old.referenceGrams == null) == (input.referenceGrams == null) }
             )
         )
         return foodId
@@ -79,15 +96,16 @@ class FoodLibrary(
      *
      * @return how many were new, and how many replaced a food.
      */
-    suspend fun import(inputs: List<JournalFoodInput>): Pair<Int, Int> {
-        val byName = journalDao.getFoods().associateByTo(HashMap()) { it.displayName.trim().lowercase() }
+    suspend fun import(inputs: List<JournalFoodInput>): Pair<Int, Int> = writes.withLock {
+        recoverWrite()
+        val byName = journalDao.getFoods().associateByTo(HashMap()) { it.displayName.trim().lowercase(Locale.ROOT) }
         var nextSortOrder = (byName.values.maxOfOrNull { it.sortOrder } ?: 0) + 1
         var added = 0
         var replaced = 0
         inputs.forEach { input ->
-            val existing = byName[input.displayName.trim().lowercase()]
+            val existing = byName[input.displayName.trim().lowercase(Locale.ROOT)]
             if (existing != null) {
-                upsert(
+                upsertLocked(
                     input.copy(
                         id = existing.id,
                         accentColor = existing.accentColor,
@@ -97,17 +115,44 @@ class FoodLibrary(
                 )
                 replaced++
             } else {
-                val id = upsert(input.copy(id = null, sortOrder = nextSortOrder++))
-                journalDao.getFoodById(id)?.let { byName[it.displayName.trim().lowercase()] = it }
+                val id = upsertLocked(input.copy(id = null, sortOrder = nextSortOrder++))
+                journalDao.getFoodById(id)?.let { byName[it.displayName.trim().lowercase(Locale.ROOT)] = it }
                 added++
             }
         }
-        return added to replaced
+        added to replaced
     }
 
-    suspend fun delete(foodId: Long) {
+    suspend fun delete(foodId: Long) = writes.withLock {
+        recoverWrite()
+        deleteLocked(foodId)
+    }
+
+    private suspend fun deleteLocked(foodId: Long) {
         journalDao.deleteFoodById(foodId)
         detailsDao.delete(foodId)
+    }
+
+    /** Restore exactly the supplied details, including their absence in older backups. */
+    suspend fun restore(rows: List<JournalFoodEntity>, details: List<FoodDetailsEntity>, replaceAll: Boolean = false) = writes.withLock {
+        recoverWrite()
+        val byId = details.associateBy { it.foodId }
+        rows.forEach { write(it, byId[it.id]) }
+        if (replaceAll) {
+            val ids = rows.mapTo(HashSet()) { it.id }
+            journalDao.getFoods().filter { it.id !in ids }.forEach { deleteLocked(it.id) }
+        }
+    }
+
+    private suspend fun write(row: JournalFoodEntity, details: FoodDetailsEntity?) {
+        detailsDao.stage(PendingFoodWrite(food = row, detailsJson = details?.let { FoodDetailsBackup.toJson(listOf(it)).toString() }))
+        recoverWrite()
+    }
+
+    private suspend fun recoverWrite() {
+        val pending = detailsDao.pending() ?: return
+        journalDao.upsertFood(pending.food)
+        detailsDao.finish(pending)
     }
 
     /**
@@ -115,21 +160,27 @@ class FoodLibrary(
      * library has not seen is added as remembered, not as saved; the oldest remembered foods
      * make room once there are more than [REMEMBERED_LIMIT].
      */
-    suspend fun noteUses(uses: List<JournalFoodUse>, now: Long = System.currentTimeMillis()): List<Long> {
-        if (uses.isEmpty()) return emptyList()
+    suspend fun noteUses(uses: List<JournalFoodUse>, now: Long = System.currentTimeMillis()): List<Long> = writes.withLock {
+        recoverWrite()
+        if (uses.isEmpty()) return@withLock emptyList()
         var rows = journalDao.getFoods()
         val details = detailsDao.getAll().associateByTo(HashMap()) { it.foodId }
         val ids = uses.map { use ->
             val food = use.food
             val existing = findExisting(food, rows, details)
-            val foodId = existing?.id ?: journalDao.upsertFood(
-                JournalFoodEntity(
+            val foodId = existing?.id ?: journalDao.nextFoodId()
+            val row = if (existing != null && food.source == FoodSource.CUSTOM) existing.copy(
+                carbsGrams = food.carbs, proteinGrams = food.protein, fatGrams = food.fat,
+                absorptionMinutes = food.absorptionMinutes ?: FoodMath.nutrients(food, use.amount).let { FoodMath.estimatedAbsorptionMinutes(it.carbs, it.protein, it.fat) },
+                updatedAt = now
+            ) else existing ?: JournalFoodEntity(
+                    id = foodId,
                     displayName = food.name.trim().take(MAX_NAME_LENGTH),
                     carbsGrams = food.carbs.coerceAtLeast(0f),
                     proteinGrams = food.protein?.coerceAtLeast(0f),
                     fatGrams = food.fat?.coerceAtLeast(0f),
                     absorptionMinutes = food.absorptionMinutes
-                        ?: FoodMath.estimatedAbsorptionMinutes(food.carbs, food.protein, food.fat),
+                        ?: FoodMath.nutrients(food, use.amount).let { FoodMath.estimatedAbsorptionMinutes(it.carbs, it.protein, it.fat) },
                     accentColor = DEFAULT_ACCENT_COLOR,
                     isBuiltIn = false,
                     isArchived = false,
@@ -137,7 +188,6 @@ class FoodLibrary(
                     createdAt = now,
                     updatedAt = now
                 )
-            ).also { rows = journalDao.getFoods() }
             val old = details[foodId]
             val base = old ?: FoodDetailsEntity(
                 foodId = foodId,
@@ -151,18 +201,25 @@ class FoodLibrary(
                 isLiquid = food.isLiquid,
                 // An old preset is the person's own; so is a food they typed in from a label.
                 kept = existing != null || food.source == FoodSource.CUSTOM,
+                hasOwnAbsorption = food.absorptionMinutes != null,
                 useCount = 0,
                 lastUsedAt = 0L,
                 lastQuantity = null,
                 lastPortionIndex = null
             )
-            val updated = base.copy(
+            val definition = if (food.source == FoodSource.CUSTOM) base.copy(
+                referenceGrams = food.referenceGrams, portions = FoodPortions.encode(food.portions),
+                fiberGrams = food.fiber, kcal = food.kcal, brand = food.brand,
+                isLiquid = food.isLiquid, hasOwnAbsorption = food.absorptionMinutes != null, kept = true
+            ) else base
+            val updated = definition.copy(
                 useCount = base.useCount + 1,
                 lastUsedAt = now,
                 lastQuantity = use.amount.quantity.takeIf { it.isFinite() && it > 0f },
                 lastPortionIndex = use.amount.portionIndex
             )
-            detailsDao.upsert(updated)
+            write(row, updated)
+            rows = journalDao.getFoods()
             details[foodId] = updated
             foodId
         }
@@ -172,8 +229,8 @@ class FoodLibrary(
             .drop(REMEMBERED_LIMIT)
             // Whatever the clock says, a food of the meal being saved is not the one to forget.
             .filter { it.foodId !in ids }
-            .forEach { delete(it.foodId) }
-        return ids
+            .forEach { deleteLocked(it.foodId) }
+        ids
     }
 
     private fun findExisting(
@@ -196,12 +253,18 @@ class FoodLibrary(
         // Typed in again with the same name and numbers: the same food, not a second copy.
         return rows.firstOrNull { row ->
             row.displayName.equals(food.name.trim(), ignoreCase = true) &&
-                abs(row.carbsGrams - food.carbs) < 0.05f &&
+                row.carbsGrams == food.carbs &&
+                row.proteinGrams == food.protein && row.fatGrams == food.fat &&
+                details[row.id]?.fiberGrams == food.fiber && details[row.id]?.kcal == food.kcal &&
+                details[row.id]?.isLiquid == food.isLiquid &&
+                row.absorptionMinutes.takeIf { details[row.id]?.hasOwnAbsorption != false } == food.absorptionMinutes &&
                 details[row.id]?.referenceGrams == food.referenceGrams
         }
     }
 
     companion object {
+        // Shared across repository, transfer and restore instances.
+        private val writes = Mutex()
         const val REMEMBERED_LIMIT = 60
         const val MAX_NAME_LENGTH = 120
 
@@ -233,7 +296,7 @@ class FoodLibrary(
             lastAmount = details?.lastQuantity?.let { quantity ->
                 FoodAmount(quantity, details.lastPortionIndex ?: FoodAmount.BASE_UNIT)
             },
-            hasOwnAbsorption = details == null || details.kept
+            hasOwnAbsorption = details?.hasOwnAbsorption ?: true
         )
     }
 }

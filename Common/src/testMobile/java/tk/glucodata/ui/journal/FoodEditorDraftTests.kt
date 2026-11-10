@@ -74,4 +74,25 @@ class FoodEditorDraftTests {
         val remembered = food(100f, kept = false)
         assertTrue(foodEditorInput(foodEditorDraft(remembered, 0), remembered)!!.kept)
     }
+    @Test
+    fun referenceAndServingWeightsStayIndependent() {
+        val imported = food(250f, listOf(FoodPortion(FoodPortionKind.SERVING, 125f, "half bowl")))
+        val input = foodEditorInput(foodEditorDraft(imported, 0), imported)!!
+        assertEquals(100f, input.referenceGrams)
+        assertEquals(imported.carbsGrams / 250f, input.carbsGrams / input.referenceGrams!!, 0.000001f)
+        assertEquals(imported.proteinGrams!! / 250f, input.proteinGrams!! / input.referenceGrams!!, 0.000001f)
+        assertEquals(125f, input.portions.single().grams, 0f)
+        assertEquals("half bowl", input.portions.single().label)
+        assertEquals(imported.fiberGrams!! / 250f, input.fiberGrams!! / input.referenceGrams!!, 0.000001f)
+    }
+
+    @Test
+    fun savingAnInferredDurationDoesNotMakeItExplicit() {
+        val remembered = food(100f).copy(hasOwnAbsorption = false)
+        val draft = foodEditorDraft(remembered, 0)
+        org.junit.Assert.assertFalse(foodEditorInput(draft, remembered)!!.hasOwnAbsorption)
+        assertTrue(foodEditorInput(draft.copy(absorptionText = "150"), remembered)!!.hasOwnAbsorption)
+        assertTrue(foodEditorInput(foodEditorDraft(null, 0).copy(displayName = "Milk", carbsText = "5", isLiquid = true), null)!!.isLiquid)
+    }
+
 }

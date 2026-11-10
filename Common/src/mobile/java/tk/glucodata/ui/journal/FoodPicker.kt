@@ -121,7 +121,10 @@ internal sealed interface FoodBarcodeLookup {
 @Stable
 internal class FoodPickerState(
     private val scope: CoroutineScope,
-    private val context: Context
+    private val context: Context,
+    private val productLookup: suspend (String, String) -> OpenFoodFactsResult<FoodItem> = { code, language ->
+        withContext(Dispatchers.IO) { OpenFoodFactsClient.product(code, language) }
+    }
 ) {
     var library: List<JournalFood> = emptyList()
     var searching by mutableStateOf(false)
@@ -187,14 +190,14 @@ internal class FoodPickerState(
     /** Finds the product for [code]: in the library when it was scanned before, else online. */
     fun lookUp(code: String, onFound: (FoodItem) -> Unit) {
         barcodeJob?.cancel()
-        library.firstOrNull { it.barcode == code && !it.isArchived }?.let {
+        library.firstOrNull { (ProductBarcode.normalize(it.barcode) ?: it.barcode) == code && !it.isArchived }?.let {
             barcode = FoodBarcodeLookup.Idle
             onFound(it.toFoodItem())
             return
         }
         barcode = FoodBarcodeLookup.Looking(code)
         barcodeJob = scope.launch {
-            val result = withContext(Dispatchers.IO) { OpenFoodFactsClient.product(code, language) }
+            val result = productLookup(code, language)
             when (result) {
                 is OpenFoodFactsResult.Found -> {
                     barcode = FoodBarcodeLookup.Idle
@@ -262,11 +265,11 @@ internal fun LazyListScope.journalFoodRows(
     items: List<JournalDraftFoodItem>,
     macrosEnabled: Boolean,
     onlineEnabled: Boolean,
-    onItemsChange: (List<JournalDraftFoodItem>) -> Unit
+    onItemsChange: (List<JournalDraftFoodItem>) -> Unit,
+    onAddFood: (FoodItem) -> Unit
 ) {
     val add: (FoodItem) -> Unit = { food ->
-        onItemsChange(items + JournalDraftFoodItem(food, FoodMath.defaultAmount(food)))
-        state.openItem = items.size
+        onAddFood(food)
         state.close()
     }
 
@@ -277,7 +280,7 @@ internal fun LazyListScope.journalFoodRows(
             onQueryChange = state::onQueryChange,
             active = state.searching,
             onActivate = {
-                state.scanning = false
+                state.close()
                 state.searching = true
             },
             onClose = {

@@ -55,4 +55,14 @@ class FoodSearchTests {
     fun theLimitKeepsTheBest() {
         assertEquals(listOf("Rice"), search(listOf("Fried rice", "Rice cake", "Rice"), "rice", limit = 1))
     }
+    @Test
+    fun punctuationDoesNotHideAnExactNameAndFrequencyBreaksEqualRanks() {
+        val exact = FoodSearch.IndexedName("Fish & chips")
+        assertEquals(0, FoodSearch.rank(exact, FoodSearch.words("fish & chips"), "fish chips"))
+        val short = FoodSearch.IndexedName("Apple, red") to 1
+        val frequent = FoodSearch.IndexedName("Apple, red and green") to 20
+        val found = FoodSearch.search(listOf(short, frequent), "apple", 2, preference = { it.second }) { it.first }
+        assertEquals(frequent, found.first())
+    }
+
 }

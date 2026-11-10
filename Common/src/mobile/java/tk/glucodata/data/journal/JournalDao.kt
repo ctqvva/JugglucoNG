@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface JournalDao {
+    @Query("SELECT COALESCE((SELECT seq FROM sqlite_sequence WHERE name = 'journal_foods'), 0) + 1")
+    suspend fun nextFoodId(): Long
+
     @Query("SELECT * FROM journal_entries ORDER BY timestamp DESC, id DESC")
     fun observeEntries(): Flow<List<JournalEntryEntity>>
 

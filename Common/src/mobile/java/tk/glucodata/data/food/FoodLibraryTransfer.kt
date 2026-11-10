@@ -20,7 +20,7 @@ import tk.glucodata.data.journal.JournalFoodInput
 object FoodLibraryTransfer {
     val COLUMNS = listOf(
         "name", "carbs", "protein", "fat", "per_grams", "portions",
-        "absorption_min", "fiber", "kcal", "brand", "barcode"
+        "absorption_min", "fiber", "kcal", "brand", "barcode", "is_liquid"
     )
     const val MIME_TYPE = "text/csv"
     const val DEFAULT_FILE_NAME = "food-library.csv"
@@ -39,6 +39,7 @@ object FoodLibraryTransfer {
         "fiber" to listOf("fiber", "fibre", "клетчатка", "клітковина", "ballaststoffe", "fibres", "fibra", "vezels", "błonnik", "rost"),
         "kcal" to listOf("kcal", "calories", "energy", "ккал", "калории", "калорії", "kalorien", "energie", "calorie", "kalorie", "kalória"),
         "brand" to listOf("brand", "бренд", "марка", "marke", "marque", "marca", "merk"),
+        "is_liquid" to listOf("is_liquid", "isliquid", "liquid"),
         "barcode" to listOf("barcode", "code", "ean", "gtin", "штрихкод", "штрих-код")
     )
     private val columnByAlias: Map<String, String> =
@@ -55,11 +56,12 @@ object FoodLibraryTransfer {
                     food.fatGrams?.let(::number).orEmpty(),
                     food.referenceGrams?.let(::number).orEmpty(),
                     FoodPortions.encode(food.portions),
-                    food.absorptionMinutes.toString(),
+                    food.absorptionMinutes.takeIf { food.hasOwnAbsorption }?.toString().orEmpty(),
                     food.fiberGrams?.let(::number).orEmpty(),
                     food.kcal?.let(::number).orEmpty(),
                     food.brand.orEmpty(),
-                    food.barcode.orEmpty()
+                    food.barcode.orEmpty(),
+                    food.isLiquid.toString()
                 ).joinToString(",") { csvCell(it) }
             ).append('\n')
         }
@@ -88,13 +90,13 @@ object FoodLibraryTransfer {
                 column(key)?.let { column -> if (!item.isNull(key)) row.putIfAbsent(column, item.opt(key).toString()) }
             }
             val hasReference = item?.keys()?.asSequence()?.any { column(it) == "per_grams" } == true
-            toInput(row, decimalComma = true, hasReference) ?: run { skipped++; null }
+            toInput(row, hasReference) ?: run { skipped++; null }
         }
         return Parsed(foods, skipped)
     }
 
     private fun parseCsv(body: String): Parsed {
-        val lines = body.lineSequence().filter { it.isNotBlank() }.toList()
+        val lines = csvRecords(body).filter { it.isNotBlank() }
         val headerLine = lines.firstOrNull() ?: return Parsed(emptyList(), 0)
         val delimiter = listOf('\t', ';', ',').maxBy { candidate -> headerLine.count { it == candidate } }
         val header = splitCsv(headerLine, delimiter).map(::column)
@@ -107,8 +109,8 @@ object FoodLibraryTransfer {
                 val cell = cells.getOrNull(index)?.trim().orEmpty()
                 if (column != null && cell.isNotEmpty()) row.putIfAbsent(column, cell)
             }
-            // With commas between cells a comma inside a number would have split it already.
-            toInput(row, decimalComma = delimiter != ',', hasReference = "per_grams" in header)
+            // Quoted decimal commas are part of a completed cell, whichever delimiter was used.
+            toInput(row, hasReference = "per_grams" in header)
                 ?: run { skipped++; null }
         }
         return Parsed(foods, skipped)
@@ -121,8 +123,8 @@ object FoodLibraryTransfer {
      * @param hasReference whether the table has a weight column at all. Without one the numbers
      *   are per 100 g; with one, a row that leaves it empty is a serving of unrecorded weight.
      */
-    private fun toInput(row: Map<String, String>, decimalComma: Boolean, hasReference: Boolean): JournalFoodInput? {
-        fun value(column: String): Float? = row[column]?.let { parseNumber(it, decimalComma) }
+    private fun toInput(row: Map<String, String>, hasReference: Boolean): JournalFoodInput? {
+        fun value(column: String): Float? = row[column]?.let { parseNumber(it) }
         val name = row["name"]?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         val carbs = value("carbs")?.takeIf { it >= 0f } ?: return null
         val protein = value("protein")?.takeIf { it >= 0f }
@@ -142,20 +144,48 @@ object FoodLibraryTransfer {
             kcal = value("kcal")?.takeIf { it >= 0f },
             brand = row["brand"]?.trim()?.takeIf { it.isNotEmpty() },
             barcode = ProductBarcode.normalize(row["barcode"]),
+            isLiquid = row["is_liquid"]?.lowercase(Locale.ROOT) in listOf("true", "1", "yes"),
+            hasOwnAbsorption = value("absorption_min") != null,
             kept = true
         )
     }
 
     /** "12,5", "12.5 g", "100г" */
-    private fun parseNumber(cell: String, decimalComma: Boolean): Float? {
-        val text = if (decimalComma) cell.replace(',', '.') else cell
-        return Regex("-?\\d+(?:\\.\\d+)?").find(text)?.value?.toFloatOrNull()?.takeIf { it.isFinite() }
+    private fun parseNumber(cell: String): Float? {
+        val text = FoodNumbers.normalize(cell)
+        return Regex("-?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?").find(text)?.value?.toFloatOrNull()?.takeIf { it.isFinite() }
     }
 
     private fun number(value: Float): String = value.toString().removeSuffix(".0")
 
     private fun csvCell(value: String): String =
-        if (value.any { it == ',' || it == '"' || it == '\n' }) "\"" + value.replace("\"", "\"\"") + "\"" else value
+        if (value.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) "\"" + value.replace("\"", "\"\"") + "\"" else value
+
+    private fun csvRecords(text: String): List<String> {
+        val records = ArrayList<String>()
+        val record = StringBuilder()
+        var quoted = false
+        var index = 0
+        while (index < text.length) {
+            val char = text[index]
+            when {
+                char == '"' && quoted && text.getOrNull(index + 1) == '"' -> {
+                    record.append("\"\"")
+                    index++
+                }
+                char == '"' -> { quoted = !quoted; record.append(char) }
+                !quoted && (char == '\n' || char == '\r') -> {
+                    records += record.toString()
+                    record.setLength(0)
+                    if (char == '\r' && text.getOrNull(index + 1) == '\n') index++
+                }
+                else -> record.append(char)
+            }
+            index++
+        }
+        if (record.isNotEmpty()) records += record.toString()
+        return records
+    }
 
     internal fun splitCsv(line: String, delimiter: Char): List<String> {
         val cells = ArrayList<String>()

@@ -97,4 +97,12 @@ class FoodMathTests {
         assertEquals(true, heavy > light)
         assertEquals(true, light in 45..480 && heavy in 45..480)
     }
+    @Test
+    fun decrementNeverIncreasesATinyManuallyEnteredAmount() {
+        for (quantity in listOf(0.002f, 0.25f, 1f, 5f, 9.9f, 5001f)) {
+            org.junit.Assert.assertTrue(FoodMath.stepped(pasta, FoodAmount(quantity), -1).quantity <= quantity)
+        }
+        assertEquals(0.25f, FoodMath.stepped(bread, FoodAmount(0.25f, 0), -1).quantity, 0f)
+    }
+
 }
