@@ -615,7 +615,7 @@ private fun FoodResultRow(
     val countDescription = stringResource(R.string.selected_count, addedCount)
     val baseColor = if (added) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
     val rowColor by animateColorAsState(
-        accent?.let { lerp(baseColor, it, 0.22f) } ?: baseColor,
+        accent?.let { lerp(baseColor, it, 0.18f) } ?: baseColor,
         ExpressiveMotion.fastEffects(), label = "foodAddedRow")
     val buttonColor by animateColorAsState(
         if (added) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
