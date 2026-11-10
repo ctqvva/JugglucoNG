@@ -109,7 +109,7 @@ class FoodLibraryInteractionTests {
         compose.onNodeWithText(Applic.app.getString(R.string.journal_food_library)).performClick()
         assertFalse(enabled)
         add.assertIsNotEnabled()
-        search.assertIsNotEnabled()
+        compose.onNodeWithText(Applic.app.getString(R.string.journal_food_search)).assertIsNotEnabled()
     }
 
     @Test

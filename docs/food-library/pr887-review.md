@@ -129,3 +129,20 @@ its saved library ID. The history schema is unchanged.
 
 All 373 targeted journal/food tests and the final arm64 Mobile debug APK build passed,
 with UI guardrails and whitespace checks also passing.
+
+## Library controls and file actions
+
+The library now uses the existing master switch card. Its shorter Open Food Facts
+row and Add food action sit above search, so a large saved-food list cannot bury
+them. Import and export moved into a compact bottom sheet opened from the pinned
+top-right toolbar action. Import remains available with an empty or disabled
+library; export requires a saved, active food. Source copy was shortened in all
+16 supported translations.
+
+All nine focused library, picker and sheet-height UI tests passed. The new tests
+exercise a 100-food library, control ordering, master-switch behavior, the toolbar
+action after scrolling, both file callbacks and empty-library export gating. The
+arm64 Mobile debug APK built and was installed on the Pixel. UI guardrails, string
+XML parsing and whitespace checks passed. Final device interaction stopped when
+the Pixel entered the screenshot editor; the new transfer sheet was verified by
+the rendered UI tests rather than claiming a completed physical-device check.
