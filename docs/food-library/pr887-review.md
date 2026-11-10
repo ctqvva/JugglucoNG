@@ -171,5 +171,8 @@ Validation: all 78 related journal/component tests passed, with zero skips,
 failures or errors. The arm64 Mobile debug APK built and was installed on the
 Pixel. UI guardrails and whitespace checks passed. The gap fix was checked on
 the Pixel across search dismissal, food selection, quantity-keyboard dismissal,
-Glucose and Insulin. The final motion adjustment passes the rendered frame test;
-its last physical-device check is pending because the Pixel is locked.
+Glucose and Insulin. The final motion adjustment also passed the unlocked Pixel
+check: the drag handle remained at row 175 in all 75 decoded frames covering
+keyboard dismissal. Selecting a food after hiding search's keyboard and opening
+and closing its quantity keyboard both left the form at its compact height.
+No test journal entry was saved.
