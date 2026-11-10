@@ -11,6 +11,9 @@ import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalFoodInput
 import tk.glucodata.data.journal.JournalFoodUse
 
+/** Exact undo data, including portions and remembered quantities. */
+data class DeletedFoods(val rows: List<JournalFoodEntity>, val details: List<FoodDetailsEntity>)
+
 /**
  * The person's foods: the journal's `journal_foods` rows joined with what [FoodLibraryDatabase]
  * knows about each.
@@ -143,6 +146,47 @@ class FoodLibrary(
     suspend fun delete(foodId: Long) = writes.withLock {
         recoverWrite()
         deleteLocked(foodId)
+    }
+
+    suspend fun delete(ids: Set<Long>): DeletedFoods = writes.withLock {
+        recoverWrite()
+        val rows = journalDao.getFoods().filter { it.id in ids }
+        val actualIds = rows.map { it.id }
+        val details = detailsDao.getAll().filter { it.foodId in ids }
+        // Older Android SQLite builds limit the bind parameters in an IN clause to 999.
+        actualIds.chunked(500).forEach { batch ->
+            journalDao.deleteFoodsByIds(batch)
+            detailsDao.deleteIds(batch)
+        }
+        DeletedFoods(rows, details)
+    }
+
+    suspend fun undoDelete(deleted: DeletedFoods) = writes.withLock {
+        recoverWrite()
+        val byId = deleted.details.associateBy { it.foodId }
+        deleted.rows.forEach { row ->
+            // A backup restore may have filled the ID in the meantime. Undo must not replace it.
+            if (journalDao.getFoodById(row.id) == null) write(row, byId[row.id])
+        }
+    }
+
+    suspend fun setArchived(ids: Set<Long>, archived: Boolean, now: Long = System.currentTimeMillis()) = writes.withLock {
+        recoverWrite()
+        ids.toList().chunked(500).forEach { journalDao.setFoodsArchived(it, archived, now) }
+    }
+
+    /** Move the selected saved foods as one block, retaining both selected and unselected order. */
+    suspend fun moveBefore(ids: Set<Long>, beforeId: Long?, now: Long = System.currentTimeMillis()) = writes.withLock {
+        recoverWrite()
+        val details = detailsDao.getAll().associateBy { it.foodId }
+        val mine = journalDao.getFoods().filter { !it.isArchived && details[it.id]?.kept != false }
+        val moving = mine.filter { it.id in ids }
+        val remaining = mine.filter { it.id !in ids }
+        if (moving.isEmpty() || beforeId in ids) return@withLock
+        val target = if (beforeId == null) remaining.size else remaining.indexOfFirst { it.id == beforeId }
+        if (target < 0) return@withLock // Destination removed or disabled while the chooser was open.
+        val ordered = remaining.toMutableList().apply { addAll(target, moving) }
+        journalDao.setFoodOrder(ordered.map { it.id }, now)
     }
 
     private suspend fun deleteLocked(foodId: Long) {

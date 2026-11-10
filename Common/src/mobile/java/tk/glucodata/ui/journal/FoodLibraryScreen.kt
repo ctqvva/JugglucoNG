@@ -3,6 +3,7 @@
 package tk.glucodata.ui.journal
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkAdd
@@ -30,6 +32,11 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -45,6 +52,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,7 +105,10 @@ internal class FoodLibraryActions(
     val onSave: (FoodItem) -> Unit,
     val onImport: () -> Unit,
     val onExport: () -> Unit,
-    val onCreateFromBarcode: (String) -> Unit = { onCreate() }
+    val onCreateFromBarcode: (String) -> Unit = { onCreate() },
+    val onDelete: (Set<Long>) -> Unit = {},
+    val onArchive: (Set<Long>, Boolean) -> Unit = { _, _ -> },
+    val onMove: (Set<Long>, Long?) -> Unit = { _, _ -> }
 )
 
 @Composable
@@ -114,6 +125,25 @@ fun JournalFoodLibraryScreen(
     var creatingBarcode by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    val showFailure: () -> Unit = {
+        Toast.makeText(context, R.string.food_manage_failed, Toast.LENGTH_LONG).show()
+    }
+    val deleteFoods: (Set<Long>) -> Unit = { ids ->
+        viewModel.deleteJournalFoods(ids) { result ->
+            result.fold(onSuccess = { deleted ->
+                if (deleted.rows.isNotEmpty()) scope.launch {
+                    snackbar.currentSnackbarData?.dismiss()
+                    val response = snackbar.showSnackbar(
+                        context.getString(R.string.food_deleted, deleted.rows.size), context.getString(R.string.undo),
+                        duration = SnackbarDuration.Short)
+                    if (response == SnackbarResult.ActionPerformed) {
+                        viewModel.undoDeleteJournalFoods(deleted) { success -> if (!success) showFailure() }
+                    }
+                }
+            }, onFailure = { showFailure() })
+        }
+    }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -161,6 +191,7 @@ fun JournalFoodLibraryScreen(
         macrosEnabled = foodMacrosEnabled,
         libraryEnabled = foodLibraryEnabled,
         onlineEnabled = foodOnlineEnabled,
+        snackbar = snackbar,
         onNavigateBack = { navController.popBackStack() },
         actions = FoodLibraryActions(
             onLibraryEnabledChange = viewModel::setJournalFoodLibraryEnabled,
@@ -174,7 +205,10 @@ fun JournalFoodLibraryScreen(
                 }
             },
             onImport = { importLauncher.launch(arrayOf("text/*", "application/json", "application/octet-stream")) },
-            onExport = { exportLauncher.launch(FoodLibraryTransfer.DEFAULT_FILE_NAME) }
+            onExport = { exportLauncher.launch(FoodLibraryTransfer.DEFAULT_FILE_NAME) },
+            onDelete = deleteFoods,
+            onArchive = { ids, archived -> viewModel.setJournalFoodsArchived(ids, archived) { if (!it) showFailure() } },
+            onMove = { ids, before -> viewModel.moveJournalFoodsBefore(ids, before) { if (!it) showFailure() } }
         )
     )
 
@@ -203,13 +237,9 @@ fun JournalFoodLibraryScreen(
                 viewModel.saveJournalFood(it)
                 editingFood = null
             },
-            onDelete = if (food.isBuiltIn) {
-                null
-            } else {
-                {
-                    viewModel.deleteJournalFood(food.id)
-                    editingFood = null
-                }
+            onDelete = {
+                deleteFoods(setOf(food.id))
+                editingFood = null
             }
         )
     }
@@ -223,16 +253,33 @@ internal fun FoodLibraryLayout(
     libraryEnabled: Boolean,
     onlineEnabled: Boolean,
     onNavigateBack: () -> Unit,
-    actions: FoodLibraryActions
+    actions: FoodLibraryActions,
+    snackbar: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     var showTransfer by remember { mutableStateOf(false) }
+    val management = remember { FoodLibraryManagement() }
     val focusManager = LocalFocusManager.current
+    BackHandler(enabled = management.selecting, onBack = management::cancel)
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
+        bottomBar = {
+            if (management.selecting) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center) {
+                FoodManagementToolbar(foods, management, actions)
+            }
+        },
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.journal_food_library),
-                onNavigateBack = onNavigateBack,
+                onNavigateBack = { if (management.selecting) management.cancel() else onNavigateBack() },
                 actions = {
+                    IconButtonTooltip(stringResource(R.string.food_select)) {
+                        IconButton(onClick = { focusManager.clearFocus(); management.selecting = true },
+                            enabled = libraryEnabled && foods.isNotEmpty() && !management.selecting,
+                            shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Default.Checklist, contentDescription = stringResource(R.string.food_select))
+                        }
+                    }
                     val label = stringResource(R.string.food_file_title)
                     IconButtonTooltip(label) {
                         IconButton(
@@ -247,8 +294,9 @@ internal fun FoodLibraryLayout(
         }
     ) { padding ->
         FoodLibraryContent(foods, macrosEnabled, libraryEnabled, onlineEnabled, actions,
-            modifier = Modifier.padding(padding))
+            modifier = Modifier.padding(padding), management = management)
     }
+    FoodManagementDialogs(foods, management, actions)
     if (showTransfer) {
         FoodLibraryTransferSheet(
             canExport = foods.any { it.kept && !it.isArchived },
@@ -317,7 +365,8 @@ internal fun FoodLibraryContent(
     onlineEnabled: Boolean,
     actions: FoodLibraryActions,
     modifier: Modifier = Modifier,
-    picker: FoodPickerState = rememberFoodPickerState(foods)
+    picker: FoodPickerState = rememberFoodPickerState(foods),
+    management: FoodLibraryManagement = remember { FoodLibraryManagement() }
 ) {
     val focusManager = LocalFocusManager.current
     var expandedKey by remember { mutableStateOf<String?>(null) }
@@ -335,18 +384,28 @@ internal fun FoodLibraryContent(
         foods.filter { it.id in savedBrowseIds || picker.shelves.library.any { found -> found.libraryId == it.id } })
         .distinctBy { it.id }
     val unsavedBrowse = browseFoods.filter { item -> foods.none { it.kept && !it.isArchived && item.isLibraryCopy(it) } }
+    val visibleIds = (if (picker.query.isBlank()) foods else ownMatches).mapTo(HashSet()) { it.id }
+    SideEffect { management.visibleIds = if (libraryEnabled) visibleIds else emptySet() }
+    LaunchedEffect(visibleIds, libraryEnabled) {
+        management.selectedIds = management.selectedIds.intersect(visibleIds)
+        if (!libraryEnabled) management.cancel()
+    }
     // A food saved from a shelf moves to the person's own; the lists should say so at once.
     LaunchedEffect(foods) { picker.refresh() }
     LaunchedEffect(libraryEnabled, onlineEnabled) {
         if (!libraryEnabled || !onlineEnabled) picker.close()
     }
 
+    val myFoodsLabel = stringResource(R.string.food_my_foods)
+    val recentLabel = stringResource(R.string.food_recent)
+    val disabledLabel = stringResource(R.string.journal_food_disabled_library)
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        item(key = "food_library_enabled") {
+        libraryItem(key = "food_library_enabled") {
             MasterSwitchCard(
                 title = stringResource(R.string.journal_food_library),
                 subtitle = stringResource(R.string.journal_food_choose_desc),
@@ -356,7 +415,7 @@ internal fun FoodLibraryContent(
             )
         }
 
-        item(key = "food_online_enabled") {
+        libraryItem(key = "food_online_enabled") {
             SettingsSwitchItem(
                 title = stringResource(R.string.open_food_facts),
                 subtitle = stringResource(R.string.food_online_desc),
@@ -369,7 +428,7 @@ internal fun FoodLibraryContent(
             )
         }
 
-        item(key = "food_add") {
+        libraryItem(key = "food_add") {
             FilledTonalButton(
                 onClick = actions.onCreate,
                 enabled = libraryEnabled,
@@ -385,7 +444,7 @@ internal fun FoodLibraryContent(
             }
         }
 
-        item(key = "food_search") {
+        libraryItem(key = "food_search") {
             FoodSearchField(
                 query = picker.query,
                 onQueryChange = {
@@ -413,7 +472,7 @@ internal fun FoodLibraryContent(
         if (!libraryEnabled) return@LazyColumn
 
         if (picker.scanning && onlineEnabled) {
-            item(key = "food_scanner") {
+            libraryItem(key = "food_scanner") {
                 FoodBarcodeScanner(
                     lookup = picker.barcode,
                     onBarcode = { code ->
@@ -432,40 +491,18 @@ internal fun FoodLibraryContent(
         }
 
         if (picker.query.isBlank()) {
-            if (mine.isNotEmpty()) {
-                item(key = "food_mine") {
-                    FoodLibraryGroup(stringResource(R.string.food_my_foods), mine, macrosEnabled, actions.onEdit)
-                }
-            }
-            if (remembered.isNotEmpty()) {
-                item(key = "food_remembered") {
-                    FoodLibraryGroup(stringResource(R.string.food_recent), remembered, macrosEnabled, actions.onEdit)
-                }
-            }
-            if (disabled.isNotEmpty()) {
-                item(key = "food_disabled") {
-                    FoodLibraryGroup(
-                        stringResource(R.string.journal_food_disabled_library),
-                        disabled,
-                        macrosEnabled,
-                        actions.onEdit
-                    )
-                }
-            }
-
+            managedFoodGroup(myFoodsLabel, mine, macrosEnabled, management, foods, actions)
+            managedFoodGroup(recentLabel, remembered, macrosEnabled, management, foods, actions)
+            managedFoodGroup(disabledLabel, disabled, macrosEnabled, management, foods, actions)
         } else {
             val shelves = picker.shelves
-            if (ownMatches.isNotEmpty()) {
-                item(key = "food_mine") {
-                    FoodLibraryGroup(stringResource(R.string.food_my_foods), ownMatches, macrosEnabled, actions.onEdit)
-                }
-            }
+            managedFoodGroup(myFoodsLabel, ownMatches, macrosEnabled, management, foods, actions)
             val toggle: (FoodItem) -> Unit = { food ->
                 focusManager.clearFocus()
                 expandedKey = food.key.takeIf { it != expandedKey }
             }
             if (shelves.common.isNotEmpty()) {
-                item(key = "food_shelf_common") {
+                libraryItem(key = "food_shelf_common") {
                     FoodBrowseGroup(
                         stringResource(R.string.food_common_foods), shelves.common, macrosEnabled,
                         expandedKey, toggle, actions.onSave
@@ -474,7 +511,7 @@ internal fun FoodLibraryContent(
             }
             val online = picker.online
             if (onlineEnabled && unsavedBrowse.isNotEmpty()) {
-                item(key = "food_shelf_online") {
+                libraryItem(key = "food_shelf_online") {
                     FoodBrowseGroup(
                         stringResource(R.string.open_food_facts), unsavedBrowse, macrosEnabled,
                         expandedKey, toggle, actions.onSave
@@ -482,7 +519,7 @@ internal fun FoodLibraryContent(
                 }
             }
             if (shelves.reference.isNotEmpty()) {
-                item(key = "food_shelf_reference") {
+                libraryItem(key = "food_shelf_reference") {
                     FoodBrowseGroup(
                         stringResource(R.string.food_reference_tables), shelves.reference, macrosEnabled,
                         expandedKey, toggle, actions.onSave
@@ -490,7 +527,7 @@ internal fun FoodLibraryContent(
                 }
             }
             if (onlineEnabled && online !is FoodOnlineSearch.Done && scannedFood == null) {
-                item(key = "food_online") {
+                libraryItem(key = "food_online") {
                     FoodOnlineButton(
                         online = online,
                         enabled = picker.query.trim().length >= FoodCatalog.MIN_QUERY_LENGTH,
@@ -501,7 +538,7 @@ internal fun FoodLibraryContent(
                     )
                 }
             } else if (online is FoodOnlineSearch.Done && online.foods.isEmpty()) {
-                item(key = "food_online") {
+                libraryItem(key = "food_online") {
                     FoodCaption(stringResource(R.string.food_online_empty))
                 }
             }
@@ -554,35 +591,9 @@ private fun FoodOnlineButton(
     }
 }
 
-/** The person's own foods under a label; a row opens the food for editing. */
-@Composable
-private fun FoodLibraryGroup(
-    title: String,
-    foods: List<JournalFood>,
-    macrosEnabled: Boolean,
-    onEdit: (JournalFood) -> Unit
-) {
-    Column {
-        SectionLabel(text = title, topPadding = 12.dp)
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            foods.forEachIndexed { index, food ->
-                val tint = if (food.isArchived) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    Color(food.accentColor)
-                }
-                SettingsItem(
-                    title = food.displayName,
-                    subtitle = foodSummary(food.toFoodItem(), macrosEnabled),
-                    onClick = { onEdit(food) },
-                    icon = Icons.Default.Restaurant,
-                    iconTint = tint,
-                    position = foodCardPosition(index, foods.size),
-                    modifier = Modifier.alpha(if (food.isArchived) 0.6f else 1f)
-                )
-            }
-        }
-    }
+/** Gaps between controls and shelves; managed rows use the smaller grouped-row gap. */
+private fun LazyListScope.libraryItem(key: String, content: @Composable () -> Unit) {
+    item(key = key) { Box(Modifier.padding(bottom = 12.dp)) { content() } }
 }
 
 /** Foods from a shelf under a label; a row opens to show what is in the food and to save it. */

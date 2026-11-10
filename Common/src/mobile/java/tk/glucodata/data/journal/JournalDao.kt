@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -216,6 +217,20 @@ interface JournalDao {
 
     @Query("DELETE FROM journal_foods WHERE id = :id")
     suspend fun deleteFoodById(id: Long)
+
+    @Query("DELETE FROM journal_foods WHERE id IN (:ids)")
+    suspend fun deleteFoodsByIds(ids: List<Long>)
+
+    @Query("UPDATE journal_foods SET isArchived = :archived, updatedAt = :now WHERE id IN (:ids)")
+    suspend fun setFoodsArchived(ids: List<Long>, archived: Boolean, now: Long)
+
+    @Query("UPDATE journal_foods SET sortOrder = :position, updatedAt = :now WHERE id = :id")
+    suspend fun setFoodPosition(id: Long, position: Int, now: Long)
+
+    @Transaction
+    suspend fun setFoodOrder(ids: List<Long>, now: Long) {
+        ids.forEachIndexed { position, id -> setFoodPosition(id, position, now) }
+    }
 
     @Query(
         """

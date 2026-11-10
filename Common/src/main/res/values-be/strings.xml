@@ -3460,4 +3460,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_values_for">Значэнні пададзены на</string>
     <string name="food_serving_weight">Вага порцыі</string>
     <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_select">Выбраць прадукты</string>
+    <string name="food_actions">Дзеянні з прадуктамі</string>
+    <string name="food_move">Перамясціць</string>
+    <string name="food_move_title">Перамясціць прадукты (%1$d)</string>
+    <string name="food_move_before">Перад «%1$s»</string>
+    <string name="food_move_first">У пачатак спісу</string>
+    <string name="food_move_last">У канец спісу</string>
+    <string name="food_delete_title">Выдаліць прадукты (%1$d)?</string>
+    <string name="food_deleted">Выдалена прадуктаў: %1$d</string>
+    <string name="food_manage_failed">Не ўдалося змяніць базу ежы</string>
 </resources>

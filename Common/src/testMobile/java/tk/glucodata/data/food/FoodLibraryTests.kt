@@ -187,6 +187,87 @@ class FoodLibraryTests {
 
     private fun customItem(name: String, carbs: Float) =
         FoodItem(key = "custom:${System.nanoTime()}", source = FoodSource.CUSTOM, name = name, referenceGrams = 100f, carbs = carbs)
+
+    @Test
+    fun bulkDeleteAndUndoPreserveExactDefinitionsAndUsage() = runBlocking {
+        val first = library.keep(apple)
+        library.noteUses(listOf(JournalFoodUse(apple, FoodAmount(1.5f, 0))), now = 999L)
+        val second = library.keep(apple.copy(key = "common:pear", name = "Pear"))
+        val before = library.snapshot()
+        val removed = library.delete(setOf(first, second, Long.MAX_VALUE))
+        assertTrue(library.foods().isEmpty())
+        assertTrue(details.foodDetailsDao().getAll().isEmpty())
+        val newer = library.keep(apple.copy(key = "common:new", name = "New"))
+        assertTrue("undo IDs must not be recycled", newer > second)
+        library.undoDelete(removed)
+        val after = library.snapshot()
+        assertEquals(before.first, after.first.filter { it.id != newer })
+        assertEquals(before.second.sortedBy { it.foodId }, after.second.filter { it.foodId != newer }.sortedBy { it.foodId })
+        assertEquals(FoodAmount(1.5f, 0), library.foods().first { it.id == first }.lastAmount)
+    }
+
+    @Test
+    fun undoDeleteDoesNotOverwriteAnInterveningRestore() = runBlocking {
+        val id = library.keep(apple)
+        val removed = library.delete(setOf(id))
+        val replacement = removed.rows.single().copy(displayName = "Restored definition", carbsGrams = 70f)
+        library.restore(listOf(replacement), emptyList())
+        library.undoDelete(removed)
+        assertEquals("Restored definition", library.foods().single().displayName)
+        assertEquals(70f, library.foods().single().carbsGrams, 0f)
+        assertTrue(details.foodDetailsDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun movingASelectionPreservesBothOrdersAndAllNutrients() = runBlocking {
+        val ids = (1..6).map { library.keep(apple.copy(key = "food:$it", name = "Food $it")) }
+        library.noteUses(listOf(JournalFoodUse(library.foods()[3].toFoodItem(), FoodAmount(77f))), now = 300L)
+        val before = library.snapshot()
+        // The selection is deliberately unordered; the stored relative order wins.
+        library.moveBefore(setOf(ids[4], ids[2]), ids[1])
+        assertEquals(listOf(ids[0], ids[2], ids[4], ids[1], ids[3], ids[5]), library.foods().map { it.id })
+        assertEquals(before.second.sortedBy { it.foodId }, library.snapshot().second.sortedBy { it.foodId })
+        val originals = before.first.associateBy { it.id }
+        library.snapshot().first.forEach { row ->
+            val original = originals.getValue(row.id)
+            assertEquals(original, row.copy(sortOrder = original.sortOrder, updatedAt = original.updatedAt))
+        }
+        library.moveBefore(setOf(ids[2], ids[4]), null)
+        assertEquals(listOf(ids[0], ids[1], ids[3], ids[5], ids[2], ids[4]), library.foods().map { it.id })
+    }
+
+    @Test
+    fun bulkArchiveAndStaleMoveRequestsDoNotChangeFoodDetailsOrLoseRows() = runBlocking {
+        val first = library.keep(apple)
+        val second = library.keep(apple.copy(key = "common:pear", name = "Pear"))
+        library.noteUses(listOf(JournalFoodUse(apple, FoodAmount(125f))), now = 100L)
+        val beforeDetails = details.foodDetailsDao().getAll()
+        library.setArchived(setOf(first, second, 9999), true)
+        assertTrue(library.foods().all { it.isArchived })
+        library.moveBefore(setOf(first), second) // Neither is in My foods while disabled.
+        library.setArchived(setOf(first, second), false)
+        assertFalse(library.foods().any { it.isArchived })
+        library.moveBefore(setOf(first), 9999)
+        assertEquals(listOf(first, second), library.foods().map { it.id })
+        assertEquals(beforeDetails, details.foodDetailsDao().getAll())
+        assertEquals(FoodAmount(125f), library.foods().first { it.id == first }.lastAmount)
+    }
+
+    @Test
+    fun bulkActionsHandleMoreThanOneSqliteBatch() = runBlocking {
+        history.journalDao().insertFoods((1L..1100L).map { id ->
+            JournalFoodEntity(id = id, displayName = "Food $id", carbsGrams = 12f,
+                proteinGrams = null, fatGrams = null, absorptionMinutes = 90, accentColor = 0,
+                isBuiltIn = false, isArchived = false, sortOrder = id.toInt(), createdAt = 1, updatedAt = 1)
+        })
+        val ids = (1L..1100L).toSet()
+        library.setArchived(ids, true)
+        assertEquals(1100, library.foods().count { it.isArchived })
+        val removed = library.delete(ids)
+        assertEquals(1100, removed.rows.size)
+        assertTrue(library.foods().isEmpty())
+    }
+
     @Test
     fun customDefinitionsCompareAllMacrosAndKeepAbsorptionInferred() = runBlocking {
         val food = customItem("Label", 20f).copy(protein = 2f, fat = 1f)

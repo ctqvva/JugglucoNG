@@ -3376,4 +3376,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_values_for">数值对应</string>
     <string name="food_serving_weight">每份重量</string>
     <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_select">选择食物</string>
+    <string name="food_actions">食物操作</string>
+    <string name="food_move">移动</string>
+    <string name="food_move_title">移动食物（%1$d）</string>
+    <string name="food_move_before">移到%1$s之前</string>
+    <string name="food_move_first">移到开头</string>
+    <string name="food_move_last">移到末尾</string>
+    <string name="food_delete_title">删除食物（%1$d）？</string>
+    <string name="food_deleted">已删除食物：%1$d</string>
+    <string name="food_manage_failed">无法更新食物库</string>
 </resources>

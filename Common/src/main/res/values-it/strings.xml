@@ -3361,4 +3361,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_values_for">Valori riferiti a</string>
     <string name="food_serving_weight">Peso della porzione</string>
     <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_select">Seleziona alimenti</string>
+    <string name="food_actions">Azioni sugli alimenti</string>
+    <string name="food_move">Sposta</string>
+    <string name="food_move_title">Sposta alimenti (%1$d)</string>
+    <string name="food_move_before">Prima di %1$s</string>
+    <string name="food_move_first">Sposta in cima</string>
+    <string name="food_move_last">Sposta in fondo</string>
+    <string name="food_delete_title">Eliminare gli alimenti (%1$d)?</string>
+    <string name="food_deleted">Alimenti eliminati: %1$d</string>
+    <string name="food_manage_failed">Impossibile aggiornare la raccolta alimenti</string>
 </resources>

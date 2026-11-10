@@ -601,6 +601,14 @@ class JournalRepository {
 
     suspend fun deleteFood(foodId: Long) = foodLibrary.delete(foodId)
 
+    suspend fun deleteFoods(ids: Set<Long>) = foodLibrary.delete(ids)
+
+    suspend fun undoDeleteFoods(deleted: tk.glucodata.data.food.DeletedFoods) = foodLibrary.undoDelete(deleted)
+
+    suspend fun setFoodsArchived(ids: Set<Long>, archived: Boolean) = foodLibrary.setArchived(ids, archived)
+
+    suspend fun moveFoodsBefore(ids: Set<Long>, beforeId: Long?) = foodLibrary.moveBefore(ids, beforeId)
+
     /** Adds a table of foods; returns how many were new and how many replaced a food of that name. */
     suspend fun importFoods(foods: List<JournalFoodInput>): Pair<Int, Int> = foodLibrary.import(foods)
 

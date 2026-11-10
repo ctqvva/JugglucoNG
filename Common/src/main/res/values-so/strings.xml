@@ -3555,4 +3555,16 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="food_values_for">Qiimayaashu waxay ku saabsan yihiin</string>
     <string name="food_serving_weight">Miisaanka qaybta</string>
     <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_select">Dooro cuntooyinka</string>
+    <string name="food_actions">Hawlaha cuntada</string>
+    <string name="food_move">Dhaqaaji</string>
+    <string name="food_move_title">Dhaqaaji cuntooyinka (%1$d)</string>
+    <string name="food_move_before">Ka hor %1$s</string>
+    <string name="food_move_first">U dhaqaaji bilowga</string>
+    <string name="food_move_last">U dhaqaaji dhammaadka</string>
+    <string name="food_delete_title">Tirtir cuntooyinka (%1$d)?</string>
+    <string name="food_deleted">Cuntooyinka la tirtiray: %1$d</string>
+    <string name="food_manage_failed">Lama cusboonaysiin karin maktabadda cuntada</string>
 </resources>

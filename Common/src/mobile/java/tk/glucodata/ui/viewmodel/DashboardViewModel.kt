@@ -2224,6 +2224,31 @@ class DashboardViewModel(
         }
     }
 
+    fun deleteJournalFoods(ids: Set<Long>, onDone: (Result<tk.glucodata.data.food.DeletedFoods>) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.deleteFoods(ids) }) }
+    }
+
+    fun undoDeleteJournalFoods(deleted: tk.glucodata.data.food.DeletedFoods, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.undoDeleteFoods(deleted) }.isSuccess) }
+    }
+
+    fun setJournalFoodsArchived(ids: Set<Long>, archived: Boolean, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.setFoodsArchived(ids, archived) }.isSuccess) }
+    }
+
+    fun moveJournalFoodsBefore(ids: Set<Long>, beforeId: Long?, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.moveFoodsBefore(ids, beforeId) }.isSuccess) }
+    }
+
+    private suspend fun <T> foodLibraryAction(block: suspend () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        tk.glucodata.Log.stack("FoodLibrary", "manage", failure)
+        Result.failure(failure)
+    }
+
     // Floating Glucose Logic
     val floatingRepository = tk.glucodata.data.settings.FloatingSettingsRepository(tk.glucodata.Applic.app)
 

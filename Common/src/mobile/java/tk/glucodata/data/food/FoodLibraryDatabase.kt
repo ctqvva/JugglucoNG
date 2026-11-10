@@ -98,6 +98,9 @@ interface FoodDetailsDao {
     @Query("DELETE FROM food_details WHERE foodId = :foodId")
     suspend fun delete(foodId: Long)
 
+    @Query("DELETE FROM food_details WHERE foodId IN (:ids)")
+    suspend fun deleteIds(ids: List<Long>)
+
     @Query("DELETE FROM food_details")
     suspend fun deleteAll()
 }

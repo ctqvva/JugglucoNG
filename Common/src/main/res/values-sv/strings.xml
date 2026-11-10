@@ -3370,4 +3370,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_values_for">Värdena gäller för</string>
     <string name="food_serving_weight">Portionsvikt</string>
     <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_select">Välj livsmedel</string>
+    <string name="food_actions">Livsmedelsåtgärder</string>
+    <string name="food_move">Flytta</string>
+    <string name="food_move_title">Flytta livsmedel (%1$d)</string>
+    <string name="food_move_before">Före %1$s</string>
+    <string name="food_move_first">Flytta till början</string>
+    <string name="food_move_last">Flytta till slutet</string>
+    <string name="food_delete_title">Ta bort livsmedel (%1$d)?</string>
+    <string name="food_deleted">Borttagna livsmedel: %1$d</string>
+    <string name="food_manage_failed">Kunde inte uppdatera livsmedelsbiblioteket</string>
 </resources>
