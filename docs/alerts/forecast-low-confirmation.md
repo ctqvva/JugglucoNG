@@ -1,6 +1,7 @@
 # Forecast-low evidence
 
-Enable **Consider IOB and recent glucose** in Forecast Low advanced settings to
+Enable **Consider IOB and recent glucose** under **Forecast Low → Advanced**,
+below the minimum repeat interval, to
 use this policy. It defaults off; disabling it preserves existing forecast-low
 behavior and clears the collected shape history.
 
@@ -29,10 +30,13 @@ Missing data, an older short snapshot, and insulin waiting to act do not qualify
 
 That candidate waits while glucose is at or above baseline minus 3 mg/dL.
 Falling farther below baseline releases it immediately. The shape evidence
-expires 15 minutes after the observed peak, and any urgency signal above takes
+expires by current time 15 minutes after the observed peak, including between
+sensor readings, and any urgency signal above takes
 precedence. This is a bounded interpretation of the preceding rise, not a
 claim that the baseline is a physiological floor. A monotonic fall has no
-preceding rise to justify this deferral.
+preceding rise to justify this deferral. Highs before a newer quiet baseline
+do not hide that baseline's rise. The peak stays at the earliest highest value
+after the baseline, so a plateau or falling edge cannot extend the wait.
 
 Other distant candidates require at least two distinct readings spanning one
 minute. For a sensor reporting once per minute, the next candidate reading can
@@ -42,7 +46,7 @@ also accumulates during shape deferral, so expiry does not start another wait.
 
 A measured rise, loss of the forecast crossing, non-falling arrow, COB coverage,
 unavailable input, or a gap longer than six minutes resets confirmation.
-Sensor identity, generation, threshold, unit and horizon changes also reset it.
+Sensor identity, generation, display mode, threshold, unit and horizon changes also reset it.
 Calibration changes clear the observed shape and confirmation, using the
 existing wait-for-new-reading barrier. Sensor or display-mode changes and
 invalid readings discard the shape history. Restarting loses that history and

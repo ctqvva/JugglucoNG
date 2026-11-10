@@ -22,7 +22,7 @@ internal class ForecastLowConfidencePolicy {
 
     private data class Context(
         val sensorId: String?, val sensorGen: Int, val threshold: Float,
-        val horizon: Int, val isMmol: Boolean
+        val horizon: Int, val isMmol: Boolean, val viewMode: Int
     )
 
     private var context: Context? = null
@@ -51,7 +51,8 @@ internal class ForecastLowConfidencePolicy {
         iobNext30: Float = Float.NaN,
         insulinSensitivity: Float = Float.NaN,
         classicIob: Float = Float.NaN,
-        recentRiseBaselineMgdl: Float? = null
+        recentRiseBaselineMgdl: Float? = null,
+        viewMode: Int = 0
     ): Decision {
         if (condition == null) {
             reset()
@@ -62,7 +63,7 @@ internal class ForecastLowConfidencePolicy {
             return Decision.EXISTING_EPISODE
         }
         val horizon = AlertGlucoseMath.normalizedForecastMinutes(forecastMinutes)
-        val nextContext = Context(sensorId, sensorGen, condition.threshold, horizon, isMmol)
+        val nextContext = Context(sensorId, sensorGen, condition.threshold, horizon, isMmol, viewMode)
         if (context != nextContext) {
             // Timestamp ordering belongs to one sensor generation. A replacement
             // can report an older sample that is still fresh enough to alert.

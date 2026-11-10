@@ -26,7 +26,8 @@ class ForecastLowConfidencePolicyTests {
         sensor: String? = "sensor-a",
         generation: Int = 1,
         active: Boolean = false,
-        ageMs: Long = 0
+        ageMs: Long = 0,
+        viewMode: Int = 0
     ): Decision {
         val scale = if (mmol) 18.0182f else 1f
         val value = glucose / scale
@@ -34,7 +35,7 @@ class ForecastLowConfidencePolicyTests {
             StandardGlucoseAlertCondition(value,
                 AlertGlucoseMath.projectedDisplayValue(value, rate, horizon, mmol), threshold / scale),
             rate, start + seconds * 1000, start + seconds * 1000 + ageMs,
-            sensor, generation, horizon, mmol, active, iob, sensitivity
+            sensor, generation, horizon, mmol, active, iob, sensitivity, viewMode = viewMode
         )
     }
 
@@ -162,6 +163,21 @@ class ForecastLowConfidencePolicyTests {
             assertEquals(Decision.CONFIRMED,
                 tick(p, 120, glucose = 112f, threshold = threshold, horizon = horizon, mmol = mmol))
         }
+    }
+
+    @Test fun displayModeChangeCannotConfirmUsingValuesFromDifferentSources() {
+        val p = ForecastLowConfidencePolicy()
+        assertEquals(Decision.CONFIRMING, tick(p, glucose = 150f, rate = -5f))
+        assertEquals(Decision.CONFIRMING, tick(p, glucose = 118f, viewMode = 1))
+        assertEquals(Decision.CONFIRMING, tick(p, 60, glucose = 120f, rate = -3f, viewMode = 1))
+        assertEquals(Decision.CONFIRMED, tick(p, 120, glucose = 117f, viewMode = 1))
+    }
+
+    @Test fun displayModeChangeOnANewReadingStartsANewConfirmationRun() {
+        val p = ForecastLowConfidencePolicy()
+        tick(p)
+        assertEquals(Decision.CONFIRMING, tick(p, 60, glucose = 116f, viewMode = 1))
+        assertEquals(Decision.CONFIRMED, tick(p, 120, glucose = 113f, viewMode = 1))
     }
 
     @Test fun sameSensorOutOfOrderUrgentReadingIsStillRejected() {

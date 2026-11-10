@@ -59,7 +59,7 @@ class ForecastLowReturnToBaselineTests {
             val oldDecision = timerOnly.evaluate(condition, rate, time, time, "sensor", 1, 20, false, false, 0f, 50f)
             timerOnlyWouldAlert = timerOnlyWouldAlert || oldDecision.eligible
             val decision = policy.evaluate(condition, rate, time, time, "sensor", 1, 20, false, false,
-                0f, 50f, 0f, state.recentRiseBaselineMgdl())
+                0f, 50f, 0f, state.recentRiseBaselineMgdl(time))
             assertFalse("minute=$index value=$value rate=$rate decision=$decision", decision.eligible)
         }
         assertTrue("The fixture must actually exercise forecast lows", forecasts >= 2)
@@ -69,8 +69,8 @@ class ForecastLowReturnToBaselineTests {
     @Test fun returnEvidenceIsObservedBeforeTheForecastCandidate() {
         val state = ForecastLowReturnToBaselineState()
         feed(state, excursion())
-        assertEquals(118f, state.recentRiseBaselineMgdl()!!, 0.001f)
-        assertEquals(Decision.RETURNING_TO_BASELINE, decide(state.recentRiseBaselineMgdl()))
+        assertEquals(118f, state.recentRiseBaselineMgdl(start + 30 * minute)!!, 0.001f)
+        assertEquals(Decision.RETURNING_TO_BASELINE, decide(state.recentRiseBaselineMgdl(start + 30 * minute)))
     }
 
     @Test fun meaningfulInsulinBypassesReturnToBaselineDeferral() {
@@ -108,15 +108,71 @@ class ForecastLowReturnToBaselineTests {
     @Test fun deferralExpiresFifteenMinutesAfterPeakWithoutSlidingThePeak() {
         val state = ForecastLowReturnToBaselineState()
         feed(state, excursion() + List(5) { 118f })
-        assertNotNull(state.recentRiseBaselineMgdl())
+        assertNotNull(state.recentRiseBaselineMgdl(start + 35 * minute))
         feed(state, listOf(118f), startIndex = 36)
-        assertNull(state.recentRiseBaselineMgdl())
+        assertNull(state.recentRiseBaselineMgdl(start + 36 * minute))
+    }
+
+    @Test fun earlierHigherDescentCannotHideARecentLowerRise() {
+        val state = ForecastLowReturnToBaselineState()
+        val descent = (0 until 10).map { 178f - 6f * it }
+        feed(state, descent + excursion().take(30))
+        val now = start + 39 * minute
+        assertEquals(118f, state.recentRiseBaselineMgdl(now)!!, 0.001f)
+        val p = ForecastLowConfidencePolicy()
+        assertEquals(Decision.RETURNING_TO_BASELINE,
+            decide(state.recentRiseBaselineMgdl(now), glucose = 122f, p = p, seconds = 39 * 60))
+        feed(state, listOf(118f), startIndex = 40)
+        assertEquals(Decision.RETURNING_TO_BASELINE,
+            decide(state.recentRiseBaselineMgdl(now + minute), p = p, seconds = 40 * 60))
+    }
+
+    @Test fun schedulerReleasesConfirmedForecastAfterPeakExpiresWithoutANewReading() {
+        val state = ForecastLowReturnToBaselineState()
+        val p = ForecastLowConfidencePolicy()
+        val values = listOf(118f, 118f, 118f, 128f, 148f, 158f, 138f, 118f, 118f)
+        fun evaluate(now: Long, reading: Long) = p.evaluate(
+            StandardGlucoseAlertCondition(118f, 58f, 70f), -1f,
+            reading, now, "sensor", 1, 60, false, false,
+            classicIob = 0f, iobNext30 = 0f,
+            recentRiseBaselineMgdl = state.recentRiseBaselineMgdl(now)
+        )
+        values.forEachIndexed { index, value ->
+            val time = start + index * 5 * minute
+            state.observe(time, value, "sensor", 1, 0, false)
+            if (index == 7) assertEquals(Decision.RETURNING_TO_BASELINE, evaluate(time, time))
+        }
+        val reading = start + 40 * minute
+        assertEquals(Decision.RETURNING_TO_BASELINE, evaluate(reading, reading))
+        assertEquals(Decision.CONFIRMED, evaluate(reading + 1, reading))
+        assertEquals(Decision.CONFIRMED, evaluate(reading + 4 * minute, reading))
+    }
+
+    @Test fun equalPeakPlateauDoesNotMoveTheExpiryForward() {
+        val state = ForecastLowReturnToBaselineState()
+        feed(state, excursion().take(21) + List(5) { 158f } + List(10) { 118f })
+        assertNotNull(state.recentRiseBaselineMgdl(start + 35 * minute))
+        assertNull(state.recentRiseBaselineMgdl(start + 35 * minute + 1))
+    }
+
+    @Test fun replacementSensorOrGenerationCanBuildShapeWithOlderFreshTimestamps() {
+        for (generationChange in listOf(false, true)) {
+            val state = ForecastLowReturnToBaselineState()
+            feed(state, listOf(118f), startIndex = 35)
+            // The replacement starts only one minute behind the previous
+            // sensor, so its first sample is fresh at handover. Its six-minute
+            // quiet segment needs those first samples to establish a baseline.
+            feed(state, excursion().drop(5), startIndex = 34,
+                sensor = if (generationChange) "sensor" else "replacement",
+                generation = if (generationChange) 2 else 1)
+            assertEquals(118f, state.recentRiseBaselineMgdl(start + 59 * minute)!!, 0.001f)
+        }
     }
 
     @Test fun sustainedFallWithoutAPrecedingRiseHasNoBaselineExcuse() {
         val state = ForecastLowReturnToBaselineState()
         feed(state, List(11) { 158f } + (1..10).map { 158f - 4f * it })
-        assertNull(state.recentRiseBaselineMgdl())
+        assertNull(state.recentRiseBaselineMgdl(start + 30 * minute))
         val p = ForecastLowConfidencePolicy()
         assertFalse(decide(null, p = p).eligible)
         assertEquals(Decision.CONFIRMED, decide(null, glucose = 115f, p = p, seconds = 60))
@@ -128,19 +184,19 @@ class ForecastLowReturnToBaselineTests {
             List(11) { 118f } + (1..10).map { 118f + it } + listOf(120f))) {
             val state = ForecastLowReturnToBaselineState()
             feed(state, values)
-            assertNull(state.recentRiseBaselineMgdl())
+            assertNull(state.recentRiseBaselineMgdl(start + 30 * minute))
         }
     }
 
     @Test fun tooShortBaselineAndRestartFailOpen() {
         val state = ForecastLowReturnToBaselineState()
         feed(state, excursion().drop(10))
-        assertNull(state.recentRiseBaselineMgdl())
+        assertNull(state.recentRiseBaselineMgdl(start + 30 * minute))
         val known = ForecastLowReturnToBaselineState()
         feed(known, excursion())
         known.clear()
         feed(known, listOf(118f), 31)
-        assertNull(known.recentRiseBaselineMgdl())
+        assertNull(known.recentRiseBaselineMgdl(start + 31 * minute))
     }
 
     @Test fun sensorGenerationViewModeAndUnitSwitchesDiscardOldShape() {
@@ -149,7 +205,7 @@ class ForecastLowReturnToBaselineTests {
             feed(state, excursion())
             feed(state, listOf(118f), 31, sensor = if (mode == 0) "new-sensor" else "sensor",
                 generation = if (mode == 1) 2 else 1, viewMode = if (mode == 2) 1 else 0, mmol = mode == 3)
-            assertNull(state.recentRiseBaselineMgdl())
+            assertNull(state.recentRiseBaselineMgdl(start + 31 * minute))
         }
     }
 
@@ -159,7 +215,7 @@ class ForecastLowReturnToBaselineTests {
             feed(state, excursion())
             feed(state, listOf(if (mode == 0) Float.NaN else 118f), if (mode == 1) 37 else 31,
                 sensor = if (mode == 2) null else "sensor")
-            assertNull(state.recentRiseBaselineMgdl())
+            assertNull(state.recentRiseBaselineMgdl(start + 37 * minute))
         }
     }
 
@@ -171,7 +227,7 @@ class ForecastLowReturnToBaselineTests {
                 state.observe(start + index * 5 * minute, value / if (mmol) 18.0182f else 1f,
                     "sensor", 1, 0, mmol)
             }
-            assertEquals(118f, state.recentRiseBaselineMgdl()!!, 0.001f)
+            assertEquals(118f, state.recentRiseBaselineMgdl(start + 30 * minute)!!, 0.001f)
         }
     }
 }

@@ -36,8 +36,8 @@ object AlertRuntimeManager {
     private var lastLoggedExpiryEndMs: Long = Long.MIN_VALUE
     private var warnedForecastRateUntrusted = false
     private var preLowSuppressionReason: String? = null
-    private val preLowConfidence = ForecastLowConfidencePolicy()
-    private val preLowReturnToBaseline = ForecastLowReturnToBaselineState()
+    private var preLowConfidence = ForecastLowConfidencePolicy()
+    private var preLowReturnToBaseline = ForecastLowReturnToBaselineState()
     private var preLowConfidenceDecision: ForecastLowConfidencePolicy.Decision? = null
     private var preHighIobSuppressed = false
     private var preHighCoverageSkipLogged: String? = null
@@ -219,6 +219,9 @@ object AlertRuntimeManager {
             lastLoggedExpiryEndMs = Long.MIN_VALUE
             warnedForecastRateUntrusted = false
             preLowSuppressionReason = null
+            preLowConfidence = ForecastLowConfidencePolicy()
+            preLowReturnToBaseline = ForecastLowReturnToBaselineState()
+            preLowConfidenceDecision = null
             preHighIobSuppressed = false
             preHighCoverageSkipLogged = null
             signalRestoredStateHolder = null
@@ -483,7 +486,8 @@ object AlertRuntimeManager {
             iobNext30 = iobNext30,
             insulinSensitivity = configuredSensitivity,
             classicIob = classicIob,
-            recentRiseBaselineMgdl = preLowReturnToBaseline.recentRiseBaselineMgdl()
+            recentRiseBaselineMgdl = preLowReturnToBaseline.recentRiseBaselineMgdl(nowMs),
+            viewMode = lastDisplaySnapshot?.viewMode ?: 0
         )
         if (decision != preLowConfidenceDecision) {
             Log.i(LOG_ID, "PRE_LOW evidence=$decision glucose=${condition.glucoseValue} " +
