@@ -14,7 +14,7 @@ review were performed by Codex.
 | Editor confuses nutrient reference and serving weight | Open weighed foods with macros converted to per 100, independently retain their serving portion, and scale fibre/energy with the reference. Regression covers 250 g reference with 125 g serving. |
 | Restoring an old history backup retains local details | Restore rows with exactly the incoming details (including absence), preserving unrelated rows. Settings restore uses the same path. |
 | Barcode response restores stale meal state; leaving scan mode retains lookup | Add to the caller's current draft; close/cancel scanning when activating search. Delayed-response tests cover edited/removed items and closing the scanner. |
-| Alert profile and Talker locale regressions | Restore Notify, Talker, AlertVibrationPattern and its deleted tests exactly from the PR base. Restore the unrelated Cubic dataset-review exclusions too. |
+| Alert profile and Talker locale regressions | Restore Notify, Talker, AlertVibrationPattern and its deleted tests exactly from the PR base. Restore the unrelated reduction in Cubic dataset review coverage too. |
 | Custom-food dedup ignores protein/fat | Compare all nutrients, reference, liquid flag and explicit duration. A corrected custom label matched by barcode updates its nutrient definition. |
 | Inferred absorption uses reference macros and becomes explicit | Estimate from consumed nutrients and persist explicit-duration provenance independently of `kept`, including editor, backups and transfer. |
 | English aliases disappear after remembering translated foods | Suppress a shelf match only when the library copy is also among the returned matches. |
@@ -40,3 +40,8 @@ No physical camera, live in-app Open Food Facts request, Android document-picker
 round-trip or on-device meal editing was exercised in this review. Recommended
 manual checks remain: switching units, reopening a single-food entry, editing an
 imported food, restoring an old backup, and changing a meal during barcode lookup.
+
+An emulator smoke test was attempted through the Device panel. The agent-device
+`apps` command failed twice with `adb timed out after 10000ms`, including after
+its recommended adb-server restart. No app UI was driven, so emulator behavior
+remains unverified.
