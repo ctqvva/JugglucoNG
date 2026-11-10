@@ -3,6 +3,8 @@
 package tk.glucodata.ui.journal
 
 import android.content.Context
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,11 +56,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -87,6 +92,7 @@ import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.setup.InlineQrScannerCard
 import tk.glucodata.ui.setup.PRODUCT_BARCODE_FORMATS
+import tk.glucodata.ui.util.ExpressiveMotion
 
 /** One food of the meal being entered: what it is, how much, and the amount as it was typed. */
 data class JournalDraftFoodItem(
@@ -291,6 +297,7 @@ internal fun LazyListScope.journalFoodRows(
             query = state.query,
             onQueryChange = state::onQueryChange,
             active = state.searching,
+            scanning = state.scanning,
             onActivate = state::activateSearch,
             onClose = {
                 focusManager.clearFocus()
@@ -313,8 +320,7 @@ internal fun LazyListScope.journalFoodRows(
             FoodBarcodeScanner(
                 lookup = state.barcode,
                 onBarcode = { code -> state.lookUp(code, add) },
-                onEnterValues = { code -> add(customFood(name = code, barcode = code)) },
-                onClose = state::close
+                onEnterValues = { code -> add(customFood(name = code, barcode = code)) }
             )
         }
     } else if (state.searching) {
@@ -402,7 +408,8 @@ internal fun FoodSearchField(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     /** The keyboard's search key, when it has something to do. */
-    onSearch: (() -> Unit)? = null
+    onSearch: (() -> Unit)? = null,
+    scanning: Boolean = false
 ) {
     val haptics = LocalHapticFeedback.current
     Surface(
@@ -450,7 +457,7 @@ internal fun FoodSearchField(
                     }
                 }
             )
-            if (query.isNotEmpty()) {
+            if (query.isNotEmpty() && !scanning) {
                 IconButtonTooltip(stringResource(R.string.clear)) {
                     IconButton(
                         onClick = {
@@ -466,18 +473,23 @@ internal fun FoodSearchField(
                         )
                     }
                 }
-            } else if (onScan != null) {
-                IconButtonTooltip(stringResource(R.string.food_scan_barcode)) {
-                    IconButton(onClick = onScan, enabled = enabled, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = stringResource(R.string.food_scan_barcode),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            } else if (onScan != null || scanning) {
+                val label = stringResource(if (scanning) R.string.close else R.string.food_scan_barcode)
+                val rotation by animateFloatAsState(if (scanning) 90f else 0f,
+                    animationSpec = ExpressiveMotion.fastSpatial(), label = "foodScanRotation")
+                IconButtonTooltip(label) {
+                    IconButton(onClick = { if (scanning) onClose?.invoke() else onScan?.invoke() },
+                        enabled = enabled, shapes = IconButtonDefaults.shapes(),
+                        modifier = Modifier.semantics { contentDescription = label }) {
+                        Crossfade(scanning, animationSpec = ExpressiveMotion.fastEffects(), label = "foodScanIcon",
+                            modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = rotation }) { open ->
+                            Icon(if (open) Icons.Default.Close else Icons.Default.QrCodeScanner,
+                                contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }
-            if (active && onClose != null) {
+            if (active && !scanning && onClose != null) {
                 TextButton(
                     onClick = onClose,
                     shapes = ButtonDefaults.shapes(),
@@ -689,7 +701,7 @@ internal fun FoodBarcodeScanner(
     lookup: FoodBarcodeLookup,
     onBarcode: (String) -> Unit,
     onEnterValues: (String) -> Unit,
-    onClose: () -> Unit
+    enabled: Boolean = true
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when (lookup) {
@@ -698,6 +710,7 @@ internal fun FoodBarcodeScanner(
                     .fillMaxWidth()
                     .height(220.dp),
                 barcodeFormats = PRODUCT_BARCODE_FORMATS,
+                scannerEnabled = enabled,
                 // Anything that is not a product barcode leaves the camera running.
                 onScanResult = { raw -> ProductBarcode.normalize(raw)?.also(onBarcode) != null }
             )
@@ -753,16 +766,6 @@ internal fun FoodBarcodeScanner(
                 ) {
                     Text(text = stringResource(R.string.food_try_again))
                 }
-            }
-        }
-        if (lookup !is FoodBarcodeLookup.Looking) {
-            TextButton(
-                onClick = onClose,
-                modifier = Modifier.align(Alignment.End),
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.TextButtonContentPadding
-            ) {
-                Text(text = stringResource(R.string.close))
             }
         }
     }

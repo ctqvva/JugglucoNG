@@ -7,6 +7,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -415,6 +418,10 @@ internal fun FoodLibraryContent(
     val reorder = rememberFoodLibraryReorder(listState, mine, actions.onMove)
     val orderedMine = reorder.ordered(mine)
     val selectionOrder = if (picker.query.isBlank()) orderedMine + remembered + disabled else ownMatches
+    // Keep the last scanner body while it folds away; closing a lookup must not
+    // briefly replace its progress with a fresh camera/permission request.
+    var lastScannerLookup by remember { mutableStateOf<FoodBarcodeLookup>(FoodBarcodeLookup.Idle) }
+    SideEffect { if (picker.scanning) lastScannerLookup = picker.barcode }
 
     LazyColumn(
         state = listState,
@@ -455,8 +462,9 @@ internal fun FoodLibraryContent(
                     picker.onQueryChange(it)
                 },
                 active = picker.scanning,
+                scanning = picker.scanning,
                 onActivate = picker::activateSearch,
-                onClose = if (picker.scanning && picker.barcode is FoodBarcodeLookup.Looking) picker::close else null,
+                onClose = picker::close,
                 onScan = if (onlineEnabled) {
                     {
                         focusManager.clearFocus()
@@ -473,23 +481,26 @@ internal fun FoodLibraryContent(
 
         if (!libraryEnabled) return@LazyColumn
 
-        if (picker.scanning && onlineEnabled) {
-            libraryItem(key = "food_scanner") {
-                FoodBarcodeScanner(
-                    lookup = picker.barcode,
-                    onBarcode = { code ->
-                        picker.lookUp(code) { found ->
-                            picker.close()
-                            scannedFood = found
-                            expandedKey = found.key
-                            picker.onQueryChange(found.name)
-                        }
-                    },
-                    onEnterValues = { code -> picker.close(); actions.onCreateFromBarcode(code) },
-                    onClose = picker::close
-                )
+        item(key = "food_scanner") {
+            AnimatedVisibility(picker.scanning && onlineEnabled,
+                enter = expandVertically(animationSpec = ExpressiveMotion.defaultSpatial(), expandFrom = Alignment.Top),
+                exit = shrinkVertically(animationSpec = ExpressiveMotion.defaultSpatial(), shrinkTowards = Alignment.Top)) {
+                Box(Modifier.padding(bottom = 12.dp)) {
+                    FoodBarcodeScanner(
+                        lookup = if (picker.scanning) picker.barcode else lastScannerLookup,
+                        enabled = picker.scanning && onlineEnabled,
+                        onBarcode = { code ->
+                            if (picker.scanning) picker.lookUp(code) { found ->
+                                picker.close()
+                                scannedFood = found
+                                expandedKey = found.key
+                                picker.onQueryChange(found.name)
+                            }
+                        },
+                        onEnterValues = { code -> picker.close(); actions.onCreateFromBarcode(code) }
+                    )
+                }
             }
-            return@LazyColumn
         }
 
         if (picker.query.isBlank()) {

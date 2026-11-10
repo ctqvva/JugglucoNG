@@ -256,3 +256,27 @@ edge-scrolling into offscreen rows, unchanged row geometry, built-in bulk deleti
 and the labelled FAB remaining visible after scrolling. Existing tap, swipe,
 haptic, reorder and data round-trip regressions also pass. The arm64 debug APK
 built successfully; UI guardrails and whitespace checks pass.
+
+## Scanner controls and expansion
+
+The shared food search field now rotates and crossfades its scan icon into a close
+icon in the same button slot while scanning. Both the library screen and journal
+sheet use this control, including while a barcode lookup is pending. Closing it
+cancels the lookup through the existing picker close path. The separate scanner
+Close row is removed.
+
+In the library, the scanner expands directly below search and folds away on close.
+Saved, remembered and disabled foods remain in the lazy list underneath it. The
+last lookup presentation stays in place during the exit animation, and the camera
+is disabled immediately, preventing a fresh camera/permission request when closing
+a pending lookup. The existing journal sheet sizing behavior is retained.
+
+Validation: all 167 related food, journal and shared-component tests passed without
+failures/errors/skips, and the arm64 debug APK built and was installed on the Pixel.
+New rendered tests check the button slot on every opening and closing frame,
+preserved food rows moving below the expanding scanner, collapse restoring their
+positions, and lookup cancellation from the close icon in both contexts. On the
+Pixel the live camera, close icon and foods underneath were visually confirmed;
+the helper observed a successful close before the screen reopened between checks,
+so further device input stopped. No food or journal entry was saved. UI guardrails
+and whitespace checks pass.
