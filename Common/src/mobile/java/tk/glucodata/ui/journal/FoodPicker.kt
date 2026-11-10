@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
@@ -278,8 +279,8 @@ internal fun customFood(name: String, barcode: String? = null): FoodItem = FoodI
  * The food part of the journal's entry sheet, as rows of the sheet's own list: the search
  * field, what it found, and the meal put together so far.
  *
- * A row selects one food and closes search; its plus adds an ingredient and keeps search
- * open. Amounts start from the usual quantity and can be changed on each food's own card.
+ * Both a row tap and its plus append an ingredient. The row closes search; the plus keeps
+ * it open. Amounts start from the usual quantity and can be changed on each food's own card.
  *
  * @param row adds one keyed row to the sheet.
  */
@@ -291,8 +292,7 @@ internal fun LazyListScope.journalFoodRows(
     macrosEnabled: Boolean,
     onlineEnabled: Boolean,
     onItemsChange: (List<JournalDraftFoodItem>) -> Unit,
-    onAddFood: (FoodItem) -> Unit,
-    onSelectFood: (FoodItem) -> Unit
+    onAddFood: (FoodItem) -> Unit
 ) {
     val mealCounts = items.groupingBy { it.food.mealKey(state.library) }.eachCount()
     val countInMeal: (FoodItem) -> Int = { mealCounts[it.mealKey(state.library)] ?: 0 }
@@ -304,9 +304,11 @@ internal fun LazyListScope.journalFoodRows(
         onAddFood(food)
         state.close()
     }
-    val select: (FoodItem) -> Unit = { food ->
-        onSelectFood(food)
-        state.close()
+    val removeFood: (FoodItem) -> Unit = { food ->
+        // Undo the latest matching addition, preserving earlier edited quantities.
+        val key = food.mealKey(state.library)
+        val index = items.indexOfLast { it.food.mealKey(state.library) == key }
+        if (index >= 0) remove(index)
     }
 
     row("food_search") {
@@ -360,35 +362,35 @@ internal fun LazyListScope.journalFoodRows(
         if (state.query.isBlank()) {
             if (suggestions.recent.isNotEmpty()) {
                 row("food_shelf_recent") {
-                    FoodShelf(stringResource(R.string.food_recent), suggestions.recent, macrosEnabled, onAddFood, select, countInMeal)
+                    FoodShelf(stringResource(R.string.food_recent), suggestions.recent, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
             if (suggestions.mine.isNotEmpty()) {
                 row("food_shelf_mine") {
-                    FoodShelf(stringResource(R.string.food_my_foods), suggestions.mine, macrosEnabled, onAddFood, select, countInMeal)
+                    FoodShelf(stringResource(R.string.food_my_foods), suggestions.mine, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
         } else {
             val shelves = state.shelves
             if (shelves.library.isNotEmpty()) {
                 row("food_shelf_mine") {
-                    FoodShelf(stringResource(R.string.food_my_foods), shelves.library, macrosEnabled, onAddFood, select, countInMeal)
+                    FoodShelf(stringResource(R.string.food_my_foods), shelves.library, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
             if (shelves.common.isNotEmpty()) {
                 row("food_shelf_common") {
-                    FoodShelf(stringResource(R.string.food_common_foods), shelves.common, macrosEnabled, onAddFood, select, countInMeal)
+                    FoodShelf(stringResource(R.string.food_common_foods), shelves.common, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
             val found = (state.online as? FoodOnlineSearch.Done)?.foods.orEmpty()
             if (found.isNotEmpty()) {
                 row("food_shelf_online") {
-                    FoodShelf(stringResource(R.string.open_food_facts), found, macrosEnabled, onAddFood, select, countInMeal)
+                    FoodShelf(stringResource(R.string.open_food_facts), found, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
             if (shelves.reference.isNotEmpty()) {
                 row("food_shelf_reference") {
-                    FoodShelf(stringResource(R.string.food_reference_tables), shelves.reference, macrosEnabled, onAddFood, select, countInMeal)
+                    FoodShelf(stringResource(R.string.food_reference_tables), shelves.reference, macrosEnabled, onAddFood, addAndClose, countInMeal, removeFood)
                 }
             }
             row("food_search_actions") {
@@ -561,7 +563,8 @@ internal fun FoodShelf(
     macrosEnabled: Boolean,
     onAdd: (FoodItem) -> Unit,
     onSelect: (FoodItem) -> Unit,
-    countInMeal: (FoodItem) -> Int
+    countInMeal: (FoodItem) -> Int,
+    onRemove: (FoodItem) -> Unit
 ) {
     val focusManager = LocalFocusManager.current
     val haptics = LocalHapticFeedback.current
@@ -577,6 +580,10 @@ internal fun FoodShelf(
                     onAdd = {
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onAdd(food)
+                    },
+                    onRemove = {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onRemove(food)
                     },
                     onSelect = {
                         // The keyboard has done its part once a food is picked.
@@ -597,6 +604,7 @@ private fun FoodResultRow(
     macrosEnabled: Boolean,
     position: CardPosition,
     onAdd: () -> Unit,
+    onRemove: () -> Unit,
     onSelect: () -> Unit
 ) {
     val added = addedCount > 0
@@ -641,6 +649,15 @@ private fun FoodResultRow(
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
+            if (added) {
+                IconButtonTooltip(stringResource(R.string.remove)) {
+                    IconButton(onClick = onRemove, modifier = Modifier.size(48.dp),
+                        shapes = IconButtonDefaults.shapes()) {
+                        Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.remove),
+                            modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
             IconButtonTooltip(stringResource(R.string.journal_add_food)) {
                 BadgedBox(badge = {
                     if (added) Badge(containerColor = MaterialTheme.colorScheme.primaryContainer,

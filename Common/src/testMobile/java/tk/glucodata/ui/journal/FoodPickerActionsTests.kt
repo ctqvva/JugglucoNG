@@ -3,6 +3,7 @@ package tk.glucodata.ui.journal
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Assert.*
@@ -101,7 +102,37 @@ class FoodPickerActionsTests {
     }
 
     @Test
-    fun rowSelectsOnlyThatFoodAndClosesSearchAfterBuildingAMeal() {
+    fun successiveRowSelectionsKeepEarlierFoodsAndTheirEditedQuantities() {
+        var saved: JournalEntryInput? = null
+        show { saved = it }
+        search()
+        compose.onNodeWithText("Meal oats").performScrollTo().performClick()
+        settle()
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("food_meal_list")))
+            .performScrollTo().performTextReplacement("2")
+        settle()
+        search()
+        compose.onNodeWithText("Meal yogurt").performScrollTo().performClick()
+        settle()
+        search()
+        compose.onNodeWithText("Meal rice").performScrollTo().performClick()
+        settle()
+        compose.onNodeWithText(label(R.string.close)).assertDoesNotExist()
+        capture("combined-row-selections")
+        save()
+        val input = requireNotNull(saved)
+        assertEquals("Meal oats + Meal yogurt + Meal rice", input.title)
+        assertEquals(190f, input.amount!!, 0f)
+        assertEquals(47f, input.proteinGrams!!, 0f)
+        assertEquals(27f, input.fatGrams!!, 0f)
+        assertNull(input.foodId)
+        assertEquals(3, input.foodItemCount)
+        assertEquals(listOf(1L, 2L, 3L), input.foodUses.map { it.food.libraryId })
+        assertEquals(listOf(2f, 1f, 1f), input.foodUses.map { it.amount.quantity })
+    }
+
+    @Test
+    fun rowTapAddsToAMealAlreadyBuiltWithPlus() {
         var saved: JournalEntryInput? = null
         show { saved = it }
         search()
@@ -109,20 +140,10 @@ class FoodPickerActionsTests {
         plus("Meal yogurt")
         compose.onNodeWithText("Meal rice").performScrollTo().performClick()
         settle()
-        compose.onNodeWithText(label(R.string.close)).assertDoesNotExist()
-        compose.onNodeWithText("Meal oats").assertDoesNotExist()
-        compose.onNodeWithText("Meal yogurt").assertDoesNotExist()
-        capture("single-selection")
         save()
         val input = requireNotNull(saved)
-        assertEquals("Meal rice", input.title)
-        assertEquals(70f, input.amount!!, 0f)
-        assertEquals(15f, input.proteinGrams!!, 0f)
-        assertEquals(8f, input.fatGrams!!, 0f)
-        assertEquals(180, input.durationMinutes)
-        assertEquals(3L, input.foodId)
-        assertEquals(1, input.foodItemCount)
-        assertEquals(3L, input.foodUses.single().food.libraryId)
+        assertEquals(145f, input.amount!!, 0f)
+        assertEquals(listOf(1L, 2L, 3L), input.foodUses.map { it.food.libraryId })
     }
 
     @Test
@@ -183,5 +204,44 @@ class FoodPickerActionsTests {
         addButton().assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
         compose.onNodeWithTag("food_meal_list").assertDoesNotExist()
         assertSearchStillOpen()
+    }
+
+    @Test
+    fun minusRemovesTheLatestMatchingAdditionAndKeepsEarlierEditedAmounts() {
+        var saved: JournalEntryInput? = null
+        show { saved = it }
+        search()
+        compose.onNodeWithText("Meal oats").performScrollTo().performClick()
+        settle()
+        search()
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("food_meal_list")))
+            .performScrollTo().performTextReplacement("2")
+        settle()
+        plus("Meal oats")
+        plus("Meal yogurt")
+        fun result() = hasText("Meal oats") and hasAnyDescendant(hasContentDescription(label(R.string.journal_add_food)))
+        fun minus() = compose.onNode(hasContentDescription(label(R.string.remove)) and hasAnyAncestor(result()))
+        val minusBounds = minus().fetchSemanticsNode().boundsInRoot
+        val plusBounds = compose.onNode(hasContentDescription(label(R.string.journal_add_food)) and
+            hasAnyAncestor(result())).fetchSemanticsNode().boundsInRoot
+        assertTrue("minus must be left of plus", minusBounds.right <= plusBounds.left)
+        capture("result-minus-and-plus")
+        minus().performScrollTo().performClick()
+        settle()
+        assertSearchStillOpen()
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("food_meal_list"))).assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("2")))
+        compose.onNode(result()).assertIsSelected()
+        minus().performScrollTo().performClick()
+        settle()
+        minus().assertDoesNotExist()
+        compose.onNode(result()).assertIsNotSelected()
+        assertSearchStillOpen()
+        compose.onNodeWithText(label(R.string.close)).performScrollTo().performClick()
+        settle()
+        save()
+        val input = requireNotNull(saved)
+        assertEquals(30f, input.amount!!, 0f)
+        assertEquals(2L, input.foodUses.single().food.libraryId)
     }
 }

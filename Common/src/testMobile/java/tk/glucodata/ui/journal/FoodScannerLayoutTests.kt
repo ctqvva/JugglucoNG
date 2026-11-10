@@ -117,7 +117,7 @@ class FoodScannerLayoutTests {
                 LazyColumn {
                     journalFoodRows(row = { key, content -> item(key = key) { content() } }, state = picker,
                         suggestions = FoodCatalog.Suggestions(), items = emptyList(), macrosEnabled = false,
-                        onlineEnabled = true, onItemsChange = {}, onAddFood = { added++ }, onSelectFood = {})
+                        onlineEnabled = true, onItemsChange = {}, onAddFood = { added++ })
                 }
             }
         }

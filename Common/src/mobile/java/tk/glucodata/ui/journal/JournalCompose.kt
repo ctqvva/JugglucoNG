@@ -791,10 +791,6 @@ fun JournalEntrySheet(
                             onAddFood = { food ->
                                 foodPicker.openItem = draft.foodItems.size
                                 draft = draft.withFoodItems(draft.foodItems + JournalDraftFoodItem(food, FoodMath.defaultAmount(food)), foodMacrosEnabled)
-                            },
-                            onSelectFood = { food ->
-                                foodPicker.openItem = 0
-                                draft = draft.withFoodItems(listOf(JournalDraftFoodItem(food, FoodMath.defaultAmount(food))), foodMacrosEnabled)
                             }
                         )
                     }
