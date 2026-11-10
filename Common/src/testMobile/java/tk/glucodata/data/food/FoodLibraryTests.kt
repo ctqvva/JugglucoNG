@@ -85,6 +85,7 @@ class FoodLibraryTests {
         val first = library.noteUses(listOf(JournalFoodUse(product, FoodAmount(15f))), now = 1L).single()
         val typedIn = customItem("Nutella jar", 57f).copy(barcode = "3017620422003")
         assertEquals(first, library.noteUses(listOf(JournalFoodUse(typedIn, FoodAmount(20f))), now = 2L).single())
+        assertEquals(57f, library.foods().single().carbsGrams, 0f)
     }
 
     @Test

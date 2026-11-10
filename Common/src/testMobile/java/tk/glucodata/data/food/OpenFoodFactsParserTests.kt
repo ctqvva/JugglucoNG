@@ -109,4 +109,12 @@ class OpenFoodFactsParserTests {
         assertNull(ProductBarcode.normalize("12345"))
         assertNull(ProductBarcode.normalize(null))
     }
+    @Test
+    fun upcProductsUseTheSameCanonicalKeyAsTheScanner() {
+        val body = chocolate.replace("4000417025005", "036000291452")
+        val food = OpenFoodFactsParser.parseProduct(body, "en")!!
+        assertEquals(ProductBarcode.normalize("036000291452"), food.barcode)
+        assertEquals("off:" + food.barcode, food.key)
+    }
+
 }
