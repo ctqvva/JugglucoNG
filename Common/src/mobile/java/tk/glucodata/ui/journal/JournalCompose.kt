@@ -3,7 +3,6 @@
 package tk.glucodata.ui.journal
 
 import androidx.compose.material3.TimePickerDefaults
-import androidx.compose.material3.FilterChipDefaults
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.foundation.BorderStroke
@@ -78,12 +77,10 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -873,11 +870,10 @@ fun JournalEntrySheet(
 
                 JournalEntryType.ACTIVITY -> {
                     journalSheetItem(formFocus, key = "activity_name") {
-                        OutlinedTextField(
+                        JournalTextField(
                             value = draft.title,
                             onValueChange = { draft = draft.copy(title = it) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(text = stringResource(R.string.name).trimTrailingLabel()) },
+                            label = stringResource(R.string.name).trimTrailingLabel(),
                             singleLine = true
                         )
                     }
@@ -903,11 +899,10 @@ fun JournalEntrySheet(
 
                 JournalEntryType.NOTE -> {
                     journalSheetItem(formFocus, key = "note_title") {
-                        OutlinedTextField(
+                        JournalTextField(
                             value = draft.title,
                             onValueChange = { draft = draft.copy(title = it) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(text = stringResource(R.string.name).trimTrailingLabel()) },
+                            label = stringResource(R.string.name).trimTrailingLabel(),
                             singleLine = true
                         )
                     }
@@ -930,29 +925,20 @@ fun JournalEntrySheet(
                     animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                     label = "journalNoteFieldHeight"
                 )
-                TextField(
+                JournalTextField(
                     value = draft.note,
                     onValueChange = { draft = draft.copy(note = it) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = noteFieldMinHeight)
                         .onFocusChanged { noteFieldFocused = it.isFocused },
-                    label = { Text(stringResource(R.string.journal_note_label)) },
+                    label = stringResource(R.string.journal_note_label),
                     singleLine = !noteFieldExpanded,
                     maxLines = when {
                         draft.type == JournalEntryType.NOTE -> 5
                         noteFieldExpanded -> 3
                         else -> 1
-                    },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
-                        errorIndicatorColor = Color.Transparent
-                    )
+                    }
                 )
             }
 
@@ -2794,25 +2780,58 @@ private fun JournalTypeSelector(
     )
 }
 
+/** Free text follows the same rounded, tonal treatment as the sheet's other inputs. */
+@Composable
+private fun JournalTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    singleLine: Boolean = false,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        modifier = modifier.fillMaxWidth(),
+        singleLine = singleLine,
+        maxLines = maxLines,
+        textStyle = MaterialTheme.typography.bodyLarge,
+        shape = RoundedCornerShape(20.dp),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            errorIndicatorColor = Color.Transparent
+        )
+    )
+}
+
 @Composable
 private fun JournalIntensitySelector(
     selectedIntensity: JournalIntensity?,
     onIntensitySelected: (JournalIntensity) -> Unit
 ) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        JournalIntensity.entries.forEach { intensity ->
-            FilterChip(
-                selected = selectedIntensity == intensity,
-                onClick = { onIntensitySelected(intensity) },
-                label = { Text(text = stringResource(intensity.labelRes())) },
-                shapes = FilterChipDefaults.shapes(),
-                colors = FilterChipDefaults.filterChipColors()
-            )
-        }
-    }
+    val labels = JournalIntensity.entries.associateWith { stringResource(it.labelRes()) }
+    ConnectedButtonGroup(
+        options = JournalIntensity.entries.toList(),
+        selectedOption = selectedIntensity,
+        onOptionSelected = onIntensitySelected,
+        label = { },
+        labelText = { labels[it].orEmpty() },
+        modifier = Modifier.fillMaxWidth(),
+        itemHeight = 44.dp,
+        selectedContainerColor = journalTypeSelectedContainerColor(
+            JournalEntryType.ACTIVITY,
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        selectedContentColor = MaterialTheme.colorScheme.onSurface,
+        unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f),
+        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable
