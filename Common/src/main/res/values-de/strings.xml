@@ -2434,7 +2434,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="risk_low">Niedrig</string>
     <string name="risk_moderate">Mittel</string>
     <string name="risk_high">Hoch</string>
-    <string name="stats_coverage_active">CGM aktiv %1$d%%</string>
+    <string name="stats_coverage_active">Aktiv %1$d%%</string>
     <string name="stats_tight_range_chip">Eng %1$d%%</string>
     <string name="stats_tight_range">Enger Bereich</string>
     <string name="stats_tight_range_description">Zeit innerhalb %1$s — eine Stufe enger als Ihr Zielbereich, um zu verfolgen, wie nah der Tag an nicht-diabetischen Werten bleibt.</string>

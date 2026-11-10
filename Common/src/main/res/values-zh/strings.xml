@@ -2337,7 +2337,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">低</string>
     <string name="risk_moderate">中等</string>
     <string name="risk_high">高</string>
-    <string name="stats_coverage_active">CGM 覆盖 %1$d%%</string>
+    <string name="stats_coverage_active">覆盖 %1$d%%</string>
     <string name="stats_tight_range_chip">严格 %1$d%%</string>
     <string name="stats_tight_range">严格范围</string>
     <string name="stats_tight_range_description">处于 %1$s 之间的时间，比你的目标范围更严格一档，用来衡量一天有多接近非糖尿病水平。</string>

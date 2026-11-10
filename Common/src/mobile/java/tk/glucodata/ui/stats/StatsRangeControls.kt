@@ -3,6 +3,7 @@
 package tk.glucodata.ui.stats
 
 import tk.glucodata.ui.components.AdaptiveButtonRow
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.DateRangePickerState
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material3.Button
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.OutlinedButton
@@ -42,6 +44,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,9 +62,9 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 
-fun formatStatsDateRange(range: StatsDateRange?): String? {
+fun formatStatsDateRange(range: StatsDateRange?, locale: Locale = Locale.getDefault()): String? {
     if (range == null) return null
-    val formatter = SimpleDateFormat("MMM d", Locale.getDefault())
+    val formatter = SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(locale, "MMMd"), locale)
     return "${formatter.format(Date(range.startMillis))} – ${formatter.format(Date(range.endMillis))}"
 }
 
@@ -166,11 +171,12 @@ fun StatsRangeSelectorControl(
     coveragePercent: Float? = null,
     countLabelResId: Int = R.string.points
 ) {
+    val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
     val view = LocalView.current
     var lastRangeHapticAt by remember { mutableLongStateOf(0L) }
     val subtitle = when {
         isLoading -> stringResource(R.string.loading_data)
-        activeRange != null -> formatStatsDateRange(activeRange)
+        activeRange != null -> formatStatsDateRange(activeRange, locale)
         else -> stringResource(R.string.statistics_subtitle)
     }
     val ranges = StatsTimeRange.entries.toList()
@@ -179,102 +185,107 @@ fun StatsRangeSelectorControl(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
+        AdaptiveTrailingRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (hasData && readingCount > 0) {
-                // Reading count and sensor coverage are both facts about the window, so
-                // they belong on the window's own line rather than inside a result card.
-                val countText = "${java.text.NumberFormat.getIntegerInstance().format(readingCount)} ${stringResource(countLabelResId)}"
-                Text(
-                    text = coveragePercent
-                        ?.let { "$countText · ${stringResource(R.string.stats_coverage_active, it.roundToInt())}" }
-                        ?: countText,
-                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 16.dp),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
-            }
-
-            Surface(
-                modifier = Modifier.heightIn(min = 36.dp),
-                onClick = onCustomRangeClick,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-                color = if (selectedRange == null) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-                contentColor = if (selectedRange == null) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .animateContentSize()
-                        .heightIn(min = 36.dp)
-                        .padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            trailingContent = {
+                Surface(
+                    modifier = Modifier.heightIn(min = 36.dp),
+                    onClick = onCustomRangeClick,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    color = if (selectedRange == null) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                    contentColor = if (selectedRange == null) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.DateRange,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    AnimatedContent(
-                        targetState = subtitle ?: stringResource(R.string.statistics_subtitle),
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "statsRangeSubtitle"
-                    ) { targetSubtitle ->
-                        Text(
-                            text = targetSubtitle,
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                    Row(
+                        modifier = Modifier
+                            .animateContentSize()
+                            .heightIn(min = 36.dp)
+                            .padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DateRange,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
                         )
+                        AnimatedContent(
+                            targetState = subtitle ?: stringResource(R.string.statistics_subtitle),
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "statsRangeSubtitle"
+                        ) { targetSubtitle ->
+                            Text(
+                                text = targetSubtitle,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
+            }
+        ) {
+            if (hasData && readingCount > 0) {
+                val countText = "${java.text.NumberFormat.getIntegerInstance(locale).format(readingCount)} ${stringResource(countLabelResId)}"
+                Text(
+                    text = coveragePercent
+                        ?.let { "$countText · ${stringResource(R.string.stats_coverage_active, it.roundToInt()).replace(' ', '\u00A0')}" }
+                        ?: countText,
+                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp)
+                )
             }
         }
 
         val context = LocalContext.current
-        ConnectedButtonGroup(
-            options = ranges,
-            selectedOption = selectedRange,
-            onOptionSelected = { range ->
-                if (range != selectedRange) {
-                    val now = System.currentTimeMillis()
-                    if (now - lastRangeHapticAt >= 90L) {
-                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        lastRangeHapticAt = now
-                    }
-                    onRangeSelected(range)
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val minimumStyle = MaterialTheme.typography.labelSmall
+        val minimumButtonWidth = with(density) {
+            ranges.maxOf { measurer.measure(context.getString(it.labelResId), minimumStyle).size.width }.toDp()
+        } + 8.dp
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            // Six choices stay on one line only while every translated label is readable.
+            val columns = if (maxWidth >= minimumButtonWidth * ranges.size + 2.dp * (ranges.size - 1)) ranges.size else 3
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ranges.chunked(columns).forEach { group ->
+                    ConnectedButtonGroup(
+                        options = group,
+                        selectedOption = selectedRange,
+                        onOptionSelected = { range ->
+                            if (range != selectedRange) {
+                                val now = System.currentTimeMillis()
+                                if (now - lastRangeHapticAt >= 90L) {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    lastRangeHapticAt = now
+                                }
+                                onRangeSelected(range)
+                            }
+                        },
+                        labelText = { option -> context.getString(option.labelResId) },
+                        label = { option ->
+                            Text(
+                                text = stringResource(option.labelResId),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        },
+                        itemHeight = 40.dp,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-            },
-            labelText = { option -> context.getString(option.labelResId) },
-            label = { option ->
-                Text(
-                    text = stringResource(option.labelResId),
-                    style = MaterialTheme.typography.labelLarge
-                )
-            },
-            itemHeight = 40.dp,
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.fillMaxWidth()
-        )
+            }
+        }
     }
 }
 

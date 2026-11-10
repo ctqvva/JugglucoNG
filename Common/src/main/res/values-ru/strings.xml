@@ -2452,7 +2452,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">Низкий</string>
     <string name="risk_moderate">Умеренный</string>
     <string name="risk_high">Высокий</string>
-    <string name="stats_coverage_active">CGM активен %1$d%%</string>
+    <string name="stats_coverage_active">Активен %1$d%%</string>
     <string name="stats_tight_range_chip">Узкий %1$d%%</string>
     <string name="stats_tight_range">Узкий диапазон</string>
     <string name="stats_tight_range_description">Время в пределах %1$s — на шаг уже вашего целевого диапазона, показывает, насколько сутки держатся у недиабетических значений.</string>

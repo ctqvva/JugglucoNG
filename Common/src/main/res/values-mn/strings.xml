@@ -2428,7 +2428,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="risk_low">Бага</string>
     <string name="risk_moderate">Дунд</string>
     <string name="risk_high">Өндөр</string>
-    <string name="stats_coverage_active">CGM идэвхтэй %1$d%%</string>
+    <string name="stats_coverage_active">Идэвхтэй %1$d%%</string>
     <string name="stats_tight_range_chip">Нарийн %1$d%%</string>
     <string name="stats_tight_range">Нарийн муж</string>
     <string name="stats_tight_range_description">%1$s хооронд байсан хугацаа — таны зорилтот мужаас нэг шат нарийн бөгөөд өдөр чихрийн шижингүй утгад хэр ойр байгааг харуулна.</string>

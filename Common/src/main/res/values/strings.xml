@@ -1952,7 +1952,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_moderate">Moderate</string>
     <string name="risk_high">High</string>
     <!-- Statistics: window context -->
-    <string name="stats_coverage_active">CGM active %1$d%%</string>
+    <string name="stats_coverage_active">Active %1$d%%</string>
     <string name="stats_tight_range_chip">Tight %1$d%%</string>
     <string name="stats_tight_range">Tight range</string>
     <string name="stats_tight_range_description">Time inside %1$s — one step tighter than your target band, for tracking how close the day stays to non-diabetic levels.</string>

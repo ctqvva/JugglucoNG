@@ -2512,7 +2512,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="risk_low">Yar</string>
     <string name="risk_moderate">Dhexdhexaad</string>
     <string name="risk_high">Sare</string>
-    <string name="stats_coverage_active">CGM firfircoon %1$d%%</string>
+    <string name="stats_coverage_active">Firfircoon %1$d%%</string>
     <string name="stats_tight_range_chip">Cidhiidhi %1$d%%</string>
     <string name="stats_tight_range">Heer cidhiidhi ah</string>
     <string name="stats_tight_range_description">Wakhtiga gudaha %1$s — hal tallaabo kaga cidhiidhisan heerkaaga bartilmaameed, si loo raaco sida maalintu ugu dhow tahay heerar aan macaan ahayn.</string>

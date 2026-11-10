@@ -2385,7 +2385,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">Нізкі</string>
     <string name="risk_moderate">Умераны</string>
     <string name="risk_high">Высокі</string>
-    <string name="stats_coverage_active">CGM актыўны %1$d%%</string>
+    <string name="stats_coverage_active">Актыўны %1$d%%</string>
     <string name="stats_tight_range_chip">Вузкі %1$d%%</string>
     <string name="stats_tight_range">Вузкі дыяпазон</string>
     <string name="stats_tight_range_description">Час у межах %1$s — на крок вузей за ваш мэтавы дыяпазон, паказвае, наколькі суткі трымаюцца каля недыябетычных значэнняў.</string>

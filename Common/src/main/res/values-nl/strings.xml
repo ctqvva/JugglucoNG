@@ -2364,7 +2364,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="risk_low">Laag</string>
     <string name="risk_moderate">Matig</string>
     <string name="risk_high">Hoog</string>
-    <string name="stats_coverage_active">CGM actief %1$d%%</string>
+    <string name="stats_coverage_active">Actief %1$d%%</string>
     <string name="stats_tight_range_chip">Strak %1$d%%</string>
     <string name="stats_tight_range">Strak bereik</string>
     <string name="stats_tight_range_description">Tijd binnen %1$s — één stap strakker dan je streefbereik, om te volgen hoe dicht de dag bij niet-diabetische waarden blijft.</string>

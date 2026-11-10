@@ -2390,7 +2390,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">Низький</string>
     <string name="risk_moderate">Помірний</string>
     <string name="risk_high">Високий</string>
-    <string name="stats_coverage_active">CGM активний %1$d%%</string>
+    <string name="stats_coverage_active">Активний %1$d%%</string>
     <string name="stats_tight_range_chip">Вузький %1$d%%</string>
     <string name="stats_tight_range">Вузький діапазон</string>
     <string name="stats_tight_range_description">Час у межах %1$s — на крок вужче за ваш цільовий діапазон, показує, наскільки доба тримається біля недіабетичних значень.</string>

@@ -1786,7 +1786,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="risk_low">Alacsony</string>
     <string name="risk_moderate">Mérsékelt</string>
     <string name="risk_high">Magas</string>
-    <string name="stats_coverage_active">Aktív CGM %1$d%%</string>
+    <string name="stats_coverage_active">Aktív %1$d%%</string>
     <string name="stats_tight_range_chip">Szűk %1$d%%</string>
     <string name="stats_tight_range">Szűk tartomány</string>
     <string name="stats_tight_range_description">A %1$s tartományban töltött idő — a céltartománynál szűkebb sáv, amely jelzi, mennyire maradnak a napi értékek a nem cukorbeteg emberek szintjei közelében.</string>
