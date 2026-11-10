@@ -3460,7 +3460,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="food_portion_package">сав баглаа</string>
     <string name="food_per_100g_label">100 г-д, шошгоор</string>
     <string name="food_sources">Эх сурвалж</string>
-    <string name="food_online_desc">Бүтээгдэхүүнийг онлайнаар хайж, бар код уншуулна. Зөвхөн хайсан үг эсвэл бар код илгээгдэнэ</string>
+    <string name="food_online_desc">Онлайн хайлт болон бар код</string>
     <string name="food_file_title">Импорт ба экспорт</string>
     <string name="food_import">Импортлох</string>
     <string name="food_file_hint">name, carbs, protein, fat, per_grams багана бүхий CSV эсвэл JSON хүснэгт. per_grams байхгүй бол утгыг 100 г-аар тооцно.</string>

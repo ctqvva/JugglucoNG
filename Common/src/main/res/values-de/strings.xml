@@ -3472,7 +3472,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="food_portion_package">Packung</string>
     <string name="food_per_100g_label">In 100 g, laut Etikett</string>
     <string name="food_sources">Quellen</string>
-    <string name="food_online_desc">Produkte online suchen und Barcodes scannen. Gesendet werden nur die Suchwörter oder der Barcode</string>
+    <string name="food_online_desc">Online-Suche und Barcodes</string>
     <string name="food_file_title">Import und Export</string>
     <string name="food_import">Importieren</string>
     <string name="food_file_hint">Eine CSV- oder JSON-Tabelle mit den Spalten name, carbs, protein, fat und per_grams. Ohne per_grams gelten die Werte pro 100 g.</string>

@@ -3486,7 +3486,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_portion_package">упаковка</string>
     <string name="food_per_100g_label">В 100 г, с этикетки</string>
     <string name="food_sources">Источники</string>
-    <string name="food_online_desc">Поиск продуктов в интернете и сканирование штрихкодов. Отправляются только слова запроса или штрихкод</string>
+    <string name="food_online_desc">Поиск в интернете и штрихкоды</string>
     <string name="food_file_title">Импорт и экспорт</string>
     <string name="food_import">Импорт</string>
     <string name="food_file_hint">Таблица CSV или JSON со столбцами name, carbs, protein, fat и per_grams. Без per_grams значения считаются на 100 г.</string>

@@ -3454,7 +3454,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_portion_package">упаковка</string>
     <string name="food_per_100g_label">У 100 г, з етикетки</string>
     <string name="food_sources">Джерела</string>
-    <string name="food_online_desc">Пошук продуктів в інтернеті та сканування штрихкодів. Надсилаються лише слова запиту або штрихкод</string>
+    <string name="food_online_desc">Пошук в інтернеті та штрихкоди</string>
     <string name="food_file_title">Імпорт та експорт</string>
     <string name="food_import">Імпорт</string>
     <string name="food_file_hint">Таблиця CSV або JSON зі стовпцями name, carbs, protein, fat і per_grams. Без per_grams значення вважаються на 100 г.</string>

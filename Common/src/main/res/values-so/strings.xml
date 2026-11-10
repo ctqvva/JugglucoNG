@@ -3544,7 +3544,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="food_portion_package">baakad</string>
     <string name="food_per_100g_label">100 g gudahood, sida calaamadda</string>
     <string name="food_sources">Ilaha</string>
-    <string name="food_online_desc">Ka raadi alaabta internetka oo sawir barcode-yada. Waxaa la diraa oo keliya ereyada raadinta ama barcode-ka</string>
+    <string name="food_online_desc">Raadinta onlaynka iyo barcode-yada</string>
     <string name="food_file_title">Soo dejin iyo dhoofin</string>
     <string name="food_import">Soo deji</string>
     <string name="food_file_hint">Jadwal CSV ama JSON ah oo leh tiirarka name, carbs, protein, fat iyo per_grams. Haddii per_grams uusan jirin, qiimayaashu waa 100 g kiiba.</string>

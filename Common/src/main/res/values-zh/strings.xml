@@ -3365,7 +3365,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_portion_package">包</string>
     <string name="food_per_100g_label">每 100 克，按标签</string>
     <string name="food_sources">来源</string>
-    <string name="food_online_desc">在线搜索产品并扫描条形码。只发送搜索词或条形码</string>
+    <string name="food_online_desc">在线搜索和条形码</string>
     <string name="food_file_title">导入和导出</string>
     <string name="food_import">导入</string>
     <string name="food_file_hint">包含 name、carbs、protein、fat 和 per_grams 列的 CSV 或 JSON 表格。没有 per_grams 时数值按每 100 克计算。</string>

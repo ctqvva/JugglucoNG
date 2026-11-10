@@ -3402,7 +3402,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="food_portion_package">verpakking</string>
     <string name="food_per_100g_label">Per 100 g, van het etiket</string>
     <string name="food_sources">Bronnen</string>
-    <string name="food_online_desc">Producten online zoeken en barcodes scannen. Alleen de zoekwoorden of de barcode worden verzonden</string>
+    <string name="food_online_desc">Online zoeken en barcodes</string>
     <string name="food_file_title">Importeren en exporteren</string>
     <string name="food_import">Importeren</string>
     <string name="food_file_hint">Een CSV- of JSON-tabel met de kolommen name, carbs, protein, fat en per_grams. Zonder per_grams gelden de waarden per 100 g.</string>

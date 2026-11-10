@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +35,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -67,13 +70,14 @@ import kotlinx.coroutines.withContext
 import tk.glucodata.R
 import tk.glucodata.data.food.FoodCatalog
 import tk.glucodata.data.food.FoodItem
-import tk.glucodata.data.food.FoodLibrary
 import tk.glucodata.data.food.FoodLibraryTransfer
-import tk.glucodata.data.food.FoodMath
 import tk.glucodata.data.journal.JournalFood
-import tk.glucodata.data.journal.JournalFoodInput
 import tk.glucodata.ui.components.AdaptiveButtonRow
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.IconButtonTooltip
+import tk.glucodata.ui.components.MasterSwitchCard
+import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.ui.components.IconTileDefaults
@@ -152,36 +156,27 @@ fun JournalFoodLibraryScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            AppTopBar(
-                title = stringResource(R.string.journal_food_library),
-                onNavigateBack = { navController.popBackStack() },
-            )
-        }
-    ) { padding ->
-        FoodLibraryContent(
-            foods = allFoods,
-            macrosEnabled = foodMacrosEnabled,
-            libraryEnabled = foodLibraryEnabled,
-            onlineEnabled = foodOnlineEnabled,
-            actions = FoodLibraryActions(
-                onLibraryEnabledChange = viewModel::setJournalFoodLibraryEnabled,
-                onOnlineEnabledChange = viewModel::setJournalFoodOnlineEnabled,
-                onEdit = { editingFood = it },
-                onCreate = { creatingBarcode = null; creatingFood = true },
-                onCreateFromBarcode = { creatingBarcode = it; creatingFood = true },
-                onSave = { food ->
-                    viewModel.keepJournalFood(food) { saved ->
-                        Toast.makeText(context, if (saved) R.string.saved else R.string.savefailed, Toast.LENGTH_SHORT).show()
-                    }
-                },
-                onImport = { importLauncher.launch(arrayOf("text/*", "application/json", "application/octet-stream")) },
-                onExport = { exportLauncher.launch(FoodLibraryTransfer.DEFAULT_FILE_NAME) }
-            ),
-            modifier = Modifier.padding(padding)
+    FoodLibraryLayout(
+        foods = allFoods,
+        macrosEnabled = foodMacrosEnabled,
+        libraryEnabled = foodLibraryEnabled,
+        onlineEnabled = foodOnlineEnabled,
+        onNavigateBack = { navController.popBackStack() },
+        actions = FoodLibraryActions(
+            onLibraryEnabledChange = viewModel::setJournalFoodLibraryEnabled,
+            onOnlineEnabledChange = viewModel::setJournalFoodOnlineEnabled,
+            onEdit = { editingFood = it },
+            onCreate = { creatingBarcode = null; creatingFood = true },
+            onCreateFromBarcode = { creatingBarcode = it; creatingFood = true },
+            onSave = { food ->
+                viewModel.keepJournalFood(food) { saved ->
+                    Toast.makeText(context, if (saved) R.string.saved else R.string.savefailed, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onImport = { importLauncher.launch(arrayOf("text/*", "application/json", "application/octet-stream")) },
+            onExport = { exportLauncher.launch(FoodLibraryTransfer.DEFAULT_FILE_NAME) }
         )
-    }
+    )
 
     if (creatingFood) {
         FoodEditorSheet(
@@ -217,6 +212,95 @@ fun JournalFoodLibraryScreen(
                 }
             }
         )
+    }
+}
+
+/** Pinned file action and a scrolling library body; food count cannot bury file controls. */
+@Composable
+internal fun FoodLibraryLayout(
+    foods: List<JournalFood>,
+    macrosEnabled: Boolean,
+    libraryEnabled: Boolean,
+    onlineEnabled: Boolean,
+    onNavigateBack: () -> Unit,
+    actions: FoodLibraryActions
+) {
+    var showTransfer by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    Scaffold(
+        topBar = {
+            AppTopBar(
+                title = stringResource(R.string.journal_food_library),
+                onNavigateBack = onNavigateBack,
+                actions = {
+                    val label = stringResource(R.string.food_file_title)
+                    IconButtonTooltip(label) {
+                        IconButton(
+                            onClick = { focusManager.clearFocus(); showTransfer = true },
+                            shapes = IconButtonDefaults.shapes()
+                        ) {
+                            Icon(Icons.Default.ImportExport, contentDescription = label)
+                        }
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        FoodLibraryContent(foods, macrosEnabled, libraryEnabled, onlineEnabled, actions,
+            modifier = Modifier.padding(padding))
+    }
+    if (showTransfer) {
+        FoodLibraryTransferSheet(
+            canExport = foods.any { it.kept && !it.isArchived },
+            onDismiss = { showTransfer = false },
+            onImport = { showTransfer = false; actions.onImport() },
+            onExport = { showTransfer = false; actions.onExport() }
+        )
+    }
+}
+
+@Composable
+internal fun FoodLibraryTransferSheet(
+    canExport: Boolean,
+    onDismiss: () -> Unit,
+    onImport: () -> Unit,
+    onExport: () -> Unit
+) {
+    StableModalBottomSheet(
+        onDismissRequest = onDismiss,
+        dragHandle = { CompactSheetDragHandle() }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(stringResource(R.string.food_file_title), style = MaterialTheme.typography.headlineSmallEmphasized)
+            AdaptiveButtonRow {
+                OutlinedButton(
+                    onClick = onImport,
+                    modifier = Modifier.heightIn(min = 56.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
+                ) {
+                    Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.food_import))
+                }
+                OutlinedButton(
+                    onClick = onExport,
+                    enabled = canExport,
+                    modifier = Modifier.heightIn(min = 56.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
+                ) {
+                    Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.export))
+                }
+            }
+            Text(stringResource(R.string.food_file_hint), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -263,15 +347,42 @@ internal fun FoodLibraryContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item(key = "food_library_enabled") {
-            SettingsSwitchItem(
+            MasterSwitchCard(
                 title = stringResource(R.string.journal_food_library),
                 subtitle = stringResource(R.string.journal_food_choose_desc),
                 checked = libraryEnabled,
                 onCheckedChange = actions.onLibraryEnabledChange,
-                icon = Icons.Default.Restaurant,
-                iconTint = MaterialTheme.colorScheme.secondary,
+                icon = Icons.Default.Restaurant
+            )
+        }
+
+        item(key = "food_online_enabled") {
+            SettingsSwitchItem(
+                title = stringResource(R.string.open_food_facts),
+                subtitle = stringResource(R.string.food_online_desc),
+                checked = onlineEnabled,
+                onCheckedChange = actions.onOnlineEnabledChange,
+                icon = Icons.Default.Public,
+                iconTint = MaterialTheme.colorScheme.tertiary,
+                enabled = libraryEnabled,
                 position = CardPosition.SINGLE
             )
+        }
+
+        item(key = "food_add") {
+            FilledTonalButton(
+                onClick = actions.onCreate,
+                enabled = libraryEnabled,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(text = stringResource(R.string.journal_add_food))
+            }
         }
 
         item(key = "food_search") {
@@ -326,20 +437,6 @@ internal fun FoodLibraryContent(
                     FoodLibraryGroup(stringResource(R.string.food_my_foods), mine, macrosEnabled, actions.onEdit)
                 }
             }
-            item(key = "food_add") {
-                FilledTonalButton(
-                    onClick = actions.onCreate,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp),
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.journal_add_food))
-                }
-            }
             if (remembered.isNotEmpty()) {
                 item(key = "food_remembered") {
                     FoodLibraryGroup(stringResource(R.string.food_recent), remembered, macrosEnabled, actions.onEdit)
@@ -355,54 +452,7 @@ internal fun FoodLibraryContent(
                     )
                 }
             }
-            item(key = "food_sources") {
-                Column {
-                    SectionLabel(text = stringResource(R.string.food_sources), topPadding = 12.dp)
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.open_food_facts),
-                        subtitle = stringResource(R.string.food_online_desc),
-                        checked = onlineEnabled,
-                        onCheckedChange = actions.onOnlineEnabledChange,
-                        icon = Icons.Default.Public,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = CardPosition.SINGLE
-                    )
-                }
-            }
-            item(key = "food_file") {
-                Column {
-                    SectionLabel(text = stringResource(R.string.food_file_title), topPadding = 12.dp)
-                    AdaptiveButtonRow {
-                        OutlinedButton(
-                            onClick = actions.onImport,
-                            modifier = Modifier.heightIn(min = 56.dp),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding
-                        ) {
-                            Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(text = stringResource(R.string.food_import))
-                        }
-                        OutlinedButton(
-                            onClick = actions.onExport,
-                            enabled = mine.isNotEmpty(),
-                            modifier = Modifier.heightIn(min = 56.dp),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding
-                        ) {
-                            Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(text = stringResource(R.string.export))
-                        }
-                    }
-                    Text(
-                        text = stringResource(R.string.food_file_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
-                }
-            }
+
         } else {
             val shelves = picker.shelves
             if (ownMatches.isNotEmpty()) {

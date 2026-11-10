@@ -3428,7 +3428,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="food_portion_package">csomag</string>
     <string name="food_per_100g_label">100 g-ban, a címke szerint</string>
     <string name="food_sources">Források</string>
-    <string name="food_online_desc">Termékek keresése online és vonalkódok beolvasása. Csak a keresőszavak vagy a vonalkód kerül elküldésre</string>
+    <string name="food_online_desc">Online keresés és vonalkódok</string>
     <string name="food_file_title">Importálás és exportálás</string>
     <string name="food_import">Importálás</string>
     <string name="food_file_hint">CSV- vagy JSON-táblázat name, carbs, protein, fat és per_grams oszlopokkal. A per_grams nélkül az értékek 100 g-ra vonatkoznak.</string>

@@ -82,4 +82,74 @@ class FoodLibraryInteractionTests {
         compose.runOnIdle { online = false }
         compose.onNodeWithContentDescription(scan).assertDoesNotExist()
     }
+    private fun largeLibrary() = (1L..100L).map {
+        JournalFood(it, "Saved food $it", 10f, null, null, 90, 0, false, false, it.toInt())
+    }
+
+    @Test
+    fun largeLibraryStartsWithSourceAndAddControlsBeforeSearch() {
+        var enabled by mutableStateOf(true)
+        var created = 0
+        compose.setContent {
+            JugglucoTheme(ThemeMode.DARK) {
+                FoodLibraryContent(largeLibrary(), false, enabled, true,
+                    FoodLibraryActions({ enabled = it }, {}, {}, { created++ }, {}, {}, {}))
+            }
+        }
+        val add = compose.onNodeWithText(Applic.app.getString(R.string.journal_add_food))
+        val source = compose.onNodeWithText(Applic.app.getString(R.string.open_food_facts))
+        val search = compose.onNode(hasSetTextAction())
+        add.assertIsDisplayed()
+        source.assertIsDisplayed()
+        search.assertIsDisplayed()
+        assertTrue(source.fetchSemanticsNode().boundsInRoot.bottom <= add.fetchSemanticsNode().boundsInRoot.top)
+        assertTrue(add.fetchSemanticsNode().boundsInRoot.bottom <= search.fetchSemanticsNode().boundsInRoot.top)
+        add.performClick()
+        assertEquals(1, created)
+        compose.onNodeWithText(Applic.app.getString(R.string.journal_food_library)).performClick()
+        assertFalse(enabled)
+        add.assertIsNotEnabled()
+        search.assertIsNotEnabled()
+    }
+
+    @Test
+    fun toolbarFileActionStaysAccessibleAfterScrollingAndOpensBothFileActions() {
+        var imported = 0
+        var exported = 0
+        compose.setContent {
+            JugglucoTheme(ThemeMode.DARK) {
+                FoodLibraryLayout(largeLibrary(), false, true, true, {},
+                    FoodLibraryActions({}, {}, {}, {}, {}, { imported++ }, { exported++ }))
+            }
+        }
+        compose.onNode(hasScrollAction()).performTouchInput { swipeUp() }
+        compose.onNode(hasScrollAction()).performTouchInput { swipeUp() }
+        val files = compose.onNodeWithContentDescription(Applic.app.getString(R.string.food_file_title))
+        files.assertIsDisplayed().performClick()
+        compose.mainClock.advanceTimeBy(1500)
+        compose.onNodeWithText(Applic.app.getString(R.string.food_import)).assertIsDisplayed().performClick()
+        assertEquals(1, imported)
+        compose.onNodeWithText(Applic.app.getString(R.string.food_file_title)).assertDoesNotExist()
+        files.performClick()
+        compose.mainClock.advanceTimeBy(1500)
+        compose.onNodeWithText(Applic.app.getString(R.string.export)).assertIsDisplayed().performClick()
+        assertEquals(1, exported)
+    }
+
+    @Test
+    fun emptyLibraryCanImportButCannotExportFromTheFileSheet() {
+        var imported = 0
+        compose.setContent {
+            JugglucoTheme(ThemeMode.DARK) {
+                FoodLibraryLayout(emptyList(), false, false, true, {},
+                    FoodLibraryActions({}, {}, {}, {}, {}, { imported++ }, {}))
+            }
+        }
+        compose.onNodeWithContentDescription(Applic.app.getString(R.string.food_file_title)).performClick()
+        compose.mainClock.advanceTimeBy(1500)
+        compose.onNodeWithText(Applic.app.getString(R.string.export)).assertIsNotEnabled()
+        compose.onNodeWithText(Applic.app.getString(R.string.food_import)).assertIsEnabled().performClick()
+        assertEquals(1, imported)
+    }
+
 }

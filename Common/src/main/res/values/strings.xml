@@ -3684,7 +3684,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_portion_package">pack</string>
     <string name="food_per_100g_label">In 100 g, from the label</string>
     <string name="food_sources">Sources</string>
-    <string name="food_online_desc">Search products online and scan barcodes. Only the search words or the barcode are sent</string>
+    <string name="food_online_desc">Online search and barcodes</string>
     <string name="food_file_title">Import and export</string>
     <string name="food_import">Import</string>
     <string name="food_file_hint">A CSV or JSON table with name, carbs, protein, fat and per_grams columns. Without per_grams the values count as per 100 g.</string>

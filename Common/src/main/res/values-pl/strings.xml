@@ -3419,7 +3419,7 @@
     <string name="food_portion_package">opakowanie</string>
     <string name="food_per_100g_label">W 100 g, z etykiety</string>
     <string name="food_sources">Źródła</string>
-    <string name="food_online_desc">Wyszukiwanie produktów online i skanowanie kodów kreskowych. Wysyłane są tylko szukane słowa lub kod</string>
+    <string name="food_online_desc">Wyszukiwanie online i kody kreskowe</string>
     <string name="food_file_title">Import i eksport</string>
     <string name="food_import">Importuj</string>
     <string name="food_file_hint">Tabela CSV lub JSON z kolumnami name, carbs, protein, fat i per_grams. Bez per_grams wartości liczą się na 100 g.</string>

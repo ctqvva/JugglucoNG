@@ -3350,7 +3350,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_portion_package">confezione</string>
     <string name="food_per_100g_label">Per 100 g, dall’etichetta</string>
     <string name="food_sources">Fonti</string>
-    <string name="food_online_desc">Ricerca di prodotti online e scansione dei codici a barre. Vengono inviati solo le parole cercate o il codice a barre</string>
+    <string name="food_online_desc">Ricerca online e codici a barre</string>
     <string name="food_file_title">Importazione ed esportazione</string>
     <string name="food_import">Importa</string>
     <string name="food_file_hint">Una tabella CSV o JSON con le colonne name, carbs, protein, fat e per_grams. Senza per_grams i valori valgono per 100 g.</string>

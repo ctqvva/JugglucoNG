@@ -3449,7 +3449,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_portion_package">упакоўка</string>
     <string name="food_per_100g_label">У 100 г, з этыкеткі</string>
     <string name="food_sources">Крыніцы</string>
-    <string name="food_online_desc">Пошук прадуктаў у інтэрнэце і сканаванне штрыхкодаў. Адпраўляюцца толькі словы запыту або штрыхкод</string>
+    <string name="food_online_desc">Пошук у інтэрнэце і штрыхкоды</string>
     <string name="food_file_title">Імпарт і экспарт</string>
     <string name="food_import">Імпарт</string>
     <string name="food_file_hint">Табліца CSV або JSON са слупкамі name, carbs, protein, fat і per_grams. Без per_grams значэнні лічацца на 100 г.</string>
