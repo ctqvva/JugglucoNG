@@ -207,3 +207,25 @@ object FoodNumbers {
     fun parse(text: String): Float? = normalize(text.trim()).toFloatOrNull()
         ?.takeIf { it.isFinite() && it >= 0f }
 }
+
+/** A food from a shelf as a library entry, kept on purpose. */
+fun FoodItem.toLibraryInput(sortOrder: Int): tk.glucodata.data.journal.JournalFoodInput = tk.glucodata.data.journal.JournalFoodInput(
+    id = libraryId,
+    displayName = name,
+    carbsGrams = carbs,
+    proteinGrams = protein,
+    fatGrams = fat,
+    absorptionMinutes = absorptionMinutes ?: FoodMath.estimatedAbsorptionMinutes(carbs, protein, fat),
+    accentColor = FoodLibrary.DEFAULT_ACCENT_COLOR,
+    sortOrder = sortOrder,
+    referenceGrams = referenceGrams,
+    portions = portions,
+    fiberGrams = fiber,
+    kcal = kcal,
+    brand = brand,
+    barcode = barcode,
+    sourceKey = key,
+    isLiquid = isLiquid,
+    hasOwnAbsorption = absorptionMinutes != null,
+    kept = true
+)

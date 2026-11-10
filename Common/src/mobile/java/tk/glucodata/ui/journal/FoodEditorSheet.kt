@@ -89,12 +89,13 @@ internal fun FoodEditorSheet(
     nextSortOrder: Int,
     onDismiss: () -> Unit,
     onSave: (JournalFoodInput) -> Unit,
-    onDelete: (() -> Unit)?
+    onDelete: (() -> Unit)?,
+    initialBarcode: String? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var draft by remember(food?.id) { mutableStateOf(foodEditorDraft(food, nextSortOrder)) }
     var showColorDialog by rememberSaveable(food?.id) { mutableStateOf(false) }
-    val input = foodEditorInput(draft, food)
+    val input = foodEditorInput(draft, food)?.let { it.copy(barcode = it.barcode ?: initialBarcode) }
 
     StableModalBottomSheet(
         onDismissRequest = onDismiss,

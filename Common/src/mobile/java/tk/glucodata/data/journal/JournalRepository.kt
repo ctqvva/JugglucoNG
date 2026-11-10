@@ -595,6 +595,8 @@ class JournalRepository {
         }
     }
 
+    suspend fun keepFood(food: tk.glucodata.data.food.FoodItem): Long = foodLibrary.keep(food)
+
     suspend fun upsertFood(input: JournalFoodInput): Long = foodLibrary.upsert(input)
 
     suspend fun deleteFood(foodId: Long) = foodLibrary.delete(foodId)

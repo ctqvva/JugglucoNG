@@ -2190,6 +2190,20 @@ class DashboardViewModel(
         }
     }
 
+    fun keepJournalFood(food: tk.glucodata.data.food.FoodItem, onSaved: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                journalRepository.keepFood(food)
+                onSaved(true)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                tk.glucodata.Log.stack("FoodLibrary", "save", failure)
+                onSaved(false)
+            }
+        }
+    }
+
     fun saveJournalFood(input: JournalFoodInput) {
         viewModelScope.launch {
             journalRepository.upsertFood(input)

@@ -383,4 +383,32 @@ class FoodLibraryTests {
         }
     }
 
+    @Test
+    fun savingAForeignNamedProductIsIdempotentAndKeepsItsDefinition() = runBlocking {
+        val product = apple.copy(key = "off:3017620422003", source = FoodSource.OPEN_FOOD_FACTS,
+            name = "Chaussons aux pommes", barcode = "3017620422003")
+        val jobs = (1..5).map { async(kotlinx.coroutines.Dispatchers.Default) { library.keep(product) } }
+        val ids = jobs.map { it.await() }
+        assertEquals(1, ids.distinct().size)
+        val id = ids.first()
+        assertEquals(1, library.foods().size)
+        assertEquals(product.name, library.foods().single().displayName)
+        assertFalse(library.foods().single().hasOwnAbsorption)
+        library.upsert(product.toLibraryInput(10).copy(id = id, displayName = "Моя слойка", carbsGrams = 25f))
+        assertEquals(id, library.keep(product.copy(key = "off:other", name = "Apple pastry")))
+        assertEquals("Моя слойка", library.foods().single().displayName)
+        assertEquals(25f, library.foods().single().carbsGrams, 0f)
+    }
+
+    @Test
+    fun keepingARememberedFoodPreservesItsAmountAndUsage() = runBlocking {
+        val id = library.noteUses(listOf(JournalFoodUse(apple, FoodAmount(75f))), now = 100L).single()
+        assertEquals(id, library.keep(apple))
+        val kept = library.foods().single()
+        assertTrue(kept.kept)
+        assertEquals(1, kept.useCount)
+        assertEquals(FoodAmount(75f), kept.lastAmount)
+        assertFalse(kept.hasOwnAbsorption)
+    }
+
 }

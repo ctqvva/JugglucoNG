@@ -92,7 +92,8 @@ internal class FoodLibraryActions(
     val onCreate: () -> Unit,
     val onSave: (FoodItem) -> Unit,
     val onImport: () -> Unit,
-    val onExport: () -> Unit
+    val onExport: () -> Unit,
+    val onCreateFromBarcode: (String) -> Unit = { onCreate() }
 )
 
 @Composable
@@ -106,6 +107,7 @@ fun JournalFoodLibraryScreen(
     val foodOnlineEnabled by viewModel.journalFoodOnlineEnabled.collectAsStateWithLifecycle()
     var editingFood by remember { mutableStateOf<JournalFood?>(null) }
     var creatingFood by remember { mutableStateOf(false) }
+    var creatingBarcode by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -167,8 +169,13 @@ fun JournalFoodLibraryScreen(
                 onLibraryEnabledChange = viewModel::setJournalFoodLibraryEnabled,
                 onOnlineEnabledChange = viewModel::setJournalFoodOnlineEnabled,
                 onEdit = { editingFood = it },
-                onCreate = { creatingFood = true },
-                onSave = { food -> viewModel.saveJournalFood(food.toLibraryInput(sortOrder = allFoods.size + 100)) },
+                onCreate = { creatingBarcode = null; creatingFood = true },
+                onCreateFromBarcode = { creatingBarcode = it; creatingFood = true },
+                onSave = { food ->
+                    viewModel.keepJournalFood(food) { saved ->
+                        Toast.makeText(context, if (saved) R.string.saved else R.string.savefailed, Toast.LENGTH_SHORT).show()
+                    }
+                },
                 onImport = { importLauncher.launch(arrayOf("text/*", "application/json", "application/octet-stream")) },
                 onExport = { exportLauncher.launch(FoodLibraryTransfer.DEFAULT_FILE_NAME) }
             ),
@@ -179,6 +186,7 @@ fun JournalFoodLibraryScreen(
     if (creatingFood) {
         FoodEditorSheet(
             food = null,
+            initialBarcode = creatingBarcode,
             foodMacrosEnabled = foodMacrosEnabled,
             nextSortOrder = allFoods.size + 100,
             onDismiss = { creatingFood = false },
@@ -229,16 +237,25 @@ internal fun FoodLibraryContent(
 ) {
     val focusManager = LocalFocusManager.current
     var expandedKey by remember { mutableStateOf<String?>(null) }
+    var scannedFood by remember { mutableStateOf<FoodItem?>(null) }
+    val browseFoods = (listOfNotNull(scannedFood) + (picker.online as? FoodOnlineSearch.Done)?.foods.orEmpty())
+        .distinctBy { it.key }
+    val savedBrowseIds = foods.filter { row -> row.kept && !row.isArchived && browseFoods.any { it.isLibraryCopy(row) } }
+        .mapTo(HashSet()) { it.id }
     val mine = remember(foods) { foods.filter { it.kept && !it.isArchived } }
     val remembered = remember(foods) {
         foods.filter { !it.kept && !it.isArchived }.sortedByDescending { it.lastUsedAt }
     }
     val disabled = remember(foods) { foods.filter { it.isArchived } }
-    val ownMatches = remember(foods, picker.query) {
-        FoodCatalog.searchLibrary(foods, picker.query, limit = 40)
-    }
+    val ownMatches = (FoodCatalog.searchLibrary(foods, picker.query, limit = 40) +
+        foods.filter { it.id in savedBrowseIds || picker.shelves.library.any { found -> found.libraryId == it.id } })
+        .distinctBy { it.id }
+    val unsavedBrowse = browseFoods.filter { item -> foods.none { it.kept && !it.isArchived && item.isLibraryCopy(it) } }
     // A food saved from a shelf moves to the person's own; the lists should say so at once.
     LaunchedEffect(foods) { picker.refresh() }
+    LaunchedEffect(libraryEnabled, onlineEnabled) {
+        if (!libraryEnabled || !onlineEnabled) picker.close()
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -262,12 +279,20 @@ internal fun FoodLibraryContent(
                 query = picker.query,
                 onQueryChange = {
                     expandedKey = null
+                    scannedFood = null
                     picker.onQueryChange(it)
                 },
-                active = picker.query.isNotEmpty(),
-                onActivate = {},
-                onClose = null,
-                onScan = null,
+                active = picker.scanning,
+                onActivate = picker::activateSearch,
+                onClose = if (picker.scanning) picker::close else null,
+                onScan = if (onlineEnabled) {
+                    {
+                        focusManager.clearFocus()
+                        scannedFood = null
+                        expandedKey = null
+                        picker.startScanning()
+                    }
+                } else null,
                 enabled = libraryEnabled,
                 onSearch = if (onlineEnabled) picker::searchOnline else null,
                 modifier = Modifier.alpha(if (libraryEnabled) 1f else 0.48f)
@@ -275,6 +300,25 @@ internal fun FoodLibraryContent(
         }
 
         if (!libraryEnabled) return@LazyColumn
+
+        if (picker.scanning && onlineEnabled) {
+            item(key = "food_scanner") {
+                FoodBarcodeScanner(
+                    lookup = picker.barcode,
+                    onBarcode = { code ->
+                        picker.lookUp(code) { found ->
+                            picker.close()
+                            scannedFood = found
+                            expandedKey = found.key
+                            picker.onQueryChange(found.name)
+                        }
+                    },
+                    onEnterValues = { code -> picker.close(); actions.onCreateFromBarcode(code) },
+                    onClose = picker::close
+                )
+            }
+            return@LazyColumn
+        }
 
         if (picker.query.isBlank()) {
             if (mine.isNotEmpty()) {
@@ -379,10 +423,10 @@ internal fun FoodLibraryContent(
                 }
             }
             val online = picker.online
-            if (online is FoodOnlineSearch.Done && online.foods.isNotEmpty()) {
+            if (onlineEnabled && unsavedBrowse.isNotEmpty()) {
                 item(key = "food_shelf_online") {
                     FoodBrowseGroup(
-                        stringResource(R.string.open_food_facts), online.foods, macrosEnabled,
+                        stringResource(R.string.open_food_facts), unsavedBrowse, macrosEnabled,
                         expandedKey, toggle, actions.onSave
                     )
                 }
@@ -395,7 +439,7 @@ internal fun FoodLibraryContent(
                     )
                 }
             }
-            if (onlineEnabled && online !is FoodOnlineSearch.Done) {
+            if (onlineEnabled && online !is FoodOnlineSearch.Done && scannedFood == null) {
                 item(key = "food_online") {
                     FoodOnlineButton(
                         online = online,
@@ -631,23 +675,10 @@ private fun FoodComposition(food: FoodItem) {
     }
 }
 
-/** A food from a shelf as a library entry, kept on purpose. */
-internal fun FoodItem.toLibraryInput(sortOrder: Int): JournalFoodInput = JournalFoodInput(
-    id = libraryId,
-    displayName = name,
-    carbsGrams = carbs,
-    proteinGrams = protein,
-    fatGrams = fat,
-    absorptionMinutes = absorptionMinutes ?: FoodMath.estimatedAbsorptionMinutes(carbs, protein, fat),
-    accentColor = FoodLibrary.DEFAULT_ACCENT_COLOR,
-    sortOrder = sortOrder,
-    referenceGrams = referenceGrams,
-    portions = portions,
-    fiberGrams = fiber,
-    kcal = kcal,
-    brand = brand,
-    barcode = barcode,
-    sourceKey = key,
-    isLiquid = isLiquid,
-    kept = true
-)
+
+/** Identity, rather than translated names or the active search words, links a saved result. */
+internal fun FoodItem.isLibraryCopy(food: JournalFood): Boolean =
+    libraryId == food.id || key == food.sourceKey ||
+        barcode != null && food.barcode != null &&
+        (tk.glucodata.data.food.ProductBarcode.normalize(barcode) ?: barcode) ==
+        (tk.glucodata.data.food.ProductBarcode.normalize(food.barcode) ?: food.barcode)

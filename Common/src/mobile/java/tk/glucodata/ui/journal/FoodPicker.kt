@@ -124,6 +124,9 @@ internal sealed interface FoodBarcodeLookup {
 internal class FoodPickerState(
     private val scope: CoroutineScope,
     private val context: Context,
+    private val onlineSearch: suspend (String, String) -> OpenFoodFactsResult<List<FoodItem>> = { query, language ->
+        withContext(Dispatchers.IO) { OpenFoodFactsClient.search(query, language) }
+    },
     private val productLookup: suspend (String, String) -> OpenFoodFactsResult<FoodItem> = { code, language ->
         withContext(Dispatchers.IO) { OpenFoodFactsClient.product(code, language) }
     }
@@ -181,7 +184,7 @@ internal class FoodPickerState(
         if (words.length < FoodCatalog.MIN_QUERY_LENGTH || online == FoodOnlineSearch.Loading) return
         online = FoodOnlineSearch.Loading
         onlineJob = scope.launch {
-            val result = withContext(Dispatchers.IO) { OpenFoodFactsClient.search(words, language) }
+            val result = onlineSearch(words, language)
             online = when (result) {
                 is OpenFoodFactsResult.Found -> FoodOnlineSearch.Done(result.value)
                 else -> FoodOnlineSearch.Failed
@@ -682,7 +685,7 @@ private fun FoodSearchActions(
 
 /** The camera, and what became of the barcode it read. */
 @Composable
-private fun FoodBarcodeScanner(
+internal fun FoodBarcodeScanner(
     lookup: FoodBarcodeLookup,
     onBarcode: (String) -> Unit,
     onEnterValues: (String) -> Unit,

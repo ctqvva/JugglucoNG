@@ -107,6 +107,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -604,12 +605,16 @@ fun JournalEntrySheet(
 
     val sheetContentHeight = remember { SheetContentHeightAnimation() }
     StableModalBottomSheet(
+        modifier = Modifier.testTag("journal_entry_sheet"),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        contentKey = draft.type,
+        contentKey = listOf(
+            draft.type, foodLibraryEnabled, foodPicker.searching, foodPicker.scanning,
+            foodPicker.barcode::class, draft.foodItems.size, foodPicker.openItem
+        ),
         contentHeight = sheetContentHeight,
     ) {
         // Inside the sheet, for its own window's keyboard inset.

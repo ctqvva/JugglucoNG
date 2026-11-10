@@ -42,6 +42,23 @@ class FoodLibrary(
         block()
     }
 
+    /** Save a shelf product once, or keep its existing (possibly edited) library definition. */
+    suspend fun keep(food: FoodItem, now: Long = System.currentTimeMillis()): Long = writes.withLock {
+        recoverWrite()
+        val rows = journalDao.getFoods()
+        val details = detailsDao.getAll().associateBy { it.foodId }
+        val existing = findExisting(food, rows, details)
+        if (existing != null) {
+            val old = details[existing.id]
+            if (existing.isArchived || old?.kept == false) {
+                write(existing.copy(isArchived = false, updatedAt = now), old?.copy(kept = true))
+            }
+            existing.id
+        } else {
+            upsertLocked(food.toLibraryInput((rows.maxOfOrNull { it.sortOrder } ?: 0) + 1), now)
+        }
+    }
+
     suspend fun upsert(input: JournalFoodInput, now: Long = System.currentTimeMillis()): Long = writes.withLock {
         recoverWrite()
         upsertLocked(input, now)
