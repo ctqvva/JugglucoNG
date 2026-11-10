@@ -1074,7 +1074,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Auto-added statistics explainer strings -->
     <string name="a1c_gmi_label">A1C (IGM)</string>
     <string name="cv_description">Coefficient de variation : écart type divisé par la glycémie moyenne. Des valeurs inférieures indiquent un glucose plus stable.</string>
-    <string name="std_dev_short">Développeur standard</string>
+    <string name="std_dev_short">Écart-type</string>
     <string name="std_dev_description">Écart type : distance typique des lectures par rapport à votre glycémie moyenne.</string>
 
     <string name="stats">Statistiques</string>

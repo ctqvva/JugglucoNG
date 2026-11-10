@@ -1111,7 +1111,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <!-- Auto-added statistics explainer strings -->
     <string name="a1c_gmi_label">A1C (GMI)</string>
     <string name="cv_description">Variatiecoëfficiënt: standaardafwijking gedeeld door gemiddelde glucose. Lagere waarden duiden op een stabielere glucosespiegel.</string>
-    <string name="std_dev_short">Standaard ontwikkelaar</string>
+    <string name="std_dev_short">Std. afw.</string>
     <string name="show_sensors_only">Alleen sensoren tonen</string>
     <string name="see_all_devices">Alle apparaten bekijken</string>
     <string name="aidex_not_recognized">%1$s • niet herkend als AiDex</string>

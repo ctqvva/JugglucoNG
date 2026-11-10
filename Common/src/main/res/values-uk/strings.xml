@@ -898,7 +898,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="prelowglucose">" Soon LOW glucose!"</string>
     <string name="prelowglucosealarm">Alarm when soon below</string>
     <string name="profile">"Profile "</string>
-    <string name="psg">ПСЖ</string>
+    <string name="psg">PSG</string>
     <string name="psg_elevated">Підвищена базова лінія</string>
     <string name="psg_low">Низька базова лінія</string>
     <string name="psg_stable">Стабільна базова лінія</string>

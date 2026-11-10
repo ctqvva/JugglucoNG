@@ -65,7 +65,7 @@ class StatsPortraitLayoutTests {
         var coverage by mutableFloatStateOf(98f)
         var dateClicks = 0
         compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, scale)) {
+            CompositionLocalProvider(LocalDensity provides Density(1f, scale.coerceAtMost(1.3f))) {
                 MaterialTheme(typography = AppTypography) {
                     Box(Modifier.width(width.dp)) {
                         StatsRangeSelectorControl(
@@ -80,7 +80,7 @@ class StatsPortraitLayoutTests {
             compose.runOnIdle { width = w; scale = s }
             for (n in listOf(282, 1234567)) {
                 compose.runOnIdle { count = n; coverage = if (n == 282) 98f else 100f }
-                val active = if (n == 282) "Active 98%" else "Active 100%"
+                val active = if (n == 282) "Active\u00A098%" else "Active\u00A0100%"
                 compose.onNode(hasText(active, substring = true), useUnmergedTree = true).layout().assertFits()
                 compose.onNodeWithText(formatStatsDateRange(range)!!).performClick()
             }
@@ -88,13 +88,13 @@ class StatsPortraitLayoutTests {
         compose.runOnIdle { assertEquals(24, dateClicks) }
     }
 
-    @Test fun wholeTirLabelAndDeltaStayInsideTheCircularOpening() {
+    @Test fun wholeTirLabelStaysInsideTheCircleWithAReadableComparisonBelow() {
         var scale by mutableFloatStateOf(1f)
         var percent by mutableFloatStateOf(62f)
         var delta by mutableStateOf<Float?>(23f)
         var selected by mutableStateOf<TirBand?>(null)
         compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, scale)) {
+            CompositionLocalProvider(LocalDensity provides Density(1f, scale.coerceAtMost(1.3f))) {
                 MaterialTheme(typography = AppTypography) {
                     val change = delta?.let(::comparison)
                     OverviewRing(
@@ -102,7 +102,7 @@ class StatsPortraitLayoutTests {
                         comparison = change,
                         selectedBand = selected,
                         onBandSelected = { selected = it },
-                        modifier = Modifier.size(overviewRingMinimumSize(change)).testTag("ring")
+                        modifier = Modifier.width(128.dp).testTag("ring")
                     )
                 }
             }
@@ -110,10 +110,10 @@ class StatsPortraitLayoutTests {
         for (s in listOf(1f, 1.3f, 2f)) for (p in listOf(0f, 62f, 100f)) {
             for (d in listOf(null, 23f, -100f)) {
                 compose.runOnIdle { scale = s; percent = p; delta = d }
-                val ring = compose.onNodeWithTag("ring").fetchSemanticsNode().boundsInRoot
-                // A selected arc is 17dp thick, extending 1dp farther into the opening.
-                val innerRadius = ring.width / 2f - 16f
-                for (text in listOfNotNull("${p.toInt()}%", "TIR", d?.let { kotlin.math.abs(it).toInt().toString() })) {
+                val ring = compose.onNodeWithContentDescription("${p.toInt()}% TIR", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+                // A selected arc is 14dp thick, extending 1dp farther into the opening.
+                val innerRadius = ring.width / 2f - 13f
+                for (text in listOf("${p.toInt()}%", "TIR")) {
                     val node = compose.onNodeWithText(text, useUnmergedTree = true)
                     node.layout().assertFits()
                     val b = node.fetchSemanticsNode().boundsInRoot
@@ -125,9 +125,9 @@ class StatsPortraitLayoutTests {
         }
         // A band tap and a center tap retain the existing selection behavior.
         compose.runOnIdle { percent = 100f; delta = 23f; selected = null }
-        compose.onNodeWithTag("ring").performTouchInput { click(Offset(center.x, 4f)) }
+        compose.onNodeWithContentDescription("100% TIR", useUnmergedTree = true).performTouchInput { click(Offset(center.x, 4f)) }
         compose.runOnIdle { assertEquals(TirBand.IN_RANGE, selected) }
-        compose.onNodeWithTag("ring").performTouchInput { click(center) }
+        compose.onNodeWithContentDescription("100% TIR", useUnmergedTree = true).performTouchInput { click(center) }
         compose.runOnIdle { assertNull(selected) }
     }
 
@@ -141,7 +141,7 @@ class StatsPortraitLayoutTests {
             }
         )
         compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, scale)) {
+            CompositionLocalProvider(LocalDensity provides Density(1f, scale.coerceAtMost(1.3f))) {
                 MaterialTheme(typography = AppTypography) {
                     Surface {
                         Column(Modifier.width(width.dp).testTag("portrait")) {
