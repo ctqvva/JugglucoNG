@@ -47,8 +47,8 @@ class JournalFoodDraftRegressionTests {
             .withFoodItems(listOf(restored, another), true)
         val input = draft.toInput("mmol/L", null, emptyMap(), true)!!
         assertEquals(52f, input.proteinGrams!!, 0f)
-        assertEquals(1, input.foodUses.size)
-        assertEquals(5L, input.foodUses.single().food.libraryId)
+        assertEquals(listOf(4L, 5L), input.foodUses.map { it.food.libraryId })
+        assertEquals(250f, input.foodUses.first().amount.quantity, 0f)
     }
 
     @Test
@@ -67,6 +67,23 @@ class JournalFoodDraftRegressionTests {
             .withFoodItems(listOf(restored, JournalDraftFoodItem(food.toFoodItem(), FoodAmount(50f))), true)
             .toInput("mmol/L", null, emptyMap(), true)!!
         assertEquals(52f, added.proteinGrams!!, 0f)
+    }
+
+    @Test
+    fun editingAMatchedRestoredAmountRemembersItButUntouchedAndFallbackDoNot() {
+        val entry = JournalEntry(1, 0, null, JournalEntryType.CARBS, "Saved", null, 10f, null, 90, null,
+            null, food.id, 2f, 1f, JournalEntrySource.MANUAL, null, 0, 0)
+        val matched = restoredFoodItem(food, entry)
+        val reopened = JournalEntryDraft(type = JournalEntryType.CARBS, timestamp = 0, title = entry.title,
+            amountText = "10", foodId = food.id, foodItems = listOf(matched))
+        assertTrue(reopened.toInput("mmol/L", null, emptyMap(), true)!!.foodUses.isEmpty())
+        val edited = reopened.withFoodItems(listOf(matched.copy(amount = FoodAmount(75f))), true)
+        val use = edited.toInput("mmol/L", null, emptyMap(), true)!!.foodUses.single()
+        assertEquals(food.id, use.food.libraryId)
+        assertEquals(75f, use.amount.quantity, 0f)
+        val fallback = restoredFoodItem(food.copy(proteinGrams = null), entry)
+        val editedFallback = reopened.withFoodItems(listOf(fallback.copy(amount = FoodAmount(2f))), true)
+        assertTrue(editedFallback.toInput("mmol/L", null, emptyMap(), true)!!.foodUses.isEmpty())
     }
 
 }

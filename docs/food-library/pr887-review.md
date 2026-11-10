@@ -62,8 +62,9 @@ All seven new comments (six distinct concerns) were checked against source:
 - Reopening zero-carb entries can infer quantity from saved protein or fat. If no
   ratio is known, or the saved nutrients disagree with today's food definition,
   the picker retains a weightless snapshot of the saved meal totals. It never
-  records that reconstructed quantity as a new library use, and adding a food
-  preserves the previous totals.
+  records that unknown quantity as a new library use, and adding a food preserves
+  the previous totals. Matched library definitions remain eligible for learning
+  an edited amount; saving an untouched reopened draft records no new use.
 - Snapshot queries use the same saved-food ordering as the observer and suggestions.
 
 Validation: 5,710 Mobile tests and 4,143 Wear tests; zero failures or errors, with
@@ -76,3 +77,14 @@ The Pixel also retained the `rice` query and its result list after hiding and
 reopening the keyboard. Search activation/cancellation itself is covered by the
 focused state regression; live barcode completion during edits remains covered
 by the deterministic delayed-response tests rather than a physical barcode scan.
+
+## Follow-up after 66caff53e
+
+Confirmed Cubic's edited-restoration finding. A matched restored food is now
+eligible for usage recording when a meal edit enables the draft's existing
+`recordFoodUses` gate. Untouched reopened drafts and weightless fallback snapshots
+remain excluded. A focused regression covers all three paths and the updated
+zero-carb reconstruction test checks the remembered amount too.
+
+Validation for this follow-up: all 80 focused food/journal tests passed, along
+with UI guardrails and whitespace checks.

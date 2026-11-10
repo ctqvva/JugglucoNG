@@ -1195,7 +1195,9 @@ internal fun restoredFoodItem(food: JournalFood, entry: JournalEntry): JournalDr
         entry.fatGrams to food.fatGrams
     ).all { (saved, reference) -> saved == null || reference != null && kotlin.math.abs(saved - reference * factor) <= 0.1f }
     if (matches) {
-        return JournalDraftFoodItem(food.toFoodItem(), tk.glucodata.data.food.FoodAmount(factor!! * (food.referenceGrams ?: 1f)), rememberUse = false)
+        // The draft's recordFoodUses gate keeps an untouched reopen from learning a use.
+        // A real edit may remember this amount because it uses the library's own units.
+        return JournalDraftFoodItem(food.toFoodItem(), tk.glucodata.data.food.FoodAmount(factor!! * (food.referenceGrams ?: 1f)))
     }
     // One saved portion of unknown weight. Its macros are exactly the entry's totals, so
     // adding another food preserves them even if the library definition has since changed.

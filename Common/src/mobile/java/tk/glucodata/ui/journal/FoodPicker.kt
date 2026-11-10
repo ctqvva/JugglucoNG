@@ -93,7 +93,7 @@ data class JournalDraftFoodItem(
     val food: FoodItem,
     val amount: FoodAmount,
     val amountText: String = formatFoodQuantity(amount.quantity),
-    /** Reopened entries must not teach the library a reconstructed or unknown quantity. */
+    /** False for a saved-meal snapshot whose quantity has no mapping to the library food. */
     val rememberUse: Boolean = true
 ) {
     val nutrients: FoodNutrients get() = FoodMath.nutrients(food, amount)
