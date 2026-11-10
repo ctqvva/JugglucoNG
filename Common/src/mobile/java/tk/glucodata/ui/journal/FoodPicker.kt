@@ -92,7 +92,9 @@ import tk.glucodata.ui.setup.PRODUCT_BARCODE_FORMATS
 data class JournalDraftFoodItem(
     val food: FoodItem,
     val amount: FoodAmount,
-    val amountText: String = formatFoodQuantity(amount.quantity)
+    val amountText: String = formatFoodQuantity(amount.quantity),
+    /** Reopened entries must not teach the library a reconstructed or unknown quantity. */
+    val rememberUse: Boolean = true
 ) {
     val nutrients: FoodNutrients get() = FoodMath.nutrients(food, amount)
 }
@@ -209,6 +211,13 @@ internal class FoodPickerState(
         }
     }
 
+    fun activateSearch() {
+        barcodeJob?.cancel()
+        barcode = FoodBarcodeLookup.Idle
+        scanning = false
+        searching = true
+    }
+
     fun startScanning() {
         close()
         scanning = true
@@ -279,10 +288,7 @@ internal fun LazyListScope.journalFoodRows(
             query = state.query,
             onQueryChange = state::onQueryChange,
             active = state.searching,
-            onActivate = {
-                state.close()
-                state.searching = true
-            },
+            onActivate = state::activateSearch,
             onClose = {
                 focusManager.clearFocus()
                 state.close()

@@ -36,8 +36,8 @@ class FoodLibrary(
         journalDao.getFoods() to detailsDao.getAll()
     }
 
-    /** Startup seeding shares the same lock as id allocation and pending-write recovery. */
-    suspend fun seed(block: suspend () -> Unit) = writes.withLock {
+    /** Acquire before a history transaction to keep every food writer in the same lock order. */
+    suspend fun <T> withWrites(block: suspend () -> T): T = writes.withLock {
         recoverWrite()
         block()
     }
@@ -83,8 +83,8 @@ class FoodLibrary(
                 useCount = old?.useCount ?: 0,
                 lastUsedAt = old?.lastUsedAt ?: 0L,
                 // An amount counted in a portion that the edit removed or moved means nothing now.
-                lastQuantity = old?.lastQuantity?.takeIf { FoodPortions.decode(old.portions) == portions && (old.referenceGrams == null) == (input.referenceGrams == null) },
-                lastPortionIndex = old?.lastPortionIndex?.takeIf { FoodPortions.decode(old.portions) == portions && (old.referenceGrams == null) == (input.referenceGrams == null) }
+                lastQuantity = old?.lastQuantity?.takeIf { FoodPortions.decode(old.portions) == portions && (old.referenceGrams == null) == (input.referenceGrams == null) && old.isLiquid == input.isLiquid },
+                lastPortionIndex = old?.lastPortionIndex?.takeIf { FoodPortions.decode(old.portions) == portions && (old.referenceGrams == null) == (input.referenceGrams == null) && old.isLiquid == input.isLiquid }
             )
         )
         return foodId

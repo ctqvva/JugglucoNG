@@ -47,4 +47,28 @@ class FoodPickerRegressionTests {
         assertFalse(state.scanning)
         assertEquals(FoodBarcodeLookup.Idle, state.barcode)
     }
+    @Test
+    fun refocusingSearchRetainsTheQueryAndCancelsOnlyBarcodeWork() = runBlocking {
+        val reply = CompletableDeferred<OpenFoodFactsResult<FoodItem>>()
+        val scope = CoroutineScope(coroutineContext + Dispatchers.Unconfined)
+        val state = FoodPickerState(scope, ApplicationProvider.getApplicationContext()) { _, _ -> reply.await() }
+        state.startScanning()
+        var calls = 0
+        state.lookUp("1") { calls++ }
+        state.onQueryChange("apple")
+        state.activateSearch()
+        assertEquals("apple", state.query)
+        assertTrue(state.searching)
+        assertFalse(state.scanning)
+        reply.complete(OpenFoodFactsResult.Found(food))
+        assertEquals(0, calls)
+        // Let the already scheduled local search finish, then keep its result on refocus.
+        delay(200)
+        val shelves = state.shelves
+        state.activateSearch()
+        assertSame(shelves, state.shelves)
+        assertEquals("apple", state.query)
+        state.close()
+    }
+
 }

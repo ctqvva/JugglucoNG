@@ -199,7 +199,7 @@ interface JournalDao {
     @Query("SELECT * FROM journal_foods WHERE id = :id LIMIT 1")
     suspend fun getFoodById(id: Long): JournalFoodEntity?
 
-    @Query("SELECT * FROM journal_foods")
+    @Query("SELECT * FROM journal_foods ORDER BY isArchived ASC, sortOrder ASC, displayName COLLATE NOCASE ASC")
     suspend fun getFoods(): List<JournalFoodEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

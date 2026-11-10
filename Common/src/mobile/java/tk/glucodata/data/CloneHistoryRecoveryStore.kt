@@ -1,6 +1,9 @@
 package tk.glucodata.data
 
 import java.io.File
+import tk.glucodata.Applic
+import tk.glucodata.data.food.FoodLibrary
+import tk.glucodata.data.food.FoodLibraryDatabase
 import tk.glucodata.CloneHistoryRecoveryProtocol
 import tk.glucodata.CloneRecoveryCategories
 import tk.glucodata.CloneRecoveryDirection
@@ -15,6 +18,7 @@ import tk.glucodata.data.journal.CloneJournalRecoveryStore
 /** Coordinates the mandatory glucose stream and optional recovery providers. */
 internal class CloneHistoryRecoveryStore(
     private val database: HistoryDatabase,
+    private val foodLibrary: FoodLibrary? = null,
 ) {
     private val glucose = CloneGlucoseRecoveryStore(database)
     private val journal = CloneJournalRecoveryStore(database)
@@ -85,7 +89,16 @@ internal class CloneHistoryRecoveryStore(
             file = file,
             manifest = manifest,
             recordValidator = validator,
-            transaction = { operation -> database.withRecoveryTransaction(manifest) { operation() } },
+            transaction = { operation ->
+                if (includeJournal) {
+                    // The lock must precede Room's transaction: taking it in resolveFood would
+                    // invert the library writer's lock order and could deadlock with an edit.
+                    (foodLibrary ?: FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(Applic.app).foodDetailsDao()))
+                        .withWrites { database.withRecoveryTransaction(manifest) { operation() } }
+                } else {
+                    database.withRecoveryTransaction(manifest) { operation() }
+                }
+            },
             beforeVisit = {
                 glucoseSession.beforeImport()
                 journalSession?.beforeImport()

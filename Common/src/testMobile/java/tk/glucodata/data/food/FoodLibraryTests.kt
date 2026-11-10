@@ -261,10 +261,14 @@ class FoodLibraryTests {
 
     @Test
     fun englishAliasStillFindsARememberedTranslatedFood() = runBlocking {
-        library.noteUses(listOf(JournalFoodUse(apple.copy(name = "Яблоко"), FoodAmount(100f))))
+        val id = library.noteUses(listOf(JournalFoodUse(apple.copy(name = "Яблоко", carbs = 15f), FoodAmount(75f)))).single()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val results = FoodCatalog.search(context, "apple", library.foods())
-        assertTrue(results.library.isNotEmpty() || results.common.any { it.key == "common:apple" })
+        val owned = results.library.single { it.libraryId == id }
+        assertEquals("Яблоко", owned.name)
+        assertEquals(15f, owned.carbs, 0f)
+        assertEquals(FoodAmount(75f), owned.lastAmount)
+        assertTrue(results.common.none { it.key == "common:apple" })
     }
 
     @Test
@@ -289,6 +293,90 @@ class FoodLibraryTests {
             assertFalse(row.hasOwnAbsorption)
             assertNull(migrated.foodDetailsDao().pending())
         } finally { migrated.close(); context.deleteDatabase(name) }
+    }
+
+    @Test
+    fun changingWeightToVolumeForgetsTheRememberedAmount() = runBlocking {
+        val id = library.noteUses(listOf(JournalFoodUse(apple, FoodAmount(75f)))).single()
+        library.upsert(JournalFoodInput(id = id, displayName = "Apple drink", carbsGrams = 11.4f,
+            absorptionMinutes = 90, accentColor = 0, referenceGrams = 100f, portions = apple.portions, isLiquid = true))
+        val saved = library.foods().single()
+        assertTrue(saved.isLiquid)
+        assertNull(saved.lastAmount)
+        assertNull(details.foodDetailsDao().get(id)!!.lastPortionIndex)
+    }
+
+    @Test
+    fun snapshotsAndObserversKeepTheSameSavedFoodOrder() = runBlocking {
+        val last = library.upsert(JournalFoodInput(displayName = "Last", carbsGrams = 1f, absorptionMinutes = 90, accentColor = 0, sortOrder = 20))
+        val first = library.upsert(JournalFoodInput(displayName = "First", carbsGrams = 1f, absorptionMinutes = 90, accentColor = 0, sortOrder = 1))
+        assertEquals(listOf(first, last), library.foods().map { it.id })
+        assertEquals(listOf(first, last), library.observe().first().map { it.id })
+        assertEquals(listOf(first, last), FoodCatalog.suggestions(library.foods()).mine.map { it.libraryId })
+    }
+
+    @Test
+    @Config(shadows = [RefreshSink::class, OutboundSink::class])
+    fun cloneImportWaitsForLibraryAllocationAndKeepsItsOwnFood() = runBlocking {
+        val realDao = history.journalDao()
+        val allocated = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val pausedDao = object : tk.glucodata.data.journal.JournalDao by realDao {
+            override suspend fun nextFoodId(): Long {
+                val id = realDao.nextFoodId()
+                allocated.complete(Unit)
+                release.await()
+                return id
+            }
+        }
+        val editingLibrary = FoodLibrary(pausedDao, details.foodDetailsDao())
+        val input = JournalFoodInput(displayName = "Local edit", carbsGrams = 20f, absorptionMinutes = 90, accentColor = 0)
+        val editing = async { editingLibrary.upsert(input) }
+        allocated.await()
+        val file = java.io.File.createTempFile("clone-food-race", ".gz")
+        val incoming = JournalFoodEntity(displayName = "Clone food", carbsGrams = 60f, proteinGrams = null, fatGrams = null,
+            absorptionMinutes = 90, accentColor = 0, isBuiltIn = false, isArchived = false, sortOrder = 0, createdAt = 1, updatedAt = 1)
+        val entry = tk.glucodata.data.journal.JournalEntryEntity(timestamp = 1, sensorSerial = null, entryType = "carbs", title = "Imported",
+            note = null, amount = 60f, glucoseValueMgDl = null, durationMinutes = 90, intensity = null, insulinPresetId = null,
+            source = "manual", sourceRecordId = null, createdAt = 1, updatedAt = 1)
+        val record = tk.glucodata.data.journal.CloneJournalEntryRecord("a".repeat(32), "clone:11111111-1111-1111-1111-111111111111:journal:1:carbs", entry, null, incoming)
+        val types = tk.glucodata.data.CloneGlucoseRecoveryRecords.recordTypes + tk.glucodata.data.journal.CloneJournalRecoveryRecords.recordTypes
+        val stats = tk.glucodata.CloneRecoveryPackageIO.write(file, types) { sink ->
+            sink.write(tk.glucodata.data.journal.CloneJournalRecoveryRecords.ENTRY, tk.glucodata.data.journal.CloneJournalRecoveryRecords.encode(record))
+        }
+        val manifest = tk.glucodata.CloneRecoveryManifest(
+            tk.glucodata.CloneHistoryRecoveryProtocol.PROTOCOL_VERSION, "b".repeat(32),
+            tk.glucodata.CloneRecoveryDirection.SEND_TO_RECEIVER, tk.glucodata.CloneRecoveryMode.ONLY_MISSING,
+            tk.glucodata.CloneRecoveryCategories.GLUCOSE or tk.glucodata.CloneRecoveryCategories.JOURNAL,
+            stats.compressedBytes, stats.uncompressedBytes, stats.recordCounts, stats.sha256)
+        try {
+            val importing = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                tk.glucodata.data.CloneHistoryRecoveryStore(history, library).importPackage(file, manifest, "clone")
+            }
+            assertFalse("Clone import must wait before starting its Room transaction", importing.isCompleted)
+            release.complete(Unit)
+            val localId = editing.await()
+            importing.await()
+            val imported = realDao.getEntries().single()
+            assertTrue(imported.foodId != localId)
+            assertEquals("Clone food", realDao.getFoodById(imported.foodId!!)!!.displayName)
+            assertEquals("Local edit", realDao.getFoodById(localId)!!.displayName)
+            assertEquals(2, library.foods().size)
+        } finally { release.complete(Unit); file.delete() }
+    }
+
+    // Exercise the real package reader, Clone importer, Room transaction and food allocation.
+    // Native notification delivery and outbound refresh are outside this storage regression.
+    @org.robolectric.annotation.Implements(tk.glucodata.UiRefreshBus::class)
+    class RefreshSink {
+        companion object {
+            @JvmStatic @org.robolectric.annotation.Implementation fun requestDataRefresh() {}
+        }
+    }
+
+    @org.robolectric.annotation.Implements(tk.glucodata.OutboundApiJournalSnapshot::class)
+    class OutboundSink {
+        @org.robolectric.annotation.Implementation fun mirroredJournalChanged() {}
     }
 
 }

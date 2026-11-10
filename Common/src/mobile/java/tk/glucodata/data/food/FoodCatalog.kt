@@ -64,17 +64,18 @@ object FoodCatalog {
             val active = library.filter { !it.isArchived }
             val mine = searchLibrary(active, needle).map { it.toFoodItem() }
             if (needle.length < MIN_QUERY_LENGTH) return@withContext Shelves(library = mine)
-            // A food already in the library is shown once, as the person's own.
-            val matchingIds = mine.mapNotNullTo(HashSet()) { it.libraryId }
+            val commonMatches = CommonFoods.get(context, appLocale(context))
+                .search(needle, COMMON_LIMIT + active.size)
+            val referenceMatches = ReferenceFoods.search(needle, REFERENCE_LIMIT + active.size)
+            val bySource = active.filter { it.sourceKey != null }.associateBy { it.sourceKey }
+            val aliases = (commonMatches + referenceMatches).mapNotNull { bySource[it.key] }
+                .distinctBy { it.id }.sortedByDescending { it.useCount }.map { it.toFoodItem() }
+            val ownedMatches = (mine + aliases).distinctBy { it.libraryId }.take(LIBRARY_LIMIT)
+            val matchingIds = ownedMatches.mapNotNullTo(HashSet()) { it.libraryId }
             val owned = active.filter { it.id in matchingIds }.mapNotNullTo(HashSet()) { it.sourceKey }
-            val common = CommonFoods.get(context, appLocale(context))
-                .search(needle, COMMON_LIMIT + owned.size)
-                .filter { it.key !in owned }
-                .take(COMMON_LIMIT)
-            val reference = ReferenceFoods.search(needle, REFERENCE_LIMIT + owned.size)
-                .filter { it.key !in owned }
-                .take(REFERENCE_LIMIT)
-            Shelves(mine, common, reference)
+            val common = commonMatches.filter { it.key !in owned }.take(COMMON_LIMIT)
+            val reference = referenceMatches.filter { it.key !in owned }.take(REFERENCE_LIMIT)
+            Shelves(ownedMatches, common, reference)
         }
     }
 }

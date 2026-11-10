@@ -573,7 +573,7 @@ class JournalRepository {
 
     suspend fun ensureDefaultFoods() {
         if (prefs.getBoolean(DEFAULT_FOODS_SEEDED_KEY, false)) return
-        foodLibrary.seed {
+        foodLibrary.withWrites {
             database.withTransaction {
                 val existing = dao.getFoods()
                 if (existing.isEmpty()) {

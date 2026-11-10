@@ -1180,11 +1180,38 @@ private fun LazyListScope.journalSheetItem(
     }
 }
 
-/** Only a single-food association is persisted; its old amount is inferred from entry carbs. */
+/** A saved nutrient can recover the amount; otherwise only the saved meal totals are known. */
 internal fun restoredFoodItem(food: JournalFood, entry: JournalEntry): JournalDraftFoodItem {
-    val item = food.toFoodItem()
-    val factor = if (food.carbsGrams > 0f && entry.amount != null) entry.amount / food.carbsGrams else 1f
-    return JournalDraftFoodItem(item, tk.glucodata.data.food.FoodAmount(factor * (food.referenceGrams ?: 1f)))
+    val factor = listOf(
+        entry.amount to food.carbsGrams,
+        entry.proteinGrams to food.proteinGrams,
+        entry.fatGrams to food.fatGrams
+    ).firstNotNullOfOrNull { (saved, reference) ->
+        if (saved != null && saved.isFinite() && saved > 0f && reference != null && reference > 0f) saved / reference else null
+    }
+    val matches = factor != null && listOf(
+        entry.amount to food.carbsGrams,
+        entry.proteinGrams to food.proteinGrams,
+        entry.fatGrams to food.fatGrams
+    ).all { (saved, reference) -> saved == null || reference != null && kotlin.math.abs(saved - reference * factor) <= 0.1f }
+    if (matches) {
+        return JournalDraftFoodItem(food.toFoodItem(), tk.glucodata.data.food.FoodAmount(factor!! * (food.referenceGrams ?: 1f)), rememberUse = false)
+    }
+    // One saved portion of unknown weight. Its macros are exactly the entry's totals, so
+    // adding another food preserves them even if the library definition has since changed.
+    val snapshot = food.toFoodItem().copy(
+        key = "journal:" + entry.id,
+        name = entry.title,
+        referenceGrams = null,
+        portions = emptyList(),
+        carbs = entry.amount ?: 0f,
+        protein = entry.proteinGrams,
+        fat = entry.fatGrams,
+        fiber = null,
+        kcal = null,
+        lastAmount = null
+    )
+    return JournalDraftFoodItem(snapshot, tk.glucodata.data.food.FoodAmount(1f), rememberUse = false)
 }
 
 private fun buildDraft(
@@ -1427,7 +1454,7 @@ internal fun JournalEntryDraft.toInput(
                 fatGrams = if (foodMacrosEnabled) fatText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
                 // A food still at zero was never filled in; the library has nothing to learn from it.
                 foodUses = foodItems.takeIf { recordFoodUses }.orEmpty()
-                    .filter { it.amount.quantity > 0f && it.food.name.isNotBlank() }
+                    .filter { it.rememberUse && it.amount.quantity > 0f && it.food.name.isNotBlank() }
                     .map { JournalFoodUse(it.food, it.amount) }
             )
         }
