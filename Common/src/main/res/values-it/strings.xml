@@ -2850,7 +2850,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_margin_label">Margine di riarmo</string>
     <string name="rearm_min_interval_label">Tempo minimo tra gli allarmi</string>
     <string name="pre_low_evidence_label">Considera IOB e glicemia recente</string>
-    <string name="pre_low_evidence_description">Può ritardare gli avvisi predittivi per confermare un calo persistente.</string>
+    <string name="pre_low_evidence_description">Può ritardare gli avvisi predittivi per confermare un calo persistente</string>
     <string name="pre_high_iob_coverage_label">Copertura insulinica</string>
     <string name="alert_feature_off">Disattivato</string>
     <string name="same_direction_suppression_title">Periodo di silenzio dopo un avviso di tendenza</string>

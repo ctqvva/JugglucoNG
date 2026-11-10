@@ -2860,7 +2860,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_margin_label">Återaktiveringsmarginal</string>
     <string name="rearm_min_interval_label">Minsta tid mellan larm</string>
     <string name="pre_low_evidence_label">Ta hänsyn till IOB och senaste glukosvärden</string>
-    <string name="pre_low_evidence_description">Kan fördröja prognosvarningar för att bekräfta en ihållande sänkning.</string>
+    <string name="pre_low_evidence_description">Kan fördröja prognosvarningar för att bekräfta en ihållande sänkning</string>
     <string name="pre_high_iob_coverage_label">Insulintäckning</string>
     <string name="alert_feature_off">Av</string>
     <string name="same_direction_suppression_title">Tyst period efter ett trendlarm</string>

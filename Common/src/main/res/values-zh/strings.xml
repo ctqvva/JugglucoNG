@@ -2875,7 +2875,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_margin_label">重新触发余量</string>
     <string name="rearm_min_interval_label">警报最小间隔</string>
     <string name="pre_low_evidence_label">考虑 IOB 和近期血糖</string>
-    <string name="pre_low_evidence_description">可能延迟预测警报，以确认血糖持续下降。</string>
+    <string name="pre_low_evidence_description">可能延迟预测警报，以确认血糖持续下降</string>
     <string name="pre_high_iob_coverage_label">胰岛素覆盖</string>
     <string name="alert_feature_off">关闭</string>
     <string name="same_direction_suppression_title">趋势警报后的静默期</string>

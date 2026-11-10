@@ -3045,7 +3045,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="rearm_margin_label">Heerka dib-u-digniinta</string>
     <string name="rearm_min_interval_label">Waqtiga ugu yar ee digniinaha dhexdooda</string>
     <string name="pre_low_evidence_label">Tixgeli IOB iyo gulukoostii dhowayd</string>
-    <string name="pre_low_evidence_description">Waxay dib u dhigi kartaa digniinaha saadaasha si loo xaqiijiyo hoos u dhac joogto ah.</string>
+    <string name="pre_low_evidence_description">Waxay dib u dhigi kartaa digniinaha saadaasha si loo xaqiijiyo hoos u dhac joogto ah</string>
     <string name="pre_high_iob_coverage_label">Daboolka insuliinta</string>
     <string name="alert_feature_off">Damman</string>
     <string name="same_direction_suppression_title">Muddo aamusan digniin isbeddel ka dib</string>

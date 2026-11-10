@@ -2903,7 +2903,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="rearm_margin_label">Herstelmarge voor nieuw alarm</string>
     <string name="rearm_min_interval_label">Minimale tijd tussen alarmen</string>
     <string name="pre_low_evidence_label">Houd rekening met IOB en recente glucose</string>
-    <string name="pre_low_evidence_description">Kan voorspellende waarschuwingen uitstellen om een aanhoudende daling te bevestigen.</string>
+    <string name="pre_low_evidence_description">Kan voorspellende waarschuwingen uitstellen om een aanhoudende daling te bevestigen</string>
     <string name="pre_high_iob_coverage_label">Insulinedekking</string>
     <string name="alert_feature_off">Uit</string>
     <string name="same_direction_suppression_title">Stille periode na een trendalarm</string>

@@ -2888,7 +2888,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="rearm_margin_label">Yeniden alarm marjı</string>
     <string name="rearm_min_interval_label">Alarmlar arası asgari süre</string>
     <string name="pre_low_evidence_label">IOB ve son glikoz değerlerini dikkate al</string>
-    <string name="pre_low_evidence_description">Sürekli bir düşüşü doğrulamak için tahmin uyarılarını geciktirebilir.</string>
+    <string name="pre_low_evidence_description">Sürekli bir düşüşü doğrulamak için tahmin uyarılarını geciktirebilir</string>
     <string name="pre_high_iob_coverage_label">İnsülin karşılama</string>
     <string name="alert_feature_off">Kapalı</string>
     <string name="same_direction_suppression_title">Eğilim alarmından sonra sessiz süre</string>

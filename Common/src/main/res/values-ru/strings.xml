@@ -2932,7 +2932,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_margin_label">Запас до повторного срабатывания</string>
     <string name="rearm_min_interval_label">Минимальный интервал между тревогами</string>
     <string name="pre_low_evidence_label">Учитывать IOB и недавнюю глюкозу</string>
-    <string name="pre_low_evidence_description">Может отложить прогнозное предупреждение, чтобы подтвердить устойчивое снижение.</string>
+    <string name="pre_low_evidence_description">Может отложить прогнозное предупреждение, чтобы подтвердить устойчивое снижение</string>
     <string name="pre_high_iob_coverage_label">Покрытие инсулином</string>
     <string name="alert_feature_off">Выкл.</string>
     <string name="same_direction_suppression_title">Тихий период после сигнала о тренде</string>

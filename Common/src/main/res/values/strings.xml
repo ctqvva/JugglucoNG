@@ -3155,7 +3155,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="rearm_margin_label">Re-arm margin</string>
     <string name="rearm_min_interval_label">Minimum time between alarms</string>
     <string name="pre_low_evidence_label">Consider IOB and recent glucose</string>
-    <string name="pre_low_evidence_description">May delay forecast alerts to confirm a sustained fall.</string>
+    <string name="pre_low_evidence_description">May delay forecast alerts to confirm a sustained fall</string>
     <string name="pre_high_iob_coverage_label">Insulin coverage</string>
     <string name="alert_feature_off">Off</string>
     <string name="same_direction_suppression_title">Quiet period after a trend alert</string>
