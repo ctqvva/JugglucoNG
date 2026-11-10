@@ -2119,81 +2119,12 @@ fun CalibrationsCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column {
-            // Dual-Action Header (Matching CalibrationListScreen)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                 // Left: Clear All (Visible only if items exist)
-                 if (calibrations.isNotEmpty()) {
-                     androidx.compose.material3.FilledTonalButton(
-                        onClick = { showClearConfirmation = true },
-//                        modifier = Modifier
-//                            .weight(1f),
-//                            .heightIn(min = 48.dp),
-                        shapes = androidx.compose.material3.ButtonDefaults.shapes(shape = RoundedCornerShape(
-                            topStart = 12.dp,
-                            bottomStart = 12.dp,
-                            topEnd = 4.dp,
-                            bottomEnd = 4.dp
-                        ), pressedShape = RoundedCornerShape(
-                            topStart = 8.dp,
-                            bottomStart = 8.dp,
-                            topEnd = 4.dp,
-                            bottomEnd = 4.dp
-                        )),
-                        contentPadding = androidx.compose.material3.ButtonDefaults.ContentPadding,
-                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    ) {
-                        Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.clear))
-                    }
-                 } else {
-//                     Spacer(modifier = Modifier.weight(8.dp))
-                 }
+            DashboardCalibrationActions(
+                isCalibrationEnabled = isCalibrationEnabled,
+                onClear = { showClearConfirmation = true },
+                onAddCalibration = onAddCalibration
+            )
 
-                // Right: Calibrate (always shown while the card is populated;
-                // disabled state still reflects isCalibrationEnabled)
-                androidx.compose.material3.Button(
-                    onClick = onAddCalibration,
-                    enabled = isCalibrationEnabled,
-                    modifier = Modifier.weight(1f),
-                    shapes = androidx.compose.material3.ButtonDefaults.shapes(shape = RoundedCornerShape(
-                        topStart = 4.dp,
-                        bottomStart = 4.dp,
-                        topEnd = 12.dp,
-                        bottomEnd = 12.dp
-                    ), pressedShape = RoundedCornerShape(
-                        topStart = 4.dp,
-                        bottomStart = 4.dp,
-                        topEnd = 8.dp,
-                        bottomEnd = 8.dp
-                    )),
-                    contentPadding = androidx.compose.material3.ButtonDefaults.ContentPadding,
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.WaterDrop,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.calibrate_action),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
-            
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             
             // Compact Enable Switch Row - clickable entire row
@@ -2306,38 +2237,11 @@ fun CalibrationsCard(
                                     }
                                 }
                         ) {
-                                // Row content with disabled visual state
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .defaultMinSize(minHeight = 48.dp) // Enforce M3 Touch Target
-                                        .background(
-                                            if (isRowDisabled) 
-                                                MaterialTheme.colorScheme.surfaceVariant
-                                            else 
-                                                MaterialTheme.colorScheme.surfaceContainerLow
-                                        )
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = dateFormatter.format(java.util.Date(cal.timestamp)),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (isRowDisabled) 
-                                            MaterialTheme.colorScheme.outlineVariant
-                                        else 
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "${String.format(java.util.Locale.getDefault(), format, sensorValue)} → ${String.format(java.util.Locale.getDefault(), format, cal.userValue)}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = if (isRowDisabled)
-                                            MaterialTheme.colorScheme.outlineVariant
-                                        else
-                                            MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
+                                DashboardCalibrationRowContent(
+                                    timestamp = dateFormatter.format(java.util.Date(cal.timestamp)),
+                                    values = "${String.format(java.util.Locale.getDefault(), format, sensorValue)} → ${String.format(java.util.Locale.getDefault(), format, cal.userValue)}",
+                                    isDisabled = isRowDisabled
+                                )
                             }
                             
                             if (index < visibleCalibrations.size - 1) {
