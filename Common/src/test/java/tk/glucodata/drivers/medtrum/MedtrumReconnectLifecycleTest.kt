@@ -44,6 +44,7 @@ class MedtrumReconnectLifecycleTest {
         context = RuntimeEnvironment.getApplication()
         Applic.app = context as Applic
         MedtrumPersistence.clear(context)
+        MedtrumTestNatives.finished = false
         manager = MedtrumBleManager("2329895446", 0L)
     }
 
@@ -302,6 +303,38 @@ class MedtrumReconnectLifecycleTest {
     }
 
     @Test
+    fun aReadingRevivesAMirrorThatWasRemovedByTheUser() {
+        // #876: a write revives a finished slot but not a removed one, so the slot stayed
+        // finished under a streaming patch and the app reported no sensor.
+        MedtrumTestNatives.events.clear()
+        MedtrumTestNatives.finished = true
+        connect(newGatt())
+        setAuthAccepted(true)
+
+        invokeOnCgmData(hex("0f09005f12000d005d064606390641060000f230"))
+
+        val events = MedtrumTestNatives.events.toList()
+        assertTrue("the reading was written to native: $events", events.contains("write"))
+        assertTrue("the slot is reactivated: $events", events.contains("unfinish"))
+        assertTrue(
+            "after the reading was written, got $events",
+            events.indexOf("write") < events.indexOf("unfinish")
+        )
+        assertFalse(MedtrumTestNatives.finished)
+    }
+
+    @Test
+    fun aReadingLeavesALiveMirrorAlone() {
+        MedtrumTestNatives.events.clear()
+        connect(newGatt())
+        setAuthAccepted(true)
+
+        invokeOnCgmData(hex("0f09005f12000d005d064606390641060000f230"))
+
+        assertFalse(MedtrumTestNatives.events.contains("unfinish"))
+    }
+
+    @Test
     fun aReadingAfterTerminationIsNotPublished() {
         val gatt = newGatt()
         connect(gatt)
@@ -382,12 +415,46 @@ class MedtrumTestNatives {
         @JvmStatic @Implementation
         fun str2sensorptr(name: String): Long {
             events.add("mirror")
-            return 0L
+            return SHELL_POINTER
+        }
+
+        /** An existing shell opened an hour ago, so the mirror goes on to the batch write. */
+        private const val SHELL_POINTER = 1L
+
+        @JvmStatic @Implementation
+        fun getSensorStartmsecFromSensorptr(sensorptr: Long): Long = System.currentTimeMillis() - 3_600_000L
+
+        @JvmStatic @Implementation
+        fun addGlucoseStreamBatchWithRawTemp(
+            timestamps: LongArray, glucoses: FloatArray, raws: FloatArray, temperatures: FloatArray, sensorId: String,
+        ): Int {
+            events.add("write")
+            return timestamps.size
         }
 
         @JvmStatic @Implementation
         fun finishSensorById(sensorId: String): Boolean {
             events.add("finish")
+            finished = true
+            return true
+        }
+
+        /** Native's short name -> full name; a name absent here is one native does not know. */
+        val fullNames: MutableMap<String, String> = java.util.concurrent.ConcurrentHashMap()
+
+        @JvmStatic @Implementation
+        fun resolveFullSensorName(sensorId: String?): String? = sensorId?.let { fullNames[it] }
+
+        /** The slot's native finished flag, as a removal by the user leaves it. */
+        @Volatile var finished = false
+
+        @JvmStatic @Implementation
+        fun sensorFinishedById(sensorId: String): Boolean = finished
+
+        @JvmStatic @Implementation
+        fun unfinishSensorById(sensorId: String): Boolean {
+            events.add("unfinish")
+            finished = false
             return true
         }
     }

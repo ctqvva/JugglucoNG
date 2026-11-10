@@ -4,6 +4,7 @@ package tk.glucodata.drivers.medtrum
 
 import android.content.Context
 import tk.glucodata.Applic
+import tk.glucodata.Natives
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.ManagedSensorIdentityAdapter
 import tk.glucodata.drivers.ManagedSensorUiFamily
@@ -15,8 +16,21 @@ object MedtrumIdentityAdapter : ManagedSensorIdentityAdapter {
     override fun matchesCallbackId(callbackId: String?, sensorId: String): Boolean {
         val normalized = callbackId?.trim().takeIf { !it.isNullOrEmpty() } ?: return false
         return normalized.equals(sensorId, ignoreCase = true) ||
-            MedtrumSerialAlias.isShortForm(normalized, sensorId) ||
-            MedtrumSerialAlias.isShortForm(sensorId, normalized)
+            isNativeAliasOf(normalized, sensorId) ||
+            isNativeAliasOf(sensorId, normalized)
+    }
+
+    /**
+     * The short form says only that the digits fit, and a short serial leaves few of them: `5435`
+     * could as well be the native name of another sensor ending the same way. Native knows which
+     * sensor the name belongs to. When it names a different one, the alias is not this patch's,
+     * and claiming it would keep that sensor from getting a callback at all. A name native does
+     * not know yet (the mirror is created by the first reading) is left to the digits.
+     */
+    private fun isNativeAliasOf(short: String?, serial: String?): Boolean {
+        if (!MedtrumSerialAlias.isShortForm(short, serial)) return false
+        val owner = runCatching { Natives.resolveFullSensorName(short?.trim()) }.getOrNull()?.trim()
+        return owner.isNullOrEmpty() || owner.equals(serial?.trim(), ignoreCase = true)
     }
 
     override fun resolveCanonicalSensorId(sensorId: String?): String? {
@@ -33,7 +47,7 @@ object MedtrumIdentityAdapter : ManagedSensorIdentityAdapter {
 
     /** The native mirror's shortened name, which must not become a callback of its own. */
     private fun isPersistedAlias(sensorId: String?, context: Context): Boolean =
-        MedtrumSerialAlias.isShortForm(sensorId, MedtrumPersistence.getSensorId(context))
+        isNativeAliasOf(sensorId, MedtrumPersistence.getSensorId(context))
 
     override fun hasPersistedManagedRecord(sensorId: String?): Boolean {
         val ctx = Applic.app ?: return false
