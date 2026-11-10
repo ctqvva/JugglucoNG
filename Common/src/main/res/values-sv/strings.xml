@@ -3327,4 +3327,47 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_notification_desc">Röstknapp i glukosaviseringen</string>
     <string name="aidex_keys_before_connect">Importera eller begär sensorns nycklar innan du ansluter.</string>
     <string name="aidex_delete_keys_message">Ta bort de sparade parkopplingsnycklarna för %1$s från den här telefonen? Exportera dem först om du kan behöva dem igen.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Skanna streckkod</string>
+    <string name="food_recent">Senaste</string>
+    <string name="food_my_foods">Mina livsmedel</string>
+    <string name="food_common_foods">Vanliga livsmedel</string>
+    <string name="food_reference_tables">Livsmedelstabeller (engelska)</string>
+    <string name="food_search_online">Sök i Open Food Facts</string>
+    <string name="food_online_empty">Inget hittades i Open Food Facts</string>
+    <string name="food_online_failed">Det gick inte att nå Open Food Facts</string>
+    <string name="food_enter_values">Ange värden för ”%1$s”</string>
+    <string name="food_enter_label_values">Ange värden från etiketten</string>
+    <string name="food_barcode_looking">Söker efter %1$s…</string>
+    <string name="food_barcode_not_found">Ingen produkt med streckkoden %1$s i Open Food Facts</string>
+    <string name="food_try_again">Försök igen</string>
+    <string name="food_carbs">Kolhydrater</string>
+    <string name="food_carbs_value">%1$s g kolhydrater</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 portion</string>
+    <string name="food_servings">Portioner</string>
+    <string name="food_weight">Vikt</string>
+    <string name="food_volume">Volym</string>
+    <string name="food_portion_piece">styck</string>
+    <string name="food_portion_slice">skiva</string>
+    <string name="food_portion_cup">kopp</string>
+    <string name="food_portion_glass">glas</string>
+    <string name="food_portion_tbsp">msk</string>
+    <string name="food_portion_tsp">tsk</string>
+    <string name="food_portion_serving">portion</string>
+    <string name="food_portion_package">förpackning</string>
+    <string name="food_per_100g_label">Per 100 g, från etiketten</string>
+    <string name="food_sources">Källor</string>
+    <string name="food_online_desc">Sök produkter online och skanna streckkoder. Bara sökorden eller streckkoden skickas</string>
+    <string name="food_file_title">Import och export</string>
+    <string name="food_import">Importera</string>
+    <string name="food_file_hint">En CSV- eller JSON-tabell med kolumnerna name, carbs, protein, fat och per_grams. Utan per_grams räknas värdena per 100 g.</string>
+    <string name="food_import_empty">Inga livsmedel hittades i filen. Kolumnerna name och carbs behövs.</string>
+    <string name="food_fiber">Fibrer</string>
+    <string name="food_energy">Energi</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Värdena gäller för</string>
+    <string name="food_serving_weight">Portionsvikt</string>
+    <!-- /food catalogue -->
 </resources>

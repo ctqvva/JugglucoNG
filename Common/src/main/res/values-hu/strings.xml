@@ -3396,4 +3396,47 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="voice_quick_notification_desc">Hang gomb a glükóz értesítésben</string>
     <string name="aidex_keys_before_connect">Csatlakozás előtt importáld vagy kérd le az érzékelő kulcsait.</string>
     <string name="aidex_delete_keys_message">Eltávolítod a(z) %1$s mentett párosítási kulcsait erről a telefonról? Előbb exportáld őket, ha később még szükséged lehet rájuk.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Vonalkód beolvasása</string>
+    <string name="food_recent">Legutóbbiak</string>
+    <string name="food_my_foods">Saját ételeim</string>
+    <string name="food_common_foods">Gyakori ételek</string>
+    <string name="food_reference_tables">Élelmiszertáblázatok (angol)</string>
+    <string name="food_search_online">Keresés az Open Food Factsben</string>
+    <string name="food_online_empty">Nincs találat az Open Food Factsben</string>
+    <string name="food_online_failed">Az Open Food Facts nem érhető el</string>
+    <string name="food_enter_values">Értékek megadása ehhez: „%1$s”</string>
+    <string name="food_enter_label_values">Értékek megadása a címkéről</string>
+    <string name="food_barcode_looking">%1$s keresése…</string>
+    <string name="food_barcode_not_found">Nincs %1$s vonalkódú termék az Open Food Factsben</string>
+    <string name="food_try_again">Újra</string>
+    <string name="food_carbs">Szénhidrát</string>
+    <string name="food_carbs_value">%1$s g szénhidrát</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 adag</string>
+    <string name="food_servings">Adagok</string>
+    <string name="food_weight">Tömeg</string>
+    <string name="food_volume">Térfogat</string>
+    <string name="food_portion_piece">darab</string>
+    <string name="food_portion_slice">szelet</string>
+    <string name="food_portion_cup">csésze</string>
+    <string name="food_portion_glass">pohár</string>
+    <string name="food_portion_tbsp">ek</string>
+    <string name="food_portion_tsp">tk</string>
+    <string name="food_portion_serving">adag</string>
+    <string name="food_portion_package">csomag</string>
+    <string name="food_per_100g_label">100 g-ban, a címke szerint</string>
+    <string name="food_sources">Források</string>
+    <string name="food_online_desc">Termékek keresése online és vonalkódok beolvasása. Csak a keresőszavak vagy a vonalkód kerül elküldésre</string>
+    <string name="food_file_title">Importálás és exportálás</string>
+    <string name="food_import">Importálás</string>
+    <string name="food_file_hint">CSV- vagy JSON-táblázat name, carbs, protein, fat és per_grams oszlopokkal. A per_grams nélkül az értékek 100 g-ra vonatkoznak.</string>
+    <string name="food_import_empty">Ebben a fájlban nincs étel. A name és a carbs oszlop szükséges.</string>
+    <string name="food_fiber">Rost</string>
+    <string name="food_energy">Energia</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Az értékek erre vonatkoznak</string>
+    <string name="food_serving_weight">Adag tömege</string>
+    <!-- /food catalogue -->
 </resources>

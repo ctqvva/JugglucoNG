@@ -3370,4 +3370,47 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="voice_quick_notification_desc">Stemknop in de glucosemelding</string>
     <string name="aidex_keys_before_connect">Importeer de sleutels van deze sensor of vraag ze aan voordat je verbinding maakt.</string>
     <string name="aidex_delete_keys_message">De opgeslagen koppelingssleutels voor %1$s van deze telefoon verwijderen? Exporteer ze eerst als je ze later nog nodig kunt hebben.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Barcode scannen</string>
+    <string name="food_recent">Recent</string>
+    <string name="food_my_foods">Mijn producten</string>
+    <string name="food_common_foods">Gangbare producten</string>
+    <string name="food_reference_tables">Voedingstabellen (Engels)</string>
+    <string name="food_search_online">Zoeken in Open Food Facts</string>
+    <string name="food_online_empty">Niets gevonden in Open Food Facts</string>
+    <string name="food_online_failed">Open Food Facts is niet bereikbaar</string>
+    <string name="food_enter_values">Waarden invoeren voor ‘%1$s’</string>
+    <string name="food_enter_label_values">Waarden van het etiket invoeren</string>
+    <string name="food_barcode_looking">%1$s opzoeken…</string>
+    <string name="food_barcode_not_found">Geen product met barcode %1$s in Open Food Facts</string>
+    <string name="food_try_again">Opnieuw proberen</string>
+    <string name="food_carbs">Koolhydraten</string>
+    <string name="food_carbs_value">%1$s g koolhydraten</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 portie</string>
+    <string name="food_servings">Porties</string>
+    <string name="food_weight">Gewicht</string>
+    <string name="food_volume">Volume</string>
+    <string name="food_portion_piece">stuk</string>
+    <string name="food_portion_slice">snee</string>
+    <string name="food_portion_cup">kop</string>
+    <string name="food_portion_glass">glas</string>
+    <string name="food_portion_tbsp">el</string>
+    <string name="food_portion_tsp">tl</string>
+    <string name="food_portion_serving">portie</string>
+    <string name="food_portion_package">verpakking</string>
+    <string name="food_per_100g_label">Per 100 g, van het etiket</string>
+    <string name="food_sources">Bronnen</string>
+    <string name="food_online_desc">Producten online zoeken en barcodes scannen. Alleen de zoekwoorden of de barcode worden verzonden</string>
+    <string name="food_file_title">Importeren en exporteren</string>
+    <string name="food_import">Importeren</string>
+    <string name="food_file_hint">Een CSV- of JSON-tabel met de kolommen name, carbs, protein, fat en per_grams. Zonder per_grams gelden de waarden per 100 g.</string>
+    <string name="food_import_empty">Geen producten gevonden in dit bestand. De kolommen name en carbs zijn nodig.</string>
+    <string name="food_fiber">Vezels</string>
+    <string name="food_energy">Energie</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Waarden gelden voor</string>
+    <string name="food_serving_weight">Portiegewicht</string>
+    <!-- /food catalogue -->
 </resources>

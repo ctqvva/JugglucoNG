@@ -3333,4 +3333,47 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_notification_desc">血糖通知上的语音按钮</string>
     <string name="aidex_keys_before_connect">连接前，请导入或请求此传感器的密钥。</string>
     <string name="aidex_delete_keys_message">要从此手机中删除 %1$s 已保存的配对密钥吗？如果以后可能还需要，请先将其导出。</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">扫描条形码</string>
+    <string name="food_recent">最近</string>
+    <string name="food_my_foods">我的食物</string>
+    <string name="food_common_foods">常见食物</string>
+    <string name="food_reference_tables">食物成分表（英文）</string>
+    <string name="food_search_online">在 Open Food Facts 中搜索</string>
+    <string name="food_online_empty">Open Food Facts 中没有结果</string>
+    <string name="food_online_failed">无法连接 Open Food Facts</string>
+    <string name="food_enter_values">为“%1$s”输入数值</string>
+    <string name="food_enter_label_values">按标签输入数值</string>
+    <string name="food_barcode_looking">正在查找 %1$s…</string>
+    <string name="food_barcode_not_found">Open Food Facts 中没有条形码为 %1$s 的产品</string>
+    <string name="food_try_again">重试</string>
+    <string name="food_carbs">碳水化合物</string>
+    <string name="food_carbs_value">%1$s 克碳水</string>
+    <string name="food_amount_ml">%1$s 毫升</string>
+    <string name="food_unit_ml">毫升</string>
+    <string name="food_one_serving">1 份</string>
+    <string name="food_servings">份数</string>
+    <string name="food_weight">重量</string>
+    <string name="food_volume">容量</string>
+    <string name="food_portion_piece">个</string>
+    <string name="food_portion_slice">片</string>
+    <string name="food_portion_cup">杯</string>
+    <string name="food_portion_glass">玻璃杯</string>
+    <string name="food_portion_tbsp">汤匙</string>
+    <string name="food_portion_tsp">茶匙</string>
+    <string name="food_portion_serving">份</string>
+    <string name="food_portion_package">包</string>
+    <string name="food_per_100g_label">每 100 克，按标签</string>
+    <string name="food_sources">来源</string>
+    <string name="food_online_desc">在线搜索产品并扫描条形码。只发送搜索词或条形码</string>
+    <string name="food_file_title">导入和导出</string>
+    <string name="food_import">导入</string>
+    <string name="food_file_hint">包含 name、carbs、protein、fat 和 per_grams 列的 CSV 或 JSON 表格。没有 per_grams 时数值按每 100 克计算。</string>
+    <string name="food_import_empty">此文件中没有找到食物。需要 name 和 carbs 列。</string>
+    <string name="food_fiber">膳食纤维</string>
+    <string name="food_energy">能量</string>
+    <string name="food_kcal_value">%1$s 千卡</string>
+    <string name="food_values_for">数值对应</string>
+    <string name="food_serving_weight">每份重量</string>
+    <!-- /food catalogue -->
 </resources>

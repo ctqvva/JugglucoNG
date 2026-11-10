@@ -3334,4 +3334,47 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_notification_desc">Bouton voix dans la notification de glycémie</string>
     <string name="aidex_keys_before_connect">Importez ou demandez les clés de ce capteur avant de vous connecter.</string>
     <string name="aidex_delete_keys_message">Supprimer de ce téléphone les clés d’appairage enregistrées pour %1$s ? Exportez-les d’abord si vous risquez d’en avoir besoin.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Scanner le code-barres</string>
+    <string name="food_recent">Récents</string>
+    <string name="food_my_foods">Mes aliments</string>
+    <string name="food_common_foods">Aliments courants</string>
+    <string name="food_reference_tables">Tables d’aliments (anglais)</string>
+    <string name="food_search_online">Chercher dans Open Food Facts</string>
+    <string name="food_online_empty">Rien trouvé dans Open Food Facts</string>
+    <string name="food_online_failed">Impossible de joindre Open Food Facts</string>
+    <string name="food_enter_values">Saisir les valeurs de « %1$s »</string>
+    <string name="food_enter_label_values">Saisir les valeurs de l’étiquette</string>
+    <string name="food_barcode_looking">Recherche de %1$s…</string>
+    <string name="food_barcode_not_found">Aucun produit avec le code-barres %1$s dans Open Food Facts</string>
+    <string name="food_try_again">Réessayer</string>
+    <string name="food_carbs">Glucides</string>
+    <string name="food_carbs_value">%1$s g de glucides</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 portion</string>
+    <string name="food_servings">Portions</string>
+    <string name="food_weight">Poids</string>
+    <string name="food_volume">Volume</string>
+    <string name="food_portion_piece">pièce</string>
+    <string name="food_portion_slice">tranche</string>
+    <string name="food_portion_cup">tasse</string>
+    <string name="food_portion_glass">verre</string>
+    <string name="food_portion_tbsp">c. à s.</string>
+    <string name="food_portion_tsp">c. à c.</string>
+    <string name="food_portion_serving">portion</string>
+    <string name="food_portion_package">paquet</string>
+    <string name="food_per_100g_label">Pour 100 g, d’après l’étiquette</string>
+    <string name="food_sources">Sources</string>
+    <string name="food_online_desc">Recherche de produits en ligne et lecture des codes-barres. Seuls les mots cherchés ou le code-barres sont envoyés</string>
+    <string name="food_file_title">Import et export</string>
+    <string name="food_import">Importer</string>
+    <string name="food_file_hint">Un tableau CSV ou JSON avec les colonnes name, carbs, protein, fat et per_grams. Sans per_grams, les valeurs comptent pour 100 g.</string>
+    <string name="food_import_empty">Aucun aliment trouvé dans ce fichier. Il faut les colonnes name et carbs.</string>
+    <string name="food_fiber">Fibres</string>
+    <string name="food_energy">Énergie</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Valeurs données pour</string>
+    <string name="food_serving_weight">Poids d’une portion</string>
+    <!-- /food catalogue -->
 </resources>

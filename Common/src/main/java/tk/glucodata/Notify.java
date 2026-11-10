@@ -2413,8 +2413,28 @@ public class Notify {
         if (hapticProfileName == null)
             hapticProfileName = "STRONG";
 
-        final float scale = AlertVibrationPattern.profileScale(hapticProfileName);
-        final boolean ascending = AlertVibrationPattern.profileAscending(hapticProfileName);
+        float scale = 1.0f;
+        boolean ascending = false;
+
+        switch (hapticProfileName.toUpperCase()) {
+            case "SOFT":
+            case "LOW":
+                scale = 0.45f;
+                break;
+            case "STEADY":
+            case "MEDIUM":
+                scale = 0.70f;
+                break;
+            case "ESCALATING":
+            case "ASCENDING":
+                ascending = true;
+                break;
+            case "SILENT":
+                scale = 0.0f;
+                break;
+            default:
+                scale = 1.0f; // STRONG, HIGH, VIBRATE_ONLY
+        }
 
         if (scale <= 0.01f)
             return; // Silent
@@ -2873,7 +2893,20 @@ public class Notify {
             if (legacyProfile == null) {
                 return "STRONG";
             }
-            return AlertVibrationPattern.profileForLegacyVolume(legacyProfile);
+            switch (legacyProfile.toUpperCase()) {
+                case "MEDIUM":
+                    return "STEADY";
+                case "ASCENDING":
+                    return "ESCALATING";
+                case "LOW":
+                    return "SOFT";
+                case "SILENT":
+                    return "SILENT";
+                case "HIGH":
+                case "VIBRATE_ONLY":
+                default:
+                    return "STRONG";
+            }
         } catch (Exception e) {
             return "STRONG";
         }

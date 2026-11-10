@@ -3454,4 +3454,47 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_notification_desc">Кнопка голоса в уведомлении с глюкозой</string>
     <string name="aidex_keys_before_connect">Импортируйте или запросите ключи этого сенсора перед подключением.</string>
     <string name="aidex_delete_keys_message">Удалить сохранённые ключи сенсора %1$s с этого телефона? Сначала экспортируйте их, если они могут понадобиться снова.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Сканировать штрихкод</string>
+    <string name="food_recent">Недавние</string>
+    <string name="food_my_foods">Мои продукты</string>
+    <string name="food_common_foods">Обычные продукты</string>
+    <string name="food_reference_tables">Таблицы продуктов (англ.)</string>
+    <string name="food_search_online">Искать в Open Food Facts</string>
+    <string name="food_online_empty">В Open Food Facts ничего не найдено</string>
+    <string name="food_online_failed">Не удалось связаться с Open Food Facts</string>
+    <string name="food_enter_values">Ввести значения для «%1$s»</string>
+    <string name="food_enter_label_values">Ввести значения с этикетки</string>
+    <string name="food_barcode_looking">Ищем %1$s…</string>
+    <string name="food_barcode_not_found">В Open Food Facts нет продукта со штрихкодом %1$s</string>
+    <string name="food_try_again">Повторить</string>
+    <string name="food_carbs">Углеводы</string>
+    <string name="food_carbs_value">%1$s г углеводов</string>
+    <string name="food_amount_ml">%1$s мл</string>
+    <string name="food_unit_ml">мл</string>
+    <string name="food_one_serving">1 порция</string>
+    <string name="food_servings">Порции</string>
+    <string name="food_weight">Вес</string>
+    <string name="food_volume">Объём</string>
+    <string name="food_portion_piece">штука</string>
+    <string name="food_portion_slice">ломтик</string>
+    <string name="food_portion_cup">чашка</string>
+    <string name="food_portion_glass">стакан</string>
+    <string name="food_portion_tbsp">ст. л.</string>
+    <string name="food_portion_tsp">ч. л.</string>
+    <string name="food_portion_serving">порция</string>
+    <string name="food_portion_package">упаковка</string>
+    <string name="food_per_100g_label">В 100 г, с этикетки</string>
+    <string name="food_sources">Источники</string>
+    <string name="food_online_desc">Поиск продуктов в интернете и сканирование штрихкодов. Отправляются только слова запроса или штрихкод</string>
+    <string name="food_file_title">Импорт и экспорт</string>
+    <string name="food_import">Импорт</string>
+    <string name="food_file_hint">Таблица CSV или JSON со столбцами name, carbs, protein, fat и per_grams. Без per_grams значения считаются на 100 г.</string>
+    <string name="food_import_empty">В этом файле продуктов не найдено. Нужны столбцы name и carbs.</string>
+    <string name="food_fiber">Клетчатка</string>
+    <string name="food_energy">Энергия</string>
+    <string name="food_kcal_value">%1$s ккал</string>
+    <string name="food_values_for">Значения указаны на</string>
+    <string name="food_serving_weight">Вес порции</string>
+    <!-- /food catalogue -->
 </resources>

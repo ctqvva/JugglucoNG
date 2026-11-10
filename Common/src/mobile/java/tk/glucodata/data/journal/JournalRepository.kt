@@ -10,6 +10,8 @@ import android.content.Context
 import tk.glucodata.Applic
 import tk.glucodata.R
 import tk.glucodata.data.HistoryDatabase
+import tk.glucodata.data.food.FoodLibrary
+import tk.glucodata.data.food.FoodLibraryDatabase
 
 class JournalRepository {
     private companion object {
@@ -24,6 +26,7 @@ class JournalRepository {
     private val database = HistoryDatabase.getInstance(Applic.app)
     private val dao = database.journalDao()
     private val prefs = Applic.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val foodLibrary = FoodLibrary(dao, FoodLibraryDatabase.getInstance(Applic.app).foodDetailsDao())
 
     // Room runs the query on its own executor, but the map runs wherever the
     // flow is collected — the view model's main-thread scope — so every journal
@@ -53,9 +56,7 @@ class JournalRepository {
     }
 
     fun observeFoods(): Flow<List<JournalFood>> {
-        return dao.observeFoods()
-            .map { foods -> foods.map(JournalFoodEntity::toModel) }
-            .flowOn(Dispatchers.Default)
+        return foodLibrary.observe().flowOn(Dispatchers.Default)
     }
 
     suspend fun ensureDefaultInsulinPresets() {
@@ -78,7 +79,21 @@ class JournalRepository {
         }
     }
 
+    /**
+     * Saves an entry. The foods a meal was built from go to the food library first, so they
+     * are there to pick the next time; a meal of one food keeps the link to it.
+     */
     suspend fun upsertEntry(input: JournalEntryInput): Long {
+        if (input.foodUses.isEmpty()) return upsertEntryRow(input)
+        val foodIds = runCatching { foodLibrary.noteUses(input.foodUses) }
+            .onFailure { tk.glucodata.Log.stack("JournalRepository", "noteUses", it) }
+            .getOrDefault(emptyList())
+        return upsertEntryRow(
+            input.copy(foodId = foodIds.singleOrNull() ?: input.foodId, foodUses = emptyList())
+        )
+    }
+
+    private suspend fun upsertEntryRow(input: JournalEntryInput): Long {
         val (id, entity, existing) = database.withTransaction {
             val sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() }
             val recoveryId = CloneJournalIdentity.normalizeRecoveryId(input.recoveryId)
@@ -578,29 +593,15 @@ class JournalRepository {
         }
     }
 
-    suspend fun upsertFood(input: JournalFoodInput): Long {
-        val existing = input.id?.let { dao.getFoodById(it) }
-        val now = System.currentTimeMillis()
-        val entity = JournalFoodEntity(
-            id = existing?.id ?: (input.id ?: 0L),
-            displayName = input.displayName.trim(),
-            carbsGrams = input.carbsGrams.coerceAtLeast(0f),
-            proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
-            fatGrams = input.fatGrams?.coerceAtLeast(0f),
-            absorptionMinutes = input.absorptionMinutes.coerceIn(15, 480),
-            accentColor = input.accentColor,
-            isBuiltIn = existing?.isBuiltIn ?: input.isBuiltIn,
-            isArchived = input.isArchived,
-            sortOrder = input.sortOrder,
-            createdAt = existing?.createdAt ?: now,
-            updatedAt = now
-        )
-        return dao.upsertFood(entity)
-    }
+    suspend fun upsertFood(input: JournalFoodInput): Long = foodLibrary.upsert(input)
 
-    suspend fun deleteFood(foodId: Long) {
-        dao.deleteFoodById(foodId)
-    }
+    suspend fun deleteFood(foodId: Long) = foodLibrary.delete(foodId)
+
+    /** Adds a table of foods; returns how many were new and how many replaced a food of that name. */
+    suspend fun importFoods(foods: List<JournalFoodInput>): Pair<Int, Int> = foodLibrary.import(foods)
+
+    /** The library as it stands, for export. */
+    suspend fun foods(): List<JournalFood> = foodLibrary.foods()
 
     private fun defaultPresets(): List<JournalInsulinPresetEntity> {
         val app = Applic.app
@@ -976,17 +977,3 @@ private fun JournalInsulinPresetEntity.toModel(): JournalInsulinPreset {
     )
 }
 
-private fun JournalFoodEntity.toModel(): JournalFood {
-    return JournalFood(
-        id = id,
-        displayName = displayName,
-        carbsGrams = carbsGrams,
-        proteinGrams = proteinGrams,
-        fatGrams = fatGrams,
-        absorptionMinutes = absorptionMinutes,
-        accentColor = accentColor,
-        isBuiltIn = isBuiltIn,
-        isArchived = isArchived,
-        sortOrder = sortOrder
-    )
-}

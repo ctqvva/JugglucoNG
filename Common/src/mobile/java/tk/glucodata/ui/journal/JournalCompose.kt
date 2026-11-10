@@ -155,13 +155,14 @@ import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalFood
-import tk.glucodata.data.journal.JournalFoodInput
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalIntensity
 import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.data.prediction.StateDoseHint
 import tk.glucodata.data.prediction.StateDoseHintKind
-import tk.glucodata.data.journal.LegacyJournalFoodDatabase
+import tk.glucodata.data.journal.JournalFoodUse
+import tk.glucodata.data.food.FoodCatalog
+import tk.glucodata.data.food.FoodMath
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SheetContentHeightAnimation
@@ -197,16 +198,6 @@ data class JournalEntryDraft(
     val pairWithDose: Boolean = false,
     val pairedAmountText: String = "",
     val foodItems: List<JournalDraftFoodItem> = emptyList()
-)
-
-data class JournalDraftFoodItem(
-    val sourceFoodId: Long?,
-    val displayName: String,
-    val carbsGrams: Float,
-    val proteinGrams: Float?,
-    val fatGrams: Float?,
-    val absorptionMinutes: Int,
-    val accentColor: Int
 )
 
 data class JournalDoseProfile(
@@ -396,6 +387,10 @@ fun JournalEntrySheet(
     suggestedDose: StateDoseHint? = null,
     insulinPresets: List<JournalInsulinPreset>,
     foods: List<JournalFood> = emptyList(),
+    /** Off hides the food search and leaves the plain carbs amount. */
+    foodLibraryEnabled: Boolean = true,
+    /** Whether Open Food Facts search and the barcode scanner are offered. */
+    foodOnlineEnabled: Boolean = true,
     foodMacrosEnabled: Boolean = false,
     doseJournalEntries: List<JournalEntry> = emptyList(),
     doseProfile: JournalDoseProfile? = null,
@@ -404,7 +399,6 @@ fun JournalEntrySheet(
     onDismiss: () -> Unit,
     onSave: (JournalEntryInput) -> Unit,
     onSaveEntries: ((List<JournalEntryInput>) -> Unit)? = null,
-    onSaveFood: ((JournalFoodInput) -> Unit)? = null,
     onDelete: ((Long) -> Unit)? = null,
     sensorSerialProvider: () -> String?
 ) {
@@ -416,6 +410,8 @@ fun JournalEntrySheet(
     }
     val presetsById = remember(insulinPresets) { insulinPresets.associateBy { it.id } }
     val activeFoods = remember(foods) { foods.filter { !it.isArchived } }
+    val foodPicker = rememberFoodPickerState(activeFoods)
+    val foodSuggestions = remember(activeFoods) { FoodCatalog.suggestions(activeFoods) }
     val initialDraft = remember(
         existingEntry?.id,
         initialType,
@@ -775,28 +771,16 @@ fun JournalEntrySheet(
                 }
 
                 JournalEntryType.CARBS -> {
-                    if (activeFoods.isNotEmpty()) {
-                        journalSheetItem(formFocus, key = "carbs_foods") {
-                            JournalFoodLibrarySelector(
-                                foods = activeFoods,
-                                selectedFoodId = draft.foodId,
-                                selectedItems = draft.foodItems,
-                                foodMacrosEnabled = foodMacrosEnabled,
-                                onFoodSelected = { food -> draft = draft.withFood(food, foodMacrosEnabled) },
-                                onFoodAdded = { food -> draft = draft.plusFood(food, foodMacrosEnabled) },
-                                onFoodRemoved = { index -> draft = draft.removeFoodAt(index, foodMacrosEnabled) },
-                                onFoodImported = onSaveFood,
-                                onManualSelected = {
-                                    draft = draft.copy(
-                                        foodId = null,
-                                        title = "",
-                                        foodItems = emptyList(),
-                                        proteinText = if (foodMacrosEnabled) draft.proteinText else "",
-                                        fatText = if (foodMacrosEnabled) draft.fatText else ""
-                                    )
-                                }
-                            )
-                        }
+                    if (foodLibraryEnabled) {
+                        journalFoodRows(
+                            row = { key, content -> journalSheetItem(formFocus, key, content) },
+                            state = foodPicker,
+                            suggestions = foodSuggestions,
+                            items = draft.foodItems,
+                            macrosEnabled = foodMacrosEnabled,
+                            onlineEnabled = foodOnlineEnabled,
+                            onItemsChange = { draft = draft.withFoodItems(it, foodMacrosEnabled) }
+                        )
                     }
                     journalSheetItem(formFocus, key = "carbs_amount") {
                         JournalStepperField(
@@ -1247,40 +1231,11 @@ private fun JournalEntryDraft.withSuggestedAmount(suggestion: String?): JournalE
 private fun JournalEntryDraft.withoutSuggestedAmount(): JournalEntryDraft =
     if (amountSuggested) copy(amountText = "", amountSuggested = false) else this
 
-private fun JournalEntryDraft.withFood(
-    food: JournalFood,
-    foodMacrosEnabled: Boolean
-): JournalEntryDraft {
-    val item = food.toDraftFoodItem()
-    return copy(
-        foodId = food.id.takeIf { it > 0L },
-        title = food.displayName,
-        amountText = formatFloatForEditor(item.carbsGrams),
-        amountSuggested = false,
-        proteinText = if (foodMacrosEnabled) item.proteinGrams?.let(::formatFloatForEditor).orEmpty() else "",
-        fatText = if (foodMacrosEnabled) item.fatGrams?.let(::formatFloatForEditor).orEmpty() else "",
-        durationText = item.absorptionMinutes.toString(),
-        foodItems = listOf(item)
-    )
-}
-
-private fun JournalEntryDraft.plusFood(
-    food: JournalFood,
-    foodMacrosEnabled: Boolean
-): JournalEntryDraft {
-    val items = foodItems + food.toDraftFoodItem()
-    return copyWithFoodItems(items, foodMacrosEnabled)
-}
-
-private fun JournalEntryDraft.removeFoodAt(
-    index: Int,
-    foodMacrosEnabled: Boolean
-): JournalEntryDraft {
-    if (index !in foodItems.indices) return this
-    return copyWithFoodItems(foodItems.filterIndexed { itemIndex, _ -> itemIndex != index }, foodMacrosEnabled)
-}
-
-private fun JournalEntryDraft.copyWithFoodItems(
+/**
+ * The draft with its meal set to [items]: the amount, the macros and the title follow the
+ * foods, and so does the time the meal takes, unless every food says its own.
+ */
+private fun JournalEntryDraft.withFoodItems(
     items: List<JournalDraftFoodItem>,
     foodMacrosEnabled: Boolean
 ): JournalEntryDraft {
@@ -1296,56 +1251,29 @@ private fun JournalEntryDraft.copyWithFoodItems(
             foodItems = emptyList()
         )
     }
-    val carbs = items.sumOf { it.carbsGrams.toDouble() }.toFloat()
-    val protein = items.sumOf { (it.proteinGrams ?: 0f).toDouble() }.toFloat()
-    val fat = items.sumOf { (it.fatGrams ?: 0f).toDouble() }.toFloat()
-    val duration = items.maxOf { it.absorptionMinutes }
+    val nutrients = items.map { it.nutrients }
+    val carbs = nutrients.sumOf { it.carbs.toDouble() }.toFloat()
+    val protein = nutrients.sumOf { (it.protein ?: 0f).toDouble() }.toFloat()
+    val fat = nutrients.sumOf { (it.fat ?: 0f).toDouble() }.toFloat()
+    val ownDurations = items.mapNotNull { it.food.absorptionMinutes }
+    val duration = if (ownDurations.size == items.size) {
+        ownDurations.max()
+    } else {
+        maxOf(ownDurations.maxOrNull() ?: 0, FoodMath.estimatedAbsorptionMinutes(carbs, protein, fat))
+    }
     return copy(
-        foodId = items.singleOrNull()?.sourceFoodId,
-        title = items.joinToString(" + ") { it.displayName }.take(80),
-        amountText = formatFloatForEditor(carbs),
+        foodId = items.singleOrNull()?.food?.libraryId,
+        title = items.joinToString(" + ") { it.food.name.trim() }.take(80),
+        amountText = formatFloatForEditor(roundToTenth(carbs)),
         amountSuggested = false,
-        proteinText = if (foodMacrosEnabled) formatFloatForEditor(protein) else "",
-        fatText = if (foodMacrosEnabled) formatFloatForEditor(fat) else "",
+        proteinText = if (foodMacrosEnabled) formatFloatForEditor(roundToTenth(protein)) else "",
+        fatText = if (foodMacrosEnabled) formatFloatForEditor(roundToTenth(fat)) else "",
         durationText = duration.coerceIn(15, 480).toString(),
         foodItems = items
     )
 }
 
-private fun JournalFood.toDraftFoodItem(): JournalDraftFoodItem {
-    return JournalDraftFoodItem(
-        sourceFoodId = id.takeIf { it > 0L },
-        displayName = displayName,
-        carbsGrams = carbsGrams,
-        proteinGrams = proteinGrams,
-        fatGrams = fatGrams,
-        absorptionMinutes = absorptionMinutes,
-        accentColor = accentColor
-    )
-}
-
-private fun JournalFood.toLibraryFoodInput(sortOrder: Int): JournalFoodInput {
-    return JournalFoodInput(
-        displayName = displayName,
-        carbsGrams = carbsGrams,
-        proteinGrams = proteinGrams,
-        fatGrams = fatGrams,
-        absorptionMinutes = absorptionMinutes,
-        accentColor = accentColor,
-        isBuiltIn = false,
-        isArchived = false,
-        sortOrder = sortOrder
-    )
-}
-
-private fun JournalFood.scaledForPortion(portionGrams: Float): JournalFood {
-    val scale = (portionGrams / 100f).coerceIn(0.01f, 20f)
-    return copy(
-        carbsGrams = carbsGrams * scale,
-        proteinGrams = proteinGrams?.let { it * scale },
-        fatGrams = fatGrams?.let { it * scale }
-    )
-}
+private fun roundToTenth(value: Float): Float = (value * 10f).roundToInt() / 10f
 
 private fun JournalEntryDraft.normalizedForType(
     unit: String,
@@ -1472,7 +1400,11 @@ private fun JournalEntryDraft.toInput(
                 durationMinutes = absorptionMinutes,
                 foodId = foodId?.takeIf { it > 0L },
                 proteinGrams = if (foodMacrosEnabled) proteinText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
-                fatGrams = if (foodMacrosEnabled) fatText.parseFloatOrNull()?.coerceAtLeast(0f) else null
+                fatGrams = if (foodMacrosEnabled) fatText.parseFloatOrNull()?.coerceAtLeast(0f) else null,
+                // A food still at zero was never filled in; the library has nothing to learn from it.
+                foodUses = foodItems
+                    .filter { it.amount.quantity > 0f && it.food.name.isNotBlank() }
+                    .map { JournalFoodUse(it.food, it.amount) }
             )
         }
 
@@ -1837,788 +1769,6 @@ private fun JournalMealShapeSelector(
             unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f),
             unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-}
-
-@Composable
-private fun JournalFoodLibrarySelector(
-    foods: List<JournalFood>,
-    selectedFoodId: Long?,
-    selectedItems: List<JournalDraftFoodItem>,
-    foodMacrosEnabled: Boolean,
-    onFoodSelected: (JournalFood) -> Unit,
-    onFoodAdded: (JournalFood) -> Unit,
-    onFoodRemoved: (Int) -> Unit,
-    onFoodImported: ((JournalFoodInput) -> Unit)? = null,
-    onManualSelected: () -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf("") }
-    var legacyFoods by remember { mutableStateOf(emptyList<JournalFood>()) }
-    var expandedFoodId by remember { mutableStateOf<Long?>(null) }
-    var expandedFoodDetails by remember { mutableStateOf<LegacyJournalFoodDatabase.FoodDetails?>(null) }
-    var expandedPortionText by remember { mutableStateOf("100") }
-    val haptics = LocalHapticFeedback.current
-    val focusRequester = remember { FocusRequester() }
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val selectedFood = remember(foods, selectedFoodId) { foods.firstOrNull { it.id == selectedFoodId } }
-    val visibleItems = remember(selectedItems, selectedFood) {
-        selectedItems.ifEmpty { selectedFood?.toDraftFoodItem()?.let(::listOf).orEmpty() }
-    }
-    LaunchedEffect(query) {
-        val needle = query.trim()
-        legacyFoods = if (needle.length >= 2) {
-            withContext(Dispatchers.Default) {
-                LegacyJournalFoodDatabase.search(needle, limit = 32)
-            }
-        } else {
-            emptyList()
-        }
-    }
-    LaunchedEffect(expanded) {
-        if (expanded) {
-            focusRequester.requestFocus()
-            keyboardController?.show()
-        } else {
-            keyboardController?.hide()
-        }
-    }
-    val filteredFoods = remember(foods, legacyFoods, query) {
-        val needle = query.trim()
-        val savedMatches = foods.matchFoodQuery(needle)
-        val savedNames = savedMatches.map { it.displayName.lowercase(Locale.ROOT) }.toSet()
-        (savedMatches + legacyFoods.filter { it.displayName.lowercase(Locale.ROOT) !in savedNames })
-            .take(if (needle.isBlank()) 10 else 36)
-    }
-    val savedFoodNames = remember(foods) {
-        foods.map { it.displayName.lowercase(Locale.ROOT) }.toSet()
-    }
-    LaunchedEffect(expandedFoodId) {
-        if (expandedFoodId != null) {
-            expandedPortionText = "100"
-        }
-    }
-    LaunchedEffect(expandedFoodId, filteredFoods) {
-        val food = filteredFoods.firstOrNull { it.id == expandedFoodId }
-        expandedFoodDetails = null
-        if (food != null) {
-            expandedFoodDetails = withContext(Dispatchers.Default) {
-                LegacyJournalFoodDatabase.details(food)
-            }
-        }
-    }
-
-    val containerShape = RoundedCornerShape(if (expanded) 32.dp else 28.dp)
-    val hasFoodSelection = visibleItems.isNotEmpty()
-    val containerColor = when {
-        expanded && !hasFoodSelection -> MaterialTheme.colorScheme.surfaceContainerLow
-        hasFoodSelection -> visibleItems.first().accentColor
-            .let { Color(it).copy(alpha = if (expanded) 0.12f else 0.14f) }
-        else -> MaterialTheme.colorScheme.surfaceContainerHigh
-    }
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(containerShape)
-            .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            ),
-        color = containerColor,
-        shape = containerShape
-    ) {
-        if (!expanded) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 72.dp)
-                    .clip(containerShape)
-                    .clickable {
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        expanded = true
-                    }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Restaurant,
-                    contentDescription = null,
-                    tint = visibleItems.firstOrNull()?.accentColor?.let(::Color)
-                        ?: MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(28.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = visibleItems.singleOrNull()?.displayName ?: stringResource(R.string.journal_add_food),
-                        style = MaterialTheme.typography.titleMediumEmphasized,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = if (visibleItems.isEmpty()) {
-                            stringResource(R.string.journal_food_choose_desc)
-                        } else {
-                            foodItemsSummary(visibleItems, foodMacrosEnabled)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        } else {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.84f),
-                    shape = RoundedCornerShape(28.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 62.dp)
-                            .padding(start = 16.dp, end = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = visibleItems.firstOrNull()?.accentColor?.let(::Color)
-                                ?: MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(26.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        BasicTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-                            textStyle = MaterialTheme.typography.titleLarge.copy(
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(focusRequester),
-                            decorationBox = { innerTextField ->
-                                Box(contentAlignment = Alignment.CenterStart) {
-                                    if (query.isBlank()) {
-                                        Text(
-                                            text = stringResource(R.string.journal_food_search),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    innerTextField()
-                                }
-                            }
-                        )
-                        AnimatedVisibility(
-                            visible = query.isNotBlank(),
-                            enter = fadeIn(),
-                            exit = fadeOut()
-                        ) {
-                            IconButtonTooltip(stringResource(R.string.clear)) {
-                                IconButton(
-                                    onClick = {
-                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        query = ""
-                                    },
-                                    modifier = Modifier.size(42.dp),
-                                    shapes = IconButtonDefaults.shapes()
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = stringResource(R.string.clear),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(19.dp)
-                                    )
-                                }
-                            }
-                        }
-                        TextButton(
-                            onClick = {
-                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                query = ""
-                                expanded = false
-                            },
-                            shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(20.dp)),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.close),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
-                    }
-                }
-
-                if (visibleItems.isNotEmpty()) {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        visibleItems.forEachIndexed { index, item ->
-                            JournalSelectedFoodChip(
-                                item = item,
-                                foodMacrosEnabled = foodMacrosEnabled,
-                                onRemove = {
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    if (selectedItems.isEmpty() && selectedFood != null) {
-                                        onManualSelected()
-                                    } else {
-                                        onFoodRemoved(index)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-
-                AnimatedVisibility(
-                    visible = expanded,
-                    enter = expandVertically(
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        expandFrom = Alignment.Top
-                    ) + fadeIn(),
-                    exit = shrinkVertically(
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        shrinkTowards = Alignment.Top
-                    ) + fadeOut()
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        filteredFoods.forEach { food ->
-                            val rowExpanded = expandedFoodId == food.id
-                            val rowPortionGrams = parseFoodPortionGrams(expandedPortionText)
-                            val canSaveToLibrary = onFoodImported != null &&
-                                    LegacyJournalFoodDatabase.isLegacyFood(food) &&
-                                    food.displayName.lowercase(Locale.ROOT) !in savedFoodNames
-                            JournalFoodPickerRow(
-                                title = food.displayName,
-                                subtitle = foodMacroSummary(food, foodMacrosEnabled),
-                                color = Color(food.accentColor),
-                                selected = selectedFoodId == food.id || selectedItems.any { it.sourceFoodId == food.id },
-                                expanded = rowExpanded,
-                                onClick = {
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onFoodSelected(food)
-                                    expandedFoodId = null
-                                    expanded = false
-                                },
-                                onLongClick = {
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    expandedFoodId = if (rowExpanded) {
-                                        null
-                                    } else {
-                                        expandedPortionText = "100"
-                                        food.id
-                                    }
-                                },
-                                unselectedContainerColor = if (hasFoodSelection) {
-                                    MaterialTheme.colorScheme.surfaceContainerHigh
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceContainerHighest
-                                },
-                                detailsContent = {
-                                    JournalFoodCompositionDetails(
-                                        details = expandedFoodDetails,
-                                        color = Color(food.accentColor),
-                                        portionText = expandedPortionText,
-                                        onPortionTextChange = { expandedPortionText = it },
-                                        onSaveToLibrary = if (canSaveToLibrary) {
-                                            {
-                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                onFoodImported?.invoke(food.toLibraryFoodInput(sortOrder = foods.size + 100))
-                                                expandedFoodId = null
-                                            }
-                                        } else {
-                                            null
-                                        }
-                                    )
-                                },
-                                trailingContent = {
-                                    IconButtonTooltip(stringResource(R.string.journal_add_food)) {
-                                        FilledTonalIconButton(
-                                            onClick = {
-                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                onFoodAdded(
-                                                    if (rowExpanded) {
-                                                        food.scaledForPortion(rowPortionGrams)
-                                                    } else {
-                                                        food
-                                                    }
-                                                )
-                                                if (rowExpanded) {
-                                                    expandedFoodId = null
-                                                }
-                                            },
-                                            modifier = Modifier.size(40.dp),
-                                            shapes = IconButtonDefaults.shapes()
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Add,
-                                                contentDescription = stringResource(R.string.journal_add_food),
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun List<JournalFood>.matchFoodQuery(query: String): List<JournalFood> {
-    val needle = query.trim()
-    if (needle.isBlank()) return this
-    val normalizedNeedle = needle.lowercase(Locale.ROOT)
-    val terms = normalizedNeedle
-        .split(Regex("\\s+"))
-        .filter { it.length >= 2 }
-        .distinct()
-    return mapNotNull { food ->
-        val name = food.displayName.lowercase(Locale.ROOT)
-        val allTermsMatch = terms.all { name.contains(it) }
-        if (!allTermsMatch) return@mapNotNull null
-        val score = when {
-            name == normalizedNeedle -> 0
-            name.startsWith(normalizedNeedle) -> 1
-            name.contains(normalizedNeedle) -> 2
-            else -> 3
-        }
-        RankedJournalFood(food, score)
-    }.sortedWith(
-        compareBy<RankedJournalFood> { it.score }
-            .thenBy { it.food.displayName.length }
-            .thenBy { it.food.displayName.lowercase(Locale.ROOT) }
-    ).map { it.food }
-}
-
-private data class RankedJournalFood(
-    val food: JournalFood,
-    val score: Int
-)
-
-@Composable
-private fun JournalSelectedFoodChip(
-    item: JournalDraftFoodItem,
-    foodMacrosEnabled: Boolean,
-    onRemove: () -> Unit
-) {
-    val color = Color(item.accentColor)
-    Surface(
-        color = color.copy(alpha = 0.18f),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(color, CircleShape)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(modifier = Modifier.widthIn(max = 180.dp)) {
-                Text(
-                    text = item.displayName,
-                    style = MaterialTheme.typography.labelLargeEmphasized,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = foodItemSummary(item, foodMacrosEnabled),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            IconButtonTooltip(stringResource(R.string.remove)) {
-                IconButton(
-                    onClick = onRemove,
-                    modifier = Modifier.size(34.dp),
-                    shapes = IconButtonDefaults.shapes()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Remove,
-                        contentDescription = stringResource(R.string.remove),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun JournalFoodPickerRow(
-    title: String,
-    subtitle: String,
-    color: Color,
-    selected: Boolean,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
-    expanded: Boolean = false,
-    unselectedContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    detailsContent: (@Composable () -> Unit)? = null,
-    trailingContent: (@Composable () -> Unit)? = null
-) {
-    val shape = RoundedCornerShape(16.dp)
-    Surface(
-        color = if (selected) color.copy(alpha = 0.18f) else unselectedContainerColor,
-        shape = shape
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongClick
-                )
-                .animateContentSize(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                )
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .background(color, CircleShape)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.labelLargeEmphasized,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                trailingContent?.invoke()
-            }
-            AnimatedVisibility(
-                visible = expanded && detailsContent != null,
-                enter = expandVertically(
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    expandFrom = Alignment.Top
-                ) + fadeIn(),
-                exit = shrinkVertically(
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    shrinkTowards = Alignment.Top
-                ) + fadeOut()
-            ) {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    detailsContent?.invoke()
-                }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun JournalFoodCompositionDetails(
-    details: LegacyJournalFoodDatabase.FoodDetails?,
-    color: Color,
-    portionText: String,
-    onPortionTextChange: (String) -> Unit,
-    onSaveToLibrary: (() -> Unit)? = null
-) {
-    if (details == null) return
-    val portionGrams = parseFoodPortionGrams(portionText)
-
-    fun updatePortion(value: Float) {
-        onPortionTextChange(formatFloatForEditor(value.coerceIn(1f, 2000f)))
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.compositionof100gram),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            details.components.take(14).forEach { component ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = component.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = formatFoodComponentValue(component.rawValue),
-                        style = MaterialTheme.typography.labelSmallEmphasized,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.widthIn(min = 46.dp)
-                    )
-                    Text(
-                        text = component.unit,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.widthIn(min = 28.dp)
-                    )
-                }
-            }
-        }
-        Surface(
-            color = color.copy(alpha = 0.10f),
-            shape = RoundedCornerShape(28.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
-                    FilledTonalIconButton(
-                        onClick = { updatePortion(portionGrams - 10f) },
-                        modifier = Modifier.size(44.dp),
-                        shapes = IconButtonDefaults.shapes()
-                    ) {
-                        Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.outbound_api_decrease_value))
-                    }
-                }
-                val portionField = rememberSelectAllOnFocusField(portionText)
-                BasicTextField(
-                    value = portionField.value,
-                    onValueChange = {
-                        portionField.onValueChange(it) { value ->
-                            onPortionTextChange(
-                                value
-                                    .filter { it.isDigit() || it == ',' || it == '.' }
-                                    .take(6)
-                            )
-                        }
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-                    textStyle = MaterialTheme.typography.titleLargeEmphasized.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 8.dp)
-                        .onFocusChanged(portionField::onFocusChanged),
-                    decorationBox = { innerTextField ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Box(
-                                modifier = Modifier.weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                innerTextField()
-                            }
-                            Text(
-                                text = stringResource(R.string.unit_carbs_short),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                )
-                IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
-                    FilledTonalIconButton(
-                        onClick = { updatePortion(portionGrams + 10f) },
-                        modifier = Modifier.size(44.dp),
-                        shapes = IconButtonDefaults.shapes()
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.outbound_api_increase_value))
-                    }
-                }
-            }
-        }
-        onSaveToLibrary?.let { saveToLibrary ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    onClick = saveToLibrary,
-                    colors = ButtonDefaults.textButtonColors(contentColor = color),
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.TextButtonContentPadding
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.journal_food_save_to_library))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun formatFoodComponentValue(rawValue: Int): String {
-    return when (rawValue) {
-        -3 -> stringResource(R.string.trace)
-        -2 -> stringResource(R.string.unknown)
-        else -> formatFloatForEditor(rawValue / 1000f)
-    }
-}
-
-private fun parseFoodPortionGrams(value: String): Float {
-    return value
-        .trim()
-        .replace(',', '.')
-        .toFloatOrNull()
-        ?.coerceIn(1f, 2000f)
-        ?: 100f
-}
-
-@Composable
-private fun foodMacroSummary(food: JournalFood, foodMacrosEnabled: Boolean): String {
-    return if (foodMacrosEnabled) {
-        stringResource(
-            R.string.journal_food_macro_summary,
-            formatFloatForEditor(food.carbsGrams),
-            formatFloatForEditor(food.proteinGrams ?: 0f),
-            formatFloatForEditor(food.fatGrams ?: 0f),
-            food.absorptionMinutes
-        )
-    } else {
-        stringResource(
-            R.string.journal_food_carb_summary,
-            formatFloatForEditor(food.carbsGrams),
-            food.absorptionMinutes
-        )
-    }
-}
-
-@Composable
-private fun foodItemsSummary(items: List<JournalDraftFoodItem>, foodMacrosEnabled: Boolean): String {
-    val carbs = items.sumOf { it.carbsGrams.toDouble() }.toFloat()
-    val protein = items.sumOf { (it.proteinGrams ?: 0f).toDouble() }.toFloat()
-    val fat = items.sumOf { (it.fatGrams ?: 0f).toDouble() }.toFloat()
-    val duration = items.maxOfOrNull { it.absorptionMinutes } ?: JournalMealShape.MIXED.durationMinutes
-    return if (foodMacrosEnabled) {
-        stringResource(
-            R.string.journal_food_macro_summary,
-            formatFloatForEditor(carbs),
-            formatFloatForEditor(protein),
-            formatFloatForEditor(fat),
-            duration
-        )
-    } else {
-        stringResource(
-            R.string.journal_food_carb_summary,
-            formatFloatForEditor(carbs),
-            duration
-        )
-    }
-}
-
-@Composable
-private fun foodItemSummary(item: JournalDraftFoodItem, foodMacrosEnabled: Boolean): String {
-    return if (foodMacrosEnabled) {
-        stringResource(
-            R.string.journal_food_macro_summary,
-            formatFloatForEditor(item.carbsGrams),
-            formatFloatForEditor(item.proteinGrams ?: 0f),
-            formatFloatForEditor(item.fatGrams ?: 0f),
-            item.absorptionMinutes
-        )
-    } else {
-        stringResource(
-            R.string.journal_food_carb_summary,
-            formatFloatForEditor(item.carbsGrams),
-            item.absorptionMinutes
-        )
-    }
-}
-
-@Composable
-private fun JournalFoodPill(
-    food: JournalFood,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val color = Color(food.accentColor)
-    Surface(
-        onClick = onClick,
-        color = if (selected) color.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .background(color, CircleShape)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(modifier = Modifier.widthIn(max = 180.dp)) {
-                Text(
-                    text = food.displayName,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = stringResource(
-                        R.string.journal_food_macro_summary,
-                        formatFloatForEditor(food.carbsGrams),
-                        formatFloatForEditor(food.proteinGrams ?: 0f),
-                        formatFloatForEditor(food.fatGrams ?: 0f),
-                        food.absorptionMinutes
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
     }
 }
 

@@ -13,6 +13,8 @@ import tk.glucodata.Natives
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.CloneJournalTombstoneEntity
 import tk.glucodata.data.journal.CloneJournalIdentity
+import tk.glucodata.data.food.FoodDetailsBackup
+import tk.glucodata.data.food.FoodLibraryDatabase
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import java.io.File
@@ -484,6 +486,12 @@ object SettingsExporter {
                     journalDao.getFoods().forEach { array.put(it.toJson()) }
                 }
             )
+            // What the food library knows beyond those rows. An older build skips the key and
+            // reads every food as the plain preset it used to be.
+            .put(
+                FoodDetailsBackup.KEY,
+                FoodDetailsBackup.toJson(FoodLibraryDatabase.getInstance(context).foodDetailsDao().getAll())
+            )
             .put(
                 "cloneTombstones",
                 JSONArray().also { array ->
@@ -516,6 +524,15 @@ object SettingsExporter {
             if (foods.isNotEmpty()) {
                 journalDao.insertFoods(foods)
             }
+            // The details follow the food rows they describe; a backup without them restores
+            // plain presets rather than leaving details that point at other foods.
+            val foodIds = foods.mapTo(HashSet()) { it.id }
+            val detailsDao = FoodLibraryDatabase.getInstance(context).foodDetailsDao()
+            detailsDao.deleteAll()
+            detailsDao.upsertAll(
+                FoodDetailsBackup.fromJson(journalData.optJSONArray(FoodDetailsBackup.KEY))
+                    .filter { it.foodId in foodIds }
+            )
         }
         if (insulinPresets.isNotEmpty()) {
             journalDao.insertInsulinPresets(insulinPresets)

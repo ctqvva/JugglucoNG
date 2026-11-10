@@ -77,8 +77,6 @@ reviews:
       - '**/*.js'
       - '**/*.sh'
       - '**/*.txt'
-      - '**/*.psv'
-      - '**/*.tsv'
 
 
   custom_rules:

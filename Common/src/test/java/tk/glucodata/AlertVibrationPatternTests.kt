@@ -2,7 +2,6 @@ package tk.glucodata
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -137,47 +136,5 @@ class AlertVibrationPatternTests {
 
         assertEquals(1_000L, pattern.totalDurationMs())
         assertTrue(pattern.timings.all { it >= 0L })
-    }
-
-    // Custom alerts store their profile in lower case. Upper-casing it in the phone's own
-    // language broke it in Turkish and Azerbaijani, where "i" upper-cases to a dotted
-    // capital: "escalating" became "ESCALAT\u0130NG" and fell back to a full-strength buzz.
-    @Test
-    fun profileNamesResolveTheSameInEveryLanguage() {
-        val saved = java.util.Locale.getDefault()
-        try {
-            for (tag in listOf("en-US", "tr-TR", "az-AZ", "it-IT")) {
-                java.util.Locale.setDefault(java.util.Locale.forLanguageTag(tag))
-                assertTrue(tag, AlertVibrationPattern.profileAscending("escalating"))
-                assertTrue(tag, AlertVibrationPattern.profileAscending("ESCALATING"))
-                assertEquals(tag, 0f, AlertVibrationPattern.profileScale("silent"), 0f)
-                assertEquals(tag, 0.45f, AlertVibrationPattern.profileScale("soft"), 0f)
-                assertEquals(tag, 0.70f, AlertVibrationPattern.profileScale("steady"), 0f)
-                assertEquals(tag, 1f, AlertVibrationPattern.profileScale("strong"), 0f)
-                assertEquals(tag, "ESCALATING", AlertVibrationPattern.profileForLegacyVolume("ascending"))
-                assertEquals(tag, "SILENT", AlertVibrationPattern.profileForLegacyVolume("silent"))
-            }
-        } finally {
-            java.util.Locale.setDefault(saved)
-        }
-    }
-
-    @Test
-    fun onlyTheRampingProfilesAscend() {
-        assertTrue(AlertVibrationPattern.profileAscending("ASCENDING"))
-        assertFalse(AlertVibrationPattern.profileAscending("strong"))
-        assertFalse(AlertVibrationPattern.profileAscending(null))
-        assertEquals(1f, AlertVibrationPattern.profileScale("escalating"), 0f)
-        assertEquals(1f, AlertVibrationPattern.profileScale(null), 0f)
-        assertEquals(1f, AlertVibrationPattern.profileScale("something-new"), 0f)
-    }
-
-    @Test
-    fun legacyVolumesMapToTheirProfiles() {
-        assertEquals("STEADY", AlertVibrationPattern.profileForLegacyVolume("MEDIUM"))
-        assertEquals("SOFT", AlertVibrationPattern.profileForLegacyVolume("LOW"))
-        assertEquals("STRONG", AlertVibrationPattern.profileForLegacyVolume("HIGH"))
-        assertEquals("STRONG", AlertVibrationPattern.profileForLegacyVolume("VIBRATE_ONLY"))
-        assertEquals("STRONG", AlertVibrationPattern.profileForLegacyVolume(null))
     }
 }

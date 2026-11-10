@@ -3512,4 +3512,47 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="voice_quick_notification_desc">Badhanka codka ee ogeysiiska gulukoosta</string>
     <string name="aidex_keys_before_connect">Soo geli ama codso furayaasha dareemahan ka hor intaadan isku xidhin.</string>
     <string name="aidex_delete_keys_message">Ma ka tirtiraysaa taleefankan furayaasha isku lammaaninta ee loo kaydiyey %1$s? Marka hore dhoofi haddii aad mar kale u baahan karto.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Sawir barcode-ka</string>
+    <string name="food_recent">Dhowaan</string>
+    <string name="food_my_foods">Cuntooyinkayga</string>
+    <string name="food_common_foods">Cuntooyinka caadiga ah</string>
+    <string name="food_reference_tables">Jadwalka cuntada (Ingiriisi)</string>
+    <string name="food_search_online">Ka raadi Open Food Facts</string>
+    <string name="food_online_empty">Waxba lagama helin Open Food Facts</string>
+    <string name="food_online_failed">Lama gaari karin Open Food Facts</string>
+    <string name="food_enter_values">Geli qiimaha “%1$s”</string>
+    <string name="food_enter_label_values">Geli qiimaha ku qoran calaamadda</string>
+    <string name="food_barcode_looking">Waa la raadinayaa %1$s…</string>
+    <string name="food_barcode_not_found">Open Food Facts kuma jiro alaab leh barcode %1$s</string>
+    <string name="food_try_again">Isku day mar kale</string>
+    <string name="food_carbs">Karbohaydraytyo</string>
+    <string name="food_carbs_value">%1$s g karbohaydrayt</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 qayb</string>
+    <string name="food_servings">Qaybo</string>
+    <string name="food_weight">Miisaan</string>
+    <string name="food_volume">Mug</string>
+    <string name="food_portion_piece">xabbad</string>
+    <string name="food_portion_slice">jeex</string>
+    <string name="food_portion_cup">koob</string>
+    <string name="food_portion_glass">galaas</string>
+    <string name="food_portion_tbsp">qaaddo weyn</string>
+    <string name="food_portion_tsp">qaaddo yar</string>
+    <string name="food_portion_serving">qayb</string>
+    <string name="food_portion_package">baakad</string>
+    <string name="food_per_100g_label">100 g gudahood, sida calaamadda</string>
+    <string name="food_sources">Ilaha</string>
+    <string name="food_online_desc">Ka raadi alaabta internetka oo sawir barcode-yada. Waxaa la diraa oo keliya ereyada raadinta ama barcode-ka</string>
+    <string name="food_file_title">Soo dejin iyo dhoofin</string>
+    <string name="food_import">Soo deji</string>
+    <string name="food_file_hint">Jadwal CSV ama JSON ah oo leh tiirarka name, carbs, protein, fat iyo per_grams. Haddii per_grams uusan jirin, qiimayaashu waa 100 g kiiba.</string>
+    <string name="food_import_empty">Faylkan cunto lagama helin. Waxaa loo baahan yahay tiirarka name iyo carbs.</string>
+    <string name="food_fiber">Faybar</string>
+    <string name="food_energy">Tamar</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Qiimayaashu waxay ku saabsan yihiin</string>
+    <string name="food_serving_weight">Miisaanka qaybta</string>
+    <!-- /food catalogue -->
 </resources>

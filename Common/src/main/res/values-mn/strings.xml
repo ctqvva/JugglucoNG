@@ -3428,4 +3428,47 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="voice_quick_notification_desc">Глюкозын мэдэгдэл дээрх дууны товч</string>
     <string name="aidex_keys_before_connect">Холбогдохоос өмнө энэ мэдрэгчийн түлхүүрүүдийг импортлох эсвэл хүсэлт илгээн авна уу.</string>
     <string name="aidex_delete_keys_message">Энэ утаснаас %1$s мэдрэгчийн хадгалсан холболтын түлхүүрүүдийг устгах уу? Дахин хэрэг болж магадгүй бол эхлээд экспортлоорой.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Бар код уншуулах</string>
+    <string name="food_recent">Сүүлийн</string>
+    <string name="food_my_foods">Миний хоол</string>
+    <string name="food_common_foods">Түгээмэл хоол</string>
+    <string name="food_reference_tables">Хүнсний хүснэгт (англи)</string>
+    <string name="food_search_online">Open Food Facts-аас хайх</string>
+    <string name="food_online_empty">Open Food Facts-аас юу ч олдсонгүй</string>
+    <string name="food_online_failed">Open Food Facts-тай холбогдож чадсангүй</string>
+    <string name="food_enter_values">«%1$s»-ийн утгыг оруулах</string>
+    <string name="food_enter_label_values">Шошгон дээрх утгыг оруулах</string>
+    <string name="food_barcode_looking">%1$s хайж байна…</string>
+    <string name="food_barcode_not_found">Open Food Facts-д %1$s бар кодтой бүтээгдэхүүн алга</string>
+    <string name="food_try_again">Дахин оролдох</string>
+    <string name="food_carbs">Нүүрс ус</string>
+    <string name="food_carbs_value">%1$s г нүүрс ус</string>
+    <string name="food_amount_ml">%1$s мл</string>
+    <string name="food_unit_ml">мл</string>
+    <string name="food_one_serving">1 порц</string>
+    <string name="food_servings">Порц</string>
+    <string name="food_weight">Жин</string>
+    <string name="food_volume">Эзлэхүүн</string>
+    <string name="food_portion_piece">ширхэг</string>
+    <string name="food_portion_slice">зүсэм</string>
+    <string name="food_portion_cup">аяга</string>
+    <string name="food_portion_glass">шилэн аяга</string>
+    <string name="food_portion_tbsp">хоолны халбага</string>
+    <string name="food_portion_tsp">цайны халбага</string>
+    <string name="food_portion_serving">порц</string>
+    <string name="food_portion_package">сав баглаа</string>
+    <string name="food_per_100g_label">100 г-д, шошгоор</string>
+    <string name="food_sources">Эх сурвалж</string>
+    <string name="food_online_desc">Бүтээгдэхүүнийг онлайнаар хайж, бар код уншуулна. Зөвхөн хайсан үг эсвэл бар код илгээгдэнэ</string>
+    <string name="food_file_title">Импорт ба экспорт</string>
+    <string name="food_import">Импортлох</string>
+    <string name="food_file_hint">name, carbs, protein, fat, per_grams багана бүхий CSV эсвэл JSON хүснэгт. per_grams байхгүй бол утгыг 100 г-аар тооцно.</string>
+    <string name="food_import_empty">Энэ файлаас хоол олдсонгүй. name ба carbs багана хэрэгтэй.</string>
+    <string name="food_fiber">Эслэг</string>
+    <string name="food_energy">Энерги</string>
+    <string name="food_kcal_value">%1$s ккал</string>
+    <string name="food_values_for">Утгууд дараахад хамаарна</string>
+    <string name="food_serving_weight">Порцын жин</string>
+    <!-- /food catalogue -->
 </resources>
