@@ -584,7 +584,7 @@ object OutboundApi {
             .replace("{sensor_gen}", reading.sensorGen.toString())
             .replace("{temp}", formatTemperatureC(reading.temperatureC))
             .replace("{battery}", if ("{battery}" in template) {
-                formatBatteryPercent(NightPost.batteryPercent())
+                formatBatteryPercent(runCatching { NightPost.batteryPercent() }.getOrDefault(-1))
             } else "")
             .replace("{alarm}", reading.alarm.toString())
             .replace("{iob}", if (effectiveIob.isFinite()) formatNumber(effectiveIob, 2) else "0")
