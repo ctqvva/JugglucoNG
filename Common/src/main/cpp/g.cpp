@@ -2672,6 +2672,20 @@ static jobjectArray sensorNamesToJavaArray(JNIEnv *env,
   return sensjar;
 }
 
+extern "C" JNIEXPORT jobjectArray JNICALL fromjava(getNativeHistoryRecordNames)(
+    JNIEnv *env, jclass, jstring sensorId) {
+  if (!sensors || !sensorId) return nullptr;
+  const char *name = env->GetStringUTFChars(sensorId, nullptr);
+  if (!name) return nullptr;
+  std::vector<std::string> names;
+  // Include retired records and every short-name collision. Do not getSensorData:
+  // constructing a history object can initialize/repair its on-disk mappings.
+  for (const int index : sensors->sensorindices(std::string_view(name)))
+    names.emplace_back(sensors->getsensor(index)->fullname());
+  env->ReleaseStringUTFChars(sensorId, name);
+  return sensorNamesToJavaArray(env, names);
+}
+
 /*
 extern "C" JNIEXPORT jboolean  JNICALL   fromjava(hasSibionics)(JNIEnv *env,
 jclass cl) { setusedsensors(); const int len= usedsensors.size(); for(int

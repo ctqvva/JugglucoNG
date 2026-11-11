@@ -147,6 +147,7 @@ private fun reportHeader(): String = buildString {
     append("# Captured ").append(
         SimpleDateFormat("yyyy-MM-dd HH:mm:ssZ", Locale.US).format(Date())
     ).append("\n\n")
+    append(tk.glucodata.NativeAliasHistoryDiagnostics.report())
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

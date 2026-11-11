@@ -1776,9 +1776,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         Log.stack(LOG_ID, e);
                         return;
                     }
-                    if (requestCode == REQUEST_SAVE_LOG)
-                        Natives.saveLog(fd);
-                    else
+                    if (requestCode == REQUEST_SAVE_LOG) {
+                        final int traceFd = fd;
+                        // Inspect existing files and copy the trace off the UI thread.
+                        new Thread(() -> {
+                            NativeAliasHistoryDiagnostics.logForTraceExport();
+                            Natives.saveLog(traceFd); // existing native export owns/closes this fd
+                        }, "NativeAliasTraceExport").start();
+                    } else
                         Natives.saveLogcat(fd);
                 } else {
                     Log.i(LOG_ID, "savelog: resultCode=" + resultCode);

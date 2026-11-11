@@ -141,6 +141,10 @@ public class Natives {
 
         public static native int getSensorIndex(String sensorId);
 
+        /** Existing full native record names, including retired and ambiguous short-name
+         * matches. Registry lookup only: never opens/maps/repairs a history store. */
+        public static native String[] getNativeHistoryRecordNames(String sensorId);
+
         public static native int getSensorIndexFromDataPtr(long dataptr);
 
         public static native void freedataptr(long dataptr);
