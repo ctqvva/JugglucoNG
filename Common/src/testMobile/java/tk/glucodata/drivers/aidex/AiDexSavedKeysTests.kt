@@ -52,7 +52,7 @@ class AiDexSavedKeysTests {
 
     @Before fun reset() {
         AiDexPausingMaterialInstall.beforeInstall = null
-        for (prefs in listOf("aidex_cn_provisioning", "aidex_setup_key_requirements",
+        for (prefs in listOf("aidex_cn_provisioning", "aidex_setup_key_requirements", "aidex_setup_key_requirements_v2",
             "AiDexPairKeysPrimary", "AiDexPairKeysRecovery", "AiDexNativePrefs")) {
             context.getSharedPreferences(prefs, Context.MODE_PRIVATE).edit().clear().commit()
         }
@@ -95,7 +95,7 @@ class AiDexSavedKeysTests {
         assertTrue(AiDexProvisioningStore.saveAndInstall(context, serial, secret, iv))
         AiDexPairingMaterialRegistry.clearForTests()
         assertTrue(AiDexSetupKeyGate.mayConnect(context, serial, ""))
-        assertFalse(AiDexSetupKeyGate.mayConnect(context, "22222FXYT3", ""))
+        assertFalse(AiDexSetupKeyGate.mayConnect(context, "22222FXYT3", "AiDEX F-22222FXYT3"))
         assertTrue(AiDexSetupKeyGate.mayConnect(context, "2222267V4E", "AiDEX X-2222267V4E"))
     }
 
@@ -114,7 +114,7 @@ class AiDexSavedKeysTests {
         prefs.edit().putString(secondKey, firstValue).commit()
         AiDexPairingMaterialRegistry.clearForTests()
         assertNull(AiDexProvisioningStore.loadSaved(context, "22222FXYT3"))
-        assertFalse(AiDexSetupKeyGate.mayConnect(context, "22222FXYT3", ""))
+        assertFalse(AiDexSetupKeyGate.mayConnect(context, "22222FXYT3", "AiDEX F-22222FXYT3"))
     }
 
     @Test fun deletionWaitsForAnInFlightRestoreAndLeavesNoLiveMaterial() {
