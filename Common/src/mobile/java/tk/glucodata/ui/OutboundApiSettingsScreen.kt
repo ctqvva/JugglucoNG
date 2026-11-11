@@ -1370,7 +1370,6 @@ private const val MGDL_PER_MMOLL = 18.0182f
 private val templateTokens = listOf(
     "{value}",
     "{battery}",
-    "{battery_mv}",
     "{unit}",
     "{trend_arrow}",
     "{time}",

@@ -46,18 +46,16 @@ class OutboundApiRenderMessageTests {
     }
 
     @Test
-    fun batteryTokensUseSensorTelemetryAndNeedNoJournal() {
-        assertFalse(OutboundApi.needsJournalSnapshot("{battery}% {battery_mv} {value}"))
-        assertEquals("0", OutboundApi.formatBatteryPercent(0))
-        assertEquals("72", OutboundApi.formatBatteryPercent(72))
-        assertEquals("100", OutboundApi.formatBatteryPercent(100))
-        assertEquals("", OutboundApi.formatBatteryPercent(-1))
-        assertEquals("", OutboundApi.formatBatteryPercent(101))
-        assertEquals("3000", OutboundApi.formatBatteryMillivolts(3000))
-        assertEquals("", OutboundApi.formatBatteryMillivolts(0))
-        assertEquals("", OutboundApi.formatBatteryMillivolts(-1))
-        // No matching sensor driver: sensor battery is unavailable.
-        assertEquals("Battery: [] []", OutboundApi.renderMessage("Battery: [{battery}] [{battery_mv}]", reading()))
+    fun batteryTokenUsesPercentageOrVoltageAndNeedsNoJournal() {
+        assertFalse(OutboundApi.needsJournalSnapshot("{battery} {value}"))
+        assertEquals("0%", OutboundApi.formatSensorBattery(0, 3000))
+        assertEquals("72%", OutboundApi.formatSensorBattery(72, 3000))
+        assertEquals("100%", OutboundApi.formatSensorBattery(100, 0))
+        assertEquals("3.000 V", OutboundApi.formatSensorBattery(-1, 3000))
+        assertEquals("2.875 V", OutboundApi.formatSensorBattery(101, 2875))
+        assertEquals("", OutboundApi.formatSensorBattery(-1, 0))
+        assertEquals("", OutboundApi.formatSensorBattery(-1, -1))
+        assertEquals("Battery: []", OutboundApi.renderMessage("Battery: [{battery}]", reading()))
     }
 
     @Test

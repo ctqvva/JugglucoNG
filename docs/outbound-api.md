@@ -157,8 +157,7 @@ state at the moment of send.
 | `{time}`           | Locale-formatted short date+time                      |
 | `{sensor}`         | Sensor ID                                             |
 | `{sensor_gen}`     | Sensor generation                                     |
-| `{battery}`        | Reading sensor battery percentage (0–100), empty if unavailable (e.g. AiDEX reports voltage only); use `{battery}%` for a percent sign |
-| `{battery_mv}`     | Reading sensor battery voltage in millivolts (e.g. AiDEX), empty if unavailable |
+| `{battery}`        | Reading sensor battery with unit: percentage when available (e.g. `72%`), otherwise voltage (e.g. `3.000 V` for AiDEX); empty if unavailable |
 | `{alarm}`          | Alarm code                                            |
 | `{iob}` / `{journal_iob}` | Active insulin (units)                         |
 | `{cob}` / `{journal_cob}` | Active carbs (grams)                           |
