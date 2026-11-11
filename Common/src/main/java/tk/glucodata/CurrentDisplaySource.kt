@@ -807,6 +807,11 @@ object CurrentDisplaySource {
             }
             return true
         }
+        // A managed driver's native mirror may survive while its BLE callback
+        // is absent. Updating by identity needs no callback pointer or new shell.
+        runCatching {
+            Natives.setSensorViewMode(SensorIdentity.resolveNativeSensorName(sensorName), normalized)
+        }
         if (SensorIdentity.hasNativeSensorBacking(sensorName)) {
             runCatching {
                 val dataptr = Natives.getdataptr(sensorName)
@@ -818,9 +823,14 @@ object CurrentDisplaySource {
         return true
     }
 
-    private fun resolveSensorViewMode(sensorName: String?): Int {
+    /** Native exports already have a mode; retain it when no managed choice exists. */
+    @JvmStatic
+    fun resolveViewModeForNativeExport(sensorName: String?, nativeViewMode: Int): Int =
+        resolveSensorViewMode(sensorName, nativeViewMode)
+
+    private fun resolveSensorViewMode(sensorName: String?, nativeViewMode: Int? = null): Int {
         if (sensorName.isNullOrEmpty()) {
-            return 0
+            return nativeViewMode ?: 0
         }
         tk.glucodata.drivers.ManagedSensorRuntime.resolveUiSnapshot(sensorName, sensorName)
             ?.let { return it.viewMode }
@@ -830,6 +840,9 @@ object CurrentDisplaySource {
         // shadow whatever the user picked. Every writer keeps the store current.
         tk.glucodata.drivers.ManagedSensorViewModeStore.readOrNull(Applic.app, sensorName)
             ?.let { return it }
+        if (nativeViewMode != null) {
+            return nativeViewMode
+        }
         if (!SensorIdentity.hasNativeSensorBacking(sensorName)) {
             return 0
         }

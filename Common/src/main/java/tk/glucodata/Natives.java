@@ -786,6 +786,8 @@ public class Natives {
         /** ManagedSensorUiFamily.nativeCode; 0 clears. Travels in info.dat, so a Clone receiver sees it. */
         public static native void setSensorManagedFamily(String sensorId, int code);
         public static native int getSensorManagedFamily(long dataptr);
+        /** Updates an existing native record without allocating a BLE stream pointer. */
+        public static native boolean setSensorViewMode(String sensorId, int mode);
 
         public static native boolean hasSensorStreamCapacity(String sensorId, int minimumRecords);
 

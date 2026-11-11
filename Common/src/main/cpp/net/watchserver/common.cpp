@@ -63,7 +63,7 @@ int resolveExportedMgdlAt(const SensorGlucoseData *sens,const sensorname_t *sens
         return autoMgdl;
     const static jmethodID exportedValueMethod = env->GetStaticMethodID(
         exportvalueclass,
-        "resolveExportedValueMgdl",
+        "resolveNativeExportedValueMgdl",
         "(Ljava/lang/String;IIIJ)I"
     );
     if(exportedValueMethod==nullptr) {
@@ -71,9 +71,8 @@ int resolveExportedMgdlAt(const SensorGlucoseData *sens,const sensorname_t *sens
             env->ExceptionClear();
         return autoMgdl;
         }
-    char sensornameStr[64];
-    copyfixedsensorname(sensornameStr,sizeof(sensornameStr),sensorname);
-    auto jsensor=env->NewStringUTF(sensornameStr);
+    const std::string sensorId(sens->sensid());
+    auto jsensor=env->NewStringUTF(sensorId.c_str());
     const auto *info=sens->getinfo();
     const int viewMode=info?info->viewMode:0;
     const int resolved=env->CallStaticIntMethod(
