@@ -773,6 +773,12 @@ public class Natives {
          */
         public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 
+        /** Import managed Wear history. Local/unknown populated records retain their
+         * origin and occupied samples even while disconnected. Proven peer-only records
+         * retain ordinary import behavior. The provenance check and import are atomic
+         * with local writes; localOwner also forces gap-only import during warm-up. */
+        public static native int importWearGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId, boolean localOwner);
+
         /** Stores an upstream final primary with persisted per-reading provenance. */
         public static native int addResolvedGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 

@@ -12,6 +12,8 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
+import tk.glucodata.drivers.sibionics.SibionicsConstants
+import tk.glucodata.drivers.sibionics.SibionicsRegistry
 
 /** Real identity/ownership policy and history fallback; native reads are shadowed. */
 @RunWith(RobolectricTestRunner::class)
@@ -116,6 +118,56 @@ class NativeHistoryOwnershipTests {
     fun unavailableNativeNameStillUsesTheLogicalSensorPolicy() {
         assertEquals(Applic.isWearable, SensorIdentity.shouldUseNativeHistorySync("API-123456789ABC"))
         assertTrue(SensorIdentity.shouldUseNativeHistorySync("unknown-sensor"))
+    }
+
+    private fun migratedSibionics(): Pair<String, String> {
+        val legacy = "0111801JGS9"
+        val record = SibionicsRegistry.ensureSensorRecord(
+            Applic.app, "SIBI:$legacy", null, legacy, SibionicsConstants.Variant.SIBIONICS2,
+        )
+        SibionicsRegistry.bindLegacyNativeName(Applic.app, record.sensorId, legacy)
+        SensorIdentity.invalidateCaches()
+        return record.sensorId to legacy
+    }
+
+    @Test
+    fun wearHistoryFindsRegisteredLegacyRecordBehindAnEmptyManagedShell() {
+        if (!Applic.isWearable) return // Phone managed history remains Room-owned.
+        val (managed, legacy) = migratedSibionics()
+        NativeHistoryNames.histories[managed] = longArrayOf(1_760_000_000L, 0L, 0L)
+        NativeHistoryNames.histories[legacy] = longArrayOf(1_760_000_060L, 1230L, 1170L)
+
+        for (id in listOf(managed, legacy)) {
+            NativeHistoryNames.historyReads.clear()
+            val raw = NotificationHistorySource.getRawHistory(0L, id).single()
+            assertEquals(1_760_000_060_000L, raw.timestamp)
+            assertEquals(123f, raw.value, 0f)
+            assertEquals(117f, raw.rawValue, 0f)
+            assertEquals(listOf(managed, legacy), NativeHistoryNames.historyReads)
+            val mmol = NotificationHistorySource.getDisplayHistory(0L, true, id).single()
+            assertEquals(123f / 18.0182f, mmol.value, 0.0001f)
+        }
+    }
+
+    @Test
+    fun usableManagedHistoryWinsOverLegacyAlgorithmValues() {
+        if (!Applic.isWearable) return
+        val (managed, legacy) = migratedSibionics()
+        NativeHistoryNames.histories[managed] = longArrayOf(1_760_000_060L, 1230L, 1170L)
+        NativeHistoryNames.histories[legacy] = longArrayOf(1_760_000_060L, 1800L, 1700L)
+
+        val point = NotificationHistorySource.getRawHistory(0L, legacy).single()
+        assertEquals(123f, point.value, 0f)
+        assertEquals(listOf(managed), NativeHistoryNames.historyReads)
+    }
+
+    @Test
+    fun unregisteredSensorCannotReadAnUnrelatedSuffixRecord() {
+        val managed = "SIBI:0111801JGS9"
+        NativeHistoryNames.histories["0111801JGS9"] = longArrayOf(1_760_000_060L, 1230L, 1170L)
+
+        assertTrue(NotificationHistorySource.getRawHistory(0L, managed).isEmpty())
+        assertTrue("0111801JGS9" !in NativeHistoryNames.historyReads)
     }
 }
 
