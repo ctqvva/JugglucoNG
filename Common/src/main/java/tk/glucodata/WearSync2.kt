@@ -478,12 +478,13 @@ object WearSync2 {
                 }
                 // A managed watch can acquire live readings before its phone
                 // history arrives. Ownership does not imply a complete store.
-                // Only fill gaps there; keep the phone/native-sensor echo guards
-                // (notably Libre BLE cursors and Dexcom's separate Room lane).
+                // Native provenance, not today's connection proof, decides if
+                // this watch's history must be protected. Keep phone/native
+                // echo guards (Libre BLE cursors and Dexcom's Room lane).
                 val localOwner = SensorOwnershipRuntime.readsLocally(serial)
-                val ownerBackfill = localOwner && Applic.isWearable &&
+                val managedWatchImport = Applic.isWearable &&
                     SensorIdentity.usesNativeDirectStreamShell(serial)
-                if (localOwner && !ownerBackfill) {
+                if (localOwner && !managedWatchImport) {
                     if (doLog) Log.i(LOG_ID, "ignored chunk for $serial: this device is reading it")
                     return@execute
                 }
@@ -509,7 +510,7 @@ object WearSync2 {
                         // Native scale contract (g.cpp addGlucoseStreamInternal):
                         // glucose param = mgdl/10 (native ×10), raw param = plain
                         // mgdl. Triples carry mgdl*10.
-                        if (mirrorNative && !ownerBackfill) {
+                        if (mirrorNative && !managedWatchImport) {
                             Natives.ensureSensorShell(serial, (t - 3600L).coerceAtLeast(1L))
                         }
                     }
@@ -527,12 +528,13 @@ object WearSync2 {
                     // line and rewound the stream cursor every time; a large chunk
                     // was enough to GC-stall the app. Same reason the Sibionics and
                     // Anytime history mirrors are batched.
-                    val stored = if (ownerBackfill) Natives.backfillGlucoseStreamBatchWithRawTemp(
+                    val stored = if (managedWatchImport) Natives.importWearGlucoseStreamBatchWithRawTemp(
                         nativeSecs.copyOf(written),
                         nativeValues.copyOf(written),
                         raws.copyOf(written),
                         FloatArray(written),
                         serial,
+                        localOwner,
                     ) else Natives.addGlucoseStreamBatchWithRawTemp(
                         nativeSecs.copyOf(written),
                         nativeValues.copyOf(written),
@@ -540,7 +542,7 @@ object WearSync2 {
                         FloatArray(written),
                         serial,
                     )
-                    if (doLog) Log.i(LOG_ID, "native stored $stored/$written for $serial ownerBackfill=$ownerBackfill")
+                    if (doLog) Log.i(LOG_ID, "native stored $stored/$written for $serial managedWatchImport=$managedWatchImport")
                 }
                 // The phone reads its history from Room and never looks at native,
                 // so readings taken over by the watch landed somewhere the phone
@@ -574,7 +576,7 @@ object WearSync2 {
                     // selection yet the served sensor is adopted, so a watch
                     // still gets off a dead sensor after a swap ("No data"
                     // with fresh chunks landing in the new one).
-                    if (!ownerBackfill) WearSensorSelectionSync.alignCurrentSensor(fallback = serial)
+                    if (!localOwner) WearSensorSelectionSync.alignCurrentSensor(fallback = serial)
                     UiRefreshBus.requestDataRefresh()
                 }
                 if (doLog) Log.i(LOG_ID, "ingested $written/$count triples for $serial final=$final")

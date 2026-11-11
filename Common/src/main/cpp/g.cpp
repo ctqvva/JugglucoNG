@@ -1533,7 +1533,7 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
                                      jfloat rawGlucose, jfloat temperatureC,
                                      bool overwriteRaw, bool overwriteTemp,
                                      bool quiet, int *rewindFrom, bool primaryIsResolved = false,
-                                     bool onlyIfMissing = false) {
+                                     bool onlyIfMissing = false, bool localSource = false) {
   if (!hist || hist->error() || timestamp <= 0)
     return false;
   auto *info = hist->getinfo();
@@ -1597,6 +1597,12 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
 
   const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
                                              mgVal, timestamp, primaryIsResolved);
+  // Persist before the sample, under the same lock as peer imports. A process
+  // restart or temporary disconnect must not turn local history into peer data.
+  if (localSource && !hist->wearHistoryOrigin.markLocal(hist->getsensordir())) {
+    LOGGER("cannot persist local Wear history provenance for %s\n", sensorId);
+    return false;
+  }
   const int storedGlucose = mgVal | (primaryIsResolved ? ScanData::resolvedGlucoseFlag : 0);
   const bool stored =
       dexslots ? (quiet ? hist->savepollallIDsQuiet<300>(
@@ -1643,12 +1649,16 @@ static bool addGlucoseStreamInternal(JNIEnv *env, jlong timestamp, jfloat glucos
     return false;
 
   bool stored = false;
+  bool localSource = false;
+#ifdef WEAROS
+  localSource = isManagedDirectStreamSensorId(env, str);
+#endif
   if (timestamp > 0) {
     if (SensorGlucoseData *hist = ensureDirectStreamShellForId(str, 0)) {
       seedDirectStreamStateIfMissing(hist, timestamp);
       stored = storeGlucoseStreamSample(
           hist, str, timestamp, glucose, rawGlucose, temperatureC,
-          overwriteRaw, overwriteTemp, false, nullptr);
+          overwriteRaw, overwriteTemp, false, nullptr, false, false, localSource);
       if (stored)
         setstreaming(hist);
     }
@@ -1701,6 +1711,10 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithTemp)(
   }
 
   jint stored = 0;
+  bool localSource = false;
+#ifdef WEAROS
+  localSource = isManagedDirectStreamSensorId(env, str);
+#endif
   jlong firstTimestamp = 0;
   for (jsize index = 0; index < count && firstTimestamp <= 0; ++index)
     firstTimestamp = timeValues[index];
@@ -1710,7 +1724,8 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithTemp)(
     for (jsize index = 0; index < count; ++index) {
       if (storeGlucoseStreamSample(
               hist, str, timeValues[index], glucoseValues[index], 0.0f,
-              temperatureValues[index], false, true, true, &rewindFrom)) {
+              temperatureValues[index], false, true, true, &rewindFrom,
+              false, false, localSource)) {
         ++stored;
       }
     }
@@ -1736,10 +1751,13 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithTemp)(
 // quiet writes that skip the per-sample LOGGER, a single backstream/backhistory
 // rewind from the lowest index touched, and one setstreaming. Mirroring a
 // 4867-sample history one call at a time cost all of that per reading.
+static jlong ensureSensorShellInternal(const char *str, jlong startTimeSec,
+                                       size_t minimumRecords);
+
 static jint addGlucoseStreamBatchWithRawTempInternal(
     JNIEnv *env, jlongArray timestamps, jfloatArray glucoses,
     jfloatArray raws, jfloatArray temperatures, jstring sensorId, bool primaryIsResolved,
-    bool onlyIfMissing = false) {
+    bool wearPeerImport = false, bool forceOnlyMissing = false) {
   if (!sensors || !timestamps || !glucoses || !raws || !temperatures ||
       !sensorId)
     return 0;
@@ -1773,13 +1791,33 @@ static jint addGlucoseStreamBatchWithRawTempInternal(
   jlong firstTimestamp = 0;
   for (jsize index = 0; index < count && firstTimestamp <= 0; ++index)
     firstTimestamp = timeValues[index];
-  // A local owner's driver has already created its shell. Backfill must not
-  // create a parallel record or change its start time/lifecycle metadata.
+  // Classification, shell initialization and import are atomic with local
+  // writes. A Kotlin ownership check followed by a JNI write leaves a race.
+  std::unique_lock<std::recursive_mutex> importing(SensorGlucoseData::pollWriteMutex(),
+                                                  std::defer_lock);
+  bool onlyIfMissing = forceOnlyMissing;
+  bool localSource = false;
+#ifdef WEAROS
+  localSource = !wearPeerImport && isManagedDirectStreamSensorId(env, str);
+#endif
   SensorGlucoseData *hist = nullptr;
-  if (onlyIfMissing) {
+  if (wearPeerImport) {
+    importing.lock();
     hist = sensors->getSensorData(str);
     if (!hist)
       hist = sensors->gethistshort(str);
+    if (hist && !hist->error()) {
+      onlyIfMissing |= hist->wearHistoryOrigin.protectsExisting(
+          hist->getsensordir(), hist->pollcount() > 0);
+    }
+    if (!onlyIfMissing) {
+      hist = reinterpret_cast<SensorGlucoseData *>(ensureSensorShellInternal(
+          str, std::max<jlong>(1, firstTimestamp - 3600), 0));
+      if (hist && !hist->wearHistoryOrigin.markPeerOnly(hist->getsensordir())) {
+        LOGGER("cannot persist peer-only Wear history provenance for %s\n", str);
+        hist = nullptr;
+      }
+    }
   } else {
     hist = ensureDirectStreamShellForId(str, 0);
   }
@@ -1791,7 +1829,7 @@ static jint addGlucoseStreamBatchWithRawTempInternal(
       if (storeGlucoseStreamSample(
               hist, str, timeValues[index], glucoseValues[index],
               rawValues[index], temperatureValues[index], true, true, true,
-              &rewindFrom, primaryIsResolved, onlyIfMissing)) {
+              &rewindFrom, primaryIsResolved, onlyIfMissing, localSource)) {
         ++stored;
       }
     }
@@ -1816,11 +1854,11 @@ static jint addGlucoseStreamBatchWithRawTempInternal(
   return stored;
 }
 
-extern "C" JNIEXPORT jint JNICALL fromjava(backfillGlucoseStreamBatchWithRawTemp)(
+extern "C" JNIEXPORT jint JNICALL fromjava(importWearGlucoseStreamBatchWithRawTemp)(
     JNIEnv *env, jclass, jlongArray timestamps, jfloatArray glucoses,
-    jfloatArray raws, jfloatArray temperatures, jstring sensorId) {
+    jfloatArray raws, jfloatArray temperatures, jstring sensorId, jboolean localOwner) {
   return addGlucoseStreamBatchWithRawTempInternal(env, timestamps, glucoses, raws,
-                                                 temperatures, sensorId, false, true);
+                                                 temperatures, sensorId, false, true, localOwner);
 }
 
 extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(

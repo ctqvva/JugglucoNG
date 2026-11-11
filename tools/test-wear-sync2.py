@@ -18,7 +18,7 @@ root = Path(__file__).resolve().parents[1]
 source = (root / 'Common/src/main/java/tk/glucodata/WearSync2.kt').read_text()
 
 
-def method(signature):
+def method(signature, source=source):
     start = source.index(signature)
     brace = source.index('{', start)
     depth, end = 1, brace + 1
@@ -93,9 +93,9 @@ object Natives {
         if (Applic.isWearable) for (i in times.indices) watchHistory[times[i]] = values[i] * 10f to raws[i]
         return times.size
     }
-    fun backfillGlucoseStreamBatchWithRawTemp(
+    fun importWearGlucoseStreamBatchWithRawTemp(
         times: LongArray, values: FloatArray, raws: FloatArray,
-        temps: FloatArray, serial: String,
+        temps: FloatArray, serial: String, localOwner: Boolean,
     ): Int {
         backfillBatches++
         var stored = 0
@@ -209,6 +209,7 @@ kotlin += method('private fun serveSensorSince(').replace('private fun', 'fun', 
 kotlin += method('private fun sendChunk(') + '\n}\n'
 kotlin += (root / 'Common/src/main/java/tk/glucodata/NotificationHistorySource.kt').read_text().replace(
     'package tk.glucodata', '').replace('import android.util.Log', '').replace('import java.util.TreeMap', '')
+kotlin += method('fun resolveLocalOwnershipProof(', (root / 'Common/src/main/java/tk/glucodata/SensorOwnershipRuntime.kt').read_text())
 kotlin += r'''
 fun chunk(serial: String = "3038HVEAD0D"): ByteArray {
     val name = serial.toByteArray()
@@ -278,7 +279,7 @@ fun main(args: Array<String>) {
             check(HistorySyncAccess.historyTimes.isEmpty() && UiRefreshBus.refreshes == 0)
             check(Natives.backfillBatches == 0)
         }
-        "managed-watch-handover" -> {
+        "managed-watch-handover", "managed-watch-disconnect", "managed-watch-stale" -> {
             val serial = "SIBI:0111801JGS9"
             SensorIdentity.managed = true
             // Phone owns the sensor and serves the real source-lane wire format.
@@ -294,17 +295,31 @@ fun main(args: Array<String>) {
             SensorOwnershipRuntime.local = true
             val localTime = Natives.start + 2925 * 60L
             Natives.watchHistory[localTime] = 171f to 161f
+            if (scenario != "managed-watch-handover") {
+                val now = 1_800_000_000_000L
+                SensorOwnershipRuntime.local = resolveLocalOwnershipProof(
+                    released = false,
+                    gattConnected = scenario == "managed-watch-stale",
+                    connectsPerReading = false,
+                    lastLocalReadingSeenAtMs = if (scenario == "managed-watch-stale") now - 21 * 60_000L else now,
+                    nowMs = now,
+                    perReadingFreshMs = 11 * 60_000L,
+                    connectedStaleMs = 20 * 60_000L,
+                )
+                check(!SensorOwnershipRuntime.local)
+            }
             WearSensorSelectionSync.selected = "another-selected-sensor"
             WearSync2.onChunk(phoneChunk)
             check(Natives.backfillBatches == 1 && Natives.batches == 0 && Natives.shellWrites == 0)
             val chart = NotificationHistorySource.getDisplayHistory(0L, false, serial)
             check(chart.size == 8 && chart.first().value == 128f)
             check(chart.last().value == 171f && chart.last().rawValue == 161f)
-            check(WearSensorSelectionSync.selected == "another-selected-sensor")
+            if (SensorOwnershipRuntime.local) check(WearSensorSelectionSync.selected == "another-selected-sensor")
             check(HistorySyncAccess.currentTime == 0L && WearSync2.exchangedAt == 0L)
             // Replayed backfill preserves the local value as well.
             WearSync2.onChunk(phoneChunk)
             check(Natives.watchHistory.size == 8 && Natives.watchHistory[localTime]!!.first == 171f)
+            SensorOwnershipRuntime.local = true // reconnect after the delayed/replayed chunk
             // Another BLE reading is stored by the watch, served through the
             // same production history reader and encoder, then displayed and
             // forwarded by the phone after it has stood down.
@@ -371,7 +386,7 @@ scenarios = [
     'phone-libre2', 'phone-alias', 'watch-libre2', 'phone-libre3',
     'phone-sibionics', 'phone-managed', 'phone-managed-family', 'phone-unknown',
     'phone-short-snapshot', 'local-owner', 'phone-managed-owner', 'watch-native-owner',
-    'managed-watch-handover', 'removed', 'companion-disabled',
+    'managed-watch-handover', 'managed-watch-disconnect', 'managed-watch-stale', 'removed', 'companion-disabled',
     'request-encoding', 'request-serving',
 ]
 with tempfile.TemporaryDirectory(prefix='wear-sync2-test-') as directory:

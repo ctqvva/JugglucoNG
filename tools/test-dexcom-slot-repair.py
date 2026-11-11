@@ -22,6 +22,10 @@ writer = (root / 'Common/src/main/cpp/g.cpp').read_text()
 
 def extract(source, signature):
     start = source.index(signature)
+    # A helper may now be forward-declared before its definition. Keep testing
+    # the actual body rather than the following unrelated function's braces.
+    while source.find(';', start, source.index('{', start)) >= 0:
+        start = source.index(signature, start + len(signature))
     end = source.index('{', start) + 1
     depth = 1
     while depth:
