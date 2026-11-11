@@ -773,6 +773,10 @@ public class Natives {
          */
         public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 
+        /** Fill empty slots in an existing managed stream without moving its time origin.
+         * The slot check and write are atomic with live writes. Returns samples stored. */
+        public static native int backfillGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
+
         /** Stores an upstream final primary with persisted per-reading provenance. */
         public static native int addResolvedGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 

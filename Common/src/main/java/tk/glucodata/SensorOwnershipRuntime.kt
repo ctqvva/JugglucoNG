@@ -382,8 +382,8 @@ object SensorOwnershipRuntime {
 
     /**
      * Whether this device is the one reading [serial] right now. Readings that
-     * arrive over the Data Layer for a sensor we hold ourselves are dropped, so
-     * the two devices cannot write over each other during a changeover.
+     * arrive over the Data Layer for a sensor we hold ourselves cannot replace
+     * local samples. WearSync2 may fill missing managed-watch history slots.
      */
     @JvmStatic
     fun readsLocally(serial: String?): Boolean {

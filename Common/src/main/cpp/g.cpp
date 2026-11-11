@@ -1532,21 +1532,26 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
                                      jlong timestamp, jfloat glucose,
                                      jfloat rawGlucose, jfloat temperatureC,
                                      bool overwriteRaw, bool overwriteTemp,
-                                     bool quiet, int *rewindFrom, bool primaryIsResolved = false) {
+                                     bool quiet, int *rewindFrom, bool primaryIsResolved = false,
+                                     bool onlyIfMissing = false) {
   if (!hist || hist->error() || timestamp <= 0)
     return false;
   auto *info = hist->getinfo();
   if (!info)
     return false;
 
+  std::unique_lock<std::recursive_mutex> writing(SensorGlucoseData::pollWriteMutex());
   uint32_t start = info->starttime;
+  // Owner backfill uses the driver's existing time origin. Moving it would
+  // reinterpret every stored slot; a sample before it must not land in slot 0.
+  if (onlyIfMissing && (!start || timestamp < start))
+    return false;
   if (!start && timestamp > 3600) {
     start = timestamp - 3600;
     info->starttime = start;
     syncListStarttime(hist, start);
   }
 
-  std::unique_lock<std::recursive_mutex> writing(SensorGlucoseData::pollWriteMutex());
   // Dexcom stores one reading per 5-minute sensor slot, not per minute.
   // Readings mirrored from the watch at minute indices ran the stream end far
   // past the live slot, so no backfill was requested any more (#767).
@@ -1571,6 +1576,10 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
   uint16_t preservedTemp = 0;
   const ScanData *pollsbuf = hist->getPollsData();
   const bool fillsPollGap = pollsbuf && pollsbuf[lifeCount].g <= 0;
+  // Check and write under the same lock as the live driver. Filtering a chunk
+  // in Kotlin first would still let a live write be overwritten between them.
+  if (onlyIfMissing && !fillsPollGap)
+    return false;
   // The driver's own reading for a slot wins; a mirrored copy only fills a
   // slot it missed.
   if (dexslots && lifeCount < hist->pollcount() && !fillsPollGap)
@@ -1729,7 +1738,8 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithTemp)(
 // 4867-sample history one call at a time cost all of that per reading.
 static jint addGlucoseStreamBatchWithRawTempInternal(
     JNIEnv *env, jlongArray timestamps, jfloatArray glucoses,
-    jfloatArray raws, jfloatArray temperatures, jstring sensorId, bool primaryIsResolved) {
+    jfloatArray raws, jfloatArray temperatures, jstring sensorId, bool primaryIsResolved,
+    bool onlyIfMissing = false) {
   if (!sensors || !timestamps || !glucoses || !raws || !temperatures ||
       !sensorId)
     return 0;
@@ -1763,14 +1773,25 @@ static jint addGlucoseStreamBatchWithRawTempInternal(
   jlong firstTimestamp = 0;
   for (jsize index = 0; index < count && firstTimestamp <= 0; ++index)
     firstTimestamp = timeValues[index];
-  if (SensorGlucoseData *hist = ensureDirectStreamShellForId(str, 0)) {
-    seedDirectStreamStateIfMissing(hist, firstTimestamp);
+  // A local owner's driver has already created its shell. Backfill must not
+  // create a parallel record or change its start time/lifecycle metadata.
+  SensorGlucoseData *hist = nullptr;
+  if (onlyIfMissing) {
+    hist = sensors->getSensorData(str);
+    if (!hist)
+      hist = sensors->gethistshort(str);
+  } else {
+    hist = ensureDirectStreamShellForId(str, 0);
+  }
+  if (hist) {
+    if (!onlyIfMissing)
+      seedDirectStreamStateIfMissing(hist, firstTimestamp);
     int rewindFrom = -1;
     for (jsize index = 0; index < count; ++index) {
       if (storeGlucoseStreamSample(
               hist, str, timeValues[index], glucoseValues[index],
               rawValues[index], temperatureValues[index], true, true, true,
-              &rewindFrom, primaryIsResolved)) {
+              &rewindFrom, primaryIsResolved, onlyIfMissing)) {
         ++stored;
       }
     }
@@ -1778,8 +1799,13 @@ static jint addGlucoseStreamBatchWithRawTempInternal(
       hist->backstream(rewindFrom);
       hist->backhistory(rewindFrom);
     }
-    if (stored > 0)
+    if (stored > 0 && !onlyIfMissing)
       setstreaming(hist);
+    if (!onlyIfMissing && stored < count) {
+      LOGGER("native mirror %s stored=%d/%d start=%u polls=%d capacity=%zu\n",
+             str, stored, count, hist->getstarttime(), hist->pollcount(),
+             hist->pollStorageCapacity());
+    }
   }
 
   env->ReleaseFloatArrayElements(temperatures, temperatureValues, JNI_ABORT);
@@ -1788,6 +1814,13 @@ static jint addGlucoseStreamBatchWithRawTempInternal(
   env->ReleaseLongArrayElements(timestamps, timeValues, JNI_ABORT);
   env->ReleaseStringUTFChars(sensorId, str);
   return stored;
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(backfillGlucoseStreamBatchWithRawTemp)(
+    JNIEnv *env, jclass, jlongArray timestamps, jfloatArray glucoses,
+    jfloatArray raws, jfloatArray temperatures, jstring sensorId) {
+  return addGlucoseStreamBatchWithRawTempInternal(env, timestamps, glucoses, raws,
+                                                 temperatures, sensorId, false, true);
 }
 
 extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
@@ -1954,9 +1987,15 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(hasSensorStreamCapacity)(
   if (!str)
     return JNI_FALSE;
   SensorGlucoseData *hist = ensureDirectStreamShellForId(str, 0);
-  const bool ready =
-      hist && !hist->error() &&
+  const bool usable = hist && !hist->error();
+  const bool ready = usable &&
       hist->pollStorageCapacity() >= static_cast<size_t>(minimumRecords);
+  if (!ready) {
+    LOGGER("native stream capacity unavailable for %s: required=%d capacity=%zu "
+           "start=%u polls=%d\n", str, minimumRecords,
+           usable ? hist->pollStorageCapacity() : 0,
+           usable ? hist->getstarttime() : 0, usable ? hist->pollcount() : 0);
+  }
   env->ReleaseStringUTFChars(sensorId, str);
   return ready ? JNI_TRUE : JNI_FALSE;
 }

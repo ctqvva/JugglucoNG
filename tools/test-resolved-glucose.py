@@ -4,6 +4,8 @@
 Uses the production on-disk ScanData layout, writer and reader bodies. JNI and
 calibration arithmetic are stand-ins. Includes a legacy file reopened after a
 partial page rewrite and a byte-for-byte Clone-style copy.
+Owner backfill executes the production JNI batch body, preserves local samples
+and races with live writes using the production poll-write lock.
 """
 import argparse
 import os
@@ -75,6 +77,11 @@ using jclass = void*;
 using jmethodID = void*;
 using jlong = int64_t;
 using jstring = const char*;
+using jint = int;
+using jsize = int;
+using jlongArray = vector<jlong>*;
+using jfloatArray = vector<float>*;
+#define JNI_ABORT 2
 using sensorname_t = array<char, 11>;
 struct CaliPara { uint32_t time = 1; };
 constexpr float convfactordL = 180.182f;
@@ -102,6 +109,7 @@ struct SensorGlucoseData {
     string_view sensid() const { return id; }
     const Info *getinfo() const { return &info; }
     bool error() const { return false; }
+    uint32_t getstarttime() const { return info.starttime; }
     sensorname_t alias{};
     const sensorname_t *shortsensorname() const { return &alias; }
     ScanData polls[12]{};
@@ -147,6 +155,11 @@ struct JNIEnv {
     void DeleteLocalRef(jstring) {}
     const char *GetStringUTFChars(jstring id, void *) { return id; }
     void ReleaseStringUTFChars(jstring, const char *) {}
+    template<class T> int GetArrayLength(vector<T> *array) { return array->size(); }
+    jlong *GetLongArrayElements(jlongArray array, void *) { return array->data(); }
+    float *GetFloatArrayElements(jfloatArray array, void *) { return array->data(); }
+    void ReleaseLongArrayElements(jlongArray, jlong *, int) {}
+    void ReleaseFloatArrayElements(jfloatArray, float *, int) {}
     int CallStaticIntMethod(jclass, jmethodID, jstring, int, int value, int, jlong) {
         ++javaCalls;
         return value + javaOffset;
@@ -174,6 +187,23 @@ using RawData = SensorGlucoseData::RawData;
 bool backup = false;
 void syncListStarttime(SensorGlucoseData *, uint32_t) {}
 int compactRawMgdl(float) { return 0; }
+SensorGlucoseData *batchSensor = nullptr;
+struct Sensors {
+    SensorGlucoseData *getSensorData(const char *id) {
+        return batchSensor && batchSensor->id == id ? batchSensor : nullptr;
+    }
+    SensorGlucoseData *gethistshort(const char *id) {
+        return string_view(id) == "legacy-alias" ? batchSensor : nullptr;
+    }
+} sensorStore;
+Sensors *sensors = &sensorStore;
+int shellEnsures = 0, seeds = 0, streamings = 0;
+SensorGlucoseData *ensureDirectStreamShellForId(const char *, uint32_t) {
+    ++shellEnsures;
+    return batchSensor;
+}
+void seedDirectStreamStateIfMissing(SensorGlucoseData *, time_t) { ++seeds; }
+void setstreaming(SensorGlucoseData *) { ++streamings; }
 """
     trend = (CPP / "exchangetrend.hpp").read_text() if not args.trend_ref else subprocess.check_output(
         ["git", "show", f"{args.trend_ref}:Common/src/main/cpp/exchangetrend.hpp"], cwd=ROOT, text=True,
@@ -198,6 +228,8 @@ int compactRawMgdl(float) { return 0; }
             body = head[:-1] + ",bool primaryIsResolved=false) " + tail
         return body
     code += extract("g.cpp", "static bool storeGlucoseStreamSample(")
+    code += extract("g.cpp", "static jint addGlucoseStreamBatchWithRawTempInternal(")
+    code += extract("g.cpp", 'extern "C" JNIEXPORT jint JNICALL fromjava(backfillGlucoseStreamBatchWithRawTemp)(')
     for signature in [
         "double calibrateValue(const CaliPara &cali ,const ScanData &el)",
         "const CaliPara *getCaliBefore(",
@@ -242,6 +274,67 @@ char *writev3entry(char *out, const ScanData *value, const sensorname_t *, bool,
     code += r'''
 int main() {
     static_assert(sizeof(ScanData) == 20);
+    {
+        SensorGlucoseData managed{"SIBI:0111801JGS9"};
+        batchSensor = &managed;
+        const uint32_t start = managed.getstarttime();
+        // The watch already received its own live reading in slot 8. A phone
+        // chunk overlaps it, fills older gaps and carries an out-of-window row.
+        assert(storeGlucoseStreamSample(&managed, managed.id.c_str(), start + 8*60,
+                                        14.5f, 150, 36, true, true, true, nullptr));
+        managed.rawpolls[8].raw = 83;
+        managed.temppolls[8] = 360;
+        const ScanData local = managed.polls[8];
+        vector<jlong> times{start - 60, start + 2*60, start + 8*60, start + 13*60};
+        vector<float> values{9, 10, 20, 21}, raws{90, 100, 200, 210}, temps{0, 0, 0, 0};
+        // The reader must not observe a stale slot check outside the live lock.
+        managed.watching = true;
+        assert(backfillGlucoseStreamBatchWithRawTemp(&env, nullptr, &times, &values,
+                                                     &raws, &temps, managed.id.c_str()) == 1);
+        managed.watching = false;
+        assert(managed.readsHeld > 0 && managed.readsUnheld == 0);
+        assert(managed.polls[2].getmgdL() == 100);
+        assert(!memcmp(&local, &managed.polls[8], sizeof(local)));
+        assert(managed.rawpolls[8].raw == 83 && managed.temppolls[8] == 360);
+        assert(managed.getstarttime() == start && managed.pollcount() == 9);
+        assert(managed.polls[0].getmgdL() == 0);
+        assert(shellEnsures == 0 && seeds == 0 && streamings == 0);
+        // Replay, including a native alias, is a no-op.
+        assert(backfillGlucoseStreamBatchWithRawTemp(&env, nullptr, &times, &values,
+                                                     &raws, &temps, "legacy-alias") == 0);
+        assert(backfillGlucoseStreamBatchWithRawTemp(&env, nullptr, &times, &values,
+                                                     &raws, &temps, "unknown") == 0);
+        assert(shellEnsures == 0);
+        // A subsequent local sample/algorithm rebuild can replace a filled gap.
+        assert(storeGlucoseStreamSample(&managed, managed.id.c_str(), start + 2*60,
+                                        12.3f, 120, 35, true, true, true, nullptr));
+        assert(managed.polls[2].getmgdL() == 123);
+        assert(backfillGlucoseStreamBatchWithRawTemp(&env, nullptr, &times, &values,
+                                                     &raws, &temps, managed.id.c_str()) == 0);
+        assert(managed.polls[2].getmgdL() == 123);
+        // Whichever thread gets the slot first, the local driver wins. Both
+        // use the production writer and the same recursive poll-write lock.
+        vector<jlong> racingTimes{start + 3*60};
+        vector<float> racingValues{10}, racingRaws{100}, racingTemps{0};
+        for (int attempt = 0; attempt < 100; ++attempt) {
+            managed.polls[3] = {};
+            thread peer([&] {
+                backfillGlucoseStreamBatchWithRawTemp(&env, nullptr, &racingTimes,
+                    &racingValues, &racingRaws, &racingTemps, managed.id.c_str());
+            });
+            thread live([&] {
+                assert(storeGlucoseStreamSample(&managed, managed.id.c_str(), start + 3*60,
+                                               20.f, 200, 36, true, true, true, nullptr));
+            });
+            peer.join(); live.join();
+            assert(managed.polls[3].getmgdL() == 200);
+        }
+        managed.info.starttime = 0;
+        assert(backfillGlucoseStreamBatchWithRawTemp(&env, nullptr, &times, &values,
+                                                     &raws, &temps, managed.id.c_str()) == 0);
+        assert(managed.getstarttime() == 0);
+        batchSensor = nullptr;
+    }
     {
         // Dexcom: the writer stores at the slot the store picks, on the
         // 5-minute grid, and never replaces a slot the sensor already filled.
@@ -408,7 +501,7 @@ int main() {
         assert(serializedV3.getmgdL() == 125);
     }
     remove(filename);
-    puts("Persisted mirror, representation-safe trend, final V1/V3 export and calibration checks passed");
+    puts("Owner backfill, persisted mirror, representation-safe trend, final V1/V3 export and calibration checks passed");
 }
 '''
     with tempfile.TemporaryDirectory(prefix="resolved-glucose-") as directory:
