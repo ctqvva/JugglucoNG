@@ -70,6 +70,7 @@ public class CalibrationAccess {
 #include <array>
 #include <cassert>
 #include <charconv>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
