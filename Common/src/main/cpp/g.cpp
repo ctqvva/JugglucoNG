@@ -1935,6 +1935,23 @@ extern "C" JNIEXPORT void JNICALL fromjava(setSensorManagedFamily)(
   env->ReleaseStringUTFChars(sensorId, str);
 }
 
+extern "C" JNIEXPORT jboolean JNICALL fromjava(setSensorViewMode)(
+    JNIEnv *env, jclass cl, jstring sensorId, jint mode) {
+  if (!sensors || !sensorId || mode < 0 || mode > 3)
+    return JNI_FALSE;
+  const char *str = env->GetStringUTFChars(sensorId, nullptr);
+  if (!str)
+    return JNI_FALSE;
+  // Exact identity only: do not create a shell or change a sensor sharing a suffix.
+  const int index = sensors->sensorindex(str);
+  env->ReleaseStringUTFChars(sensorId, str);
+  auto *hist = index >= 0 ? sensors->getSensorData(index) : nullptr;
+  if (!hist || hist->error() || !hist->getinfo())
+    return JNI_FALSE;
+  hist->getinfo()->viewMode = mode;
+  return JNI_TRUE;
+}
+
 extern "C" JNIEXPORT jint JNICALL fromjava(getSensorManagedFamily)(
     JNIEnv *env, jclass cl, jlong dataptr) {
   if (!dataptr)
