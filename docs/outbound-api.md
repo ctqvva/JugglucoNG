@@ -157,6 +157,7 @@ state at the moment of send.
 | `{time}`           | Locale-formatted short date+time                      |
 | `{sensor}`         | Sensor ID                                             |
 | `{sensor_gen}`     | Sensor generation                                     |
+| `{battery}`        | Sending device battery percentage (0–100), empty if unavailable; use `{battery}%` for a percent sign |
 | `{alarm}`          | Alarm code                                            |
 | `{iob}` / `{journal_iob}` | Active insulin (units)                         |
 | `{cob}` / `{journal_cob}` | Active carbs (grams)                           |

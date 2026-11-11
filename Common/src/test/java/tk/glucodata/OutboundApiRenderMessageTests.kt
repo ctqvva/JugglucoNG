@@ -46,6 +46,18 @@ class OutboundApiRenderMessageTests {
     }
 
     @Test
+    fun batteryTokenUsesDevicePercentageAndNeedsNoJournal() {
+        assertFalse(OutboundApi.needsJournalSnapshot("{battery}% {value}"))
+        assertEquals("0", OutboundApi.formatBatteryPercent(0))
+        assertEquals("72", OutboundApi.formatBatteryPercent(72))
+        assertEquals("100", OutboundApi.formatBatteryPercent(100))
+        assertEquals("", OutboundApi.formatBatteryPercent(-1))
+        assertEquals("", OutboundApi.formatBatteryPercent(101))
+        // No Android application context in this JVM test: battery is unavailable.
+        assertEquals("Battery: []", OutboundApi.renderMessage("Battery: [{battery}]", reading()))
+    }
+
+    @Test
     fun unavailableAutoAndRawTokensRenderEmpty() {
         val rendered = OutboundApi.renderMessage(
             template = "[{auto}][{auto_mgdl}][{raw}][{raw_mgdl}]",
