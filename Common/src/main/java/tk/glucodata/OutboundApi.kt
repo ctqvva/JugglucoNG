@@ -552,6 +552,9 @@ object OutboundApi {
             ?: destination?.rangeStatus(reading.mgdl)
             ?: OutboundApiSettings.TUNNEL_STATUS_IN_RANGE
         val statusEmojiValue = statusEmoji(effectiveStatus)
+        val sensorBattery = if ("{battery}" in template || "{battery_mv}" in template) {
+            runCatching { ManagedSensorRuntime.resolveUiSnapshot(reading.sensorId, reading.sensorId) }.getOrNull()
+        } else null
         val rendered = template
             .replace("{event_id}", reading.eventId)
             .replace("{recipient}", reading.recipient)
@@ -583,9 +586,8 @@ object OutboundApi {
             .replace("{sensor}", reading.sensorId)
             .replace("{sensor_gen}", reading.sensorGen.toString())
             .replace("{temp}", formatTemperatureC(reading.temperatureC))
-            .replace("{battery}", if ("{battery}" in template) {
-                formatBatteryPercent(runCatching { NightPost.batteryPercent() }.getOrDefault(-1))
-            } else "")
+            .replace("{battery}", formatBatteryPercent(sensorBattery?.batteryPercent ?: -1))
+            .replace("{battery_mv}", formatBatteryMillivolts(sensorBattery?.batteryMillivolts ?: 0))
             .replace("{alarm}", reading.alarm.toString())
             .replace("{iob}", if (effectiveIob.isFinite()) formatNumber(effectiveIob, 2) else "0")
             .replace("{journal_iob}", if (journal.iob.isFinite()) formatNumber(journal.iob, 2) else "0")
@@ -618,7 +620,7 @@ object OutboundApi {
         "auto", "auto_value", "auto_mgdl", "auto_mmol",
         "raw", "raw_mgdl", "raw_mmol",
         "trend", "trend_arrow", "rate_mgdl", "rate_mmol",
-        "timestamp", "time", "sensor", "sensor_gen", "temp", "battery", "alarm",
+        "timestamp", "time", "sensor", "sensor_gen", "temp", "battery", "battery_mv", "alarm",
         "test", "status", "status_emoji"
     )
 
@@ -653,9 +655,12 @@ object OutboundApi {
     internal fun formatTemperatureC(value: Float?): String =
         if (value != null && value.isFinite()) formatNumber(value, 1) else ""
 
-    /** Sending device battery percentage; unavailable values render empty. */
+    /** Sensor battery percentage; unavailable values render empty. */
     internal fun formatBatteryPercent(percent: Int): String =
         if (percent in 0..100) percent.toString() else ""
+
+    internal fun formatBatteryMillivolts(millivolts: Int): String =
+        if (millivolts > 0) millivolts.toString() else ""
 
     internal fun displayToMgdl(value: Float): Int {
         if (!value.isFinite() || value <= 0f) return 0

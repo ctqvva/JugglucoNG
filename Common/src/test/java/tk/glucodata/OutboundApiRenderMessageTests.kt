@@ -46,15 +46,18 @@ class OutboundApiRenderMessageTests {
     }
 
     @Test
-    fun batteryTokenUsesDevicePercentageAndNeedsNoJournal() {
-        assertFalse(OutboundApi.needsJournalSnapshot("{battery}% {value}"))
+    fun batteryTokensUseSensorTelemetryAndNeedNoJournal() {
+        assertFalse(OutboundApi.needsJournalSnapshot("{battery}% {battery_mv} {value}"))
         assertEquals("0", OutboundApi.formatBatteryPercent(0))
         assertEquals("72", OutboundApi.formatBatteryPercent(72))
         assertEquals("100", OutboundApi.formatBatteryPercent(100))
         assertEquals("", OutboundApi.formatBatteryPercent(-1))
         assertEquals("", OutboundApi.formatBatteryPercent(101))
-        // No Android application context in this JVM test: battery is unavailable.
-        assertEquals("Battery: []", OutboundApi.renderMessage("Battery: [{battery}]", reading()))
+        assertEquals("3000", OutboundApi.formatBatteryMillivolts(3000))
+        assertEquals("", OutboundApi.formatBatteryMillivolts(0))
+        assertEquals("", OutboundApi.formatBatteryMillivolts(-1))
+        // No matching sensor driver: sensor battery is unavailable.
+        assertEquals("Battery: [] []", OutboundApi.renderMessage("Battery: [{battery}] [{battery_mv}]", reading()))
     }
 
     @Test
