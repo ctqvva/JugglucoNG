@@ -3265,6 +3265,10 @@ class AiDexBleManager(
 
         // A saved key needs no provisioning material; just clear any prior pairing error.
         pairingKeyProblemStatus = null
+        // The saved key was issued against the advertised serial, and the BOND data and every
+        // command are decrypted with that serial's IV. A recreated driver starts from the stored
+        // X-<MAC> identity again, so restore the advertised serial here too, not only before F001.
+        maybeUseAdvertisedProtocolSerial()
         clearInvalidSetupTracking(resetRecoveryCounter = false, reason = "start-saved-key-exchange")
         setPhase(Phase.KEY_EXCHANGE)
         keyExchange.reset()
