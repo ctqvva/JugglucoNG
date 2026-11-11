@@ -31,10 +31,10 @@ ext {
     // Bump the app version here only. Wear releases use appVersionCode + 1000000
     // so Play accepts both APKs in one release (distinct versionCodes per form
     // factor). Scheme originates on the wearos branch — keep the two in step.
-    appVersionCode = 1031
+    appVersionCode = 1030
     // Base version, without the flavour/build-type suffix chain that gets appended
     // to versionName. Used for the APK filename so it stays readable.
-    appVersionName = '1.3.1-Alpha'
+    appVersionName = '1.3.0-Alpha'
 
     ndkver       = '29.0.14206865'
     CMAKEVERSION = '4.1.2'
