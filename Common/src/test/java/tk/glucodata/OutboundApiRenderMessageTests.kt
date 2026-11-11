@@ -46,6 +46,19 @@ class OutboundApiRenderMessageTests {
     }
 
     @Test
+    fun batteryTokenUsesPercentageOrVoltageAndNeedsNoJournal() {
+        assertFalse(OutboundApi.needsJournalSnapshot("{battery} {value}"))
+        assertEquals("0%", OutboundApi.formatSensorBattery(0, 3000))
+        assertEquals("72%", OutboundApi.formatSensorBattery(72, 3000))
+        assertEquals("100%", OutboundApi.formatSensorBattery(100, 0))
+        assertEquals("3.000 V", OutboundApi.formatSensorBattery(-1, 3000))
+        assertEquals("2.875 V", OutboundApi.formatSensorBattery(101, 2875))
+        assertEquals("", OutboundApi.formatSensorBattery(-1, 0))
+        assertEquals("", OutboundApi.formatSensorBattery(-1, -1))
+        assertEquals("Battery: []", OutboundApi.renderMessage("Battery: [{battery}]", reading()))
+    }
+
+    @Test
     fun unavailableAutoAndRawTokensRenderEmpty() {
         val rendered = OutboundApi.renderMessage(
             template = "[{auto}][{auto_mgdl}][{raw}][{raw_mgdl}]",
