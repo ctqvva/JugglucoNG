@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Generates the Glucy launcher icon, wordmark and banners.
+"""Generates the Glucy launcher icon, wordmark and lockups.
 
 Writes the Android adaptive-icon vectors (background, foreground, monochrome) for the
 main app and the second installation (releasedub), plus SVG masters in this folder.
-The wordmark is drawn here as monoline strokes; no font file is involved.
+The wordmark is custom lettering from lettering.py; no font file is involved.
 
     pip install shapely
     python3 docs/brand/build.py                 # run from the repository root
@@ -16,6 +16,8 @@ from shapely.geometry import LineString, Point, Polygon
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
+import sys
+sys.path.insert(0, str(HERE))
 
 # ---------------------------------------------------------------- geometry ---
 KNOTS = [(0, 46), (33, 67), (61, 41), (80, 56), (108, 45)]  # trace: enters high, one dip, settles
@@ -115,80 +117,36 @@ def svg(c, view='18 18 72 72', size=512):
             f'<path d="{RIM_D}" fill="{c["rim"]}" fill-rule="evenodd"/><path d="{DOT_D}" fill="{c["dot"]}"/></svg>\n')
 
 
-# ---------------------------------------------------------------- wordmark ---
-# Monoline lettering with the same round ends as the trace. Units: cap height 100,
-# y = 0 at the cap line, y = 100 on the baseline.
-WM_STROKE, WM_XHEIGHT, WM_GAP = 17, 70, 13
+# ------------------------------------------------------- wordmark and lockup ---
+# The lettering lives in lettering.py, together with the reasons for its details.
+from lettering import wordmark, LIGHT_WEIGHT, DARK_WEIGHT, DESC
+
+INK_ON_LIGHT, INK_ON_DARK = '#0D1430', '#F0F3F8'
+EDGE_ON_DARK = '#3A4A80'   # hairline so the navy badge doesn't merge into dark page backgrounds
 
 
-def _p(cx, cy, r, a):
-    return cx + r * math.cos(math.radians(a)), cy + r * math.sin(math.radians(a))
+def wordmark_svg(dark=False):
+    body, w = wordmark(DARK_WEIGHT if dark else LIGHT_WEIGHT, INK_ON_DARK if dark else INK_ON_LIGHT)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 {w + 16:.1f} {DESC + 16:.1f}">'
+            f'<title>Glucy</title>{body}</svg>\n')
 
 
-def _arc(cx, cy, r, a0, a1, ccw=True):
-    span = (a0 - a1) % 360 if ccw else (a1 - a0) % 360
-    x, y = _p(cx, cy, r, a1)
-    return f'A{r:.2f} {r:.2f} 0 {1 if span > 180 else 0} {0 if ccw else 1} {x:.2f} {y:.2f}'
-
-
-def wordmark():
-    """Returns (stroke paths, advance width) for 'Glucy'."""
-    h, S, xh, gap = WM_STROKE / 2, WM_STROKE, WM_XHEIGHT, WM_GAP
-    paths, x = [], 0.0
-    # G: open circle with a short crossbar
-    r = 50 - h; cx, cy = x + 50, 50
-    sx, sy = _p(cx, cy, r, -42)
-    paths.append(f'M{sx:.2f} {sy:.2f}' + _arc(cx, cy, r, -42, 0) + f'L{cx + r * 0.38:.2f} {cy:.2f}')
-    x += 100 + gap
-    # l
-    paths.append(f'M{x + h:.2f} {h:.2f}L{x + h:.2f} {100 - h:.2f}')
-    x += S + gap
-    # u: two stems and a round bowl; the right stem reaches the baseline
-    top, ru = 100 - xh + h, (xh - S) / 2
-    left, right, bowl = x + h, x + h + 2 * ru, 100 - h - ru
-    paths.append(f'M{left:.2f} {top:.2f}L{left:.2f} {bowl:.2f}' + _arc(left + ru, bowl, ru, 180, 0) + f'L{right:.2f} {top:.2f}')
-    paths.append(f'M{right:.2f} {top:.2f}L{right:.2f} {100 - h:.2f}')
-    x += 2 * ru + S + gap
-    # c
-    rc = (xh - S) / 2; ccx, ccy = x + h + rc, 100 - xh / 2
-    sx, sy = _p(ccx, ccy, rc, -42)
-    paths.append(f'M{sx:.2f} {sy:.2f}' + _arc(ccx, ccy, rc, -42, 42))
-    x += 2 * rc + S + gap - rc * (1 - math.cos(math.radians(42))) * 0.6
-    # y: the u bowl, with the right stem dropping into a hooked descender
-    left, right = x + h, x + h + 2 * ru
-    tail_y = 130 - h - ru
-    paths.append(f'M{left:.2f} {top:.2f}L{left:.2f} {bowl:.2f}' + _arc(left + ru, bowl, ru, 180, 0))
-    paths.append(f'M{right:.2f} {top:.2f}L{right:.2f} {tail_y:.2f}' + _arc(right - ru, tail_y, ru, 0, 135, ccw=False))
-    x += 2 * ru + S
-    return paths, x
-
-
-WM_PATHS, WM_WIDTH = wordmark()
-
-
-def wordmark_svg(color='#0D1430'):
-    body = ''.join(f'<path d="{p}"/>' for p in WM_PATHS)
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 {WM_WIDTH + 20:.0f} 150">'
-            f'<g fill="none" stroke="{color}" stroke-width="{WM_STROKE}" stroke-linecap="round" stroke-linejoin="round">{body}</g></svg>\n')
-
-
-def banner_svg(dark=True, w=1280, h=400):
-    page, ink, tile_bg = ('#161E40', '#F2F5FA', MAIN['bg']) if dark else ('#EEF1FA', MAIN['bg'], MAIN['bg'])
-    tile, cap = 200, 112
-    k, gap = cap / 100, 0.55 * cap
-    total = tile + gap + WM_WIDTH * k
-    x0, ty = (w - total) / 2, (h - tile) / 2
-    s = tile / 72
-    icon = (f'<g transform="translate({x0:.1f} {ty:.1f}) scale({s:.4f}) translate(-18 -18)">'
-            f'<clipPath id="t"><rect x="18" y="18" width="72" height="72" rx="17"/></clipPath><g clip-path="url(#t)">'
-            f'<rect width="108" height="108" fill="{tile_bg}"/><path d="{TRACE_D}" fill="{MAIN["line"]}"/>'
-            f'<path d="{SENSOR_D}" fill="{MAIN["sensor"]}"/><path d="{RIM_D}" fill="{MAIN["rim"]}" fill-rule="evenodd"/>'
-            f'<path d="{DOT_D}" fill="{MAIN["dot"]}"/></g></g>')
-    words = ''.join(f'<path d="{p}"/>' for p in WM_PATHS)
-    text = (f'<g transform="translate({x0 + tile + gap:.1f} {h / 2 - cap / 2:.1f}) scale({k:.4f})" fill="none" stroke="{ink}" '
-            f'stroke-width="{WM_STROKE}" stroke-linecap="round" stroke-linejoin="round">{words}</g>')
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">'
-            f'<title>Glucy</title><rect width="{w}" height="{h}" fill="{page}"/>{icon}{text}</svg>\n')
+def lockup_svg(dark=False):
+    """Round badge + wordmark on a transparent background. Badge 100 units; cap height 43 % of it."""
+    weight, ink = (DARK_WEIGHT, INK_ON_DARK) if dark else (LIGHT_WEIGHT, INK_ON_LIGHT)
+    body, w = wordmark(weight, ink)
+    D, cap, gap = 100.0, 43.0, 28.0
+    k = cap / 100
+    edge = f'<circle cx="54" cy="54" r="35.6" fill="none" stroke="{EDGE_ON_DARK}" stroke-width="0.8"/>' if dark else ''
+    badge = (f'<g transform="scale({D / 72:.5f}) translate(-18 -18)">'
+             f'<clipPath id="b"><circle cx="54" cy="54" r="36"/></clipPath><g clip-path="url(#b)">'
+             f'<rect width="108" height="108" fill="{MAIN["bg"]}"/><path d="{TRACE_D}" fill="{MAIN["line"]}"/>'
+             f'<path d="{SENSOR_D}" fill="{MAIN["sensor"]}"/><path d="{RIM_D}" fill="{MAIN["rim"]}" fill-rule="evenodd"/>'
+             f'<path d="{DOT_D}" fill="{MAIN["dot"]}"/></g>{edge}</g>')
+    text = f'<g transform="translate({D + gap:.2f} {D / 2 - cap / 2:.2f}) scale({k:.4f})">{body}</g>'
+    W, H = D + gap + w * k, max(D, D / 2 - cap / 2 + DESC * k)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 {W + 6:.1f} {H + 6:.1f}">'
+            f'<title>Glucy</title>{badge}{text}</svg>\n')
 
 
 def main():
@@ -205,10 +163,10 @@ def main():
         HERE / 'icon.svg': svg(MAIN),
         HERE / 'icon-dub.svg': svg(DUB),
         HERE / 'icon-two-tone.svg': svg(TWO_TONE),
-        HERE / 'wordmark.svg': wordmark_svg(),
-        HERE / 'wordmark-light.svg': wordmark_svg('#F2F5FA'),
-        HERE / 'banner-dark.svg': banner_svg(dark=True),
-        HERE / 'banner-light.svg': banner_svg(dark=False),
+        HERE / 'wordmark-on-light.svg': wordmark_svg(),
+        HERE / 'wordmark-on-dark.svg': wordmark_svg(dark=True),
+        HERE / 'lockup-on-light.svg': lockup_svg(),
+        HERE / 'lockup-on-dark.svg': lockup_svg(dark=True),
         HERE / 'monochrome.svg': (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="432" height="432">'
                                   f'<path d="{MONO_D}" fill="#000" fill-rule="evenodd"/></svg>\n'),
     }

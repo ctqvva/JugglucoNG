@@ -1,6 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/banner-dark.svg">
-  <img alt="Glucy" src="docs/brand/banner-light.svg" width="640">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lockup-on-dark.svg">
+  <img alt="Glucy" src="docs/brand/lockup-on-light.svg" width="360">
 </picture>
 
 # Glucy
