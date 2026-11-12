@@ -568,7 +568,8 @@ fun FloatingGlucoseSettingsScreen(
                 checked = isDynamicIsland,
                 onCheckedChange = { repository.setDynamicIslandEnabled(it) },
                 position = if (isDynamicIsland) CardPosition.TOP else CardPosition.SINGLE,
-                animatePosition = true
+                animatePosition = true,
+                searchAnchor = SettingsSearchAnchors.FLOATING_ISLAND
             )
             if (isDynamicIsland) {
                 SettingsControlsCard(position = CardPosition.BOTTOM) {
@@ -623,7 +624,8 @@ fun FloatingGlucoseSettingsScreen(
                 subtitle = stringResource(R.string.display_secondary_values_desc),
                 checked = showSecondary,
                 onCheckedChange = { repository.setShowSecondary(it) },
-                position = CardPosition.TOP
+                position = CardPosition.TOP,
+                searchAnchor = SettingsSearchAnchors.FLOATING_SECONDARY
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.show_trend_arrow),
@@ -747,6 +749,7 @@ fun AodSettingsScreen(navController: NavController) {
                     Intent(AODOverlayService.ACTION_IMMEDIATE_REFRESH).setPackage(context.packageName)
                 )
             },
+            searchAnchor = SettingsSearchAnchors.AOD_LOCK_SCREEN,
             icon = Icons.Default.Lock,
             position = CardPosition.SINGLE,
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)

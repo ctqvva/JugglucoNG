@@ -54,6 +54,21 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Webhook
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Api
+import androidx.compose.material.icons.filled.AreaChart
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Doorbell
+import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.Functions
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.ui.graphics.vector.ImageVector
 import tk.glucodata.R
 
@@ -97,6 +112,29 @@ internal object SettingsSearchAnchors {
     const val HANDOVER = "connection/handover"
     const val TURBO = "connection/turbo"
     const val AUTOCONNECT = "connection/autoconnect"
+    const val VOICE_CHIME = "talker/chime"
+    const val VOICE_OVERRIDE_SILENT = "talker/override-silent"
+    const val VOICE_SCHEDULE = "talker/schedule"
+    const val JOURNAL_TAB = "journal/tab"
+    const val JOURNAL_QUICK_ADD = "journal/quick-add"
+    const val JOURNAL_INSULIN_CHART = "journal/insulin-chart"
+    const val JOURNAL_DOSE_CALCULATOR = "journal/dose-calculator"
+    const val JOURNAL_HEALTH_ACTIVITY = "journal/health-activity"
+    const val JOURNAL_AAPS_IMPORT = "journal/aaps-import"
+    const val PREDICTION_MOMENTUM = "prediction/momentum"
+    const val PREDICTION_NOTIFICATION_CHART = "prediction/notification-chart"
+    const val PREDICTION_HORIZON = "prediction/horizon"
+    const val PREDICTION_RECORD = "prediction/record"
+    const val PREDICTION_ADAPTIVE = "prediction/adaptive"
+    const val SMOOTHING_CAUSAL = "smoothing/causal"
+    const val FLOATING_ISLAND = "floating/island"
+    const val FLOATING_SECONDARY = "floating/secondary"
+    const val AOD_LOCK_SCREEN = "aod/lock-screen"
+    const val NIGHTSCOUT_SEND_TREATMENTS = "nightscout/send-treatments"
+    const val NIGHTSCOUT_RECEIVE_TREATMENTS = "nightscout/receive-treatments"
+    const val NIGHTSCOUT_UPLOAD_IOB = "nightscout/upload-iob"
+    const val NIGHTSCOUT_V3 = "nightscout/v3"
+    const val LIBREVIEW_OFFICIAL_END = "libreview/official-end"
 }
 
 /** Icon-tile role, matching the group colour the row wears on the Settings tab. */
@@ -107,7 +145,10 @@ internal enum class SettingsSearchTone { PRIMARY, SECONDARY, TERTIARY, NEUTRAL, 
  * a result never opens a screen that lacks it.
  */
 internal enum class SettingsSearchCondition {
-    LIBREVIEW, DEXCOM_SHARE, MQ_ACCOUNT, OTTAI, HEALTH_CONNECT, LIBRE2_IDENTITY, APP_TREND
+    LIBREVIEW, DEXCOM_SHARE, MQ_ACCOUNT, OTTAI, HEALTH_CONNECT, LIBRE2_IDENTITY, APP_TREND,
+
+    /** Nightscout's upload options: its Follow mode has no such rows. */
+    NIGHTSCOUT_UPLOAD,
 }
 
 /**
@@ -151,20 +192,28 @@ internal object SettingsSearchIndex {
                 SettingsSearchMatcher.Candidate(
                     item = ResolvedSettingsSearchEntry(entry, title, location),
                     title = title,
-                    context = listOf(location) + entry.keywords.map { context.getString(it) } + entry.terms,
+                    location = location,
+                    terms = entry.keywords.map { context.getString(it) } + entry.terms,
                 )
             }
 
     private fun route(route: String) = SettingsSearchTarget.Route(route)
     private fun action(action: SettingsSearchAction) = SettingsSearchTarget.Action(action)
 
-    // Paths, by group. The first two groups have no label on screen, so their rows say "Settings".
+    // Paths, by group. The first two groups have no label on screen, so their rows say
+    // "Settings"; what lies inside them starts at the screen, as the user reaches it.
     private val TOP = listOf(R.string.settings)
-    private val ALERTS = TOP + R.string.glucose_alerts_title
-    private val JOURNAL = TOP + R.string.journal_title
+    private val ALERTS = listOf(R.string.glucose_alerts_title)
+    private val TALKER = ALERTS + R.string.talker
+    private val JOURNAL = listOf(R.string.journal_title)
+    private val JOURNAL_MAIN_SCREEN = JOURNAL + R.string.journal_section_main_screen
+    private val JOURNAL_DOSING = JOURNAL + R.string.journal_section_dosing
+    private val JOURNAL_IMPORT = JOURNAL + R.string.journal_section_import
     private val DISPLAY = listOf(R.string.settings_section_display)
+    private val PREDICTION = DISPLAY + R.string.predictive_simulation_title
     private val SHARING = listOf(R.string.settings_section_sharing)
     private val PHONE_APPS = SHARING + R.string.settings_phone_apps_title
+    private val NIGHTSCOUT = SHARING + R.string.nightscout_settings_title
     private val DEVICES = listOf(R.string.settings_section_devices)
     private val BACKUP = listOf(R.string.settings_section_backup)
     private val ADVANCED = listOf(R.string.advanced_title)
@@ -208,25 +257,45 @@ internal object SettingsSearchIndex {
             anchor = SettingsSearchAnchors.OTHER_ALERTS),
         SettingsSearchEntry(R.string.quiet_window_title, ALERTS, Icons.Default.DoNotDisturbOn, E, route("settings/alerts"),
             anchor = SettingsSearchAnchors.QUIET_WINDOW),
-        SettingsSearchEntry(R.string.talker, ALERTS, Icons.Default.AddAlert, E, route("settings/alerts/talker"),
-            keywords = listOf(R.string.speakglucose, R.string.voice_schedule_title, R.string.voice_chime_title,
-                R.string.override_silent_mode, R.string.voice_readings),
+        SettingsSearchEntry(R.string.talker, ALERTS, Icons.AutoMirrored.Filled.VolumeUp, E, route("settings/alerts/talker"),
+            keywords = listOf(R.string.speakglucose, R.string.voice_readings),
             terms = listOf("TTS")),
+        SettingsSearchEntry(R.string.voice_chime_title, TALKER, Icons.Default.Doorbell, E, route("settings/alerts/talker"),
+            anchor = SettingsSearchAnchors.VOICE_CHIME),
+        SettingsSearchEntry(R.string.override_silent_mode, TALKER, Icons.Default.NotificationsActive, E,
+            route("settings/alerts/talker"), anchor = SettingsSearchAnchors.VOICE_OVERRIDE_SILENT),
+        SettingsSearchEntry(R.string.voice_schedule_title, TALKER, Icons.Default.Schedule, E, route("settings/alerts/talker"),
+            anchor = SettingsSearchAnchors.VOICE_SCHEDULE),
         SettingsSearchEntry(R.string.settings_calibration_title, TOP, Icons.Default.WaterDrop, P, route("settings/calibrations"),
             keywords = listOf(R.string.calibration_from_journal_title),
             terms = listOf("fingerstick")),
         SettingsSearchEntry(R.string.journal_title, TOP, Icons.Default.EditNote, P, route("settings/journal"),
-            keywords = listOf(R.string.settings_journal_desc, R.string.journal_show_tab_title,
-                R.string.journal_dashboard_quickadd_title, R.string.journal_aaps_import_title,
-                R.string.journal_import_health_activity, R.string.journal_section_import)),
-        SettingsSearchEntry(R.string.journal_calculations_title, JOURNAL, Icons.Default.EditNote, P,
-            route("settings/journal/calculations")),
-        SettingsSearchEntry(R.string.journal_entry_types_title, JOURNAL, Icons.Default.EditNote, P,
-            route("settings/journal/entry-types"), keywords = listOf(R.string.journal_dashboard_types_title)),
-        SettingsSearchEntry(R.string.journal_food_library, JOURNAL, Icons.Default.EditNote, P,
+            keywords = listOf(R.string.settings_journal_desc)),
+        SettingsSearchEntry(R.string.journal_food_library, JOURNAL, Icons.Default.Restaurant, P,
             route("settings/journal/foods")),
-        SettingsSearchEntry(R.string.journal_insulin_library, JOURNAL, Icons.Default.EditNote, P,
+        SettingsSearchEntry(R.string.journal_insulin_library, JOURNAL, Icons.Default.Vaccines, P,
             route("settings/journal/insulin")),
+        SettingsSearchEntry(R.string.journal_show_tab_title, JOURNAL_MAIN_SCREEN, Icons.Default.EditNote, P,
+            route("settings/journal"), keywords = listOf(R.string.journal_show_tab_desc),
+            anchor = SettingsSearchAnchors.JOURNAL_TAB),
+        SettingsSearchEntry(R.string.journal_dashboard_quickadd_title, JOURNAL_MAIN_SCREEN, Icons.Default.Add, P,
+            route("settings/journal"), keywords = listOf(R.string.journal_dashboard_quickadd_desc),
+            anchor = SettingsSearchAnchors.JOURNAL_QUICK_ADD),
+        SettingsSearchEntry(R.string.journal_entry_types_title, JOURNAL_MAIN_SCREEN, Icons.Default.Visibility, P,
+            route("settings/journal/entry-types"), keywords = listOf(R.string.journal_dashboard_types_title)),
+        SettingsSearchEntry(R.string.journal_insulin_chart_title, JOURNAL_MAIN_SCREEN, Icons.Default.AreaChart, P,
+            route("settings/journal"), terms = listOf("IOB"), anchor = SettingsSearchAnchors.JOURNAL_INSULIN_CHART),
+        SettingsSearchEntry(R.string.journal_dose_math_title, JOURNAL_DOSING, Icons.Default.Calculate, P,
+            route("settings/journal"), keywords = listOf(R.string.journal_dose_calculator_desc),
+            terms = listOf("bolus"), anchor = SettingsSearchAnchors.JOURNAL_DOSE_CALCULATOR),
+        SettingsSearchEntry(R.string.journal_calculations_title, JOURNAL_DOSING, Icons.Default.Schedule, P,
+            route("settings/journal/calculations"), keywords = listOf(R.string.journal_calculations_desc)),
+        SettingsSearchEntry(R.string.journal_import_health_activity, JOURNAL_IMPORT, Icons.AutoMirrored.Filled.DirectionsRun, P,
+            route("settings/journal"), keywords = listOf(R.string.journal_import_health_activity_desc),
+            terms = listOf("Health Connect"), anchor = SettingsSearchAnchors.JOURNAL_HEALTH_ACTIVITY),
+        SettingsSearchEntry(R.string.journal_aaps_import_title, JOURNAL_IMPORT, Icons.Default.Restore, P,
+            route("settings/journal"), terms = listOf("AAPS", "AndroidAPS"),
+            anchor = SettingsSearchAnchors.JOURNAL_AAPS_IMPORT),
 
         // Display
         SettingsSearchEntry(R.string.settings_dashboard_charts_title, DISPLAY, Icons.Default.Palette, S, route("settings/display-colors"),
@@ -249,19 +318,30 @@ internal object SettingsSearchIndex {
             Icons.Default.CropSquare, S, route("settings/display-colors"), anchor = SettingsSearchAnchors.PREVIEW_WINDOW),
         SettingsSearchEntry(R.string.graph_smoothing_title, DISPLAY, Icons.AutoMirrored.Filled.TrendingUp, S, route("settings/data-smoothing"),
             keywords = listOf(R.string.data_smoothing_window_title, R.string.data_smoothing_collapse_title,
-                R.string.data_smoothing_scope_title, R.string.data_smoothing_target_sent_title,
-                R.string.data_smoothing_causal_title)),
+                R.string.data_smoothing_scope_title, R.string.data_smoothing_target_sent_title)),
+        SettingsSearchEntry(R.string.data_smoothing_causal_title, DISPLAY + R.string.graph_smoothing_title,
+            Icons.Default.Functions, S, route("settings/data-smoothing"), terms = listOf("Kalman"),
+            anchor = SettingsSearchAnchors.SMOOTHING_CAUSAL),
         SettingsSearchEntry(R.string.predictive_simulation_title, DISPLAY, Icons.AutoMirrored.Filled.ShowChart, S,
             route("settings/predictive-simulation"),
-            keywords = listOf(R.string.settings_prediction_desc, R.string.predictive_trend_momentum,
-                R.string.predictive_forecast_horizon, R.string.predictive_notification_chart,
-                R.string.predictive_model_tuning)),
-        SettingsSearchEntry(R.string.prediction_analysis_accuracy, DISPLAY + R.string.predictive_simulation_title,
+            keywords = listOf(R.string.settings_prediction_desc), terms = listOf("forecast")),
+        SettingsSearchEntry(R.string.predictive_trend_momentum, PREDICTION, Icons.AutoMirrored.Filled.ShowChart, S,
+            route("settings/predictive-simulation"), anchor = SettingsSearchAnchors.PREDICTION_MOMENTUM),
+        SettingsSearchEntry(R.string.predictive_notification_chart, PREDICTION, Icons.AutoMirrored.Filled.ShowChart, S,
+            route("settings/predictive-simulation"), anchor = SettingsSearchAnchors.PREDICTION_NOTIFICATION_CHART),
+        SettingsSearchEntry(R.string.predictive_forecast_horizon, PREDICTION, Icons.AutoMirrored.Filled.ShowChart, S,
+            route("settings/predictive-simulation"), anchor = SettingsSearchAnchors.PREDICTION_HORIZON),
+        SettingsSearchEntry(R.string.predictive_model_tuning, PREDICTION, Icons.Default.Schedule, S,
+            route("settings/predictive-simulation/model-profile")),
+        SettingsSearchEntry(R.string.prediction_analysis_record, PREDICTION + R.string.prediction_analysis_section,
+            Icons.Default.History, S, route("settings/predictive-simulation"),
+            anchor = SettingsSearchAnchors.PREDICTION_RECORD),
+        SettingsSearchEntry(R.string.prediction_analysis_accuracy, PREDICTION + R.string.prediction_analysis_section,
             Icons.Default.Insights, S, route("settings/predictive-simulation/analysis"),
-            keywords = listOf(R.string.prediction_analysis_section, R.string.prediction_analysis_record,
-                R.string.prediction_analysis_past_title)),
-        SettingsSearchEntry(R.string.prediction_adaptive_title, DISPLAY + R.string.predictive_simulation_title,
-            Icons.Default.AutoAwesome, S, route("settings/predictive-simulation")),
+            keywords = listOf(R.string.prediction_analysis_past_title)),
+        SettingsSearchEntry(R.string.prediction_adaptive_title, PREDICTION + R.string.prediction_analysis_section,
+            Icons.Default.AutoAwesome, S, route("settings/predictive-simulation"),
+            anchor = SettingsSearchAnchors.PREDICTION_ADAPTIVE),
         SettingsSearchEntry(R.string.notification_settings_title, DISPLAY, Icons.Default.ClearAll, S, route("settings/notification-display"),
             keywords = listOf(R.string.notification_settings_subtitle, R.string.typography)),
         SettingsSearchEntry(R.string.show_trend_arrow, DISPLAY + R.string.notification_settings_title,
@@ -280,11 +360,16 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.notification_show_cob_title), terms = listOf("IOB", "COB"),
             anchor = SettingsSearchAnchors.NOTIFICATION_IOB),
         SettingsSearchEntry(R.string.floatglucose, DISPLAY, Icons.Default.PictureInPicture, S, route("settings/floating-display"),
-            keywords = listOf(R.string.settings_floating_desc, R.string.dynamic_island_mode, R.string.display_secondary_values),
-            terms = listOf("overlay")),
+            keywords = listOf(R.string.settings_floating_desc), terms = listOf("overlay")),
+        SettingsSearchEntry(R.string.dynamic_island_mode, DISPLAY + R.string.floatglucose, Icons.Default.PictureInPicture, S,
+            route("settings/floating-display"), keywords = listOf(R.string.dynamic_island_desc),
+            anchor = SettingsSearchAnchors.FLOATING_ISLAND),
+        SettingsSearchEntry(R.string.display_secondary_values, DISPLAY + R.string.floatglucose, Icons.Default.PictureInPicture, S,
+            route("settings/floating-display"), anchor = SettingsSearchAnchors.FLOATING_SECONDARY),
         SettingsSearchEntry(R.string.settings_lock_screen_title, DISPLAY, Icons.Default.ScreenLockPortrait, S, route("settings/aod-display"),
-            keywords = listOf(R.string.settings_lock_screen_desc, R.string.aod_show_on_lockscreen),
-            terms = listOf("AOD")),
+            keywords = listOf(R.string.settings_lock_screen_desc), terms = listOf("AOD")),
+        SettingsSearchEntry(R.string.aod_show_on_lockscreen, DISPLAY + R.string.settings_lock_screen_title, Icons.Default.Lock, S,
+            route("settings/aod-display"), terms = listOf("AOD"), anchor = SettingsSearchAnchors.AOD_LOCK_SCREEN),
 
         // Sharing
         SettingsSearchEntry(R.string.settings_phone_apps_title, SHARING, Icons.Default.PhoneAndroid, T, route("settings/phone-apps"),
@@ -310,11 +395,24 @@ internal object SettingsSearchIndex {
             route("settings/phone-apps"), keywords = listOf(R.string.settings_app_trend_desc),
             condition = SettingsSearchCondition.APP_TREND, anchor = SettingsSearchAnchors.APP_TREND),
         SettingsSearchEntry(R.string.nightscout_settings_title, SHARING, Icons.Default.CloudUpload, T, route("settings/nightscout"),
-            keywords = listOf(R.string.nightscout_desc, R.string.nightscout_send_treatments,
-                R.string.nightscout_upload_iob, R.string.nightscout_receive_amounts, R.string.nightscout_use_v3_api)),
+            keywords = listOf(R.string.nightscout_desc)),
+        SettingsSearchEntry(R.string.nightscout_send_treatments, NIGHTSCOUT, Icons.Default.Medication, T,
+            route("settings/nightscout"), terms = listOf("treatments"), anchor = SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS),
+        SettingsSearchEntry(R.string.nightscout_receive_amounts, NIGHTSCOUT, Icons.Default.Link, T,
+            route("settings/nightscout"), terms = listOf("treatments"), condition = SettingsSearchCondition.NIGHTSCOUT_UPLOAD,
+            anchor = SettingsSearchAnchors.NIGHTSCOUT_RECEIVE_TREATMENTS),
+        SettingsSearchEntry(R.string.nightscout_upload_iob, NIGHTSCOUT, Icons.Default.CloudUpload, T,
+            route("settings/nightscout"), terms = listOf("IOB"), condition = SettingsSearchCondition.NIGHTSCOUT_UPLOAD,
+            anchor = SettingsSearchAnchors.NIGHTSCOUT_UPLOAD_IOB),
+        SettingsSearchEntry(R.string.nightscout_use_v3_api, NIGHTSCOUT, Icons.Default.Api, T,
+            route("settings/nightscout"), terms = listOf("API", "JWT"), condition = SettingsSearchCondition.NIGHTSCOUT_UPLOAD,
+            anchor = SettingsSearchAnchors.NIGHTSCOUT_V3),
         SettingsSearchEntry(R.string.libreview_config, SHARING, Icons.Default.Cloud, T, route("settings/libreview"),
-            keywords = listOf(R.string.libreview_desc, R.string.libreview_official_end), terms = listOf("Abbott"),
+            keywords = listOf(R.string.libreview_desc), terms = listOf("Abbott"),
             condition = SettingsSearchCondition.LIBREVIEW),
+        SettingsSearchEntry(R.string.libreview_official_end, SHARING + R.string.libreview_config, Icons.Default.EventBusy, T,
+            route("settings/libreview"), condition = SettingsSearchCondition.LIBREVIEW,
+            anchor = SettingsSearchAnchors.LIBREVIEW_OFFICIAL_END),
         SettingsSearchEntry(R.string.dexcom_share_title, SHARING, Icons.Default.CloudUpload, T, route("settings/dexcom-share"),
             keywords = listOf(R.string.dexcom_share_desc), condition = SettingsSearchCondition.DEXCOM_SHARE),
         SettingsSearchEntry(R.string.mq_account_title, SHARING, Icons.Default.AccountCircle, T, route("settings/mq-account"),

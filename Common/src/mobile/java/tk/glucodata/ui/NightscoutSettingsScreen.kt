@@ -1,5 +1,7 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
+import androidx.compose.foundation.lazy.rememberLazyListState
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import android.widget.Toast
@@ -499,7 +501,23 @@ fun NightscoutSettingsScreen(navController: NavController) {
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        // Follow mode has only the send row; the rest is never there to page down to.
+        RevealSettingsSearchAnchor(
+            listState,
+            if (mode == NightscoutModePreference.Mode.UPLOAD) {
+                setOf(
+                    SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS,
+                    SettingsSearchAnchors.NIGHTSCOUT_RECEIVE_TREATMENTS,
+                    SettingsSearchAnchors.NIGHTSCOUT_UPLOAD_IOB,
+                    SettingsSearchAnchors.NIGHTSCOUT_V3,
+                )
+            } else {
+                setOf(SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS)
+            }
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -761,7 +779,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.Medication,
                             iconTint = MaterialTheme.colorScheme.primary,
                             enabled = isActive,
-                            position = CardPosition.TOP
+                            position = CardPosition.TOP,
+                            searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_send_long_insulin),
@@ -858,7 +877,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.Medication,
                             iconTint = MaterialTheme.colorScheme.primary,
                             enabled = isActive,
-                            position = CardPosition.TOP
+                            position = CardPosition.TOP,
+                            searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_send_long_insulin),
@@ -885,7 +905,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.Link,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
-                            position = CardPosition.MIDDLE
+                            position = CardPosition.MIDDLE,
+                            searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_RECEIVE_TREATMENTS
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_upload_iob),
@@ -899,7 +920,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.CloudUpload,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
-                            position = CardPosition.MIDDLE
+                            position = CardPosition.MIDDLE,
+                            searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_UPLOAD_IOB
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_upload_sensor_start),
@@ -926,7 +948,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.Api,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
-                            position = CardPosition.BOTTOM
+                            position = CardPosition.BOTTOM,
+                            searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_V3
                         )
                     }
                 }

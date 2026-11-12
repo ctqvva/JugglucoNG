@@ -480,7 +480,8 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     onCheckedChange = { stopAtOfficialEnd = it },
                     icon = Icons.Default.EventBusy,
                     iconTint = MaterialTheme.colorScheme.secondary,
-                    position = CardPosition.BOTTOM
+                    position = CardPosition.BOTTOM,
+                    searchAnchor = SettingsSearchAnchors.LIBREVIEW_OFFICIAL_END
                 )
             }
         }

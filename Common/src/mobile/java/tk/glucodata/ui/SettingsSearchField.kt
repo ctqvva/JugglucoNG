@@ -20,6 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
 import tk.glucodata.ui.components.CardPosition
@@ -70,13 +73,17 @@ internal fun SettingsSearchField(
 
 /**
  * Search results as one card stack of ordinary settings rows: the title is the setting,
- * the subtitle is where it lives. Tapping one opens the screen or dialog that holds it;
- * for a setting inside a screen, that screen scrolls to its row and marks it.
+ * the subtitle is the way to it from this tab, one step per level ("Journal › Import"), so a
+ * setting inside a screen reads as such and never passes for the screen itself. The words
+ * typed are marked where they matched; a result found by another of its names (an old name,
+ * a product, a row's description) says which, after a "·". Tapping one opens the screen or
+ * dialog that holds it; for a setting inside a screen, that screen scrolls to its row and
+ * marks it.
  */
 @Composable
 internal fun SettingsSearchResults(
     query: String,
-    results: List<ResolvedSettingsSearchEntry>,
+    results: List<SettingsSearchMatcher.Match<ResolvedSettingsSearchEntry>>,
     onOpen: (SettingsSearchEntry) -> Unit,
 ) {
     if (results.isEmpty()) {
@@ -88,11 +95,27 @@ internal fun SettingsSearchResults(
         )
         return
     }
+    // The matched words take the emphasized weight of their own line's style.
+    val titleMark = SpanStyle(
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = MaterialTheme.typography.titleMediumEmphasized.fontWeight,
+    )
+    val subtitleMark = SpanStyle(
+        color = MaterialTheme.colorScheme.onSurface,
+        fontWeight = MaterialTheme.typography.bodyMediumEmphasized.fontWeight,
+    )
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        results.forEachIndexed { index, result ->
+        results.forEachIndexed { index, match ->
+            val result = match.item
             SettingsItem(
-                title = result.title,
-                subtitle = result.location,
+                title = marked(result.title, query, titleMark),
+                subtitle = buildAnnotatedString {
+                    append(marked(result.location, query, subtitleMark))
+                    if (match.via != null) {
+                        append(" · ")
+                        append(marked(match.via, query, subtitleMark))
+                    }
+                },
                 icon = result.entry.icon,
                 iconTint = toneColor(result.entry.tone),
                 position = when {
@@ -104,6 +127,13 @@ internal fun SettingsSearchResults(
                 onClick = { onOpen(result.entry) },
             )
         }
+    }
+}
+
+private fun marked(text: String, query: String, mark: SpanStyle): AnnotatedString = buildAnnotatedString {
+    append(text)
+    for (range in SettingsSearchMatcher.highlights(text, query)) {
+        addStyle(mark, range.first, range.last + 1)
     }
 }
 

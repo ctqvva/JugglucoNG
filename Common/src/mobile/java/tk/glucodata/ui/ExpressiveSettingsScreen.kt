@@ -2,6 +2,9 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.settingsSearchAnchor
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
+import androidx.compose.foundation.lazy.rememberLazyListState
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -84,6 +87,8 @@ import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.ScheduledBackupSettings
 import tk.glucodata.data.ScheduledBackupWorker
 import tk.glucodata.drivers.ManagedSensorRuntime
+import tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry
+import tk.glucodata.drivers.nightscout.NightscoutModePreference
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.theme.labelLargeExpressive
 import tk.glucodata.ui.viewmodel.DashboardViewModel
@@ -221,9 +226,18 @@ fun ExpressiveSettingsScreen(
     val showAppTrend = PhoneAppsSettings.showsAppTrend(
         xdripEnabled, patchedLibreEnabled, glucodataBroadcastEnabled, broadcastComputedTrend, otherTrendConsumer
     )
+    // Read once per visit: the mode only changes on the Nightscout screen, and coming back
+    // from there composes this screen afresh.
+    val nightscoutUploadMode = remember(context) {
+        NightscoutModePreference.load(
+            context = context,
+            legacyUploaderActive = Natives.getuseuploader(),
+            legacyFollowerEnabled = NightscoutFollowerRegistry.loadConfig(context).enabled,
+        ) == NightscoutModePreference.Mode.UPLOAD
+    }
     val searchCandidates = remember(
         context, searchLocales, showLibreView, showDexcomShare, showMqAccount, showOttaiSettings,
-        showLibre2Identity, showAppTrend
+        showLibre2Identity, showAppTrend, nightscoutUploadMode
     ) {
         SettingsSearchIndex.resolve(context) { condition ->
             when (condition) {
@@ -234,11 +248,12 @@ fun ExpressiveSettingsScreen(
                 SettingsSearchCondition.HEALTH_CONNECT -> PhoneAppsSettings.healthConnectSupported
                 SettingsSearchCondition.LIBRE2_IDENTITY -> showLibre2Identity
                 SettingsSearchCondition.APP_TREND -> showAppTrend
+                SettingsSearchCondition.NIGHTSCOUT_UPLOAD -> nightscoutUploadMode
             }
         }
     }
     val searchResults = remember(searchQuery, searchCandidates) {
-        SettingsSearchMatcher.search(searchQuery, searchCandidates)
+        SettingsSearchMatcher.matches(searchQuery, searchCandidates)
     }
     BackHandler(enabled = searching) {
         searchQuery = ""
@@ -1062,7 +1077,19 @@ fun PredictiveSimulationSettingsScreen(
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        RevealSettingsSearchAnchor(
+            listState,
+            setOf(
+                SettingsSearchAnchors.PREDICTION_MOMENTUM,
+                SettingsSearchAnchors.PREDICTION_NOTIFICATION_CHART,
+                SettingsSearchAnchors.PREDICTION_HORIZON,
+                SettingsSearchAnchors.PREDICTION_RECORD,
+                SettingsSearchAnchors.PREDICTION_ADAPTIVE,
+            )
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -1087,7 +1114,8 @@ fun PredictiveSimulationSettingsScreen(
                         checked = trendMomentumEnabled,
                         onCheckedChange = { viewModel.setPredictionTrendMomentumEnabled(it) },
                         position = CardPosition.TOP,
-                        enabled = predictiveSimulationEnabled
+                        enabled = predictiveSimulationEnabled,
+                        searchAnchor = SettingsSearchAnchors.PREDICTION_MOMENTUM
                     )
                     SettingsSwitchItem(
                         title = stringResource(R.string.predictive_notification_chart),
@@ -1095,13 +1123,17 @@ fun PredictiveSimulationSettingsScreen(
                         checked = notificationChartPredictionEnabled,
                         onCheckedChange = { viewModel.setPredictiveSimulationNotificationChartEnabled(it) },
                         position = CardPosition.BOTTOM,
-                        enabled = predictiveSimulationEnabled
+                        enabled = predictiveSimulationEnabled,
+                        searchAnchor = SettingsSearchAnchors.PREDICTION_NOTIFICATION_CHART
                     )
                 }
             }
 
             item(key = "horizon") {
-                PredictiveSimulationSettingsCard(enabled = predictiveSimulationEnabled) {
+                PredictiveSimulationSettingsCard(
+                    enabled = predictiveSimulationEnabled,
+                    searchAnchor = SettingsSearchAnchors.PREDICTION_HORIZON,
+                ) {
                     PredictiveSimulationParameterRow(
                         title = stringResource(R.string.predictive_forecast_horizon),
                         valueLabel = stringResource(R.string.predictive_horizon_value, horizonMinutes),
@@ -1176,6 +1208,7 @@ internal fun PredictionAnalysisSettingsGroup(
                 icon = Icons.Default.History,
                 iconTint = MaterialTheme.colorScheme.secondary,
                 position = CardPosition.TOP,
+                searchAnchor = SettingsSearchAnchors.PREDICTION_RECORD,
             )
             SettingsItem(
                 title = stringResource(R.string.prediction_analysis_accuracy),
@@ -1204,6 +1237,7 @@ internal fun PredictionAnalysisSettingsGroup(
                 iconTint = MaterialTheme.colorScheme.tertiary,
                 position = CardPosition.BOTTOM,
                 enabled = predictionEnabled,
+                searchAnchor = SettingsSearchAnchors.PREDICTION_ADAPTIVE,
             )
         }
         Text(
@@ -1236,11 +1270,13 @@ private fun predictionAccuracySummary(
 @Composable
 private fun PredictiveSimulationSettingsCard(
     enabled: Boolean,
+    searchAnchor: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .settingsSearchAnchor(searchAnchor, cardShape(CardPosition.SINGLE))
             .alpha(if (enabled) 1f else 0.66f),
         shape = cardShape(CardPosition.SINGLE),
         color = MaterialTheme.colorScheme.surfaceContainerHigh

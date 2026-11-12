@@ -2,6 +2,9 @@
 
 package tk.glucodata.ui.journal
 
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
+import tk.glucodata.ui.SettingsSearchAnchors
+import androidx.compose.foundation.lazy.rememberLazyListState
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
@@ -205,7 +208,20 @@ fun JournalSettingsScreen(
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        RevealSettingsSearchAnchor(
+            listState,
+            setOf(
+                SettingsSearchAnchors.JOURNAL_TAB,
+                SettingsSearchAnchors.JOURNAL_QUICK_ADD,
+                SettingsSearchAnchors.JOURNAL_INSULIN_CHART,
+                SettingsSearchAnchors.JOURNAL_DOSE_CALCULATOR,
+                SettingsSearchAnchors.JOURNAL_HEALTH_ACTIVITY,
+                SettingsSearchAnchors.JOURNAL_AAPS_IMPORT,
+            )
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -273,7 +289,8 @@ fun JournalSettingsScreen(
                             icon = Icons.Default.EditNote,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.TOP,
-                            enabled = journalEnabled
+                            enabled = journalEnabled,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_TAB
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.journal_dashboard_quickadd_title),
@@ -283,7 +300,8 @@ fun JournalSettingsScreen(
                             icon = Icons.Default.Add,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.MIDDLE,
-                            enabled = journalEnabled
+                            enabled = journalEnabled,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_QUICK_ADD
                         )
                         AnimatedVisibility(
                             visible = showCurrentTimeOption,
@@ -319,7 +337,8 @@ fun JournalSettingsScreen(
                             onClick = { showInsulinChartStyleDialog = true },
                             icon = Icons.Default.AreaChart,
                             iconTint = MaterialTheme.colorScheme.tertiary,
-                            position = CardPosition.BOTTOM
+                            position = CardPosition.BOTTOM,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_INSULIN_CHART
                         )
                     }
                 }
@@ -337,7 +356,8 @@ fun JournalSettingsScreen(
                             icon = Icons.Default.Calculate,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.TOP,
-                            enabled = journalEnabled
+                            enabled = journalEnabled,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_DOSE_CALCULATOR
                         )
                         // The profile, absorption, eIOB and the dose hints all live behind one
                         // row: they are calculations on the profile, not journal tools.
@@ -369,7 +389,8 @@ fun JournalSettingsScreen(
                             icon = Icons.AutoMirrored.Filled.DirectionsRun,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             position = CardPosition.TOP,
-                            enabled = journalEnabled
+                            enabled = journalEnabled,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_HEALTH_ACTIVITY
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.journal_aaps_import_title),
@@ -379,7 +400,8 @@ fun JournalSettingsScreen(
                             icon = Icons.Default.Restore,
                             iconTint = MaterialTheme.colorScheme.tertiary,
                             position = CardPosition.BOTTOM,
-                            enabled = journalEnabled
+                            enabled = journalEnabled,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_AAPS_IMPORT
                         )
                     }
                 }

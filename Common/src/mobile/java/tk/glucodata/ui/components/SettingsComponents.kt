@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -252,6 +253,34 @@ fun SettingsItem(
     onClick: (() -> Unit)? = null,
     icon: ImageVector? = null,
     iconTint: Color? = null, // Added tint
+    trailingContent: (@Composable () -> Unit)? = null,
+    position: CardPosition = CardPosition.SINGLE,
+    animatePosition: Boolean = false,
+    modifier: Modifier = Modifier,
+    subtitleStyle: TextStyle? = null,
+    searchAnchor: String? = null,
+) = SettingsItem(
+    title = AnnotatedString(title),
+    subtitle = subtitle?.let(::AnnotatedString),
+    onClick = onClick,
+    icon = icon,
+    iconTint = iconTint,
+    trailingContent = trailingContent,
+    position = position,
+    animatePosition = animatePosition,
+    modifier = modifier,
+    subtitleStyle = subtitleStyle,
+    searchAnchor = searchAnchor,
+)
+
+/** The same row with styled text, for a search result that marks the words it matched. */
+@Composable
+fun SettingsItem(
+    title: AnnotatedString,
+    subtitle: AnnotatedString?,
+    onClick: (() -> Unit)? = null,
+    icon: ImageVector? = null,
+    iconTint: Color? = null,
     trailingContent: (@Composable () -> Unit)? = null,
     position: CardPosition = CardPosition.SINGLE,
     animatePosition: Boolean = false,

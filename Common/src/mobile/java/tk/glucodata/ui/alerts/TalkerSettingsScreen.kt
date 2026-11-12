@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.alerts
 
+import tk.glucodata.ui.SettingsSearchAnchors
 import androidx.compose.material3.TimePickerDefaults
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.SelectableDropdownMenuItem
@@ -280,7 +281,8 @@ fun TalkerSettingsScreen(navController: NavController) {
                     icon = Icons.Default.Doorbell,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.MIDDLE,
-                    enabled = uiState.speakGlucose
+                    enabled = uiState.speakGlucose,
+                    searchAnchor = SettingsSearchAnchors.VOICE_CHIME
                 )
 //                SettingsSwitchItem(
 //                    title = stringResource(R.string.talk_touch),
@@ -389,7 +391,8 @@ fun TalkerSettingsScreen(navController: NavController) {
                     onCheckedChange = { persist(uiState.copy(overrideSilent = it, mediaSound = false)) },
                     icon = Icons.Default.NotificationsActive,
                     iconTint = MaterialTheme.colorScheme.error,
-                    position = CardPosition.BOTTOM
+                    position = CardPosition.BOTTOM,
+                    searchAnchor = SettingsSearchAnchors.VOICE_OVERRIDE_SILENT
                 )
             }
 
@@ -475,7 +478,8 @@ fun TalkerSettingsScreen(navController: NavController) {
                     },
                     icon = Icons.Default.Schedule,
                     iconTint = MaterialTheme.colorScheme.primary,
-                    position = if (scheduleEnabled) CardPosition.TOP else CardPosition.SINGLE
+                    position = if (scheduleEnabled) CardPosition.TOP else CardPosition.SINGLE,
+                    searchAnchor = SettingsSearchAnchors.VOICE_SCHEDULE
                 )
                 if (scheduleEnabled) {
                     SettingsItem(
