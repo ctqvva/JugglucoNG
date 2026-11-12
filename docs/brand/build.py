@@ -125,9 +125,10 @@ INK_ON_LIGHT, INK_ON_DARK = '#0D1430', '#F0F3F8'
 # The lockup is one file for every background: GitHub's theme switches (<picture> and the
 # #gh-*-mode-only suffixes) follow the OS rather than GitHub's own setting, so a light page
 # could get the dark version. The wordmark is set in the trace blue, which reads on white and
-# on dark pages, and the badge uses a lifted navy that stands off dark pages without a border.
+# on dark pages. The badge keeps the launcher navy; on dark pages it recedes and the trace and
+# sensor carry the mark.
 LOCKUP_INK = MAIN['line']
-LOCKUP_BADGE = '#1C2B5E'
+LOCKUP_BADGE = MAIN['bg']
 
 
 def wordmark_svg(dark=False):
