@@ -802,7 +802,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="aspart">Insulin Aspart/NovoRapid/NovoLog</string>
     <string name="auto">Auto</string>
     <string name="auto_raw">Auto+Raw</string>
-    <string name="auto_reset_days">%1$d days</string>
+    <string name="auto_reset_days">%1$d dagen</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="autoqr">Auto QR</string>
     <string name="avg">Gem</string>

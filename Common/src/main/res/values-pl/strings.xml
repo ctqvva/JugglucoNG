@@ -485,7 +485,7 @@
     <string name="stream">Strumień</string>
     
     <string name="exchanges">Wyślij/Odbierz</string>
-    <string name="duration_days">days</string>
+    <string name="duration_days">dni</string>
     <string name="sensor_state">Status</string>
 
     <!-- Newly Extracted Strings -->
@@ -780,7 +780,7 @@
     <string name="allvalues">Wszystkie wartości</string>
     <string name="auto">Auto</string>
     <string name="auto_raw">Auto+Raw</string>
-    <string name="auto_reset_days">%1$d days</string>
+    <string name="auto_reset_days">%1$d dni</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="avg">Śr</string>
     <string name="bloodafter">"Dodaj tylko odczyty glukozy z okresu po: "</string>

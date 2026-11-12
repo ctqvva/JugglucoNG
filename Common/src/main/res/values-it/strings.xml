@@ -283,7 +283,7 @@
     <string name="scans">Scansioni</string>
     <string name="stream">Flusso</string>
     <string name="exchanges">Invia/Ricevi</string>
-    <string name="duration_days">days</string>
+    <string name="duration_days">giorni</string>
     <string name="sensor_state">Status</string>
 
     <!-- Newly Extracted Strings -->
@@ -584,7 +584,7 @@
     <string name="aspart">Insulin Aspart/NovoRapid/NovoLog</string>
     <string name="auto">Auto</string>
     <string name="auto_raw">Auto+Raw</string>
-    <string name="auto_reset_days">%1$d days</string>
+    <string name="auto_reset_days">%1$d giorni</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="autoqr">Auto QR</string>
     <string name="autoqrmessage">Send data from this phone to another phone on your home network.
@@ -790,7 +790,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mgdL">mg/dL</string>
     <string name="min">minimo</string>
     <string name="min_glucose">minimo</string>
-    <string name="minutes">minutes</string>
+    <string name="minutes">minuti</string>
     <string name="mmolL">mmol/L</string>
     <string name="modify">Modify</string>
     <string name="newdata">"New data"</string>
@@ -859,7 +859,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scan_accuchek">Scansione Accu-Chek</string>
     <string name="scan_caresens_air">Scansione CareSens Air</string>
     <string name="schedules">Schedules</string>
-    <string name="seconds">" seconds"</string>
+    <string name="seconds">" secondi"</string>
     <string name="secondsbetween">Seconds between</string>
     <string name="secret">api_secret</string>
     <string name="sendamounts">Send amounts</string>
@@ -2740,8 +2740,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_color_title">Colore del sensore</string>
     <string name="journal_curve_activity">Attività relativa</string>
     <string name="journal_curve_activity_desc">Attività ipoglicemizzante rispetto al picco di questa curva (100%).</string>
-    <string name="journal_preset_rapid_generic">Ad azione rapida (generica)</string>
-    <string name="journal_preset_long_generic">Ad azione prolungata (generica)</string>
+    <string name="journal_preset_rapid_generic">Rapida</string>
+    <string name="journal_preset_long_generic">Lenta</string>
     <string name="journal_preset_ultra_long_generic">Basale ultra-lenta (generica)</string>
     <string name="journal_scientific_name">Nome scientifico</string>
     <string name="journal_curve_unverified">Curva non verificata</string>

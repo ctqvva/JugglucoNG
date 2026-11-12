@@ -462,7 +462,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="stream">Akış</string>
     
     <string name="exchanges">Gönder/Al</string>
-    <string name="duration_days">days</string>
+    <string name="duration_days">gün</string>
     <string name="sensor_state">Status</string>
 
     <!-- Newly Extracted Strings -->
@@ -759,7 +759,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="amountshort">@string/amountsname</string>
     <string name="auto">Auto</string>
     <string name="auto_raw">Auto+Raw</string>
-    <string name="auto_reset_days">%1$d days</string>
+    <string name="auto_reset_days">%1$d gün</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="avg">Ort.</string>
     <string name="bloodafter">"Only add glucose readings from after: "</string>
