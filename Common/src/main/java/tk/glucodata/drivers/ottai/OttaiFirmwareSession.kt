@@ -395,8 +395,17 @@ internal class OttaiFirmwareSession private constructor(
 
     override fun prepareImage(version: String, done: (Result<OttaiFirmwareImage?>) -> Unit) {
         work({
-            val offer = otaCloud.value.judgeOta(sensorId, version)
+            var offer = otaCloud.value.judgeOta(sensorId, version)
             log("offer required=${offer.required} allowed=${offer.allowed} image=${offer.downloadUrl != null}")
+            val cloudSpelling = OttaiOtaProtocol.withoutVariant(version)
+            if (!offer.required && !offer.allowed && cloudSpelling != null) {
+                // Every judge with the full BLE revision (…,STDRD) has come back empty, while a
+                // bind with the cloud's variant-less spelling answered OTA_UPGRADE_REQUIRED.
+                // Ask once more, read-only, in that spelling. The package must still be an
+                // upgrade of the sensor's actual revision, and installing stays a separate step.
+                offer = otaCloud.value.judgeOta(sensorId, cloudSpelling)
+                log("offer variantless required=${offer.required} allowed=${offer.allowed} image=${offer.downloadUrl != null}")
+            }
             if (!offer.required && !offer.allowed) null
             else {
                 val url = offer.downloadUrl ?: throw IllegalArgumentException("download_missing")

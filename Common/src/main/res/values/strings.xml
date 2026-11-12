@@ -1122,7 +1122,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s is bound to your account but not used here. If it has ended, unbind it so a new sensor can be activated.</string>
     <string name="ottai_cloud_binding_checking">Checking your account…</string>
     <string name="ottai_cloud_binding_bound">Bound to your account</string>
-    <string name="ottai_cloud_binding_not_bound">Not bound to your account</string>
     <string name="ottai_cloud_binding_error">Couldn\'t check your account</string>
     <string name="ottai_status_needs_ble_address">Needs BLE address</string>
     <string name="ottai_status_warmup_provisional">Provisional warmup • %1$dm left</string>
@@ -1188,10 +1187,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Sign in to fetch them, or import a file.</string>
     <string name="ottai_state_partial_title">Credentials incomplete</string>
     <string name="ottai_state_partial_body">The glucose formula is missing. Fetch or import them again.</string>
-    <string name="ottai_v3_needs_nearby">Pick this sensor from the list of found sensors: its credentials are checked over Bluetooth.</string>
     <string name="ottai_fetch_failed">Couldn\'t get this sensor\'s credentials.</string>
+    <string name="ottai_server_unreachable">Couldn\'t reach the Ottai server. Try again.</string>
     <string name="ottai_connect_failed">Couldn\'t start the connection. Try again.</string>
-    <string name="ottai_offline_hint">You can also import a credentials file under Saved sensors.</string>
     <string name="ottai_already_binding_hint">Your account still has another sensor bound. Unbind it under Saved sensors, then try again.</string>
     <string name="ottai_ota_upgrade_required">The Ottai service requested a firmware update while linking this sensor. Retry firmware setup, or import saved credentials. You can also try the official Ottai app.</string>
     <string name="ottai_retry">Try again</string>

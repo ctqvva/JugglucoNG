@@ -97,6 +97,15 @@ object OttaiCloudClient {
 
         /** The backend refused this bind with its OTA code; check the actual BLE revision. */
         val isOtaUpgradeRequired: Boolean get() = code.equals(BIZ_OTA_UPGRADE_REQUIRED, ignoreCase = true)
+
+        /**
+         * The request never got a business answer about this sensor: no connection, a server
+         * error, or the secure channel (key exchange, envelope) refused. Retrying is the remedy;
+         * the diagnostic code means nothing to the user and stays in the log.
+         */
+        val isServerUnreachable: Boolean get() = httpStatus >= 500 ||
+            text.startsWith("network:") || text.startsWith("ota_exchange") ||
+            text.startsWith("ota_response_cipher") || text.startsWith("ota_request_response_json")
     }
 
     /** Failure belongs to this unbind attempt even if another cloud request finishes meanwhile. */

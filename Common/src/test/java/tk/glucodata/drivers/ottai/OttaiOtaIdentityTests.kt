@@ -44,7 +44,8 @@ class OttaiOtaIdentityTests {
             })
             try {
                 assertThrows(OttaiOtaCloudException::class.java) { client.judgeOta("001122334455", "V1.7") }
-                assertEquals(1, exchanges)
+                // A generic "Error" refusal gets one paced retry; both attempts are exchanges.
+                assertEquals(2, exchanges)
                 assertEquals("https://api.ottai.com/cgm/security/app/server/security/exchangeKey", connection.url.toString())
                 val headerId = connection.getRequestProperty("deviceId")
                 assertEquals("ottai:a:$suffix", headerId)

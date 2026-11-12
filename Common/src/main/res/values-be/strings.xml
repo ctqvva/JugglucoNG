@@ -2516,7 +2516,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s прывязаны да вашага акаўнта, але тут не выкарыстоўваецца. Калі тэрмін скончыўся, адвяжыце яго, каб актываваць новы датчык.</string>
     <string name="ottai_cloud_binding_checking">Праверка акаўнта…</string>
     <string name="ottai_cloud_binding_bound">Прывязаны да вашага акаўнта</string>
-    <string name="ottai_cloud_binding_not_bound">Не прывязаны да вашага акаўнта</string>
     <string name="ottai_cloud_binding_error">Не ўдалося праверыць акаўнт</string>
     <string name="ottai_account_title">Уліковы запіс Ottai</string>
     <string name="ottai_saved_sensors_title">Захаваныя датчыкі</string>
@@ -2535,10 +2534,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Увайдзіце, каб загрузіць іх, або імпартуйце файл.</string>
     <string name="ottai_state_partial_title">Ключы няпоўныя</string>
     <string name="ottai_state_partial_body">Няма формулы разліку глюкозы. Загрузіце або імпартуйце іх зноў.</string>
-    <string name="ottai_v3_needs_nearby">Выберыце гэты датчык у спісе знойдзеных: яго ключы правяраюцца праз Bluetooth.</string>
     <string name="ottai_fetch_failed">Не ўдалося атрымаць ключы гэтага датчыка.</string>
+    <string name="ottai_server_unreachable">Не ўдалося звязацца з серверам Ottai. Паспрабуйце яшчэ раз.</string>
     <string name="ottai_connect_failed">Не ўдалося пачаць падключэнне. Паспрабуйце зноў.</string>
-    <string name="ottai_offline_hint">Таксама можна імпартаваць файл з ключамі ў раздзеле «Захаваныя датчыкі».</string>
     <string name="ottai_already_binding_hint">Да ўліковага запісу ўсё яшчэ прывязаны іншы датчык. Адвяжыце яго ў раздзеле «Захаваныя датчыкі» і паспрабуйце зноў.</string>
     <string name="ottai_ota_upgrade_required">Пры прывязцы датчыка сэрвіс Ottai запытаў абнаўленне прашыўкі. Паўтарыце наладку прашыўкі або імпартуйце захаваныя ключы. Таксама можна паспрабаваць афіцыйную праграму Ottai.</string>
     <string name="ottai_retry">Паўтарыць</string>

@@ -2562,7 +2562,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_unused_binding_desc">%1$s ist mit deinem Konto verknüpft, wird hier aber nicht genutzt. Ist er abgelaufen, löse ihn, damit ein neuer Sensor aktiviert werden kann.</string>
     <string name="ottai_cloud_binding_checking">Konto wird geprüft…</string>
     <string name="ottai_cloud_binding_bound">Mit deinem Konto verknüpft</string>
-    <string name="ottai_cloud_binding_not_bound">Nicht mit deinem Konto verknüpft</string>
     <string name="ottai_cloud_binding_error">Konto konnte nicht geprüft werden</string>
     <string name="ottai_account_title">Ottai-Konto</string>
     <string name="ottai_saved_sensors_title">Gespeicherte Sensoren</string>
@@ -2581,10 +2580,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_state_missing_signed_out">Melde dich an, um sie abzurufen, oder importiere eine Datei.</string>
     <string name="ottai_state_partial_title">Zugangsdaten unvollständig</string>
     <string name="ottai_state_partial_body">Die Glukoseformel fehlt. Ruf sie erneut ab oder importiere sie.</string>
-    <string name="ottai_v3_needs_nearby">Wähle diesen Sensor in der Liste der gefundenen Sensoren: Seine Zugangsdaten werden per Bluetooth geprüft.</string>
     <string name="ottai_fetch_failed">Die Zugangsdaten dieses Sensors konnten nicht abgerufen werden.</string>
+    <string name="ottai_server_unreachable">Ottai-Server nicht erreichbar. Bitte erneut versuchen.</string>
     <string name="ottai_connect_failed">Die Verbindung konnte nicht gestartet werden. Versuche es erneut.</string>
-    <string name="ottai_offline_hint">Du kannst auch unter „Gespeicherte Sensoren“ eine Zugangsdaten-Datei importieren.</string>
     <string name="ottai_already_binding_hint">Dein Konto hat noch einen anderen Sensor gebunden. Löse ihn unter „Gespeicherte Sensoren“ und versuche es dann erneut.</string>
     <string name="ottai_ota_upgrade_required">Der Ottai-Dienst hat beim Verknüpfen dieses Sensors ein Firmwareupdate angefordert. Wiederhole die Firmwareeinrichtung oder importiere gespeicherte Zugangsdaten. Du kannst auch die offizielle Ottai-App versuchen.</string>
     <string name="ottai_retry">Erneut versuchen</string>

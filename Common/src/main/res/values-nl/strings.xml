@@ -2495,7 +2495,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_unused_binding_desc">%1$s is gekoppeld aan je account maar wordt hier niet gebruikt. Is hij afgelopen, ontkoppel hem dan zodat een nieuwe sensor kan worden geactiveerd.</string>
     <string name="ottai_cloud_binding_checking">Account controleren…</string>
     <string name="ottai_cloud_binding_bound">Gekoppeld aan je account</string>
-    <string name="ottai_cloud_binding_not_bound">Niet gekoppeld aan je account</string>
     <string name="ottai_cloud_binding_error">Kon account niet controleren</string>
     <string name="ottai_account_title">Ottai-account</string>
     <string name="ottai_saved_sensors_title">Opgeslagen sensoren</string>
@@ -2514,10 +2513,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_state_missing_signed_out">Meld je aan om ze op te halen, of importeer een bestand.</string>
     <string name="ottai_state_partial_title">Inloggegevens onvolledig</string>
     <string name="ottai_state_partial_body">De glucoseformule ontbreekt. Haal ze opnieuw op of importeer ze.</string>
-    <string name="ottai_v3_needs_nearby">Kies deze sensor in de lijst met gevonden sensoren: de inloggegevens worden via Bluetooth gecontroleerd.</string>
     <string name="ottai_fetch_failed">Kon de inloggegevens van deze sensor niet ophalen.</string>
+    <string name="ottai_server_unreachable">Kan de Ottai-server niet bereiken. Probeer het opnieuw.</string>
     <string name="ottai_connect_failed">Kon de verbinding niet starten. Probeer het opnieuw.</string>
-    <string name="ottai_offline_hint">Je kunt ook een bestand met inloggegevens importeren onder Opgeslagen sensoren.</string>
     <string name="ottai_already_binding_hint">Je account heeft nog een andere sensor gekoppeld. Ontkoppel die onder Opgeslagen sensoren en probeer het opnieuw.</string>
     <string name="ottai_ota_upgrade_required">De Ottai-dienst vroeg om een firmware-update bij het koppelen van deze sensor. Probeer de firmware-instelling opnieuw of importeer opgeslagen inloggegevens. Je kunt ook de officiële Ottai-app proberen.</string>
     <string name="ottai_retry">Opnieuw proberen</string>

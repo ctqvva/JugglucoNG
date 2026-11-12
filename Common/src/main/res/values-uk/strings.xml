@@ -2521,7 +2521,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s прив\'язаний до вашого облікового запису, але тут не використовується. Якщо термін скінчився, відв\'яжіть його, щоб активувати новий датчик.</string>
     <string name="ottai_cloud_binding_checking">Перевірка облікового запису…</string>
     <string name="ottai_cloud_binding_bound">Прив\'язаний до вашого облікового запису</string>
-    <string name="ottai_cloud_binding_not_bound">Не прив\'язаний до вашого облікового запису</string>
     <string name="ottai_cloud_binding_error">Не вдалося перевірити обліковий запис</string>
     <string name="ottai_account_title">Обліковий запис Ottai</string>
     <string name="ottai_saved_sensors_title">Збережені датчики</string>
@@ -2540,10 +2539,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Увійдіть, щоб завантажити їх, або імпортуйте файл.</string>
     <string name="ottai_state_partial_title">Ключі неповні</string>
     <string name="ottai_state_partial_body">Немає формули розрахунку глюкози. Завантажте або імпортуйте їх знову.</string>
-    <string name="ottai_v3_needs_nearby">Виберіть цей датчик у списку знайдених: його ключі перевіряються через Bluetooth.</string>
     <string name="ottai_fetch_failed">Не вдалося отримати ключі цього датчика.</string>
+    <string name="ottai_server_unreachable">Не вдалося зв\'язатися із сервером Ottai. Спробуйте ще раз.</string>
     <string name="ottai_connect_failed">Не вдалося почати підключення. Спробуйте ще раз.</string>
-    <string name="ottai_offline_hint">Також можна імпортувати файл із ключами в розділі «Збережені датчики».</string>
     <string name="ottai_already_binding_hint">До облікового запису досі прив\'язано інший датчик. Відв\'яжіть його в розділі «Збережені датчики» й спробуйте ще раз.</string>
     <string name="ottai_ota_upgrade_required">Під час прив’язування датчика сервіс Ottai запросив оновлення прошивки. Повторіть налаштування прошивки або імпортуйте збережені ключі. Також можна спробувати офіційний застосунок Ottai.</string>
     <string name="ottai_retry">Спробувати знову</string>

@@ -2643,7 +2643,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_unused_binding_desc">%1$s wuxuu ku xiran yahay akoonkaaga laakiin halkan looma isticmaalo. Haddii uu dhammaaday, ka fur si dareeme cusub loo hawlgeliyo.</string>
     <string name="ottai_cloud_binding_checking">Akoonka waa la hubinayaa…</string>
     <string name="ottai_cloud_binding_bound">Waxay ku xiran tahay akoonkaaga</string>
-    <string name="ottai_cloud_binding_not_bound">Kuma xirna akoonkaaga</string>
     <string name="ottai_cloud_binding_error">Akoonka lama hubin karin</string>
     <string name="ottai_account_title">Akoonka Ottai</string>
     <string name="ottai_saved_sensors_title">Dareemayaal la keydiyey</string>
@@ -2662,10 +2661,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_state_missing_signed_out">Gal si aad u soo qaadato, ama soo geli fayl.</string>
     <string name="ottai_state_partial_title">Aqoonsigu waa dhammaystirnayn</string>
     <string name="ottai_state_partial_body">Qaacidada gulukoosta ayaa maqan. Mar kale soo qaado ama soo geli.</string>
-    <string name="ottai_v3_needs_nearby">Ka dooro dareemahan liiska dareemayaasha la helay: aqoonsigiisa waxaa lagu xaqiijiyaa Bluetooth.</string>
     <string name="ottai_fetch_failed">Lama heli karo aqoonsiga dareemahan.</string>
+    <string name="ottai_server_unreachable">Lama gaari karo server-ka Ottai. Isku day mar kale.</string>
     <string name="ottai_connect_failed">Lama bilaabi karo xiriirka. Isku day mar kale.</string>
-    <string name="ottai_offline_hint">Waxaad sidoo kale ka soo gelin kartaa fayl aqoonsi Dareemayaal la keydiyey.</string>
     <string name="ottai_already_binding_hint">Akoonkaagu weli wuxuu ku xiran yahay dareeme kale. Ka fur Dareemayaal la keydiyey, kadibna isku day mar kale.</string>
     <string name="ottai_ota_upgrade_required">Adeegga Ottai wuxuu codsaday cusboonaysiinta firmware-ka markii la xirayay dareemahan. Mar kale isku day dejinta firmware-ka ama soo geli xogta aqoonsiga ee kaydsan. Waxa kale oo aad tijaabin kartaa app-ka rasmiga ah ee Ottai.</string>
     <string name="ottai_retry">Mar kale isku day</string>

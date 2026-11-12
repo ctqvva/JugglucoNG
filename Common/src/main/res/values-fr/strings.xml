@@ -2458,7 +2458,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s est lié à votre compte mais n\'est pas utilisé ici. S\'il est terminé, déliez-le pour pouvoir activer un nouveau capteur.</string>
     <string name="ottai_cloud_binding_checking">Vérification du compte…</string>
     <string name="ottai_cloud_binding_bound">Lié à votre compte</string>
-    <string name="ottai_cloud_binding_not_bound">Non lié à votre compte</string>
     <string name="ottai_cloud_binding_error">Impossible de vérifier le compte</string>
     <string name="ottai_account_title">Compte Ottai</string>
     <string name="ottai_saved_sensors_title">Capteurs enregistrés</string>
@@ -2477,10 +2476,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Connectez-vous pour les récupérer, ou importez un fichier.</string>
     <string name="ottai_state_partial_title">Identifiants incomplets</string>
     <string name="ottai_state_partial_body">La formule de glycémie manque. Récupérez-les ou importez-les à nouveau.</string>
-    <string name="ottai_v3_needs_nearby">Choisissez ce capteur dans la liste des capteurs trouvés : ses identifiants sont vérifiés en Bluetooth.</string>
     <string name="ottai_fetch_failed">Impossible de récupérer les identifiants de ce capteur.</string>
+    <string name="ottai_server_unreachable">Impossible de joindre le serveur Ottai. Réessayez.</string>
     <string name="ottai_connect_failed">Impossible de démarrer la connexion. Réessayez.</string>
-    <string name="ottai_offline_hint">Vous pouvez aussi importer un fichier d\'identifiants sous Capteurs enregistrés.</string>
     <string name="ottai_already_binding_hint">Votre compte a encore un autre capteur lié. Déliez-le sous Capteurs enregistrés, puis réessayez.</string>
     <string name="ottai_ota_upgrade_required">Le service Ottai a demandé une mise à jour du micrologiciel lors de la liaison du capteur. Réessayez la configuration ou importez les identifiants enregistrés. Vous pouvez aussi essayer l’application officielle Ottai.</string>
     <string name="ottai_retry">Réessayer</string>

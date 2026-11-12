@@ -102,6 +102,16 @@ internal object OttaiOtaProtocol {
         return !a.composite && !b.composite && compareVersions(a, b) == 0 && a.build == b.build
     }
 
+    /**
+     * The spelling the cloud stores for a composite revision: `E1.2.6(V1.7.SH2616.1)` for the
+     * sensor's `E1.2.6(V1.7.SH2616.1),STDRD`. Null when there is no variant to drop.
+     */
+    fun withoutVariant(value: String): String? {
+        val raw = version(value) ?: return null
+        if (compositePattern.matchEntire(raw) == null || ',' !in raw) return null
+        return raw.substringBefore(',').takeIf { it.isNotEmpty() }
+    }
+
     /** A bare package V-profile can read back inside a full E(...),variant revision. */
     fun matchesTarget(readback: String, target: String): Boolean {
         if (sameVersion(readback, target)) return true
