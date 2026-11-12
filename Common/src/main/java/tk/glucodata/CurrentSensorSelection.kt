@@ -69,6 +69,32 @@ object CurrentSensorSelection {
     @JvmStatic
     fun syncNativeToManaged(mainSensorId: String?): Unit = syncNativeToManaged(mainSensorId, NativeBackend)
 
+    /**
+     * Called with the sensor whose reading was just accepted as main. With no selection at all,
+     * that sensor becomes the selection. Otherwise this is [syncNativeToManaged].
+     *
+     * Removing the main sensor clears both slots, and re-adding it never selects it again: the
+     * add path asks [Natives.lastsensorname], which names native `last()` when nothing is
+     * selected, and the re-added sensor stays finished until its first reading, so the resolver
+     * could not pick it yet anyway. Native consumers (web server, watch value) then fall back to
+     * `last()`, an unrelated old sensor, for good. A live main reading is the first point where
+     * the right sensor is known. An explicit selection is never replaced here.
+     *
+     * Returns true when the sensor was adopted.
+     */
+    @JvmStatic
+    fun followMainReading(sensorId: String?): Boolean = followMainReading(sensorId, NativeBackend)
+
+    internal fun followMainReading(sensorId: String?, backend: Backend): Boolean = synchronized(lock) {
+        if (sensorId.isNullOrBlank()) return false
+        if (ManagedCurrentSensor.get() == null && backend.selectedNative() == null) {
+            select(sensorId, backend)
+            return true
+        }
+        syncNativeToManaged(sensorId, backend)
+        return false
+    }
+
     internal fun syncNativeToManaged(mainSensorId: String?, backend: Backend): Unit = synchronized(lock) {
         val managed = ManagedCurrentSensor.get() ?: return
         if (mainSensorId.isNullOrBlank() || !SensorIdentity.matches(mainSensorId, managed)) return
