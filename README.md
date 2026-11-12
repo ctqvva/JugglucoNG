@@ -1,4 +1,4 @@
-![Logo-icon](Common/src/main/res/mipmap-xxhdpi/ic_launcher_round.webp)
+![Logo-icon](docs/brand/icon/icon-192.png)
 
 # JugglucoNG
 
