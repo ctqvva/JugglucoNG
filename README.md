@@ -1,8 +1,11 @@
-![Logo-icon](docs/brand/icon/icon-192.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/banner-dark.svg">
+  <img alt="Glucy" src="docs/brand/banner-light.svg" width="640">
+</picture>
 
-# JugglucoNG
+# Glucy
 
-JugglucoNG is an experimental continuous glucose monitoring app for Android.
+Glucy (formerly JugglucoNG) is an experimental continuous glucose monitoring app for Android.
 
 Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap Korthals Altes, it continues to evolve with a modern Compose UI using Material 3, a sensor-independent data layer, support for multiple CGM systems, a treatment journal with IOB/eIOB/COB tracking, predictive simulation, a redesigned alarm engine, and bidirectional Nightscout integration.
 
@@ -13,7 +16,7 @@ Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap 
 > [!WARNING]
 > **Experimental software — not a medical device.**
 >
-> JugglucoNG may contain bugs and may display incorrect, delayed, or missing data. Do not rely on it as the sole basis for treatment, insulin dosing, diagnosis, or other medical decisions. Always verify clinically significant readings using the manufacturer's official system or another appropriate method.
+> Glucy may contain bugs and may display incorrect, delayed, or missing data. Do not rely on it as the sole basis for treatment, insulin dosing, diagnosis, or other medical decisions. Always verify clinically significant readings using the manufacturer's official system or another appropriate method.
 
 ## Download
 
@@ -114,4 +117,4 @@ See the [Releases page](https://github.com/ctqvva/JugglucoNG/releases) for the c
 
 GPL-3.0 (see [LICENSE.txt](LICENSE.txt)). Forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap Korthals Altes. Developed by [ctqvva](https://github.com/ctqvva) with contributions from the community.
 
-**Disclaimer:** This software is provided **"as is"**, without warranty of any kind, to the fullest extent permitted by applicable law. JugglucoNG is experimental software and is **not a medical device**. The authors and contributors make no guarantees regarding its accuracy, reliability, availability, or fitness for any particular purpose. Always verify clinically significant readings using the manufacturer's official system or another appropriate method before making treatment decisions.
+**Disclaimer:** This software is provided **"as is"**, without warranty of any kind, to the fullest extent permitted by applicable law. Glucy is experimental software and is **not a medical device**. The authors and contributors make no guarantees regarding its accuracy, reliability, availability, or fitness for any particular purpose. Always verify clinically significant readings using the manufacturer's official system or another appropriate method before making treatment decisions.
