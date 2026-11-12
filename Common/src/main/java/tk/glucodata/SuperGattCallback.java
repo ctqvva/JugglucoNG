@@ -744,11 +744,15 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         // NOT trigger notifications, alarms, broadcasts, or exchange data — those should
         // only reflect the main sensor's values to avoid confusing switching behavior.
         boolean isMainSensor = true;
+        // Only a resolver that named this sensor may make it the selection; the fail-open
+        // defaults below let a reading through, they do not prove it is the main sensor.
+        boolean resolvedAsMain = false;
         String resolvedMainName = null;
         try {
             resolvedMainName = SensorIdentity.resolveLiveMainSensor(SerialNumber);
             if (resolvedMainName != null && !resolvedMainName.isEmpty() && SerialNumber != null) {
                 isMainSensor = SensorIdentity.matches(SerialNumber, resolvedMainName);
+                resolvedAsMain = isMainSensor;
             }
         } catch (Throwable t) {
             // If we can't determine main sensor, default to allowing (safety)
@@ -761,9 +765,11 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             SensorBluetooth.reconcileGhostMainSensor();
             try {
                 resolvedMainName = SensorIdentity.resolveLiveMainSensor(SerialNumber);
-                isMainSensor = resolvedMainName == null || resolvedMainName.isEmpty()
-                        || SensorIdentity.matches(SerialNumber, resolvedMainName);
+                resolvedAsMain = resolvedMainName != null && !resolvedMainName.isEmpty()
+                        && SensorIdentity.matches(SerialNumber, resolvedMainName);
+                isMainSensor = resolvedMainName == null || resolvedMainName.isEmpty() || resolvedAsMain;
             } catch (Throwable t) {
+                resolvedAsMain = false;
                 isMainSensor = true;
             }
         }
@@ -781,23 +787,24 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             UiRefreshBus.requestDataRefresh();
             return;
         }
-        // A managed main sensor's native mirror may only now exist (first reading after
-        // selection), and a main re-added after removal has no selection at all. Native
-        // current must follow it for the web server and watch value.
-        try {
-            if (CurrentSensorSelection.followMainReading(SerialNumber) && doLog) {
-                Log.i(LOG_ID, "No sensor selected; main reading adopted " + SerialNumber);
-            }
-        } catch (Throwable t) {
-            Log.stack(LOG_ID, "followMainReading", t);
-        }
-
         // History/replay rows are already persisted before this method. They must not
         // move notifications, glucose alerts, or the signal-loss deadline backwards.
         if (!acceptRealtimeReading(SerialNumber, timmsec)) {
             Applic.updatescreen();
             UiRefreshBus.requestDataRefresh();
             return;
+        }
+
+        // A managed main sensor's native mirror may only now exist (first reading after
+        // selection), and a main re-added after removal has no selection at all. Native
+        // current must follow it for the web server and watch value. Only after the
+        // reading is accepted: a delayed or replayed callback must not pick the selection.
+        try {
+            if (CurrentSensorSelection.followMainReading(SerialNumber, resolvedAsMain) && doLog) {
+                Log.i(LOG_ID, "No sensor selected; main reading adopted " + SerialNumber);
+            }
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, "followMainReading", t);
         }
 
         glucosealarms.setagealarm(timmsec, showtime);

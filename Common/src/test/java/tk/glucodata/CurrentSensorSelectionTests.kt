@@ -94,7 +94,7 @@ class CurrentSensorSelectionTests {
         // Ottai removed (selection cleared to -1) and added again. Without adoption native
         // current stayed unset and the web server served native last(), an old follower.
         val native = FakeNative(current = null)
-        assertTrue(CurrentSensorSelection.followMainReading(ottai, native))
+        assertTrue(CurrentSensorSelection.followMainReading(ottai, true, native))
         assertEquals(ottai, ManagedCurrentSensor.get())
         assertEquals(ottai, native.current)
     }
@@ -102,9 +102,19 @@ class CurrentSensorSelectionTests {
     @Test
     fun mainReading_withNothingSelected_adoptsANativeBackedSensor() {
         val native = FakeNative(current = null)
-        assertTrue(CurrentSensorSelection.followMainReading(aidex, native))
+        assertTrue(CurrentSensorSelection.followMainReading(aidex, true, native))
         assertNull(ManagedCurrentSensor.get())
         assertEquals(aidex, native.current)
+    }
+
+    @Test
+    fun mainReading_thatTheResolverDidNotName_adoptsNothing() {
+        // Resolution threw or found no main: the reading passes fail-open, but that is no
+        // proof this sensor is the main one, so it must not become the selection.
+        val native = FakeNative(current = null)
+        assertFalse(CurrentSensorSelection.followMainReading(ottai, false, native))
+        assertNull(ManagedCurrentSensor.get())
+        assertTrue(native.writes.isEmpty())
     }
 
     @Test
@@ -112,7 +122,7 @@ class CurrentSensorSelectionTests {
         // The resolver can treat another sensor as main while the selected one is not live;
         // the user's choice must survive that.
         val native = FakeNative(current = aidex)
-        assertFalse(CurrentSensorSelection.followMainReading(ottai, native))
+        assertFalse(CurrentSensorSelection.followMainReading(ottai, true, native))
         assertNull(ManagedCurrentSensor.get())
         assertTrue(native.writes.isEmpty())
     }
@@ -121,7 +131,7 @@ class CurrentSensorSelectionTests {
     fun mainReading_withManagedSelection_onlySyncs() {
         ManagedCurrentSensor.set(ottai)
         val native = FakeNative(current = null)
-        assertFalse(CurrentSensorSelection.followMainReading(ottai, native))
+        assertFalse(CurrentSensorSelection.followMainReading(ottai, true, native))
         assertEquals(listOf(ottai), native.writes)
     }
 
@@ -129,7 +139,7 @@ class CurrentSensorSelectionTests {
     fun mainReading_withStaleManagedSelection_adoptsNothing() {
         ManagedCurrentSensor.set(ottai)
         val native = FakeNative(current = null)
-        assertFalse(CurrentSensorSelection.followMainReading(aidex, native))
+        assertFalse(CurrentSensorSelection.followMainReading(aidex, true, native))
         assertEquals(ottai, ManagedCurrentSensor.get())
         assertTrue(native.writes.isEmpty())
     }

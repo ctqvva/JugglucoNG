@@ -70,8 +70,9 @@ object CurrentSensorSelection {
     fun syncNativeToManaged(mainSensorId: String?): Unit = syncNativeToManaged(mainSensorId, NativeBackend)
 
     /**
-     * Called with the sensor whose reading was just accepted as main. With no selection at all,
-     * that sensor becomes the selection. Otherwise this is [syncNativeToManaged].
+     * Called with the sensor whose reading was just accepted as main. With no selection at all
+     * and [mayAdopt] (the resolver itself named this sensor, rather than failing open), that
+     * sensor becomes the selection. Otherwise this is [syncNativeToManaged].
      *
      * Removing the main sensor clears both slots, and re-adding it never selects it again: the
      * add path asks [Natives.lastsensorname], which names native `last()` when nothing is
@@ -83,11 +84,12 @@ object CurrentSensorSelection {
      * Returns true when the sensor was adopted.
      */
     @JvmStatic
-    fun followMainReading(sensorId: String?): Boolean = followMainReading(sensorId, NativeBackend)
+    fun followMainReading(sensorId: String?, mayAdopt: Boolean): Boolean =
+        followMainReading(sensorId, mayAdopt, NativeBackend)
 
-    internal fun followMainReading(sensorId: String?, backend: Backend): Boolean = synchronized(lock) {
+    internal fun followMainReading(sensorId: String?, mayAdopt: Boolean, backend: Backend): Boolean = synchronized(lock) {
         if (sensorId.isNullOrBlank()) return false
-        if (ManagedCurrentSensor.get() == null && backend.selectedNative() == null) {
+        if (mayAdopt && ManagedCurrentSensor.get() == null && backend.selectedNative() == null) {
             select(sensorId, backend)
             return true
         }
