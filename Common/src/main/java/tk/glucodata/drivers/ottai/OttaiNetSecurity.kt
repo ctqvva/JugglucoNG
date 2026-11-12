@@ -192,10 +192,12 @@ internal class OttaiNetSecurity(
      */
     private fun transientExchangeRefusal(reply: Reply): Boolean {
         if (successful(reply)) return false
-        if (reply.status >= 500 || reply.json == null) return true
-        val code = reply.json.optString("code")
-        return reply.status in 200..299 &&
-            !code.matches(Regex("(?:NET_SECURITY_[A-Z_]+|AuthFailed_[A-Za-z_]+|CLIENT_CLOCK_OFFSET)"))
+        // A 4xx is a definite refusal of this client, with or without a body.
+        if (reply.status !in 200..299 && reply.status < 500) return false
+        // A named security/account/clock refusal is definite whatever status carries it.
+        val code = reply.json?.optString("code").orEmpty()
+        if (code.matches(Regex("(?:NET_SECURITY_[A-Z_]+|AuthFailed_[A-Za-z_]+|CLIENT_CLOCK_OFFSET)"))) return false
+        return true
     }
 
     private fun successful(reply: Reply): Boolean {

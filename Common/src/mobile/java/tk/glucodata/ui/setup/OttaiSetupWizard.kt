@@ -302,6 +302,23 @@ internal fun ottaiSensorIdBleAddress(sensorId: String?): String? {
     return OttaiConstants.normalizeBleAddress(OttaiConstants.macWithColons(canonical))
 }
 
+/**
+ * The address setup connects to: a nearby pick, then the saved draft/managed address (an Ottai
+ * address can change across activation, and import carries the saved one), and only then the
+ * address the ID itself spells. Pickers without an observed address leave theirs empty.
+ */
+internal fun ottaiSetupBleAddressOrder(selected: String?, draft: String?, managed: String?, sensorId: String?): String? =
+    ottaiSetupBleAddress(selected, draft, managed, ottaiSensorIdBleAddress(sensorId))
+
+private fun ottaiResolvedSetupBleAddress(context: Context, sensorId: String, selected: String?): String? {
+    val canonical = OttaiConstants.canonicalSensorId(sensorId)
+    if (canonical.isEmpty()) return ottaiSetupBleAddress(selected)
+    return ottaiSetupBleAddressOrder(selected,
+        OttaiRegistry.findDraftRecord(context, canonical)?.address,
+        OttaiRegistry.findRecord(context, canonical)?.address,
+        canonical)
+}
+
 private fun connectOttaiSensor(
     context: Context,
     mac: String,
@@ -311,10 +328,8 @@ private fun connectOttaiSensor(
 ): Boolean {
     val canonical = OttaiConstants.canonicalSensorId(mac).ifEmpty { return false }
     if (OttaiFirmwareSession.hasPendingSetup(context, canonical)) return false
-    val ble = ottaiSetupBleAddress(bleAddress,
-        OttaiRegistry.findDraftRecord(context, canonical)?.address,
-        OttaiRegistry.findRecord(context, canonical)?.address,
-    ) ?: OttaiConstants.macWithColons(canonical)
+    val ble = ottaiResolvedSetupBleAddress(context, canonical, bleAddress)
+        ?: OttaiConstants.macWithColons(canonical)
     if (!ottaiSetupPublishesManagedSensor(route)) return false
     return when (route) {
         OttaiSetupConnectRoute.STORED_MATERIALS -> {
@@ -720,7 +735,7 @@ fun OttaiSetupWizard(
                     materialLoading = false
                     if (resolved.sensorId != null) {
                         cloudId = resolved.sensorId
-                        bleAddress = ottaiSensorIdBleAddress(resolved.sensorId).orEmpty()
+                        bleAddress = ""
                         selectedAccountDevice = null
                         selectedDeviceVersion = ""
                         lastAutoFetchId = ""
@@ -891,7 +906,7 @@ fun OttaiSetupWizard(
             }
             if (id != null) {
                 cloudId = id
-                bleAddress = ottaiSensorIdBleAddress(id).orEmpty()
+                bleAddress = ""
                 val imported = withContext(Dispatchers.IO) { OttaiRegistry.loadMaterials(context, id) }
                 currentMaterials = imported
                 selectedDeviceVersion = imported.deviceVersion
@@ -1044,10 +1059,7 @@ fun OttaiSetupWizard(
         if (busy || materialLoading) return
         val canonical = OttaiConstants.canonicalSensorId(mac)
         cloudId = canonical
-        val setupAddress = ottaiSetupBleAddress(selectedBleAddress,
-            OttaiRegistry.findDraftRecord(context, canonical)?.address,
-            OttaiRegistry.findRecord(context, canonical)?.address,
-            ottaiSensorIdBleAddress(canonical))
+        val setupAddress = ottaiResolvedSetupBleAddress(context, canonical, selectedBleAddress)
         if (OttaiFirmwareSession.hasPendingTransfer(context, canonical)) {
             val recoveryAddress = setupAddress
             if (recoveryAddress != null) {
@@ -1231,7 +1243,7 @@ fun OttaiSetupWizard(
         cloudId = id
         selectedDeviceVersion = ""
         selectedAccountDevice = null
-        bleAddress = ottaiSensorIdBleAddress(id).orEmpty()
+        bleAddress = ""
         cloudBindingCheckingId = ""
         cloudBindingCheckedId = ""
         cloudBindingFailedId = ""
@@ -1257,7 +1269,7 @@ fun OttaiSetupWizard(
         if (signedIn) refreshAccountDevices(sensor.sensorId)
         lastAutoFetchId = ""
         materialRefresh += 1
-        bleAddress = ottaiSetupBleAddress(sensor.record.address, ottaiSensorIdBleAddress(sensor.sensorId)).orEmpty()
+        bleAddress = sensor.record.address
         currentMaterials = sensor.materials
         selectedDeviceVersion = sensor.materials.deviceVersion
         showStatus("")
@@ -1273,7 +1285,7 @@ fun OttaiSetupWizard(
         selectedAccountDevice = device
         lastAutoFetchId = ""
         materialRefresh += 1
-        bleAddress = ottaiSensorIdBleAddress(id).orEmpty()
+        bleAddress = ""
         currentMaterials = null
         showStatus("")
         openSensor()
@@ -1365,7 +1377,7 @@ fun OttaiSetupWizard(
                 if (code != cloudId) {
                     cloudId = code
                     sensorEditPending = true
-                    bleAddress = ottaiSensorIdBleAddress(code).orEmpty()
+                    bleAddress = ""
                     selectedAccountDevice = null
                     selectedDeviceVersion = ""
                     currentMaterials = null
@@ -1399,9 +1411,10 @@ fun OttaiSetupWizard(
             onImport = launchImport,
             onFirmware = if (!busy && !materialLoading && ottaiFirmwareEntryAvailable(signedIn,
                 OttaiCloudClient.loadOtaSession(context),
-                OttaiConstants.normalizeBleAddress(bleAddress) != null,
+                ottaiResolvedSetupBleAddress(context, cloudId, bleAddress) != null,
                 OttaiFirmwareSession.hasPendingSetup(context, cloudId))) ({
                 fullModeGuard {
+                    bleAddress = ottaiResolvedSetupBleAddress(context, cloudId, bleAddress).orEmpty()
                     setupAfterFirmware = false
                     firmwareLaunchId++
                     OttaiSetupScanHold.stopPanelScans()

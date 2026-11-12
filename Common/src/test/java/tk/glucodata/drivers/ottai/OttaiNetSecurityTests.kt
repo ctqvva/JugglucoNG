@@ -192,10 +192,28 @@ class OttaiNetSecurityTests {
         }
     }
 
+    @Test fun serverErrorsAndEmptySuccessBodiesAreRetriedOnce() {
+        for (reply in listOf(OttaiNetSecurity.Reply(502, null), OttaiNetSecurity.Reply(500, JSONObject().put("code", "Error")),
+            OttaiNetSecurity.Reply(200, null))) {
+            var exchanges = 0
+            val pauses = mutableListOf<Long>()
+            val client = OttaiNetSecurity(fixture.getString("deviceId"), exchange = { exchanges++; reply },
+                send = { _, _, _, _, _ -> error("no request without a secret") },
+                clock = { fixture.getLong("now") }, keyPair = ::fixedKey, pause = { pauses += it })
+            assertThrows(OttaiOtaCloudException::class.java) { client.request("GET", "/x") }
+            assertEquals(2, exchanges)
+            assertEquals(1, pauses.size)
+        }
+    }
+
     @Test fun definiteExchangeRefusalsAreNotRetried() {
         for (reply in listOf(OttaiNetSecurity.Reply(403, JSONObject().put("code", "Error")),
+            OttaiNetSecurity.Reply(401, null),
+            OttaiNetSecurity.Reply(403, null),
             OttaiNetSecurity.Reply(200, JSONObject().put("code", "AuthFailed_TokenInvalid")),
-            OttaiNetSecurity.Reply(200, JSONObject().put("code", "NET_SECURITY_SIGNATURE_INVALID")))) {
+            OttaiNetSecurity.Reply(200, JSONObject().put("code", "NET_SECURITY_SIGNATURE_INVALID")),
+            OttaiNetSecurity.Reply(503, JSONObject().put("code", "AuthFailed_TokenInvalid")),
+            OttaiNetSecurity.Reply(500, JSONObject().put("code", "NET_SECURITY_SIGNATURE_INVALID")))) {
             var exchanges = 0
             val client = OttaiNetSecurity(fixture.getString("deviceId"), exchange = { exchanges++; reply },
                 send = { _, _, _, _, _ -> error("no request without a secret") },

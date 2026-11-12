@@ -76,9 +76,13 @@ class OttaiSetupFlowTests {
         // asked the user to pick the very sensor already listed above.
         assertEquals("8C:73:DA:39:85:79", ottaiSensorIdBleAddress("8C73DA398579"))
         assertEquals("8C:73:DA:39:85:79", ottaiSensorIdBleAddress("8c:73:da:39:85:79"))
-        assertEquals("8C:73:DA:39:85:79", ottaiSetupBleAddress("", null, ottaiSensorIdBleAddress("8C73DA398579")))
-        // A nearby pick still wins over the derived address.
-        assertEquals("AA:BB:CC:DD:EE:FF", ottaiSetupBleAddress("AA:BB:CC:DD:EE:FF", ottaiSensorIdBleAddress("8C73DA398579")))
+        assertEquals("8C:73:DA:39:85:79", ottaiSetupBleAddressOrder("", null, null, "8C73DA398579"))
+        // A nearby pick, then a saved (imported/draft or managed) address, win over the derived
+        // one: an Ottai address can change across activation.
+        assertEquals("AA:BB:CC:DD:EE:FF", ottaiSetupBleAddressOrder("AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66", null, "8C73DA398579"))
+        assertEquals("11:22:33:44:55:66", ottaiSetupBleAddressOrder("", "11:22:33:44:55:66", null, "8C73DA398579"))
+        assertEquals("11:22:33:44:55:66", ottaiSetupBleAddressOrder(null, "", "11:22:33:44:55:66", "8C73DA398579"))
+        assertNull(ottaiSetupBleAddressOrder("", null, null, "OTT1234567"))
         assertNull(ottaiSensorIdBleAddress("OTT1234567"))
         assertNull(ottaiSensorIdBleAddress(""))
         assertNull(ottaiSensorIdBleAddress(null))
