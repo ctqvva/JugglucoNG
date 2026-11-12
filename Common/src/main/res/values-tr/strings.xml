@@ -1,7 +1,7 @@
 <resources>
     <string name="language">tr</string>
     <string name="languagename">Dil</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucy</string>
 
     <string name="ok">Tamam</string>
     <string name="cancel">İptal</string>
@@ -15,7 +15,7 @@
     <string name="kerfstok_missing_message">Kerfstok saate yüklenmiyor. Garmin Connect IQ mağazasından alabilirsiniz.</string>
 
     <string name="alarm_description">Çok düşük veya çok yüksek glikoz</string>
-    <string name="loss_description">Juggluco sensörle bağlantıyı kaybetti.</string>
+    <string name="loss_description">Glucy sensörle bağlantıyı kaybetti.</string>
     <string name="numalarm_description">Hatırlatıcı: Doz, yemek veya egzersiz</string>
     <string name="notification_description">Mevcut glikoz değerini bildirir.</string>
     <string name="ongoing_description">Devam eden program</string>
@@ -215,7 +215,7 @@
  <string name="heartrate">Kalp atış hızı</string>
  <string name="xdripbroadcast">xDrip Yayını</string>
  <string name="sensorpermission">Sensör izni</string>
- <string name="sensorpermissionmessage">Kalp atış hızının görüntülenmesi gerekiyor. Buradan ayarlayın: Cihaz Ayarları, Uygulamalar, Uygulama İzinleri, Juggluco</string>
+ <string name="sensorpermissionmessage">Kalp atış hızının görüntülenmesi gerekiyor. Buradan ayarlayın: Cihaz Ayarları, Uygulamalar, Uygulama İzinleri, Glucy</string>
  <string name="floatglucose">Yüzen Glikoz</string>
 
  <string name="fontsize">Yazı Boyutu</string>
@@ -333,7 +333,7 @@
 <string name="resendwarning">Tüm verilerin tekrar gönderilmesi zaman alır. Libreview ve Kerfstok için sonuçları olabilir.</string>
 <string name="parseip">IP ayrıştırma hatası</string>
 <string name="toomanyhosts">Maksimum ana bilgisayar sayısı aşıldı.</string>
-<string name="senthosts">Juggluco en fazla 6 ana bilgisayara gönderir.</string>
+<string name="senthosts">Glucy en fazla 6 ana bilgisayara gönderir.</string>
    <string name="clampnow">Ekranı Kilitle</string>
     <string name="sendfrom">"Gönderen: "</string>
  <string name="changestartbutton">Başlangıcı değiştir</string>
@@ -363,7 +363,7 @@
    <string name="photomessage">Dexcom G7 veya Sibionics (Çin) sensörünün veri matrisini (karekodunu) tarayın.</string>
    <string name="dexfuture">Tahmin (Dexcom)</string>
    <string name="initializing">Başlatılıyor</string> 
-   <string name="startjuggluco">Juggluco telefonda çalışıyor mu?\n\nWIFI ve Bluetooth etkin mi?</string> 
+   <string name="startjuggluco">Glucy telefonda çalışıyor mu?\n\nWIFI ve Bluetooth etkin mi?</string> 
    <string name="connected">Bağlandı!</string> 
    <string name="useclose">Kapatma tuşu</string> 
    <string name="filesize">Dosya Boyutu</string> 
@@ -467,7 +467,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
 
     <!-- Newly Extracted Strings -->
     <string name="import_history">Geçmişi İçe Aktar</string>
-    <string name="import_history_desc">JugglucoNG dışa aktarımından veya CSV dosyasından glikoz verilerini içe aktar</string>
+    <string name="import_history_desc">Glucy dışa aktarımından veya CSV dosyasından glikoz verilerini içe aktar</string>
     <string name="continue_without_sensor">Sensör olmadan devam et</string>
     <string name="continue_without_sensor_desc">İnsülin, yiyecek ve parmak ölçümlerini günlüğe kaydedin</string>
     <string name="get_started_desc">Sensörünüzü ekleyerek başlayın</string>
@@ -517,9 +517,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="export_history_title">Geçmişi Dışa Aktar</string>
     <string name="export_history_sub">Okumaları CSV veya metin dosyasına kaydet</string>
     <string name="import_history_title">Geçmişi İçe Aktar</string>
-    <string name="import_history_sub">JugglucoNG dışa aktarımından veya CSV dosyasından glikoz ölçümlerini geri yükle</string>
+    <string name="import_history_sub">Glucy dışa aktarımından veya CSV dosyasından glikoz ölçümlerini geri yükle</string>
     <string name="import_no_glucose">Bu dosyada glikoz verisi yok</string>
-    <string name="import_unsupported_file">Desteklenmeyen dosya. Bir JugglucoNG dışa aktarımı veya glikoz geçmişi CSV dosyası seçin.</string>
+    <string name="import_unsupported_file">Desteklenmeyen dosya. Bir Glucy dışa aktarımı veya glikoz geçmişi CSV dosyası seçin.</string>
     <string name="delete_reading_title">Okuma silinsin mi?</string>
     <string name="delete_reading_confirmation">Bu glikoz okumasını yerel geçmişten kaldır. Bu işlem geri alınamaz.</string>
     <string name="alert_sound">Uyarı Sesi</string>
@@ -591,7 +591,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="scheduled_backup_acknowledge">Onayla ve en yeni yedeği referans olarak kullan</string>
     <string name="backup_integrity_channel">Yedek bütünlüğü uyarıları</string>
     <string name="backup_integrity_channel_desc">Otomatik yedek önemli ölçüde daha az veri içerebileceğinde kritik uyarılar</string>
-    <string name="backup_integrity_notification_title">JugglucoNG yedeğinizi kontrol edin</string>
+    <string name="backup_integrity_notification_title">Glucy yedeğinizi kontrol edin</string>
     <string name="backup_integrity_notification_text">En yeni yedek beklenmedik biçimde daha küçük. Eski yedekler korundu. İncelemek için yedekleme ayarlarını açın.</string>
     <string name="export_everything">Her şey</string>
     <string name="export_history_data_desc">Glikoz geçmişi, günlük kayıtları ve insülin hazır ayarları</string>
@@ -607,7 +607,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="import_data">Geçmişi İçe Aktar</string>
     <string name="import_data_desc">Yedekleme veya Libreview dosyasını yükle</string>
     <string name="import_data_settings">Verileri/ayarları içe aktar</string>
-    <string name="import_data_settings_desc">Geçmiş CSV veya JugglucoNG dışa aktarımını geri yükle</string>
+    <string name="import_data_settings_desc">Geçmiş CSV veya Glucy dışa aktarımını geri yükle</string>
     <string name="settings_import_confirm_title">Ayarlar içe aktarılsın mı?</string>
     <string name="settings_import_confirm_message">Bu işlem uygulama ayarlarını, kimlik bilgilerini, cihaz anahtarlarını ve mirror yapılandırmasını değiştirir, ardından uygulamayı yeniden başlatır.</string>
     <string name="settings_import_successful">Ayarlar içe aktarıldı. Yeniden başlatılıyor…</string>
@@ -842,7 +842,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Eşleştirmeden önce deneysel Libre 3 tarama davranışını ayarlayın.</string>
     <string name="libre3_nfc_command_title">Libre 3 NFC komutu</string>
-    <string name="libre3_nfc_command_desc">Juggluco için Libre 3 NFC taraması sırasında hangi komutun gönderileceğini seçin</string>
+    <string name="libre3_nfc_command_desc">Glucy için Libre 3 NFC taraması sırasında hangi komutun gönderileceğini seçin</string>
     <string name="libre3_nfc_command_auto">Otomatik</string>
     <string name="libre3_nfc_command_auto_desc">Juggluco için varsayılan Libre 3 tarama davranışını kullan</string>
     <string name="libre3_nfc_command_activate">A0 Etkinleştir</string>
@@ -1416,7 +1416,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Trendi oluşturmak için yeterli günlük veri yok.</string>
     <string name="report_no_readings_day">Bu gün için okuma yok.</string>
-    <string name="report_page1_title">JugglucoNG CGM Klinik Raporu</string>
+    <string name="report_page1_title">Glucy CGM Klinik Raporu</string>
     <string name="report_page1_subtitle">Aralık %1$s · Okumalar %2$d · Pencere %3$s - %4$s</string>
     <string name="report_estimated_a1c">Tahmini A1C</string>
     <string name="report_below_target">Hedefin altında</string>
@@ -1431,7 +1431,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="report_above_duration">Üstte: %1$s</string>
     <string name="report_agp_section_title">Ambulatuvar glikoz profili (24 saatlik yüzdelik bantlar)</string>
     <string name="report_reference_targets">Referans hedefleri: GMI &lt; %%7,0, CV &lt;= %%36, Aralıktaki süre &gt;= %%70.</string>
-    <string name="report_page2_title">JugglucoNG CGM Günlük Trendler ve Yorumlama</string>
+    <string name="report_page2_title">Glucy CGM Günlük Trendler ve Yorumlama</string>
     <string name="report_page2_subtitle">Günlük değişkenlik, metrik döküm ve yorumlama notları</string>
     <string name="report_daily_average_trend">Günlük ortalama trend</string>
     <string name="report_detailed_metrics">Ayrıntılı ölçümler</string>
@@ -1446,7 +1446,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="report_no_generated_insights_message">Bu zaman aralığı için ek kalıp uyarısı oluşturulmadı.</string>
     <string name="report_agp_consensus_title">AGP fikir birliği referansı</string>
     <string name="report_agp_consensus_body">Bu raporda atıfta bulunulan hedefler AGP uluslararası fikir birliği stilini takip etmektedir: TIR 70-180 mg/dL (3,9-10,0 mmol/L), TBR &lt;70 ve &lt;54 mg/dL, TAR &gt;180 ve &gt;250 mg/dL, CV hedefi &lt;=%%36.</string>
-    <string name="report_page3_title">JugglucoNG Ek I - AGP ve Günlük Tablolar</string>
+    <string name="report_page3_title">Glucy Ek I - AGP ve Günlük Tablolar</string>
     <string name="report_page3_subtitle">Saatlik yüzdelikler ve gün düzeyinde sonuçlar</string>
     <string name="report_hourly_agp_table">Saatlik AGP profil tablosu</string>
     <string name="report_hour">Saat</string>
@@ -1455,7 +1455,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="report_no_hourly_agp">Bu aralıkta saatlik AGP kutusu mevcut değil.</string>
     <string name="report_daily_outcomes_table">Günlük sonuç tablosu</string>
     <string name="report_showing_latest_days">%2$d günün en son %1$d günü gösteriliyor.</string>
-    <string name="report_page4_title">JugglucoNG Ek II - Etkinlikler ve Günlük Profiller</string>
+    <string name="report_page4_title">Glucy Ek II - Etkinlikler ve Günlük Profiller</string>
     <string name="report_page4_subtitle">Hipo/hiper maruz kalma ölçümleri ve gün düzeyinde profil grafikleri</string>
     <string name="report_hypo_hyper_events">Hipo/hiper maruz kalma olayları</string>
     <string name="report_hours_per_day">Saat/gün</string>
@@ -1485,7 +1485,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="wear_transport_gms_unavailable">Google Play Services unavailable; Wear transport is disabled.</string>
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Saat uygulaması eksik</string>
-    <string name="wear_watch_app_missing_hint">Bu saate Juggluco\'yu yükleyin, ardından yenile\'ye dokunun.</string>
+    <string name="wear_watch_app_missing_hint">Bu saate Glucy\'yu yükleyin, ardından yenile\'ye dokunun.</string>
     <string name="wear_auto_sensor_switch">Sensörü otomatik değiştir</string>
     <string name="wear_auto_sensor_switch_on_desc">Telefon ve saat sensörü kendi aralarında devrediyor; menzilde olan hangisiyse sensörü o okur.</string>
     <string name="wear_auto_sensor_switch_off_desc">Sensörü yalnızca seçtiğiniz cihaz okur.</string>
@@ -1561,7 +1561,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="insight_unstable_days">Sik dengesiz gunler</string>
     <string name="insight_unstable_days_desc">Bu pencerede %1$d gunde zaman araliginda gecirilen sure 50%%\'nin altindaydi.</string>
     <string name="mq_fetch_calibration_on_add">Eklerken uretici oturumunu geri yukle</string>
-    <string name="mq_fetch_calibration_on_add_desc">Bir QR kodu veya kaydedilmis Glutec kimlik bilgileri mevcutsa Juggluco kurulum sirasinda MQ oturum durumunu geri yuklemeyi dener.</string>
+    <string name="mq_fetch_calibration_on_add_desc">Bir QR kodu veya kaydedilmis Glutec kimlik bilgileri mevcutsa Glucy kurulum sirasinda MQ oturum durumunu geri yuklemeyi dener.</string>
     <string name="mq_bootstrap_button">Uretici oturumunu geri yukle</string>
     <string name="mq_bootstrap_dialog_title">Uretici oturumunu geri yukle</string>
     <string name="mq_bootstrap_dialog_desc">Glutec uzerinden uretici oturum durumunu geri yukleyin. Gerekirse sensor QR kodunu buraya girin; hesap, esitleme ve API ayarlari MQ / Glutec hesabinda yer alir.</string>
@@ -1594,9 +1594,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mq_account_session_valid">Oturum gecerli</string>
     <string name="mq_account_session_invalid">Oturum gecersiz</string>
     <string name="mq_manual_calibration_title">Manuel kalibrasyon</string>
-    <string name="mq_manual_calibration_desc">Juggluco icinde yereldir. %1$s cinsinden parmak ucu glikoz degeri girin. Yeni bir MQ canli paketi gerekir.</string>
+    <string name="mq_manual_calibration_desc">Glucy icinde yereldir. %1$s cinsinden parmak ucu glikoz degeri girin. Yeni bir MQ canli paketi gerekir.</string>
     <string name="mq_follower_title">Glutec takipçi</string>
-    <string name="mq_follower_desc">Başka bir Glutec hesabını satıcı bulutu üzerinden takip edin. Açıldığında Juggluco içinde salt okunur bir takipçi sensör oluşturulur.</string>
+    <string name="mq_follower_desc">Başka bir Glutec hesabını satıcı bulutu üzerinden takip edin. Açıldığında Glucy içinde salt okunur bir takipçi sensör oluşturulur.</string>
     <string name="mq_follower_account_label">Takip edilecek hesap</string>
     <string name="mq_follower_account_desc">Takip etmek istediğiniz Glutec telefon numarasını veya hesabını girin.</string>
     <string name="mq_follower_enabled_summary">Takipçi açık</string>
@@ -2466,12 +2466,12 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_handover_multiple_text">Sensörün süresi doldu, ancak birden fazla halef sensör etkin. Otomatik devir atlandı; lütfen elle geçiş yapın.</string>
     <string name="sensor_handover_successor_ready">Halef sensör hazır; süre dolunca otomatik devir devreye girer</string>
     <string name="nightscout_upload_iob">Aktif insülini gönder</string>
-    <string name="nightscout_upload_iob_desc">Nightscout yerine Juggluco’nun IOB değerini kullan</string>
+    <string name="nightscout_upload_iob_desc">Nightscout yerine Glucy’nun IOB değerini kullan</string>
     <string name="journal_iob_source_remote">Verileri yükleyen cihazın değerleri (Nightscout)</string>
     <string name="ottai_cloud_unbind_title">Bu sensörün bağlantısı kalıcı olarak kaldırılsın mı?</string>
-    <string name="ottai_cloud_unbind_message">%1$s bu Ottai hesabından kalıcı olarak kaldırılacak. Hesap artık sensörün kimlik bilgilerini alamayacak ve sensör resmi Ottai uygulamasında çalışmayacak. JugglucoNG’de önceden kaydedilmiş kimlik bilgileri ve sensör durumu değiştirilmeyecek. Bu işlem geri alınamaz.</string>
+    <string name="ottai_cloud_unbind_message">%1$s bu Ottai hesabından kalıcı olarak kaldırılacak. Hesap artık sensörün kimlik bilgilerini alamayacak ve sensör resmi Ottai uygulamasında çalışmayacak. Glucy’de önceden kaydedilmiş kimlik bilgileri ve sensör durumu değiştirilmeyecek. Bu işlem geri alınamaz.</string>
     <string name="ottai_cloud_unbind_confirm">Kalıcı olarak kaldır</string>
-    <string name="ottai_cloud_unbind_success">Sensörün Ottai bağlantısı kalıcı olarak kaldırıldı. JugglucoNG’deki sensör ve kayıtlı bilgiler değiştirilmedi.</string>
+    <string name="ottai_cloud_unbind_success">Sensörün Ottai bağlantısı kalıcı olarak kaldırıldı. Glucy’deki sensör ve kayıtlı bilgiler değiştirilmedi.</string>
     <string name="ottai_cloud_unbind_failed">Sensörün Ottai bağlantısı kaldırılamadı.</string>
     <string name="ottai_disconnect_forget_unbind">Kimlik bilgilerini sil ve bağlantıyı kaldır</string>
     <string name="ottai_disconnect_forget_unbind_desc">Kayıtlı anahtarları siler ve sensörü Ottai hesabından ayırır. Daha sonra yeniden bağlanamaz.</string>
@@ -2585,7 +2585,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sms_max_per_hour">Saatte en fazla mesaj</string>
     <string name="sms_max_per_day">Günde en fazla mesaj</string>
     <string name="sms_sent_today">Son 24 saatte gönderilen: %1$d</string>
-    <string name="sms_permission_desc">Bu hedefin çalışması için JugglucoNG\'nin SMS gönderme izni gerekir.</string>
+    <string name="sms_permission_desc">Bu hedefin çalışması için Glucy\'nin SMS gönderme izni gerekir.</string>
     <string name="sms_permission_grant">İzin ver</string>
     <string name="sms_no_telephony">Bu cihaz SMS gönderemiyor.</string>
     <string name="sms_preview_title">Önizleme</string>
@@ -2603,7 +2603,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sms_event_no_data">%1$d dk sensör verisi yok</string>
     <string name="sms_event_all_clear">Tehlike geçti</string>
     <string name="sms_event_relay">Güncelleme (veri bağlantısı yok)</string>
-    <string name="sms_event_test">JugglucoNG test mesajı</string>
+    <string name="sms_event_test">Glucy test mesajı</string>
     <string name="sms_body_no_reading">Henüz ölçüm yok</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2643,13 +2643,13 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="app_updates_verifying_title">İndirme doğrulanıyor</string>
     <string name="app_updates_verifying_body">Kurulumdan önce imza ve sürüm denetleniyor.</string>
     <string name="app_updates_ready_title">%1$s kuruluma hazır</string>
-    <string name="app_updates_ready_body">Android onay isteyecek. JugglucoNG kapanıp yeniden açılır; sensör bağlantıları kendiliğinden geri döner.</string>
+    <string name="app_updates_ready_body">Android onay isteyecek. Glucy kapanıp yeniden açılır; sensör bağlantıları kendiliğinden geri döner.</string>
     <string name="app_updates_up_to_date_title">En son sürümü kullanıyorsunuz</string>
     <string name="app_updates_last_checked">Son denetim %1$s</string>
     <string name="app_updates_never_checked">hiç</string>
     <string name="app_updates_error_title">Güncelleme denetimi başarısız</string>
-    <string name="app_updates_permission_title">JugglucoNG\'den kuruluma izin verin</string>
-    <string name="app_updates_permission_body">JugglucoNG kendi güncellemesini kurabilmeden önce Android tek seferlik bir izin ister.</string>
+    <string name="app_updates_permission_title">Glucy\'den kuruluma izin verin</string>
+    <string name="app_updates_permission_body">Glucy kendi güncellemesini kurabilmeden önce Android tek seferlik bir izin ister.</string>
     <string name="app_updates_permission_action">Ayarları aç</string>
     <string name="app_updates_unsupported_store_title">Güncellemeler mağazanızdan gelir</string>
     <string name="app_updates_unsupported_store_body">Bu kopya %1$s tarafından kuruldu; güncellemeleri o yönetiyor.</string>
@@ -2660,11 +2660,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="app_updates_error_parse">Güncelleme kaynağı beklenmedik bir yanıt döndürdü.</string>
     <string name="app_updates_error_no_artifact">En son sürümde bu yapı için indirilecek dosya yok.</string>
     <string name="app_updates_error_checksum">İndirilen dosya sağlama toplamıyla uyuşmadı ve silindi.</string>
-    <string name="app_updates_error_signature">İndirilen APK farklı bir anahtarla imzalanmış ve silindi. JugglucoNG\'yi yalnızca resmî sürüm sayfasından kurun.</string>
+    <string name="app_updates_error_signature">İndirilen APK farklı bir anahtarla imzalanmış ve silindi. Glucy\'yi yalnızca resmî sürüm sayfasından kurun.</string>
     <string name="app_updates_error_package">İndirilen APK başka bir uygulamaya ait.</string>
     <string name="app_updates_error_downgrade">O sürüm, kurulu sürümden yeni değil.</string>
     <string name="app_updates_error_storage">İndirme için yeterli boş alan yok.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG\'nin henüz uygulama kurma izni yok.</string>
+    <string name="app_updates_error_install_permission">Glucy\'nin henüz uygulama kurma izni yok.</string>
     <string name="app_updates_error_install_failed">Kurulum tamamlanmadı.</string>
     <string name="app_updates_error_cancelled">Kurulum iptal edildi.</string>
     <string name="app_updates_source_title">Güncelleme kaynağı</string>
@@ -2961,7 +2961,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="wearos_config_title">Wear OS yapılandırması</string>
     <string name="watch_status_section">Saat durumu</string>
     <string name="watch_none_found">Wear OS saati bulunamadı</string>
-    <string name="watch_none_found_hint">Saatte Juggluco’yu açın, ardından yenile’ye dokunun</string>
+    <string name="watch_none_found_hint">Saatte Glucy’yu açın, ardından yenile’ye dokunun</string>
     <string name="watch_routing_section">Yönlendirme</string>
     <string name="watch_enter_amounts">Miktarları saatte gir</string>
     <string name="watch_enter_amounts_on">Saatte yapılan girişler kaydedilir ve telefonla eşitlenir.</string>

@@ -1,7 +1,7 @@
 <resources>
     <string name="language">zh</string>
     <string name="languagename">语言</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucy</string>
 
     <string name="ok">确定</string>
     <string name="cancel">取消</string>
@@ -15,7 +15,7 @@
     <string name="kerfstok_missing_message">手表上未安装 Kerfstok。您可以在 Garmin connectiq 商店中获取它</string>
 
     <string name="alarm_description">血糖过低或过高</string>
-    <string name="loss_description">Juggluco与传感器失去联系</string>
+    <string name="loss_description">Glucy与传感器失去联系</string>
     <string name="numalarm_description">提醒剂量、进食或锻炼</string>
     <string name="notification_description">通知当前葡萄糖值</string>
     <string name="ongoing_description">正在进行的程序</string>
@@ -215,7 +215,7 @@
  <string name="heartrate">心率</string>
  <string name="xdripbroadcast">xDrip 广播</string>
  <string name="sensorpermission">需要传感器权限才能显示心率</string>
- <string name="sensorpermissionmessage">在设备设置、应用程序、权限、Juggluco 中设置</string>
+ <string name="sensorpermissionmessage">在设备设置、应用程序、权限、Glucy 中设置</string>
  <string name="floatglucose">悬浮窗设置</string>
  <string name="floatglucoseshort">@string/floatglucose</string>
 
@@ -331,7 +331,7 @@
 <string name="resendwarning">所有数据将再次发送，这需要时间，并且可能对 Libreview 和 Kerfstok 产生影响</string>
 <string name="parseip">解析IP错误</string>
 <string name="toomanyhosts">超过最大主机数</string>
-<string name="senthosts">Juggluco最多发送到6个主机</string>
+<string name="senthosts">Glucy最多发送到6个主机</string>
    <string name="clampnow">固定当前时刻</string>
     <string name="sendfrom">"发送自:"</string>
  <string name="changestartbutton">选择数据发送</string>
@@ -422,7 +422,7 @@
 
     <!-- Newly Extracted Strings -->
     <string name="import_history">导入历史记录</string>
-    <string name="import_history_desc">从 JugglucoNG 导出文件或 CSV 文件导入血糖数据</string>
+    <string name="import_history_desc">从 Glucy 导出文件或 CSV 文件导入血糖数据</string>
     <string name="continue_without_sensor">不使用传感器继续</string>
     <string name="continue_without_sensor_desc">在日志中记录胰岛素、食物和指尖血糖</string>
     <string name="get_started_desc">首先添加您的传感器</string>
@@ -472,9 +472,9 @@
     <string name="export_history_title">导出历史记录</string>
     <string name="export_history_sub">将读数保存到 CSV 或文本文件</string>
     <string name="import_history_title">导入历史记录</string>
-    <string name="import_history_sub">从 JugglucoNG 导出文件或 CSV 文件恢复血糖读数</string>
+    <string name="import_history_sub">从 Glucy 导出文件或 CSV 文件恢复血糖读数</string>
     <string name="import_no_glucose">此文件中没有血糖数据</string>
-    <string name="import_unsupported_file">不支持此文件。请选择 JugglucoNG 导出文件或血糖历史 CSV 文件。</string>
+    <string name="import_unsupported_file">不支持此文件。请选择 Glucy 导出文件或血糖历史 CSV 文件。</string>
     <string name="delete_reading_title">删除读数？</string>
     <string name="delete_reading_confirmation">从本地历史记录中删除这条血糖读数。此操作无法撤销。</string>
     <string name="alert_sound">警报声音</string>
@@ -546,7 +546,7 @@
     <string name="scheduled_backup_acknowledge">确认并将最新备份用作基准</string>
     <string name="backup_integrity_channel">备份完整性警告</string>
     <string name="backup_integrity_channel_desc">自动备份可能包含明显更少的数据时发出严重警告</string>
-    <string name="backup_integrity_notification_title">请检查 JugglucoNG 备份</string>
+    <string name="backup_integrity_notification_title">请检查 Glucy 备份</string>
     <string name="backup_integrity_notification_text">最新备份意外变小。旧备份已保留。请打开备份设置进行检查。</string>
     <string name="export_everything">全部</string>
     <string name="export_history_data_desc">葡萄糖历史记录、日志条目和胰岛素预设</string>
@@ -562,7 +562,7 @@
     <string name="import_data">导入历史记录</string>
     <string name="import_data_desc">加载备份或 Libreview 文件</string>
     <string name="import_data_settings">导入数据/设置</string>
-    <string name="import_data_settings_desc">恢复历史 CSV 或 JugglucoNG 导出文件</string>
+    <string name="import_data_settings_desc">恢复历史 CSV 或 Glucy 导出文件</string>
     <string name="settings_import_confirm_title">导入设置？</string>
     <string name="settings_import_confirm_message">这会替换应用设置、凭据、设备密钥和镜像配置，然后重启应用。</string>
     <string name="settings_import_successful">设置已导入。正在重启…</string>
@@ -816,7 +816,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">在配对前调整 Libre 3 的实验性扫描行为。</string>
     <string name="libre3_nfc_command_title">Libre 3 NFC 命令</string>
-    <string name="libre3_nfc_command_desc">选择 Juggluco 在 Libre 3 NFC 扫描期间发送的命令</string>
+    <string name="libre3_nfc_command_desc">选择 Glucy 在 Libre 3 NFC 扫描期间发送的命令</string>
     <string name="libre3_nfc_command_auto">自动</string>
     <string name="libre3_nfc_command_auto_desc">使用 Juggluco 默认的 Libre 3 扫描行为</string>
     <string name="libre3_nfc_command_activate">A0 激活</string>
@@ -1404,7 +1404,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">没有足够的每日数据来呈现趋势。</string>
     <string name="report_no_readings_day">这一天没有读数。</string>
-    <string name="report_page1_title">JugglucoNG CGM 临床报告</string>
+    <string name="report_page1_title">Glucy CGM 临床报告</string>
     <string name="report_page1_subtitle">范围 %1$s · 读数 %2$d · 窗口 %3$s 至 %4$s</string>
     <string name="report_estimated_a1c">估计 A1C</string>
     <string name="report_below_target">低于目标</string>
@@ -1419,7 +1419,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_above_duration">上图：%1$s</string>
     <string name="report_agp_section_title">动态血糖曲线（24 小时百分位带）</string>
     <string name="report_reference_targets">参考目标：GMI &lt; 7.0%%，CV &lt;= 36%%，范围时间&gt;= 70%%。</string>
-    <string name="report_page2_title">JugglucoNG CGM 每日趋势与解读</string>
+    <string name="report_page2_title">Glucy CGM 每日趋势与解读</string>
     <string name="report_page2_subtitle">每日变化、指标细分和解释说明</string>
     <string name="report_daily_average_trend">日均趋势</string>
     <string name="report_detailed_metrics">详细指标</string>
@@ -1434,7 +1434,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_generated_insights_message">在此时间范围内没有生成其他模式警告。</string>
     <string name="report_agp_consensus_title">AGP共识参考</string>
     <string name="report_agp_consensus_body">本报告中引用的目标遵循 AGP 国际共识风格：TIR 70-180 mg/dL (3.9-10.0 mmol/L)、TBR &lt;70 和 &lt;54 mg/dL、TAR &gt;180 和 &gt;250 mg/dL，CV 目标 &lt;=36%%。</string>
-    <string name="report_page3_title">JugglucoNG 附录 I - AGP 和每日表格</string>
+    <string name="report_page3_title">Glucy 附录 I - AGP 和每日表格</string>
     <string name="report_page3_subtitle">每小时百分位数和日级结果</string>
     <string name="report_hourly_agp_table">每小时 AGP 配置文件表</string>
     <string name="report_hour">小时</string>
@@ -1443,7 +1443,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_hourly_agp">此范围内没有可用的每小时 AGP 垃圾箱。</string>
     <string name="report_daily_outcomes_table">每日结果表</string>
     <string name="report_showing_latest_days">显示最近 %1$d 天，共 %2$d 天。</string>
-    <string name="report_page4_title">JugglucoNG 附录 II - 活动和每日概况</string>
+    <string name="report_page4_title">Glucy 附录 II - 活动和每日概况</string>
     <string name="report_page4_subtitle">低/高暴露指标和日级概况图表</string>
     <string name="report_hypo_hyper_events">低/过度暴露事件</string>
     <string name="report_hours_per_day">小时/天</string>
@@ -1473,7 +1473,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_gms_unavailable">Google Play Services unavailable; Wear transport is disabled.</string>
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">手表应用未安装</string>
-    <string name="wear_watch_app_missing_hint">在这块手表上安装 Juggluco，然后点按刷新。</string>
+    <string name="wear_watch_app_missing_hint">在这块手表上安装 Glucy，然后点按刷新。</string>
     <string name="wear_auto_sensor_switch">自动切换传感器</string>
     <string name="wear_auto_sensor_switch_on_desc">手机和手表会自行交接传感器，哪台设备在范围内就由哪台读取。</string>
     <string name="wear_auto_sensor_switch_off_desc">只有你选择的设备读取传感器。</string>
@@ -1549,7 +1549,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insight_unstable_days">频繁不稳定日</string>
     <string name="insight_unstable_days_desc">在此时间窗口中，有 %1$d 天的达标时间低于 50%%。</string>
     <string name="mq_fetch_calibration_on_add">添加时恢复厂商会话</string>
-    <string name="mq_fetch_calibration_on_add_desc">如果有可用的二维码或已保存的 Glutec 凭据，Juggluco 会在设置期间尝试恢复 MQ 会话状态。</string>
+    <string name="mq_fetch_calibration_on_add_desc">如果有可用的二维码或已保存的 Glutec 凭据，Glucy 会在设置期间尝试恢复 MQ 会话状态。</string>
     <string name="mq_bootstrap_button">恢复厂商会话</string>
     <string name="mq_bootstrap_dialog_title">恢复厂商会话</string>
     <string name="mq_bootstrap_dialog_desc">通过 Glutec 恢复厂商会话状态。如有需要，请在此输入传感器二维码；账号、同步和 API 设置位于 MQ / Glutec 账号中。</string>
@@ -1582,9 +1582,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mq_account_session_valid">会话有效</string>
     <string name="mq_account_session_invalid">会话无效</string>
     <string name="mq_manual_calibration_title">手动校准</string>
-    <string name="mq_manual_calibration_desc">仅在 Juggluco 本地生效。输入一个 %1$s 单位的指尖血糖值。需要最近的 MQ 实时数据包。</string>
+    <string name="mq_manual_calibration_desc">仅在 Glucy 本地生效。输入一个 %1$s 单位的指尖血糖值。需要最近的 MQ 实时数据包。</string>
     <string name="mq_follower_title">Glutec 关注</string>
-    <string name="mq_follower_desc">通过厂商云端关注另一个 Glutec 账户。启用后，Juggluco 会创建一个只读的关注传感器。</string>
+    <string name="mq_follower_desc">通过厂商云端关注另一个 Glutec 账户。启用后，Glucy 会创建一个只读的关注传感器。</string>
     <string name="mq_follower_account_label">要关注的账户</string>
     <string name="mq_follower_account_desc">输入要关注的 Glutec 电话号码或账户。</string>
     <string name="mq_follower_enabled_summary">关注已开启</string>
@@ -2454,12 +2454,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">传感器已到期,但有多个后续传感器处于活动状态。已跳过自动交接;请手动切换。</string>
     <string name="sensor_handover_successor_ready">后续传感器已就绪;到期时自动交接将接管</string>
     <string name="nightscout_upload_iob">发送活性胰岛素</string>
-    <string name="nightscout_upload_iob_desc">用 Juggluco 的 IOB 替代 Nightscout 的估算</string>
+    <string name="nightscout_upload_iob_desc">用 Glucy 的 IOB 替代 Nightscout 的估算</string>
     <string name="journal_iob_source_remote">来自上传设备的数值（Nightscout）</string>
     <string name="ottai_cloud_unbind_title">永久解除此传感器的绑定？</string>
-    <string name="ottai_cloud_unbind_message">%1$s 将从此 Ottai 账户中永久移除。此账户将无法再获取其凭据，该传感器也将无法再用于官方 Ottai 应用。JugglucoNG 中已保存的凭据和传感器状态不会改变。此操作无法撤销。</string>
+    <string name="ottai_cloud_unbind_message">%1$s 将从此 Ottai 账户中永久移除。此账户将无法再获取其凭据，该传感器也将无法再用于官方 Ottai 应用。Glucy 中已保存的凭据和传感器状态不会改变。此操作无法撤销。</string>
     <string name="ottai_cloud_unbind_confirm">永久解除绑定</string>
-    <string name="ottai_cloud_unbind_success">已从 Ottai 永久解除传感器绑定。JugglucoNG 中的传感器和已保存凭据未被更改。</string>
+    <string name="ottai_cloud_unbind_success">已从 Ottai 永久解除传感器绑定。Glucy 中的传感器和已保存凭据未被更改。</string>
     <string name="ottai_cloud_unbind_failed">无法从 Ottai 解除传感器绑定。</string>
     <string name="ottai_disconnect_forget_unbind">删除凭据并解除绑定</string>
     <string name="ottai_disconnect_forget_unbind_desc">删除已保存的密钥，并将传感器从 Ottai 账户解除绑定。之后将无法再连接。</string>
@@ -2572,7 +2572,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_max_per_hour">每小时最多消息数</string>
     <string name="sms_max_per_day">每天最多消息数</string>
     <string name="sms_sent_today">过去 24 小时已发送：%1$d</string>
-    <string name="sms_permission_desc">此目标需要 JugglucoNG 获得发送短信的权限才能工作。</string>
+    <string name="sms_permission_desc">此目标需要 Glucy 获得发送短信的权限才能工作。</string>
     <string name="sms_permission_grant">授予</string>
     <string name="sms_no_telephony">此设备无法发送短信。</string>
     <string name="sms_preview_title">预览</string>
@@ -2590,7 +2590,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_event_no_data">已 %1$d 分钟没有传感器数据</string>
     <string name="sms_event_all_clear">已解除</string>
     <string name="sms_event_relay">更新（无数据连接）</string>
-    <string name="sms_event_test">来自 JugglucoNG 的测试消息</string>
+    <string name="sms_event_test">来自 Glucy 的测试消息</string>
     <string name="sms_body_no_reading">还没有读数</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2630,13 +2630,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_verifying_title">正在校验下载</string>
     <string name="app_updates_verifying_body">安装前检查签名与版本。</string>
     <string name="app_updates_ready_title">%1$s 已可安装</string>
-    <string name="app_updates_ready_body">Android 会请你确认。JugglucoNG 将关闭并重新打开；传感器连接会自动恢复。</string>
+    <string name="app_updates_ready_body">Android 会请你确认。Glucy 将关闭并重新打开；传感器连接会自动恢复。</string>
     <string name="app_updates_up_to_date_title">你使用的已是最新版本</string>
     <string name="app_updates_last_checked">上次检查：%1$s</string>
     <string name="app_updates_never_checked">从未</string>
     <string name="app_updates_error_title">检查更新失败</string>
-    <string name="app_updates_permission_title">允许 JugglucoNG 安装应用</string>
-    <string name="app_updates_permission_body">在 JugglucoNG 能安装自身更新之前，Android 需要一次性授权。</string>
+    <string name="app_updates_permission_title">允许 Glucy 安装应用</string>
+    <string name="app_updates_permission_body">在 Glucy 能安装自身更新之前，Android 需要一次性授权。</string>
     <string name="app_updates_permission_action">打开设置</string>
     <string name="app_updates_unsupported_store_title">更新由应用商店提供</string>
     <string name="app_updates_unsupported_store_body">此副本由 %1$s 安装，更新由其自行管理。</string>
@@ -2647,11 +2647,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_error_parse">更新源返回了意外的内容。</string>
     <string name="app_updates_error_no_artifact">最新发布中没有适用于此构建的下载。</string>
     <string name="app_updates_error_checksum">下载文件与校验和不符，已删除。</string>
-    <string name="app_updates_error_signature">下载的 APK 使用了不同的签名密钥，已删除。请仅从官方发布页面安装 JugglucoNG。</string>
+    <string name="app_updates_error_signature">下载的 APK 使用了不同的签名密钥，已删除。请仅从官方发布页面安装 Glucy。</string>
     <string name="app_updates_error_package">下载的 APK 属于另一个应用。</string>
     <string name="app_updates_error_downgrade">该版本不比已安装的版本新。</string>
     <string name="app_updates_error_storage">可用空间不足，无法下载。</string>
-    <string name="app_updates_error_install_permission">JugglucoNG 尚未获得安装应用的权限。</string>
+    <string name="app_updates_error_install_permission">Glucy 尚未获得安装应用的权限。</string>
     <string name="app_updates_error_install_failed">安装未能完成。</string>
     <string name="app_updates_error_cancelled">已取消安装。</string>
     <string name="app_updates_source_title">更新源</string>
@@ -2947,7 +2947,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wearos_config_title">Wear OS 配置</string>
     <string name="watch_status_section">手表状态</string>
     <string name="watch_none_found">未找到 Wear OS 手表</string>
-    <string name="watch_none_found_hint">在手表上打开 Juggluco，然后点按刷新</string>
+    <string name="watch_none_found_hint">在手表上打开 Glucy，然后点按刷新</string>
     <string name="watch_routing_section">路由</string>
     <string name="watch_enter_amounts">在手表上输入数量</string>
     <string name="watch_enter_amounts_on">在手表上输入的记录会被保存并同步到手机。</string>

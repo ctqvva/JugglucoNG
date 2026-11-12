@@ -14,7 +14,7 @@
 	<string name="amountshort">@string/amountsname</string>
     <string name="amountsname">Значения</string>
 	<string name="android13">Android</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucy</string>
     <string name="background">Зад. фон</string>
     <string name="backgroundshort">Позади</string>
     <string name="blueormirror">Датчик через Bluetooth должен быть включен или он должен быть настроен как клон</string>
@@ -135,7 +135,7 @@
     <string name="list">Все записи</string>
     <string name="localonly">Только локально</string>
     <string name="longinsulin">Инсулин длительного действия</string>
-    <string name="loss_description">Juggluco потерял контакт с датчиком</string>
+    <string name="loss_description">Glucy потерял контакт с датчиком</string>
     <string name="lossdata">Сброс к значениям по умолчанию может привести к потере данных.</string>
     <string name="lossofsignalalarm">Тревога о потере сигнала</string>
     <string name="lowglucose">"Низкий уровень глюкозы!"</string>
@@ -244,7 +244,7 @@
     <string name="sensorpermissionmessage">Вы можете установить его в настройках устройства, приложениях, разрешениях</string>
     <string name="sensorviabluetooth">Датчик по Bluetooth</string>
     <string name="sensorviabluetoothon">"Для сигналов тревоги на устройствах, не являющихся зеркальными, должен быть включен параметр "Датчик по Bluetooth"</string>
-    <string name="senthosts">Juggluco отправляет до 6 хостов</string>
+    <string name="senthosts">Glucy отправляет до 6 хостов</string>
     <string name="separate">Отдельный</string>
     <string name="settings">Настройки</string>
     <string name="setunitfirst">Сначала установите единицу измерения</string>
@@ -515,7 +515,7 @@
 
     <!-- Newly Extracted Strings -->
     <string name="import_history">Импорт истории</string>
-    <string name="import_history_desc">Импорт данных глюкозы из экспорта JugglucoNG или CSV-файла</string>
+    <string name="import_history_desc">Импорт данных глюкозы из экспорта Glucy или CSV-файла</string>
     <string name="continue_without_sensor">Продолжить без датчика</string>
     <string name="continue_without_sensor_desc">Записывайте инсулин, еду и пальцевые замеры в журнал</string>
     <string name="get_started_desc">Начните с добавления вашего сенсора</string>
@@ -565,7 +565,7 @@
     <string name="export_history_title">Экспорт истории</string>
     <string name="export_history_sub">Сохранить показания в CSV или текст</string>
     <string name="import_history_title">Импорт истории</string>
-    <string name="import_history_sub">Восстановить показания глюкозы из экспорта JugglucoNG или CSV-файла</string>
+    <string name="import_history_sub">Восстановить показания глюкозы из экспорта Glucy или CSV-файла</string>
     <string name="delete_reading_title">Удалить показание?</string>
     <string name="delete_reading_confirmation">Удалить это показание глюкозы из локальной истории. Это действие необратимо.</string>
     <string name="alert_sound">Звук тревоги</string>
@@ -637,7 +637,7 @@
     <string name="scheduled_backup_acknowledge">Подтвердить и использовать последнюю копию как базовую</string>
     <string name="backup_integrity_channel">Предупреждения о целостности копий</string>
     <string name="backup_integrity_channel_desc">Критические предупреждения, если автоматическая копия может содержать значительно меньше данных</string>
-    <string name="backup_integrity_notification_title">Проверьте резервную копию JugglucoNG</string>
+    <string name="backup_integrity_notification_title">Проверьте резервную копию Glucy</string>
     <string name="backup_integrity_notification_text">Последняя копия неожиданно уменьшилась. Старые копии сохранены. Откройте настройки резервного копирования для проверки.</string>
     <string name="export_everything">Всё</string>
     <string name="export_history_data_desc">История глюкозы, записи журнала и профили инсулина</string>
@@ -653,7 +653,7 @@
     <string name="import_data">Импорт истории</string>
     <string name="import_data_desc">Загрузить бэкап или файл Libreview</string>
     <string name="import_data_settings">Импорт данных/настроек</string>
-    <string name="import_data_settings_desc">Восстановить CSV истории или экспорт JugglucoNG</string>
+    <string name="import_data_settings_desc">Восстановить CSV истории или экспорт Glucy</string>
     <string name="settings_import_confirm_title">Импортировать настройки?</string>
     <string name="settings_import_confirm_message">Это заменит настройки приложения, учетные данные, ключи устройств и конфигурацию mirror, затем перезапустит приложение.</string>
     <string name="settings_import_successful">Настройки импортированы. Перезапуск…</string>
@@ -733,7 +733,7 @@
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Настройте экспериментальное поведение сканирования Libre 3 перед сопряжением.</string>
     <string name="libre3_nfc_command_title">Команда NFC для Libre 3</string>
-    <string name="libre3_nfc_command_desc">Выберите, какую команду Juggluco отправляет при NFC-сканировании Libre 3</string>
+    <string name="libre3_nfc_command_desc">Выберите, какую команду Glucy отправляет при NFC-сканировании Libre 3</string>
     <string name="libre3_nfc_command_auto">Авто</string>
     <string name="libre3_nfc_command_auto_desc">Использовать стандартное поведение Juggluco при сканировании Libre 3</string>
     <string name="libre3_nfc_command_activate">A0 Активировать</string>
@@ -1101,7 +1101,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_with_unit">Глюкоза (%1$s)</string>
     <string name="import_failed_with_error">Не удалось импортировать: %1$s.</string>
     <string name="import_no_glucose">В файле нет данных глюкозы</string>
-    <string name="import_unsupported_file">Неподдерживаемый файл. Выберите экспорт JugglucoNG или CSV-файл истории глюкозы.</string>
+    <string name="import_unsupported_file">Неподдерживаемый файл. Выберите экспорт Glucy или CSV-файл истории глюкозы.</string>
     <string name="import_summary">Импортировано: %1$d, пропущено: %2$d, заменено: %3$d.</string>
     <string name="imported_readings_count">Импортированные показания %1$d</string>
     <string name="mirror_error_with_code">Ошибка зеркала (%1$d)</string>
@@ -1429,7 +1429,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Недостаточно ежедневных данных для отображения тренда.</string>
     <string name="report_no_readings_day">Чтений на этот день нет.</string>
-    <string name="report_page1_title">Клинический отчет JugglucoNG CGM</string>
+    <string name="report_page1_title">Клинический отчет Glucy CGM</string>
     <string name="report_page1_subtitle">Диапазон %1$s · Показания %2$d · Окно от %3$s до %4$s</string>
     <string name="report_estimated_a1c">Предполагаемый A1C</string>
     <string name="report_below_target">Ниже целевого показателя</string>
@@ -1459,7 +1459,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_generated_insights_message">Никаких дополнительных предупреждений о шаблонах для этого периода времени создано не было.</string>
     <string name="report_agp_consensus_title">Справочник по консенсусу AGP</string>
     <string name="report_agp_consensus_body">Целевые показатели, упомянутые в этом отчете, соответствуют стилю международного консенсуса AGP: TIR 70–180 мг/дл (3,9–10,0 ммоль/л), TBR &lt;70 и &lt;54 мг/дл, TAR &gt;180 и &gt;250 мг/дл, с целевым значением CV &lt;=36%%.</string>
-    <string name="report_page3_title">Приложение I JugglucoNG – AGP и ежедневные таблицы</string>
+    <string name="report_page3_title">Приложение I Glucy – AGP и ежедневные таблицы</string>
     <string name="report_page3_subtitle">Почасовые процентили и результаты на уровне дня</string>
     <string name="report_hourly_agp_table">Таблица почасового профиля AGP</string>
     <string name="report_hour">Час</string>
@@ -1502,7 +1502,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_gms_unavailable">Сервисы Google Play недоступны; транспорт Wear отключен.</string>
     <string name="wear_transport_reinit_desc">Принудительно перезапустить поиск часов и синхронизацию сети.</string>
     <string name="wear_watch_app_missing">Приложение для часов отсутствует</string>
-    <string name="wear_watch_app_missing_hint">Установите Juggluco на эти часы, затем нажмите обновить.</string>
+    <string name="wear_watch_app_missing_hint">Установите Glucy на эти часы, затем нажмите обновить.</string>
     <string name="wear_auto_sensor_switch">Автоматически переключать датчик</string>
     <string name="wear_auto_sensor_switch_on_desc">Телефон и часы сами передают датчик друг другу, поэтому его читает то устройство, которое в зоне действия.</string>
     <string name="wear_auto_sensor_switch_off_desc">Датчик читает только выбранное вами устройство.</string>
@@ -1578,7 +1578,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insight_unstable_days">Частые нестабильные дни</string>
     <string name="insight_unstable_days_desc">В этом окне %1$d дней имели менее 50%% времени в диапазоне.</string>
     <string name="mq_fetch_calibration_on_add">Восстанавливать сессию производителя при добавлении</string>
-    <string name="mq_fetch_calibration_on_add_desc">Если доступен QR-код или сохраненные учетные данные Glutec, Juggluco попробует восстановить состояние сессии MQ во время настройки.</string>
+    <string name="mq_fetch_calibration_on_add_desc">Если доступен QR-код или сохраненные учетные данные Glutec, Glucy попробует восстановить состояние сессии MQ во время настройки.</string>
     <string name="mq_bootstrap_button">Восстановить сессию производителя</string>
     <string name="mq_bootstrap_dialog_title">Восстановить сессию производителя</string>
     <string name="mq_bootstrap_dialog_desc">Восстановите состояние сессии производителя через Glutec. При необходимости введите QR-код датчика здесь; аккаунт, синхронизация и API настраиваются в разделе MQ / Glutec.</string>
@@ -1611,9 +1611,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mq_account_session_valid">Сессия действительна</string>
     <string name="mq_account_session_invalid">Сессия недействительна</string>
     <string name="mq_manual_calibration_title">Ручная калибровка</string>
-    <string name="mq_manual_calibration_desc">Локально в Juggluco. Введите значение глюкозы из пальца в %1$s. Нужен свежий живой пакет MQ.</string>
+    <string name="mq_manual_calibration_desc">Локально в Glucy. Введите значение глюкозы из пальца в %1$s. Нужен свежий живой пакет MQ.</string>
     <string name="mq_follower_title">Наблюдатель Glutec</string>
-    <string name="mq_follower_desc">Следите за другим аккаунтом Glutec через облако производителя. При включении в Juggluco создается датчик-наблюдатель только для чтения.</string>
+    <string name="mq_follower_desc">Следите за другим аккаунтом Glutec через облако производителя. При включении в Glucy создается датчик-наблюдатель только для чтения.</string>
     <string name="mq_follower_account_label">Аккаунт для наблюдения</string>
     <string name="mq_follower_account_desc">Введите номер телефона или аккаунт Glutec, за которым нужно следить.</string>
     <string name="mq_follower_enabled_summary">Наблюдение включено</string>
@@ -2200,9 +2200,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_saved">Подключить</string>
     <string name="ottai_login_fail">Вход не выполнен - проверьте телефон/код</string>
     <string name="ottai_cloud_unbind_title">Навсегда отвязать этот датчик?</string>
-    <string name="ottai_cloud_unbind_message">%1$s будет навсегда удалён из этого аккаунта Ottai. Аккаунт больше не сможет получить его учётные данные, а датчик больше не будет работать в официальном приложении Ottai. Сохранённые в JugglucoNG учётные данные и состояние датчика не изменятся. Это действие нельзя отменить.</string>
+    <string name="ottai_cloud_unbind_message">%1$s будет навсегда удалён из этого аккаунта Ottai. Аккаунт больше не сможет получить его учётные данные, а датчик больше не будет работать в официальном приложении Ottai. Сохранённые в Glucy учётные данные и состояние датчика не изменятся. Это действие нельзя отменить.</string>
     <string name="ottai_cloud_unbind_confirm">Отвязать навсегда</string>
-    <string name="ottai_cloud_unbind_success">Датчик навсегда отвязан от Ottai. Датчик и сохранённые данные в JugglucoNG не изменены.</string>
+    <string name="ottai_cloud_unbind_success">Датчик навсегда отвязан от Ottai. Датчик и сохранённые данные в Glucy не изменены.</string>
     <string name="ottai_cloud_unbind_failed">Не удалось отвязать датчик от Ottai.</string>
     <string name="ottai_disconnect_forget_unbind">Удалить учётные данные и отвязать</string>
     <string name="ottai_disconnect_forget_unbind_desc">Удаляет сохранённые ключи и отвязывает датчик от аккаунта Ottai. Подключить его снова не получится.</string>
@@ -2567,7 +2567,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">Сенсор истёк, но активно несколько сенсоров-преемников. Автоматическая передача пропущена; переключитесь вручную.</string>
     <string name="sensor_handover_successor_ready">Сенсор-преемник готов; автоматическая передача сработает при истечении</string>
     <string name="nightscout_upload_iob">Отправлять активный инсулин</string>
-    <string name="nightscout_upload_iob_desc">Использовать IOB Juggluco вместо Nightscout</string>
+    <string name="nightscout_upload_iob_desc">Использовать IOB Glucy вместо Nightscout</string>
     <string name="journal_iob_source_remote">Значения с передающего устройства (Nightscout)</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Экстренные SMS</string>
@@ -2625,7 +2625,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_max_per_hour">Максимум сообщений в час</string>
     <string name="sms_max_per_day">Максимум сообщений в сутки</string>
     <string name="sms_sent_today">Отправлено за последние 24 часа: %1$d</string>
-    <string name="sms_permission_desc">Чтобы это направление работало, приложению JugglucoNG нужно разрешение на отправку SMS.</string>
+    <string name="sms_permission_desc">Чтобы это направление работало, приложению Glucy нужно разрешение на отправку SMS.</string>
     <string name="sms_permission_grant">Разрешить</string>
     <string name="sms_no_telephony">Это устройство не может отправлять SMS.</string>
     <string name="sms_preview_title">Предпросмотр</string>
@@ -2643,7 +2643,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_event_no_data">Нет данных сенсора %1$d мин</string>
     <string name="sms_event_all_clear">Отбой</string>
     <string name="sms_event_relay">Обновление (нет передачи данных)</string>
-    <string name="sms_event_test">Тестовое сообщение от JugglucoNG</string>
+    <string name="sms_event_test">Тестовое сообщение от Glucy</string>
     <string name="sms_body_no_reading">Показаний пока нет</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2683,13 +2683,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_verifying_title">Проверка загрузки</string>
     <string name="app_updates_verifying_body">Проверяем подпись и версию перед установкой.</string>
     <string name="app_updates_ready_title">%1$s готова к установке</string>
-    <string name="app_updates_ready_body">Android попросит подтверждение. JugglucoNG закроется и откроется снова; связь с сенсорами восстановится сама.</string>
+    <string name="app_updates_ready_body">Android попросит подтверждение. Glucy закроется и откроется снова; связь с сенсорами восстановится сама.</string>
     <string name="app_updates_up_to_date_title">У вас последняя версия</string>
     <string name="app_updates_last_checked">Последняя проверка: %1$s</string>
     <string name="app_updates_never_checked">никогда</string>
     <string name="app_updates_error_title">Не удалось проверить обновления</string>
-    <string name="app_updates_permission_title">Разрешите установку из JugglucoNG</string>
-    <string name="app_updates_permission_body">Android требует разового разрешения, чтобы JugglucoNG мог установить собственное обновление.</string>
+    <string name="app_updates_permission_title">Разрешите установку из Glucy</string>
+    <string name="app_updates_permission_body">Android требует разового разрешения, чтобы Glucy мог установить собственное обновление.</string>
     <string name="app_updates_permission_action">Открыть настройки</string>
     <string name="app_updates_unsupported_store_title">Обновления идут из магазина</string>
     <string name="app_updates_unsupported_store_body">Эта копия установлена через %1$s, который сам управляет обновлениями.</string>
@@ -2700,11 +2700,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_error_parse">Источник обновлений вернул неожиданный ответ.</string>
     <string name="app_updates_error_no_artifact">В последнем выпуске нет файла для этой сборки.</string>
     <string name="app_updates_error_checksum">Загруженный файл не совпал с контрольной суммой и был удалён.</string>
-    <string name="app_updates_error_signature">Загруженный APK подписан другим ключом и был удалён. Устанавливайте JugglucoNG только с официальной страницы выпусков.</string>
+    <string name="app_updates_error_signature">Загруженный APK подписан другим ключом и был удалён. Устанавливайте Glucy только с официальной страницы выпусков.</string>
     <string name="app_updates_error_package">Загруженный APK относится к другому приложению.</string>
     <string name="app_updates_error_downgrade">Этот выпуск не новее установленной версии.</string>
     <string name="app_updates_error_storage">Недостаточно свободного места для загрузки.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG пока не разрешено устанавливать приложения.</string>
+    <string name="app_updates_error_install_permission">Glucy пока не разрешено устанавливать приложения.</string>
     <string name="app_updates_error_install_failed">Установка не завершилась.</string>
     <string name="app_updates_error_cancelled">Установка отменена.</string>
     <string name="app_updates_source_title">Источник обновлений</string>
@@ -3009,7 +3009,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wearos_config_title">Настройка Wear OS</string>
     <string name="watch_status_section">Состояние часов</string>
     <string name="watch_none_found">Часы Wear OS не найдены</string>
-    <string name="watch_none_found_hint">Откройте Juggluco на часах, затем нажмите «Обновить»</string>
+    <string name="watch_none_found_hint">Откройте Glucy на часах, затем нажмите «Обновить»</string>
     <string name="watch_routing_section">Маршрутизация</string>
     <string name="watch_enter_amounts">Вводить количества на часах</string>
     <string name="watch_enter_amounts_on">Записи с часов сохраняются и синхронизируются с телефоном.</string>
