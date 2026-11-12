@@ -63,6 +63,9 @@ class ICanHealthBleManager(
 
         private const val CONNECTION_ATTEMPT_TIMEOUT_MS = 120_000L
         private const val GATT_OP_TIMEOUT_MS = 10_000L
+        private const val GATT_TIMEOUT_RETRY_BASE_MS = 30_000L
+        private const val GATT_TIMEOUT_RETRY_MAX_MS = 5 * 60_000L
+        private const val GATT_TIMEOUT_STREAK_RESET_MS = 30 * 60_000L
         private const val REBIND_CANDIDATE_TIMEOUT_MS = 45_000L
         private const val REBIND_RETRY_BACKOFF_MS = 60_000L
         private const val MTU_REQUEST_TIMEOUT_MS = 12_000L
@@ -160,7 +163,9 @@ class ICanHealthBleManager(
             val serviceUuid: UUID = ICanHealthConstants.CGM_SERVICE,
             val correctCodeOwner: List<ByteArray>? = null,
             val correctCodeIndex: Int = -1,
-        ) : GattOp()
+        ) : GattOp() {
+            @Volatile var completionStatus: Int? = null
+        }
         data class Read(
             val charUuid: UUID,
             val serviceUuid: UUID = ICanHealthConstants.CGM_SERVICE,
@@ -170,6 +175,7 @@ class ICanHealthBleManager(
     private val gattQueue = ArrayDeque<GattOp>()
     private val gattQueueLock = Any()
     @Volatile private var gattOpActive = false
+    @Volatile private var gattOpInFlight: GattOp? = null
 
     private var cgmService: BluetoothGattService? = null
     private var disService: BluetoothGattService? = null
@@ -211,6 +217,9 @@ class ICanHealthBleManager(
     @Volatile private var lastConnectionStartedAtMs = 0L
     @Volatile private var receivedGlucoseThisConnection = false
     @Volatile private var lastGlucoseReceiptRealtimeMs = 0L
+    // Survives transport resets; a timeout-free interval expires the failure streak.
+    private var lastGattTimeoutElapsedMs: Long? = null
+    private var gattTimeoutRetryFloorMs = 0L
     private val createdAtMs = System.currentTimeMillis()
     @Volatile private var sessionStartEpochMs = 0L
     @Volatile private var loggedSessionTimelineDriftMs = 0L
@@ -229,7 +238,10 @@ class ICanHealthBleManager(
     private var correctCodeStartRunnable: Runnable? = null
     private var correctCodeTimeoutRunnable: Runnable? = null
     private var correctCodePendingChunk: ByteArray? = null
+    private var correctCodeFinalWrite: GattOp.Write? = null
+    private var correctCodeFinalAckReceived = false
     private var correctCodeRecheckRunnable: Runnable? = null
+    @Volatile private var awaitingCorrectCodeReadback = false
     @Volatile private var lastSensorInfoMarker: Int? = null
     private var correctCodeRepairChain = false
     private val repairState = ICanHealthRepairState()
@@ -388,17 +400,50 @@ class ICanHealthBleManager(
         beginServiceDiscovery(gatt, "mtu-timeout")
     }
 
-    private val gattOpTimeoutRunnable: Runnable = object : Runnable {
-        override fun run() {
-            if (gattOpActive) {
-                if (rejectUnverifiedBindingCandidate("GATT operation timed out before identity verification")) return
-                Log.w(TAG, "GATT op timeout — forcing queue drain")
-                gattOpActive = false
-                handler.removeCallbacks(this)
-                drainGattQueue()
-                maybeHandleQueueDrained()
-            }
+    private var gattOpTimeoutRunnable: Runnable? = null
+
+    @Synchronized
+    private fun handleGattOperationTimeout(owner: BluetoothGatt, operation: GattOp) {
+        if (owner !== mBluetoothGatt || operation !== gattOpInFlight || !gattOpActive) return
+        if (rejectUnverifiedBindingCandidate("GATT operation timed out before identity verification")) return
+        Log.w(TAG, "GATT op timeout — retiring transport before reconnect")
+        val basePlan = computeReconnectPlan(System.currentTimeMillis())
+        val retryFloorMs = if (stop || uiPaused) 0L else nextGattTimeoutRetryFloorMs()
+        val reconnectPlan = basePlan.copy(delayMs = maxOf(basePlan.delayMs, retryFloorMs))
+        if (reconnectPlan.refreshSessionMetadata) {
+            forceSessionMetadataRefresh = true
+            shouldRequestAuthenticatedHistoryBackfill = true
         }
+        if (awaitingFreshStatusForHistoryBackfill) shouldRequestAuthenticatedHistoryBackfill = true
+        // Android supplies no operation token in read/write/descriptor callbacks. Once
+        // a completion is missing, reusing this GATT's slot would let its late callback
+        // complete a newer operation on the same characteristic. Detach it first, so
+        // late callbacks fail the current-GATT guard, then discard all queued work.
+        closeGattTransport()
+        connectedGatt = null
+        hasAuthenticatedReconnectHint = false
+        lastConnectionStartedAtMs = 0L
+        resetConnectionAttemptState()
+        clearGattTransportState()
+        setUiStatus(when {
+            uiPaused -> UiStatusKind.NONE
+            reconnectPlan.exactAlarm -> UiStatusKind.WAITING_FOR_NEXT_READING
+            else -> UiStatusKind.DISCONNECTED
+        })
+        if (!stop && !uiPaused) scheduleReconnect(reconnectPlan)
+        UiRefreshBus.requestStatusRefresh()
+    }
+
+    private fun nextGattTimeoutRetryFloorMs(): Long {
+        val now = SystemClock.elapsedRealtime()
+        val previous = lastGattTimeoutElapsedMs
+        gattTimeoutRetryFloorMs = when {
+            previous == null || now - previous >= GATT_TIMEOUT_STREAK_RESET_MS -> 0L
+            gattTimeoutRetryFloorMs == 0L -> GATT_TIMEOUT_RETRY_BASE_MS
+            else -> (gattTimeoutRetryFloorMs * 2).coerceAtMost(GATT_TIMEOUT_RETRY_MAX_MS)
+        }
+        lastGattTimeoutElapsedMs = now
+        return gattTimeoutRetryFloorMs
     }
 
     private data class ReconnectPlan(
@@ -645,7 +690,7 @@ class ICanHealthBleManager(
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
         handler.removeCallbacks(sensorInfoFallbackRunnable)
         handler.removeCallbacks(mtuRequestTimeoutRunnable)
-        handler.removeCallbacks(gattOpTimeoutRunnable)
+        gattOpTimeoutRunnable?.let { handler.removeCallbacks(it) }
         correctCodeRecheckRunnable?.let { handler.removeCallbacks(it) }
         correctCodeRecheckRunnable = null
         historyBackfillRequested = false
@@ -2070,6 +2115,9 @@ class ICanHealthBleManager(
             Log.w(TAG, "Write failed for ${characteristic.uuid} status=$status")
         }
         val pending = correctCodePendingChunk
+        // Publish the outcome on this exact dispatch before releasing the GATT queue.
+        // The F2 indication may reach the handler before this callback does.
+        if (write?.charUuid == characteristic.uuid) write.completionStatus = status
         finishGattOp()
         if (status != BluetoothGatt.GATT_SUCCESS && pending != null &&
             write?.charUuid == ICanHealthConstants.CGM_SPECIFIC_OPS && write.data.contentEquals(pending)) {
@@ -2086,8 +2134,12 @@ class ICanHealthBleManager(
             write.data.contentEquals(pending)
         ) {
             handler.post {
-                if (correctCodeChainActive && correctCodePendingChunk === pending) {
-                    armCorrectCodeAckTimeout(correctCodeNextChunk, CORRECT_CODE_CHUNK_TIMEOUT_MS)
+                if (gatt === mBluetoothGatt && correctCodeChainActive && correctCodePendingChunk === pending) {
+                    if (correctCodeFinalAckReceived && correctCodeFinalWrite === write) {
+                        onCorrectCodeAck()
+                    } else {
+                        armCorrectCodeAckTimeout(correctCodeNextChunk, CORRECT_CODE_CHUNK_TIMEOUT_MS)
+                    }
                 }
             }
         }
@@ -2736,19 +2788,24 @@ class ICanHealthBleManager(
 
             ICanHealthParser.isSensorInfoResponse(data) -> {
                 handler.removeCallbacks(sensorInfoFallbackRunnable)
+                val isCorrectCodeReadback = awaitingCorrectCodeReadback
+                awaitingCorrectCodeReadback = false
                 Log.i(
                     TAG,
                     "Sensor info: ${data.toHexString()} " +
                         "model=$vendorModelName sw=$vendorSoftwareVersion ${bundledKeyContext()}"
                 )
                 lastSensorInfoMarker = ICanHealthParser.parseSensorInfoMarker(data)
+                UiRefreshBus.requestStatusRefresh()
                 if (lastSensorInfoMarker != null && lastSensorInfoMarker != 0xffff) {
                     resetCorrectCodeState()
                     ICanHealthCloudCode.cancelRetry(ICanHealthConstants.normalizeOnboardingDeviceSn(onboardingDeviceSn))
                     Applic.app?.let { ICanHealthCloudStatusNotifier.clearServerUnavailable(it) }
                 }
                 maybeFetchVendorCalibrationCode(data)
-                if (lastSensorInfoMarker == 0xffff &&
+                // A readback reports what the sensor installed; an unchanged marker must
+                // not turn this one-shot verification into another provisioning chain.
+                if (!isCorrectCodeReadback && lastSensorInfoMarker == 0xffff &&
                     (startCommandIssuedThisConnection || !shouldAttemptStandaloneStart())) {
                     // A fresh sensor's 1A-success path is the normal provisioning window.
                     scheduleCorrectCodeWrite()
@@ -2938,8 +2995,13 @@ class ICanHealthBleManager(
         correctCodeNextChunk = index
         correctCodePendingChunk = chunks[index]
         Log.i(TAG, "CorrectCode write ${index + 1}/${chunks.size}: ${chunks[index].toHexString()}")
-        enqueueOp(GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS, chunks[index],
-            correctCodeOwner = chunks, correctCodeIndex = index))
+        val write = GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS, chunks[index],
+            correctCodeOwner = chunks, correctCodeIndex = index)
+        if (index == chunks.lastIndex) {
+            correctCodeFinalWrite = write
+            correctCodeFinalAckReceived = false
+        }
+        enqueueOp(write)
         armCorrectCodeAckTimeout(index, CORRECT_CODE_CHUNK_GUARD_MS)
         drainGattQueue()
     }
@@ -2960,11 +3022,27 @@ class ICanHealthBleManager(
     }
 
     private fun onCorrectCodeAck() {
+        val chunks = correctCodeChunks ?: return
+        val next = correctCodeNextChunk + 1
+        if (next >= chunks.size) {
+            // Completion requires both the sensor's F2 ack and a successful final GATT
+            // write callback, in either order. Retain the pending chunk and its timeout
+            // until both arrive so failure/cancellation can still abort the chain.
+            when (correctCodeFinalWrite?.completionStatus) {
+                null -> {
+                    correctCodeFinalAckReceived = true
+                    return
+                }
+                BluetoothGatt.GATT_SUCCESS -> Unit
+                else -> {
+                    resetCorrectCodeState()
+                    return
+                }
+            }
+        }
         correctCodeTimeoutRunnable?.let { handler.removeCallbacks(it) }
         correctCodeTimeoutRunnable = null
         correctCodePendingChunk = null
-        val chunks = correctCodeChunks ?: return
-        val next = correctCodeNextChunk + 1
         if (next >= chunks.size) {
             repairState.writeCompleted(SystemClock.elapsedRealtime())
             Log.i(
@@ -2973,6 +3051,14 @@ class ICanHealthBleManager(
                     if (correctCodeRepairChain) " (repair attempt ${repairState.attemptCount()}/${ICanHealthProvisioningPolicy.MAX_REPAIR_ATTEMPTS})" else ""
             )
             resetCorrectCodeState()
+            if (!stop && !uiPaused && isAuthenticated && mBluetoothGatt != null) {
+                // F2 acks confirm the chunks were accepted, not the resulting F6 marker.
+                // Read it through the normal queue and retain the old value until it replies.
+                awaitingCorrectCodeReadback = true
+                enqueueOp(GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS,
+                    ICanHealthConstants.CMD_REQUEST_SENSOR_INFO))
+                drainGattQueue()
+            }
             return
         }
         val sendNext = Runnable { sendCorrectCodeChunk(next) }
@@ -2981,6 +3067,9 @@ class ICanHealthBleManager(
     }
 
     private fun resetCorrectCodeState() {
+        awaitingCorrectCodeReadback = false
+        correctCodeFinalWrite = null
+        correctCodeFinalAckReceived = false
         correctCodeStartRunnable?.let { handler.removeCallbacks(it) }
         correctCodeStartRunnable = null
         correctCodeTimeoutRunnable?.let { handler.removeCallbacks(it) }
@@ -4728,14 +4817,20 @@ class ICanHealthBleManager(
 
     private fun drainGattQueue() {
         val gatt = mBluetoothGatt ?: return
-        val op = synchronized(gattQueueLock) {
-            if (gattOpActive || gattQueue.isEmpty()) return
-            val next = gattQueue.poll() ?: return
-            gattOpActive = true
-            next
-        }
-        handler.removeCallbacks(gattOpTimeoutRunnable)
-        handler.postDelayed(gattOpTimeoutRunnable, GATT_OP_TIMEOUT_MS)
+
+    val op = synchronized(gattQueueLock) {
+        if (gattOpActive || gattQueue.isEmpty()) return
+        val next = gattQueue.poll() ?: return
+        gattOpInFlight = next
+        gattOpActive = true
+        next
+    }
+
+    gattOpTimeoutRunnable?.let { handler.removeCallbacks(it) }
+    val timeout = Runnable { handleGattOperationTimeout(gatt, op) }
+    gattOpTimeoutRunnable = timeout
+    handler.postDelayed(timeout, GATT_OP_TIMEOUT_MS)
+
 
         when (op) {
             is GattOp.EnableNotify -> {
@@ -4960,11 +5055,14 @@ class ICanHealthBleManager(
         resetCorrectCodeState()
         synchronized(gattQueueLock) { gattQueue.clear() }
         gattOpActive = false
+        gattOpInFlight = null
+        gattWriteInFlight = null
         handler.removeCallbacks(noDataWatchdog)
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
         handler.removeCallbacks(sensorInfoFallbackRunnable)
         handler.removeCallbacks(mtuRequestTimeoutRunnable)
-        handler.removeCallbacks(gattOpTimeoutRunnable)
+        gattOpTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        gattOpTimeoutRunnable = null
         if (clearReconnect) {
             cancelScheduledReconnect()
         }
@@ -5033,7 +5131,9 @@ class ICanHealthBleManager(
     }
 
     private fun finishGattOp() {
-        handler.removeCallbacks(gattOpTimeoutRunnable)
+        gattOpTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        gattOpTimeoutRunnable = null
+        gattOpInFlight = null
         gattWriteInFlight = null
         gattOpActive = false
         drainGattQueue()

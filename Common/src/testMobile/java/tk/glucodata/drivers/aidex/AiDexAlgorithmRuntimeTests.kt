@@ -83,8 +83,9 @@ class AiDexAlgorithmRuntimeTests {
     @Implements(UiRefreshBus::class)
     class RefreshSink {
         companion object {
+            var statusRefreshes = 0
             @JvmStatic @Implementation fun requestDataRefresh() = Unit
-            @JvmStatic @Implementation fun requestStatusRefresh() = Unit
+            @JvmStatic @Implementation fun requestStatusRefresh() { statusRefreshes++ }
         }
     }
 
@@ -161,6 +162,7 @@ class AiDexAlgorithmRuntimeTests {
         AiDexSourceJournalBackup.file(Applic.app.filesDir, serial).parentFile!!.deleteRecursively()
         NativeInputs.start = System.currentTimeMillis() - 180_000L
         NativeInputs.historyWrites = 0
+        RefreshSink.statusRefreshes = 0
         SensorBluetooth.gattcallbacks.clear()
         ManagedCurrentSensor.clear()
         Applic.app.getSharedPreferences("calibration_prefs", Context.MODE_PRIVATE).edit().clear().commit()
@@ -1040,6 +1042,40 @@ class AiDexAlgorithmRuntimeTests {
         assertEquals(0, roomAttempts) // Stock already owns these numbers; nothing is replaced.
         assertFalse(runtime.controller.needsReplay())
         assertFalse(runtime.failed)
+    }
+
+    @Test fun stockStartupJournalFailureRetriesAfterLiveReadingAndClearsStatus() {
+        val held = sample(0, 105f)
+        runtime.record(listOf(held))
+        room[held.timestampMs] = held.factoryMgDl
+        runtime.close()
+        installRuntime()
+        val journal = AiDexSourceJournalBackup.file(Applic.app.filesDir, serial)
+        val original = journal.readBytes()
+        assertTrue(journal.delete())
+        assertTrue(journal.mkdir()) // A journal read throws during startup bootstrap.
+        executor.runNext()
+        assertTrue(runtime.failed)
+        assertEquals(Applic.app.getString(R.string.aidex_algorithm_failed), driver.getDetailedBleStatus())
+        assertTrue(runtime.controller.needsReplay())
+        assertTrue(executor.pending.isEmpty()) // No immediate retry loop on an I/O failure.
+
+        assertTrue(journal.delete())
+        journal.writeBytes(original)
+        val fresh = sample(1, 110f)
+        assertTrue(runtime.live(fresh))
+        assertEquals(110f, room[fresh.timestampMs]!!, 0f)
+        assertEquals(1, executor.pending.size)
+        val refreshes = RefreshSink.statusRefreshes
+        executor.runNext()
+        assertFalse(runtime.failed)
+        assertFalse(runtime.controller.needsReplay())
+        assertNotEquals(Applic.app.getString(R.string.aidex_algorithm_failed), driver.getDetailedBleStatus())
+        assertTrue(RefreshSink.statusRefreshes > refreshes)
+        assertEquals(1, roomAttempts) // Only the fresh reading was written.
+        assertEquals(105f, room[held.timestampMs]!!, 0f)
+        assertEquals(fresh.timestampMs, runtime.latestPublished!!.source.timestampMs)
+        assertTrue(executor.pending.isEmpty())
     }
 
     @Test fun journalFailureStillStoresAndPublishesTheReading() {

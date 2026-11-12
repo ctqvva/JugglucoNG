@@ -193,6 +193,8 @@ private fun HistoryRoute(
     val journalEnabled by dashboardViewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalDoseCalculatorEnabled by dashboardViewModel.journalDoseCalculatorEnabled.collectAsStateWithLifecycle()
     val journalFoodMacrosEnabled by dashboardViewModel.journalFoodMacrosEnabled.collectAsStateWithLifecycle()
+    val journalFoodLibraryEnabled by dashboardViewModel.journalFoodLibraryEnabled.collectAsStateWithLifecycle()
+    val journalFoodOnlineEnabled by dashboardViewModel.journalFoodOnlineEnabled.collectAsStateWithLifecycle()
     val journalEntries by dashboardViewModel.journalEntries.collectAsStateWithLifecycle()
     val journalInsulinPresets by dashboardViewModel.journalInsulinPresets.collectAsStateWithLifecycle()
     val journalFoods by dashboardViewModel.journalFoods.collectAsStateWithLifecycle()
@@ -302,6 +304,8 @@ private fun HistoryRoute(
             suggestedAmountFraction = request.suggestedAmountFraction,
             insulinPresets = journalInsulinPresets,
             foods = journalFoods,
+            foodLibraryEnabled = journalFoodLibraryEnabled,
+            foodOnlineEnabled = journalFoodOnlineEnabled,
             foodMacrosEnabled = journalFoodMacrosEnabled,
             doseJournalEntries = scopedJournalEntries,
             doseProfile = JournalDoseProfile(
@@ -329,7 +333,6 @@ private fun HistoryRoute(
                     journalEditorRequest = null
                 }
             },
-            onSaveFood = dashboardViewModel::saveJournalFood,
             onDelete = { entryId ->
                 journalGuard.delete {
                     dashboardViewModel.deleteJournalEntry(entryId)
@@ -379,6 +382,8 @@ private fun JournalRoute(
     val journalEnabled by dashboardViewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalDoseCalculatorEnabled by dashboardViewModel.journalDoseCalculatorEnabled.collectAsStateWithLifecycle()
     val journalFoodMacrosEnabled by dashboardViewModel.journalFoodMacrosEnabled.collectAsStateWithLifecycle()
+    val journalFoodLibraryEnabled by dashboardViewModel.journalFoodLibraryEnabled.collectAsStateWithLifecycle()
+    val journalFoodOnlineEnabled by dashboardViewModel.journalFoodOnlineEnabled.collectAsStateWithLifecycle()
     val journalEntries by dashboardViewModel.journalEntries.collectAsStateWithLifecycle()
     val journalInsulinPresets by dashboardViewModel.journalInsulinPresets.collectAsStateWithLifecycle()
     val journalFoods by dashboardViewModel.journalFoods.collectAsStateWithLifecycle()
@@ -475,6 +480,8 @@ private fun JournalRoute(
             suggestedAmountFraction = request.suggestedAmountFraction,
             insulinPresets = journalInsulinPresets,
             foods = journalFoods,
+            foodLibraryEnabled = journalFoodLibraryEnabled,
+            foodOnlineEnabled = journalFoodOnlineEnabled,
             foodMacrosEnabled = journalFoodMacrosEnabled,
             doseJournalEntries = journalEntries,
             doseProfile = JournalDoseProfile(
@@ -502,7 +509,6 @@ private fun JournalRoute(
                     journalEditorRequest = null
                 }
             },
-            onSaveFood = dashboardViewModel::saveJournalFood,
             onDelete = { entryId ->
                 journalGuard.delete {
                     dashboardViewModel.deleteJournalEntry(entryId)

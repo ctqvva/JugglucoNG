@@ -193,6 +193,16 @@ offer eligibility for this sensor/account. This does not establish an activation
 restriction or parity with the official app's request/client identity. No installation was
 offered in these attempts.
 
+`juggluco-trace-20261109-215206.log` repeats this on a fresh Global sensor with the same
+revision: both the plain and the V3-authenticated checks returned `required=false
+allowed=false image=false`. Preparation and activation then succeeded on the installed
+firmware. A later recheck on the activated sensor was refused with `AppDevice_AlreadyUsed`.
+Every judge so far sent the full BLE revision (`…,STDRD`). The cloud stores the variant-less
+spelling, and a bind in that spelling answered `OTA_UPGRADE_REQUIRED`. So an empty first answer
+for a composite revision now gets one more read-only judge in the variant-less spelling
+(`offer variantless …` in the trace). An offered package must still be an upgrade of the actual
+BLE revision. Installing it stays a separate confirmation.
+
 1. Export its credentials and any history you want to keep. Disconnect it from monitoring
    while retaining local credentials/history. Stop other apps from reconnecting to it. A
    managed record or callback in this test app still prevents the separate BLE session;

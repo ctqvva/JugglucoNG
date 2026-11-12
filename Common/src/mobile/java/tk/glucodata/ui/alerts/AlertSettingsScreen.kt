@@ -1131,7 +1131,7 @@ private fun AlertCard(
  */
 
 @Composable
-private fun AlertSettingsExpanded(
+internal fun AlertSettingsExpanded(
     config: AlertConfig,
     isMmol: Boolean,
     onConfigChange: (AlertConfig) -> Unit,
@@ -1252,6 +1252,14 @@ private fun AlertSettingsExpanded(
                         stepSize = 5,
                         onValueChange = { v -> onConfigChange(config.copy(rearmMinIntervalMinutes = v)) },
                         modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+                if (config.type == AlertType.PRE_LOW) {
+                    ClickableToggleRow(
+                        title = stringResource(R.string.pre_low_evidence_label),
+                        subtitle = stringResource(R.string.pre_low_evidence_description),
+                        checked = config.preLowEvidenceEnabled,
+                        onCheckedChange = { onConfigChange(config.copy(preLowEvidenceEnabled = it)) }
                     )
                 }
                 // PRE_HIGH only: insulin makes a predicted LOW more likely, so PRE_LOW

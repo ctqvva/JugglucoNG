@@ -773,6 +773,12 @@ public class Natives {
          */
         public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 
+        /** Import managed Wear history. Local/unknown populated records retain their
+         * origin and occupied samples even while disconnected. Proven peer-only records
+         * retain ordinary import behavior. The provenance check and import are atomic
+         * with local writes; localOwner also forces gap-only import during warm-up. */
+        public static native int importWearGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId, boolean localOwner);
+
         /** Stores an upstream final primary with persisted per-reading provenance. */
         public static native int addResolvedGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 
@@ -786,6 +792,8 @@ public class Natives {
         /** ManagedSensorUiFamily.nativeCode; 0 clears. Travels in info.dat, so a Clone receiver sees it. */
         public static native void setSensorManagedFamily(String sensorId, int code);
         public static native int getSensorManagedFamily(long dataptr);
+        /** Updates an existing native record without allocating a BLE stream pointer. */
+        public static native boolean setSensorViewMode(String sensorId, int mode);
 
         public static native boolean hasSensorStreamCapacity(String sensorId, int minimumRecords);
 
@@ -1057,6 +1065,9 @@ public class Natives {
         public static native boolean sensorFinishedById(String sensorId);
 
         public static native void unfinishSensor(long dataptr);
+
+        /** Reactivates every native slot of this id, including one removed by the user; false for an unknown id. */
+        public static native boolean unfinishSensorById(String sensorId);
 
         public static native long manualLibreAccountIDnumber();
 

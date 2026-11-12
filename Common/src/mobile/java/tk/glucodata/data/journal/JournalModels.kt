@@ -1,5 +1,10 @@
 package tk.glucodata.data.journal
 
+import tk.glucodata.data.food.FoodAmount
+import tk.glucodata.data.food.FoodItem
+import tk.glucodata.data.food.FoodPortion
+import tk.glucodata.data.food.FoodSource
+
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -113,8 +118,18 @@ data class JournalEntryInput(
     val nsRemoteId: String? = null,
     /** Authoritative source supplied by an importer, distinct from its transport. */
     val originSource: JournalEntrySource? = null,
+    /** The foods a new carbs entry was built from. Not stored with it; the library keeps them. */
+    val foodUses: List<JournalFoodUse> = emptyList(),
+    /** All meal items, including snapshots/unfinished items excluded from usage recording. */
+    val foodItemCount: Int = foodUses.size,
 )
 
+/**
+ * A food in the person's library.
+ *
+ * [carbsGrams], [proteinGrams] and [fatGrams] are for [referenceGrams] of it. When that is
+ * null the food is an old-style preset: one serving of unrecorded weight, counted in servings.
+ */
 data class JournalFood(
     val id: Long,
     val displayName: String,
@@ -125,8 +140,47 @@ data class JournalFood(
     val accentColor: Int,
     val isBuiltIn: Boolean,
     val isArchived: Boolean,
-    val sortOrder: Int
-)
+    val sortOrder: Int,
+    val referenceGrams: Float? = null,
+    val portions: List<FoodPortion> = emptyList(),
+    val fiberGrams: Float? = null,
+    val kcal: Float? = null,
+    val brand: String? = null,
+    val barcode: String? = null,
+    /** The key this food had on the shelf it was taken from. */
+    val sourceKey: String? = null,
+    val isLiquid: Boolean = false,
+    /** Saved on purpose; false for a food only remembered because it was eaten. */
+    val kept: Boolean = true,
+    val useCount: Int = 0,
+    val lastUsedAt: Long = 0L,
+    val lastAmount: FoodAmount? = null,
+    /** Whether the person set [absorptionMinutes], or it is the estimate made on saving. */
+    val hasOwnAbsorption: Boolean = true
+) {
+    fun toFoodItem(): FoodItem = FoodItem(
+        key = LIBRARY_KEY_PREFIX + id,
+        source = FoodSource.LIBRARY,
+        name = displayName,
+        brand = brand,
+        referenceGrams = referenceGrams,
+        carbs = carbsGrams,
+        protein = proteinGrams,
+        fat = fatGrams,
+        fiber = fiberGrams,
+        kcal = kcal,
+        portions = portions,
+        isLiquid = isLiquid,
+        absorptionMinutes = absorptionMinutes.takeIf { hasOwnAbsorption },
+        libraryId = id,
+        barcode = barcode,
+        lastAmount = lastAmount
+    )
+
+    companion object {
+        const val LIBRARY_KEY_PREFIX = "lib:"
+    }
+}
 
 data class JournalFoodInput(
     val id: Long? = null,
@@ -138,7 +192,23 @@ data class JournalFoodInput(
     val accentColor: Int,
     val isBuiltIn: Boolean = false,
     val isArchived: Boolean = false,
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
+    val referenceGrams: Float? = null,
+    val portions: List<FoodPortion> = emptyList(),
+    val fiberGrams: Float? = null,
+    val kcal: Float? = null,
+    val brand: String? = null,
+    val barcode: String? = null,
+    val sourceKey: String? = null,
+    val isLiquid: Boolean = false,
+    val kept: Boolean = true,
+    val hasOwnAbsorption: Boolean = true
+)
+
+/** A food that went into a meal, and how much of it: what the library learns from a save. */
+data class JournalFoodUse(
+    val food: FoodItem,
+    val amount: FoodAmount
 )
 
 /**

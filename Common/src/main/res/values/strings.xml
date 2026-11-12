@@ -888,16 +888,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     
     <string name="danger_zone">Danger zone</string>
     <string name="clear_history">Clear history</string>
-    <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
-    <string name="clear_history_desc_short">Remove all glucose readings from database</string>
-    <string name="clear_app_data">Clear app data</string>
-    <string name="clear_app_data_desc">Remove history and cache, keep settings</string>
     <string name="factory_reset">Factory reset</string>
     <string name="factory_reset_desc">Remove everything, return to first-run state</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
-    <string name="clean_history_confirm">Clear History?</string>
-    <string name="clean_data_confirm">Clear App Data?</string>
+    <string name="factory_reset_confirm">Factory reset?</string>
+    <string name="factory_reset_message">Erases every reading, journal entry, sensor and setting, and the permissions you granted, then closes the app. Glucose monitoring and alerts stop until you set up a sensor again, and this can\'t be undone.</string>
+    <string name="factory_reset_action">Erase everything</string>
+    <string name="factory_reset_failed">Couldn\'t reset the app</string>
+    <string name="clean_history_confirm">Clear history?</string>
+    <string name="clear_history_desc">Remove readings, journal entries or both</string>
+    <string name="clear_history_scope_readings">Removes every glucose reading on this phone and can\'t be undone. Journal, sensors and settings stay.</string>
+    <string name="clear_history_scope_journal">Removes every journal entry, also from Nightscout if sent there, and can\'t be undone. Readings, insulin types and settings stay.</string>
+    <string name="clear_history_scope_both">Removes every glucose reading and journal entry, also from Nightscout if sent there, and can\'t be undone. Sensors, insulin types and settings stay.</string>
+    <string name="clear_history_done">History cleared</string>
+    <string name="clear_history_failed">Couldn\'t clear history</string>
     
     <string name="graph_smoothing_title">Data smoothing</string>
     <string name="graph_smoothing_desc">Smooth chart data and, unless Smooth only graph is enabled, resolved glucose values</string>
@@ -1030,27 +1033,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="import_history_title">Import History</string>
     <string name="import_history_sub">Restore glucose readings from a JugglucoNG export or CSV file</string>
     
-    <string name="clear_history_title">Clear History?</string>
-    <string name="clear_history_confirmation">This will remove all glucose readings from the database. This action cannot be undone.</string>
     <string name="delete_reading_title">Delete Reading?</string>
     <string name="delete_reading_confirmation">Remove this glucose reading from local history. This action cannot be undone.</string>
-    <string name="clear_button">Clear</string>
     
-    <string name="clear_app_data_title">Clear App Data?</string>
-    <string name="clear_app_data_intro">This will remove:</string>
-    <string name="all_glucose_readings">• All glucose readings</string>
-    <string name="cache_files">• Cache files</string>
-    <string name="sensor_data">• Sensor data</string>
-    <string name="all_settings">• All settings</string>
-    <string name="settings_preserved">Settings will be preserved.</string>
-    <string name="cannot_be_undone_warning">This action cannot be undone.</string>
-    <string name="clear_data_button">Clear Data</string>
     
-    <string name="factory_reset_title">⚠️ Factory Reset?</string>
-    <string name="factory_reset_intro">This will REMOVE EVERYTHING:</string>
-    <string name="factory_reset_outcome">The app will return to first-run state.</string>
-    <string name="cannot_be_undone_critical">THIS CANNOT BE UNDONE!</string>
-    <string name="reset_everything_button">RESET EVERYTHING</string>
     
     <string name="alert_sound">Alert sound</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
@@ -1136,7 +1122,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s is bound to your account but not used here. If it has ended, unbind it so a new sensor can be activated.</string>
     <string name="ottai_cloud_binding_checking">Checking your account…</string>
     <string name="ottai_cloud_binding_bound">Bound to your account</string>
-    <string name="ottai_cloud_binding_not_bound">Not bound to your account</string>
     <string name="ottai_cloud_binding_error">Couldn\'t check your account</string>
     <string name="ottai_status_needs_ble_address">Needs BLE address</string>
     <string name="ottai_status_warmup_provisional">Provisional warmup • %1$dm left</string>
@@ -1202,10 +1187,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Sign in to fetch them, or import a file.</string>
     <string name="ottai_state_partial_title">Credentials incomplete</string>
     <string name="ottai_state_partial_body">The glucose formula is missing. Fetch or import them again.</string>
-    <string name="ottai_v3_needs_nearby">Pick this sensor from the list of found sensors: its credentials are checked over Bluetooth.</string>
     <string name="ottai_fetch_failed">Couldn\'t get this sensor\'s credentials.</string>
+    <string name="ottai_server_unreachable">Couldn\'t reach the Ottai server. Try again.</string>
     <string name="ottai_connect_failed">Couldn\'t start the connection. Try again.</string>
-    <string name="ottai_offline_hint">You can also import a credentials file under Saved sensors.</string>
     <string name="ottai_already_binding_hint">Your account still has another sensor bound. Unbind it under Saved sensors, then try again.</string>
     <string name="ottai_ota_upgrade_required">The Ottai service requested a firmware update while linking this sensor. Retry firmware setup, or import saved credentials. You can also try the official Ottai app.</string>
     <string name="ottai_retry">Try again</string>
@@ -1966,7 +1950,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_moderate">Moderate</string>
     <string name="risk_high">High</string>
     <!-- Statistics: window context -->
-    <string name="stats_coverage_active">CGM active %1$d%%</string>
+    <string name="stats_coverage_active">Active %1$d%%</string>
     <string name="stats_tight_range_chip">Tight %1$d%%</string>
     <string name="stats_tight_range">Tight range</string>
     <string name="stats_tight_range_description">Time inside %1$s — one step tighter than your target band, for tracking how close the day stays to non-diabetic levels.</string>
@@ -3197,6 +3181,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Pairing key deleted</string>
     <string name="rearm_margin_label">Re-arm margin</string>
     <string name="rearm_min_interval_label">Minimum time between alarms</string>
+    <string name="pre_low_evidence_label">Consider IOB and recent glucose</string>
+    <string name="pre_low_evidence_description">May delay forecast alerts to confirm a sustained fall</string>
     <string name="pre_high_iob_coverage_label">Insulin coverage</string>
     <string name="alert_feature_off">Off</string>
     <string name="same_direction_suppression_title">Quiet period after a trend alert</string>
@@ -3680,4 +3666,57 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_dashboard_desc">One-tap switch at the top of the chart</string>
     <string name="voice_quick_notification">Show in notification</string>
     <string name="voice_quick_notification_desc">Voice button on the glucose notification</string>
+    <!-- food catalogue -->
+    <string name="open_food_facts" translatable="false">Open Food Facts</string>
+    <string name="food_count_of_unit" translatable="false">%1$s × %2$s</string>
+    <string name="food_scan_barcode">Scan barcode</string>
+    <string name="food_recent">Recent</string>
+    <string name="food_my_foods">My foods</string>
+    <string name="food_common_foods">Common foods</string>
+    <string name="food_reference_tables">Food tables (English)</string>
+    <string name="food_search_online">Search Open Food Facts</string>
+    <string name="food_online_empty">Nothing found in Open Food Facts</string>
+    <string name="food_online_failed">Couldn’t reach Open Food Facts</string>
+    <string name="food_enter_values">Enter values for “%1$s”</string>
+    <string name="food_enter_label_values">Enter values from the label</string>
+    <string name="food_barcode_looking">Looking up %1$s…</string>
+    <string name="food_barcode_not_found">No product with barcode %1$s in Open Food Facts</string>
+    <string name="food_try_again">Try again</string>
+    <string name="food_carbs">Carbs</string>
+    <string name="food_carbs_value">%1$s g carbs</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 serving</string>
+    <string name="food_servings">Servings</string>
+    <string name="food_weight">Weight</string>
+    <string name="food_volume">Volume</string>
+    <string name="food_portion_piece">piece</string>
+    <string name="food_portion_slice">slice</string>
+    <string name="food_portion_cup">cup</string>
+    <string name="food_portion_glass">glass</string>
+    <string name="food_portion_tbsp">tbsp</string>
+    <string name="food_portion_tsp">tsp</string>
+    <string name="food_portion_serving">serving</string>
+    <string name="food_portion_package">pack</string>
+    <string name="food_per_100g_label">In 100 g, from the label</string>
+    <string name="food_sources">Sources</string>
+    <string name="food_online_desc">Online search and barcodes</string>
+    <string name="food_file_title">Import and export</string>
+    <string name="food_import">Import</string>
+    <string name="food_file_hint">A CSV or JSON table with name, carbs, protein, fat and per_grams columns. Without per_grams the values count as per 100 g.</string>
+    <string name="food_import_empty">No foods found in this file. It needs name and carbs columns.</string>
+    <string name="food_fiber">Fibre</string>
+    <string name="food_energy">Energy</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Values are for</string>
+    <string name="food_serving_weight">Serving weight</string>
+    <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_delete_title">Delete foods (%1$d)?</string>
+    <string name="food_deleted">Deleted foods: %1$d</string>
+    <string name="food_manage_failed">Could not update the food library</string>
+    <string name="food_reorder">Reorder food</string>
+    <string name="food_move_up">Move up</string>
+    <string name="food_move_down">Move down</string>
 </resources>

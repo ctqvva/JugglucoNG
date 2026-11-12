@@ -78,6 +78,31 @@ class AiDexManagedSensorIdentityAdapterTests {
     }
 
     @Test
+    fun vitaTokAdvertisement_usesRealSerialBehindBrandWord() {
+        for (name in listOf("VitaTok-22222DA48D", "VITATOK-22222DA48D", " vitatok-22222da48d ", "VitaTokX-22222DA48D")) {
+            assertEquals("X-22222DA48D", AiDexSerialIdentity.canonicalFromAdvertisement(name))
+            assertEquals("22222DA48D", AiDexSerialIdentity.bareSerial(name))
+        }
+        for (name in listOf("VitaTokXY-22222DA48D", "VitaTokens-22222DA48D", "VitaTok-22222DA48D-extra")) {
+            assertNull(name, AiDexSerialIdentity.canonicalFromAdvertisement(name))
+        }
+    }
+
+    @Test
+    fun vitaTokMacFallback_recoversProtocolSerialWithoutRenamingStoredIdentity() {
+        val storedSensorId = AiDexSerialIdentity.fallbackCanonicalFromAddress("8C:73:DA:DD:AC:FB")
+        assertEquals("X-8C73DADDACFB", storedSensorId)
+        assertEquals(
+            "22222DA48D",
+            AiDexSerialIdentity.advertisedProtocolSerialForMacFallback(
+                storedSensorId = storedSensorId,
+                address = "8C:73:DA:DD:AC:FB",
+                advertisedName = "VitaTok-22222DA48D",
+            )
+        )
+    }
+
+    @Test
     fun smartMacFallback_recoversProtocolSerialWithoutRenamingStoredIdentity() {
         val storedSensorId = AiDexSerialIdentity.fallbackCanonicalFromAddress("6C:A0:42:3B:65:E2")
         assertEquals("X-6CA0423B65E2", storedSensorId)

@@ -258,7 +258,8 @@ static int getNightscoutCalibrationOverrideForItem(SensorGlucoseData *sens,const
             env->ExceptionClear();
         return 0;
         }
-    auto jsensor=env->NewStringUTF(sensorname);
+    const std::string sensorId(sens->sensid());
+    auto jsensor=env->NewStringUTF(sensorId.c_str());
     const auto *info=sens->getinfo();
     const int viewMode=info?info->viewMode:0;
     const int overrideValue=env->CallStaticIntMethod(

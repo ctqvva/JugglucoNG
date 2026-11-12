@@ -51,6 +51,7 @@ inline int getpagesize(void) {
 #include "config.h"
 
 #include "inout.hpp"
+#include "wearhistoryorigin.hpp"
 
 #include "net/backup.hpp"
 #include "net/passhost.hpp"
@@ -240,6 +241,7 @@ class SensorGlucoseData {
   string sensordir;
   // inline static  const string basedir{FILEDIR};
 public:
+  WearHistoryOrigin wearHistoryOrigin;
   struct updatestate {
     uint32_t scanstart;
     uint32_t histstart;

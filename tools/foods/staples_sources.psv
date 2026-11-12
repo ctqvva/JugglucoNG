@@ -1,0 +1,236 @@
+# Where each bundled food gets its numbers: a USDA FoodData Central (SR Legacy) record.
+# key|fdc_id|USDA description|portions
+# A portion is kind=modifier, where the modifier is a piece of the USDA household measure it is
+# read from; *n multiplies it (8 fl oz to a glass, 2 tbsp to one) and @n is a derived weight.
+apple|171688|Apples, raw, with skin (Includes foods for USDA's Food Distribution Program)|piece=medium cup=cup slices
+banana|173944|Bananas, raw|piece=medium
+orange|169097|Oranges, raw, all commercial varieties|piece=fruit
+mandarin|169105|Tangerines, (mandarin oranges), raw|piece=medium
+pear|169118|Pears, raw|piece=medium
+grapes|174683|Grapes, red or green (European type, such as Thompson seedless), raw|cup=cup
+strawberries|167762|Strawberries, raw|cup=cup, whole piece=medium
+blueberries|171711|Blueberries, raw|cup=cup
+raspberries|167755|Raspberries, raw|cup=cup
+cherries|171719|Cherries, sweet, raw|cup=cup, with pits
+peach|169928|Peaches, yellow, raw|piece=medium
+nectarine|169914|Nectarines, raw|piece=medium
+plum|169949|Plums, raw|piece=fruit
+apricot|171697|Apricots, raw|piece=apricot
+kiwi|168153|Kiwifruit, green, raw|piece=fruit
+pineapple|169124|Pineapple, raw, all varieties|cup=cup, chunks slice=slice
+mango|169910|Mangos, raw|cup=cup pieces
+watermelon|167765|Watermelon, raw|cup=cup, diced slice=wedge
+melon|169092|Melons, cantaloupe, raw|cup=cup, cubes slice=wedge
+grapefruit|174673|Grapefruit, raw, pink and red, all areas|piece=fruit
+lemon|167746|Lemons, raw, without peel|piece=fruit
+pomegranate|169134|Pomegranates, raw|piece=pomegranate
+persimmon|169941|Persimmons, japanese, raw|piece=fruit
+fig|173021|Figs, raw|piece=medium
+avocado|171705|Avocados, raw, all commercial varieties|piece=avocado
+dates|171726|Dates, deglet noor|piece=date
+raisins|168165|Raisins, dark, seedless (Includes foods for USDA's Food Distribution Program)|tbsp=cup (not packed)*0.0625
+dried_apricots|173941|Apricots, dried, sulfured, uncooked|piece=half
+prunes|168162|Plums, dried (prunes), uncooked|piece=prune
+apple_juice|173933|Apple juice, canned or bottled, unsweetened, without added ascorbic acid|glass=cup
+orange_juice|169098|Orange juice, raw (Includes foods for USDA's Food Distribution Program)|glass=cup
+grape_juice|173042|Grape juice, canned or bottled, unsweetened, without added ascorbic acid|glass=cup
+tomato_juice|170545|Tomato juice, canned, without salt added|glass=cup
+applesauce|171695|Applesauce, canned, unsweetened, without added ascorbic acid (Includes foods for USDA's Food Distribution Program)|cup=cup
+cranberries|171722|Cranberries, raw|cup=cup, whole
+potato_boiled|170440|Potatoes, boiled, cooked without skin, flesh, without salt|piece=medium
+potato_baked|170093|Potatoes, baked, flesh and skin, without salt|piece=medium
+mashed_potatoes|170037|Potatoes, mashed, home-prepared, whole milk and margarine added|cup=cup
+french_fries|170118|Potatoes, french fried, all types, salt not added in processing, frozen, oven-heated|
+fast_food_fries|170698|Fast foods, potato, french fried in vegetable oil|serving=medium
+potato_chips|169677|Snacks, potato chips, plain, salted|
+sweet_potato|168483|Sweet potato, cooked, baked in skin, flesh, without salt|piece=medium
+carrot|170393|Carrots, raw|piece=medium
+beetroot|169146|Beets, cooked, boiled, drained|piece=beet
+tomato|170457|Tomatoes, red, ripe, raw, year round average|piece=medium
+cucumber|168409|Cucumber, with peel, raw|piece=cucumber
+bell_pepper|170108|Peppers, sweet, red, raw|piece=medium
+onion|170000|Onions, raw|piece=medium
+cabbage|169975|Cabbage, raw|cup=cup, chopped
+cauliflower|169986|Cauliflower, raw|cup=cup
+broccoli|170379|Broccoli, raw|cup=cup chopped
+zucchini|169291|Squash, summer, zucchini, includes skin, raw|piece=medium
+eggplant|169228|Eggplant, raw|cup=cup
+pumpkin|168449|Pumpkin, cooked, boiled, drained, without salt|cup=cup
+sweet_corn|169999|Corn, sweet, yellow, cooked, boiled, drained, without salt|piece=ear medium cup=cup cut
+canned_corn|169214|Corn, sweet, yellow, canned, whole kernel, drained solids|cup=cup
+green_peas|170420|Peas, green, cooked, boiled, drained, without salt|cup=cup
+green_beans|169141|Beans, snap, green, cooked, boiled, drained, without salt|cup=cup
+lettuce|169249|Lettuce, green leaf, raw|cup=cup
+spinach|168462|Spinach, raw|cup=cup
+mushrooms|169251|Mushrooms, white, raw|cup=cup, pieces
+sauerkraut|169279|Sauerkraut, canned, solids and liquids|cup=cup
+pickles|168558|Pickles, cucumber, dill or kosher dill|piece=large (4
+radish|169276|Radishes, raw|piece=medium
+rice_white_cooked|168878|Rice, white, long-grain, regular, enriched, cooked|cup=cup
+rice_brown_cooked|169704|Rice, brown, long-grain, cooked (Includes foods for USDA's Food Distribution Program)|cup=cup
+rice_white_dry|168877|Rice, white, long-grain, regular, raw, enriched|cup=cup
+buckwheat_cooked|170686|Buckwheat groats, roasted, cooked|cup=cup
+buckwheat_dry|170685|Buckwheat groats, roasted, dry|cup=cup
+oatmeal_cooked|173905|Cereals, oats, regular and quick, unenriched, cooked with water (includes boiling and microwaving), without salt|cup=cup
+oats_dry|173904|Cereals, oats, regular and quick, not fortified, dry|cup=cup
+pasta_cooked|169737|Pasta, cooked, enriched, without added salt|cup=cup spaghetti
+pasta_dry|169736|Pasta, dry, enriched|cup=cup spaghetti
+egg_noodles_cooked|168919|Noodles, egg, cooked, enriched, with added salt|cup=cup
+rice_noodles_cooked|168914|Rice noodles, cooked|cup=cup
+couscous_cooked|169700|Couscous, cooked|cup=cup
+bulgur_cooked|170287|Bulgur, cooked|cup=cup
+quinoa_cooked|168917|Quinoa, cooked|cup=cup
+millet_cooked|168871|Millet, cooked|cup=cup
+barley_cooked|170285|Barley, pearled, cooked|cup=cup
+semolina_dry|169715|Semolina, enriched|cup=cup
+polenta_cooked|171672|Cereals, corn grits, yellow, regular and quick, enriched, cooked with water, without salt|cup=cup
+corn_flakes|174648|Cereals ready-to-eat, RALSTON Corn Flakes|cup=cup
+granola|171646|Cereals ready-to-eat, granola, homemade|cup=cup
+wheat_flour|168894|Wheat flour, white, all-purpose, enriched, bleached|cup=cup
+rye_flour|168886|Rye flour, medium|cup=cup
+cornstarch|169698|Cornstarch|cup=cup
+popcorn|167959|Snacks, popcorn, air-popped|cup=cup
+rice_cakes|170250|Snacks, rice cakes, brown rice, plain, unsalted|piece=cake
+bread_white|174924|Bread, white, commercially prepared (includes soft bread crumbs)|slice=slice
+bread_whole_wheat|172688|Bread, whole-wheat, commercially prepared|slice=slice
+bread_rye|172684|Bread, rye|slice=slice, regular
+baguette|172675|Bread, french or vienna (includes sourdough)|
+bread_roll|172793|Rolls, dinner, plain, commercially prepared (includes brown-and-serve)|piece=roll
+pita|174915|Bread, pita, white, enriched|piece=pita, large
+tortilla_flour|175037|Tortillas, ready-to-bake or -fry, flour, refrigerated|piece=tortilla
+tortilla_corn|175036|Tortillas, ready-to-bake or -fry, corn|piece=tortilla
+bagel|174899|Bagels, plain, enriched, with calcium propionate (includes onion, poppy, sesame)|piece=bagel
+croissant|174987|Croissants, butter|piece=croissant, medium
+crispbread|172739|Crackers, crispbread, rye|piece=crispbread
+crackers|172746|Crackers, saltines (includes oyster, soda, soup)|piece=cracker
+pancakes|167926|Pancakes, plain, frozen, ready-to-heat, microwave (includes buttermilk)|piece=pancake
+waffles|175038|Waffles, plain, frozen, ready-to-heat|piece=waffle
+muffin|172765|Muffins, blueberry, commercially prepared (Includes mini-muffins)|piece=medium
+doughnut|172758|Doughnuts, yeast-leavened, glazed, enriched (includes honey buns)|piece=doughnut, medium
+butter_cookies|174950|Cookies, butter, commercially prepared, enriched|piece=cookie
+choc_chip_cookies|172716|Cookies, chocolate chip, commercially prepared, regular, higher fat, enriched|piece=cookie
+gingerbread|174956|Cookies, gingersnaps|piece=cookie
+oatmeal_cookies|172725|Cookies, oatmeal, commercially prepared, regular|piece=cookie
+sponge_cake|172706|Cake, sponge, commercially prepared|piece=piece
+cheesecake|172711|Cake, cheesecake, commercially prepared|piece=piece
+apple_pie|175011|Pie, apple, commercially prepared, enriched flour|piece=piece
+brownie|172713|Cookies, brownies, commercially prepared|piece=square, large
+cinnamon_roll|175034|Sweet rolls, cinnamon, commercially prepared with raisins|piece=roll
+pretzels|167555|Snacks, pretzels, hard, plain, salted|
+hamburger_bun|172796|Rolls, hamburger or hotdog, plain|piece=roll
+chocolate_cake|174934|Cake, chocolate, commercially prepared with chocolate frosting, in-store bakery|piece=piece
+milk_whole|171265|Milk, whole, 3.25% milkfat, with added vitamin D|glass=cup
+milk_lowfat|171267|Milk, reduced fat, fluid, 2% milkfat, with added vitamin A and vitamin D|glass=cup
+kefir|170904|Kefir, lowfat, plain, LIFEWAY|glass=cup
+yogurt_plain|171284|Yogurt, plain, whole milk|cup=cup
+yogurt_fruit|171285|Yogurt, fruit, low fat, 10 grams protein per 8 ounce|cup=cup
+greek_yogurt|171304|Yogurt, Greek, plain, whole milk|
+sour_cream|171257|Cream, sour, cultured|tbsp=tbsp
+cream|170859|Cream, fluid, heavy whipping|tbsp=tbsp
+butter|173410|Butter, salted|tbsp=tbsp
+cottage_cheese|172179|Cheese, cottage, creamed, large or small curd|cup=cup, small
+cheese_hard|173414|Cheese, cheddar (Includes foods for USDA's Food Distribution Program)|slice=slice
+mozzarella|170845|Cheese, mozzarella, whole milk|slice=slice
+feta|173420|Cheese, feta|cup=cup
+cream_cheese|173418|Cheese, cream|tbsp=tbsp
+ice_cream|167575|Ice creams, vanilla|cup=serving 1/2 cup*2
+condensed_milk|171275|Milk, canned, condensed, sweetened|tbsp=fl oz*0.5
+cocoa_drink|171277|Milk, chocolate beverage, hot cocoa, homemade|glass=cup
+soy_milk|172446|Soymilk, original and vanilla, unfortified|glass=cup
+almond_milk|174832|Beverages, almond milk, unsweetened, shelf stable|glass=cup
+buttermilk|170874|Milk, buttermilk, fluid, cultured, lowfat|glass=cup
+egg|173424|Egg, whole, cooked, hard-boiled|piece=large
+omelet|172185|Egg, whole, cooked, omelet|piece=large
+fried_egg|173423|Egg, whole, cooked, fried|piece=large
+chicken_breast|171534|Chicken, broiler or fryers, breast, skinless, boneless, meat only, cooked, grilled|
+chicken_thigh|172388|Chicken, broilers or fryers, thigh, meat only, cooked, roasted|
+turkey|171481|Turkey, whole, meat only, cooked, roasted|
+beef_ground|174033|Beef, ground, 85% lean meat / 15% fat, patty, cooked, pan-broiled|
+beef_steak|168727|Beef, top sirloin, steak, separable lean and fat, trimmed to 1/8" fat, all grades, cooked, broiled|
+pork_chop|167827|Pork, fresh, loin, center loin (chops), bone-in, separable lean and fat, cooked, broiled|
+bacon|168322|Pork, cured, bacon, pre-sliced, cooked, pan-fried|slice=slice
+ham|173864|Ham, sliced, regular (approximately 11% fat)|slice=slice
+frankfurter|173862|Frankfurter, beef, unheated|piece=hot dog
+salami|172936|Salami, cooked, beef and pork|slice=slice
+salmon|175168|Fish, salmon, Atlantic, farmed, cooked, dry heat|
+tuna_canned|173709|Fish, tuna, light, canned in water, drained solids (Includes foods for USDA's Food Distribution Program)|
+cod|171956|Fish, cod, Atlantic, cooked, dry heat|
+herring|175118|Fish, herring, Atlantic, pickled|
+shrimp|171971|Crustaceans, shrimp, mixed species, cooked, moist heat (may contain additives to retain moisture)|
+fish_sticks|174195|Fish, fish sticks, frozen, prepared|piece=stick
+chicken_nuggets|170718|Fast foods, chicken, breaded and fried, boneless pieces, plain|piece=piece
+tofu|172476|Tofu, raw, regular, prepared with calcium sulfate|
+lentils_cooked|172421|Lentils, mature seeds, cooked, boiled, without salt|cup=cup
+chickpeas_cooked|173757|Chickpeas (garbanzo beans, bengal gram), mature seeds, cooked, boiled, without salt|cup=cup
+kidney_beans_cooked|175194|Beans, kidney, red, mature seeds, cooked, boiled, without salt|cup=cup
+white_beans_cooked|175203|Beans, white, mature seeds, cooked, boiled, without salt|cup=cup
+baked_beans|175182|Beans, baked, canned, plain or vegetarian|cup=cup
+hummus|174289|Hummus, commercial|tbsp=tbsp
+peanuts|174262|Peanuts, all types, dry-roasted, with salt|
+almonds|170567|Nuts, almonds|
+walnuts|170187|Nuts, walnuts, english|
+hazelnuts|170581|Nuts, hazelnuts or filberts|
+cashews|169421|Nuts, cashew nuts, dry roasted, with salt added|
+pistachios|169426|Nuts, pistachio nuts, dry roasted, with salt added|
+sunflower_seeds|170562|Seeds, sunflower seed kernels, dried|
+pumpkin_seeds|170556|Seeds, pumpkin and squash seed kernels, dried|
+peanut_butter|174266|Peanut butter, smooth style, with salt (Includes foods for USDA's Food Distribution Program)|tbsp=tbsp
+sugar|169655|Sugars, granulated|tsp=tsp tbsp=@12.6
+honey|169640|Honey|tbsp=tbsp tsp=@7
+jam|169641|Jams and preserves|tbsp=tbsp
+maple_syrup|169661|Syrups, maple|tbsp=tbsp
+milk_chocolate|167587|Candies, milk chocolate|
+dark_chocolate|170273|Chocolate, dark, 70-85% cacao solids|
+hazelnut_spread|168000|Chocolate-flavored hazelnut spread|tbsp=serving 2 tbsp*0.5
+hard_candy|167990|Candies, hard|piece=piece
+gummies|167989|Candies, gumdrops, starch jelly pieces|piece=gummy bear
+marshmallow|167995|Candies, marshmallows|piece=regular
+halva|167996|Candies, halavah, plain|
+caramel|167974|Candies, caramels|piece=piece
+snickers|169589|Candies, MARS SNACKFOOD US, SNICKERS Bar|piece=bar (2
+tortilla_chips|167558|Snacks, tortilla chips, plain, white corn, salted|
+granola_bar|167542|Snacks, granola bars, hard, plain|piece=bar
+cola|174852|Beverages, carbonated, cola, regular|glass=fl oz*8
+lemon_soda|173205|Beverages, carbonated, lemon-lime soda, no caffeine|glass=fl oz*8
+energy_drink|173210|Beverages, Energy drink, RED BULL|serving=can 8.4 fl oz
+sports_drink|173660|Beverages, PEPSICO QUAKER, Gatorade, G performance O 2, ready-to-drink.|glass=fl oz*8
+beer|168746|Alcoholic beverage, beer, regular, all|serving=can
+wine_red|173190|Alcoholic beverage, wine, table, red|serving=serving
+wine_white|174837|Alcoholic beverage, wine, table, white|serving=serving
+iced_tea|171888|Beverages, tea, black, ready-to-drink, lemon, sweetened|glass=cup
+coconut_water|174831|Beverages, Coconut water, ready-to-drink, unsweetened|glass=cup
+pizza|173293|Fast Food, Pizza Chain, 14" pizza, cheese topping, thick crust|slice=slice
+hamburger|170693|Fast foods, hamburger; single, regular patty; plain|piece=sandwich
+cheeseburger|170690|Fast foods, cheeseburger; single, regular patty; plain|piece=sandwich
+fried_rice|167668|Restaurant, Chinese, fried rice, without meat|cup=cup
+lasagna|173334|Lasagna with meat & sauce, frozen entree|piece=piece center
+spaghetti_meat_sauce|172089|Spaghetti with meat sauce, frozen entree|
+mac_cheese|173325|Macaroni and Cheese, canned entree|serving=serving
+burrito|172039|Fast foods, burrito, with beans and cheese|piece=burrito
+taco|170689|Fast foods, taco with beef, cheese and lettuce, hard shell|piece=each
+pierogi|169779|Dumpling, potato- or cheese-filled, frozen|piece=pieces
+ravioli|173328|Ravioli, cheese-filled, canned|cup=cup
+chicken_soup|172909|Soup, chicken noodle, canned, prepared with equal volume water|cup=cup
+tomato_soup|171176|Soup, tomato, canned, prepared with equal volume water, commercial|cup=cup
+pea_soup|172916|Soup, pea, split with ham, canned, prepared with equal volume water|cup=cup
+potato_salad|169269|Potato salad, home-prepared|cup=cup
+coleslaw|170300|Fast foods, coleslaw|cup=cup
+french_toast|172763|French toast, frozen, ready-to-heat|slice=piece
+egg_roll|172105|Egg rolls, vegetable, frozen, prepared|piece=egg roll
+sushi_rice|169711|Rice, white, glutinous, unenriched, cooked|cup=cup
+ketchup|168556|Catsup|tbsp=tbsp
+mayonnaise|171009|Salad dressing, mayonnaise, regular|tbsp=tbsp
+mustard|172234|Mustard, prepared, yellow|tsp=tsp
+soy_sauce|174277|Soy sauce made from soy and wheat (shoyu)|tbsp=tbsp
+bbq_sauce|174523|Sauce, barbecue|tbsp=tbsp
+pasta_sauce|171192|Sauce, pasta, spaghetti/marinara, ready-to-serve|cup=serving 1/2 cup*2
+olive_oil|171413|Oil, olive, salad or cooking|tbsp=tablespoon
+sunflower_oil|171025|Oil, sunflower, linoleic, (approx. 65%)|tbsp=tbsp
+salsa|174524|Sauce, salsa, ready-to-serve|tbsp=tbsp
+naan|171845|Bread, naan, plain, commercially prepared, refrigerated|piece=piece
+kimchi|170392|Cabbage, kimchi|cup=cup
+instant_noodles_dry|171177|Soup, ramen noodle, any flavor, dry|piece=package without
+cheese_gouda|171241|Cheese, gouda|
+parmesan|170848|Cheese, parmesan, hard|
+bratwurst|171620|Bratwurst, pork, cooked|piece=link
+mackerel|175120|Fish, mackerel, Atlantic, cooked, dry heat|

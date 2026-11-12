@@ -205,7 +205,6 @@ fun ExpressiveSettingsScreen(
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
-    var showClearDataDialog by remember { mutableStateOf(false) }
     var showFactoryResetDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showScheduledBackupDialog by remember { mutableStateOf(false) }
@@ -329,7 +328,6 @@ fun ExpressiveSettingsScreen(
         if (!restrictedState.locked) return@LaunchedEffect
         showUnitDialog = false
         showClearHistoryDialog = false
-        showClearDataDialog = false
         showFactoryResetDialog = false
         showExportDialog = false
         showScheduledBackupDialog = false
@@ -355,7 +353,6 @@ fun ExpressiveSettingsScreen(
                 SettingsSearchAction.IMPORT -> importLauncher.launch(importMimeTypes)
                 SettingsSearchAction.RESTART -> context.findActivity()?.fullRestart()
                 SettingsSearchAction.CLEAR_HISTORY -> showClearHistoryDialog = true
-                SettingsSearchAction.CLEAR_APP_DATA -> showClearDataDialog = true
                 SettingsSearchAction.FACTORY_RESET -> showFactoryResetDialog = true
             }
         }
@@ -859,19 +856,11 @@ fun ExpressiveSettingsScreen(
                 )
                 DangerItem(
                     title = stringResource(R.string.clear_history),
-                    subtitle = stringResource(R.string.clear_history_desc_short),
+                    subtitle = stringResource(R.string.clear_history_desc),
                     icon = Icons.Filled.History,
                     position = CardPosition.MIDDLE,
-                    severity = DangerSeverity.LOW,
-                    onClick = { showClearHistoryDialog = true }
-                )
-                DangerItem(
-                    title = stringResource(R.string.clear_app_data),
-                    subtitle = stringResource(R.string.clear_app_data_desc),
-                    icon = Icons.Filled.Delete,
-                    position = CardPosition.MIDDLE,
                     severity = DangerSeverity.MEDIUM,
-                    onClick = { showClearDataDialog = true }
+                    onClick = { showClearHistoryDialog = true }
                 )
                 DangerItem(
                     title = stringResource(R.string.factory_reset),
@@ -923,35 +912,36 @@ fun ExpressiveSettingsScreen(
     }, { showUnitDialog = false })
     if (showThemeDialog) ThemePickerDialog(themeMode, { onThemeChanged(it); showThemeDialog = false }, { showThemeDialog = false })
     if (showLanguageDialog) LanguagePickerDialog { showLanguageDialog = false }
-    if (showClearHistoryDialog) ConfirmActionDialog(stringResource(R.string.clean_history_confirm), stringResource(R.string.clear_history_desc_long), Icons.Filled.History, { scope.launch { tk.glucodata.data.DataManagement.clearHistory() }; showClearHistoryDialog = false }, { showClearHistoryDialog = false })
-    if (showClearDataDialog) ConfirmActionDialog(
-        stringResource(R.string.clean_data_confirm), 
-        stringResource(R.string.clear_app_data_desc), 
-        Icons.Filled.Delete, 
-        { 
-            scope.launch { 
-                tk.glucodata.data.DataManagement.clearAppData()
-                // Full restart to kill process and clear native memory
-                context.findActivity()?.fullRestart()
+    if (showClearHistoryDialog) ClearHistoryDialog(
+        onConfirm = { clearScope ->
+            showClearHistoryDialog = false
+            scope.launch {
+                val cleared = tk.glucodata.data.DataManagement.clearHistory(clearScope)
+                Toast.makeText(
+                    context,
+                    if (cleared) R.string.clear_history_done else R.string.clear_history_failed,
+                    Toast.LENGTH_LONG
+                ).show()
             }
-            showClearDataDialog = false 
-        }, 
-        { showClearDataDialog = false }, 
-        isDestructive = true
+        },
+        onDismiss = { showClearHistoryDialog = false }
     )
     if (showFactoryResetDialog) ConfirmActionDialog(
-        stringResource(R.string.factory_reset_confirm), 
-        stringResource(R.string.factory_reset_alert), 
-        Icons.Filled.Warning, 
-        { 
-            scope.launch { 
-                tk.glucodata.data.DataManagement.factoryReset()
-                // Full restart to kill process and clear native memory
-                context.findActivity()?.fullRestart()
+        stringResource(R.string.factory_reset_confirm),
+        stringResource(R.string.factory_reset_message),
+        Icons.Filled.Warning,
+        {
+            showFactoryResetDialog = false
+            scope.launch {
+                // On success the system ends this process, so nothing below runs.
+                if (!tk.glucodata.data.DataManagement.factoryReset()) {
+                    Toast.makeText(context, R.string.factory_reset_failed, Toast.LENGTH_LONG).show()
+                }
             }
-        }, 
-        { showFactoryResetDialog = false }, 
-        isDestructive = true
+        },
+        { showFactoryResetDialog = false },
+        isDestructive = true,
+        confirmLabel = stringResource(R.string.factory_reset_action)
     )
     
     if (showExportDialog) {
@@ -1674,7 +1664,8 @@ private fun ConfirmActionDialog(
     icon: ImageVector,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    isDestructive: Boolean = false
+    isDestructive: Boolean = false,
+    confirmLabel: String? = null
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1687,7 +1678,7 @@ private fun ConfirmActionDialog(
                 colors = if (isDestructive) ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error) else ButtonDefaults.textButtonColors(),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding
-            ) { Text(if (isDestructive) stringResource(R.string.delete) else stringResource(R.string.ok)) }
+            ) { Text(confirmLabel ?: if (isDestructive) stringResource(R.string.delete) else stringResource(R.string.ok)) }
         },
         dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) } }
     )

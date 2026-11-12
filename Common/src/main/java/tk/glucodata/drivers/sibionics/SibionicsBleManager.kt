@@ -358,12 +358,24 @@ class SibionicsBleManager(
     override var viewMode: Int
         get() = viewModeValue
         set(value) {
-            val normalized = ManagedSensorViewModeStore.sanitize(value)
-            viewModeValue = normalized
-            ManagedSensorViewModeStore.write(Applic.app, SerialNumber, normalized)
+            synchronized(mirrorLock) {
+                val normalized = ManagedSensorViewModeStore.sanitize(value)
+                viewModeValue = normalized
+                ManagedSensorViewModeStore.write(Applic.app, SerialNumber, normalized)
+                syncNativeViewMode()
+            }
         }
 
+    private fun syncNativeViewMode() {
+        runCatching { Natives.setSensorViewMode(SerialNumber, viewModeValue) }
+            .onFailure { Log.stack(SibionicsConstants.TAG, "syncNativeViewMode", it) }
+    }
+
     fun restoreFromPersistence(context: Context) {
+        synchronized(mirrorLock) {
+            viewModeValue = ManagedSensorViewModeStore.read(context, SerialNumber, viewModeValue)
+            syncNativeViewMode()
+        }
         sampleJournal = SibionicsSampleJournal(sampleJournalFile(context, SerialNumber))
         calibrationRevision = tk.glucodata.CalibrationAccess.getRevision()
         val restored = SibionicsRegistry.findRecord(context, SerialNumber)
@@ -2312,9 +2324,12 @@ class SibionicsBleManager(
                 else -> 1L
             }.coerceAtLeast(1L)
             Natives.ensureSensorShell(name, startSec)
+            syncNativeViewMode()
             Natives.setSensorManagedFamily(name, ManagedSensorUiFamily.SIBIONICS.nativeCode)
             if (!Natives.hasSensorStreamCapacity(name, NATIVE_STREAM_CAPACITY_MINUTES)) {
-                Log.e(SibionicsConstants.TAG, "native stream capacity unavailable for $name")
+                Log.e(SibionicsConstants.TAG,
+                    "native stream capacity unavailable for $name: required=$NATIVE_STREAM_CAPACITY_MINUTES " +
+                        "start=$startSec samples=${validReadings.size}")
                 return@runCatching false
             }
             // One JNI call for the whole batch. Called per reading, the native
@@ -2335,13 +2350,19 @@ class SibionicsBleManager(
                     .takeIf { temp -> temp.isFinite() && temp > -20f && temp < 80f }
                     ?: 0f
             }
-            Natives.addGlucoseStreamBatchWithRawTemp(
+            val stored = Natives.addGlucoseStreamBatchWithRawTemp(
                 timestamps,
                 values,
                 raws,
                 temperatures,
                 name,
-            ) > 0
+            )
+            if (stored < validReadings.size) {
+                Log.e(SibionicsConstants.TAG,
+                    "native mirror incomplete for $name: stored=$stored/${validReadings.size} " +
+                        "start=$startSec first=${timestamps.first()} last=${timestamps.last()}")
+            }
+            stored > 0
         }.onFailure {
             Log.stack(SibionicsConstants.TAG, "mirrorReadingIntoNative", it)
         }.getOrDefault(false)
