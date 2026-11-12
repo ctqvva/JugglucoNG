@@ -9,7 +9,8 @@ different, and several values are optical corrections that look wrong on paper:
 
   l   The stem turns right into a short foot (radius 14) and stops level. It ends a stroke.
   u   Keeps its spur, but the junction where the bowl meets the upright is filleted
-      (radius 0.6 × stem). Unlike the feet, the spur is a junction detail, not a stroke
+      (radius 0.6 × stem): an explicit circular arc tangent to the bowl and to the spur's
+      round end, so the slight saddle under the u is part of the shape, not an error. Unlike the feet, the spur is a junction detail, not a stroke
       ending. Unfilleted, it leaves a sharp notch that reads as a drawing error at large
       sizes. A shorter spur was tried and keeps the notch. The y has the same junction
       (its bowl meets the descender) and gets the same fillet.
@@ -52,7 +53,7 @@ FOOT_Y = dict(r=16.0, join=40.0, rise=12.0, a=3.0, b=5.5)
 TURN_THIN, FOOT_THIN = 0.90, 0.94
 TAPER = 16.0                  # thinning starts this far above the turn
 SPUR_FILLET = 0.6             # × stem
-Y_FILLET = 0.45               # × stem, matched by eye to the u; see the docstring
+Y_FILLET = 0.45               # × stem, matched by eye to the u; 0.55 runs into the foot's curve
 G_BAR = 0.38                  # × radius
 C_OPEN = 42.0                 # degrees either side of horizontal
 # left edge of each letter (G l u c y), reviewed by eye; see the module docstring
@@ -163,6 +164,40 @@ def _svg_arc(cx, cy, r, a0, a1):
     p1 = (cx + r*math.cos(math.radians(a1)), cy + r*math.sin(math.radians(a1)))
     return p0, f'A{r:.3f} {r:.3f} 0 {1 if abs(a1-a0) > 180 else 0} {1 if a1 > a0 else 0} {p1[0]:.3f} {p1[1]:.3f}'
 
+def _fillet(Cb, ro, other, rf, guess=60.0):
+    """Concave fillet of radius rf between the bowl's outer circle (centre Cb, radius ro) and the
+    shape `other`: a circular arc tangent to both, returned as cubics, plus the junction point J
+    where the bowl circle enters `other`. The fillet centre lies on the circle of radius ro + rf
+    around Cb, at distance rf from `other`."""
+    from shapely.ops import nearest_points
+    R, best = ro + rf, None
+    for i in range(-900, 901):
+        a = math.radians(guess + i*0.05)
+        F = (Cb[0] + R*math.cos(a), Cb[1] + R*math.sin(a))
+        if other.contains(Point(F)): continue
+        err = abs(other.exterior.distance(Point(F)) - rf)
+        if best is None or err < best[0]: best = (err, F, a)
+    _, F, a = best
+    T1 = (Cb[0] + ro*math.cos(a), Cb[1] + ro*math.sin(a))
+    T2 = nearest_points(other.exterior, Point(F))[0].coords[0]
+    a1 = math.degrees(math.atan2(T1[1]-F[1], T1[0]-F[0])); a2 = math.degrees(math.atan2(T2[1]-F[1], T2[0]-F[0]))
+    while a2 - a1 > 180: a2 -= 360
+    while a2 - a1 < -180: a2 += 360
+    segs = _arc(F[0], F[1], rf, a1, a2)
+    inner = other.buffer(-0.3)
+    for i in range(1, 3600):                      # walk up the bowl circle to where it enters `other`
+        b = a - math.radians(i*0.05)
+        J = (Cb[0] + ro*math.cos(b), Cb[1] + ro*math.sin(b))
+        if inner.contains(Point(J)): break
+    return segs, J
+
+def _fillet_d(segs, J):
+    """The fillet arc is the only visible edge; the closing chords to J lie inside both strokes,
+    so the patch overlaps its neighbours without tracing their edges (no antialiasing seam)."""
+    s0 = segs[0][0]
+    return (f'M{s0[0]:.3f} {s0[1]:.3f}' + ''.join(
+        f'C{s[1][0]:.3f} {s[1][1]:.3f} {s[2][0]:.3f} {s[2][1]:.3f} {s[3][0]:.3f} {s[3][1]:.3f}' for s in segs) + f'L{J[0]:.3f} {J[1]:.3f}Z')
+
 def _foot(stem_x, C, f, side, widths, top, h):
     """Stem → transition → arc to the bottom extremum. side +1 turns right (l), −1 left (y)."""
     r, th = f['r'], f['join']
@@ -194,14 +229,15 @@ def letters(S):
     bot = 100 - w_bot/2 + o['foot']
     l = _foot(h, (h + FOOT_L['r'], bot - FOOT_L['r']), FOOT_L, +1, [S, S, w_join, w_bot], h, h)
     out.append(('l', f'<path d="{l.d()}" fill="{{ink}}"/>'))
-    # u, as a filled shape so the spur junction can be filleted
+    # u: strokes, plus an explicit fillet where the bowl meets the spur
     ru = (XH - S)/2; L, R = h, h + 2*ru; top = 30 + h; bowl = 100 - h - ru + o['bowl']
-    centre = LineString([(L, top), (L, bowl)] + _arc_pts(L + ru, bowl, ru, 180, 0)[1:] + [(R, top)])
-    spur = LineString([(R, top), (R, 100 - h)])
-    rf = SPUR_FILLET*S
-    u = unary_union([centre.buffer(h, quad_segs=24), spur.buffer(h, quad_segs=24)]).buffer(rf, quad_segs=24).buffer(-rf, quad_segs=24)
-    ring = list(u.exterior.coords)[:-1]
-    out.append(('u', '<path d="M' + 'L'.join(f'{x:.2f} {y:.2f}' for x, y in ring) + 'Z" fill="{ink}"/>'))
+    Cb, ro = (L + ru, bowl), ru + h
+    p0, a = _svg_arc(L + ru, bowl, ru, 180, 0)
+    bowl_d = f'M{L:.3f} {top:.3f}L{L:.3f} {bowl:.3f}' + a
+    spur = LineString([(R, top), (R, 100 - h)]).buffer(h, quad_segs=32)
+    fu, Ju = _fillet(Cb, ro, spur, SPUR_FILLET*S)
+    out.append(('u', stroke([bowl_d + f'L{R:.3f} {top:.3f}', f'M{R:.3f} {top:.3f}L{R:.3f} {100 - h:.3f}'])
+                + f'<path d="{_fillet_d(fu, Ju)}" fill="{{ink}}"/>'))
     # c
     rc = (XH - S)/2 + o['c']; ccx, ccy = h + rc, 100 - XH/2
     p0, a = _svg_arc(ccx, ccy, rc, -C_OPEN, -360 + C_OPEN)
@@ -211,20 +247,10 @@ def letters(S):
     left = stroke([f'M{L:.3f} {top:.3f}L{L:.3f} {bowl:.3f}' + a])
     desc_c = DESC - w_bot/2
     y = _foot(R, (R - FOOT_Y['r'], desc_c - FOOT_Y['r']), FOOT_Y, -1, [S, S, w_join, w_bot], top, h)
-    # Same junction as the u (bowl meeting an upright that continues down), so the same
-    # fillet. It is applied only inside a window around that junction: a whole-letter pass
-    # would also round the inside of the foot turn, whose inner radius is about the same.
-    bowl_poly = LineString([(L, top), (L, bowl)] + _arc_pts(L + ru, bowl, ru, 180, 0)[1:]).buffer(h, quad_segs=24)
-    foot_pts = [_B(s, i/32) for s in y.outline() for i in range(32)]
-    whole = unary_union([bowl_poly, Polygon(foot_pts).buffer(0)])
-    window = Polygon([(L + ru, bowl), (R, bowl), (R, 100 + 2*h), (L + ru, 100 + 2*h)])
-    rfy = Y_FILLET*S
-    closed = whole.buffer(rfy, quad_segs=24).buffer(-rfy, quad_segs=24)
-    patch = closed.difference(whole).intersection(window)
-    patch = patch.buffer(0.4).intersection(closed)      # overlap neighbours slightly: no antialiasing seam
-    patch_d = ''.join('M' + 'L'.join(f'{x:.2f} {yy:.2f}' for x, yy in list(g.exterior.coords)[:-1]) + 'Z'
-                      for g in getattr(patch, 'geoms', [patch]) if g.area > 0.01)
-    out.append(('y', left + f'<path d="{y.d()}" fill="{{ink}}"/>' + (f'<path d="{patch_d}" fill="{{ink}}"/>' if patch_d else '')))
+    # Same junction as the u (bowl meeting an upright that continues down), same method.
+    foot_poly = Polygon([_B(sg, i/32) for sg in y.outline() for i in range(32)]).buffer(0)
+    fy, Jy = _fillet(Cb, ro, foot_poly, Y_FILLET*S)
+    out.append(('y', left + f'<path d="{y.d()}" fill="{{ink}}"/>' + f'<path d="{_fillet_d(fy, Jy)}" fill="{{ink}}"/>'))
     return out
 
 def wordmark(S, ink):
