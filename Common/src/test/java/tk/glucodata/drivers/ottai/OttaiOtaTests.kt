@@ -75,6 +75,15 @@ class OttaiOtaTests {
         assertFalse(OttaiOtaProtocol.materialsVersionMatches(TEST_OTTAI_COMPOSITE_REVISION, "V1.8"))
     }
 
+    @Test fun cloudSpellingDropsOnlyTheCompositeVariant() {
+        assertEquals("E1.2.6(V1.7.SH2616.1)", OttaiOtaProtocol.withoutVariant("E1.2.6(V1.7.SH2616.1),STDRD"))
+        assertEquals("E1.1.4(V1.7.S2530.1)", OttaiOtaProtocol.withoutVariant(TEST_OTTAI_COMPOSITE_REVISION))
+        assertNull(OttaiOtaProtocol.withoutVariant("E1.2.3(V1.7.SH2542.1)"))
+        assertNull(OttaiOtaProtocol.withoutVariant("V1.7.S2530.1"))
+        assertNull(OttaiOtaProtocol.withoutVariant("V1.7,STDRD"))
+        assertNull(OttaiOtaProtocol.withoutVariant(""))
+    }
+
     @Test fun coefficientPacketMatchesIndependentModbusVector() {
         // 09 02 + LE float(1) + LE float(2). Verify the full packet with a bit-at-a-time oracle.
         val packet = OttaiOtaProtocol.coefficientPacket("1,2")

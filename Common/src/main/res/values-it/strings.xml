@@ -2442,7 +2442,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s è associato al tuo account ma qui non è in uso. Se è terminato, scollegalo per poter attivare un nuovo sensore.</string>
     <string name="ottai_cloud_binding_checking">Verifica dell\'account…</string>
     <string name="ottai_cloud_binding_bound">Associato al tuo account</string>
-    <string name="ottai_cloud_binding_not_bound">Non associato al tuo account</string>
     <string name="ottai_cloud_binding_error">Impossibile verificare l\'account</string>
     <string name="ottai_account_title">Account Ottai</string>
     <string name="ottai_saved_sensors_title">Sensori salvati</string>
@@ -2461,10 +2460,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Accedi per recuperarle, oppure importa un file.</string>
     <string name="ottai_state_partial_title">Credenziali incomplete</string>
     <string name="ottai_state_partial_body">Manca la formula della glicemia. Recuperale o importale di nuovo.</string>
-    <string name="ottai_v3_needs_nearby">Scegli questo sensore dall\'elenco dei sensori trovati: le sue credenziali vengono verificate via Bluetooth.</string>
     <string name="ottai_fetch_failed">Impossibile ottenere le credenziali di questo sensore.</string>
+    <string name="ottai_server_unreachable">Impossibile raggiungere il server Ottai. Riprova.</string>
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
-    <string name="ottai_offline_hint">Puoi anche importare un file di credenziali in Sensori salvati.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
     <string name="ottai_ota_upgrade_required">Il servizio Ottai ha richiesto un aggiornamento del firmware durante l’associazione del sensore. Riprova la configurazione o importa le credenziali salvate. Puoi anche provare l’app ufficiale Ottai.</string>
     <string name="ottai_retry">Riprova</string>

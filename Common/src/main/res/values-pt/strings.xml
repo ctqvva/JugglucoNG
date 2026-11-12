@@ -2453,7 +2453,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s está associado à sua conta mas não é usado aqui. Se já terminou, desassocie-o para poder ativar um sensor novo.</string>
     <string name="ottai_cloud_binding_checking">A verificar a conta…</string>
     <string name="ottai_cloud_binding_bound">Associado à sua conta</string>
-    <string name="ottai_cloud_binding_not_bound">Não associado à sua conta</string>
     <string name="ottai_cloud_binding_error">Não foi possível verificar a conta</string>
     <string name="ottai_account_title">Conta Ottai</string>
     <string name="ottai_saved_sensors_title">Sensores guardados</string>
@@ -2472,10 +2471,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Inicie sessão para as obter, ou importe um ficheiro.</string>
     <string name="ottai_state_partial_title">Credenciais incompletas</string>
     <string name="ottai_state_partial_body">Falta a fórmula de glicose. Obtenha-as ou importe-as de novo.</string>
-    <string name="ottai_v3_needs_nearby">Escolha este sensor na lista de sensores encontrados: as credenciais são verificadas por Bluetooth.</string>
     <string name="ottai_fetch_failed">Não foi possível obter as credenciais deste sensor.</string>
+    <string name="ottai_server_unreachable">Não foi possível contactar o servidor Ottai. Tente novamente.</string>
     <string name="ottai_connect_failed">Não foi possível iniciar a ligação. Tente de novo.</string>
-    <string name="ottai_offline_hint">Também pode importar um ficheiro de credenciais em Sensores guardados.</string>
     <string name="ottai_already_binding_hint">A sua conta ainda tem outro sensor associado. Desassocie-o em Sensores guardados e tente de novo.</string>
     <string name="ottai_ota_upgrade_required">O serviço Ottai pediu uma atualização de firmware ao associar este sensor. Repita a configuração do firmware ou importe as credenciais guardadas. Também pode tentar a app Ottai oficial.</string>
     <string name="ottai_retry">Tentar novamente</string>

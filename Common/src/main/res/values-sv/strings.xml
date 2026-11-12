@@ -2452,7 +2452,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s är kopplad till ditt konto men används inte här. Om den har tagit slut, koppla loss den så att en ny sensor kan aktiveras.</string>
     <string name="ottai_cloud_binding_checking">Kontrollerar kontot…</string>
     <string name="ottai_cloud_binding_bound">Kopplad till ditt konto</string>
-    <string name="ottai_cloud_binding_not_bound">Inte kopplad till ditt konto</string>
     <string name="ottai_cloud_binding_error">Kunde inte kontrollera kontot</string>
     <string name="ottai_account_title">Ottai-konto</string>
     <string name="ottai_saved_sensors_title">Sparade sensorer</string>
@@ -2471,10 +2470,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Logga in för att hämta dem, eller importera en fil.</string>
     <string name="ottai_state_partial_title">Ofullständiga inloggningsuppgifter</string>
     <string name="ottai_state_partial_body">Glukosformeln saknas. Hämta eller importera dem igen.</string>
-    <string name="ottai_v3_needs_nearby">Välj sensorn i listan över hittade sensorer: dess inloggningsuppgifter verifieras över Bluetooth.</string>
     <string name="ottai_fetch_failed">Kunde inte hämta sensorns inloggningsuppgifter.</string>
+    <string name="ottai_server_unreachable">Det gick inte att nå Ottai-servern. Försök igen.</string>
     <string name="ottai_connect_failed">Kunde inte starta anslutningen. Försök igen.</string>
-    <string name="ottai_offline_hint">Du kan också importera en fil med inloggningsuppgifter under Sparade sensorer.</string>
     <string name="ottai_already_binding_hint">Ditt konto har fortfarande en annan sensor kopplad. Koppla från den under Sparade sensorer och försök igen.</string>
     <string name="ottai_ota_upgrade_required">Ottai-tjänsten begärde en firmwareuppdatering när sensorn skulle kopplas. Försök med firmwareinställningen igen eller importera sparade inloggningsuppgifter. Du kan också prova den officiella Ottai-appen.</string>
     <string name="ottai_retry">Försök igen</string>

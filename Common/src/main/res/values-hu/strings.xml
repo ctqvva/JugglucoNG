@@ -998,7 +998,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_unused_binding_desc">A(z) %1$s a fiókjához van kötve, de itt nincs használatban. Ha lejárt, oldja fel a kötést, hogy új szenzort lehessen aktiválni.</string>
     <string name="ottai_cloud_binding_checking">Fiók ellenőrzése…</string>
     <string name="ottai_cloud_binding_bound">A fiókjához kötve</string>
-    <string name="ottai_cloud_binding_not_bound">Nincs a fiókjához kötve</string>
     <string name="ottai_cloud_binding_error">Nem sikerült ellenőrizni a fiókot</string>
     <string name="ottai_status_needs_ble_address">BLE-cím szükséges</string>
     <string name="ottai_status_warmup_provisional">Ideiglenes bemelegedés • még %1$d perc</string>
@@ -1063,10 +1062,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_state_missing_signed_out">Jelentkezzen be a lekéréshez, vagy importáljon egy fájlt.</string>
     <string name="ottai_state_partial_title">Hiányos hitelesítő adatok</string>
     <string name="ottai_state_partial_body">Hiányzik a glükózképlet. Kérje le vagy importálja őket újra.</string>
-    <string name="ottai_v3_needs_nearby">Válassza ki ezt a szenzort a talált szenzorok listájából: a hitelesítő adatait Bluetooth-on ellenőrizzük.</string>
     <string name="ottai_fetch_failed">Nem sikerült lekérni a szenzor hitelesítő adatait.</string>
+    <string name="ottai_server_unreachable">Nem érhető el az Ottai szerver. Próbálja újra.</string>
     <string name="ottai_connect_failed">Nem sikerült elindítani a kapcsolatot. Próbálja újra.</string>
-    <string name="ottai_offline_hint">Hitelesítőadat-fájlt a Mentett szenzorok alatt is importálhat.</string>
     <string name="ottai_already_binding_hint">A fiókjához még egy másik szenzor van kötve. Oldja fel a kötését a Mentett szenzorok alatt, majd próbálja újra.</string>
     <string name="ottai_ota_upgrade_required">Az Ottai szolgáltatás firmware-frissítést kért a szenzor hozzárendelésekor. Próbálja újra a firmware beállítását, vagy importálja a mentett hitelesítő adatokat. A hivatalos Ottai alkalmazást is kipróbálhatja.</string>
     <string name="ottai_retry">Újrapróbálás</string>

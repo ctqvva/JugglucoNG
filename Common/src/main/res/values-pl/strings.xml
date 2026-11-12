@@ -2486,7 +2486,6 @@
     <string name="ottai_unused_binding_desc">%1$s jest powiązany z Twoim kontem, ale nie jest tu używany. Jeśli się zakończył, odłącz go, aby można było aktywować nowy sensor.</string>
     <string name="ottai_cloud_binding_checking">Sprawdzanie konta…</string>
     <string name="ottai_cloud_binding_bound">Powiązany z Twoim kontem</string>
-    <string name="ottai_cloud_binding_not_bound">Niepowiązany z Twoim kontem</string>
     <string name="ottai_cloud_binding_error">Nie udało się sprawdzić konta</string>
     <string name="ottai_account_title">Konto Ottai</string>
     <string name="ottai_saved_sensors_title">Zapisane sensory</string>
@@ -2505,10 +2504,9 @@
     <string name="ottai_state_missing_signed_out">Zaloguj się, aby je pobrać, albo zaimportuj plik.</string>
     <string name="ottai_state_partial_title">Niekompletne dane dostępowe</string>
     <string name="ottai_state_partial_body">Brakuje formuły glukozy. Pobierz lub zaimportuj je ponownie.</string>
-    <string name="ottai_v3_needs_nearby">Wybierz ten sensor z listy znalezionych sensorów: jego dane dostępowe są weryfikowane przez Bluetooth.</string>
     <string name="ottai_fetch_failed">Nie udało się pobrać danych dostępowych tego sensora.</string>
+    <string name="ottai_server_unreachable">Nie można połączyć się z serwerem Ottai. Spróbuj ponownie.</string>
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
-    <string name="ottai_offline_hint">Możesz też zaimportować plik z danymi dostępowymi w sekcji Zapisane sensory.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
     <string name="ottai_ota_upgrade_required">Podczas wiązania sensora usługa Ottai zażądała aktualizacji firmware. Ponów konfigurację firmware lub zaimportuj zapisane dane uwierzytelniające. Możesz też spróbować oficjalnej aplikacji Ottai.</string>
     <string name="ottai_retry">Spróbuj ponownie</string>

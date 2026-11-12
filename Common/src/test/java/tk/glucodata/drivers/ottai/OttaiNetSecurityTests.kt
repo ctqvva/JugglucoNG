@@ -168,6 +168,61 @@ class OttaiNetSecurityTests {
         assertEquals(1, h.sends)
     }
 
+    @Test fun genericExchangeRefusalIsRetriedOnceThenReported() {
+        for (persistent in listOf(false, true)) {
+            var exchanges = 0
+            val pauses = mutableListOf<Long>()
+            val client = OttaiNetSecurity(fixture.getString("deviceId"), exchange = { _ ->
+                exchanges++
+                if (persistent || exchanges == 1) OttaiNetSecurity.Reply(200, JSONObject().put("code", "Error"))
+                else OttaiNetSecurity.Reply(200, fixture.getJSONObject("exchangeResponse"))
+            }, send = { _, _, _, _, _ -> OttaiNetSecurity.Reply(200, fixture.getJSONObject("response")) },
+                clock = { fixture.getLong("now") }, keyPair = ::fixedKey,
+                randomBytes = { size -> ByteArray(size) { (16 + it).toByte() } }, pause = { pauses += it })
+            if (persistent) {
+                val error = assertThrows(OttaiOtaCloudException::class.java) {
+                    client.request("GET", "/ota/upgradeVersion/judge", mapOf("deviceVersion" to "V1.7"))
+                }
+                assertEquals("ota_exchange_http=200_biz=Error", error.diagnostic)
+            } else {
+                assertEquals("OK", client.request("GET", "/ota/upgradeVersion/judge", mapOf("deviceVersion" to "V1.7")).getString("code"))
+            }
+            assertEquals(2, exchanges)
+            assertEquals(1, pauses.size)
+        }
+    }
+
+    @Test fun serverErrorsAndEmptySuccessBodiesAreRetriedOnce() {
+        for (reply in listOf(OttaiNetSecurity.Reply(502, null), OttaiNetSecurity.Reply(500, JSONObject().put("code", "Error")),
+            OttaiNetSecurity.Reply(200, null))) {
+            var exchanges = 0
+            val pauses = mutableListOf<Long>()
+            val client = OttaiNetSecurity(fixture.getString("deviceId"), exchange = { exchanges++; reply },
+                send = { _, _, _, _, _ -> error("no request without a secret") },
+                clock = { fixture.getLong("now") }, keyPair = ::fixedKey, pause = { pauses += it })
+            assertThrows(OttaiOtaCloudException::class.java) { client.request("GET", "/x") }
+            assertEquals(2, exchanges)
+            assertEquals(1, pauses.size)
+        }
+    }
+
+    @Test fun definiteExchangeRefusalsAreNotRetried() {
+        for (reply in listOf(OttaiNetSecurity.Reply(403, JSONObject().put("code", "Error")),
+            OttaiNetSecurity.Reply(401, null),
+            OttaiNetSecurity.Reply(403, null),
+            OttaiNetSecurity.Reply(200, JSONObject().put("code", "AuthFailed_TokenInvalid")),
+            OttaiNetSecurity.Reply(200, JSONObject().put("code", "NET_SECURITY_SIGNATURE_INVALID")),
+            OttaiNetSecurity.Reply(503, JSONObject().put("code", "AuthFailed_TokenInvalid")),
+            OttaiNetSecurity.Reply(500, JSONObject().put("code", "NET_SECURITY_SIGNATURE_INVALID")))) {
+            var exchanges = 0
+            val client = OttaiNetSecurity(fixture.getString("deviceId"), exchange = { exchanges++; reply },
+                send = { _, _, _, _, _ -> error("no request without a secret") },
+                clock = { fixture.getLong("now") }, keyPair = ::fixedKey, pause = { error("no retry") })
+            assertThrows(OttaiOtaCloudException::class.java) { client.request("GET", "/x") }
+            assertEquals(1, exchanges)
+        }
+    }
+
     @Test fun exchangeCanCorrectClockOffsetOnceBeforeEncrypting() {
         var exchanges = 0
         val client = OttaiNetSecurity(fixture.getString("deviceId"), exchange = { request ->

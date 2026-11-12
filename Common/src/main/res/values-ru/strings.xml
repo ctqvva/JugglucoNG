@@ -2211,7 +2211,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s привязан к вашему аккаунту, но здесь не используется. Если срок закончился, отвяжите его, чтобы активировать новый датчик.</string>
     <string name="ottai_cloud_binding_checking">Проверка аккаунта…</string>
     <string name="ottai_cloud_binding_bound">Привязан к вашему аккаунту</string>
-    <string name="ottai_cloud_binding_not_bound">Не привязан к вашему аккаунту</string>
     <string name="ottai_cloud_binding_error">Не удалось проверить аккаунт</string>
     <string name="ottai_status_needs_ble_address">Нужен BLE-адрес</string>
     <string name="ottai_status_warmup_provisional">Предварительный прогрев • осталось %1$d мин</string>
@@ -2277,10 +2276,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Войдите, чтобы загрузить их, или импортируйте файл.</string>
     <string name="ottai_state_partial_title">Ключи неполные</string>
     <string name="ottai_state_partial_body">Нет формулы расчёта глюкозы. Загрузите или импортируйте их снова.</string>
-    <string name="ottai_v3_needs_nearby">Выберите этот датчик в списке найденных: его ключи проверяются по Bluetooth.</string>
     <string name="ottai_fetch_failed">Не удалось получить ключи этого датчика.</string>
+    <string name="ottai_server_unreachable">Не удалось связаться с сервером Ottai. Попробуйте ещё раз.</string>
     <string name="ottai_connect_failed">Не удалось начать подключение. Попробуйте снова.</string>
-    <string name="ottai_offline_hint">Также можно импортировать файл с ключами в разделе «Сохранённые датчики».</string>
     <string name="ottai_already_binding_hint">К аккаунту всё ещё привязан другой датчик. Отвяжите его в разделе «Сохранённые датчики» и попробуйте снова.</string>
     <string name="ottai_ota_upgrade_required">При привязке датчика сервис Ottai запросил обновление прошивки. Повторите настройку прошивки или импортируйте сохранённые ключи. Также можно попробовать официальное приложение Ottai.</string>
     <string name="ottai_retry">Повторить</string>

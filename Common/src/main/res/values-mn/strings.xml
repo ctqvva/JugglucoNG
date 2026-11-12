@@ -2559,7 +2559,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_unused_binding_desc">%1$s таны бүртгэлд холбогдсон ч энд ашиглагдаагүй байна. Хугацаа нь дууссан бол шинэ мэдрэгч идэвхжүүлэхийн тулд холбоосыг салгана уу.</string>
     <string name="ottai_cloud_binding_checking">Бүртгэлийг шалгаж байна…</string>
     <string name="ottai_cloud_binding_bound">Таны бүртгэлд холбогдсон</string>
-    <string name="ottai_cloud_binding_not_bound">Таны бүртгэлд холбогдоогүй</string>
     <string name="ottai_cloud_binding_error">Бүртгэлийг шалгаж чадсангүй</string>
     <string name="ottai_account_title">Ottai бүртгэл</string>
     <string name="ottai_saved_sensors_title">Хадгалсан мэдрэгчүүд</string>
@@ -2578,10 +2577,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_state_missing_signed_out">Татахын тулд нэвтрэх, эсвэл файл импортлоно уу.</string>
     <string name="ottai_state_partial_title">Түлхүүр дутуу</string>
     <string name="ottai_state_partial_body">Глюкозын томъёо дутуу байна. Дахин татах эсвэл импортлоно уу.</string>
-    <string name="ottai_v3_needs_nearby">Энэ мэдрэгчийг олдсон мэдрэгчдийн жагсаалтаас сонгоно уу: түлхүүрийг нь Bluetooth-ээр шалгадаг.</string>
     <string name="ottai_fetch_failed">Энэ мэдрэгчийн түлхүүрийг авч чадсангүй.</string>
+    <string name="ottai_server_unreachable">Ottai серверт холбогдож чадсангүй. Дахин оролдоно уу.</string>
     <string name="ottai_connect_failed">Холболтыг эхлүүлж чадсангүй. Дахин оролдоно уу.</string>
-    <string name="ottai_offline_hint">Мөн «Хадгалсан мэдрэгчүүд» хэсэгт түлхүүрийн файл импортлох боломжтой.</string>
     <string name="ottai_already_binding_hint">Таны бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. «Хадгалсан мэдрэгчүүд» хэсэгт салгаад дахин оролдоно уу.</string>
     <string name="ottai_ota_upgrade_required">Ottai үйлчилгээ энэ мэдрэгчийг холбох үед програм хангамж шинэчлэхийг хүссэн. Тохиргоог дахин оролдох эсвэл хадгалсан нэвтрэх мэдээллийг импортлоно уу. Албан ёсны Ottai аппыг мөн туршиж болно.</string>
     <string name="ottai_retry">Дахин оролдох</string>
