@@ -201,12 +201,15 @@ def _fillet(Cb, ro, other, rf, guess=60.0):
         if inner.contains(Point(J)): break
     return segs, J
 
-def _fillet_d(segs, J):
-    """The fillet arc is the only visible edge; the closing chords to J lie inside both strokes,
-    so the patch overlaps its neighbours without tracing their edges (no antialiasing seam)."""
-    s0 = segs[0][0]
+def _fillet_d(segs, J, inset=1.5):
+    """The fillet arc is the only visible edge. The patch closes through points `inset` units
+    inside the upright (to the right of the fillet's end and of J) and then along a chord of
+    the bowl, so none of its hidden sides coincides with an existing edge: two antialiased
+    edges on the same line leave a hairline."""
+    s0, T2 = segs[0][0], segs[-1][3]
     return (f'M{s0[0]:.3f} {s0[1]:.3f}' + ''.join(
-        f'C{s[1][0]:.3f} {s[1][1]:.3f} {s[2][0]:.3f} {s[2][1]:.3f} {s[3][0]:.3f} {s[3][1]:.3f}' for s in segs) + f'L{J[0]:.3f} {J[1]:.3f}Z')
+        f'C{s[1][0]:.3f} {s[1][1]:.3f} {s[2][0]:.3f} {s[2][1]:.3f} {s[3][0]:.3f} {s[3][1]:.3f}' for s in segs)
+        + f'L{T2[0] + inset:.3f} {T2[1]:.3f}L{J[0] + inset:.3f} {J[1] - inset:.3f}L{J[0]:.3f} {J[1] - inset:.3f}Z')
 
 def _foot(stem_x, C, f, side, widths, top, h):
     """Stem → transition → arc to the bottom extremum. side +1 turns right (l), −1 left (y)."""
@@ -262,7 +265,10 @@ def letters(S):
     y = _foot(R, (R - FOOT_Y['r'], desc_c - FOOT_Y['r']), FOOT_Y, -1, [S, S, w_join, w_bot], top, h)
     # Same junction as the u (bowl meeting an upright that continues down), same method.
     foot_poly = Polygon([_B(sg, i/32) for sg in y.outline() for i in range(32)]).buffer(0)
-    fy, Jy = _fillet(Cb, ro, foot_poly, Y_FILLET*S)
+    # only the descender's stem can host the fillet: a long or upturned terminal must not
+    # be mistaken for the other side of the junction
+    stem_side = foot_poly.intersection(Polygon([(R - h - 1.5, -1e3), (1e3, -1e3), (1e3, 1e3), (R - h - 1.5, 1e3)]))
+    fy, Jy = _fillet(Cb, ro, stem_side, Y_FILLET*S)
     out.append(('y', left + f'<path d="{y.d()}" fill="{{ink}}"/>' + f'<path d="{_fillet_d(fy, Jy)}" fill="{{ink}}"/>'))
     return out
 
