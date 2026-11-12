@@ -252,7 +252,9 @@ def letters(S):
     bowl_d = f'M{L:.3f} {top:.3f}L{L:.3f} {bowl:.3f}' + a
     spur = LineString([(R, top), (R, 100 - h)]).buffer(h, quad_segs=32)
     fu, Ju = _fillet(Cb, ro, spur, SPUR_FILLET*S)
-    out.append(('u', stroke([bowl_d + f'L{R:.3f} {top:.3f}', f'M{R:.3f} {top:.3f}L{R:.3f} {100 - h:.3f}'])
+    # the spur stroke starts at the junction, not the top: drawing the upper stem twice stacks
+    # two antialiased edges and makes that half of the stem render slightly heavier
+    out.append(('u', stroke([bowl_d + f'L{R:.3f} {top:.3f}', f'M{R:.3f} {bowl:.3f}L{R:.3f} {100 - h:.3f}'])
                 + f'<path d="{_fillet_d(fu, Ju)}" fill="{{ink}}"/>'))
     # c
     rc = (XH - S)/2 + o['c']; ccx, ccy = h + rc, 100 - XH/2
