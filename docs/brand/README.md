@@ -1,9 +1,7 @@
 # Glucy artwork
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="lockup-on-dark.svg">
-  <img alt="Glucy" src="lockup-on-light.svg" width="360">
-</picture>
+<img alt="Glucy" src="lockup-on-light.svg#gh-light-mode-only" width="360">
+<img alt="Glucy" src="lockup-on-dark.svg#gh-dark-mode-only" width="360">
 
 The launcher icon keeps the idea of the original JugglucoNG icon: a glucose trace with the sensor sitting on it. On the launcher it sits in a navy rounded square. Next to the name it sits in a round badge.
 
