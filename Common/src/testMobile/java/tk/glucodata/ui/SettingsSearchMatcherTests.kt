@@ -44,13 +44,45 @@ class SettingsSearchMatcherTests {
     }
 
     @Test
-    fun locationMatchesComeBeforeTermMatches() {
-        // The row that lives under "Import" outranks one that only mentions importing.
+    fun anotherNameOfTheSettingComesBeforeWhereItLives() {
+        // "Import" is another name of the CSV row; the AAPS row only lives under "Import".
         val rows = listOf(
-            candidate("Journal", "Settings", "Import AAPS treatments"),
             candidate("AAPS treatments", "Journal › Import"),
+            candidate("CSV file", "Backup and restore", "Import"),
         )
-        assertEquals(listOf("AAPS treatments", "Journal"), SettingsSearchMatcher.search("import", rows))
+        assertEquals(listOf("CSV file", "AAPS treatments"), SettingsSearchMatcher.search("import", rows))
+        val matches = SettingsSearchMatcher.matches("journal", rows + candidate("Journal", "Settings"))
+        assertEquals(listOf("Journal", "AAPS treatments"), matches.map { it.item })
+        // The screen is what was asked for; the row inside it is only near it.
+        assertEquals(listOf(true, false), matches.map { it.direct })
+    }
+
+    @Test
+    fun aDescriptionFindsASettingOnlyAsRelated() {
+        val rows = listOf(
+            SettingsSearchMatcher.Candidate(
+                "Health Connect activity", "Health Connect activity", "Journal › Import",
+                descriptions = listOf("Add workouts and steps to the journal"),
+            ),
+            candidate("Insulin on board", "Display", "IOB"),
+        )
+        val journal = SettingsSearchMatcher.matches("journal", rows).single()
+        assertEquals(false, journal.direct)
+        val workouts = SettingsSearchMatcher.matches("workouts", rows).single()
+        assertEquals(false, workouts.direct)
+        assertEquals("Add workouts and steps to the journal", workouts.via)
+        // Another name is the setting itself.
+        assertEquals(true, SettingsSearchMatcher.matches("iob", rows).single().direct)
+    }
+
+    @Test
+    fun aPlaceComesBeforeTheSettingsInsideOneThatMatchAsWell() {
+        val rows = listOf(
+            SettingsSearchMatcher.Candidate("Effective IOB", "Effective IOB", "Journal › Calculations", level = 1),
+            SettingsSearchMatcher.Candidate("Insulin on board", "Insulin on board", "Display", listOf("IOB"), level = 1),
+            SettingsSearchMatcher.Candidate("IOB screen", "IOB screen", "Settings", level = 0),
+        )
+        assertEquals(listOf("IOB screen", "Effective IOB", "Insulin on board"), SettingsSearchMatcher.search("iob", rows))
     }
 
     @Test

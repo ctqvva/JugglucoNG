@@ -502,7 +502,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
         }
     ) { padding ->
         val listState = rememberLazyListState()
-        // Follow mode has only the send row; the rest is never there to page down to.
+        // Each mode lists only the rows it has, or an absent one would page to the end.
         RevealSettingsSearchAnchor(
             listState,
             if (mode == NightscoutModePreference.Mode.UPLOAD) {
@@ -511,9 +511,16 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     SettingsSearchAnchors.NIGHTSCOUT_RECEIVE_TREATMENTS,
                     SettingsSearchAnchors.NIGHTSCOUT_UPLOAD_IOB,
                     SettingsSearchAnchors.NIGHTSCOUT_V3,
+                    SettingsSearchAnchors.forRow(R.string.nightscout_send_long_insulin),
+                    SettingsSearchAnchors.forRow(R.string.nightscout_upload_sensor_start),
                 )
             } else {
-                setOf(SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS)
+                setOf(
+                    SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS,
+                    SettingsSearchAnchors.forRow(R.string.nightscout_send_long_insulin),
+                    SettingsSearchAnchors.forRow(R.string.nightscout_follow_interval_title),
+                    SettingsSearchAnchors.forRow(R.string.nightscout_follow_use_v3_api),
+                )
             }
         )
         LazyColumn(
@@ -740,6 +747,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     SettingsControlsCard {
                         SettingsChoice(
                             title = stringResource(R.string.nightscout_follow_interval_title),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_follow_interval_title),
                             options = NightscoutFollowerPollPolicy.CHOICES_MINUTES,
                             labels = NightscoutFollowerPollPolicy.CHOICES_MINUTES.map {
                                 stringResource(R.string.minutes_short_format, it)
@@ -784,6 +792,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_send_long_insulin),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_send_long_insulin),
                             subtitle = stringResource(R.string.nightscout_send_long_insulin_desc),
                             checked = sendLongInsulin,
                             onCheckedChange = {
@@ -882,6 +891,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_send_long_insulin),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_send_long_insulin),
                             subtitle = stringResource(R.string.nightscout_send_long_insulin_desc),
                             checked = sendLongInsulin,
                             onCheckedChange = {
@@ -925,6 +935,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_upload_sensor_start),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_upload_sensor_start),
                             subtitle = stringResource(R.string.nightscout_upload_sensor_start_desc),
                             checked = uploadSensorStart,
                             onCheckedChange = {
@@ -1007,6 +1018,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 item("nightscout_follow_options_group") {
                     SettingsSwitchItem(
                         title = stringResource(R.string.nightscout_follow_use_v3_api),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_follow_use_v3_api),
                         subtitle = stringResource(R.string.nightscout_follow_use_v3_api_desc),
                         checked = followerV3,
                         onCheckedChange = {

@@ -2,6 +2,9 @@
 
 package tk.glucodata.ui.restricted
 
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
+import androidx.compose.foundation.lazy.rememberLazyListState
+import tk.glucodata.ui.SettingsSearchAnchors
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -90,7 +93,19 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        RevealSettingsSearchAnchor(
+            listState,
+            setOf(
+                SettingsSearchAnchors.forRow(R.string.restricted_pin_title),
+                SettingsSearchAnchors.forRow(R.string.restricted_biometric_title),
+                SettingsSearchAnchors.forRow(R.string.restricted_allow_sensor_change),
+                SettingsSearchAnchors.forRow(R.string.restricted_allow_journal),
+                SettingsSearchAnchors.forRow(R.string.restricted_allow_alarm_stop),
+            )
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -124,6 +139,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsItem(
                         title = stringResource(R.string.restricted_pin_title),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.restricted_pin_title),
                         subtitle = stringResource(
                             if (config.hasPin) R.string.restricted_pin_set else R.string.restricted_pin_not_set
                         ),
@@ -138,6 +154,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                     if (biometricsAvailable) {
                         SettingsSwitchItem(
                             title = stringResource(R.string.restricted_biometric_title),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.restricted_biometric_title),
                             subtitle = stringResource(
                                 if (config.hasPin) R.string.restricted_biometric_desc
                                 else R.string.restricted_biometric_needs_pin
@@ -161,6 +178,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DisclosingSwitchCard(
                         title = stringResource(R.string.restricted_allow_sensor_change),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.restricted_allow_sensor_change),
                         subtitle = stringResource(R.string.restricted_allow_sensor_change_desc),
                         icon = Icons.Default.Sensors,
                         iconTint = color,
@@ -189,6 +207,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                     }
                     SettingsSwitchItem(
                         title = stringResource(R.string.restricted_allow_journal),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.restricted_allow_journal),
                         subtitle = stringResource(R.string.restricted_allow_journal_desc),
                         checked = config.allowJournal,
                         onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowJournal = on) } },
@@ -207,6 +226,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                     )
                     SettingsSwitchItem(
                         title = stringResource(R.string.restricted_allow_alarm_stop),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.restricted_allow_alarm_stop),
                         subtitle = stringResource(R.string.restricted_allow_alarm_stop_desc),
                         checked = config.allowAlarmStop,
                         onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowAlarmStop = on) } },

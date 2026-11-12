@@ -3099,6 +3099,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Cerca nelle impostazioni</string>
     <string name="settings_search_no_results">Nessuna impostazione corrisponde a “%1$s”</string>
+    <string name="settings_search_related">Impostazioni correlate</string>
     <string name="settings_search_clear">Cancella ricerca</string>
 
     <!-- Explicit firmware field test. -->

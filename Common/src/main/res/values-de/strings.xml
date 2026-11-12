@@ -3221,6 +3221,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <!-- Settings search -->
     <string name="settings_search_hint">Einstellungen durchsuchen</string>
     <string name="settings_search_no_results">Keine Einstellung passt zu „%1$s“</string>
+    <string name="settings_search_related">Verwandte Einstellungen</string>
     <string name="settings_search_clear">Suche löschen</string>
 
     <!-- Explicit firmware field test. -->

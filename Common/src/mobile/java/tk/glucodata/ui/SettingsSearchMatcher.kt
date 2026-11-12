@@ -7,9 +7,12 @@ import java.text.Normalizer
  *
  * Every word of the query has to appear somewhere in the entry (title, where it lives, or
  * its extra search terms), ignoring case and accents, so "notif arrow" finds "Show trend
- * arrow" under "Glucose notification". Results whose title carries the match come
- * before results that only match on location or terms; ties keep index order, which is the
- * order rows appear on screen.
+ * arrow" under "Glucose notification". The order is by how the entry matched: its title
+ * (from the start, at a word's start, anywhere), then another of its own names (an old
+ * name, an abbreviation), then only what is around it: the place it lives in, or the words
+ * describing it. Within that, a place (a screen
+ * or dialog, [Candidate.level] 0) comes before what is inside one, then index order, which
+ * is the order rows appear on screen.
  */
 internal object SettingsSearchMatcher {
 
@@ -18,19 +21,27 @@ internal object SettingsSearchMatcher {
         val title: String,
         /** Where the setting lives, as the result shows it. Matched, weighted below the title. */
         val location: String,
-        /** Other words that should find it but are not on the result: matched last. */
+        /** Other names of the setting itself (an abbreviation, a product, an old name). */
         val terms: List<String> = emptyList(),
+        /** Words about it: its description, what it holds. They find it, but only as nearby. */
+        val descriptions: List<String> = emptyList(),
+        /** 0 for a place of its own (screen, dialog); 1 for a setting inside one. */
+        val level: Int = 0,
     ) {
         internal val normalizedTitle = normalize(title)
         internal val normalizedLocation = normalize(location)
         internal val normalizedTerms = terms.map { normalize(it) }
+        internal val extras = terms + descriptions
+        internal val normalizedExtras = normalizedTerms + descriptions.map { normalize(it) }
     }
 
     /**
      * One hit. [via] is the term that brought it in when the title and location alone do
      * not hold every word of the query: the result shows it, so a match is never a mystery.
+     * [direct] is false for an entry found only because of where it lives (everything inside
+     * "Journal" for "journal"): it is not what was asked for, only near it.
      */
-    class Match<T>(val item: T, val via: String?)
+    class Match<T>(val item: T, val via: String?, val direct: Boolean)
 
     fun <T> search(query: String, candidates: List<Candidate<T>>): List<T> =
         matches(query, candidates).map { it.item }
@@ -46,21 +57,24 @@ internal object SettingsSearchMatcher {
                 val via = if (missing.isEmpty()) {
                     null
                 } else {
-                    // Every missing word has to be in the terms; name the one that holds most.
-                    if (!missing.all { token -> candidate.normalizedTerms.any { it.contains(token) } }) {
+                    // Every missing word has to be in a term or description; name the one that
+                    // holds most, a term (another name) before a description on a tie.
+                    val extras = candidate.normalizedExtras
+                    if (!missing.all { token -> extras.any { it.contains(token) } }) {
                         return@mapIndexedNotNull null
                     }
-                    candidate.terms[
-                        candidate.normalizedTerms.indices.maxBy { i ->
-                            missing.count { candidate.normalizedTerms[i].contains(it) }
-                        }
-                    ]
+                    candidate.extras[extras.indices.maxBy { i -> missing.count { extras[i].contains(it) } }]
                 }
-                Triple(Match(candidate.item, via), rank(candidate, phrase, tokens), index)
+                val rank = rank(candidate, phrase, tokens)
+                Ranked(Match(candidate.item, via, direct = rank < LOCATION_ONLY), rank, candidate.level, index)
             }
-            .sortedWith(compareBy({ it.second }, { it.third }))
-            .map { it.first }
+            .sortedWith(compareBy({ it.rank }, { it.level }, { it.index }))
+            .map { it.match }
     }
+
+    private class Ranked<T>(val match: Match<T>, val rank: Int, val level: Int, val index: Int)
+
+    private const val LOCATION_ONLY = 4
 
     private fun rank(candidate: Candidate<*>, phrase: String, tokens: List<String>): Int {
         val title = candidate.normalizedTitle
@@ -69,8 +83,8 @@ internal object SettingsSearchMatcher {
             title.startsWith(phrase) -> 0
             tokens.all { token -> words.any { it.startsWith(token) } } -> 1
             tokens.all { title.contains(it) } -> 2
-            tokens.all { title.contains(it) || candidate.normalizedLocation.contains(it) } -> 3
-            else -> 4
+            tokens.all { token -> title.contains(token) || candidate.normalizedTerms.any { it.contains(token) } } -> 3
+            else -> LOCATION_ONLY
         }
     }
 

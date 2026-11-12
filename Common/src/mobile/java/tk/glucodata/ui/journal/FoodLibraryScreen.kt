@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.journal
 
+import tk.glucodata.ui.SettingsSearchAnchors
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -443,6 +444,7 @@ internal fun FoodLibraryContent(
         libraryItem(key = "food_online_enabled") {
             SettingsSwitchItem(
                 title = stringResource(R.string.open_food_facts),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.open_food_facts),
                 subtitle = stringResource(R.string.food_online_desc),
                 checked = onlineEnabled,
                 onCheckedChange = actions.onOnlineEnabledChange,

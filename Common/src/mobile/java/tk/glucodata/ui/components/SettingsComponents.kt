@@ -133,11 +133,12 @@ fun DisclosingSwitchCard(
     position: CardPosition,
     iconTint: Color? = null,
     enabled: Boolean = true,
+    searchAnchor: String? = null,
     content: @Composable () -> Unit,
 ) {
     val tint = iconTint ?: MaterialTheme.colorScheme.primary
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().settingsSearchAnchor(searchAnchor, cardShape(position)),
         shape = cardShape(position),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
@@ -609,6 +610,11 @@ fun SettingsControlsCard(
     }
 }
 
+// A control inside a [SettingsControlsCard] sits in the card's 16dp padding; its search
+// mark grows into half of it, so it frames the control without touching the card edge.
+private val SearchAnchorInCardShape = RoundedCornerShape(12.dp)
+private val SearchAnchorInCardOutset = 8.dp
+
 /**
  * A slider in a [SettingsControlsCard]. The title carries the value ("Font size: 100%"),
  * so the track draws no tick per step: at 10-50 steps they are a row of dots.
@@ -621,8 +627,13 @@ fun SettingsSlider(
     range: ClosedFloatingPointRange<Float>,
     steps: Int = 0,
     modifier: Modifier = Modifier,
+    searchAnchor: String? = null,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .settingsSearchAnchor(searchAnchor, SearchAnchorInCardShape, outset = SearchAnchorInCardOutset)
+    ) {
         Text(title, style = MaterialTheme.typography.titleMedium)
         Slider(
             value = value,
@@ -656,10 +667,14 @@ fun <T> SettingsChoice(
     modifier: Modifier = Modifier,
     maxItemsPerRow: Int = Int.MAX_VALUE,
     titleTrailingContent: (@Composable () -> Unit)? = null,
+    searchAnchor: String? = null,
 ) {
     // The bottom padding matches the room a slider leaves under its track.
     Column(
-        modifier = modifier.fillMaxWidth().padding(bottom = 12.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .settingsSearchAnchor(searchAnchor, SearchAnchorInCardShape, outset = SearchAnchorInCardOutset)
+            .padding(bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (titleTrailingContent == null) {

@@ -443,6 +443,7 @@ fun LibreViewSettingsScreen(navController: NavController) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.libreview_russia),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.libreview_russia),
                     checked = isRussia,
                     onCheckedChange = { isRussia = it },
                     icon = Icons.Default.Public,
@@ -451,6 +452,7 @@ fun LibreViewSettingsScreen(navController: NavController) {
                 )
                 SettingsSwitchItem(
                     title = stringResource(R.string.libreview_current),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.libreview_current),
                     checked = libreCurrent,
                     onCheckedChange = { libreCurrent = it },
                     icon = Icons.Default.ShowChart,
@@ -459,6 +461,7 @@ fun LibreViewSettingsScreen(navController: NavController) {
                 )
                 SettingsSwitchItem(
                     title = stringResource(R.string.libreview_is_viewed),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.libreview_is_viewed),
                     checked = libreIsViewed,
                     onCheckedChange = { libreIsViewed = it },
                     icon = Icons.Default.Visibility,
@@ -467,6 +470,7 @@ fun LibreViewSettingsScreen(navController: NavController) {
                 )
                 SettingsSwitchItem(
                     title = stringResource(R.string.libreview_send_numbers),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.libreview_send_numbers),
                     checked = sendNumbers,
                     onCheckedChange = { sendNumbers = it },
                     icon = Icons.Default.Insights,

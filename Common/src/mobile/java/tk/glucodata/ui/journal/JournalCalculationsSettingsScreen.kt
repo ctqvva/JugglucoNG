@@ -1,5 +1,9 @@
 package tk.glucodata.ui.journal
 
+import tk.glucodata.ui.components.settingsSearchAnchor
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
+import androidx.compose.foundation.lazy.rememberLazyListState
+import tk.glucodata.ui.SettingsSearchAnchors
 import androidx.compose.material3.ButtonDefaults
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
@@ -91,7 +95,21 @@ fun JournalCalculationsSettingsScreen(
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        RevealSettingsSearchAnchor(
+            listState,
+            setOf(
+                SettingsSearchAnchors.forRow(R.string.journal_body_weight_title),
+                SettingsSearchAnchors.forRow(R.string.journal_food_macros_title),
+                SettingsSearchAnchors.forRow(R.string.journal_eiob_display_title),
+                SettingsSearchAnchors.forRow(R.string.state_dose_hint_title),
+                SettingsSearchAnchors.forRow(R.string.state_dose_hint_in_range_title),
+        SettingsSearchAnchors.forRow(R.string.state_dose_hint_horizon),
+                SettingsSearchAnchors.forRow(R.string.state_dose_hint_horizon),
+            )
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -124,6 +142,7 @@ fun JournalCalculationsSettingsScreen(
                     // rewrites history.
                     SettingsItem(
                         title = stringResource(R.string.journal_body_weight_title),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.journal_body_weight_title),
                         subtitle = journalBodyWeightKg?.let {
                             stringResource(R.string.journal_body_weight_value, it)
                         } ?: stringResource(R.string.journal_body_weight_not_set),
@@ -143,6 +162,7 @@ fun JournalCalculationsSettingsScreen(
                     )
                     SettingsSwitchItem(
                         title = stringResource(R.string.journal_food_macros_title),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.journal_food_macros_title),
                         subtitle = stringResource(R.string.journal_food_macros_desc),
                         checked = journalFoodMacrosEnabled,
                         onCheckedChange = { viewModel.setJournalFoodMacrosEnabled(it) },
@@ -153,6 +173,7 @@ fun JournalCalculationsSettingsScreen(
                     )
                     SettingsSwitchItem(
                         title = stringResource(R.string.journal_eiob_display_title),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.journal_eiob_display_title),
                         subtitle = stringResource(R.string.journal_eiob_display_desc),
                         checked = journalEiobDisplayEnabled,
                         onCheckedChange = { viewModel.setJournalEiobDisplayEnabled(it) },
@@ -170,6 +191,7 @@ fun JournalCalculationsSettingsScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         SettingsSwitchItem(
                             title = stringResource(R.string.state_dose_hint_title),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.state_dose_hint_title),
                             subtitle = stringResource(R.string.state_dose_hint_desc),
                             checked = stateDoseHintEnabled,
                             onCheckedChange = { viewModel.setStateDoseHintEnabled(it) },
@@ -180,6 +202,7 @@ fun JournalCalculationsSettingsScreen(
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.state_dose_hint_in_range_title),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.state_dose_hint_in_range_title),
                             subtitle = stringResource(R.string.state_dose_hint_in_range_desc),
                             checked = stateDoseHintCorrectInRange,
                             onCheckedChange = { viewModel.setStateDoseHintCorrectInRange(it) },
@@ -275,7 +298,12 @@ private fun DoseHintHorizonItem(
     onHorizonChange: (Float) -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .settingsSearchAnchor(
+                SettingsSearchAnchors.forRow(R.string.state_dose_hint_horizon),
+                cardShape(CardPosition.BOTTOM)
+            ),
         shape = cardShape(CardPosition.BOTTOM),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {

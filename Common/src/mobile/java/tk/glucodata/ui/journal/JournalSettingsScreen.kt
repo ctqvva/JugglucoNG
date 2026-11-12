@@ -214,6 +214,7 @@ fun JournalSettingsScreen(
             setOf(
                 SettingsSearchAnchors.JOURNAL_TAB,
                 SettingsSearchAnchors.JOURNAL_QUICK_ADD,
+                SettingsSearchAnchors.forRow(R.string.journal_quickadd_always_now_title),
                 SettingsSearchAnchors.JOURNAL_INSULIN_CHART,
                 SettingsSearchAnchors.JOURNAL_DOSE_CALCULATOR,
                 SettingsSearchAnchors.JOURNAL_HEALTH_ACTIVITY,
@@ -310,6 +311,7 @@ fun JournalSettingsScreen(
                         ) {
                             SettingsSwitchItem(
                                 title = stringResource(R.string.journal_quickadd_always_now_title),
+                                searchAnchor = SettingsSearchAnchors.forRow(R.string.journal_quickadd_always_now_title),
                                 subtitle = stringResource(R.string.journal_quickadd_always_now_desc),
                                 checked = journalQuickAddAlwaysNow,
                                 onCheckedChange = { viewModel.setJournalQuickAddAlwaysNow(it) },

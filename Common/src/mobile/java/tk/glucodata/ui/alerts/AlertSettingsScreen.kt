@@ -208,7 +208,8 @@ fun AlertSettingsScreen(
             listState,
             setOf(
                 SettingsSearchAnchors.HIGH_ALERTS, SettingsSearchAnchors.LOW_ALERTS,
-                SettingsSearchAnchors.PREDICTIVE_ALERTS, SettingsSearchAnchors.OTHER_ALERTS
+                SettingsSearchAnchors.PREDICTIVE_ALERTS, SettingsSearchAnchors.OTHER_ALERTS,
+                SettingsSearchAnchors.forRow(R.string.preemptive_snooze),
             )
         )
         LazyColumn(
@@ -552,6 +553,7 @@ fun AlertSettingsScreen(
                 Spacer(Modifier.height(24.dp))
                 SettingsItem(
                     title = stringResource(R.string.preemptive_snooze),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.preemptive_snooze),
                     subtitle = stringResource(R.string.preemptive_snooze_desc),
                     icon = Icons.Default.Snooze,
                     iconTint = MaterialTheme.colorScheme.primary,

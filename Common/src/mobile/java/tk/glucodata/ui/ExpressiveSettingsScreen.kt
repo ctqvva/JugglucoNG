@@ -235,9 +235,14 @@ fun ExpressiveSettingsScreen(
             legacyFollowerEnabled = NightscoutFollowerRegistry.loadConfig(context).enabled,
         ) == NightscoutModePreference.Mode.UPLOAD
     }
+    val journalQuickAddButton by viewModel.journalDashboardQuickAddButton.collectAsStateWithLifecycle()
+    // Like the Nightscout mode, these only change on their own screen: once per visit is enough.
+    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsStateWithLifecycle()
+    val notificationRows = remember(context) { SettingsSearchIndex.notificationRows(context) }
     val searchCandidates = remember(
         context, searchLocales, showLibreView, showDexcomShare, showMqAccount, showOttaiSettings,
-        showLibre2Identity, showAppTrend, nightscoutUploadMode
+        showLibre2Identity, showAppTrend, nightscoutUploadMode, journalEnabled, journalQuickAddButton, showLumiflex,
+        notificationChartEnabled
     ) {
         SettingsSearchIndex.resolve(context) { condition ->
             when (condition) {
@@ -249,6 +254,12 @@ fun ExpressiveSettingsScreen(
                 SettingsSearchCondition.LIBRE2_IDENTITY -> showLibre2Identity
                 SettingsSearchCondition.APP_TREND -> showAppTrend
                 SettingsSearchCondition.NIGHTSCOUT_UPLOAD -> nightscoutUploadMode
+                SettingsSearchCondition.NIGHTSCOUT_FOLLOW -> !nightscoutUploadMode
+                SettingsSearchCondition.JOURNAL_QUICK_ADD -> journalEnabled && journalQuickAddButton
+                SettingsSearchCondition.LUMIFLEX -> showLumiflex
+                SettingsSearchCondition.NOTIFICATION_CHART -> notificationChartEnabled || notificationRows.collapsedChart
+                SettingsSearchCondition.NOTIFICATION_IOB_COB -> notificationRows.iobOrCob
+                SettingsSearchCondition.NOTIFICATION_RISK -> notificationRows.iobOrCob && notificationRows.riskColored
             }
         }
     }
