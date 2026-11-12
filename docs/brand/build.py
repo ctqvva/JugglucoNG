@@ -127,7 +127,9 @@ INK_ON_LIGHT, INK_ON_DARK = '#0D1430', '#F0F3F8'
 # could get the dark version. The wordmark is set in the trace blue, which reads on white and
 # on dark pages. The badge keeps the launcher navy; on dark pages it recedes and the trace and
 # sensor carry the mark.
-LOCKUP_INK = MAIN['line']
+# A touch less vivid than the launcher's trace blue: saturation × 0.65 at the same lightness, so
+# contrast stays 3.4:1 on white and 5.6:1 on GitHub dark. Used for the badge trace and the name.
+LOCKUP_INK = '#6A89D7'
 LOCKUP_BADGE = MAIN['bg']
 
 
@@ -144,7 +146,7 @@ def lockup_svg():
     k = cap / 100
     badge = (f'<g transform="scale({D / 72:.5f}) translate(-18 -18)">'
              f'<clipPath id="b"><circle cx="54" cy="54" r="36"/></clipPath><g clip-path="url(#b)">'
-             f'<rect width="108" height="108" fill="{LOCKUP_BADGE}"/><path d="{TRACE_D}" fill="{MAIN["line"]}"/>'
+             f'<rect width="108" height="108" fill="{LOCKUP_BADGE}"/><path d="{TRACE_D}" fill="{LOCKUP_INK}"/>'
              f'<path d="{SENSOR_D}" fill="{MAIN["sensor"]}"/><path d="{RIM_D}" fill="{MAIN["rim"]}" fill-rule="evenodd"/>'
              f'<path d="{DOT_D}" fill="{LOCKUP_BADGE}"/></g></g>')
     text = f'<g transform="translate({D + gap:.2f} {D / 2 - cap / 2:.2f}) scale({k:.4f})">{body}</g>'
