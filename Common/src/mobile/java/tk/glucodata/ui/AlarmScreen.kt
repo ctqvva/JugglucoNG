@@ -2,7 +2,6 @@
 
 package tk.glucodata.ui
 
-import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
@@ -56,11 +55,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.layout
@@ -92,11 +88,6 @@ private data class Trend(
     val verticalSign: Int
 )
 
-private data class AlarmTypographyChoice(
-    val fontFamily: FontFamily,
-    val fontWeight: FontWeight
-)
-
 @Composable
 fun AlarmScreen(
     primaryGlucose: String,
@@ -115,20 +106,19 @@ fun AlarmScreen(
     val colorScheme = remember(severity) { severityColorScheme(severity) }
     val trend = remember(trendResult) { resolveTrend(trendResult) }
 
-    // Expressive motion, as in the app: the trace and the buttons move on its springs.
+    // Use the app's font families, widths and weights; notification font choices belong
+    // to the notification. Keep the alarm's expressive motion and severity colours.
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
         motionScheme = MotionScheme.expressive(),
         typography = AppTypography
     ) {
-        val typographyChoice = rememberAlarmTypographyChoice()
         PixelAlarmContent(
             primaryGlucose = primaryGlucose,
             alarmLabel = alarmLabel,
             supportingText = supportingText,
             trend = trend,
             trendResult = trendResult,
-            typographyChoice = typographyChoice,
             trace = trace,
             onSnooze = onSnooze,
             onDismiss = onDismiss
@@ -143,7 +133,6 @@ private fun PixelAlarmContent(
     supportingText: String,
     trend: Trend,
     trendResult: TrendEngine.TrendResult,
-    typographyChoice: AlarmTypographyChoice,
     trace: AlarmTrace?,
     onSnooze: () -> Unit,
     onDismiss: (() -> Unit)?
@@ -220,7 +209,6 @@ private fun PixelAlarmContent(
                             alarmLabel = alarmLabel,
                             supportingText = supportingText,
                             compact = compact,
-                            fontFamily = typographyChoice.fontFamily,
                             modifier = Modifier.padding(top = if (compact) 28.dp else 40.dp)
                         )
                     }
@@ -249,7 +237,6 @@ private fun PixelAlarmContent(
                             trend = trend,
                             trendResult = trendResult,
                             compact = compact,
-                            typographyChoice = typographyChoice,
                             motionActive = motionActive,
                             arrowScale = arrowScale,
                             modifier = Modifier.offset { IntOffset(0, heroOffsetY.roundToInt()) }
@@ -301,7 +288,6 @@ private fun AlarmHeader(
     alarmLabel: String,
     supportingText: String,
     compact: Boolean,
-    fontFamily: FontFamily,
     modifier: Modifier = Modifier
 ) {
     val normalizedLabel = remember(alarmLabel) { alarmLabel.trim().replace(Regex("\\s+"), " ") }
@@ -321,11 +307,8 @@ private fun AlarmHeader(
             Text(
                 text = displayLabel,
                 style = MaterialTheme.typography.headlineLarge.copy(
-                    fontFamily = fontFamily,
                     fontSize = titleFontSize,
                     lineHeight = titleLineHeight,
-                    // A step up from hairline: the alarm's name has to read at arm's length.
-                    fontWeight = FontWeight.W300,
                     letterSpacing = 0.sp
                 ),
                 color = MaterialTheme.colorScheme.onSurface,
@@ -338,8 +321,6 @@ private fun AlarmHeader(
                 Text(
                     text = supportingText,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = fontFamily,
-                        fontWeight = FontWeight.W300,
                         letterSpacing = 0.sp
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -357,7 +338,6 @@ private fun HeroBlock(
     trend: Trend,
     trendResult: TrendEngine.TrendResult,
     compact: Boolean,
-    typographyChoice: AlarmTypographyChoice,
     motionActive: Boolean,
     arrowScale: Float,
     modifier: Modifier = Modifier
@@ -403,8 +383,6 @@ private fun HeroBlock(
                 }
             }
             val baseStyle = MaterialTheme.typography.displayLarge.copy(
-                fontFamily = typographyChoice.fontFamily,
-                fontWeight = typographyChoice.fontWeight,
                 letterSpacing = 0.sp,
                 fontFeatureSettings = "tnum"
             )
@@ -520,27 +498,6 @@ private fun ActionDock(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun rememberAlarmTypographyChoice(): AlarmTypographyChoice {
-    val context = LocalContext.current
-    val prefs = remember(context) {
-        context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
-    }
-    val fontFamilyPref = prefs.getInt("notification_font_family", 0)
-    val fontWeightPref = prefs.getInt("notification_font_weight", 400).coerceIn(300, 500)
-    val fontFamily = if (fontFamilyPref == 1) {
-        FontFamily.SansSerif
-    } else {
-        AppTypography.displayLarge.fontFamily ?: FontFamily.SansSerif
-    }
-    return remember(fontFamily, fontWeightPref) {
-        AlarmTypographyChoice(
-            fontFamily = fontFamily,
-            fontWeight = FontWeight(fontWeightPref)
-        )
     }
 }
 
