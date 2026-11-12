@@ -16,7 +16,8 @@ import android.widget.RemoteViews;
 final class CustomGlucoseNotification {
     private CustomGlucoseNotification() { }
 
-    private static final String SEPARATOR_DOT = "•";
+    /** Same length as " · ", so offsets found in the plain text still hold. */
+    private static final String SEPARATOR = "\u2002\u2022\u2002";
 
     static RemoteViews values(Context context, boolean expanded, CharSequence primary,
             int primaryColor, int secondaryColor, int tertiaryColor,
@@ -141,9 +142,10 @@ final class CustomGlucoseNotification {
         int third = plain.indexOf(" · ", second + 3);
         int secondEnd = third < 0 ? text.length() : third;
         // The separator shrinks with the value it introduces; at that size "·" is
-        // a speck above the digits' centre. "•" at the same size sits on it.
-        text.replace(second + 1, second + 2, SEPARATOR_DOT);
-        if (third >= 0) text.replace(third + 1, third + 2, SEPARATOR_DOT);
+        // a speck above the digits' centre and plain spaces crowd it. "•" sits on
+        // the centre; en spaces give it the hero's half-em gaps at any text size.
+        text.replace(second, second + 3, SEPARATOR);
+        if (third >= 0) text.replace(third, third + 3, SEPARATOR);
         text.setSpan(new RelativeSizeSpan(0.7f), second, secondEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         text.setSpan(new ForegroundColorSpan(secondary), second, secondEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         if (third >= 0) {

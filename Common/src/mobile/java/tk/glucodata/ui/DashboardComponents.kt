@@ -1560,7 +1560,8 @@ private fun DashboardHeroValueCluster(
     } else {
         contentColor.copy(alpha = 0.60f)
     }
-    val dotGap = HeroSeparatorDot.Gap
+    val pairDotGap = HeroSeparatorDot.gap(secondaryInlineStyle)
+    val stackDotGap = HeroSeparatorDot.gap(secondaryStackStyle)
     val pairDotDiameter = HeroSeparatorDot.diameter(secondaryInlineStyle)
     val stackDotDiameter = HeroSeparatorDot.diameter(secondaryStackStyle)
     val textMeasurer = rememberTextMeasurer()
@@ -1579,7 +1580,7 @@ private fun DashboardHeroValueCluster(
         val inlinePairWidthPx = if (!hasThreeValues && pairText != null) {
             // The dot gaps are independent of the delta inset; the two
             // lines share width, not spacing.
-            val supportWidth = with(density) { (pairDotDiameter + dotGap).roundToPx() } +
+            val supportWidth = with(density) { (pairDotDiameter + pairDotGap).roundToPx() } +
                 textMeasurer.measure(pairText, style = secondaryInlineStyle, maxLines = 1).size.width
             val deltaWidth = if (!deltaText.isNullOrEmpty()) {
                 textMeasurer.measure(
@@ -1589,7 +1590,7 @@ private fun DashboardHeroValueCluster(
                 ).size.width
             } else 0
             primaryWidthPx + maxOf(
-                supportWidth + with(density) { dotGap.roundToPx() },
+                supportWidth + with(density) { pairDotGap.roundToPx() },
                 if (deltaWidth > 0) deltaWidth + with(density) { 16.dp.roundToPx() } else 0
             )
         } else {
@@ -1607,7 +1608,7 @@ private fun DashboardHeroValueCluster(
                 maxLines = 1
             ).size.width
             primaryWidthPx +
-                with(density) { (dotGap + stackDotDiameter + dotGap).roundToPx() } +
+                with(density) { (stackDotGap + stackDotDiameter + stackDotGap).roundToPx() } +
                 maxOf(secondaryWidth, tertiaryWidth)
         } else {
             0
@@ -1646,8 +1647,8 @@ private fun DashboardHeroValueCluster(
                     contentColor = contentColor,
                     deltaText = deltaText,
                     deltaStyle = MaterialTheme.typography.bodySmall.scaleForHero(pairScale),
-                    beforeDot = dotGap * pairScale,
-                    afterDot = dotGap * pairScale,
+                    beforeDot = pairDotGap * pairScale,
+                    afterDot = pairDotGap * pairScale,
                     beforeDelta = 16.dp * pairScale
                 )
             }
@@ -1666,11 +1667,11 @@ private fun DashboardHeroValueCluster(
                         color = primaryColor
                     )
 
-                    Spacer(modifier = Modifier.width(dotGap * stackScale))
+                    Spacer(modifier = Modifier.width(stackDotGap * stackScale))
 
                     HeroSeparatorDot.Dot(stackDotDiameter * stackScale, contentColor.copy(alpha = 0.72f))
 
-                    Spacer(modifier = Modifier.width(dotGap * stackScale))
+                    Spacer(modifier = Modifier.width(stackDotGap * stackScale))
 
                     Column(
                         modifier = Modifier.weight(1f, fill = false),

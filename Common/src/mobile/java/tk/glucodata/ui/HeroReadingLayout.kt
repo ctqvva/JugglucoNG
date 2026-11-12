@@ -84,8 +84,12 @@ internal object HeroSeparatorDot {
     const val DIAMETER_EM = 0.24f
     /** Centre height above the supporting value's baseline: half of Plex's 0.7 em digits. */
     const val CENTER_EM = 0.35f
-    /** Same visual gap on both sides of the dot. */
-    val Gap = 8.dp
+    /** Gap on each side, also in em so it follows the width class, the font scale and
+     * the multi-sensor shrink with the text instead of staying a fixed dp. */
+    const val GAP_EM = 0.5f
+
+    @Composable
+    fun gap(style: TextStyle): Dp = with(LocalDensity.current) { (style.fontSize * GAP_EM).toDp() }
 
     @Composable
     fun diameter(style: TextStyle): Dp = with(LocalDensity.current) { (style.fontSize * DIAMETER_EM).toDp() }
@@ -112,8 +116,8 @@ internal fun DashboardHeroPairText(
     contentColor: Color,
     deltaText: String?,
     deltaStyle: TextStyle,
-    beforeDot: Dp = HeroSeparatorDot.Gap,
-    afterDot: Dp = HeroSeparatorDot.Gap,
+    beforeDot: Dp = HeroSeparatorDot.gap(secondaryStyle),
+    afterDot: Dp = HeroSeparatorDot.gap(secondaryStyle),
     beforeDelta: Dp = 16.dp,
     modifier: Modifier = Modifier
 ) {
@@ -132,8 +136,8 @@ internal fun DashboardHeroPairText(
 
 internal class HeroPairMeasurePolicy(
     private val hasDelta: Boolean,
-    private val beforeDot: Dp = HeroSeparatorDot.Gap,
-    private val afterDot: Dp = HeroSeparatorDot.Gap,
+    private val beforeDot: Dp = 8.dp,
+    private val afterDot: Dp = 8.dp,
     private val beforeDelta: Dp = 16.dp,
     /** Dot centre above the secondary's baseline. */
     private val dotLift: Dp = 0.dp
