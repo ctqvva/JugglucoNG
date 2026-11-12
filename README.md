@@ -1,5 +1,4 @@
-<img alt="Glucy" src="docs/brand/lockup-on-light.svg#gh-light-mode-only" width="360">
-<img alt="Glucy" src="docs/brand/lockup-on-dark.svg#gh-dark-mode-only" width="360">
+<img alt="Glucy" src="docs/brand/lockup.svg" width="360">
 
 # Glucy
 

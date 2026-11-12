@@ -1,7 +1,6 @@
 # Glucy artwork
 
-<img alt="Glucy" src="lockup-on-light.svg#gh-light-mode-only" width="360">
-<img alt="Glucy" src="lockup-on-dark.svg#gh-dark-mode-only" width="360">
+<img alt="Glucy" src="lockup.svg" width="360">
 
 The launcher icon keeps the idea of the original JugglucoNG icon: a glucose trace with the sensor sitting on it. On the launcher it sits in a navy rounded square. Next to the name it sits in a round badge.
 
@@ -22,7 +21,7 @@ The reasons for each are written at the top of `lettering.py`. Read them before 
 - the SVGs in this folder:
   - icons: [icon](icon.svg), [second installation](icon-dub.svg), [two-tone variant](icon-two-tone.svg) for other material, [monochrome layer](monochrome.svg)
   - wordmarks for [light](wordmark-on-light.svg) and [dark](wordmark-on-dark.svg) backgrounds
-  - transparent lockups for [light](lockup-on-light.svg) and [dark](lockup-on-dark.svg) backgrounds; the dark one adds a hairline edge so the badge doesn't merge into dark pages
+  - the [lockup](lockup.svg): one file for light and dark pages. The wordmark is set in the trace blue, and the badge uses a slightly lifted navy so it stands off dark pages without a border. GitHub's theme switches follow the OS rather than GitHub's setting, so one file that works on both is more reliable than two.
 
 ```sh
 pip install shapely

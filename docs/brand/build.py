@@ -122,7 +122,12 @@ def svg(c, view='18 18 72 72', size=512):
 from lettering import wordmark, LIGHT_WEIGHT, DARK_WEIGHT, DESC
 
 INK_ON_LIGHT, INK_ON_DARK = '#0D1430', '#F0F3F8'
-EDGE_ON_DARK = '#3A4A80'   # hairline so the navy badge doesn't merge into dark page backgrounds
+# The lockup is one file for every background: GitHub's theme switches (<picture> and the
+# #gh-*-mode-only suffixes) follow the OS rather than GitHub's own setting, so a light page
+# could get the dark version. The wordmark is set in the trace blue, which reads on white and
+# on dark pages, and the badge uses a lifted navy that stands off dark pages without a border.
+LOCKUP_INK = MAIN['line']
+LOCKUP_BADGE = '#1C2B5E'
 
 
 def wordmark_svg(dark=False):
@@ -131,18 +136,16 @@ def wordmark_svg(dark=False):
             f'<title>Glucy</title>{body}</svg>\n')
 
 
-def lockup_svg(dark=False):
+def lockup_svg():
     """Round badge + wordmark on a transparent background. Badge 100 units; cap height 43 % of it."""
-    weight, ink = (DARK_WEIGHT, INK_ON_DARK) if dark else (LIGHT_WEIGHT, INK_ON_LIGHT)
-    body, w = wordmark(weight, ink)
+    body, w = wordmark(LIGHT_WEIGHT, LOCKUP_INK)
     D, cap, gap = 100.0, 43.0, 28.0
     k = cap / 100
-    edge = f'<circle cx="54" cy="54" r="35.6" fill="none" stroke="{EDGE_ON_DARK}" stroke-width="0.8"/>' if dark else ''
     badge = (f'<g transform="scale({D / 72:.5f}) translate(-18 -18)">'
              f'<clipPath id="b"><circle cx="54" cy="54" r="36"/></clipPath><g clip-path="url(#b)">'
-             f'<rect width="108" height="108" fill="{MAIN["bg"]}"/><path d="{TRACE_D}" fill="{MAIN["line"]}"/>'
+             f'<rect width="108" height="108" fill="{LOCKUP_BADGE}"/><path d="{TRACE_D}" fill="{MAIN["line"]}"/>'
              f'<path d="{SENSOR_D}" fill="{MAIN["sensor"]}"/><path d="{RIM_D}" fill="{MAIN["rim"]}" fill-rule="evenodd"/>'
-             f'<path d="{DOT_D}" fill="{MAIN["dot"]}"/></g>{edge}</g>')
+             f'<path d="{DOT_D}" fill="{LOCKUP_BADGE}"/></g></g>')
     text = f'<g transform="translate({D + gap:.2f} {D / 2 - cap / 2:.2f}) scale({k:.4f})">{body}</g>'
     W, H = D + gap + w * k, max(D, D / 2 - cap / 2 + DESC * k)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 {W + 6:.1f} {H + 6:.1f}">'
@@ -165,8 +168,7 @@ def main():
         HERE / 'icon-two-tone.svg': svg(TWO_TONE),
         HERE / 'wordmark-on-light.svg': wordmark_svg(),
         HERE / 'wordmark-on-dark.svg': wordmark_svg(dark=True),
-        HERE / 'lockup-on-light.svg': lockup_svg(),
-        HERE / 'lockup-on-dark.svg': lockup_svg(dark=True),
+        HERE / 'lockup.svg': lockup_svg(),
         HERE / 'monochrome.svg': (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="432" height="432">'
                                   f'<path d="{MONO_D}" fill="#000" fill-rule="evenodd"/></svg>\n'),
     }
