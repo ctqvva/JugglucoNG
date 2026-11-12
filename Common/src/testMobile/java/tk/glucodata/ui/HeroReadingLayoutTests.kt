@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -43,7 +44,7 @@ class HeroReadingLayoutTests {
 
     private fun items(scale: Int = 1) = listOf(
         Item(100 * scale, 60 * scale, 45 * scale),
-        Item(8 * scale, 30 * scale, 22 * scale),
+        Item(6 * scale, 6 * scale, 0),
         Item(40 * scale, 28 * scale, 20 * scale),
         Item(24 * scale, 16 * scale, 12 * scale)
     )
@@ -64,10 +65,11 @@ class HeroReadingLayoutTests {
     @Test fun deltaSitsBelowDotAndSecondaryAtTheSingleValueGap() {
         for (direction in LayoutDirection.entries) {
             val children = items()
-            val result = with(HeroPairMeasurePolicy(true)) { Scope(direction).measure(children, Constraints(maxWidth = 200)) }
+            val result = with(HeroPairMeasurePolicy(true, dotLift = 6.dp)) { Scope(direction).measure(children, Constraints(maxWidth = 200)) }
             result.placeChildren()
             val (primary, dot, second, delta) = children
-            assertEquals(dot.position.y + dot.baseline, second.position.y + second.baseline)
+            // The dot centres on the secondary's digits, not on any baseline of its own.
+            assertEquals(second.position.y + second.baseline - 6, dot.position.y + dot.naturalHeight / 2)
             assertTrue(delta.position.y >= dot.position.y + dot.naturalHeight)
             assertTrue(delta.position.y >= second.position.y + second.naturalHeight)
             assertTrue(delta.position.y + delta.naturalHeight <= primary.naturalHeight)
@@ -95,7 +97,7 @@ class HeroReadingLayoutTests {
                 val dotToSecondary = if (direction == LayoutDirection.Ltr) secondary.position.x - (dot.position.x + dot.measuredWidth)
                     else dot.position.x - (secondary.position.x + secondary.measuredWidth)
                 assertEquals(8, mainToDot)
-                assertEquals(4, dotToSecondary)
+                assertEquals(8, dotToSecondary)
             }
         }
     }

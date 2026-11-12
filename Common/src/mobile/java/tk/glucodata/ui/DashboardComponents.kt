@@ -635,11 +635,6 @@ fun DashboardCombinedHeader(
                     AdaptiveContentWidthClass.Medium -> MaterialTheme.typography.headlineMedium
                     AdaptiveContentWidthClass.Expanded -> MaterialTheme.typography.headlineLarge
                 }.copy(fontFeatureSettings = "tnum").scaleForHero(heroMultiSensorScale)
-                val slashStyle = when (heroWidthClass) {
-                    AdaptiveContentWidthClass.Compact -> MaterialTheme.typography.headlineSmall
-                    AdaptiveContentWidthClass.Medium -> MaterialTheme.typography.headlineMedium
-                    AdaptiveContentWidthClass.Expanded -> MaterialTheme.typography.headlineLarge
-                }.copy(fontFeatureSettings = "tnum").scaleForHero(heroMultiSensorScale)
                 val secondaryThreeValueStyle = (
                     when (heroWidthClass) {
                         AdaptiveContentWidthClass.Compact -> MaterialTheme.typography.titleLarge.copy(
@@ -819,7 +814,6 @@ fun DashboardCombinedHeader(
                                         tertiaryText = tertiaryText,
                                         primaryStyle = primaryValueStyle,
                                         secondaryInlineStyle = secondaryInlineStyle,
-                                        separatorStyle = slashStyle,
                                         secondaryStackStyle = secondaryThreeValueStyle,
                                         tertiaryStackStyle = tertiaryThreeValueStyle,
                                         contentColor = glucoseContentColor,
@@ -915,7 +909,6 @@ fun DashboardCombinedHeader(
                                 tertiaryText = tertiaryText,
                                 primaryStyle = primaryValueStyle,
                                 secondaryInlineStyle = secondaryInlineStyle,
-                                separatorStyle = slashStyle,
                                 secondaryStackStyle = secondaryThreeValueStyle,
                                 tertiaryStackStyle = tertiaryThreeValueStyle,
                                 contentColor = glucoseContentColor,
@@ -1551,7 +1544,6 @@ private fun DashboardHeroValueCluster(
     tertiaryText: String?,
     primaryStyle: TextStyle,
     secondaryInlineStyle: TextStyle,
-    separatorStyle: TextStyle,
     secondaryStackStyle: TextStyle,
     tertiaryStackStyle: TextStyle,
     contentColor: Color,
@@ -1568,7 +1560,9 @@ private fun DashboardHeroValueCluster(
     } else {
         contentColor.copy(alpha = 0.60f)
     }
-    val dotBaseStyle = separatorStyle.scaleForHero(1.12f)
+    val dotGap = HeroSeparatorDot.Gap
+    val pairDotDiameter = HeroSeparatorDot.diameter(secondaryInlineStyle)
+    val stackDotDiameter = HeroSeparatorDot.diameter(secondaryStackStyle)
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     var availableWidthPx by remember { mutableStateOf(0) }
@@ -1582,15 +1576,10 @@ private fun DashboardHeroValueCluster(
             style = primaryStyle,
             maxLines = 1
         ).size.width
-        val dotWidthPx = textMeasurer.measure(
-            text = "·",
-            style = dotBaseStyle,
-            maxLines = 1
-        ).size.width
         val inlinePairWidthPx = if (!hasThreeValues && pairText != null) {
-            // Preserve the original 8dp main-to-dot gap independently of
-            // the delta inset; the two lines share width, not spacing.
-            val supportWidth = dotWidthPx + with(density) { 4.dp.roundToPx() } +
+            // The dot gaps are independent of the delta inset; the two
+            // lines share width, not spacing.
+            val supportWidth = with(density) { (pairDotDiameter + dotGap).roundToPx() } +
                 textMeasurer.measure(pairText, style = secondaryInlineStyle, maxLines = 1).size.width
             val deltaWidth = if (!deltaText.isNullOrEmpty()) {
                 textMeasurer.measure(
@@ -1600,7 +1589,7 @@ private fun DashboardHeroValueCluster(
                 ).size.width
             } else 0
             primaryWidthPx + maxOf(
-                supportWidth + with(density) { 8.dp.roundToPx() },
+                supportWidth + with(density) { dotGap.roundToPx() },
                 if (deltaWidth > 0) deltaWidth + with(density) { 16.dp.roundToPx() } else 0
             )
         } else {
@@ -1618,9 +1607,7 @@ private fun DashboardHeroValueCluster(
                 maxLines = 1
             ).size.width
             primaryWidthPx +
-                with(density) { 8.dp.roundToPx() } +
-                dotWidthPx +
-                with(density) { 4.dp.roundToPx() } +
+                with(density) { (dotGap + stackDotDiameter + dotGap).roundToPx() } +
                 maxOf(secondaryWidth, tertiaryWidth)
         } else {
             0
@@ -1648,28 +1635,25 @@ private fun DashboardHeroValueCluster(
 
             DashboardHeroValueLayoutMode.InlinePair -> {
                 val scaledPrimaryStyle = primaryStyle.scaleForHero(pairScale)
-                val scaledDotStyle = dotBaseStyle.scaleForHero(pairScale)
                 val scaledPairStyle = secondaryInlineStyle.scaleForHero(pairScale)
                 DashboardHeroPairText(
                     primary = primaryText,
                     secondary = pairText.orEmpty(),
                     primaryStyle = scaledPrimaryStyle,
                     secondaryStyle = scaledPairStyle,
-                    dotStyle = scaledDotStyle,
                     primaryColor = primaryColor,
                     secondaryColor = inlinePairColor,
                     contentColor = contentColor,
                     deltaText = deltaText,
                     deltaStyle = MaterialTheme.typography.bodySmall.scaleForHero(pairScale),
-                    beforeDot = 8.dp * pairScale,
-                    afterDot = 4.dp * pairScale,
+                    beforeDot = dotGap * pairScale,
+                    afterDot = dotGap * pairScale,
                     beforeDelta = 16.dp * pairScale
                 )
             }
 
             DashboardHeroValueLayoutMode.InlineStack -> {
                 val scaledPrimaryStyle = primaryStyle.scaleForHero(stackScale)
-                val scaledDotStyle = dotBaseStyle.scaleForHero(stackScale)
                 val scaledSecondaryStyle = secondaryStackStyle.scaleForHero(stackScale)
                 val scaledTertiaryStyle = tertiaryStackStyle.scaleForHero(stackScale)
                 Row(
@@ -1682,17 +1666,11 @@ private fun DashboardHeroValueCluster(
                         color = primaryColor
                     )
 
-                    Spacer(modifier = Modifier.width(8.dp * stackScale))
+                    Spacer(modifier = Modifier.width(dotGap * stackScale))
 
-                    Text(
-                        text = "·",
-                        style = scaledDotStyle,
-                        color = contentColor.copy(alpha = 0.72f),
-                        softWrap = false,
-                        maxLines = 1
-                    )
+                    HeroSeparatorDot.Dot(stackDotDiameter * stackScale, contentColor.copy(alpha = 0.72f))
 
-                    Spacer(modifier = Modifier.width(4.dp * stackScale))
+                    Spacer(modifier = Modifier.width(dotGap * stackScale))
 
                     Column(
                         modifier = Modifier.weight(1f, fill = false),

@@ -9,9 +9,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +30,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -69,32 +74,57 @@ internal fun DashboardHeroPrimaryText(
     }
 }
 
-/** The dot and secondary share a baseline above the smaller primary delta.
- * Preserve the original reading spacing; delta has its own horizontal inset. */
+/**
+ * The separator between a reading and its supporting value. Drawn rather than typed:
+ * a "·" glyph took the small supporting style, so it shrank to a speck and sat on the
+ * font's x-height with its side bearings deciding the gaps.
+ */
+internal object HeroSeparatorDot {
+    /** Diameter as a share of the supporting value's text size, about twice its stroke. */
+    const val DIAMETER_EM = 0.24f
+    /** Centre height above the supporting value's baseline: half of Plex's 0.7 em digits. */
+    const val CENTER_EM = 0.35f
+    /** Same visual gap on both sides of the dot. */
+    val Gap = 8.dp
+
+    @Composable
+    fun diameter(style: TextStyle): Dp = with(LocalDensity.current) { (style.fontSize * DIAMETER_EM).toDp() }
+
+    @Composable
+    fun lift(style: TextStyle): Dp = with(LocalDensity.current) { (style.fontSize * CENTER_EM).toDp() }
+
+    @Composable
+    fun Dot(diameter: Dp, color: Color, modifier: Modifier = Modifier) {
+        Box(modifier.size(diameter).background(color, CircleShape))
+    }
+}
+
+/** The dot centres on the secondary's digits; the smaller primary delta sits below
+ * them. The delta has its own horizontal inset. */
 @Composable
 internal fun DashboardHeroPairText(
     primary: String,
     secondary: String,
     primaryStyle: TextStyle,
     secondaryStyle: TextStyle,
-    dotStyle: TextStyle,
     primaryColor: Color,
     secondaryColor: Color,
     contentColor: Color,
     deltaText: String?,
     deltaStyle: TextStyle,
-    beforeDot: Dp = 8.dp,
-    afterDot: Dp = 4.dp,
+    beforeDot: Dp = HeroSeparatorDot.Gap,
+    afterDot: Dp = HeroSeparatorDot.Gap,
     beforeDelta: Dp = 16.dp,
     modifier: Modifier = Modifier
 ) {
     val hasDelta = !deltaText.isNullOrEmpty()
-    val policy = remember(hasDelta, beforeDot, afterDot, beforeDelta) {
-        HeroPairMeasurePolicy(hasDelta, beforeDot, afterDot, beforeDelta)
+    val dotLift = HeroSeparatorDot.lift(secondaryStyle)
+    val policy = remember(hasDelta, beforeDot, afterDot, beforeDelta, dotLift) {
+        HeroPairMeasurePolicy(hasDelta, beforeDot, afterDot, beforeDelta, dotLift)
     }
     Layout(modifier = modifier, measurePolicy = policy, content = {
         AnimatedHeroPrimaryText(primary, primaryStyle, primaryColor)
-        Text("·", style = dotStyle, color = contentColor.copy(alpha = 0.72f), maxLines = 1, softWrap = false)
+        HeroSeparatorDot.Dot(HeroSeparatorDot.diameter(secondaryStyle), contentColor.copy(alpha = 0.72f))
         Text(secondary, style = secondaryStyle, color = secondaryColor, maxLines = 1, softWrap = false)
         if (hasDelta) HeroDeltaText(deltaText.orEmpty(), contentColor, style = deltaStyle)
     })
@@ -102,9 +132,11 @@ internal fun DashboardHeroPairText(
 
 internal class HeroPairMeasurePolicy(
     private val hasDelta: Boolean,
-    private val beforeDot: Dp = 8.dp,
-    private val afterDot: Dp = 4.dp,
-    private val beforeDelta: Dp = 16.dp
+    private val beforeDot: Dp = HeroSeparatorDot.Gap,
+    private val afterDot: Dp = HeroSeparatorDot.Gap,
+    private val beforeDelta: Dp = 16.dp,
+    /** Dot centre above the secondary's baseline. */
+    private val dotLift: Dp = 0.dp
 ) : MeasurePolicy {
     override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): androidx.compose.ui.layout.MeasureResult {
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
@@ -117,8 +149,8 @@ internal class HeroPairMeasurePolicy(
             maxWidth = (constraints.maxWidth - deltaX).coerceAtLeast(0)
         )) else null
         val secondaryX = supportX + dot.width + afterDot.roundToPx()
-        val baseline = maxOf(dot[FirstBaseline], second[FirstBaseline])
-        val lineHeight = baseline + maxOf(dot.height - dot[FirstBaseline], second.height - second[FirstBaseline])
+        val baseline = second[FirstBaseline]
+        val lineHeight = second.height
         val supportHeight = lineHeight + (delta?.height ?: 0)
         val top = ((main.height - supportHeight) / 2).coerceAtLeast(0)
         val width = constraints.constrainWidth(maxOf(secondaryX + second.width, if (delta != null) deltaX + delta.width else 0))
@@ -126,8 +158,8 @@ internal class HeroPairMeasurePolicy(
         // during intrinsic measurement of the hero/sensor card pair.
         return layout(width, main.height) {
             main.placeRelative(0, 0)
-            dot.placeRelative(supportX, top + baseline - dot[FirstBaseline])
-            second.placeRelative(secondaryX, top + baseline - second[FirstBaseline])
+            dot.placeRelative(supportX, top + baseline - dotLift.roundToPx() - dot.height / 2)
+            second.placeRelative(secondaryX, top)
             delta?.placeRelative(deltaX, top + lineHeight)
         }
     }

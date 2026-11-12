@@ -16,6 +16,8 @@ import android.widget.RemoteViews;
 final class CustomGlucoseNotification {
     private CustomGlucoseNotification() { }
 
+    private static final String SEPARATOR_DOT = "•";
+
     static RemoteViews values(Context context, boolean expanded, CharSequence primary,
             int primaryColor, int secondaryColor, int tertiaryColor,
             java.util.List<NotificationChartDrawer.ValueItem> peers, float rate, int arrowColor,
@@ -138,6 +140,10 @@ final class CustomGlucoseNotification {
         if (second < 0) return text;
         int third = plain.indexOf(" · ", second + 3);
         int secondEnd = third < 0 ? text.length() : third;
+        // The separator shrinks with the value it introduces; at that size "·" is
+        // a speck above the digits' centre. "•" at the same size sits on it.
+        text.replace(second + 1, second + 2, SEPARATOR_DOT);
+        if (third >= 0) text.replace(third + 1, third + 2, SEPARATOR_DOT);
         text.setSpan(new RelativeSizeSpan(0.7f), second, secondEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         text.setSpan(new ForegroundColorSpan(secondary), second, secondEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         if (third >= 0) {
