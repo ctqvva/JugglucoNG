@@ -11,7 +11,8 @@ different, and several values are optical corrections that look wrong on paper:
   u   Keeps its spur, but the junction where the bowl meets the upright is filleted
       (radius 0.6 × stem). Unlike the feet, the spur is a junction detail, not a stroke
       ending. Unfilleted, it leaves a sharp notch that reads as a drawing error at large
-      sizes. A shorter spur was tried and keeps the notch.
+      sizes. A shorter spur was tried and keeps the notch. The y has the same junction
+      (its bowl meets the descender) and gets the same fillet.
   y   The descender turns left into a short foot (radius 16, a little larger than the l's,
       because it follows a bowl and a longer stroke) and stops level. The l and y feet
       are a pair: same construction, opposite directions, different radii. Standardising
@@ -26,6 +27,8 @@ Optical corrections:
     past vertical; the l transition starts 10 units above the join (handles 2 and 5), the
     y transition 12 units above (handles 3 and 5.5).
   * Feet are thinned through the turn: 0.90 × stem at the join, 0.94 × along the bottom.
+    The thinning starts 16 units up the straight stem; starting it inside the turn left a
+    small kink on the inner edge.
     Otherwise black pools in the inside corner. G, u and c keep an even stroke: their
     bottoms are continuous curves with no flat run, so they don't read heavy.
   * Overshoot by roundness: G +1.2, c +1.0, u/y bowls +0.7, l foot +0.6.
@@ -47,7 +50,9 @@ OVERSHOOT = dict(G=1.2, c=1.0, bowl=0.7, foot=0.6)
 FOOT_L = dict(r=14.0, join=40.0, rise=10.0, a=2.0, b=5.0)
 FOOT_Y = dict(r=16.0, join=40.0, rise=12.0, a=3.0, b=5.5)
 TURN_THIN, FOOT_THIN = 0.90, 0.94
+TAPER = 16.0                  # thinning starts this far above the turn
 SPUR_FILLET = 0.6             # × stem
+Y_FILLET = 0.45               # × stem, matched by eye to the u; see the docstring
 G_BAR = 0.38                  # × radius
 C_OPEN = 42.0                 # degrees either side of horizontal
 # left edge of each letter (G l u c y), reviewed by eye; see the module docstring
@@ -167,7 +172,12 @@ def _foot(stem_x, C, f, side, widths, top, h):
     y0 = p3[1] - f['rise']
     trans = ((stem_x, y0), (stem_x, y0 + f['a']), (p3[0] - t3[0]*f['b'], p3[1] - t3[1]*f['b']), p3)
     arc = _arc(C[0], C[1], r, 180 - th, 90) if side > 0 else _arc(C[0], C[1], r, th, 90)
-    return _Stroke([_line((stem_x, top), (stem_x, y0)), trans] + arc, widths)
+    # Start thinning on the straight, TAPER units before the turn: narrowing only inside the
+    # short transition puts a visible kink in the inner edge just above the foot.
+    S, w_join, w_bot = widths[0], widths[2], widths[3]
+    y1 = y0 - TAPER; w_mid = S - 0.4*(S - w_join)
+    segs = [_line((stem_x, top), (stem_x, y1)), _line((stem_x, y1), (stem_x, y0)), trans] + arc
+    return _Stroke(segs, [S, S, w_mid, w_join, w_bot])
 
 def letters(S):
     """[(name, svg fragment with {ink} placeholder)] in local coordinates, left edge x = 0."""
@@ -201,7 +211,20 @@ def letters(S):
     left = stroke([f'M{L:.3f} {top:.3f}L{L:.3f} {bowl:.3f}' + a])
     desc_c = DESC - w_bot/2
     y = _foot(R, (R - FOOT_Y['r'], desc_c - FOOT_Y['r']), FOOT_Y, -1, [S, S, w_join, w_bot], top, h)
-    out.append(('y', left + f'<path d="{y.d()}" fill="{{ink}}"/>'))
+    # Same junction as the u (bowl meeting an upright that continues down), so the same
+    # fillet. It is applied only inside a window around that junction: a whole-letter pass
+    # would also round the inside of the foot turn, whose inner radius is about the same.
+    bowl_poly = LineString([(L, top), (L, bowl)] + _arc_pts(L + ru, bowl, ru, 180, 0)[1:]).buffer(h, quad_segs=24)
+    foot_pts = [_B(s, i/32) for s in y.outline() for i in range(32)]
+    whole = unary_union([bowl_poly, Polygon(foot_pts).buffer(0)])
+    window = Polygon([(L + ru, bowl), (R, bowl), (R, 100 + 2*h), (L + ru, 100 + 2*h)])
+    rfy = Y_FILLET*S
+    closed = whole.buffer(rfy, quad_segs=24).buffer(-rfy, quad_segs=24)
+    patch = closed.difference(whole).intersection(window)
+    patch = patch.buffer(0.4).intersection(closed)      # overlap neighbours slightly: no antialiasing seam
+    patch_d = ''.join('M' + 'L'.join(f'{x:.2f} {yy:.2f}' for x, yy in list(g.exterior.coords)[:-1]) + 'Z'
+                      for g in getattr(patch, 'geoms', [patch]) if g.area > 0.01)
+    out.append(('y', left + f'<path d="{y.d()}" fill="{{ink}}"/>' + (f'<path d="{patch_d}" fill="{{ink}}"/>' if patch_d else '')))
     return out
 
 def wordmark(S, ink):
