@@ -24,6 +24,9 @@ different, and several values are optical corrections that look wrong on paper:
       The opening stays at 42° because 36° looks cramped and 50° weakens the G, not because
       it matches the c (they differ in size and surrounding space, so equal angles mean little).
       A 4 % wider G was tried and made the first letter too dominant.
+      The inside corner under the bar is filleted (0.35 × stem): left sharp, it was the only
+      hard V in the word and pinched against the rounded outer elbow. 0.25 still pinches on
+      dark backgrounds; 0.5 softens the counter and makes the bar look thicker at the join.
   c   Plain, open by ±42°.
 
 Optical corrections:
@@ -61,6 +64,7 @@ TAPER = 16.0                  # thinning starts this far above the turn
 SPUR_FILLET = 0.6             # × stem
 Y_FILLET = 0.45               # × stem, matched by eye to the u; 0.55 runs into the foot's curve
 G_BAR = 0.30                  # × radius
+G_FILLET = 0.35               # × stem, inside corner under the G bar
 C_OPEN = 42.0                 # degrees either side of horizontal
 # left edge of each letter (G l u c y), reviewed by eye; see the module docstring
 POSITIONS = {15.0: (0.0, 111.262, 142.669, 225.202, 300.99),
@@ -211,6 +215,25 @@ def _fillet_d(segs, J, inset=1.5):
         f'C{s[1][0]:.3f} {s[1][1]:.3f} {s[2][0]:.3f} {s[2][1]:.3f} {s[3][0]:.3f} {s[3][1]:.3f}' for s in segs)
         + f'L{T2[0] + inset:.3f} {T2[1]:.3f}L{J[0] + inset:.3f} {J[1] - inset:.3f}L{J[0]:.3f} {J[1] - inset:.3f}Z')
 
+def _g_corner(cx, cy, r, h, rf, inset=1.5):
+    """Fillet for the inside corner under the G bar: a circular arc tangent to the bar's
+    underside (y = cy + h) and, from inside, to the bowl's inner circle (radius r − h). Its
+    hidden sides run `inset` units into the bowl and the bar, so no edge is traced twice."""
+    ri = r - h
+    fy = cy + h + rf; fx = cx + math.sqrt((ri - rf)**2 - (h + rf)**2)
+    ux, uy = (fx - cx)/(ri - rf), (fy - cy)/(ri - rf)
+    Tb, Ta = (fx, cy + h), (cx + ri*ux, cy + ri*uy)
+    a1 = math.degrees(math.atan2(Tb[1] - fy, Tb[0] - fx)); a2 = math.degrees(math.atan2(Ta[1] - fy, Ta[0] - fx))
+    while a2 - a1 > 180: a2 -= 360
+    while a2 - a1 < -180: a2 += 360
+    segs = _arc(fx, fy, rf, a1, a2)
+    vx = cx + math.sqrt(ri**2 - h**2)                        # where the sharp corner was
+    s0 = segs[0][0]
+    return (f'M{s0[0]:.3f} {s0[1]:.3f}' + ''.join(
+        f'C{q[1][0]:.3f} {q[1][1]:.3f} {q[2][0]:.3f} {q[2][1]:.3f} {q[3][0]:.3f} {q[3][1]:.3f}' for q in segs)
+        + f'L{cx + (ri + inset)*ux:.3f} {cy + (ri + inset)*uy:.3f}L{vx + inset:.3f} {cy + h - inset:.3f}'
+        + f'L{Tb[0]:.3f} {Tb[1] - inset:.3f}Z')
+
 def _foot(stem_x, C, f, side, widths, top, h):
     """Stem → transition → arc to the bottom extremum. side +1 turns right (l), −1 left (y)."""
     r, th = f['r'], f['join']
@@ -240,7 +263,8 @@ def letters(S):
     # G
     r = 50 - h + o['G']; cx, cy = 50 + o['G'], 50
     p0, a = _svg_arc(cx, cy, r, -42, -360)
-    out.append(('G', stroke([f'M{p0[0]:.3f} {p0[1]:.3f}' + a + f'L{cx + r*G_BAR:.3f} {cy:.3f}'])))
+    out.append(('G', stroke([f'M{p0[0]:.3f} {p0[1]:.3f}' + a + f'L{cx + r*G_BAR:.3f} {cy:.3f}'])
+                + f'<path d="{_g_corner(cx, cy, r, h, G_FILLET*S)}" fill="{{ink}}"/>'))
     # l
     bot = 100 - S/2 + o['foot']
     l = _foot(h, (h + FOOT_L['r'], bot - FOOT_L['r']), FOOT_L, +1, [S, S, w_join, w_bot], h, h)
