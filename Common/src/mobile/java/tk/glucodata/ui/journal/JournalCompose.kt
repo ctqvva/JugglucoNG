@@ -2157,7 +2157,8 @@ private fun JournalPresetPill(
                 text = journalPresetButtonLabel(
                     preset,
                     stringResource(R.string.journal_preset_rapid_generic),
-                    stringResource(R.string.journal_preset_long_generic)
+                    stringResource(R.string.journal_preset_long_generic),
+                    seededGenericPresetNames(LocalContext.current)
                 ),
                 style = MaterialTheme.typography.titleMediumEmphasized,
                 maxLines = 1,

@@ -9,18 +9,19 @@ import tk.glucodata.data.journal.JournalInsulinPreset
  * A built-in preset's name is written into the database once, when the presets are seeded,
  * in the language and wording of that moment. The two generic ones are the buttons most
  * people see, and their seeded names ("Rapid acting (generic)") do not fit a half-width
- * button in several languages. So while such a name still looks like a seeded default, the
- * button shows the current wording from the resources instead: a shorter translation, or a
- * change of language, reaches installs that were seeded earlier.
+ * button in several languages. So while the stored name is still one the app itself seeded,
+ * the button shows the current wording from the resources instead: a shorter translation, or
+ * a change of language, reaches installs that were seeded earlier.
  *
- * A name the user typed is theirs and is shown as it is. Seeded defaults all end in a
- * bracketed qualifier, which is what tells the two apart without keeping a list of every
- * default in every language.
+ * "One the app seeded" means an exact match in [seededNames]: the default in every language
+ * the app ships, plus wordings it used to ship. Anything else is a name the user typed and
+ * is shown as it is, whatever it looks like.
  */
 internal fun journalPresetButtonLabel(
     preset: JournalInsulinPreset,
     rapidGenericName: String,
-    longGenericName: String
+    longGenericName: String,
+    seededNames: Set<String>
 ): String {
     if (!preset.isBuiltIn) return preset.displayName
     val current = when (JournalBuiltInCurveProfile.fromStorage(preset.curveProfileId)) {
@@ -28,7 +29,14 @@ internal fun journalPresetButtonLabel(
         JournalBuiltInCurveProfile.LONG_BASAL_GENERIC -> longGenericName
         else -> return preset.displayName
     }
-    val stored = preset.displayName.trim()
-    val looksSeeded = stored.endsWith(")") || stored.endsWith("\uFF09")
-    return if (looksSeeded && current.isNotBlank()) current else preset.displayName
+    return if (current.isNotBlank() && preset.displayName.trim() in seededNames) current else preset.displayName
 }
+
+/**
+ * Seeded names of the two generic presets that are no longer in the resources. An install
+ * seeded with one of these still holds it, so it has to stay recognisable as a default.
+ */
+internal val LEGACY_SEEDED_GENERIC_PRESET_NAMES: Set<String> = setOf(
+    "Ad azione rapida (generica)",
+    "Ad azione prolungata (generica)"
+)

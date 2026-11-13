@@ -25,8 +25,14 @@ class JournalPresetLabelTests {
         curveProfileId = profile?.storageValue
     )
 
-    private fun label(preset: JournalInsulinPreset) =
-        journalPresetButtonLabel(preset, rapidGenericName = "Rapida", longGenericName = "Lenta")
+    // What seededGenericPresetNames() collects on a device: every shipped language's default
+    // (a few stand in for all of them here) plus the wordings no longer in the resources.
+    private val seeded = LEGACY_SEEDED_GENERIC_PRESET_NAMES + setOf(
+        "Rapida", "Lenta", "Rapid acting (generic)", "Long acting (generic)", "速效（通用）", "长效（通用）"
+    )
+
+    private fun label(preset: JournalInsulinPreset, rapid: String = "Rapida", long: String = "Lenta") =
+        journalPresetButtonLabel(preset, rapidGenericName = rapid, longGenericName = long, seededNames = seeded)
 
     // The name was written to the database when the presets were seeded; an install seeded
     // before the wording changed still holds the long one and must show the short one.
@@ -48,7 +54,32 @@ class JournalPresetLabelTests {
     @Test
     fun aNameTheUserTypedIsKept() {
         assertEquals("NovoRapid", label(preset("NovoRapid")))
-        assertEquals("Rapida", label(preset("Rapida")))
+    }
+
+    // A renamed built-in keeps its built-in flag and curve. Its name is the user's even when
+    // it ends in a bracket, which an earlier version took as the mark of a seeded default.
+    @Test
+    fun aRenamedBuiltInEndingInABracketIsKept() {
+        assertEquals("NovoRapid (breakfast)", label(preset("NovoRapid (breakfast)")))
+        assertEquals("Mia rapida (generica)", label(preset("Mia rapida (generica)")))
+    }
+
+    // The short Italian defaults have no bracket; they are still seeded names, so an install
+    // seeded in Italian follows a later change of language.
+    @Test
+    fun aShortSeededNameStillFollowsALanguageChange() {
+        assertEquals(
+            "Rapid acting (generic)",
+            label(preset("Rapida"), rapid = "Rapid acting (generic)", long = "Long acting (generic)")
+        )
+        assertEquals(
+            "Long acting (generic)",
+            label(
+                preset("Lenta", profile = JournalBuiltInCurveProfile.LONG_BASAL_GENERIC),
+                rapid = "Rapid acting (generic)",
+                long = "Long acting (generic)"
+            )
+        )
     }
 
     @Test
@@ -66,7 +97,7 @@ class JournalPresetLabelTests {
     fun aMissingResourceNeverBlanksTheButton() {
         assertEquals(
             "Rapid acting (generic)",
-            journalPresetButtonLabel(preset("Rapid acting (generic)"), rapidGenericName = "", longGenericName = "")
+            label(preset("Rapid acting (generic)"), rapid = "", long = "")
         )
     }
 }
