@@ -657,6 +657,10 @@ internal fun OttaiAccountCard(
                 form.password = ""
                 form.code = ""
                 onSignedIn(login)
+            } else if (!useSms && OttaiCloudClient.lastFailure?.isServerUnreachable == true) {
+                // A server fault is not a wrong password; don't send the user to recheck input.
+                form.statusIsError = true
+                form.status = context.getString(R.string.ottai_server_unreachable)
             } else {
                 form.statusIsError = true
                 form.status = context.getString(R.string.ottai_login_fail) +
