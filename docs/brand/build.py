@@ -5,8 +5,11 @@ Writes the Android adaptive-icon vectors (background, foreground, monochrome) fo
 main app and the second installation (releasedub), plus SVG masters in this folder.
 The wordmark is custom lettering from lettering.py; no font file is involved.
 
-    pip install shapely
+    pip install shapely resvg-py
     python3 docs/brand/build.py                 # run from the repository root
+
+resvg-py is only needed for the PNGs (Play Store icon, social preview); without it the SVGs and
+Android resources are still written.
 
 All shapes live on Android's 108 dp adaptive canvas; the visible area is 18..90.
 """
@@ -155,6 +158,38 @@ def lockup_svg():
             f'<title>Glucy</title>{badge}{text}</svg>\n')
 
 
+SOCIAL_BG = '#141E3F'   # a lifted navy, so the launcher-navy badge reads as a disc on the card
+
+
+def social_svg(w=1280, h=640):
+    """GitHub social preview / Open Graph card. The lockup spans 54 % of the width, centred, so
+    the square-ish centre crops used by chat apps keep the whole badge."""
+    body, ww = wordmark(DARK_WEIGHT, INK_ON_DARK)
+    D, cap, gap = 100.0, 43.0, 28.0
+    k = cap / 100
+    lock_w = D + gap + ww * k
+    s = 0.54 * w / lock_w
+    x0, y0 = (w - lock_w * s) / 2, (h - D * s) / 2
+    badge = (f'<clipPath id="b"><circle cx="54" cy="54" r="36"/></clipPath><g clip-path="url(#b)">'
+             f'<rect width="108" height="108" fill="{MAIN["bg"]}"/><path d="{TRACE_D}" fill="{MAIN["line"]}"/>'
+             f'<path d="{SENSOR_D}" fill="{MAIN["sensor"]}"/><path d="{RIM_D}" fill="{MAIN["rim"]}" fill-rule="evenodd"/>'
+             f'<path d="{DOT_D}" fill="{MAIN["dot"]}"/></g>')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">'
+            f'<title>Glucy</title><rect width="{w}" height="{h}" fill="{SOCIAL_BG}"/>'
+            f'<g transform="translate({x0:.2f} {y0:.2f}) scale({s:.5f})">'
+            f'<g transform="scale({D / 72:.5f}) translate(-18 -18)">{badge}</g>'
+            f'<g transform="translate({D + gap:.2f} {D / 2 - cap / 2:.2f}) scale({k:.4f})">{body}</g></g></svg>\n')
+
+
+def write_png(svg_text, path, width, height=None):
+    """Rasterise with resvg: deterministic, and the same pixels on every machine."""
+    import resvg_py
+    data = bytes(resvg_py.svg_to_bytes(svg_string=svg_text, width=width, height=height))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    print('wrote', path.relative_to(ROOT))
+
+
 def main():
     main_res = ROOT / 'Common/src/main/res'
     dub_res = ROOT / 'Common/src/releasedub/res'
@@ -179,6 +214,16 @@ def main():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
         print('wrote', path.relative_to(ROOT))
+    social = social_svg()
+    (HERE / 'social-preview.svg').write_text(social)
+    print('wrote', (HERE / 'social-preview.svg').relative_to(ROOT))
+    try:
+        import resvg_py  # noqa: F401
+    except ImportError:
+        print('skipped PNGs: pip install resvg-py')
+        return
+    write_png(svg(MAIN), ROOT / 'Common/src/main/ic_launcher-playstore.png', 512, 512)
+    write_png(social, HERE / 'social-preview.png', 1280, 640)
 
 
 if __name__ == '__main__':
