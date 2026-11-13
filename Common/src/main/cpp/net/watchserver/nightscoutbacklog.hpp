@@ -14,7 +14,9 @@
    Kept free of the sensor store, the settings and the network so the rules can be run on a
    host (tools/test-nightscout-backlog.py). */
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace nightscout_backlog {
 
@@ -95,13 +97,18 @@ Turn drainEach(int pos, const int len, Persisted &&persisted, OneItem &&item, Se
     return sent ? Turn::busy : Turn::idle;
 }
 
-/* What one chunk came to: nothing was left in it after skipping, it went out, or it was refused. */
-enum class Chunk { nothing, sent, refused };
+/* What one chunk came to: nothing was left in it after skipping, it went out, the server
+   rejected the array as a whole because a reading in it is already there (`conflict`), or it
+   was refused. */
+enum class Chunk { nothing, sent, conflict, refused };
 
 /* The same for the v1 array upload: `limit(pos)` says how many positions the next chunk
-   takes, `send(pos,end)` uploads [pos,end). */
-template <class Persisted, class Limit, class Send, class Settle, class GiveWay>
-Turn drainChunks(int pos, const int len, Persisted &&persisted, Limit &&limit, Send &&send, Settle &&settle, GiveWay &&giveWay) {
+   takes, `send(pos,end)` uploads [pos,end).
+
+   A `conflict` is retried reading by reading with `each(pos,end)`, which is a turn of its own:
+   up to 120 requests, each of which has to give way like any other. */
+template <class Persisted, class Limit, class Send, class Each, class Settle, class GiveWay>
+Turn drainChunks(int pos, const int len, Persisted &&persisted, Limit &&limit, Send &&send, Each &&each, Settle &&settle, GiveWay &&giveWay) {
     bool sent = false;
     while (pos < len) {
         pos = std::max(pos, static_cast<int>(persisted()));
@@ -115,6 +122,18 @@ Turn drainChunks(int pos, const int len, Persisted &&persisted, Limit &&limit, S
             settle(end);
             pos = end;
             break;
+        case Chunk::conflict: {
+            /* `each` stores its own progress, so a turn that ends early has nothing to settle. */
+            const Turn turn = each(pos, end);
+            if (turn == Turn::failed || turn == Turn::interrupted)
+                return turn;
+            settle(end);
+            pos = end;
+            sent = true;
+            if (giveWay())
+                return Turn::interrupted;
+            break;
+        }
         case Chunk::sent:
             settle(end);
             pos = end;
@@ -129,64 +148,101 @@ Turn drainChunks(int pos, const int len, Persisted &&persisted, Limit &&limit, S
 
 /* What a pass leaves for the next one. Only the wakes that asked for glucose are carried: a
    pass that is done has nothing to hand on, while one that was refused or that gave way still
-   owes the rest of its history and must be run again. */
-inline std::uintptr_t carriedAfter(const Pass pass, const std::uintptr_t current, const std::uintptr_t glucosewakes) {
-    return pass == Pass::done ? 0 : (current & glucosewakes);
+   owes the rest of its history and must be run again.
+
+   A pass that gave way also owes what it pushed aside: the treatments and the like that were
+   asked for with it (`asidewakes`), which do not run until the live reading is out. */
+inline std::uintptr_t carriedAfter(const Pass pass, const std::uintptr_t current, const std::uintptr_t glucosewakes, const std::uintptr_t asidewakes) {
+    switch (pass) {
+    case Pass::done:
+        return 0;
+    case Pass::failed:
+        return current & glucosewakes;
+    case Pass::interrupted:
+        return current & (glucosewakes | asidewakes);
+    }
+    return 0;
 }
 
-/* The newest readings that were sent ahead of the cursor, per sensor.
+/* Whether the treatments and the device status may go out after this pass. A pass that gave
+   way did so for a live reading: they are one request after another (every treatment waiting
+   is sent), and the reading would wait for all of them. */
+inline bool mayUploadAside(const Pass pass) {
+    return pass != Pass::interrupted;
+}
+
+/* The readings that were sent ahead of the cursor, per sensor, as ranges.
 
    A live reading is sent first, out of order, while the history is still being walked from
    the oldest. The cursor must not send it again when it gets there, and must not skip one
    that was never sent: a range is only extended by a reading that directly follows its end,
-   which is exact. A reading that follows after a gap starts a new range, so the ones in
-   between are sent by the cursor in due course. */
+   which is exact. A reading that follows after a gap starts a range of its own, so the ones
+   in between are sent by the cursor in due course.
+
+   Every range is kept until the cursor has passed it: one that is dropped while the cursor is
+   still behind it sends its readings again. The most a sensor keeps is a safeguard, not a
+   working limit (one range is a gap in the live readings while a backlog is walked); past it
+   the oldest goes, which costs a repeat and never a reading. */
 template <int Sensors>
 class RecentUploads {
     struct Range {
         uint32_t start{};
         uint32_t end{};
     };
-    Range ranges[Sensors]{};
+    static constexpr std::size_t most = 64;
+    std::vector<Range> ranges[Sensors]; // oldest first
 
-    Range *slot(const int sensorid, const bool ensure) {
-        if (sensorid < 0 || sensorid >= Sensors)
-            return nullptr;
-        Range *range = &ranges[sensorid];
-        if (!ensure && !range->start && !range->end)
-            return nullptr;
-        return range;
+    std::vector<Range> *row(const int sensorid) {
+        return sensorid < 0 || sensorid >= Sensors ? nullptr : &ranges[sensorid];
     }
-    const Range *slot(const int sensorid) const {
-        return const_cast<RecentUploads *>(this)->slot(sensorid, false);
+    const std::vector<Range> *row(const int sensorid) const {
+        return sensorid < 0 || sensorid >= Sensors ? nullptr : &ranges[sensorid];
     }
 
 public:
     void clear() {
-        for (auto &range : ranges)
-            range = {};
+        for (auto &each : ranges)
+            each.clear();
     }
     /* `time` was sent. `before` is the time of the reading just before it on the same
        sensor, 0 when that is not known. */
     void remember(const int sensorid, const uint32_t time, const uint32_t before) {
         if (!time)
             return;
-        if (Range *range = slot(sensorid, true)) {
-            if (range->end && before && range->end == before && time >= range->end)
-                range->end = time;
-            else
-                *range = {time, time};
+        auto *mine = row(sensorid);
+        if (!mine)
+            return;
+        for (const Range &range : *mine)
+            if (time >= range.start && time <= range.end)
+                return;
+        if (before) {
+            for (Range &range : *mine) {
+                if (range.end == before && time >= range.end) {
+                    range.end = time;
+                    return;
+                }
+            }
         }
+        if (mine->size() >= most)
+            mine->erase(mine->begin());
+        mine->push_back({time, time});
     }
     /* The cursor is at `time`: a range it has left behind is not needed any more. */
     void prune(const int sensorid, const uint32_t time) {
-        Range *range = slot(sensorid, false);
-        if (range && range->end && range->end + 600 < time)
-            *range = {};
+        auto *mine = row(sensorid);
+        if (!mine || mine->empty())
+            return;
+        mine->erase(std::remove_if(mine->begin(), mine->end(),
+                                   [time](const Range &range) { return range.end + 600 < time; }),
+                    mine->end());
     }
     bool covered(const int sensorid, const uint32_t time) const {
-        const Range *range = slot(sensorid);
-        return range && range->start && time >= range->start && time <= range->end;
+        const auto *mine = row(sensorid);
+        if (!mine)
+            return false;
+        return std::any_of(mine->begin(), mine->end(), [time](const Range &range) {
+            return time >= range.start && time <= range.end;
+        });
     }
 };
 

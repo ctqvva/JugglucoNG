@@ -46,6 +46,9 @@ struct World {
     std::map<std::pair<int, uint32_t>, int> arrivedAt; // request number of the first arrival
     std::function<void(World &)> afterRequest;
     std::function<bool(const World &)> refuse; // consulted per request
+    std::function<bool(const World &)> conflict; // an array request the server rejects as a whole
+    int treatmentsOwed = 0;
+    std::vector<int> treatmentRequests; // request number of each treatment sent
 
     explicit World(const std::vector<int> &lengths) {
         for (size_t id = 0; id < lengths.size(); id++) {
@@ -76,12 +79,21 @@ struct World {
         return true;
     }
 
+    /* Every treatment waiting, one request after another, as the journal upload does. */
+    void sendTreatments() {
+        while (treatmentsOwed > 0) {
+            treatmentsOwed--;
+            requests++;
+            treatmentRequests.push_back(requests);
+        }
+    }
+
     bool uploadRecent(int sensorid) {
         const auto &times = sensors[sensorid].times;
         if (times.empty())
             return true;
         const int iter = static_cast<int>(times.size()) - 1;
-        recents.prune(sensorid, times[iter]);
+        // Not pruned: the newest reading is far ahead of the cursor, which releases the ranges.
         if (recents.covered(sensorid, times[iter]))
             return true;
         if (!send(sensorid, times[iter]))
@@ -154,36 +166,42 @@ Pass passV1(World &world, bool prioritizeRecent) {
             sensor.nightiter, len, [&] { return sensor.nightiter; },
             [](const int pos) { return pos < 120 ? 40 : 120; },
             [&](const int pos, const int end) -> Chunk {
-                bool any = false;
-                bool ok = true;
-                for (int iter = pos; iter < end && ok; iter++) {
+                std::vector<uint32_t> batch;
+                for (int iter = pos; iter < end; iter++) {
                     const uint32_t time = sensor.times[iter];
                     world.recents.prune(sensorid, time);
-                    if (world.recents.covered(sensorid, time))
-                        continue;
-                    // The chunk is one request: it is counted once, below.
-                    world.received[{sensorid, time}]++;
-                    world.arrivedAt.emplace(std::make_pair(sensorid, time), world.requests + 1);
-                    any = true;
+                    if (!world.recents.covered(sensorid, time))
+                        batch.push_back(time);
                 }
-                if (!any)
+                if (batch.empty())
                     return Chunk::nothing;
+                // The chunk is one request, and nothing in it is stored unless it is accepted.
                 world.requests++;
-                if (world.refuse && world.refuse(world)) {
-                    for (int iter = pos; iter < end; iter++) {
-                        // Nothing in a refused chunk reached the server.
-                        const auto key = std::make_pair(sensorid, sensor.times[iter]);
-                        auto found = world.received.find(key);
-                        if (found != world.received.end() && --found->second == 0) {
-                            world.received.erase(found);
-                            world.arrivedAt.erase(key);
-                        }
-                    }
+                if (world.refuse && world.refuse(world))
                     return Chunk::refused;
+                if (world.conflict && world.conflict(world))
+                    return Chunk::conflict;
+                for (const uint32_t time : batch) {
+                    world.received[{sensorid, time}]++;
+                    world.arrivedAt.emplace(std::make_pair(sensorid, time), world.requests);
                 }
                 if (world.afterRequest)
                     world.afterRequest(world);
                 return Chunk::sent;
+            },
+            [&](const int pos, const int end) -> Turn {
+                // uploadV1ChunkIndividually(): the same readings, a request each.
+                return drainEach(
+                    pos, end, [&] { return sensor.nightiter; },
+                    [&](const int at) -> Item {
+                        const uint32_t time = sensor.times[at];
+                        world.recents.prune(sensorid, time);
+                        if (world.recents.covered(sensorid, time))
+                            return Item::covered;
+                        return world.send(sensorid, time) ? Item::sent : Item::refused;
+                    },
+                    [&](const int next) { sensor.nightiter = std::max(sensor.nightiter, next); },
+                    [&] { return world.wake; });
             },
             [&](const int next) { sensor.nightiter = std::max(sensor.nightiter, next); },
             [&] { return world.wake; });
@@ -195,16 +213,24 @@ Pass passV1(World &world, bool prioritizeRecent) {
 using PassFn = Pass (*)(World &, bool);
 
 /* The uploader thread: take the wake, run a pass, and run again at once if it gave way.
-   A refused pass would wait a quarter of an hour; here it simply goes again. */
-void runUntilQuiet(World &world, PassFn pass, int maxPasses = 2000000) {
+   A refused pass would wait a quarter of an hour; here it simply goes again. `asked` are
+   the wakes the first pass starts with besides the reading stream's own, as a Resend or a
+   journal entry would raise them. After the pass the treatments go out if it let them. */
+constexpr std::uintptr_t wakeStream = 1, wakeAll = 8, wakeTreatments = 1024;
+constexpr std::uintptr_t glucoseWakes = wakeStream | wakeAll;
+constexpr std::uintptr_t treatmentWakes = wakeAll | wakeTreatments;
+
+void runUntilQuiet(World &world, PassFn pass, int maxPasses = 2000000, std::uintptr_t asked = 0) {
     std::uintptr_t retry = 0;
-    constexpr std::uintptr_t glucose = 1;
     while (world.passes < maxPasses) {
         const bool prioritize = world.wake;
         world.wake = false;
-        const std::uintptr_t current = (prioritize ? glucose : 0) | retry | glucose;
+        const std::uintptr_t current = (prioritize ? wakeStream : 0) | retry | wakeStream | asked;
+        asked = 0;
         const Pass result = pass(world, prioritize);
-        retry = carriedAfter(result, current, glucose);
+        if (mayUploadAside(result) && (current & treatmentWakes))
+            world.sendTreatments();
+        retry = carriedAfter(result, current, glucoseWakes, treatmentWakes);
         if (result == Pass::interrupted)
             world.interrupted++;
         if (result == Pass::done && !world.wake)
@@ -391,6 +417,107 @@ void aPassWithNothingWaitingRunsToTheEnd(PassFn pass) {
     CHECK(world.duplicates() == 0);
 }
 
+void treatmentsWaitForTheLiveReading(PassFn pass, std::uintptr_t asked) {
+    // A Resend or a journal entry with 400 treatments owed, behind a long history. They go
+    // one request after another, so the reading that arrives meanwhile must not wait for them.
+    World world({1500, 1500});
+    world.sensors[1].nightiter = 1500;
+    for (uint32_t time : world.sensors[1].times)
+        world.received[{1, time}] = 1;
+    world.treatmentsOwed = 400;
+    uint32_t liveTime = 0;
+    int injectedAt = 0;
+    world.afterRequest = [&](World &w) {
+        if (!liveTime && w.received.size() >= 1500 + 600) {
+            w.appendLive(1);
+            liveTime = w.sensors[1].times.back();
+            injectedAt = w.requests;
+        }
+    };
+
+    runUntilQuiet(world, pass, 2000000, asked);
+
+    CHECK(liveTime != 0);
+    CHECK(world.interrupted >= 1);
+    CHECK(world.arrivedAt.at({1, liveTime}) <= injectedAt + 1);
+    // Still owed after the pass that gave way, and all sent once the history is out.
+    CHECK(world.everythingSent());
+    CHECK(world.treatmentsOwed == 0);
+    CHECK(world.treatmentRequests.size() == 400);
+    CHECK(world.treatmentRequests.front() > world.arrivedAt.at({1, liveTime}));
+}
+
+void aConflictingChunkGivesWayBetweenItsReadings() {
+    // The server rejects the first array as a whole (a reading in it is already there), so its
+    // 40 readings go one by one. A live reading that arrives among them is not for the 35 left.
+    World world({300, 300});
+    uint32_t liveTime = 0;
+    int injectedAt = 0;
+    world.conflict = [](const World &w) { return w.requests == 1; };
+    world.afterRequest = [&](World &w) {
+        if (!liveTime && w.requests == 6) {
+            w.appendLive(1);
+            liveTime = w.sensors[1].times.back();
+            injectedAt = w.requests;
+        }
+    };
+
+    runUntilQuiet(world, &passV1);
+
+    CHECK(liveTime != 0);
+    CHECK(world.arrivedAt.at({1, liveTime}) <= injectedAt + 1);
+    CHECK(world.interrupted == 1);
+    CHECK(world.everythingSent());
+    // The five that went before the live reading were stored as they went: none twice.
+    CHECK(world.duplicates() == 0);
+}
+
+void aConflictingChunkIsStillSentWhenNothingWaits() {
+    World world({300, 300});
+    world.conflict = [](const World &w) { return w.requests == 1; };
+    runUntilQuiet(world, &passV1);
+    CHECK(world.passes == 1);
+    CHECK(world.interrupted == 0);
+    CHECK(world.everythingSent());
+    CHECK(world.duplicates() == 0);
+}
+
+void aRefusalWhileSendingOneByOneLeavesTheCursorAtTheReading() {
+    World world({300, 300});
+    world.conflict = [](const World &w) { return w.requests == 1; };
+    world.refuse = [](const World &w) { return w.requests == 9; };
+    const Pass first = passV1(world, false);
+    CHECK(first == Pass::failed);
+    // Request 1 was the array, 2..8 stored seven readings, 9 was refused.
+    CHECK(world.sensors[1].nightiter == 7);
+    CHECK(world.nightsensor == 0);
+    world.refuse = nullptr;
+    runUntilQuiet(world, &passV1);
+    CHECK(world.everythingSent());
+    CHECK(world.duplicates() == 0);
+}
+
+void liveReadingsAfterAGapAreNotSentTwice(PassFn pass, int every) {
+    // The live sensor is 6000 readings behind. Two readings arrive at a time and only the
+    // newest goes ahead, so each leaves a range of its own with an unsent reading before it.
+    // The cursor must step over every one of them.
+    World world({6000});
+    int injections = 0;
+    world.afterRequest = [&](World &w) {
+        if (injections < 20 && w.requests % every == 0) {
+            w.appendLive(0);
+            w.appendLive(0);
+            injections++;
+        }
+    };
+
+    runUntilQuiet(world, pass);
+
+    CHECK(injections >= 10); // the array upload has far fewer requests to inject on
+    CHECK(world.everythingSent());
+    CHECK(world.duplicates() == 0);
+}
+
 // ---------------------------------------------------------------------------------------
 
 void sweepBookkeeping() {
@@ -428,10 +555,20 @@ void sweepBookkeeping() {
 }
 
 void carriedWakes() {
-    constexpr std::uintptr_t stream = 1, all = 8, journal = 1024;
-    CHECK(carriedAfter(Pass::done, stream | all, stream | all) == 0);
-    CHECK(carriedAfter(Pass::failed, stream | journal, stream | all) == stream);
-    CHECK(carriedAfter(Pass::interrupted, all | journal, stream | all) == all);
+    constexpr std::uintptr_t stream = 1, nums = 4, all = 8, end = 64, journal = 1024;
+    constexpr std::uintptr_t glucose = stream | all, aside = nums | all | journal;
+    // Done: nothing is owed.
+    CHECK(carriedAfter(Pass::done, stream | all | journal, glucose, aside) == 0);
+    // Refused: the glucose is tried again; the treatments have their own back-off.
+    CHECK(carriedAfter(Pass::failed, stream | journal, glucose, aside) == stream);
+    // Gave way: the glucose is owed, and so is whatever was pushed aside for the live reading.
+    CHECK(carriedAfter(Pass::interrupted, all | journal, glucose, aside) == (all | journal));
+    CHECK(carriedAfter(Pass::interrupted, stream | nums, glucose, aside) == (stream | nums));
+    CHECK(carriedAfter(Pass::interrupted, stream | end, glucose, aside) == stream);
+    // Only a pass that gave way holds treatments and the device status back.
+    CHECK(mayUploadAside(Pass::done));
+    CHECK(mayUploadAside(Pass::failed));
+    CHECK(!mayUploadAside(Pass::interrupted));
 }
 
 void recentRanges() {
@@ -444,20 +581,29 @@ void recentRanges() {
     // The next reading directly follows: one range, so the cursor steps over both.
     recents.remember(0, 160, 100);
     CHECK(recents.covered(0, 100) && recents.covered(0, 160));
-    // A reading after a gap does not extend the range: the one in between was never sent.
+    // A reading after a gap starts a range of its own: the one in between was never sent. The
+    // earlier range stays, for the cursor is still behind it.
     recents.remember(0, 280, 220);
     CHECK(recents.covered(0, 280));
-    CHECK(!recents.covered(0, 160));
+    CHECK(recents.covered(0, 100) && recents.covered(0, 160));
     CHECK(!recents.covered(0, 220));
+    // It is the newer range that the next reading extends.
+    recents.remember(0, 340, 280);
+    CHECK(recents.covered(0, 280) && recents.covered(0, 340));
+    // Remembering what is already covered changes nothing.
+    recents.remember(0, 160, 100);
+    CHECK(recents.covered(0, 100) && recents.covered(0, 160));
     // An unknown predecessor never extends.
     recents.remember(1, 50, 0);
     recents.remember(1, 110, 0);
-    CHECK(recents.covered(1, 110) && !recents.covered(1, 50));
-    // A cursor well past the end releases the range, a cursor behind it does not.
-    recents.prune(0, 280 + 600);
-    CHECK(recents.covered(0, 280));
-    recents.prune(0, 280 + 601);
-    CHECK(!recents.covered(0, 280));
+    CHECK(recents.covered(1, 110) && recents.covered(1, 50));
+    CHECK(!recents.covered(1, 80));
+    // A cursor well past a range releases it, one still behind it does not: each on its own.
+    recents.prune(0, 340 + 600);
+    CHECK(recents.covered(0, 340));
+    CHECK(!recents.covered(0, 100) && !recents.covered(0, 160));
+    recents.prune(0, 340 + 601);
+    CHECK(!recents.covered(0, 280) && !recents.covered(0, 340));
     // Ids outside the table are ignored rather than trusted.
     recents.remember(-1, 10, 0);
     recents.remember(4, 10, 0);
@@ -465,6 +611,17 @@ void recentRanges() {
     recents.remember(2, 10, 0);
     recents.clear();
     CHECK(!recents.covered(2, 10) && !recents.covered(1, 110));
+}
+
+void recentRangesAreBounded() {
+    // A safeguard against a cursor that never arrives: past the limit the oldest range goes,
+    // which costs a repeat later and never a reading.
+    RecentUploads<1> recents;
+    for (uint32_t index = 0; index < 100; index++)
+        recents.remember(0, 1000 + index * 200, 0);
+    CHECK(recents.covered(0, 1000 + 99 * 200));
+    CHECK(recents.covered(0, 1000 + 70 * 200));
+    CHECK(!recents.covered(0, 1000));
 }
 
 } // namespace
@@ -487,10 +644,18 @@ int main() {
         aRestartKeepsTheCursors(mode.pass);
         aFloodOfWakesStillMakesProgress(mode.pass);
         aPassWithNothingWaitingRunsToTheEnd(mode.pass);
+        treatmentsWaitForTheLiveReading(mode.pass, wakeAll | wakeTreatments);
+        treatmentsWaitForTheLiveReading(mode.pass, wakeTreatments);
+        liveReadingsAfterAGapAreNotSentTwice(mode.pass, mode.often);
+        liveReadingsAfterAGapAreNotSentTwice(mode.pass, mode.seldom);
     }
+    aConflictingChunkGivesWayBetweenItsReadings();
+    aConflictingChunkIsStillSentWhenNothingWaits();
+    aRefusalWhileSendingOneByOneLeavesTheCursorAtTheReading();
     sweepBookkeeping();
     carriedWakes();
     recentRanges();
+    recentRangesAreBounded();
     std::puts("nightscout backlog: all tests passed");
     return 0;
 }

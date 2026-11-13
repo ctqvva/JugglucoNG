@@ -841,7 +841,8 @@ static bool uploadRecentV1(const int sensorid,SensorGlucoseData *sens,const sens
         const ScanData &el=gdata[iter];
         if(!el.valid(iter) || el.gettime()<=mintime)
             continue;
-        pruneRecentNightUpload(sensorid,el.gettime());
+        //Not pruned here: the newest reading is far ahead of the cursor, and a range is only
+        //finished with once the cursor has passed it.
         if(isRecentNightUploadCovered(sensorid,el.gettime()))
             return true;
         char buf[512];
@@ -859,25 +860,37 @@ static bool uploadRecentV1(const int sensorid,SensorGlucoseData *sens,const sens
     return true;
     }
 
-static bool uploadV1ChunkIndividually(const int sensorid,SensorGlucoseData *sens,const sensorname_t *sensorname,std::span<const ScanData> gdata,const int startiter,const int chunkend,const uint32_t mintime) {
-    for(int iter=startiter;iter<chunkend;iter++) {
-        const ScanData &el=gdata[iter];
-        if(!el.valid(iter) || el.gettime()<=mintime)
-            continue;
-        pruneRecentNightUpload(sensorid,el.gettime());
-        if(isRecentNightUploadCovered(sensorid,el.gettime()))
-            continue;
-        char buf[512];
-        char *ptr=buf;
-        *ptr++='[';
-        ptr+=mkuploaditem(sens,ptr,sensorname,el,gdata,iter,false);
-        *ptr++=']';
-        *ptr='\0';
-        const int res=nightuploadEntries(buf,ptr-buf);
-        if(!isNightUploadAccepted(res))
-            return false;
-        }
-    return true;
+/* Whether a live reading, or the end of the thread, is waiting. Asked after every request that
+   went out, so a pass over a long history gives way within one request. Defined next to the
+   condition it reads. */
+static bool liveWakePending();
+
+/* The server rejected an array of readings because one of them is already there. Send them one
+   by one instead, each its own request and each a place to give way to a live reading: up to
+   120 of them would otherwise go out before it. The cursor moves with every reading, so a pass
+   that stops here starts at the next one. */
+static nightscout_backlog::Turn uploadV1ChunkIndividually(const int sensorid,SensorGlucoseData *sens,const sensorname_t *sensorname,std::span<const ScanData> gdata,const int startiter,const int chunkend,const uint32_t mintime) {
+    using namespace nightscout_backlog;
+    return drainEach(startiter,chunkend,
+        [&]()->int {return loadNightiter(sens);},
+        [&](const int iter)->Item {
+            const ScanData &el=gdata[iter];
+            if(!el.valid(iter) || el.gettime()<=mintime)
+                return Item::skip;
+            pruneRecentNightUpload(sensorid,el.gettime());
+            if(isRecentNightUploadCovered(sensorid,el.gettime()))
+                return Item::covered;
+            char buf[512];
+            char *ptr=buf;
+            *ptr++='[';
+            ptr+=mkuploaditem(sens,ptr,sensorname,el,gdata,iter,false);
+            *ptr++=']';
+            *ptr='\0';
+            const int res=nightuploadEntries(buf,ptr-buf);
+            return isNightUploadAccepted(res)?Item::sent:Item::refused;
+            },
+        [&](const int next) {advanceNightiter(sens,next);},
+        liveWakePending);
     }
 
 static const char *writeNightscoutV3UploadEntry(char *buf,SensorGlucoseData *sens,const sensorname_t *sensorname,const ScanData *el,std::span<const ScanData> gdata,const int pos) {
@@ -918,7 +931,8 @@ static bool uploadRecentV3(const int sensorid,SensorGlucoseData *sens,const sens
         const ScanData &el=gdata[iter];
         if(!el.valid(iter) || el.gettime()<=mintime)
             continue;
-        pruneRecentNightUpload(sensorid,el.gettime());
+        //Not pruned here: the newest reading is far ahead of the cursor, and a range is only
+        //finished with once the cursor has passed it.
         if(isRecentNightUploadCovered(sensorid,el.gettime()))
             return true;
         char buf[320];
@@ -958,11 +972,6 @@ static bool isNightscoutFollowerSensor(const SensorGlucoseData *sens) {
     const std::string_view id=sens->sensid();
     return id.size()>=prefix.size()&&id.substr(0,prefix.size())==prefix;
     }
-
-/* Whether a live reading, or the end of the thread, is waiting. Asked after every request that
-   went out, so a pass over a long history gives way within one request. Defined next to the
-   condition it reads. */
-static bool liveWakePending();
 
 /* One pass over every sensor within the upload window, newest sensor first. It ends early,
    as interrupted, when a live reading is waiting: the cursors are stored per sensor as each
@@ -1086,10 +1095,9 @@ static nightscout_backlog::Pass uploadCGM(const bool prioritizeRecent=false) {
                             LOGGER("%d saved nightiter=%d\n", sensorid,chunkend);
                             return Chunk::sent;
                             }
-                        if(res==HTTP_CONFLICT && uploadV1ChunkIndividually(sensorid,sens,sensorname,gdata,pos,chunkend,mintime)) {
-                            LOGGER("%d nightupload conflict resolved individually\n",sensorid);
-                            LOGGER("%d saved nightiter=%d\n", sensorid,chunkend);
-                            return Chunk::sent;
+                        if(res==HTTP_CONFLICT) {
+                            LOGGER("%d nightupload conflict, sending individually\n",sensorid);
+                            return Chunk::conflict;
                             }
                         LOGGER("nightupload failure code=%d\n",res);
                         LOGSTRING("nightupload failure\n");
@@ -1097,6 +1105,9 @@ static nightscout_backlog::Pass uploadCGM(const bool prioritizeRecent=false) {
                         }
                     LOGGER("ADDED nothing %d new positer=%d\n",sensorid,chunkend);
                     return Chunk::nothing;
+                    },
+                [&](const int pos,const int chunkend)->Turn {
+                    return uploadV1ChunkIndividually(sensorid,sens,sensorname,gdata,pos,chunkend,mintime);
                     },
                 [&](const int next) {advanceNightiter(sens,next);},
                 liveWakePending);
@@ -1213,10 +1224,13 @@ static void uploaderthread() {
         bool useV3=settings->data()->nightscoutV3;
         glucosefailed=false;
         const bool prioritizeRecent=(current&Backup::wakestream);
-        bool gavewayforlive=false;
-        if(current&(Backup::wakestream|Backup::wakeall)) {
-            using nightscout_backlog::Pass;
-            Pass pass = useV3?uploadCGM3(prioritizeRecent):uploadCGM(prioritizeRecent);
+        /* What asks for glucose, and what asks for treatments (a Resend asks for both). */
+        constexpr uintptr_t glucosewakes=Backup::wakestream|Backup::wakeall;
+        constexpr uintptr_t treatmentwakes=Backup::wakenums|Backup::wakeall|Backup::waketreatments;
+        using nightscout_backlog::Pass;
+        Pass pass=Pass::done;
+        if(current&glucosewakes) {
+            pass = useV3?uploadCGM3(prioritizeRecent):uploadCGM(prioritizeRecent);
             if(pass==Pass::failed && !useV3 && lastNightUploadCode==404) {
                 LOGSTRING("Nightscout v1 endpoint returned 404, retrying with v3\n");
                 settings->data()->nightscoutV3 = true;
@@ -1231,20 +1245,26 @@ static void uploaderthread() {
                waiting, the wake that stopped it is still set and starts the next pass at once,
                which sends that reading first and then continues the history. */
             glucosefailed=(pass==Pass::failed);
-            gavewayforlive=(pass==Pass::interrupted);
-            retrypending|=nightscout_backlog::carriedAfter(pass,current,Backup::wakestream|Backup::wakeall);
             }
+        const bool gavewayforlive=(pass==Pass::interrupted);
+        /* Treatments go out one request after another until none is left. After a pass that gave
+           way they wait, with the device status, until the pass that sends the live reading is
+           over: a new server with a journal to catch up on would otherwise still show the old
+           glucose for as many requests as there are treatments. The wakes that asked for them
+           are carried to that pass. */
+        const bool aside=nightscout_backlog::mayUploadAside(pass);
+        retrypending|=nightscout_backlog::carriedAfter(pass,current,glucosewakes,treatmentwakes);
         const auto nowsteady=std::chrono::steady_clock::now();
         const bool treatmentsdue=(nowsteady>=treatmentnextattempt);
         /* Treatments are attempted even when the glucose upload has just failed. They are
            separate endpoints failing for separate reasons, and returning here meant one bad
            reading upload also swallowed the wake a journal entry had raised. */
-        if((current&(Backup::wakenums|Backup::wakeall|Backup::waketreatments))&&!treatmentsdue) {
+        if(aside&&(current&treatmentwakes)&&!treatmentsdue) {
             /* Still holding off after a refusal. Keep the reason so it is asked again once
                the hold is up, rather than losing it to this pass. */
             retrypending|=Backup::waketreatments;
             }
-        else if(current&(Backup::wakenums|Backup::wakeall|Backup::waketreatments)) {
+        else if(aside&&(current&treatmentwakes)) {
             bool treatmentsOk = uploadJournalTreatmentsViaJava(useV3);
             if(!treatmentsOk && !useV3 && lastNightUploadCode==404) {
                 LOGSTRING("Nightscout v1 treatments endpoint returned 404, retrying with v3\n");
@@ -1273,7 +1293,7 @@ static void uploaderthread() {
            while a treatment is being refused would stop reporting IOB for as long as that
            lasts, which can be indefinitely. A failed reading upload still skips it, as it
            always has: that one shares its endpoint and its answer. */
-        if(!glucosefailed) {
+        if(!glucosefailed&&aside) {
             //Best effort: Java posts this on a bounded, dedicated executor. Its endpoint status never
             //overwrites the primary glucose uploader status or blocks this serialized upload loop.
             uploadDeviceStatus();

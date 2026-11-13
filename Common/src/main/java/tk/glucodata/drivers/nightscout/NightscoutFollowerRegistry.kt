@@ -255,6 +255,8 @@ object NightscoutFollowerRegistry {
         /** Make sure the follower for [sensorId] has a callback. */
         fun add(sensorId: String)
         fun selectMain(sensorId: String)
+        /** Give the main role [retired] held to whatever else is available, or to nobody. */
+        fun selectReplacement(retired: String)
         fun refreshDisplays()
     }
 
@@ -268,19 +270,28 @@ object NightscoutFollowerRegistry {
      * it: someone who picked a physical CGM as main keeps it. The role is asked before
      * anything is retired, because retiring a sensor is what takes it away.
      *
-     * Not usable (Follow off, no URL) retires nothing here: switching Follow off has its own
-     * path in [disableFollowerSensor].
+     * Follow on with the URL cleared names no server at all: nothing replaces the follower
+     * then, and what it held of the main role goes to whatever else is available. The settings
+     * screen saves exactly that state when the field is emptied.
+     *
+     * Follow off retires nothing here: switching it off has its own path in
+     * [disableFollowerSensor].
      */
     internal fun retireSupersededFollowers(config: Config, roster: FollowerRoster): Boolean {
-        if (!config.isUsable) return false
-        val expected = config.sensorId
-        val superseded = roster.runningFollowers().filterNot { matchesSensorId(it, expected) }
+        if (!config.enabled) return false
+        val expected = config.sensorId.takeIf { config.url.isNotBlank() }
+        val superseded = roster.runningFollowers()
+            .filterNot { expected != null && matchesSensorId(it, expected) }
         if (superseded.isEmpty()) return false
-        val inheritsMain = superseded.any(roster::holdsMain)
+        val holder = superseded.firstOrNull(roster::holdsMain)
         superseded.forEach(roster::retire)
-        if (inheritsMain) {
-            roster.add(expected)
-            roster.selectMain(expected)
+        if (holder != null) {
+            if (expected != null) {
+                roster.add(expected)
+                roster.selectMain(expected)
+            } else {
+                roster.selectReplacement(holder)
+            }
         }
         roster.refreshDisplays()
         return true
@@ -325,6 +336,12 @@ object NightscoutFollowerRegistry {
             SensorBluetooth.setCurrentSensorSelection(sensorId)
         }
 
+        override fun selectReplacement(retired: String) {
+            SensorBluetooth.setCurrentSensorSelection(
+                SensorBluetooth.resolveReplacementSensorSerial(retired).orEmpty()
+            )
+        }
+
         override fun refreshDisplays() {
             ManagedSensorUiSignals.markDeviceListDirty()
             runCatching { GlucoseUpdateBroadcaster.sendNow() }
@@ -338,18 +355,25 @@ object NightscoutFollowerRegistry {
      *
      * Only an id this phone ran itself counts. A phone receiving a clone holds mirrored
      * sensors that were never its own, and those must stay as they are.
+     *
+     * Native storage names a sensor without the first five characters of its id, which is
+     * where the `NSF-` prefix is, so [fullName] gives each candidate back its full id before
+     * anything is asked about it. A name it does not know stays as it is.
      */
     internal fun orphanedFollowerIds(
         candidates: Collection<String?>,
         config: Config,
         ranHere: (String) -> Boolean,
+        fullName: (String) -> String? = { it },
     ): List<String> {
         if (config.url.isBlank()) return emptyList()
         return candidates.asSequence()
             .filterNotNull()
             .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .map { name -> fullName(name)?.trim()?.takeIf { it.isNotEmpty() } ?: name }
             .filter { isFollowerSensorId(it) && !matchesSensorId(it, config.sensorId) && ranHere(it) }
-            .distinct()
+            .distinctBy { it.uppercase(Locale.US) }
             .toList()
     }
 
@@ -362,8 +386,9 @@ object NightscoutFollowerRegistry {
             val nativeCurrent = runCatching { Natives.currentsensorname() }.getOrNull()
             val shells = runCatching { Natives.activeSensors() }.getOrNull().orEmpty().toList()
             val ranHere = { id: String -> hasCompleteHistoryImport(context, id) }
-            val orphanShells = orphanedFollowerIds(shells, config, ranHere)
-            val orphanMain = orphanedFollowerIds(listOf(managed, nativeCurrent), config, ranHere)
+            val fullName = { name: String -> runCatching { Natives.resolveFullSensorName(name) }.getOrNull() }
+            val orphanShells = orphanedFollowerIds(shells, config, ranHere, fullName)
+            val orphanMain = orphanedFollowerIds(listOf(managed, nativeCurrent), config, ranHere, fullName)
             if (orphanShells.isEmpty() && orphanMain.isEmpty()) return
             orphanShells.forEach { runCatching { Natives.finishSensorById(it) } }
             if (orphanMain.isNotEmpty()) {

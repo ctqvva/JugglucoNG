@@ -21,6 +21,8 @@ class NightscoutFollowerReplacementTests {
     private class FakeRoster(
         running: List<String>,
         private var main: String?,
+        /** What the main role goes to when nothing is configured to take it. */
+        private val replacement: String? = null,
     ) : NightscoutFollowerRegistry.FollowerRoster {
         val running = running.toMutableList()
         val calls = mutableListOf<String>()
@@ -45,6 +47,11 @@ class NightscoutFollowerReplacementTests {
         override fun selectMain(sensorId: String) {
             calls += "select $sensorId"
             main = sensorId
+        }
+
+        override fun selectReplacement(retired: String) {
+            calls += "replace $retired"
+            main = replacement
         }
 
         override fun refreshDisplays() {
@@ -111,17 +118,51 @@ class NightscoutFollowerReplacementTests {
     }
 
     @Test
-    fun aConfigurationThatCannotFollowRetiresNothing() {
-        // Switching Follow off has its own path; a blank URL is a screen mid-edit.
+    fun switchingFollowOffRetiresNothingHere() {
+        // Switching Follow off has its own path, which also ends the callback properly.
         val off = FakeRoster(running = listOf(oldId), main = oldId)
+
         assertFalse(
             NightscoutFollowerRegistry.retireSupersededFollowers(
                 config("https://new.example.com", enabled = false), off
             )
         )
-        val blank = FakeRoster(running = listOf(oldId), main = oldId)
-        assertFalse(NightscoutFollowerRegistry.retireSupersededFollowers(config(""), blank))
-        assertTrue(off.calls.isEmpty() && blank.calls.isEmpty())
+        assertFalse(
+            NightscoutFollowerRegistry.retireSupersededFollowers(config("", enabled = false), off)
+        )
+        assertTrue(off.calls.isEmpty())
+    }
+
+    @Test
+    fun clearingTheUrlWithFollowOnRetiresTheFollowerAndRehomesItsMainRole() {
+        // The settings screen saves exactly this when the field is emptied: Follow still on,
+        // no server. The old follower went on polling its old one, and stayed main.
+        val roster = FakeRoster(running = listOf(oldId), main = oldId, replacement = "X-22222GX3H")
+
+        val changed = NightscoutFollowerRegistry.retireSupersededFollowers(config(""), roster)
+
+        assertTrue(changed)
+        assertEquals(listOf("retire $oldId", "replace $oldId", "refresh"), roster.calls)
+        assertEquals("X-22222GX3H", roster.mainSensor())
+        assertTrue(roster.running.isEmpty())
+    }
+
+    @Test
+    fun clearingTheUrlLeavesAPhysicalSensorAsMain() {
+        val roster = FakeRoster(running = listOf(oldId), main = "X-22222GX3H", replacement = "other")
+
+        NightscoutFollowerRegistry.retireSupersededFollowers(config(""), roster)
+
+        assertEquals(listOf("retire $oldId", "refresh"), roster.calls)
+        assertEquals("X-22222GX3H", roster.mainSensor())
+    }
+
+    @Test
+    fun aBlankUrlWithNoFollowerRunningDoesNothing() {
+        val roster = FakeRoster(running = emptyList(), main = null)
+
+        assertFalse(NightscoutFollowerRegistry.retireSupersededFollowers(config(""), roster))
+        assertTrue(roster.calls.isEmpty())
     }
 
     @Test
@@ -191,6 +232,54 @@ class NightscoutFollowerReplacementTests {
             ranHere = { true },
         )
         assertTrue(orphans.isEmpty())
+    }
+
+    // Native storage names a sensor without the first five characters of its id, so what
+    // activeSensors() and currentsensorname() return never starts with the prefix.
+    private val nativeNames = mapOf(oldId.drop(5) to oldId, "0123456789A" to "NSF-0123456789AB")
+
+    @Test
+    fun nativeShortNamesAreResolvedToTheFullIdBeforeTheyAreJudged() {
+        val orphans = NightscoutFollowerRegistry.orphanedFollowerIds(
+            candidates = listOf(oldId.drop(5)),
+            config = config("https://new.example.com"),
+            ranHere = ranHere,
+            fullName = nativeNames::get,
+        )
+        assertEquals(listOf(oldId), orphans)
+    }
+
+    @Test
+    fun aShortNameThatResolvesToAMirroredFollowerIsStillNotAnOrphan() {
+        val orphans = NightscoutFollowerRegistry.orphanedFollowerIds(
+            candidates = listOf("0123456789A"),
+            config = config("https://new.example.com"),
+            ranHere = ranHere,
+            fullName = nativeNames::get,
+        )
+        assertTrue(orphans.isEmpty())
+    }
+
+    @Test
+    fun aShortNameThatResolvesToAnotherSensorIsNotAnOrphan() {
+        val orphans = NightscoutFollowerRegistry.orphanedFollowerIds(
+            candidates = listOf("22222GX3H", "unknown"),
+            config = config("https://new.example.com"),
+            ranHere = { true },
+            fullName = mapOf("22222GX3H" to "X-22222GX3H")::get,
+        )
+        assertTrue(orphans.isEmpty())
+    }
+
+    @Test
+    fun theFullIdAndItsShortNameAreOneOrphan() {
+        val orphans = NightscoutFollowerRegistry.orphanedFollowerIds(
+            candidates = listOf(oldId, oldId.drop(5)),
+            config = config("https://new.example.com"),
+            ranHere = ranHere,
+            fullName = nativeNames::get,
+        )
+        assertEquals(listOf(oldId), orphans)
     }
 
     @Test
