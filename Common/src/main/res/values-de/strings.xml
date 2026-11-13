@@ -1095,7 +1095,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Hintergrunddeckkraft: %1$d%%</string>
+    <string name="background_opacity_label">Hintergrunddeckkraft</string>
     <string name="calibrate_sensor_desc">Zum Kalibrieren einen Blutzuckerwert in %1$s eingeben.</string>
     <string name="calibrate_sensor_timing_note">Vermeide eine Kalibrierung innerhalb von 2 Stunden nach Mahlzeiten oder Insulin.</string>
     <string name="calibration_with_mode">Kalibrierung (%1$s)</string>
@@ -1154,7 +1154,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="calibrations_deleted_count">%1$d Kalibrierungen gelöscht</string>
     <string name="calibrations_will_be_removed_count">%1$d Kalibrierungen werden entfernt</string>
     <string name="connection_number">Verbindung %1$d</string>
-    <string name="corner_radius_dp">Eckenradius: %1$d dp</string>
+    <string name="corner_radius_label">Eckenradius</string>
     <string name="custom_sound_prefix">Benutzerdefinierter Ton: %1$s</string>
     <string name="delete_calibrations_count">%1$d Kalibrierungen löschen</string>
     <string name="disabled_calibrations_cleared">%1$d deaktivierte Kalibrierungen gelöscht</string>
@@ -1163,7 +1163,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Ende: %1$s</string>
     <string name="export_failed_with_error">Export fehlgeschlagen: %1$s</string>
-    <string name="gap_width_value">Spaltbreite: %1$s</string>
+    <string name="gap_width_label">Spaltbreite</string>
     <string name="glucose_with_unit">Glukose (%1$s)</string>
     <string name="import_failed_with_error">Import fehlgeschlagen: %1$s</string>
     <string name="import_summary">Importiert: %1$d, übersprungen: %2$d, ersetzt: %3$d</string>
@@ -1253,7 +1253,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="font_app_plex">App (IBM Plex)</string>
     <string name="font_system_sans">Serifenlose Systemschrift</string>
     <string name="font_system_google_sans">System</string>
-    <string name="size_sp">Größe: %1$d sp</string>
+    <string name="size_label">Größe</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Schriftstärke</string>
     <string name="regular">Normal</string>
     <string name="medium">Mittel</string>
@@ -1979,12 +1980,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="show_chart_collapsed_desc">Kompaktes Diagramm in der eingeklappten Ansicht</string>
     <string name="show_target_range">Zielbereich anzeigen</string>
     <string name="show_target_range_desc">Zielglukosebereich im Diagramm hervorheben</string>
-    <string name="font_size_percent">Schriftgröße: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Größe des Statusleistensymbols: %1$d%%</string>
-    <string name="arrow_size_percent">Pfeilgröße: %1$d%%</string>
-    <string name="opacity_percent">Deckkraft: %1$d%%</string>
-    <string name="text_size_percent">Textgröße: %1$d%%</string>
-    <string name="chart_size_percent">Diagrammgröße: %1$d%%</string>
+    <string name="font_size_label">Schriftgröße</string>
+    <string name="status_bar_icon_size_label">Größe des Statusleistensymbols</string>
+    <string name="arrow_size_label">Pfeilgröße</string>
+    <string name="opacity_label">Deckkraft</string>
+    <string name="text_size_label">Textgröße</string>
+    <string name="chart_size_label">Diagrammgröße</string>
     <string name="use_subtle_outline">Subtile Kontur verwenden</string>
     <string name="use_subtle_outline_desc">Feine Kantenhervorhebung um das Overlay</string>
     <string name="position_top">Oben</string>

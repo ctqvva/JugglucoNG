@@ -1029,7 +1029,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Achtergronddekking: %1$d%%</string>
+    <string name="background_opacity_label">Achtergronddekking</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Kalibreer liever niet binnen 2 uur na maaltijden of insuline.</string>
     <string name="calibration_with_mode">Kalibratie (%1$s)</string>
@@ -1088,7 +1088,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="calibrations_deleted_count">%1$d-kalibraties verwijderd</string>
     <string name="calibrations_will_be_removed_count">%1$d-kalibraties worden verwijderd</string>
     <string name="connection_number">Verbinding %1$d</string>
-    <string name="corner_radius_dp">Hoekradius: %1$d dp</string>
+    <string name="corner_radius_label">Hoekradius</string>
     <string name="custom_sound_prefix">Aangepast geluid: %1$s</string>
     <string name="delete_calibrations_count">Verwijder %1$d kalibraties</string>
     <string name="disabled_calibrations_cleared">%1$d uitgeschakelde kalibraties gewist</string>
@@ -1097,7 +1097,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Einde: %1$s</string>
     <string name="export_failed_with_error">Exporteren mislukt: %1$s</string>
-    <string name="gap_width_value">Spleetbreedte: %1$s</string>
+    <string name="gap_width_label">Spleetbreedte</string>
     <string name="glucose_with_unit">Glucose (%1$s)</string>
     <string name="import_failed_with_error">Importeren mislukt: %1$s</string>
     <string name="import_summary">Geïmporteerd: %1$d, overgeslagen: %2$d, vervangen: %3$d</string>
@@ -1187,7 +1187,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="font_app_plex">App (IBM Plex)</string>
     <string name="font_system_sans">Systeem Sans</string>
     <string name="font_system_google_sans">Systeem</string>
-    <string name="size_sp">Maat: %1$d sp</string>
+    <string name="size_label">Maat</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Lettertype gewicht</string>
     <string name="regular">Regelmatig</string>
     <string name="medium">Middelmatig</string>
@@ -1834,12 +1835,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="show_chart_collapsed_desc">Compacte grafiek in de ingeklapte weergave</string>
     <string name="show_target_range">Doelbereik tonen</string>
     <string name="show_target_range_desc">Doelglucosebereik op de grafiek markeren</string>
-    <string name="font_size_percent">Lettergrootte: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Grootte statusbalkpictogram: %1$d%%</string>
-    <string name="arrow_size_percent">Pijlgrootte: %1$d%%</string>
-    <string name="opacity_percent">Dekking: %1$d%%</string>
-    <string name="text_size_percent">Tekstgrootte: %1$d%%</string>
-    <string name="chart_size_percent">Grafiekgrootte: %1$d%%</string>
+    <string name="font_size_label">Lettergrootte</string>
+    <string name="status_bar_icon_size_label">Grootte statusbalkpictogram</string>
+    <string name="arrow_size_label">Pijlgrootte</string>
+    <string name="opacity_label">Dekking</string>
+    <string name="text_size_label">Tekstgrootte</string>
+    <string name="chart_size_label">Grafiekgrootte</string>
     <string name="use_subtle_outline">Subtiele rand gebruiken</string>
     <string name="use_subtle_outline_desc">Dunne randaccent rond de overlay</string>
     <string name="position_top">Boven</string>

@@ -1,6 +1,5 @@
 package tk.glucodata.ui
 
-import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -51,6 +50,9 @@ import java.util.Locale
 import kotlin.math.roundToInt
 import tk.glucodata.GlucoseRangeColors.Band
 import tk.glucodata.R
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
+import tk.glucodata.ui.components.SliderHeaderStyle
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.ExpandableSettingsCard
 import tk.glucodata.ui.components.cardShape
@@ -323,24 +325,13 @@ private fun GlucoseRangeSliderRow(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(SliderHeaderGap)
         ) {
-            AdaptiveTrailingRow(
-                trailingContent = {
-                    Text(
-                        text = formatRangeValue(value, isMmol),
-                        style = MaterialTheme.typography.titleLargeEmphasized.copy(
-                            fontFeatureSettings = "tnum"
-                        )
-                    )
-                }
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            SliderHeader(
+                label = label,
+                value = formatRangeValue(value, isMmol),
+                style = SliderHeaderStyle.Glucose
+            )
             Slider(
                 value = value,
                 onValueChange = onValueChange,
