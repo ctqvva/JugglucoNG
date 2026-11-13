@@ -986,7 +986,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Bakgrundsopacitet: %1$d%%</string>
+    <string name="background_opacity_label">Bakgrundsopacitet</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Undvik kalibrering inom 2 timmar efter måltider eller insulin.</string>
     <string name="calibration_with_mode">Kalibrering (%1$s)</string>
@@ -1045,7 +1045,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">Raderade %1$d-kalibreringar</string>
     <string name="calibrations_will_be_removed_count">%1$d kalibreringar kommer att tas bort</string>
     <string name="connection_number">Anslutning %1$d</string>
-    <string name="corner_radius_dp">Hörnradie: %1$d dp</string>
+    <string name="corner_radius_label">Hörnradie</string>
     <string name="custom_sound_prefix">Anpassat ljud: %1$s</string>
     <string name="delete_calibrations_count">Ta bort %1$d-kalibreringar</string>
     <string name="disabled_calibrations_cleared">Raderade %1$d inaktiverade kalibreringar</string>
@@ -1054,7 +1054,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Slut: %1$s</string>
     <string name="export_failed_with_error">Export misslyckades: %1$s</string>
-    <string name="gap_width_value">Spaltbredd: %1$s</string>
+    <string name="gap_width_label">Spaltbredd</string>
     <string name="glucose_with_unit">Glukos (%1$s)</string>
     <string name="import_failed_with_error">Import misslyckades: %1$s</string>
     <string name="import_summary">Importerad: %1$d, överhoppad: %2$d, ersatt: %3$d</string>
@@ -1144,7 +1144,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">App (IBM Plex)</string>
     <string name="font_system_sans">System Sans</string>
     <string name="font_system_google_sans">System</string>
-    <string name="size_sp">Storlek: %1$d sp</string>
+    <string name="size_label">Storlek</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Teckensnittsvikt</string>
     <string name="regular">Vanligt</string>
     <string name="medium">Medium</string>
@@ -1791,12 +1792,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Kompakt diagram i hopfälld vy</string>
     <string name="show_target_range">Visa målintervall</string>
     <string name="show_target_range_desc">Markera målglukosintervallet i diagrammet</string>
-    <string name="font_size_percent">Teckenstorlek: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Storlek på statusfältsikon: %1$d%%</string>
-    <string name="arrow_size_percent">Pilstorlek: %1$d%%</string>
-    <string name="opacity_percent">Opacitet: %1$d%%</string>
-    <string name="text_size_percent">Textstorlek: %1$d%%</string>
-    <string name="chart_size_percent">Diagramstorlek: %1$d%%</string>
+    <string name="font_size_label">Teckenstorlek</string>
+    <string name="status_bar_icon_size_label">Storlek på statusfältsikon</string>
+    <string name="arrow_size_label">Pilstorlek</string>
+    <string name="opacity_label">Opacitet</string>
+    <string name="text_size_label">Textstorlek</string>
+    <string name="chart_size_label">Diagramstorlek</string>
     <string name="use_subtle_outline">Använd diskret kontur</string>
     <string name="use_subtle_outline_desc">Tunn kantmarkering runt överlägget</string>
     <string name="position_top">Överst</string>
@@ -2452,7 +2453,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s är kopplad till ditt konto men används inte här. Om den har tagit slut, koppla loss den så att en ny sensor kan aktiveras.</string>
     <string name="ottai_cloud_binding_checking">Kontrollerar kontot…</string>
     <string name="ottai_cloud_binding_bound">Kopplad till ditt konto</string>
-    <string name="ottai_cloud_binding_not_bound">Inte kopplad till ditt konto</string>
     <string name="ottai_cloud_binding_error">Kunde inte kontrollera kontot</string>
     <string name="ottai_account_title">Ottai-konto</string>
     <string name="ottai_saved_sensors_title">Sparade sensorer</string>
@@ -2471,10 +2471,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Logga in för att hämta dem, eller importera en fil.</string>
     <string name="ottai_state_partial_title">Ofullständiga inloggningsuppgifter</string>
     <string name="ottai_state_partial_body">Glukosformeln saknas. Hämta eller importera dem igen.</string>
-    <string name="ottai_v3_needs_nearby">Välj sensorn i listan över hittade sensorer: dess inloggningsuppgifter verifieras över Bluetooth.</string>
     <string name="ottai_fetch_failed">Kunde inte hämta sensorns inloggningsuppgifter.</string>
+    <string name="ottai_server_unreachable">Det gick inte att nå Ottai-servern. Försök igen.</string>
     <string name="ottai_connect_failed">Kunde inte starta anslutningen. Försök igen.</string>
-    <string name="ottai_offline_hint">Du kan också importera en fil med inloggningsuppgifter under Sparade sensorer.</string>
     <string name="ottai_already_binding_hint">Ditt konto har fortfarande en annan sensor kopplad. Koppla från den under Sparade sensorer och försök igen.</string>
     <string name="ottai_ota_upgrade_required">Ottai-tjänsten begärde en firmwareuppdatering när sensorn skulle kopplas. Försök med firmwareinställningen igen eller importera sparade inloggningsuppgifter. Du kan också prova den officiella Ottai-appen.</string>
     <string name="ottai_retry">Försök igen</string>

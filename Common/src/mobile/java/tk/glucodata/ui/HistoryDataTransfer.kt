@@ -72,6 +72,8 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
 import tk.glucodata.data.ExportCompression
 import tk.glucodata.data.ExportPackageExporter
 import tk.glucodata.data.GlucoseRepository
@@ -1080,19 +1082,11 @@ private fun BackupRetentionRow(
     var index by remember(selected) {
         mutableStateOf(options.indexOf(selected).coerceAtLeast(0).toFloat())
     }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = options[index.toInt().coerceIn(options.indices)].toString(),
-                style = MaterialTheme.typography.titleLargeEmphasized.copy(fontFeatureSettings = "tnum")
-            )
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(SliderHeaderGap)) {
+        SliderHeader(
+            label = label,
+            value = options[index.toInt().coerceIn(options.indices)].toString()
+        )
         Slider(
             value = index,
             onValueChange = { index = it },

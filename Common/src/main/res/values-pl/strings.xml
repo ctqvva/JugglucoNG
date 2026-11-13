@@ -1021,7 +1021,7 @@
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Nieprzezroczystość tła: %1$d%%</string>
+    <string name="background_opacity_label">Nieprzezroczystość tła</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Unikaj kalibracji w ciągu 2 godzin po posiłku lub insulinie.</string>
     <string name="calibration_with_mode">Kalibracja (%1$s)</string>
@@ -1080,7 +1080,7 @@
     <string name="calibrations_deleted_count">Usunięto kalibracje %1$d</string>
     <string name="calibrations_will_be_removed_count">Kalibracje %1$d zostaną usunięte</string>
     <string name="connection_number">Połączenie %1$d</string>
-    <string name="corner_radius_dp">Promień narożnika: %1$d dp</string>
+    <string name="corner_radius_label">Promień narożnika</string>
     <string name="custom_sound_prefix">Niestandardowy dźwięk: %1$s</string>
     <string name="delete_calibrations_count">Usuń kalibracje %1$d</string>
     <string name="disabled_calibrations_cleared">Wyczyszczono %1$d wyłączone kalibracje</string>
@@ -1089,7 +1089,7 @@
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Koniec: %1$s</string>
     <string name="export_failed_with_error">Eksport nie powiódł się: %1$s</string>
-    <string name="gap_width_value">Szerokość szczeliny: %1$s</string>
+    <string name="gap_width_label">Szerokość szczeliny</string>
     <string name="glucose_with_unit">Glukoza (%1$s)</string>
     <string name="import_failed_with_error">Import nie powiódł się: %1$s</string>
     <string name="import_summary">Zaimportowano: %1$d, pominięto: %2$d, zastąpiono: %3$d</string>
@@ -1179,7 +1179,8 @@
     <string name="font_app_plex">Aplikacja (IBM Plex)</string>
     <string name="font_system_sans">System bez</string>
     <string name="font_system_google_sans">Systemu</string>
-    <string name="size_sp">Rozmiar: %1$d sp</string>
+    <string name="size_label">Rozmiar</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Waga czcionki</string>
     <string name="regular">Regularne</string>
     <string name="medium">Średni</string>
@@ -1826,12 +1827,12 @@
     <string name="show_chart_collapsed_desc">Kompaktowy wykres w widoku zwiniętym</string>
     <string name="show_target_range">Pokaż zakres docelowy</string>
     <string name="show_target_range_desc">Podświetl docelowy zakres glukozy na wykresie</string>
-    <string name="font_size_percent">Rozmiar czcionki: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Rozmiar ikony paska stanu: %1$d%%</string>
-    <string name="arrow_size_percent">Rozmiar strzałki: %1$d%%</string>
-    <string name="opacity_percent">Nieprzezroczystość: %1$d%%</string>
-    <string name="text_size_percent">Rozmiar tekstu: %1$d%%</string>
-    <string name="chart_size_percent">Rozmiar wykresu: %1$d%%</string>
+    <string name="font_size_label">Rozmiar czcionki</string>
+    <string name="status_bar_icon_size_label">Rozmiar ikony paska stanu</string>
+    <string name="arrow_size_label">Rozmiar strzałki</string>
+    <string name="opacity_label">Nieprzezroczystość</string>
+    <string name="text_size_label">Rozmiar tekstu</string>
+    <string name="chart_size_label">Rozmiar wykresu</string>
     <string name="use_subtle_outline">Użyj delikatnego obrysu</string>
     <string name="use_subtle_outline_desc">Delikatne podświetlenie krawędzi wokół nakładki</string>
     <string name="position_top">Góra</string>
@@ -2486,7 +2487,6 @@
     <string name="ottai_unused_binding_desc">%1$s jest powiązany z Twoim kontem, ale nie jest tu używany. Jeśli się zakończył, odłącz go, aby można było aktywować nowy sensor.</string>
     <string name="ottai_cloud_binding_checking">Sprawdzanie konta…</string>
     <string name="ottai_cloud_binding_bound">Powiązany z Twoim kontem</string>
-    <string name="ottai_cloud_binding_not_bound">Niepowiązany z Twoim kontem</string>
     <string name="ottai_cloud_binding_error">Nie udało się sprawdzić konta</string>
     <string name="ottai_account_title">Konto Ottai</string>
     <string name="ottai_saved_sensors_title">Zapisane sensory</string>
@@ -2505,10 +2505,9 @@
     <string name="ottai_state_missing_signed_out">Zaloguj się, aby je pobrać, albo zaimportuj plik.</string>
     <string name="ottai_state_partial_title">Niekompletne dane dostępowe</string>
     <string name="ottai_state_partial_body">Brakuje formuły glukozy. Pobierz lub zaimportuj je ponownie.</string>
-    <string name="ottai_v3_needs_nearby">Wybierz ten sensor z listy znalezionych sensorów: jego dane dostępowe są weryfikowane przez Bluetooth.</string>
     <string name="ottai_fetch_failed">Nie udało się pobrać danych dostępowych tego sensora.</string>
+    <string name="ottai_server_unreachable">Nie można połączyć się z serwerem Ottai. Spróbuj ponownie.</string>
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
-    <string name="ottai_offline_hint">Możesz też zaimportować plik z danymi dostępowymi w sekcji Zapisane sensory.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
     <string name="ottai_ota_upgrade_required">Podczas wiązania sensora usługa Ottai zażądała aktualizacji firmware. Ponów konfigurację firmware lub zaimportuj zapisane dane uwierzytelniające. Możesz też spróbować oficjalnej aplikacji Ottai.</string>
     <string name="ottai_retry">Spróbuj ponownie</string>

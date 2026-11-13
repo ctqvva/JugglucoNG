@@ -65,6 +65,9 @@ import tk.glucodata.ui.components.RevealSettingsSearchAnchor
 import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StyledSwitch
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
+import tk.glucodata.ui.components.SliderHeaderStyle
 import tk.glucodata.ui.components.CardPosition as SettingsItemPosition
 import tk.glucodata.ui.theme.displayLargeExpressive
 import tk.glucodata.ui.theme.labelLargeExpressive
@@ -1506,29 +1509,13 @@ private fun ThresholdSlider(
             sliderValue = value
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                style = if (prominent) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                // A long (localised) label must wrap, not push the value out
-                // of the row.
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            )
-            Text(
-                // Use LOCAL sliderValue for real-time updates
-                formatThreshold(sliderValue, isMmol),
-                style = if (prominent) MaterialTheme.typography.headlineSmallEmphasized else MaterialTheme.typography.bodyMediumEmphasized,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        
+        SliderHeader(
+            label = label,
+            // Use LOCAL sliderValue for real-time updates
+            value = formatThreshold(sliderValue, isMmol),
+            style = if (prominent) SliderHeaderStyle.Glucose else SliderHeaderStyle.Compact
+        )
+        Spacer(Modifier.height(SliderHeaderGap))
         Slider(
             value = sliderValue,
             onValueChange = { sliderValue = it },
@@ -1578,26 +1565,12 @@ internal fun DurationSlider(
         // Calculate display value based on current slider position, rounded to step
         val displayValue = (kotlin.math.round(sliderValue / stepSize) * stepSize).toInt()
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                label,
-                style = MaterialTheme.typography.bodyMedium,
-                // A long (localised) label must wrap, not push the value out
-                // of the row.
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            )
-            Text(
-                valueText(displayValue),
-                style = MaterialTheme.typography.bodyMediumEmphasized,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        
+        SliderHeader(
+            label = label,
+            value = valueText(displayValue),
+            style = SliderHeaderStyle.Compact
+        )
+        Spacer(Modifier.height(SliderHeaderGap))
         Slider(
             value = sliderValue,
             onValueChange = { sliderValue = it },

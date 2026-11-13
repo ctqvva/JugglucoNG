@@ -28,6 +28,13 @@ object WearToggleSync {
     const val SCOPE_EXCHANGE = "x"
     const val SCOPE_ALERT = "a"
 
+    /**
+     * Phone → watch only: each alert's "Override silent mode". The watch has no switch for it,
+     * yet it raises the alert itself, so it needs the phone's setting to honour Do Not Disturb
+     * the way the phone does (#902). Never requested from the watch.
+     */
+    const val SCOPE_ALERT_DND = "d"
+
     /** Boolean display preferences the watch is allowed to flip. */
     const val SCOPE_PREF = "p"
 
@@ -63,6 +70,13 @@ object WearToggleSync {
             runCatching { AlertRepository.loadConfig(type).enabled }
                 .getOrNull()
                 ?.let { result += Toggle(SCOPE_ALERT, type.id.toString(), it) }
+        }
+        if (!Applic.isWearable) {
+            AlertType.settingsEntries.forEach { type ->
+                runCatching { AlertRepository.loadConfig(type).overrideDND }
+                    .getOrNull()
+                    ?.let { result += Toggle(SCOPE_ALERT_DND, type.id.toString(), it) }
+            }
         }
         return result
     }
@@ -154,6 +168,15 @@ object WearToggleSync {
                     }.onFailure { Log.stack(LOG_ID, "apply alert ${toggle.id}", it) }
                     applied++
                 }
+                SCOPE_ALERT_DND -> {
+                    // Only the watch takes it: the phone owns the setting.
+                    if (!Applic.isWearable) return@forEach
+                    val type = AlertType.settingsEntries
+                        .firstOrNull { it.id.toString() == toggle.id } ?: return@forEach
+                    runCatching { AlertRepository.applyOverrideDndFromPhone(type, toggle.enabled) }
+                        .onFailure { Log.stack(LOG_ID, "apply alert dnd ${toggle.id}", it) }
+                    applied++
+                }
             }
         }
         if (applied > 0) UiRefreshBus.requestStatusRefresh()
@@ -180,7 +203,7 @@ object WearToggleSync {
         received = toggles
         // Alerts fire on the watch too, and the display preferences are read
         // there, so both have to be written locally from the reply.
-        apply(toggles.filter { it.scope == SCOPE_ALERT || it.scope == SCOPE_PREF })
+        apply(toggles.filter { it.scope == SCOPE_ALERT || it.scope == SCOPE_ALERT_DND || it.scope == SCOPE_PREF })
         UiRefreshBus.requestStatusRefresh()
     }
 

@@ -998,7 +998,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_unused_binding_desc">A(z) %1$s a fiókjához van kötve, de itt nincs használatban. Ha lejárt, oldja fel a kötést, hogy új szenzort lehessen aktiválni.</string>
     <string name="ottai_cloud_binding_checking">Fiók ellenőrzése…</string>
     <string name="ottai_cloud_binding_bound">A fiókjához kötve</string>
-    <string name="ottai_cloud_binding_not_bound">Nincs a fiókjához kötve</string>
     <string name="ottai_cloud_binding_error">Nem sikerült ellenőrizni a fiókot</string>
     <string name="ottai_status_needs_ble_address">BLE-cím szükséges</string>
     <string name="ottai_status_warmup_provisional">Ideiglenes bemelegedés • még %1$d perc</string>
@@ -1063,10 +1062,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_state_missing_signed_out">Jelentkezzen be a lekéréshez, vagy importáljon egy fájlt.</string>
     <string name="ottai_state_partial_title">Hiányos hitelesítő adatok</string>
     <string name="ottai_state_partial_body">Hiányzik a glükózképlet. Kérje le vagy importálja őket újra.</string>
-    <string name="ottai_v3_needs_nearby">Válassza ki ezt a szenzort a talált szenzorok listájából: a hitelesítő adatait Bluetooth-on ellenőrizzük.</string>
     <string name="ottai_fetch_failed">Nem sikerült lekérni a szenzor hitelesítő adatait.</string>
+    <string name="ottai_server_unreachable">Nem érhető el az Ottai szerver. Próbálja újra.</string>
     <string name="ottai_connect_failed">Nem sikerült elindítani a kapcsolatot. Próbálja újra.</string>
-    <string name="ottai_offline_hint">Hitelesítőadat-fájlt a Mentett szenzorok alatt is importálhat.</string>
     <string name="ottai_already_binding_hint">A fiókjához még egy másik szenzor van kötve. Oldja fel a kötését a Mentett szenzorok alatt, majd próbálja újra.</string>
     <string name="ottai_ota_upgrade_required">Az Ottai szolgáltatás firmware-frissítést kért a szenzor hozzárendelésekor. Próbálja újra a firmware beállítását, vagy importálja a mentett hitelesítő adatokat. A hivatalos Ottai alkalmazást is kipróbálhatja.</string>
     <string name="ottai_retry">Újrapróbálás</string>
@@ -1295,7 +1293,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="font_app_plex">Alkalmazás (IBM Plex)</string>
     <string name="font_system_sans">Rendszer Sans</string>
     <string name="font_system_google_sans">Rendszer</string>
-    <string name="size_sp">Méret: %1$d sp</string>
+    <string name="size_label">Méret</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Betűvastagság</string>
     <string name="regular">Normál</string>
     <string name="medium">Közepes</string>
@@ -1321,7 +1320,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="api_secret_label">API-titok</string>
     <string name="appearance">Megjelenés</string>
     <string name="apply_to_all_alerts">Alkalmazás minden riasztásra</string>
-    <string name="background_opacity_percent">Háttér fedettsége: %1$d%%</string>
+    <string name="background_opacity_label">Háttér fedettsége</string>
     <string name="battery">Akkumulátor</string>
     <string name="bias_correction">Eltolódáskorrekció</string>
     <string name="bias_correction_desc">Az alaphelyzetbe állítás utáni első 48 órában kompenzálja az alacsony mérési értékeket</string>
@@ -1412,7 +1411,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="conditions_optimal">Optimális körülmények</string>
     <string name="connection_number">%1$d. kapcsolat</string>
     <string name="connectionoverview">Kapcsolatok áttekintése</string>
-    <string name="corner_radius_dp">Saroksugár: %1$d dp</string>
+    <string name="corner_radius_label">Saroksugár</string>
     <string name="correcting">Korrekció</string>
     <string name="custom_sound_prefix">Egyéni hang: %1$s</string>
     <string name="dash">-</string>
@@ -1459,7 +1458,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="flashpermission">Vakuhasználati engedély</string>
     <string name="floating_permission_required">Lebegő ablak engedélyezése szükséges</string>
     <string name="floatingconfig">Lebegő ablak beállításai</string>
-    <string name="gap_width_value">Rés szélessége: %1$s</string>
+    <string name="gap_width_label">Rés szélessége</string>
     <string name="garminconfig">Garmin beállítások</string>
     <string name="getaccountidhelp">Fiókazonosító lekérésének súgója</string>
     <string name="getlib">Könyvtár letöltése</string>
@@ -2240,12 +2239,12 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="show_chart_collapsed_desc">Kompakt grafikon az összecsukott nézetben</string>
     <string name="show_target_range">Céltartomány megjelenítése</string>
     <string name="show_target_range_desc">Glükóz-céltartomány kiemelése a grafikonon</string>
-    <string name="font_size_percent">Betűméret: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Állapotsori ikon mérete: %1$d%%</string>
-    <string name="arrow_size_percent">Nyíl mérete: %1$d%%</string>
-    <string name="opacity_percent">Átlátszatlanság: %1$d%%</string>
-    <string name="text_size_percent">Szövegméret: %1$d%%</string>
-    <string name="chart_size_percent">Grafikonméret: %1$d%%</string>
+    <string name="font_size_label">Betűméret</string>
+    <string name="status_bar_icon_size_label">Állapotsori ikon mérete</string>
+    <string name="arrow_size_label">Nyíl mérete</string>
+    <string name="opacity_label">Átlátszatlanság</string>
+    <string name="text_size_label">Szövegméret</string>
+    <string name="chart_size_label">Grafikonméret</string>
     <string name="use_subtle_outline">Finom körvonal használata</string>
     <string name="use_subtle_outline_desc">Vékony szegélykiemelés az átfedő megjelenítés körül</string>
     <string name="position_top">Felül</string>

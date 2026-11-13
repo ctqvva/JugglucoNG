@@ -75,6 +75,15 @@ class OttaiOtaTests {
         assertFalse(OttaiOtaProtocol.materialsVersionMatches(TEST_OTTAI_COMPOSITE_REVISION, "V1.8"))
     }
 
+    @Test fun cloudSpellingDropsOnlyTheCompositeVariant() {
+        assertEquals("E1.2.6(V1.7.SH2616.1)", OttaiOtaProtocol.withoutVariant("E1.2.6(V1.7.SH2616.1),STDRD"))
+        assertEquals("E1.1.4(V1.7.S2530.1)", OttaiOtaProtocol.withoutVariant(TEST_OTTAI_COMPOSITE_REVISION))
+        assertNull(OttaiOtaProtocol.withoutVariant("E1.2.3(V1.7.SH2542.1)"))
+        assertNull(OttaiOtaProtocol.withoutVariant("V1.7.S2530.1"))
+        assertNull(OttaiOtaProtocol.withoutVariant("V1.7,STDRD"))
+        assertNull(OttaiOtaProtocol.withoutVariant(""))
+    }
+
     @Test fun coefficientPacketMatchesIndependentModbusVector() {
         // 09 02 + LE float(1) + LE float(2). Verify the full packet with a bit-at-a-time oracle.
         val packet = OttaiOtaProtocol.coefficientPacket("1,2")
@@ -163,6 +172,24 @@ class OttaiOtaTests {
         assertFalse(OttaiOtaProtocol.matchesTarget(TEST_OTTAI_COMPOSITE_REVISION, "V1.7.S2531.1"))
         assertFalse(OttaiOtaProtocol.matchesTarget(TEST_OTTAI_COMPOSITE_REVISION, "V1.8"))
         assertFalse(OttaiOtaProtocol.matchesTarget("V1.7", TEST_OTTAI_COMPOSITE_REVISION))
+    }
+
+    @Test fun globalVariantlessCompositePackageIsAnUpgradeAndVerifiesOnReadback() {
+        // Field offer 2026-11-13: judge("E1.2.3(V1.7.SH2542.1)") → required, this package; the
+        // official app then left the sensor on E1.2.7(V1.7.SH2640.3).
+        val source = "E1.2.3(V1.7.SH2542.1),STDRD"
+        val target = OttaiOtaProtocol.targetVersion("https://cdn.example.invalid/ota/E1.2.7%28V1.7.SH2640.3%29.gbl")
+        assertEquals("E1.2.7(V1.7.SH2640.3)", target)
+        assertTrue(OttaiOtaProtocol.isUpgrade(source, target))
+        assertEquals(7, OttaiOtaProtocol.minor(target))
+        assertTrue(OttaiOtaProtocol.matchesTarget("E1.2.7(V1.7.SH2640.3),STDRD", target))
+        assertTrue(OttaiOtaProtocol.matchesTarget("E1.2.7(V1.7.SH2640.3)", target))
+        // Still on the old build, or a different build/E-version: not verified.
+        assertFalse(OttaiOtaProtocol.matchesTarget(source, target))
+        assertFalse(OttaiOtaProtocol.matchesTarget("E1.2.7(V1.7.SH2640.4),STDRD", target))
+        assertFalse(OttaiOtaProtocol.matchesTarget("E1.2.8(V1.7.SH2640.3),STDRD", target))
+        // A target naming a variant must still match that variant exactly.
+        assertFalse(OttaiOtaProtocol.matchesTarget("E1.2.7(V1.7.SH2640.3),OTHER", "E1.2.7(V1.7.SH2640.3),STDRD"))
     }
 
     @Test fun unfamiliarPrintableSourceRevisionsCanUseTheCloudOffer() {

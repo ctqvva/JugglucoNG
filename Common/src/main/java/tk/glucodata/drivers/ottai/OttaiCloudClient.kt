@@ -97,6 +97,15 @@ object OttaiCloudClient {
 
         /** The backend refused this bind with its OTA code; check the actual BLE revision. */
         val isOtaUpgradeRequired: Boolean get() = code.equals(BIZ_OTA_UPGRADE_REQUIRED, ignoreCase = true)
+
+        /**
+         * The request never got a business answer about this sensor: no connection, a server
+         * error, or the secure channel (key exchange, envelope) refused. Retrying is the remedy;
+         * the diagnostic code means nothing to the user and stays in the log.
+         */
+        val isServerUnreachable: Boolean get() = httpStatus >= 500 ||
+            text.startsWith("network:") || text.startsWith("ota_exchange") ||
+            text.startsWith("ota_response_cipher") || text.startsWith("ota_request_response_json")
     }
 
     /** Failure belongs to this unbind attempt even if another cloud request finishes meanwhile. */
@@ -516,15 +525,72 @@ object OttaiCloudClient {
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return null
         val result = mobileLoginResult(data)
         if (result.ok) {
-            OttaiRegistry.saveApiBase(ctx, base)  // subsequent validate/list/bind use this backend
-            OttaiRegistry.saveSessionProfile(ctx, OttaiRegistry.SessionProfile.WATCH)
-            OttaiRegistry.saveAccessToken(ctx, result.accessToken)
-            OttaiRegistry.saveGlucoseSecretKey(ctx, result.glucoseSecretKey)
-            OttaiRegistry.saveUserId(ctx, result.userId)
+            saveMobileSession(ctx, base, result)
             Log.i(TAG, "${if (base == OttaiConstants.API_BASE_SYAI) "Syai mobile" else "password"} login ok")
             return result
         }
         return null
+    }
+
+    private fun saveMobileSession(ctx: Context, base: String, result: LoginResult) {
+        OttaiRegistry.saveApiBase(ctx, base)  // subsequent validate/list/bind use this backend
+        OttaiRegistry.saveSessionProfile(ctx, OttaiRegistry.SessionProfile.WATCH)
+        OttaiRegistry.saveAccessToken(ctx, result.accessToken)
+        OttaiRegistry.saveGlucoseSecretKey(ctx, result.glucoseSecretKey)
+        OttaiRegistry.saveUserId(ctx, result.userId)
+    }
+
+    internal enum class GlobalLoginAnswer { SIGNED_IN, REFUSED, NO_ANSWER }
+
+    /**
+     * What a Global login reply means for the next step. A business code is the server's verdict
+     * on these credentials: stop, never send the password to another route (lockout). No answer
+     * (transport, 5xx, a missing route, an empty body) lets the caller try the legacy chain.
+     */
+    internal fun globalLoginAnswer(failure: CloudFailure?, result: LoginResult?): GlobalLoginAnswer = when {
+        failure == null && result?.ok == true -> GlobalLoginAnswer.SIGNED_IN
+        failure != null && failure.code.isNotBlank() && !failure.isServerUnreachable &&
+            failure.httpStatus != 404 -> GlobalLoginAnswer.REFUSED
+        else -> GlobalLoginAnswer.NO_ANSWER
+    }
+
+    /**
+     * Ottai Global email sign-in as the official app 1.51 does it: mobile
+     * `/user/login/thirdLoginByPassword` on the secure route, the email plus password in the
+     * web-style AES encryptInfo, signed like every watch-profile call. One reply carries the whole
+     * mobile session (accessToken, glucoseSecretKey, userId), and device calls accept it under the
+     * watch identity (verified 2026-11-13). It replaces web login + getUser + accountLogin, whose
+     * last step now fails with 500 NET_SECURITY_SYSTEM_ERROR. EMAIL ONLY: the same account's
+     * server username is refused here with User_InvalidParams (a failed login attempt).
+     */
+    private fun globalThirdLogin(ctx: Context, identifier: String, password: String): Pair<GlobalLoginAnswer, LoginResult?> {
+        val base = OttaiConstants.API_BASE_GLOBAL
+        val apiToken = getApiToken(ctx, base, "") ?: return GlobalLoginAnswer.NO_ANSWER to null
+        val ts = now()
+        val deviceId = requestDeviceId(ctx, OttaiRegistry.SessionProfile.WATCH)
+        val body = JSONObject().apply {
+            put("uuid", UUID.randomUUID().toString().replace("-", ""))
+            put("encryptInfo", webEncrypt(JSONObject().put("username", identifier).put("password", password).toString()))
+            put("apiToken", apiToken)
+            put("source", 5)
+            put("signature", signForProfile(OttaiRegistry.SessionProfile.WATCH, deviceId, ts, apiToken, identifier, password))
+        }
+        val reply = requestWithResult(
+            "POST",
+            base + OttaiConstants.EP_THIRD_LOGIN_BY_PASSWORD,
+            body.toString(),
+            headers(ctx, ts, base, "") + ("Content-Type" to "application/json;charset=UTF-8"),
+        )
+        val result = (reply.body?.optJSONObject("data") ?: reply.body?.optJSONObject("result"))
+            ?.let(::mobileLoginResult)
+        val answer = globalLoginAnswer(reply.failure, result)
+        if (answer == GlobalLoginAnswer.SIGNED_IN && result != null) {
+            saveMobileSession(ctx, base, result)
+            Log.i(TAG, "Global login ok route=thirdLoginByPassword")
+            return answer to result
+        }
+        if (reply.failure == null) lastFailure = CloudFailure("login returned no session")
+        return answer to null
     }
 
     /** POST /user/logout (best-effort) and clear all locally-stored account credentials. */
@@ -1272,6 +1338,12 @@ object OttaiCloudClient {
                 }
             }
         } else {
+            // The official app's mobile route returns the whole session in one reply. The web
+            // route below is kept for when that one gives no answer; its accountLogin upgrade
+            // currently fails on the server, so it is a fallback only.
+            val (answer, result) = globalThirdLogin(ctx, em, password)
+            if (answer == GlobalLoginAnswer.SIGNED_IN) return result
+            if (answer == GlobalLoginAnswer.REFUSED) return null
             val encInfo = webEncrypt(JSONObject().put("username", em).put("password", password).toString())
             webPostRetry(webBase, "/user/login/thirdLoginByPassword") { apiToken, ts ->
                 JSONObject().apply {
@@ -1418,6 +1490,13 @@ object OttaiCloudClient {
                 put("signature", webSign(WEB_APP, ts.toString(), requestId, em, validCode))
             }
         } ?: return null
+        // A registered account signs in like any other: the mobile route first, the legacy web
+        // session upgrade only when that route gives no answer.
+        if (resp.optString("code").equals("OK", ignoreCase = true)) {
+            val (answer, result) = globalThirdLogin(ctx, em, password)
+            if (answer == GlobalLoginAnswer.SIGNED_IN) return result
+            if (answer == GlobalLoginAnswer.REFUSED) return null
+        }
         return upgradeWebSession(ctx, resp, password, webBase)
     }
 

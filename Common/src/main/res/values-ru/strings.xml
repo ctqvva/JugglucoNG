@@ -1029,7 +1029,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Непрозрачность фона: %1$d%%</string>
+    <string name="background_opacity_label">Непрозрачность фона</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Не калибруйте в течение 2 часов после еды или инсулина.</string>
     <string name="calibration_with_mode">Калибровка (%1$s)</string>
@@ -1088,7 +1088,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">Удалены калибровки %1$d.</string>
     <string name="calibrations_will_be_removed_count">Калибровки %1$d будут удалены.</string>
     <string name="connection_number">Соединение %1$d</string>
-    <string name="corner_radius_dp">Радиус угла: %1$d dp</string>
+    <string name="corner_radius_label">Радиус угла</string>
     <string name="custom_sound_prefix">Пользовательский звук: %1$s</string>
     <string name="delete_calibrations_count">Удалить калибровки %1$d</string>
     <string name="disabled_calibrations_cleared">Очищены отключенные калибровки %1$d.</string>
@@ -1097,7 +1097,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d дп</string>
     <string name="end_time_with_value">Конец: %1$s</string>
     <string name="export_failed_with_error">Не удалось экспортировать: %1$s</string>
-    <string name="gap_width_value">Ширина зазора: %1$s</string>
+    <string name="gap_width_label">Ширина зазора</string>
     <string name="glucose_with_unit">Глюкоза (%1$s)</string>
     <string name="import_failed_with_error">Не удалось импортировать: %1$s.</string>
     <string name="import_no_glucose">В файле нет данных глюкозы</string>
@@ -1184,7 +1184,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">Приложение (IBM Plex)</string>
     <string name="font_system_sans">Система Санс</string>
     <string name="font_system_google_sans">Система</string>
-    <string name="size_sp">Размер: %1$d сп</string>
+    <string name="size_label">Размер</string>
+    <string name="sp_value">%1$d сп</string>
     <string name="font_weight_label">Вес шрифта</string>
     <string name="regular">Обычный</string>
     <string name="medium">Средний</string>
@@ -1838,12 +1839,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Компактный график в свернутом виде</string>
     <string name="show_target_range">Показать целевой диапазон</string>
     <string name="show_target_range_desc">Подсветить целевой диапазон глюкозы на графике</string>
-    <string name="font_size_percent">Размер шрифта: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Размер значка строки состояния: %1$d%%</string>
-    <string name="arrow_size_percent">Размер стрелки: %1$d%%</string>
-    <string name="opacity_percent">Непрозрачность: %1$d%%</string>
-    <string name="text_size_percent">Размер текста: %1$d%%</string>
-    <string name="chart_size_percent">Размер графика: %1$d%%</string>
+    <string name="font_size_label">Размер шрифта</string>
+    <string name="status_bar_icon_size_label">Размер значка строки состояния</string>
+    <string name="arrow_size_label">Размер стрелки</string>
+    <string name="opacity_label">Непрозрачность</string>
+    <string name="text_size_label">Размер текста</string>
+    <string name="chart_size_label">Размер графика</string>
     <string name="use_subtle_outline">Использовать тонкий контур</string>
     <string name="use_subtle_outline_desc">Тонкая подсветка края вокруг наложения</string>
     <string name="position_top">Верх</string>
@@ -2211,7 +2212,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s привязан к вашему аккаунту, но здесь не используется. Если срок закончился, отвяжите его, чтобы активировать новый датчик.</string>
     <string name="ottai_cloud_binding_checking">Проверка аккаунта…</string>
     <string name="ottai_cloud_binding_bound">Привязан к вашему аккаунту</string>
-    <string name="ottai_cloud_binding_not_bound">Не привязан к вашему аккаунту</string>
     <string name="ottai_cloud_binding_error">Не удалось проверить аккаунт</string>
     <string name="ottai_status_needs_ble_address">Нужен BLE-адрес</string>
     <string name="ottai_status_warmup_provisional">Предварительный прогрев • осталось %1$d мин</string>
@@ -2277,10 +2277,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Войдите, чтобы загрузить их, или импортируйте файл.</string>
     <string name="ottai_state_partial_title">Ключи неполные</string>
     <string name="ottai_state_partial_body">Нет формулы расчёта глюкозы. Загрузите или импортируйте их снова.</string>
-    <string name="ottai_v3_needs_nearby">Выберите этот датчик в списке найденных: его ключи проверяются по Bluetooth.</string>
     <string name="ottai_fetch_failed">Не удалось получить ключи этого датчика.</string>
+    <string name="ottai_server_unreachable">Не удалось связаться с сервером Ottai. Попробуйте ещё раз.</string>
     <string name="ottai_connect_failed">Не удалось начать подключение. Попробуйте снова.</string>
-    <string name="ottai_offline_hint">Также можно импортировать файл с ключами в разделе «Сохранённые датчики».</string>
     <string name="ottai_already_binding_hint">К аккаунту всё ещё привязан другой датчик. Отвяжите его в разделе «Сохранённые датчики» и попробуйте снова.</string>
     <string name="ottai_ota_upgrade_required">При привязке датчика сервис Ottai запросил обновление прошивки. Повторите настройку прошивки или импортируйте сохранённые ключи. Также можно попробовать официальное приложение Ottai.</string>
     <string name="ottai_retry">Повторить</string>

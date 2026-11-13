@@ -354,10 +354,11 @@ internal fun OttaiSensorCard(
         state == OttaiMaterialState.EXPIRED -> stringResource(R.string.ottai_state_expired_desc)
         else -> null
     }
+    // A sensor not yet on the account is the normal case before Connect, and a failed account
+    // check does not stop Connect, so neither earns a line here; Connect reports real failures.
     val bindingText = when (bindingState) {
         OttaiCloudBindingUiState.CHECKING -> stringResource(R.string.ottai_cloud_binding_checking)
         OttaiCloudBindingUiState.BOUND -> stringResource(R.string.ottai_cloud_binding_bound)
-        OttaiCloudBindingUiState.NOT_BOUND -> stringResource(R.string.ottai_cloud_binding_not_bound)
         else -> null
     }
     val meta = listOfNotNull(
@@ -366,7 +367,6 @@ internal fun OttaiSensorCard(
             ?.let { stringResource(R.string.ottai_device_version_label, it) },
         bindingText,
     ).joinToString(" · ")
-    val bindingFailed = bindingState == OttaiCloudBindingUiState.ERROR
     val getCredentials = hasSelection && !loading && state == OttaiMaterialState.MISSING && !signedIn
 
     Card(
@@ -398,13 +398,6 @@ internal fun OttaiSensorCard(
             }
             if (body != null) {
                 Text(body, style = MaterialTheme.typography.bodyMedium)
-            }
-            if (bindingFailed) {
-                Text(
-                    stringResource(R.string.ottai_cloud_binding_error),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
             }
             if (message.isNotBlank()) {
                 Text(
@@ -664,6 +657,10 @@ internal fun OttaiAccountCard(
                 form.password = ""
                 form.code = ""
                 onSignedIn(login)
+            } else if (!useSms && OttaiCloudClient.lastFailure?.isServerUnreachable == true) {
+                // A server fault is not a wrong password; don't send the user to recheck input.
+                form.statusIsError = true
+                form.status = context.getString(R.string.ottai_server_unreachable)
             } else {
                 form.statusIsError = true
                 form.status = context.getString(R.string.ottai_login_fail) +

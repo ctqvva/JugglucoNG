@@ -1295,7 +1295,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="font_app_plex">App (IBM Plex)</string>
     <string name="font_system_sans">Nidaamka Sans</string>
     <string name="font_system_google_sans">Nidaamka</string>
-    <string name="size_sp">Cabbirka: %1$d sp</string>
+    <string name="size_label">Cabbirka</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Miisaanka farta</string>
     <string name="regular">Joogto ah</string>
     <string name="medium">Dhexdhexaad</string>
@@ -1321,7 +1322,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="api_secret_label">API qarsoodi ah</string>
     <string name="appearance">Muuqashada</string>
     <string name="apply_to_all_alerts">Codso dhammaan digniinaha</string>
-    <string name="background_opacity_percent">Muuqda asalka: %1$d%%</string>
+    <string name="background_opacity_label">Muuqda asalka</string>
     <string name="battery">Battery</string>
     <string name="bias_correction">sixitaanka eexda</string>
     <string name="bias_correction_desc">Magdhawga akhrinta hoose inta lagu jiro 48ka saac ee hore kadib dib udajinta</string>
@@ -1412,7 +1413,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="conditions_optimal">Xaaladaha ugu fiican</string>
     <string name="connection_number">Isku xirka %1$d</string>
     <string name="connectionoverview">Isku xirka guud</string>
-    <string name="corner_radius_dp">Raadiyaha geesaha: %1$d dp</string>
+    <string name="corner_radius_label">Raadiyaha geesaha</string>
     <string name="correcting">sixida</string>
     <string name="custom_sound_prefix">Codka gaarka ah: %1$s</string>
     <string name="dash">-</string>
@@ -1459,7 +1460,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="flashpermission">Oggolaanshaha tooshka</string>
     <string name="floating_permission_required">Oggolaanshaha daaqada sabaynaysa ayaa loo baahan yahay</string>
     <string name="floatingconfig">Sabaynta Config</string>
-    <string name="gap_width_value">Ballaca faraqa: %1$s</string>
+    <string name="gap_width_label">Ballaca faraqa</string>
     <string name="garminconfig">Garmin Config</string>
     <string name="getaccountidhelp">Helaccountid Help</string>
     <string name="getlib">Getlib</string>
@@ -2064,12 +2065,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="show_chart_collapsed_desc">Shaxda is haysta ee muuqaalka burburay</string>
     <string name="show_target_range">Muuji xadka bartilmaameedka</string>
     <string name="show_target_range_desc">Ku muuji jaantuska xadka gulukooska ee bartilmaameedka</string>
-    <string name="font_size_percent">Cabbirka farta: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Cabbirka calaamada heerka: %1$d%%</string>
-    <string name="arrow_size_percent">Cabbirka fallaadha: %1$d%%</string>
-    <string name="opacity_percent">Hufnaan: %1$d%%</string>
-    <string name="text_size_percent">Cabbirka qoraalka: %1$d%%</string>
-    <string name="chart_size_percent">Cabbirka shaxda: %1$d%%</string>
+    <string name="font_size_label">Cabbirka farta</string>
+    <string name="status_bar_icon_size_label">Cabbirka calaamada heerka</string>
+    <string name="arrow_size_label">Cabbirka fallaadha</string>
+    <string name="opacity_label">Hufnaan</string>
+    <string name="text_size_label">Cabbirka qoraalka</string>
+    <string name="chart_size_label">Cabbirka shaxda</string>
     <string name="use_subtle_outline">Isticmaal dulmar khafiif ah</string>
     <string name="use_subtle_outline_desc">Iftiiminta cidhifka dhuuban ee hareeraha</string>
     <string name="position_top">Sare</string>
@@ -2643,7 +2644,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_unused_binding_desc">%1$s wuxuu ku xiran yahay akoonkaaga laakiin halkan looma isticmaalo. Haddii uu dhammaaday, ka fur si dareeme cusub loo hawlgeliyo.</string>
     <string name="ottai_cloud_binding_checking">Akoonka waa la hubinayaa…</string>
     <string name="ottai_cloud_binding_bound">Waxay ku xiran tahay akoonkaaga</string>
-    <string name="ottai_cloud_binding_not_bound">Kuma xirna akoonkaaga</string>
     <string name="ottai_cloud_binding_error">Akoonka lama hubin karin</string>
     <string name="ottai_account_title">Akoonka Ottai</string>
     <string name="ottai_saved_sensors_title">Dareemayaal la keydiyey</string>
@@ -2662,10 +2662,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_state_missing_signed_out">Gal si aad u soo qaadato, ama soo geli fayl.</string>
     <string name="ottai_state_partial_title">Aqoonsigu waa dhammaystirnayn</string>
     <string name="ottai_state_partial_body">Qaacidada gulukoosta ayaa maqan. Mar kale soo qaado ama soo geli.</string>
-    <string name="ottai_v3_needs_nearby">Ka dooro dareemahan liiska dareemayaasha la helay: aqoonsigiisa waxaa lagu xaqiijiyaa Bluetooth.</string>
     <string name="ottai_fetch_failed">Lama heli karo aqoonsiga dareemahan.</string>
+    <string name="ottai_server_unreachable">Lama gaari karo server-ka Ottai. Isku day mar kale.</string>
     <string name="ottai_connect_failed">Lama bilaabi karo xiriirka. Isku day mar kale.</string>
-    <string name="ottai_offline_hint">Waxaad sidoo kale ka soo gelin kartaa fayl aqoonsi Dareemayaal la keydiyey.</string>
     <string name="ottai_already_binding_hint">Akoonkaagu weli wuxuu ku xiran yahay dareeme kale. Ka fur Dareemayaal la keydiyey, kadibna isku day mar kale.</string>
     <string name="ottai_ota_upgrade_required">Adeegga Ottai wuxuu codsaday cusboonaysiinta firmware-ka markii la xirayay dareemahan. Mar kale isku day dejinta firmware-ka ama soo geli xogta aqoonsiga ee kaydsan. Waxa kale oo aad tijaabin kartaa app-ka rasmiga ah ee Ottai.</string>
     <string name="ottai_retry">Mar kale isku day</string>

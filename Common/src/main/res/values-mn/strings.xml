@@ -1141,7 +1141,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="font_app_plex">Апп (IBM Plex)</string>
     <string name="font_system_sans">Системийн Sans</string>
     <string name="font_system_google_sans">Системийн</string>
-    <string name="size_sp">Хэмжээ: %1$d sp</string>
+    <string name="size_label">Хэмжээ</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Фонтын жин</string>
     <string name="regular">Ердийн</string>
     <string name="medium">Дунд</string>
@@ -1167,7 +1168,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="api_secret_label">API нууц түлхүүр</string>
     <string name="appearance">Харагдах байдал</string>
     <string name="apply_to_all_alerts">Бүх дохионуудад хэрэглэх</string>
-    <string name="background_opacity_percent">Арын тунгалаг байдал: %1$d%%</string>
+    <string name="background_opacity_label">Арын тунгалаг байдал</string>
     <string name="battery">Батарей</string>
     <string name="bias_correction">Bias засалт</string>
     <string name="bias_correction_desc">Дахин тохируулсны дараах эхний 48 цагийн бага уншилтыг нөхөж тооцно</string>
@@ -1194,7 +1195,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="conditions_optimal">Нөхцөлүүд оновчтой байна</string>
     <string name="connection_number">Холболт %1$d</string>
     <string name="connectionoverview">Холболтын тойм</string>
-    <string name="corner_radius_dp">Булангийн радиус: %1$d dp</string>
+    <string name="corner_radius_label">Булангийн радиус</string>
     <string name="correcting">Засаж байна</string>
     <string name="custom_sound_prefix">Өөрийн дуу: %1$s</string>
     <string name="dash">-</string>
@@ -1241,7 +1242,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="flashpermission">Гэрлийн зөвшөөрөл</string>
     <string name="floating_permission_required">Хөвөгч цонхны зөвшөөрөл шаардлагатай</string>
     <string name="floatingconfig">Хөвөгч тохиргоо</string>
-    <string name="gap_width_value">Зайны өргөн: %1$s</string>
+    <string name="gap_width_label">Зайны өргөн</string>
     <string name="garminconfig">Garmin тохиргоо</string>
     <string name="getaccountidhelp">Account ID авах тусламж</string>
     <string name="getlib">Getlib</string>
@@ -1821,12 +1822,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="show_chart_collapsed_desc">Compact chart in collapsed view</string>
     <string name="show_target_range">Show target range</string>
     <string name="show_target_range_desc">Highlight target glucose range on chart</string>
-    <string name="font_size_percent">Font size: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Status bar icon size: %1$d%%</string>
-    <string name="arrow_size_percent">Arrow size: %1$d%%</string>
-    <string name="opacity_percent">Opacity: %1$d%%</string>
-    <string name="text_size_percent">Text size: %1$d%%</string>
-    <string name="chart_size_percent">Chart size: %1$d%%</string>
+    <string name="font_size_label">Font size</string>
+    <string name="status_bar_icon_size_label">Status bar icon size</string>
+    <string name="arrow_size_label">Arrow size</string>
+    <string name="opacity_label">Opacity</string>
+    <string name="text_size_label">Text size</string>
+    <string name="chart_size_label">Chart size</string>
     <string name="use_subtle_outline">Use subtle outline</string>
     <string name="use_subtle_outline_desc">Thin edge highlight around overlay</string>
     <string name="position_top">Top</string>
@@ -2559,7 +2560,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_unused_binding_desc">%1$s таны бүртгэлд холбогдсон ч энд ашиглагдаагүй байна. Хугацаа нь дууссан бол шинэ мэдрэгч идэвхжүүлэхийн тулд холбоосыг салгана уу.</string>
     <string name="ottai_cloud_binding_checking">Бүртгэлийг шалгаж байна…</string>
     <string name="ottai_cloud_binding_bound">Таны бүртгэлд холбогдсон</string>
-    <string name="ottai_cloud_binding_not_bound">Таны бүртгэлд холбогдоогүй</string>
     <string name="ottai_cloud_binding_error">Бүртгэлийг шалгаж чадсангүй</string>
     <string name="ottai_account_title">Ottai бүртгэл</string>
     <string name="ottai_saved_sensors_title">Хадгалсан мэдрэгчүүд</string>
@@ -2578,10 +2578,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_state_missing_signed_out">Татахын тулд нэвтрэх, эсвэл файл импортлоно уу.</string>
     <string name="ottai_state_partial_title">Түлхүүр дутуу</string>
     <string name="ottai_state_partial_body">Глюкозын томъёо дутуу байна. Дахин татах эсвэл импортлоно уу.</string>
-    <string name="ottai_v3_needs_nearby">Энэ мэдрэгчийг олдсон мэдрэгчдийн жагсаалтаас сонгоно уу: түлхүүрийг нь Bluetooth-ээр шалгадаг.</string>
     <string name="ottai_fetch_failed">Энэ мэдрэгчийн түлхүүрийг авч чадсангүй.</string>
+    <string name="ottai_server_unreachable">Ottai серверт холбогдож чадсангүй. Дахин оролдоно уу.</string>
     <string name="ottai_connect_failed">Холболтыг эхлүүлж чадсангүй. Дахин оролдоно уу.</string>
-    <string name="ottai_offline_hint">Мөн «Хадгалсан мэдрэгчүүд» хэсэгт түлхүүрийн файл импортлох боломжтой.</string>
     <string name="ottai_already_binding_hint">Таны бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. «Хадгалсан мэдрэгчүүд» хэсэгт салгаад дахин оролдоно уу.</string>
     <string name="ottai_ota_upgrade_required">Ottai үйлчилгээ энэ мэдрэгчийг холбох үед програм хангамж шинэчлэхийг хүссэн. Тохиргоог дахин оролдох эсвэл хадгалсан нэвтрэх мэдээллийг импортлоно уу. Албан ёсны Ottai аппыг мөн туршиж болно.</string>
     <string name="ottai_retry">Дахин оролдох</string>
