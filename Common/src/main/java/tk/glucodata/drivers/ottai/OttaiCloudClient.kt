@@ -1344,7 +1344,6 @@ object OttaiCloudClient {
             val (answer, result) = globalThirdLogin(ctx, em, password)
             if (answer == GlobalLoginAnswer.SIGNED_IN) return result
             if (answer == GlobalLoginAnswer.REFUSED) return null
-            if (answer == GlobalLoginAnswer.REFUSED) return null
             val encInfo = webEncrypt(JSONObject().put("username", em).put("password", password).toString())
             webPostRetry(webBase, "/user/login/thirdLoginByPassword") { apiToken, ts ->
                 JSONObject().apply {
