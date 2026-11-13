@@ -28,7 +28,9 @@ The reasons for each are written at the top of `lettering.py`. Read them before 
 | [`social-preview.png`](social-preview.png) | the repository's social preview (Settings → Social preview), link cards | |
 | `Common/src/main/ic_launcher-playstore.png` | the 512 × 512 store icon | |
 
-The Android launcher resources (`Common/src/main/res/drawable/ic_launcher_*.xml`, `mipmap-anydpi-v26/`, and the violet set in `Common/src/releasedub/`) are generated too. Don't edit them by hand.
+Inside the app the lockup is `GlucyLockup` (`Common/src/mobile/java/tk/glucodata/ui/components/GlucyLockup.kt`), shown on the Dashboard's welcome screen and at the bottom of Settings. It follows the theme the way the launcher's themed icon does: the badge is `primaryContainer` with the monochrome layer in `onPrimaryContainer`, and the wordmark takes a text colour. With dynamic colour it matches the home screen, so the app never shows a navy badge on, say, a green theme. The fixed navy colours are for places the app doesn't theme. The wordmark drawables (`Common/src/mobile/res/drawable/glucy_wordmark_{light,dark}.xml`) are white and tinted at runtime, one unit per dp with a 2-unit margin.
+
+The Android launcher resources (`Common/src/main/res/drawable/ic_launcher_*.xml`, `mipmap-anydpi-v26/`, and the violet set in `Common/src/releasedub/`) and the wordmark drawables are generated too. Don't edit them by hand.
 
 The lockup is one file for both themes. GitHub's `<picture>` and `#gh-dark-mode-only` switches follow the operating system rather than GitHub's own theme setting, so a pair of files shows the wrong one for some readers. One file that works on both is more reliable.
 

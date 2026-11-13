@@ -21,35 +21,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.ExperimentalTextApi
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontVariation
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import tk.glucodata.R
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
-
-@OptIn(ExperimentalTextApi::class)
-private fun jugglucoBrandFamily(weight: Int, width: Float): FontFamily {
-    return try {
-        FontFamily(
-            Font(
-                R.font.ibm_plex_sans_var,
-                variationSettings = FontVariation.Settings(
-                    FontVariation.weight(weight),
-                    FontVariation.width(width)
-                )
-            )
-        )
-    } catch (th: Throwable) {
-        android.util.Log.w("SensorSelectionCards", "Variable font fallback activated", th)
-        FontFamily(Font(R.font.ibm_plex_sans_var))
-    }
-}
 
 /**
  * Material 3 Expressive sensor selection cards for empty state screens.
@@ -269,24 +246,6 @@ fun DashboardEmptyState(
     val compact = rememberAdaptiveWindowMetrics().isCompact
     val sidePadding = 16.dp
     val scrollState = rememberScrollState()
-    val brandWeight = if (compact) 450 else 470
-    val brandWidth = if (compact) 94f else 90f
-    val brandFontFamily = remember(brandWeight, brandWidth) {
-        jugglucoBrandFamily(weight = brandWeight, width = brandWidth)
-    }
-    val brandStyle = if (compact) {
-        MaterialTheme.typography.displaySmall.copy(
-            fontFamily = brandFontFamily,
-            fontWeight = FontWeight(brandWeight),
-            letterSpacing = (-0.55).sp
-        )
-    } else {
-        MaterialTheme.typography.displayMedium.copy(
-            fontFamily = brandFontFamily,
-            fontWeight = FontWeight(brandWeight),
-            letterSpacing = (-0.75).sp
-        )
-    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -296,14 +255,12 @@ fun DashboardEmptyState(
             .padding(bottom = if (compact) 104.dp else 120.dp),
         horizontalAlignment = Alignment.Start
     ) {
-        // Welcome header
-        Text(
-            text = stringResource(R.string.app_name),
-            style = brandStyle,
-            textAlign = TextAlign.Start,
+        // Welcome header: the lockup, on the card text inset like the tab titles.
+        GlucyLockup(
+            badgeSize = if (compact) 56.dp else 72.dp,
             modifier = Modifier
-                .fillMaxWidth()
                 .padding(horizontal = 16.dp)
+                .semantics { heading() }
         )
 
         Spacer(modifier = Modifier.height(if (compact) 16.dp else 20.dp))
