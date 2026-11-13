@@ -33,7 +33,7 @@ class SensorArtTileTests {
         assertEquals(SensorType.entries.toSet(), sensorTypeOptions.map { it.type }.toSet())
     }
 
-    /** The press spring overshoots, so the morph is asked for progress outside 0..1. */
+    /** The press spring overshoots, so the frame's corner is asked for more than a circle's. */
     @Test
     fun everySensorSurvivesAPressAndItsOvershoot() {
         val interactions = MutableInteractionSource()
@@ -41,13 +41,12 @@ class SensorArtTileTests {
         compose.setContent {
             JugglucoTheme(ThemeMode.DARK) {
                 Column {
-                    SensorType.entries.forEachIndexed { order, type ->
+                    SensorType.entries.forEach { type ->
                         SensorArtTile(
                             type = type,
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             tileSize = 56.dp,
                             interactionSource = interactions,
-                            arrivalOrder = order,
                         )
                     }
                 }

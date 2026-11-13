@@ -105,7 +105,7 @@ private fun SensorCard(
     onClick: () -> Unit,
     compact: Boolean
 ) {
-    val tileSize = if (compact) 60.dp else 68.dp
+    val tileSize = if (compact) 56.dp else 64.dp
     val rowPadding = if (compact) 8.dp else 12.dp
     val arrowContainer = if (compact) 32.dp else 36.dp
     val arrowPadding = if (compact) 8.dp else 9.dp

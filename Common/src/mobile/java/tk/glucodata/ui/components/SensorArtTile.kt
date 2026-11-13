@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,10 +29,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asComposePath
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -42,51 +39,17 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.graphics.shapes.Morph
-import androidx.graphics.shapes.RoundedPolygon
-import androidx.graphics.shapes.toPath
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import tk.glucodata.ui.rememberNavigationTick
 import tk.glucodata.ui.util.ExpressiveMotion
 
-/** The drawing's canvas against its shape: a sensor reaches about four fifths of its canvas. */
-private const val ART_OVERHANG = 1.06f
-
-/** Between one tile's arrival and the next, so a list settles from the top down. */
-private const val ARRIVAL_STAGGER_MS = 28L
-
 /**
- * Each sensor's own shape, picked to echo its outline: scalloped for the adhesive discs, long
- * for the capsules, an arch for the one that stands upright. Soft shapes only: the sensor is
- * the subject and a burst behind it would shout over it.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-private fun SensorType.tileShape(): RoundedPolygon = when (this) {
-    SensorType.LIBRE -> MaterialShapes.Cookie12Sided
-    SensorType.DEXCOM -> MaterialShapes.Cookie6Sided
-    SensorType.SIBIONICS -> MaterialShapes.Pill
-    SensorType.AIDEX -> MaterialShapes.Cookie9Sided
-    SensorType.OTTAI -> MaterialShapes.Sunny
-    SensorType.ICANHEALTH -> MaterialShapes.Clover8Leaf
-    SensorType.ANYTIME -> MaterialShapes.Puffy
-    SensorType.ACCUCHEK -> MaterialShapes.Arch
-    SensorType.CARESENS_AIR -> MaterialShapes.Oval
-    SensorType.MQ -> MaterialShapes.Cookie4Sided
-    SensorType.MEDTRUM -> MaterialShapes.Clover4Leaf
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-private fun morphOf(type: SensorType) = Morph(type.tileShape(), MaterialShapes.Circle)
-
-/**
- * The launch tile: a sensor resting on a shape of its own. Pressing the card behind it rounds the
- * shape off and pushes the sensor down into it; letting go springs both back. Everything moves
- * in the draw and layer phases, and nothing moves at rest.
+ * The launch tile: a sensor on the same soft square every row uses, so the sensors' own outlines
+ * are what tells the rows apart. Pressing the card rounds the square towards a circle and pushes
+ * the sensor in; letting go springs both back. Everything moves in the draw and layer phases, and
+ * nothing moves at rest or when a screen opens.
  *
- * [arrivalOrder] plays a one-off entrance, the shape growing and the sensor dropping on to it in
- * turn. Null keeps a tile still on arrival, for lists that recompose it as it scrolls into view.
- * Raising [replay] drops the sensor on to the shape again.
+ * [round] keeps the frame a circle throughout, for the wizard heroes. Raising [replay] drops the
+ * sensor on to its frame again.
  */
 @Composable
 internal fun SensorArtTile(
@@ -95,14 +58,11 @@ internal fun SensorArtTile(
     tileSize: Dp,
     interactionSource: InteractionSource,
     modifier: Modifier = Modifier,
-    arrivalOrder: Int? = null,
     replay: Int = 0,
     onPad: Boolean = false,
+    round: Boolean = false,
 ) {
     val tones = rememberSensorTones()
-    val morph = remember(type) { morphOf(type) }
-    val outline = remember { android.graphics.Path() }
-    val composeOutline = remember(outline) { outline.asComposePath() }
 
     val press = remember { Animatable(0f) }
     val pressed by interactionSource.collectIsPressedAsState()
@@ -110,55 +70,49 @@ internal fun SensorArtTile(
         press.animateTo(if (pressed) 1f else 0f, ExpressiveMotion.fastSpatial())
     }
 
-    val shapeArrival = remember { Animatable(if (arrivalOrder == null) 1f else 0f) }
-    val sensorArrival = remember { Animatable(if (arrivalOrder == null) 1f else 0f) }
-    LaunchedEffect(Unit) {
-        if (arrivalOrder != null) {
-            delay(arrivalOrder * ARRIVAL_STAGGER_MS)
-            launch { shapeArrival.animateTo(1f, ExpressiveMotion.defaultSpatial()) }
-            delay(ARRIVAL_STAGGER_MS * 3)
-            sensorArrival.animateTo(1f, ExpressiveMotion.fastSpatial())
-        }
-    }
+    val landing = remember { Animatable(0f) }
     LaunchedEffect(replay) {
         if (replay > 0) {
-            sensorArrival.snapTo(0f)
-            sensorArrival.animateTo(1f, ExpressiveMotion.fastSpatial())
+            landing.snapTo(1f)
+            landing.animateTo(0f, ExpressiveMotion.fastSpatial())
         }
     }
 
     Box(modifier = modifier.size(tileSize), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.matchParentSize()) {
             val progress = press.value
-            morph.toPath(progress, outline)
-            val grown = shapeArrival.value * (1f - 0.06f * progress)
-            scale(grown, grown) {
-                rotate(degrees = 40f * progress) {
-                    scale(size.width, size.height, pivot = Offset.Zero) {
-                        drawPath(composeOutline, containerColor)
-                    }
-                }
+            val half = size.minDimension / 2f
+            val rest = if (round) half else half * TILE_CORNER
+            val corner = (rest + (half - rest) * progress).coerceIn(0f, half)
+            val shrink = 1f - 0.06f * progress
+            scale(shrink, shrink) {
+                drawRoundRect(containerColor, cornerRadius = CornerRadius(corner))
             }
         }
         Canvas(
             modifier = Modifier
-                .requiredSize(tileSize * ART_OVERHANG)
+                .matchParentSize()
                 .graphicsLayer {
                     val progress = press.value
-                    val landing = 1f - sensorArrival.value
-                    val squeeze = 1f - 0.1f * progress
-                    scaleX = squeeze * (1f + 0.35f * landing)
-                    scaleY = squeeze * (1f + 0.35f * landing)
-                    rotationZ = -8f * progress - 24f * landing
-                    rotationX = 16f * progress
-                    translationY = -8.dp.toPx() * landing
-                    alpha = sensorArrival.value.coerceIn(0f, 1f)
+                    val drop = landing.value
+                    val squeeze = (1f - 0.08f * progress) * (1f + 0.25f * drop)
+                    scaleX = squeeze
+                    scaleY = squeeze
+                    rotationX = 12f * progress
+                    translationY = -6.dp.toPx() * drop
+                    alpha = (1f - drop).coerceIn(0f, 1f) * 0.6f + 0.4f
                 },
         ) {
             drawSensor(type, tones, onPad)
         }
     }
 }
+
+/** The tile's corner at rest, against half its side: the 16 dp of the card's other squares at 56 dp. */
+private const val TILE_CORNER = 0.57f
+
+/** Heroes that have played their entrance; each plays once per launch, not on every visit. */
+private val heroesPlayed = mutableSetOf<SensorType>()
 
 /** What a hero shows beside the sensor, moved aside as it arrives. */
 private enum class HeroCompanion { NONE, APPLICATOR, PHONE }
@@ -171,13 +125,14 @@ private val SensorType.heroCompanion: HeroCompanion
     }
 
 /**
- * A sensor at wizard size. It plays its arrival when the page opens, and answers a touch: the
- * shape rounds under the finger and letting go drops the sensor on again, with one tick. It is
- * a toy, not a control, so it adds nothing for accessibility services to announce. Between
- * touches nothing runs.
+ * A sensor at wizard size, seated on its patch in a circle. It answers a touch: the circle gives
+ * under the finger and letting go drops the sensor on again, with one tick. It is a toy, not a
+ * control, so it adds nothing for accessibility services to announce. Between touches nothing
+ * runs.
  *
  * Beside it, CareSens Air's applicator lifts away from the sensor it has just placed, and a
- * phone comes in over the Libre, its signal rippling out once from the sensor.
+ * phone comes in over the Libre, its signal rippling out once from the sensor. That plays the
+ * first time a hero opens after launch; later visits find it already in place.
  */
 @Composable
 internal fun SensorHeroArt(
@@ -193,9 +148,11 @@ internal fun SensorHeroArt(
     val companionKind = type.heroCompanion
 
     // 0 = on top of the sensor, 1 = moved aside.
-    val companion = remember { Animatable(0f) }
+    val firstVisit = remember(type) { heroesPlayed.add(type) }
+    val companion = remember { Animatable(if (firstVisit) 0f else 1f) }
     val signal = remember { Animatable(1f) }
     LaunchedEffect(plays) {
+        if (plays == 0 && !firstVisit) return@LaunchedEffect
         if (companionKind != HeroCompanion.NONE) {
             companion.snapTo(0f)
             companion.animateTo(1f, ExpressiveMotion.slowSpatial())
@@ -257,9 +214,9 @@ internal fun SensorHeroArt(
             tileSize = tileSize,
             interactionSource = interactionSource,
             modifier = Modifier.offset(x = tileShift),
-            arrivalOrder = 0,
             replay = plays,
             onPad = true,
+            round = true,
         )
         if (companionKind != HeroCompanion.NONE) {
             Canvas(
