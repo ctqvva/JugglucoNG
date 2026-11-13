@@ -66,6 +66,23 @@ class OttaiFirmwareRecoveryUiTests {
         compose.runOnIdle { assertEquals(1, discarded); assertEquals(1, dismissed) }
     }
 
+    @Test fun sensorThatNeverLinkedAsksForAWakeAndRetryWithoutACode() {
+        var retried = 0
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.FAILED,
+                    errorCode = OttaiFirmwareSession.SENSOR_NOT_FOUND), false,
+                    onInstall = {}, onPrepare = {}, onDiscard = {}, onDismiss = {}, onRetry = { retried++ })
+            }
+        }
+        compose.onNodeWithText(text(R.string.ottai_nfc_hint)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_setup_failed)).assertDoesNotExist()
+        compose.onNodeWithText(OttaiFirmwareSession.SENSOR_NOT_FOUND, substring = true).assertDoesNotExist()
+        capture("sensor-not-found")
+        compose.onNodeWithText(text(R.string.ottai_retry)).performClick()
+        compose.runOnIdle { assertEquals(1, retried) }
+    }
+
     @Test fun verifiedFreshFirmwareWaitsForASeparatePreparationConfirmation() {
         var prepared = 0
         compose.setContent {

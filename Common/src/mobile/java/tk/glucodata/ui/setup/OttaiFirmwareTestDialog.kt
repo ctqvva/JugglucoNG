@@ -153,6 +153,9 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
     val showCloudRecheck = state.canRecheckWithCloudAuth && !pending && !prepareForSetup
     var confirmInstall by remember { mutableStateOf(false) }
     var confirmParameters by remember { mutableStateOf(false) }
+    // Nothing was sent to the sensor: say how to reach it, without a diagnostic code.
+    val sensorNotFound = state.stage == OttaiFirmwareStage.FAILED &&
+        state.errorCode == OttaiFirmwareSession.SENSOR_NOT_FOUND
     val stageText = when (state.stage) {
         OttaiFirmwareStage.CONNECTING -> R.string.ottai_ota_connecting
         OttaiFirmwareStage.AUTHENTICATING -> R.string.ottai_ota_authenticating
@@ -179,6 +182,7 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
             state.errorCode.contains(OttaiCloudClient.BIZ_TOKEN_INVALID, true) -> R.string.ottai_session_invalid
             state.errorCode.contains(OttaiCloudClient.BIZ_OTA_UPGRADE_REQUIRED, true) -> R.string.ottai_ota_upgrade_required
             pending -> R.string.ottai_ota_failed
+            sensorNotFound -> R.string.ottai_nfc_hint
             else -> R.string.ottai_setup_failed
         }
         OttaiFirmwareStage.CLOSED -> R.string.cancel
@@ -207,7 +211,7 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
                         )
                     }
                 }
-                if (state.errorCode.isNotEmpty()) Text(stringResource(R.string.ottai_ota_error_code, state.errorCode))
+                if (state.errorCode.isNotEmpty() && !(sensorNotFound && !pending)) Text(stringResource(R.string.ottai_ota_error_code, state.errorCode))
             }
         },
         confirmButton = {

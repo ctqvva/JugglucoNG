@@ -59,6 +59,8 @@ internal class OttaiFirmwareSession private constructor(
     private var expectedService: UUID? = null
     private var operationTimeout: Runnable? = null
     private var discoveryStarted = false
+    /** Whether the current connect attempt ever reached the sensor. */
+    private var linked = false
     private var discoveryGate: OttaiFirmwareDiscovery? = null
     private val recovery = AtomicFile(File(context.filesDir, "ottai-ota/$sensorId.bin"))
     private val controller = OttaiFirmwareController(sensorId, materials, this, mode, prepareForSetup) { state ->
@@ -95,6 +97,9 @@ internal class OttaiFirmwareSession private constructor(
     }
 
     companion object {
+        /** No link was made: the sensor was asleep or out of range, not a protocol failure. */
+        const val SENSOR_NOT_FOUND = "sensor_not_found"
+
         private fun preparationPrefs(context: Context) = context.getSharedPreferences("ottai-preparation", Context.MODE_PRIVATE)
 
         fun hasPendingPreparation(context: Context, sensorId: String): Boolean =
@@ -206,6 +211,7 @@ internal class OttaiFirmwareSession private constructor(
         connectCompletion = done
         mtu = 23
         discoveryStarted = false
+        linked = false
         log("connect address=$address")
         val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
         if (adapter?.isEnabled != true) { controller.fail("bluetooth_off"); return }
@@ -241,8 +247,12 @@ internal class OttaiFirmwareSession private constructor(
         override fun onConnectionStateChange(current: BluetoothGatt, status: Int, newState: Int) = dispatch(current) {
             log("connection status=$status state=$newState")
             if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED) {
-                controller.fail("disconnected_status=$status")
+                // A direct connect that never links ends ~30 s later with a stack-specific
+                // timeout status (147, or 255 on some Xiaomi builds): the sensor was not
+                // advertising. A fresh sensor stops after a few minutes until it is woken again.
+                controller.fail(if (linked) "disconnected_status=$status" else SENSOR_NOT_FOUND)
             } else if (newState == BluetoothProfile.STATE_CONNECTED) {
+                linked = true
                 current.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
                 // Like the normal driver, defer discovery until the last MTU callback settles.
                 // Starting on the first of two callbacks can lose service discovery on Mi9T.
@@ -362,7 +372,7 @@ internal class OttaiFirmwareSession private constructor(
 
     private fun armTimeout(code: String, delayMs: Long = 20_000L) {
         cancelTimeout()
-        operationTimeout = Runnable { controller.fail(code) }.also { handler.postDelayed(it, delayMs) }
+        operationTimeout = Runnable { controller.fail(if (code == "connect_timeout" && !linked) SENSOR_NOT_FOUND else code) }.also { handler.postDelayed(it, delayMs) }
     }
 
     private fun cancelTimeout() {
