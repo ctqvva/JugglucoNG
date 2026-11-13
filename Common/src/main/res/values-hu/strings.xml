@@ -1065,6 +1065,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_fetch_failed">Nem sikerült lekérni a szenzor hitelesítő adatait.</string>
     <string name="ottai_server_unreachable">Nem érhető el az Ottai szerver. Próbálja újra.</string>
     <string name="ottai_connect_failed">Nem sikerült elindítani a kapcsolatot. Próbálja újra.</string>
+    <string name="ottai_ota_link_closed">A szenzor bontotta a kapcsolatot. Próbálja újra a folytatáshoz.</string>
     <string name="ottai_already_binding_hint">A fiókjához még egy másik szenzor van kötve. Oldja fel a kötését a Mentett szenzorok alatt, majd próbálja újra.</string>
     <string name="ottai_ota_upgrade_required">Az Ottai szolgáltatás firmware-frissítést kért a szenzor hozzárendelésekor. Próbálja újra a firmware beállítását, vagy importálja a mentett hitelesítő adatokat. A hivatalos Ottai alkalmazást is kipróbálhatja.</string>
     <string name="ottai_retry">Újrapróbálás</string>

@@ -2665,6 +2665,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_fetch_failed">Lama heli karo aqoonsiga dareemahan.</string>
     <string name="ottai_server_unreachable">Lama gaari karo server-ka Ottai. Isku day mar kale.</string>
     <string name="ottai_connect_failed">Lama bilaabi karo xiriirka. Isku day mar kale.</string>
+    <string name="ottai_ota_link_closed">Dareemuhu wuu jaray xiriirka. Isku day mar kale si aad u sii wadato.</string>
     <string name="ottai_already_binding_hint">Akoonkaagu weli wuxuu ku xiran yahay dareeme kale. Ka fur Dareemayaal la keydiyey, kadibna isku day mar kale.</string>
     <string name="ottai_ota_upgrade_required">Adeegga Ottai wuxuu codsaday cusboonaysiinta firmware-ka markii la xirayay dareemahan. Mar kale isku day dejinta firmware-ka ama soo geli xogta aqoonsiga ee kaydsan. Waxa kale oo aad tijaabin kartaa app-ka rasmiga ah ee Ottai.</string>
     <string name="ottai_retry">Mar kale isku day</string>

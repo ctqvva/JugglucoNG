@@ -250,7 +250,7 @@ internal class OttaiFirmwareSession private constructor(
                 // A direct connect that never links ends ~30 s later with a stack-specific
                 // timeout status (147, or 255 on some Xiaomi builds): the sensor was not
                 // advertising. A fresh sensor stops after a few minutes until it is woken again.
-                controller.fail(if (linked) "disconnected_status=$status" else SENSOR_NOT_FOUND)
+                if (linked) controller.linkLost("disconnected_status=$status") else controller.fail(SENSOR_NOT_FOUND)
             } else if (newState == BluetoothProfile.STATE_CONNECTED) {
                 linked = true
                 current.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)

@@ -2480,6 +2480,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_fetch_failed">Impossible de récupérer les identifiants de ce capteur.</string>
     <string name="ottai_server_unreachable">Impossible de joindre le serveur Ottai. Réessayez.</string>
     <string name="ottai_connect_failed">Impossible de démarrer la connexion. Réessayez.</string>
+    <string name="ottai_ota_link_closed">Le capteur a mis fin à la connexion. Réessayez pour continuer.</string>
     <string name="ottai_already_binding_hint">Votre compte a encore un autre capteur lié. Déliez-le sous Capteurs enregistrés, puis réessayez.</string>
     <string name="ottai_ota_upgrade_required">Le service Ottai a demandé une mise à jour du micrologiciel lors de la liaison du capteur. Réessayez la configuration ou importez les identifiants enregistrés. Vous pouvez aussi essayer l’application officielle Ottai.</string>
     <string name="ottai_retry">Réessayer</string>

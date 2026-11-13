@@ -2584,6 +2584,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_fetch_failed">Die Zugangsdaten dieses Sensors konnten nicht abgerufen werden.</string>
     <string name="ottai_server_unreachable">Ottai-Server nicht erreichbar. Bitte erneut versuchen.</string>
     <string name="ottai_connect_failed">Die Verbindung konnte nicht gestartet werden. Versuche es erneut.</string>
+    <string name="ottai_ota_link_closed">Der Sensor hat die Verbindung beendet. Versuche es erneut, um fortzufahren.</string>
     <string name="ottai_already_binding_hint">Dein Konto hat noch einen anderen Sensor gebunden. Löse ihn unter „Gespeicherte Sensoren“ und versuche es dann erneut.</string>
     <string name="ottai_ota_upgrade_required">Der Ottai-Dienst hat beim Verknüpfen dieses Sensors ein Firmwareupdate angefordert. Wiederhole die Firmwareeinrichtung oder importiere gespeicherte Zugangsdaten. Du kannst auch die offizielle Ottai-App versuchen.</string>
     <string name="ottai_retry">Erneut versuchen</string>

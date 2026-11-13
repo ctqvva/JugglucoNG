@@ -2517,6 +2517,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_fetch_failed">Kon de inloggegevens van deze sensor niet ophalen.</string>
     <string name="ottai_server_unreachable">Kan de Ottai-server niet bereiken. Probeer het opnieuw.</string>
     <string name="ottai_connect_failed">Kon de verbinding niet starten. Probeer het opnieuw.</string>
+    <string name="ottai_ota_link_closed">De sensor heeft de verbinding verbroken. Probeer het opnieuw om verder te gaan.</string>
     <string name="ottai_already_binding_hint">Je account heeft nog een andere sensor gekoppeld. Ontkoppel die onder Opgeslagen sensoren en probeer het opnieuw.</string>
     <string name="ottai_ota_upgrade_required">De Ottai-dienst vroeg om een firmware-update bij het koppelen van deze sensor. Probeer de firmware-instelling opnieuw of importeer opgeslagen inloggegevens. Je kunt ook de officiële Ottai-app proberen.</string>
     <string name="ottai_retry">Opnieuw proberen</string>

@@ -2474,6 +2474,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_fetch_failed">Kunde inte hämta sensorns inloggningsuppgifter.</string>
     <string name="ottai_server_unreachable">Det gick inte att nå Ottai-servern. Försök igen.</string>
     <string name="ottai_connect_failed">Kunde inte starta anslutningen. Försök igen.</string>
+    <string name="ottai_ota_link_closed">Sensorn avslutade anslutningen. Försök igen för att fortsätta.</string>
     <string name="ottai_already_binding_hint">Ditt konto har fortfarande en annan sensor kopplad. Koppla från den under Sparade sensorer och försök igen.</string>
     <string name="ottai_ota_upgrade_required">Ottai-tjänsten begärde en firmwareuppdatering när sensorn skulle kopplas. Försök med firmwareinställningen igen eller importera sparade inloggningsuppgifter. Du kan också prova den officiella Ottai-appen.</string>
     <string name="ottai_retry">Försök igen</string>

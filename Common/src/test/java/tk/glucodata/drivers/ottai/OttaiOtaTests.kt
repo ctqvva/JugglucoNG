@@ -850,6 +850,33 @@ class OttaiFirmwareControllerTests {
         assertTrue(io.cleared)
     }
 
+    @Test fun idleLinkDropKeepsTheAnswerButEndsItsActions() {
+        // 2026-11-14 trace: NO_UPDATE, then the sensor closed the idle link 54 s later (status 19).
+        val (controller, io) = normal { it.noOffer = true }
+        assertEquals(OttaiFirmwareStage.NO_UPDATE, controller.state.stage)
+        assertTrue(controller.state.canRecheckWithCloudAuth)
+        controller.linkLost("disconnected_status=19")
+        assertEquals(OttaiFirmwareStage.NO_UPDATE, controller.state.stage)
+        assertEquals("", controller.state.errorCode)
+        assertTrue(controller.state.linkClosed)
+        assertFalse(controller.state.canPrepareParameters)
+        assertFalse(controller.state.canRecheckWithCloudAuth)
+        assertTrue(io.closed)
+        controller.prepareOnly()
+        assertNull(io.refresh)
+    }
+
+    @Test fun linkDropWhileWorkingStillFails() {
+        val (controller, io) = normal()
+        assertEquals(OttaiFirmwareStage.READY, controller.state.stage)
+        controller.install()
+        controller.linkLost("disconnected_status=19")
+        assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+        assertEquals("disconnected_status=19", controller.state.errorCode)
+        assertFalse(controller.state.linkClosed)
+        assertTrue(io.closed)
+    }
+
     @Test fun firmwareDownloadFailureDoesNotEnableProvisioningForStartedSensors() {
         val (controller, io) = normal(command = 3, mode = OttaiFirmwareMode.STARTED_SENSOR) {
             it.offerFailure = "download_status"

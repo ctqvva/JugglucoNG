@@ -2538,6 +2538,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_fetch_failed">Не ўдалося атрымаць ключы гэтага датчыка.</string>
     <string name="ottai_server_unreachable">Не ўдалося звязацца з серверам Ottai. Паспрабуйце яшчэ раз.</string>
     <string name="ottai_connect_failed">Не ўдалося пачаць падключэнне. Паспрабуйце зноў.</string>
+    <string name="ottai_ota_link_closed">Датчык завяршыў падключэнне. Паспрабуйце зноў, каб працягнуць.</string>
     <string name="ottai_already_binding_hint">Да ўліковага запісу ўсё яшчэ прывязаны іншы датчык. Адвяжыце яго ў раздзеле «Захаваныя датчыкі» і паспрабуйце зноў.</string>
     <string name="ottai_ota_upgrade_required">Пры прывязцы датчыка сэрвіс Ottai запытаў абнаўленне прашыўкі. Паўтарыце наладку прашыўкі або імпартуйце захаваныя ключы. Таксама можна паспрабаваць афіцыйную праграму Ottai.</string>
     <string name="ottai_retry">Паўтарыць</string>

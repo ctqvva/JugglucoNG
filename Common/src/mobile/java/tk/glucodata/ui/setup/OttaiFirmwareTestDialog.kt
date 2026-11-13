@@ -197,6 +197,7 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
                 if (!prepareForSetup) Text(stringResource(if (mode == OttaiFirmwareMode.STARTED_SENSOR) R.string.ottai_ota_started_mode else R.string.ottai_ota_fresh_mode))
                 if (mode == OttaiFirmwareMode.STARTED_SENSOR) Text(stringResource(R.string.ottai_ota_mode_hint))
                 Text(stringResource(stageText))
+                if (state.linkClosed) Text(stringResource(R.string.ottai_ota_link_closed))
                 if (showCloudRecheck) Text(stringResource(R.string.ottai_ota_cloud_recheck_hint))
                 state.before?.let { ObservationText(R.string.ottai_ota_before, it) }
                 state.after?.let { ObservationText(R.string.ottai_ota_after, it) }
@@ -216,11 +217,11 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
         },
         confirmButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (state.stage == OttaiFirmwareStage.FAILED && onRetry != null) {
+                if ((state.stage == OttaiFirmwareStage.FAILED || state.linkClosed) && onRetry != null) {
                     Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_retry)) }
                 }
-                if (state.stage == OttaiFirmwareStage.READY) {
+                if (state.stage == OttaiFirmwareStage.READY && !state.linkClosed) {
                     Button(onClick = { confirmInstall = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_ota_install)) }
                 }
