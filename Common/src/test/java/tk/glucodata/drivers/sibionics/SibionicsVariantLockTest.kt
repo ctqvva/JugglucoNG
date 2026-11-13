@@ -76,7 +76,8 @@ class SibionicsVariantLockTest {
             order.distinctBy { it.appId + it.registrationKeyHex }.size,
         )
         SibionicsConstants.Variant.entries
-            .filter { it != chinese }
+            // GS3 CN never enters the V120 key rotation: its own driver authenticates it.
+            .filter { it != chinese && !it.usesGs3Protocol }
             .forEach { assertTrue(it.id, order.contains(it)) }
     }
 

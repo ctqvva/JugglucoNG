@@ -394,6 +394,7 @@
     <string name="scan_sensor_title">Scanner le code QR</string>
     <string name="scan_sensor_instruction">Scannez le code QR sur votre boîte de capteur Sibionics générique.</string>
     <string name="scan_sensor_instruction_sibionics2">Scannez le code de connexion sur le transmetteur Sibionics 2, ou choisissez le transmetteur via Bluetooth ci-dessous.</string>
+    <string name="scan_sensor_instruction_gs3cn">Le Sibionics GS3 (Chine) s\'associe par Bluetooth. Gardez le capteur à proximité et choisissez-le dans la liste ci-dessous.</string>
     <string name="scan_qr_button">Scanner Code QR</string>
     <string name="select_gallery_button">Sélectionner depuis la Galerie</string>
     <string name="skip_fake_sensor">Ignorer (Utiliser faux capteur)</string>
@@ -908,6 +909,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="senthosts">Juggluco sends to maximal 6 hosts</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (Chine)</string>
     <string name="speakalarms">Speak alarms</string>
     <string name="speakglucose">Speak glucose</string>
     <string name="speakmessages">Speak messages</string>

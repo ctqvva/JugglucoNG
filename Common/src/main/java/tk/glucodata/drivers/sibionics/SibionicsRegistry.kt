@@ -43,6 +43,7 @@ object SibionicsRegistry {
     private const val PREF_ALGORITHM_SENSITIVITY_PREFIX = "sibionics_managed_algorithm_sensitivity_"
     private const val PREF_LOCAL_REBUILD_FINGERPRINT_PREFIX = "sibionics_managed_rebuild_fingerprint_"
     private const val PREF_INTEGRATED_CALIBRATION_BASELINE_PREFIX = "sibionics_managed_calibration_baseline_"
+    private const val PREF_GS3_IDENTITY_MAC_PREFIX = "sibionics_managed_gs3_identity_mac_"
     private const val SIBIONICS_GTIN_PREFIX = "0697283164"
     private val SENSOR_QR_PATTERN = Regex(
         "^\u001D?01(\\d{14})11\\d{6}17\\d{6}10[A-Z0-9]{8,20}\u001D?21([A-Z0-9]{10,20})\u001D?$",
@@ -123,6 +124,8 @@ object SibionicsRegistry {
         when (variant) {
             SibionicsConstants.Variant.SIBIONICS2 -> isV120Identity
             SibionicsConstants.Variant.GS3 -> false
+            // No label format is known for GS3 CN: setup binds it from the Bluetooth list.
+            SibionicsConstants.Variant.GS3_CN -> false
             else -> !isV120Identity
         }
 
@@ -390,6 +393,7 @@ object SibionicsRegistry {
                 remove(PREF_ALGORITHM_SENSITIVITY_PREFIX + id)
                 remove(PREF_LOCAL_REBUILD_FINGERPRINT_PREFIX + id)
                 remove(PREF_INTEGRATED_CALIBRATION_BASELINE_PREFIX + id)
+                remove(PREF_GS3_IDENTITY_MAC_PREFIX + id)
                 // Goes with the start date it guards: a re-added sensor that keeps the old
                 // session's start must also keep the backoff after the reset it was sent.
                 remove(PREF_AUTO_RESET_NOT_BEFORE_PREFIX + id)
@@ -872,7 +876,18 @@ object SibionicsRegistry {
 
     fun createRestoredCallback(context: Context, sensorId: String, dataptr: Long): SuperGattCallback? {
         val record = findRecord(context, sensorId) ?: return null
+        if (record.variant.usesGs3Protocol) {
+            return SibionicsGs3BleManager(record.sensorId, dataptr).also { it.restoreFromPersistence(context) }
+        }
         return SibionicsBleManager(record.sensorId, dataptr).also { it.restoreFromPersistence(context) }
+    }
+
+    /** The GS3 protocol identity (from 0x2A25 or the advertisement), as AA:BB:CC:DD:EE:FF. */
+    internal fun loadGs3IdentityMac(context: Context, sensorId: String): String? =
+        prefs(context).getString(PREF_GS3_IDENTITY_MAC_PREFIX + sensorId, null)
+
+    internal fun saveGs3IdentityMac(context: Context, sensorId: String, mac: String) {
+        prefs(context).edit().putString(PREF_GS3_IDENTITY_MAC_PREFIX + sensorId, mac).apply()
     }
 
     private fun writeRecords(context: Context, records: List<SensorRecord>) {

@@ -402,6 +402,7 @@
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (Shiinaha)</string>
     <string name="datapresent">"Xogta ayaa jirta:"</string>
     <string name="overwrite">Dib u qor?</string>
     <string name="autoqr">Si toos ah QR</string>
@@ -952,6 +953,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="scan_sensor_title">Sawir code-ka QR</string>
     <string name="scan_sensor_instruction">Ka sawir koodka QR ee sanduuqa dareenka guud ee Sibionics.</string>
     <string name="scan_sensor_instruction_sibionics2">Sawir koodhka isku xirka ee ku yaal gudbiyaha Sibionics 2, ama hoos kaga dooro gudbiyaha Bluetooth-ka.</string>
+    <string name="scan_sensor_instruction_gs3cn">Sibionics GS3 (Shiinaha) waxaa lagu xiriiriyaa Bluetooth. Dareemaha u dhowee oo hoos kaga dooro liiska.</string>
     <string name="scan_qr_button">Sawir code-ka QR</string>
     <string name="select_gallery_button">Ka dooro Gallery</string>
     <string name="skip_fake_sensor">Ka bood (Isticmaal sensor been abuur ah)</string>

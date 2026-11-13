@@ -34,6 +34,7 @@ class ManagedSensorCloneOwnershipTests {
     /** Drivers that hold a sensor over this device's own radio. */
     private val localDrivers = listOf(
         "Common/src/main/java/tk/glucodata/drivers/sibionics/SibionicsBleManager.kt",
+        "Common/src/main/java/tk/glucodata/drivers/sibionics/SibionicsGs3BleManager.kt",
         "Common/src/main/java/tk/glucodata/drivers/ottai/OttaiBleManager.kt",
         "Common/src/main/java/tk/glucodata/drivers/anytime/AnytimeBleManager.kt",
         "Common/src/main/java/tk/glucodata/drivers/icanhealth/ICanHealthBleManager.kt",

@@ -544,6 +544,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="scan_sensor_title">QR-Code scannen</string>
     <string name="scan_sensor_instruction">Scannen Sie den QR-Code auf Ihrer generischen Sibionics-Sensorbox.</string>
     <string name="scan_sensor_instruction_sibionics2">Scannen Sie den Verbindungscode auf dem Sibionics 2 Transmitter oder wählen Sie den Transmitter unten über Bluetooth.</string>
+    <string name="scan_sensor_instruction_gs3cn">Sibionics GS3 (China) wird über Bluetooth gekoppelt. Halten Sie den Sensor in der Nähe und wählen Sie ihn unten aus der Liste.</string>
     <string name="scan_qr_button">QR-Code scannen</string>
     <string name="select_gallery_button">Aus Galerie auswählen</string>
     <string name="skip_fake_sensor">Überspringen (simulierten Sensor verwenden)</string>
@@ -1030,6 +1031,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="add_sensor_title">Sensor hinzufügen</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (China)</string>
     <string name="stability">Stabilität</string>
     <string name="start_tracking">Statistiken erscheinen, sobald Glukosewerte erfasst werden</string>
     <string name="statistics_subtitle">Ihre Glukose-Auswertung</string>

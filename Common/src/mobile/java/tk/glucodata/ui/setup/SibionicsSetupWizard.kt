@@ -55,16 +55,32 @@ import kotlinx.coroutines.withContext
 import tk.glucodata.drivers.sibionics.SibionicsConstants
 import tk.glucodata.drivers.sibionics.SibionicsRegistry
 
-enum class SibionicsType(val displayNameRes: Int, val subtype: Int, val setupVisible: Boolean = true) {
+/**
+ * @param codeSetup whether the sensor can be added from its QR code or printed label. GS3 CN has
+ *   no known label format, so it is added only by picking it from the Bluetooth list.
+ */
+enum class SibionicsType(
+    val displayNameRes: Int,
+    val subtype: Int,
+    val setupVisible: Boolean = true,
+    val codeSetup: Boolean = true,
+    private val managedVariant: SibionicsConstants.Variant? = null,
+) {
     EU(R.string.eusibionics, 0),
     HEMATONIX(R.string.hematonix, 1),
     CHINESE(R.string.chsibionics, 2),
     SIBIONICS2(R.string.sibionics2, 3),
-    GS3(R.string.gs3, 4, setupVisible = false),
-}
+    GS3_CN(
+        R.string.gs3cn,
+        subtype = -1,
+        codeSetup = false,
+        managedVariant = SibionicsConstants.Variant.GS3_CN,
+    ),
+    GS3(R.string.gs3, 4, setupVisible = false);
 
-private fun SibionicsType.toManagedVariant(): SibionicsConstants.Variant =
-    SibionicsConstants.Variant.fromLegacySubtype(subtype)
+    internal fun toManagedVariant(): SibionicsConstants.Variant =
+        managedVariant ?: SibionicsConstants.Variant.fromLegacySubtype(subtype)
+}
 
 /**
  * Sibionics 2 split labels carry the probe identifier in AI (21) (e.g. EU2VCZUQPSHD5Q), not the
@@ -665,7 +681,7 @@ fun ScanSensorStep(
     ) {
         item {
             Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
-            InlineQrScannerCard(
+            if (selectedType.codeSetup) InlineQrScannerCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(if (compact) 320.dp else 380.dp),
@@ -684,10 +700,11 @@ fun ScanSensorStep(
                 text = scanRejection
                     // The split generation needs the transmitter connection code; the generic
                     // text sends the user to the sensor box, whose code is then rejected.
-                    ?: if (selectedType == SibionicsType.SIBIONICS2) {
-                        stringResource(R.string.scan_sensor_instruction_sibionics2)
-                    } else {
-                        stringResource(R.string.scan_sensor_instruction)
+                    ?: when {
+                        selectedType == SibionicsType.SIBIONICS2 ->
+                            stringResource(R.string.scan_sensor_instruction_sibionics2)
+                        !selectedType.codeSetup -> stringResource(R.string.scan_sensor_instruction_gs3cn)
+                        else -> stringResource(R.string.scan_sensor_instruction)
                     },
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
@@ -792,7 +809,7 @@ fun ScanSensorStep(
             }
         }
 
-        item {
+        if (selectedType.codeSetup) item {
             Spacer(modifier = Modifier.height(sectionGap))
             // Add Gallery Button
             OutlinedButton(

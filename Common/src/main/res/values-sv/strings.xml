@@ -437,6 +437,7 @@
     <string name="scan_sensor_title">Skanna QR-kod</string>
     <string name="scan_sensor_instruction">Skanna QR-koden på förpackningen till din Sibionics-sensor.</string>
     <string name="scan_sensor_instruction_sibionics2">Skanna anslutningskoden på Sibionics 2-sändaren, eller välj sändaren via Bluetooth nedan.</string>
+    <string name="scan_sensor_instruction_gs3cn">Sibionics GS3 (Kina) paras via Bluetooth. Håll sensorn nära och välj den i listan nedan.</string>
     <string name="scan_qr_button">Skanna QR</string>
     <string name="select_gallery_button">Välj från Galleri</string>
     <string name="skip_fake_sensor">Hoppa över (Använd falsk sensor)</string>
@@ -920,6 +921,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensorstreamed"></string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (Kina)</string>
     <string name="specifyblood">"First select the label for blood glucose"</string>
     <string name="stability">Stabilitet</string>
     <string name="start_tracking">Börja spåra din glukos för att se statistik</string>
