@@ -1470,10 +1470,10 @@ public class NotificationChartDrawer {
         // led by a drawn separator dot like the dashboard hero's.
         Paint paint2 = new Paint(paint);
         paint2.setTextSize(textSize * 0.7f);
-        float width2 = part2 == null ? 0f : separatorWidth(paint2.getTextSize()) + paint2.measureText(part2);
+        float width2 = part2 == null ? 0f : separatorWidth(paint2.getTextSize(), fontWeight) + paint2.measureText(part2);
         Paint paint3 = new Paint(paint);
         paint3.setTextSize(textSize * 0.6f);
-        float width3 = part3 == null ? 0f : separatorWidth(paint3.getTextSize()) + paint3.measureText(part3);
+        float width3 = part3 == null ? 0f : separatorWidth(paint3.getTextSize(), fontWeight) + paint3.measureText(part3);
 
         int totalWidth = (int) Math.ceil(width1 + width2 + width3 + 1);
         int height = (int) (28 * density * fontSizeScale);
@@ -1498,65 +1498,46 @@ public class NotificationChartDrawer {
 
         if (part2 != null) {
             paint2.setColor(secondaryColor);
-            currentX = drawSeparatedValue(canvas, part2, currentX, y, paint2);
+            currentX = drawSeparatedValue(canvas, part2, currentX, y, paint2, fontWeight);
         }
         if (part3 != null) {
             paint3.setColor(tertiaryColor);
-            drawSeparatedValue(canvas, part3, currentX, y, paint3);
+            drawSeparatedValue(canvas, part3, currentX, y, paint3, fontWeight);
         }
 
         return bitmap;
     }
 
-    // The dashboard hero's separator dot (HeroSeparatorDot), in em of the value it
-    // introduces: diameter, centre above the baseline (half the 0.7 em digit height)
-    // and the gap on each side. Drawn, so it does not depend on the font's "·".
-    private static final float SEPARATOR_DOT_EM = 0.24f;
+    // Separator dot, in em of the value it introduces. Sized to the dashboard as it
+    // looks on screen: about two digit strokes wide (0.16 em at weight 400; the
+    // hero's 0.24 em is of a smaller box), centred on the digits, a half-em gap
+    // each side. Heavier weights get a proportionally heavier dot.
+    private static final float SEPARATOR_DOT_EM = 0.16f;
     private static final float SEPARATOR_CENTER_EM = 0.35f;
     private static final float SEPARATOR_GAP_EM = 0.5f;
     // The hero's dot is 0.72 alpha beside a 0.8 alpha value: a step quieter than the digits.
     private static final float SEPARATOR_ALPHA = 0.85f;
 
-    // On the dashboard the dot is about two strokes of the digits wide. The AOD and
-    // widget fonts come at any weight (and a system font may draw lighter than its
-    // weight says), so the dot is sized from the stroke the font actually draws.
-    private static final float SEPARATOR_DOT_STROKES = 2.1f;
-    private static final float SEPARATOR_DOT_MIN_EM = 0.12f;
-
-    /** Stem width of the font in paint: the narrower of "l" and "I", both plain bars in sans faces. */
-    private static float stemWidth(Paint paint) {
-        android.graphics.Rect bounds = new android.graphics.Rect();
-        paint.getTextBounds("l", 0, 1, bounds);
-        float l = bounds.width();
-        paint.getTextBounds("I", 0, 1, bounds);
-        float i = bounds.width();
-        float stem = Math.min(l, i);
-        return stem > 0f ? stem : Math.max(l, i);
+    private static float separatorDotEm(int fontWeight) {
+        float weight = Math.max(300, Math.min(700, fontWeight));
+        return SEPARATOR_DOT_EM * Math.max(1f, weight / 400f);
     }
 
-    private static float separatorDotDiameter(Paint paint) {
-        float size = paint.getTextSize();
-        float stem = stemWidth(paint);
-        if (!(stem > 0f)) return size * SEPARATOR_DOT_EM;
-        return Math.max(size * SEPARATOR_DOT_MIN_EM, Math.min(size * SEPARATOR_DOT_EM, stem * SEPARATOR_DOT_STROKES));
-    }
-
-    private static float separatorWidth(float size) {
-        return size * (SEPARATOR_GAP_EM * 2f + SEPARATOR_DOT_EM);
+    private static float separatorWidth(float size, int fontWeight) {
+        return size * (SEPARATOR_GAP_EM * 2f + separatorDotEm(fontWeight));
     }
 
     /** Draws "gap dot gap value" at x in paint's size and colour; returns the end x. */
-    private static float drawSeparatedValue(Canvas canvas, String value, float x, float baseline, Paint paint) {
+    private static float drawSeparatedValue(Canvas canvas, String value, float x, float baseline, Paint paint,
+            int fontWeight) {
         float size = paint.getTextSize();
-        // The slot keeps the widest dot so a lighter font does not shift the value.
-        float slot = size * SEPARATOR_DOT_EM;
-        float radius = separatorDotDiameter(paint) / 2f;
-        float centerX = x + size * SEPARATOR_GAP_EM + slot / 2f;
+        float diameter = size * separatorDotEm(fontWeight);
+        float centerX = x + size * SEPARATOR_GAP_EM + diameter / 2f;
         int alpha = paint.getAlpha();
         paint.setAlpha(Math.round(alpha * SEPARATOR_ALPHA));
-        canvas.drawCircle(centerX, baseline - size * SEPARATOR_CENTER_EM, radius, paint);
+        canvas.drawCircle(centerX, baseline - size * SEPARATOR_CENTER_EM, diameter / 2f, paint);
         paint.setAlpha(alpha);
-        float valueX = x + separatorWidth(size);
+        float valueX = x + separatorWidth(size, fontWeight);
         canvas.drawText(value, valueX, baseline, paint);
         return valueX + paint.measureText(value);
     }
