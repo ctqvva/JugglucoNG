@@ -78,7 +78,7 @@
  <string name="graphrange">"Grafiekbereik: "</string>
  <string name="unit">"Eenheid: "</string>
  <string name="glucoseaxisleft">Glucose-as links</string>
- <string name="startsapp">Scannen start Juggluco</string>
+ <string name="startsapp">Scannen start Glucy</string>
  <string name="disablecamerakey">Disable camera key</string>
  <string name="invertscreen">Scherm omkeren</string>
  <string name="nfcsound">NFC geluid</string>

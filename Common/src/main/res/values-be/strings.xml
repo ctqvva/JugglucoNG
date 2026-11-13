@@ -291,7 +291,7 @@
 <string name="system_ui">System UI</string>
 <string name="sensor">Датчык</string>
 <string name="settings">Налады</string>
-<string name="aboutname">Аб Juggluco</string>
+<string name="aboutname">Аб Glucy</string>
 <string name="export">Экспарт</string>
 <string name="mirror">Клон</string>
 <string name="new_amount">Новая сума</string>
@@ -1154,7 +1154,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="IOBhelp">Даведка IOB</string>
     <string name="NightPost">Начная пошта</string>
     <string name="Nightscouthelp">Дапамога начнога разведчыка</string>
-    <string name="about">Аб Juggluco</string>
+    <string name="about">Аб Glucy</string>
     <string name="active_positions_randomized">Актыўныя пазіцыі (рандомізірованный)</string>
     <string name="active_time_range">Актыўны дыяпазон часу</string>
     <string name="add_custom_sound">Дадаць уласны гук</string>
