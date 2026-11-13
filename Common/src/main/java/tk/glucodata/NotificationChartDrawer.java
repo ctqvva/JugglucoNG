@@ -1498,11 +1498,11 @@ public class NotificationChartDrawer {
 
         if (part2 != null) {
             paint2.setColor(secondaryColor);
-            currentX = drawSeparatedValue(canvas, part2, currentX, y, paint2, fontWeight);
+            currentX = drawSeparatedValue(canvas, part2, currentX, y, paint2);
         }
         if (part3 != null) {
             paint3.setColor(tertiaryColor);
-            drawSeparatedValue(canvas, part3, currentX, y, paint3, fontWeight);
+            drawSeparatedValue(canvas, part3, currentX, y, paint3);
         }
 
         return bitmap;
@@ -1517,12 +1517,28 @@ public class NotificationChartDrawer {
     // The hero's dot is 0.72 alpha beside a 0.8 alpha value: a step quieter than the digits.
     private static final float SEPARATOR_ALPHA = 0.85f;
 
-    /** The 0.24 em suits regular (400) strokes; lighter or heavier weights thin or
-     * thicken the digits, so the dot follows them instead of outweighing a light font. */
-    private static float separatorDotEm(int fontWeight) {
-        // Stroke width grows about linearly with weight; keep the dot ~2.7 strokes wide.
-        float weight = Math.max(200, Math.min(500, fontWeight));
-        return SEPARATOR_DOT_EM * weight / 400f;
+    // On the dashboard the dot is about two strokes of the digits wide. The AOD and
+    // widget fonts come at any weight (and a system font may draw lighter than its
+    // weight says), so the dot is sized from the stroke the font actually draws.
+    private static final float SEPARATOR_DOT_STROKES = 2.1f;
+    private static final float SEPARATOR_DOT_MIN_EM = 0.12f;
+
+    /** Stem width of the font in paint: the narrower of "l" and "I", both plain bars in sans faces. */
+    private static float stemWidth(Paint paint) {
+        android.graphics.Rect bounds = new android.graphics.Rect();
+        paint.getTextBounds("l", 0, 1, bounds);
+        float l = bounds.width();
+        paint.getTextBounds("I", 0, 1, bounds);
+        float i = bounds.width();
+        float stem = Math.min(l, i);
+        return stem > 0f ? stem : Math.max(l, i);
+    }
+
+    private static float separatorDotDiameter(Paint paint) {
+        float size = paint.getTextSize();
+        float stem = stemWidth(paint);
+        if (!(stem > 0f)) return size * SEPARATOR_DOT_EM;
+        return Math.max(size * SEPARATOR_DOT_MIN_EM, Math.min(size * SEPARATOR_DOT_EM, stem * SEPARATOR_DOT_STROKES));
     }
 
     private static float separatorWidth(float size) {
@@ -1530,12 +1546,11 @@ public class NotificationChartDrawer {
     }
 
     /** Draws "gap dot gap value" at x in paint's size and colour; returns the end x. */
-    private static float drawSeparatedValue(Canvas canvas, String value, float x, float baseline, Paint paint,
-            int fontWeight) {
+    private static float drawSeparatedValue(Canvas canvas, String value, float x, float baseline, Paint paint) {
         float size = paint.getTextSize();
-        // Width keeps the 400-weight dot so weight changes do not shift the value.
+        // The slot keeps the widest dot so a lighter font does not shift the value.
         float slot = size * SEPARATOR_DOT_EM;
-        float radius = size * separatorDotEm(fontWeight) / 2f;
+        float radius = separatorDotDiameter(paint) / 2f;
         float centerX = x + size * SEPARATOR_GAP_EM + slot / 2f;
         int alpha = paint.getAlpha();
         paint.setAlpha(Math.round(alpha * SEPARATOR_ALPHA));
@@ -1674,14 +1689,16 @@ public class NotificationChartDrawer {
 
         float layoutDensity = density * 2.0f;
         int gap = Math.max(1, (int) (8f * layoutDensity * fontSizeScale));
-        int arrowGap = Math.max(1, (int) (2.5f * layoutDensity * fontSizeScale));
+        // Gaps are measured up front: each bitmap is recycled once drawn.
+        int[] gaps = new int[bitmaps.size()];
         int totalWidth = 0;
         int maxHeight = 1;
         for (int i = 0; i < bitmaps.size(); i++) {
             Bitmap bitmap = bitmaps.get(i);
             totalWidth += bitmap.getWidth();
             if (i > 0) {
-                totalWidth += isArrow.get(i) ? arrowGap : gap;
+                gaps[i] = isArrow.get(i) ? arrowGap(bitmaps.get(i - 1)) : gap;
+                totalWidth += gaps[i];
             }
             maxHeight = Math.max(maxHeight, bitmap.getHeight());
         }
@@ -1691,7 +1708,7 @@ public class NotificationChartDrawer {
         for (int i = 0; i < bitmaps.size(); i++) {
             Bitmap bitmap = bitmaps.get(i);
             if (i > 0) {
-                x += isArrow.get(i) ? arrowGap : gap;
+                x += gaps[i];
             }
             float y = (maxHeight - bitmap.getHeight()) / 2.0f;
             canvas.drawBitmap(bitmap, x, y, null);
@@ -1701,6 +1718,14 @@ public class NotificationChartDrawer {
             }
         }
         return output;
+    }
+
+    /** Space before a trend arrow: a fraction of the value it follows, so it grows with the text. */
+    public static final float ARROW_GAP_EM = 0.3f;
+
+    /** Arrow gap for a value bitmap from drawGlucoseText (22 units of text in a 28-unit-high bitmap). */
+    private static int arrowGap(Bitmap valueBitmap) {
+        return Math.max(1, Math.round(valueBitmap.getHeight() * 22f / 28f * ARROW_GAP_EM));
     }
 
     /**
