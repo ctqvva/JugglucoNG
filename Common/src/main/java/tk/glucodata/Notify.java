@@ -2592,6 +2592,18 @@ public class Notify {
         }
     }
 
+    /** Whether the system is in any Do Not Disturb mode; false where it cannot be read. */
+    private boolean isDoNotDisturbActive() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || notificationManager == null) {
+            return false;
+        }
+        final int filter = notificationManager.getCurrentInterruptionFilter();
+        if (doLog) {
+            Log.i(LOG_ID, "getCurrentInterruptionFilter()=" + filter);
+        }
+        return AlertDeliveryPolicy.isDoNotDisturbActive(filter);
+    }
+
     private synchronized void playringhier(Ringtone ring, int duration, boolean sound, boolean flash, boolean vibrate,
             boolean disturb, int kind) {
         playringhier(new AlertSoundHandle(ring, null, resolveSoundTitle(null, ring)),
@@ -2699,6 +2711,16 @@ public class Notify {
         final boolean quietSuppressesVibration = AlertDeliveryPolicy.shouldSuppressVibration(quietWindow,
                 quietMode, quietBreakThrough);
 
+        // Do Not Disturb: with it on and "Override silent mode" off, the alert makes no
+        // sound and does not vibrate. One decision for both, so one cannot slip past
+        // the other (#902). The notification itself is not an effect and stays.
+        final boolean dndActive = isDoNotDisturbActive();
+        final boolean dndBlocksEffects = AlertDeliveryPolicy.dndBlocksEffects(dndActive, disturb);
+        if (doLog) {
+            Log.i(LOG_ID, "dnd: active=" + dndActive + " override=" + disturb + " blocksEffects="
+                    + dndBlocksEffects + " kind=" + kind);
+        }
+
         // Stop the previous alarm before claiming focus for this one: its stop callback
         // clears notifyfocus and releases the previous alarm's request.
         stopalarm();
@@ -2706,9 +2728,10 @@ public class Notify {
         doTurnFocuson();
         // final int[] curfilter={-1};
         final boolean glucosealarm = AlertDeliveryPolicy.shouldSpeakGlucose(kind);
+        // Speech is sound: a quiet window and Do Not Disturb silence it too.
+        final boolean speechSilenced = quietSilencesSound || dndBlocksEffects;
         if (!DontTalk) {
-            // Speech is sound: a quiet window silences it too.
-            if (glucosealarm && Natives.speakalarms() && !quietSilencesSound) {
+            if (glucosealarm && Natives.speakalarms() && !speechSilenced) {
                 final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
                 // Read the static into a local before dereferencing it: endtalk() nulls
                 // SuperGattCallback.talker from another thread, and it is null until the first
@@ -2732,25 +2755,18 @@ public class Notify {
                     Log.w(LOG_ID, "playringhier: no playable sound handle");
                 }
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                int filt = notificationManager.getCurrentInterruptionFilter();
-                if (doLog) {
-                    Log.i(LOG_ID, "getCurrentInterruptionFilter()=" + filt + " disturb=" + disturb);
-                }
-
-                if (filt != NotificationManager.INTERRUPTION_FILTER_ALL) {
-                    // Phone is in some DND mode
-                    if (disturb) {
-                        // Override DND if we have permission
-                        if (notificationManager.isNotificationPolicyAccessGranted()) {
-                            notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL);
-                        }
-                    } else {
-                        // Don't disturb - skip sound
-                        doplaysound[0] = false;
-                        if (doLog) {
-                            Log.i(LOG_ID, "Skipping sound due to DND and disturb=false");
-                        }
+            if (dndActive) {
+                // Phone is in some DND mode
+                if (disturb) {
+                    // Override DND if we have permission
+                    if (notificationManager.isNotificationPolicyAccessGranted()) {
+                        notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL);
+                    }
+                } else {
+                    // Don't disturb - skip sound (the vibration is skipped by the same rule below)
+                    doplaysound[0] = false;
+                    if (doLog) {
+                        Log.i(LOG_ID, "Skipping sound due to DND and disturb=false");
                     }
                 }
             }
@@ -2797,7 +2813,7 @@ public class Notify {
                     stopvibratealarm();
                 }
                 final CurrentDisplaySource.Snapshot closingSpeech = !DontTalk && glucosealarm
-                        && Natives.speakalarms() && !quietSilencesSound
+                        && Natives.speakalarms() && !speechSilenced
                         ? resolveNotificationCurrentSnapshot() : null;
                 // Own continuing speech and the closing delay before releasing alarm focus.
                 // The reservation is distinct from utterance ownership, so late completion of
@@ -2869,8 +2885,9 @@ public class Notify {
         // and flash immediately; add the audible alarm only after the configured
         // delay. Only when both sound and vibration are on for this alert (else
         // there is either nothing to delay, or a silent gap with no signal).
-        // A sound the quiet window silences has nothing to delay.
-        final int soundDelaySeconds = (sound && vibrate && !quietSilencesSound) ? getSoundDelaySeconds(kind) : 0;
+        // A sound the quiet window or Do Not Disturb silences has nothing to delay.
+        final int soundDelaySeconds = AlertDeliveryPolicy.shouldDelaySound(sound, vibrate, quietSilencesSound,
+                dndBlocksEffects) ? getSoundDelaySeconds(kind) : 0;
         final long soundDelayMs = TimeUnit.SECONDS.toMillis(soundDelaySeconds);
         final boolean canPlaySound = sound && doplaysound[0] && hasSoundHandle && soundHandle != null;
 
@@ -2879,8 +2896,9 @@ public class Notify {
                 Flash.start(app, 200L);
             }
         }
-        // Quiet window in notification-only mode: no vibration either.
-        if (vibrate && !quietSuppressesVibration) {
+        // Quiet window in notification-only mode, or Do Not Disturb without the override:
+        // no vibration either.
+        if (AlertDeliveryPolicy.shouldVibrate(vibrate, quietSuppressesVibration, dndBlocksEffects)) {
             // The finite pattern must also span the silent delay phase
             // ("vibrate first"), else it runs out before the sound starts.
             vibratealarm(kind, resolvedHapticProfile, duration, soundDelaySeconds);
@@ -3032,8 +3050,13 @@ public class Notify {
         final boolean sound = p.getBoolean("alert_" + kind + "_sound", defSound);
         final boolean vibration = p.getBoolean("alert_" + kind + "_vibration", defVibrate);
 
-        final boolean dist = isWearable || p.getBoolean("alert_" + kind + "_dnd",
-                tk.glucodata.alerts.AlertSoundDefaults.hasNativeSlot(kind) && getalarmdisturb(kind));
+        // The watch has no override switch of its own. Until the phone has said what its
+        // setting is, the watch alert keeps breaking through; after that it follows it.
+        final boolean dist = AlertDeliveryPolicy.effectiveOverrideDnd(
+                isWearable,
+                tk.glucodata.alerts.AlertRepository.INSTANCE.isOverrideDndFromPhone(kind),
+                p.getBoolean("alert_" + kind + "_dnd",
+                        tk.glucodata.alerts.AlertSoundDefaults.hasNativeSlot(kind) && getalarmdisturb(kind)));
         final boolean useAlarmStream = shouldUseAlarmAudioStream(kind, dist);
         final AlertSoundHandle soundHandle = sound ? buildAlertSoundHandle(ringUri, kind, useAlarmStream) : null;
 

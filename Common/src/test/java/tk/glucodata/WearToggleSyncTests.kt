@@ -19,9 +19,25 @@ class WearToggleSyncTests {
         val toggles = listOf(
             toggle(WearToggleSync.SCOPE_EXCHANGE, ExchangeToggles.ID_GADGETBRIDGE, true),
             toggle(WearToggleSync.SCOPE_ALERT, "3", false),
+            toggle(WearToggleSync.SCOPE_ALERT_DND, "0", false),
             toggle(WearToggleSync.SCOPE_PREF, "prediction", true),
         )
         assertEquals(toggles, WearToggleSync.decode(WearToggleSync.encode(toggles)))
+    }
+
+    @Test
+    fun theScopesAreDistinctSoAnOverrideIsNeverReadAsAnEnable() {
+        // Both are keyed by the alert id; a shared scope would let one overwrite the other.
+        val scopes = listOf(
+            WearToggleSync.SCOPE_EXCHANGE,
+            WearToggleSync.SCOPE_ALERT,
+            WearToggleSync.SCOPE_ALERT_DND,
+            WearToggleSync.SCOPE_PREF,
+        )
+        assertEquals(scopes.size, scopes.distinct().size)
+        val decoded = WearToggleSync.decode("a:0=true\nd:0=false\n".toByteArray())
+        assertEquals(true, decoded.single { it.scope == WearToggleSync.SCOPE_ALERT }.enabled)
+        assertEquals(false, decoded.single { it.scope == WearToggleSync.SCOPE_ALERT_DND }.enabled)
     }
 
     @Test
