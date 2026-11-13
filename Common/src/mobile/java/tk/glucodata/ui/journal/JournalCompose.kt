@@ -477,16 +477,6 @@ fun JournalEntrySheet(
     val openedAtMillis = remember(existingEntry?.id, initialType, selectedTimestamp) { System.currentTimeMillis() }
     val openingHint = remember(existingEntry?.id, initialType, selectedTimestamp) { suggestedDose }
         ?.takeIf { abs(draft.timestamp - openedAtMillis) <= JOURNAL_HINT_MAX_AGE_MILLIS }
-    // Food the hint asked for is there to stop a low. Offering a dose for it would undo that, and
-    // the insulin on board only reduces a correction, never the food part of a dose. This follows
-    // the hint rather than the suggested amount, because 20 g after one press is still rescue food.
-    val rescueCarbs = draft.type == JournalEntryType.CARBS && openingHint?.kind == StateDoseHintKind.CARBS
-    LaunchedEffect(rescueCarbs, draft.pairWithDose) {
-        // Moving the date off and back brings the hint back over a pairing made in between.
-        if (rescueCarbs && draft.pairWithDose) {
-            draft = draft.copy(pairWithDose = false, pairedAmountText = "", insulinPresetId = null)
-        }
-    }
     val insulinHabit = remember(doseJournalEntries, draft.insulinPresetId, draft.timestamp) {
         JournalAmountAssist.insulinHabit(doseJournalEntries, draft.insulinPresetId, draft.timestamp)
     }
@@ -526,7 +516,7 @@ fun JournalEntrySheet(
     }
     // Only a guess: it sits dim in the empty field and takes a press of the stepper to become
     // an amount. The meal case stays here too, because it can't tell a meal from a hypo
-    // treatment, and no dose is offered at all while the hint is asking for carbs.
+    // treatment. Leave the insulin starting amount empty while the hint asks for carbs.
     val amountStart = when {
         existingEntry != null -> null
         draft.type == JournalEntryType.CARBS -> carbHabit.usual
@@ -833,7 +823,6 @@ fun JournalEntrySheet(
                     }
                     if (
                         existingEntry == null &&
-                        !rescueCarbs &&
                         calculatorProfile != null &&
                         calculationInsulinPresets.isNotEmpty()
                     ) {
