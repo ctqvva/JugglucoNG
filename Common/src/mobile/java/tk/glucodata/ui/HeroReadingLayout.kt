@@ -89,13 +89,18 @@ internal object HeroSeparatorDot {
     const val GAP_EM = 0.5f
 
     @Composable
-    fun gap(style: TextStyle): Dp = with(LocalDensity.current) { (style.fontSize * GAP_EM).toDp() }
+    fun gap(style: TextStyle): Dp = emToDp(style, GAP_EM)
 
     @Composable
-    fun diameter(style: TextStyle): Dp = with(LocalDensity.current) { (style.fontSize * DIAMETER_EM).toDp() }
+    fun diameter(style: TextStyle): Dp = emToDp(style, DIAMETER_EM)
 
     @Composable
-    fun lift(style: TextStyle): Dp = with(LocalDensity.current) { (style.fontSize * CENTER_EM).toDp() }
+    fun lift(style: TextStyle): Dp = emToDp(style, CENTER_EM)
+
+    /** Converts the text size first: Android 14+ scales fonts non-linearly, so a small
+     * sp fraction would grow faster than the text it sits beside at a large font. */
+    @Composable
+    private fun emToDp(style: TextStyle, em: Float): Dp = with(LocalDensity.current) { style.fontSize.toDp() } * em
 
     @Composable
     fun Dot(diameter: Dp, color: Color, modifier: Modifier = Modifier) {

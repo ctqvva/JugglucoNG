@@ -1446,47 +1446,36 @@ public class NotificationChartDrawer {
             }
         }
 
-        // Parse up to 3 parts: "Primary / Secondary · Tertiary" (hero card format)
+        // Parse up to 3 parts: "Primary · Secondary · Tertiary" (hero card format)
         String part1 = text;
-        String part2 = "";
-        String part3 = "";
-
-        // First split by " / " for primary vs rest
+        String part2 = null;
+        String part3 = null;
         if (text.contains(" · ")) {
             String[] mainSplit = text.split(" · ", 2);
             part1 = mainSplit[0];
             String rest = mainSplit.length > 1 ? mainSplit[1] : "";
-
-            // Then split rest by " · " for secondary vs tertiary
             if (rest.contains(" · ")) {
                 String[] subSplit = rest.split(" · ", 2);
-                part2 = " · " + subSplit[0];
-                part3 = " · " + subSplit[1];
+                part2 = subSplit[0];
+                part3 = subSplit[1];
             } else {
-                part2 = " · " + rest;
+                part2 = rest;
             }
         }
 
         // Measure Part 1 (Primary - full size)
         float width1 = paint.measureText(part1);
 
-        // Part 2 (Secondary - 0.7x size, gray)
+        // Part 2 (Secondary - 0.7x size, gray) and Part 3 (Tertiary - 0.6x size), each
+        // led by a drawn separator dot like the dashboard hero's.
         Paint paint2 = new Paint(paint);
-        float width2 = 0;
-        if (!part2.isEmpty()) {
-            paint2.setTextSize(textSize * 0.7f);
-            width2 = paint2.measureText(part2);
-        }
-
-        // Part 3 (Tertiary - 0.6x size, lighter gray)
+        paint2.setTextSize(textSize * 0.7f);
+        float width2 = part2 == null ? 0f : separatorWidth(paint2.getTextSize()) + paint2.measureText(part2);
         Paint paint3 = new Paint(paint);
-        float width3 = 0;
-        if (!part3.isEmpty()) {
-            paint3.setTextSize(textSize * 0.6f);
-            width3 = paint3.measureText(part3);
-        }
+        paint3.setTextSize(textSize * 0.6f);
+        float width3 = part3 == null ? 0f : separatorWidth(paint3.getTextSize()) + paint3.measureText(part3);
 
-        int totalWidth = (int) (width1 + width2 + width3 + 1);
+        int totalWidth = (int) Math.ceil(width1 + width2 + width3 + 1);
         int height = (int) (28 * density * fontSizeScale);
 
         if (totalWidth <= 0)
@@ -1507,20 +1496,38 @@ public class NotificationChartDrawer {
         canvas.drawText(part1, currentX, y, paint);
         currentX += width1;
 
-        // Draw Part 2 (Secondary)
-        if (!part2.isEmpty()) {
+        if (part2 != null) {
             paint2.setColor(secondaryColor);
-            canvas.drawText(part2, currentX, y, paint2);
-            currentX += width2;
+            currentX = drawSeparatedValue(canvas, part2, currentX, y, paint2);
         }
-
-        // Draw Part 3 (Tertiary)
-        if (!part3.isEmpty()) {
+        if (part3 != null) {
             paint3.setColor(tertiaryColor);
-            canvas.drawText(part3, currentX, y, paint3);
+            drawSeparatedValue(canvas, part3, currentX, y, paint3);
         }
 
         return bitmap;
+    }
+
+    // The dashboard hero's separator dot (HeroSeparatorDot), in em of the value it
+    // introduces: diameter, centre above the baseline (half the 0.7 em digit height)
+    // and the gap on each side. Drawn, so it does not depend on the font's "·".
+    private static final float SEPARATOR_DOT_EM = 0.24f;
+    private static final float SEPARATOR_CENTER_EM = 0.35f;
+    private static final float SEPARATOR_GAP_EM = 0.5f;
+
+    private static float separatorWidth(float size) {
+        return size * (SEPARATOR_GAP_EM * 2f + SEPARATOR_DOT_EM);
+    }
+
+    /** Draws "gap dot gap value" at x in paint's size and colour; returns the end x. */
+    private static float drawSeparatedValue(Canvas canvas, String value, float x, float baseline, Paint paint) {
+        float size = paint.getTextSize();
+        float radius = size * SEPARATOR_DOT_EM / 2f;
+        float centerX = x + size * SEPARATOR_GAP_EM + radius;
+        canvas.drawCircle(centerX, baseline - size * SEPARATOR_CENTER_EM, radius, paint);
+        float valueX = x + separatorWidth(size);
+        canvas.drawText(value, valueX, baseline, paint);
+        return valueX + paint.measureText(value);
     }
 
     public static Bitmap drawMultiGlucoseText(
