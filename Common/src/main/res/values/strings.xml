@@ -1451,7 +1451,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">App (IBM Plex)</string>
     <string name="font_system_sans">System Sans</string>
     <string name="font_system_google_sans">System</string>
-    <string name="size_sp">Size: %1$d sp</string>
+    <string name="size_label">Size</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Font weight</string>
     <string name="regular">Regular</string>
     <string name="medium">Medium</string>
@@ -1477,7 +1478,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_secret_label">API secret</string>
     <string name="appearance">Appearance</string>
     <string name="apply_to_all_alerts">Apply to all alerts</string>
-    <string name="background_opacity_percent">Background opacity: %1$d%%</string>
+    <string name="background_opacity_label">Background opacity</string>
     <string name="battery">Battery</string>
     <string name="bias_correction">Bias correction</string>
     <string name="bias_correction_desc">Compensates for low readings during the first 48h after reset</string>
@@ -1568,7 +1569,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="conditions_optimal">Conditions optimal</string>
     <string name="connection_number">Connection %1$d</string>
     <string name="connectionoverview">Connectionoverview</string>
-    <string name="corner_radius_dp">Corner radius: %1$d dp</string>
+    <string name="corner_radius_label">Corner radius</string>
     <string name="correcting">Correcting</string>
     <string name="custom_sound_prefix">Custom sound: %1$s</string>
     <string name="dash">-</string>
@@ -1615,7 +1616,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="flashpermission">Flash Permission</string>
     <string name="floating_permission_required">Floating window permission required</string>
     <string name="floatingconfig">Floating Config</string>
-    <string name="gap_width_value">Gap width: %1$s</string>
+    <string name="gap_width_label">Gap width</string>
     <string name="garminconfig">Garmin Config</string>
     <string name="getaccountidhelp">Getaccountid Help</string>
     <string name="getlib">Getlib</string>
@@ -2409,12 +2410,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Compact chart in collapsed view</string>
     <string name="show_target_range">Show target range</string>
     <string name="show_target_range_desc">Highlight target glucose range on chart</string>
-    <string name="font_size_percent">Font size: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Status bar icon size: %1$d%%</string>
-    <string name="arrow_size_percent">Arrow size: %1$d%%</string>
-    <string name="opacity_percent">Opacity: %1$d%%</string>
-    <string name="text_size_percent">Text size: %1$d%%</string>
-    <string name="chart_size_percent">Chart size: %1$d%%</string>
+    <string name="font_size_label">Font size</string>
+    <string name="status_bar_icon_size_label">Status bar icon size</string>
+    <string name="arrow_size_label">Arrow size</string>
+    <string name="opacity_label">Opacity</string>
+    <string name="text_size_label">Text size</string>
+    <string name="chart_size_label">Chart size</string>
     <string name="use_subtle_outline">Use subtle outline</string>
     <string name="use_subtle_outline_desc">Thin edge highlight around overlay</string>
     <string name="position_top">Top</string>

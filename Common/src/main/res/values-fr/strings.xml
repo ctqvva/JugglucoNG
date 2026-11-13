@@ -992,7 +992,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Opacité de l\'arrière-plan : %1$d%%</string>
+    <string name="background_opacity_label">Opacité de l\'arrière-plan</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Évitez d\'étalonner dans les 2 heures suivant un repas ou une dose d\'insuline.</string>
     <string name="calibration_with_mode">Étalonnage (%1$s)</string>
@@ -1051,7 +1051,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">Étalonnages %1$d supprimés</string>
     <string name="calibrations_will_be_removed_count">Les étalonnages %1$d seront supprimés</string>
     <string name="connection_number">Connexion %1$d</string>
-    <string name="corner_radius_dp">Rayon d\'angle : %1$d dp</string>
+    <string name="corner_radius_label">Rayon d\'angle</string>
     <string name="custom_sound_prefix">Son personnalisé : %1$s</string>
     <string name="delete_calibrations_count">Supprimer les étalonnages %1$d</string>
     <string name="disabled_calibrations_cleared">Effacement des étalonnages désactivés %1$d</string>
@@ -1060,7 +1060,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Fin : %1$s</string>
     <string name="export_failed_with_error">Échec de l\'exportation : %1$s</string>
-    <string name="gap_width_value">Largeur de l\'espace : %1$s</string>
+    <string name="gap_width_label">Largeur de l\'espace</string>
     <string name="glucose_with_unit">Glucose (%1$s)</string>
     <string name="import_failed_with_error">Échec de l\'importation : %1$s</string>
     <string name="import_summary">Importé : %1$d, ignoré : %2$d, remplacé : %3$d</string>
@@ -1150,7 +1150,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">Application (IBM Plex)</string>
     <string name="font_system_sans">Système Sans</string>
     <string name="font_system_google_sans">Système</string>
-    <string name="size_sp">Taille : %1$d sp</string>
+    <string name="size_label">Taille</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Poids de la police</string>
     <string name="regular">Régulier</string>
     <string name="medium">Moyen</string>
@@ -1797,12 +1798,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Graphique compact en vue réduite</string>
     <string name="show_target_range">Afficher la plage cible</string>
     <string name="show_target_range_desc">Mettre en évidence la plage cible de glucose sur le graphique</string>
-    <string name="font_size_percent">Taille de la police : %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Taille de l\'icône de la barre d\'état : %1$d%%</string>
-    <string name="arrow_size_percent">Taille de la flèche : %1$d%%</string>
-    <string name="opacity_percent">Opacité : %1$d%%</string>
-    <string name="text_size_percent">Taille du texte : %1$d%%</string>
-    <string name="chart_size_percent">Taille du graphique : %1$d%%</string>
+    <string name="font_size_label">Taille de la police</string>
+    <string name="status_bar_icon_size_label">Taille de l\'icône de la barre d\'état</string>
+    <string name="arrow_size_label">Taille de la flèche</string>
+    <string name="opacity_label">Opacité</string>
+    <string name="text_size_label">Taille du texte</string>
+    <string name="chart_size_label">Taille du graphique</string>
     <string name="use_subtle_outline">Utiliser un contour discret</string>
     <string name="use_subtle_outline_desc">Fin liseré lumineux autour de la superposition</string>
     <string name="position_top">Haut</string>

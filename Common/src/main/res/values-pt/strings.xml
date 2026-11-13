@@ -987,7 +987,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Opacidade de fundo: %1$d%%</string>
+    <string name="background_opacity_label">Opacidade de fundo</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Evite calibrar nas 2 horas após refeições ou insulina.</string>
     <string name="calibration_with_mode">Calibração (%1$s)</string>
@@ -1046,7 +1046,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">Calibrações %1$d excluídas</string>
     <string name="calibrations_will_be_removed_count">%1$d calibrações serão removidas</string>
     <string name="connection_number">Conexão %1$d</string>
-    <string name="corner_radius_dp">Raio do canto: %1$d dp</string>
+    <string name="corner_radius_label">Raio do canto</string>
     <string name="custom_sound_prefix">Som personalizado: %1$s</string>
     <string name="delete_calibrations_count">Excluir calibrações %1$d</string>
     <string name="disabled_calibrations_cleared">%1$d calibrações desativadas apagadas</string>
@@ -1055,7 +1055,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Fim: %1$s</string>
     <string name="export_failed_with_error">Falha na exportação: %1$s</string>
-    <string name="gap_width_value">Largura da lacuna: %1$s</string>
+    <string name="gap_width_label">Largura da lacuna</string>
     <string name="glucose_with_unit">Glicose (%1$s)</string>
     <string name="import_failed_with_error">Falha na importação: %1$s</string>
     <string name="import_summary">Importado: %1$d, ignorado: %2$d, substituído: %3$d</string>
@@ -1145,7 +1145,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">Aplicativo (IBM Plex)</string>
     <string name="font_system_sans">Sistema Sans</string>
     <string name="font_system_google_sans">Sistema</string>
-    <string name="size_sp">Tamanho: %1$d sp</string>
+    <string name="size_label">Tamanho</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Peso da fonte</string>
     <string name="regular">Normal</string>
     <string name="medium">Médio</string>
@@ -1792,12 +1793,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Gráfico compacto na visualização recolhida</string>
     <string name="show_target_range">Mostrar faixa-alvo</string>
     <string name="show_target_range_desc">Destacar a faixa-alvo de glicose no gráfico</string>
-    <string name="font_size_percent">Tamanho da fonte: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Tamanho do ícone da barra de status: %1$d%%</string>
-    <string name="arrow_size_percent">Tamanho da seta: %1$d%%</string>
-    <string name="opacity_percent">Opacidade: %1$d%%</string>
-    <string name="text_size_percent">Tamanho do texto: %1$d%%</string>
-    <string name="chart_size_percent">Tamanho do gráfico: %1$d%%</string>
+    <string name="font_size_label">Tamanho da fonte</string>
+    <string name="status_bar_icon_size_label">Tamanho do ícone da barra de status</string>
+    <string name="arrow_size_label">Tamanho da seta</string>
+    <string name="opacity_label">Opacidade</string>
+    <string name="text_size_label">Tamanho do texto</string>
+    <string name="chart_size_label">Tamanho do gráfico</string>
     <string name="use_subtle_outline">Usar contorno sutil</string>
     <string name="use_subtle_outline_desc">Realce fino na borda ao redor da sobreposição</string>
     <string name="position_top">Superior</string>

@@ -82,6 +82,8 @@ import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.BLE_ERROR_CARD_WINDOW_MS
 import tk.glucodata.Notify
 import tk.glucodata.R
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
 import tk.glucodata.SensorHandoffUiState
 import tk.glucodata.SensorVendor
 import tk.glucodata.SensorVisuals
@@ -1346,30 +1348,15 @@ fun SensorCard(
                             .fillMaxWidth()
                             .padding(horizontal = 4.dp),
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.sibionics_sensitivity),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Text(
-                                    stringResource(
-                                        R.string.sibionics_sensor_sensitivity,
-                                        formatSibionicsSensitivity(sensor.automaticAlgorithmSensitivity),
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Text(
-                                formatSibionicsSensitivity(sensitivityDraft),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
+                        SliderHeader(
+                            label = stringResource(R.string.sibionics_sensitivity),
+                            value = formatSibionicsSensitivity(sensitivityDraft),
+                            supportingText = stringResource(
+                                R.string.sibionics_sensor_sensitivity,
+                                formatSibionicsSensitivity(sensor.automaticAlgorithmSensitivity),
+                            ),
+                        )
+                        Spacer(Modifier.height(SliderHeaderGap))
                         Slider(
                             value = sensitivityDraft,
                             onValueChange = {

@@ -41,6 +41,8 @@ import tk.glucodata.GlucoseRangeColors
 import tk.glucodata.GlucoseRangeColors.Band
 import tk.glucodata.GlucoseRangeColors.Palette
 import tk.glucodata.R
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
 import tk.glucodata.ui.components.ColorSwatchButton
 
 private val BASE_PRESETS =
@@ -256,12 +258,8 @@ fun ExpressiveColorPickerDialog(
                 )
                 if (showOpacity) {
                     LabeledColorSlider(
-                        label = stringResource(
-                            R.string.opacity_percent,
-                            (colorState.alpha * 100f).roundToInt()
-                        ),
+                        label = stringResource(R.string.opacity_label),
                         value = colorState.alpha,
-                        showTrailingValue = false,
                         onValueChange = { alpha ->
                             updateColorState(colorState.copy(alpha = alpha.coerceIn(0f, 1f)))
                         }
@@ -328,24 +326,13 @@ fun ExpressiveColorPickerDialog(
 private fun LabeledColorSlider(
     label: String,
     value: Float,
-    showTrailingValue: Boolean = true,
     onValueChange: (Float) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.weight(1f)
-            )
-            if (showTrailingValue) {
-                Text(
-                    text = "${(value * 100f).roundToInt()}%",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(SliderHeaderGap)) {
+        SliderHeader(
+            label = label,
+            value = stringResource(R.string.percentage_format, (value * 100f).roundToInt())
+        )
         Slider(
             value = value,
             onValueChange = onValueChange,

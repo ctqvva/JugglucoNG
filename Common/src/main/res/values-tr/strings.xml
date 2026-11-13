@@ -1014,7 +1014,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Arka plan opaklığı: %1$d%%</string>
+    <string name="background_opacity_label">Arka plan opaklığı</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Yemeklerden veya insülinden sonraki 2 saat içinde kalibrasyon yapmaktan kaçının.</string>
     <string name="calibration_with_mode">Kalibrasyon (%1$s)</string>
@@ -1073,7 +1073,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="calibrations_deleted_count">Silinen %1$d kalibrasyonları</string>
     <string name="calibrations_will_be_removed_count">%1$d kalibrasyonları kaldırılacak</string>
     <string name="connection_number">Bağlantı %1$d</string>
-    <string name="corner_radius_dp">Köşe yarıçapı: %1$d dp</string>
+    <string name="corner_radius_label">Köşe yarıçapı</string>
     <string name="custom_sound_prefix">Özel ses: %1$s</string>
     <string name="delete_calibrations_count">%1$d kalibrasyonlarını sil</string>
     <string name="disabled_calibrations_cleared">%1$d devre dışı bırakılan kalibrasyonlar temizlendi</string>
@@ -1082,7 +1082,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Bitiş: %1$s</string>
     <string name="export_failed_with_error">Dışa aktarma başarısız oldu: %1$s</string>
-    <string name="gap_width_value">Boşluk genişliği: %1$s</string>
+    <string name="gap_width_label">Boşluk genişliği</string>
     <string name="glucose_with_unit">Glikoz (%1$s)</string>
     <string name="import_failed_with_error">İçe aktarma başarısız oldu: %1$s</string>
     <string name="import_summary">İçe aktarıldı: %1$d, atlandı: %2$d, değiştirildi: %3$d</string>
@@ -1172,7 +1172,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="font_app_plex">Uygulama (IBM Plex)</string>
     <string name="font_system_sans">Sistem Sans\'ı</string>
     <string name="font_system_google_sans">Sistem</string>
-    <string name="size_sp">Boyut: %1$d sp</string>
+    <string name="size_label">Boyut</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Yazı tipi ağırlığı</string>
     <string name="regular">Düzenli</string>
     <string name="medium">Orta</string>
@@ -1819,12 +1820,12 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="show_chart_collapsed_desc">Daraltılmış görünümde kompakt grafik</string>
     <string name="show_target_range">Hedef aralığı göster</string>
     <string name="show_target_range_desc">Grafikte hedef glikoz aralığını vurgula</string>
-    <string name="font_size_percent">Yazı tipi boyutu: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Durum çubuğu simgesi boyutu: %1$d%%</string>
-    <string name="arrow_size_percent">Ok boyutu: %1$d%%</string>
-    <string name="opacity_percent">Opaklık: %1$d%%</string>
-    <string name="text_size_percent">Metin boyutu: %1$d%%</string>
-    <string name="chart_size_percent">Grafik boyutu: %1$d%%</string>
+    <string name="font_size_label">Yazı tipi boyutu</string>
+    <string name="status_bar_icon_size_label">Durum çubuğu simgesi boyutu</string>
+    <string name="arrow_size_label">Ok boyutu</string>
+    <string name="opacity_label">Opaklık</string>
+    <string name="text_size_label">Metin boyutu</string>
+    <string name="chart_size_label">Grafik boyutu</string>
     <string name="use_subtle_outline">İnce çerçeve kullan</string>
     <string name="use_subtle_outline_desc">Yer paylaşımı çevresinde ince kenar vurgusu</string>
     <string name="position_top">Üst</string>

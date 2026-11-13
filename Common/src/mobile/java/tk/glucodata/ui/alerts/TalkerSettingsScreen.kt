@@ -101,6 +101,8 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.cardShape
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
 import tk.glucodata.ui.util.findActivity
 
 private const val TALKER_SLIDER_MAX = 50000f
@@ -730,17 +732,14 @@ private fun SliderCard(
 
                 Spacer(Modifier.size(12.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        valueLabel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                SliderHeader(
+                    label = title,
+                    value = valueLabel,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(SliderHeaderGap))
             Slider(
                 value = sliderValue,
                 onValueChange = onValueChange,

@@ -105,6 +105,8 @@ in `ui/theme/Type.kt`, with `titleMedium` at 400 for the "sleek list" look.
 | `labelLarge` | Buttons, section labels |
 | `labelMedium` / `labelSmall` | Chips, metadata, chart axis (11sp minimum) |
 
+Slider headings have their own three-row table under Components › Sliders.
+
 ---
 
 ## 5. Colour
@@ -153,6 +155,7 @@ Reach for these before building a surface by hand.
 | A setting that reveals more | `ExpandableSettingsCard`, `DisclosingSwitchCard` | same |
 | A feature's on/off hero | `MasterSwitchCard` | same |
 | A setting with its own inline controls (slider, button group) | Control card, composed locally; see below | `DataSmoothingSettingsScreen.kt` |
+| The label and value over a slider | `SliderHeader` + `SliderHeaderStyle`; `SettingsSlider` in a `SettingsControlsCard`; see Sliders | `components/SliderHeader.kt` |
 | A destructive row | `DangerItem` | same |
 | Group label | `SectionLabel` (24 above, 8 below) | same |
 | Leading icon of a row/card | `IconTile` | `components/IconTile.kt` |
@@ -208,6 +211,50 @@ read at 18dp.
     multi-select group).
 - **Dialog** — a decision that blocks: confirmation, short text entry, 2–4 exclusive options.
 - **Bottom sheet** — a task with its own content, or one that needs the screen behind it.
+
+### Sliders
+
+A slider has one heading: what it sets at the start, its current value at the end, on one
+line, and the slider 4dp under it (`SliderHeaderGap`). Build it with `SliderHeader`; in a
+`SettingsControlsCard`, `SettingsSlider` does it for you.
+
+| `SliderHeaderStyle` | Label | Value | Use |
+|---|---|---|---|
+| `Standard` (default) | `titleMedium`, `onSurface` | `titleMediumEmphasized`, `primary` | A slider among settings rows: control cards, grouped stacks, sheets, dialogs |
+| `Compact` | `bodyMedium`, `onSurface` | `bodyMediumEmphasized`, `primary` | Inside an alert card, whose own rows are set in `bodyMedium` (`DurationSlider`, a secondary threshold) |
+| `Glucose` | `titleMedium`, `onSurfaceVariant` | `titleLargeEmphasized`, `onSurface` | A glucose threshold that is the point of its card: Glucose range in Dashboard and charts, an alert's own threshold |
+
+The rule behind the table: the label takes the type of the rows beside it, so a slider reads
+as one more setting of its group, and the value is the same style made emphasized. Only
+`Glucose` lets the number outrank its label, because there the number is a reading.
+
+- **The value is never written into the label.** No "Opacity: 100%" strings: the label is
+  its own resource and the value is formatted on its own (`percentage_format`, `dp_value`,
+  `sp_value`, a plural). The value then sits at the same end of every slider in a card, and
+  translations don't have to place a colon.
+- Values are tabular (`tnum`) and rounded, not truncated: 1.4999 is 150%, not 149%.
+- A long translated label wraps. At large font sizes the value moves under the label
+  (`AdaptiveTrailingRow`) instead of squeezing it.
+- Pass the slider's `enabled` to the header, so the text dims with the track.
+- A supporting line under the label (`supportingText`, `bodyMedium` / `onSurfaceVariant`) is
+  for context the value alone doesn't give, like the sensor's own figure beside an override.
+- A slider in an icon row (Voice speed and pitch) puts the header beside the `IconTile`,
+  where a row's text would go, and the track spans the card under both.
+
+Deliberate exceptions, each an owner design:
+
+- **A control card that is one slider** (Smoothing window): the card heading carries the
+  title and its description in the control-card style, the value is a chip trailing the
+  heading, and the track's two ends are captioned under it. The Freeze displayed values
+  dialog has the same shape.
+- **A time range** (alert Active time range): a `RangeSlider` whose values are the Start and
+  End chips under it.
+- **A scrubber** (prediction inspector): no heading; what it picks is shown above it.
+
+Material 3 Expressive specifies the track, handle, stops and the value indicator shown while
+dragging, but says nothing about a label or value that stays on screen. This rule follows
+the list-item anatomy instead (headline at the start, trailing text at the end), which is
+what the rows around a slider already use.
 
 ### Actions
 

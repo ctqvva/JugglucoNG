@@ -985,7 +985,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Непразрыстасць фону: %1$d%%</string>
+    <string name="background_opacity_label">Непразрыстасць фону</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Пазбягайце каліброўкі на працягу 2 гадзін пасля ежы або інсуліну.</string>
     <string name="calibration_with_mode">Каліброўка (%1$s)</string>
@@ -1044,7 +1044,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">Выдалены каліброўкі %1$d</string>
     <string name="calibrations_will_be_removed_count">Каліброўкі %1$d будуць выдалены</string>
     <string name="connection_number">Злучэнне %1$d</string>
-    <string name="corner_radius_dp">Радыус кута: %1$d dp</string>
+    <string name="corner_radius_label">Радыус кута</string>
     <string name="custom_sound_prefix">Карыстальніцкі гук: %1$s</string>
     <string name="delete_calibrations_count">Выдаліць каліброўкі %1$d</string>
     <string name="disabled_calibrations_cleared">Ачышчаны адключаныя каліброўкі %1$d</string>
@@ -1053,7 +1053,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Канец: %1$s</string>
     <string name="export_failed_with_error">Збой экспарту: %1$s</string>
-    <string name="gap_width_value">Шырыня зазору: %1$s</string>
+    <string name="gap_width_label">Шырыня зазору</string>
     <string name="glucose_with_unit">Глюкоза (%1$s)</string>
     <string name="import_failed_with_error">Памылка імпарту: %1$s</string>
     <string name="import_summary">Імпартавана: %1$d, прапушчана: %2$d, заменена: %3$d</string>
@@ -1143,7 +1143,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">Праграма (IBM Plex)</string>
     <string name="font_system_sans">Сістэма Sans</string>
     <string name="font_system_google_sans">сістэма</string>
-    <string name="size_sp">Памер: %1$d sp</string>
+    <string name="size_label">Памер</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Вага шрыфта</string>
     <string name="regular">Рэгулярны</string>
     <string name="medium">Сярэдні</string>
@@ -1862,12 +1863,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Кампактны графік у згорнутым выглядзе</string>
     <string name="show_target_range">Паказаць мэтавы дыяпазон</string>
     <string name="show_target_range_desc">Падсвятліць мэтавы дыяпазон глюкозы на графіку</string>
-    <string name="font_size_percent">Памер шрыфта: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Памер значка ў радку стану: %1$d%%</string>
-    <string name="arrow_size_percent">Памер стрэлкі: %1$d%%</string>
-    <string name="opacity_percent">Непразрыстасць: %1$d%%</string>
-    <string name="text_size_percent">Памер тэксту: %1$d%%</string>
-    <string name="chart_size_percent">Памер графіка: %1$d%%</string>
+    <string name="font_size_label">Памер шрыфта</string>
+    <string name="status_bar_icon_size_label">Памер значка ў радку стану</string>
+    <string name="arrow_size_label">Памер стрэлкі</string>
+    <string name="opacity_label">Непразрыстасць</string>
+    <string name="text_size_label">Памер тэксту</string>
+    <string name="chart_size_label">Памер графіка</string>
     <string name="use_subtle_outline">Выкарыстоўваць тонкі контур</string>
     <string name="use_subtle_outline_desc">Тонкае падсвятленне краю вакол накладання</string>
     <string name="position_top">Верх</string>

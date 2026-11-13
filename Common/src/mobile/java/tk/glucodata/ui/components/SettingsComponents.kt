@@ -472,85 +472,6 @@ fun MasterSwitchCard(
     }
 }
 
-@Composable
-fun AlarmItem(
-    title: String,
-    enabled: Boolean,
-    value: Float,
-    unit: String,
-    range: ClosedFloatingPointRange<Float>,
-    soundMode: Int,
-    onToggle: (Boolean) -> Unit,
-    onValueChange: (Float) -> Unit,
-    onSoundChange: (Int) -> Unit,
-    position: CardPosition = CardPosition.SINGLE
-) {
-    var sliderValue by remember(value) { mutableFloatStateOf(value) }
-    val displayValue = if (sliderValue < 30) String.format("%.1f", sliderValue) else sliderValue.toInt().toString()
-
-    Surface(
-        onClick = { onToggle(!enabled) },
-        modifier = Modifier.fillMaxWidth(),
-        shape = cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            AdaptiveTrailingRow(
-                trailingContent = {
-                    StyledSwitch(
-                        checked = enabled,
-                        onCheckedChange = null
-                    )
-                }
-            ) {
-                Column {
-                    Text(title, style = MaterialTheme.typography.bodyLarge)
-                    if (enabled) {
-                        Text("$displayValue $unit", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
-
-            // Expandable content
-            AnimatedVisibility(visible = enabled) {
-                Column {
-                    Spacer(Modifier.height(16.dp))
-                    Slider(
-                        value = sliderValue,
-                        onValueChange = { sliderValue = it },
-                        onValueChangeFinished = { onValueChange(sliderValue) },
-                        valueRange = range
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(stringResource(R.string.alert_mode), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(8.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterChip(
-                            selected = soundMode == 0,
-                            onClick = { onSoundChange(0) },
-                            label = { Text(stringResource(R.string.vibrate_only)) },
-                            leadingIcon = { if(soundMode == 0) Icon(Icons.Filled.Check, null) },
-                            shapes = FilterChipDefaults.shapes(),
-                            colors = FilterChipDefaults.filterChipColors()
-                        )
-                        FilterChip(
-                            selected = soundMode == 1,
-                            onClick = { onSoundChange(1) },
-                            label = { Text(stringResource(R.string.sound_vibrate)) },
-                            leadingIcon = { if(soundMode == 1) Icon(Icons.Filled.Check, null) },
-                            shapes = FilterChipDefaults.shapes(),
-                            colors = FilterChipDefaults.filterChipColors()
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 /**
  * The controls of one settings section that are not list rows (choices, sliders), together
  * in one card of the section's group: each a label over its control, at the rows' 16dp
@@ -581,20 +502,25 @@ fun SettingsControlsCard(
 }
 
 /**
- * A slider in a [SettingsControlsCard]. The title carries the value ("Font size: 100%"),
- * so the track draws no tick per step: at 10-50 steps they are a row of dots.
+ * A slider in a [SettingsControlsCard], under a [SliderHeader]: [title] at the start,
+ * [valueText] at the end. The header shows the value, so the track draws no tick per step:
+ * at 10-50 steps they are a row of dots.
  */
 @Composable
 fun SettingsSlider(
     title: String,
+    valueText: String,
     value: Float,
     onValueChange: (Float) -> Unit,
     range: ClosedFloatingPointRange<Float>,
     steps: Int = 0,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(SliderHeaderGap)
+    ) {
+        SliderHeader(label = title, value = valueText)
         Slider(
             value = value,
             onValueChange = onValueChange,

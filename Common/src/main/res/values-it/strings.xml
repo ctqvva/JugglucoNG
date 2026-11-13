@@ -976,7 +976,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Opacità dello sfondo: %1$d%%</string>
+    <string name="background_opacity_label">Opacità dello sfondo</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Evita di calibrare entro 2 ore dai pasti o dall\'insulina.</string>
     <string name="calibration_with_mode">Calibrazione (%1$s)</string>
@@ -1035,7 +1035,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">Calibrazioni %1$d eliminate</string>
     <string name="calibrations_will_be_removed_count">Le calibrazioni %1$d verranno rimosse</string>
     <string name="connection_number">Connessione %1$d</string>
-    <string name="corner_radius_dp">Raggio dell\'angolo: %1$d dp</string>
+    <string name="corner_radius_label">Raggio dell\'angolo</string>
     <string name="custom_sound_prefix">Suono personalizzato: %1$s</string>
     <string name="delete_calibrations_count">Elimina le calibrazioni %1$d</string>
     <string name="disabled_calibrations_cleared">Cancellate %1$d calibrazioni disabilitate</string>
@@ -1044,7 +1044,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Fine: %1$s</string>
     <string name="export_failed_with_error">Esportazione non riuscita: %1$s</string>
-    <string name="gap_width_value">Larghezza spazio: %1$s</string>
+    <string name="gap_width_label">Larghezza spazio</string>
     <string name="glucose_with_unit">Glucosio (%1$s)</string>
     <string name="import_failed_with_error">Importazione non riuscita: %1$s</string>
     <string name="import_summary">Importato: %1$d, saltato: %2$d, sostituito: %3$d</string>
@@ -1134,7 +1134,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">Applicazione (IBM Plex)</string>
     <string name="font_system_sans">Sistema Sans</string>
     <string name="font_system_google_sans">Sistema</string>
-    <string name="size_sp">Dimensioni: %1$d sp</string>
+    <string name="size_label">Dimensioni</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Peso del carattere</string>
     <string name="regular">Regolare</string>
     <string name="medium">Medio</string>
@@ -1781,12 +1782,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Grafico compatto nella vista compressa</string>
     <string name="show_target_range">Mostra intervallo obiettivo</string>
     <string name="show_target_range_desc">Evidenzia l\'intervallo target del glucosio sul grafico</string>
-    <string name="font_size_percent">Dimensione carattere: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Dimensione icona barra di stato: %1$d%%</string>
-    <string name="arrow_size_percent">Dimensione freccia: %1$d%%</string>
-    <string name="opacity_percent">Opacità: %1$d%%</string>
-    <string name="text_size_percent">Dimensione testo: %1$d%%</string>
-    <string name="chart_size_percent">Dimensione grafico: %1$d%%</string>
+    <string name="font_size_label">Dimensione carattere</string>
+    <string name="status_bar_icon_size_label">Dimensione icona barra di stato</string>
+    <string name="arrow_size_label">Dimensione freccia</string>
+    <string name="opacity_label">Opacità</string>
+    <string name="text_size_label">Dimensione testo</string>
+    <string name="chart_size_label">Dimensione grafico</string>
     <string name="use_subtle_outline">Usa contorno sottile</string>
     <string name="use_subtle_outline_desc">Sottile evidenziazione del bordo attorno all\'overlay</string>
     <string name="position_top">Alto</string>
