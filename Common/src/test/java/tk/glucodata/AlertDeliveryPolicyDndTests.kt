@@ -105,6 +105,17 @@ class AlertDeliveryPolicyDndTests {
     }
 
     @Test
+    fun aSoundDelayIsDroppedWhenNothingWillPlay() {
+        // The delay stretches the stop (and the next retry) by N seconds; with the sound
+        // gone there is nothing to wait for.
+        assertTrue(AlertDeliveryPolicy.shouldDelaySound(true, true, false, false))
+        assertFalse(AlertDeliveryPolicy.shouldDelaySound(true, true, false, true))
+        assertFalse(AlertDeliveryPolicy.shouldDelaySound(true, true, true, false))
+        assertFalse(AlertDeliveryPolicy.shouldDelaySound(true, false, false, false))
+        assertFalse(AlertDeliveryPolicy.shouldDelaySound(false, true, false, false))
+    }
+
+    @Test
     fun thePhoneFollowsItsOwnSettingWhateverTheWatchHasHeard() {
         assertFalse(AlertDeliveryPolicy.effectiveOverrideDnd(false, false, false))
         assertTrue(AlertDeliveryPolicy.effectiveOverrideDnd(false, false, true))

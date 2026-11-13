@@ -2885,8 +2885,9 @@ public class Notify {
         // and flash immediately; add the audible alarm only after the configured
         // delay. Only when both sound and vibration are on for this alert (else
         // there is either nothing to delay, or a silent gap with no signal).
-        // A sound the quiet window silences has nothing to delay.
-        final int soundDelaySeconds = (sound && vibrate && !quietSilencesSound) ? getSoundDelaySeconds(kind) : 0;
+        // A sound the quiet window or Do Not Disturb silences has nothing to delay.
+        final int soundDelaySeconds = AlertDeliveryPolicy.shouldDelaySound(sound, vibrate, quietSilencesSound,
+                dndBlocksEffects) ? getSoundDelaySeconds(kind) : 0;
         final long soundDelayMs = TimeUnit.SECONDS.toMillis(soundDelaySeconds);
         final boolean canPlaySound = sound && doplaysound[0] && hasSoundHandle && soundHandle != null;
 

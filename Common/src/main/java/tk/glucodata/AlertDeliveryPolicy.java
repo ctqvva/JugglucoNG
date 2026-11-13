@@ -85,6 +85,16 @@ public final class AlertDeliveryPolicy {
     }
 
     /**
+     * "Vibrate first, audio after N seconds" only means something when both are on and
+     * nothing takes the sound away. A delay for a sound that will not play would still
+     * hold the alert's stop, and with it the next retry, back by N seconds.
+     */
+    public static boolean shouldDelaySound(boolean sound, boolean vibrate, boolean quietSilencesSound,
+            boolean dndBlocks) {
+        return sound && vibrate && !quietSilencesSound && !dndBlocks;
+    }
+
+    /**
      * The override an alert fires with. The watch has no switch of its own and
      * used to break through unconditionally; once the phone has reported its
      * setting the watch follows it, and until then it keeps breaking through
