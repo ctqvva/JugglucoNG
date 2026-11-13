@@ -18,7 +18,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="juggluco-nightscout-backlog-") as temporary:
         executable = Path(temporary) / "nightscout-backlog-tests"
         subprocess.run([
-            os.environ.get("CXX", "c++"), "-std=c++20", "-O1", "-g", "-Wall", "-Wextra",
+            os.environ.get("CXX", "c++"), "-std=c++20", "-pthread", "-O1", "-g", "-Wall", "-Wextra",
             f"-I{cpp}",
             str(root / "Common/src/test/cpp/NightscoutBacklogTests.cpp"),
             "-o", str(executable),

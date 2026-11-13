@@ -39,8 +39,8 @@ class NightscoutFollowerReplacementTests {
             if (main.equals(serial, ignoreCase = true)) main = null
         }
 
-        override fun add(sensorId: String) {
-            calls += "add $sensorId"
+        override fun connect(sensorId: String) {
+            calls += "connect $sensorId"
             if (running.none { it.equals(sensorId, ignoreCase = true) }) running += sensorId
         }
 
@@ -70,7 +70,7 @@ class NightscoutFollowerReplacementTests {
         )
 
         assertTrue(changed)
-        assertEquals(listOf("retire $oldId", "add $newId", "select $newId", "refresh"), roster.calls)
+        assertEquals(listOf("retire $oldId", "connect $newId", "select $newId", "refresh"), roster.calls)
         assertEquals(newId, roster.mainSensor())
         assertEquals(listOf(newId), roster.running)
     }
@@ -92,7 +92,7 @@ class NightscoutFollowerReplacementTests {
 
         NightscoutFollowerRegistry.retireSupersededFollowers(config("https://new.example.com"), roster)
 
-        assertEquals(listOf("retire $oldId", "refresh"), roster.calls)
+        assertEquals(listOf("retire $oldId", "connect $newId", "refresh"), roster.calls)
         assertEquals("X-22222GX3H", roster.mainSensor())
     }
 
@@ -118,19 +118,17 @@ class NightscoutFollowerReplacementTests {
     }
 
     @Test
-    fun switchingFollowOffRetiresNothingHere() {
-        // Switching Follow off has its own path, which also ends the callback properly.
-        val off = FakeRoster(running = listOf(oldId), main = oldId)
+    fun switchingFollowOffUsesTheSameRetirementAndReplacementPath() {
+        val off = FakeRoster(running = listOf(oldId, newId), main = oldId, replacement = "physical")
 
-        assertFalse(
+        assertTrue(
             NightscoutFollowerRegistry.retireSupersededFollowers(
                 config("https://new.example.com", enabled = false), off
             )
         )
-        assertFalse(
-            NightscoutFollowerRegistry.retireSupersededFollowers(config("", enabled = false), off)
-        )
-        assertTrue(off.calls.isEmpty())
+        assertEquals(listOf("retire $oldId", "retire $newId", "replace $oldId", "refresh"), off.calls)
+        assertTrue(off.running.isEmpty())
+        assertEquals("physical", off.mainSensor())
     }
 
     @Test
@@ -174,7 +172,7 @@ class NightscoutFollowerReplacementTests {
         NightscoutFollowerRegistry.retireSupersededFollowers(config("https://new.example.com"), roster)
 
         assertEquals(
-            listOf("retire $older", "retire $oldId", "add $newId", "select $newId", "refresh"),
+            listOf("retire $older", "retire $oldId", "connect $newId", "select $newId", "refresh"),
             roster.calls
         )
     }

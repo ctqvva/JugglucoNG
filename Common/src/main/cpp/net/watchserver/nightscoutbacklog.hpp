@@ -14,11 +14,22 @@
    Kept free of the sensor store, the settings and the network so the rules can be run on a
    host (tools/test-nightscout-backlog.py). */
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
 namespace nightscout_backlog {
+
+/* UI/BLE threads may ask for a reset, but only the uploader consumes it between passes.
+   Keeping the cursors and recent ranges on that thread also prevents an in-flight request
+   from advancing a cursor over a reset that just rewound it. */
+class ResetRequest {
+    std::atomic<bool> pending{false};
+public:
+    void request() { pending.store(true); }
+    bool take() { return pending.exchange(false); }
+};
 
 /* How one pass ended. `interrupted` is not a failure: nothing was refused and nothing is
    backed off. The pass stopped so the live reading goes first, and runs again straight away. */
@@ -184,7 +195,7 @@ inline bool mayUploadAside(const Pass pass) {
    working limit (one range is a gap in the live readings while a backlog is walked); past it
    the oldest goes, which costs a repeat and never a reading. */
 template <int Sensors>
-class RecentUploads {
+class RecentUploads { // confined to the uploader thread, including clear()
     struct Range {
         uint32_t start{};
         uint32_t end{};

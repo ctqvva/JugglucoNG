@@ -22,6 +22,7 @@ object NightscoutFollowerRegistry {
     //at an entirely different server than the one this phone uploads to.
     private const val PREF_USE_V3 = "nightscout_follower_v3"
     private const val PREF_COMPLETE_HISTORY_PREFIX = "nightscout_follower_complete_history_v1_"
+    private const val PREF_LOCAL_FOLLOWER_PREFIX = "nightscout_follower_local_v1_"
     private const val PREF_POLL_MINUTES = "nightscout_follower_poll_minutes"
     private const val PREF_SEND_TREATMENTS = "nightscout_follower_send_treatments"
     const val SENSOR_PREFIX = "NSF-"
@@ -79,6 +80,9 @@ object NightscoutFollowerRegistry {
         secret: String?,
         useV3: Boolean = loadConfig(context).useV3,
     ) {
+        // Migrate the previous configured id before a URL edit can erase the only evidence
+        // that an interrupted first import belonged to this phone.
+        loadConfig(context).takeIf { it.isUsable }?.let { markLocalFollower(context, it.sensorId) }
         prefs(context).edit()
             .putBoolean(PREF_ENABLED, enabled)
             .putString(PREF_URL, normalizeUrl(url).takeIf { it.isNotEmpty() })
@@ -141,9 +145,20 @@ object NightscoutFollowerRegistry {
             .apply()
     }
 
+    internal fun hasLocalFollower(context: Context, sensorId: String): Boolean =
+        prefs(context).getBoolean(PREF_LOCAL_FOLLOWER_PREFIX + sensorId.uppercase(Locale.US), false) ||
+            hasCompleteHistoryImport(context, sensorId)
+
+    private fun markLocalFollower(context: Context, sensorId: String) {
+        prefs(context).edit()
+            .putBoolean(PREF_LOCAL_FOLLOWER_PREFIX + sensorId.uppercase(Locale.US), true)
+            .apply()
+    }
+
     fun createRestoredCallback(context: Context, sensorId: String, dataptr: Long): SuperGattCallback? {
         val config = loadConfig(context)
         if (!config.isUsable || !matchesSensorId(sensorId, config.sensorId)) return null
+        markLocalFollower(context, config.sensorId)
         return NightscoutFollowerManager(
             serial = config.sensorId,
             url = config.url,
@@ -252,8 +267,8 @@ object NightscoutFollowerRegistry {
         fun holdsMain(serial: String): Boolean
         /** Stop [serial] and drop its callback, keeping its history. */
         fun retire(serial: String)
-        /** Make sure the follower for [sensorId] has a callback. */
-        fun add(sensorId: String)
+        /** Make sure the follower for [sensorId] has a callback and is polling. */
+        fun connect(sensorId: String)
         fun selectMain(sensorId: String)
         /** Give the main role [retired] held to whatever else is available, or to nobody. */
         fun selectReplacement(retired: String)
@@ -274,20 +289,20 @@ object NightscoutFollowerRegistry {
      * then, and what it held of the main role goes to whatever else is available. The settings
      * screen saves exactly that state when the field is emptied.
      *
-     * Follow off retires nothing here: switching it off has its own path in
-     * [disableFollowerSensor].
+     * Follow off uses the same retirement path, including when Bluetooth was never started.
      */
     internal fun retireSupersededFollowers(config: Config, roster: FollowerRoster): Boolean {
-        if (!config.enabled) return false
-        val expected = config.sensorId.takeIf { config.url.isNotBlank() }
+        val expected = config.sensorId.takeIf { config.isUsable }
         val superseded = roster.runningFollowers()
             .filterNot { expected != null && matchesSensorId(it, expected) }
         if (superseded.isEmpty()) return false
         val holder = superseded.firstOrNull(roster::holdsMain)
         superseded.forEach(roster::retire)
+        // A URL edit saved with connectFollower=false must still replace the polling source,
+        // even when a physical sensor holds the main role.
+        if (expected != null) roster.connect(expected)
         if (holder != null) {
             if (expected != null) {
-                roster.add(expected)
                 roster.selectMain(expected)
             } else {
                 roster.selectReplacement(holder)
@@ -328,8 +343,8 @@ object NightscoutFollowerRegistry {
             runCatching { Natives.finishSensorById(serial) }
         }
 
-        override fun add(sensorId: String) {
-            restoreConfiguredFollower(context, sensorId)
+        override fun connect(sensorId: String) {
+            connectSensor(context, sensorId)
         }
 
         override fun selectMain(sensorId: String) {
@@ -385,10 +400,12 @@ object NightscoutFollowerRegistry {
             val managed = ManagedCurrentSensor.get()
             val nativeCurrent = runCatching { Natives.currentsensorname() }.getOrNull()
             val shells = runCatching { Natives.activeSensors() }.getOrNull().orEmpty().toList()
-            val ranHere = { id: String -> hasCompleteHistoryImport(context, id) }
+            val ranHere = { id: String -> hasLocalFollower(context, id) }
             val fullName = { name: String -> runCatching { Natives.resolveFullSensorName(name) }.getOrNull() }
-            val orphanShells = orphanedFollowerIds(shells, config, ranHere, fullName)
-            val orphanMain = orphanedFollowerIds(listOf(managed, nativeCurrent), config, ranHere, fullName)
+            val orphanShells = orphanedFollowerIds(shells + nativeCurrent, config, ranHere, fullName)
+            // Managed selection is authoritative even before it has a native mirror. A stale
+            // native reference may need retirement, but cannot give away somebody else's role.
+            val orphanMain = orphanedFollowerIds(listOf(managed ?: nativeCurrent), config, ranHere, fullName)
             if (orphanShells.isEmpty() && orphanMain.isEmpty()) return
             orphanShells.forEach { runCatching { Natives.finishSensorById(it) } }
             if (orphanMain.isNotEmpty()) {
@@ -420,18 +437,11 @@ object NightscoutFollowerRegistry {
     }
 
     fun disableFollowerSensor(context: Context) {
-        val sensorId = loadConfig(context).sensorId
+        val config = loadConfig(context)
         NightscoutFollowerDeviceStatus.clear()
-        ManagedCurrentSensor.clearIfMatches(sensorId)
-        saveConfig(context, enabled = false, url = loadConfig(context).url, secret = loadConfig(context).secret)
-        SensorBluetooth.mygatts()
-            .firstOrNull { SensorIdentity.matches(it.SerialNumber, sensorId) }
-            ?.let { callback ->
-                if (callback is ManagedBluetoothSensorDriver) {
-                    callback.terminateManagedSensor(wipeData = false)
-                }
-                SensorBluetooth.sensorEnded(callback.SerialNumber)
-            }
+        saveConfig(context, enabled = false, url = config.url, secret = config.secret, useV3 = config.useV3)
+        // Also clear a persisted selection if there was no callback left to retire.
+        ManagedCurrentSensor.clearIfMatches(config.sensorId)
     }
 
     fun connectSensor(context: Context, sensorId: String) {

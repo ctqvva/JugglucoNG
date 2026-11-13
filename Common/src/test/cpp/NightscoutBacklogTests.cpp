@@ -11,6 +11,8 @@
 #include <cstdlib>
 #include <functional>
 #include <map>
+#include <latch>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -214,20 +216,18 @@ using PassFn = Pass (*)(World &, bool);
 
 /* The uploader thread: take the wake, run a pass, and run again at once if it gave way.
    A refused pass would wait a quarter of an hour; here it simply goes again. `asked` are
-   the wakes the first pass starts with besides the reading stream's own, as a Resend or a
-   journal entry would raise them. After the pass the treatments go out if it let them. */
-constexpr std::uintptr_t wakeStream = 1, wakeAll = 8, wakeTreatments = 1024;
+   the wakes the first pass starts with, as a Resend or a journal entry would raise them. After the pass the treatments go out if it let them. */
+constexpr std::uintptr_t wakeStream = 1, wakeNums = 4, wakeAll = 8, wakeTreatments = 1024;
 constexpr std::uintptr_t glucoseWakes = wakeStream | wakeAll;
-constexpr std::uintptr_t treatmentWakes = wakeAll | wakeTreatments;
+constexpr std::uintptr_t treatmentWakes = wakeNums | wakeAll | wakeTreatments;
 
-void runUntilQuiet(World &world, PassFn pass, int maxPasses = 2000000, std::uintptr_t asked = 0) {
+void runUntilQuiet(World &world, PassFn pass, int maxPasses = 2000000, std::uintptr_t asked = wakeAll) {
     std::uintptr_t retry = 0;
     while (world.passes < maxPasses) {
-        const bool prioritize = world.wake;
+        const std::uintptr_t current = (world.wake ? wakeStream : 0) | retry | asked;
         world.wake = false;
-        const std::uintptr_t current = (prioritize ? wakeStream : 0) | retry | wakeStream | asked;
         asked = 0;
-        const Pass result = pass(world, prioritize);
+        const Pass result = (current & glucoseWakes) ? pass(world, current & wakeStream) : Pass::done;
         if (mayUploadAside(result) && (current & treatmentWakes))
             world.sendTreatments();
         retry = carriedAfter(result, current, glucoseWakes, treatmentWakes);
@@ -435,7 +435,7 @@ void treatmentsWaitForTheLiveReading(PassFn pass, std::uintptr_t asked) {
         }
     };
 
-    runUntilQuiet(world, pass, 2000000, asked);
+    runUntilQuiet(world, pass, 2000000, wakeStream | asked);
 
     CHECK(liveTime != 0);
     CHECK(world.interrupted >= 1);
@@ -556,7 +556,7 @@ void sweepBookkeeping() {
 
 void carriedWakes() {
     constexpr std::uintptr_t stream = 1, nums = 4, all = 8, end = 64, journal = 1024;
-    constexpr std::uintptr_t glucose = stream | all, aside = nums | all | journal;
+    constexpr std::uintptr_t glucose = glucoseWakes, aside = treatmentWakes;
     // Done: nothing is owed.
     CHECK(carriedAfter(Pass::done, stream | all | journal, glucose, aside) == 0);
     // Refused: the glucose is tried again; the treatments have their own back-off.
@@ -613,6 +613,57 @@ void recentRanges() {
     CHECK(!recents.covered(2, 10) && !recents.covered(1, 110));
 }
 
+void resendIsConsumedBetweenPasses(PassFn pass) {
+    World world({300, 300});
+    ResetRequest reset;
+    CHECK(!reset.take());
+    world.afterRequest = [&](World &w) {
+        if (w.requests == 3) {
+            // Resend lands on the UI thread while a request is in flight. It must not clear
+            // recent ranges or rewind progress until this uploader pass is over.
+            w.recents.remember(0, 999999999, 0);
+            std::thread ui([&] { reset.request(); });
+            ui.join();
+            CHECK(w.recents.covered(0, 999999999));
+        }
+    };
+    CHECK(pass(world, false) == Pass::done);
+    CHECK(world.sensors[1].nightiter == 300);
+    CHECK(world.recents.covered(0, 999999999));
+    CHECK(reset.take());
+
+    // A second Resend after consumption, even during reset itself, belongs to the next pass.
+    std::latch resetting(1), queued(1);
+    std::thread ui([&] {
+        resetting.wait();
+        reset.request();
+        queued.count_down();
+    });
+    resetting.count_down();
+    world.recents.clear();
+    world.nightsensor = 0;
+    for (auto &sensor : world.sensors) sensor.nightiter = 0;
+    queued.wait();
+    ui.join();
+    CHECK(!world.recents.covered(0, 999999999));
+    CHECK(reset.take());
+    CHECK(!reset.take());
+    world.afterRequest = nullptr;
+    world.received.clear(); // Resend explicitly asks to send history again.
+    runUntilQuiet(world, pass);
+    CHECK(world.everythingSent());
+    CHECK(world.duplicates() == 0);
+}
+
+void numsOnlyWakeSendsTreatments() {
+    World world({});
+    world.treatmentsOwed = 3;
+    runUntilQuiet(world, &passV3, 10, wakeNums);
+    CHECK(world.passes == 0);
+    CHECK(world.treatmentsOwed == 0);
+    CHECK(world.treatmentRequests.size() == 3);
+}
+
 void recentRangesAreBounded() {
     // A safeguard against a cursor that never arrives: past the limit the oldest range goes,
     // which costs a repeat later and never a reading.
@@ -646,6 +697,8 @@ int main() {
         aPassWithNothingWaitingRunsToTheEnd(mode.pass);
         treatmentsWaitForTheLiveReading(mode.pass, wakeAll | wakeTreatments);
         treatmentsWaitForTheLiveReading(mode.pass, wakeTreatments);
+        treatmentsWaitForTheLiveReading(mode.pass, wakeNums);
+        resendIsConsumedBetweenPasses(mode.pass);
         liveReadingsAfterAGapAreNotSentTwice(mode.pass, mode.often);
         liveReadingsAfterAGapAreNotSentTwice(mode.pass, mode.seldom);
     }
@@ -654,6 +707,7 @@ int main() {
     aRefusalWhileSendingOneByOneLeavesTheCursorAtTheReading();
     sweepBookkeeping();
     carriedWakes();
+    numsOnlyWakeSendsTreatments();
     recentRanges();
     recentRangesAreBounded();
     std::puts("nightscout backlog: all tests passed");

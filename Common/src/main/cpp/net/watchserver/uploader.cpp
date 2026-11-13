@@ -60,6 +60,7 @@ static std::atomic<time_t> lastSensorStartAttempt{0};
 static bool lastNightUploadConfigError = false;
 static constexpr int maxRecentNightUploadSensors = 1024;
 static nightscout_backlog::RecentUploads<maxRecentNightUploadSensors> recentNightUploads;
+static nightscout_backlog::ResetRequest uploaderReset;
 /*
 void makeuploadurl(JNIEnv *env) {
         const int namelen=settings->data()->nightuploadnamelen;
@@ -1221,6 +1222,12 @@ static void uploaderthread() {
             uploadercondition.dobackup=0;
             }
         retrypending=0;
+        if(uploaderReset.take()) {
+            reset();
+            current|=Backup::wakeall;
+            treatmentbackoffmin=0;
+            treatmentnextattempt=std::chrono::steady_clock::time_point{};
+            }
         bool useV3=settings->data()->nightscoutV3;
         glucosefailed=false;
         const bool prioritizeRecent=(current&Backup::wakestream);
@@ -1389,7 +1396,7 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(wakeNightscoutForLiveReading)
     return ready?JNI_TRUE:JNI_FALSE;
     }
 extern "C" JNIEXPORT void JNICALL fromjava(resetuploader) (JNIEnv *env, jclass clazz) {
-    reset();
+    uploaderReset.request();
     wakeuploader();
     } 
 
