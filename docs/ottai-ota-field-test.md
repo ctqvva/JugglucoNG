@@ -203,6 +203,22 @@ for a composite revision now gets one more read-only judge in the variant-less s
 (`offer variantless …` in the trace). An offered package must still be an upgrade of the actual
 BLE revision. Installing it stays a separate confirmation.
 
+**Confirmed 2026-11-13** with read-only Global judge calls for sensor `E07291BAA4F5`:
+
+| `deviceVersion` sent | Answer |
+|---|---|
+| `E1.2.3(V1.7.SH2542.1),STDRD` | no offer |
+| `E1.2.3(V1.7.SH2542.1)` | `requiredUpgrade=true`, package `E1.2.7(V1.7.SH2640.3).gbl` |
+| `V1.7.SH2542.1` | no offer |
+| `E1.2.6(V1.7.SH2616.1)`, with or without `,STDRD` | no offer |
+
+The same sensor then updated to `E1.2.7(V1.7.SH2640.3)` in the official Ottai Global app, and
+streamed in JugglucoNG afterwards. The package is named in the variant-less spelling, while the
+sensor reads back `…,STDRD`. Post-install verification therefore accepts a readback that differs
+from a variant-less composite target only by its variant. A target that names a variant must
+match it exactly. A MAC unknown to the cloud answers `AppDevice_NotExist`, so the judge is
+per-sensor. Our install path has still not flashed a sensor.
+
 1. Export its credentials and any history you want to keep. Disconnect it from monitoring
    while retaining local credentials/history. Stop other apps from reconnecting to it. A
    managed record or callback in this test app still prevents the separate BLE session;
