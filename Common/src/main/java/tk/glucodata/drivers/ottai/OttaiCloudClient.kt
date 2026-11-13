@@ -1495,6 +1495,7 @@ object OttaiCloudClient {
         if (resp.optString("code").equals("OK", ignoreCase = true)) {
             val (answer, result) = globalThirdLogin(ctx, em, password)
             if (answer == GlobalLoginAnswer.SIGNED_IN) return result
+            if (answer == GlobalLoginAnswer.REFUSED) return null
         }
         return upgradeWebSession(ctx, resp, password, webBase)
     }
