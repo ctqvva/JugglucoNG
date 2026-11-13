@@ -1498,11 +1498,11 @@ public class NotificationChartDrawer {
 
         if (part2 != null) {
             paint2.setColor(secondaryColor);
-            currentX = drawSeparatedValue(canvas, part2, currentX, y, paint2);
+            currentX = drawSeparatedValue(canvas, part2, currentX, y, paint2, fontWeight);
         }
         if (part3 != null) {
             paint3.setColor(tertiaryColor);
-            drawSeparatedValue(canvas, part3, currentX, y, paint3);
+            drawSeparatedValue(canvas, part3, currentX, y, paint3, fontWeight);
         }
 
         return bitmap;
@@ -1514,17 +1514,33 @@ public class NotificationChartDrawer {
     private static final float SEPARATOR_DOT_EM = 0.24f;
     private static final float SEPARATOR_CENTER_EM = 0.35f;
     private static final float SEPARATOR_GAP_EM = 0.5f;
+    // The hero's dot is 0.72 alpha beside a 0.8 alpha value: a step quieter than the digits.
+    private static final float SEPARATOR_ALPHA = 0.85f;
+
+    /** The 0.24 em suits regular (400) strokes; lighter or heavier weights thin or
+     * thicken the digits, so the dot follows them instead of outweighing a light font. */
+    private static float separatorDotEm(int fontWeight) {
+        // Stroke width grows about linearly with weight; keep the dot ~2.7 strokes wide.
+        float weight = Math.max(200, Math.min(500, fontWeight));
+        return SEPARATOR_DOT_EM * weight / 400f;
+    }
 
     private static float separatorWidth(float size) {
         return size * (SEPARATOR_GAP_EM * 2f + SEPARATOR_DOT_EM);
     }
 
     /** Draws "gap dot gap value" at x in paint's size and colour; returns the end x. */
-    private static float drawSeparatedValue(Canvas canvas, String value, float x, float baseline, Paint paint) {
+    private static float drawSeparatedValue(Canvas canvas, String value, float x, float baseline, Paint paint,
+            int fontWeight) {
         float size = paint.getTextSize();
-        float radius = size * SEPARATOR_DOT_EM / 2f;
-        float centerX = x + size * SEPARATOR_GAP_EM + radius;
+        // Width keeps the 400-weight dot so weight changes do not shift the value.
+        float slot = size * SEPARATOR_DOT_EM;
+        float radius = size * separatorDotEm(fontWeight) / 2f;
+        float centerX = x + size * SEPARATOR_GAP_EM + slot / 2f;
+        int alpha = paint.getAlpha();
+        paint.setAlpha(Math.round(alpha * SEPARATOR_ALPHA));
         canvas.drawCircle(centerX, baseline - size * SEPARATOR_CENTER_EM, radius, paint);
+        paint.setAlpha(alpha);
         float valueX = x + separatorWidth(size);
         canvas.drawText(value, valueX, baseline, paint);
         return valueX + paint.measureText(value);
