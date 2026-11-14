@@ -65,6 +65,17 @@ import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 
+/**
+ * The password field stays editable whenever the stored password could not be recovered:
+ * otherwise a session without a usable password would block re-entering credentials.
+ */
+internal fun passwordFieldLocked(
+    hasSession: Boolean,
+    account: String,
+    storedAccount: String,
+    password: String,
+): Boolean = hasSession && password.isNotBlank() && account.trim() == storedAccount.trim()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ICanHealthCloudSettingsScreen(navController: NavController) {
@@ -82,7 +93,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
     val hasCredentials = account.isNotBlank() && password.isNotBlank()
     var hasSession by remember { mutableStateOf(initial.token.isNotBlank()) }
     var storedAccount by remember { mutableStateOf(initial.account) }
-    val passwordLocked = hasSession && account.trim() == storedAccount.trim()
+    val passwordLocked = passwordFieldLocked(hasSession, account, storedAccount, password)
 
     fun save() {
         val s = ICanHealthCloudSettings(context)
