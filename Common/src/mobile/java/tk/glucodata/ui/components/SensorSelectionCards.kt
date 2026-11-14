@@ -83,7 +83,7 @@ fun SensorSelectionCards(
                     title = stringResource(option.titleRes),
                     subtitle = stringResource(option.subtitleRes),
                     // One tone for every sensor, the same as the wizard hero the row opens.
-                    containerColor = sensorBackdropColor(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    containerColor = sensorBackdropColor(),
                     onClick = { onSensorSelected(option.type) },
                     compact = compact
                 )

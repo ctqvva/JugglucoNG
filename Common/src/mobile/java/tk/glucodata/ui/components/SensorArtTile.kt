@@ -172,13 +172,13 @@ private const val TILE_SHIFT_X = -0.01f
 /**
  * What a sensor is drawn against, in the list and in the wizards alike, so the tile you tap and
  * the hero it opens are the same colour: `secondaryContainer`, opaque in light themes (a
- * see-through pale fill leaves white plastic without edges) and at 65% over [under] in dark ones.
- * Always opaque, so the drawings' shading can take it in.
+ * see-through pale fill leaves white plastic without edges) and at 65% over `surface` in dark
+ * ones, whatever the card under it. Always opaque, so the drawings' shading can take it in.
  */
 @Composable
-internal fun sensorBackdropColor(under: Color): Color {
+internal fun sensorBackdropColor(): Color {
     val scheme = MaterialTheme.colorScheme
-    return if (isAppInDarkTheme()) scheme.secondaryContainer.copy(alpha = 0.65f).compositeOver(under) else scheme.secondaryContainer
+    return if (isAppInDarkTheme()) scheme.secondaryContainer.copy(alpha = 0.65f).compositeOver(scheme.surface) else scheme.secondaryContainer
 }
 
 /** Heroes that have played their entrance; each plays once per launch, not on every visit. */
@@ -349,7 +349,7 @@ internal fun SensorHeroArt(
     val screenColor = if (dark) scheme.inverseSurface else scheme.surfaceContainerHighest
     val screenAccent = if (dark) scheme.inversePrimary else scheme.primary
     val phoneRim = scheme.outline
-    val blobColor = sensorBackdropColor(scheme.surface)
+    val blobColor = sensorBackdropColor()
     val nfcMark = rememberVectorPainter(Icons.Rounded.Nfc)
     val bluetoothMark = rememberVectorPainter(Icons.Rounded.Bluetooth)
     val tick = rememberNavigationTick()
@@ -451,20 +451,23 @@ internal fun SensorHeroArt(
             val tile = tileSize.toPx()
             val sensorAt = center + Offset(sensorShift.toPx(), 0f)
             val phoneAt = center + Offset(phoneX * tile, phoneY * tile)
+            // What of each piece the shape takes: from its middle down to below its foot, set in
+            // from its ends. The shape is a floor the pieces stand in, their upper halves rising
+            // well out of it and the sensor and the phone running past its ends.
             val pieces = buildList {
-                add(ScenePiece(sensorAt, left = 0.46f * tile, right = 0.46f * tile, up = 0.4f * tile, down = 0.44f * tile))
+                add(ScenePiece(sensorAt, left = 0.24f * tile, right = 0.3f * tile, up = -0.06f * tile, down = 0.56f * tile))
                 if (carrier != CodeCarrier.NONE) {
                     val carrierAt = center + Offset(stage.carrier.x * tile, stage.carrier.y * tile)
-                    add(ScenePiece(carrierAt, left = 0.4f * tile, right = 0.36f * tile, up = 0.3f * tile, down = 0.48f * tile))
+                    add(ScenePiece(carrierAt, left = 0.3f * tile, right = 0.3f * tile, up = -0.06f * tile, down = 0.5f * tile))
                 }
-                add(ScenePiece(phoneAt, left = 0.26f * tile, right = 0.26f * tile, up = 0.3f * tile, down = 0.5f * tile, turn = phoneTurn))
+                add(ScenePiece(phoneAt, left = 0.2f * tile, right = 0.06f * tile, up = -0.06f * tile, down = 0.5f * tile))
             }
             // A waist only where two pieces leave open air between them for a radio signal.
             val open = companionKind == HeroCompanion.PAIR && type != SensorType.MEDTRUM && carrier == CodeCarrier.NONE
             val outline = sceneShape(
                 pieces,
                 tile,
-                dip = if (open) 0.07f * tile else 0f,
+                dip = if (open) 0.05f * tile else 0f,
                 dipFrom = sensorAt.x,
                 dipTo = phoneAt.x,
             )
@@ -508,7 +511,8 @@ internal fun SensorHeroArt(
                     // The phone's near edge, where it faces the sensor.
                     (phone + Offset(-0.3f * tile, 0.16f * tile)) to sensor
                 } else {
-                    (sensor + Offset(0.5f * tile, 0f)) to phone
+                    // From the sensor's edge as it is drawn, so the arcs keep to it while it pops in.
+                    (sensor + Offset(0.5f * tile * (0.4f + 0.6f * pop.value), 0f)) to phone
                 }
                 val aim = Math.toDegrees(atan2((toward - from).y, (toward - from).x).toDouble()).toFloat()
                 if (companionKind == HeroCompanion.NFC && progress < 1f) {

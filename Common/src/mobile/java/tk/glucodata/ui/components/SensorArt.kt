@@ -3,6 +3,8 @@ package tk.glucodata.ui.components
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Handler
+import android.os.Looper
 import android.util.LruCache
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
@@ -243,6 +245,8 @@ internal object SensorImages {
                     runCatching { BitmapFactory.decodeFile(file.path)?.asImageBitmap() }.getOrNull()
                         ?.let { readAhead.putIfAbsent(file.name, it) }
                 }
+            // Whatever the first screens didn't claim (old tones or sizes) is let go.
+            Handler(Looper.getMainLooper()).postDelayed({ readAhead.clear() }, READ_AHEAD_KEEP_MS)
         }
     }
 
@@ -290,6 +294,7 @@ internal object SensorImages {
     }
 
     private const val READ_AHEAD = 48
+    private const val READ_AHEAD_KEEP_MS = 10_000L
 }
 
 /** [drawSensor], drawn once per type, tones and size and shown from the image after that. */

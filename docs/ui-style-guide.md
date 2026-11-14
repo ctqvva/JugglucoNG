@@ -211,16 +211,17 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 - Every wizard's main step opens with one, never a bespoke card. The sensor and a phone acting
   out how the family connects stand in front of one shape, built by one rule for every family
   (`sceneShape`), never tailored to a sensor:
-  - each piece (the sensor, the pack, the phone at its lean) is a box round what it shows, its
-    top let out so tall things rise past the shape;
+  - each piece (the sensor, the pack, the phone) gives the shape only its lower half, from its
+    middle to just below its foot, set in from its ends;
   - the outline is the convex hull of those boxes with one wide corner radius (0.32 tile)
-    throughout, so no corner can pinch and every base stands inside;
+    throughout, so no corner can pinch;
+  - so the shape is a floor the pieces stand in. Their upper halves rise well out of it and the
+    sensor and the phone run past its ends; the illustration is never fitted inside the shape;
   - where two pieces leave open air for a radio signal (Bluetooth families, not Medtrum's serial
-    step), the top eases in by 0.07 tile, flat at both ends;
-  - tops may break out past it; bottoms never.
+    step), the top eases in by 0.05 tile, flat at both ends;
   - fill: `sensorBackdropColor`, the list tiles' colour;
   - the scene sits 0.06 tile high in its box, and the heading is 12dp under it, because the
-    grounded shape reaches further down than up.
+    floor reaches further down than the pieces.
 
   Rules:
   - The sensor stands free: nothing is centred under it (a disc or square under a sensor reads
@@ -230,7 +231,8 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
     burst, a 3D stage, the list tile reused, rings drawn as lines, a fixed 280 x 148 box with
     hand-drawn blobs, a free-form silhouette ("blobs of randomness"), one rounded rectangle per
     family, a Medtrum mound cut flat (read as a doorstop), and small grounding discs that left
-    tight `_|` corners round the phone. The fix for a bad corner is the rule, not another disc.
+    tight `_|` corners round the phone, and a shape wrapped round the whole scene (it reads as
+    the pieces squeezed into it). The fix for a bad corner is the rule, not another disc.
 - The phone acts out how the family connects; its screen says it in one mark:
 
   | Family connects by | Phone | Screen | Beside them |

@@ -34,6 +34,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -246,11 +248,13 @@ private fun SensorSetupStatusScreen(
 
             // With the sensor in the hero, the tick lands on it rather than replacing it.
             if (sensor != null) {
-                val badgeScale by animateFloatAsState(
-                    targetValue = if (tone == SensorSetupStatusTone.Success) 1f else 0f,
-                    animationSpec = ExpressiveMotion.fastSpatial(),
-                    label = "SuccessBadge"
-                )
+                // Starts hidden and lands once the screen is up, so the tick plays even on a
+                // screen that opens already successful.
+                val badge = remember { androidx.compose.animation.core.Animatable(0f) }
+                LaunchedEffect(tone) {
+                    badge.animateTo(if (tone == SensorSetupStatusTone.Success) 1f else 0f, ExpressiveMotion.fastSpatial())
+                }
+                val badgeScale = badge.value
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
