@@ -127,7 +127,7 @@ class DisplayDeltaSourceTests {
         val chart = DisplayTrendSource.augmentHistory(measured, shown, "sensor", 0L)
         assertEquals(80f, chart.last().value, 0f)
         assertEquals("+10", DisplayDeltaSource.resolve(true, shown, 5, { at }) { start, mmol, sensor ->
-            assertEquals(at - 20 * 60_000L, start)
+            assertEquals(at - 21 * 60_000L, start)
             assertEquals(false, mmol)
             assertEquals("sensor", sensor)
             measured
@@ -141,6 +141,37 @@ class DisplayDeltaSourceTests {
             clock = now + timeout + 1
             history
         })
+    }
+
+    @Test fun aMinuteAlignedMeasurementMatchesATwentyFiveSecondLiveOffset() {
+        val shownAt = now + 25_000L
+        assertEquals("+10", text(shownAt = shownAt, clock = shownAt))
+        assertEquals("−20", text(shownAt = shownAt, clock = shownAt, mode = 1))
+    }
+
+    @Test fun matchingNeverBorrowsANeighboringMinuteEvenInsideTheDisplayTolerance() {
+        val neighbor = GlucosePoint(now + 60_000L, 180f, 200f)
+        assertEquals("", text(points = listOf(point(5, 100f), neighbor), shownAt = now + 25_000L, clock = now + 25_000L))
+        assertEquals("", text(points = listOf(point(5, 100f), GlucosePoint(now - 1L, 110f)),
+            shownAt = now + 25_000L, clock = now + 25_000L))
+        assertEquals("+10", text(points = history + neighbor, shownAt = now + 25_000L, clock = now + 25_000L))
+    }
+
+    @Test fun ambiguousUnalignedArrivalsAndInvalidExactSamplesCannotBorrowTheRoundedRow() {
+        assertEquals("", text(points = history + GlucosePoint(now + 10_000L, 180f),
+            shownAt = now + 25_000L, clock = now + 25_000L))
+        assertEquals("", text(points = history + GlucosePoint(now + 25_000L, Float.NaN),
+            shownAt = now + 25_000L, clock = now + 25_000L))
+    }
+
+    @Test fun exactMeasuredTimestampsWinOverMinuteFlooring() {
+        val points = history + GlucosePoint(now + 25_000L, 130f, 150f)
+        val expected = GlucoseDelta.format(GlucoseDelta.delta(now + 25_000L, 130f, now - 5 * 60_000L, 100f, 5), false)
+        assertEquals(expected, text(points = points, shownAt = now + 25_000L, clock = now + 25_000L))
+    }
+
+    @Test fun aTolerantMatchDoesNotExtendTheMeasuredReadingsFreshness() {
+        assertEquals("", text(shownAt = now + 25_000L, clock = now + timeout + 1L))
     }
 
 }

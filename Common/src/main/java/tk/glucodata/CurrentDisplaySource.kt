@@ -42,7 +42,12 @@ object CurrentDisplaySource {
     }
 
     /** A resolved value and the history used to produce it, captured in one load. */
-    data class ResolvedReading(val snapshot: Snapshot, val points: List<GlucosePoint>)
+    data class ResolvedReading(
+        val snapshot: Snapshot,
+        val points: List<GlucosePoint>,
+        /** Input history before this resolution's live augmentation and display smoothing. */
+        val measuredPoints: List<GlucosePoint> = emptyList()
+    )
 
     @JvmStatic
     @JvmOverloads
@@ -50,14 +55,17 @@ object CurrentDisplaySource {
         maxAgeMillis: Long = Notify.glucosetimeout,
         preferredSensorId: String? = null,
         historyWindowMs: Long = DEFAULT_HISTORY_WINDOW_MS
-    ): Snapshot? {
-        return resolveCurrentInternal(
-            maxAgeMillis = maxAgeMillis,
-            preferredSensorId = preferredSensorId,
-            historyWindowMs = historyWindowMs,
-            smoothingMode = localSmoothingMode()
-        )?.snapshot
-    }
+    ): Snapshot? = resolveCurrentReading(maxAgeMillis, preferredSensorId, historyWindowMs)?.snapshot
+
+    @JvmStatic
+    @JvmOverloads
+    fun resolveCurrentReading(
+        maxAgeMillis: Long = Notify.glucosetimeout,
+        preferredSensorId: String? = null,
+        historyWindowMs: Long = DEFAULT_HISTORY_WINDOW_MS
+    ): ResolvedReading? = resolveCurrentInternal(
+        maxAgeMillis, preferredSensorId, historyWindowMs, localSmoothingMode()
+    )
 
     @JvmStatic
     @JvmOverloads
@@ -338,7 +346,7 @@ object CurrentDisplaySource {
             isMmol = isMmol,
             fallbackRate = live?.rate ?: Float.NaN
         )
-        return ResolvedReading(initialSnapshot.copy(rate = canonicalRate), processedPoints)
+        return ResolvedReading(initialSnapshot.copy(rate = canonicalRate), processedPoints, recentPoints)
     }
 
     /** The live value for the lane this view mode shows first. */
@@ -804,7 +812,7 @@ object CurrentDisplaySource {
         return SensorIdentity.matches(candidate, expected)
     }
 
-    private fun findExactPoint(points: List<GlucosePoint>, targetTimeMillis: Long): GlucosePoint? {
+    internal fun findExactPoint(points: List<GlucosePoint>, targetTimeMillis: Long): GlucosePoint? {
         if (points.isEmpty()) {
             return null
         }
