@@ -703,6 +703,11 @@
     <string name="status_bluetooth_off">Bluetooth выкл.</string>
     <string name="status_connection_failed">Ошибка подключения</string>
     <string name="status_connected">Подключено</string>
+    <string name="sensor_error">Ошибка датчика</string>
+    <string name="sensor_replace">Замените датчик</string>
+    <string name="sensor_ended">Датчик завершил работу</string>
+    <string name="sensor_warming_up">Идёт прогрев</string>
+    <string name="sensor_error_code">Код ошибки датчика</string>
     <string name="status_disconnected">Отключено</string>
     
     <string name="select_sensor_type">Выберите тип сенсора</string>

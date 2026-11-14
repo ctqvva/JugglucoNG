@@ -1159,6 +1159,15 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(getsensortext)(JNIEnv *envin,
   return envin->NewStringUTF(getsensortext(usedhist).data());
 }
 
+extern "C" JNIEXPORT jint JNICALL fromjava(getSensorErrorCode)(JNIEnv *envin,
+                                                              jclass cl,
+                                                              jlong dataptr) {
+  if (!dataptr) return 0;
+  const streamdata *str = reinterpret_cast<const streamdata *>(dataptr);
+  const SensorGlucoseData *usedhist = str->hist;
+  return usedhist ? static_cast<jint>(usedhist->sensorErrorCode) : 0;
+}
+
 extern "C" JNIEXPORT void JNICALL fromjava(resetbluetooth)(JNIEnv *envin,
                                                            jclass cl,
                                                            jlong dataptr) {
@@ -2534,6 +2543,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
   //    jint index=sdata->index;
   data_t *bluedata = fromjbyteArray(envin, bluetoothdata);
   uint32_t nu = time(NULL);
+  sdata->hist->lastPacketTime = nu;
 #ifndef NORAWSTREAM
   const struct iovec iov[2]{
       {reinterpret_cast<void *>(&nu), sizeof(nu)},
@@ -2566,7 +2576,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
     const float drate = gluc.rate();
     if (jlong res = glucoseback(nu, glval, drate, sdata->hist)) {
       sensor *senso = sensors->getsensor(sdata->sensorindex);
-      sdata->hist->sensorerror = false;
+      sdata->hist->clearSensorError();
       if (senso->finished) {
         LOGGER("processTooth finished=%d\n", senso->finished);
         if (senso->reactivateFromData())
@@ -2580,8 +2590,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
     }
   } else
     delete newstate;
-  sdata->hist->sensorerror = true;
-  sdata->hist->sensorErrorTime = nu;
+  sdata->hist->setSensorError(nu);
   return 0LL;
 }
 

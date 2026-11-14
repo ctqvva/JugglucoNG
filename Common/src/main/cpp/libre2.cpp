@@ -1391,6 +1391,8 @@ if(alg) {
         else {
             delete alg;
             LOGSTRING("bad quality\n");
+            LOGGER("bad quality quality=%d value=%d\n", qual, gluc);
+            hist->setSensorError(nutime, qual);
             }
         }
 return nullptr;
