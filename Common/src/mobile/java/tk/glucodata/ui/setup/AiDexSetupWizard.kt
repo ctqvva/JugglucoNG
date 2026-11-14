@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.content.Context
@@ -372,6 +374,12 @@ internal fun AiDexScanStep(
                     onOpenReadiness = onNavigateToReadiness
                 )
                 Spacer(Modifier.height(ui.spacerMedium))
+                SensorWizardHero(
+                    SensorType.AIDEX,
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+                    compact = rememberSensorHeroCompact(sharesScreen = true),
+                )
+                Spacer(Modifier.height(ui.spacerSmall))
                 ScanFilterHeader(
                     title = stringResource(R.string.aidex_searching_sensors),
                     showAllDevices = showAllDevices,

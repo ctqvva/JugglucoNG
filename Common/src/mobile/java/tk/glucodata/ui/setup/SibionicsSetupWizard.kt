@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.animateColorAsState
@@ -849,15 +851,11 @@ fun SelectTypeStep(
             .padding(horizontal = horizontalPadding, vertical = verticalPadding)
     ) {
         Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
-        Text(
-            text = stringResource(R.string.select_sibionics_type),
-            style = MaterialTheme.typography.headlineSmallEmphasized,
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = stringResource(R.string.choose_sibionics_variant),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        SensorWizardHero(
+            SensorType.SIBIONICS,
+            title = stringResource(R.string.select_sibionics_type),
+            subtitle = stringResource(R.string.choose_sibionics_variant),
+            compact = rememberSensorHeroCompact(sharesScreen = true),
         )
         Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
         tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)

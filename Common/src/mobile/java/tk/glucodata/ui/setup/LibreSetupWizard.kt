@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.compose.material3.LinearWavyProgressIndicator
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
@@ -80,7 +82,6 @@ import tk.glucodata.ui.components.IconTile
 import tk.glucodata.Libre3NfcSettings
 import tk.glucodata.Natives
 import tk.glucodata.R
-import tk.glucodata.ui.components.SensorHeroArt
 import tk.glucodata.ui.components.SensorType
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
@@ -278,29 +279,12 @@ fun LibreSetupWizard(
                             .padding(horizontal = ui.horizontalPadding, vertical = ui.spacerSmall),
                         verticalArrangement = Arrangement.spacedBy(ui.spacerMedium)
                     ) {
-                        SensorHeroArt(
-                            type = SensorType.LIBRE,
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        SensorWizardHero(
+                            SensorType.LIBRE,
+                            title = stringResource(R.string.libre_setup_step_scan),
+                            subtitle = stringResource(R.string.libre_nfc_instruction),
+                            compact = rememberSensorHeroCompact(sharesScreen = false),
                         )
-
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.libre_setup_step_scan),
-                                style = MaterialTheme.typography.headlineSmallEmphasized,
-                                textAlign = TextAlign.Center
-                            )
-
-                            Text(
-                                text = stringResource(R.string.libre_nfc_instruction),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                        }
 
                         tk.glucodata.ui.CgmReadinessSetupBanner(
                             includeLibreNfc = true,

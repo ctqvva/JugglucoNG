@@ -337,9 +337,39 @@ internal fun DrawScope.drawApplicator(type: SensorType, tones: SensorTones) = in
     }
 }
 
-/** A phone held to a sensor, for the NFC hero. */
+/** A phone held to a sensor, for the NFC and Bluetooth heroes. */
 internal fun DrawScope.drawNfcPhone(tones: SensorTones) = inUnitSquare {
     drawPhoneBody(tones)
+}
+
+/**
+ * A phone reading a sensor's code: on its screen the viewfinder's four corners, and a line
+ * sweeping down it once as [sweep] runs from 0 to 1.
+ */
+internal fun DrawScope.drawScanPhone(tones: SensorTones, accent: Color, sweep: Float) = inUnitSquare {
+    drawPhoneBody(tones)
+    val half = 13f
+    val arm = 6f
+    val centre = Offset(0f, -2f)
+    for (corner in listOf(Offset(-1f, -1f), Offset(1f, -1f), Offset(1f, 1f), Offset(-1f, 1f))) {
+        val at = centre + Offset(corner.x * half, corner.y * half)
+        val bracket = Path().apply {
+            moveTo(at.x, at.y - corner.y * arm)
+            lineTo(at.x, at.y)
+            lineTo(at.x - corner.x * arm, at.y)
+        }
+        drawPath(bracket, accent, style = Stroke(width = 2f, cap = StrokeCap.Round))
+    }
+    if (sweep < 1f) {
+        val y = centre.y - half + 2f * half * sweep
+        drawLine(
+            accent.copy(alpha = 0.9f * (1f - sweep * sweep)),
+            Offset(centre.x - half + 2f, y),
+            Offset(centre.x + half - 2f, y),
+            strokeWidth = 1.6f,
+            cap = StrokeCap.Round,
+        )
+    }
 }
 
 // ---- The view ----
@@ -870,7 +900,8 @@ private fun DrawScope.drawDexcom(tones: SensorTones) = seated(tones, 12.4f) {
 
 /**
  * The Sibionics pair, the Sibionics 2 tipped up behind the GS1 at their published sizes against
- * each other, so its clear base shows: GS1 33.5 x 20.0 x 5.3 mm, Sibionics 2 (GS1ECO, the reusable GS1-P2 transmitter) 35 x
+ * each other, so its clear base shows: GS1 33.5 x 20.0 x 5.3 mm, a flat white top with a lightly
+ * rounded edge on a thin clear base, Sibionics 2 (GS1ECO, the reusable GS1-P2 transmitter) 35 x
  * 24.4 x 5.9 mm. Both traced from one top-down photo of the two side by side. GS1: a pill 1.62 as
  * long as it is wide, its corners rounded to 0.4 of its width so the ends stay a little flat; a
  * round hole 0.15 of its length off centre holds a white keyed plug. Sibionics 2: a flat oblong
@@ -893,8 +924,10 @@ private fun DrawScope.drawSibionics(tones: SensorTones) = seated(tones, 8f) {
         part(tones, cover, thickness = 7.5f, bevel = 4.5f, base = 4.6f)
     }
     turned(tones, Offset(10f, 15f), -24f, 33.5f * PAIR_SCALE / 72f) { tones ->
-        part(tones, roundRect(72f, 44.4f, 18f), thickness = 11.4f, bevel = 5.5f) {
-            keyedPort(tones, Offset(-11f, 0f), 5f)
+        val shell = roundRect(72f, 44.4f, 19f)
+        glass(tones, roundRect(72.4f, 44.8f, 19.2f), thickness = 2.6f, stands = 11.4f)
+        part(tones, shell, thickness = 8.8f, bevel = 2.6f, base = 2.6f) {
+            keyedPort(tones, Offset(-11f, 0f), 5.4f)
         }
     }
 }
@@ -905,7 +938,7 @@ private const val PAIR_SCALE = 1.86f
 /** A round hole holding a white plug, its key cut in it: the filament port of a Sibionics or i6. */
 private fun DrawScope.keyedPort(tones: SensorTones, at: Offset, radius: Float) {
     pit(tones, Path().apply { addOval(Rect(at.x - radius, at.y - radius, at.x + radius, at.y + radius)) })
-    val plug = radius * 0.76f
+    val plug = radius * 0.82f
     drawCircle(
         Brush.radialGradient(
             0f to tones.highlight,

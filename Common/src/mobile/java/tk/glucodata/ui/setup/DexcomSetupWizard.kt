@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,7 +17,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tk.glucodata.DexcomManualPairing
 import tk.glucodata.R
-import tk.glucodata.ui.components.SensorHeroCard
 import tk.glucodata.ui.components.SensorType
 import tk.glucodata.ui.components.AppTopBar
 
@@ -85,7 +86,11 @@ fun DexcomSetupWizard(
             tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             Spacer(modifier = Modifier.height(ui.spacerMedium))
 
-            SensorHeroCard(SensorType.DEXCOM, stringResource(R.string.dexcom_scan_instruction))
+            SensorWizardHero(
+                SensorType.DEXCOM,
+                title = stringResource(R.string.dexcom_scan_instruction),
+                compact = rememberSensorHeroCompact(sharesScreen = true),
+            )
 
             Spacer(modifier = Modifier.height(ui.spacerMedium))
 

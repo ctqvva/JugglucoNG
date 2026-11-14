@@ -5,6 +5,8 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import android.bluetooth.BluetoothAdapter
@@ -396,6 +398,12 @@ private fun MQScanStep(
                 tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             }
             item {
+                SensorWizardHero(
+                    SensorType.MQ,
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+                    compact = rememberSensorHeroCompact(sharesScreen = true),
+                )
+                Spacer(Modifier.height(ui.spacerSmall))
                 ScanFilterHeader(
                     title = stringResource(R.string.mq_searching_sensors),
                     showAllDevices = showAllDevices,

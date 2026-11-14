@@ -9,6 +9,8 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -1857,6 +1859,11 @@ private fun OttaiSearchStep(
     val scanBlocked = !scanPermissionGranted || !bluetoothEnabled || scanError != null
 
     val searchHeader: @Composable ColumnScope.() -> Unit = {
+        SensorWizardHero(
+            SensorType.OTTAI,
+            modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerSmall),
+            compact = rememberSensorHeroCompact(sharesScreen = true),
+        )
         header()
         Spacer(Modifier.height(ui.spacerMedium))
         // The wave belongs to the search, so it runs right above it, under the account card.

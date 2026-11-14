@@ -6,6 +6,8 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.compose.material3.ButtonDefaults
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -50,7 +52,6 @@ import kotlinx.coroutines.launch
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.Log
 import tk.glucodata.R
-import tk.glucodata.ui.components.SensorHeroCard
 import tk.glucodata.ui.components.SensorType
 import tk.glucodata.drivers.icanhealth.ICanHealthConstants
 import tk.glucodata.drivers.icanhealth.ICanHealthRegistry
@@ -248,7 +249,11 @@ private fun ICanHealthOnboardingStep(
         tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
         Spacer(Modifier.height(ui.spacerMedium))
 
-        SensorHeroCard(SensorType.ICANHEALTH, stringResource(R.string.scan_sensor_qr))
+        SensorWizardHero(
+            SensorType.ICANHEALTH,
+            title = stringResource(R.string.scan_sensor_qr),
+            compact = rememberSensorHeroCompact(sharesScreen = true),
+        )
 
         Spacer(Modifier.height(ui.spacerMedium))
 

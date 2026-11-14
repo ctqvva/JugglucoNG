@@ -4,6 +4,8 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,7 +50,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import tk.glucodata.Log
 import tk.glucodata.R
-import tk.glucodata.ui.components.SensorHeroCard
 import tk.glucodata.ui.components.SensorType
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.drivers.medtrum.MedtrumPersistence
@@ -209,7 +210,11 @@ fun MedtrumSetupWizard(
 
                     Spacer(Modifier.height(ui.spacerMedium))
 
-                    SensorHeroCard(SensorType.MEDTRUM, stringResource(R.string.medtrum_sensor_desc))
+                    SensorWizardHero(
+                        SensorType.MEDTRUM,
+                        title = stringResource(R.string.medtrum_sensor_desc),
+                        compact = rememberSensorHeroCompact(sharesScreen = false),
+                    )
 
                     Spacer(Modifier.height(ui.spacerMedium))
 

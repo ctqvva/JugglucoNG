@@ -10,6 +10,8 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ButtonDefaults
@@ -377,6 +379,12 @@ private fun AnytimeScanStep(
                 tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             }
             item {
+                SensorWizardHero(
+                    SensorType.ANYTIME,
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+                    compact = rememberSensorHeroCompact(sharesScreen = true),
+                )
+                Spacer(Modifier.height(ui.spacerSmall))
                 ScanFilterHeader(
                     title = stringResource(R.string.anytime_searching_sensors),
                     showAllDevices = showAllDevices,

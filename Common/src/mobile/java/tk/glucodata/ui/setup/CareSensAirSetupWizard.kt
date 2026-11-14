@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
-import tk.glucodata.ui.components.SensorHeroCard
 import tk.glucodata.ui.components.SensorType
 import tk.glucodata.ui.components.AppTopBar
 
@@ -69,7 +70,11 @@ fun CareSensAirSetupWizard(
             tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             Spacer(modifier = Modifier.height(ui.spacerMedium))
 
-            SensorHeroCard(SensorType.CARESENS_AIR, stringResource(R.string.caresens_air_scan_instruction))
+            SensorWizardHero(
+                SensorType.CARESENS_AIR,
+                title = stringResource(R.string.caresens_air_scan_instruction),
+                compact = rememberSensorHeroCompact(sharesScreen = true),
+            )
 
             Spacer(modifier = Modifier.height(ui.spacerMedium))
 
