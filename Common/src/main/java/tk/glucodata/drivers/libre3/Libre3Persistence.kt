@@ -136,6 +136,21 @@ object Libre3Persistence {
     // identity is referred to as "<version>/<label>", and a sensor stores the reference it paired
     // with, so selecting or installing a newer set never changes the key an existing pairing uses.
 
+    private const val KEY_CREDENTIAL_REVISION = "credential_revision"
+
+    @Synchronized
+    fun credentialRevision(context: Context): Long = prefs(context).getLong(KEY_CREDENTIAL_REVISION, 0L)
+
+    data class AuthorizationSnapshot(val revision: Long, val cached: Pair<ByteArray, String>?, val identities: List<Libre3AppIdentity>)
+
+    @Synchronized
+    fun authorizationSnapshot(context: Context, sensorId: String): AuthorizationSnapshot =
+        AuthorizationSnapshot(credentialRevision(context), loadCachedAuth(context, sensorId), loadIdentitiesForSensor(context, sensorId))
+
+    private fun requireRevision(context: Context, expected: Long) {
+        check(expected == credentialRevision(context)) { "credentials changed; retry the operation" }
+    }
+
     private const val KEY_VERSIONS = "identity_versions"
     private const val KEY_SELECTED = "identity_selected"
     private fun payloadKey(version: String) = "identity_payload.$version"
@@ -156,6 +171,7 @@ object Libre3Persistence {
     fun selectedIdentityVersion(context: Context): String? =
         prefs(context).getString(KEY_SELECTED, null)?.takeIf { v -> identityVersions(context).any { it.id == v } }
 
+    @Synchronized
     fun selectIdentityVersion(context: Context, version: String) {
         require(identityVersions(context).any { it.id == version }) { "identity version $version is not installed" }
         prefs(context).edit().putString(KEY_SELECTED, version).apply()
@@ -184,17 +200,20 @@ object Libre3Persistence {
      * Downloads and installs [source] unless that exact version is already installed. Blocking:
      * call off the main thread.
      */
-    fun provisionIdentities(context: Context, source: Libre3IdentitySource): List<Libre3AppIdentity> {
+    fun provisionIdentities(context: Context, source: Libre3IdentitySource, expectedRevision: Long = credentialRevision(context)): List<Libre3AppIdentity> {
         identityVersions(context).firstOrNull { it.id == source.version && it.sha256.equals(source.sha256, true) }?.let {
             val installed = loadIdentityVersion(context, it.id)
             if (installed.isNotEmpty()) {
-                selectIdentityVersion(context, it.id)
-                return installed
+                synchronized(this) {
+                    requireRevision(context, expectedRevision)
+                    selectIdentityVersion(context, it.id)
+                    return installed
+                }
             }
         }
         val bytes = Libre3IdentityProvisioning.fetch(source)
         val origin = source.urls.joinToString { runCatching { java.net.URL(it).host }.getOrDefault(it) }
-        return installIdentities(context, source.version, source.sha256, bytes, origin)
+        return installIdentities(context, source.version, source.sha256, bytes, origin, expectedRevision)
     }
 
     /**
@@ -202,7 +221,8 @@ object Libre3Persistence {
      * id is immutable: reinstalling it with other content is refused. The new set is selected.
      */
     @Synchronized
-    fun installIdentities(context: Context, version: String, sha256: String, bytes: ByteArray, origin: String): List<Libre3AppIdentity> {
+    fun installIdentities(context: Context, version: String, sha256: String, bytes: ByteArray, origin: String, expectedRevision: Long = credentialRevision(context)): List<Libre3AppIdentity> {
+        requireRevision(context, expectedRevision)
         val parsed = Libre3IdentityProvisioning.validate(bytes, sha256)
         val versions = identityVersions(context)
         versions.firstOrNull { it.id == version }?.let { existing ->
@@ -218,15 +238,17 @@ object Libre3Persistence {
             array.put(org.json.JSONObject().put("id", it.id).put("sha256", it.sha256).put("installedAt", it.installedAtMs).put("origin", it.origin))
         }
         // Payload before metadata: a failed write leaves the previous selection usable.
-        prefs(context).edit().putString(payloadKey(version), sealed).commit()
-        prefs(context).edit().putString(KEY_VERSIONS, array.toString()).putString(KEY_SELECTED, version).apply()
+        check(prefs(context).edit().putString(payloadKey(version), sealed).commit()) { "could not persist identity payload" }
+        check(prefs(context).edit().putString(KEY_VERSIONS, array.toString()).putString(KEY_SELECTED, version).commit()) {
+            "could not persist identity selection"
+        }
         return relabel(version, parsed)
     }
 
     /** A user-picked file: its digest is computed here and becomes its version. */
-    fun importIdentities(context: Context, bytes: ByteArray): List<Libre3AppIdentity> {
+    fun importIdentities(context: Context, bytes: ByteArray, expectedRevision: Long = credentialRevision(context)): List<Libre3AppIdentity> {
         val sha = Libre3IdentityProvisioning.sha256Hex(bytes)
-        return installIdentities(context, "import-${sha.take(12)}", sha, bytes, "file")
+        return installIdentities(context, "import-${sha.take(12)}", sha, bytes, "file", expectedRevision)
     }
 
     fun loadIdentityVersion(context: Context, version: String): List<Libre3AppIdentity> {
@@ -252,11 +274,13 @@ object Libre3Persistence {
         identities.map { Libre3AppIdentity.create("$version/${it.label}", it.scalarCopy(), it.certificate) }
 
     /** Removes every installed set and every sensor's cached authorization derived from one. */
+    @Synchronized
     fun clearIdentities(context: Context) {
         val p = prefs(context)
-        val edit = p.edit().remove(KEY_VERSIONS).remove(KEY_SELECTED).remove("identities_sealed")
+        val edit = p.edit().putLong(KEY_CREDENTIAL_REVISION, credentialRevision(context) + 1L).remove(KEY_VERSIONS).remove(KEY_SELECTED).remove("identities_sealed")
         p.all.keys.filter { it.startsWith("identity_payload.") || it.endsWith(".kauth") }.forEach { edit.remove(it) }
-        edit.apply()
+        check(edit.commit()) { "could not persist credential removal" }
+        tk.glucodata.SensorBluetooth.gattcallbacks.filterIsInstance<Libre3BleManager>().forEach { it.onCredentialsRemoved() }
     }
 
     // ---- sensors ----
@@ -328,11 +352,13 @@ object Libre3Persistence {
         return if (key.size == 16) key to label else null
     }
 
-    fun saveCachedAuth(context: Context, sensorId: String, kAuth: ByteArray, identityLabel: String) {
-        prefs(context).edit()
+    @Synchronized
+    fun saveCachedAuth(context: Context, sensorId: String, kAuth: ByteArray, identityLabel: String, expectedRevision: Long): Boolean {
+        if (expectedRevision != credentialRevision(context) || !hasIdentities(context)) return false
+        return prefs(context).edit()
             .putString("$sensorId.kauth", Libre3SecretBox.seal(kAuth))
             .putString("$sensorId.identity", identityLabel)
-            .apply()
+            .commit()
     }
 
     fun clearCachedAuth(context: Context, sensorId: String) {

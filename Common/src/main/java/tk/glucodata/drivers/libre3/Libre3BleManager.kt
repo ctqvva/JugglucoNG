@@ -71,8 +71,8 @@ class Libre3BleManager(sensorId: String) :
         /** After this many complete rounds of every identity being refused, stop until the user acts. */
         private const val MAX_IDENTITY_ROUNDS = 2
         private const val MGDL_PER_MMOL = 18.0182f
-        /** Same 14-day geometry the generic mirror (VirtualSensorNativeMirror) assumes. */
-        private const val NATIVE_WINDOW_MINUTES = 14 * 24 * 60
+        /** Full Libre 3 Plus lifetime plus headroom; matches the family-specific native mirror. */
+        private const val NATIVE_WINDOW_MINUTES = 32 * 24 * 60
         private const val NATIVE_WINDOW_SECONDS = NATIVE_WINDOW_MINUTES * 60L
     }
 
@@ -133,6 +133,7 @@ class Libre3BleManager(sensorId: String) :
     private val ops = ArrayDeque<GattOp>()
     private var opInFlight: GattOp? = null
 
+    private var credentialRevision = -1L
     private var handshake: Libre3Handshake? = null
     private var handshakeIdentity: Libre3AppIdentity? = null
     private var session: Libre3DataPlaneSession? = null
@@ -193,11 +194,13 @@ class Libre3BleManager(sensorId: String) :
 
     fun getSensorId(): String = sensorId
 
+    private fun text(id: Int): String = Applic.app?.getString(id).orEmpty()
+
     override fun getDetailedBleStatus(): String = when (phase) {
         Phase.IDLE -> when {
-            missingIdentity -> "No Libre 3 app identity imported"
-            identityRejected -> "Sensor did not accept the app identity"
-            deviceRejected -> "Device is not a Libre 3 (missing services); scan the sensor again"
+            missingIdentity -> text(tk.glucodata.R.string.libre3_status_identity_missing)
+            identityRejected -> text(tk.glucodata.R.string.libre3_status_identity_rejected)
+            deviceRejected -> lastNote.ifBlank { text(tk.glucodata.R.string.libre3_status_device_rejected) }
             mActiveBluetoothDevice == null -> "Searching"
             else -> "Idle"
         }
@@ -294,6 +297,13 @@ class Libre3BleManager(sensorId: String) :
             endLink()
             phase = Phase.ENDED
             UiRefreshBus.requestStatusRefresh()
+        }
+    }
+
+    fun onCredentialsRemoved() {
+        handler.post {
+            missingIdentity = true
+            dropLink("credentials removed")
         }
     }
 
@@ -408,7 +418,7 @@ class Libre3BleManager(sensorId: String) :
         Log.w(TAG, "$sensorId: identity '$label' not accepted ($identityRejections refusals, $count identities)")
         if (count == 0 || identityRejections >= count * MAX_IDENTITY_ROUNDS) {
             identityRejected = true
-            lastNote = "Sensor did not accept the app identity"
+            lastNote = text(tk.glucodata.R.string.libre3_status_identity_rejected)
             UiRefreshBus.requestStatusRefresh()
         }
     }
@@ -523,6 +533,12 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun onNotification(uuid: UUID, value: ByteArray) {
+        val ctx = Applic.app ?: return
+        if (credentialRevision >= 0 && credentialRevision != Libre3Persistence.credentialRevision(ctx)) {
+            missingIdentity = true
+            dropLink("credentials changed")
+            return
+        }
         when (uuid) {
             Libre3Gatt.SEC_COMMAND_RESPONSE -> handshake?.let { perform(it.onCommandResponse(value)) }
             Libre3Gatt.SEC_CERT_DATA -> handshake?.let { perform(it.onCertData(value)) }
@@ -536,15 +552,17 @@ class Libre3BleManager(sensorId: String) :
     private fun startHandshake() {
         val ctx = Applic.app ?: return dropLink("no context")
         val rec = record ?: return failSetup("Scan the sensor with NFC first", stopUntilUser = true)
-        val cached = Libre3Persistence.loadCachedAuth(ctx, sensorId)
-        val identities = Libre3Persistence.loadIdentitiesForSensor(ctx, sensorId)
+        val auth = Libre3Persistence.authorizationSnapshot(ctx, sensorId)
+        credentialRevision = auth.revision
+        val cached = auth.cached
+        val identities = auth.identities
         val hs = if (cached != null) {
             handshakeIdentity = identities.firstOrNull { it.label == cached.second }
             Libre3Handshake(Libre3Handshake.Mode.CACHED, rec.blePin, handshakeIdentity, cached.first)
         } else {
             if (identities.isEmpty()) {
                 missingIdentity = true
-                return failSetup("No Libre 3 app identity imported", stopUntilUser = true)
+                return failSetup(text(tk.glucodata.R.string.libre3_status_identity_missing), stopUntilUser = true)
             }
             val identity = pickIdentity(ctx, identities)
             handshakeIdentity = identity
@@ -584,6 +602,12 @@ class Libre3BleManager(sensorId: String) :
 
     private fun onAuthenticated(done: Libre3Handshake.Action.Authenticated) {
         Log.i(TAG, "$sensorId: authorized (${if (done.viaCache) "cached" else "full"})")
+        val context = Applic.app ?: return
+        if (credentialRevision != Libre3Persistence.credentialRevision(context)) {
+            missingIdentity = true
+            dropLink("credentials changed during authorization")
+            return
+        }
         session = Libre3DataPlaneSession(done.session.kEnc, done.session.ivEnc)
         glucoseAssembler.reset()
         identityRejections = 0
@@ -591,7 +615,11 @@ class Libre3BleManager(sensorId: String) :
         val ctx = Applic.app
         val label = handshakeIdentity?.label
         if (ctx != null && label != null && !done.viaCache) {
-            Libre3Persistence.saveCachedAuth(ctx, sensorId, done.kAuth, label)
+            if (!Libre3Persistence.saveCachedAuth(ctx, sensorId, done.kAuth, label, credentialRevision)) {
+                missingIdentity = true
+                dropLink("credentials removed during authorization")
+                return
+            }
         }
         phase = Phase.STARTING_DATA
         UiRefreshBus.requestStatusRefresh()
@@ -608,7 +636,10 @@ class Libre3BleManager(sensorId: String) :
             Libre3Handshake.FailureKind.AUTHORIZATION ->
                 if (hs != null && !hs.isFull) ctx?.let { Libre3Persistence.clearCachedAuth(it, sensorId) }
                 else noteIdentityRejected(handshakeIdentity?.label ?: "?")
-            Libre3Handshake.FailureKind.SENSOR_CERTIFICATE -> lastNote = "Sensor certificate not recognised"
+            Libre3Handshake.FailureKind.SENSOR_CERTIFICATE -> {
+                deviceRejected = true
+                lastNote = text(tk.glucodata.R.string.libre3_status_certificate_rejected)
+            }
             Libre3Handshake.FailureKind.PROTOCOL -> Unit
         }
         dropLink("handshake ${failure.kind}")
@@ -717,7 +748,8 @@ class Libre3BleManager(sensorId: String) :
             markLocalReadingAccepted(timeMs)
             ensureNativeWindow()
             val safeRate = rate.takeIf { it.isFinite() } ?: 0f
-            HistorySyncAccess.storeCurrentReadingAsync(timeMs, mgdl, 0f, safeRate, sensorId)
+            // Include live minutes in the blocking flush before its progress can be persisted.
+            minuteBackfill += VirtualGlucoseSensorBridge.Reading(timestampMs = timeMs, glucoseMgdl = mgdl, rate = rate)
             VirtualGlucoseSensorBridge.mirrorToNative(
                 sensorId,
                 listOf(VirtualGlucoseSensorBridge.Reading(timestampMs = timeMs, glucoseMgdl = mgdl, rate = rate)),
@@ -849,16 +881,17 @@ class Libre3BleManager(sensorId: String) :
     private val controlTimeoutRunnable = Runnable {
         if (controlInFlight != null) {
             Log.w(TAG, "$sensorId: no response to ${controlInFlight} backfill request")
-            onControlResponse(timedOut = true)
+            // Replies carry no request identity. A new operation on this link could mistake a
+            // late completion for its own, so only a fresh authenticated link may retry.
+            dropLink("backfill response timeout")
         }
     }
 
     /** The sensor answers on patchControl once a requested backfill has been delivered. */
-    private fun onControlResponse(timedOut: Boolean = false) {
+    private fun onControlResponse() {
         handler.removeCallbacks(controlTimeoutRunnable)
-        // Only a real completion settles the marks. A timeout says nothing about what the sensor
-        // still holds, so the unreplayed range must stay requestable on the next status.
-        val settled = if (timedOut) null else controlInFlight
+        // Timeouts tear down the link; only a real completion reaches this method.
+        val settled = controlInFlight
         when (settled) {
             // Whatever the sensor did not replay is gone; settle the mark so the request is not repeated.
             ControlKind.CLINICAL -> {
@@ -926,7 +959,8 @@ class Libre3BleManager(sensorId: String) :
             val gapFillers = if (history.isEmpty()) emptyList() else {
                 val from = history.minOf { it.timestampMs } - HISTORY_DUPLICATE_WINDOW_MS
                 val to = history.maxOf { it.timestampMs } + HISTORY_DUPLICATE_WINDOW_MS
-                val known = (HistorySyncAccess.getHistoryTimestampsForSensor(sensorId, from.coerceAtLeast(1L), to).toList() +
+                val known = ((HistorySyncAccess.getHistoryTimestampsForSensorOrNull(sensorId, from.coerceAtLeast(1L), to)
+                    ?: return false).toList() +
                     minutes.map { it.timestampMs }).sorted()
                 history.filter { h -> known.none { kotlin.math.abs(it - h.timestampMs) <= HISTORY_DUPLICATE_WINDOW_MS } }
             }
@@ -935,18 +969,22 @@ class Libre3BleManager(sensorId: String) :
                     sensorId, minutes, "$LOG_LABEL clinical",
                     backfill = true,
                     nearDuplicateWindowMs = MINUTE_DUPLICATE_WINDOW_MS,
-                    mirrorToNative = true,
+                    mirrorToNative = false,
+                    failOnStorageError = true,
                     nativeFamily = ManagedSensorUiFamily.LIBRE3,
                 )
             }
+            if (minutes.isNotEmpty()) {
+                VirtualGlucoseSensorBridge.mirrorToNative(sensorId, minutes, "$LOG_LABEL clinical", ManagedSensorUiFamily.LIBRE3)
+            }
             if (history.isNotEmpty()) {
-                // Five-minute values only fill holes the minute stream left; they are not mirrored
-                // natively, where they would overwrite minute slots with a smoothed value.
+                // Only the previously identified holes may be mirrored with smoothed values.
                 VirtualGlucoseSensorBridge.importHistory(
                     sensorId, history, "$LOG_LABEL history",
                     backfill = true,
                     nearDuplicateWindowMs = HISTORY_DUPLICATE_WINDOW_MS,
                     mirrorToNative = false,
+                    failOnStorageError = true,
                     nativeFamily = ManagedSensorUiFamily.LIBRE3,
                 )
                 if (gapFillers.isNotEmpty()) {

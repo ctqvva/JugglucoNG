@@ -58,6 +58,7 @@ fun Libre3ManagedDriverSection() {
     var labels by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedVersion by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
+    var loaded by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var useAccountReceiver by remember {
         mutableStateOf(Libre3Persistence.getReceiverSource(context) == Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT)
@@ -71,6 +72,7 @@ fun Libre3ManagedDriverSection() {
         }
         selectedVersion = version
         labels = list
+        loaded = true
     }
 
     // Recomputed on every composition: the LibreView account ID can change while this is shown.
@@ -91,26 +93,35 @@ fun Libre3ManagedDriverSection() {
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
+        busy = true
+        val revision = Libre3Persistence.credentialRevision(context)
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
                     // Bounded read: the picker accepts any file, and a huge one must not be buffered.
                     val bytes = context.contentResolver.openInputStream(uri)?.use { Libre3IdentityProvisioning.readBounded(it) }
                         ?: error("cannot open file")
-                    Libre3Persistence.importIdentities(context, bytes)
+                    Libre3Persistence.importIdentities(context, bytes, revision)
                 }
             }
+            busy = false
             reportResult(result)
         }
     }
 
     fun download(source: Libre3IdentitySource) {
         busy = true
+        val revision = Libre3Persistence.credentialRevision(context)
         scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { Libre3Persistence.provisionIdentities(context, source) } }
+            val result = withContext(Dispatchers.IO) { runCatching { Libre3Persistence.provisionIdentities(context, source, revision) } }
             busy = false
             reportResult(result)
         }
+    }
+
+    LaunchedEffect(enabled, loaded) {
+        val source = Libre3Persistence.effectiveIdentitySource(context)
+        if (enabled && loaded && labels.isEmpty() && source != null && !busy) download(source)
     }
 
     SectionLabel(text = stringResource(R.string.libre3_managed_title))
@@ -122,8 +133,6 @@ fun Libre3ManagedDriverSection() {
             onCheckedChange = {
                 enabled = it
                 Libre3Persistence.setEnabled(context, it)
-                val source = Libre3Persistence.effectiveIdentitySource(context)
-                if (it && labels.isEmpty() && source != null && !busy) download(source)
             },
             icon = Icons.Default.Nfc,
             iconTint = MaterialTheme.colorScheme.secondary,
@@ -198,11 +207,19 @@ fun Libre3ManagedDriverSection() {
                 }
                 if (labels.isNotEmpty()) {
                     OutlinedButton(
+                        enabled = !busy && loaded,
                         onClick = {
                             // Also drops each sensor's cached kAuth, so nothing keeps authorizing
                             // with a removed identity.
-                            Libre3Persistence.clearIdentities(context)
-                            reload++
+                            scope.launch {
+                                busy = true
+                                val result = withContext(Dispatchers.IO) { runCatching { Libre3Persistence.clearIdentities(context) } }
+                                result.onSuccess { labels = emptyList() }.onFailure {
+                                    Toast.makeText(context, importFailed.format(it.message ?: it.javaClass.simpleName), Toast.LENGTH_LONG).show()
+                                }
+                                reload++
+                                busy = false
+                            }
                         },
                         shapes = ButtonDefaults.shapes(),
                     ) {

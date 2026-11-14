@@ -3551,4 +3551,30 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="food_reorder">Dib u kala hagaaji cuntada</string>
     <string name="food_move_up">Kor u dhaqaaji</string>
     <string name="food_move_down">Hoos u dhaqaaji</string>
+
+    <!-- Kotlin Libre 3 driver -->
+    <string name="libre3_managed_title">Darawalka Kotlin Libre 3 (tijaabo)</string>
+    <string name="libre3_managed_enable">Isticmaal darawalka Kotlin Libre 3</string>
+    <string name="libre3_managed_enable_desc">Iskaannada cusub ee NFC ee Libre 3 / 3 Plus waxay adeegsadaan darawalka Kotlin halkii maktabaddii hore. Waxaa loo baahan yahay aqoonsi abka oo la soo dejiyey.</string>
+    <string name="libre3_managed_receiver_account">Koontada LibreView u isticmaal aqoonsiga qaataha</string>
+    <string name="libre3_managed_receiver_desc">Aqoonsiga qaataha ee amarka NFC: %1$s. Hay aqoonsiga koontada dareemayaasha hore Juggluco ugu bilaabmay; dami si loo isticmaalo aqoonsiga taleefankan.</string>
+    <string name="libre3_managed_identity_none">Aqoonsi abka lama soo gelin. Dareemaha Libre 3 wuxuu aqbalaa shahaado ku habboon oo keliya; abkani midna ma wato.</string>
+    <string name="libre3_managed_identity_list">Xirmada aqoonsiga abka %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">Soo deji xirmo lagu hubiyey SHA-256 ama soo geli JSON (qaab 1, qalooc P-256: label, privateKeyHex, certificateHex). Dareemaha lammaan wuxuu haystaa noociisa. Furayaasha waxaa lagu sirgeliyaa fure taleefankan u gaar ah, lagumana daro dhoofinta dejimaha.</string>
+    <string name="libre3_managed_identity_source">Isha %1$s (sha256 %2$s…) ee %3$s</string>
+    <string name="libre3_managed_identity_download">Soo deji aqoonsiyada</string>
+    <string name="libre3_managed_source_url">URL-ka isha aqoonsiga (https)</string>
+    <string name="libre3_managed_source_digest">SHA-256 ee faylka aqoonsiga</string>
+    <string name="libre3_managed_source_save">Isticmaal ishan</string>
+    <string name="libre3_managed_source_invalid">Geli URL HTTPS iyo SHA-256 ee faylka oo 64 xaraf ah</string>
+    <string name="libre3_managed_receiver_none">wali ma jiro aqoonsiga koontada LibreView</string>
+    <string name="libre3_managed_identity_import">Soo geli faylka aqoonsiga</string>
+    <string name="libre3_managed_identity_remove">Ka saar</string>
+    <string name="libre3_managed_identity_imported">%1$d aqoonsi abka ayaa la soo geliyey</string>
+    <string name="libre3_managed_identity_import_failed">Faylka aqoonsiga lama soo gelin: %1$s</string>
+    <string name="libre3_managed_identity_missing">Marka hore soo geli aqoonsiga Libre 3 (dejimaha LibreView, darawalka Kotlin Libre 3). Dareemaha lama beddelin.</string>
+    <string name="libre3_status_device_rejected">Qalabku ma aha Libre 3 (adeegyo ayaa maqan); dareemaha mar kale iskaan garee</string>
+    <string name="libre3_status_certificate_rejected">Shahaadada dareemaha lama aqoonsan; mar kale iskaan garee</string>
+    <string name="libre3_status_identity_missing">Aqoonsiga abka Libre 3 lama soo gelin</string>
+    <string name="libre3_status_identity_rejected">Dareemuhu ma aqbalin aqoonsiga abka</string>
 </resources>

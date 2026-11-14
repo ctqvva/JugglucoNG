@@ -3372,4 +3372,30 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">调整食物顺序</string>
     <string name="food_move_up">上移</string>
     <string name="food_move_down">下移</string>
+
+    <!-- Kotlin Libre 3 driver -->
+    <string name="libre3_managed_title">Kotlin Libre 3 驱动（实验性）</string>
+    <string name="libre3_managed_enable">使用 Kotlin Libre 3 驱动</string>
+    <string name="libre3_managed_enable_desc">新的 Libre 3 / 3 Plus NFC 扫描使用 Kotlin 驱动，替代原生库。需要导入应用身份。</string>
+    <string name="libre3_managed_receiver_account">使用 LibreView 账户作为接收器 ID</string>
+    <string name="libre3_managed_receiver_desc">NFC 命令中的接收器 ID：%1$s。对于之前由 Juggluco 启动的传感器，请保留账户 ID；关闭后使用此手机的专属 ID。</string>
+    <string name="libre3_managed_identity_none">尚未导入应用身份。Libre 3 传感器仅接受兼容的应用证书；本应用不附带证书。</string>
+    <string name="libre3_managed_identity_list">应用身份集 %1$s：%2$s</string>
+    <string name="libre3_managed_identity_desc">下载经 SHA-256 校验的身份集，或导入 JSON 文件（格式 1，曲线 P-256：label、privateKeyHex、certificateHex）。已配对的传感器保留其身份集版本。密钥使用本机密钥加密，不包含在设置导出中。</string>
+    <string name="libre3_managed_identity_source">来自 %3$s 的源 %1$s（sha256 %2$s…）</string>
+    <string name="libre3_managed_identity_download">下载身份</string>
+    <string name="libre3_managed_source_url">身份源 URL（https）</string>
+    <string name="libre3_managed_source_digest">身份文件 SHA-256</string>
+    <string name="libre3_managed_source_save">使用此源</string>
+    <string name="libre3_managed_source_invalid">请输入 HTTPS URL 和身份文件的 64 位 SHA-256</string>
+    <string name="libre3_managed_receiver_none">尚无 LibreView 账户 ID</string>
+    <string name="libre3_managed_identity_import">导入身份文件</string>
+    <string name="libre3_managed_identity_remove">移除</string>
+    <string name="libre3_managed_identity_imported">已导入 %1$d 个应用身份</string>
+    <string name="libre3_managed_identity_import_failed">未导入身份文件：%1$s</string>
+    <string name="libre3_managed_identity_missing">请先导入 Libre 3 应用身份（LibreView 设置，Kotlin Libre 3 驱动）。传感器未更改。</string>
+    <string name="libre3_status_device_rejected">设备不是 Libre 3（缺少服务）；请重新扫描传感器</string>
+    <string name="libre3_status_certificate_rejected">无法识别传感器证书；请重新扫描传感器</string>
+    <string name="libre3_status_identity_missing">尚未导入 Libre 3 应用身份</string>
+    <string name="libre3_status_identity_rejected">传感器未接受应用身份</string>
 </resources>

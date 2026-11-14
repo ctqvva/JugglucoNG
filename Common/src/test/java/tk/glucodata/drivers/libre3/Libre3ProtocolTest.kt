@@ -4,6 +4,7 @@ import java.math.BigInteger
 import java.security.KeyPair
 import java.security.SecureRandom
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -152,7 +153,9 @@ class Libre3ProtocolTest {
         val pair = Libre3P256.generateKeyPair()
         val d = (pair.private as java.security.interfaces.ECPrivateKey).s
         val raw = d.toByteArray().let { if (it.size > 32) it.copyOfRange(it.size - 32, it.size) else ByteArray(32 - it.size) + it }
-        assertArrayEquals(Libre3P256.encode(pair.public as java.security.interfaces.ECPublicKey), Libre3P256.publicPointFromScalar(raw))
+        assertTrue(Libre3P256.matchesPrivateKey(raw, Libre3P256.encode(pair.public as java.security.interfaces.ECPublicKey)))
+        val other = Libre3P256.generateKeyPair()
+        assertFalse(Libre3P256.matchesPrivateKey(raw, Libre3P256.encode(other.public as java.security.interfaces.ECPublicKey)))
         assertTrue(BigInteger.ONE.signum() > 0)
     }
 

@@ -3711,4 +3711,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Reorder food</string>
     <string name="food_move_up">Move up</string>
     <string name="food_move_down">Move down</string>
+    <string name="libre3_status_device_rejected">Device is not a Libre 3 (missing services); scan the sensor again</string>
+    <string name="libre3_status_certificate_rejected">Sensor certificate not recognised; scan the sensor again</string>
+    <string name="libre3_status_identity_missing">No Libre 3 app identity imported</string>
+    <string name="libre3_status_identity_rejected">Sensor did not accept the app identity</string>
 </resources>

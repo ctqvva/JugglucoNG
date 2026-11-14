@@ -267,4 +267,16 @@ class VirtualSensorNativeMirrorTests {
         assertFalse(VirtualSensorNativeMirror.needsRebase(now, end - 60L))
         assertTrue(VirtualSensorNativeMirror.needsRebase(now, end))
     }
+    @Test fun libre3PlusKeepsEarlyHistoryWhenDayFifteenArrives() {
+        val native = FakeNative()
+        val mirror = mirrorOver(native)
+        val start = now - 15L * 24L * 60L * 60L
+        mirror.mirror(serial, listOf(reading(start + 60, 120f)), "Libre3", false, 32 * 24 * 60)
+        mirror.mirror(serial, listOf(reading(now, 125f)), "Libre3", false, 32 * 24 * 60)
+        assertTrue(native.rebased.isEmpty())
+        assertEquals(32 * 24 * 60, native.opened.single().second)
+        assertEquals(2, native.batches.size)
+        assertFalse(native.batches.last().primaryIsResolved)
+    }
+
 }

@@ -2,9 +2,8 @@
 //
 // Wire format everywhere is the 65-byte uncompressed point (04 || X || Y) and raw r || s ECDSA
 // signatures; JCA wants X.509/DER objects, so this file converts at the boundary. ECDH, ECDSA
-// and key generation are the platform's; the only arithmetic done here is deriving a public
-// point from an imported private scalar, to check an imported identity's key matches its
-// certificate (JCA exposes no API for that), and an on-curve check for peer points.
+// and key generation use the platform provider. Imported key pairs are checked by signing and
+// verifying a random challenge. The only local curve arithmetic checks public peer points.
 
 package tk.glucodata.drivers.libre3
 
@@ -32,8 +31,6 @@ object Libre3P256 {
     private val A = P.subtract(BigInteger.valueOf(3))
     private val B = BigInteger("5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b", 16)
     private val N = BigInteger("ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551", 16)
-    private val GX = BigInteger("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296", 16)
-    private val GY = BigInteger("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5", 16)
 
     val params: ECParameterSpec by lazy {
         AlgorithmParameters.getInstance("EC").run {
@@ -84,12 +81,19 @@ object Libre3P256 {
         }.getOrDefault(false)
     }
 
-    /** d·G as an uncompressed point; used only to check an imported key against its certificate. */
-    fun publicPointFromScalar(scalar: ByteArray): ByteArray {
-        val d = BigInteger(1, scalar)
-        if (d.signum() <= 0 || d >= N) throw InvalidPointException("private scalar out of range")
-        val (x, y) = multiply(GX, GY, d) ?: throw InvalidPointException("point at infinity")
-        return encodePoint(x, y)
+    /** Prove the imported pair matches using provider-backed ECDSA, without deriving d·G here. */
+    fun matchesPrivateKey(scalar: ByteArray, point: ByteArray): Boolean {
+        val challenge = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        val signature = Signature.getInstance("SHA256withECDSA").run {
+            initSign(privateKey(scalar))
+            update(challenge)
+            sign()
+        }
+        return Signature.getInstance("SHA256withECDSA").run {
+            initVerify(publicKey(point))
+            update(challenge)
+            verify(signature)
+        }
     }
 
     fun decodePoint(uncompressed: ByteArray): Pair<BigInteger, BigInteger> {
@@ -121,32 +125,4 @@ object Libre3P256 {
         return byteArrayOf(0x30, body.size.toByte()) + body
     }
 
-    // Affine double-and-add; only ever run on the user's own key at import time.
-    private fun multiply(x: BigInteger, y: BigInteger, k: BigInteger): Pair<BigInteger, BigInteger>? {
-        var result: Pair<BigInteger, BigInteger>? = null
-        var addend: Pair<BigInteger, BigInteger>? = x to y
-        for (i in 0 until k.bitLength()) {
-            if (k.testBit(i)) result = add(result, addend)
-            addend = add(addend, addend)
-        }
-        return result
-    }
-
-    private fun add(p1: Pair<BigInteger, BigInteger>?, p2: Pair<BigInteger, BigInteger>?): Pair<BigInteger, BigInteger>? {
-        if (p1 == null) return p2
-        if (p2 == null) return p1
-        val (x1, y1) = p1
-        val (x2, y2) = p2
-        val lambda = if (x1 == x2) {
-            if (y1.add(y2).mod(P).signum() == 0) return null
-            x1.multiply(x1).multiply(THREE).add(A).multiply(y1.shiftLeft(1).modInverse(P)).mod(P)
-        } else {
-            y2.subtract(y1).multiply(x2.subtract(x1).modInverse(P)).mod(P)
-        }
-        val x3 = lambda.multiply(lambda).subtract(x1).subtract(x2).mod(P)
-        val y3 = lambda.multiply(x1.subtract(x3)).subtract(y1).mod(P)
-        return x3 to y3
-    }
-
-    private val THREE = BigInteger.valueOf(3)
 }

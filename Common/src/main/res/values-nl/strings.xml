@@ -3409,4 +3409,30 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="food_reorder">Voeding herschikken</string>
     <string name="food_move_up">Omhoog verplaatsen</string>
     <string name="food_move_down">Omlaag verplaatsen</string>
+
+    <!-- Kotlin Libre 3 driver -->
+    <string name="libre3_managed_title">Kotlin-stuurprogramma voor Libre 3 (experimenteel)</string>
+    <string name="libre3_managed_enable">Kotlin-stuurprogramma voor Libre 3 gebruiken</string>
+    <string name="libre3_managed_enable_desc">Nieuwe NFC-scans van Libre 3 / 3 Plus gebruiken het Kotlin-stuurprogramma in plaats van de oude native bibliotheek. Een geïmporteerde app-identiteit is nodig.</string>
+    <string name="libre3_managed_receiver_account">LibreView-account als ontvanger-ID gebruiken</string>
+    <string name="libre3_managed_receiver_desc">Ontvanger-ID in het NFC-commando: %1$s. Behoud de account-ID voor eerder met Juggluco gestarte sensoren; schakel uit voor een eigen ID van deze telefoon.</string>
+    <string name="libre3_managed_identity_none">Geen app-identiteit geïmporteerd. Een Libre 3-sensor accepteert alleen een passend app-certificaat; deze app bevat er geen.</string>
+    <string name="libre3_managed_identity_list">App-identiteitenset %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">Download een met SHA-256 gecontroleerde set of importeer JSON (formaat 1, curve P-256: label, privateKeyHex, certificateHex). Een gekoppelde sensor behoudt zijn versie. Sleutels worden versleuteld met een sleutel van deze telefoon en niet met instellingen geëxporteerd.</string>
+    <string name="libre3_managed_identity_source">Bron %1$s (sha256 %2$s…) via %3$s</string>
+    <string name="libre3_managed_identity_download">Identiteiten downloaden</string>
+    <string name="libre3_managed_source_url">URL van identiteitsbron (https)</string>
+    <string name="libre3_managed_source_digest">SHA-256 van identiteitsbestand</string>
+    <string name="libre3_managed_source_save">Deze bron gebruiken</string>
+    <string name="libre3_managed_source_invalid">Voer een HTTPS-URL en de SHA-256 van het bestand van 64 tekens in</string>
+    <string name="libre3_managed_receiver_none">nog geen LibreView-account-ID</string>
+    <string name="libre3_managed_identity_import">Identiteitsbestand importeren</string>
+    <string name="libre3_managed_identity_remove">Verwijderen</string>
+    <string name="libre3_managed_identity_imported">%1$d app-identiteiten geïmporteerd</string>
+    <string name="libre3_managed_identity_import_failed">Identiteitsbestand niet geïmporteerd: %1$s</string>
+    <string name="libre3_managed_identity_missing">Importeer eerst een Libre 3-app-identiteit (LibreView-instellingen, Kotlin-stuurprogramma voor Libre 3). De sensor is niet gewijzigd.</string>
+    <string name="libre3_status_device_rejected">Apparaat is geen Libre 3 (diensten ontbreken); scan de sensor opnieuw</string>
+    <string name="libre3_status_certificate_rejected">Sensorcertificaat niet herkend; scan de sensor opnieuw</string>
+    <string name="libre3_status_identity_missing">Geen Libre 3-app-identiteit geïmporteerd</string>
+    <string name="libre3_status_identity_rejected">Sensor heeft de app-identiteit geweigerd</string>
 </resources>

@@ -584,7 +584,7 @@ public class ScanNfcV {
         // The calendar entry names the LibreView account; only when that is what the sensor holds.
         final long account = Natives.getlibreAccountIDnumber();
         final long shownAccount = (account & 0xFFFFFFFFL) == record.getReceiverId() ? account : 0L;
-        newsensorDialog(act, mess, serial, shownAccount, record.getExpectedEndMs(), true);
+        newsensorDialog(act, mess, serial, shownAccount, record.getExpectedEndMs(), tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastScanActivated());
         return 0;
     }
 

@@ -31,6 +31,11 @@ object Libre3ManagedNfc {
     /** Serial of the sensor the last successful scan paired, for the success dialog. */
     @Volatile private var lastPaired: String? = null
 
+    @Volatile private var lastActivated = false
+
+    @JvmStatic
+    fun lastScanActivated(): Boolean = lastActivated
+
     @JvmStatic
     fun lastPairedSensorId(): String? = lastPaired
 
@@ -77,6 +82,7 @@ object Libre3ManagedNfc {
         Log.i(TAG, "managed Libre 3 scan: $outcome")
         return when (outcome) {
             is Outcome.Paired -> {
+                lastActivated = outcome.activated
                 lastPaired = outcome.sensorId
                 intArrayOf(RESULT_PAIRED, 1)
             }
