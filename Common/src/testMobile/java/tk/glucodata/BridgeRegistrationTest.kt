@@ -20,6 +20,7 @@ class BridgeRegistrationTest {
         Specific.registerBridges()
 
         assertTrue("TrendAccess", TrendAccess.isRegistered())
+        assertTrue("NoiseAccess", NoiseAccess.isRegistered())
         assertTrue("CustomAlertAccess", CustomAlertAccess.isRegistered())
         assertTrue("JournalAccess", JournalAccess.isRegistered())
         assertTrue("JournalTreatmentUploadAccess", JournalTreatmentUploadAccess.isRegistered())

@@ -121,6 +121,35 @@ object DisplayTrendSource {
         return augmented.filter { it.timestamp >= cutoff }
     }
 
+    /** Noise describes live data only, including after a wall-clock rollback. */
+    @JvmStatic
+    fun isFreshForExchange(timestamp: Long, nowMillis: Long): Boolean =
+        timestamp > 0L && timestamp >= nowMillis - Notify.glucosetimeout &&
+            timestamp <= nowMillis + Notify.glucosetimeout
+
+    /**
+     * The primary series sent by this exchange: the captured history, exchange smoothing,
+     * selected lane and software calibration. Never reload current state while sending it.
+     */
+    @JvmStatic
+    fun exchangePoints(reading: CurrentDisplaySource.ResolvedReading?): List<GlucosePoint> {
+        if (reading == null) return emptyList()
+        val current = reading.snapshot
+        val cutoff = current.timeMillis - TREND_WINDOW_MS
+        val points = reading.points.filter {
+            it.timestamp >= cutoff && it.timestamp < current.timeMillis &&
+                (it.sensorSerial == null || SensorIdentity.matches(it.sensorSerial, current.sensorId))
+        }.map { point ->
+            val primary = CurrentDisplaySource.resolveDisplayValuesForPoint(
+                point, current.viewMode, current.isMmol, current.sensorId
+            ).primaryValue
+            GlucosePoint(point.timestamp, primary)
+        }
+        // The payload's own primary is authoritative, including imported calibration. The
+        // asynchronous history write may not exist yet, or a later reading may already exist.
+        return points + GlucosePoint(current.timeMillis, current.primaryValue)
+    }
+
     @JvmStatic
     @JvmOverloads
     fun resolveArrowRate(
