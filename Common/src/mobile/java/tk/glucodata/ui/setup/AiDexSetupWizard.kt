@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.content.Context
@@ -40,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.drivers.aidex.AiDexSetupKeyGate
 import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
@@ -210,6 +213,7 @@ fun AiDexSetupWizard(
                 ) {
                     SensorSetupConnectingScreen(
                         ui = ui,
+                        sensor = SensorType.AIDEX,
                         sensorLabel = selectedDeviceName.ifBlank { null }
                     )
                 }
@@ -219,6 +223,7 @@ fun AiDexSetupWizard(
                 ) {
                     SensorSetupSuccessScreen(
                         ui = ui,
+                        sensor = SensorType.AIDEX,
                         sensorLabel = selectedDeviceName.ifBlank { null }
                     )
                 }
@@ -369,6 +374,12 @@ internal fun AiDexScanStep(
                     onOpenReadiness = onNavigateToReadiness
                 )
                 Spacer(Modifier.height(ui.spacerMedium))
+                SensorWizardHero(
+                    SensorType.AIDEX,
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+                    compact = rememberSensorHeroCompact(sharesScreen = true),
+                )
+                Spacer(Modifier.height(ui.spacerSmall))
                 ScanFilterHeader(
                     title = stringResource(R.string.aidex_searching_sensors),
                     showAllDevices = showAllDevices,

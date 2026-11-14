@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.animateColorAsState
@@ -37,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.Natives
 import tk.glucodata.ui.util.BleDeviceScanner
 
@@ -478,9 +481,6 @@ fun SibionicsSetupWizard(
                     onNext = {
                         currentStep = SibionicsSetupStep.SCAN_SENSOR
                     },
-                    onBack = {
-                        onDismiss()
-                    }
                 )
 
                 SibionicsSetupStep.SCAN_SENSOR -> ScanSensorStep(
@@ -835,7 +835,6 @@ fun SelectTypeStep(
     onNavigateToReadiness: () -> Unit,
     onTypeSelected: (SibionicsType) -> Unit,
     onNext: () -> Unit,
-    onBack: () -> Unit
 ) {
     val horizontalPadding = if (compact) 16.dp else 24.dp
     val verticalPadding = if (compact) 12.dp else 16.dp
@@ -848,15 +847,12 @@ fun SelectTypeStep(
             .padding(horizontal = horizontalPadding, vertical = verticalPadding)
     ) {
         Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
-        Text(
-            text = stringResource(R.string.select_sibionics_type),
-            style = MaterialTheme.typography.headlineSmallEmphasized,
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = stringResource(R.string.choose_sibionics_variant),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        SensorWizardHero(
+            SensorType.SIBIONICS,
+            title = stringResource(R.string.select_sibionics_type),
+            compact = rememberSensorHeroCompact(sharesScreen = true),
+            // The model picked below comes to the front of the pair.
+            pairLead = selectedType == SibionicsType.SIBIONICS2,
         )
         Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
         tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
@@ -958,19 +954,6 @@ fun SelectTypeStep(
                 text = stringResource(R.string.continue_action),
                 style = MaterialTheme.typography.labelLarge
             )
-        }
-        
-        Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
-        
-        // Secondary cancel action
-        TextButton(
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight),
-            shapes = ButtonDefaults.shapes(),
-            contentPadding = ButtonDefaults.TextButtonContentPadding,
-
-            ) {
-            Text(stringResource(R.string.cancel))
         }
     }
 }
@@ -1206,6 +1189,7 @@ fun ConnectingStep(
 ) {
     SensorSetupConnectingScreen(
         ui = ui,
+        sensor = SensorType.SIBIONICS,
         sensorLabel = sensorLabel
     )
 }

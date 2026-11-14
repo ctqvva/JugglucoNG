@@ -384,7 +384,6 @@
     <string name="select_gallery_button">Выбраць з Галерэі</string>
     <string name="skip_fake_sensor">Прапусціць (Вык. фіктыўны сэнсар)</string>
     <string name="enter_code_manually">Увесці код уручную</string>
-    <string name="choose_sibionics_variant">Выберыце мадэль, указаную на ўпакоўцы.</string>
     <string name="continue_action">Працягнуць</string>
     <string name="sensor_init_failed">Ініцыялізацыя сэнсара не атрымалася</string>
     <string name="sensor_lost_restart">Памылка: Сэнсар страчаны. Перазапусціце наладу.</string>

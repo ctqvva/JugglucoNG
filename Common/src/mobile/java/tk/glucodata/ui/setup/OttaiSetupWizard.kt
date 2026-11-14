@@ -9,6 +9,9 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.HeroCompanion
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -86,6 +89,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.drivers.ottai.OttaiBleManager
 import tk.glucodata.drivers.ottai.OttaiCloudClient
@@ -1634,6 +1638,7 @@ fun OttaiSetupWizard(
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         SensorSetupConnectingScreen(
                             ui = ui,
+                            sensor = SensorType.OTTAI,
                             sensorLabel = cloudId.ifBlank { null },
                             supportingText = connectionStatus,
                         )
@@ -1643,7 +1648,7 @@ fun OttaiSetupWizard(
                 OttaiSetupStep.SUCCESS -> {
                     LaunchedScreenComplete(onComplete)
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        SensorSetupSuccessScreen(ui = ui, sensorLabel = cloudId.ifBlank { null })
+                        SensorSetupSuccessScreen(ui = ui, sensor = SensorType.OTTAI, sensorLabel = cloudId.ifBlank { null })
                     }
                 }
             }
@@ -1855,6 +1860,13 @@ private fun OttaiSearchStep(
     val scanBlocked = !scanPermissionGranted || !bluetoothEnabled || scanError != null
 
     val searchHeader: @Composable ColumnScope.() -> Unit = {
+        SensorWizardHero(
+            SensorType.OTTAI,
+            modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerSmall),
+            compact = rememberSensorHeroCompact(sharesScreen = true),
+            // China and Syai sensors are woken by the phone's NFC; Global pairs straight away.
+            companion = if (nfcHint != null) HeroCompanion.NFC else null,
+        )
         header()
         Spacer(Modifier.height(ui.spacerMedium))
         // The wave belongs to the search, so it runs right above it, under the account card.

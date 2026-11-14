@@ -398,7 +398,6 @@
     <string name="select_gallery_button">Sélectionner depuis la Galerie</string>
     <string name="skip_fake_sensor">Ignorer (Utiliser faux capteur)</string>
     <string name="enter_code_manually">Entrer le code manuellement</string>
-    <string name="choose_sibionics_variant">Sélectionnez le modèle indiqué sur l’emballage.</string>
     <string name="continue_action">Continuer</string>
     <string name="sensor_init_failed">Initialisation du capteur échouée</string>
     <string name="sensor_lost_restart">Erreur: Capteur perdu. Veuillez recommencer la configuration.</string>
@@ -3373,4 +3372,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Réorganiser les aliments</string>
     <string name="food_move_up">Monter</string>
     <string name="food_move_down">Descendre</string>
+    <string name="scan_sensor_qr">Scanner le code QR du capteur</string>
 </resources>

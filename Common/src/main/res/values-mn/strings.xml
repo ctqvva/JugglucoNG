@@ -890,7 +890,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sibionics_code_not_for_type">Энэ код %1$s-д хамаарахгүй. Буцаж очоод тохирох мэдрэгчийн төрлийг сонгоно уу.</string>
     <string name="sibionics_serial_wrong_type">Энэ сериал дугаар %1$s-тай тохирохгүй байна. Буцаж очоод тохирох мэдрэгчийн төрлийг сонгоно уу.</string>
     <string name="no_qr_found">Зурагнаас QR код олдсонгүй</string>
-    <string name="choose_sibionics_variant">Савлагаан дээрх загварыг сонгоно уу.</string>
       <!-- ComposeHost Strings -->
     <string name="go">Явах</string>
     <string name="filter_by_date">Огноогоор шүүх</string>

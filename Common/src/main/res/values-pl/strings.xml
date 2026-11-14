@@ -516,7 +516,6 @@
     <string name="select_gallery_button">Wybierz z Galerii</string>
     <string name="skip_fake_sensor">Pomiń (Użyj fałszywego sensora)</string>
     <string name="enter_code_manually">Wprowadź kod ręcznie</string>
-    <string name="choose_sibionics_variant">Wybierz model podany na opakowaniu.</string>
     <string name="continue_action">Kontynuuj</string>
     <string name="sensor_init_failed">Inicjalizacja sensora nie powiodła się</string>
     <string name="sensor_lost_restart">Błąd: Utracono sensor. Uruchom ponownie konfigurację.</string>
@@ -3426,4 +3425,5 @@
     <string name="food_reorder">Zmień kolejność produktów</string>
     <string name="food_move_up">Przenieś w górę</string>
     <string name="food_move_down">Przenieś w dół</string>
+    <string name="scan_sensor_qr">Zeskanuj kod QR sensora</string>
 </resources>

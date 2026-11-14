@@ -341,7 +341,6 @@
     <string name="select_gallery_button">Selecionar da Galeria</string>
     <string name="skip_fake_sensor">Pular (Usar sensor falso)</string>
     <string name="enter_code_manually">Inserir código manualmente</string>
-    <string name="choose_sibionics_variant">Selecione o modelo indicado na embalagem.</string>
     <string name="continue_action">Continuar</string>
     <string name="sensor_init_failed">Falha na inicialização do sensor</string>
     <string name="sensor_lost_restart">Erro: Sensor perdido. Reinicie a configuração.</string>
@@ -3368,4 +3367,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Reordenar alimentos</string>
     <string name="food_move_up">Mover para cima</string>
     <string name="food_move_down">Mover para baixo</string>
+    <string name="scan_sensor_qr">Digitalizar o código QR do sensor</string>
 </resources>

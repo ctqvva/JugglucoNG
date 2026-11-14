@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.compose.material3.LinearWavyProgressIndicator
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
@@ -52,7 +54,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,6 +82,7 @@ import tk.glucodata.ui.components.IconTile
 import tk.glucodata.Libre3NfcSettings
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
@@ -277,45 +279,12 @@ fun LibreSetupWizard(
                             .padding(horizontal = ui.horizontalPadding, vertical = ui.spacerSmall),
                         verticalArrangement = Arrangement.spacedBy(ui.spacerMedium)
                     ) {
-                        Surface(
-                            modifier = Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .size(if (ui.compact) 88.dp else 104.dp),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Nfc,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(if (ui.compact) 44.dp else 52.dp)
-                                )
-                            }
-                        }
-
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.libre_setup_step_scan),
-                                style = MaterialTheme.typography.headlineSmallEmphasized,
-                                textAlign = TextAlign.Center
-                            )
-
-                            Text(
-                                text = stringResource(R.string.libre_nfc_instruction),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                        SensorWizardHero(
+                            SensorType.LIBRE,
+                            title = stringResource(R.string.libre_setup_step_scan),
+                            subtitle = stringResource(R.string.libre_nfc_instruction),
+                            compact = rememberSensorHeroCompact(sharesScreen = false),
+                        )
 
                         tk.glucodata.ui.CgmReadinessSetupBanner(
                             includeLibreNfc = true,

@@ -441,7 +441,6 @@
     <string name="select_gallery_button">Välj från Galleri</string>
     <string name="skip_fake_sensor">Hoppa över (Använd falsk sensor)</string>
     <string name="enter_code_manually">Ange kod manuellt</string>
-    <string name="choose_sibionics_variant">Välj modellen som står på förpackningen.</string>
     <string name="continue_action">Fortsätt</string>
     <string name="sensor_init_failed">Sensorinitiering misslyckades</string>
     <string name="sensor_lost_restart">Fel: Sensor förlorad. Starta om installationen.</string>
@@ -3366,4 +3365,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Ändra ordning på livsmedel</string>
     <string name="food_move_up">Flytta upp</string>
     <string name="food_move_down">Flytta ner</string>
+    <string name="scan_sensor_qr">Skanna sensorns QR-kod</string>
 </resources>

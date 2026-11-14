@@ -1,17 +1,13 @@
 package tk.glucodata.ui.components
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -36,23 +32,22 @@ enum class SensorType {
 /** One sensor family the user can add: shared by the picker sheet and the empty-state cards. */
 internal data class SensorTypeOption(
     val type: SensorType,
-    val icon: ImageVector,
     val titleRes: Int,
     val subtitleRes: Int
 )
 
 internal val sensorTypeOptions = listOf(
-    SensorTypeOption(SensorType.LIBRE, Icons.Default.Nfc, R.string.libre_sensor, R.string.libre_sensor_desc),
-    SensorTypeOption(SensorType.DEXCOM, Icons.Default.QrCodeScanner, R.string.dexcom_sensor, R.string.dexcom_sensor_desc),
-    SensorTypeOption(SensorType.SIBIONICS, Icons.Default.QrCodeScanner, R.string.sibionics_sensor, R.string.sibionics_sensor_desc),
-    SensorTypeOption(SensorType.AIDEX, Icons.Default.Bluetooth, R.string.aidex_sensor, R.string.aidex_sensor_desc),
-    SensorTypeOption(SensorType.OTTAI, Icons.Default.Bluetooth, R.string.ottai_sensor, R.string.ottai_sensor_desc),
-    SensorTypeOption(SensorType.ICANHEALTH, Icons.Default.Bluetooth, R.string.icanhealth_sensor, R.string.icanhealth_sensor_desc),
-    SensorTypeOption(SensorType.ANYTIME, Icons.Default.Bluetooth, R.string.anytime_sensor, R.string.anytime_sensor_desc),
-    SensorTypeOption(SensorType.ACCUCHEK, Icons.Default.QrCodeScanner, R.string.accuchek_sensor, R.string.accuchek_sensor_desc),
-    SensorTypeOption(SensorType.CARESENS_AIR, Icons.Default.QrCodeScanner, R.string.caresens_air_sensor, R.string.caresens_air_sensor_desc),
-    SensorTypeOption(SensorType.MQ, Icons.Default.Bluetooth, R.string.mq_sensor, R.string.mq_sensor_desc),
-    SensorTypeOption(SensorType.MEDTRUM, Icons.Default.Bluetooth, R.string.medtrum_sensor, R.string.medtrum_sensor_models),
+    SensorTypeOption(SensorType.LIBRE, R.string.libre_sensor, R.string.libre_sensor_desc),
+    SensorTypeOption(SensorType.DEXCOM, R.string.dexcom_sensor, R.string.dexcom_sensor_desc),
+    SensorTypeOption(SensorType.SIBIONICS, R.string.sibionics_sensor, R.string.sibionics_sensor_desc),
+    SensorTypeOption(SensorType.AIDEX, R.string.aidex_sensor, R.string.aidex_sensor_desc),
+    SensorTypeOption(SensorType.OTTAI, R.string.ottai_sensor, R.string.ottai_sensor_desc),
+    SensorTypeOption(SensorType.ICANHEALTH, R.string.icanhealth_sensor, R.string.icanhealth_sensor_desc),
+    SensorTypeOption(SensorType.ANYTIME, R.string.anytime_sensor, R.string.anytime_sensor_desc),
+    SensorTypeOption(SensorType.ACCUCHEK, R.string.accuchek_sensor, R.string.accuchek_sensor_desc),
+    SensorTypeOption(SensorType.CARESENS_AIR, R.string.caresens_air_sensor, R.string.caresens_air_sensor_desc),
+    SensorTypeOption(SensorType.MQ, R.string.mq_sensor, R.string.mq_sensor_desc),
+    SensorTypeOption(SensorType.MEDTRUM, R.string.medtrum_sensor, R.string.medtrum_sensor_models),
 )
 
 /**
@@ -72,8 +67,7 @@ fun SensorTypePicker(
     val bottomPadding = if (compact) 16.dp else 28.dp
     val itemSpacing = 8.dp
     val itemVerticalPadding = if (compact) 8.dp else 10.dp
-    val iconContainerSize = if (compact) 36.dp else 42.dp
-    val iconInnerPadding = if (compact) 8.dp else 10.dp
+    val tileSize = if (compact) 40.dp else 48.dp
     val itemMinHeight = if (compact) 56.dp else 64.dp
     val sheetMaxHeight = metrics.heightDp.dp * (if (compact) 0.82f else 0.88f)
     StableModalBottomSheet(
@@ -105,7 +99,7 @@ fun SensorTypePicker(
                 key = { it.type.name }
             ) { entry ->
                 SensorTypeItem(
-                    icon = entry.icon,
+                    type = entry.type,
                     title = stringResource(entry.titleRes),
                     subtitle = stringResource(entry.subtitleRes),
                     onClick = {
@@ -113,8 +107,7 @@ fun SensorTypePicker(
                         onDismiss()
                     },
                     itemVerticalPadding = itemVerticalPadding,
-                    iconContainerSize = iconContainerSize,
-                    iconInnerPadding = iconInnerPadding,
+                    tileSize = tileSize,
                     itemMinHeight = itemMinHeight,
                     compact = compact
                 )
@@ -125,23 +118,24 @@ fun SensorTypePicker(
 
 @Composable
 private fun SensorTypeItem(
-    icon: ImageVector,
+    type: SensorType,
     title: String,
     subtitle: String,
     onClick: () -> Unit,
     itemVerticalPadding: Dp = 12.dp,
-    iconContainerSize: Dp = 48.dp,
-    iconInnerPadding: Dp = 12.dp,
+    tileSize: Dp = 48.dp,
     itemMinHeight: Dp = 64.dp,
     compact: Boolean = false
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = itemMinHeight),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainer,
-        onClick = onClick
+        onClick = onClick,
+        interactionSource = interactionSource
     ) {
         Row(
             modifier = Modifier
@@ -149,20 +143,12 @@ private fun SensorTypeItem(
                 .padding(horizontal = if (compact) 12.dp else 12.dp, vertical = itemVerticalPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(iconContainerSize)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(iconInnerPadding)
-                )
-            }
+            SensorArtTile(
+                type = type,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                tileSize = tileSize,
+                interactionSource = interactionSource
+            )
 
             Spacer(modifier = Modifier.width(if (compact) 8.dp else 12.dp))
 

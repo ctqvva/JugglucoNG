@@ -159,6 +159,7 @@ Reach for these before building a surface by hand.
 | A destructive row | `DangerItem` | same |
 | Group label | `SectionLabel` (24 above, 8 below) | same |
 | Leading icon of a row/card | `IconTile` | `components/IconTile.kt` |
+| A sensor family, shown as itself | `SensorArtTile` in a list, `SensorWizardHero` at the top of every wizard's main step (the sensor with a companion showing how it connects: applicator, NFC phone, scanning phone or pairing phone; compact row via `rememberSensorHeroCompact` when a camera, long list or keyboard shares the screen); drawn from the makers' product photos in theme roles, no maker's name; one soft square for every row so the sensors' own outlines tell them apart, the sensor bigger than the square, lying across its upper right edge a few degrees off straight; one camera and one light for every drawing, the tile's colour thrown back into the shade; the device alone, never its adhesive patch; nothing moves when a screen opens; add a `SensorType` and the compiler asks for its drawing | `components/SensorArt.kt`, `components/SensorArtTile.kt` |
 | 2–5 exclusive choices | `ConnectedButtonGroup` (material3 `ToggleButton`s, connected shapes) | `util/ConnectedButtonGroup.kt` |
 | Two buttons as one control | `ConnectedButtonShapes` | `components/ConnectedButtonShapes.kt` |
 | An action with a related second action | `SplitButtonLayout` + `SplitButtonDefaults` | material3 |
