@@ -114,6 +114,8 @@ public class Notify {
 
     static final private String LOG_ID = "Notify";
     static Notify onenot = null;
+    /** True while a loss status owns the notification surface; reading refreshes must not replace it. */
+    private static volatile boolean signalLossActive = false;
 
     private static Handler makeGlucoseRefreshHandler() {
         HandlerThread thread = new HandlerThread("JugglucoNotifyRefresh", Process.THREAD_PRIORITY_BACKGROUND);
@@ -955,6 +957,7 @@ public class Notify {
     }
 
     public static void showoldglucose() {
+        if (signalLossActive) return;
         var noti = onenot;
         if (noti == null)
             return;
@@ -1013,6 +1016,8 @@ public class Notify {
                 }
             }
         } else {
+            final var ongoing = OngoingNotificationAccess.get();
+            if (ongoing != null) ongoing.updateStatus(Applic.app, glucosenotificationid);
             notificationManager.cancel(glucosealarmid);
         }
     }
@@ -1527,7 +1532,7 @@ public class Notify {
     }
 
     private void reconcileOngoingPhoneNotification(long generation, Service capturedService) {
-        if (isWearable || !shouldKeepForegroundGlucoseNotification()) {
+        if (isWearable || signalLossActive || !shouldKeepForegroundGlucoseNotification()) {
             return;
         }
         synchronized (foregroundPublicationLock) {
@@ -5175,7 +5180,7 @@ public class Notify {
      * }
      */
     void oldnotification(long time) {
-        placelargenotification(R.drawable.novalue, staleReadingStatus(time), GLUCOSENOTIFICATION, true, true);
+        placelargenotification(R.drawable.novalue, staleReadingStatus(time), GLUCOSENOTIFICATION, true);
     }
 
     /**
@@ -5191,7 +5196,33 @@ public class Notify {
         if (notify != null) notify.signalLoss(lastReadingMillis);
     }
 
+    /** True while a loss status owns the notification surface. */
+    static boolean hasSignalLoss() {
+        return signalLossActive;
+    }
+
+    /**
+     * A complete packet or a valid reading ends the outage. On Wear restore the ongoing
+     * status immediately; on the phone queue the normal visual reconciliation so the
+     * loss text is replaced by the next reading/stale status.
+     */
+    static void clearSignalLoss() {
+        if (!signalLossActive) return;
+        signalLossActive = false;
+        if (Applic.app == null) return;
+        init(Applic.app);
+        final Notify notify = onenot;
+        if (notify == null) return;
+        if (isWearable) {
+            final var ongoing = OngoingNotificationAccess.get();
+            if (ongoing != null) ongoing.updateStatus(Applic.app, glucosenotificationid);
+        } else {
+            notify.scheduleVisualNotificationRefresh();
+        }
+    }
+
     private void signalLoss(long lastReadingMillis) {
+        signalLossActive = true;
         final String message = signalLossStatus(lastReadingMillis);
         if (isWearable) {
             // The watch owns its reading through the ongoing notification. Replace its

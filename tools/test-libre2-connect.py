@@ -94,6 +94,8 @@ class SuperGattCallback {
     static class Notify {
         static int signalLoss;
         static void notifySignalLoss(long lastReadingMillis){signalLoss++;}
+        static boolean hasSignalLoss(){return false;}
+        static void clearSignalLoss(){}
     }
     static class SystemClock { static long elapsedRealtime(){return Applic.scheduler.now;} }
     static class Build { static class VERSION { static int SDK_INT=37; } static class VERSION_CODES { static int M=23; } }

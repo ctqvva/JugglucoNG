@@ -311,6 +311,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         if ("Loss of signal".equals(constatstatusstr)) constatstatusstr = "";
         lossRecorded = false;
         lossNotified = false;
+        if (Notify.hasSignalLoss() && isNotificationSensor()) Notify.clearSignalLoss();
     }
 
     private boolean isNotificationSensor() {

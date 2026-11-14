@@ -209,6 +209,7 @@ public class Libre2GattCallback extends SuperGattCallback {
 			cancelDisconnectDeadline();
 			endBLEHandler();
 			streamDeadline.cancel();
+			logLinkEnd("paused");
 		}
 		super.setPause(pause);
 	}
@@ -953,6 +954,7 @@ private void endBLEHandler() {
 	public synchronized void close() {
 	   cancelDisconnectDeadline();
 	   endBLEHandler();
+      logLinkEnd("closed");
       final var gatt=mBluetoothGatt;
       if(nonNull(gatt)) {
          disablenotification(gatt,BLELogincharacteristic);
