@@ -2,8 +2,7 @@
 """Generates the Glucy launcher icon, wordmark and lockups.
 
 Writes the Android adaptive-icon vectors (background, foreground, monochrome) for the
-main app and the second and third installations (releasedub, releasedub2), plus SVG
-masters in this folder.
+main app and the second installation (releasedub), plus SVG masters in this folder.
 The wordmark is custom lettering from lettering.py; no font file is involved.
 
     pip install shapely resvg-py
@@ -78,49 +77,32 @@ SENSOR_D, RIM_D, DOT_D, BELOW_D = d(SENSOR), d(RIM), d(DOT), d(BELOW)
 MONO_D = d(TRACE.difference(Point(*NOW).buffer(R_SENSOR + CUT_MONO, quad_segs=48))
            .union(SENSOR.difference(RIM).difference(DOT)))
 
-# ----------------------------------------------------- extra installations ---
-# The extra installations exist so one phone can follow two or three people (issue #714), so they
-# must not be mistaken for each other at a glance. They carry two sensors on the trace, one on
-# each flank of the peak, set diagonally so the pair doesn't read as a pair of eyes. The second
-# sensor's dot takes the trace colour. Dub 2 is Dub mirrored, on violet, so the two differ in
-# the themed icon as well as in colour. Every installation has its own monochrome layer.
-TWO_SENSORS = (40.0, 70.0)
+# ---------------------------------------------------- second installation ---
+# The second installation (releasedub) lets one phone follow two people (issue #714), so its icon
+# must not be mistaken for the main one: the trace is doubled, with the copy DOUBLE_GAP below.
+# The pair is lifted by DOUBLE_LIFT so it stays centred. The difference is in the shape, so it
+# also holds in the themed icon, which gets its own monochrome layer.
+DOUBLE_GAP, DOUBLE_LIFT = 13.0, 6.0
 
 
-def _mirror(g):
-    return affinity.scale(g, -1, 1, origin=(54, 54))
-
-
-def _shapes(xs, mirror):
-    pts = [min(LINE.coords, key=lambda p: abs(p[0] - x)) for x in xs]
-    f = _mirror if mirror else (lambda g: g)
-    disc = lambda p, r: Point(*p).buffer(r, quad_segs=48)
-    sensors = [(disc(p, R_SENSOR), Point(*p).buffer(R_SENSOR - 2.0, quad_segs=48).exterior.buffer(0.45),
-                Point(*p).buffer(R_DOT, quad_segs=24)) for p in pts]
-    cut = lambda r: disc(pts[0], r).union(disc(pts[1], r)) if len(pts) > 1 else disc(pts[0], r)
-    mono = TRACE.difference(cut(R_SENSOR + CUT_MONO))
-    for sen, rim, dot in sensors:
-        mono = mono.union(sen.difference(rim).difference(dot))
-    return dict(trace=d(f(TRACE.difference(cut(R_SENSOR + CUT)))),
-                sensors=[(d(f(sen)), d(f(rim)), d(f(dot))) for sen, rim, dot in sensors],
-                mono=d(f(mono)))
-
-
-_MAIN_SHAPES = _shapes((NOW_X,), False)
-assert _MAIN_SHAPES['trace'] == TRACE_D and _MAIN_SHAPES['mono'] == MONO_D
+def _shapes(double):
+    if not double:
+        return dict(trace=TRACE_D, sensor=SENSOR_D, rim=RIM_D, dot=DOT_D, mono=MONO_D)
+    up = lambda g: affinity.translate(g, 0, -DOUBLE_LIFT)
+    two = up(TRACE.union(affinity.translate(TRACE, 0, DOUBLE_GAP)))
+    sen, rim, dot = up(SENSOR), up(RIM), up(DOT)
+    cut = lambda r: up(Point(*NOW).buffer(R_SENSOR + r, quad_segs=48))
+    return dict(trace=d(two.difference(cut(CUT))), sensor=d(sen), rim=d(rim), dot=d(dot),
+                mono=d(two.difference(cut(CUT_MONO)).union(sen.difference(rim).difference(dot))))
 
 
 def shapes(c):
-    return _shapes(c['sensors'], c.get('mirror', False)) if 'sensors' in c else _MAIN_SHAPES
+    return _shapes(c.get('double', False))
 
 
 # ------------------------------------------------------------------ colours ---
 MAIN = dict(bg='#0D1430', line='#5B86F5', sensor='#F5F7FB', rim='#C9D2E3', dot='#0D1430')
-# "Glucy Dub": two sensors on the launcher's navy and blue.
-DUB = dict(MAIN, sensors=TWO_SENSORS)
-# "Glucy Dub 2": the same, mirrored, on violet.
-DUB2 = dict(bg='#2A1B66', line='#B7A4FF', sensor='#F5F7FB', rim='#C9C2E8', dot='#2A1B66',
-            sensors=TWO_SENSORS, mirror=True)
+DUB = dict(MAIN, double=True)   # "Glucy Dub": the trace doubled
 TWO_TONE = dict(MAIN, bg='#0B1020', below='#121B36', dot='#0B1020')  # branding alternative
 
 # ----------------------------------------------------------------- writers ---
@@ -138,12 +120,11 @@ def background_xml(c):
 
 def foreground_xml(c):
     g = shapes(c)
-    out = f'    <path android:fillColor="{ARGB(c["line"])}" android:pathData="{g["trace"]}"/>\n'
-    for i, (sen, rim, dot) in enumerate(g['sensors']):
-        out += (f'    <path android:fillColor="{ARGB(c["sensor"])}" android:pathData="{sen}"/>\n'
-                f'    <path android:fillColor="{ARGB(c["rim"])}" android:fillType="evenOdd" android:pathData="{rim}"/>\n'
-                f'    <path android:fillColor="{ARGB(c["dot"] if i == 0 else c["line"])}" android:pathData="{dot}"/>\n')
-    return HEAD + out + '</vector>\n'
+    return HEAD + (
+        f'    <path android:fillColor="{ARGB(c["line"])}" android:pathData="{g["trace"]}"/>\n'
+        f'    <path android:fillColor="{ARGB(c["sensor"])}" android:pathData="{g["sensor"]}"/>\n'
+        f'    <path android:fillColor="{ARGB(c["rim"])}" android:fillType="evenOdd" android:pathData="{g["rim"]}"/>\n'
+        f'    <path android:fillColor="{ARGB(c["dot"])}" android:pathData="{g["dot"]}"/>\n</vector>\n')
 
 
 def monochrome_xml(c=MAIN):
@@ -161,10 +142,8 @@ def svg(c, view='18 18 72 72', size=512):
     below = f'<path d="{BELOW_D}" fill="{c["below"]}"/>' if 'below' in c else ''
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view}" width="{size}" height="{size}">'
             f'<rect width="108" height="108" fill="{c["bg"]}"/>{below}'
-            f'<path d="{shapes(c)["trace"]}" fill="{c["line"]}"/>'
-            + ''.join(f'<path d="{sen}" fill="{c["sensor"]}"/><path d="{rim}" fill="{c["rim"]}" fill-rule="evenodd"/>'
-                      f'<path d="{dot}" fill="{c["dot"] if i == 0 else c["line"]}"/>'
-                      for i, (sen, rim, dot) in enumerate(shapes(c)['sensors'])) + '</svg>\n')
+            f'<path d="{shapes(c)["trace"]}" fill="{c["line"]}"/><path d="{shapes(c)["sensor"]}" fill="{c["sensor"]}"/>'
+            f'<path d="{shapes(c)["rim"]}" fill="{c["rim"]}" fill-rule="evenodd"/><path d="{shapes(c)["dot"]}" fill="{c["dot"]}"/></svg>\n')
 
 
 # ------------------------------------------------------- wordmark and lockup ---
@@ -288,7 +267,6 @@ def write_png(svg_text, path, width, height=None):
 def main():
     main_res = ROOT / 'Common/src/main/res'
     dub_res = ROOT / 'Common/src/releasedub/res'
-    dub2_res = ROOT / 'Common/src/releasedub2/res'
     mobile_res = ROOT / 'Common/src/mobile/res'
     files = {
         main_res / 'drawable/ic_launcher_background.xml': background_xml(MAIN),
@@ -301,12 +279,8 @@ def main():
         dub_res / 'drawable/ic_launcher_background.xml': background_xml(DUB),
         dub_res / 'drawable/ic_launcher_foreground.xml': foreground_xml(DUB),
         dub_res / 'drawable/ic_launcher_monochrome.xml': monochrome_xml(DUB),
-        dub2_res / 'drawable/ic_launcher_background.xml': background_xml(DUB2),
-        dub2_res / 'drawable/ic_launcher_foreground.xml': foreground_xml(DUB2),
-        dub2_res / 'drawable/ic_launcher_monochrome.xml': monochrome_xml(DUB2),
         HERE / 'icon.svg': svg(MAIN),
         HERE / 'icon-dub.svg': svg(DUB),
-        HERE / 'icon-dub2.svg': svg(DUB2),
         HERE / 'icon-two-tone.svg': svg(TWO_TONE),
         HERE / 'wordmark-on-light.svg': wordmark_svg(),
         HERE / 'wordmark-on-dark.svg': wordmark_svg(dark=True),

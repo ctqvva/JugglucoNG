@@ -23,7 +23,6 @@ The reasons for each are written at the top of `lettering.py`. Read them before 
 | [`wordmark-on-dark.svg`](wordmark-on-dark.svg) | the name alone on navy, black or dark grey | light backgrounds |
 | [`icon.svg`](icon.svg) | the app icon outside Android: avatars, store listings, favicons | |
 | [`icon-dub.svg`](icon-dub.svg) | the second installation, "Glucy Dub" (`releasedub`) | anything that means "Glucy" in general |
-| [`icon-dub2.svg`](icon-dub2.svg) | the third installation, "Glucy Dub 2" (`releasedub2`) | anything that means "Glucy" in general |
 | [`icon-two-tone.svg`](icon-two-tone.svg) | large renders where a split background helps, such as banners | the launcher (it stays flat) |
 | [`monochrome.svg`](monochrome.svg) | single-colour contexts: themed icons, notifications, stamps | |
 | [`social-preview.png`](social-preview.png) | the repository's social preview (Settings → Social preview), link cards | |
@@ -31,21 +30,13 @@ The reasons for each are written at the top of `lettering.py`. Read them before 
 
 Inside the app the lockup is `GlucyLockup` (`Common/src/mobile/java/tk/glucodata/ui/components/GlucyLockup.kt`), shown on the Dashboard's welcome screen and at the bottom of Settings. It follows the theme the way the launcher's themed icon does: the badge is `primaryContainer` with the monochrome layer in `onPrimaryContainer`, and the wordmark takes a text colour. With dynamic colour it matches the home screen, so the app never shows a navy badge on, say, a green theme. The fixed navy colours are for places the app doesn't theme. The wordmark drawables (`Common/src/mobile/res/drawable/glucy_wordmark_{light,dark}.xml`) are white and tinted at runtime, one unit per dp with a 2-unit margin.
 
-The Android launcher resources (`Common/src/main/res/drawable/ic_launcher_*.xml`, `mipmap-anydpi-v26/`, and the sets for the extra installations in `Common/src/releasedub/` and `Common/src/releasedub2/`) and the wordmark drawables are generated too. Don't edit them by hand.
+The Android launcher resources (`Common/src/main/res/drawable/ic_launcher_*.xml`, `mipmap-anydpi-v26/`, and the second installation's set in `Common/src/releasedub/`) and the wordmark drawables are generated too. Don't edit them by hand.
 
 The lockup is one file for both themes. GitHub's `<picture>` and `#gh-dark-mode-only` switches follow the operating system rather than GitHub's own theme setting, so a pair of files shows the wrong one for some readers. One file that works on both is more reliable.
 
-## Extra installations
+## Second installation
 
-The extra installations exist so that one phone can follow two or three people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). A glance at the wrong icon means acting on the wrong child's reading, so they get a different mark, not only a different colour:
-
-| Installation | Mark | Colours |
-| --- | --- | --- |
-| Glucy | one sensor on the trace | blue trace on navy |
-| Glucy Dub | two sensors, one on each flank of the peak | blue trace on navy; the second sensor's dot is blue |
-| Glucy Dub 2 | Dub mirrored | lilac trace on violet |
-
-The two sensors sit diagonally, so the pair doesn't read as a pair of eyes, and both stay inside the 66 dp safe zone. Each installation has its own monochrome layer, so the marks stay apart with Android's themed icons, which otherwise recolour every installation the same way. The in-app lockup uses that layer too.
+The second installation, "Glucy Dub" (`releasedub`), lets one phone follow two people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). Its icon is the main icon with the trace doubled: a copy runs 13 units below it, and the pair is lifted 6 units so it stays centred. Colours are unchanged. The difference is in the shape, so it also survives colour blindness, greyscale and Android's themed icons, and the installation has its own monochrome layer for that.
 
 ## Colours
 
@@ -58,7 +49,6 @@ The two sensors sit diagonally, so the pair doesn't read as a pair of eyes, and 
 | `rim` | `#C9D2E3` | sensor rim |
 | `paper` | `#F0F3F8` | wordmark on dark |
 | `card` | `#141E3F` | social preview background, a lifted navy so the badge still reads as a disc |
-| `dub2-bg` / `dub2-trace` | `#2A1B66` / `#B7A4FF` | third installation (Dub uses the main colours) |
 | `two-tone` | `#0B1020` above, `#121B36` below the trace | two-tone variant |
 
 Contrast (WCAG): `trace-muted` is 3.4 : 1 on white and 5.6 : 1 on GitHub's dark `#0D1117`, which clears the 3 : 1 needed for large graphic text on both. `trace` on `navy` is 5.3 : 1. `navy` on white is 18.1 : 1, and `paper` on `#0D1117` is 17.0 : 1.
