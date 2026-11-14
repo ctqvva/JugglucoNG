@@ -19,6 +19,7 @@ final class ExchangeGlucosePayload {
     final float trendRate;
     final long timeMillis;
     final int sensorGen;
+    final NoiseEstimate noise;
 
     private ExchangeGlucosePayload(
             String sensorId,
@@ -31,7 +32,8 @@ final class ExchangeGlucosePayload {
             float rate,
             ExchangeTrend trend,
             long timeMillis,
-            int sensorGen) {
+            int sensorGen,
+            NoiseEstimate noise) {
         this.sensorId = sensorId;
         this.primaryText = primaryText;
         this.primaryDisplayValue = primaryDisplayValue;
@@ -46,6 +48,7 @@ final class ExchangeGlucosePayload {
         this.trendRate = trend.rateMgdlPerMinute;
         this.timeMillis = timeMillis;
         this.sensorGen = sensorGen;
+        this.noise = noise;
     }
 
     String getSensorId() {
@@ -111,15 +114,28 @@ final class ExchangeGlucosePayload {
             long fallbackTimeMillis,
             int fallbackSensorGen,
             String fallbackPrimaryText) {
-        CurrentDisplaySource.Snapshot current = null;
+        CurrentDisplaySource.ResolvedReading reading = null;
         try {
-            current = CurrentDisplaySource.resolveCurrentForExchange(Notify.glucosetimeout, preferredSensorId);
+            reading = CurrentDisplaySource.resolveExchangeReading(preferredSensorId);
         } catch (Throwable th) {
             if (Log.doLog) {
-                Log.i("ExchangeGlucosePayload", "resolveCurrentForExchange failed " + th);
+                Log.i("ExchangeGlucosePayload", "resolveExchangeReading failed " + th);
             }
         }
 
+        return fromReading(reading, preferredSensorId, fallbackDisplayValue, fallbackRate,
+                fallbackTimeMillis, fallbackSensorGen, fallbackPrimaryText);
+    }
+
+    static ExchangeGlucosePayload fromReading(
+            CurrentDisplaySource.ResolvedReading reading,
+            String preferredSensorId,
+            double fallbackDisplayValue,
+            float fallbackRate,
+            long fallbackTimeMillis,
+            int fallbackSensorGen,
+            String fallbackPrimaryText) {
+        final CurrentDisplaySource.Snapshot current = reading != null ? reading.getSnapshot() : null;
         if (current != null) {
             final double primaryDisplayValue = isFinitePositive(current.getPrimaryValue())
                     ? current.getPrimaryValue()
@@ -134,15 +150,14 @@ final class ExchangeGlucosePayload {
             final float nativeRate = Float.isFinite(current.getRate()) ? current.getRate() : fallbackRate;
             final long timeMillis = current.getTimeMillis() > 0L ? current.getTimeMillis() : fallbackTimeMillis;
             final int sensorGen = current.getSensorGen() != 0 ? current.getSensorGen() : fallbackSensorGen;
-            final int primaryMgdl = toMgdl(primaryDisplayValue);
+            final int primaryMgdl = toMgdl(primaryDisplayValue, current.isMmol());
             final float autoValue = current.getAutoValue();
-            final int autoMgdl = toMgdl(autoValue);
+            final int autoMgdl = toMgdl(autoValue, current.isMmol());
             final float rawValue = current.getRawValue();
-            // Opt-in: send the app's computed trend instead of the sensor's
-            // lagging estimate; index/name follow the sent rate so the
-            // outgoing extras stay consistent with each other.
+            // Capture once: the primary, trend and noise all end at this reading.
+            final java.util.List<GlucosePoint> points = DisplayTrendSource.exchangePoints(reading);
             final boolean computedTrend = BroadcastTrendRate.enabled();
-            final float rate = computedTrend ? BroadcastTrendRate.computed(sensorId, nativeRate) : nativeRate;
+            final float rate = computedTrend ? BroadcastTrendRate.computed(points, current.isMmol(), nativeRate) : nativeRate;
             final ExchangeTrend trend = computedTrend
                     ? ExchangeTrend.fromRate(rate)
                     : ExchangeTrend.resolve(sensorId, timeMillis, rate);
@@ -157,7 +172,8 @@ final class ExchangeGlucosePayload {
                     rate,
                     trend,
                     timeMillis,
-                    sensorGen);
+                    sensorGen,
+                    NoiseAccess.forExchange(points, timeMillis, current.isMmol()));
         }
 
         final String fallbackSensorId = SensorIdentity.resolveAppSensorId(preferredSensorId) != null
@@ -165,9 +181,7 @@ final class ExchangeGlucosePayload {
                 : preferredSensorId;
 
         final boolean computedTrend = BroadcastTrendRate.enabled();
-        final float outgoingRate = computedTrend
-                ? BroadcastTrendRate.computed(fallbackSensorId, fallbackRate)
-                : fallbackRate;
+        final float outgoingRate = fallbackRate;
         return new ExchangeGlucosePayload(
                 fallbackSensorId,
                 formatPrimary(fallbackDisplayValue, fallbackPrimaryText),
@@ -181,7 +195,8 @@ final class ExchangeGlucosePayload {
                         ? ExchangeTrend.fromRate(outgoingRate)
                         : ExchangeTrend.resolve(fallbackSensorId, fallbackTimeMillis, fallbackRate),
                 fallbackTimeMillis,
-                fallbackSensorGen);
+                fallbackSensorGen,
+                null);
     }
 
     private static boolean isFinitePositive(double value) {
@@ -193,10 +208,14 @@ final class ExchangeGlucosePayload {
     }
 
     private static int toMgdl(double displayValue) {
+        return toMgdl(displayValue, Applic.unit == 1);
+    }
+
+    private static int toMgdl(double displayValue, boolean isMmol) {
         if (!isFinitePositive(displayValue)) {
             return 0;
         }
-        return (int) Math.round(Applic.unit == 1 ? displayValue * MGDL_PER_MMOLL : displayValue);
+        return (int) Math.round(isMmol ? displayValue * MGDL_PER_MMOLL : displayValue);
     }
 
     private static String formatPrimary(double displayValue, String fallbackPrimaryText) {

@@ -167,11 +167,10 @@ class TrendConsumerPointListTests {
         val alarmVelocity =
             DisplayTrendSource.resolveArrowRate(alarmList(base, snap), snap, 0, false, Float.NaN)
 
-        // Broadcast (BroadcastTrendRate.java): the same canonical list; the snapshot is
-        // deliberately not handed to resolveArrowRate so a too-thin history falls back
-        // to the caller's native rate instead of the snapshot's own.
-        val broadcastVelocity =
-            DisplayTrendSource.resolveArrowRate(alarmList(base, snap), null, 0, false, Float.NaN)
+        // With matching display/exchange settings, the production exchange path must
+        // agree too. Exercise its captured primary series rather than copying its logic.
+        val broadcastPoints = DisplayTrendSource.exchangePoints(CurrentDisplaySource.ResolvedReading(snap, base))
+        val broadcastVelocity = BroadcastTrendRate.computed(broadcastPoints, false, Float.NaN)
 
         assertEquals(dashboardResult.velocity, notificationVelocity, 1e-6f)
         assertEquals(dashboardResult.velocity, alarmVelocity, 1e-6f)
