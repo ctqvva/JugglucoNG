@@ -210,6 +210,7 @@ class RetiredNativeLibraries(unittest.TestCase):
                 z.writestr(dist.input_entry(path), content)
             for abi in dist.ARM_ABIS:
                 z.writestr(f'lib/{abi}/libg.so', b'production-target-fixture')
+                z.writestr(f'lib/{abi}/libnative.so', b'active-libre-recovery-fixture')
             if retired:
                 z.writestr(dist.input_entry(retired), b'accidentally-repackaged')
 
@@ -240,6 +241,11 @@ class RetiredNativeLibraries(unittest.TestCase):
                     self.make_apk(retired)
                     with self.assertRaisesRegex(ValueError, 'Removed vendor input still packaged'):
                         self.verify(flavor, build_type)
+
+    def test_arm32_only_retired_library_cannot_return_via_an_arm64_aar(self):
+        self.make_apk('Common/src/main/jniLibs/arm64-v8a/libgetuiext3.so')
+        with self.assertRaisesRegex(ValueError, 'Removed vendor input still packaged'):
+            self.verify('mobile', 'release')
 
 
 class Publication(unittest.TestCase):

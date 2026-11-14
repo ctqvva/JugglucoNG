@@ -193,9 +193,12 @@ def verify_apk(apk, flavor, build_type, expected_certificate=None):
             path = spec['path'].split('/jniLibs/')[1]
             if path.split('/')[0] in abis() and digest(z.read('lib/' + path)) != spec['sha256']:
                 raise ValueError(f'APK JNI checksum mismatch: {apk.name}: {path}')
-        for path in inventory().get('removedFiles', []):
-            if input_entry(path) in z.namelist():
-                raise ValueError(f'Removed vendor input still packaged: {apk.name}: {path}')
+        # Retire names across ABIs, including a library formerly supplied only
+        # for ARM32 that a future transitive AAR could introduce for ARM64.
+        removed_names = {Path(path).name for path in inventory().get('removedFiles', [])}
+        for entry in z.namelist():
+            if entry.startswith('lib/') and Path(entry).name in removed_names:
+                raise ValueError(f'Removed vendor input still packaged: {apk.name}: {entry}')
     print(f'Verified production signature, version and JNI payload: {apk.name}', file=sys.stderr)
 
 

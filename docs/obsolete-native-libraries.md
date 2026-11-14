@@ -40,6 +40,14 @@ The legacy Sibionics loader names `libnative-algorithm-*`, `libdata-handle-lib*`
 and related libraries already excluded by Gradle; it does not name these
 candidates. Existing managed Sibionics functionality stays unchanged.
 
+The resolved `mobileReleaseRuntimeClasspath` contains no CGAT, ObjectBox,
+ScanKit, Pdfium, Mars, MMKV or Igexin dependency. Native libraries merged from
+the existing ML Kit/CameraX dependencies (`libbarhopper_v3.so`,
+`libimage_processing_util_jni.so`, `libsurface_util_jni.so`), AndroidX graphics,
+and zstd were also inspected for `DT_NEEDED` references to the retired set;
+none were found in either ARM ABI. The same check covers freshly built `g`
+and the retained `libnative.so` executable.
+
 Across all inventoried ELF files in both ABIs, no retained library has a
 `DT_NEEDED` edge or library-name string naming a retired candidate. Candidate
 edges are only the PDF chain above. Their other dependencies are platform
@@ -51,6 +59,42 @@ ABIs and `libcalibrate.so` in ARM32. Production `libg.so` is unchanged.
 
 ## Verification
 
-Validation results will be recorded after running the updated distribution
-tests, clean vendor restoration, Gradle assembly and APK verification. A build
-or source audit does not establish physical sensor behavior.
+- `python3 -m unittest discover -s scripts/dist/tests -v`: 101 tests passed.
+  Named retired-library negative controls cover all four phone/Wear and dub
+  distribution variants, in both ABIs; SDK signature/badging output is mocked
+  in these unit tests. Existing signing, source-integrity and lifecycle tests
+  remain enabled.
+- A real empty JNI input directory was restored using the unchanged pinned APK:
+  exactly 13 active inputs returned, and none of the 21 retired paths returned.
+- `scripts/update-build-inputs.sh --apk ...` regenerated the inventory; the
+  source URL/hash and retained-library hashes are unchanged. No bootstrap or
+  rebaseline is needed. Removed vendor payload totals 24,900,904 uncompressed
+  bytes (14,197,384 ARM64 and 10,703,520 ARM32).
+- Gradle assembly and final APK verification results are pending below. A build
+  or source audit does not establish physical sensor behavior.
+
+### ELF `DT_NEEDED` inventory
+
+Names below are identical on both ABIs unless a row says otherwise. The
+non-ELF `libinit.so` is excluded from this table. Duplicate `libg.so` entries
+in the original `libcalibrat2.so` dynamic sections are collapsed for readability.
+
+| Library | Needed libraries |
+| --- | --- |
+| `libCALCULATION.so` | liblog.so, libc.so, libm.so, libstdc++.so, libdl.so |
+| `libalgorithm-jni.so` | arm64-v8a: liblog.so, libc.so, libm.so, libstdc++.so, libdl.so; armeabi-v7a: libdl.so, liblog.so, libc.so, libm.so, libstdc++.so |
+| `libc++_shared.so` | libc.so, libdl.so |
+| `libcalibrat2.so` | arm64-v8a: libg.so, libm.so, libdl.so; armeabi-v7a: libdl.so, libg.so, libm.so |
+| `libcalibrate.so` (ARM32 only) | libdl.so, libg.so, libc.so, libm.so, libstdc++.so |
+| `libcgat-lib.so` | liblog.so, libm.so, libdl.so, libc.so |
+| `libcrl_dp.so` | liblog.so, libm.so, libdl.so, libc.so |
+| `libgetuiext3.so` (ARM32 only) | liblog.so, libstdc++.so, libm.so, libc.so, libdl.so |
+| `libjniPdfium.so` | libmodpdfium.so, liblog.so, libandroid.so, libjnigraphics.so, libstdc++.so, libm.so, libc.so, libdl.so |
+| `liblibre3extension.so` | liblog.so, libm.so, libdl.so, libc.so |
+| `libmarsxlog.so` | liblog.so, libm.so, libc++_shared.so, libdl.so, libc.so |
+| `libmmkv.so` | liblog.so, libz.so, libm.so, libdl.so, libc.so |
+| `libmodft2.so` | libmodpng.so, libz.so, libc.so, libm.so, libstdc++.so |
+| `libmodpdfium.so` | libdl.so, libmodft2.so, libc.so, libm.so |
+| `libmodpng.so` | libz.so, libc.so, libm.so, libstdc++.so |
+| `libobjectbox-jni.so` | libc.so, liblog.so, libm.so, libdl.so |
+| `libscannative.so` | libz.so, liblog.so, libm.so, libdl.so, libc.so |
