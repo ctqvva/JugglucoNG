@@ -207,14 +207,25 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 **The wizard hero** (`SensorWizardHero`)
 
-- Every wizard's main step opens with one, never a bespoke card. The hero is a fixed
-  280 x 148dp box (140 x 74dp folded). Behind its scene lies one blob per way of connecting
-  (`HeroBlob`): CameraScan (Dexcom, iCan, Accu-Chek, CareSens Air, Sibionics), BluetoothPair
-  (AiDEX, Anytime, MQ, Ottai Global), NfcTap (Libre, Ottai China and Syai) and ManualEntry
-  (Medtrum). The blobs are the owner's paths in a 280 x 148 grid, filled
-  `secondaryContainer` at 65%. Use them verbatim: no edited coordinates, no strokes, no second
-  shape. The sensor stands free in front, with no shape of its own under it (a disc or square
-  under a sensor reads as its adhesive patch).
+- Every wizard's main step opens with one, never a bespoke card. The sensor and a phone acting
+  out how the family connects stand in front of one silhouette (`sceneOutline`). It is built from
+  where the pieces stand, not drawn once:
+  - a point above and below each piece, a waist in each gap drawn in by the gap's width, a low
+    left end, all joined by a closed Catmull-Rom curve;
+  - so it makes a pocket round the sensor, eases in where the signal crosses, and swells behind
+    the phone, which breaks out past it at its ends;
+  - it fits every scene at any size and flows with the pieces when they move, such as Ottai's
+    phone changing story;
+  - fill: `secondaryContainer`, 65% in dark themes and opaque in light ones, where a see-through
+    pale fill leaves white plastic without edges.
+
+  Rules:
+  - The sensor stands free: nothing is centred under it (a disc or square under a sensor reads
+    as its adhesive patch).
+  - No strokes and no second shape.
+  - Rejected by the owner (2026-11-14/15): a cookie halo, a colour-blocked pill with a success
+    burst, a 3D stage, the list tile reused, rings drawn as lines, and a fixed 280 x 148 box
+    with fixed paths.
 - A step whose choice changes the picture passes it in: `pairLead` brings the chosen sensor of
   a pair to the front (Sibionics picker), `companion` swaps the phone's story (Ottai's region).
   The change animates; it is never a cut.
@@ -227,17 +238,18 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 - Room: `rememberSensorHeroCompact` folds the hero into a row (a small picture beside its
   title) whenever the keyboard is up, the screen is under 600dp tall, or a camera or long list
   shares a screen under 860dp. The fold animates on the spatial spring.
-- Size: the box is fixed; the scene inside it scales to fit, up to 112dp per tile side.
+- Size: 128dp per tile side on wide windows, 112dp on phones, 56dp folded. The stage is
+  2.1–2.75 tile sides wide, depending on how many pieces it holds.
 
 **Hero motion and touch**
 
 - The entrance plays the first time a hero opens after launch: the sensor springs up and the
-  blob swings into place and settles on an overshooting bounce (damping 0.45), the phone
+  silhouette spreads out from it on an overshooting bounce (damping 0.45), the phone
   and what the code is printed on come in, and the phone does its one beat. Later
   visits, rotation, and the fold between sizes find it already in place. Nothing runs at rest.
 - It is a toy, not a control, so it adds nothing for accessibility services. Under the finger
-  the sensor squares up. On release the hero clicks (`NavigationTick.play`), the blob gets a
-  kick and springs back, the sensor drops back on and the story replays. When the phone has the read, it
+  the sensor squares up. On release the hero clicks (`NavigationTick.play`), the silhouette is
+  pulled wide and springs back, the sensor drops back on and the story replays. When the phone has the read, it
   double-clicks (`NavigationTick.playConfirm`).
 - A pair trading places clicks once as they pass.
 
