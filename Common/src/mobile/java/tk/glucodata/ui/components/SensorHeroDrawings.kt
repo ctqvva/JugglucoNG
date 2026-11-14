@@ -150,9 +150,16 @@ internal fun DrawScope.drawHeroPhone(tones: SensorTones, screenColor: Color, acc
                     }
                 }
                 drawCircle(accent.copy(alpha = 0.16f), 15f, centre)
+                // Drawn at screen pixels, not in the scaled drawing units: a vector painter
+                // rasterises at the size it is given, and scaling that up blurs it.
+                val unit = minOf(size.width, size.height) / 100f
                 val glyph = 18f
-                translate(centre.x - glyph / 2f, centre.y - glyph / 2f) {
-                    with(screen.painter) { draw(Size(glyph, glyph), colorFilter = ColorFilter.tint(accent)) }
+                translate(centre.x, centre.y) {
+                    scale(1f / unit, 1f / unit, pivot = Offset.Zero) {
+                        translate(-glyph * unit / 2f, -glyph * unit / 2f) {
+                            with(screen.painter) { draw(Size(glyph * unit, glyph * unit), colorFilter = ColorFilter.tint(accent)) }
+                        }
+                    }
                 }
             }
             is PhoneScreen.Viewfinder -> {

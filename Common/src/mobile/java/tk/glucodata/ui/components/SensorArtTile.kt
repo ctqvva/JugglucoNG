@@ -227,7 +227,7 @@ private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage 
     } else {
         HeroStage(width = 2.1f, sensorX = -0.3f, phone = Offset(0.5f, -0.06f), phoneTurn = 10f)
     }
-    HeroCompanion.NFC -> HeroStage(width = 2.2f, sensorX = -0.32f, phone = Offset(0.66f, -0.1f), phoneTurn = 18f)
+    HeroCompanion.NFC -> HeroStage(width = 2.3f, sensorX = -0.36f, phone = Offset(0.7f, -0.1f), phoneTurn = 18f)
     HeroCompanion.PAIR -> HeroStage(width = 2.3f, sensorX = -0.42f, phone = Offset(0.78f, 0.04f), phoneTurn = 6f)
 }
 
@@ -239,6 +239,26 @@ private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage 
  * piece's base stands inside it. Where two pieces leave open air for a radio signal, the top
  * eases in.
  */
+/**
+ * The pieces are drawn ART times the size the shape is built for, and stand SPREAD times as far
+ * apart, so they extend firmly out of the shape rather than being fitted into it.
+ */
+private const val ART = 1.24f
+private const val SPREAD = 1.1f
+
+/**
+ * How round a sensor's own body is, 0 boxy to 1 round: the shape behind it takes its corners
+ * from the sensor it holds, so a round Libre sits in a soft shape and a boxy Medtrum in a firmer
+ * one. Read off the drawings, one number per family.
+ */
+private val SensorType.roundness: Float
+    get() = when (this) {
+        SensorType.LIBRE, SensorType.AIDEX, SensorType.OTTAI, SensorType.ACCUCHEK, SensorType.ICANHEALTH -> 1f
+        SensorType.DEXCOM, SensorType.ANYTIME -> 0.7f
+        SensorType.SIBIONICS, SensorType.CARESENS_AIR -> 0.45f
+        SensorType.MQ, SensorType.MEDTRUM -> 0.15f
+    }
+
 private class ScenePiece(
     val centre: Offset,
     val left: Float,
@@ -248,8 +268,8 @@ private class ScenePiece(
     val turn: Float = 0f,
 )
 
-private fun sceneShape(pieces: List<ScenePiece>, tile: Float, dip: Float, dipFrom: Float, dipTo: Float): Path {
-    val round = 0.32f * tile
+private fun sceneShape(pieces: List<ScenePiece>, tile: Float, roundness: Float, dip: Float, dipFrom: Float, dipTo: Float): Path {
+    val round = (0.14f + 0.26f * roundness) * tile
     val pad = 0.08f * tile
     val inset = round - pad
     fun pull(v: Float) = if (v > 0f) (v - inset).coerceAtLeast(0f) else (v + inset).coerceAtMost(0f)
@@ -344,10 +364,8 @@ internal fun SensorHeroArt(
     val tones = rememberSensorTones()
     val scheme = MaterialTheme.colorScheme
     val accent = scheme.primary
-    // In dark themes the phone's screen is lit, so the phone stands out from the dark backdrop.
-    val dark = isAppInDarkTheme()
-    val screenColor = if (dark) scheme.inverseSurface else scheme.surfaceContainerHighest
-    val screenAccent = if (dark) scheme.inversePrimary else scheme.primary
+    val screenColor = scheme.surfaceContainerHighest
+    val screenAccent = scheme.primary
     val phoneRim = scheme.outline
     val blobColor = sensorBackdropColor()
     val nfcMark = rememberVectorPainter(Icons.Rounded.Nfc)
@@ -419,13 +437,13 @@ internal fun SensorHeroArt(
     }
 
     val sensorShift by animateDpAsState(
-        targetValue = tileSize * stage.sensorX,
+        targetValue = tileSize * (stage.sensorX * SPREAD),
         animationSpec = ExpressiveMotion.defaultSpatial(),
         label = "heroShift",
     )
     Box(
         modifier = modifier
-            .size(width = tileSize * stageWidth, height = tileSize * 1.3f)
+            .size(width = tileSize * (stageWidth * SPREAD), height = tileSize * 1.5f)
             // The scene sits a little high in its box: the shape grounds every piece, so it
             // reaches further down than up, and the heading under it keeps its distance.
             .graphicsLayer { translationY = -0.06f * tileSize.toPx() }
@@ -450,24 +468,24 @@ internal fun SensorHeroArt(
         Canvas(modifier = Modifier.matchParentSize()) {
             val tile = tileSize.toPx()
             val sensorAt = center + Offset(sensorShift.toPx(), 0f)
-            val phoneAt = center + Offset(phoneX * tile, phoneY * tile)
-            // What of each piece the shape takes: from its middle down to below its foot, set in
-            // from its ends. The shape is a floor the pieces stand in, their upper halves rising
-            // well out of it and the sensor and the phone running past its ends.
+            val phoneAt = center + Offset(phoneX * tile, phoneY * tile) * SPREAD
+            // A box round each piece at the size the shape is built for; the pieces themselves
+            // are drawn larger and stand out past it.
             val pieces = buildList {
-                add(ScenePiece(sensorAt, left = 0.24f * tile, right = 0.3f * tile, up = -0.06f * tile, down = 0.56f * tile))
+                add(ScenePiece(sensorAt, left = 0.46f * tile, right = 0.46f * tile, up = 0.4f * tile, down = 0.44f * tile))
                 if (carrier != CodeCarrier.NONE) {
-                    val carrierAt = center + Offset(stage.carrier.x * tile, stage.carrier.y * tile)
-                    add(ScenePiece(carrierAt, left = 0.3f * tile, right = 0.3f * tile, up = -0.06f * tile, down = 0.5f * tile))
+                    val carrierAt = center + Offset(stage.carrier.x * tile, stage.carrier.y * tile) * SPREAD
+                    add(ScenePiece(carrierAt, left = 0.4f * tile, right = 0.36f * tile, up = 0.3f * tile, down = 0.48f * tile))
                 }
-                add(ScenePiece(phoneAt, left = 0.2f * tile, right = 0.06f * tile, up = -0.06f * tile, down = 0.5f * tile))
+                add(ScenePiece(phoneAt, left = 0.26f * tile, right = 0.26f * tile, up = 0.3f * tile, down = 0.5f * tile, turn = phoneTurn))
             }
             // A waist only where two pieces leave open air between them for a radio signal.
             val open = companionKind == HeroCompanion.PAIR && type != SensorType.MEDTRUM && carrier == CodeCarrier.NONE
             val outline = sceneShape(
                 pieces,
                 tile,
-                dip = if (open) 0.05f * tile else 0f,
+                roundness = type.roundness,
+                dip = if (open) 0.07f * tile else 0f,
                 dipFrom = sensorAt.x,
                 dipTo = phoneAt.x,
             )
@@ -475,13 +493,16 @@ internal fun SensorHeroArt(
             val grow = backdropGrow(pop.value) * (1f - 0.04f * press.value)
             val kick = swing.value / 100f
             scale(grow * (1f + kick), grow * (1f - kick), pivot = sensorAt) {
-                drawPath(outline, blobColor)
+                // Leaning against its sensor's own lean, so each family's shape sits its own way.
+                rotate(-type.tilt * 0.4f, pivot = center) {
+                    drawPath(outline, blobColor)
+                }
             }
         }
         SensorArtTile(
             type = type,
             containerColor = blobColor,
-            tileSize = tileSize,
+            tileSize = tileSize * ART,
             interactionSource = interactionSource,
             modifier = Modifier
                 .offset(x = sensorShift)
@@ -506,13 +527,13 @@ internal fun SensorHeroArt(
                 val tile = tileSize.toPx()
                 // Where the sensor lies: up out of its tile by the list tile's lift.
                 val sensor = center + Offset(sensorShift.toPx(), 0f)
-                val phone = center + Offset(phoneX * tile, phoneY * tile)
+                val phone = center + Offset(phoneX * tile, phoneY * tile) * SPREAD
                 val (from, toward) = if (companionKind == HeroCompanion.NFC) {
                     // The phone's near edge, where it faces the sensor.
-                    (phone + Offset(-0.3f * tile, 0.16f * tile)) to sensor
+                    (phone + Offset(-0.3f * tile, 0.16f * tile) * ART) to sensor
                 } else {
                     // From the sensor's edge as it is drawn, so the arcs keep to it while it pops in.
-                    (sensor + Offset(0.5f * tile * (0.4f + 0.6f * pop.value), 0f)) to phone
+                    (sensor + Offset(0.5f * tile * ART * (0.4f + 0.6f * pop.value), 0f)) to phone
                 }
                 val aim = Math.toDegrees(atan2((toward - from).y, (toward - from).x).toDouble()).toFloat()
                 if (companionKind == HeroCompanion.NFC && progress < 1f) {
@@ -521,7 +542,7 @@ internal fun SensorHeroArt(
                     if (local > 0f && local < 1f) {
                         drawCircle(
                             accent.copy(alpha = (1f - local) * 0.6f),
-                            radius = tile * (0.5f + 0.32f * local),
+                            radius = tile * ART * (0.5f + 0.32f * local),
                             center = sensor,
                             style = Stroke(width = 2.dp.toPx()),
                         )
@@ -545,14 +566,14 @@ internal fun SensorHeroArt(
         if (carrier != CodeCarrier.NONE) {
             Canvas(
                 modifier = Modifier
-                    .requiredSize(tileSize * 1.02f)
+                    .requiredSize(tileSize * (1.02f * ART))
                     .graphicsLayer {
                         val moved = arrival.value
                         val tile = tileSize.toPx()
                         // Comes out from behind the sensor and stands beside it.
                         val start = sensorShift.toPx()
-                        translationX = start + (stage.carrier.x * tile - start) * moved
-                        translationY = stage.carrier.y * tile + tile * 0.12f * (1f - moved)
+                        translationX = start + (stage.carrier.x * tile * SPREAD - start) * moved
+                        translationY = stage.carrier.y * tile * SPREAD + tile * 0.12f * (1f - moved)
                         val grow = 0.7f + 0.3f * moved
                         scaleX = grow
                         scaleY = grow
@@ -565,12 +586,12 @@ internal fun SensorHeroArt(
         }
         Canvas(
             modifier = Modifier
-                .requiredSize(tileSize * 1.08f)
+                .requiredSize(tileSize * (1.08f * ART))
                 .graphicsLayer {
                     val moved = arrival.value
                     val tile = tileSize.toPx()
-                    translationX = phoneX * tile
-                    translationY = phoneY * tile
+                    translationX = phoneX * tile * SPREAD
+                    translationY = phoneY * tile * SPREAD
                     rotationZ = phoneTurn
                     when (companionKind) {
                         HeroCompanion.NFC, HeroCompanion.SCAN -> {

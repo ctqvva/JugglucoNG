@@ -647,14 +647,17 @@ private fun DrawScope.pit(tones: SensorTones, path: Path, depth: Float = 0.7f) {
  * the near edge, its top lit along the edge towards the light and shaded along the other.
  */
 private fun DrawScope.raised(tones: SensorTones, path: Path, height: Float, top: Color? = null) {
-    val cast = tones.ground(0.55f, 1f) * (height * SHADOW_REACH * 2f) + tones.drop(height * tones.wallShow)
-    drawPath(path.moved(cast), tones.shadow.copy(alpha = tones.shadow.alpha * 2.5f))
-    drawPath(path.moved(tones.drop(height * tones.wallShow)), tones.wall)
+    // A short, soft shadow tight under it and a thin wall: a raised edge seen at hero size
+    // must read as one step up, not as a second outline beside the first.
+    val wall = tones.drop(height * tones.wallShow)
+    val cast = wall + tones.ground(0.4f, 0.7f) * (height * 0.6f)
+    drawPath(path.moved(cast), tones.shadow.copy(alpha = tones.shadow.alpha * 1.4f))
+    drawPath(path.moved(wall), lerp(tones.wall, top ?: tones.body, 0.35f))
     drawPath(path, top ?: tones.body)
-    val edge = height * 0.5f + 0.3f
+    val edge = height * 0.35f + 0.25f
     clipPath(path) {
-        drawPath(outside(path, tones.ground(edge, edge)), tones.highlight.copy(alpha = 0.9f))
-        drawPath(outside(path, tones.ground(-edge, -edge)), tones.shade.copy(alpha = 0.9f))
+        drawPath(outside(path, tones.ground(edge, edge)), tones.highlight.copy(alpha = 0.8f))
+        drawPath(outside(path, tones.ground(-edge, -edge)), tones.shade.copy(alpha = 0.45f))
     }
 }
 
