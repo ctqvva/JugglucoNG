@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -62,6 +63,8 @@ internal fun SensorArtTile(
     replay: Int = 0,
     round: Boolean = false,
 ) {
+    val context = LocalContext.current
+    remember(context) { SensorImages.attach(context.applicationContext) }
     val plain = rememberSensorTones()
     val tones = remember(plain, containerColor) { plain.bounce(containerColor) }
 
