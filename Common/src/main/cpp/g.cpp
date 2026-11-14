@@ -473,7 +473,7 @@ static SensorGlucoseData *findSensorByName(JNIEnv *env, jstring jsensor) {
     sens = sensors->gethistshort(sensorChars);
   }
   if (sens) {
-    sens->sensorerror = false;
+    sens->clearSensorError();
   } else {
     LOGGER("ERROR: %s unknown sensor\n", sensorChars);
   }
@@ -731,7 +731,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(str2sensorptr)(JNIEnv *env,
     return 0LL;
   }
   SensorGlucoseData *sens = sensors->getSensorData(sensorindex);
-  sens->sensorerror = false;
+  sens->clearSensorError();
   env->ReleaseStringUTFChars(jsensor, sensorChars);
   return reinterpret_cast<jlong>(sens);
 }
@@ -818,7 +818,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(getdataptr)(JNIEnv *env, jclass cl,
     env->ReleaseStringUTFChars(jsensor, sensor_chars);
     return 0LL;
   }
-  sens->sensorerror = false;
+  sens->clearSensorError();
   auto makeStreamData = [&]() -> streamdata * {
     streamdata *candidate = nullptr;
 #ifdef SIBIONICS
@@ -1903,7 +1903,7 @@ static jlong ensureSensorShellInternal(const char *str, jlong startTimeSec,
   }
   seedDirectStreamStateIfMissing(hist, static_cast<time_t>(startTimeSec));
 
-  hist->sensorerror = false;
+  hist->clearSensorError();
   const int ind = hist->sensorIndex;
   // A Dexcom's slots are counted from the start the sensor reported; the
   // guess WearSync2 passes (first mirrored reading minus an hour) must not
