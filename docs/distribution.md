@@ -379,7 +379,9 @@ The ARM inventory contains `libCALCULATION`, `libinit`, `libcalibrat2`,
 `removedFiles` prevents restoration from bringing retired inputs back into a
 clean checkout; stale inputs fail distribution preflight. Gradle excludes retired
 names from all JNI sources, and APK verification rejects those names in any ABI,
-including libraries arriving from transitive AARs. Neither x86 ABI is
+including libraries arriving from transitive AARs. An exact ABI/path explicitly
+re-added to the active inventory is exempt from retirement exclusions and must
+still match its inventoried hash; copies in other ABIs stay blocked. Neither x86 ABI is
 part of the distribution. The redundant `src/libre3/jniLibs` source is inactive;
 `src/wearSi/jniLibs` points to an empty old mobileSi directory locally. The Gradle
 Sibionics vendor exclusion patterns contribute no files in the active inventory.

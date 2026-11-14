@@ -130,6 +130,54 @@ class Lifecycle(unittest.TestCase):
                     dist.inputs_check()
                 (self.root / path).unlink()
 
+    def test_single_abi_readd_allows_only_the_inventoried_copy(self):
+        # Keep another input in each ABI so retiring the target everywhere is
+        # a valid inventory update rather than an empty-directory mistake.
+        kept = {f'Common/src/main/jniLibs/{abi}/libkept.so': b'kept-' + abi.encode()
+                for abi in dist.ARM_ABIS}
+        for path, content in kept.items():
+            (self.root / path).write_bytes(content)
+        self.make_apk(self.old_apk, {**self.initial, **kept})
+        data = dist.inventory()
+        data['source']['sha256'] = dist.digest(self.old_apk.read_bytes())
+        data['files'] += [dict(path=path, size=len(content), sha256=dist.digest(content))
+                          for path, content in kept.items()]
+        self.inventory_path.write_text(json.dumps(data))
+        for path in self.initial:
+            (self.root / path).unlink()
+        vendor.regenerate(self.old_apk)
+
+        def verify(apk):
+            outputs = ['Signer #1 certificate SHA-256 digest: ' + 'a' * 64,
+                       "package: name='tk.glucodata.ng' versionCode='1023' versionName='1.2.3-Alpha-phone'"]
+            with patch.object(dist, 'sdk_tool', side_effect=lambda n: n), \
+                 patch.object(dist.subprocess, 'check_output', side_effect=outputs):
+                dist.verify_apk(apk, 'mobile', 'release', expected_certificate='a' * 64)
+
+        for active in self.initial:
+            with self.subTest(active=active):
+                for path in self.initial:
+                    (self.root / path).unlink(missing_ok=True)
+                vendor.regenerate(self.old_apk)
+                content = self.initial[active]
+                (self.root / active).write_bytes(content)
+                vendor.regenerate(self.old_apk)
+                self.assertEqual(set(dist.inventory()['removedFiles']), set(self.initial) - {active})
+                self.assertNotIn('bootstrapRequired', dist.inventory())
+                dist.inputs_check()
+                apk = self.root / 'readded.apk'
+                self.make_apk(apk, {**kept, active: content})
+                verify(apk)
+                # Approval is still tied to the exact ABI/path and its hash.
+                self.make_apk(apk, {**kept, active: b'tampered'})
+                with self.assertRaisesRegex(ValueError, 'APK JNI checksum mismatch'):
+                    verify(apk)
+                self.make_apk(apk, {**kept, **self.initial})
+                with self.assertRaisesRegex(ValueError, 'Removed vendor input still packaged'):
+                    verify(apk)
+                (self.root / active).unlink()
+                vendor.regenerate(self.old_apk)
+
     def test_bad_bootstrap_declaration_and_source_tamper_rejected(self):
         data = dist.inventory()
         data['bootstrapRequired'] = True

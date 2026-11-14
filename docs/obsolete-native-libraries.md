@@ -62,12 +62,24 @@ ABIs and `libcalibrate.so` in ARM32. Production `libg.so` is unchanged.
 
 ## Verification
 
-- `python3 -m unittest discover -s scripts/dist/tests -v`: 102 tests passed.
+- `python3 -m unittest discover -s scripts/dist/tests -v`: 103 tests passed.
   Named retired-library negative controls cover all four phone/Wear and dub
   distribution variants, in both ABIs; SDK signature/badging output is mocked
   in these unit tests. Existing signing, source-integrity and lifecycle tests
   remain enabled. The new ARM64 Getui negative control failed before the
   cross-ABI verifier fix (`ValueError not raised`) and passes afterwards.
+- Review follow-up: re-adding a retired library for only one ABI through the
+  updater must exempt that exact active entry from both Gradle exclusions and
+  APK retirement checks. The added lifecycle regression reproduced rejection
+  of approved ARM64-only and ARM32-only re-adds before the fix. It now accepts
+  each approved copy, rejects a changed hash, and rejects the still-retired ABI.
+  Real Gradle JNI merge checks also retained each approved
+  `libalgorithm-jni.so` byte-for-byte while excluding a deliberately stale copy
+  in the other ABI. These temporary re-adds were removed and the original
+  13-input/21-retirement inventory restored unchanged afterward.
+  Phone/Wear release assembly then passed again for both ARM ABIs (3m 43s),
+  with real APK verification against the explicit local fallback certificate;
+  the production certificate gate continued to reject those local APKs.
 - A real empty JNI input directory was restored using the unchanged pinned APK:
   exactly 13 active inputs returned, and none of the 21 retired paths returned.
 - `scripts/update-build-inputs.sh --apk ...` regenerated the inventory; the
