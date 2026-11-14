@@ -310,7 +310,7 @@
     <string name="stream">Fluxo</string>
     
     <string name="exchanges">Enviar/Receber</string>
-    <string name="duration_days">days</string>
+    <string name="duration_days">dias</string>
     <string name="sensor_state">Status</string>
 
     <!-- Newly Extracted Strings -->
@@ -611,7 +611,7 @@
     <string name="aspart">Insulin Aspart/NovoRapid/NovoLog</string>
     <string name="auto">Auto</string>
     <string name="auto_raw">Auto+Raw</string>
-    <string name="auto_reset_days">%1$d days</string>
+    <string name="auto_reset_days">%1$d dias</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="autoqr">Auto QR</string>
     <string name="autoqrmessage">Send data from this phone to another phone on your home network.
@@ -875,7 +875,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scan_accuchek">Digitalizar Accu-Chek</string>
     <string name="scan_caresens_air">Scan CareSens Air</string>
     <string name="schedules">Schedules</string>
-    <string name="seconds">" seconds"</string>
+    <string name="seconds">" segundos"</string>
     <string name="secondsbetween">Seconds between</string>
     <string name="secret">api_secret</string>
     <string name="sendfrom">"Send from: "</string>

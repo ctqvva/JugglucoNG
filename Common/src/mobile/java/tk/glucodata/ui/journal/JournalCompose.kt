@@ -2143,7 +2143,12 @@ private fun JournalPresetPill(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = preset.displayName,
+                text = journalPresetButtonLabel(
+                    preset,
+                    stringResource(R.string.journal_preset_rapid_generic),
+                    stringResource(R.string.journal_preset_long_generic),
+                    seededGenericPresetNames(LocalContext.current)
+                ),
                 style = MaterialTheme.typography.titleMediumEmphasized,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

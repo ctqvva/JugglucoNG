@@ -262,6 +262,8 @@ fun DashboardCombinedHeader(
     onPeerReadingClick: (String) -> Unit = {},
     onHeroClick: () -> Unit = {},
     onAddSensorClick: () -> Unit = {},
+    // Tapping the sensor card (name, lifetime, status) opens the Sensor tab.
+    onSensorCardClick: () -> Unit = {},
     // The alarm quiet window: 0 = none, and then nothing is drawn. A running one
     // shows as a chip with its end time; tapping it opens the quiet-window screen.
     quietWindowUntilMs: Long = 0L,
@@ -990,6 +992,7 @@ fun DashboardCombinedHeader(
         var sensorContentWidthPx by remember { mutableStateOf(0) }
         val sensorDensity = LocalDensity.current
         Card(
+            onClick = onSensorCardClick,
             modifier = modifier,
              colors = CardDefaults.cardColors(
                 containerColor = sensorContainerColor,
