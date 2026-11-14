@@ -135,6 +135,14 @@ class Libre3ReviewRegressionTest {
         assertEquals(Libre3BleManager.Phase.IDLE, manager.phase)
     }
 
+    @Test fun nativeLifecycleUsesTheFullFifteenDayWearTime() {
+        set("record", Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now, 60, 21600, 1, "test", 1))
+        set("nativeWindowChecked", false)
+        invoke("ensureNativeWindow")
+        assertEquals(15, Libre3ReviewNatives.wearDays)
+        assertTrue(get("nativeWindowChecked") as Boolean)
+    }
+
     @Test fun watchTakeoverIsRefusedForPersistedLibre3Sensors() {
         Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now, 60, 21600, 1, "test", 1))
         assertFalse(ManagedSensorHandoff.supportsSensor(sensor))
@@ -162,10 +170,12 @@ class Libre3ReviewApplication : Applic() { override fun onCreate() {} }
 @Implements(value = Natives::class, callThroughByDefault = false)
 class Libre3ReviewNatives {
     companion object {
+        var wearDays = 0
         var stockWrites = 0
         var resolvedWrites = 0
-        fun reset() { stockWrites = 0; resolvedWrites = 0 }
+        fun reset() { stockWrites = 0; resolvedWrites = 0; wearDays = 0 }
         @JvmStatic @Implementation fun __staticInitializer__() {}
+        @JvmStatic @Implementation fun setSensorWearDays(serial: String, days: Int) { wearDays = days }
         @JvmStatic @Implementation fun str2sensorptr(serial: String): Long = 1L
         @JvmStatic @Implementation fun getSensorStartmsecFromSensorptr(ptr: Long): Long = System.currentTimeMillis() - 86_400_000L
         @JvmStatic @Implementation fun addGlucoseStreamBatchWithRawTemp(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, serial: String): Int {
