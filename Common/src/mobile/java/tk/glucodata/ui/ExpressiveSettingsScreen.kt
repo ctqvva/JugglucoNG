@@ -864,7 +864,11 @@ fun ExpressiveSettingsScreen(
                     .padding(vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                tk.glucodata.ui.components.GlucyLockup(
+                    badgeSize = 40.dp,
+                    wordmarkColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(stringResource(R.string.about_text), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
                 // ui-guardrails: allow text_literal - a version number, the same in every language

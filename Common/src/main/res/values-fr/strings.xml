@@ -1,7 +1,7 @@
 <resources>
     <string name="language">fr</string>
     <string name="languagename">Langue</string>
-<string name="app_name">JugglucoNG</string>
+<string name="app_name">Glucy</string>
 
 <string name="ok">OK</string>
 <string name="cancel">Annuler</string>
@@ -15,7 +15,7 @@
 <string name="kerfstok_missing_message">Kerfstok n\'est pas installé sur la montre. Vous pouvez l\'obtenir dans le Garmin connectiq store</string>
 
 <string name="alarm_description">Niveau de glucose trop bas ou trop haut</string>
-<string name="loss_description">Juggluco a perdu la connexion avec le capteur</string>
+<string name="loss_description">Glucy a perdu la connexion avec le capteur</string>
 <string name="numalarm_description">Rappel pour injection, manger ou exercice</string>
 <string name="notification_description">Notifie la valeur de glucose actuelle</string>
 <string name="ongoing_description">Programme en cours</string>
@@ -215,7 +215,7 @@
 <string name="heartrate">Rythme cardiaque</string>
 <string name="xdripbroadcast">Broadcast xDrip</string>
 <string name="sensorpermission">Permission du capteur</string>
-<string name="sensorpermissionmessage">requise pour afficher le rythme cardiaque. Réglez-là dans les paramètres, Apps, Autorisations, Juggluco</string>
+<string name="sensorpermissionmessage">requise pour afficher le rythme cardiaque. Réglez-là dans les paramètres, Apps, Autorisations, Glucy</string>
 <string name="floatglucose">Glucose flottant</string>
 <string name="fontsize">Taille de police</string>
 <string name="fonttoolarge">Police trop grande: max=</string>
@@ -376,7 +376,7 @@
     <string name="sensor_state">Status</string>
 
     <!-- Newly Extracted Strings -->
-    <string name="import_history_desc">Importer les données de glucose depuis une exportation JugglucoNG ou un fichier CSV</string>
+    <string name="import_history_desc">Importer les données de glucose depuis une exportation Glucy ou un fichier CSV</string>
     <string name="continue_without_sensor">Continuer sans capteur</string>
     <string name="continue_without_sensor_desc">Notez insuline, aliments et mesures capillaires dans le journal</string>
     <string name="get_started_desc">Commencez par ajouter votre capteur</string>
@@ -416,9 +416,9 @@
     <string name="text_desc">Idéal pour partager/imprimer</string>
     <string name="export_button">Exporter</string>
     <string name="export_history_sub">Sauvegarder les lectures en fichier CSV ou texte</string>
-    <string name="import_history_sub">Restaurer les mesures de glucose depuis une exportation JugglucoNG ou un fichier CSV</string>
+    <string name="import_history_sub">Restaurer les mesures de glucose depuis une exportation Glucy ou un fichier CSV</string>
     <string name="import_no_glucose">Ce fichier ne contient aucune donnée de glucose</string>
-    <string name="import_unsupported_file">Fichier non pris en charge. Choisissez une exportation JugglucoNG ou un historique de glucose CSV.</string>
+    <string name="import_unsupported_file">Fichier non pris en charge. Choisissez une exportation Glucy ou un historique de glucose CSV.</string>
     <string name="delete_reading_title">Supprimer la lecture ?</string>
     <string name="delete_reading_confirmation">Supprimer cette lecture de glucose de l’historique local. Cette action est irréversible.</string>
     <string name="vibrate_only">Vibrer seulement</string>
@@ -489,7 +489,7 @@
     <string name="scheduled_backup_acknowledge">Confirmer et utiliser la dernière sauvegarde comme référence</string>
     <string name="backup_integrity_channel">Avertissements d’intégrité des sauvegardes</string>
     <string name="backup_integrity_channel_desc">Avertissements critiques lorsqu’une sauvegarde automatique peut contenir beaucoup moins de données</string>
-    <string name="backup_integrity_notification_title">Vérifiez votre sauvegarde JugglucoNG</string>
+    <string name="backup_integrity_notification_title">Vérifiez votre sauvegarde Glucy</string>
     <string name="backup_integrity_notification_text">La dernière sauvegarde est anormalement petite. Les anciennes sauvegardes ont été conservées. Ouvrez les paramètres de sauvegarde pour la vérifier.</string>
     <string name="export_everything">Tout</string>
     <string name="export_history_data_desc">Historique glycémique, entrées du journal et préréglages d’insuline</string>
@@ -505,7 +505,7 @@
     <string name="import_data">Importer Historique</string>
     <string name="import_data_desc">Charger sauvegarde ou fichier Libreview</string>
     <string name="import_data_settings">Importer données/réglages</string>
-    <string name="import_data_settings_desc">Restaurer un CSV d’historique ou une exportation JugglucoNG</string>
+    <string name="import_data_settings_desc">Restaurer un CSV d’historique ou une exportation Glucy</string>
     <string name="settings_import_confirm_title">Importer les paramètres ?</string>
     <string name="settings_import_confirm_message">Cela remplace les paramètres de l’application, les identifiants, les clés d’appareil et la configuration miroir, puis redémarre l’application.</string>
     <string name="settings_import_successful">Paramètres importés. Redémarrage…</string>
@@ -773,7 +773,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">Ajustez le comportement expérimental du scan Libre 3 avant l\'appairage.</string>
     <string name="libre3_nfc_command_title">Commande NFC Libre 3</string>
-    <string name="libre3_nfc_command_desc">Choisissez la commande que Juggluco envoie lors du scan NFC Libre 3</string>
+    <string name="libre3_nfc_command_desc">Choisissez la commande que Glucy envoie lors du scan NFC Libre 3</string>
     <string name="libre3_nfc_command_auto">Auto</string>
     <string name="libre3_nfc_command_auto_desc">Utiliser le comportement de scan Libre 3 par défaut de Juggluco</string>
     <string name="libre3_nfc_command_activate">A0 Activer</string>
@@ -905,7 +905,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensornotstreamed">Nothing yet</string>
     <string name="sensors_title">Sensors</string>
     <string name="sensorstreamed"></string>
-    <string name="senthosts">Juggluco sends to maximal 6 hosts</string>
+    <string name="senthosts">Glucy sends to maximal 6 hosts</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
     <string name="speakalarms">Speak alarms</string>
@@ -1395,7 +1395,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Pas assez de données quotidiennes pour afficher la tendance.</string>
     <string name="report_no_readings_day">Aucune lecture pour ce jour.</string>
-    <string name="report_page1_title">Rapport clinique JugglucoNG CGM</string>
+    <string name="report_page1_title">Rapport clinique Glucy CGM</string>
     <string name="report_page1_subtitle">Plage %1$s · Lectures %2$d · Fenêtre %3$s à %4$s</string>
     <string name="report_estimated_a1c">A1C estimé</string>
     <string name="report_below_target">En dessous de l\'objectif</string>
@@ -1410,7 +1410,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_above_duration">Ci-dessus : %1$s</string>
     <string name="report_agp_section_title">Profil de glycémie ambulatoire (bandes centiles sur 24 h)</string>
     <string name="report_reference_targets">Cibles de référence : GMI &lt; 7,0 %%, CV &lt;= 36 %%, Temps dans la plage &gt;= 70 %%.</string>
-    <string name="report_page2_title">JugglucoNG CGM Tendances quotidiennes et interprétation</string>
+    <string name="report_page2_title">Glucy CGM Tendances quotidiennes et interprétation</string>
     <string name="report_page2_subtitle">Variabilité quotidienne, répartition des métriques et notes d\'interprétation</string>
     <string name="report_daily_average_trend">Tendance moyenne quotidienne</string>
     <string name="report_detailed_metrics">Métriques détaillées</string>
@@ -1425,7 +1425,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_generated_insights_message">Aucun avertissement de modèle supplémentaire n\'a été généré pour cette plage horaire.</string>
     <string name="report_agp_consensus_title">Référence consensuelle de l\'AGP</string>
     <string name="report_agp_consensus_body">Les cibles référencées dans ce rapport suivent le style de consensus international AGP : TIR 70-180 mg/dL (3,9-10,0 mmol/L), TBR &lt;70 et &lt;54 mg/dL, TAR &gt;180 et &gt;250 mg/dL, avec un objectif CV &lt;=36 %%.</string>
-    <string name="report_page3_title">JugglucoNG Annexe I - AGP et tableaux quotidiens</string>
+    <string name="report_page3_title">Glucy Annexe I - AGP et tableaux quotidiens</string>
     <string name="report_page3_subtitle">Centiles horaires et résultats au niveau journalier</string>
     <string name="report_hourly_agp_table">Tableau de profil horaire AGP</string>
     <string name="report_hour">Heure</string>
@@ -1434,7 +1434,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="report_no_hourly_agp">Aucun bac AGP horaire disponible dans cette gamme.</string>
     <string name="report_daily_outcomes_table">Tableau des résultats quotidiens</string>
     <string name="report_showing_latest_days">Affichage des %1$d derniers jours sur %2$d.</string>
-    <string name="report_page4_title">JugglucoNG Annexe II - Événements et profils quotidiens</string>
+    <string name="report_page4_title">Glucy Annexe II - Événements et profils quotidiens</string>
     <string name="report_page4_subtitle">Mesures d\'hypo/hyperexposition et graphiques de profil au niveau journalier</string>
     <string name="report_hypo_hyper_events">Événements d’hypo/hyper exposition</string>
     <string name="report_hours_per_day">Heures/jour</string>
@@ -1464,7 +1464,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_transport_gms_unavailable">Google Play Services unavailable; Wear transport is disabled.</string>
     <string name="wear_transport_reinit_desc">Force a fresh watch discovery and network sync cycle.</string>
     <string name="wear_watch_app_missing">Appli montre manquante</string>
-    <string name="wear_watch_app_missing_hint">Installez Juggluco sur cette montre, puis touchez Actualiser.</string>
+    <string name="wear_watch_app_missing_hint">Installez Glucy sur cette montre, puis touchez Actualiser.</string>
     <string name="wear_auto_sensor_switch">Basculer le capteur automatiquement</string>
     <string name="wear_auto_sensor_switch_on_desc">Le téléphone et la montre se passent le capteur d\'eux-mêmes : celui qui est à portée le lit.</string>
     <string name="wear_auto_sensor_switch_off_desc">Seul l\'appareil que vous choisissez lit le capteur.</string>
@@ -1540,7 +1540,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insight_unstable_days">Jours instables frequents</string>
     <string name="insight_unstable_days_desc">%1$d jours dans cette fenetre avaient moins de 50%% de temps dans la cible.</string>
     <string name="mq_fetch_calibration_on_add">Restaurer la session fournisseur à l’ajout</string>
-    <string name="mq_fetch_calibration_on_add_desc">Si un QR code ou des identifiants Glutec enregistrés sont disponibles, Juggluco essaie de restaurer l’état de session MQ pendant la configuration.</string>
+    <string name="mq_fetch_calibration_on_add_desc">Si un QR code ou des identifiants Glutec enregistrés sont disponibles, Glucy essaie de restaurer l’état de session MQ pendant la configuration.</string>
     <string name="mq_bootstrap_button">Restaurer la session fournisseur</string>
     <string name="mq_bootstrap_dialog_title">Restaurer la session fournisseur</string>
     <string name="mq_bootstrap_dialog_desc">Restaurez l’état de session du fournisseur via Glutec. Saisissez ici le QR du capteur si nécessaire ; le compte, la synchro et l’API se gèrent dans le compte MQ / Glutec.</string>
@@ -1573,9 +1573,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mq_account_session_valid">Session valide</string>
     <string name="mq_account_session_invalid">Session invalide</string>
     <string name="mq_manual_calibration_title">Étalonnage manuel</string>
-    <string name="mq_manual_calibration_desc">Local à Juggluco. Entrez une glycémie capillaire en %1$s. Nécessite un paquet MQ récent.</string>
+    <string name="mq_manual_calibration_desc">Local à Glucy. Entrez une glycémie capillaire en %1$s. Nécessite un paquet MQ récent.</string>
     <string name="mq_follower_title">Suivi Glutec</string>
-    <string name="mq_follower_desc">Suivez un autre compte Glutec via le cloud du fournisseur. L\'activation crée un capteur suiveur en lecture seule dans Juggluco.</string>
+    <string name="mq_follower_desc">Suivez un autre compte Glutec via le cloud du fournisseur. L\'activation crée un capteur suiveur en lecture seule dans Glucy.</string>
     <string name="mq_follower_account_label">Compte à suivre</string>
     <string name="mq_follower_account_desc">Entrez le numéro de téléphone ou le compte Glutec à suivre.</string>
     <string name="mq_follower_enabled_summary">Suivi activé</string>
@@ -2445,12 +2445,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">Le capteur a expiré, mais plusieurs capteurs successeurs sont actifs. Transfert automatique ignoré ; veuillez changer manuellement.</string>
     <string name="sensor_handover_successor_ready">Le capteur successeur est prêt ; le transfert automatique prendra le relais à l\'expiration</string>
     <string name="nightscout_upload_iob">Envoyer l’insuline active</string>
-    <string name="nightscout_upload_iob_desc">Utiliser l’IOB de Juggluco plutôt que celui de Nightscout</string>
+    <string name="nightscout_upload_iob_desc">Utiliser l’IOB de Glucy plutôt que celui de Nightscout</string>
     <string name="journal_iob_source_remote">Valeurs de l’appareil émetteur (Nightscout)</string>
     <string name="ottai_cloud_unbind_title">Dissocier définitivement ce capteur ?</string>
-    <string name="ottai_cloud_unbind_message">%1$s sera définitivement supprimé de ce compte Ottai. Le compte ne pourra plus récupérer ses identifiants et le capteur ne fonctionnera plus dans l’application Ottai officielle. Les identifiants et l’état du capteur déjà enregistrés dans JugglucoNG ne seront pas modifiés. Cette action est irréversible.</string>
+    <string name="ottai_cloud_unbind_message">%1$s sera définitivement supprimé de ce compte Ottai. Le compte ne pourra plus récupérer ses identifiants et le capteur ne fonctionnera plus dans l’application Ottai officielle. Les identifiants et l’état du capteur déjà enregistrés dans Glucy ne seront pas modifiés. Cette action est irréversible.</string>
     <string name="ottai_cloud_unbind_confirm">Dissocier définitivement</string>
-    <string name="ottai_cloud_unbind_success">Capteur définitivement dissocié d’Ottai. Le capteur et les identifiants enregistrés dans JugglucoNG n’ont pas été modifiés.</string>
+    <string name="ottai_cloud_unbind_success">Capteur définitivement dissocié d’Ottai. Le capteur et les identifiants enregistrés dans Glucy n’ont pas été modifiés.</string>
     <string name="ottai_cloud_unbind_failed">Impossible de dissocier le capteur d’Ottai.</string>
     <string name="ottai_disconnect_forget_unbind">Supprimer les identifiants et dissocier</string>
     <string name="ottai_disconnect_forget_unbind_desc">Supprime les clés enregistrées et dissocie le capteur du compte Ottai. Il ne pourra plus être connecté.</string>
@@ -2564,7 +2564,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_max_per_hour">Messages max. par heure</string>
     <string name="sms_max_per_day">Messages max. par jour</string>
     <string name="sms_sent_today">Envoyés ces 24 dernières heures : %1$d</string>
-    <string name="sms_permission_desc">JugglucoNG a besoin de l\'autorisation d\'envoyer des SMS pour que cette destination fonctionne.</string>
+    <string name="sms_permission_desc">Glucy a besoin de l\'autorisation d\'envoyer des SMS pour que cette destination fonctionne.</string>
     <string name="sms_permission_grant">Autoriser</string>
     <string name="sms_no_telephony">Cet appareil ne peut pas envoyer de SMS.</string>
     <string name="sms_preview_title">Aperçu</string>
@@ -2582,7 +2582,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sms_event_no_data">Aucune donnée du capteur depuis %1$d min</string>
     <string name="sms_event_all_clear">Fin d\'alerte</string>
     <string name="sms_event_relay">Mise à jour (pas de connexion de données)</string>
-    <string name="sms_event_test">Message de test de JugglucoNG</string>
+    <string name="sms_event_test">Message de test de Glucy</string>
     <string name="sms_body_no_reading">Aucun relevé pour l\'instant</string>
 
     <!-- In-app updates (GitHub releases) -->
@@ -2622,13 +2622,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_verifying_title">Vérification du téléchargement</string>
     <string name="app_updates_verifying_body">Contrôle de la signature et de la version avant installation.</string>
     <string name="app_updates_ready_title">%1$s prête à être installée</string>
-    <string name="app_updates_ready_body">Android vous demandera de confirmer. JugglucoNG se ferme puis se rouvre ; les connexions aux capteurs reprennent d\'elles-mêmes.</string>
+    <string name="app_updates_ready_body">Android vous demandera de confirmer. Glucy se ferme puis se rouvre ; les connexions aux capteurs reprennent d\'elles-mêmes.</string>
     <string name="app_updates_up_to_date_title">Vous avez la dernière version</string>
     <string name="app_updates_last_checked">Dernière vérification %1$s</string>
     <string name="app_updates_never_checked">jamais</string>
     <string name="app_updates_error_title">Échec de la vérification</string>
-    <string name="app_updates_permission_title">Autoriser les installations depuis JugglucoNG</string>
-    <string name="app_updates_permission_body">Android exige une autorisation ponctuelle avant que JugglucoNG puisse installer sa propre mise à jour.</string>
+    <string name="app_updates_permission_title">Autoriser les installations depuis Glucy</string>
+    <string name="app_updates_permission_body">Android exige une autorisation ponctuelle avant que Glucy puisse installer sa propre mise à jour.</string>
     <string name="app_updates_permission_action">Ouvrir les paramètres</string>
     <string name="app_updates_unsupported_store_title">Les mises à jour viennent de votre boutique</string>
     <string name="app_updates_unsupported_store_body">Cette copie a été installée par %1$s, qui gère lui-même les mises à jour.</string>
@@ -2639,11 +2639,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="app_updates_error_parse">La source de mise à jour a renvoyé une réponse inattendue.</string>
     <string name="app_updates_error_no_artifact">La dernière version ne propose aucun fichier pour ce build.</string>
     <string name="app_updates_error_checksum">Le téléchargement ne correspondait pas à sa somme de contrôle et a été supprimé.</string>
-    <string name="app_updates_error_signature">L\'APK téléchargé est signé avec une autre clé et a été supprimé. N\'installez JugglucoNG que depuis la page officielle des versions.</string>
+    <string name="app_updates_error_signature">L\'APK téléchargé est signé avec une autre clé et a été supprimé. N\'installez Glucy que depuis la page officielle des versions.</string>
     <string name="app_updates_error_package">L\'APK téléchargé appartient à une autre application.</string>
     <string name="app_updates_error_downgrade">Cette version n\'est pas plus récente que celle installée.</string>
     <string name="app_updates_error_storage">Espace libre insuffisant pour le téléchargement.</string>
-    <string name="app_updates_error_install_permission">JugglucoNG n\'est pas encore autorisé à installer des applications.</string>
+    <string name="app_updates_error_install_permission">Glucy n\'est pas encore autorisé à installer des applications.</string>
     <string name="app_updates_error_install_failed">L\'installation ne s\'est pas terminée.</string>
     <string name="app_updates_error_cancelled">Installation annulée.</string>
     <string name="app_updates_source_title">Source des mises à jour</string>
@@ -2940,7 +2940,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wearos_config_title">Configuration Wear OS</string>
     <string name="watch_status_section">État de la montre</string>
     <string name="watch_none_found">Aucune montre Wear OS trouvée</string>
-    <string name="watch_none_found_hint">Ouvrez Juggluco sur la montre, puis appuyez sur Actualiser</string>
+    <string name="watch_none_found_hint">Ouvrez Glucy sur la montre, puis appuyez sur Actualiser</string>
     <string name="watch_routing_section">Routage</string>
     <string name="watch_enter_amounts">Saisir les quantités sur la montre</string>
     <string name="watch_enter_amounts_on">Les saisies faites sur la montre sont enregistrées et synchronisées avec le téléphone.</string>

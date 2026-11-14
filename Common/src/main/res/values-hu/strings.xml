@@ -1,7 +1,7 @@
 <resources>
     <string name="language">hu</string>
     <string name="languagename">Magyar</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">Glucy</string>
     <string name="ok">OK</string>
     <string name="cancel">Mégse</string>
     <string name="garmin_initialization_error">"A Garmin connect SDK inicializálása sikertelen: "</string>
@@ -10,7 +10,7 @@
     <string name="kerfstok_missing_title">A Kerfstok nincs telepítve az órára</string>
     <string name="kerfstok_missing_message">A Kerfstok nincs telepítve az órára. A Garmin Connect IQ áruházból szerezhető be.</string>
     <string name="alarm_description">Túl alacsony vagy túl magas glükózszint</string>
-    <string name="loss_description">A Juggluco elvesztette a kapcsolatot a szenzorral</string>
+    <string name="loss_description">A Glucy elvesztette a kapcsolatot a szenzorral</string>
     <string name="numalarm_description">Emlékeztető adagolásra, étkezésre vagy mozgásra</string>
     <string name="notification_description">Értesítés az aktuális glükózértékről</string>
     <string name="ongoing_description">Futó alkalmazás</string>
@@ -212,7 +212,7 @@
     <string name="xdripbroadcast">Libre (módosított alkalmazás)</string>
     <string name="health_connect_title">Health Connect</string>
     <string name="sensorpermission">Szenzorengedély</string>
-    <string name="sensorpermissionmessage">A pulzus megjelenítéséhez szükséges. Beállítás helye: Eszközbeállítások, Alkalmazások, Engedélyek, Juggluco</string>
+    <string name="sensorpermissionmessage">A pulzus megjelenítéséhez szükséges. Beállítás helye: Eszközbeállítások, Alkalmazások, Engedélyek, Glucy</string>
     <string name="floatglucose">Lebegő glükózérték</string>
     <string name="floatglucoseshort">@string/floatglucose</string>
     <string name="fontsize">Betűméret</string>
@@ -324,7 +324,7 @@
     <string name="resendwarning">Minden adat újra elküldésre kerül. Ez időigényes, és hatással lehet a Libreview és a Kerfstok működésére.</string>
     <string name="parseip">Hiba az IP-cím feldolgozásakor</string>
     <string name="toomanyhosts">A gazdagépek maximális száma túllépve</string>
-    <string name="senthosts">A Juggluco legfeljebb 6 gazdagépnek küld adatot</string>
+    <string name="senthosts">A Glucy legfeljebb 6 gazdagépnek küld adatot</string>
     <string name="hostname">Gazdagép neve</string>
     <string name="clampnow">Korlátozás a jelenig</string>
     <string name="sendfrom">"Küldés ettől: "</string>
@@ -359,7 +359,7 @@
     <string name="photomessage">Dexcom G7/ONE+ vagy Sibionics GS1 szenzor DataMatrix-kódjának, vagy a tükör QR-kódjának szkennelése.</string>
     <string name="dexfuture">Előrejelzés (Dexcom)</string>
     <string name="initializing">Inicializálás</string>
-    <string name="startjuggluco">Fut a Juggluco a telefonon?\n\nA WIFI és a Bluetooth be van kapcsolva?</string>
+    <string name="startjuggluco">Fut a Glucy a telefonon?\n\nA WIFI és a Bluetooth be van kapcsolva?</string>
     <string name="connected">Csatlakoztatva!</string>
     <string name="useclose">Bezárás gomb</string>
     <string name="alarmclock">\u23F0</string>
@@ -688,7 +688,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="libre_setup_libreview_note_title">Libre 3 + LibreView</string>
     <string name="libre_setup_advanced_options_desc">A Libre 3 szkennelés kísérleti működésének beállítása párosítás előtt.</string>
     <string name="libre3_nfc_command_title">Libre 3 NFC-parancs</string>
-    <string name="libre3_nfc_command_desc">A Libre 3 NFC-szkennelése során a Juggluco által küldött parancs kiválasztása</string>
+    <string name="libre3_nfc_command_desc">A Libre 3 NFC-szkennelése során a Glucy által küldött parancs kiválasztása</string>
     <string name="libre3_nfc_command_auto">Automatikus</string>
     <string name="libre3_nfc_command_auto_desc">A Juggluco alapértelmezett Libre 3 szkennelésének használata</string>
     <string name="libre3_nfc_command_activate">A0 Activate</string>
@@ -771,7 +771,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="scheduled_backup_acknowledge">Tudomásulvétel és a legutóbbi mentés használata viszonyítási alapként</string>
     <string name="backup_integrity_channel">Figyelmeztetések a mentések sértetlenségére</string>
     <string name="backup_integrity_channel_desc">Kritikus figyelmeztetések, ha egy automatikus mentés lényegesen kevesebb adatot tartalmazhat</string>
-    <string name="backup_integrity_notification_title">Ellenőrizze a JugglucoNG biztonsági mentését</string>
+    <string name="backup_integrity_notification_title">Ellenőrizze a Glucy biztonsági mentését</string>
     <string name="backup_integrity_notification_text">A legutóbbi mentés váratlanul kisebb lett. A régebbi mentések megmaradtak. Az ellenőrzéshez nyissa meg a mentési beállításokat.</string>
     <string name="export_everything">Minden</string>
     <string name="export_history_data_desc">Glükózelőzmények, naplóbejegyzések és inzulin-előbeállítások</string>
@@ -787,7 +787,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="import_data">Adatok importálása</string>
     <string name="import_data_desc">Biztonsági mentés vagy Libreview-fájl betöltése</string>
     <string name="import_data_settings">Adatok/beállítások importálása</string>
-    <string name="import_data_settings_desc">CSV-előzmények vagy JugglucoNG-export visszaállítása</string>
+    <string name="import_data_settings_desc">CSV-előzmények vagy Glucy-export visszaállítása</string>
     <string name="settings_import_confirm_title">Beállítások importálása?</string>
     <string name="settings_import_confirm_message">Ez felülírja az alkalmazás beállításait, bejelentkezési adatait, eszközkulcsait és tükrözési konfigurációját, majd újraindítja az alkalmazást.</string>
     <string name="settings_import_successful">Beállítások importálva. Újraindítás...</string>
@@ -878,7 +878,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="alert_value_available">Elérhető érték</string>
     <string name="alert_amount">Mennyiségi riasztás</string>
     <string name="import_history">Előzmények importálása</string>
-    <string name="import_history_desc">Glükózadatok importálása JugglucoNG-exportból vagy CSV-fájlból</string>
+    <string name="import_history_desc">Glükózadatok importálása Glucy-exportból vagy CSV-fájlból</string>
     <string name="continue_without_sensor">Folytatás szenzor nélkül</string>
     <string name="continue_without_sensor_desc">Inzulin, étel és ujjbegyes mérések rögzítése a naplóban</string>
     <string name="get_started_desc">A kezdéshez adja hozzá a szenzorát</string>
@@ -927,7 +927,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="export_history_title">Mérési előzmények exportálása</string>
     <string name="export_history_sub">Glükózértékek mentése CSV- vagy szövegfájlba</string>
     <string name="import_history_title">Mérési előzmények importálása</string>
-    <string name="import_history_sub">Glükózértékek visszaállítása JugglucoNG-exportból vagy CSV-fájlból</string>
+    <string name="import_history_sub">Glükózértékek visszaállítása Glucy-exportból vagy CSV-fájlból</string>
     <string name="delete_reading_title">Mérés törlése?</string>
     <string name="delete_reading_confirmation">A glükózérték eltávolítása a helyi előzményekből. A művelet nem vonható vissza.</string>
     <string name="alert_sound">Riasztási hang</string>
@@ -987,9 +987,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_connect_saved">Csatlakozás</string>
     <string name="ottai_login_fail">Sikertelen bejelentkezés — ellenőrizze a telefonszámot/kódot</string>
     <string name="ottai_cloud_unbind_title">Szenzor hozzárendelésének végleges megszüntetése?</string>
-    <string name="ottai_cloud_unbind_message">%1$s véglegesen eltávolításra kerül ebből az Ottai-fiókból. A fiók többé nem tudja lekérni a hitelesítő adatait, és a szenzor nem fog működni a hivatalos Ottai alkalmazásban. A JugglucoNG-ben már mentett hitelesítő adatok és szenzorállapot nem változnak. Ez nem vonható vissza.</string>
+    <string name="ottai_cloud_unbind_message">%1$s véglegesen eltávolításra kerül ebből az Ottai-fiókból. A fiók többé nem tudja lekérni a hitelesítő adatait, és a szenzor nem fog működni a hivatalos Ottai alkalmazásban. A Glucy-ben már mentett hitelesítő adatok és szenzorállapot nem változnak. Ez nem vonható vissza.</string>
     <string name="ottai_cloud_unbind_confirm">Hozzárendelés végleges megszüntetése</string>
-    <string name="ottai_cloud_unbind_success">A szenzor Ottai-hozzárendelése véglegesen megszűnt. A JugglucoNG-ben lévő szenzor és mentett hitelesítő adatok nem változtak.</string>
+    <string name="ottai_cloud_unbind_success">A szenzor Ottai-hozzárendelése véglegesen megszűnt. A Glucy-ben lévő szenzor és mentett hitelesítő adatok nem változtak.</string>
     <string name="ottai_cloud_unbind_failed">Nem sikerült megszüntetni a szenzor Ottai-hozzárendelését.</string>
     <string name="ottai_disconnect_forget_unbind">Hitelesítő adatok törlése és leválasztás</string>
     <string name="ottai_disconnect_forget_unbind_desc">Törli a mentett kulcsokat, és leválasztja a szenzort az Ottai-fiókról. Utána nem csatlakoztatható újra.</string>
@@ -1472,7 +1472,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="hours_remaining">%1$d óra van hátra</string>
     <string name="import_failed_with_error">Sikertelen importálás: %1$s</string>
     <string name="import_no_glucose">Nincsenek glükózadatok ebben a fájlban</string>
-    <string name="import_unsupported_file">Nem támogatott fájl. JugglucoNG-export vagy glükózelőzményeket tartalmazó CSV kiválasztása szükséges.</string>
+    <string name="import_unsupported_file">Nem támogatott fájl. Glucy-export vagy glükózelőzményeket tartalmazó CSV kiválasztása szükséges.</string>
     <string name="import_profile_merge">Profil importálása (egyesítés)</string>
     <string name="import_profile_replace">Profil importálása (csere)</string>
     <string name="import_summary">Importálva: %1$d, kihagyva: %2$d, lecserélve: %3$d</string>
@@ -1542,7 +1542,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_receive_amounts">Inzulin és szénhidrát fogadása</string>
     <string name="nightscout_receive_amounts_desc">Nightscout-bejegyzések importálása a naplóba</string>
     <string name="nightscout_upload_iob">Aktív inzulin küldése</string>
-    <string name="nightscout_upload_iob_desc">A Nightscout IOB helyett a Juggluco értékét használja</string>
+    <string name="nightscout_upload_iob_desc">A Nightscout IOB helyett a Glucy értékét használja</string>
     <string name="nightscout_settings_title">Nightscout</string>
     <string name="nightscout_sync_actions_title">Szinkronizálási műveletek</string>
     <string name="nightscout_url_label">Szerver címe</string>
@@ -1655,7 +1655,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="report_iqr_short">IQR</string>
     <string name="report_not_enough_daily_trend">Nincs elég napi adat a trend megjelenítéséhez.</string>
     <string name="report_no_readings_day">Erre a napra nincsenek mérések.</string>
-    <string name="report_page1_title">JugglucoNG CGM klinikai jelentés</string>
+    <string name="report_page1_title">Glucy CGM klinikai jelentés</string>
     <string name="report_page1_subtitle">Tartomány %1$s · Mérések %2$d · Időablak %3$s – %4$s</string>
     <string name="report_estimated_a1c">Becsült A1C</string>
     <string name="report_below_target">Céltartomány alatt</string>
@@ -1670,7 +1670,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="report_above_duration">Felette: %1$s</string>
     <string name="report_agp_section_title">Ambuláns glükózprofil (24 órás percentilissávok)</string>
     <string name="report_reference_targets">Referencia-célértékek: GMI &lt; 7.0%%, CV &lt;= 36%%, tartományban töltött idő &gt;= 70%%.</string>
-    <string name="report_page2_title">JugglucoNG CGM napi trendek és értelmezés</string>
+    <string name="report_page2_title">Glucy CGM napi trendek és értelmezés</string>
     <string name="report_page2_subtitle">Napi ingadozás, mutatók részletezése és értelmező megjegyzések</string>
     <string name="report_daily_average_trend">Napi átlag trendje</string>
     <string name="report_detailed_metrics">Részletes mutatók</string>
@@ -1685,7 +1685,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="report_no_generated_insights_message">Ehhez az időszakhoz nem keletkeztek további, mintázatokra vonatkozó figyelmeztetések.</string>
     <string name="report_agp_consensus_title">AGP-konszenzus referencia</string>
     <string name="report_agp_consensus_body">A jelentés célértékei az AGP nemzetközi konszenzusát követik: TIR 70-180 mg/dL (3.9-10.0 mmol/L), TBR &lt;70 és &lt;54 mg/dL, TAR &gt;180 és &gt;250 mg/dL, CV-cél &lt;=36%%.</string>
-    <string name="report_page3_title">JugglucoNG I. függelék - AGP és napi táblázatok</string>
+    <string name="report_page3_title">Glucy I. függelék - AGP és napi táblázatok</string>
     <string name="report_page3_subtitle">Óránkénti percentilisek és napi eredmények</string>
     <string name="report_hourly_agp_table">Óránkénti AGP-profil táblázata</string>
     <string name="report_hour">Óra</string>
@@ -1694,7 +1694,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="report_no_hourly_agp">Ebben a tartományban nincsenek óránkénti AGP-adatcsoportok.</string>
     <string name="report_daily_outcomes_table">Napi eredmények táblázata</string>
     <string name="report_showing_latest_days">A legutóbbi %1$d nap látható összesen %2$d napból.</string>
-    <string name="report_page4_title">JugglucoNG II. függelék - Események és napi profilok</string>
+    <string name="report_page4_title">Glucy II. függelék - Események és napi profilok</string>
     <string name="report_page4_subtitle">Alacsony/magas glükózszintek mutatói és napi profildiagramok</string>
     <string name="report_hypo_hyper_events">Alacsony / magas glükózszintű események</string>
     <string name="report_hours_per_day">Óra/nap</string>
@@ -1729,7 +1729,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="wear_transport_gms_unavailable">A Google Play Services nem érhető el; a Wear-adatátvitel letiltva.</string>
     <string name="wear_transport_reinit_desc">Új órakeresés és hálózati szinkronizálási ciklus kikényszerítése.</string>
     <string name="wear_watch_app_missing">Hiányzik az óraalkalmazás</string>
-    <string name="wear_watch_app_missing_hint">Telepítse a Juggluco alkalmazást erre az órára, majd koppintson a frissítésre.</string>
+    <string name="wear_watch_app_missing_hint">Telepítse a Glucy alkalmazást erre az órára, majd koppintson a frissítésre.</string>
     <string name="wear_auto_sensor_switch">Szenzor automatikus átadása</string>
     <string name="wear_auto_sensor_switch_on_desc">A telefon és az óra automatikusan átadják egymásnak a szenzort, így az olvassa, amelyik a hatótávolságán belül van.</string>
     <string name="wear_auto_sensor_switch_off_desc">Csak a kiválasztott eszköz olvassa a szenzort.</string>
@@ -1889,7 +1889,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="stats_finding_on_target">Célértéken</string>
     <string name="stats_finding_on_target_desc">%1$d%% a céltartományban, %2$d%% CV mellett. Más kiugró jelenség nincs.</string>
     <string name="mq_fetch_calibration_on_add">Gyártói munkamenet visszaállítása hozzáadáskor</string>
-    <string name="mq_fetch_calibration_on_add_desc">Ha van QR-kód vagy mentett Glutec-bejelentkezési adat, a Juggluco a beállítás során megpróbálja visszaállítani az MQ-munkamenet állapotát.</string>
+    <string name="mq_fetch_calibration_on_add_desc">Ha van QR-kód vagy mentett Glutec-bejelentkezési adat, a Glucy a beállítás során megpróbálja visszaállítani az MQ-munkamenet állapotát.</string>
     <string name="mq_bootstrap_button">Gyártói munkamenet visszaállítása</string>
     <string name="mq_bootstrap_dialog_title">Gyártói munkamenet visszaállítása</string>
     <string name="mq_bootstrap_dialog_desc">Gyártói munkamenet állapotának visszaállítása a Glutec rendszeréből. Szükség esetén itt adható meg a szenzor QR-kódja; a fiók, a szinkronizálás és az API beállításai az MQ / Glutec-fiók menüben találhatók.</string>
@@ -1922,9 +1922,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="mq_account_session_valid">Érvényes munkamenet</string>
     <string name="mq_account_session_invalid">Érvénytelen munkamenet</string>
     <string name="mq_manual_calibration_title">Kézi kalibráció</string>
-    <string name="mq_manual_calibration_desc">Csak a Juggluco alkalmazásban érvényes. Ujjbegyből mért glükózérték megadása %1$s egységben. Friss, valós idejű MQ-adatcsomag szükséges.</string>
+    <string name="mq_manual_calibration_desc">Csak a Glucy alkalmazásban érvényes. Ujjbegyből mért glükózérték megadása %1$s egységben. Friss, valós idejű MQ-adatcsomag szükséges.</string>
     <string name="mq_follower_title">Glutec-követés</string>
-    <string name="mq_follower_desc">Másik Glutec-fiók követése a gyártói felhőn keresztül. Bekapcsolásakor csak olvasható követő szenzor jön létre a Juggluco alkalmazásban.</string>
+    <string name="mq_follower_desc">Másik Glutec-fiók követése a gyártói felhőn keresztül. Bekapcsolásakor csak olvasható követő szenzor jön létre a Glucy alkalmazásban.</string>
     <string name="mq_follower_account_label">Követendő fiók</string>
     <string name="mq_follower_account_desc">A követendő Glutec-telefonszám vagy -fiók megadása.</string>
     <string name="mq_follower_enabled_summary">Követés bekapcsolva</string>
@@ -2644,7 +2644,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sms_max_per_hour">Üzenetek óránkénti maximuma</string>
     <string name="sms_max_per_day">Üzenetek napi maximuma</string>
     <string name="sms_sent_today">Elküldve az elmúlt 24 órában: %1$d</string>
-    <string name="sms_permission_desc">A cél működéséhez a JugglucoNG számára engedélyezni kell az SMS-küldést.</string>
+    <string name="sms_permission_desc">A cél működéséhez a Glucy számára engedélyezni kell az SMS-küldést.</string>
     <string name="sms_permission_grant">Engedélyezés</string>
     <string name="sms_no_telephony">Ez az eszköz nem tud SMS-t küldeni.</string>
     <string name="sms_preview_title">Előnézet</string>
@@ -2662,7 +2662,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sms_event_no_data">Nincs szenzoradat %1$d perce</string>
     <string name="sms_event_all_clear">A helyzet rendeződött</string>
     <string name="sms_event_relay">Frissítés (nincs adatkapcsolat)</string>
-    <string name="sms_event_test">Tesztüzenet a JugglucoNG alkalmazástól</string>
+    <string name="sms_event_test">Tesztüzenet a Glucy alkalmazástól</string>
     <string name="sms_body_no_reading">Még nincs mérés</string>
     <string name="app_updates_title">Alkalmazásfrissítések</string>
     <string name="app_updates_section_preferences">Beállítások</string>
@@ -2700,13 +2700,13 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="app_updates_verifying_title">Letöltés ellenőrzése</string>
     <string name="app_updates_verifying_body">Aláírás és verzió ellenőrzése telepítés előtt.</string>
     <string name="app_updates_ready_title">%1$s telepítésre kész</string>
-    <string name="app_updates_ready_body">Az Android megerősítést kér. A JugglucoNG bezárul és újra megnyílik; a szenzorkapcsolatok automatikusan helyreállnak.</string>
+    <string name="app_updates_ready_body">Az Android megerősítést kér. A Glucy bezárul és újra megnyílik; a szenzorkapcsolatok automatikusan helyreállnak.</string>
     <string name="app_updates_up_to_date_title">A ‘legújabb\' verzió van telepítve</string>
     <string name="app_updates_last_checked">Utolsó ellenőrzés: %1$s</string>
     <string name="app_updates_never_checked">soha</string>
     <string name="app_updates_error_title">Frissítésellenőrzés sikertelen</string>
-    <string name="app_updates_permission_title">Telepítés engedélyezése a JugglucoNG számára</string>
-    <string name="app_updates_permission_body">Az Android egyszeri engedélyt kér, mielőtt a JugglucoNG telepítheti a saját frissítését.</string>
+    <string name="app_updates_permission_title">Telepítés engedélyezése a Glucy számára</string>
+    <string name="app_updates_permission_body">Az Android egyszeri engedélyt kér, mielőtt a Glucy telepítheti a saját frissítését.</string>
     <string name="app_updates_permission_action">Beállítások megnyitása</string>
     <string name="app_updates_unsupported_store_title">Frissítések az alkalmazásboltból</string>
     <string name="app_updates_unsupported_store_body">Ezt a példányt a(z) %1$s telepítette, amely maga kezeli a frissítéseket.</string>
@@ -2717,11 +2717,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="app_updates_error_parse">A frissítési forrás váratlan választ adott.</string>
     <string name="app_updates_error_no_artifact">A legújabb kiadáshoz nincs ehhez a buildhez illő letöltés.</string>
     <string name="app_updates_error_checksum">A letöltött fájl ellenőrzőösszege nem egyezett, ezért a fájl törölve lett.</string>
-    <string name="app_updates_error_signature">A letöltött APK más kulccsal van aláírva, ezért törölve lett. A JugglucoNG alkalmazást csak a hivatalos kiadási oldalról telepítse.</string>
+    <string name="app_updates_error_signature">A letöltött APK más kulccsal van aláírva, ezért törölve lett. A Glucy alkalmazást csak a hivatalos kiadási oldalról telepítse.</string>
     <string name="app_updates_error_package">A letöltött APK egy másik alkalmazáshoz tartozik.</string>
     <string name="app_updates_error_downgrade">Ez a kiadás nem újabb a telepített verziónál.</string>
     <string name="app_updates_error_storage">Nincs elég szabad hely a letöltéshez.</string>
-    <string name="app_updates_error_install_permission">A JugglucoNG még nem kapott engedélyt alkalmazások telepítésére.</string>
+    <string name="app_updates_error_install_permission">A Glucy még nem kapott engedélyt alkalmazások telepítésére.</string>
     <string name="app_updates_error_install_failed">A telepítés nem fejeződött be.</string>
     <string name="app_updates_error_cancelled">Telepítés megszakítva.</string>
     <string name="app_updates_source_title">Frissítési forrás</string>
