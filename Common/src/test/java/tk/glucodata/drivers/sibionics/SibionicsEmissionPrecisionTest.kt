@@ -27,13 +27,16 @@ class SibionicsEmissionPrecisionTest {
             it.index > SETTLE && it.stockMmol.isFinite() && it.adaptiveV2Mmol.isFinite()
         }
 
+        val settled = TRACE_MINUTES - SETTLE
+        assertTrue("settled rows missing: ${rows.size}/$settled", rows.size == settled)
+
         val stockOffGrid = rows.count { offGrid(it.stockMmol) }
         val v2OffGrid = rows.count { offGrid(it.adaptiveV2Mmol) }
 
         println("PRECISION stockOffGrid=$stockOffGrid/${rows.size} v2OffGrid=$v2OffGrid/${rows.size}")
 
         assertTrue("stock left the vendor 0.1 grid: $stockOffGrid/${rows.size}", stockOffGrid == 0)
-        assertTrue("V2 output is still quantised: $v2OffGrid/${rows.size}", v2OffGrid > rows.size / 2)
+        assertTrue("V2 output is still quantised: $v2OffGrid/${rows.size}", v2OffGrid > rows.size * 0.95)
     }
 
     private companion object {
