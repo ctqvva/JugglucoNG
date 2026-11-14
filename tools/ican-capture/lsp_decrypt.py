@@ -1,8 +1,8 @@
+import argparse
 import base64
 import json
 import os
 import re
-import sys
 import urllib.parse
 
 TT = re.compile(r"^(\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\d+)\s+[VDIWEF]\s+ICANX\s*:\s(.*)$")
@@ -140,8 +140,52 @@ def parse_qs(url):
         return url, {}
 
 
+def mask_key(value, label):
+    if not value:
+        return value
+    return "<redacted %s len=%d>" % (label, len(value))
+
+
+def sanitize_report(out):
+    """Redact raw key material so reports are safe to share by default.
+
+    Plaintext payloads (requests[].aes.in_hex, responses[].plain, gson JSON) are the
+    analysis target and are kept; key material, IVs and RSA-wrapped keys are not.
+    """
+    for r in out.get("requests", []):
+        w = r.get("wrapped")
+        if w:
+            for f, label in (("in_hex", "aes key"), ("out_hex", "rsa ciphertext")):
+                if f in w:
+                    w[f] = mask_key(w[f], label)
+        a = r.get("aes")
+        if a:
+            for f, label in (("iv", "iv"), ("keyHex", "aes key")):
+                if f in a:
+                    a[f] = mask_key(a[f], label)
+        url = r.get("url")
+        if url:
+            r["url"] = re.sub(r"([?&])key=[^&]*", r"\1key=<redacted>", url)
+    for r in out.get("responses", []):
+        for f, label in (("iv", "iv"), ("keyHex", "aes key")):
+            if f in r:
+                r[f] = mask_key(r[f], label)
+        if "out_hex" in r:
+            r["out_hex"] = mask_key(r["out_hex"], "plaintext")
+    for r in out.get("license", []) + out.get("constant_ops", []):
+        for f in ("in_hex", "out_hex", "iv", "keyHex"):
+            if f in r:
+                r[f] = mask_key(r[f], f)
+    return out
+
+
 def main():
-    logs = sys.argv[1:]
+    parser = argparse.ArgumentParser(description="Reconstruct ICANX crypto ops from device logs.")
+    parser.add_argument("--raw", action="store_true",
+                        help="include raw key material in the report (local diagnostics only)")
+    parser.add_argument("logs", nargs="+", help="logcat capture files")
+    args = parser.parse_args()
+    logs = args.logs
     all_events = []
     for p in logs:
         all_events.extend(Log(p).events)
@@ -238,6 +282,8 @@ def main():
 
     out = {"requests": uniq_reqs, "responses": aes_decs, "license": license_ops, "constant_ops": consts,
            "gson": [{k: g.get(k) for k in ("t", "pid", "src_obj", "json")} for g in gson]}
+    if not args.raw:
+        out = sanitize_report(out)
     print(json.dumps(out, ensure_ascii=False, indent=1, sort_keys=False))
 
 
