@@ -453,7 +453,6 @@
     <string name="select_gallery_button">Вибрати з Галереї</string>
     <string name="skip_fake_sensor">Пропустити (Вик. фіктивний сенсор)</string>
     <string name="enter_code_manually">Ввести код вручну</string>
-    <string name="choose_sibionics_variant">Укажіть модель з упаковки.</string>
     <string name="continue_action">Продовжити</string>
     <string name="sensor_init_failed">Ініціалізація сенсора не вдалася</string>
     <string name="sensor_lost_restart">Помилка: Сенсор втрачено. Перезапустіть налаштування.</string>

@@ -903,7 +903,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="select_gallery_button">Kiválasztás a Galériából</string>
     <string name="skip_fake_sensor">Kihagyás (tesztszenzor)</string>
     <string name="enter_code_manually">Kód kézi megadása</string>
-    <string name="choose_sibionics_variant">Válassza ki a csomagoláson szereplő modellt.</string>
     <string name="continue_action">Folytatás</string>
     <string name="sensor_init_failed">A szenzor inicializálása sikertelen</string>
     <string name="sensor_lost_restart">Hiba: a szenzor elveszett. Indítsa újra a beállítást.</string>

@@ -314,7 +314,6 @@
     <string name="select_gallery_button">Seleziona da Galleria</string>
     <string name="skip_fake_sensor">Salta (Usa sensore falso)</string>
     <string name="enter_code_manually">Inserisci codice manualmente</string>
-    <string name="choose_sibionics_variant">Seleziona il modello indicato sulla confezione.</string>
     <string name="continue_action">Continua</string>
     <string name="sensor_init_failed">Inizializzazione sensore fallita</string>
     <string name="sensor_lost_restart">Errore: Sensore perso. Riavviare configurazione.</string>

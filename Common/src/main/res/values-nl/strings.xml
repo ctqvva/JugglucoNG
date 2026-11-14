@@ -530,7 +530,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="select_gallery_button">Selecteer uit galerij</string>
     <string name="skip_fake_sensor">Overslaan (Gebruik nepsensor)</string>
     <string name="enter_code_manually">Code handmatig invoeren</string>
-    <string name="choose_sibionics_variant">Kies het model dat op de verpakking staat.</string>
     <string name="continue_action">Doorgaan</string>
     
     <string name="sensor_init_failed">Sensorinitialisatie mislukt</string>

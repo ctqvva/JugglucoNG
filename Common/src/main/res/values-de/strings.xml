@@ -548,7 +548,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="select_gallery_button">Aus Galerie auswählen</string>
     <string name="skip_fake_sensor">Überspringen (simulierten Sensor verwenden)</string>
     <string name="enter_code_manually">Code manuell eingeben</string>
-    <string name="choose_sibionics_variant">Wählen Sie das Modell auf der Verpackung.</string>
     <string name="continue_action">Weiter</string>
     <string name="sensor_init_failed">Sensorinitialisierung fehlgeschlagen</string>
     <string name="sensor_lost_restart">Fehler: Sensor verloren. Bitte die Einrichtung neu starten.</string>

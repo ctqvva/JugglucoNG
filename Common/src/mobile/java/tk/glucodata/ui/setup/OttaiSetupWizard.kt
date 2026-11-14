@@ -10,6 +10,7 @@
 package tk.glucodata.ui.setup
 
 import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.HeroCompanion
 import tk.glucodata.ui.components.rememberSensorHeroCompact
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
@@ -1863,6 +1864,8 @@ private fun OttaiSearchStep(
             SensorType.OTTAI,
             modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerSmall),
             compact = rememberSensorHeroCompact(sharesScreen = true),
+            // China and Syai sensors are woken by the phone's NFC; Global pairs straight away.
+            companion = if (nfcHint != null) HeroCompanion.NFC else null,
         )
         header()
         Spacer(Modifier.height(ui.spacerMedium))

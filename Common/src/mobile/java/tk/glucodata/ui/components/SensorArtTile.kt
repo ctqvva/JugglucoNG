@@ -16,6 +16,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalConfiguration
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -66,7 +69,7 @@ import tk.glucodata.ui.util.ExpressiveMotion
  * in and turns it square to the row; letting go springs all three back. Everything moves in the
  * draw and layer phases, and nothing moves at rest or when a screen opens.
  *
- * [round] keeps the frame a circle throughout and the drawing inside it, for the wizard heroes. Raising [replay] drops the sensor on to its frame again.
+ * [round] keeps the frame a circle throughout and the drawing inside it, for the wizard heroes. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
  */
 @Composable
 internal fun SensorArtTile(
@@ -77,6 +80,7 @@ internal fun SensorArtTile(
     modifier: Modifier = Modifier,
     replay: Int = 0,
     round: Boolean = false,
+    lead: () -> Float = { 0f },
 ) {
     val context = LocalContext.current
     remember(context) { SensorImages.attach(context.applicationContext) }
@@ -127,7 +131,7 @@ internal fun SensorArtTile(
                     alpha = (1f - drop).coerceIn(0f, 1f) * 0.6f + 0.4f
                 },
         ) {
-            drawSensorCached(type, tones)
+            drawPairLed(type, tones, lead())
         }
     }
 }
@@ -152,7 +156,7 @@ private val heroesPlayed = mutableSetOf<SensorType>()
  * the sensor it has just placed; a phone held over a Libre sends one NFC pulse; a phone reading a
  * code sweeps its viewfinder once; a phone pairing over Bluetooth gets a signal from the sensor.
  */
-private enum class HeroCompanion { APPLICATOR, NFC, SCAN, PAIR }
+internal enum class HeroCompanion { APPLICATOR, NFC, SCAN, PAIR }
 
 private val SensorType.heroCompanion: HeroCompanion
     get() = when (this) {
@@ -176,13 +180,29 @@ internal fun SensorHeroArt(
     type: SensorType,
     modifier: Modifier = Modifier,
     tileSize: Dp = 120.dp,
+    pairLead: Boolean = false,
+    companion: HeroCompanion? = null,
 ) {
     val tones = rememberSensorTones()
     val accent = MaterialTheme.colorScheme.primary
     val tick = rememberNavigationTick()
     val interactionSource = remember { MutableInteractionSource() }
     var plays by remember { mutableIntStateOf(0) }
-    val companionKind = type.heroCompanion
+    val companionKind = companion ?: type.heroCompanion
+    // A new companion (Ottai's wake by NFC or not) comes in as on a first visit.
+    var shownCompanion by remember { mutableStateOf(companionKind) }
+    LaunchedEffect(companionKind) {
+        if (companionKind != shownCompanion) {
+            shownCompanion = companionKind
+            plays += 1
+        }
+    }
+    // Opens with the chosen sensor already in front; a new choice brings the other forward.
+    val lead by animateFloatAsState(
+        targetValue = if (pairLead) 1f else 0f,
+        animationSpec = ExpressiveMotion.slowSpatial(),
+        label = "pairLead",
+    )
 
     // 0 = not yet arrived, 1 = in place.
     val firstVisit = remember(type) { heroesPlayed.add(type) }
@@ -199,11 +219,15 @@ internal fun SensorHeroArt(
         }
     }
 
-    val tileShift = when (companionKind) {
-        HeroCompanion.APPLICATOR -> tileSize * 0.3f
-        HeroCompanion.NFC, HeroCompanion.SCAN -> -tileSize * 0.22f
-        HeroCompanion.PAIR -> -tileSize * 0.3f
-    }
+    val tileShift by animateDpAsState(
+        targetValue = when (companionKind) {
+            HeroCompanion.APPLICATOR -> tileSize * 0.3f
+            HeroCompanion.NFC, HeroCompanion.SCAN -> -tileSize * 0.22f
+            HeroCompanion.PAIR -> -tileSize * 0.3f
+        },
+        animationSpec = ExpressiveMotion.defaultSpatial(),
+        label = "heroShift",
+    )
     Box(
         modifier = modifier
             .size(width = tileSize * 2, height = tileSize * 1.25f)
@@ -273,6 +297,7 @@ internal fun SensorHeroArt(
             modifier = Modifier.offset(x = tileShift),
             replay = plays,
             round = true,
+            lead = { lead },
         )
         Canvas(
             modifier = Modifier
@@ -330,7 +355,9 @@ internal fun rememberSensorHeroCompact(sharesScreen: Boolean): Boolean {
  * The top of a sensor wizard's main step, the same in every wizard: the sensor and its companion
  * with what to do. [title] and [subtitle] are the step's own heading; when the step's own list
  * header already says it, both can be left out and the picture stands alone. [compact] trades the
- * full picture for a row, moving between the two on the expressive spring.
+ * full picture for a row, moving between the two on the expressive spring. [pairLead] puts a
+ * pair's second sensor in front, for a step where it is the one chosen; [companion] stands in for
+ * the family's own when the chosen model connects another way.
  */
 @Composable
 internal fun SensorWizardHero(
@@ -339,6 +366,8 @@ internal fun SensorWizardHero(
     title: String? = null,
     subtitle: String? = null,
     compact: Boolean = false,
+    pairLead: Boolean = false,
+    companion: HeroCompanion? = null,
 ) {
     val wide = !rememberAdaptiveWindowMetrics().isCompact
     AnimatedContent(
@@ -357,7 +386,7 @@ internal fun SensorWizardHero(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = if (title == null) Arrangement.Center else Arrangement.Start,
             ) {
-                SensorHeroArt(type, tileSize = 56.dp)
+                SensorHeroArt(type, tileSize = 56.dp, pairLead = pairLead, companion = companion)
                 if (title != null) {
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -378,7 +407,7 @@ internal fun SensorWizardHero(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                SensorHeroArt(type, tileSize = if (wide) 120.dp else 104.dp)
+                SensorHeroArt(type, tileSize = if (wide) 120.dp else 104.dp, pairLead = pairLead, companion = companion)
                 if (title != null) {
                     Text(
                         title,

@@ -1004,7 +1004,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="skip_fake_sensor">Skip (Use Fake Sensor)</string>
     <string name="enter_code_manually">Enter code manually</string>
     
-    <string name="choose_sibionics_variant">Select the model shown on its packaging.</string>
     <string name="continue_action">Continue</string>
     
     <string name="sensor_init_failed">Sensor initialization failed</string>

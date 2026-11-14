@@ -226,8 +226,15 @@ internal object SensorImages {
         }
     }
 
-    fun image(type: SensorType, tones: SensorTones, width: Int, height: Int, draw: () -> ImageBitmap): ImageBitmap {
-        val key = "${type.name}-${Integer.toHexString(tones.hashCode())}-${width}x$height"
+    fun image(
+        type: SensorType,
+        tones: SensorTones,
+        width: Int,
+        height: Int,
+        part: String = "",
+        draw: () -> ImageBitmap,
+    ): ImageBitmap {
+        val key = "${type.name}$part-${Integer.toHexString(tones.hashCode())}-${width}x$height"
         memory.get(key)?.let { return it }
         val file = folder?.let { File(it, "$key.png") }
         val saved = file?.takeIf { it.isFile }?.let { stored ->
@@ -266,6 +273,69 @@ internal fun DrawScope.drawSensorCached(type: SensorType, tones: SensorTones) {
         }
     }
     drawImage(image)
+}
+
+/** Whether [type] is drawn as a pair whose two sensors can trade places: see [drawPairLed]. */
+internal val SensorType.tradesPlaces: Boolean
+    get() = this == SensorType.SIBIONICS
+
+/**
+ * A pair with either sensor in front: at [lead] 0 the family's own picture, at 1 the second
+ * sensor lies in front and the first tips up behind it. Between the two they trade places, passing
+ * beside each other, the one coming forward lifting a little as it goes. Each sensor is drawn once
+ * in each place and kept, so the move itself only slides and fades finished images.
+ */
+internal fun DrawScope.drawPairLed(type: SensorType, tones: SensorTones, lead: Float) {
+    if (!type.tradesPlaces || lead <= 0f) {
+        drawSensorCached(type, tones)
+        return
+    }
+    val width = size.width.roundToInt()
+    val height = size.height.roundToInt()
+    if (width <= 0 || height <= 0) return
+    fun piece(which: Int, front: Boolean): ImageBitmap =
+        SensorImages.image(type, tones, width, height, part = "-$which${if (front) "f" else "b"}") {
+            ImageBitmap(width, height).also { image ->
+                CanvasDrawScope().draw(this, layoutDirection, ImageCanvas(image), Size(width.toFloat(), height.toFloat())) {
+                    drawPairPiece(type, tones, which, front)
+                }
+            }
+        }
+    val unit = min(size.width, size.height) / 100f
+    fun spot(front: Boolean): Offset {
+        val at = pairSpot(front)
+        val radians = type.tilt * PI.toFloat() / 180f
+        val x = at.x
+        val y = at.y * SQUASH
+        return Offset(x * cos(radians) - y * sin(radians), x * sin(radians) + y * cos(radians)) * unit
+    }
+    val frontSpot = spot(true)
+    val backSpot = spot(false)
+    val travel = lead.coerceIn(-0.2f, 1.2f)
+    val arc = sin(PI.toFloat() * travel.coerceIn(0f, 1f))
+    val across = (frontSpot - backSpot).let { Offset(-it.y, it.x) } * 0.6f
+    // The second sensor runs from the back to the front, the first the other way; the one in
+    // front at the start stays on top until they have passed.
+    fun move(which: Int, toFront: Boolean) {
+        val from = if (toFront) backSpot else frontSpot
+        val to = if (toFront) frontSpot else backSpot
+        val now = from + (to - from) * travel + across * (if (toFront) arc else -arc)
+        val swap = ((travel - 0.42f) / 0.16f).coerceIn(0f, 1f)
+        val grow = 1f + (if (toFront) 0.1f else -0.06f) * arc
+        scale(grow, grow, pivot = center + now) {
+            // The new pose comes up solid under the old one fading off it, so the sensor never
+            // goes see-through on the way.
+            if (swap > 0f) drawImage(piece(which, toFront), topLeft = now - to, alpha = (swap * 2f).coerceAtMost(1f))
+            if (swap < 1f) drawImage(piece(which, !toFront), topLeft = now - from, alpha = 1f - swap)
+        }
+    }
+    if (travel < 0.5f) {
+        move(1, toFront = true)
+        move(0, toFront = false)
+    } else {
+        move(0, toFront = false)
+        move(1, toFront = true)
+    }
 }
 
 /**
@@ -909,25 +979,52 @@ private fun DrawScope.drawDexcom(tones: SensorTones) = seated(tones, 12.4f) {
  * base that shows a clip at each short end.
  */
 private fun DrawScope.drawSibionics(tones: SensorTones) = seated(tones, 8f) {
-    turned(tones, Offset(-11f, -15f), -SensorType.SIBIONICS.tilt, 35f * PAIR_SCALE / 72f, lean = 62f) { tones ->
-        val cover = roundRect(72f, 50.4f, 15f)
-        val frame: Outline = { inset ->
-            Path().apply {
-                op(roundRect(72.6f, 51f, 15.2f)(inset), roundRect(75f, 16f, 2.5f)(inset), PathOperation.Union)
+    sibionicsPiece(tones, which = 1, front = false)
+    sibionicsPiece(tones, which = 0, front = true)
+}
+
+/** Where a pair's sensors lie: the one in front flat and turned, the one behind tipped up square. */
+private fun pairSpot(front: Boolean): Offset = if (front) Offset(10f, 15f) else Offset(-11f, -15f)
+
+/** One sensor of a pair on its own, framed as [drawSensor] frames the whole pair. */
+private fun DrawScope.drawPairPiece(type: SensorType, tones: SensorTones, which: Int, front: Boolean) {
+    inUnitSquare {
+        rotate(type.tilt, pivot = Offset.Zero) {
+            scale(1f, SQUASH, pivot = Offset.Zero) {
+                val turned = tones.copy(turn = type.tilt)
+                seated(turned, 8f) { sibionicsPiece(turned, which, front) }
             }
         }
-        glass(tones, frame, thickness = 4.6f, stands = 12.1f)
-        // The electronics show dark through the clear base.
-        val edge = nearEdge(tones, frame)
-        drawPath(sidePatch(tones, edge, 4.6f, 0f, -26f, 26f, 0.8f, 3.8f), lerp(tones.ink, tones.accent, 0.3f).copy(alpha = 0.35f))
-        drawPath(sidePatch(tones, edge, 4.6f, 0f, -30f, 30f, 3.9f, 4.4f), tones.glint.copy(alpha = 0.7f))
-        part(tones, cover, thickness = 7.5f, bevel = 4.5f, base = 4.6f)
     }
-    turned(tones, Offset(10f, 15f), -24f, 33.5f * PAIR_SCALE / 72f) { tones ->
-        val shell = roundRect(72f, 44.4f, 19f)
-        glass(tones, roundRect(72.4f, 44.8f, 19.2f), thickness = 2.6f, stands = 11.4f)
-        part(tones, shell, thickness = 8.8f, bevel = 2.6f, base = 2.6f) {
-            keyedPort(tones, Offset(-11f, 0f), 5.4f)
+}
+
+/** The GS1 ([which] 0) or the Sibionics 2 (1), lying in front or tipped up behind. */
+private fun DrawScope.sibionicsPiece(tones: SensorTones, which: Int, front: Boolean) {
+    val at = pairSpot(front)
+    val by = if (front) -24f else -SensorType.SIBIONICS.tilt
+    val lean = if (front) CAMERA_DEGREES else 62f
+    if (which == 1) {
+        turned(tones, at, by, 35f * PAIR_SCALE / 72f, lean) { tones ->
+            val cover = roundRect(72f, 50.4f, 15f)
+            val frame: Outline = { inset ->
+                Path().apply {
+                    op(roundRect(72.6f, 51f, 15.2f)(inset), roundRect(75f, 16f, 2.5f)(inset), PathOperation.Union)
+                }
+            }
+            glass(tones, frame, thickness = 4.6f, stands = 12.1f)
+            // The electronics show dark through the clear base.
+            val edge = nearEdge(tones, frame)
+            drawPath(sidePatch(tones, edge, 4.6f, 0f, -26f, 26f, 0.8f, 3.8f), lerp(tones.ink, tones.accent, 0.3f).copy(alpha = 0.35f))
+            drawPath(sidePatch(tones, edge, 4.6f, 0f, -30f, 30f, 3.9f, 4.4f), tones.glint.copy(alpha = 0.7f))
+            part(tones, cover, thickness = 7.5f, bevel = 4.5f, base = 4.6f)
+        }
+    } else {
+        turned(tones, at, by, 33.5f * PAIR_SCALE / 72f, lean) { tones ->
+            val shell = roundRect(72f, 44.4f, 19f)
+            glass(tones, roundRect(72.4f, 44.8f, 19.2f), thickness = 2.6f, stands = 11.4f)
+            part(tones, shell, thickness = 8.8f, bevel = 2.6f, base = 2.6f) {
+                keyedPort(tones, Offset(-11f, 0f), 5.4f)
+            }
         }
     }
 }
