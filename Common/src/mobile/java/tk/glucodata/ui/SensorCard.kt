@@ -3452,107 +3452,54 @@ fun SensorCard(
             // record does not have: the sensor is on the sending phone. Offering them
             // here only invites two phones onto one transmitter.
             if (!sensor.isCloneSource) {
-                // Edit 63b: All sensors get the same 2-button row: Reconnect | Disconnect.
-                // AiDex-specific behavior is handled in the dialogs (terminate dialog routes
-                // AiDex through disconnectSensor instead of terminateSensor).
-                // Edit 65c: Keep the old full-width 50/50 row when both labels fit, then let
-                // Disconnect keep priority only on genuinely tight localized layouts.
+                // Disconnect is the action this row is for, so it takes the width and the
+                // label. Reconnect is the occasional one: an icon at the start, named by its
+                // tooltip. AiDex-specific behaviour is handled in the dialogs.
                 val reconnectLabel = stringResource(R.string.reconnect)
-                val disconnectLabel = stringResource(R.string.disconnect)
-                val layoutDirection = LocalLayoutDirection.current
-                val density = LocalDensity.current
-                val textMeasurer = rememberTextMeasurer()
-                val buttonTextStyle = MaterialTheme.typography.labelLarge
-                // Icon (18) + gap (8) + the button's own padding.
-                val buttonIconWidth = 18.dp + 8.dp
-                val buttonChromeWidth = buttonIconWidth +
-                    ButtonDefaults.ContentPadding.calculateLeftPadding(layoutDirection) +
-                    ButtonDefaults.ContentPadding.calculateRightPadding(layoutDirection)
-                val reconnectPreferredWidth = with(density) {
-                    textMeasurer.measure(
-                        text = reconnectLabel,
-                        style = buttonTextStyle,
-                        maxLines = 1
-                    ).size.width.toDp() + buttonChromeWidth
-                }
-                val disconnectPreferredWidth = with(density) {
-                    textMeasurer.measure(
-                        text = disconnectLabel,
-                        style = buttonTextStyle,
-                        maxLines = 1
-                    ).size.width.toDp() + buttonChromeWidth
-                }
-
-                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val buttonSpacing = 8.dp
-                    val equalButtonWidth = (maxWidth - buttonSpacing) / 2
-                    fun fitsHalf(width: Dp, withIcon: Boolean) =
-                        (if (withIcon) width else width - buttonIconWidth) <= equalButtonWidth
-                    // At large text the icons go first, so both labels stay whole in the
-                    // 50/50 row; only if the words alone still don't fit does Disconnect
-                    // take its full width and Reconnect ellipsize.
-                    val showButtonIcons = fitsHalf(reconnectPreferredWidth, true) &&
-                        fitsHalf(disconnectPreferredWidth, true)
-                    val prioritizeDisconnect = !showButtonIcons && !(
-                        fitsHalf(reconnectPreferredWidth, false) &&
-                            fitsHalf(disconnectPreferredWidth, false)
-                        )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(buttonSpacing)
-                    ) {
-                        // Reconnect always stays flexible so it can either match the old 50/50
-                        // layout or yield first when Disconnect needs more room.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButtonTooltip(reconnectLabel) {
                         FilledTonalButton(
                             onClick = { showReconnectDialog = true },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.width(56.dp),
                             shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Leading, pressedShape = ConnectedButtonShapes.LeadingPressed),
-                            contentPadding = ButtonDefaults.ContentPadding,
+                            contentPadding = PaddingValues(0.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         ) {
-                            if (showButtonIcons) {
-                                Icon(
-                                    imageVector = Icons.Default.BluetoothConnected,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                            }
-                            Text(
-                                reconnectLabel,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            Icon(
+                                imageVector = Icons.Default.BluetoothConnected,
+                                contentDescription = reconnectLabel,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
+                    }
 
-                        FilledTonalButton(
-                            onClick = { showTerminateDialog = true },
-                            modifier = if (prioritizeDisconnect) Modifier else Modifier.weight(1f),
-                            shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Trailing, pressedShape = ConnectedButtonShapes.TrailingPressed),
-                            contentPadding = ButtonDefaults.ContentPadding,
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        ) {
-                            if (showButtonIcons) {
-                                Icon(
-                                    imageVector = Icons.Default.DeleteForever,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                            }
-                            Text(
-                                disconnectLabel,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                        }
+                    FilledTonalButton(
+                        onClick = { showTerminateDialog = true },
+                        modifier = Modifier.weight(1f),
+                        shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Trailing, pressedShape = ConnectedButtonShapes.TrailingPressed),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteForever,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.disconnect),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
