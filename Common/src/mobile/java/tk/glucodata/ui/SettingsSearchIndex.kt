@@ -80,6 +80,7 @@ import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Lan
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Password
@@ -671,6 +672,11 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.libreview_config, SHARING, Icons.Default.Cloud, T, route("settings/libreview"),
             keywords = listOf(R.string.libreview_desc), terms = listOf("Abbott"),
             condition = SettingsSearchCondition.LIBREVIEW),
+        SettingsSearchEntry(R.string.libre3_managed_enable, LIBREVIEW, Icons.Default.Nfc, P, route("settings/libreview"),
+            condition = SettingsSearchCondition.LIBREVIEW, terms = listOf("Libre 3", "Libre 3 Plus", "Kotlin", "NFC"),
+            anchor = row(R.string.libre3_managed_enable)),
+        SettingsSearchEntry(R.string.libre3_managed_receiver_account, LIBREVIEW, Icons.Default.Key, P, route("settings/libreview"),
+            condition = SettingsSearchCondition.LIBREVIEW, anchor = row(R.string.libre3_managed_receiver_account)),
         SettingsSearchEntry(R.string.libreview_russia, LIBREVIEW, Icons.Default.Public, T, route("settings/libreview"),
             condition = SettingsSearchCondition.LIBREVIEW, anchor = row(R.string.libreview_russia)),
         SettingsSearchEntry(R.string.libreview_current, LIBREVIEW, Icons.AutoMirrored.Filled.ShowChart, T, route("settings/libreview"),
