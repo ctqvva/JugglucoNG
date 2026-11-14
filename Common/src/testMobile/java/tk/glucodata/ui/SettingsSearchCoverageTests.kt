@@ -55,10 +55,13 @@ class SettingsSearchCoverageTests {
             "mq_follower_settings_title", "sensor_handover_old_action_title",
         )
         because(
-            "a slider whose title carries its value (\"Font size: 100%\"); found through its screen",
-            "arrow_size_percent", "background_opacity_percent", "chart_size_percent", "corner_radius_dp",
-            "font_size_percent", "gap_width_value", "opacity_percent", "size_sp", "status_bar_icon_size_percent",
-            "text_size_percent",
+            "slider controls are reached through their parent display screen",
+            "arrow_size_label", "background_opacity_label",
+            "chart_size_label", "corner_radius_label",
+            "font_size_label", "gap_width_label",
+            "opacity_label", "size_label",
+            "status_bar_icon_size_label", "text_size_label",
+            "offset",
         )
         because(
             "part of a control that is indexed itself (times of the voice schedule, colours of the range card, …)",
