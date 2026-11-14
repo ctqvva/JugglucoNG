@@ -100,6 +100,16 @@ internal data class SensorTones(
         shadow = lerp(ink, surface, 0.25f).copy(alpha = shadow.alpha),
     )
 
+    /** A mid grey casing, darker than [grey]: the Ottai's. */
+    fun stone(): SensorTones = copy(
+        highlight = lerp(highlight, wallDeep, 0.45f),
+        body = lerp(body, wallDeep, 0.72f),
+        shade = lerp(shade, wallDeep, 0.85f),
+        wall = lerp(wall, ink, 0.3f),
+        wallDeep = lerp(wallDeep, ink, 0.4f),
+        detail = lerp(detail, ink, 0.3f),
+    )
+
     /** A grey casing. */
     fun grey(): SensorTones = copy(
         highlight = lerp(highlight, wall, 0.3f),
@@ -692,6 +702,28 @@ private fun DrawScope.drawLibre(tones: SensorTones) = seated(tones, 10f) {
 }
 
 /**
+ * CT4 radius every 5 degrees from +x, clockwise on screen, traced from a top-down photo: a
+ * lopsided egg, its narrow end down and to the right.
+ */
+private val CT4_RADII = floatArrayOf(
+    28.47f, 28.60f, 28.89f, 29.36f, 30.01f, 30.84f, 31.84f, 32.93f, 34.08f, 35.22f, 36.36f, 37.28f,
+    37.87f, 38.00f, 37.83f, 37.47f, 37.14f, 36.74f, 36.34f, 35.65f, 34.72f, 33.55f, 32.42f, 31.44f,
+    30.70f, 30.23f, 29.98f, 29.86f, 29.75f, 29.63f, 29.52f, 29.51f, 29.63f, 29.92f, 30.35f, 30.91f,
+    31.50f, 32.10f, 32.69f, 33.24f, 33.74f, 34.18f, 34.55f, 34.87f, 35.12f, 35.31f, 35.45f, 35.60f,
+    35.70f, 35.72f, 35.63f, 35.48f, 35.32f, 35.15f, 34.94f, 34.68f, 34.40f, 34.11f, 33.89f, 33.74f,
+    33.60f, 33.33f, 32.93f, 32.43f, 31.90f, 31.26f, 30.52f, 29.77f, 29.16f, 28.74f, 28.53f, 28.44f,
+)
+
+/** The radius at [angle] in a table taken at even steps round the full turn. */
+private fun tableRadius(table: FloatArray, angle: Float): Float {
+    val turn = (angle / (2f * PI.toFloat())).mod(1f) * table.size
+    val index = turn.toInt() % table.size
+    val next = (index + 1) % table.size
+    val t = turn - turn.toInt()
+    return table[index] + (table[next] - table[index]) * t
+}
+
+/**
  * G7 radius every 5 degrees from +x, clockwise on screen, fitted to a top-down photo of the
  * sensor: an oval that is fuller on the right, wider than tall, the side cuts left out.
  */
@@ -707,13 +739,7 @@ private val G7_RADII = floatArrayOf(
     35.72f, 35.94f, 36.18f, 36.42f, 36.62f, 36.74f, 36.78f, 36.76f,
 )
 
-private fun g7Radius(angle: Float): Float {
-    val turn = (angle / (2f * PI.toFloat())).mod(1f) * G7_RADII.size
-    val index = turn.toInt()
-    val next = (index + 1) % G7_RADII.size
-    val t = turn - index
-    return G7_RADII[index] + (G7_RADII[next] - G7_RADII[index]) * t
-}
+private fun g7Radius(angle: Float): Float = tableRadius(G7_RADII, angle)
 
 /**
  * G7: 27.5 x 24 mm, 4.6 thick, its plan fitted to a top-down photo, a square cut in the middle of
@@ -774,21 +800,23 @@ private fun DrawScope.drawDexcom(tones: SensorTones) = seated(tones, 12.4f) {
 /**
  * The Sibionics pair, the GS1 behind the Sibionics 2 at their published sizes against each
  * other: GS1 33.5 x 20.0 x 5.3 mm, Sibionics 2 (GS1ECO, the reusable GS1-P2 transmitter) 35 x
- * 24.4 x 5.9 mm. GS1, traced from a top-down photo: a pill whose ends round short of full
- * circles; a round hole a seventh of its length off centre holds a white keyed plug. Sibionics 2:
- * a flat oblong with a white cover over a clear base that shows a clip at each short end.
+ * 24.4 x 5.9 mm. Both traced from one top-down photo of the two side by side. GS1: a pill 1.62 as
+ * long as it is wide, its corners rounded to 0.4 of its width so the ends stay a little flat; a
+ * round hole 0.15 of its length off centre holds a white keyed plug. Sibionics 2: a flat oblong
+ * 1.43 as long as it is wide, corners rounded to 0.3 of its width, a white cover over a clear
+ * base that shows a clip at each short end.
  */
 private fun DrawScope.drawSibionics(tones: SensorTones) = seated(tones, 8f) {
     turned(tones, Offset(-13f, -12f), -22f, 33.5f * PAIR_SCALE / 72f) { tones ->
-        part(tones, roundRect(72f, 43f, 18.5f), thickness = 11.4f, bevel = 5.5f) {
-            keyedPort(tones, Offset(-10f, 0f), 5.6f)
+        part(tones, roundRect(72f, 44.4f, 18f), thickness = 11.4f, bevel = 5.5f) {
+            keyedPort(tones, Offset(-11f, 0f), 5f)
         }
     }
     turned(tones, Offset(11f, 12f), 5f, 35f * PAIR_SCALE / 72f) { tones ->
-        val cover = roundRect(72f, 50.2f, 13f)
+        val cover = roundRect(72f, 50.4f, 15f)
         val frame: Outline = { inset ->
             Path().apply {
-                op(roundRect(72.6f, 50.8f, 13.2f)(inset), roundRect(75f, 16f, 2.5f)(inset), PathOperation.Union)
+                op(roundRect(72.6f, 51f, 15.2f)(inset), roundRect(75f, 16f, 2.5f)(inset), PathOperation.Union)
             }
         }
         glass(tones, frame, thickness = 4.6f, stands = 12.1f)
@@ -891,36 +919,43 @@ private fun DrawScope.drawAiDex(tones: SensorTones) = seated(tones, 13.8f) {
 }
 
 /**
- * M8: 24 mm across and 3.5 mm thick, in light grey plastic, its edge rounded over. Two fifths of
- * the way out, a raised white frame lying along the radius holds a dark oblong opening.
+ * M8, traced from a top-down photo beside the others: a coin 24 mm across and 3.5 mm thick in mid
+ * grey plastic, its edge rounded over. 0.37 of the way out, a raised rounded frame lying along
+ * the radius holds a white-lined dark oblong opening.
  */
 private fun DrawScope.drawOttai(tones: SensorTones) = seated(tones, 10.5f) {
-    val grey = tones.grey()
-    part(grey, circle(36f), thickness = 10.5f, bevel = 5f) {
-        val toward = -20f
-        val button = Offset(16f * cos(toward * PI.toFloat() / 180f), 16f * sin(toward * PI.toFloat() / 180f))
+    val stone = tones.stone()
+    part(stone, circle(36f), thickness = 10.5f, bevel = 4.5f) {
+        val toward = -5f
+        val button = Offset(13.5f * cos(toward * PI.toFloat() / 180f), 13.5f * sin(toward * PI.toFloat() / 180f))
         rotate(toward, pivot = button) {
-            raised(grey, roundRect(17f, 12.5f, 5f, button)(0f), 1.2f, top = lerp(tones.highlight, tones.body, 0.3f))
-            pit(grey, roundRect(9f, 5.8f, 2.6f, button)(0f))
+            raised(stone, roundRect(17f, 14f, 5.5f, button)(0f), 1.1f, top = lerp(stone.body, stone.highlight, 0.35f))
+            recess(stone, roundRect(11f, 7.6f, 3f, button)(0f), depth = 0.5f, floor = lerp(tones.highlight, tones.body, 0.3f))
+            pit(stone, roundRect(8.4f, 5f, 2.2f, button)(0f), depth = 0.5f)
         }
     }
 }
 
 /**
  * The iCan pair, the i3 behind the i6 at their published sizes against each other: i3 32 mm
- * across and 5.7 mm thick, i6 23.3 mm across and 3.95 mm thick. i3, measured from a top-down
- * photo: a teardrop groove whose round end lies near the rim holding a recessed square window,
- * its tip near the centre with three small contacts towards it; small notches break the rim.
+ * across and 5.7 mm thick, i6 23.3 mm across and 3.95 mm thick. i3, traced from a top-down photo
+ * beside the others: a shallow teardrop recess outlined by a groove, its round end towards the
+ * rim holding a square window, its tip at the centre; two square contacts side by side and a
+ * short one by the tip; small notches break the rim.
  * i6: a rounded octagon on a darker foot, a raised grey ring round its keyed port.
  */
 private fun DrawScope.drawICan(tones: SensorTones) = seated(tones, 9f) {
-    turned(tones, Offset(-10f, -9f), 160f, 32f * PAIR_SCALE / 73f) { tones ->
-        part(tones, circle(36.5f), thickness = 13f, bevel = 4f) {
-            groove(tones, capsule(Offset(-3f, 19f), 11f, Offset(-3f, 2f), 6.5f), width = 1.1f)
-            recess(tones, roundRect(5.6f, 5.6f, 0.8f, Offset(-3f, 23f))(0f), depth = 0.9f)
-            pit(tones, roundRect(3f, 2.2f, 0.5f, Offset(-7f, 8f))(0f))
-            pit(tones, roundRect(3f, 2.2f, 0.5f, Offset(1f, 8f))(0f))
-            recess(tones, roundRect(2.2f, 2.2f, 0.4f, Offset(-3f, 1.6f))(0f), depth = 0.5f)
+    turned(tones, Offset(-10f, -9f), -6f, 32f * PAIR_SCALE / 72f) { tones ->
+        part(tones, circle(36f), thickness = 12.8f, bevel = 4f) {
+            val drop = capsule(Offset(0f, -19f), 13f, Offset(0f, 0f), 5.5f)
+            recess(tones, drop, depth = 0.6f, floor = lerp(tones.body, tones.shade, 0.2f))
+            groove(tones, drop, width = 1.1f)
+            val window = roundRect(5.4f, 5.4f, 0.6f, Offset(0.5f, -22f))(0f)
+            pit(tones, window, depth = 0.4f)
+            recess(tones, roundRect(3.8f, 3.8f, 0.4f, Offset(0.5f, -22f))(0f), depth = 0.5f, floor = lerp(tones.body, tones.wall, 0.45f))
+            pit(tones, roundRect(2.6f, 2.6f, 0.4f, Offset(-3.6f, -5f))(0f))
+            pit(tones, roundRect(2.6f, 2.6f, 0.4f, Offset(3.6f, -5f))(0f))
+            pit(tones, roundRect(2.2f, 2.2f, 0.4f, Offset(0f, 0.6f))(0f))
             for (notch in listOf(235f, 305f, 150f, 20f)) {
                 rotate(notch, pivot = Offset.Zero) {
                     recess(tones, roundRect(1.6f, 4.4f, 0.6f, Offset(35.6f, 0f))(0f), depth = 0.5f)
@@ -940,14 +975,15 @@ private fun DrawScope.drawICan(tones: SensorTones) = seated(tones, 9f) {
 
 /**
  * The Anytime pair, the CT4 behind the 5 Pro. The 5 Pro is 23 mm across and 4.4 mm thick; the
- * CT4, which has no published size, is drawn from photos: an egg 1.2 as long as it is wide and
- * about 7 mm thick, gently domed, its edge rounded over. 5 Pro: a white disc set in a clear ring
+ * CT4, which has no published size, is traced from a top-down photo beside sensors of known size:
+ * 36.7 x 30.8 mm and about 6.5 mm thick, a lopsided egg, gently domed, its edge rounded over and
+ * a seam low on its side. 5 Pro: a white disc set in a clear ring
  * a little lower than it, a clear band curving across its upper part, above it the port between
  * two short slots and a dot by the rim.
  */
 private fun DrawScope.drawAnytime(tones: SensorTones) = seated(tones, 10f) {
-    turned(tones, Offset(-10f, -9f), -62f, 36f * PAIR_SCALE / 72f) { tones ->
-        part(tones, egg(30.5f, 36f, 0.22f), thickness = 14f, bevel = 4.5f, dome = true, seam = 0.4f)
+    turned(tones, Offset(-10f, -8f), 20f, 36.7f * PAIR_SCALE / 72f) { tones ->
+        part(tones, polar { angle -> tableRadius(CT4_RADII, angle) }, thickness = 12.7f, bevel = 5f, dome = true, seam = 0.35f)
     }
     turned(tones, Offset(16f, 15f), 8f, 23f * PAIR_SCALE / 72f) { tones ->
         glass(tones, circle(36f), thickness = 11.5f, stands = 13.8f)
@@ -1042,30 +1078,32 @@ private fun DrawScope.drawCareSensAir(tones: SensorTones) = seated(tones, 11.4f)
 }
 
 /**
- * Glutec v3, measured from top-down photos: an oblong 1.38 as long as it is wide, one end
- * rounded off and the other squarer. A parting line runs across just inside the rounded end; at
- * the square end a grey pull tab sits in a U-shaped dip in the top, open to the edge.
+ * Glutec v3, traced from a top-down photo beside sensors of known size: 28.7 x 22 mm and about
+ * 6 mm thick, light grey, its corners rounded to 0.27 of its width at the tab end and 0.36 at the
+ * other. A parting line runs across a sixth of its length in from the rounded end; at the tab end
+ * a grey pull tab stands in a U-shaped dip in the top, open to the edge.
  */
-private fun DrawScope.drawMq(tones: SensorTones) = seated(tones, 13f) {
-    part(tones, roundEnds(72f, 52f, 10f, 19f), thickness = 13f, bevel = 5.5f) {
+private fun DrawScope.drawMq(tones: SensorTones) = seated(tones, 14.5f) {
+    val grey = tones.grey()
+    part(grey, roundEnds(72f, 55f, 15f, 20f), thickness = 14.5f, bevel = 5.5f) {
         val dip = Path().apply {
             op(
-                Path().apply { addRect(Rect(-40f, -8.5f, -28f, 8.5f)) },
-                Path().apply { addOval(Rect(-36.5f, -8.5f, -19.5f, 8.5f)) },
+                Path().apply { addRect(Rect(-40f, -10f, -26f, 10f)) },
+                Path().apply { addOval(Rect(-36f, -10f, -16f, 10f)) },
                 PathOperation.Union,
             )
         }
-        recess(tones, dip, depth = 1.2f)
+        recess(grey, dip, depth = 1.4f)
         raised(
-            tones.grey(),
-            roundRect(6f, 11f, 1.6f, Offset(-33.5f, 0f))(0f),
-            1.4f,
-            top = lerp(tones.wall, tones.body, 0.25f),
+            grey.stone(),
+            roundRect(5f, 14f, 1.6f, Offset(-33f, 0f))(0f),
+            1.6f,
+            top = lerp(grey.wall, grey.body, 0.3f),
         )
-        groove(tones, Path().apply {
-            moveTo(21.6f, -24.5f)
-            lineTo(21.6f, 24.5f)
-        }, width = 0.9f)
+        groove(grey, Path().apply {
+            moveTo(24f, -26.5f)
+            lineTo(24f, 26.5f)
+        }, width = 1.3f, depth = 1f)
     }
 }
 
