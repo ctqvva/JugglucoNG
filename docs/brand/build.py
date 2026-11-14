@@ -2,8 +2,8 @@
 """Generates the Glucy launcher icon, wordmark and lockups.
 
 Writes the Android adaptive-icon vectors (background, foreground, monochrome) for the
-main app and the second and third installations (releasedub, releasedub2), plus SVG masters
-in this folder.
+main app and the second and third installations (releasedub, releasedub2), plus SVG
+masters in this folder.
 The wordmark is custom lettering from lettering.py; no font file is involved.
 
     pip install shapely resvg-py
@@ -77,53 +77,27 @@ SENSOR_D, RIM_D, DOT_D, BELOW_D = d(SENSOR), d(RIM), d(DOT), d(BELOW)
 MONO_D = d(TRACE.difference(Point(*NOW).buffer(R_SENSOR + CUT_MONO, quad_segs=48))
            .union(SENSOR.difference(RIM).difference(DOT)))
 
-
-# ------------------------------------------------------- install numerals ---
-# The extra installations exist so one phone can follow two or three people (issue #714). Their
-# icons differ in lightness first (dark, mid, light), which survives colour blindness and
-# greyscale, and carry a numeral, which also survives the single-colour themed icon. The numeral
-# sits bottom right, clear of the corner where Android draws its notification dot, and inside the
-# 66 dp safe zone. Monoline with round ends, like the wordmark.
-NUM_X, NUM_Y, NUM_H, NUM_W = 62.0, 62.0, 18.0, 4.0
-
-
-def _arc(cx, cy, rx, ry, a0, a1, n=48):
-    return [(cx + rx*math.cos(math.radians(a0 + (a1 - a0)*i/n)),
-             cy + ry*math.sin(math.radians(a0 + (a1 - a0)*i/n))) for i in range(n + 1)]
-
-
-def numeral(n, x=NUM_X, y=NUM_Y, h=NUM_H, sw=NUM_W):
-    s = sw / 2; top, bot, L = y + s, y + h - s, x + s
-    pen = dict(quad_segs=16, join_style=1)
-    if n == 2:
-        r = 0.27 * h        # hook, then a straight spine to the bottom left, then the base
-        pts = _arc(L + r, top + r, r, r, 195, 388) + [(L + 0.2, bot), (L + 2*r + 0.4, bot)]
-        return LineString(pts).buffer(s, **pen)
-    if n == 3:
-        H = bot - top; mid = top + 0.47 * H
-        ry1, ry2 = (mid - top) / 2, (bot - mid) / 2
-        rx1, rx2 = 0.25 * h, 0.285 * h   # bowls wider than tall, so the counters stay open at 48 dp
-        cl = L + rx2; cu = cl + rx2 - rx1 - 0.4
-        j = (cu - 0.35 * rx1, mid)       # the bowls meet in a short stub, not a blob
-        up = _arc(cu, top + ry1, rx1, ry1, 200, 450) + [j]
-        lo = [j] + _arc(cl, bot - ry2, rx2, ry2, -90, 160)
-        return LineString(up).buffer(s, **pen).union(LineString(lo).buffer(s, **pen))
-    raise ValueError(n)
-
-
-NUM_D = {n: d(numeral(n)) for n in (2, 3)}
-
-
-def mono_d(n=None):
-    return MONO_D + (NUM_D[n] if n else '')
+# ----------------------------------------------------- extra installations ---
+# The extra installations exist so one phone can follow two or three people (issue #714), so they
+# must not be mistaken for each other at a glance. Each one draws a different kind of chart from
+# the same trace: the main app the line, Dub the area below it, Dub 2 the area above it. The
+# difference is in the silhouette, so it survives colour blindness, greyscale and the
+# single-colour themed icon, where colour alone would be lost.
+ABOVE = Polygon(list(LINE.coords) + [(108, 0), (0, 0)]).buffer(0)
+CUT_C = Point(*NOW).buffer(R_SENSOR + CUT, quad_segs=48)
+CUT_M = Point(*NOW).buffer(R_SENSOR + CUT_MONO, quad_segs=48)
+CHART = {'line': TRACE, 'below': BELOW.union(TRACE), 'above': ABOVE.union(TRACE)}
+CHART_D = {k: d(g.difference(CUT_C)) for k, g in CHART.items()}
+MONO_CHART_D = {k: d(g.difference(CUT_M).union(SENSOR.difference(RIM).difference(DOT)))
+                for k, g in CHART.items()}
+assert CHART_D['line'] == TRACE_D and MONO_CHART_D['line'] == MONO_D
 
 
 # ------------------------------------------------------------------ colours ---
 MAIN = dict(bg='#0D1430', line='#5B86F5', sensor='#F5F7FB', rim='#C9D2E3', dot='#0D1430')
-# Second installation (releasedub, "Glucy Dub"): mid-tone violet with a pale trace and a 2.
-DUB = dict(bg='#5A3CC8', line='#E4DCFF', sensor='#FFFFFF', rim='#B6A6EE', dot='#5A3CC8', num='#FFFFFF', n=2)
-# Third installation (releasedub2, "Glucy Dub 2"): light amber with a dark trace and a 3.
-DUB2 = dict(bg='#F4BE55', line='#2B1D05', sensor='#FFFFFF', rim='#E3B04C', dot='#2B1D05', num='#2B1D05', n=3)
+# Extra installations keep the navy and change the chart (see above) and its colour.
+DUB = dict(MAIN, line='#9D86F7', chart='below')    # "Glucy Dub": lilac area below the trace
+DUB2 = dict(MAIN, line='#F2B84B', chart='above')   # "Glucy Dub 2": amber area above the trace
 TWO_TONE = dict(MAIN, bg='#0B1020', below='#121B36', dot='#0B1020')  # branding alternative
 
 # ----------------------------------------------------------------- writers ---
@@ -141,16 +115,14 @@ def background_xml(c):
 
 def foreground_xml(c):
     return HEAD + (
-        f'    <path android:fillColor="{ARGB(c["line"])}" android:pathData="{TRACE_D}"/>\n'
+        f'    <path android:fillColor="{ARGB(c["line"])}" android:pathData="{CHART_D[c.get("chart", "line")]}"/>\n'
         f'    <path android:fillColor="{ARGB(c["sensor"])}" android:pathData="{SENSOR_D}"/>\n'
         f'    <path android:fillColor="{ARGB(c["rim"])}" android:fillType="evenOdd" android:pathData="{RIM_D}"/>\n'
-        f'    <path android:fillColor="{ARGB(c["dot"])}" android:pathData="{DOT_D}"/>\n'
-        + (f'    <path android:fillColor="{ARGB(c["num"])}" android:pathData="{NUM_D[c["n"]]}"/>\n' if 'n' in c else '')
-        + '</vector>\n')
+        f'    <path android:fillColor="{ARGB(c["dot"])}" android:pathData="{DOT_D}"/>\n</vector>\n')
 
 
-def monochrome_xml(n=None):
-    return HEAD + f'    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="{mono_d(n)}"/>\n</vector>\n'
+def monochrome_xml(chart='line'):
+    return HEAD + f'    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="{MONO_CHART_D[chart]}"/>\n</vector>\n'
 
 ADAPTIVE_XML = ('<?xml version="1.0" encoding="utf-8"?>\n'
                 '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
@@ -164,9 +136,8 @@ def svg(c, view='18 18 72 72', size=512):
     below = f'<path d="{BELOW_D}" fill="{c["below"]}"/>' if 'below' in c else ''
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view}" width="{size}" height="{size}">'
             f'<rect width="108" height="108" fill="{c["bg"]}"/>{below}'
-            f'<path d="{TRACE_D}" fill="{c["line"]}"/><path d="{SENSOR_D}" fill="{c["sensor"]}"/>'
-            f'<path d="{RIM_D}" fill="{c["rim"]}" fill-rule="evenodd"/><path d="{DOT_D}" fill="{c["dot"]}"/>'
-            + (f'<path d="{NUM_D[c["n"]]}" fill="{c["num"]}"/>' if 'n' in c else '') + '</svg>\n')
+            f'<path d="{CHART_D[c.get("chart", "line")]}" fill="{c["line"]}"/><path d="{SENSOR_D}" fill="{c["sensor"]}"/>'
+            f'<path d="{RIM_D}" fill="{c["rim"]}" fill-rule="evenodd"/><path d="{DOT_D}" fill="{c["dot"]}"/></svg>\n')
 
 
 # ------------------------------------------------------- wordmark and lockup ---
@@ -302,10 +273,10 @@ def main():
         mobile_res / 'drawable/glucy_wordmark_dark.xml': wordmark_vector(DARK_WEIGHT),
         dub_res / 'drawable/ic_launcher_background.xml': background_xml(DUB),
         dub_res / 'drawable/ic_launcher_foreground.xml': foreground_xml(DUB),
-        dub_res / 'drawable/ic_launcher_monochrome.xml': monochrome_xml(DUB['n']),
+        dub_res / 'drawable/ic_launcher_monochrome.xml': monochrome_xml(DUB['chart']),
         dub2_res / 'drawable/ic_launcher_background.xml': background_xml(DUB2),
         dub2_res / 'drawable/ic_launcher_foreground.xml': foreground_xml(DUB2),
-        dub2_res / 'drawable/ic_launcher_monochrome.xml': monochrome_xml(DUB2['n']),
+        dub2_res / 'drawable/ic_launcher_monochrome.xml': monochrome_xml(DUB2['chart']),
         HERE / 'icon.svg': svg(MAIN),
         HERE / 'icon-dub.svg': svg(DUB),
         HERE / 'icon-dub2.svg': svg(DUB2),
