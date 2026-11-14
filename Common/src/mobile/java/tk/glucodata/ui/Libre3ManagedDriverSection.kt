@@ -58,6 +58,7 @@ fun Libre3ManagedDriverSection() {
     var labels by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedVersion by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
+    var provisionAfterLoad by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var useAccountReceiver by remember {
@@ -119,9 +120,12 @@ fun Libre3ManagedDriverSection() {
         }
     }
 
-    LaunchedEffect(enabled, loaded) {
+    LaunchedEffect(provisionAfterLoad, loaded) {
         val source = Libre3Persistence.effectiveIdentitySource(context)
-        if (enabled && loaded && labels.isEmpty() && source != null && !busy) download(source)
+        if (provisionAfterLoad && loaded) {
+            provisionAfterLoad = false
+            if (enabled && labels.isEmpty() && source != null && !busy) download(source)
+        }
     }
 
     SectionLabel(text = stringResource(R.string.libre3_managed_title))
@@ -133,6 +137,7 @@ fun Libre3ManagedDriverSection() {
             onCheckedChange = {
                 enabled = it
                 Libre3Persistence.setEnabled(context, it)
+                provisionAfterLoad = it
             },
             icon = Icons.Default.Nfc,
             iconTint = MaterialTheme.colorScheme.secondary,

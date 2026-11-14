@@ -1,6 +1,8 @@
 package tk.glucodata.drivers.libre3
 
 import android.content.Context
+import android.bluetooth.BluetoothGatt
+import org.robolectric.shadow.api.Shadow
 import java.lang.reflect.Proxy
 import org.junit.After
 import org.junit.Assert.*
@@ -113,6 +115,17 @@ class Libre3ReviewRegressionTest {
         invoke("onControlResponse") // late/duplicate completion with no active request
         assertEquals(50, Libre3Persistence.getLastHistoricLifeCount(context, sensor))
         assertEquals(70, Libre3Persistence.getLastLifeCount(context, sensor))
+    }
+
+    @Test fun postedOldDisconnectDoesNotClearTheReplacementLink() {
+        val old = Shadow.newInstanceOf(BluetoothGatt::class.java)
+        val replacement = Shadow.newInstanceOf(BluetoothGatt::class.java)
+        SuperGattCallback::class.java.getDeclaredField("mBluetoothGatt").apply { isAccessible = true }.set(manager, replacement)
+        set("linkUp", true)
+        set("controlInFlight", kind("HISTORIC"))
+        invoke("onLinkDisconnected", old, 19)
+        assertTrue(get("linkUp") as Boolean)
+        assertEquals("HISTORIC", get("controlInFlight").toString())
     }
 
     @Test fun certificateRejectionStopsAutomaticConnectionAttempts() {
