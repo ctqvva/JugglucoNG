@@ -151,6 +151,27 @@ class NightscoutFollowerLifecycleTests {
         assertTrue(NightscoutFollowerRegistry.hasLocalFollower(app, oldId))
     }
 
+    @Test fun startupPreservesAFormerlyLocalFollowerThatIsNowCloneOwned() {
+        startOldFollower()
+        NightscoutFollowerRegistry.saveConfig(app, true, newUrl, "")
+        assertTrue(NightscoutFollowerRegistry.hasLocalFollower(app, oldId))
+        assertTrue(CloneSensorRegistry.markCloneSensor(oldId, CloneTransport.LOCAL_ICE.code, "other-phone"))
+        assertTrue(CloneSensorRegistry.isCloneSensor(oldId))
+        ManagedCurrentSensor.set(oldId)
+        NightscoutLifecycleNatives.active += oldId
+        NightscoutLifecycleNatives.selected = oldId.drop(5)
+        NightscoutLifecycleNatives.finished.clear()
+
+        NightscoutFollowerRegistry.reconcileOrphanedFollowers(app)
+
+        assertTrue(NightscoutLifecycleNatives.finished.isEmpty())
+        assertTrue(oldId in NightscoutLifecycleNatives.active)
+        assertTrue(oldId in NightscoutLifecycleNatives.history)
+        assertEquals(oldId, ManagedCurrentSensor.get())
+        assertEquals(oldId.drop(5), NightscoutLifecycleNatives.selected)
+        assertTrue(CloneSensorRegistry.isCloneSensor(oldId))
+    }
+
     @Test fun startupLeavesAnUnownedCloneFollowerUntouched() {
         NightscoutFollowerRegistry.saveConfig(app, true, newUrl, "")
         ManagedCurrentSensor.set(oldId)

@@ -4,6 +4,7 @@ import android.content.Context
 import java.net.HttpURLConnection
 import java.security.MessageDigest
 import java.util.Locale
+import tk.glucodata.CloneSensorRegistry
 import tk.glucodata.GlucoseUpdateBroadcaster
 import tk.glucodata.ManagedCurrentSensor
 import tk.glucodata.Natives
@@ -400,7 +401,10 @@ object NightscoutFollowerRegistry {
             val managed = ManagedCurrentSensor.get()
             val nativeCurrent = runCatching { Natives.currentsensorname() }.getOrNull()
             val shells = runCatching { Natives.activeSensors() }.getOrNull().orEmpty().toList()
-            val ranHere = { id: String -> hasLocalFollower(context, id) }
+            // Current Clone ownership takes precedence over historical local-follower ownership.
+            val ranHere = { id: String ->
+                hasLocalFollower(context, id) && !CloneSensorRegistry.isCloneSensor(id)
+            }
             val fullName = { name: String -> runCatching { Natives.resolveFullSensorName(name) }.getOrNull() }
             val orphanShells = orphanedFollowerIds(shells + nativeCurrent, config, ranHere, fullName)
             // Managed selection is authoritative even before it has a native mirror. A stale
