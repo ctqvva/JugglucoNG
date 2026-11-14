@@ -22,7 +22,8 @@ The reasons for each are written at the top of `lettering.py`. Read them before 
 | [`wordmark-on-light.svg`](wordmark-on-light.svg) | the name alone on white or light grey | dark backgrounds |
 | [`wordmark-on-dark.svg`](wordmark-on-dark.svg) | the name alone on navy, black or dark grey | light backgrounds |
 | [`icon.svg`](icon.svg) | the app icon outside Android: avatars, store listings, favicons | |
-| [`icon-dub.svg`](icon-dub.svg) | the second installation (`releasedub`) only | anything that means "Glucy" in general |
+| [`icon-dub.svg`](icon-dub.svg) | the second installation, "Glucy Dub" (`releasedub`) | anything that means "Glucy" in general |
+| [`icon-dub2.svg`](icon-dub2.svg) | the third installation, "Glucy Dub 2" (`releasedub2`) | anything that means "Glucy" in general |
 | [`icon-two-tone.svg`](icon-two-tone.svg) | large renders where a split background helps, such as banners | the launcher (it stays flat) |
 | [`monochrome.svg`](monochrome.svg) | single-colour contexts: themed icons, notifications, stamps | |
 | [`social-preview.png`](social-preview.png) | the repository's social preview (Settings → Social preview), link cards | |
@@ -30,9 +31,18 @@ The reasons for each are written at the top of `lettering.py`. Read them before 
 
 Inside the app the lockup is `GlucyLockup` (`Common/src/mobile/java/tk/glucodata/ui/components/GlucyLockup.kt`), shown on the Dashboard's welcome screen and at the bottom of Settings. It follows the theme the way the launcher's themed icon does: the badge is `primaryContainer` with the monochrome layer in `onPrimaryContainer`, and the wordmark takes a text colour. With dynamic colour it matches the home screen, so the app never shows a navy badge on, say, a green theme. The fixed navy colours are for places the app doesn't theme. The wordmark drawables (`Common/src/mobile/res/drawable/glucy_wordmark_{light,dark}.xml`) are white and tinted at runtime, one unit per dp with a 2-unit margin.
 
-The Android launcher resources (`Common/src/main/res/drawable/ic_launcher_*.xml`, `mipmap-anydpi-v26/`, and the violet set in `Common/src/releasedub/`) and the wordmark drawables are generated too. Don't edit them by hand.
+The Android launcher resources (`Common/src/main/res/drawable/ic_launcher_*.xml`, `mipmap-anydpi-v26/`, and the sets for the extra installations in `Common/src/releasedub/` and `Common/src/releasedub2/`) and the wordmark drawables are generated too. Don't edit them by hand.
 
 The lockup is one file for both themes. GitHub's `<picture>` and `#gh-dark-mode-only` switches follow the operating system rather than GitHub's own theme setting, so a pair of files shows the wrong one for some readers. One file that works on both is more reliable.
+
+## Extra installations
+
+The extra installations exist so that one phone can follow two or three people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). A glance at the wrong icon means acting on the wrong child's reading, so the icons have to differ by more than hue:
+
+- **Lightness.** The background goes dark (main), mid (Dub, violet) and light (Dub 2, amber), with relative luminance 0.008, 0.096 and 0.567. That survives colour blindness and greyscale.
+- **Numeral.** Dub carries a 2 and Dub 2 a 3, bottom right. The numerals are also in each installation's own monochrome layer, so the icons stay apart with Android's themed icons, which otherwise make every installation the same colour. They're kept off the top right, where Android draws its notification dot.
+
+The in-app lockup uses the monochrome layer, so inside the app the badge shows the numeral too.
 
 ## Colours
 
@@ -45,7 +55,8 @@ The lockup is one file for both themes. GitHub's `<picture>` and `#gh-dark-mode-
 | `rim` | `#C9D2E3` | sensor rim |
 | `paper` | `#F0F3F8` | wordmark on dark |
 | `card` | `#141E3F` | social preview background, a lifted navy so the badge still reads as a disc |
-| `dub-bg` / `dub-trace` | `#1A1236` / `#9C86F6` | second installation |
+| `dub-bg` / `dub-trace` / `dub-ink` | `#5A3CC8` / `#E4DCFF` / `#FFFFFF` | second installation: mid-tone violet, pale trace, white 2 |
+| `dub2-bg` / `dub2-ink` | `#F4BE55` / `#2B1D05` | third installation: light amber, dark trace and 3 |
 | `two-tone` | `#0B1020` above, `#121B36` below the trace | two-tone variant |
 
 Contrast (WCAG): `trace-muted` is 3.4 : 1 on white and 5.6 : 1 on GitHub's dark `#0D1117`, which clears the 3 : 1 needed for large graphic text on both. `trace` on `navy` is 5.3 : 1. `navy` on white is 18.1 : 1, and `paper` on `#0D1117` is 17.0 : 1.
