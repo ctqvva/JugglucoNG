@@ -144,8 +144,9 @@ object Libre3Persistence {
     fun ownReceiverId(context: Context): Long {
         val p = prefs(context)
         val stored = p.getLong(KEY_RECEIVER_ID, 0L)
-        if (stored != 0L) return stored
-        val fresh = Libre3ReceiverId.random()
+        // A failed commit can still update SharedPreferences in memory. Recheck
+        // durability even for a cached value before NFC is allowed to use it.
+        val fresh = stored.takeIf { it != 0L } ?: Libre3ReceiverId.random()
         check(p.edit().putLong(KEY_RECEIVER_ID, fresh).commit()) { "could not persist receiver ID" }
         return fresh
     }

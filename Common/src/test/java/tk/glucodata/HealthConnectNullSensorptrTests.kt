@@ -61,7 +61,7 @@ class HealthConnectNullSensorptrTests {
             1,
             Regex("[.]writeAll[(]").findAll(callback).count(),
         )
-        val export = callback.substring(callback.indexOf("private void exportToHealthConnect()"))
+        val export = callback.substring(callback.indexOf("protected final void exportToHealthConnect()"))
             .substringBefore("protected void handleGlucoseResult(")
         val check = export.indexOf("sensorptr == 0L")
         val claim = export.indexOf("dohealth(this)")

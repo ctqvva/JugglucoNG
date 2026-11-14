@@ -208,6 +208,24 @@ class Libre3ReviewRegressionTest {
         assertEquals(0L, original.getLong("receiver_id", 0L))
     }
 
+    @Test fun cachedReceiverIdStillRequiresACheckedDurableWrite() {
+        val original = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+        original.edit().putLong("receiver_id", 123L).commit()
+        val failing = object : ContextWrapper(context) {
+            override fun getSharedPreferences(name: String, mode: Int): SharedPreferences =
+                if (name != Libre3Persistence.PREFS_NAME) super.getSharedPreferences(name, mode) else object : SharedPreferences by original {
+                    override fun edit(): SharedPreferences.Editor {
+                        val delegate = original.edit()
+                        return object : SharedPreferences.Editor by delegate {
+                            override fun putLong(key: String, value: Long): SharedPreferences.Editor { delegate.putLong(key, value); return this }
+                            override fun commit(): Boolean = false
+                        }
+                    }
+                }
+        }
+        assertTrue(runCatching { Libre3Persistence.ownReceiverId(failing) }.isFailure)
+    }
+
     @Test fun nonSecretSettingsMigrateToExportablePreferences() {
         val local = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
         val source = Libre3IdentitySource.custom("https://example.test/keys", "a".repeat(64))!!

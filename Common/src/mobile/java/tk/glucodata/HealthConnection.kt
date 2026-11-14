@@ -80,28 +80,36 @@ private  fun writeAllIns(sensorptr:Long, sensorName:String) {
                     return@launch
                 }
             }
-            val endstart = Natives.healthConnectfromSensorptr(sensorptr)
-
-            val end = endstart ushr 16
-            var start = endstart and 0xFFFF
-           if(start==end)
-               return@launch
-            Log.i(LOG_ID,"endstart=$endstart start=$start end=$end len=${end-start}")
-                  val meta=androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod(device=Device(TYPE_UNKNOWN,"Libre", sensorName)
-//                val meta = androidx.health.connect.client.records.metadata.Metadata( device=Device("Libre", sensorName)
+            // A recovered gap can invalidate an insert already in flight. Retry from
+            // the native rewind; stable Libre 3 client IDs make overlapping retries upserts.
+            val stablePrefix = if (tk.glucodata.drivers.ManagedSensorIdentityRegistry.resolvePersistedFamily(sensorName) ==
+                tk.glucodata.drivers.ManagedSensorUiFamily.LIBRE3) {
+                "libre3:$sensorName:${Natives.getSensorStartmsecFromSensorptr(sensorptr) / 1000L}:"
+            } else null
+            repeat(4) {
+                val endstart = Natives.healthConnectfromSensorptr(sensorptr)
+                val end = endstart ushr 16
+                var start = endstart and 0xFFFF
+                if (start >= end) return@launch
+                val meta = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod(
+                    device = Device(TYPE_UNKNOWN, "Libre", sensorName),
                 )
-            while (start < end) {
-                val take = min(end - start, 500)
-                Log.i(LOG_ID,"start=$start take=$take")
-                val siz = client.insertRecords(GlucoseList(meta,sensorptr, start, take)).recordIdsList.size
-                if (siz == 0) {
-                    Log.e(LOG_ID, "insertRecors $siz==0")
-                    return@launch
-                  }
-                Log.i(LOG_ID,"siz=$siz")
-                start += take;
-                Natives.healthConnectWritten(sensorptr, start)
+                var rewound = false
+                while (start < end) {
+                    val take = min(end - start, 500)
+                    val batch = GlucoseList(meta, sensorptr, start, take, stablePrefix,
+                        Natives.getSensorStartmsecFromSensorptr(sensorptr) / 1000L, System.currentTimeMillis())
+                    val siz = client.insertRecords(batch).recordIdsList.size
+                    if (siz == 0) return@launch
+                    start += take
+                    if (!Natives.healthConnectWritten(sensorptr, start)) {
+                        rewound = true
+                        break
+                    }
+                }
+                if (!rewound) return@launch
             }
+
         } catch (th: Throwable) {
             Log.stack(LOG_ID, "writeAll", th);
         } finally {

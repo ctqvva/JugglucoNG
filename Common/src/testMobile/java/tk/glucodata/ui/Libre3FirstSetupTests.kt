@@ -1,6 +1,13 @@
 package tk.glucodata.ui
 
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.SharedPreferences
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.navigation.compose.rememberNavController
@@ -50,4 +57,38 @@ class Libre3FirstSetupTests {
         WatchInterop.setAutoSensorSwitch("no-watch", false)
         assertFalse(AutoSensorSwitch.isEnabled())
     }
+    @Test fun receiverSaveFailureIsShownAndCanBeRetriedWithoutCrashingSettings() {
+        Libre3Persistence.setReceiverSource(app, Libre3Persistence.RECEIVER_OWN)
+        val original = app.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+        var failWrites = true
+        fun failedStorageContext(base: Context) = object : ContextWrapper(base) {
+            override fun getSharedPreferences(name: String, mode: Int): SharedPreferences =
+                if (name != Libre3Persistence.PREFS_NAME) super.getSharedPreferences(name, mode) else object : SharedPreferences by original {
+                    override fun edit(): SharedPreferences.Editor {
+                        val delegate = original.edit()
+                        return object : SharedPreferences.Editor by delegate {
+                            override fun putLong(key: String, value: Long): SharedPreferences.Editor { delegate.putLong(key, value); return this }
+                            override fun commit(): Boolean { val saved = delegate.commit(); return saved && !failWrites }
+                        }
+                    }
+                }
+        }
+        lateinit var context: Context
+        compose.setContent {
+            val activityContext = LocalContext.current
+            context = remember { failedStorageContext(activityContext) }
+            CompositionLocalProvider(LocalContext provides context) {
+                JugglucoTheme(ThemeMode.DARK) { Libre3SettingsScreen(rememberNavController()) }
+            }
+        }
+        val error = app.getString(R.string.libre3_managed_receiver_save_failed)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(error).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText(error).assertExists()
+        assertTrue(runCatching { tk.glucodata.drivers.libre3.Libre3ManagedNfc.receiverId(context) }.isFailure)
+        failWrites = false
+        compose.onNodeWithText(app.getString(R.string.ottai_retry)).performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(error).fetchSemanticsNodes().isEmpty() }
+        assertTrue(tk.glucodata.drivers.libre3.Libre3ManagedNfc.receiverId(context) != 0L)
+    }
+
 }

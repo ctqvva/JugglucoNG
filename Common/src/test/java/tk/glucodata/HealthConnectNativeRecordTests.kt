@@ -32,7 +32,7 @@ class HealthConnectNativeRecordTests {
     @Test
     fun exportAsksTheCallbackForItsNativeRecord() {
         val callback = flattened("Common/src/main/java/tk/glucodata/SuperGattCallback.java")
-        val export = callback.substring(callback.indexOf("private void exportToHealthConnect()"))
+        val export = callback.substring(callback.indexOf("protected final void exportToHealthConnect()"))
             .substringBefore("protected void handleGlucoseResult(")
         assertTrue(export.contains("final long sensorptr = nativeSensorPtr();"))
         assertFalse(
