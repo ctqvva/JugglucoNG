@@ -14,6 +14,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -613,11 +614,12 @@ private fun DrawScope.drawDexcom(tones: SensorTones) = seated(tones, 12.4f) {
 /**
  * The Sibionics pair, the older behind the newer. GS1: an upright capsule traced from a top-down
  * shot, its top softly cushioned; the round port a third of the way down holds a metal key with a
- * square C in it. Sibionics 2: a flatter rounded oblong, a plain domed white cover on a clear
- * lower shell of the same outline.
+ * square C in it. Sibionics 2, measured from a top-down photo: a thin flat slab 1.4 as long as it
+ * is wide, its sides straight and its corners rounded to about a quarter of its width, a white
+ * cover on a clear frame that shows a clip at each short end.
  */
 private fun DrawScope.drawSibionics(tones: SensorTones) = seated(tones, 8f) {
-    turned(tones, Offset(-15f, -6f), -9f) { tones ->
+    turned(tones, Offset(-16f, -10f), -9f) { tones ->
         part(tones, stadium(36f, 61f), thickness = 8f, bevel = 4.4f) {
             val port = Offset(0f, -8.3f)
             val radius = 4.2f
@@ -657,10 +659,15 @@ private fun DrawScope.drawSibionics(tones: SensorTones) = seated(tones, 8f) {
             drawCircle(tones.ink.copy(alpha = 0.7f), radius, port, style = Stroke(width = 0.6f))
         }
     }
-    turned(tones, Offset(13f, 10f), 6f) { tones ->
-        val shell = roundRect(44f, 60f, 16f)
-        part(tones.clear(), shell, thickness = 1.8f, bevel = 0.4f, stands = 7.4f)
-        part(tones, shell, thickness = 5.6f, bevel = 6f, base = 1.8f, dome = true)
+    turned(tones, Offset(8f, 13f), -4f) { tones ->
+        val cover = roundRect(66f, 47f, 13f)
+        val frame: Outline = { inset ->
+            Path().apply {
+                op(cover(inset), roundRect(70f, 9f, 2f)(inset), PathOperation.Union)
+            }
+        }
+        part(tones.clear(), frame, thickness = 2f, bevel = 0.4f, stands = 7.5f)
+        part(tones, cover, thickness = 5.5f, bevel = 4f, base = 2f)
     }
 }
 
