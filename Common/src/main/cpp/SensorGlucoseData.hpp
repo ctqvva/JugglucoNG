@@ -359,8 +359,8 @@ public:
     bool air : 1;
     // Fourth bit of the managed family code (was reserved, so every existing
     // info.dat reads 0 here). Codes 0-7 are unchanged; 8-15 set this bit, and a
-    // phone running an older build sees only the low three bits — 0, unknown —
-    // which is what it showed for such a sensor before the code existed.
+    // phone running an older build sees only code & 7: 8 is unknown, but 9
+    // aliases MQ, 10 AiDex, etc. Clone peers need the four-bit family support.
     uint8_t managedFamilyHigh : 1;
 
     static constexpr unsigned maxManagedFamilyCode = 15;
@@ -814,7 +814,10 @@ public:
                   60u
             : 0u;
     return static_cast<int32_t>(
-        std::min(std::max({defaultRecords, wearRecords, minimumRecords}),
+        std::min(std::max({defaultRecords, wearRecords, minimumRecords,
+                     // Grow earlier Libre 3 preview files only in the constructor. Existing
+                     // mapped pointers stay valid for their entire process lifetime.
+                     info && info->managedFamilyCode() == 9u ? size_t{32 * 24 * 60} : size_t{0}}),
                  static_cast<size_t>(std::numeric_limits<int32_t>::max())));
   }
   size_t pollStorageCapacity() const {

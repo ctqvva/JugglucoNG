@@ -11,17 +11,18 @@ steps below are the remaining end-user acceptance tests, not a claim of success.
 1. Install the Mobile APK from the PR's successful **current-head** CI build.
    Record the commit, app version, Android version, sensor model and region.
 2. Keep a working independent glucose reader available during this first test.
-3. Open LibreView settings → Kotlin Libre 3 driver. Import an identity JSON file
-   you are authorized to use, or enter its HTTPS URL and SHA-256. This app ships
-   no identity or source. Format: `{"format":1,"curve":"P-256","identities":[
-   {"label":"…","privateKeyHex":"…","certificateHex":"…"}]}`.
-4. Confirm that the imported set and version appear before enabling the driver.
-   Identity import does not change the sensor. Downloads are bounded to 64 KiB,
-   SHA-256 checked before parsing, and installed as immutable versions.
+3. Open **Settings → Kotlin Libre 3 driver**. This page is available on a fresh
+   install without a LibreView account or an existing sensor.
+4. Enable the driver while online. It automatically downloads the required
+   connection credentials from the pinned public source, decompresses them,
+   checks SHA-256 and the certificate/key match, and saves them encrypted on the
+   phone. Wait for the saved identity set to appear. If a download fails, check
+   internet access and select **Download identities** to retry. Once saved,
+   credentials work offline. No manual file or URL is needed for normal setup.
 5. Leave **Use LibreView account as receiver ID** enabled for sensors started by
    Juggluco. An absent account ID refuses the scan with the legacy 0xF8 result.
    Only choose this phone's own ID deliberately, for the intended activation.
-6. Enable the Kotlin driver and scan the Libre 3 / 3 Plus sensor with NFC.
+6. Scan the Libre 3 / 3 Plus sensor with NFC once the credentials are ready.
    Enabling affects new NFC scans; it does not convert existing pairings.
 
 Do not send identity JSON, private keys, NFC PINs, kAuth, account IDs or unredacted
@@ -73,6 +74,8 @@ services used are the generic managed-sensor mirror and lifecycle services.
 - Backfill timeout closes the link. Room success is required before durable
   progress advances; failed writes and failed timestamp queries retain batches.
   Live minutes join the blocking flush so progress cannot precede their storage.
+- Successful live native writes wake the Nightscout uploader and run the shared
+  managed-reading completion step, including enabled Health Connect export.
 - Minute values and gap-filling five-minute values use the stock native mirror
   path, preserving downstream calibration. New Libre 3 shells have 32 days of
   minute capacity, including the full 15-day wear interval without a mirror rebase.
@@ -95,9 +98,10 @@ services used are the generic managed-sensor mirror and lifecycle services.
   to pair an active legacy sensor; the proprietary native auth blob cannot be
   converted. The new driver retires the legacy callback to avoid competing links.
 - **Earlier WIP installs:** a native mirror created by an earlier preview may have
-  smaller fixed storage geometry. The new driver does not erase that mirror to
-  enlarge it. Use a fresh test pairing/database when testing full-lifetime export
-  capacity; keep any existing history before resetting app data.
+  smaller mapped storage geometry. Writes are bounded to the actual capacity,
+  and that mirror is never cleared to enlarge it. Restart the app once after
+  upgrading: the native constructor grows Libre 3 poll files to 32 days while
+  preserving their existing data. No app-data reset is required.
 - **Protocol evidence still needed:** whether patchControl is always the final
   completion signal, ordering relative to the last clinical/historic notification,
   timestamp alignment, regional signing-key families, and link-drop inference of
@@ -105,10 +109,23 @@ services used are the generic managed-sensor mirror and lifecycle services.
   against real traces before treating the driver as production-ready.
 - **Trend difference:** the arrow fallback intentionally uses
   `(trend - 3) × 1.3 mg/dL/min`; legacy truncated its rate to roughly ±0.01.
-- **Identity source:** no default is shipped. Builds can set the case-sensitive
-  `-Plibre3IdentitySource='version|sha256|https://mirror1 https://mirror2'`.
-  Newline-separated mirrors are supported and escaped in BuildConfig. A digest
-  verifies bytes; it does not establish permission to redistribute key material.
+- **Identity source:** the normal setup uses the public `app-identities-1` bundle
+  already pinned by [xDrip4iOS Libre3IdentityStore](https://github.com/JohanDegraeve/xdripswift/blob/f7447f1c70a194cee1c9c8eea96ebbadf62027b8/xDrip/BluetoothTransmitter/CGM/Libre/Libre3/Libre3IdentityStore.swift).
+  Mirrors are Arweave and Turbo Gateway, transaction
+  `qWbA3dXIHU2sU51oYtdYlouSfkCx-GczN2swLQb0upk`; the SHA-256 of the
+  decompressed JSON is `ab18ce8bcb978526e102cc5e16440f06d2aee19426c26a15dd0013d66e9995ed`.
+  Both compressed download and decompressed output are bounded to 64 KiB;
+  decompressor memory is limited to 80 MiB (the upstream XZ file declares a 64 MiB dictionary). The APK contains this metadata,
+  rather than the private-key payload. Advanced file import/custom sources and
+  the `-Plibre3IdentitySource=...` build override remain available.
+- **Removal:** Remove clears cached keys and blocks automatic provisioning until
+  an explicit download/import/enable action. Reopening the page does not undo it.
+- **Exported settings:** enable, receiver-source choice and custom source metadata
+  are in a separate exportable preference file. The receiver ID, PINs, identities
+  and cached authorization stay local and are excluded from settings exports.
+- **Older Clone peers:** native family 9 requires the four-bit family encoding.
+  A pre-fourth-bit build reads its low bits as 1 (MQ); update both peers before
+  using Clone with this driver.
 
 ## Reproducing software validation
 

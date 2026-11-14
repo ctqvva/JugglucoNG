@@ -87,6 +87,7 @@ data class Libre3SensorRecord(
 object Libre3Persistence {
     /** Excluded from settings export and import (SettingsExporter.DEVICE_LOCAL_PREFERENCES). */
     const val PREFS_NAME = "tk.glucodata_libre3_managed"
+    const val SETTINGS_PREFS_NAME = "tk.glucodata_libre3_settings"
     private const val PREFS = PREFS_NAME
     private const val KEY_SENSORS = "sensors"
     private const val KEY_ENABLED = "enabled"
@@ -100,19 +101,42 @@ object Libre3Persistence {
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    /** Exportable choices; credentials and the stable receiver ID remain device-local. */
+    @Synchronized
+    private fun settings(context: Context): SharedPreferences {
+        val target = context.getSharedPreferences(SETTINGS_PREFS_NAME, Context.MODE_PRIVATE)
+        val old = prefs(context)
+        val keys = listOf(KEY_ENABLED, KEY_RECEIVER_SOURCE, KEY_CUSTOM_SOURCE).filter { old.contains(it) }
+        if (keys.isNotEmpty()) {
+            val out = target.edit()
+            for (key in keys.filterNot { target.contains(it) }) {
+                when (val value = old.all[key]) {
+                    is Boolean -> out.putBoolean(key, value)
+                    is Int -> out.putInt(key, value)
+                    is String -> out.putString(key, value)
+                }
+            }
+            check(out.commit()) { "could not migrate Libre 3 settings" }
+            check(old.edit().apply { keys.forEach { remove(it) } }.commit()) { "could not finish Libre 3 settings migration" }
+        }
+        return target
+    }
+
+    fun migrateSettingsForExport(context: Context) { settings(context) }
+
     // ---- install-wide settings ----
 
     /** Route Libre 3 NFC scans to this driver instead of the legacy native one. */
-    fun isEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_ENABLED, false)
+    fun isEnabled(context: Context): Boolean = settings(context).getBoolean(KEY_ENABLED, false)
 
     fun setEnabled(context: Context, enabled: Boolean) {
-        prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply()
+        settings(context).edit().putBoolean(KEY_ENABLED, enabled).apply()
     }
 
-    fun getReceiverSource(context: Context): Int = prefs(context).getInt(KEY_RECEIVER_SOURCE, RECEIVER_FROM_LIBREVIEW_ACCOUNT)
+    fun getReceiverSource(context: Context): Int = settings(context).getInt(KEY_RECEIVER_SOURCE, RECEIVER_FROM_LIBREVIEW_ACCOUNT)
 
     fun setReceiverSource(context: Context, source: Int) {
-        prefs(context).edit().putInt(KEY_RECEIVER_SOURCE, source).apply()
+        settings(context).edit().putInt(KEY_RECEIVER_SOURCE, source).apply()
     }
 
     /** This install's own receiver ID, created on first use and kept for every later sensor. */
@@ -122,12 +146,12 @@ object Libre3Persistence {
         val stored = p.getLong(KEY_RECEIVER_ID, 0L)
         if (stored != 0L) return stored
         val fresh = Libre3ReceiverId.random()
-        p.edit().putLong(KEY_RECEIVER_ID, fresh).apply()
+        check(p.edit().putLong(KEY_RECEIVER_ID, fresh).commit()) { "could not persist receiver ID" }
         return fresh
     }
 
     fun setOwnReceiverId(context: Context, value: Long) {
-        prefs(context).edit().putLong(KEY_RECEIVER_ID, value and 0xFFFFFFFFL).apply()
+        check(prefs(context).edit().putLong(KEY_RECEIVER_ID, value and 0xFFFFFFFFL).commit()) { "could not persist receiver ID" }
     }
 
     // ---- identities ----
@@ -135,6 +159,19 @@ object Libre3Persistence {
     // Identity sets are installed as immutable versions (see Libre3IdentityProvisioning). Each
     // identity is referred to as "<version>/<label>", and a sensor stores the reference it paired
     // with, so selecting or installing a newer set never changes the key an existing pairing uses.
+
+    private const val KEY_PROVISION_BLOCKED = "automatic_provisioning_blocked"
+
+    fun autoProvisionBlocked(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_PROVISION_BLOCKED, credentialRevision(context) > 0L)
+
+    /** Called before NFC can change the sensor. Removal is respected until an explicit retry. */
+    fun ensureIdentities(context: Context): Boolean {
+        if (loadIdentities(context).isNotEmpty()) return true
+        if (autoProvisionBlocked(context)) return false
+        val source = effectiveIdentitySource(context) ?: return false
+        return provisionIdentities(context, source).isNotEmpty()
+    }
 
     private const val KEY_CREDENTIAL_REVISION = "credential_revision"
 
@@ -183,37 +220,43 @@ object Libre3Persistence {
 
     /** A source the user entered; it takes precedence over the build's own. */
     fun customIdentitySource(context: Context): Libre3IdentitySource? =
-        Libre3IdentitySource.parse(prefs(context).getString(KEY_CUSTOM_SOURCE, null))
+        Libre3IdentitySource.parse(settings(context).getString(KEY_CUSTOM_SOURCE, null))
 
     fun setCustomIdentitySource(context: Context, source: Libre3IdentitySource?) {
-        prefs(context).edit().apply { if (source == null) remove(KEY_CUSTOM_SOURCE) else putString(KEY_CUSTOM_SOURCE, source.toSpec()) }.apply()
+        settings(context).edit().apply { if (source == null) remove(KEY_CUSTOM_SOURCE) else putString(KEY_CUSTOM_SOURCE, source.toSpec()) }.apply()
     }
 
     /** The build's pinned source (Gradle property libre3IdentitySource), if it names one. */
     val buildIdentitySource: Libre3IdentitySource?
         get() = Libre3IdentitySource.parse(tk.glucodata.BuildConfig.LIBRE3_IDENTITY_SOURCE)
+            ?: Libre3IdentityProvisioning.defaultSource
 
     fun effectiveIdentitySource(context: Context): Libre3IdentitySource? =
         customIdentitySource(context) ?: buildIdentitySource
+
+    private val provisioningLock = Any()
 
     /**
      * Downloads and installs [source] unless that exact version is already installed. Blocking:
      * call off the main thread.
      */
     fun provisionIdentities(context: Context, source: Libre3IdentitySource, expectedRevision: Long = credentialRevision(context)): List<Libre3AppIdentity> {
-        identityVersions(context).firstOrNull { it.id == source.version && it.sha256.equals(source.sha256, true) }?.let {
-            val installed = loadIdentityVersion(context, it.id)
-            if (installed.isNotEmpty()) {
-                synchronized(this) {
-                    requireRevision(context, expectedRevision)
-                    selectIdentityVersion(context, it.id)
-                    return installed
+        synchronized(provisioningLock) {
+            synchronized(this) { requireRevision(context, expectedRevision) }
+            identityVersions(context).firstOrNull { it.id == source.version && it.sha256.equals(source.sha256, true) }?.let {
+                val installed = loadIdentityVersion(context, it.id)
+                if (installed.isNotEmpty()) {
+                    synchronized(this) {
+                        requireRevision(context, expectedRevision)
+                        selectIdentityVersion(context, it.id)
+                        return installed
+                    }
                 }
             }
+            val bytes = Libre3IdentityProvisioning.fetch(source)
+            val origin = source.urls.joinToString { runCatching { java.net.URL(it).host }.getOrDefault(it) }
+            return installIdentities(context, source.version, source.sha256, bytes, origin, expectedRevision)
         }
-        val bytes = Libre3IdentityProvisioning.fetch(source)
-        val origin = source.urls.joinToString { runCatching { java.net.URL(it).host }.getOrDefault(it) }
-        return installIdentities(context, source.version, source.sha256, bytes, origin, expectedRevision)
     }
 
     /**
@@ -239,7 +282,7 @@ object Libre3Persistence {
         }
         // Payload before metadata: a failed write leaves the previous selection usable.
         check(prefs(context).edit().putString(payloadKey(version), sealed).commit()) { "could not persist identity payload" }
-        check(prefs(context).edit().putString(KEY_VERSIONS, array.toString()).putString(KEY_SELECTED, version).commit()) {
+        check(prefs(context).edit().putString(KEY_VERSIONS, array.toString()).putString(KEY_SELECTED, version).putBoolean(KEY_PROVISION_BLOCKED, false).commit()) {
             "could not persist identity selection"
         }
         return relabel(version, parsed)
@@ -277,7 +320,7 @@ object Libre3Persistence {
     @Synchronized
     fun clearIdentities(context: Context) {
         val p = prefs(context)
-        val edit = p.edit().putLong(KEY_CREDENTIAL_REVISION, credentialRevision(context) + 1L).remove(KEY_VERSIONS).remove(KEY_SELECTED).remove("identities_sealed")
+        val edit = p.edit().putBoolean(KEY_PROVISION_BLOCKED, true).putLong(KEY_CREDENTIAL_REVISION, credentialRevision(context) + 1L).remove(KEY_VERSIONS).remove(KEY_SELECTED).remove("identities_sealed")
         p.all.keys.filter { it.startsWith("identity_payload.") || it.endsWith(".kauth") }.forEach { edit.remove(it) }
         check(edit.commit()) { "could not persist credential removal" }
         tk.glucodata.SensorBluetooth.gattcallbacks.filterIsInstance<Libre3BleManager>().forEach { it.onCredentialsRemoved() }
@@ -340,7 +383,7 @@ object Libre3Persistence {
         val p = prefs(context)
         val ids = p.getStringSet(KEY_SENSORS, emptySet()).orEmpty().filterNot { it.equals(sensorId, ignoreCase = true) }.toSet()
         val edit = p.edit().putStringSet(KEY_SENSORS, ids)
-        p.all.keys.filter { it.startsWith("$sensorId.") }.forEach { edit.remove(it) }
+        p.all.keys.filter { it.startsWith("$sensorId.", ignoreCase = true) }.forEach { edit.remove(it) }
         edit.apply()
     }
 

@@ -642,6 +642,14 @@ fun ExpressiveSettingsScreen(
                     iconTint = sharingColor,
                     position = CardPosition.MIDDLE
                 )
+                SettingsItem(
+                    title = stringResource(R.string.libre3_managed_title),
+                    subtitle = stringResource(R.string.libre3_managed_enable_desc),
+                    icon = Symbols.NfcFilled,
+                    iconTint = sharingColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { navController.navigate("settings/libre3") }
+                )
                 if (showLibreView) {
                     SettingsItem(
                         title = stringResource(R.string.libreview_config),

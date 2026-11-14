@@ -31,6 +31,7 @@ object VirtualGlucoseSensorBridge {
     private val mirrorLock = Any()
 
     private val nativeMirror = VirtualSensorNativeMirror(
+        readCapacityMinutes = { serial -> Natives.getSensorStreamCapacity(serial) },
         readShellStartSeconds = { serial ->
             val sensorPtr = Natives.str2sensorptr(serial)
             if (sensorPtr == 0L) 0L else Natives.getSensorStartmsecFromSensorptr(sensorPtr) / 1000L
@@ -69,7 +70,8 @@ object VirtualGlucoseSensorBridge {
         primaryIsResolved: Boolean = true,
     ): Int = synchronized(mirrorLock) {
         val stored = runCatching { nativeMirror.mirror(sensorSerial, readings, logLabel, primaryIsResolved,
-            windowMinutes = if (nativeFamily == ManagedSensorUiFamily.LIBRE3) 32 * 24 * 60 else VirtualSensorNativeMirror.WINDOW_MINUTES) }
+            windowMinutes = if (nativeFamily == ManagedSensorUiFamily.LIBRE3) 32 * 24 * 60 else VirtualSensorNativeMirror.WINDOW_MINUTES,
+            allowRebase = nativeFamily != ManagedSensorUiFamily.LIBRE3) }
             .onFailure { Log.stack(TAG, "mirrorIntoNative($sensorSerial)", it) }
             .getOrDefault(0)
         // Stamp only once a shell exists: the stamp call would otherwise create one.

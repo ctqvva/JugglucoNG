@@ -1,6 +1,8 @@
 package tk.glucodata.drivers.libre3
 
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.SharedPreferences
 import android.bluetooth.BluetoothGatt
 import org.robolectric.shadow.api.Shadow
 import java.lang.reflect.Proxy
@@ -19,11 +21,13 @@ import tk.glucodata.drivers.VirtualGlucoseSensorBridge
 
 /** Exercises the actual persistence, manager and bridge with software stand-ins for JNI and Room. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], application = Libre3ReviewApplication::class, shadows = [Libre3ReviewNatives::class])
+@Config(sdk = [34], application = Libre3ReviewApplication::class, shadows = [Libre3ReviewNatives::class, Libre3PublicationShadow::class])
 class Libre3ReviewRegressionTest {
     private lateinit var context: Context
     private lateinit var manager: Libre3BleManager
     private var oldBridge: Any? = null
+    private var oldHealth: Any? = null
+    private val healthWrites = mutableListOf<Pair<Long, String>>()
     private var timestamps: LongArray? = longArrayOf()
     private var storeSucceeds = true
     private val sensor = "0D1234ABC"
@@ -40,6 +44,13 @@ class Libre3ReviewRegressionTest {
         context = RuntimeEnvironment.getApplication()
         Applic.app = context as Applic
         context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit().clear().commit()
+        context.getSharedPreferences(Libre3Persistence.SETTINGS_PREFS_NAME, Context.MODE_PRIVATE).edit().clear().commit()
+        oldHealth = HealthConnectAccess.get()
+        HealthConnectAccess.register(object : HealthConnect {
+            override fun start(activity: MainActivity) {}
+            override fun stop() {}
+            override fun writeAll(sensorPtr: Long, sensorName: String) { healthWrites += sensorPtr to sensorName }
+        })
         Libre3ReviewNatives.reset()
         manager = Libre3BleManager(sensor)
         // Existing native shell in this fixture. Window geometry is tested separately.
@@ -59,6 +70,7 @@ class Libre3ReviewRegressionTest {
         manager.setPause(true)
         manager.close()
         HistoryRepositoryAccess::class.java.getDeclaredField("bridge").apply { isAccessible = true }.set(HistoryRepositoryAccess, oldBridge)
+        HealthConnectAccess::class.java.getDeclaredField("bridge").apply { isAccessible = true }.set(HealthConnectAccess, oldHealth)
         Applic.app = null
     }
 
@@ -149,6 +161,75 @@ class Libre3ReviewRegressionTest {
         assertTrue(ManagedSensorHandoff.supportsSensor("unrelated"))
     }
 
+
+    @Test fun liveMirrorWakesNightscoutAndCompletesHealthExport() {
+        val at = System.currentTimeMillis()
+        invoke("publishCurrent", at, 123f, 0f)
+        assertEquals(1, Libre3ReviewNatives.stockWrites)
+        assertEquals(listOf(at), Libre3ReviewNatives.wakes)
+        if (!Applic.isWearable) assertEquals(listOf(1L to sensor), healthWrites)
+        else assertTrue(healthWrites.isEmpty())
+    }
+
+    @Test fun setupTimeoutDoesNotRejectAnIdentity() {
+        val hs = Libre3Handshake(Libre3Handshake.Mode.FULL, ByteArray(4), null, null)
+        Libre3Handshake::class.java.getDeclaredField("stage").apply { isAccessible = true }.set(hs, Libre3Handshake.Stage.AWAIT_CERT_ACCEPTED)
+        set("handshake", hs)
+        set("phase", Libre3BleManager.Phase.AUTHENTICATING)
+        (get("setupDeadlineRunnable") as Runnable).run()
+        assertFalse(get("identityRejected") as Boolean)
+        assertEquals(0, get("identityRejections"))
+    }
+
+    @Test fun mixedCaseRemovalDeletesMetadataAndSecretsTogether() {
+        Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now, 60, 21600, 1, "test", 1))
+        val prefs = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString("$sensor.kauth", "sealed").commit()
+        Libre3Persistence.removeSensor(context, sensor.lowercase())
+        assertFalse(Libre3Persistence.hasSensor(context, sensor))
+        assertFalse(prefs.all.keys.any { it.startsWith("$sensor.", ignoreCase = true) })
+    }
+
+    @Test fun receiverIdIsNotReturnedWhenDurableWriteFails() {
+        val original = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+        val failing = object : ContextWrapper(context) {
+            override fun getSharedPreferences(name: String, mode: Int): SharedPreferences =
+                if (name != Libre3Persistence.PREFS_NAME) super.getSharedPreferences(name, mode) else object : SharedPreferences by original {
+                    override fun edit(): SharedPreferences.Editor {
+                        val delegate = original.edit()
+                        return object : SharedPreferences.Editor by delegate {
+                            override fun putLong(key: String, value: Long): SharedPreferences.Editor { delegate.putLong(key, value); return this }
+                            override fun commit(): Boolean = false
+                        }
+                    }
+                }
+        }
+        assertTrue(runCatching { Libre3Persistence.ownReceiverId(failing) }.isFailure)
+        assertEquals(0L, original.getLong("receiver_id", 0L))
+    }
+
+    @Test fun nonSecretSettingsMigrateToExportablePreferences() {
+        val local = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+        val source = Libre3IdentitySource.custom("https://example.test/keys", "a".repeat(64))!!
+        local.edit().putBoolean("enabled", true).putInt("receiver_source", Libre3Persistence.RECEIVER_OWN)
+            .putString("identity_custom_source", source.toSpec()).putLong("receiver_id", 123L).commit()
+        assertTrue(Libre3Persistence.isEnabled(context))
+        assertEquals(Libre3Persistence.RECEIVER_OWN, Libre3Persistence.getReceiverSource(context))
+        assertEquals(source, Libre3Persistence.effectiveIdentitySource(context))
+        val exportable = context.getSharedPreferences(Libre3Persistence.SETTINGS_PREFS_NAME, Context.MODE_PRIVATE)
+        assertEquals(setOf("enabled", "receiver_source", "identity_custom_source"), exportable.all.keys)
+        assertFalse(local.contains("enabled"))
+        assertTrue(local.contains("receiver_id"))
+    }
+
+    @Test fun removalDisablesAutomaticProvisioningButFreshSetupHasADefaultSource() {
+        assertNotNull(Libre3Persistence.effectiveIdentitySource(context))
+        assertFalse(Libre3Persistence.autoProvisionBlocked(context))
+        Libre3Persistence.clearIdentities(context)
+        assertTrue(Libre3Persistence.autoProvisionBlocked(context))
+        assertFalse(Libre3Persistence.ensureIdentities(context))
+    }
+
     @Test fun removalClearsAllCachedKeysAndRejectsWorkStartedBeforeRemoval() {
         val revision = Libre3Persistence.credentialRevision(context)
         context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit()
@@ -170,12 +251,17 @@ class Libre3ReviewApplication : Applic() { override fun onCreate() {} }
 @Implements(value = Natives::class, callThroughByDefault = false)
 class Libre3ReviewNatives {
     companion object {
+        val wakes = mutableListOf<Long>()
         var wearDays = 0
         var stockWrites = 0
         var resolvedWrites = 0
-        fun reset() { stockWrites = 0; resolvedWrites = 0; wearDays = 0 }
+        fun reset() { stockWrites = 0; resolvedWrites = 0; wearDays = 0; wakes.clear() }
         @JvmStatic @Implementation fun __staticInitializer__() {}
         @JvmStatic @Implementation fun setSensorWearDays(serial: String, days: Int) { wearDays = days }
+        @JvmStatic @Implementation fun getuseuploader(): Boolean = true
+        @JvmStatic @Implementation fun gethealthConnect(): Boolean = true
+        @JvmStatic @Implementation fun wakeNightscoutForLiveReading(source: String, at: Long): Boolean { wakes += at; return true }
+        @JvmStatic @Implementation fun getSensorStreamCapacity(serial: String): Int = 32 * 24 * 60
         @JvmStatic @Implementation fun str2sensorptr(serial: String): Long = 1L
         @JvmStatic @Implementation fun getSensorStartmsecFromSensorptr(ptr: Long): Long = System.currentTimeMillis() - 86_400_000L
         @JvmStatic @Implementation fun addGlucoseStreamBatchWithRawTemp(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, serial: String): Int {
@@ -184,5 +270,14 @@ class Libre3ReviewNatives {
         @JvmStatic @Implementation fun addResolvedGlucoseStreamBatchWithRawTemp(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, serial: String): Int {
             resolvedWrites += t.size; return t.size
         }
+    }
+}
+
+/** Keep notification/alarm publication outside the export boundary test; shared completion still runs. */
+@Implements(value = SuperGattCallback::class, callThroughByDefault = true)
+class Libre3PublicationShadow {
+    companion object {
+        @JvmStatic @Implementation
+        fun processExternalCurrentReading(sensor: String, lanes: LiveReadingLanes, rate: Float, time: Long, gen: Int, start: Long) {}
     }
 }

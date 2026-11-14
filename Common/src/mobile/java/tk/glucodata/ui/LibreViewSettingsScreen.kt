@@ -482,7 +482,6 @@ fun LibreViewSettingsScreen(navController: NavController) {
                 )
             }
 
-            Libre3ManagedDriverSection()
         }
     }
 }

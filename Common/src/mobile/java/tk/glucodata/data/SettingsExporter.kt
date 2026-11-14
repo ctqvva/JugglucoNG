@@ -257,6 +257,7 @@ object SettingsExporter {
     }
 
     private fun buildSharedPreferences(context: Context): JSONObject {
+        tk.glucodata.drivers.libre3.Libre3Persistence.migrateSettingsForExport(context)
         val result = JSONObject()
         val prefsDir = File(context.applicationInfo.dataDir, "shared_prefs")
         val prefFiles = prefsDir
@@ -772,6 +773,7 @@ object SettingsExporter {
     }
 
     /**
+     * Exportable Libre 3 choices live separately in Libre3Persistence.SETTINGS_PREFS_NAME.
      * Preference files that never leave the phone and are never overwritten by an import: they hold
      * per-sensor pairing material (the Libre 3 BLE PIN, Keystore-sealed identity and kAuth) that is
      * useless or harmful anywhere else. A restored phone re-pairs the sensor with an NFC scan.

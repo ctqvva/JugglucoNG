@@ -80,4 +80,34 @@ class Libre3ProvisioningTest {
         assertNull(Libre3Bytes.parseHex("０１"))
         assertNotNull(Libre3Bytes.parseHex("0a:0B"))
     }
+    @Test fun compressedMirrorsDecodeBeforeDigestValidation() {
+        val compressed = java.io.ByteArrayOutputStream().also { out ->
+            org.tukaani.xz.XZOutputStream(out, org.tukaani.xz.LZMA2Options()).use { it.write(bytes) }
+        }.toByteArray()
+        val source = Libre3IdentitySource("compressed-test", Libre3IdentityProvisioning.sha256Hex(bytes), listOf("https://example.test/bundle"))
+        assertEquals("test", Libre3IdentityProvisioning.validate(Libre3IdentityProvisioning.fetch(source) { compressed }, source.sha256).single().label)
+        assertTrue(runCatching { Libre3IdentityProvisioning.fetch(source.copy(sha256 = "0".repeat(64))) { compressed } }.isFailure)
+    }
+
+    @Test fun compressedOutputLimitIsEnforced() {
+        val large = java.io.ByteArrayOutputStream().also { out ->
+            org.tukaani.xz.XZOutputStream(out, org.tukaani.xz.LZMA2Options()).use { it.write(ByteArray(Libre3IdentityProvisioning.MAX_FILE_BYTES + 1)) }
+        }.toByteArray()
+        assertTrue(runCatching { Libre3IdentityProvisioning.decodeDownload(large) }.isFailure)
+    }
+
+    @Test fun publicDefaultDownloadMatchesThePinnedBundleWhenExplicitlyRequested() {
+        org.junit.Assume.assumeTrue(System.getenv("LIBRE3_VERIFY_PUBLIC_SOURCE") == "1")
+        val source = Libre3IdentityProvisioning.defaultSource
+        val data = Libre3IdentityProvisioning.fetch(source)
+        assertEquals(source.sha256, Libre3IdentityProvisioning.sha256Hex(data))
+        assertTrue(Libre3IdentityProvisioning.validate(data, source.sha256).isNotEmpty())
+    }
+
+    @Test fun redirectsMustStayOnHttps() {
+        val base = java.net.URL("https://example.test/a")
+        assertEquals("https://example.test/b", Libre3IdentityProvisioning.httpsRedirect(base, "/b").toString())
+        assertTrue(runCatching { Libre3IdentityProvisioning.httpsRedirect(base, "http://example.test/b") }.isFailure)
+    }
+
 }

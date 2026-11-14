@@ -7,9 +7,9 @@
 // works offline, and a sensor keeps authorizing with the version it paired with even after a newer
 // set is selected.
 //
-// The digest proves integrity, not secrecy or a right to distribute the keys. This app ships no
-// source: a build can name one with the Gradle property `libre3IdentitySource`, and a user can
-// enter one or import a file. Which source to trust is the maintainer's and user's decision.
+// The default download metadata matches xDrip4iOS Libre3IdentityStore.swift at f7447f1c.
+// Only metadata ships in the APK. HTTPS downloads may be plain JSON or XZ-compressed JSON;
+// both are bounded, and the uncompressed bytes must match the pinned digest before parsing.
 
 package tk.glucodata.drivers.libre3
 
@@ -49,6 +49,24 @@ data class Libre3IdentitySource(val version: String, val sha256: String, val url
 }
 
 object Libre3IdentityProvisioning {
+    val defaultSource = Libre3IdentitySource(
+        "app-identities-1",
+        "ab18ce8bcb978526e102cc5e16440f06d2aee19426c26a15dd0013d66e9995ed",
+        listOf(
+            "https://arweave.net/qWbA3dXIHU2sU51oYtdYlouSfkCx-GczN2swLQb0upk",
+            "https://turbo-gateway.com/qWbA3dXIHU2sU51oYtdYlouSfkCx-GczN2swLQb0upk",
+        ),
+    )
+
+    /** Apple Compression's LZMA format is an XZ container, not a raw .lzma stream. */
+    fun decodeDownload(bytes: ByteArray): ByteArray {
+        if (bytes.size > MAX_FILE_BYTES) throw ProvisioningException("download too large")
+        val xzMagic = byteArrayOf(0xFD.toByte(), 0x37, 0x7A, 0x58, 0x5A, 0)
+        return if (bytes.size >= xzMagic.size && bytes.copyOfRange(0, xzMagic.size).contentEquals(xzMagic)) {
+            org.tukaani.xz.XZInputStream(bytes.inputStream(), 80 * 1024).use { readBounded(it) }
+        } else bytes
+    }
+
     /** An identity file is a few hundred bytes per identity; anything larger is not one. */
     const val MAX_FILE_BYTES = 64 * 1024
 
@@ -83,7 +101,7 @@ object Libre3IdentityProvisioning {
         val errors = ArrayList<String>()
         for (url in source.urls) {
             val bytes = try {
-                get(url)
+                decodeDownload(get(url))
             } catch (e: Exception) {
                 errors += "${hostOf(url)}: ${e.message ?: e.javaClass.simpleName}"
                 continue
@@ -100,21 +118,34 @@ object Libre3IdentityProvisioning {
 
     private fun hostOf(url: String): String = runCatching { URL(url).host }.getOrDefault(url)
 
+    internal fun httpsRedirect(base: URL, location: String): URL = URL(base, location).also {
+        if (it.protocol != "https") throw ProvisioningException("redirected off https")
+    }
+
     fun httpsGet(url: String): ByteArray {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        try {
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 15_000
-            connection.instanceFollowRedirects = true
-            connection.setRequestProperty("Accept", "application/json, */*")
-            val code = connection.responseCode
-            if (code !in 200..299) throw ProvisioningException("HTTP $code")
-            if (connection.url.protocol != "https") throw ProvisioningException("redirected off https")
-            val declared = connection.contentLengthLong
-            if (declared > MAX_FILE_BYTES) throw ProvisioningException("file is larger than ${MAX_FILE_BYTES / 1024} KiB")
-            return connection.inputStream.use { readBounded(it) }
-        } finally {
-            connection.disconnect()
+        var target = URL(url)
+        repeat(5) {
+            if (target.protocol != "https") throw ProvisioningException("source is not https")
+            val connection = target.openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 15_000
+                connection.instanceFollowRedirects = false
+                connection.setRequestProperty("Accept", "application/json, application/x-xz, */*")
+                val code = connection.responseCode
+                if (code in listOf(301, 302, 303, 307, 308)) {
+                    val location = connection.getHeaderField("Location") ?: throw ProvisioningException("redirect without location")
+                    target = httpsRedirect(target, location)
+                    return@repeat
+                }
+                if (code !in 200..299) throw ProvisioningException("HTTP $code")
+                val declared = connection.contentLengthLong
+                if (declared > MAX_FILE_BYTES) throw ProvisioningException("file is larger than ${MAX_FILE_BYTES / 1024} KiB")
+                return connection.inputStream.use { readBounded(it) }
+            } finally {
+                connection.disconnect()
+            }
         }
+        throw ProvisioningException("too many redirects")
     }
 }
