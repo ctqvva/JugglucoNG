@@ -2,6 +2,7 @@ package tk.glucodata.share.ican
 
 import android.content.Context
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -93,6 +94,54 @@ class ICanHealthCloudFollowerManagerTests {
         assertEquals("7", invited?.id)
         assertEquals("tok2", settings.token)
         assertEquals(2, saveCalls)
+    }
+
+    @Test
+    fun inviteRetriesAbortedWhenAccountSwitchedDuringRelogin() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context, passwordCipher = TestPlainCipher())
+        settings.installLogin("a@x.test", "pwdA", ICanHealthCloudClient.LoginResult.Ok("tokA", LoginModel(userId = "A", tenantId = "T")))
+        var saveCalls = 0
+        val transport = FakeTransport { url, _, _ ->
+            when {
+                url.contains("follower/save") -> {
+                    saveCalls++
+                    // Another flow signs in account B while this invite is waiting on its 401.
+                    settings.installLogin("b@x.test", "pwdB", ICanHealthCloudClient.LoginResult.Ok("tokB", LoginModel(userId = "B", tenantId = "T")))
+                    HttpResult(401, """{"code":401,"msg":"Not Authorized"}""")
+                }
+                url.contains("oauth/token") ->
+                    HttpResult(200, """{"access_token":"tokC","refresh_token":"rC","user_id":"B","tenant_id":"T"}""")
+                else -> HttpResult(404, "")
+            }
+        }
+        val manager = ICanHealthCloudFollowerManager(ICanHealthCloudClient(transport), settings)
+        assertThrows(ICanHealthCloudClient.SessionExpired::class.java) {
+            manager.invite("a@b.com", "", "", "")
+        }
+        assertEquals(1, saveCalls)
+    }
+
+    @Test
+    fun reloginRefusesToOverrideConcurrentSessionChange() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context, passwordCipher = TestPlainCipher())
+        settings.token = "tok1"
+        settings.account = "a@x.test"
+        settings.password = "pwd"
+        val transport = FakeTransport { url, _, _ ->
+            when {
+                url.contains("oauth/token") -> {
+                    // A concurrent flow stored its own token while this relogin was in flight.
+                    settings.token = "tokConcurrent"
+                    HttpResult(200, """{"access_token":"tok2","refresh_token":"r2","user_id":"42","tenant_id":"t"}""")
+                }
+                else -> HttpResult(404, "")
+            }
+        }
+        val changed = ICanHealthCloudSession.relogin(ICanHealthCloudClient(transport), settings, "tok1")
+        assertFalse(changed)
+        assertEquals("tokConcurrent", settings.token)
     }
 
     @Test

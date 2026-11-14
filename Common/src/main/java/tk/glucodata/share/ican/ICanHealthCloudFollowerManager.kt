@@ -36,11 +36,16 @@ class ICanHealthCloudFollowerManager(
      * the request once with the fresh token.
      */
     private fun <T> withSessionRetry(block: (String) -> T): T {
+        // Relogin may legitimately enrich tenantId/userId, so fence on the account itself:
+        // it changes only when another account actually signed in.
+        val account = settings.account.trim()
         val token = settings.token
         try {
             return block(token)
         } catch (expired: ICanHealthCloudClient.SessionExpired) {
             if (!ICanHealthCloudSession.relogin(client, settings, token)) throw expired
+            // The retry must never replay an invite, removal or share change against another account.
+            if (settings.account.trim() != account) throw expired
             return block(settings.token)
         }
     }
