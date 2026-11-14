@@ -1,5 +1,5 @@
 {
-  "description": "Vendor cloud default calibration table (fallback used when the cloud is unreachable). Captured 2026-10-23 from blind probes: two different unknown SNs returned this table byte-identically, stable across repeat requests.",
+  "description": "REFERENCE ONLY - NOT USED IN PRODUCTION. Vendor cloud default calibration table. The driver rejects generic rows and leaves a fresh sensor unprovisioned when per-SN lookup fails, so this row is never written offline; keep it only as a captured reference. Captured 2026-10-23 from blind probes: two different unknown SNs returned this table byte-identically, stable across repeat requests. Contract notes: provisioning derives x13 from the sensor's factory serial (the table is not a source for x13), and the encoder truncates binary32(value x 1000) rather than rounding.",
   "x1": 0.015,
   "x2": 32.0,
   "x3": 25.0,

@@ -15,8 +15,8 @@ Living document: everything accumulated during this work —
 ## TL;DR
 
 1. **The claim is confirmed — only the location of the gate needed correcting.** The "big blob from the server" = `correctCode` (25 coefficients). The official app writes it into the sensor (at activation, or on its first connect to an unprovisioned sensor), and **without it the sensor refuses RACP history**: `TX 2A52 F1 …` → `RX 2A52 06 00 F1 0A`, zero records. Proven on hardware (§3.5): a sensor activated by OUR app never served a single history record; a sensor activated by the official app did.
-2. **The exact tell-tale is F6:** `RX 1C F6 01 xx xx`; `0xFFFF` ⇒ code not written (`hasWriteCorrectCode=false`, `j2.java:718-727`), otherwise written (500/510/530/600 observed). All known FFFF sensors were activated with our app (TECNO `01TH04SQ…` Aug 17–18; HONOR `7EC00B8C…` Sep 29); all provisioned ones (F6 ≠ FFFF) had been serviced by the official app.
-3. **Second, independent story:** on the PROVISIONED sensor from the chat log (iCGM-t6 `01TH05FE…`, F6=500) history read fine, but exactly **one record** per connection: the driver only catches up its own tail (`from seq=<lastKnown+interval>`) and never re-reads the session. That is driver policy, separate from correctCode.
+2. **The exact tell-tale is F6:** `RX 1C F6 01 xx xx`; `0xFFFF` ⇒ code not written (`hasWriteCorrectCode=false`, `j2.java:718-727`), otherwise written (500/510/530/600 observed). All known FFFF sensors were activated with our app (TECNO `<sensor SN prefix>…` Aug 17–18; HONOR `7EC00B8C…` Sep 29); all provisioned ones (F6 ≠ FFFF) had been serviced by the official app.
+3. **Second, independent story:** on the PROVISIONED sensor from the chat log (iCGM-t6 `<sensor SN prefix>…`, F6=500) history read fine, but exactly **one record** per connection: the driver only catches up its own tail (`from seq=<lastKnown+interval>`) and never re-reads the session. That is driver policy, separate from correctCode.
 4. **Side finding (important for the driver):** byte 7 of `0x2AAA` (`0x14` = 20) is a **vendor constant**, not a BT-spec timezone. The vendor SDK always writes `20, 0` there, and when reading it **ignores bytes 7–8** and interprets the wall clock as **GMT+8**. Our parser honestly reads `0x14` as +5:00 → session start shifts by (activation zone − 5h); in the August log that is exactly +3 hours (`drift=177..179min`) and a permanent `Distrusting session timeline`.
 5. **No repair path for an unprovisioned sensor.** "Connect the vendor app once to provision it" is withdrawn (§3.6): the vendor app gates on its cloud, does not adopt unknown sensors, and its sensor-lifecycle operations are unbind/terminate flows (owner's note: it would just kill the *wrong* sensor). The only working order is: **vendor app first, Juggluco after**.
 6. **"Pure iCan" app examined (2026-10-18).** The current build (`com.sinocare.ican.health.ce` 01.17.00.19) carries the same `com.sinocare.cgm.cgm_sdk` (JNI bridge `libsinoCgmSdk.so` → `AlgManager`), but its Java side is ijiami-packed; what is readable is the Flutter layer, which we have now fully disassembled (§9). It shows the app's cloud contract: `SinoCgmService` = `get-user-without-login` + `country/setting/detail` + **`user/active`**; the other endpoints are account re-link/unlink only. Sensor adoption/provisioning is nowhere in Dart. On a rooted phone the app kills itself within seconds (anti-tamper, §3.6), so the BLE flow itself can't be watched live.
@@ -31,7 +31,7 @@ Living document: everything accumulated during this work —
   → `encryptedKey` (RSA, key in `network/f.java`) + `encryptedValue` (AES-CBC, IV = `key[0..16]`)
   → native transform → JSON → `parameterCode`.
   Vendor logs (`network/c.java`): `encryptedKey:…, decryptAesKey:…, encryptedValue:…, parameterCode:…`, retries `request code Parameter, retryCount:`.
-* Local fallback when the server is unreachable: `SN.substring(9,11)` (or 10,12) + 25 SN-derived values (native). For our SN `8760080A2604A` those slices would give `"60"`/`"04"`, but the heap contained real server values — i.e. our sensor used the **server** code.
+* Local fallback when the server is unreachable: `SN.substring(9,11)` (or 10,12) + 25 SN-derived values (native). For our SN `<sensor SN>` those slices would give two two-character fragments of the serial, but the heap contained real server values — i.e. our sensor used the **server** code.
 * Chunk assembly and AES live in the fully VMP-native `C0532g` (ijiami `NCall`) — not statically readable; from Java only the order and number of chunks are visible.
 
 ### Reading code state: F6
@@ -61,9 +61,9 @@ Write trigger (start-time callback, `j2.java` ~930): if `launcherState == 0` and
 Observed values (F6 ≠ 0xFFFF = provisioned):
 
 * our i3 (capture `re-work/05a-dump/gatt_auth_log.txt`, official app via LSPosed): `1c f6 01 58 02` → **0x0258 = 600**;
-* iCGM-t6 `01TH05FE…` (Aug 20, official activation): `1c f6 01 f4 01` → **0x01F4 = 500**;
+* iCGM-t6 `<sensor SN prefix>…` (Aug 20, official activation): `1c f6 01 f4 01` → **0x01F4 = 500**;
 * realme RMX5566 (Aug 17): `01 FE` = 510; motorola edge 50 fusion (Aug 7): `12 02` = 530;
-* **`FF FF` (not provisioned)**: TECNO `01TH04SQ…` (Aug 17–18, activated with our app) and HONOR `7EC00B8C…` (Sep 29) — see §3.5.
+* **`FF FF` (not provisioned)**: TECNO `<sensor SN prefix>…` (Aug 17–18, activated with our app) and HONOR `7EC00B8C…` (Sep 29) — see §3.5.
 
 The exact meaning of a non-FFFF value is unknown (a marker of the written parameter set; the sensor never returns the coefficients themselves).
 
@@ -118,12 +118,12 @@ Files (copies — `re-research/ican-2026-08/`):
 | `juggluco-trace-20260820-080139-tecno.log` | TECNO LI7, Android 15 | 07:49–08:01, live only, no history request at all |
 | `juggluco-trace-20260820-083057-tecno.log` | TECNO LI7 | 07:49–08:30, same capture + manual reconnect at 08:26 and a history cycle |
 | `juggluco-trace-20260820-141034-pixel-anytime.log` | Google Pixel 8 Pro, Android 17 | different driver (**Anytime CT5**), for history-behaviour comparison |
-| `chat-2026-08-20-history.png` | — | the Aug 20 chat (Maxim Isaev / Evgeny Y.) this whole story came from |
+| `chat-2026-08-20-history.png` | — | the Aug 20 chat (<chat participants>) this whole story came from |
 
 ### 3.1 Hardware and versions (log 083057)
 
 ```
-Connected to 8C:73:DA:73:CE:24
+Connected to <MAC>
 MTU changed to 247; using modern vendor history command family
 WIRE rx read 2A25 30 31 54 48 30 35 46 45 30 30 30 33 30 31 30 31 30 30 30 30 30 30 30 30   → <sensor SN>
 WIRE rx read 2A24 69 43 47 4D 2D 74 36                                                      → "iCGM-t6"
@@ -133,7 +133,7 @@ WIRE rx read 2AAB E0 01                                                         
 setSensorWearDays: <sensor SN> days=28 wear=40320   (driver declared 28 days)
 WIRE rx read 2AA8 01 40 00 23 FF FF  → cgmFeature=0x004001, calibrationSupported=true, multiSession=true, type=0x3
 ```
-Device advertisement: `deviceName=Sinocare CGM`, GATT name `ICN-ZP1TH05FEE50…`.
+Device advertisement: `deviceName=Sinocare CGM`, GATT name `ICN-<redacted>…`.
 
 ### 3.2 Authorization (the important storyline: someone else's userId)
 
@@ -183,7 +183,7 @@ Live stream: one notification every 3 minutes, `seq` +3 per notification (1 unit
 ### 3.4 Comparison: the third log (Pixel, Anytime driver, CT5)
 
 ```
-I/Anytime Connected to D7:6C:7B:B3:68:A3
+I/Anytime Connected to <MAC>
 I/Anytime Starting history backfill (ct5-reconnect-catchup) from id=1667 stopBefore=1668
 I/Anytime CT5 history 1667..1667 received: 0 existing, 1 inserted, 0 warm-up/no-glucose
 I/Anytime History pull interrupted by disconnect; range kept for the next session
@@ -194,7 +194,7 @@ Same "one record per connection" picture, for a different reason (the sensor dro
 
 ---
 
-### 3.5 Sensor started by OUR app: `01TH04SQ00030101` (Aug 17–18) — A/B vs the official one
+### 3.5 Sensor started by OUR app: `<sensor SN>` (Aug 17–18) — A/B vs the official one
 
 Found on Oct 18 by scanning every `juggluco-trace*` on disk. Five logs (copies in `ican-2026-08/`):
 
@@ -206,7 +206,7 @@ Found on Oct 18 by scanning every `juggluco-trace*` on disk. Five logs (copies i
 | `juggluco-trace-20260818-185912-tecno-04SQ-ourstarted.log` | Aug 18 07:56–08:53 |
 | `juggluco-trace-20260818-203321-tecno-04SQ-ourstarted.log` | Aug 18 09:56–10:53 |
 
-Hardware is the same family: `iCGM-t6`, fw `4.2.3`, sw `V01.05.00.00_B0001`, `2AAB` = 480 h, address `8C:73:DA:7C:BB:7A`.
+Hardware is the same family: `iCGM-t6`, fw `4.2.3`, sw `V01.05.00.00_B0001`, `2AAB` = 480 h, address `<MAC>`.
 Counter: first log `offset=72` (18:53) ⇒ start ~17:41; last log `offset=1590` (≈26.5 h of life). History: **zero records across all five logs** — not a single `glucose history batch`/`imported`, ~59 read attempts (2+4+20+33).
 
 **Who activated it** — visible from authorization: `authUserId=P1TH04SQE525 from source=ZP1TH04SQE525 (recovered=null configured=null onboarding=…)`, and the sensor accepted our onboarding id **on the first try** (`1C F4 01`). That never happens with a sensor activated by the official app: there our id is rejected first (F4 → `1C F4 02 <payload>`) and the numeric id must be recovered (§3.2). ⇒ this sensor was activated by our scan; the official app never connected to it.
@@ -235,11 +235,11 @@ WIRE tx write 2A52 01 01 02 ; RX 06 00 01 0A
 W/ICanHealth RACP history request failed; will retry on a later authenticated reconnect
 ```
 
-**All four** variants are rejected: both families (F1 and 01) and even report-all. This is not an "empty range" — by then the sensor had 855+ minutes of live records; the live stream runs fine (`savepollallIDsonly count=856<id=858`, glucose 7.2 mmol/L, etc.). `from seq=3` because the pending timezone repair schedules a full re-pull "from first slot" every time, and it can never complete (no data ever arrives).
+**All four** variants are rejected: both families (F1 and 01) and even report-all. This is not an "empty range" — by then the sensor had 855+ minutes of live records; the live stream runs fine (`savepollallIDsonly count=856<id=858`, a normal live glucose reading, etc.). `from seq=3` because the pending timezone repair schedules a full re-pull "from first slot" every time, and it can never complete (no data ever arrives).
 
 **A/B across the two sensors from the same TECNO LI7:**
 
-| | `01TH04SQ…` (activated with our app) | `01TH05FE…` (activated with the official app) |
+| | `<sensor SN prefix>…` (activated with our app) | `<sensor SN prefix>…` (activated with the official app) |
 |---|---|---|
 | period | Aug 17–18 | Aug 19–20 |
 | F4 on connect | our id accepted immediately | our id rejected → recovered `<USER_ID>` → accepted |
@@ -248,7 +248,7 @@ W/ICanHealth RACP history request failed; will retry on a later authenticated re
 
 Same driver, same phone — the only difference is who activated the sensor.
 
-**Second independent case (Sep 29, HONOR PTP-N49, driver v1.2.2):** sensor `7EC00B8C00070000` (`onboarding=7EC00B8CE493A` — the same "activated with our app" fingerprint), F6 = `FF FF`, and the same picture: `F1 03 02 01 03 00` → `06 00 F1 0A`, `01 …` → `06 00 01 0A`, zero imports. Copies — `juggluco-trace-20260929-*-honor-7EC0-ourstarted.log`.
+**Second independent case (Sep 29, HONOR PTP-N49, driver v1.2.2):** sensor `<sensor SN>` (`onboarding=<onboarding id>` — the same "activated with our app" fingerprint), F6 = `FF FF`, and the same picture: `F1 03 02 01 03 00` → `06 00 F1 0A`, `01 …` → `06 00 01 0A`, zero imports. Copies — `juggluco-trace-20260929-*-honor-<sensor SN prefix>-ourstarted.log`.
 
 **Mechanics (decompilation, see §1):** `j2.java` case 246 (0xF6): `0xFFFF ⇒ setHasWriteCorrectCode(false)`. On connect, if `launcherState == 0` and `!hasWriteCorrectCode`, the SDK calls `a(0, true)` → fetches `correctCode` (server / SN fallback) and writes chunks. Our driver never performs those writes (on 2AAC only F3/F4/F6; F2/F7 — zero occurrences in the logs) and cannot: the vendor key/credentials + VMP-native chunker. A sensor that never received the code **does not serve** RACP history.
 
@@ -346,7 +346,7 @@ Bytes 7 and 8 are **never read at all**. (String-decode verification: `{75,73,27
    NB: there are no logs of our i3 with the `Distrusting session timeline` line on disk (searched), so the question remains open.
 2. **Does the sensor serve arbitrarily old ranges** (request `from seq=300` on a live sensor) — determines whether fixing the "hole behind the tail" is worth anything at all.
 3. **Our F4 handshake**: on iCGM-t6 the `ICanHealthParser.recoverUserIdFromAuthReject` path fired — worth checking that the same path also works on "our" sensor with a foreign userId (there are `ICanHealthParserTests`; no live case yet).
-4. **August confusion resolved:** the "first" sensor = `01TH04SQ…` (activated with our app; Aug 17–18 logs, history rejected with `0A`), the "working" one from the chat = `01TH05FE…` (activated with the official app). What Maxim saw in the UI cannot be recovered from logs, but the mechanics are clear (§3.5).
+4. **August confusion resolved:** the "first" sensor = `<sensor SN prefix>…` (activated with our app; Aug 17–18 logs, history rejected with `0A`), the "working" one from the chat = `<sensor SN prefix>…` (activated with the official app). What the chat reporter saw in the UI cannot be recovered from logs, but the mechanics are clear (§3.5).
 5. Vendor app behaviour outside the +8 zone (does it display shifted times?) — not checked.
 6. **Repairing an unprovisioned sensor via the vendor app — closed as non-viable (2026-10-18).** The "connect the vendor app once" prediction is withdrawn (§3.6): the app gates on its cloud and terminates sensors rather than adopting unknown ones; per the owner it would kill the *wrong* sensor. Only a sensor started with the vendor app in the first place is a valid setup — nothing to test here.
 7. **Exact semantics** of code `0x0A` (`06 00 F1 0A`) and of non-FFFF F6 values (500/510/530/600) — unknown; `0xFFFF` and `0x0A` suffice as "not provisioned" / "refused" markers.
@@ -368,7 +368,7 @@ Bytes 7 and 8 are **never read at all**. (String-decode verification: `{75,73,27
 **Logs (copies, this folder):** `ican-2026-08/`
 * chat of Aug 20, official activation (05FE): `juggluco-trace-20260820-080139-tecno.log`, `juggluco-trace-20260820-083057-tecno.log`;
 * our activation (04SQ, Aug 17–18, §3.5): `juggluco-trace-20260817-191054-tecno-04SQ-ourstarted.log`, `…-215156-…`, `…-222906-…`, `…-20260818-185912-…`, `…-20260818-203321-…`;
-* second FFFF case (HONOR, Sep 29): `juggluco-trace-20260929-033421-honor-7EC0-ourstarted.log`, `…-173112-…`;
+* second FFFF case (HONOR, Sep 29): `juggluco-trace-20260929-033421-honor-<sensor SN prefix>-ourstarted.log`, `…-173112-…`;
 * for comparison: `juggluco-trace-20260820-141034-pixel-anytime.log`, `chat-2026-08-20-history.png`.
 
 Found on Oct 18 by scanning every `juggluco-trace*` on disk; originals — in `~/Downloads/`.

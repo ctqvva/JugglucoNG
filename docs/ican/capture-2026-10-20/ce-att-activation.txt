@@ -25,8 +25,8 @@
 12:23:02.630 C2H ReadRsp      h=-----              69 33
 12:23:02.635 H2C WriteReq     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb f3
 12:23:02.776 C2H Indicate     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb 06 f3 01 <redacted>
-12:23:03.069 C2H ReadRsp      h=-----              38 34 66 30 31 66 66 31 30 30 30 37 30 30 30 30 30 30 30 30 30 30
-12:23:03.215 C2H ReadBlobRsp  h=-----              30 30
+12:23:03.069 C2H ReadRsp      h=-----              <redacted sensor SN ascii>
+12:23:03.215 C2H ReadBlobRsp  h=-----              <redacted SN tail>
 12:23:03.221 H2C WriteReq     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb f4 10 <redacted>
 12:23:03.312 C2H Indicate     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb 1c f4 01
 12:23:03.334 H2C WriteReq     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb f6
@@ -47,8 +47,8 @@
 12:23:17.358 H2C WriteReq     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb f3
 12:23:17.435 H2C WriteReq     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb 1a
 12:23:17.450 C2H Indicate     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb 06 f3 01 <redacted>
-12:23:17.548 C2H ReadRsp      h=-----              38 34 66 30 31 66 66 31 30 30 30 37 30 30 30 30 30 30 30 30 30 30
-12:23:17.694 C2H ReadBlobRsp  h=-----              30 30
+12:23:17.548 C2H ReadRsp      h=-----              <redacted sensor SN ascii>
+12:23:17.694 C2H ReadBlobRsp  h=-----              <redacted SN tail>
 12:23:17.698 H2C WriteReq     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb f4 10 <redacted>
 12:23:17.792 C2H Indicate     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb 1c f4 01
 12:23:17.799 H2C WriteReq     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb f6
@@ -67,8 +67,8 @@
 12:23:30.617 C2H ReadRsp      h=-----              69 33
 12:23:30.620 H2C WriteReq     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb f3
 12:23:30.762 C2H Indicate     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb 06 f3 01 <redacted>
-12:23:30.812 C2H ReadRsp      h=-----              38 34 66 30 31 66 66 31 30 30 30 37 30 30 30 30 30 30 30 30 30 30
-12:23:30.860 C2H ReadBlobRsp  h=-----              30 30
+12:23:30.812 C2H ReadRsp      h=-----              <redacted sensor SN ascii>
+12:23:30.860 C2H ReadBlobRsp  h=-----              <redacted SN tail>
 12:23:30.864 H2C WriteReq     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb f4 10 <redacted>
 12:23:31.056 C2H Indicate     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb 1c f4 01
 12:23:31.061 H2C WriteReq     h=0x0024  0000181f-0000-1000-8000-00805f9b34fb f6

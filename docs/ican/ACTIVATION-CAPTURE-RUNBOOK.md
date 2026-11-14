@@ -5,7 +5,7 @@
 
 ## 0. Перед активацией
 - Убедиться, что HCI snoop включён: `adb shell su -c "settings get secure bluetooth_hci_log"` → `1`.
-- Проверить, что файл HCI растёт: `adb shell su -c "ls -l /proc/$(pidof com.android.bluetooth)/fd | grep -i cfa"`.
+- Проверить, что файл HCI растёт: `adb shell su -c "ls -l /proc/\$(pidof com.android.bluetooth)/fd | grep -i cfa"` (подстановка `$(pidof …)` должна вычисляться на устройстве, поэтому вся команда передаётся в кавычках как единый remote-аргумент).
 - Зафиксировать время старта: `date +%s` (локально и на устройстве).
 - Снять baseline-снимок: `collect_snapshot.sh before`.
 
@@ -16,9 +16,9 @@
 4. Если нужна память — `collect_snapshot.sh after mem` (≈1.4 ГБ на pid, остаётся в `/data/local/tmp/ru-dump/<pid>`).
 
 ## 2. Разбор
-- HCI: `hci_transcript.py <hci.pcap> --out transcript.md --after <epoch>` (auth редактируется).
+- HCI: `python3 tools/ican-capture/hci_transcript.py <hci.pcap> --out transcript.md --after <epoch>` (auth редактируется; скрипт не исполняемый — запускать через `python3` с путём из чекаута).
 - SDK-логи: `sqlite3 db/sinocare_log "SELECT id,identifier,properties FROM LogsEventBean ORDER BY id DESC LIMIT 200;"` — искать `writeCorrectCode`, `parameterCode`, `hasWriteCorrectCode`.
-- OkHttp: `okhttp_resp.sh` (URL + gzip-тело) — искать `user-apparatus/save`, `original/data/save`, `original/default/parameter`, `detection-data/*`.
+- OkHttp: ответы перехватывались отдельным локальным хелпером `okhttp_resp.sh` (URL + gzip-тело); в чекаут он не входит — если недоступен, ищите те же вызовы в plaintext-логах SDK: `user-apparatus/save`, `original/data/save`, `original/default/parameter`, `detection-data/*`.
 - Память: `grep -a` по `/data/local/tmp/ru-dump/<pid>/*.bin` для `SdkCgmDeviceInfo`, `correctCode`, `parameterCode`, `detectionStartTime`.
 
 ## 3. Что считать успехом

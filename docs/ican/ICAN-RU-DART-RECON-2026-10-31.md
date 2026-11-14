@@ -83,8 +83,10 @@ FollowerFriendsModel JSON-ключи: `id`,`userId`,`followerId`,`sharerId`,`sha
 
 1. IV для AES-CBC — закрыт живыми данными: IV = key[0:16] (подтверждено на всех конвертах дня);
 2. Упаковка запроса — **решено**: Dart-слой шлёт `createEncryptedRequest` json-конвертом
-   (`{key,data}` в теле, `application/json`), как native-POST; JNG-клиент переведён на этот формат
-   (см. `ICanHealthCloudClient.login`), эмпирическая валидация — первым живым логином из JNG;
+   (`{key,data}` в теле, `application/json`), как native-POST. Уточнение: это верно для
+   native-POST-эндпоинтов (follower/basic-config), но НЕ для логина — `ICanHealthCloudClient.login`
+   шлёт form-urlencoded OAuth-тело (`grant_type=phone_cgm`, `type=account`, `tenantId=000000`
+   + хеш пароля), поэтому живой логин из JNG валидирует именно OAuth-контракт, а не json-упаковку.
 3. Upload-контракт (`sino-cgm/v2/user-apparatus/save`, `user-device/page`, heartbeat) — только рантайм:
    распаковка dex из памяти (тот же метод, что в CE-handoff), либо blutter_frida.js hook на реальном
    устройстве с RU-аккаунтом; частично уже снят live-логами (см. ICAN-RU-LIVE-DECRYPT).

@@ -23,7 +23,7 @@ Time is relative to the first ATT PDU in the exported window.
 | 2.282 | H→S | Read Request | `0x002C Serial Number` |  |  |
 | 2.571 | S→H | Read Response | `-` | `<SN>` |  |
 | 2.571 | H→S | Read Blob Request | `0x002C Serial Number` | `16 00` |  |
-| 2.717 | S→H | Read Blob Response | `-` | `30 30` |  |
+| 2.717 | S→H | Read Blob Response | `-` | `<redacted SN tail>` |  |
 | 2.723 | H→S | Write Request | `0x0024 SSCP` | `f4 10 <redacted>` | auth: token (16 bytes) |
 | 2.766 | S→H | Write Response | `-` |  |  |
 | 2.814 | S→H | Indicate | `0x0024 SSCP` | `1c f4 01` | auth: token accepted |
@@ -66,7 +66,7 @@ Time is relative to the first ATT PDU in the exported window.
 | 16.958 | H→S | Read Request | `0x002C Serial Number` |  |  |
 | 17.050 | S→H | Read Response | `-` | `<SN>` |  |
 | 17.050 | H→S | Read Blob Request | `0x002C Serial Number` | `16 00` |  |
-| 17.196 | S→H | Read Blob Response | `-` | `30 30` |  |
+| 17.196 | S→H | Read Blob Response | `-` | `<redacted SN tail>` |  |
 | 17.200 | H→S | Write Request | `0x0024 SSCP` | `f4 10 <redacted>` | auth: token (16 bytes) |
 | 17.245 | S→H | Write Response | `-` |  |  |
 | 17.294 | S→H | Indicate | `0x0024 SSCP` | `1c f4 01` | auth: token accepted |
@@ -106,7 +106,7 @@ Time is relative to the first ATT PDU in the exported window.
 | 30.268 | H→S | Read Request | `0x002C Serial Number` |  |  |
 | 30.314 | S→H | Read Response | `-` | `<SN>` |  |
 | 30.314 | H→S | Read Blob Request | `0x002C Serial Number` | `16 00` |  |
-| 30.362 | S→H | Read Blob Response | `-` | `30 30` |  |
+| 30.362 | S→H | Read Blob Response | `-` | `<redacted SN tail>` |  |
 | 30.366 | H→S | Write Request | `0x0024 SSCP` | `f4 10 <redacted>` | auth: token (16 bytes) |
 | 30.557 | S→H | Write Response | `-` |  |  |
 | 30.558 | S→H | Indicate | `0x0024 SSCP` | `1c f4 01` | auth: token accepted |
