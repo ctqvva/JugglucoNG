@@ -61,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
@@ -83,7 +84,7 @@ import tk.glucodata.ui.util.ExpressiveMotion
  * in and turns it square to the row; letting go springs all three back. Everything moves in the
  * draw and layer phases, and nothing moves at rest or when a screen opens.
  *
- * The wizard heroes draw the sensor alone ([frame] false, no lift), on their scene's silhouette. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
+ * The wizard heroes draw the sensor alone ([frame] false, no lift), in front of their shape. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
  */
 @Composable
 internal fun SensorArtTile(
@@ -213,71 +214,64 @@ private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage 
 }
 
 /**
- * The silhouette behind a hero's scene, built from where its pieces stand rather than drawn
- * once: a soft pocket round the sensor, a waist where the signal crosses a gap, a swell behind
- * the phone. Each piece gives a point above and below it (the phone, taller than the rest, is
- * let out past the shape rather than pulling it to a peak), each gap a point drawn in towards the
- * middle by how wide the gap is, and the two ends a point each; a closed Catmull-Rom curve
- * through them makes the outline. It fits every scene at every size, and as the pieces move
- * (a new companion, a wider stage) it flows with them.
+ * The shape behind a hero's scene: one rounded rectangle spanning the scene, its four corners
+ * set per way of connecting, so the families read apart by geometry rather than by colour.
+ * Radii are fractions of the shape's height (0.5 is fully round), clockwise from the top left.
  */
-private class ScenePiece(val centre: Offset, val half: Size)
+private enum class HeroShape(val topLeft: Float, val topRight: Float, val bottomRight: Float, val bottomLeft: Float) {
+    /** A leaf: two opposite corners round, two tight, like a viewfinder's frame set on its edge. */
+    Scan(0.5f, 0.14f, 0.5f, 0.14f),
 
-private fun sceneOutline(pieces: List<ScenePiece>, tile: Float): Path {
-    val row = pieces.sortedBy { it.centre.x }
-    val pad = 0.1f * tile
-    // The phone is let out past the shape at its ends rather than pulling the shape to a peak.
-    fun reach(piece: ScenePiece) = minOf(piece.half.height, 0.4f * tile)
-    val points = ArrayList<Offset>()
-    val first = row.first()
-    val last = row.last()
-    // Clockwise: the left end a little low, so the shape sits on the ground under the sensor.
-    points += Offset(first.centre.x - first.half.width - pad, first.centre.y + 0.08f * tile)
-    row.forEachIndexed { index, piece ->
-        points += Offset(piece.centre.x, piece.centre.y - reach(piece) - pad)
-        val next = row.getOrNull(index + 1) ?: return@forEachIndexed
-        val gap = ((next.centre.x - next.half.width) - (piece.centre.x + piece.half.width)).coerceAtLeast(0f)
-        val waist = 0.03f * tile + 0.35f * gap.coerceAtMost(0.45f * tile)
-        val upper = minOf(piece.centre.y - reach(piece), next.centre.y - reach(next))
-        points += Offset((piece.centre.x + piece.half.width + next.centre.x - next.half.width) / 2f, upper - pad + waist)
-    }
-    points += Offset(last.centre.x + last.half.width + pad, last.centre.y - 0.06f * tile)
-    for (index in row.indices.reversed()) {
-        val piece = row[index]
-        points += Offset(piece.centre.x, piece.centre.y + reach(piece) + pad)
-        val previous = row.getOrNull(index - 1) ?: continue
-        val gap = ((piece.centre.x - piece.half.width) - (previous.centre.x + previous.half.width)).coerceAtLeast(0f)
-        val waist = 0.02f * tile + 0.15f * gap.coerceAtMost(0.45f * tile)
-        val lower = maxOf(piece.centre.y + reach(piece), previous.centre.y + reach(previous))
-        points += Offset((piece.centre.x - piece.half.width + previous.centre.x + previous.half.width) / 2f, lower + pad - waist)
-    }
-    return Path().apply {
-        moveTo(points[0].x, points[0].y)
-        val n = points.size
-        for (i in 0 until n) {
-            val p0 = points[(i - 1 + n) % n]
-            val p1 = points[i]
-            val p2 = points[(i + 1) % n]
-            val p3 = points[(i + 2) % n]
-            val c1 = p1 + (p2 - p0) / 6f
-            val c2 = p2 - (p3 - p1) / 6f
-            cubicTo(c1.x, c1.y, c2.x, c2.y, p2.x, p2.y)
-        }
-        close()
-    }
+    /** A pill: a lane the signal runs along from the sensor to the phone. */
+    Pair(0.5f, 0.5f, 0.5f, 0.5f),
+
+    /** Round all round but where the phone comes down to the sensor. */
+    Nfc(0.5f, 0.5f, 0.14f, 0.5f),
+
+    /** An arch: round on top, nearly square at its base, for a serial read off the sensor. */
+    Manual(0.5f, 0.5f, 0.12f, 0.12f),
 }
 
-/** How much of the scene each piece takes, in tile sides from its middle. */
-private val SensorHalf = Size(0.5f, 0.4f)
-private val CarrierHalf = Size(0.36f, 0.42f)
-private val PhoneHalf = Size(0.27f, 0.48f)
+private fun heroShapeFor(type: SensorType, companion: HeroCompanion): HeroShape = when {
+    type == SensorType.MEDTRUM -> HeroShape.Manual
+    companion == HeroCompanion.NFC -> HeroShape.Nfc
+    companion == HeroCompanion.SCAN -> HeroShape.Scan
+    else -> HeroShape.Pair
+}
 
 /**
- * A sensor at wizard size with a phone acting out how it connects, on a silhouette built round them, and for the
+ * [shape] spanning [left] to [right] across the scene, [press] of the way to a pill. The pieces
+ * stand in front of it and break out past its top and bottom.
+ */
+private fun DrawScope.drawHeroShape(shape: HeroShape, color: Color, left: Float, right: Float, tile: Float, press: Float) {
+    val top = center.y - 0.42f * tile
+    val bottom = center.y + 0.5f * tile
+    val height = bottom - top
+    fun corner(rest: Float) = CornerRadius(height * (rest + (0.5f - rest) * press))
+    val outline = Path().apply {
+        addRoundRect(
+            RoundRect(
+                left = left,
+                top = top,
+                right = right,
+                bottom = bottom,
+                topLeftCornerRadius = corner(shape.topLeft),
+                topRightCornerRadius = corner(shape.topRight),
+                bottomRightCornerRadius = corner(shape.bottomRight),
+                bottomLeftCornerRadius = corner(shape.bottomLeft),
+            ),
+        )
+    }
+    drawPath(outline, color)
+}
+
+/**
+ * A sensor at wizard size with a phone acting out how it connects, in front of one geometric shape
+ * set by how it connects, and for the
  * families set up from a printed code, the thing the code is on. The phone's screen says what is
  * happening: the NFC mark, the Bluetooth mark, or the camera closing on the code.
  *
- * It answers a touch: the sensor gives under the finger, and letting go stretches the silhouette, drops the sensor on
+ * It answers a touch: the sensor gives under the finger, and letting go stretches the shape, drops the sensor on
  * again and replays the whole story, with a click on letting go and a
  * double click when the phone has the code, the NFC read or the pairing. It is a toy, not a
  * control, so it adds nothing for accessibility services to announce. Between touches nothing
@@ -308,6 +302,7 @@ internal fun SensorHeroArt(
     val companionKind = companion ?: type.heroCompanion
     val carrier = if (companionKind == HeroCompanion.SCAN) type.codeCarrier else CodeCarrier.NONE
     val stage = stageFor(companionKind, carrier)
+    val heroShape = heroShapeFor(type, companionKind)
     // Where everything stands, moving on the spatial spring when the companion changes.
     val spring = ExpressiveMotion.defaultSpatial<Float>()
     val stageWidth by animateFloatAsState(stage.width, spring, label = "heroWidth")
@@ -339,8 +334,14 @@ internal fun SensorHeroArt(
     val signal = remember { Animatable(1f) }
     // The sensor springs up on a bounce, and bounces again on every replay.
     val pop = remember { Animatable(if (firstVisit) 0f else 1f) }
-    // The silhouette's stretch: a tap pulls it wide and it springs back.
+    // The shape's stretch: a tap pulls it wide and it springs back.
     val swing = remember { Animatable(0f) }
+    // Under the finger the shape's corners round towards a pill, as a pressed tile's do.
+    val press = remember { Animatable(0f) }
+    val pressed by interactionSource.collectIsPressedAsState()
+    LaunchedEffect(pressed) {
+        press.animateTo(if (pressed) 1f else 0f, ExpressiveMotion.fastSpatial())
+    }
 
     LaunchedEffect(plays) {
         if (plays == 0 && !firstVisit) return@LaunchedEffect
@@ -391,19 +392,14 @@ internal fun SensorHeroArt(
         Canvas(modifier = Modifier.matchParentSize()) {
             val tile = tileSize.toPx()
             val sensorAt = center + Offset(sensorShift.toPx(), 0f)
-            val pieces = buildList {
-                add(ScenePiece(sensorAt, SensorHalf * tile))
-                if (carrier != CodeCarrier.NONE) {
-                    add(ScenePiece(center + Offset(stage.carrier.x * tile, stage.carrier.y * tile), CarrierHalf * tile))
-                }
-                add(ScenePiece(center + Offset(phoneX * tile, phoneY * tile), PhoneHalf * tile))
-            }
-            val outline = sceneOutline(pieces, tile)
-            // Spreads out from the sensor on entrance; a tap stretches it and lets it spring back.
+            // From the sensor's far edge to the phone's, so the shape scales with the scene.
+            val left = sensorAt.x - 0.62f * tile
+            val right = center.x + (phoneX + 0.4f) * tile
+            // Opens out sideways from the sensor on entrance; a tap stretches it and lets it go.
             val grow = backdropGrow(pop.value)
             val kick = swing.value / 100f
-            scale(grow * (1f + kick), grow * (1f - kick), pivot = sensorAt) {
-                drawPath(outline, blobColor)
+            scale(grow * (1f + kick), 1f - kick, pivot = sensorAt) {
+                drawHeroShape(heroShape, blobColor, left, right, tile, press.value)
             }
         }
         SensorArtTile(
@@ -529,7 +525,7 @@ internal fun SensorHeroArt(
     }
 }
 
-/** The silhouette spreads out from the sensor, a little behind the sensor's own bounce. */
+/** The shape opens out from the sensor, a little behind the sensor's own bounce. */
 private fun backdropGrow(pop: Float): Float = 0.35f + 0.65f * pop
 
 /** The bounce the hero's circle comes in on: under-damped, so it overshoots and settles. */
