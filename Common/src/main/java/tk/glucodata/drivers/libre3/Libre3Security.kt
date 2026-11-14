@@ -50,8 +50,7 @@ class Libre3AppIdentity private constructor(
             }
             val certPoint = certificate.copyOfRange(CERT_PUBKEY_START, CERT_PUBKEY_END)
             Libre3P256.decodePoint(certPoint)
-            val derived = Libre3P256.publicPointFromScalar(privateScalar)
-            require(derived.contentEquals(certPoint)) { "identity '$label': private key does not match certificate" }
+            require(Libre3P256.matchesPrivateKey(privateScalar, certPoint)) { "identity '$label': private key does not match certificate" }
             return Libre3AppIdentity(label.trim(), privateScalar.copyOf(), certificate.copyOf())
         }
 

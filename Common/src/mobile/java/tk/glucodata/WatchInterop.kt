@@ -177,6 +177,7 @@ object WatchInterop {
 
     @JvmStatic
     fun applyWearNodeRouting(nodeId: String, isGalaxy: Boolean, directOnWatch: Boolean, enterOnWatch: Boolean): Boolean {
+        if (directOnWatch && !ManagedSensorHandoff.supportsSensor(SensorIdentity.resolveMainSensor())) return false
         val netInfo = try {
             Natives.getmynetinfo(
                 nodeId,
@@ -221,6 +222,7 @@ object WatchInterop {
      */
     @JvmStatic
     fun setAutoSensorSwitch(nodeId: String, enabled: Boolean): Boolean {
+        if (enabled && !ManagedSensorHandoff.supportsSensor(SensorIdentity.resolveMainSensor())) return false
         val sender = getWearMessageSender() ?: return false
         AutoSensorSwitch.setEnabled(enabled)
         if (enabled) {
@@ -241,6 +243,7 @@ object WatchInterop {
 
     @JvmStatic
     fun applyStandaloneSensorMode(nodeId: String, isGalaxy: Boolean, directOnWatch: Boolean, enterOnWatch: Boolean): Boolean {
+        if (directOnWatch && !ManagedSensorHandoff.supportsSensor(SensorIdentity.resolveMainSensor())) return false
         val sender = getWearMessageSender() ?: return false
         if (directOnWatch) {
             val context = Applic.app ?: MainActivity.thisone ?: return false

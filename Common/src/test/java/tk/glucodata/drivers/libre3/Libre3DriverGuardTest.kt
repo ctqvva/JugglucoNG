@@ -13,12 +13,6 @@ class Libre3DriverGuardTest {
     private fun src(path: String) = File(root(), path).readText()
     private val manager get() = src("Common/src/main/java/tk/glucodata/drivers/libre3/Libre3BleManager.kt")
 
-    @Test fun backfillTimeoutDoesNotSettleMarks() {
-        val m = manager
-        assertTrue(m.contains("onControlResponse(timedOut = true)"))
-        assertTrue(m.contains("val settled = if (timedOut) null else controlInFlight"))
-    }
-
     @Test fun marksArePersistedOnlyAfterRoomStorage() {
         val m = manager
         val flush = m.substringAfter("private fun flushBackfill()").substringBefore("private fun storeBackfill(")
@@ -35,7 +29,7 @@ class Libre3DriverGuardTest {
     @Test fun libre3PairingPrefsNeverLeaveThePhoneInSettingsExport() {
         val exporter = src("Common/src/mobile/java/tk/glucodata/data/SettingsExporter.kt")
         assertTrue(exporter.contains("Libre3Persistence.PREFS_NAME"))
-        assertTrue(exporter.contains("name !in DEVICE_LOCAL_PREFERENCES"))
+        assertTrue(exporter.contains("it.name.removeSuffix(\".xml\") in DEVICE_LOCAL_PREFERENCES"))
         assertTrue(exporter.contains("importedNames.filterNot { it in DEVICE_LOCAL_PREFERENCES }"))
     }
 

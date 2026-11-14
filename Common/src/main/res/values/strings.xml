@@ -3755,4 +3755,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Items above it sit before the camera, the rest after it</string>
     <string name="floating_layout_hidden">Hidden</string>
     <string name="floating_layout_order_desc">Drag a handle to move an item</string>
+    <string name="libre3_status_device_rejected">Device is not a Libre 3 (missing services); scan the sensor again</string>
+    <string name="libre3_status_certificate_rejected">Sensor certificate not recognised; scan the sensor again</string>
+    <string name="libre3_status_identity_missing">No Libre 3 app identity imported</string>
+    <string name="libre3_status_identity_rejected">Sensor did not accept the app identity</string>
 </resources>
