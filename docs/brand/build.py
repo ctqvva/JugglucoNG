@@ -17,7 +17,7 @@ All shapes live on Android's 108 dp adaptive canvas; the visible area is 18..90.
 import math
 from pathlib import Path
 from shapely import affinity
-from shapely.geometry import LineString, Point, Polygon, box
+from shapely.geometry import LineString, Point, Polygon
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -80,39 +80,47 @@ MONO_D = d(TRACE.difference(Point(*NOW).buffer(R_SENSOR + CUT_MONO, quad_segs=48
 
 # ----------------------------------------------------- extra installations ---
 # The extra installations exist so one phone can follow two or three people (issue #714), so they
-# must not be mistaken for each other at a glance. Each is the same mark under one plain
-# transformation, carried into its monochrome layer so the themed icon keeps the difference:
-#   Glucy Dub    inverted: light background, dark sensor; its themed layer is the negative.
-#   Glucy Dub 2  mirrored: the trace runs the other way and the sensor sits on the right.
-# Inverted, mirrored and plain differ in lightness or silhouette, not only in hue, so they hold up
-# for colour blindness and in greyscale as well as in themed mode.
+# must not be mistaken for each other at a glance. They carry two sensors on the trace, one on
+# each flank of the peak, set diagonally so the pair doesn't read as a pair of eyes. The second
+# sensor's dot takes the trace colour. Dub 2 is Dub mirrored, on violet, so the two differ in
+# the themed icon as well as in colour. Every installation has its own monochrome layer.
+TWO_SENSORS = (40.0, 70.0)
+
+
 def _mirror(g):
     return affinity.scale(g, -1, 1, origin=(54, 54))
 
 
-SHAPES = {False: dict(trace=TRACE_D, sensor=SENSOR_D, rim=RIM_D, dot=DOT_D, mono=MONO_D)}
-_mono_geom = (TRACE.difference(Point(*NOW).buffer(R_SENSOR + CUT_MONO, quad_segs=48))
-              .union(SENSOR.difference(RIM).difference(DOT)))
-SHAPES[True] = dict(
-    trace=d(_mirror(TRACE.difference(Point(*NOW).buffer(R_SENSOR + CUT, quad_segs=48)))),
-    sensor=d(_mirror(SENSOR)), rim=d(_mirror(RIM)), dot=d(_mirror(DOT)), mono=d(_mirror(_mono_geom)))
-MONO_NEGATIVE_D = d(box(0, 0, 108, 108).difference(_mono_geom))
+def _shapes(xs, mirror):
+    pts = [min(LINE.coords, key=lambda p: abs(p[0] - x)) for x in xs]
+    f = _mirror if mirror else (lambda g: g)
+    disc = lambda p, r: Point(*p).buffer(r, quad_segs=48)
+    sensors = [(disc(p, R_SENSOR), Point(*p).buffer(R_SENSOR - 2.0, quad_segs=48).exterior.buffer(0.45),
+                Point(*p).buffer(R_DOT, quad_segs=24)) for p in pts]
+    cut = lambda r: disc(pts[0], r).union(disc(pts[1], r)) if len(pts) > 1 else disc(pts[0], r)
+    mono = TRACE.difference(cut(R_SENSOR + CUT_MONO))
+    for sen, rim, dot in sensors:
+        mono = mono.union(sen.difference(rim).difference(dot))
+    return dict(trace=d(f(TRACE.difference(cut(R_SENSOR + CUT)))),
+                sensors=[(d(f(sen)), d(f(rim)), d(f(dot))) for sen, rim, dot in sensors],
+                mono=d(f(mono)))
+
+
+_MAIN_SHAPES = _shapes((NOW_X,), False)
+assert _MAIN_SHAPES['trace'] == TRACE_D and _MAIN_SHAPES['mono'] == MONO_D
 
 
 def shapes(c):
-    return SHAPES[c.get('mirror', False)]
-
-
-def mono_d(c):
-    return MONO_NEGATIVE_D if c.get('invert') else shapes(c)['mono']
+    return _shapes(c['sensors'], c.get('mirror', False)) if 'sensors' in c else _MAIN_SHAPES
 
 
 # ------------------------------------------------------------------ colours ---
 MAIN = dict(bg='#0D1430', line='#5B86F5', sensor='#F5F7FB', rim='#C9D2E3', dot='#0D1430')
-# "Glucy Dub": the launcher inverted. Pale blue-white, a deeper blue trace, a navy sensor.
-DUB = dict(bg='#EEF2FB', line='#2F57D9', sensor='#0D1430', rim='#3A4670', dot='#EEF2FB', invert=True)
-# "Glucy Dub 2": mirrored, on a mid violet that sits between the other two in lightness.
-DUB2 = dict(bg='#5A3CC8', line='#E4DCFF', sensor='#FFFFFF', rim='#B6A6EE', dot='#5A3CC8', mirror=True)
+# "Glucy Dub": two sensors on the launcher's navy and blue.
+DUB = dict(MAIN, sensors=TWO_SENSORS)
+# "Glucy Dub 2": the same, mirrored, on violet.
+DUB2 = dict(bg='#2A1B66', line='#B7A4FF', sensor='#F5F7FB', rim='#C9C2E8', dot='#2A1B66',
+            sensors=TWO_SENSORS, mirror=True)
 TWO_TONE = dict(MAIN, bg='#0B1020', below='#121B36', dot='#0B1020')  # branding alternative
 
 # ----------------------------------------------------------------- writers ---
@@ -130,15 +138,16 @@ def background_xml(c):
 
 def foreground_xml(c):
     g = shapes(c)
-    return HEAD + (
-        f'    <path android:fillColor="{ARGB(c["line"])}" android:pathData="{g["trace"]}"/>\n'
-        f'    <path android:fillColor="{ARGB(c["sensor"])}" android:pathData="{g["sensor"]}"/>\n'
-        f'    <path android:fillColor="{ARGB(c["rim"])}" android:fillType="evenOdd" android:pathData="{g["rim"]}"/>\n'
-        f'    <path android:fillColor="{ARGB(c["dot"])}" android:pathData="{g["dot"]}"/>\n</vector>\n')
+    out = f'    <path android:fillColor="{ARGB(c["line"])}" android:pathData="{g["trace"]}"/>\n'
+    for i, (sen, rim, dot) in enumerate(g['sensors']):
+        out += (f'    <path android:fillColor="{ARGB(c["sensor"])}" android:pathData="{sen}"/>\n'
+                f'    <path android:fillColor="{ARGB(c["rim"])}" android:fillType="evenOdd" android:pathData="{rim}"/>\n'
+                f'    <path android:fillColor="{ARGB(c["dot"] if i == 0 else c["line"])}" android:pathData="{dot}"/>\n')
+    return HEAD + out + '</vector>\n'
 
 
 def monochrome_xml(c=MAIN):
-    return HEAD + f'    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="{mono_d(c)}"/>\n</vector>\n'
+    return HEAD + f'    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="{shapes(c)['mono']}"/>\n</vector>\n'
 
 ADAPTIVE_XML = ('<?xml version="1.0" encoding="utf-8"?>\n'
                 '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
@@ -152,8 +161,10 @@ def svg(c, view='18 18 72 72', size=512):
     below = f'<path d="{BELOW_D}" fill="{c["below"]}"/>' if 'below' in c else ''
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view}" width="{size}" height="{size}">'
             f'<rect width="108" height="108" fill="{c["bg"]}"/>{below}'
-            f'<path d="{shapes(c)["trace"]}" fill="{c["line"]}"/><path d="{shapes(c)["sensor"]}" fill="{c["sensor"]}"/>'
-            f'<path d="{shapes(c)["rim"]}" fill="{c["rim"]}" fill-rule="evenodd"/><path d="{shapes(c)["dot"]}" fill="{c["dot"]}"/></svg>\n')
+            f'<path d="{shapes(c)["trace"]}" fill="{c["line"]}"/>'
+            + ''.join(f'<path d="{sen}" fill="{c["sensor"]}"/><path d="{rim}" fill="{c["rim"]}" fill-rule="evenodd"/>'
+                      f'<path d="{dot}" fill="{c["dot"] if i == 0 else c["line"]}"/>'
+                      for i, (sen, rim, dot) in enumerate(shapes(c)['sensors'])) + '</svg>\n')
 
 
 # ------------------------------------------------------- wordmark and lockup ---

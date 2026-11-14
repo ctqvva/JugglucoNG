@@ -37,18 +37,15 @@ The lockup is one file for both themes. GitHub's `<picture>` and `#gh-dark-mode-
 
 ## Extra installations
 
-The extra installations exist so that one phone can follow two or three people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). A glance at the wrong icon means acting on the wrong child's reading, so the icons have to differ by more than a hue. Each one is the same mark under one plain transformation:
+The extra installations exist so that one phone can follow two or three people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). A glance at the wrong icon means acting on the wrong child's reading, so they get a different mark, not only a different colour:
 
-| Installation | Transformation | Colours |
+| Installation | Mark | Colours |
 | --- | --- | --- |
-| Glucy | none | blue trace on navy |
-| Glucy Dub | inverted: light and dark swap | deep blue trace and navy sensor on pale blue-white |
-| Glucy Dub 2 | mirrored: the trace runs the other way, the sensor sits on the right | pale lilac trace on mid violet |
+| Glucy | one sensor on the trace | blue trace on navy |
+| Glucy Dub | two sensors, one on each flank of the peak | blue trace on navy; the second sensor's dot is blue |
+| Glucy Dub 2 | Dub mirrored | lilac trace on violet |
 
-- **Lightness.** The backgrounds are dark, light and mid, so the icons stay apart for colour-blind users and in greyscale.
-- **Themed icons.** Android's themed icons recolour every installation the same way, so each installation has its own monochrome layer. Dub's is the negative, so it shows as a solid disc with the trace cut out, and Dub 2's is mirrored.
-
-The in-app lockup uses the monochrome layer, so inside the app the badge is inverted or mirrored too.
+The two sensors sit diagonally, so the pair doesn't read as a pair of eyes, and both stay inside the 66 dp safe zone. Each installation has its own monochrome layer, so the marks stay apart with Android's themed icons, which otherwise recolour every installation the same way. The in-app lockup uses that layer too.
 
 ## Colours
 
@@ -61,8 +58,7 @@ The in-app lockup uses the monochrome layer, so inside the app the badge is inve
 | `rim` | `#C9D2E3` | sensor rim |
 | `paper` | `#F0F3F8` | wordmark on dark |
 | `card` | `#141E3F` | social preview background, a lifted navy so the badge still reads as a disc |
-| `dub-bg` / `dub-trace` / `dub-sensor` | `#EEF2FB` / `#2F57D9` / `#0D1430` | second installation, inverted |
-| `dub2-bg` / `dub2-trace` | `#5A3CC8` / `#E4DCFF` | third installation, mirrored |
+| `dub2-bg` / `dub2-trace` | `#2A1B66` / `#B7A4FF` | third installation (Dub uses the main colours) |
 | `two-tone` | `#0B1020` above, `#121B36` below the trace | two-tone variant |
 
 Contrast (WCAG): `trace-muted` is 3.4 : 1 on white and 5.6 : 1 on GitHub's dark `#0D1117`, which clears the 3 : 1 needed for large graphic text on both. `trace` on `navy` is 5.3 : 1. `navy` on white is 18.1 : 1, and `paper` on `#0D1117` is 17.0 : 1.
