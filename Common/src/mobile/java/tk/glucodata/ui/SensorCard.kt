@@ -122,6 +122,9 @@ private fun formatSibionicsSensitivity(value: Float): String =
 private val SensorBadgeWidth = 50.dp
 private val SensorBadgeHeight = 40.dp
 
+/** The name pill and the button beside it are one height, so the header reads as one line. */
+private val SensorHeaderControlSize = 44.dp
+
 /**
  * One badge line, sized down until it fits the tile rather than being clipped or ellipsized.
  */
@@ -229,7 +232,7 @@ private fun SensorIdentityControl(
     life: tk.glucodata.ui.restricted.SensorLife? = null,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier = modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier = modifier.height(SensorHeaderControlSize), verticalAlignment = Alignment.CenterVertically) {
         // Alone (no colour segment beside it) the name is a whole pill.
         val leadShape = if (colorPickable) ConnectedButtonShapes.Leading else RoundedCornerShape(percent = 50)
         Row(
@@ -355,6 +358,54 @@ internal fun bleErrorEventTimeForDisplay(eventAtMs: Long, nowMs: Long): Long? {
 internal fun bleErrorValue(status: String, relativeAge: CharSequence?): String {
     val age = relativeAge?.toString()?.trim().orEmpty()
     return if (age.isEmpty()) status else "$status · $age"
+}
+
+/**
+ * The status line: reading chip, connection status, and the day of wear at the far edge. The
+ * status is what the line is for, so the day of wear is left out whenever showing it would cut
+ * the status short.
+ */
+@Composable
+private fun SensorStatusLine(
+    lead: @Composable () -> Unit,
+    status: @Composable () -> Unit,
+    trailing: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    androidx.compose.ui.layout.Layout(
+        contents = listOf(lead, status, trailing),
+        modifier = modifier,
+    ) { (leadMeasurables, statusMeasurables, trailingMeasurables), constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val gap = 12.dp.roundToPx()
+        val width = constraints.maxWidth
+        val leadPlaceable = leadMeasurables.firstOrNull()?.measure(loose)?.takeIf { it.width > 0 }
+        val statusMeasurable = statusMeasurables.firstOrNull()
+        val trailingPlaceable = trailingMeasurables.firstOrNull()?.measure(loose)?.takeIf { it.width > 0 }
+
+        val statusStart = leadPlaceable?.let { it.width + gap } ?: 0
+        val statusWanted = statusMeasurable?.maxIntrinsicWidth(constraints.maxHeight) ?: 0
+        val trailingFits = trailingPlaceable != null &&
+            statusStart + statusWanted + (if (statusWanted > 0) gap else 0) + trailingPlaceable.width <= width
+        val trailingReserved = if (trailingFits) trailingPlaceable!!.width + gap else 0
+        val statusPlaceable = statusMeasurable?.measure(
+            loose.copy(maxWidth = (width - statusStart - trailingReserved).coerceAtLeast(0))
+        )
+
+        val height = listOfNotNull(leadPlaceable, statusPlaceable, trailingPlaceable.takeIf { trailingFits })
+            .maxOfOrNull { it.height }
+            ?.coerceAtLeast(constraints.minHeight) ?: constraints.minHeight
+        layout(width, height) {
+            leadPlaceable?.placeRelative(0, (height - leadPlaceable.height) / 2)
+            statusPlaceable?.placeRelative(statusStart, (height - statusPlaceable.height) / 2)
+            if (trailingFits) {
+                trailingPlaceable!!.placeRelative(
+                    width - trailingPlaceable.width,
+                    (height - trailingPlaceable.height) / 2,
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -1978,7 +2029,8 @@ fun SensorCard(
                         sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand)
                     }
                     val canToggleEnabled = sensorCount > 1
-                    val restrictedLife = if (restricted) tk.glucodata.ui.restricted.sensorLife(sensor) else null
+                    // Null when the start is unset: nothing about the wear is shown then.
+                    val life = tk.glucodata.ui.restricted.sensorLife(sensor)
 
                     // Identity and the controls that belong to it stay together on the left; the
                     // pause button is the one thing pinned to the far edge.
@@ -2005,7 +2057,9 @@ fun SensorCard(
                             onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
                             onPickColor = { showColorSheet = true },
                             colorPickable = !restricted,
-                            life = restrictedLife,
+                            // Restricted, the pill has the room for the day of wear; with the
+                            // colour and pause controls beside it, the day sits on the status line.
+                            life = life?.takeIf { restricted },
                             modifier = Modifier.weight(1f),
                         )
                         val cloneWithoutControl = sensor.isCloneSource && !sensor.canTakeOverClone
@@ -2021,7 +2075,7 @@ fun SensorCard(
                                 // container itself takes the press shape.
                                 FilledIconButton(
                                     onClick = { viewModel.returnSensorToPhone(sensor.serial) },
-                                    modifier = Modifier.size(48.dp),
+                                    modifier = Modifier.size(SensorHeaderControlSize),
                                     shapes = IconButtonDefaults.shapes(),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -2057,7 +2111,7 @@ fun SensorCard(
                                             viewModel.handBackCloneSensor(sensor.serial)
                                         }
                                     },
-                                    modifier = Modifier.size(48.dp),
+                                    modifier = Modifier.size(SensorHeaderControlSize),
                                     shapes = IconButtonDefaults.shapes(),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -2088,7 +2142,7 @@ fun SensorCard(
                                             viewModel.reconnectSensor(sensor.serial, false)
                                         }
                                     },
-                                    modifier = Modifier.size(48.dp),
+                                    modifier = Modifier.size(SensorHeaderControlSize),
                                     shapes = IconButtonDefaults.shapes(),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = if (isLocallyEnabled) {
@@ -2134,54 +2188,83 @@ fun SensorCard(
                         sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
                         else -> null
                     }
-                    if (currentSnapshot != null || sensorStatusText != null) {
+                    val showLifeDays = life != null && !restricted
+                    if (currentSnapshot != null || sensorStatusText != null || showLifeDays) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Row(
+                        SensorStatusLine(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            currentSnapshot?.let { snapshot ->
-                                SensorCurrentValueChip(
-                                    snapshot = snapshot,
-                                    accentColor = sensorTint
-                                )
-                            }
-                            if (sensor.isCloneSource) {
-                                CloneSourceMark(
-                                    transport = cloneTransport,
-                                    showLabel = false,
-                                    tint = if (cloneHasRecentData) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
-                                    iconSize = 18.dp,
-                                )
-                            }
-                            sensorStatusText?.let { status ->
-                                Text(
-                                    text = status,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = if (sensor.isCloneSource && !cloneHasRecentData) {
-                                        MaterialTheme.colorScheme.error
-                                    } else if (isStreaming) {
-                                        MaterialTheme.colorScheme.onSurface
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                            }
-                        }
+                            lead = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    currentSnapshot?.let { snapshot ->
+                                        SensorCurrentValueChip(
+                                            snapshot = snapshot,
+                                            accentColor = sensorTint
+                                        )
+                                    }
+                                    if (sensor.isCloneSource) {
+                                        CloneSourceMark(
+                                            transport = cloneTransport,
+                                            showLabel = false,
+                                            tint = if (cloneHasRecentData) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                                            iconSize = 18.dp,
+                                        )
+                                    }
+                                }
+                            },
+                            status = {
+                                sensorStatusText?.let { status ->
+                                    Text(
+                                        text = status,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = if (sensor.isCloneSource && !cloneHasRecentData) {
+                                            MaterialTheme.colorScheme.error
+                                        } else if (isStreaming) {
+                                            MaterialTheme.colorScheme.onSurface
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    )
+                                }
+                            },
+                            trailing = {
+                                if (life != null && showLifeDays) {
+                                    tk.glucodata.ui.restricted.SensorLifeDays(
+                                        life = life,
+                                        color = when {
+                                            life.progress > 0.95f -> MaterialTheme.colorScheme.error
+                                            life.progress > 0.80f -> MaterialTheme.colorScheme.tertiary
+                                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                    )
+                                }
+                            },
+                        )
                     }
 //                } // Close Column (content)
 //                } // Close Column (content)
 //            } // Close Row (color indicator wrapper)
 //            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (!restricted) {
-            Spacer(modifier = Modifier.height(16.dp))
+            // Started and Ends sit on top of the details as one stacked group.
+            if (life != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                tk.glucodata.ui.restricted.SensorDates(life, joinedBelow = true)
+                Spacer(modifier = Modifier.height(2.dp))
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = if (life != null) {
+                    RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+                } else {
+                    RoundedCornerShape(12.dp)
+                },
                 color = MaterialTheme.colorScheme.surfaceContainer // Tonal separation
             ) {
                 Column(
@@ -2294,30 +2377,23 @@ fun SensorCard(
                             // off after the one-hour card window.
                             DataRow(stringResource(R.string.last_ble_status), sensor.connectionStatus)
                         }
-                        // A mirrored sensor may never have resolved an address on this phone;
-                        // a row saying "Unknown" is a row saying nothing.
-                        if (!(sensor.isCloneSource && sensor.deviceAddress.equals("Unknown", ignoreCase = true))) {
-                            DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
-                        }
-                        if (sensor.dexcomPairingCode.isNotEmpty()) {
-                            DataRow(stringResource(R.string.dexcom_pairing_code), sensor.dexcomPairingCode)
-                        }
-                    
-                        // FIX: Use Long timestamp directly to avoid String Parsing Locale bugs in formatSensorTime
-                        // User reported "100% Fill / Red Color" bug in English Locale, likely due to startMs being 0 or parse fail.
-                        // We also ensure we only show valid dates.
-                        if (sensor.startMs > 1577836800000L) { // > Jan 1 2020
-                            DataRow(stringResource(R.string.sensor_started), formatSensorTime(sensor.startMs.toString()))
+                        if (sensor.isSensorExpired) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(stringResource(R.string.status), style = labelStyle)
+                                Text(
+                                    stringResource(R.string.sensor_expired_text),
+                                    style = MaterialTheme.typography.bodyMediumEmphasized.copy(color = MaterialTheme.colorScheme.error)
+                                )
+                            }
                         }
 
-                        if (sensor.officialEndMs > 0) {
-                            DataRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEndMs.toString()))
-                        } else if (sensor.officialEnd.isNotEmpty()) {
-                            DataRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEnd))
-                        }
-
-                        // Only when it says something the official end does not: for most
-                        // sensors the two are the same timestamp, printed twice.
+                        // The tiles above the block say when the sensor started and ends, how long is
+                        // left and which day of wear this is. A row is kept only for an end date the
+                        // tiles do not show; with no usable start there are no tiles, and the sensor's
+                        // own figures stay as rows.
                         val officialEndText = when {
                             sensor.officialEndMs > 0 -> formatSensorTime(sensor.officialEndMs.toString())
                             sensor.officialEnd.isNotEmpty() -> formatSensorTime(sensor.officialEnd)
@@ -2328,8 +2404,55 @@ fun SensorCard(
                             sensor.expectedEnd.isNotEmpty() -> formatSensorTime(sensor.expectedEnd)
                             else -> null
                         }
-                        if (expectedEndText != null && expectedEndText != officialEndText) {
+                        val tileEndText = life?.let { formatSensorTime(it.endMs.toString()) }
+                        if (officialEndText != null && officialEndText != tileEndText) {
+                            DataRow(stringResource(R.string.sensor_ends_officially), officialEndText)
+                        }
+                        if (expectedEndText != null && expectedEndText != officialEndText && expectedEndText != tileEndText) {
                             DataRow(stringResource(R.string.sensor_expected_end), expectedEndText)
+                        }
+                        if (life == null) {
+                            if (sensor.sensorRemainingHours >= 0) {
+                                val remainText = when {
+                                    sensor.isSensorExpired -> stringResource(R.string.expired)
+                                    sensor.sensorRemainingHours <= 0 -> stringResource(R.string.expired)
+                                    // The row is labelled "Remaining", so the value is just the duration.
+                                    sensor.sensorRemainingHours <= 24 -> stringResource(R.string.sensor_age_hours, sensor.sensorRemainingHours)
+                                    else -> {
+                                        val days = sensor.sensorRemainingHours / 24
+                                        val hours = sensor.sensorRemainingHours % 24
+                                        stringResource(R.string.days_hours_remaining, days, hours)
+                                    }
+                                }
+                                val remainColor = when {
+                                    sensor.isSensorExpired || sensor.sensorRemainingHours <= 0 -> MaterialTheme.colorScheme.error
+                                    sensor.sensorRemainingHours <= 24 -> MaterialTheme.colorScheme.error
+                                    sensor.sensorRemainingHours <= 48 -> MaterialTheme.colorScheme.tertiary
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(stringResource(R.string.sensor_life), style = labelStyle)
+                                    Text(
+                                        remainText,
+                                        style = (if (sensor.sensorRemainingHours <= 24) MaterialTheme.typography.bodyMediumEmphasized else valueStyle)
+                                            .copy(color = remainColor)
+                                    )
+                                }
+                            }
+
+                            if (sensor.sensorAgeHours >= 0) {
+                                val ageText = if (sensor.sensorAgeHours < 24) {
+                                    stringResource(R.string.sensor_age_hours, sensor.sensorAgeHours)
+                                } else {
+                                    val days = sensor.sensorAgeHours / 24
+                                    val hours = sensor.sensorAgeHours % 24
+                                    stringResource(R.string.sensor_age_days_hours, days, hours)
+                                }
+                                DataRow(stringResource(R.string.sensor_age), ageText)
+                            }
                         }
 
                         if (sensor.isAnytime && sensor.batteryMillivolts > 0) {
@@ -2362,48 +2485,6 @@ fun SensorCard(
                             DataRow(stringResource(R.string.sensor_battery_voltage), String.format(java.util.Locale.getDefault(), "%.3f V", sensor.batteryMillivolts / 1000.0))
                         }
 
-                        if (sensor.sensorRemainingHours >= 0) {
-                            val remainText = when {
-                                sensor.isSensorExpired -> stringResource(R.string.expired)
-                                sensor.sensorRemainingHours <= 0 -> stringResource(R.string.expired)
-                                // The row is labelled "Remaining", so the value is just the duration.
-                                sensor.sensorRemainingHours <= 24 -> stringResource(R.string.sensor_age_hours, sensor.sensorRemainingHours)
-                                else -> {
-                                    val days = sensor.sensorRemainingHours / 24
-                                    val hours = sensor.sensorRemainingHours % 24
-                                    stringResource(R.string.days_hours_remaining, days, hours)
-                                }
-                            }
-                            val remainColor = when {
-                                sensor.isSensorExpired || sensor.sensorRemainingHours <= 0 -> MaterialTheme.colorScheme.error
-                                sensor.sensorRemainingHours <= 24 -> MaterialTheme.colorScheme.error
-                                sensor.sensorRemainingHours <= 48 -> MaterialTheme.colorScheme.tertiary
-                                else -> MaterialTheme.colorScheme.onSurface
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(stringResource(R.string.sensor_life), style = labelStyle)
-                                Text(
-                                    remainText,
-                                    style = (if (sensor.sensorRemainingHours <= 24) MaterialTheme.typography.bodyMediumEmphasized else valueStyle)
-                                        .copy(color = remainColor)
-                                )
-                            }
-                        }
-
-                        if (sensor.sensorAgeHours >= 0) {
-                            val ageText = if (sensor.sensorAgeHours < 24) {
-                                stringResource(R.string.sensor_age_hours, sensor.sensorAgeHours)
-                            } else {
-                                val days = sensor.sensorAgeHours / 24
-                                val hours = sensor.sensorAgeHours % 24
-                                stringResource(R.string.sensor_age_days_hours, days, hours)
-                            }
-                            DataRow(stringResource(R.string.sensor_age), ageText)
-                        }
-
                         if (sensor.vendorModel.isNotEmpty()) {
                             DataRow(stringResource(R.string.model), sensor.vendorModel)
                         }
@@ -2421,18 +2502,13 @@ fun SensorCard(
                             }
                             DataRow(stringResource(R.string.firmware), firmwareText)
                         }
-
-                        if (sensor.isSensorExpired) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(stringResource(R.string.status), style = labelStyle)
-                                Text(
-                                    stringResource(R.string.sensor_expired_text),
-                                    style = MaterialTheme.typography.bodyMediumEmphasized.copy(color = MaterialTheme.colorScheme.error)
-                                )
-                            }
+                        if (sensor.dexcomPairingCode.isNotEmpty()) {
+                            DataRow(stringResource(R.string.dexcom_pairing_code), sensor.dexcomPairingCode)
+                        }
+                        // A mirrored sensor may never have resolved an address on this phone;
+                        // a row saying "Unknown" is a row saying nothing.
+                        if (!(sensor.isCloneSource && sensor.deviceAddress.equals("Unknown", ignoreCase = true))) {
+                            DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
                         }
                     }
 
@@ -3483,7 +3559,7 @@ fun SensorCard(
             } else {
                 tk.glucodata.ui.restricted.RestrictedSensorDetails(
                     sensor = sensor,
-                    life = restrictedLife,
+                    life = life,
                     viewModel = viewModel,
                     allowDisconnect = allowDisconnect,
                 )
