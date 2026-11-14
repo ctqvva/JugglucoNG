@@ -1,5 +1,6 @@
 package tk.glucodata.data
 
+import tk.glucodata.ExchangeTrend
 import tk.glucodata.ui.util.toSharedGlucosePoint
 import android.content.Context
 import android.util.Log
@@ -774,7 +775,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
     ): List<ICanHealthCloudUploader.Row> {
         val rateByTime = rows.associate { it.timeMs to it.rate }
         return displayed.map { r ->
-            ICanHealthCloudUploader.Row(serial, r.timeMs, r.mgdl, (rateByTime[r.timeMs] ?: 0.0).toInt())
+            ICanHealthCloudUploader.Row(serial, r.timeMs, r.mgdl, icanBackfillTrendIndex(rateByTime[r.timeMs]))
         }
     }
 
@@ -2558,3 +2559,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         return result
     }
 }
+
+/** Backfill sends the categorical trend index the live path uses, never a truncated rate. */
+internal fun icanBackfillTrendIndex(rate: Float?): Int =
+    when (rate) {
+        null -> ExchangeTrend.UNKNOWN
+        else -> ExchangeTrend.fromRate(rate).index
+    }
