@@ -3,6 +3,7 @@ package tk.glucodata.share.ican
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.Assert.assertThrows
@@ -196,6 +197,80 @@ class ICanHealthCloudClientTests {
             tk.glucodata.share.ican.ICanHealthCloudError.Kind.UNAUTHORIZED,
             (result as ICanHealthCloudClient.UploadResult.Failed).kind,
         )
+    }
+
+    private fun encryptedResponse(key: String, json: String): HttpResult =
+        HttpResult(200, ICanHealthCloudJson.aesEncrypt(key, json))
+
+    @Test
+    fun uploadEncryptedRejectionIsNotAcknowledged() {
+        val key = ICanHealthCloudJson.getRandomString()
+        val transport = FakeTransport { _ ->
+            encryptedResponse(key, """{"code":7,"msg":"MAC required"}""")
+        }
+        val result = ICanHealthCloudClient(transport, keyFactory = { key }).uploadGlucose(
+            "tok", "SN1", listOf(EgvUpload("SN1", 1L, 100, 1)),
+        )
+        assertTrue(result is UploadResult.Failed)
+    }
+
+    @Test
+    fun uploadUnreadableBodyIsNotAcknowledged() {
+        val transport = FakeTransport { _ -> HttpResult(200, "GIBBERISH") }
+        val result = ICanHealthCloudClient(transport).uploadGlucose(
+            "tok", "SN1", listOf(EgvUpload("SN1", 1L, 100, 1)),
+        )
+        assertTrue(result is UploadResult.Failed)
+    }
+
+    @Test
+    fun uploadEncryptedSuccessIsAcknowledged() {
+        val key = ICanHealthCloudJson.getRandomString()
+        val transport = FakeTransport { _ -> encryptedResponse(key, """{"code":0}""") }
+        val result = ICanHealthCloudClient(transport, keyFactory = { key }).uploadGlucose(
+            "tok", "SN1", listOf(EgvUpload("SN1", 1L, 100, 1)),
+        )
+        assertTrue(result is UploadResult.Ok)
+    }
+
+    @Test
+    fun followerUpdateEncryptedRejectionIsFalse() {
+        val key = ICanHealthCloudJson.getRandomString()
+        val transport = FakeTransport { _ -> encryptedResponse(key, """{"code":7,"msg":"error"}""") }
+        assertFalse(ICanHealthCloudClient(transport, keyFactory = { key }).followerUpdate("tok", "1", "deleted", ""))
+    }
+
+    @Test
+    fun followerUpdateUnreadableBodyIsFalse() {
+        val transport = FakeTransport { _ -> HttpResult(200, "GIBBERISH") }
+        assertFalse(ICanHealthCloudClient(transport).followerUpdate("tok", "1", "deleted", ""))
+    }
+
+    @Test
+    fun basicConfigFollowerUpdateEncryptedRejectionIsFalse() {
+        val key = ICanHealthCloudJson.getRandomString()
+        val transport = FakeTransport { _ -> encryptedResponse(key, """{"code":7,"msg":"error"}""") }
+        assertFalse(ICanHealthCloudClient(transport, keyFactory = { key }).basicConfigFollowerUpdate("tok", "42"))
+    }
+
+    @Test
+    fun basicConfigFollowerUpdateUnreadableBodyIsFalse() {
+        val transport = FakeTransport { _ -> HttpResult(200, "GIBBERISH") }
+        assertFalse(ICanHealthCloudClient(transport).basicConfigFollowerUpdate("tok", "42"))
+    }
+
+    @Test
+    fun followerSaveEncryptedRejectionReturnsNull() {
+        val key = ICanHealthCloudJson.getRandomString()
+        val transport = FakeTransport { _ -> encryptedResponse(key, """{"code":7,"msg":"error"}""") }
+        assertNull(ICanHealthCloudClient(transport, keyFactory = { key }).followerSave("tok", "a@b.com", "", "", ""))
+    }
+
+    @Test
+    fun followerSaveEncryptedSuccessWithoutFollowerDataReturnsNull() {
+        val key = ICanHealthCloudJson.getRandomString()
+        val transport = FakeTransport { _ -> encryptedResponse(key, """{"code":0}""") }
+        assertNull(ICanHealthCloudClient(transport, keyFactory = { key }).followerSave("tok", "a@b.com", "", "", ""))
     }
 
     @Test

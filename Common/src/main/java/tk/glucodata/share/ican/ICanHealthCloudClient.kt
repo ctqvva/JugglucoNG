@@ -161,7 +161,22 @@ class ICanHealthCloudClient(
                 ICanHealthCloudError.message(response.body),
             )
         }
-        return UploadResult.Ok
+        val decrypted = decryptResponse(key, response.body)
+        if (decrypted != null) {
+            val json = runCatching { JSONObject(decrypted) }.getOrNull()
+            val code = json?.optInt("code", 0) ?: 0
+            if (code != 0 && code != 200) {
+                return UploadResult.Failed(
+                    ICanHealthCloudError.classify(code, decrypted),
+                    code,
+                    ICanHealthCloudError.message(decrypted),
+                )
+            }
+            return UploadResult.Ok
+        }
+        if (bodyCode != null) return UploadResult.Ok
+        // Neither plaintext JSON nor a decryptable envelope: do not acknowledge the batch.
+        return UploadResult.Failed(ICanHealthCloudError.Kind.TRANSIENT, 0, "unreadable response")
     }
 
     private fun plainBodyCode(body: String): Int? {
@@ -240,8 +255,12 @@ class ICanHealthCloudClient(
         if (bodyCode != null && bodyCode != 0 && bodyCode != 200) return null
         val decrypted = decryptResponse(key, response.body) ?: return null
         val json = runCatching { JSONObject(decrypted) }.getOrNull()
+        val code = json?.optInt("code", 0) ?: -1
+        if (code != 0 && code != 200) return null
         val data = json?.optJSONObject("data") ?: json
-        return FollowerFriends.fromJson(data)
+        val follower = FollowerFriends.fromJson(data)
+        // A malformed or data-less "success" must not read as an accepted invitation.
+        return if (follower.id.isNotBlank() || follower.followerId.isNotBlank()) follower else null
     }
 
     /** HTTP 401 from an authorized call: the stored session is no longer active. */
@@ -268,8 +287,17 @@ class ICanHealthCloudClient(
         )
         if (response.code == HTTP_UNAUTHORIZED) throw SessionExpired()
         if (response.code == 401 || response.code !in 200..299) return false
-        val bodyCode = plainBodyCode(response.body)
-        return bodyCode == null || bodyCode == 0 || bodyCode == 200
+        return acknowledgedCode(response, key)
+    }
+
+    private fun acknowledgedCode(response: HttpResult, key: String): Boolean {
+        val decrypted = decryptResponse(key, response.body)
+        if (decrypted != null) {
+            val code = runCatching { JSONObject(decrypted).optInt("code", 0) }.getOrDefault(0)
+            return code == 0 || code == 200
+        }
+        val bodyCode = plainBodyCode(response.body) ?: return false
+        return bodyCode == 0 || bodyCode == 200
     }
 
     fun followerGet(token: String, id: String): FollowerFriends {
@@ -316,8 +344,7 @@ class ICanHealthCloudClient(
         )
         if (response.code == HTTP_UNAUTHORIZED) throw SessionExpired()
         if (response.code == 401 || response.code !in 200..299) return false
-        val bodyCode = plainBodyCode(response.body)
-        return bodyCode == null || bodyCode == 0 || bodyCode == 200
+        return acknowledgedCode(response, key)
     }
 
     fun logout(token: String): Unit {
