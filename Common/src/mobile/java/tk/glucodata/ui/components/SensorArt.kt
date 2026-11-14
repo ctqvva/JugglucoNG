@@ -1,5 +1,6 @@
 package tk.glucodata.ui.components
 
+import android.util.LruCache
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -12,10 +13,13 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas as ImageCanvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -34,6 +38,7 @@ import kotlin.math.hypot
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -157,7 +162,32 @@ internal fun rememberSensorTones(): SensorTones {
 @Composable
 internal fun SensorArt(type: SensorType, modifier: Modifier = Modifier) {
     val tones = rememberSensorTones()
-    Canvas(modifier = modifier) { drawSensor(type, tones) }
+    Canvas(modifier = modifier) { drawSensorCached(type, tones) }
+}
+
+/** One sensor drawing, in the tones and at the pixel size it was made for. */
+private data class SensorImageKey(val type: SensorType, val tones: SensorTones, val width: Int, val height: Int)
+
+/**
+ * Finished drawings, kept for the life of the process. Building a sensor up slice by slice takes
+ * far longer than a frame allows for a whole list of them, so each is drawn once into an image
+ * and every later screen shows that image.
+ */
+private val sensorImages = LruCache<SensorImageKey, ImageBitmap>(32)
+
+/** [drawSensor], drawn once per type, tones and size and shown from the image after that. */
+internal fun DrawScope.drawSensorCached(type: SensorType, tones: SensorTones) {
+    val width = size.width.roundToInt()
+    val height = size.height.roundToInt()
+    if (width <= 0 || height <= 0) return
+    val key = SensorImageKey(type, tones, width, height)
+    val image = sensorImages.get(key) ?: ImageBitmap(width, height).also { image ->
+        CanvasDrawScope().draw(this, layoutDirection, ImageCanvas(image), Size(width.toFloat(), height.toFloat())) {
+            drawSensor(type, tones)
+        }
+        sensorImages.put(key, image)
+    }
+    drawImage(image)
 }
 
 /**
@@ -238,18 +268,18 @@ internal fun DrawScope.drawNfcPhone(tones: SensorTones) = inUnitSquare {
 //
 // Every sensor is seen from straight above, as the makers' own top-down shots show them, so its
 // outline and the places of its ports and windows can be taken from a photo and checked against
-// one. The camera leans 25 degrees towards the viewer, so the plan shortens to cos 25 and the
-// side wall shows sin 25 of the sensor's thickness below its bottom edge: one angle for both, so
+// one. The camera leans 15 degrees towards the viewer, so the plan shortens to cos 15 and the
+// side wall shows sin 15 of the sensor's thickness below its bottom edge: one angle for both, so
 // a disc reads as a coin lying on the skin rather than a cut-out on a plinth. Light comes from
 // the upper left, and each part casts its shadow down and to the right as far as it stands high.
 // Sizes are in drawing units, the longest side of each sensor near 72, and each thickness is that
 // sensor's real thickness against its real width.
 
-/** How much of a sensor's thickness shows as wall below its bottom edge: sin 25°. */
-private const val WALL_SHOW = 0.42f
+/** How much of a sensor's thickness shows as wall below its bottom edge: sin 15°. */
+private const val WALL_SHOW = 0.26f
 
-/** How much the plan shortens from front to back: cos 25°. */
-private const val SQUASH = 0.906f
+/** How much the plan shortens from front to back: cos 15°. */
+private const val SQUASH = 0.966f
 
 /** How far a part's shadow falls on the skin for each unit it stands high. */
 private const val SHADOW_REACH = 0.32f
@@ -511,7 +541,7 @@ private fun DrawScope.part(
         // the edge to the face: one opaque fill per slice, so no seams show between them.
         val upright = listOf(tones.shade, tones.wall, tones.wallDeep)
         val turning = listOf(tones.highlight, lerp(tones.body, tones.shade, 0.5f), tones.wall)
-        val facing = listOf(tones.highlight, tones.body, lerp(tones.body, tones.shade, 0.5f))
+        val facing = listOf(tones.highlight, tones.body, lerp(tones.body, tones.shade, 0.3f))
         fun edge(up: Float): Brush {
             val from = if (up < 0.5f) upright else turning
             val to = if (up < 0.5f) turning else facing
@@ -537,7 +567,7 @@ private fun DrawScope.part(
             Brush.linearGradient(
                 0f to tones.highlight,
                 0.55f to tones.body,
-                1f to lerp(tones.body, tones.shade, 0.5f),
+                1f to lerp(tones.body, tones.shade, 0.3f),
                 start = lit,
                 end = dim,
             )
@@ -829,26 +859,34 @@ private inline fun DrawScope.turned(
 }
 
 /**
- * AiDEX X and LinX: 22 mm across and 4.22 mm thick, a plain round disc, its edge well rounded,
- * a ringed port at the upper right holding the upright slot of the filament.
+ * AiDEX X and LinX, measured from a top-down photo: a disc 22 mm across and 4.22 mm thick, its top
+ * flat and its edge rounded over. Just under half way out, nearly straight up from the centre, a
+ * flat round plug sits in a dark gap, a rounded slot through it lying along the radius.
  */
 private fun DrawScope.drawAiDex(tones: SensorTones) = seated(tones, 13.8f) {
-    part(tones, circle(36f), thickness = 13.8f, bevel = 5.5f) {
-        val port = Offset(10.8f, -14.1f)
-        drawCircle(lerp(tones.body, tones.shade, 0.3f), 8.3f, port)
-        drawCircle(tones.wallDeep, 8.3f, port, style = Stroke(width = 0.9f))
+    part(tones, circle(36f), thickness = 13.8f, bevel = 4f) {
+        val port = Offset(5f, -16f)
+        val gap = Path().apply { addOval(Rect(port.x - 10f, port.y - 10f, port.x + 10f, port.y + 10f)) }
+        // The plug sits a little down in its gap, so the gap shows widest on the near side.
+        val plugAt = port + tones.ground(0f, -0.5f)
+        val plug = Path().apply { addOval(Rect(plugAt.x - 8.4f, plugAt.y - 8.4f, plugAt.x + 8.4f, plugAt.y + 8.4f)) }
+        pit(tones, gap, depth = 0.5f)
+        recess(tones, plug, depth = 0.5f, floor = lerp(tones.body, tones.shade, 0.35f))
         drawArc(
-            color = tones.wall,
-            startAngle = -60f - tones.turn,
-            sweepAngle = 140f,
+            color = tones.glint.copy(alpha = 0.8f),
+            startAngle = -75f - tones.turn,
+            sweepAngle = 55f,
             useCenter = false,
-            topLeft = port - Offset(7f, 7f),
-            size = Size(14f, 14f),
-            style = Stroke(width = 0.6f),
+            topLeft = port - Offset(9.3f, 9.3f),
+            size = Size(18.6f, 18.6f),
+            style = Stroke(width = 0.6f, cap = StrokeCap.Round),
         )
-        val slot = stadium(5f, 10.5f, port + Offset(-0.6f, 0f))(0f)
-        drawPath(slot, lerp(tones.ink, tones.wall, 0.35f))
-        drawPath(slot, tones.ink, style = Stroke(width = 0.5f))
+        // The slot lies along the radius, its long side pointing at the centre.
+        val along = atan2(port.y, port.x) * 180f / PI.toFloat() + 90f
+        rotate(along, pivot = port) {
+            pit(tones, roundRect(8f, 12.5f, 2.2f, port)(0f), depth = 0.7f)
+            drawPath(roundRect(4.4f, 9.4f, 1.2f, port)(0f), lerp(tones.ink, tones.wall, 0.4f))
+        }
     }
 }
 

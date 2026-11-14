@@ -108,7 +108,7 @@ internal fun SensorArtTile(
                     alpha = (1f - drop).coerceIn(0f, 1f) * 0.6f + 0.4f
                 },
         ) {
-            drawSensor(type, tones)
+            drawSensorCached(type, tones)
         }
     }
 }
