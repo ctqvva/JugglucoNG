@@ -1,6 +1,7 @@
 package tk.glucodata.ui
 
 import android.widget.Toast
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -78,7 +79,8 @@ fun Libre3ManagedDriverSection() {
 
     var receiver by remember { mutableStateOf<Long?>(null) }
     var receiverSaveFailed by remember { mutableStateOf(false) }
-    LaunchedEffect(useAccountReceiver, reload) {
+    val accountRevision by tk.glucodata.LibreViewAccountState.revision.collectAsStateWithLifecycle()
+    LaunchedEffect(useAccountReceiver, reload, if (useAccountReceiver) accountRevision else 0L) {
         val result = withContext(Dispatchers.IO) { runCatching { Libre3ManagedNfc.receiverId(context) } }
         receiver = result.getOrNull()
         receiverSaveFailed = result.isFailure

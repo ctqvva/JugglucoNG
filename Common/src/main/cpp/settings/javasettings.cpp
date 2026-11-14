@@ -1108,7 +1108,7 @@ fromjava(getlibreDeviceID)(JNIEnv *env, jclass cl, jboolean libre3) {
   return env->NewStringUTF(getDeviceID(libre3).data());
 }
 extern "C" JNIEXPORT void JNICALL
-fromjava(setlibreAccountID)(JNIEnv *env, jclass cl, jstring jAccountID) {
+fromjava(setlibreAccountIDNative)(JNIEnv *env, jclass cl, jstring jAccountID) {
   const jint jlen = env->GetStringLength(jAccountID);
   auto &accountid = settings->data()->libreviewAccountID;
   accountid = {};
@@ -1159,7 +1159,7 @@ extern "C" JNIEXPORT jlong JNICALL
 fromjava(getlibreAccountIDnumber)(JNIEnv *env, jclass cl) {
   return getlibreaccountidnumber();
 }
-extern "C" JNIEXPORT void JNICALL fromjava(setlibreAccountIDnumber)(JNIEnv *env,
+extern "C" JNIEXPORT void JNICALL fromjava(setlibreAccountIDnumberNative)(JNIEnv *env,
                                                                     jclass cl,
                                                                     jlong num) {
   settings->data()->libreaccountIDnum = num;

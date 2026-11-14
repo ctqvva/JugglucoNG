@@ -27,8 +27,8 @@ steps below are the remaining end-user acceptance tests, not a claim of success.
 
 Do not send identity JSON, private keys, NFC PINs, kAuth, account IDs or unredacted
 HCI captures in a public issue. App keys and cached authorization are encrypted
-with Android Keystore. Libre 3 preferences are excluded from settings import and
-export; Android application backup is disabled.
+with Android Keystore. Connection secrets and the phone-owned receiver ID are
+excluded from settings import and export; Android application backup is disabled.
 
 ## End-user acceptance tests
 
@@ -43,6 +43,8 @@ export; Android application backup is disabled.
 | Timeout during recovery | Interrupt Bluetooth during backfill, then reconnect. | Fresh authenticated link retries from stored progress. Late replies cannot settle a later request on the abandoned link. |
 | Calibration and exports | Apply a recognizable calibration and compare live vs recovered times in the chart and enabled exports. | Stock values are calibrated once; replay does not change the native calibration flag or apply calibration twice. |
 | Health Connect live before backfill | Enable Health Connect export, reconnect after an outage so live arrives first. | Earlier recovered minutes are exported too; later keyed retries update the same records. |
+| Health Connect during repeated backfill | Keep exports enabled while several recovered batches arrive, including near the end of an export. | Requests made during an export run afterward; repeated cursor rewinds continue automatically. Current-sensor export remains enabled when old-sensor history arrives. |
+| Account lookup while settings is open | Leave the receiver-ID page open while LibreView account lookup completes; also change the account number manually. | The displayed receiver ID refreshes to the value NFC will use. |
 | Receiver-ID storage failure | If saving the phone-owned ID fails, check the settings page and retry after restoring storage. | An error is shown with Try again; NFC remains blocked until a durable ID write succeeds. |
 | Remove identities | Remove the identity set; then request reconnect. | All cached kAuth is cleared. Driver stops authorizing until an identity is imported and an explicit retry or NFC scan occurs. |
 | Identity loading | Reopen settings with an installed set and enable immediately. | Existing set is retained; it is not replaced by a configured download before loading finishes. |
@@ -78,7 +80,10 @@ services used are the generic managed-sensor mirror and lifecycle services.
   Live minutes join the blocking flush so progress cannot precede their storage.
 - Libre 3 gap fills rewind the Health Connect cursor under the poll-write lock.
   An export acknowledgement cannot overwrite a concurrent rewind; invalidated
-  batches retry with stable per-minute client IDs. Backfill also requests export.
+  batches retry with stable per-minute client IDs. One worker coalesces pending
+  requests per sensor, including requests arriving during an export, and queues
+  another pass after the rewind limit. History export does not change which live
+  callback owns Health Connect.
 - Successful live native writes wake the Nightscout uploader and run the shared
   managed-reading completion step, including enabled Health Connect export.
 - Minute values and gap-filling five-minute values use the stock native mirror

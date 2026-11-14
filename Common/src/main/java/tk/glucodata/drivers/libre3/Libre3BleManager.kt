@@ -1005,7 +1005,7 @@ class Libre3BleManager(sensorId: String) :
                 }
             }
             // Backfill can arrive after the live export cursor has passed these slots.
-            if (minutes.isNotEmpty() || history.isNotEmpty()) exportToHealthConnect()
+            if (minutes.isNotEmpty() || history.isNotEmpty()) exportHistoryToHealthConnect()
         }
         return true
     }
