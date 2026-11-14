@@ -2464,6 +2464,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_fetch_failed">Impossibile ottenere le credenziali di questo sensore.</string>
     <string name="ottai_server_unreachable">Impossibile raggiungere il server Ottai. Riprova.</string>
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
+    <string name="ottai_ota_link_closed">Il sensore ha chiuso la connessione. Riprova per continuare.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
     <string name="ottai_ota_upgrade_required">Il servizio Ottai ha richiesto un aggiornamento del firmware durante l’associazione del sensore. Riprova la configurazione o importa le credenziali salvate. Puoi anche provare l’app ufficiale Ottai.</string>
     <string name="ottai_retry">Riprova</string>

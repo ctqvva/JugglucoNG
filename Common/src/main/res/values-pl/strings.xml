@@ -2508,6 +2508,7 @@
     <string name="ottai_fetch_failed">Nie udało się pobrać danych dostępowych tego sensora.</string>
     <string name="ottai_server_unreachable">Nie można połączyć się z serwerem Ottai. Spróbuj ponownie.</string>
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
+    <string name="ottai_ota_link_closed">Sensor zakończył połączenie. Spróbuj ponownie, aby kontynuować.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
     <string name="ottai_ota_upgrade_required">Podczas wiązania sensora usługa Ottai zażądała aktualizacji firmware. Ponów konfigurację firmware lub zaimportuj zapisane dane uwierzytelniające. Możesz też spróbować oficjalnej aplikacji Ottai.</string>
     <string name="ottai_retry">Spróbuj ponownie</string>

@@ -2581,6 +2581,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_fetch_failed">Энэ мэдрэгчийн түлхүүрийг авч чадсангүй.</string>
     <string name="ottai_server_unreachable">Ottai серверт холбогдож чадсангүй. Дахин оролдоно уу.</string>
     <string name="ottai_connect_failed">Холболтыг эхлүүлж чадсангүй. Дахин оролдоно уу.</string>
+    <string name="ottai_ota_link_closed">Мэдрэгч холболтыг тасаллаа. Үргэлжлүүлэхийн тулд дахин оролдоно уу.</string>
     <string name="ottai_already_binding_hint">Таны бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. «Хадгалсан мэдрэгчүүд» хэсэгт салгаад дахин оролдоно уу.</string>
     <string name="ottai_ota_upgrade_required">Ottai үйлчилгээ энэ мэдрэгчийг холбох үед програм хангамж шинэчлэхийг хүссэн. Тохиргоог дахин оролдох эсвэл хадгалсан нэвтрэх мэдээллийг импортлоно уу. Албан ёсны Ottai аппыг мөн туршиж болно.</string>
     <string name="ottai_retry">Дахин оролдох</string>

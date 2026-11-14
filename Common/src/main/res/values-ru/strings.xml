@@ -2280,6 +2280,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_fetch_failed">Не удалось получить ключи этого датчика.</string>
     <string name="ottai_server_unreachable">Не удалось связаться с сервером Ottai. Попробуйте ещё раз.</string>
     <string name="ottai_connect_failed">Не удалось начать подключение. Попробуйте снова.</string>
+    <string name="ottai_ota_link_closed">Датчик разорвал подключение. Попробуйте снова, чтобы продолжить.</string>
     <string name="ottai_already_binding_hint">К аккаунту всё ещё привязан другой датчик. Отвяжите его в разделе «Сохранённые датчики» и попробуйте снова.</string>
     <string name="ottai_ota_upgrade_required">При привязке датчика сервис Ottai запросил обновление прошивки. Повторите настройку прошивки или импортируйте сохранённые ключи. Также можно попробовать официальное приложение Ottai.</string>
     <string name="ottai_retry">Повторить</string>

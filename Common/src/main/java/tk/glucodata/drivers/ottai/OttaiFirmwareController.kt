@@ -31,8 +31,11 @@ internal data class OttaiFirmwareState(
     val before: OttaiFirmwareObservation? = null,
     val after: OttaiFirmwareObservation? = null,
     val canPrepareParameters: Boolean = false,
+    /** The sensor dropped the idle link after this answer; its actions need a new session. */
+    val linkClosed: Boolean = false,
 ) {
-    val canRecheckWithCloudAuth: Boolean get() = !recovery && stage in setOf(OttaiFirmwareStage.READY, OttaiFirmwareStage.NO_UPDATE)
+    val canRecheckWithCloudAuth: Boolean get() = !recovery && !linkClosed &&
+        stage in setOf(OttaiFirmwareStage.READY, OttaiFirmwareStage.NO_UPDATE)
     val transferring: Boolean get() = stage in setOf(OttaiFirmwareStage.INSTALLING, OttaiFirmwareStage.RECONNECTING, OttaiFirmwareStage.PREPARING) ||
         (acknowledgedBytes > 0 && stage == OttaiFirmwareStage.AUTHENTICATING)
 }
@@ -515,6 +518,19 @@ internal class OttaiFirmwareController(
 
     private fun write(service: UUID, characteristic: UUID, bytes: ByteArray, action: () -> Unit) {
         later(OttaiOtaProtocol.WRITE_DELAY_MS) { io.write(service, characteristic, bytes, completion { action() }) }
+    }
+
+    /**
+     * Ottai drops an idle link after about 50 s (status 19). While an answer is only waiting for
+     * the user nothing is in flight, so keep that answer and end the session instead of failing.
+     */
+    fun linkLost(code: String) {
+        if (retired) return
+        if (state.stage !in setOf(OttaiFirmwareStage.READY, OttaiFirmwareStage.NO_UPDATE,
+                OttaiFirmwareStage.PREPARATION_READY)) { fail(code); return }
+        io.log("link_closed_while_waiting $code")
+        update(state.stage) { it.copy(linkClosed = true, canPrepareParameters = false) }
+        retire()
     }
 
     fun fail(code: String) {
