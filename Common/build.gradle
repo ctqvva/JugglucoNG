@@ -296,6 +296,11 @@ android {
             ]
             // Preserve exact inventoried vendor bytes, including newly added library names.
             def vendorInputs = new groovy.json.JsonSlurper().parse(rootProject.file('scripts/dist/build-inputs.json'))
+            // Also block stale source-set copies or transitive AARs from repackaging
+            // explicitly retired vendor libraries, for either ARM ABI.
+            (vendorInputs.removedFiles ?: []).each { path ->
+                excludes += "**/${new File(path).name}"
+            }
             vendorInputs.files.each { input ->
                 doNotStrip "**/${new File(input.path).name}"
             }
