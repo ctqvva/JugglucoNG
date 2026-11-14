@@ -44,17 +44,22 @@ class ICanHealthCloudUploader(
                     if (result is UploadResult.Ok) break
                     result as UploadResult.Failed
                     if (result.kind == ICanHealthCloudError.Kind.UNAUTHORIZED) {
-                        val renewed = if (reloginCount < MAX_RELOGINS && !refreshed && settings.enabled) relogin(session) else null
-                        if (renewed != null) {
-                            reloginCount++
-                            refreshed = true
-                            session = renewed
-                            continue
+                        val outcome = if (reloginCount < MAX_RELOGINS && !refreshed && settings.enabled) relogin(session) else ReloginOutcome.NotAvailable
+                        when (outcome) {
+                            is ReloginOutcome.Renewed -> {
+                                reloginCount++
+                                refreshed = true
+                                session = outcome.session
+                                continue
+                            }
+                            is ReloginOutcome.Transient -> return FlushResult.Transient(uploadedTotal, outcome.code, outcome.message)
+                            else -> {
+                                synchronized(ICanHealthCloudSettings.sessionLock) {
+                                    if (settings.session() == session) settings.token = ""
+                                }
+                                return FlushResult.Unauthorized(uploadedTotal)
+                            }
                         }
-                        synchronized(ICanHealthCloudSettings.sessionLock) {
-                            if (settings.session() == session) settings.token = ""
-                        }
-                        return FlushResult.Unauthorized(uploadedTotal)
                     }
                     attempt++
                     if (result.kind != ICanHealthCloudError.Kind.TRANSIENT || attempt >= MAX_RETRIES) {
@@ -67,24 +72,40 @@ class ICanHealthCloudUploader(
         return FlushResult.Success(uploadedTotal)
     }
 
-    private fun relogin(session: ICanHealthCloudSettings.Session): ICanHealthCloudSettings.Session? {
+    private sealed class ReloginOutcome {
+        data class Renewed(val session: ICanHealthCloudSettings.Session) : ReloginOutcome()
+        data class Transient(val code: Int, val message: String) : ReloginOutcome()
+        object Rejected : ReloginOutcome()
+        object NotAvailable : ReloginOutcome()
+    }
+
+    private fun relogin(session: ICanHealthCloudSettings.Session): ReloginOutcome {
         val credentials = synchronized(ICanHealthCloudSettings.sessionLock) {
-            if (!settings.enabled || settings.session() != session) return null
+            if (!settings.enabled || settings.session() != session) return ReloginOutcome.NotAvailable
             settings.account to settings.password
         }
-        if (credentials.first.isBlank() || credentials.second.isBlank()) return null
+        if (credentials.first.isBlank() || credentials.second.isBlank()) return ReloginOutcome.NotAvailable
         val result = client.login(credentials.first, credentials.second)
-        if (result !is ICanHealthCloudClient.LoginResult.Ok) return null
+        if (result !is ICanHealthCloudClient.LoginResult.Ok) {
+            // A temporary login outage must not wipe the stored session; the caller keeps
+            // the (possibly still valid) token and retries later.
+            if (result is ICanHealthCloudClient.LoginResult.Failed &&
+                (result.kind == ICanHealthCloudError.Kind.TRANSIENT || result.code <= 0)
+            ) {
+                return ReloginOutcome.Transient(result.code, result.message)
+            }
+            return ReloginOutcome.Rejected
+        }
         return synchronized(ICanHealthCloudSettings.sessionLock) {
-            if (!settings.enabled || settings.session() != session) return null
+            if (!settings.enabled || settings.session() != session) return ReloginOutcome.NotAvailable
             // Automatic refresh may replace the token, never the patient owning the queued data.
             if (result.model.userId.isNotBlank() && settings.userId.isNotBlank() &&
-                result.model.userId != settings.userId) return null
+                result.model.userId != settings.userId) return ReloginOutcome.NotAvailable
             if (result.model.tenantId.isNotBlank() && settings.tenantId.isNotBlank() &&
-                result.model.tenantId != settings.tenantId) return null
+                result.model.tenantId != settings.tenantId) return ReloginOutcome.NotAvailable
             settings.token = result.sessionId
             if (result.model.refreshToken.isNotEmpty()) settings.refreshToken = result.model.refreshToken
-            settings.session()
+            ReloginOutcome.Renewed(settings.session())
         }
     }
 
@@ -232,7 +253,8 @@ class ICanHealthCloudUploader(
             try {
                 val current = stateFor(context)
                 val result = ICanHealthCloudUploader(current.client, current.settings, current.queue).flush()
-                val transient = result is FlushResult.Failed && (result.code <= 0 || result.code == 408 || result.code == 429 || result.code in 500..599)
+                val transient = result is FlushResult.Failed && (result.code <= 0 || result.code == 408 || result.code == 429 || result.code in 500..599) ||
+                    result is FlushResult.Transient
                 if (transient) {
                     requestFlush(context, RETRY_DELAY_MS)
                 }

@@ -266,6 +266,19 @@ class ICanHealthCloudUploaderTests {
     }
 
     @Test
+    fun transientLoginFailureKeepsSessionForRetry() {
+        val (settings, queue) = signedIn()
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        val transport = FakeTransport { url ->
+            if (url.contains("oauth/token")) HttpResult(503, "") else HttpResult(401, "")
+        }
+        val result = ICanHealthCloudUploader(ICanHealthCloudClient(transport), settings, queue).flush()
+        assertTrue(result is ICanHealthCloudUploader.FlushResult.Transient)
+        assertEquals("token-a", settings.token)
+        assertEquals(1, queue.size())
+    }
+
+    @Test
     fun olderAcknowledgementCannotMoveSyncProgressBackwards() {
         val (settings, queue) = signedIn()
         settings.lastSyncMs = 100L
