@@ -29,3 +29,20 @@ internal fun rememberOverlayReadings(
 ) {
     value = resolve(sensorId, showSecondary)
 }
+
+/** The number is drawn from snapshot.displayValues, even when history has newer bucket rows. */
+internal fun overlayDeltaText(
+    readings: OverlayReadings,
+    enabled: Boolean,
+    requestedSensorId: String?,
+    intervalMinutes: Int,
+    nowMillis: Long,
+    maxAgeMillis: Long = tk.glucodata.Notify.glucosetimeout
+): String {
+    val snapshot = readings.snapshot ?: return ""
+    if (!enabled || readings.deltaIntervalMinutes != intervalMinutes || requestedSensorId.isNullOrBlank() ||
+        !tk.glucodata.SensorIdentity.matches(snapshot.sensorId, requestedSensorId) ||
+        snapshot.timeMillis <= 0L || snapshot.timeMillis > nowMillis || nowMillis - snapshot.timeMillis > maxAgeMillis
+    ) return ""
+    return readings.deltaText
+}

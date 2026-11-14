@@ -135,11 +135,11 @@ fun FloatingGlucoseOverlay(
     // ever notice the last one aging out. Re-read the clock until it crosses the
     // same timeout the widget and dashboard use, then show the no-data state.
     val latestReadingMillis = maxOf(currentSnapshot?.timeMillis ?: 0L, glucosePoint?.timestamp ?: 0L)
-    val freshnessNow by produceState(System.currentTimeMillis(), latestReadingMillis, peerReadings) {
+    val freshnessNow by produceState(System.currentTimeMillis(), latestReadingMillis, currentSnapshot?.timeMillis, peerReadings) {
         while (true) {
             value = System.currentTimeMillis()
             // A peer can expire before the main reading, without another sensor update.
-            val wait = (listOf(latestReadingMillis) + peerReadings.map { it.timeMillis })
+            val wait = (listOf(latestReadingMillis, currentSnapshot?.timeMillis ?: 0L) + peerReadings.map { it.timeMillis })
                 .mapNotNull { nextOverlayFreshnessCheckDelay(it, value) }.minOrNull() ?: break
             delay(wait)
         }
@@ -371,11 +371,10 @@ fun FloatingGlucoseOverlay(
                         }
                     }
                 }
-                if (showDelta && readings.deltaIntervalMinutes == deltaIntervalMinutes && readings.deltaText.isNotEmpty() &&
-                    currentSnapshot?.timeMillis == displayPoint.timestamp &&
-                    !requestedSensorId.isNullOrBlank() && SensorIdentity.matches(currentSensorId, requestedSensorId)) {
+                val deltaText = overlayDeltaText(readings, showDelta, requestedSensorId, deltaIntervalMinutes, freshnessNow)
+                if (deltaText.isNotEmpty()) {
                     FloatingStyledText(
-                        text = "Δ " + readings.deltaText,
+                        text = "Δ " + deltaText,
                         fontSize = fontSize * 0.65f,
                         fontFamily = fontFamily,
                         fontWeight = fontWeight,

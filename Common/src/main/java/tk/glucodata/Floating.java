@@ -113,8 +113,16 @@ public class Floating extends View {
         Floating.showtime = Natives.getfloattime();
     }
 
+    private final AsyncDisplayDelta deltaLoader = new AsyncDisplayDelta();
+
     public Floating(Context context) {
         super(context);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        deltaLoader.clear();
+        super.onDetachedFromWindow();
     }
 
     public static void setTouchable(boolean isChecked) {
@@ -614,9 +622,10 @@ public class Floating extends View {
                 }
                 if (deltaHeight > 0) {
                     final var prefs = getContext().getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE);
-                    final String deltaText = DisplayDeltaSource.resolve(
+                    final String deltaText = deltaLoader.get(
                             prefs.getBoolean(DisplayDeltaSource.FLOATING_ENABLED, false), current,
-                            prefs.getInt(DisplayDeltaSource.INTERVAL, GlucoseDelta.DEFAULT_INTERVAL_MINUTES));
+                            prefs.getInt(DisplayDeltaSource.INTERVAL, GlucoseDelta.DEFAULT_INTERVAL_MINUTES),
+                            UiRefreshBus.INSTANCE.getRevision().getValue(), this::postInvalidate);
                     if (!deltaText.isEmpty()) {
                         floatPaint.setTextSize(floatfontsize * 0.35f);
                         final String label = "Δ " + deltaText;

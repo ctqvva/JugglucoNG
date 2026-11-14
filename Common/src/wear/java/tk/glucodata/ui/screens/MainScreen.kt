@@ -150,7 +150,7 @@ fun MainScreen(
     val deltaSettings = remember(deltaContext) { tk.glucodata.settings.DisplayDeltaSettings(deltaContext) }
     val deltaState by deltaSettings.state.collectAsState(tk.glucodata.settings.DisplayDeltaSettings.State())
     val showDelta = deltaState.wearEnabled
-    val deltaText by androidx.compose.runtime.key(storeSnapshot, deltaState) {
+    val deltaText by androidx.compose.runtime.key(storeSnapshot, deltaState, isMmol) {
         androidx.compose.runtime.produceState("") {
             value = ""
             if (showDelta && newestReading != null && !storeSnapshot.sensorId.isNullOrBlank()) {

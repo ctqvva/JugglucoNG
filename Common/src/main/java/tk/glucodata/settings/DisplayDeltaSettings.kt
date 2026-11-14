@@ -9,8 +9,14 @@ import tk.glucodata.DisplayDeltaSource
 import tk.glucodata.GlucoseDelta
 
 /** Watch-local opt-in; the shared interval remains the single delta interval setting. */
-class DisplayDeltaSettings(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+class DisplayDeltaSettings internal constructor(
+    context: Context,
+    private val publishToWear: (Context) -> Unit
+) {
+    constructor(context: Context) : this(context, { tk.glucodata.WearPrefsSync.push() })
+
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
 
     data class State(val wearEnabled: Boolean = false, val intervalMinutes: Int = GlucoseDelta.DEFAULT_INTERVAL_MINUTES)
 
@@ -29,6 +35,13 @@ class DisplayDeltaSettings(context: Context) {
         trySend(current())
         awaitClose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }.distinctUntilChanged()
+
+    /** Publish a phone interval edit to every surface that reads it, without waiting for glucose. */
+    fun setIntervalMinutes(minutes: Int) {
+        prefs.edit().putInt(DisplayDeltaSource.INTERVAL, GlucoseDelta.sanitizeIntervalMinutes(minutes)).apply()
+        publishToWear(appContext)
+        tk.glucodata.GlucoseUpdateBroadcaster.sendNow(appContext)
+    }
 
     fun setWearEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(DisplayDeltaSource.WEAR_ENABLED, enabled).apply()

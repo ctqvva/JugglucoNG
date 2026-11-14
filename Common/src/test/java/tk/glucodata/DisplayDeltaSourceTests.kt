@@ -2,9 +2,12 @@ package tk.glucodata
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.After
 import java.util.Locale
 
 class DisplayDeltaSourceTests {
+    @After fun resetCalibration() { CalibrationAccess.unregisterForTests() }
+
     private val now = 1_800_000_000_000L
     private val timeout = 330_000L
     private fun point(minutesAgo: Int, auto: Float, raw: Float = auto, sensor: String? = null) =
@@ -85,4 +88,59 @@ class DisplayDeltaSourceTests {
             Locale.setDefault(oldLocale)
         }
     }
+    @Test fun bothPairValuesUseTheSelectedLanesPerPointCalibration() {
+        val calls = mutableListOf<Triple<Long, Boolean, String?>>()
+        CalibrationAccess.register(object : CalibrationProvider {
+            override fun hasActiveCalibration(isRawMode: Boolean, sensorId: String?) = true
+            override fun getCalibratedValue(value: Float, timestamp: Long, isRawMode: Boolean,
+                emitDiagnostics: Boolean, sensorId: String?): Float {
+                calls += Triple(timestamp, isRawMode, sensorId)
+                return value * (if (isRawMode) 2f else 3f)
+            }
+        })
+        assertEquals("−40", text(mode = 1))
+        assertEquals(setOf(now, now - 5 * 60_000L), calls.map { it.first }.toSet())
+        assertEquals(true, calls.all { it.second && it.third == "sensor" })
+        calls.clear()
+        assertEquals("+30", text(mode = 0))
+        assertEquals(true, calls.all { !it.second && it.third == "sensor" })
+        assertEquals(GlucoseDelta.format(1f, true), text(points = listOf(point(5, 5f), point(0, 5.5f)), mode = 1, mmol = true))
+    }
+
+    @Test fun integratedCalibrationIsNotAppliedTwiceAndInvalidCorrectionsFollowTheDisplayFallback() {
+        var integrated = true
+        CalibrationAccess.register(object : CalibrationProvider {
+            override fun shouldOverwriteSensorValues() = integrated
+            override fun hasActiveCalibration(isRawMode: Boolean, sensorId: String?) = true
+            override fun getCalibratedValue(value: Float, timestamp: Long, isRawMode: Boolean,
+                emitDiagnostics: Boolean, sensorId: String?) = Float.NaN
+        })
+        assertEquals("−20", text(mode = 1))
+        integrated = false
+        assertEquals("−20", text(mode = 1))
+    }
+
+    @Test fun resolveLoadsMeasuredHistoryInsteadOfMixingInTheSmoothedWidgetTail() {
+        val at = System.currentTimeMillis()
+        val shown = deltaSnapshot(at, auto = 80f)
+        val measured = listOf(GlucosePoint(at - 5 * 60_000L, 100f), GlucosePoint(at, 110f))
+        val chart = DisplayTrendSource.augmentHistory(measured, shown, "sensor", 0L)
+        assertEquals(80f, chart.last().value, 0f)
+        assertEquals("+10", DisplayDeltaSource.resolve(true, shown, 5, { at }) { start, mmol, sensor ->
+            assertEquals(at - 20 * 60_000L, start)
+            assertEquals(false, mmol)
+            assertEquals("sensor", sensor)
+            measured
+        })
+        assertEquals(110f, measured.last().value, 0f)
+    }
+
+    @Test fun aReadingThatExpiresDuringTheHistoryLoadCannotPublishADelta() {
+        var clock = now
+        assertEquals("", DisplayDeltaSource.resolve(true, deltaSnapshot(at = now), 5, { clock }) { _, _, _ ->
+            clock = now + timeout + 1
+            history
+        })
+    }
+
 }

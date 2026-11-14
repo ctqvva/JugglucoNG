@@ -107,12 +107,9 @@ class ExpressiveAppWidget : GlanceAppWidget() {
             GlucoseUpdateBroadcaster.armFreshnessDeadline(dataState.latestTimestampMillis)
         }
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
-        val deltaText = tk.glucodata.DisplayDeltaSource.format(
-            prefs.getBoolean(tk.glucodata.DisplayDeltaSource.WIDGET_ENABLED, false),
-            chartHistory, activeSensorSerial, resolvedDisplay?.timeMillis ?: 0L,
-            viewMode, resolvedDisplay?.isMmol ?: GlucoseFormatter.isMmolApp(),
-            prefs.getInt(tk.glucodata.DisplayDeltaSource.INTERVAL, tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES),
-            System.currentTimeMillis(), Notify.glucosetimeout
+        val deltaText = tk.glucodata.DisplayDeltaSource.resolve(
+            prefs.getBoolean(tk.glucodata.DisplayDeltaSource.WIDGET_ENABLED, false), resolvedDisplay,
+            prefs.getInt(tk.glucodata.DisplayDeltaSource.INTERVAL, tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES)
         )
         return WidgetState(
             // Same rule as the dashboard hero: a reading past glucosetimeout is not
