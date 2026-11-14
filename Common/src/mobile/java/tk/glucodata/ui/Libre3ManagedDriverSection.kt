@@ -111,7 +111,7 @@ fun Libre3ManagedDriverSection() {
                 runCatching {
                     // Bounded read: the picker accepts any file, and a huge one must not be buffered.
                     val bytes = context.contentResolver.openInputStream(uri)?.use { Libre3IdentityProvisioning.readBounded(it) }
-                        ?: error("cannot open file")
+                        ?: error(context.getString(R.string.unable_to_open_source_file))
                     Libre3Persistence.importIdentities(context, bytes, revision)
                 }
             }

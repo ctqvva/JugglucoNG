@@ -576,6 +576,13 @@ fromjava(getSensorStartmsecFromSensorptr)(JNIEnv *env, jclass cl,
     return 0LL;
   return sens->getstarttime() * 1000LL;
 }
+extern "C" JNIEXPORT jint JNICALL
+fromjava(getSensorManagedFamilyFromSensorptr)(JNIEnv *env, jclass cl,
+                                             jlong sensorptr) {
+  const auto *sens = reinterpret_cast<const SensorGlucoseData *>(sensorptr);
+  const auto *info = sens ? sens->getinfo() : nullptr;
+  return info ? static_cast<jint>(info->managedFamilyCode()) : 0;
+}
 extern "C" JNIEXPORT void JNICALL fromjava(updateUsedSensors)(JNIEnv *env,
                                                               jclass cl) {
   setusedsensors();

@@ -248,6 +248,7 @@ void setstreaming(SensorGlucoseData *) { ++streamings; }
     code += extract("g.cpp", "static bool storeGlucoseStreamSample(")
     code += "\njint " + extract("g.cpp", "fromjava(healthConnectfromSensorptr)(")
     code += extract("g.cpp", 'extern "C" JNIEXPORT jboolean JNICALL fromjava(healthConnectWritten)(')
+    code += "\njint " + extract("g.cpp", "fromjava(getSensorManagedFamilyFromSensorptr)(")
     code = code.replace("/* WEAR_HISTORY_ORIGIN */", (CPP / "wearhistoryorigin.hpp").read_text().replace('#pragma once', ''))
     code += "\n#define WEAROS\n"
     code += extract("g.cpp", "static bool addGlucoseStreamInternal(")
@@ -306,6 +307,9 @@ int main() {
         libre3.info.healthconnectiter = 101;
         const auto ptr = reinterpret_cast<jlong>(&libre3);
         const auto start = libre3.getstarttime();
+        // Export identity comes from retained native history, not deletable pairing records.
+        assert(getSensorManagedFamilyFromSensorptr(&env, nullptr, ptr) == 9);
+        assert(getSensorManagedFamilyFromSensorptr(&env, nullptr, 0) == 0);
         // Exporting live first must not permanently hide an older recovered minute.
         assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 12, 0, 0, false, false, true, nullptr));
         assert(libre3.info.healthconnectiter == 50);
@@ -335,6 +339,7 @@ int main() {
         assert(healthConnectWritten(&env, nullptr, ptr, 101));
         // The new rewind policy is limited to the Libre 3 managed family.
         libre3.info.family = 0;
+        assert(getSensorManagedFamilyFromSensorptr(&env, nullptr, ptr) == 0);
         assert(storeGlucoseStreamSample(&libre3, "libre3", start+10*60, 12, 0, 0, false, false, true, nullptr));
         assert(libre3.info.healthconnectiter == 101);
     }
