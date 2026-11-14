@@ -16,7 +16,8 @@ All shapes live on Android's 108 dp adaptive canvas; the visible area is 18..90.
 """
 import math
 from pathlib import Path
-from shapely.geometry import LineString, Point, Polygon
+from shapely import affinity
+from shapely.geometry import LineString, Point, Polygon, box
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -79,25 +80,39 @@ MONO_D = d(TRACE.difference(Point(*NOW).buffer(R_SENSOR + CUT_MONO, quad_segs=48
 
 # ----------------------------------------------------- extra installations ---
 # The extra installations exist so one phone can follow two or three people (issue #714), so they
-# must not be mistaken for each other at a glance. Each one draws a different kind of chart from
-# the same trace: the main app the line, Dub the area below it, Dub 2 the area above it. The
-# difference is in the silhouette, so it survives colour blindness, greyscale and the
-# single-colour themed icon, where colour alone would be lost.
-ABOVE = Polygon(list(LINE.coords) + [(108, 0), (0, 0)]).buffer(0)
-CUT_C = Point(*NOW).buffer(R_SENSOR + CUT, quad_segs=48)
-CUT_M = Point(*NOW).buffer(R_SENSOR + CUT_MONO, quad_segs=48)
-CHART = {'line': TRACE, 'below': BELOW.union(TRACE), 'above': ABOVE.union(TRACE)}
-CHART_D = {k: d(g.difference(CUT_C)) for k, g in CHART.items()}
-MONO_CHART_D = {k: d(g.difference(CUT_M).union(SENSOR.difference(RIM).difference(DOT)))
-                for k, g in CHART.items()}
-assert CHART_D['line'] == TRACE_D and MONO_CHART_D['line'] == MONO_D
+# must not be mistaken for each other at a glance. Each is the same mark under one plain
+# transformation, carried into its monochrome layer so the themed icon keeps the difference:
+#   Glucy Dub    inverted: light background, dark sensor; its themed layer is the negative.
+#   Glucy Dub 2  mirrored: the trace runs the other way and the sensor sits on the right.
+# Inverted, mirrored and plain differ in lightness or silhouette, not only in hue, so they hold up
+# for colour blindness and in greyscale as well as in themed mode.
+def _mirror(g):
+    return affinity.scale(g, -1, 1, origin=(54, 54))
+
+
+SHAPES = {False: dict(trace=TRACE_D, sensor=SENSOR_D, rim=RIM_D, dot=DOT_D, mono=MONO_D)}
+_mono_geom = (TRACE.difference(Point(*NOW).buffer(R_SENSOR + CUT_MONO, quad_segs=48))
+              .union(SENSOR.difference(RIM).difference(DOT)))
+SHAPES[True] = dict(
+    trace=d(_mirror(TRACE.difference(Point(*NOW).buffer(R_SENSOR + CUT, quad_segs=48)))),
+    sensor=d(_mirror(SENSOR)), rim=d(_mirror(RIM)), dot=d(_mirror(DOT)), mono=d(_mirror(_mono_geom)))
+MONO_NEGATIVE_D = d(box(0, 0, 108, 108).difference(_mono_geom))
+
+
+def shapes(c):
+    return SHAPES[c.get('mirror', False)]
+
+
+def mono_d(c):
+    return MONO_NEGATIVE_D if c.get('invert') else shapes(c)['mono']
 
 
 # ------------------------------------------------------------------ colours ---
 MAIN = dict(bg='#0D1430', line='#5B86F5', sensor='#F5F7FB', rim='#C9D2E3', dot='#0D1430')
-# Extra installations keep the navy and change the chart (see above) and its colour.
-DUB = dict(MAIN, line='#9D86F7', chart='below')    # "Glucy Dub": lilac area below the trace
-DUB2 = dict(MAIN, line='#F2B84B', chart='above')   # "Glucy Dub 2": amber area above the trace
+# "Glucy Dub": the launcher inverted. Pale blue-white, a deeper blue trace, a navy sensor.
+DUB = dict(bg='#EEF2FB', line='#2F57D9', sensor='#0D1430', rim='#3A4670', dot='#EEF2FB', invert=True)
+# "Glucy Dub 2": mirrored, on a mid violet that sits between the other two in lightness.
+DUB2 = dict(bg='#5A3CC8', line='#E4DCFF', sensor='#FFFFFF', rim='#B6A6EE', dot='#5A3CC8', mirror=True)
 TWO_TONE = dict(MAIN, bg='#0B1020', below='#121B36', dot='#0B1020')  # branding alternative
 
 # ----------------------------------------------------------------- writers ---
@@ -114,15 +129,16 @@ def background_xml(c):
 
 
 def foreground_xml(c):
+    g = shapes(c)
     return HEAD + (
-        f'    <path android:fillColor="{ARGB(c["line"])}" android:pathData="{CHART_D[c.get("chart", "line")]}"/>\n'
-        f'    <path android:fillColor="{ARGB(c["sensor"])}" android:pathData="{SENSOR_D}"/>\n'
-        f'    <path android:fillColor="{ARGB(c["rim"])}" android:fillType="evenOdd" android:pathData="{RIM_D}"/>\n'
-        f'    <path android:fillColor="{ARGB(c["dot"])}" android:pathData="{DOT_D}"/>\n</vector>\n')
+        f'    <path android:fillColor="{ARGB(c["line"])}" android:pathData="{g["trace"]}"/>\n'
+        f'    <path android:fillColor="{ARGB(c["sensor"])}" android:pathData="{g["sensor"]}"/>\n'
+        f'    <path android:fillColor="{ARGB(c["rim"])}" android:fillType="evenOdd" android:pathData="{g["rim"]}"/>\n'
+        f'    <path android:fillColor="{ARGB(c["dot"])}" android:pathData="{g["dot"]}"/>\n</vector>\n')
 
 
-def monochrome_xml(chart='line'):
-    return HEAD + f'    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="{MONO_CHART_D[chart]}"/>\n</vector>\n'
+def monochrome_xml(c=MAIN):
+    return HEAD + f'    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="{mono_d(c)}"/>\n</vector>\n'
 
 ADAPTIVE_XML = ('<?xml version="1.0" encoding="utf-8"?>\n'
                 '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
@@ -136,8 +152,8 @@ def svg(c, view='18 18 72 72', size=512):
     below = f'<path d="{BELOW_D}" fill="{c["below"]}"/>' if 'below' in c else ''
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view}" width="{size}" height="{size}">'
             f'<rect width="108" height="108" fill="{c["bg"]}"/>{below}'
-            f'<path d="{CHART_D[c.get("chart", "line")]}" fill="{c["line"]}"/><path d="{SENSOR_D}" fill="{c["sensor"]}"/>'
-            f'<path d="{RIM_D}" fill="{c["rim"]}" fill-rule="evenodd"/><path d="{DOT_D}" fill="{c["dot"]}"/></svg>\n')
+            f'<path d="{shapes(c)["trace"]}" fill="{c["line"]}"/><path d="{shapes(c)["sensor"]}" fill="{c["sensor"]}"/>'
+            f'<path d="{shapes(c)["rim"]}" fill="{c["rim"]}" fill-rule="evenodd"/><path d="{shapes(c)["dot"]}" fill="{c["dot"]}"/></svg>\n')
 
 
 # ------------------------------------------------------- wordmark and lockup ---
@@ -273,10 +289,10 @@ def main():
         mobile_res / 'drawable/glucy_wordmark_dark.xml': wordmark_vector(DARK_WEIGHT),
         dub_res / 'drawable/ic_launcher_background.xml': background_xml(DUB),
         dub_res / 'drawable/ic_launcher_foreground.xml': foreground_xml(DUB),
-        dub_res / 'drawable/ic_launcher_monochrome.xml': monochrome_xml(DUB['chart']),
+        dub_res / 'drawable/ic_launcher_monochrome.xml': monochrome_xml(DUB),
         dub2_res / 'drawable/ic_launcher_background.xml': background_xml(DUB2),
         dub2_res / 'drawable/ic_launcher_foreground.xml': foreground_xml(DUB2),
-        dub2_res / 'drawable/ic_launcher_monochrome.xml': monochrome_xml(DUB2['chart']),
+        dub2_res / 'drawable/ic_launcher_monochrome.xml': monochrome_xml(DUB2),
         HERE / 'icon.svg': svg(MAIN),
         HERE / 'icon-dub.svg': svg(DUB),
         HERE / 'icon-dub2.svg': svg(DUB2),

@@ -37,19 +37,18 @@ The lockup is one file for both themes. GitHub's `<picture>` and `#gh-dark-mode-
 
 ## Extra installations
 
-The extra installations exist so that one phone can follow two or three people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). A glance at the wrong icon means acting on the wrong child's reading, so the icons have to differ by more than a hue.
+The extra installations exist so that one phone can follow two or three people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). A glance at the wrong icon means acting on the wrong child's reading, so the icons have to differ by more than a hue. Each one is the same mark under one plain transformation:
 
-Each installation draws a different kind of chart from the same trace:
-
-| Installation | Chart | Colour |
+| Installation | Transformation | Colours |
 | --- | --- | --- |
-| Glucy | the line | blue line on navy |
-| Glucy Dub | the area below the line | lilac area on navy |
-| Glucy Dub 2 | the area above the line | amber area on navy |
+| Glucy | none | blue trace on navy |
+| Glucy Dub | inverted: light and dark swap | deep blue trace and navy sensor on pale blue-white |
+| Glucy Dub 2 | mirrored: the trace runs the other way, the sensor sits on the right | pale lilac trace on mid violet |
 
-The difference is in the silhouette: a thin line, a full lower half or a full upper half. So it survives colour blindness and greyscale, and each installation's monochrome layer carries its own chart, so it also survives Android's themed icons, which would otherwise make every installation the same colour. All three keep the navy and the sensor, so they stay one family.
+- **Lightness.** The backgrounds are dark, light and mid, so the icons stay apart for colour-blind users and in greyscale.
+- **Themed icons.** Android's themed icons recolour every installation the same way, so each installation has its own monochrome layer. Dub's is the negative, so it shows as a solid disc with the trace cut out, and Dub 2's is mirrored.
 
-The in-app lockup uses the monochrome layer, so inside the app the badge shows the installation's chart too.
+The in-app lockup uses the monochrome layer, so inside the app the badge is inverted or mirrored too.
 
 ## Colours
 
@@ -62,8 +61,8 @@ The in-app lockup uses the monochrome layer, so inside the app the badge shows t
 | `rim` | `#C9D2E3` | sensor rim |
 | `paper` | `#F0F3F8` | wordmark on dark |
 | `card` | `#141E3F` | social preview background, a lifted navy so the badge still reads as a disc |
-| `dub-area` | `#9D86F7` | second installation: lilac area below the trace, on `navy` |
-| `dub2-area` | `#F2B84B` | third installation: amber area above the trace, on `navy` |
+| `dub-bg` / `dub-trace` / `dub-sensor` | `#EEF2FB` / `#2F57D9` / `#0D1430` | second installation, inverted |
+| `dub2-bg` / `dub2-trace` | `#5A3CC8` / `#E4DCFF` | third installation, mirrored |
 | `two-tone` | `#0B1020` above, `#121B36` below the trace | two-tone variant |
 
 Contrast (WCAG): `trace-muted` is 3.4 : 1 on white and 5.6 : 1 on GitHub's dark `#0D1117`, which clears the 3 : 1 needed for large graphic text on both. `trace` on `navy` is 5.3 : 1. `navy` on white is 18.1 : 1, and `paper` on `#0D1117` is 17.0 : 1.
