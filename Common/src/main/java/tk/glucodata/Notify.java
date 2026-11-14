@@ -5178,6 +5178,30 @@ public class Notify {
         placelargenotification(R.drawable.novalue, staleReadingStatus(time), GLUCOSENOTIFICATION, true);
     }
 
+    /**
+     * Status-only update for a link that stopped delivering packets, independent of the
+     * optional sound/vibration loss alarm. Same ongoing notification slot as
+     * {@link #oldnotification(long)}, so it replaces the reading in place and does not
+     * create a second channel or a second alert.
+     */
+    static void notifySignalLoss(long lastReadingMillis) {
+        if (Applic.app == null) return;
+        init(Applic.app);
+        final Notify notify = onenot;
+        if (notify != null) notify.signalLoss(lastReadingMillis);
+    }
+
+    private void signalLoss(long lastReadingMillis) {
+        placelargenotification(R.drawable.loss, signalLossStatus(lastReadingMillis), GLUCOSENOTIFICATION, true);
+    }
+
+    static String signalLossStatus(long lastReadingMillis) {
+        final String loss = Applic.getContext().getString(R.string.lossofsignal);
+        if (lastReadingMillis <= 0L) return loss;
+        return loss + " (" + Applic.getContext().getString(R.string.nonewvalue)
+                + timef.format(lastReadingMillis) + ")";
+    }
+
     /** "No new value since 14:32": what the lock-screen overlay and widgets show in
      * place of a reading older than {@link #glucosetimeout}. */
     public static String staleReadingStatus(long lastReadingMillis) {

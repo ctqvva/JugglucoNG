@@ -274,6 +274,10 @@ static void showCharacter(String label, BluetoothGattCharacteristic characterist
 			showCharacter(SerialNumber+" onDescriptorWrite status="+status, characteristic);
           }
       if(status!=GATT_SUCCESS ) {
+				final var ch = bluetoothGattDescriptor == null ? null : bluetoothGattDescriptor.getCharacteristic();
+				Log.e(LOG_ID, SerialNumber + " descriptor write failed, status:" + status
+						+ " (" + gattStatusText(status) + ")" + (ch == null ? "" : " UUID:" + ch.getUuid()));
+				setConStatus(status, false);
 				requestDisconnect(bluetoothGatt, 0L);
             return;
          }
@@ -283,6 +287,7 @@ static void showCharacter(String label, BluetoothGattCharacteristic characterist
 		}
 	}
 private boolean connected=false;
+	private int consecutiveConnectFailures = 0;
 	@SuppressLint("MissingPermission")
 	@Override
 	public synchronized void onConnectionStateChange(BluetoothGatt bluetoothGatt, int status, int newState) {
@@ -304,13 +309,24 @@ private boolean connected=false;
 		endBLEHandler();
 		long tim = System.currentTimeMillis();
 		try {
+			final boolean attemptFailed = !(newState == BluetoothProfile.STATE_CONNECTED && status == GATT_SUCCESS);
+			if (attemptFailed) {
+				++consecutiveConnectFailures;
+			} else {
+				consecutiveConnectFailures = 0;
+			}
 			if (doLog) {
 				final String[] states = {"DISCONNECTED", "CONNECTING", "CONNECTED", "DISCONNECTING"};
-				Log.i(LOG_ID, SerialNumber + " onConnectionStateChange, status:" + status + ", state: "
-						+ (newState >= 0 && newState < states.length ? states[newState] : newState));
+				Log.i(LOG_ID, SerialNumber + " onConnectionStateChange, status:" + status + " ("
+						+ gattStatusText(status) + "), state: "
+						+ (newState >= 0 && newState < states.length ? states[newState] : newState)
+						+ (attemptFailed ? ", failed attempt " + consecutiveConnectFailures : ""));
 			}
-			if (newState == BluetoothProfile.STATE_CONNECTED && status == GATT_SUCCESS) {
+			if (!attemptFailed) {
 				connected = true;
+				// A refused connect attempt earlier in this recovery run is over now; keeping
+				// its "Status=N" on the diagnostic status makes a working sensor look broken.
+				setConStatus(GATT_SUCCESS);
 				linkConnectedAt = SystemClock.elapsedRealtime();
 				lastPacketAt = -1L;
 				linkPackets = 0;
@@ -319,12 +335,20 @@ private boolean connected=false;
 				constatchange[0] = tim;
 				setpriority(bluetoothGatt);
 				if (!bluetoothGatt.discoverServices()) {
-					Log.e(LOG_ID, "bluetoothGatt.discoverServices() failed");
+					Log.e(LOG_ID, SerialNumber + " discoverServices() returned false");
 					requestDisconnect(bluetoothGatt, 0L);
 				}
 			} else {
 				connected = false;
-				setConStatus(status);
+				// A direct connect can fail with 147 and succeed on the next attempt: that is
+				// retry chatter, not a sensor error. A link that was up and then dropped with a
+				// timeout (8), a peer termination (19) or a GATT error (133) is a real outage and
+				// stays in the history. Once "Loss of signal" is recorded, keep that label instead
+				// of replacing it with the bare transport code.
+				final boolean linkWasUp = linkConnectedAt >= 0L;
+				if (!"Loss of signal".equals(constatstatusstr)) {
+					setConStatus(status, linkWasUp && status != 22);
+				}
 				constatchange[1] = tim;
 				if (newState == BluetoothProfile.STATE_DISCONNECTED) {
 					logLinkEnd("status=" + status);
@@ -400,18 +424,20 @@ private boolean connected=false;
 					else {
 						wrotepass[1] = tim;
 						handshake ="No key";
-
+						Log.e(LOG_ID, SerialNumber + " has no streaming unlock key");
 						return false;
 					}
 				}
 				else {
-					{if(doLog) {Log.i(LOG_ID,BLELogincharacteristic==null?"BLELogincharacteristic==null ":""+ CompositeRawDatacharacteristic==null?"CompositeRawDatacharacteristic==null":"");};};
+					Log.e(LOG_ID, SerialNumber + " "
+							+ (BLELogincharacteristic == null ? "BLELogincharacteristic==null" : "")
+							+ (CompositeRawDatacharacteristic == null ? " CompositeRawDatacharacteristic==null" : ""));
 					return false;
 
 					}
 			}
 			else {
-				{if(doLog) {Log.i(LOG_ID,"mBluetoothGatt.getService(mADCCustomServiceUUID)==null");};};
+				Log.e(LOG_ID, SerialNumber + " getService(mADCCustomServiceUUID)==null");
 				return false;
 				}
 		} catch (Throwable e) {
@@ -435,6 +461,10 @@ private boolean connected=false;
 		{if(doLog) {Log.i(LOG_ID, "BLE onServicesDiscovered invoked, status: " + status);};};
 //		readrssi=9999; mBluetoothGatt.readRemoteRssi();
 		if(status != GATT_SUCCESS||! m2831x()) {
+			Log.e(LOG_ID, SerialNumber + " service discovery failed, status:" + status
+					+ " (" + gattStatusText(status) + ")"
+					+ (status == GATT_SUCCESS ? "; required service, characteristic or key missing" : ""));
+			if (status != GATT_SUCCESS) setConStatus(status, false);
 			requestDisconnect(mBluetoothGatt, 0L);
 			}
 
@@ -461,6 +491,11 @@ private   boolean failedbefore=false;
 	public synchronized void onCharacteristicWrite(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic, int status) {
 		if (!acceptGattCallback(bluetoothGatt)) return;
 		{if(doLog) {Log.d(LOG_ID, bluetoothGatt.getDevice().getAddress() + " onCharacteristicWrite, status:" + status + " UUID:" + bluetoothGattCharacteristic.getUuid().toString());};};
+		if (status != GATT_SUCCESS) {
+			Log.e(LOG_ID, SerialNumber + " characteristic write failed, status:" + status
+					+ " (" + gattStatusText(status) + ")"
+					+ (bluetoothGattCharacteristic == null ? "" : " UUID:" + bluetoothGattCharacteristic.getUuid()));
+		}
 		if (sensorgen == 2)
 			return;
 		try {
@@ -489,7 +524,8 @@ private   boolean failedbefore=false;
 			if (!success) {
 				wrotepass[1] = tim;
 				handshake = "Enabling notification failed";
-				{if(doLog) {Log.i(LOG_ID, SerialNumber + " onCharacteristicWrite:  enabling notification failed");};};
+				Log.e(LOG_ID, SerialNumber + " enabling notification failed, write status:" + status
+						+ " (" + gattStatusText(status) + ")");
                 if(failedbefore) {
                    Natives.resetbluetooth(dataptr);
                    failedbefore=false;

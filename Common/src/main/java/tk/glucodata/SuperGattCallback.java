@@ -215,6 +215,10 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         // sensors the slot stayed 0 and both checks read every session as if no reading
         // had ever arrived.
         charcha[0] = sampleTimeMs;
+        // A reading proves a reported loss of signal is over. The timestamp above already
+        // marks the old event as history for the UI; without clearing the literal the
+        // diagnostic screen keeps reporting a loss that ended days ago.
+        if ("Loss of signal".equals(constatstatusstr)) constatstatusstr = "";
         // A reading imported over Clone is published through this same callback,
         // so accepting one is not proof this device read the sensor. Only a GATT
         // this process actually connected is, and without that check a mirrored
@@ -281,9 +285,21 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
      * link its own way still reports it the same to the UI and the error history.
      */
     protected final void noteLossOfSignal(long now) {
+        final boolean alreadyLost = "Loss of signal".equals(constatstatusstr);
         constatstatusstr = "Loss of signal";
         constatchange[1] = now;
-        BleErrorHistory.record(SerialNumber, constatstatusstr, now);
+        if (!alreadyLost) {
+            BleErrorHistory.record(SerialNumber, constatstatusstr, now);
+            if (Applic.app != null) {
+                // A status-only notification, not the optional audible loss alarm: users
+                // comparing with the official app expect to see the outage even when the
+                // alarm is switched off.
+                final long lastReading = lastfoundL != 0L ? lastfoundL : Natives.lastglucosetime();
+                Notify.notifySignalLoss(lastReading);
+            }
+        }
+        Log.i(LOG_ID, SerialNumber + " loss of signal, last reading "
+                + (charcha[0] == 0L ? "never" : (now - charcha[0]) / 1000 + "s ago"));
     }
 
     /**
@@ -320,9 +336,37 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         return true;
     }
 
+    /** Human-readable name for the Android GATT status codes seen on a sensor link. */
+    static String gattStatusText(int status) {
+        switch (status) {
+            case BluetoothGatt.GATT_SUCCESS: return "success";
+            case 8: return "link timeout";
+            case 19: return "peer terminated the link";
+            case 22: return "local host terminated the link";
+            case 133: return "GATT error";
+            case 147: return "connection attempt failed";
+            default: return "GATT status " + status;
+        }
+    }
+
     void setConStatus(int status) {
+        setConStatus(status, true);
+    }
+
+    /**
+     * @param durable keep the event in {@link BleErrorHistory}. A connection attempt that
+     *                the driver immediately retries is transport chatter: it is worth
+     *                showing while it happens, but not as the sensor's last BLE error for
+     *                the next hour after the retry succeeded.
+     */
+    void setConStatus(int status, boolean durable) {
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+            // A successful connection retires the transport failure that preceded it.
+            if (constatstatusstr.startsWith("Status=")) constatstatusstr = "";
+            return;
+        }
         constatstatusstr = "Status=" + status;
-        if (status != BluetoothGatt.GATT_SUCCESS) {
+        if (durable) {
             BleErrorHistory.record(SerialNumber, constatstatusstr, System.currentTimeMillis());
         }
     }
