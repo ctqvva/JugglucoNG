@@ -222,8 +222,8 @@ internal val SensorType.tilt: Float
         SensorType.ANYTIME -> -11f
         SensorType.ACCUCHEK -> 9f
         SensorType.CARESENS_AIR -> -9f
-        SensorType.MQ -> 8f
-        SensorType.MEDTRUM -> -10f
+        SensorType.MQ -> -8f
+        SensorType.MEDTRUM -> 10f
     }
 
 /** The applicator a hero shows beside its sensor, for the families that have one drawn. */
@@ -810,21 +810,25 @@ private fun DrawScope.drawCareSensAir(tones: SensorTones) = seated(tones, 10f) {
 }
 
 /**
- * Glutec v3, measured from a photo of one worn: an upright rounded rectangle 0.7 as wide as it is
- * long, softly cushioned; a framed tab set just in from its top end and a parting line two thirds
- * of the way down.
+ * Glutec v3, measured from a photo of one in its box: a long pill 0.64 as wide as it is long, both
+ * ends nearly round. A small curved recess sits in the upper left shoulder, and a parting line
+ * runs across the lower end, rising to the right.
  */
 private fun DrawScope.drawMq(tones: SensorTones) = seated(tones, 10f) {
-    part(tones, roundRect(51f, 72f, 18f), thickness = 10f, bevel = 6f) {
-        val tab = Path().apply {
-            addRoundRect(RoundRect(Rect(-9f, -30f, 9f, -20f), CornerRadius(2.6f)))
+    part(tones, roundRect(46f, 72f, 20f), thickness = 10f, bevel = 6f) {
+        // The recess follows the round of the top end, just inside its edge.
+        val end = Offset(0f, -13f)
+        val recess = Path().apply {
+            arcTo(Rect(end.x - 19f, end.y - 19f, end.x + 19f, end.y + 19f), 192f, 42f, forceMoveTo = true)
+            arcTo(Rect(end.x - 13.5f, end.y - 13.5f, end.x + 13.5f, end.y + 13.5f), 234f, -42f, forceMoveTo = false)
+            close()
         }
-        drawPath(tab, lerp(tones.body, tones.shade, 0.25f))
-        groove(tones, tab, width = 0.8f)
+        drawPath(recess, lerp(tones.body, tones.shade, 0.5f))
+        groove(tones, recess, width = 1f)
         groove(tones, Path().apply {
-            moveTo(-26f, 13.5f)
-            lineTo(26f, 12.5f)
-        }, width = 0.8f, depth = 0.6f)
+            moveTo(-24f, 25.5f)
+            lineTo(24f, 14.5f)
+        }, width = 0.9f)
     }
 }
 
