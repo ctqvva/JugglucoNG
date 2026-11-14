@@ -1,8 +1,6 @@
 package tk.glucodata
 
 object NoiseAccess {
-    private const val LOG_ID = "NoiseAccess"
-
     @Volatile
     private var provider: TrendNoiseProvider? = null
 
@@ -22,31 +20,13 @@ object NoiseAccess {
         isMmol: Boolean
     ): NoiseEstimate? {
         if (provider == null) return null
-        val estimate = runCatching { provider.noise(points, useRaw, isMmol) }.getOrNull() ?: return null
-        if (!estimate.varianceMgdl2.isFinite() || estimate.varianceMgdl2 < 0f) return null
-        return estimate
+        return runCatching { provider.noise(points, useRaw, isMmol) }.getOrNull()
     }
 
-    /** The broadcast carries the calibrated lane, so its noise must describe that lane. */
-    internal fun resolveForExchange(
-        provider: TrendNoiseProvider?,
-        points: List<GlucosePoint>,
-        isMmol: Boolean
-    ): NoiseEstimate? = resolve(provider, points, useRaw = false, isMmol)
-
+    /** The points already contain the outgoing primary lane, smoothing and calibration. */
     @JvmStatic
-    fun current(sensorId: String?): NoiseEstimate? {
-        if (sensorId.isNullOrEmpty()) return null
-        val active = provider ?: return null
-        return try {
-            val isMmol = Applic.unit == 1
-            val points = DisplayTrendSource.exchangePoints(sensorId, isMmol)
-            val newest = points.maxByOrNull { it.timestamp } ?: return null
-            if (!DisplayTrendSource.isFreshForExchange(newest.timestamp, System.currentTimeMillis())) return null
-            resolveForExchange(active, points, isMmol)
-        } catch (th: Throwable) {
-            if (Log.doLog) Log.i(LOG_ID, "current failed: $th")
-            null
-        }
+    fun forExchange(points: List<GlucosePoint>, timeMillis: Long, isMmol: Boolean): NoiseEstimate? {
+        if (!DisplayTrendSource.isFreshForExchange(timeMillis, System.currentTimeMillis())) return null
+        return resolve(provider, points, useRaw = false, isMmol)
     }
 }

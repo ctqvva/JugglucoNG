@@ -34,7 +34,7 @@ class TrendNoiseProviderTests {
         assertNotNull(estimate)
         assertEquals(0f, estimate!!.varianceMgdl2, 0.001f)
         assertEquals(0f, estimate.sigmaMgdl, 0.001f)
-        assertEquals(0, estimate.nightscoutLevel)
+        assertEquals(1, estimate.nightscoutLevel)
     }
 
     @Test
@@ -61,5 +61,27 @@ class TrendNoiseProviderTests {
         val estimate = TrendEngineNoiseProvider.noise(points, false, true)!!
         // 1 mmol/L of jitter is about 18 mg/dL; a mmol² number would be far smaller.
         assertTrue("sigma was ${estimate.sigmaMgdl}", estimate.sigmaMgdl > 6f)
+    }
+    @Test
+    fun calibrationStepUsesOnlyTheNewestSegment() {
+        val history = listOf(point(20, 100f), point(16, 100f)) +
+            listOf(point(15, 180f), point(10, 180f), point(5, 180f), point(0, 180f))
+        val engine = TrendEngine.calculateTrend(history, false, false)
+        val estimate = TrendEngineNoiseProvider.noise(history, false, false)!!
+        assertEquals(4, engine.noiseSamples)
+        assertEquals(0f, estimate.varianceMgdl2, 0.001f)
+    }
+
+    @Test
+    fun calibrationStepWithTooFewNewPointsOmitsNoise() {
+        val history = listOf(point(20, 100f), point(15, 100f), point(11, 100f),
+            point(10, 180f), point(5, 180f), point(0, 180f))
+        assertNull(TrendEngineNoiseProvider.noise(history, false, false))
+    }
+
+    @Test
+    fun duplicateTimesCannotProduceAQuadraticNoiseFit() {
+        val history = listOf(point(5, 100f), point(5, 100f), point(0, 110f), point(0, 110f))
+        assertNull(TrendEngineNoiseProvider.noise(history, false, false))
     }
 }

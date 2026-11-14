@@ -28,12 +28,12 @@ public class SendLikexDripNoiseTests {
     }
 
     @Test
-    public void cleanTraceSendsLevelZero() {
+    public void cleanTraceSendsLevelOne() {
         Bundle extras = new Bundle();
         SendLikexDrip.putNoiseExtras(extras, new NoiseEstimate(0f));
 
         assertEquals(0.0, extras.getDouble(EXTRA_NOISE), 0.0);
-        assertEquals("0", extras.getString(EXTRA_NS_NOISE_LEVEL));
+        assertEquals("1", extras.getString(EXTRA_NS_NOISE_LEVEL));
         assertEquals(0.0, extras.getDouble(EXTRA_NOISE_SIGMA), 0.0);
     }
 

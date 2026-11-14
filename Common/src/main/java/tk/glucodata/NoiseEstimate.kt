@@ -9,7 +9,8 @@ object NoiseScale {
 
     @JvmStatic
     fun nightscoutLevel(varianceMgdl2: Float): Int = when {
-        !varianceMgdl2.isFinite() || varianceMgdl2 <= LIGHT_THRESHOLD_MGDL2 -> 0
+        !varianceMgdl2.isFinite() || varianceMgdl2 < 0f -> 0
+        varianceMgdl2 <= LIGHT_THRESHOLD_MGDL2 -> 1
         varianceMgdl2 <= MEDIUM_THRESHOLD_MGDL2 -> 2
         varianceMgdl2 <= HEAVY_THRESHOLD_MGDL2 -> 3
         else -> 4
@@ -17,6 +18,10 @@ object NoiseScale {
 }
 
 data class NoiseEstimate(val varianceMgdl2: Float) {
+    init {
+        require(varianceMgdl2.isFinite() && varianceMgdl2 >= 0f) { "Invalid noise variance" }
+    }
+
     val sigmaMgdl: Float get() = sqrt(varianceMgdl2)
     val nightscoutLevel: Int get() = NoiseScale.nightscoutLevel(varianceMgdl2)
 }

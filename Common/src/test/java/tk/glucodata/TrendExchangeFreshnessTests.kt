@@ -13,5 +13,7 @@ class TrendExchangeFreshnessTests {
         assertTrue(DisplayTrendSource.isFreshForExchange(now - Notify.glucosetimeout, now))
         assertFalse(DisplayTrendSource.isFreshForExchange(now - Notify.glucosetimeout - 1L, now))
         assertFalse(DisplayTrendSource.isFreshForExchange(0L, now))
+        assertTrue(DisplayTrendSource.isFreshForExchange(now + Notify.glucosetimeout, now))
+        assertFalse(DisplayTrendSource.isFreshForExchange(now + Notify.glucosetimeout + 1L, now))
     }
 }

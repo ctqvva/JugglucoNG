@@ -39,15 +39,9 @@ class NoiseAccessTests {
     }
 
     @Test
-    fun exchangeNoiseUsesCalibratedSeries() {
-        var seenRaw: Boolean? = null
-        val provider = TrendNoiseProvider { _, useRaw, _ ->
-            seenRaw = useRaw
-            NoiseEstimate(1f)
+    fun negativeAndInfiniteEstimatesAreRejected() {
+        for (variance in listOf(-1f, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY)) {
+            assertNull(NoiseAccess.resolve({ _, _, _ -> NoiseEstimate(variance) }, points, false, false))
         }
-
-        NoiseAccess.resolveForExchange(provider, points, isMmol = false)
-
-        assertEquals(false, seenRaw)
     }
 }

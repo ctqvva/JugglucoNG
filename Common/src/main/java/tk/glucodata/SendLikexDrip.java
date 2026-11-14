@@ -65,13 +65,12 @@ private static int getBatteryLevel() {
 static void putNoiseExtras(Bundle extras, NoiseEstimate noise) {
     if (noise == null) return;
     final float variance = noise.getVarianceMgdl2();
-    if (!Float.isFinite(variance) || variance < 0f) return;
     extras.putDouble(EXTRA_NOISE, variance);
     extras.putString(EXTRA_NS_NOISE_LEVEL, Integer.toString(noise.getNightscoutLevel()));
     extras.putDouble(EXTRA_NOISE_SIGMA, noise.getSigmaMgdl());
     }
 
-private static Bundle mkGlucosebundle(ExchangeGlucosePayload payload,long sensorStartmsec) {
+static Bundle mkGlucosebundle(ExchangeGlucosePayload payload,long sensorStartmsec) {
     Bundle extras = new Bundle();
     extras.putDouble(EXTRA_BG_ESTIMATE,payload.primaryMgdl);
     extras.putString(EXTRA_BG_SLOPE_NAME,payload.trendName);
@@ -80,7 +79,7 @@ private static Bundle mkGlucosebundle(ExchangeGlucosePayload payload,long sensor
     extras.putLong(EXTRA_TIMESTAMP,payload.timeMillis);
     extras.putLong(EXTRA_SENSOR_STARTED_AT,sensorStartmsec);
     extras.putString(EXTRA_DATA_SOURCE_INFO, SensorSourceResolver.resolveXdripSourceInfo(payload.sensorId, payload.sensorGen));
-    putNoiseExtras(extras, NoiseAccess.current(payload.getSensorId()));
+    putNoiseExtras(extras, payload.noise);
 //        extras.putInt(EXTRA_SENSOR_BATTERY,100);
     return extras;
       }

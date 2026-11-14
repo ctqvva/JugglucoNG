@@ -22,7 +22,7 @@ package tk.glucodata;
  * receiver rotating its arrow by it ends up contradicting this app's arrow
  * and its own delta readout. With the toggle enabled, every exchange output
  * (glucodata broadcast, xDrip-style, watch, Gadgetbridge, API)
- * carries the same trend the app's own arrows show instead.
+ * carries a computed trend over the outgoing primary series instead.
  */
 public final class BroadcastTrendRate {
     public static final String PREF_KEY = "broadcast_computed_trend";
@@ -42,19 +42,16 @@ public final class BroadcastTrendRate {
     }
 
     /**
-     * The app's trend over the usual 20-minute window for this sensor, in
+     * The trend over the cadence-scaled window for this reading, in
      * mg/dL per minute; falls back to the given native rate when history is
      * too thin to say anything.
      */
-    public static float computed(String sensorId, float nativeRate) {
+    public static float computed(java.util.List<GlucosePoint> points, boolean isMmol, float nativeRate) {
         try {
-            final boolean isMmol = Applic.unit == 1;
-            final java.util.List<GlucosePoint> points = DisplayTrendSource.exchangePoints(sensorId, isMmol);
-            final int viewMode = Notify.resolveSensorViewMode(sensorId);
             // current is deliberately not handed to resolveArrowRate: when the history is too thin
             // to say anything this must fall back to the caller's native rate, as documented above,
             // rather than to the display snapshot's own rate.
-            final float computed = DisplayTrendSource.resolveArrowRate(points, null, viewMode, isMmol, Float.NaN);
+            final float computed = DisplayTrendSource.resolveArrowRate(points, null, 0, isMmol, Float.NaN);
             return Float.isFinite(computed) ? computed : nativeRate;
         } catch (Throwable th) {
             if (Log.doLog)

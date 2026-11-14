@@ -121,39 +121,33 @@ object DisplayTrendSource {
         return augmented.filter { it.timestamp >= cutoff }
     }
 
-    /**
-     * A reading older than [Notify.glucosetimeout] is not a live tail. [resolveCurrent]
-     * deliberately falls back to history for UI display, but an outgoing exchange must not
-     * describe a reading it is not carrying.
-     */
+    /** Noise describes live data only, including after a wall-clock rollback. */
     @JvmStatic
     fun isFreshForExchange(timestamp: Long, nowMillis: Long): Boolean =
-        timestamp > 0L && nowMillis - timestamp <= Notify.glucosetimeout
+        timestamp > 0L && timestamp >= nowMillis - Notify.glucosetimeout &&
+            timestamp <= nowMillis + Notify.glucosetimeout
 
     /**
-     * The point list every outgoing exchange consumer regresses over: recent history plus
-     * the live reading, cut to [TREND_WINDOW_MS] anchored at the newest point. The rate
-     * follows the view lane; the noise estimate uses the calibrated lane, so it describes
-     * the value actually broadcast.
+     * The primary series sent by this exchange: the captured history, exchange smoothing,
+     * selected lane and software calibration. Never reload current state while sending it.
      */
     @JvmStatic
-    fun exchangePoints(sensorId: String, isMmol: Boolean): List<GlucosePoint> {
-        // Load twice the trend window: the canonical cut below anchors at the newest point,
-        // which lags the wall clock, so a window-sized load could miss the tail.
-        val startT = System.currentTimeMillis() - 2 * TREND_WINDOW_MS
-        val history = NotificationHistorySource.getDisplayHistory(startT, isMmol, sensorId)
-        // Append the live reading before regressing, exactly like the notification and the
-        // dashboard do. resolveCurrent (not ...ForExchange) on purpose: the promise here is to
-        // carry the trend the app's arrows show, which is the locally smoothed series.
-        var current: CurrentDisplaySource.Snapshot? = null
-        try {
-            val now = System.currentTimeMillis()
-            current = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout, sensorId)
-                ?.takeIf { isFreshForExchange(it.timeMillis, now) }
-        } catch (th: Throwable) {
-            if (Log.doLog) Log.i("DisplayTrendSource", "resolveCurrent failed: $th")
+    fun exchangePoints(reading: CurrentDisplaySource.ResolvedReading?): List<GlucosePoint> {
+        if (reading == null) return emptyList()
+        val current = reading.snapshot
+        val cutoff = current.timeMillis - TREND_WINDOW_MS
+        val points = reading.points.filter {
+            it.timestamp >= cutoff && it.timestamp < current.timeMillis &&
+                (it.sensorSerial == null || SensorIdentity.matches(it.sensorSerial, current.sensorId))
+        }.map { point ->
+            val primary = CurrentDisplaySource.resolveDisplayValuesForPoint(
+                point, current.viewMode, current.isMmol, current.sensorId
+            ).primaryValue
+            GlucosePoint(point.timestamp, primary)
         }
-        return resolveTrendPoints(history, current, sensorId)
+        // The payload's own primary is authoritative, including imported calibration. The
+        // asynchronous history write may not exist yet, or a later reading may already exist.
+        return points + GlucosePoint(current.timeMillis, current.primaryValue)
     }
 
     @JvmStatic

@@ -6,8 +6,8 @@ import org.junit.Test
 class NoiseEstimateTests {
     @Test
     fun nightscoutLevelMatchesXDripThresholds() {
-        assertEquals(0, NoiseScale.nightscoutLevel(0f))
-        assertEquals(0, NoiseScale.nightscoutLevel(10f))
+        assertEquals(1, NoiseScale.nightscoutLevel(0f))
+        assertEquals(1, NoiseScale.nightscoutLevel(10f))
         assertEquals(2, NoiseScale.nightscoutLevel(10.1f))
         assertEquals(2, NoiseScale.nightscoutLevel(60f))
         assertEquals(3, NoiseScale.nightscoutLevel(60.1f))
@@ -16,7 +16,7 @@ class NoiseEstimateTests {
     }
 
     @Test
-    fun nonFiniteOrNegativeVarianceIsClean() {
+    fun nonFiniteOrNegativeVarianceIsUnknown() {
         assertEquals(0, NoiseScale.nightscoutLevel(Float.NaN))
         assertEquals(0, NoiseScale.nightscoutLevel(-1f))
     }

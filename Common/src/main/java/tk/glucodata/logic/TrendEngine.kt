@@ -250,10 +250,6 @@ object TrendEngine {
         // Use explicit flag
         val conversionFactor = if (isMmol) GlucoseFormatter.MGDL_PER_MMOL else 1.0f
 
-        // Collected in display units; the fit below converts them to mg/dL.
-        val rawValueList = mutableListOf<Float>()
-        validPoints.forEach { rawValueList.add(pointValue(it)) }
-
         // Velocity: recency-weighted least-squares slope over the window, in mg/dL per
         // minute. The window comes from the sensor's cadence ([trendWindowMillis]) and the
         // weighting from [recencyWeightedSlope]; a fit reads the trend rather than the
@@ -293,9 +289,9 @@ object TrendEngine {
         // - Jitter/Wobble -> Poor fit -> High Noise
         
         val newestTs = validPoints.first().timestamp
-        val spanMillis = newestTs - validPoints.last().timestamp
-        val noiseLevel2: Float? = if (rawValueList.size >= 4 && spanMillis > 0L) { // Need at least 4 points for Variance (N > Order+1)
-            val n = rawValueList.size
+        val spanMillis = newestTs - validPoints[usable - 1].timestamp
+        val noiseLevel2: Float? = if (usable >= 4 && spanMillis > 0L) { // Need at least 4 points for Variance (N > Order+1)
+            val n = usable
             // x is elapsed time, not the sample index. A quadratic fit is invariant under an
             // affine change of x, so for evenly spaced readings the two axes describe the same
             // parabola and report the same residuals — the number the signal-quality chip
@@ -309,7 +305,7 @@ object TrendEngine {
             // reads as jitter.
             val xScale = (n - 1).toFloat() / spanMillis
             val x = FloatArray(n) { (validPoints[it].timestamp - newestTs) * xScale }
-            val y = FloatArray(n) { rawValueList[it] * conversionFactor }
+            val y = FloatArray(n) { pointValue(validPoints[it]) * conversionFactor }
             
             // Calculate Sums
             var sx = 0.0; var sx2 = 0.0; var sx3 = 0.0; var sx4 = 0.0
@@ -378,7 +374,7 @@ object TrendEngine {
         return TrendResult(
             stateFor(velocity), velocity, acceleration, 1.0f,
             noiseLevel2 ?: 0f, noiseLevel2 != null,
-            if (noiseLevel2 != null) rawValueList.size else 0
+            if (noiseLevel2 != null) usable else 0
         )
     }
 }
