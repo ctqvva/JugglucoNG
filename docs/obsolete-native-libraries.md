@@ -5,6 +5,7 @@ Audit baseline: source commit `91fed63ff`; vendor bytes restored from the pinned
 `6374954ca6c9c7681434343220437437a8378748c303975af92c46c7d74b74b1`.
 Both `arm64-v8a` and `armeabi-v7a` were inspected with NDK 29
 `llvm-readelf -d`, `llvm-nm -D --defined-only`, and `llvm-strings`.
+The load-path audit was rechecked after rebasing onto `609a6b680`.
 
 ## Per-library decisions
 
@@ -20,7 +21,7 @@ Both `arm64-v8a` and `armeabi-v7a` were inspected with NDK 29
 | `libmodpng.so` | Remove, both ABIs | Only candidate `libmodft2.so` needs it. Android report rendering does not use this library. |
 | `libmarsxlog.so` | Remove, both ABIs | Exports target `com.tencent.mars.xlog.Xlog`; no Mars/Xlog code or dependency. Its dependency on `libc++_shared.so` is outgoing, not a reason to remove the shared C++ runtime. |
 | `libmmkv.so` | Remove, both ABIs | Dynamic JNI registration; MMKV class/method strings identify the owner. No MMKV consumer, loader or dependency. |
-| `libgetuiext3.so` | Remove, ARM32 only | Separately inspected: exports `Java_com_igexin_dms_core_NativeCaller_doDaemon` and `JNI_OnLoad`. No Igexin/Getui Java package, manifest service, loader or dependency. No retained vendor library needs or names it. No ARM64 counterpart exists in the inventory. |
+| `libgetuiext3.so` | Remove, ARM32 only | Separately inspected: exports `Java_com_igexin_dms_core_NativeCaller_doDaemon` and `JNI_OnLoad`, with registration owner `com/igexin/push/extension/mod/SecurityUtils`. No Igexin/Getui Java package, manifest service, loader or dependency. No retained vendor library needs or names it. No ARM64 counterpart exists in the inventory. |
 | Generated `libnative.so` | Retain, actively used, both ABIs | CMake builds `abbotttest.cpp` as an executable linked against `g`. `rightlib.rightlib()` executes it, and `testrightlib()` deletes a candidate Libre library if it fails. Although startup bypasses import with `Applic.includeLib = true`, `ScanNfcV` can still call `getlibrary.openlibrary()` after a failed `switchgen2()`, leading through `Openfile.getlib()` to this executable. The user explicitly confirmed retention after reviewing this path. Its CMake target and the production `g` target stay unchanged. |
 
 ## Load-path and dependency audit
@@ -52,6 +53,8 @@ Across all inventoried ELF files in both ABIs, no retained library has a
 `DT_NEEDED` edge or library-name string naming a retired candidate. Candidate
 edges are only the PDF chain above. Their other dependencies are platform
 libraries, except `libmarsxlog.so` needing the retained `libc++_shared.so`.
+None of the retained vendor ELFs imports `dlopen`; `libcrl_dp.so` and
+`liblibre3extension.so` import `dlsym` but contain no retired library names.
 `libinit.so` is a ZIP resource, not ELF; its six entries contain no native code.
 Retained vendor inputs are `libCALCULATION.so`, `libc++_shared.so`,
 `libcalibrat2.so`, `libcrl_dp.so`, `libinit.so`, `liblibre3extension.so` in both
@@ -59,19 +62,37 @@ ABIs and `libcalibrate.so` in ARM32. Production `libg.so` is unchanged.
 
 ## Verification
 
-- `python3 -m unittest discover -s scripts/dist/tests -v`: 101 tests passed.
+- `python3 -m unittest discover -s scripts/dist/tests -v`: 102 tests passed.
   Named retired-library negative controls cover all four phone/Wear and dub
   distribution variants, in both ABIs; SDK signature/badging output is mocked
   in these unit tests. Existing signing, source-integrity and lifecycle tests
-  remain enabled.
+  remain enabled. The new ARM64 Getui negative control failed before the
+  cross-ABI verifier fix (`ValueError not raised`) and passes afterwards.
 - A real empty JNI input directory was restored using the unchanged pinned APK:
   exactly 13 active inputs returned, and none of the 21 retired paths returned.
 - `scripts/update-build-inputs.sh --apk ...` regenerated the inventory; the
   source URL/hash and retained-library hashes are unchanged. No bootstrap or
   rebaseline is needed. Removed vendor payload totals 24,900,904 uncompressed
   bytes (14,197,384 ARM64 and 10,703,520 ARM32).
-- Gradle assembly and final APK verification results are pending below. A build
-  or source audit does not establish physical sensor behavior.
+- `./gradlew :Common:assembleMobileRelease :Common:assembleWearRelease
+  --no-daemon --offline` passed on the rebased branch with Java 21, an isolated
+  Gradle cache and both ARM ABIs (5m 29s). The initial pre-rebase online build
+  also passed after resolving dependencies missing from the offline cache.
+- The final build deliberately had all 21 retired baseline files reintroduced
+  into `src/main/jniLibs`: distribution input preflight rejected them, and direct
+  Gradle assembly excluded them from both APKs. Afterward the injected files
+  were removed and input checks plus `scripts/update-build-inputs.sh --ci --apk
+  ...` passed again.
+- Real phone/Wear release APKs passed `dist.verify_apk` with an explicit local
+  fallback certificate: signatures, package/version, both ARM ABIs, retained
+  vendor hashes and all retirement exclusions. The unchanged default production
+  certificate gate rejected these local APKs as expected. Both retain `g` and
+  `libnative`; the phone retains ML Kit and CameraX native libraries in both ABIs.
+  None of their 25 phone / 17 Wear ELF dependency tables references a retired
+  library. These local APKs are compile/packaging checks, not production releases.
+- Production-signed canonical builds and physical sensor/device testing were
+  not run. Existing resource/deprecation diagnostics were emitted during the
+  successful builds; no separate lint pass is claimed.
 
 ### ELF `DT_NEEDED` inventory
 
