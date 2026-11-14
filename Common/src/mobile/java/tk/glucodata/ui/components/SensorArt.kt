@@ -13,7 +13,6 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
@@ -23,7 +22,6 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import tk.glucodata.ui.isAppInDarkTheme
 import kotlin.math.PI
@@ -120,9 +118,9 @@ internal fun rememberSensorTones(): SensorTones {
 }
 
 /**
- * One sensor family, drawn to its maker's product photos: outlines traced from top-down shots,
- * real thickness against real width, the side profile (straight wall, rounded or chamfered edge,
- * dome), and the ports, windows and notches where they really are, with no maker's name on them.
+ * One sensor family, seen from above as its maker's top-down photos show it: the outline, the
+ * real thickness against the real width, and the ports, windows, tabs and notches where they
+ * really are, with no maker's name on them.
  * Drawn from code rather than shipped as bitmaps, so they follow the theme and stay sharp at any
  * size; the same drawing serves a list tile and a wizard hero.
  */
@@ -180,77 +178,17 @@ internal fun DrawScope.drawNfcPhone(tones: SensorTones) = inUnitSquare {
 
 // ---- The view ----
 //
-// One camera for every sensor: seen from about 53 degrees up, so a top face is foreshortened to
-// four fifths of its depth and a height shows at three fifths. Light comes from the upper left.
-// Sizes are in drawing units with the longest side of each sensor near 72, and every height is
-// that sensor's real thickness against its real width.
+// Every sensor is seen from straight above, as the makers' own top-down shots show them, so its
+// outline and the places of its ports and windows can be taken from a photo and checked against
+// one. A sliver of side wall under the bottom edge, as deep as the sensor is thick, gives it its
+// weight. Light comes from the upper left. Sizes are in drawing units, the longest side of each
+// sensor near 72, and each thickness is that sensor's real thickness against its real width.
 
-private const val VIEW_SQUASH = 0.8f
-private const val WALL_SHOW = 0.6f
+/** How much of a sensor's thickness shows as wall below its bottom edge. */
+private const val WALL_SHOW = 0.42f
 
-/** An outline in top view, shrunk evenly by its argument; insets give the edge profile. */
+/** An outline in top view, shrunk evenly by its argument; insets give the rounded edge. */
 private typealias Outline = (inset: Float) -> Path
-
-/**
- * A side profile, from the skin up: pairs of (inset from the outline, height). A vertical wall
- * keeps its inset; a rounded or chamfered edge steps in as it rises; the last pair is the top.
- */
-private class Profile(val insets: FloatArray, val heights: FloatArray) {
-    val height get() = heights.last()
-    val top get() = insets.last()
-
-    /** Height of the straight wall, before the edge starts to turn in. */
-    val wall: Float
-        get() {
-            var h = 0f
-            for (i in insets.indices) if (insets[i] == 0f) h = heights[i]
-            return h
-        }
-}
-
-/** A straight wall whose top edge rounds over with [radius]. */
-private fun rounded(height: Float, radius: Float): Profile {
-    val r = min(radius, height)
-    val steps = 10
-    val insets = FloatArray(steps + 2)
-    val heights = FloatArray(steps + 2)
-    for (i in 0..steps) {
-        val a = i / steps.toFloat() * PI.toFloat() / 2f
-        insets[i + 1] = r * (1f - cos(a))
-        heights[i + 1] = height - r + r * sin(a)
-    }
-    return Profile(insets, heights)
-}
-
-/** A straight wall [wall] high, then a flat chamfer stepping in by [inset] to the top face. */
-private fun chamfered(height: Float, wall: Float, inset: Float) =
-    Profile(floatArrayOf(0f, 0f, inset * 0.12f, inset), floatArrayOf(0f, wall, wall + (height - wall) * 0.3f, height))
-
-/** A foot [lip] high and [step] wider than the body, then a wall whose top rounds over. */
-private fun footed(height: Float, lip: Float, step: Float, radius: Float): Profile {
-    val upper = rounded(height - lip, radius)
-    val insets = FloatArray(upper.insets.size + 2)
-    val heights = FloatArray(upper.insets.size + 2)
-    heights[1] = lip
-    for (i in upper.insets.indices) {
-        insets[i + 2] = step + upper.insets[i]
-        heights[i + 2] = lip + upper.heights[i]
-    }
-    return Profile(insets, heights)
-}
-
-/** A short wall under a dome that rises [height] and draws in by [inset]. */
-private fun domed(height: Float, wall: Float, inset: Float): Profile {
-    val steps = 12
-    val insets = FloatArray(steps + 2)
-    val heights = FloatArray(steps + 2)
-    for (i in 0..steps) {
-        val a = i / steps.toFloat() * PI.toFloat() / 2f
-        insets[i + 1] = inset * (1f - cos(a))
-        heights[i + 1] = wall + (height - wall) * sin(a)
-    }
-    return Profile(insets, heights)
-}
 
 private fun circle(radius: Float, at: Offset = Offset.Zero): Outline = { inset ->
     val r = max(radius - inset, 0.1f)
@@ -351,155 +289,6 @@ private fun capsule(from: Offset, fromRadius: Float, to: Offset, toRadius: Float
     close()
 }
 
-private fun leanOf(rotation: Float) = Matrix().apply {
-    scale(1f, VIEW_SQUASH)
-    rotateZ(rotation)
-}
-
-private fun Path.leaned(lean: Matrix) = Path().also {
-    it.addPath(this)
-    it.transform(lean)
-}
-
-/** Centres an object [height] tall in the square, so tall and flat sensors sit alike. */
-private inline fun DrawScope.upright(height: Float, block: DrawScope.() -> Unit) {
-    translate(0f, height * WALL_SHOW / 2f, block)
-}
-
-/** The adhesive patch, flat on the skin under the sensor. */
-private fun DrawScope.patch(tones: SensorTones, outline: Outline, at: Offset = Offset.Zero) {
-    val lean = leanOf(0f)
-    translate(at.x, at.y * VIEW_SQUASH) {
-        drawPath(outline(0f).leaned(lean), tones.highlight.copy(alpha = 0.2f))
-        drawPath(outline(1.6f).leaned(lean), tones.highlight.copy(alpha = 0.08f))
-        drawPath(outline(0f).leaned(lean), tones.highlight.copy(alpha = 0.3f), style = Stroke(width = 0.7f))
-    }
-}
-
-/**
- * Builds [outline] up along [profile], standing [base] above the skin: a soft contact shadow,
- * then slice by slice from the skin up, each slice shaded by how far its surface faces up, so a
- * wall reads as a wall, a rounded edge rolls and catches the light at the upper left, and a
- * chamfer is a flat slope. The top face is flat, or lit as a [dome].
- *
- * Slices below [band] take a darker base material. [side] draws on the straight wall, with
- * y = 0 at the wall's top and the wall's projected height as its argument; [face] draws on the
- * top face in the outline's own coordinates, so it leans and turns with the object.
- */
-private fun DrawScope.solid(
-    tones: SensorTones,
-    outline: Outline,
-    profile: Profile,
-    base: Float = 0f,
-    rotation: Float = 0f,
-    dome: Boolean = false,
-    band: Float = 0f,
-    side: DrawScope.(wall: Float) -> Unit = {},
-    face: DrawScope.() -> Unit = {},
-) {
-    val lean = leanOf(rotation)
-    val foot = outline(0f).leaned(lean)
-    val bounds = foot.getBounds()
-    val floor = -base * WALL_SHOW
-
-    if (base == 0f) {
-        // Contact shadow: stacked passes stand in for a blur, which a Canvas path cannot have.
-        for (pass in 6 downTo 1) {
-            translate(pass * 0.3f, floor + pass * 0.75f) { drawPath(foot, tones.shadow) }
-        }
-    }
-
-    val lit = Offset(bounds.left, bounds.top)
-    val dim = Offset(bounds.right, bounds.bottom)
-    val faceBrush = if (dome) {
-        Brush.radialGradient(
-            0f to tones.highlight,
-            0.6f to tones.body,
-            1f to tones.shade,
-            center = bounds.center + Offset(-bounds.width * 0.16f, -bounds.height * 0.24f),
-            radius = max(bounds.width, bounds.height) * 0.7f,
-        )
-    } else {
-        Brush.linearGradient(
-            0f to tones.highlight,
-            0.55f to tones.body,
-            1f to lerp(tones.body, tones.shade, 0.55f),
-            start = lit,
-            end = dim,
-        )
-    }
-    // Each slice is one opaque gradient, mixed from the wall's tones towards the face's by how far
-    // the slice faces up, and towards the glint where a rolling edge catches the light. Opaque
-    // slices stack without the banding that layered translucent ones leave.
-    val wallStops = arrayOf(tones.shade, tones.wall, tones.wallDeep)
-    val bandStops = arrayOf(
-        lerp(tones.wall, tones.ink, 0.35f),
-        lerp(tones.wall, tones.ink, 0.45f),
-        lerp(tones.wallDeep, tones.ink, 0.55f),
-    )
-    val faceStops = arrayOf(tones.highlight, tones.body, lerp(tones.body, tones.shade, 0.55f))
-    fun sliceBrush(up: Float, inBand: Boolean): Brush {
-        val from = if (inBand) bandStops else wallStops
-        val mix = up.pow(0.8f)
-        val catch = 4f * up * (1f - up) * 0.55f
-        return Brush.linearGradient(
-            0f to lerp(lerp(from[0], faceStops[0], mix), tones.glint, catch),
-            0.45f to lerp(from[1], faceStops[1], mix),
-            1f to lerp(from[2], faceStops[2], mix),
-            start = lit,
-            end = dim,
-        )
-    }
-
-    val insets = profile.insets
-    val heights = profile.heights
-    for (seg in 0 until insets.size - 1) {
-        val i0 = insets[seg]
-        val h0 = heights[seg]
-        val di = insets[seg + 1] - i0
-        val dh = heights[seg + 1] - h0
-        val run = hypot(di, dh)
-        if (run == 0f) continue
-        val up = di / run
-        val slices = max(ceil(max(dh * WALL_SHOW / 0.3f, di / 0.35f)).toInt(), 1)
-        val plain = sliceBrush(up, inBand = false)
-        val banded = sliceBrush(up, inBand = true)
-        for (k in (if (seg == 0) 0 else 1)..slices) {
-            val t = k / slices.toFloat()
-            val h = h0 + dh * t
-            val slice = outline(i0 + di * t).leaned(lean)
-            translate(0f, floor - h * WALL_SHOW) {
-                drawPath(slice, if (h < band) banded else plain)
-            }
-        }
-    }
-    translate(0f, floor) {
-        drawPath(foot, tones.wallDeep.copy(alpha = 0.45f), style = Stroke(width = 0.6f))
-    }
-    translate(0f, floor - profile.wall * WALL_SHOW) { side(profile.wall * WALL_SHOW) }
-
-    translate(0f, floor - profile.height * WALL_SHOW) {
-        val top = outline(profile.top).leaned(lean)
-        drawPath(top, faceBrush)
-        if (dome) {
-            val gloss = Rect(
-                bounds.center + Offset(-bounds.width * 0.28f, -bounds.height * 0.34f),
-                Size(bounds.width * 0.3f, bounds.height * 0.2f),
-            )
-            drawOval(
-                Brush.radialGradient(
-                    0f to tones.glint.copy(alpha = 0.7f),
-                    1f to tones.glint.copy(alpha = 0f),
-                    center = gloss.center,
-                    radius = gloss.width / 2f,
-                ),
-                topLeft = gloss.topLeft,
-                size = gloss.size,
-            )
-        }
-        clipPath(top) { withTransform({ transform(lean) }, face) }
-    }
-}
 
 /** A hole into the casing: dark, its far inner wall lit, a bright lip on the near edge. */
 private fun DrawScope.hole(tones: SensorTones, center: Offset, radius: Float) {
@@ -549,38 +338,173 @@ private fun DrawScope.window(tones: SensorTones, center: Offset, side: Float, fi
     }
 }
 
-// ---- The sensors ----
 
-/** Libre 3: a thin 21 mm coin, its one feature an oval port with the keyed filament slot. */
-private fun DrawScope.drawLibre(tones: SensorTones, onPad: Boolean) = upright(10f) {
-    if (onPad) patch(tones, circle(42f))
-    solid(tones, circle(36f), rounded(10f, 4f)) {
-        val port = Offset(-3.6f, -12f)
-        val ring = stadium(13.5f, 18.5f, port)
-        drawPath(ring(0f), tones.detail.copy(alpha = 0.16f))
-        groove(tones, ring(0f), width = 1.1f)
-        groove(tones, ring(2.2f), width = 0.6f, depth = 0.45f)
-        drawPath(stadium(4.2f, 10f, port)(0f), tones.ink)
-        drawPath(stadium(1.6f, 6f, port + Offset(0.3f, 0.4f))(0f), tones.detail)
-        drawCircle(tones.detail, 0.9f, port + Offset(8.6f, -0.6f))
+/** Centres an object [thickness] thick in the square, so tall and flat sensors sit alike. */
+private inline fun DrawScope.seated(thickness: Float, block: DrawScope.() -> Unit) {
+    translate(0f, -thickness * WALL_SHOW / 2f, block)
+}
+
+/** The adhesive patch, flat on the skin under the sensor. */
+private fun DrawScope.patch(tones: SensorTones, outline: Outline, at: Offset = Offset.Zero) {
+    translate(at.x, at.y) {
+        val flat = outline(0f)
+        drawPath(flat, tones.highlight.copy(alpha = 0.22f))
+        drawPath(outline(1.8f), tones.highlight.copy(alpha = 0.1f))
+        drawPath(flat, tones.highlight.copy(alpha = 0.32f), style = Stroke(width = 0.6f))
     }
 }
 
 /**
- * G7: 27.5 x 24 mm, 4.6 thick, its plan traced from a top-down shot: an oval fuller on the right,
- * with a square cut in the middle of each side. A slim foot, then a wall rounding over into a flat
- * top; the round port sits left of centre on the long axis, the pinhole below it.
+ * One part of a sensor seen from above: a soft contact shadow, the wall showing under the bottom
+ * edge as deep as [thickness] (standing [base] above the skin), then the top, its edge rolling
+ * over across [bevel] into the face, flat or [dome]d. [face] draws on the top.
  */
-private fun DrawScope.drawDexcom(tones: SensorTones, onPad: Boolean) = upright(12.4f) {
+private fun DrawScope.part(
+    tones: SensorTones,
+    outline: Outline,
+    thickness: Float,
+    bevel: Float,
+    base: Float = 0f,
+    dome: Boolean = false,
+    band: Float = 0f,
+    face: DrawScope.() -> Unit = {},
+) {
+    val top = outline(0f)
+    val bounds = top.getBounds()
+    val wall = thickness * WALL_SHOW
+    val lift = -base * WALL_SHOW
+
+    if (base == 0f) {
+        // Contact shadow: stacked passes stand in for a blur, which a Canvas path cannot have.
+        for (pass in 6 downTo 1) {
+            translate(pass * 0.25f, wall + pass * 0.6f) { drawPath(top, tones.shadow) }
+        }
+    }
+    translate(0f, lift) {
+        val side = Brush.horizontalGradient(
+            0f to tones.shade,
+            0.4f to tones.wall,
+            1f to tones.wallDeep,
+            startX = bounds.left,
+            endX = bounds.right,
+        )
+        val dark = Brush.horizontalGradient(
+            0f to lerp(tones.wall, tones.ink, 0.35f),
+            1f to lerp(tones.wallDeep, tones.ink, 0.55f),
+            startX = bounds.left,
+            endX = bounds.right,
+        )
+        val layers = max(ceil(wall / 0.35f).toInt(), 1)
+        for (layer in layers downTo 1) {
+            val drop = wall * layer / layers
+            translate(0f, drop) { drawPath(top, if (band > 0f && drop > wall * (1f - band)) dark else side) }
+        }
+        translate(0f, wall) {
+            drawPath(top, tones.wallDeep.copy(alpha = 0.55f), style = Stroke(width = 0.5f))
+        }
+
+        val lit = Offset(bounds.left, bounds.top)
+        val dim = Offset(bounds.right, bounds.bottom)
+        // The rolled edge: lit where it faces the light, darker where it turns away.
+        drawPath(
+            top,
+            Brush.linearGradient(
+                0f to tones.highlight,
+                0.45f to lerp(tones.body, tones.shade, 0.4f),
+                1f to tones.wall,
+                start = lit,
+                end = dim,
+            ),
+        )
+        val faceBrush = if (dome) {
+            Brush.radialGradient(
+                0f to tones.highlight,
+                0.65f to tones.body,
+                1f to tones.shade,
+                center = bounds.center + Offset(-bounds.width * 0.16f, -bounds.height * 0.2f),
+                radius = max(bounds.width, bounds.height) * 0.68f,
+            )
+        } else {
+            Brush.linearGradient(
+                0f to tones.highlight,
+                0.6f to tones.body,
+                1f to lerp(tones.body, tones.shade, 0.5f),
+                start = lit,
+                end = dim,
+            )
+        }
+        // Veils of the face, each a little further in, so the edge rolls rather than steps.
+        val rolls = 6
+        for (roll in 1 until rolls) {
+            drawPath(outline(bevel * roll / rolls), faceBrush, alpha = 0.32f)
+        }
+        val inner = outline(bevel)
+        drawPath(inner, faceBrush)
+        if (dome) {
+            val gloss = Rect(
+                bounds.center + Offset(-bounds.width * 0.3f, -bounds.height * 0.32f),
+                Size(bounds.width * 0.32f, bounds.height * 0.22f),
+            )
+            drawOval(
+                Brush.radialGradient(
+                    0f to tones.glint.copy(alpha = 0.7f),
+                    1f to tones.glint.copy(alpha = 0f),
+                    center = gloss.center,
+                    radius = gloss.width / 2f,
+                ),
+                topLeft = gloss.topLeft,
+                size = gloss.size,
+            )
+        }
+        drawPath(top, tones.wall.copy(alpha = 0.55f), style = Stroke(width = 0.5f))
+        clipPath(top, block = face)
+    }
+}
+
+// ---- The sensors ----
+
+/**
+ * Libre 3: a 21 mm disc 2.9 mm thick. Its one feature, a third of the way up and just left of
+ * centre, is a clear round window holding the keyed filament slot, with a small nub at its right.
+ */
+private fun DrawScope.drawLibre(tones: SensorTones, onPad: Boolean) = seated(10f) {
+    if (onPad) patch(tones, circle(40f))
+    part(tones, circle(35f), thickness = 10f, bevel = 2.4f) {
+        val window = Offset(-2.8f, -13f)
+        drawCircle(lerp(tones.body, tones.shade, 0.35f), 9.5f, window)
+        drawCircle(tones.wall.copy(alpha = 0.8f), 9.5f, window, style = Stroke(width = 0.9f))
+        drawCircle(tones.wall.copy(alpha = 0.45f), 8.4f, window, style = Stroke(width = 0.5f))
+        drawArc(
+            color = tones.glint,
+            startAngle = 190f,
+            sweepAngle = 100f,
+            useCenter = false,
+            topLeft = window - Offset(8.9f, 8.9f),
+            size = Size(17.8f, 17.8f),
+            style = Stroke(width = 0.7f, cap = StrokeCap.Round),
+        )
+        val slot = stadium(4.2f, 11.1f, window + Offset(-0.3f, 0f))(0f)
+        drawPath(slot, tones.ink)
+        drawPath(slot, tones.wall, style = Stroke(width = 0.6f))
+        drawRect(tones.ink, topLeft = window + Offset(1.6f, -0.9f), size = Size(0.8f, 1.6f))
+        drawCircle(lerp(tones.shade, tones.wall, 0.4f), 1.2f, window + Offset(7.6f, 0.3f))
+    }
+}
+
+/**
+ * G7: 27.5 x 24 mm, 4.6 thick, its plan fitted to a top-down shot: an oval fuller on the right,
+ * a square cut in the middle of each side, a broad rolled edge round a flat top. The round port
+ * sits left of centre on the long axis, the pinhole below it.
+ */
+private fun DrawScope.drawDexcom(tones: SensorTones, onPad: Boolean) = seated(12.4f) {
     if (onPad) patch(tones, superellipse(45f, 41f, 2.2f), at = Offset(1f, 1f))
-    val scale = 37f
     val outline = polar { angle ->
-        scale * (
+        37f * (
             0.9319f - 0.0194f * cos(angle) + 0.0667f * cos(2f * angle) - 0.0235f * cos(3f * angle) -
                 0.0015f * cos(4f * angle) + 0.0065f * cos(5f * angle) + 0.001f * cos(6f * angle)
             ) - cut(angle, 0f, 2.3f, 0.085f) - cut(angle, PI.toFloat(), 2.3f, 0.085f)
     }
-    solid(tones.grey(), outline, footed(12.4f, lip = 3.2f, step = 1.3f, radius = 3.4f)) {
+    part(tones.grey(), outline, thickness = 12.4f, bevel = 4f) {
         hole(tones, Offset(-15.4f, 0f), 2.9f)
         drawRoundRect(
             tones.ink,
@@ -593,82 +517,94 @@ private fun DrawScope.drawDexcom(tones: SensorTones, onPad: Boolean) = upright(1
 
 /**
  * GS1: traced from a top-down shot, an upright capsule on a slightly wider flange, its top softly
- * cushioned, with the round metal-keyed port a third of the way down.
+ * cushioned. The round port sits a third of the way down, a metal key with a square C inside it.
  */
-private fun DrawScope.drawSibionics(tones: SensorTones) = upright(9.4f) {
-    solid(tones, stadium(45.5f, 73.5f), rounded(1.4f, 0.6f))
-    solid(tones, stadium(42f, 70f), rounded(8f, 5.5f), base = 1.4f) {
-        val port = Offset(0f, -11f)
-        val radius = 5.2f
-        drawCircle(tones.glint.copy(alpha = 0.6f), radius + 0.8f, port + Offset(0.3f, 0.5f))
+private fun DrawScope.drawSibionics(tones: SensorTones) = seated(9.4f) {
+    part(tones, stadium(44.5f, 72.5f), thickness = 1.4f, bevel = 0.8f)
+    part(tones, stadium(41f, 69f), thickness = 8f, bevel = 5f, base = 1.4f) {
+        val port = Offset(0f, -9.6f)
+        val radius = 4.8f
+        drawCircle(tones.glint.copy(alpha = 0.7f), radius + 0.7f, port + Offset(0.3f, 0.5f))
         drawCircle(
             Brush.radialGradient(
                 0f to tones.highlight,
-                0.6f to lerp(tones.body, tones.wall, 0.4f),
+                0.6f to lerp(tones.body, tones.wall, 0.45f),
                 1f to tones.wall,
-                center = port - Offset(1.6f, 1.8f),
+                center = port - Offset(1.4f, 1.6f),
                 radius = radius * 1.3f,
             ),
             radius,
             port,
         )
-        for (key in 0 until 4) {
+        val key = Path().apply {
+            moveTo(port.x + 1.6f, port.y - 2.4f)
+            lineTo(port.x - 2f, port.y - 2.4f)
+            lineTo(port.x - 2f, port.y + 2.4f)
+            lineTo(port.x + 1.6f, port.y + 2.4f)
+            moveTo(port.x + 0.2f, port.y - 0.6f)
+            lineTo(port.x + 1.6f, port.y - 0.6f)
+            lineTo(port.x + 1.6f, port.y + 0.8f)
+        }
+        drawPath(key, tones.ink, style = Stroke(width = 1.2f))
+        for (notch in listOf(35f, 125f, 215f, 305f)) {
             drawArc(
                 color = tones.ink,
-                startAngle = 20f + key * 90f,
-                sweepAngle = 42f,
+                startAngle = notch,
+                sweepAngle = 22f,
                 useCenter = false,
-                topLeft = port - Offset(radius - 1.1f, radius - 1.1f),
-                size = Size((radius - 1.1f) * 2f, (radius - 1.1f) * 2f),
-                style = Stroke(width = 1.9f),
+                topLeft = port - Offset(radius - 0.8f, radius - 0.8f),
+                size = Size((radius - 0.8f) * 2f, (radius - 0.8f) * 2f),
+                style = Stroke(width = 1.4f),
             )
         }
-        drawRect(tones.highlight, topLeft = port - Offset(1.2f, 1.2f), size = Size(2.4f, 2.4f))
-        drawRect(tones.ink, topLeft = port - Offset(0.5f, 0.5f), size = Size(1f, 1f))
-        drawCircle(tones.ink.copy(alpha = 0.75f), radius, port, style = Stroke(width = 0.6f))
+        drawCircle(tones.ink.copy(alpha = 0.7f), radius, port, style = Stroke(width = 0.6f))
     }
 }
 
 /**
- * AiDEX: 36 x 22 x 8 mm, the deepest here. A rounded-rectangle transmitter whose wall breaks into
- * a broad flat chamfer round the top, clipped flush into a base of the same plan whose wall
- * carries ribbed grips and an opening.
+ * AiDEX X and LinX: a round white top on a wider grey base ring, a ringed port at the upper
+ * right holding the upright slot of the filament.
  */
-private fun DrawScope.drawAiDex(tones: SensorTones, onPad: Boolean) = upright(15f) {
-    if (onPad) patch(tones, roundRect(88f, 66f, 26f))
-    val outline = roundRect(70f, 45f, 18f)
-    val baseHeight = 6f
-    solid(
-        tones.grey().copy(highlight = tones.highlight, body = tones.body),
-        outline,
-        rounded(baseHeight, 0.4f),
-        side = { wall ->
-            val front = 22.5f * VIEW_SQUASH
-            for (rib in 0 until 6) {
-                val x = -17f + rib * 2.2f
-                drawLine(tones.wallDeep, Offset(x, front + 0.5f), Offset(x, front + wall - 0.5f), strokeWidth = 0.9f)
-                drawLine(tones.highlight, Offset(x + 0.8f, front + 0.5f), Offset(x + 0.8f, front + wall - 0.5f), strokeWidth = 0.5f)
-            }
-            drawRect(tones.ink.copy(alpha = 0.7f), topLeft = Offset(4f, front + 0.9f), size = Size(7f, wall - 1.8f))
-        },
-    )
-    solid(tones, outline, chamfered(9f, wall = 2.6f, inset = 7.5f), base = baseHeight)
+private fun DrawScope.drawAiDex(tones: SensorTones, onPad: Boolean) = seated(12f) {
+    if (onPad) patch(tones, circle(45f))
+    part(tones.grey(), circle(38.5f), thickness = 3f, bevel = 1.2f)
+    part(tones, circle(33f), thickness = 9f, bevel = 3f, base = 3f) {
+        val port = Offset(9.9f, -12.9f)
+        drawCircle(lerp(tones.body, tones.shade, 0.3f), 7.6f, port)
+        drawCircle(tones.wallDeep, 7.6f, port, style = Stroke(width = 0.9f))
+        drawArc(
+            color = tones.wall,
+            startAngle = -60f,
+            sweepAngle = 140f,
+            useCenter = false,
+            topLeft = port - Offset(6.4f, 6.4f),
+            size = Size(12.8f, 12.8f),
+            style = Stroke(width = 0.6f),
+        )
+        val slot = stadium(4.6f, 9.6f, port + Offset(-0.6f, 0f))(0f)
+        drawPath(slot, lerp(tones.ink, tones.wall, 0.35f))
+        drawPath(slot, tones.ink, style = Stroke(width = 0.5f))
+    }
 }
 
-/** M8: a 24 mm coin 3.5 mm thin, a small square button with a slit just right of centre. */
-private fun DrawScope.drawOttai(tones: SensorTones, onPad: Boolean) = upright(10.8f) {
-    if (onPad) patch(tones, circle(47f), at = Offset(3f, 4f))
-    solid(tones, circle(36.5f), rounded(10.8f, 3.8f)) {
-        val button = Offset(6.5f, -5f)
-        val frame = roundRect(12.5f, 12.5f, 3.8f, button)
-        drawPath(frame(0f), tones.detail.copy(alpha = 0.12f))
-        groove(tones, frame(0f), width = 1f)
-        groove(tones, frame(2f), width = 0.6f, depth = 0.4f)
+/**
+ * M8: a 24 mm coin 3.5 mm thin on a round patch notched at one side. Right of centre, a rounded
+ * button framed by a raised ring, a short slit in it.
+ */
+private fun DrawScope.drawOttai(tones: SensorTones, onPad: Boolean) = seated(10.8f) {
+    if (onPad) patch(tones, polar { angle -> 45f - cut(angle, 0.1f, 6f, 0.12f) }, at = Offset(2f, 2f))
+    part(tones, circle(35f), thickness = 10.8f, bevel = 3.5f) {
+        val button = Offset(12.3f, -3.5f)
+        val frame = roundRect(14f, 12f, 4.6f, button)
+        drawPath(frame(0f), lerp(tones.body, tones.shade, 0.25f))
+        groove(tones, frame(0f), width = 0.9f)
+        drawPath(frame(2.2f), tones.highlight)
+        groove(tones, frame(2.2f), width = 0.5f, depth = 0.5f)
         drawRoundRect(
             tones.ink,
-            topLeft = button - Offset(0.6f, 1.9f),
-            size = Size(1.2f, 3.8f),
-            cornerRadius = CornerRadius(0.6f),
+            topLeft = button - Offset(0.55f, 1.7f),
+            size = Size(1.1f, 3.4f),
+            cornerRadius = CornerRadius(0.5f),
         )
     }
 }
@@ -677,58 +613,41 @@ private fun DrawScope.drawOttai(tones: SensorTones, onPad: Boolean) = upright(10
  * i3: a thick white puck on a dark base ring. A teardrop-shaped recess holds a square window in
  * its broad end and three small contacts towards its tip; small slots break the rim.
  */
-private fun DrawScope.drawICan(tones: SensorTones, onPad: Boolean) = upright(11f) {
+private fun DrawScope.drawICan(tones: SensorTones, onPad: Boolean) = seated(11f) {
     if (onPad) patch(tones, circle(45f))
-    solid(
-        tones,
-        circle(37f),
-        rounded(11f, 2.6f),
-        band = 2.4f,
-        side = { wall ->
-            val front = 37f * VIEW_SQUASH
-            drawRoundRect(
-                tones.ink.copy(alpha = 0.55f),
-                topLeft = Offset(-3f, front + wall * 0.25f),
-                size = Size(6f, 1.3f),
-                cornerRadius = CornerRadius(0.65f),
-            )
-        },
-    ) {
+    part(tones, circle(36.5f), thickness = 11f, bevel = 2.6f, band = 0.35f) {
         val recess = capsule(Offset(-13.5f, -20.5f), 11f, Offset(3f, -4.5f), 8f)
-        drawPath(recess, tones.detail.copy(alpha = 0.14f))
-        drawPath(recess, tones.ink.copy(alpha = 0.6f), style = Stroke(width = 1.5f))
-        translate(0.3f, 0.6f) {
-            drawPath(recess, tones.glint.copy(alpha = 0.45f), style = Stroke(width = 0.6f))
-        }
+        drawPath(recess, lerp(tones.body, tones.shade, 0.3f))
+        drawPath(recess, tones.ink.copy(alpha = 0.65f), style = Stroke(width = 1.4f))
         rotate(10f, pivot = Offset(-15.5f, -21f)) {
             window(tones, Offset(-15.5f, -21f), 6f, filled = false)
         }
         window(tones, Offset(-0.5f, -10.5f), 2.8f, filled = true)
         window(tones, Offset(-5.2f, -5.4f), 2.8f, filled = true)
         window(tones, Offset(0.6f, -4.2f), 2.6f, filled = false)
-        drawLine(tones.detail, Offset(34f, 2f), Offset(34f, 6.6f), strokeWidth = 0.9f, cap = StrokeCap.Round)
-        drawLine(tones.detail, Offset(-1.6f, -34f), Offset(1.6f, -34f), strokeWidth = 0.8f, cap = StrokeCap.Round)
+        drawLine(tones.wallDeep, Offset(35f, 2f), Offset(35f, 6.6f), strokeWidth = 0.9f, cap = StrokeCap.Round)
+        drawLine(tones.wallDeep, Offset(-1.8f, -35.4f), Offset(1.8f, -35.4f), strokeWidth = 0.9f, cap = StrokeCap.Round)
+        drawLine(tones.wallDeep, Offset(-2.2f, 35.4f), Offset(2.2f, 35.4f), strokeWidth = 0.9f, cap = StrokeCap.Round)
     }
 }
 
 /** Anytime CT: a plain egg-shaped pebble, domed all over, the narrow end up. */
-private fun DrawScope.drawAnytime(tones: SensorTones, onPad: Boolean) = upright(10f) {
+private fun DrawScope.drawAnytime(tones: SensorTones, onPad: Boolean) = seated(10f) {
     if (onPad) patch(tones, egg(34f, 45f, 0.06f))
-    solid(tones, egg(26f, 36.5f, 0.08f), domed(11f, wall = 3f, inset = 9f), dome = true)
+    part(tones, egg(27f, 37f, 0.08f), thickness = 10f, bevel = 9f, dome = true)
 }
 
 /**
- * SmartGuide sensor: a 33 mm disc 6 mm thick, a light grey cover with a rounded edge over a clear
+ * SmartGuide sensor: a 33 mm disc 6 mm thick, a light grey cover with a rolled edge over a clear
  * base ring. The filament port sits just left of centre in a metal collar, a small light near the
  * rim, and a square cut in the rim to the upper right.
  */
-private fun DrawScope.drawAccuChek(tones: SensorTones, onPad: Boolean) = upright(13f) {
+private fun DrawScope.drawAccuChek(tones: SensorTones, onPad: Boolean) = seated(13f) {
     if (onPad) patch(tones, circle(45f))
-    val baseHeight = 4.2f
-    solid(tones.clear(), circle(36f), rounded(baseHeight, 1.2f))
+    part(tones.clear(), circle(37f), thickness = 4.2f, bevel = 1.2f)
     val cover = polar { angle -> 34.6f - cut(angle, -0.9f, 1.8f, 0.07f) }
     val coverTones = tones.grey().copy(highlight = tones.highlight, body = lerp(tones.body, tones.shade, 0.3f))
-    solid(coverTones, cover, rounded(8.8f, 4.5f), base = baseHeight) {
+    part(coverTones, cover, thickness = 8.8f, bevel = 4f, base = 4.2f) {
         val port = Offset(-4f, 1f)
         drawCircle(
             Brush.radialGradient(
@@ -748,11 +667,11 @@ private fun DrawScope.drawAccuChek(tones: SensorTones, onPad: Boolean) = upright
 }
 
 /** CareSens Air: a grey cushioned capsule on a thin clear base; a ribbed dial with a button. */
-private fun DrawScope.drawCareSensAir(tones: SensorTones, onPad: Boolean) = upright(9f) {
+private fun DrawScope.drawCareSensAir(tones: SensorTones, onPad: Boolean) = seated(9f) {
     if (onPad) patch(tones, roundRect(86f, 58f, 22f))
     val slate = tones.grey().grey()
-    solid(tones.clear(), roundRect(70f, 42f, 19f), rounded(1.4f, 0.5f))
-    solid(slate, roundRect(66f, 38f, 17f), rounded(7.6f, 5.5f), base = 1.4f) {
+    part(tones.clear(), roundRect(70f, 42f, 19f), thickness = 1.4f, bevel = 0.6f)
+    part(slate, roundRect(66f, 38f, 17f), thickness = 7.6f, bevel = 5f, base = 1.4f) {
         val dial = Offset(14f, 0f)
         val disc = Path().apply { addOval(Rect(dial.x - 11.5f, -11.5f, dial.x + 11.5f, 11.5f)) }
         drawPath(disc, lerp(slate.body, slate.wall, 0.35f))
@@ -779,25 +698,39 @@ private fun DrawScope.drawCareSensAir(tones: SensorTones, onPad: Boolean) = upri
     }
 }
 
-/** MQ: a thick cushion-square transmitter, its whole top rounded over, on a round patch. */
-private fun DrawScope.drawMq(tones: SensorTones, onPad: Boolean) = upright(13f) {
-    if (onPad) patch(tones, circle(47f))
-    solid(tones, superellipse(36f, 30.5f, 3f), domed(10.5f, wall = 3.5f, inset = 9f), dome = true)
+/**
+ * Glutec v3: an upright rounded-rectangle transmitter, its top end carrying a framed tab and a
+ * parting line across its lower third, on an oval clear patch.
+ */
+private fun DrawScope.drawMq(tones: SensorTones, onPad: Boolean) = seated(11f) {
+    if (onPad) patch(tones, roundRect(66f, 84f, 30f))
+    val body = roundRect(48f, 64f, 15f)
+    part(tones, body, thickness = 11f, bevel = 4.5f) {
+        val tab = Path().apply {
+            addRoundRect(RoundRect(Rect(-8f, -29.5f, 8f, -18f), CornerRadius(1.6f)))
+        }
+        drawPath(tab, lerp(tones.body, tones.shade, 0.2f))
+        groove(tones, tab, width = 0.8f)
+        groove(tones, Path().apply {
+            moveTo(-24f, 12f)
+            lineTo(24f, 12f)
+        }, width = 0.8f)
+    }
 }
 
 /**
  * TouchCare Nano: traced from a top-down shot, a slim rounded slab clipped on a clear base, the
  * base's round tab showing past one end.
  */
-private fun DrawScope.drawMedtrum(tones: SensorTones, onPad: Boolean) = upright(6.6f) {
+private fun DrawScope.drawMedtrum(tones: SensorTones, onPad: Boolean) = seated(6.6f) {
     if (onPad) patch(tones, roundRect(62f, 86f, 22f))
     val baseOutline: Outline = { inset ->
         Path().apply {
             op(roundRect(48f, 74f, 12f)(inset), circle(8.5f, Offset(0f, -36f))(inset), PathOperation.Union)
         }
     }
-    solid(tones.clear(), baseOutline, rounded(2.2f, 0.8f))
-    solid(tones, roundRect(45f, 71.5f, 11f), rounded(4.4f, 3.4f), base = 2.2f)
+    part(tones.clear(), baseOutline, thickness = 2.2f, bevel = 0.8f)
+    part(tones, roundRect(45f, 71.5f, 11f), thickness = 4.4f, bevel = 3.6f, base = 2.2f)
 }
 
 /**
