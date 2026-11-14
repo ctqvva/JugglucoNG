@@ -323,6 +323,35 @@ private fun cut(angle: Float, at: Float, depth: Float, halfWidth: Float): Float 
     return depth * exp(-(x * x * x * x * x * x))
 }
 
+/** A rounded rectangle whose left corners round by [left] and right corners by [right]. */
+private fun roundEnds(width: Float, height: Float, left: Float, right: Float): Outline = { inset ->
+    val w = max(width / 2f - inset, 0.1f)
+    val h = max(height / 2f - inset, 0.1f)
+    val l = CornerRadius(min(max(left - inset, 0f), min(w, h)))
+    val r = CornerRadius(min(max(right - inset, 0f), min(w, h)))
+    Path().apply { addRoundRect(RoundRect(Rect(-w, -h, w, h), l, r, r, l)) }
+}
+
+/** A regular octagon, flat side up, [apothem] from centre to side, its corners rounded by [round]. */
+private fun octagon(apothem: Float, round: Float): Outline = { inset ->
+    val a = max(apothem - inset, 0.1f)
+    val corner = a / cos(PI.toFloat() / 8f)
+    val cut = min(round, corner * 0.38f)
+    Path().apply {
+        for (side in 0 until 8) {
+            val angle = (side * 45f - 112.5f) * PI.toFloat() / 180f
+            val vertex = Offset(cos(angle) * corner, sin(angle) * corner)
+            val prev = (side * 45f - 157.5f) * PI.toFloat() / 180f
+            val next = (side * 45f - 67.5f) * PI.toFloat() / 180f
+            val before = vertex + (Offset(cos(prev) * corner, sin(prev) * corner) - vertex) * (cut / (2f * corner * sin(PI.toFloat() / 8f)))
+            val after = vertex + (Offset(cos(next) * corner, sin(next) * corner) - vertex) * (cut / (2f * corner * sin(PI.toFloat() / 8f)))
+            if (side == 0) moveTo(before.x, before.y) else lineTo(before.x, before.y)
+            quadraticTo(vertex.x, vertex.y, after.x, after.y)
+        }
+        close()
+    }
+}
+
 /** Two circles joined by their common tangents: a teardrop when the radii differ. */
 private fun capsule(from: Offset, fromRadius: Float, to: Offset, toRadius: Float) = Path().apply {
     val d = hypot(to.x - from.x, to.y - from.y)
@@ -612,75 +641,82 @@ private fun DrawScope.drawDexcom(tones: SensorTones) = seated(tones, 12.4f) {
 }
 
 /**
- * The Sibionics pair, the older behind the newer. GS1: an upright capsule traced from a top-down
- * shot, its top softly cushioned; the round port a third of the way down holds a metal key with a
- * square C in it. Sibionics 2, measured from a top-down photo: a thin flat slab 1.4 as long as it
- * is wide, its sides straight and its corners rounded to about a quarter of its width, a white
- * cover on a clear frame that shows a clip at each short end.
+ * The Sibionics pair, measured from top-down photos of both, the older behind the newer at their
+ * true sizes against each other. GS1: a pill 1.6 as long as it is wide, its ends rounded short
+ * of full circles; a round hole a seventh of its length off centre holds a white keyed plug.
+ * Sibionics 2: a thin flat slab 1.4 as long as it is wide, a white cover on a clear frame that
+ * shows a clip at each short end.
  */
 private fun DrawScope.drawSibionics(tones: SensorTones) = seated(tones, 8f) {
-    turned(tones, Offset(-16f, -10f), -9f) { tones ->
-        part(tones, stadium(36f, 61f), thickness = 8f, bevel = 4.4f) {
-            val port = Offset(0f, -8.3f)
-            val radius = 4.2f
-            drawCircle(tones.glint.copy(alpha = 0.7f), radius + 0.7f, port + tones.ground(0.3f, 0.5f))
-            drawCircle(
-                Brush.radialGradient(
-                    0f to tones.highlight,
-                    0.6f to lerp(tones.body, tones.wall, 0.45f),
-                    1f to tones.wall,
-                    center = port + tones.ground(-1.4f, -1.6f),
-                    radius = radius * 1.3f,
-                ),
-                radius,
-                port,
-            )
-            val key = Path().apply {
-                moveTo(port.x + 1.6f, port.y - 2.4f)
-                lineTo(port.x - 2f, port.y - 2.4f)
-                lineTo(port.x - 2f, port.y + 2.4f)
-                lineTo(port.x + 1.6f, port.y + 2.4f)
-                moveTo(port.x + 0.2f, port.y - 0.6f)
-                lineTo(port.x + 1.6f, port.y - 0.6f)
-                lineTo(port.x + 1.6f, port.y + 0.8f)
-            }
-            drawPath(key, tones.ink, style = Stroke(width = 1.2f))
-            for (notch in listOf(35f, 125f, 215f, 305f)) {
-                drawArc(
-                    color = tones.ink,
-                    startAngle = notch,
-                    sweepAngle = 22f,
-                    useCenter = false,
-                    topLeft = port - Offset(radius - 0.8f, radius - 0.8f),
-                    size = Size((radius - 0.8f) * 2f, (radius - 0.8f) * 2f),
-                    style = Stroke(width = 1.4f),
-                )
-            }
-            drawCircle(tones.ink.copy(alpha = 0.7f), radius, port, style = Stroke(width = 0.6f))
+    turned(tones, Offset(-11f, -12f), -24f, 0.8f) { tones ->
+        part(tones, roundRect(72f, 44.5f, 19f), thickness = 9f, bevel = 4.5f) {
+            keyedPort(tones, Offset(-10f, 0f), 5.6f)
         }
     }
-    turned(tones, Offset(8f, 13f), -4f) { tones ->
-        val cover = roundRect(66f, 47f, 13f)
+    turned(tones, Offset(13f, 14f), 4f, 0.58f) { tones ->
+        val cover = roundRect(70f, 50f, 13f)
         val frame: Outline = { inset ->
             Path().apply {
-                op(cover(inset), roundRect(70f, 9f, 2f)(inset), PathOperation.Union)
+                op(cover(inset), roundRect(74f, 18f, 2.5f)(inset), PathOperation.Union)
             }
         }
-        part(tones.clear(), frame, thickness = 2f, bevel = 0.4f, stands = 7.5f)
-        part(tones, cover, thickness = 5.5f, bevel = 4f, base = 2f)
+        part(tones.clear(), frame, thickness = 4f, bevel = 0.5f, stands = 10f)
+        part(tones, cover, thickness = 6f, bevel = 4.5f, base = 4f)
     }
 }
 
-/** Draws one of a set at [at], turned [by] degrees further, the light held where it was. */
+/** A round hole holding a white plug, its key cut in it: the filament port of a Sibionics or i6. */
+private fun DrawScope.keyedPort(tones: SensorTones, at: Offset, radius: Float) {
+    drawCircle(tones.ink, radius, at)
+    val plug = radius * 0.78f
+    drawCircle(
+        Brush.radialGradient(
+            0f to tones.highlight,
+            1f to tones.shade,
+            center = at + tones.ground(-plug * 0.3f, -plug * 0.3f),
+            radius = plug * 1.3f,
+        ),
+        plug,
+        at,
+    )
+    val k = plug / 4.2f
+    val key = Path().apply {
+        moveTo(at.x + 1.6f * k, at.y - 2.2f * k)
+        lineTo(at.x - 1.8f * k, at.y - 2.2f * k)
+        lineTo(at.x - 1.8f * k, at.y + 2.2f * k)
+        lineTo(at.x + 1.6f * k, at.y + 2.2f * k)
+        moveTo(at.x + 0.2f * k, at.y - 0.5f * k)
+        lineTo(at.x + 1.6f * k, at.y - 0.5f * k)
+        lineTo(at.x + 1.6f * k, at.y + 0.7f * k)
+    }
+    drawPath(key, tones.ink, style = Stroke(width = 1.1f * k))
+    for (notch in listOf(35f, 125f, 215f, 305f)) {
+        drawArc(
+            color = tones.ink,
+            startAngle = notch,
+            sweepAngle = 24f,
+            useCenter = false,
+            topLeft = at - Offset(plug - 0.5f * k, plug - 0.5f * k),
+            size = Size((plug - 0.5f * k) * 2f, (plug - 0.5f * k) * 2f),
+            style = Stroke(width = 1.3f * k),
+        )
+    }
+}
+
+/**
+ * Draws one of a pair at [at], turned [by] degrees further and drawn at [size] of its own
+ * measure, the light held where it was.
+ */
 private inline fun DrawScope.turned(
     tones: SensorTones,
     at: Offset,
     by: Float,
+    size: Float,
     block: DrawScope.(SensorTones) -> Unit,
 ) {
     // Undo the camera's shortening, turn, and shorten again, so this one doesn't shear either.
     translate(at.x, at.y) {
-        scale(1f, 1f / SQUASH, pivot = Offset.Zero) {
+        scale(size, size / SQUASH, pivot = Offset.Zero) {
             rotate(by, pivot = Offset.Zero) {
                 scale(1f, SQUASH, pivot = Offset.Zero) { block(tones.copy(turn = tones.turn + by)) }
             }
@@ -689,70 +725,109 @@ private inline fun DrawScope.turned(
 }
 
 /**
- * AiDEX X and LinX: a plain round disc, its edge well rounded, a ringed port at the upper right
- * holding the upright slot of the filament.
+ * AiDEX X and LinX, measured from a top-down photo: a plain round disc, its edge well rounded.
+ * Two fifths of the way out, a raised white collar rings a dark gap round the plug, whose slot
+ * points at the centre.
  */
 private fun DrawScope.drawAiDex(tones: SensorTones) = seated(tones, 11f) {
     part(tones, circle(36f), thickness = 11f, bevel = 4f) {
-        val port = Offset(10.8f, -14.1f)
-        drawCircle(lerp(tones.body, tones.shade, 0.3f), 8.3f, port)
-        drawCircle(tones.wallDeep, 8.3f, port, style = Stroke(width = 0.9f))
-        drawArc(
-            color = tones.wall,
-            startAngle = -60f - tones.turn,
-            sweepAngle = 140f,
-            useCenter = false,
-            topLeft = port - Offset(7f, 7f),
-            size = Size(14f, 14f),
-            style = Stroke(width = 0.6f),
+        val toward = -52f
+        val port = Offset(15f * cos(toward * PI.toFloat() / 180f), 15f * sin(toward * PI.toFloat() / 180f))
+        drawCircle(tones.wall.copy(alpha = 0.5f), 10.4f, port + tones.ground(0.4f, 0.7f))
+        drawCircle(
+            Brush.radialGradient(
+                0f to tones.highlight,
+                1f to tones.body,
+                center = port + tones.ground(-3f, -3f),
+                radius = 13f,
+            ),
+            10f,
+            port,
         )
-        val slot = stadium(5f, 10.5f, port + Offset(-0.6f, 0f))(0f)
-        drawPath(slot, lerp(tones.ink, tones.wall, 0.35f))
-        drawPath(slot, tones.ink, style = Stroke(width = 0.5f))
-    }
-}
-
-/** M8: a 24 mm coin 3.5 mm thin. Right of centre, a rounded button framed by a raised ring, a short slit in it. */
-private fun DrawScope.drawOttai(tones: SensorTones) = seated(tones, 10.8f) {
-    part(tones, circle(35f), thickness = 10.8f, bevel = 3.5f) {
-        val button = Offset(12.3f, -3.5f)
-        val frame = roundRect(14f, 12f, 4.6f, button)
-        drawPath(frame(0f), lerp(tones.body, tones.shade, 0.25f))
-        groove(tones, frame(0f), width = 0.9f)
-        drawPath(frame(2.2f), tones.highlight)
-        groove(tones, frame(2.2f), width = 0.5f, depth = 0.5f)
-        drawRoundRect(
-            tones.ink,
-            topLeft = button - Offset(0.55f, 1.7f),
-            size = Size(1.1f, 3.4f),
-            cornerRadius = CornerRadius(0.5f),
-        )
+        drawCircle(tones.ink, 8.4f, port)
+        drawCircle(lerp(tones.body, tones.shade, 0.25f), 7f, port)
+        rotate(toward, pivot = port) {
+            val slot = roundRect(11.5f, 6f, 1.8f, port)(0f)
+            drawPath(slot, tones.highlight)
+            drawPath(slot, tones.ink, style = Stroke(width = 1.1f))
+        }
     }
 }
 
 /**
- * i3: a thick white puck, measured from a top-down photo. Up and left of centre, a teardrop
- * outline holds a square window in its broad end and three small contacts towards its tip, which
- * reaches the centre; small slots break the rim.
+ * M8, measured from a top-down photo: a coin 3.5 mm thin in light grey plastic. Two fifths of the
+ * way out, a raised rounded frame lying along the radius holds a dark oblong hole.
  */
-private fun DrawScope.drawICan(tones: SensorTones) = seated(tones, 11f) {
-    part(tones, circle(36.5f), thickness = 11f, bevel = 2.6f) {
-        val recess = capsule(Offset(-14f, -14.5f), 9f, Offset(0.6f, -2.7f), 5f)
-        drawPath(recess, lerp(tones.body, tones.shade, 0.3f))
-        drawPath(recess, tones.ink.copy(alpha = 0.65f), style = Stroke(width = 1f))
-        window(tones, Offset(-16.2f, -15.9f), 5.6f, filled = false)
-        window(tones, Offset(-1.4f, -8.5f), 2.7f, filled = true)
-        window(tones, Offset(-5.6f, -3.2f), 2.7f, filled = true)
-        window(tones, Offset(0f, -3.6f), 2.2f, filled = false)
-        drawLine(tones.wallDeep, Offset(35f, 2f), Offset(35f, 6.6f), strokeWidth = 0.9f, cap = StrokeCap.Round)
-        drawLine(tones.wallDeep, Offset(-1.8f, -35.4f), Offset(1.8f, -35.4f), strokeWidth = 0.9f, cap = StrokeCap.Round)
-        drawLine(tones.wallDeep, Offset(-2.2f, 35.4f), Offset(2.2f, 35.4f), strokeWidth = 0.9f, cap = StrokeCap.Round)
+private fun DrawScope.drawOttai(tones: SensorTones) = seated(tones, 10.8f) {
+    val grey = tones.grey()
+    part(grey, circle(35f), thickness = 10.8f, bevel = 3.5f) {
+        val toward = -20f
+        val button = Offset(16f * cos(toward * PI.toFloat() / 180f), 16f * sin(toward * PI.toFloat() / 180f))
+        rotate(toward, pivot = button) {
+            val frame = roundRect(17f, 12.5f, 5f, button)
+            drawPath(frame(0f), lerp(grey.highlight, grey.body, 0.4f))
+            groove(grey, frame(0f), width = 0.9f)
+            groove(grey, frame(2.4f), width = 0.6f, depth = 0.6f)
+            drawPath(roundRect(8.5f, 5.6f, 2.4f, button)(0f), tones.ink)
+        }
     }
 }
 
-/** Anytime CT: a plain egg-shaped pebble, domed all over, the narrow end up. */
+/**
+ * The iCan pair, the larger i3 behind the i6. i3, measured from a top-down photo: a thick white
+ * puck, a teardrop groove whose round end lies near the rim holding a square window, its tip at
+ * the centre with three contacts towards it; small slots break the rim. i6: a rounded octagon,
+ * thin on a dark foot, a grey ring round its keyed port above the centre.
+ */
+private fun DrawScope.drawICan(tones: SensorTones) = seated(tones, 9f) {
+    turned(tones, Offset(-10f, -9f), 160f, 0.8f) { tones ->
+        part(tones, circle(36.5f), thickness = 11f, bevel = 2.6f) {
+            val recess = capsule(Offset(-3f, 19f), 11f, Offset(-3f, 2f), 6.5f)
+            drawPath(recess, lerp(tones.body, tones.shade, 0.3f))
+            drawPath(recess, tones.ink.copy(alpha = 0.65f), style = Stroke(width = 1f))
+            window(tones, Offset(-3f, 23f), 5.6f, filled = false)
+            drawRoundRect(tones.ink, Offset(-8.6f, 6.8f), Size(3.2f, 2.4f), CornerRadius(0.5f))
+            drawRoundRect(tones.ink, Offset(-1f, 6.8f), Size(3.2f, 2.4f), CornerRadius(0.5f))
+            window(tones, Offset(-3f, 1.6f), 2.2f, filled = false)
+            for (slot in listOf(235f, 305f, 150f, 20f)) {
+                rotate(slot, pivot = Offset.Zero) {
+                    drawLine(tones.wallDeep, Offset(35.2f, -2f), Offset(35.2f, 2f), strokeWidth = 0.9f, cap = StrokeCap.Round)
+                }
+            }
+        }
+    }
+    turned(tones, Offset(15f, 15f), -10f, 0.6f) { tones ->
+        part(tones, octagon(34f, 7f), thickness = 8f, bevel = 3f, band = 0.35f) {
+            val port = Offset(-3f, -10f)
+            drawCircle(lerp(tones.wall, tones.wallDeep, 0.4f), 7.2f, port)
+            keyedPort(tones, port, 5f)
+        }
+    }
+}
+
+/**
+ * The Anytime pair, the CT4 behind the 5 Pro. CT4, measured from a top-down photo: an egg 1.2 as
+ * long as it is wide, gently domed. 5 Pro: a white disc in a clear rim, a clear band curving
+ * across its upper part, above it the port between two short slots and a dot by the rim.
+ */
 private fun DrawScope.drawAnytime(tones: SensorTones) = seated(tones, 10f) {
-    part(tones, egg(27f, 37f, 0.08f), thickness = 10f, bevel = 9f, dome = true)
+    turned(tones, Offset(-10f, -9f), -62f, 0.82f) { tones ->
+        part(tones, egg(30.5f, 36f, 0.22f), thickness = 13f, bevel = 6f, dome = true)
+    }
+    turned(tones, Offset(15f, 15f), 8f, 0.6f) { tones ->
+        part(tones.clear(), circle(36f), thickness = 3f, bevel = 1f, stands = 10f)
+        part(tones, circle(33.5f), thickness = 7f, bevel = 4f, base = 3f) {
+            val sweep = Path().apply { addOval(Rect(-32.5f, -74f, 32.5f, -9f)) }
+            drawPath(sweep, lerp(tones.clear().shade, tones.body, 0.25f), style = Stroke(width = 2.6f))
+            groove(tones, Path().apply { addOval(Rect(-31.2f, -72.7f, 31.2f, -10.3f)) }, width = 0.5f, depth = 0.5f)
+            groove(tones, Path().apply { addOval(Rect(-33.8f, -75.3f, 33.8f, -7.7f)) }, width = 0.5f, depth = 0.5f)
+            drawCircle(lerp(tones.body, tones.shade, 0.4f), 2.8f, Offset(0f, -20f))
+            drawCircle(tones.ink, 1f, Offset(0f, -20f))
+            drawPath(stadium(2.2f, 4.6f, Offset(-9f, -20f))(0f), lerp(tones.body, tones.wall, 0.5f))
+            drawPath(stadium(2.2f, 4.6f, Offset(9f, -20f))(0f), lerp(tones.body, tones.wall, 0.5f))
+            drawCircle(lerp(tones.body, tones.wall, 0.5f), 1.2f, Offset(0f, -29f))
+        }
+    }
 }
 
 /**
@@ -817,24 +892,26 @@ private fun DrawScope.drawCareSensAir(tones: SensorTones) = seated(tones, 10f) {
 }
 
 /**
- * Glutec v3, measured from a photo of one in its box: a long pill 0.64 as wide as it is long, both
- * ends nearly round. A small curved recess sits in the upper left shoulder, and a parting line
- * runs across the lower end, rising to the right.
+ * Glutec v3, measured from a top-down photo: an oblong 1.33 as long as it is wide, one end square
+ * cornered and carrying a latch, the other rounded off; a parting line runs across just inside
+ * the rounded end.
  */
-private fun DrawScope.drawMq(tones: SensorTones) = seated(tones, 10f) {
-    part(tones, roundRect(46f, 72f, 20f), thickness = 10f, bevel = 6f) {
-        // The recess follows the round of the top end, just inside its edge.
-        val end = Offset(0f, -13f)
-        val recess = Path().apply {
-            arcTo(Rect(end.x - 19f, end.y - 19f, end.x + 19f, end.y + 19f), 192f, 42f, forceMoveTo = true)
-            arcTo(Rect(end.x - 13.5f, end.y - 13.5f, end.x + 13.5f, end.y + 13.5f), 234f, -42f, forceMoveTo = false)
-            close()
+private fun DrawScope.drawMq(tones: SensorTones) = seated(tones, 12f) {
+    part(tones, roundEnds(72f, 54f, 11f, 22f), thickness = 12f, bevel = 5f) {
+        val latch = Path().apply {
+            addRoundRect(RoundRect(Rect(-35.5f, -8.5f, -26f, 8.5f), CornerRadius(2f)))
         }
-        drawPath(recess, lerp(tones.body, tones.shade, 0.5f))
-        groove(tones, recess, width = 1f)
+        drawPath(latch, lerp(tones.body, tones.wall, 0.55f))
+        groove(tones, latch, width = 0.8f)
+        drawRoundRect(
+            lerp(tones.highlight, tones.body, 0.3f),
+            topLeft = Offset(-34.5f, -5.5f),
+            size = Size(5f, 11f),
+            cornerRadius = CornerRadius(1.2f),
+        )
         groove(tones, Path().apply {
-            moveTo(-24f, 25.5f)
-            lineTo(24f, 14.5f)
+            moveTo(22f, -28f)
+            lineTo(22f, 28f)
         }, width = 0.9f)
     }
 }
