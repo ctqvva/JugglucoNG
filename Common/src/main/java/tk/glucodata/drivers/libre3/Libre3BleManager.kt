@@ -380,6 +380,10 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun onLinkDisconnected(gatt: BluetoothGatt, status: Int) {
+        if (mBluetoothGatt !== gatt) {
+            runCatching { gatt.close() }
+            return
+        }
         linkUp = false
         runCatching { gatt.close() }
         if (mBluetoothGatt === gatt) mBluetoothGatt = null
