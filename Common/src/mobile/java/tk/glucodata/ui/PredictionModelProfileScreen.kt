@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -53,6 +54,7 @@ import tk.glucodata.data.prediction.DoseTarget
 import tk.glucodata.data.prediction.PredictionModelBlock
 import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 
@@ -173,6 +175,16 @@ fun PredictionModelProfileScreen(
                         )
                     }
                 }
+            }
+
+            item(key = "past_meals") {
+                SettingsItem(
+                    title = stringResource(R.string.meal_replay_title),
+                    subtitle = stringResource(R.string.meal_replay_summary),
+                    onClick = { navController.navigate("settings/predictive-simulation/model-profile/past-meals") },
+                    icon = Icons.Default.Restaurant,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                )
             }
         }
     }
@@ -432,7 +444,7 @@ internal fun formatCarbRatio(gramsPerUnit: Float): String =
         isGroupingUsed = false
     }.format(gramsPerUnit)
 
-private fun formatMinuteOfDay(minuteOfDay: Int): String {
+internal fun formatMinuteOfDay(minuteOfDay: Int): String {
     val minute = minuteOfDay.coerceIn(0, PredictionModelProfile.LAST_MINUTE_OF_DAY)
     return "%02d:%02d".format(
         java.util.Locale.ROOT,

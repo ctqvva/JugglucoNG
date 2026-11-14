@@ -3213,6 +3213,25 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="prediction_inspector_trend">当时趋势：每分钟 %1$s</string>
     <string name="prediction_inspector_empty">尚无已记录的预测</string>
     <string name="prediction_inspector_shown">显示在图表上</string>
+    <string name="meal_replay_title">过往餐食</string>
+    <string name="meal_replay_summary">在已记录的餐食上试用其他数值</string>
+    <string name="meal_replay_empty">暂无可回放的餐食。餐食需至少含 5 g 碳水，前 2 小时和后 4 小时内没有其他餐食，且前后有读数，才会显示在这里</string>
+    <string name="meal_replay_meal_count">餐食：%1$d</string>
+    <string name="meal_replay_miss_title">餐后 4 小时的平均偏差</string>
+    <string name="meal_replay_saved">已保存数值</string>
+    <string name="meal_replay_trial">试用数值</string>
+    <string name="meal_replay_flat">水平线</string>
+    <string name="meal_replay_reset">重置</string>
+    <string name="meal_replay_trial_caption">试用数值不会保存</string>
+    <string name="meal_replay_meal_at">%1$s 的餐食</string>
+    <string name="meal_replay_previous">上一餐</string>
+    <string name="meal_replay_next">下一餐</string>
+    <string name="meal_replay_carbs_insulin">%1$s g，%2$s U</string>
+    <string name="meal_replay_carbs_only">%1$s g，未记录胰岛素</string>
+    <string name="meal_replay_no_outcome">4 小时后无读数</string>
+    <string name="meal_replay_reading_at_4h">4 小时时的读数</string>
+    <string name="meal_replay_failed">无法读取历史记录或日志</string>
+    <string name="meal_replay_retry">重试</string>
     <plurals name="prediction_adaptive_ready">
         <item quantity="other">实验性 · 已根据 %d 天的读数学习</item>
     </plurals>
