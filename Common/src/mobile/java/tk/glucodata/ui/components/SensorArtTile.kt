@@ -1,6 +1,7 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.geometry.Rect
 import kotlin.math.PI
 import kotlin.math.sin
@@ -168,6 +169,18 @@ private const val TILE_SHIFT = 0.11f
 /** How far it sits towards the text: barely, so it overlaps the tile's edge and not the title. */
 private const val TILE_SHIFT_X = -0.01f
 
+/**
+ * What a sensor is drawn against, in the list and in the wizards alike, so the tile you tap and
+ * the hero it opens are the same colour: `secondaryContainer`, opaque in light themes (a
+ * see-through pale fill leaves white plastic without edges) and at 65% over [under] in dark ones.
+ * Always opaque, so the drawings' shading can take it in.
+ */
+@Composable
+internal fun sensorBackdropColor(under: Color): Color {
+    val scheme = MaterialTheme.colorScheme
+    return if (isAppInDarkTheme()) scheme.secondaryContainer.copy(alpha = 0.65f).compositeOver(under) else scheme.secondaryContainer
+}
+
 /** Heroes that have played their entrance; each plays once per launch, not on every visit. */
 private val heroesPlayed = mutableSetOf<SensorType>()
 
@@ -311,8 +324,7 @@ internal fun SensorHeroArt(
     val scheme = MaterialTheme.colorScheme
     val accent = scheme.primary
     val screenColor = scheme.surfaceContainerHighest
-    // Opaque in light themes, where a see-through pale fill leaves white plastic without edges.
-    val blobColor = if (isAppInDarkTheme()) scheme.secondaryContainer.copy(alpha = 0.65f) else scheme.secondaryContainer
+    val blobColor = sensorBackdropColor(scheme.surface)
     val nfcMark = rememberVectorPainter(Icons.Rounded.Nfc)
     val bluetoothMark = rememberVectorPainter(Icons.Rounded.Bluetooth)
     val tick = rememberNavigationTick()
@@ -390,6 +402,9 @@ internal fun SensorHeroArt(
     Box(
         modifier = modifier
             .size(width = tileSize * stageWidth, height = tileSize * 1.3f)
+            // The scene sits a little high in its box: the shape grounds every piece, so it
+            // reaches further down than up, and the heading under it keeps its distance.
+            .graphicsLayer { translationY = -0.06f * tileSize.toPx() }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = { position ->
@@ -424,6 +439,9 @@ internal fun SensorHeroArt(
                     val carrierAt = center + Offset(stage.carrier.x * tile, stage.carrier.y * tile)
                     add(Disc(carrierAt, 0.46f * tile))
                     add(Disc(carrierAt + Offset(0f, 0.25f * tile), 0.3f * tile))
+                    // Its base, both corners: the iCan i6 kit stands at the front left.
+                    add(Disc(carrierAt + Offset(-0.24f * tile, 0.3f * tile), 0.2f * tile))
+                    add(Disc(carrierAt + Offset(0.22f * tile, 0.3f * tile), 0.18f * tile))
                 }
                 when (heroShape) {
                     HeroShape.Scan -> add(Disc(phoneAt + Offset(0.02f * tile, -0.06f * tile), 0.44f * tile))
@@ -432,6 +450,13 @@ internal fun SensorHeroArt(
                     HeroShape.Pair, HeroShape.Manual -> add(Disc(Offset(phoneAt.x, sensorAt.y + 0.02f * tile), 0.5f * tile))
                 }
                 add(Disc(phoneAt + Offset(0f, 0.26f * tile), 0.28f * tile))
+                // The phone's two lower corners as it leans, so a tilted phone stands inside too.
+                val lean = phoneTurn * PI.toFloat() / 180f
+                for (side in listOf(-1f, 1f)) {
+                    val corner = Offset(side * 0.26f * tile, 0.48f * tile)
+                    val turned = Offset(corner.x * cos(lean) - corner.y * sin(lean), corner.x * sin(lean) + corner.y * cos(lean))
+                    add(Disc(phoneAt + turned, 0.1f * tile))
+                }
             }
             // A waist only where two pieces leave open air between them for the signal.
             val open = heroShape == HeroShape.Pair && carrier == CodeCarrier.NONE
@@ -451,7 +476,7 @@ internal fun SensorHeroArt(
         }
         SensorArtTile(
             type = type,
-            containerColor = scheme.secondaryContainer,
+            containerColor = blobColor,
             tileSize = tileSize,
             interactionSource = interactionSource,
             modifier = Modifier
@@ -645,7 +670,7 @@ internal fun SensorWizardHero(
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 SensorHeroArt(type, tileSize = if (wide) 128.dp else 112.dp, pairLead = pairLead, companion = companion)
                 if (title != null) {

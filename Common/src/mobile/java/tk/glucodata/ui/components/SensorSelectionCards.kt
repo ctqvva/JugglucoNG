@@ -82,9 +82,8 @@ fun SensorSelectionCards(
                     type = option.type,
                     title = stringResource(option.titleRes),
                     subtitle = stringResource(option.subtitleRes),
-                    // One tone for every sensor, as in the picker sheet and the wizard heroes;
-                    // secondaryContainer sat too close to the card to hold the white plastic.
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    // One tone for every sensor, the same as the wizard hero the row opens.
+                    containerColor = sensorBackdropColor(MaterialTheme.colorScheme.surfaceContainerHigh),
                     onClick = { onSensorSelected(option.type) },
                     compact = compact
                 )

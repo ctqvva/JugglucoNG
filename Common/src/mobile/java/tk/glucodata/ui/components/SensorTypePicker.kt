@@ -145,7 +145,7 @@ private fun SensorTypeItem(
         ) {
             SensorArtTile(
                 type = type,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                containerColor = sensorBackdropColor(MaterialTheme.colorScheme.surfaceContainer),
                 tileSize = tileSize,
                 interactionSource = interactionSource
             )

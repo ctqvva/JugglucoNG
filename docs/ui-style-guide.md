@@ -198,9 +198,10 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 **The list tile** (`SensorArtTile`)
 
-- One soft square in `primaryContainer` for every row, the same in the launch cards and the
-  picker sheet, so the sensors' own outlines tell the rows apart. No family gets its own
-  colour.
+- One soft square for every row, the same in the launch cards and the picker sheet, so the
+  sensors' own outlines tell the rows apart. No family gets its own colour. Its colour is
+  `sensorBackdropColor`, the one the wizard heroes use, so the tile you tap and the hero it
+  opens match: `secondaryContainer`, opaque in light themes and 65% over the card in dark ones.
 - The sensor is drawn bigger than the square and lies across its upper edge a few degrees off
   straight, clear of the title. Pressing the card rounds the square, pushes the sensor in and
   squares it to the row.
@@ -209,8 +210,9 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 - Every wizard's main step opens with one, never a bespoke card. The sensor and a phone acting
   out how the family connects stand in front of one shape, built rather than drawn (`discHull`):
-  - the convex hull of discs: one behind each piece, sized to it, and one at each piece's foot,
-    so every piece is grounded inside the shape while tops may break out;
+  - the convex hull of discs: one behind each piece, sized to it, and more at each piece's foot
+    (a pack's base corners, a leaning phone's lower corners), so every piece is grounded
+    inside the shape while tops may break out;
   - arcs and straight tangents give it structure; a disc inside the others' reach is passed
     over, never pulled in (no notches behind a middle pack);
   - the discs follow the pieces, so it fits each scene at any size and isn't held to a box.
@@ -224,7 +226,9 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
   | A serial (Medtrum) | An even, level capsule, no waist, no flat cut |
 
   - Tops may break out past it; bottoms never.
-  - Fill: `secondaryContainer`, 65% in dark themes and opaque in light ones.
+  - Fill: `sensorBackdropColor`, the list tiles' colour.
+  - The scene sits 0.06 tile high in its box, and the heading is 12dp under it, because the
+    grounded shape reaches further down than up.
 
   Rules:
   - The sensor stands free: nothing is centred under it (a disc or square under a sensor reads
