@@ -1,6 +1,12 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.ui.geometry.Rect
+import kotlin.math.PI
+import kotlin.math.sin
+import kotlin.math.cos
+import kotlin.math.acos
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -214,23 +220,16 @@ private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage 
 }
 
 /**
- * The shape behind a hero's scene: one rounded rectangle spanning the scene, its four corners
- * set per way of connecting, so the families read apart by geometry rather than by colour.
- * Radii are fractions of the shape's height (0.5 is fully round), clockwise from the top left.
+ * The shape behind a hero's scene, built rather than drawn: a disc behind each piece, sized to
+ * it, joined by straight tangents into one hull. Clean arcs and straight edges, so it has
+ * structure; the discs follow the pieces, so it fits each scene at any size and is not held to
+ * a box. How the family connects sets the discs and two touches:
+ * - a printed code: a full pocket round the sensor tapering up towards the phone;
+ * - Bluetooth: the top tangent bowed in where the signal crosses, a waist;
+ * - NFC: a grounded disc low under the sensor sweeping up to a small one under the phone;
+ * - a serial (Medtrum): a mound cut flat along its base.
  */
-private enum class HeroShape(val topLeft: Float, val topRight: Float, val bottomRight: Float, val bottomLeft: Float) {
-    /** A leaf: two opposite corners round, two tight, like a viewfinder's frame set on its edge. */
-    Scan(0.5f, 0.14f, 0.5f, 0.14f),
-
-    /** A pill: a lane the signal runs along from the sensor to the phone. */
-    Pair(0.5f, 0.5f, 0.5f, 0.5f),
-
-    /** Round all round but where the phone comes down to the sensor. */
-    Nfc(0.5f, 0.5f, 0.14f, 0.5f),
-
-    /** An arch: round on top, nearly square at its base, for a serial read off the sensor. */
-    Manual(0.5f, 0.5f, 0.12f, 0.12f),
-}
+private enum class HeroShape { Scan, Pair, Nfc, Manual }
 
 private fun heroShapeFor(type: SensorType, companion: HeroCompanion): HeroShape = when {
     type == SensorType.MEDTRUM -> HeroShape.Manual
@@ -239,35 +238,72 @@ private fun heroShapeFor(type: SensorType, companion: HeroCompanion): HeroShape 
     else -> HeroShape.Pair
 }
 
+private class Disc(val centre: Offset, val radius: Float)
+
 /**
- * [shape] spanning [left] to [right] across the scene, [press] of the way to a pill. The pieces
- * stand in front of it and break out past its top and bottom.
+ * The hull of [discs], left to right, every one on the hull: arcs round them joined by their
+ * outer tangents. [dip] bows the top tangent of each gap in towards the middle by that much.
  */
-private fun DrawScope.drawHeroShape(shape: HeroShape, color: Color, left: Float, right: Float, tile: Float, press: Float) {
-    val top = center.y - 0.42f * tile
-    val bottom = center.y + 0.5f * tile
-    val height = bottom - top
-    fun corner(rest: Float) = CornerRadius(height * (rest + (0.5f - rest) * press))
-    val outline = Path().apply {
-        addRoundRect(
-            RoundRect(
-                left = left,
-                top = top,
-                right = right,
-                bottom = bottom,
-                topLeftCornerRadius = corner(shape.topLeft),
-                topRightCornerRadius = corner(shape.topRight),
-                bottomRightCornerRadius = corner(shape.bottomRight),
-                bottomLeftCornerRadius = corner(shape.bottomLeft),
-            ),
-        )
+private fun discHull(discs: List<Disc>, dip: Float): Path {
+    val n = discs.size
+    // For each neighbouring pair: the direction from one to the next, and the half angle of
+    // the outer tangents off it.
+    val heading = FloatArray(n - 1)
+    val spread = FloatArray(n - 1)
+    for (i in 0 until n - 1) {
+        val d = discs[i + 1].centre - discs[i].centre
+        val length = d.getDistance().coerceAtLeast(1f)
+        heading[i] = atan2(d.y, d.x)
+        spread[i] = acos(((discs[i].radius - discs[i + 1].radius) / length).coerceIn(-0.99f, 0.99f))
     }
-    drawPath(outline, color)
+    fun at(disc: Disc, angle: Float) = disc.centre + Offset(cos(angle), sin(angle)) * disc.radius
+    fun degrees(radians: Float) = radians * 180f / PI.toFloat()
+    fun turn(from: Float, to: Float): Float {
+        var sweep = to - from
+        while (sweep <= -PI.toFloat()) sweep += 2f * PI.toFloat()
+        while (sweep > PI.toFloat()) sweep -= 2f * PI.toFloat()
+        return sweep.coerceAtLeast(0f)
+    }
+    fun Path.arcOn(disc: Disc, from: Float, sweep: Float) {
+        val box = Rect(disc.centre.x - disc.radius, disc.centre.y - disc.radius, disc.centre.x + disc.radius, disc.centre.y + disc.radius)
+        arcTo(box, degrees(from), degrees(sweep), forceMoveTo = false)
+    }
+    return Path().apply {
+        val start = at(discs[0], heading[0] - spread[0])
+        moveTo(start.x, start.y)
+        // Along the top, left to right.
+        for (i in 0 until n - 1) {
+            val angle = heading[i] - spread[i]
+            val from = at(discs[i], angle)
+            val to = at(discs[i + 1], angle)
+            if (dip > 0f) {
+                val along = (to - from) / (to - from).getDistance().coerceAtLeast(1f)
+                val bend = (from + to) / 2f + Offset(-along.y, along.x) * (2f * dip)
+                quadraticTo(bend.x, bend.y, to.x, to.y)
+            } else {
+                lineTo(to.x, to.y)
+            }
+            if (i + 1 < n - 1) arcOn(discs[i + 1], angle, turn(angle, heading[i + 1] - spread[i + 1]))
+        }
+        // Round the right end.
+        val last = n - 2
+        arcOn(discs[n - 1], heading[last] - spread[last], 2f * spread[last])
+        // Along the bottom, right to left.
+        for (i in n - 2 downTo 0) {
+            val angle = heading[i] + spread[i]
+            val to = at(discs[i], angle)
+            lineTo(to.x, to.y)
+            if (i > 0) arcOn(discs[i], angle, turn(angle, heading[i - 1] + spread[i - 1]))
+        }
+        // Round the left end.
+        arcOn(discs[0], heading[0] + spread[0], 2f * PI.toFloat() - 2f * spread[0])
+        close()
+    }
 }
 
 /**
- * A sensor at wizard size with a phone acting out how it connects, in front of one geometric shape
- * set by how it connects, and for the
+ * A sensor at wizard size with a phone acting out how it connects, in front of a hull of discs
+ * built round them, and for the
  * families set up from a printed code, the thing the code is on. The phone's screen says what is
  * happening: the NFC mark, the Bluetooth mark, or the camera closing on the code.
  *
@@ -336,7 +372,7 @@ internal fun SensorHeroArt(
     val pop = remember { Animatable(if (firstVisit) 0f else 1f) }
     // The shape's stretch: a tap pulls it wide and it springs back.
     val swing = remember { Animatable(0f) }
-    // Under the finger the shape's corners round towards a pill, as a pressed tile's do.
+    // Under the finger the shape gathers in a little.
     val press = remember { Animatable(0f) }
     val pressed by interactionSource.collectIsPressedAsState()
     LaunchedEffect(pressed) {
@@ -392,14 +428,32 @@ internal fun SensorHeroArt(
         Canvas(modifier = Modifier.matchParentSize()) {
             val tile = tileSize.toPx()
             val sensorAt = center + Offset(sensorShift.toPx(), 0f)
-            // From the sensor's far edge to the phone's, so the shape scales with the scene.
-            val left = sensorAt.x - 0.62f * tile
-            val right = center.x + (phoneX + 0.4f) * tile
-            // Opens out sideways from the sensor on entrance; a tap stretches it and lets it go.
-            val grow = backdropGrow(pop.value)
+            val phoneAt = center + Offset(phoneX * tile, phoneY * tile)
+            val discs = buildList {
+                when (heroShape) {
+                    HeroShape.Nfc -> add(Disc(sensorAt + Offset(-0.02f * tile, 0.06f * tile), 0.55f * tile))
+                    else -> add(Disc(sensorAt + Offset(0f, 0.02f * tile), 0.56f * tile))
+                }
+                if (carrier != CodeCarrier.NONE) {
+                    add(Disc(center + Offset(stage.carrier.x * tile, stage.carrier.y * tile), 0.46f * tile))
+                }
+                when (heroShape) {
+                    HeroShape.Scan -> add(Disc(phoneAt + Offset(0.02f * tile, -0.06f * tile), 0.44f * tile))
+                    HeroShape.Nfc -> add(Disc(phoneAt + Offset(0.04f * tile, -0.1f * tile), 0.38f * tile))
+                    HeroShape.Pair -> add(Disc(phoneAt + Offset(0f, 0.02f * tile), 0.5f * tile))
+                    HeroShape.Manual -> add(Disc(phoneAt + Offset(0f, 0.12f * tile), 0.4f * tile))
+                }
+            }
+            val outline = discHull(discs, dip = if (heroShape == HeroShape.Pair) 0.12f * tile else 0f)
+            // Opens out from the sensor on entrance; a tap stretches it, a press gathers it in.
+            val grow = backdropGrow(pop.value) * (1f - 0.04f * press.value)
             val kick = swing.value / 100f
-            scale(grow * (1f + kick), 1f - kick, pivot = sensorAt) {
-                drawHeroShape(heroShape, blobColor, left, right, tile, press.value)
+            scale(grow * (1f + kick), grow * (1f - kick), pivot = sensorAt) {
+                if (heroShape == HeroShape.Manual) {
+                    clipRect(bottom = sensorAt.y + 0.5f * tile) { drawPath(outline, blobColor) }
+                } else {
+                    drawPath(outline, blobColor)
+                }
             }
         }
         SensorArtTile(

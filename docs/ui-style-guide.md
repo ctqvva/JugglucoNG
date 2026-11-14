@@ -208,17 +208,18 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 **The wizard hero** (`SensorWizardHero`)
 
 - Every wizard's main step opens with one, never a bespoke card. The sensor and a phone acting
-  out how the family connects stand in front of one geometric shape (`HeroShape`). It is a
-  rounded rectangle spanning the scene from the sensor's far edge to the phone's, so it scales
-  with the scene. Its four corners are set by how the family connects, so families read apart
-  by geometry:
+  out how the family connects stand in front of one shape, built rather than drawn (`discHull`):
+  - a disc behind each piece, sized to it, joined by straight outer tangents into one hull;
+  - arcs and straight edges give it structure, and the discs follow the pieces, so it fits
+    each scene at any size and isn't held to a box.
 
-  | Connects by | Shape | Corners (TL, TR, BR, BL; fraction of height) |
-  |---|---|---|
-  | A printed code | Leaf | 0.5, 0.14, 0.5, 0.14 |
-  | Bluetooth | Pill | all 0.5 |
-  | NFC | Round but where the phone comes down | 0.5, 0.5, 0.14, 0.5 |
-  | A serial (Medtrum) | Arch | 0.5, 0.5, 0.12, 0.12 |
+  How the family connects sets the discs (`HeroShape`):
+  | Connects by | Shape |
+  |---|---|
+  | A printed code | A full pocket round the sensor, tapering up to a smaller disc behind the phone |
+  | Bluetooth | Even discs, the top tangent bowed in where the signal crosses |
+  | NFC | A grounded disc low under the sensor sweeping up to a small one under the phone |
+  | A serial (Medtrum) | A mound cut flat along its base |
 
   - The pieces break out past its top and bottom.
   - Fill: `secondaryContainer`, 65% in dark themes and opaque in light ones.
@@ -229,7 +230,8 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
   - No strokes and no second shape.
   - Rejected by the owner (2026-11-14/15): a cookie halo, a colour-blocked pill with a success
     burst, a 3D stage, the list tile reused, rings drawn as lines, a fixed 280 x 148 box with
-    hand-drawn blobs, and a free-form silhouette ("blobs of randomness").
+    hand-drawn blobs, a free-form silhouette ("blobs of randomness"), and one rounded rectangle
+    per family.
 - A step whose choice changes the picture passes it in: `pairLead` brings the chosen sensor of
   a pair to the front (Sibionics picker), `companion` swaps the phone's story (Ottai's region).
   The change animates; it is never a cut.
@@ -252,7 +254,7 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
   and what the code is printed on come in, and the phone does its one beat. Later
   visits, rotation, and the fold between sizes find it already in place. Nothing runs at rest.
 - It is a toy, not a control, so it adds nothing for accessibility services. Under the finger
-  the sensor squares up and the shape's corners round towards a pill. On release the hero
+  the sensor squares up and the shape gathers in a little. On release the hero
   clicks (`NavigationTick.play`), the shape is pulled wide and springs back, the sensor drops back on and the story replays. When the phone has the read, it
   double-clicks (`NavigationTick.playConfirm`).
 - A pair trading places clicks once as they pass.
