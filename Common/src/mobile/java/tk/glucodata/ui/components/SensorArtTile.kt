@@ -1,6 +1,8 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.animation.core.spring
@@ -26,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalConfiguration
-import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -81,7 +82,7 @@ import tk.glucodata.ui.util.ExpressiveMotion
  * in and turns it square to the row; letting go springs all three back. Everything moves in the
  * draw and layer phases, and nothing moves at rest or when a screen opens.
  *
- * The wizard heroes draw the sensor alone ([frame] false, no lift), on their backdrop. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
+ * The wizard heroes draw the sensor alone ([frame] false, no lift), on their blob. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
  */
 @Composable
 internal fun SensorArtTile(
@@ -201,29 +202,44 @@ private class HeroStage(
 )
 
 /**
- * The shape the hero's scene stands in front of: one wide oval, tilted, behind the sensor and
- * the phone together, so it frames the scene and never reads as something under the sensor.
- * Half axes in tile sides (the long one for a scene 2.1 sides wide, stretched with wider ones),
- * tilt in degrees, and how far its middle sits off the scene's.
+ * The shape behind a hero's scene, one per way of connecting, each drawn in a 280 x 148 grid that
+ * is the hero's own box at full size, so it is never stretched. The paths are the owner's, used
+ * verbatim; don't edit the coordinates.
  */
-private class Backdrop(val across: Float, val deep: Float, val tilt: Float, val offset: Offset)
+internal enum class HeroBlob(val pathData: String) {
+    /** A rounded pocket on the left for the sensor, tapering up towards the phone. */
+    CameraScan("M 92,24 C 126,24 221,14 238,34 C 255,54 244,98 218,114 C 192,130 109,136 74,126 C 39,116 29,100 34,68 C 39,36 62,24 92,24 Z"),
 
-/** The owner's three outlines, traced off his sketch on the Sibionics picker. */
-private val BackdropTall = Backdrop(across = 1.17f, deep = 0.56f, tilt = -15f, offset = Offset(0.03f, -0.04f))
-private val BackdropSteep = Backdrop(across = 1.27f, deep = 0.48f, tilt = -28f, offset = Offset(-0.03f, -0.04f))
-private val BackdropLow = Backdrop(across = 1.22f, deep = 0.44f, tilt = -4f, offset = Offset(0.08f, 0.22f))
+    /** Rises behind the sensor, dips where the signal crosses, swells behind the phone. */
+    BluetoothPair("M 84,22 C 114,28 124,42 146,38 C 168,34 196,13 218,26 C 240,39 248,99 224,114 C 200,129 122,132 82,124 C 42,116 27,98 32,66 C 37,34 54,16 84,22 Z"),
 
-private val heroBackdrop = BackdropTall
+    /** Sweeps from a grounded lower left up towards the tilted phone. */
+    NfcTap("M 86,26 C 118,16 210,16 224,30 C 238,44 236,94 206,112 C 176,130 76,136 54,114 C 32,92 54,36 86,26 Z"),
 
-/** The backdrop, [grow] of its size and turned [spin] further than it rests. */
-private fun DrawScope.drawBackdrop(color: Color, tile: Float, stretch: Float, spin: Float, grow: Float) {
-    val shape = heroBackdrop
-    val rx = shape.across * stretch * tile * grow
-    val ry = shape.deep * tile * grow
-    if (rx <= 0f || ry <= 0f) return
-    val at = center + Offset(shape.offset.x * tile, shape.offset.y * tile)
-    rotate(shape.tilt + spin, pivot = at) {
-        drawOval(color, topLeft = at - Offset(rx, ry), size = Size(rx * 2f, ry * 2f))
+    /** A flat-bottomed mound peaking behind the sensor, sloping down to the right. */
+    ManualEntry("M 96,22 C 134,22 220,36 232,68 C 244,100 232,124 204,124 C 176,124 104,124 68,124 C 32,124 28,104 40,72 C 52,40 58,22 96,22 Z"),
+}
+
+/** The grid the [HeroBlob] paths are drawn in, which is also the hero's box at full size. */
+private const val BLOB_WIDTH = 280f
+private const val BLOB_HEIGHT = 148f
+
+private fun heroBlobFor(type: SensorType, companion: HeroCompanion): HeroBlob = when {
+    type == SensorType.MEDTRUM -> HeroBlob.ManualEntry
+    companion == HeroCompanion.NFC -> HeroBlob.NfcTap
+    companion == HeroCompanion.SCAN -> HeroBlob.CameraScan
+    else -> HeroBlob.BluetoothPair
+}
+
+/** [blob] filling the box, [grow] of its size about the middle and turned [spin] degrees. */
+private fun DrawScope.drawHeroBlob(blob: Path, color: Color, spin: Float, grow: Float) {
+    if (grow <= 0f) return
+    rotate(spin, pivot = center) {
+        scale(grow, grow, pivot = center) {
+            scale(size.width / BLOB_WIDTH, size.height / BLOB_HEIGHT, pivot = Offset.Zero) {
+                drawPath(blob, color)
+            }
+        }
     }
 }
 
@@ -238,11 +254,11 @@ private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage 
 }
 
 /**
- * A sensor at wizard size with a phone acting out how it connects, in front of one tilted oval, and for the
+ * A sensor at wizard size with a phone acting out how it connects, on its family's blob, and for the
  * families set up from a printed code, the thing the code is on. The phone's screen says what is
  * happening: the NFC mark, the Bluetooth mark, or the camera closing on the code.
  *
- * It answers a touch: the sensor gives under the finger, and letting go kicks the oval, drops the sensor on
+ * It answers a touch: the sensor gives under the finger, and letting go kicks the blob, drops the sensor on
  * again and replays the whole story, with a click on letting go and a
  * double click when the phone has the code, the NFC read or the pairing. It is a toy, not a
  * control, so it adds nothing for accessibility services to announce. Between touches nothing
@@ -255,7 +271,7 @@ private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage 
 internal fun SensorHeroArt(
     type: SensorType,
     modifier: Modifier = Modifier,
-    tileSize: Dp = 120.dp,
+    stageWidth: Dp = BLOB_WIDTH.dp,
     pairLead: Boolean = false,
     companion: HeroCompanion? = null,
 ) {
@@ -263,7 +279,7 @@ internal fun SensorHeroArt(
     val scheme = MaterialTheme.colorScheme
     val accent = scheme.primary
     val screenColor = scheme.surfaceContainerHighest
-    val backdropColor = scheme.primaryContainer
+    val blobColor = scheme.secondaryContainer.copy(alpha = 0.65f)
     val nfcMark = rememberVectorPainter(Icons.Rounded.Nfc)
     val bluetoothMark = rememberVectorPainter(Icons.Rounded.Bluetooth)
     val tick = rememberNavigationTick()
@@ -272,6 +288,11 @@ internal fun SensorHeroArt(
     val companionKind = companion ?: type.heroCompanion
     val carrier = if (companionKind == HeroCompanion.SCAN) type.codeCarrier else CodeCarrier.NONE
     val stage = stageFor(companionKind, carrier)
+    // The box keeps the blob grid's proportions; the scene is scaled to sit inside it.
+    val stageHeight = stageWidth * (BLOB_HEIGHT / BLOB_WIDTH)
+    val tileSize = minOf(stageWidth / stage.width, stageHeight / 1.3f, stageWidth * (112f / BLOB_WIDTH))
+    val blob = heroBlobFor(type, companionKind)
+    val blobPath = remember(blob) { PathParser().parsePathString(blob.pathData).toPath() }
     // A new companion (Ottai's wake by NFC or not) comes in as on a first visit, and was asked for.
     var shownCompanion by remember { mutableStateOf(companionKind) }
     LaunchedEffect(companionKind) {
@@ -297,8 +318,8 @@ internal fun SensorHeroArt(
     val signal = remember { Animatable(1f) }
     // The sensor springs up on a bounce, and bounces again on every replay.
     val pop = remember { Animatable(if (firstVisit) 0f else 1f) }
-    // The backdrop: on entrance it swings into its tilt and settles; a tap gives it a kick.
-    val swing = remember { Animatable(if (firstVisit) 24f else 0f) }
+    // The blob: on entrance it swings into place and settles; a tap gives it a kick.
+    val swing = remember { Animatable(if (firstVisit) -8f else 0f) }
 
     LaunchedEffect(plays) {
         if (plays == 0 && !firstVisit) return@LaunchedEffect
@@ -309,7 +330,7 @@ internal fun SensorHeroArt(
                 pop.animateTo(1f, HeroBounce)
             }
             launch {
-                swing.snapTo(if (asked) 8f else 24f)
+                swing.snapTo(if (asked) 3f else -8f)
                 swing.animateTo(0f, HeroBounce)
             }
             arrival.snapTo(0f)
@@ -327,7 +348,7 @@ internal fun SensorHeroArt(
     )
     Box(
         modifier = modifier
-            .size(width = tileSize * stage.width, height = tileSize * 1.3f)
+            .size(width = stageWidth, height = stageHeight)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = { position ->
@@ -347,11 +368,11 @@ internal fun SensorHeroArt(
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.matchParentSize()) {
-            drawBackdrop(backdropColor, tileSize.toPx(), stage.width / 2.1f, swing.value, backdropGrow(pop.value))
+            drawHeroBlob(blobPath, blobColor, swing.value, backdropGrow(pop.value))
         }
         SensorArtTile(
             type = type,
-            containerColor = scheme.primaryContainer,
+            containerColor = scheme.secondaryContainer,
             tileSize = tileSize,
             interactionSource = interactionSource,
             modifier = Modifier
@@ -472,7 +493,7 @@ internal fun SensorHeroArt(
     }
 }
 
-/** The backdrop comes in a little behind the sensor's own bounce, from 70% of its size. */
+/** The blob comes in a little behind the sensor's own bounce, from 70% of its size. */
 private fun backdropGrow(pop: Float): Float = 0.7f + 0.3f * pop
 
 /** The bounce the hero's circle comes in on: under-damped, so it overshoots and settles. */
@@ -509,7 +530,6 @@ internal fun SensorWizardHero(
     pairLead: Boolean = false,
     companion: HeroCompanion? = null,
 ) {
-    val wide = !rememberAdaptiveWindowMetrics().isCompact
     AnimatedContent(
         targetState = compact,
         modifier = modifier.fillMaxWidth(),
@@ -526,7 +546,7 @@ internal fun SensorWizardHero(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = if (title == null) Arrangement.Center else Arrangement.Start,
             ) {
-                SensorHeroArt(type, tileSize = 56.dp, pairLead = pairLead, companion = companion)
+                SensorHeroArt(type, stageWidth = (BLOB_WIDTH / 2f).dp, pairLead = pairLead, companion = companion)
                 if (title != null) {
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -547,7 +567,7 @@ internal fun SensorWizardHero(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                SensorHeroArt(type, tileSize = if (wide) 128.dp else 112.dp, pairLead = pairLead, companion = companion)
+                SensorHeroArt(type, pairLead = pairLead, companion = companion)
                 if (title != null) {
                     Text(
                         title,
