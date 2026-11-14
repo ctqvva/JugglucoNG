@@ -23,6 +23,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -418,17 +419,21 @@ fun InlineQrScannerCard(
                     )
             )
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(260.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .border(
-                        width = 2.dp,
-                        color = Color.White.copy(alpha = 0.88f),
-                        shape = RoundedCornerShape(20.dp)
-                    )
-            )
+            // The framing guide: 260 dp, or less where the card is shorter (240 dp on phones),
+            // so it always fits with a margin.
+            BoxWithConstraints(modifier = Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
+                val frame = minOf(260.dp, maxHeight - 24.dp, maxWidth - 24.dp).coerceAtLeast(0.dp)
+                Box(
+                    modifier = Modifier
+                        .size(frame)
+                        .clip(RoundedCornerShape(20.dp))
+                        .border(
+                            width = 2.dp,
+                            color = Color.White.copy(alpha = 0.88f),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                )
+            }
 
             if (hasPermission && camera?.cameraInfo?.hasFlashUnit() == true) {
                 Surface(

@@ -236,10 +236,12 @@ private fun ICanHealthOnboardingStep(
     onLaunchFullscreenScan: () -> Unit,
     onShowManualEntry: () -> Unit,
 ) {
+    // Lets go of the page while a finger is on the camera, so pinch-to-zoom and focus reach it.
+    var scannerTouched by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState(), enabled = !scannerTouched)
             .padding(horizontal = ui.horizontalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top,
@@ -266,7 +268,8 @@ private fun ICanHealthOnboardingStep(
                 true
             },
             onManualFallback = onLaunchFullscreenScan,
-            manualFallbackLabel = stringResource(R.string.scan_qr_button)
+            manualFallbackLabel = stringResource(R.string.scan_qr_button),
+            onTouchInteractionChanged = { scannerTouched = it },
         )
 
         Spacer(Modifier.height(ui.spacerMedium))

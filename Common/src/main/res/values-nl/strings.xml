@@ -3407,5 +3407,5 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="food_reorder">Voeding herschikken</string>
     <string name="food_move_up">Omhoog verplaatsen</string>
     <string name="food_move_down">Omlaag verplaatsen</string>
-    <string name="scan_sensor_qr">QR-code van sensor scannen</string>
+    <string name="scan_sensor_qr">QR-code van de sensor scannen</string>
 </resources>

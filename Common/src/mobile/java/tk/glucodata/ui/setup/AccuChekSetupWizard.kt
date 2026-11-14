@@ -57,12 +57,14 @@ fun AccuChekSetupWizard(
             )
         }
     ) { padding ->
+        // Lets go of the page while a finger is on the camera, so pinch-to-zoom and focus reach it.
+        var scannerTouched by remember { mutableStateOf(false) }
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(ui.horizontalPadding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), enabled = !scannerTouched)
                 .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
@@ -90,7 +92,8 @@ fun AccuChekSetupWizard(
                     true
                 },
                 onManualFallback = launchFullscreenScan,
-                manualFallbackLabel = stringResource(R.string.scan_accuchek)
+                manualFallbackLabel = stringResource(R.string.scan_accuchek),
+                onTouchInteractionChanged = { scannerTouched = it },
             )
 
         }

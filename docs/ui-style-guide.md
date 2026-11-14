@@ -208,7 +208,11 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 **The wizard hero** (`SensorWizardHero`)
 
 - Every wizard's main step opens with one, never a bespoke card. It shows the sensor on a
-  circle in `primaryContainer` and a phone acting out how the family connects. The phone's screen says it in one glyph:
+  circle in `primaryContainer` and a phone acting out how the family connects, standing on a
+  pill in `tertiaryContainer`. The scene is blocked out in those two colours, so the hero
+  reads as a composition, not a sensor with a halo. When the phone gets its read, a
+  `MaterialShapes.SoftBurst` in `tertiary` pops out at its corner with a check in
+  `onTertiary`. The phone's screen says it in one glyph:
 
 | Family connects by | Phone | Screen | Beside them |
 |---|---|---|---|
@@ -233,13 +237,14 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 **Hero motion and touch**
 
-- The entrance plays the first time a hero opens after launch: the phone and what the code is
-  printed on come in, and the phone does its one beat. Later
+- The entrance plays the first time a hero opens after launch: the circle and the pill spring
+  up with an overshooting bounce (damping 0.45), the phone and what the code is printed on
+  come in, the phone does its one beat, and the burst pops. Later
   visits, rotation, and the fold between sizes find it already in place. Nothing runs at rest.
 - It is a toy, not a control, so it adds nothing for accessibility services. Under the finger
-  the circle gives. On release the hero clicks (`NavigationTick.play`), drops the sensor back
-  on and replays the story. When the phone has
-  the read, it double-clicks (`NavigationTick.playConfirm`).
+  the circle gives. On release the hero clicks (`NavigationTick.play`), the circle and pill
+  bounce, the sensor drops back on and the story replays. When the phone has the read, it
+  double-clicks (`NavigationTick.playConfirm`) as the burst pops.
 - A pair trading places clicks once as they pass.
 
 ### Row, card, dialog or sheet

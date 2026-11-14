@@ -21,6 +21,8 @@ object MobileComposeHost : ComposeHost {
         legacyView?.visibility = View.GONE
         activity.window.decorView.optOutOfForceDark()
 
+        // Starts reading the saved sensor drawings off the main thread before the first frame.
+        tk.glucodata.ui.components.SensorImages.attach(activity.applicationContext)
         activity.setContent {
             val prefs = activity.getSharedPreferences(activity.packageName + "_preferences", Context.MODE_PRIVATE)
             val savedTheme = prefs.getString("theme_mode", "SYSTEM") ?: "SYSTEM"

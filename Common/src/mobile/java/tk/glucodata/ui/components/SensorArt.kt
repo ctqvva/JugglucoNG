@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
 import tk.glucodata.ui.isAppInDarkTheme
 import java.io.File
+import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import kotlin.math.PI
 import kotlin.math.abs
@@ -199,7 +201,14 @@ internal fun SensorArt(type: SensorType, modifier: Modifier = Modifier) {
  * update that changes a drawing never shows the old one.
  */
 internal object SensorImages {
-    private val memory = LruCache<String, ImageBitmap>(48)
+    /** Everything that decides how a drawing looks, compared in full: no hash stands in for it. */
+    private data class Key(val type: SensorType, val part: String, val tones: SensorTones, val width: Int, val height: Int)
+
+    private val memory = LruCache<Key, ImageBitmap>(48)
+
+    /** Saved drawings read ahead of their first frame, by file name, until a frame claims them. */
+    private val readAhead = ConcurrentHashMap<String, ImageBitmap>()
+
     private val writer = Executors.newSingleThreadExecutor { task ->
         Thread(task, "sensor-art").apply {
             isDaemon = true
@@ -210,7 +219,11 @@ internal object SensorImages {
     @Volatile
     private var folder: File? = null
 
-    /** Where saved drawings live; the first call also clears drawings saved by older builds. */
+    /**
+     * Where saved drawings live. The first call clears drawings saved by older builds and reads
+     * this build's saved drawings into memory off the main thread, so a fresh start rarely has
+     * to read one from disk inside a frame.
+     */
     fun attach(context: Context) {
         if (folder != null) return
         val root = File(context.cacheDir, "sensor-art")
@@ -223,6 +236,13 @@ internal object SensorImages {
         writer.execute {
             current.mkdirs()
             root.listFiles()?.filter { it != current }?.forEach { it.deleteRecursively() }
+            current.listFiles { file -> file.name.endsWith(".png") }
+                ?.sortedByDescending { it.lastModified() }
+                ?.take(READ_AHEAD)
+                ?.forEach { file ->
+                    runCatching { BitmapFactory.decodeFile(file.path)?.asImageBitmap() }.getOrNull()
+                        ?.let { readAhead.putIfAbsent(file.name, it) }
+                }
         }
     }
 
@@ -234,10 +254,13 @@ internal object SensorImages {
         part: String = "",
         draw: () -> ImageBitmap,
     ): ImageBitmap {
-        val key = "${type.name}$part-${Integer.toHexString(tones.hashCode())}-${width}x$height"
+        val key = Key(type, part, tones, width, height)
         memory.get(key)?.let { return it }
-        val file = folder?.let { File(it, "$key.png") }
-        val saved = file?.takeIf { it.isFile }?.let { stored ->
+        val name = fileName(key)
+        val file = folder?.let { File(it, name) }
+        // Read ahead already, or else read now: a frame that waits a millisecond for a small
+        // file still shows the finished drawing, where drawing it from scratch would blink.
+        val saved = readAhead.remove(name) ?: file?.takeIf { it.isFile }?.let { stored ->
             runCatching { BitmapFactory.decodeFile(stored.path)?.asImageBitmap() }.getOrNull()
         }
         if (saved != null) {
@@ -258,6 +281,15 @@ internal object SensorImages {
         }
         return drawn
     }
+
+    /** A file name for [key] that two different drawings can't share: a digest of all of it. */
+    private fun fileName(key: Key): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(key.toString().toByteArray())
+        val hex = digest.joinToString("") { "%02x".format(it) }
+        return "${key.type.name}${key.part}-$hex-${key.width}x${key.height}.png"
+    }
+
+    private const val READ_AHEAD = 48
 }
 
 /** [drawSensor], drawn once per type, tones and size and shown from the image after that. */

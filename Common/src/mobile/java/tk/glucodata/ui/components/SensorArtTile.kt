@@ -1,6 +1,20 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.spring
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.graphics.shapes.RoundedPolygon
+import androidx.graphics.shapes.toPath
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Nfc
@@ -222,6 +236,7 @@ private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage 
  * [pairLead] brings a pair's second sensor to the front with a click as they pass; a new
  * [companion] replays the entrance with it.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SensorHeroArt(
     type: SensorType,
@@ -234,6 +249,11 @@ internal fun SensorHeroArt(
     val scheme = MaterialTheme.colorScheme
     val accent = scheme.primary
     val screenColor = scheme.surfaceContainerHighest
+    val pillColor = scheme.tertiaryContainer
+    val burstColor = scheme.tertiary
+    val onBurstColor = scheme.onTertiary
+    val burstShape = MaterialShapes.SoftBurst
+    val checkMark = rememberVectorPainter(Icons.Rounded.Check)
     val nfcMark = rememberVectorPainter(Icons.Rounded.Nfc)
     val bluetoothMark = rememberVectorPainter(Icons.Rounded.Bluetooth)
     val tick = rememberNavigationTick()
@@ -265,14 +285,27 @@ internal fun SensorHeroArt(
     val arrival = remember { Animatable(if (firstVisit) 0f else 1f) }
     // The phone's one beat: the NFC read, the camera's sweep and read, the Bluetooth signal.
     val signal = remember { Animatable(1f) }
+    // The two shapes the scene stands on, the sensor's circle and the phone's pill, spring in
+    // with a bounce and bounce again on every replay.
+    val pop = remember { Animatable(if (firstVisit) 0f else 1f) }
+    // The burst with a check that marks the read, the NFC tap or the pairing: 0 hidden, 1 out.
+    val burst = remember { Animatable(if (firstVisit) 0f else 1f) }
     LaunchedEffect(plays) {
         if (plays == 0 && !firstVisit) return@LaunchedEffect
         val asked = plays > 0
-        arrival.snapTo(0f)
-        signal.snapTo(0f)
-        arrival.animateTo(1f, ExpressiveMotion.slowSpatial())
-        signal.animateTo(1f, tween(durationMillis = 1_200, easing = LinearOutSlowInEasing))
-        if (asked) tick.playConfirm()
+        burst.snapTo(0f)
+        coroutineScope {
+            launch {
+                pop.snapTo(if (asked) 0.86f else 0f)
+                pop.animateTo(1f, HeroBounce)
+            }
+            arrival.snapTo(0f)
+            signal.snapTo(0f)
+            arrival.animateTo(1f, ExpressiveMotion.slowSpatial())
+            signal.animateTo(1f, tween(durationMillis = 1_200, easing = LinearOutSlowInEasing))
+            if (asked) tick.playConfirm()
+            burst.animateTo(1f, HeroBounce)
+        }
     }
 
     val sensorShift by animateDpAsState(
@@ -301,12 +334,36 @@ internal fun SensorHeroArt(
             },
         contentAlignment = Alignment.Center,
     ) {
+        // The phone's own shape, in the theme's other accent: the scene is blocked out in two
+        // colours, the sensor on its circle, the phone on its pill.
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val tile = tileSize.toPx()
+            val at = center + Offset(stage.phone.x * tile, (stage.phone.y + 0.07f) * tile)
+            val grow = pop.value
+            val pill = Size(0.86f * tile, 1.14f * tile)
+            rotate(-8f + 10f * (1f - grow), pivot = at) {
+                scale(grow, grow, pivot = at) {
+                    drawRoundRect(
+                        pillColor,
+                        topLeft = at - Offset(pill.width / 2f, pill.height / 2f),
+                        size = pill,
+                        cornerRadius = CornerRadius(pill.width / 2f),
+                    )
+                }
+            }
+        }
         SensorArtTile(
             type = type,
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             tileSize = tileSize,
             interactionSource = interactionSource,
-            modifier = Modifier.offset(x = sensorShift),
+            modifier = Modifier
+                .offset(x = sensorShift)
+                .graphicsLayer {
+                    val grow = 0.5f + 0.5f * pop.value
+                    scaleX = grow
+                    scaleY = grow
+                },
             replay = plays,
             round = true,
             lead = { lead },
@@ -410,6 +467,41 @@ internal fun SensorHeroArt(
             }
             drawHeroPhone(tones, screenColor, accent, screen)
         }
+        // The read, marked: a burst with a check pops out at the phone's top corner.
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val out = burst.value
+            if (out <= 0f) return@Canvas
+            val tile = tileSize.toPx()
+            val at = center + Offset((stage.phone.x - 0.3f) * tile, (stage.phone.y - 0.4f) * tile)
+            val extent = 0.3f * tile * out
+            drawPolygon(burstShape, at, extent, 30f * (1f - out), burstColor)
+            val mark = extent * 0.56f
+            translate(at.x - mark / 2f, at.y - mark / 2f) {
+                with(checkMark) { draw(Size(mark, mark), colorFilter = ColorFilter.tint(onBurstColor)) }
+            }
+        }
+    }
+}
+
+/** The bounce the hero's shapes come in on: under-damped, so they overshoot and settle. */
+private val HeroBounce = spring<Float>(dampingRatio = 0.45f, stiffness = 380f)
+
+/** [polygon] [extent] across, centred on [at] and turned [degrees]. */
+private fun DrawScope.drawPolygon(polygon: RoundedPolygon, at: Offset, extent: Float, degrees: Float, color: Color) {
+    val outline = android.graphics.Path()
+    polygon.toPath(outline)
+    val bounds = android.graphics.RectF()
+    outline.computeBounds(bounds, true)
+    val across = maxOf(bounds.width(), bounds.height())
+    if (across <= 0f || extent <= 0f) return
+    val path = outline.asComposePath()
+    withTransform({
+        translate(at.x, at.y)
+        rotate(degrees, pivot = Offset.Zero)
+        scale(extent / across, extent / across, pivot = Offset.Zero)
+        translate(-bounds.centerX(), -bounds.centerY())
+    }) {
+        drawPath(path, color)
     }
 }
 
