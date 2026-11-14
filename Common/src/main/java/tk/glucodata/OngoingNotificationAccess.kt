@@ -26,6 +26,13 @@ interface OngoingNotification {
 
     /** Updates the ongoing activity's status, if there is one. */
     fun updateStatus(context: Context?, notificationId: Int)
+
+    /**
+     * Replaces the ongoing activity's status text until the next [updateStatus].
+     * Used for a status that is not a reading (signal loss); the watch implementation
+     * renders it in the ongoing chip instead of posting a second notification.
+     */
+    fun updateStatusText(context: Context?, notificationId: Int, text: String) { }
 }
 
 object OngoingNotificationAccess {

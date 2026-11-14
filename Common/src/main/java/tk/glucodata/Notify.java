@@ -5194,11 +5194,16 @@ public class Notify {
     private void signalLoss(long lastReadingMillis) {
         final String message = signalLossStatus(lastReadingMillis);
         if (isWearable) {
-            // The watch owns its reading through the ongoing notification. Posting the
-            // stale status under the separate alarm id would leave the ongoing reading
-            // untouched and show two notifications.
-            notificationManager.notify(glucosenotificationid,
-                    makenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true));
+            // The watch owns its reading through the ongoing notification. Replace its
+            // status text instead of posting a second notification; the next reading
+            // calls updateStatus() and restores the normal value.
+            final var ongoing = OngoingNotificationAccess.get();
+            if (ongoing != null) {
+                ongoing.updateStatusText(Applic.app, glucosenotificationid, message);
+            } else {
+                notificationManager.notify(glucosealarmid,
+                        makenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true));
+            }
         } else {
             placelargenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
         }
