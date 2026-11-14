@@ -131,6 +131,7 @@ fun Libre3ManagedDriverSection() {
     SectionLabel(text = stringResource(R.string.libre3_managed_title))
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         SettingsSwitchItem(
+            searchAnchor = SettingsSearchAnchors.forRow(R.string.libre3_managed_enable),
             title = stringResource(R.string.libre3_managed_enable),
             subtitle = stringResource(R.string.libre3_managed_enable_desc),
             checked = enabled,
@@ -144,6 +145,7 @@ fun Libre3ManagedDriverSection() {
             position = CardPosition.TOP,
         )
         SettingsSwitchItem(
+            searchAnchor = SettingsSearchAnchors.forRow(R.string.libre3_managed_receiver_account),
             title = stringResource(R.string.libre3_managed_receiver_account),
             subtitle = stringResource(R.string.libre3_managed_receiver_desc, receiverText),
             checked = useAccountReceiver,
