@@ -267,7 +267,7 @@ internal fun SensorHeroArt(
         }
         SensorArtTile(
             type = type,
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
             tileSize = tileSize,
             interactionSource = interactionSource,
             modifier = Modifier.offset(x = tileShift),

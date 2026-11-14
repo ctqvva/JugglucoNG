@@ -78,12 +78,13 @@ fun SensorSelectionCards(
         ) {
 
             sensorTypeOptions.filter { allowedTypes == null || it.type in allowedTypes }.forEach { option ->
-                val highlighted = option.type == SensorType.SIBIONICS
                 SensorCard(
                     type = option.type,
                     title = stringResource(option.titleRes),
                     subtitle = stringResource(option.subtitleRes),
-                    containerColor = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                    // One tone for every sensor, as in the picker sheet and the wizard heroes;
+                    // secondaryContainer sat too close to the card to hold the white plastic.
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
                     onClick = { onSensorSelected(option.type) },
                     compact = compact
                 )
