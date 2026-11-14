@@ -1,6 +1,10 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import kotlin.math.abs
+import kotlin.math.sign
+import kotlin.math.pow
+import kotlin.random.Random
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.geometry.Rect
 import kotlin.math.PI
@@ -243,21 +247,71 @@ private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage 
  * The pieces are drawn ART times the size the shape is built for, and stand SPREAD times as far
  * apart, so they extend firmly out of the shape rather than being fitted into it.
  */
-private const val ART = 1.24f
-private const val SPREAD = 1.1f
+private const val ART = 1.1f
+private const val SPREAD = 1.05f
 
 /**
- * How round a sensor's own body is, 0 boxy to 1 round: the shape behind it takes its corners
- * from the sensor it holds, so a round Libre sits in a soft shape and a boxy Medtrum in a firmer
- * one. Read off the drawings, one number per family.
+ * The shape behind a hero's scene, drawn fresh each time a wizard opens: one of these styles,
+ * at its own small tilt, so a style that sits badly with one scene is not the one shown every
+ * time, and a tap trades it for another. Every style is built round the same boxes, so each
+ * fits the scene it is given.
  */
-private val SensorType.roundness: Float
-    get() = when (this) {
-        SensorType.LIBRE, SensorType.AIDEX, SensorType.OTTAI, SensorType.ACCUCHEK, SensorType.ICANHEALTH -> 1f
-        SensorType.DEXCOM, SensorType.ANYTIME -> 0.7f
-        SensorType.SIBIONICS, SensorType.CARESENS_AIR -> 0.45f
-        SensorType.MQ, SensorType.MEDTRUM -> 0.15f
+private enum class BackdropStyle {
+    /** The pieces' boxes wrapped in one soft hull. */
+    Hull,
+
+    /** One capsule spanning the scene. */
+    Capsule,
+
+    /** A disc behind the sensor and one behind the phone, joined by straight tangents. */
+    Bean,
+
+    /** A superellipse spanning the scene, between a rectangle and an ellipse. */
+    Squircle,
+}
+
+/** A style and a tilt in degrees for one showing of a hero, other than [not]. */
+private fun rollBackdrop(random: Random, not: BackdropStyle? = null): Pair<BackdropStyle, Float> {
+    val choices = BackdropStyle.entries.filter { it != not }
+    return choices[random.nextInt(choices.size)] to (random.nextFloat() * 10f - 5f)
+}
+
+/** [style] round [pieces], a sensor disc at [sensorAt] and a phone disc at [phoneAt]. */
+private fun backdropPath(style: BackdropStyle, pieces: List<ScenePiece>, sensorAt: Offset, phoneAt: Offset, tile: Float): Path {
+    val pad = 0.08f * tile
+    val left = pieces.minOf { it.centre.x - it.left } - pad
+    val right = pieces.maxOf { it.centre.x + it.right } + pad
+    val top = pieces.minOf { it.centre.y - it.up } - pad
+    val bottom = pieces.maxOf { it.centre.y + it.down } + pad
+    return when (style) {
+        BackdropStyle.Hull -> sceneShape(pieces, tile, dip = 0f, dipFrom = 0f, dipTo = 0f)
+        BackdropStyle.Capsule -> Path().apply {
+            addRoundRect(RoundRect(left, top, right, bottom, CornerRadius((bottom - top) / 2f)))
+        }
+        BackdropStyle.Bean -> discHull(
+            buildList {
+                add(Disc(sensorAt + Offset(0f, 0.04f * tile), 0.6f * tile))
+                pieces.drop(1).dropLast(1).forEach { add(Disc(it.centre, 0.46f * tile)) }
+                add(Disc(phoneAt + Offset(0f, 0.06f * tile), 0.5f * tile))
+            },
+            step = 0.02f * tile,
+        )
+        BackdropStyle.Squircle -> Path().apply {
+            val middle = Offset((left + right) / 2f, (top + bottom) / 2f)
+            val a = (right - left) / 2f
+            val b = (bottom - top) / 2f
+            for (k in 0..120) {
+                val angle = k / 120f * 2f * PI.toFloat()
+                val c = cos(angle)
+                val n = sin(angle)
+                val x = a * sign(c) * abs(c).pow(0.5f)
+                val y = b * sign(n) * abs(n).pow(0.5f)
+                if (k == 0) moveTo(middle.x + x, middle.y + y) else lineTo(middle.x + x, middle.y + y)
+            }
+            close()
+        }
     }
+}
 
 private class ScenePiece(
     val centre: Offset,
@@ -268,8 +322,8 @@ private class ScenePiece(
     val turn: Float = 0f,
 )
 
-private fun sceneShape(pieces: List<ScenePiece>, tile: Float, roundness: Float, dip: Float, dipFrom: Float, dipTo: Float): Path {
-    val round = (0.14f + 0.26f * roundness) * tile
+private fun sceneShape(pieces: List<ScenePiece>, tile: Float, dip: Float, dipFrom: Float, dipTo: Float): Path {
+    val round = 0.32f * tile
     val pad = 0.08f * tile
     val inset = round - pad
     fun pull(v: Float) = if (v > 0f) (v - inset).coerceAtLeast(0f) else (v + inset).coerceAtMost(0f)
@@ -407,6 +461,9 @@ internal fun SensorHeroArt(
     val signal = remember { Animatable(1f) }
     // The sensor springs up on a bounce, and bounces again on every replay.
     val pop = remember { Animatable(if (firstVisit) 0f else 1f) }
+    // The shape is rolled fresh each time the hero is shown; a tap trades it for another.
+    val random = remember { Random(System.nanoTime()) }
+    var backdrop by remember { mutableStateOf(rollBackdrop(random)) }
     // The shape's stretch: a tap pulls it wide and it springs back.
     val swing = remember { Animatable(0f) }
     // Under the finger the shape gathers in a little.
@@ -443,10 +500,9 @@ internal fun SensorHeroArt(
     )
     Box(
         modifier = modifier
-            .size(width = tileSize * (stageWidth * SPREAD), height = tileSize * 1.5f)
+            .size(width = tileSize * (stageWidth * SPREAD), height = tileSize * 1.6f)
             // The scene sits a little high in its box: the shape grounds every piece, so it
             // reaches further down than up, and the heading under it keeps its distance.
-            .graphicsLayer { translationY = -0.06f * tileSize.toPx() }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = { position ->
@@ -457,6 +513,7 @@ internal fun SensorHeroArt(
                             if (released) PressInteraction.Release(press) else PressInteraction.Cancel(press),
                         )
                         if (released) {
+                            backdrop = rollBackdrop(random, not = backdrop.first)
                             plays += 1
                             tick.play()
                         }
@@ -479,22 +536,13 @@ internal fun SensorHeroArt(
                 }
                 add(ScenePiece(phoneAt, left = 0.26f * tile, right = 0.26f * tile, up = 0.3f * tile, down = 0.5f * tile, turn = phoneTurn))
             }
-            // A waist only where two pieces leave open air between them for a radio signal.
-            val open = companionKind == HeroCompanion.PAIR && type != SensorType.MEDTRUM && carrier == CodeCarrier.NONE
-            val outline = sceneShape(
-                pieces,
-                tile,
-                roundness = type.roundness,
-                dip = if (open) 0.07f * tile else 0f,
-                dipFrom = sensorAt.x,
-                dipTo = phoneAt.x,
-            )
+            val (style, tilt) = backdrop
+            val outline = backdropPath(style, pieces, sensorAt, phoneAt, tile)
             // Opens out from the sensor on entrance; a tap stretches it, a press gathers it in.
             val grow = backdropGrow(pop.value) * (1f - 0.04f * press.value)
             val kick = swing.value / 100f
             scale(grow * (1f + kick), grow * (1f - kick), pivot = sensorAt) {
-                // Leaning against its sensor's own lean, so each family's shape sits its own way.
-                rotate(-type.tilt * 0.4f, pivot = center) {
+                rotate(tilt, pivot = center) {
                     drawPath(outline, blobColor)
                 }
             }
@@ -542,7 +590,7 @@ internal fun SensorHeroArt(
                     if (local > 0f && local < 1f) {
                         drawCircle(
                             accent.copy(alpha = (1f - local) * 0.6f),
-                            radius = tile * ART * (0.5f + 0.32f * local),
+                            radius = tile * ART * (0.5f + 0.16f * local),
                             center = sensor,
                             style = Stroke(width = 2.dp.toPx()),
                         )

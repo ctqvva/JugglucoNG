@@ -209,19 +209,19 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 **The wizard hero** (`SensorWizardHero`)
 
 - Every wizard's main step opens with one, never a bespoke card. The sensor and a phone acting
-  out how the family connects stand in front of one shape, built by one rule for every family
-  (`sceneShape`), never tailored to a sensor:
-  - the shape is built round a box for each piece (the sensor, the pack, the phone at its
-    lean): the convex hull of those boxes, one corner radius throughout so no corner can pinch;
-  - the pieces are drawn 1.24 times the size the shape is built for and stand 1.1 times as far
-    apart, so they extend firmly out of it; the shape is never shrunk to get that;
-  - each family's shape is its own: its corner radius follows how round the sensor's body is
-    (`roundness`: Libre soft, Medtrum firm), and it leans against the sensor's own tilt;
-  - where two pieces leave open air for a radio signal (Bluetooth families, not Medtrum's serial
-    step), the top eases in by 0.07 tile, flat at both ends;
+  out how the family connects stand in front of one shape, never tailored to a sensor:
+  - the shape is drawn fresh each time a hero is shown (`BackdropStyle`), one of: a soft hull
+    round the pieces' boxes, a capsule spanning the scene, a bean (a disc behind the sensor and
+    one behind the phone joined by tangents), or a superellipse, each at a random tilt within
+    5°. A tap trades it for a different style. No single style is the only face a wizard has;
+  - every style is built round the same boxes (one per piece: the sensor, the pack, the phone
+    at its lean), so each fits the scene it is given. A new style must be rendered against
+    every family before it ships;
+  - the pieces are drawn 1.1 times the size the shape is built for and stand 1.05 times as far
+    apart, so they extend out of it. Every piece stays inside the hero's own box (1.6 tile
+    high); nothing reaches into the top bar or a progress bar above it;
   - fill: `sensorBackdropColor`, the list tiles' colour;
-  - the scene sits 0.06 tile high in its box, and the heading is 12dp under it, because the
-    floor reaches further down than the pieces.
+  - the heading is 12dp under the hero's box.
 
   Rules:
   - The sensor stands free: nothing is centred under it (a disc or square under a sensor reads
@@ -230,9 +230,11 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
   - Rejected by the owner (2026-11-14/15): a cookie halo, a colour-blocked pill with a success
     burst, a 3D stage, the list tile reused, rings drawn as lines, a fixed 280 x 148 box with
     hand-drawn blobs, a free-form silhouette ("blobs of randomness"), one rounded rectangle per
-    family, a Medtrum mound cut flat (read as a doorstop), and small grounding discs that left
+    family, a Medtrum mound cut flat (read as a doorstop), small grounding discs that left
     tight `_|` corners round the phone, a shape fitted round the scene with the pieces inside
-    it, and a shape shrunk to a floor under them (the pieces should grow, not the shape shrink). The fix for a bad corner is the rule, not another disc.
+    it, a shape shrunk to a floor under them (the pieces should grow, not the shape shrink), a
+    per-family lean and roundness (a slanted slab behind Glutec), and a 1.24x size-up that ran
+    the phone into the progress bar. The fix for a bad corner is the rule, not another disc.
 - The phone acts out how the family connects; its screen says it in one mark:
 
   | Family connects by | Phone | Screen | Beside them |
