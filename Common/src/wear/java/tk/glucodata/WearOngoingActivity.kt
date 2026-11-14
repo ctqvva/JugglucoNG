@@ -41,14 +41,17 @@ object WearOngoingActivity : OngoingNotification {
         }
     }
 
-    override fun updateStatusText(context: Context?, notificationId: Int, text: String) {
-        context ?: return
-        if (text.isBlank()) return
-        try {
-            OngoingActivity.recoverOngoingActivity(context, notificationId)
-                ?.update(context, Status.forPart(Status.TextPart(text)))
+    override fun updateStatusText(context: Context?, notificationId: Int, text: String): Boolean {
+        context ?: return false
+        if (text.isBlank()) return false
+        return try {
+            val activity = OngoingActivity.recoverOngoingActivity(context, notificationId)
+                ?: return false
+            activity.update(context, Status.forPart(Status.TextPart(text)))
+            true
         } catch (th: Throwable) {
             Log.stack(LOG_ID, "updateStatusText", th)
+            false
         }
     }
 

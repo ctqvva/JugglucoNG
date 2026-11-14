@@ -5196,11 +5196,14 @@ public class Notify {
         if (isWearable) {
             // The watch owns its reading through the ongoing notification. Replace its
             // status text instead of posting a second notification; the next reading
-            // calls updateStatus() and restores the normal value.
+            // calls updateStatus() and restores the normal value. If no ongoing activity
+            // can be recovered, fall back to the normal notification slot.
+            boolean updated = false;
             final var ongoing = OngoingNotificationAccess.get();
             if (ongoing != null) {
-                ongoing.updateStatusText(Applic.app, glucosenotificationid, message);
-            } else {
+                updated = ongoing.updateStatusText(Applic.app, glucosenotificationid, message);
+            }
+            if (!updated) {
                 notificationManager.notify(glucosealarmid,
                         makenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true));
             }

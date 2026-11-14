@@ -981,7 +981,7 @@ class NotificationStartupRestoreTests {
                             return n;
                         }
                         void updateStatus(Object app, int id) { owner.updateCalls++; }
-                        void updateStatusText(Object app, int id, String text) { owner.updateCalls++; }
+                        boolean updateStatusText(Object app, int id, String text) { owner.updateCalls++; return true; }
                     }
                     static class keeprunning {
                         static Service theservice = null;
