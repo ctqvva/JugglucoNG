@@ -798,16 +798,20 @@ class Libre3BleManager(sensorId: String) :
      */
     private fun ensureNativeWindow() {
         if (nativeWindowChecked) return
-        nativeWindowChecked = true
-        val startMs = record?.startTimeMs ?: return
-        if (startMs <= 0L) return
+        val rec = record ?: return
+        if (rec.startTimeMs <= 0L) return
         runCatching {
-            if (Natives.str2sensorptr(sensorId) != 0L) return
-            val nowSec = System.currentTimeMillis() / 1000L
-            val startSec = maxOf(startMs / 1000L - 60L, nowSec - NATIVE_WINDOW_SECONDS + 60L)
-            if (Natives.ensureSensorShellWithCapacity(sensorId, startSec, NATIVE_WINDOW_MINUTES) == 0L) {
-                Natives.ensureSensorShell(sensorId, startSec)
+            if (Natives.str2sensorptr(sensorId) == 0L) {
+                val nowSec = System.currentTimeMillis() / 1000L
+                val startSec = maxOf(rec.startTimeMs / 1000L - 60L, nowSec - NATIVE_WINDOW_SECONDS + 60L)
+                val ptr = Natives.ensureSensorShellWithCapacity(sensorId, startSec, NATIVE_WINDOW_MINUTES)
+                if (ptr == 0L && Natives.ensureSensorShell(sensorId, startSec) == 0L) return
             }
+            // Capacity alone does not update native lifecycle metadata. Without the actual wear
+            // duration, checkinfo()/the uploader can retire a 3 Plus mirror on day 14.
+            val wearDays = (rec.wearMinutes + 24 * 60 - 1) / (24 * 60)
+            if (wearDays in 1..45) Natives.setSensorWearDays(sensorId, wearDays)
+            nativeWindowChecked = true
         }.onFailure { Log.stack(TAG, "$sensorId ensureNativeWindow", it) }
     }
 
