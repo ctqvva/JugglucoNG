@@ -110,6 +110,7 @@ fun NotificationSettingsScreen(
     var showIob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_iob", false)) }
     var showCob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_cob", false)) }
     var showDelta by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_delta", false)) }
+    var widgetShowDelta by rememberSaveable { mutableStateOf(prefs.getBoolean(tk.glucodata.DisplayDeltaSource.WIDGET_ENABLED, false)) }
     var iobCobRiskColored by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_iob_cob_risk_colored", false)) }
     var iobRiskWithoutCob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_iob_risk_without_cob", false)) }
     var statusIconScale by rememberSaveable { mutableFloatStateOf(prefs.getFloat("notification_status_icon_scale", 1.0f)) }
@@ -128,6 +129,7 @@ fun NotificationSettingsScreen(
             .putBoolean("notification_show_iob", showIob)
             .putBoolean("notification_show_cob", showCob)
             .putBoolean("notification_show_delta", showDelta)
+            .putBoolean(tk.glucodata.DisplayDeltaSource.WIDGET_ENABLED, widgetShowDelta)
             .putBoolean("notification_iob_cob_risk_colored", iobCobRiskColored)
             .putBoolean("notification_iob_risk_without_cob", iobRiskWithoutCob)
             .putFloat("notification_status_icon_scale", statusIconScale)
@@ -295,6 +297,12 @@ fun NotificationSettingsScreen(
                 onCheckedChange = { showDelta = it; save() },
                 position = CardPosition.TOP,
                 searchAnchor = SettingsSearchAnchors.NOTIFICATION_DELTA
+            )
+            SettingsSwitchItem(
+                title = stringResource(R.string.widget_show_delta_title),
+                checked = widgetShowDelta,
+                onCheckedChange = { widgetShowDelta = it; save() },
+                position = CardPosition.MIDDLE
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.notification_show_iob_title),
@@ -481,7 +489,6 @@ fun FloatingGlucoseSettingsScreen(
     val fontSize by repository.fontSize.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_FONT_SIZE)
     val fontWeight by repository.fontWeight.collectAsStateWithLifecycle(initialValue = "REGULAR")
     val showDelta by repository.showDelta.collectAsStateWithLifecycle(initialValue = false)
-    val deltaIntervalMinutes by viewModel.deltaIntervalMinutes.collectAsStateWithLifecycle()
     val showArrow by repository.showArrow.collectAsStateWithLifecycle(initialValue = true)
     val cornerRadius by repository.cornerRadius.collectAsStateWithLifecycle(initialValue = 28f)
     val opacity by repository.backgroundOpacity.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_BACKGROUND_OPACITY)
@@ -656,8 +663,7 @@ fun FloatingGlucoseSettingsScreen(
                 position = CardPosition.MIDDLE
             )
             SettingsSwitchItem(
-                title = stringResource(R.string.notification_show_delta_title),
-                subtitle = stringResource(R.string.notification_show_delta_minutes_desc, deltaIntervalMinutes),
+                title = stringResource(R.string.display_show_delta_title),
                 checked = showDelta,
                 onCheckedChange = { repository.setShowDelta(it) },
                 position = CardPosition.BOTTOM
@@ -881,8 +887,7 @@ fun AodSettingsScreen(navController: NavController) {
                 position = CardPosition.MIDDLE
             )
             SettingsSwitchItem(
-                title = stringResource(R.string.notification_show_delta_title),
-                subtitle = stringResource(R.string.notification_show_delta_desc),
+                title = stringResource(R.string.display_show_delta_title),
                 checked = showDelta,
                 onCheckedChange = { showDelta = it; save() },
                 position = CardPosition.MIDDLE

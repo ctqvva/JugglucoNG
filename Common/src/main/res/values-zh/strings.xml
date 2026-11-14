@@ -2236,6 +2236,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">血糖颜色</string>
     <string name="notification_show_delta_desc">箭头旁边测量的增量间隔变化</string>
     <string name="notification_show_delta_title">显示增量 (Δ)</string>
+    <string name="display_show_delta_title">显示增量 (Δ)</string>
+    <string name="widget_show_delta_title">小部件增量 (Δ)</string>
     <string name="rising_fast_explanation">当连续 %1$d 个 %2$d 分钟区间均上升至少 %3$s（约持续上升 %4$d 分钟），且数值等于或高于 %5$s 时发出警告。不做预测，只依据原始趋势。</string>
     <string name="sensor_expiry_warnings_desc">每个选定的时间每个传感器都会发出一次警告</string>
     <string name="sensor_expiry_warnings_title">到期前警告</string>

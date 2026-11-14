@@ -573,6 +573,7 @@ internal object SettingsSearchIndex {
             anchor = row(R.string.notification_chart_pause_screen_off)),
         SettingsSearchEntry(R.string.notification_show_delta_title, DISPLAY + R.string.notification_settings_title,
             Icons.Default.ClearAll, S, route("settings/notification-display"),
+            keywords = listOf(R.string.widget_show_delta_title),
             anchor = SettingsSearchAnchors.NOTIFICATION_DELTA),
         SettingsSearchEntry(R.string.notification_show_iob_title, DISPLAY + R.string.notification_settings_title,
             Icons.Default.ClearAll, S, route("settings/notification-display"),

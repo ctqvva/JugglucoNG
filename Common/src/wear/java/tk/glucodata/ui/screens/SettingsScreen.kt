@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -26,12 +26,8 @@ fun SettingsScreen(
     onOpenExchange: () -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val prefs = androidx.compose.runtime.remember(context) {
-        context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
-    }
-    var showDelta by androidx.compose.runtime.remember {
-        androidx.compose.runtime.mutableStateOf(prefs.getBoolean(tk.glucodata.DisplayDeltaSource.WEAR_ENABLED, false))
-    }
+    val deltaSettings = androidx.compose.runtime.remember(context) { tk.glucodata.settings.DisplayDeltaSettings(context) }
+    val deltaState by deltaSettings.state.collectAsState(tk.glucodata.settings.DisplayDeltaSettings.State())
     ScreenScaffold(timeText = { TimeText() }) {
         ScalingLazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -66,12 +62,11 @@ fun SettingsScreen(
             }
             item {
                 androidx.wear.compose.material3.SwitchButton(
-                    checked = showDelta,
+                    checked = deltaState.wearEnabled,
                     onCheckedChange = { on ->
-                        showDelta = on
-                        prefs.edit().putBoolean(tk.glucodata.DisplayDeltaSource.WEAR_ENABLED, on).apply()
+                        deltaSettings.setWearEnabled(on)
                     },
-                    label = { Text(stringResource(R.string.notification_show_delta_title)) },
+                    label = { Text(stringResource(R.string.display_show_delta_title)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

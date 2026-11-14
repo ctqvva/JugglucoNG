@@ -147,22 +147,10 @@ fun MainScreen(
     val recent = remember(storeSnapshot) { WearGlucoseStore.recent(count = 6) }
     val newestReading = recent.firstOrNull()
     val deltaContext = LocalContext.current
-    val deltaPrefs = remember(deltaContext) {
-        deltaContext.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
-    }
-    var deltaSettingsRevision by remember { mutableIntStateOf(0) }
-    androidx.compose.runtime.DisposableEffect(deltaPrefs) {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == null || key == tk.glucodata.DisplayDeltaSource.WEAR_ENABLED ||
-                key == tk.glucodata.DisplayDeltaSource.INTERVAL) deltaSettingsRevision++
-        }
-        deltaPrefs.registerOnSharedPreferenceChangeListener(listener)
-        onDispose { deltaPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
-    }
-    val showDelta = remember(deltaSettingsRevision) {
-        deltaPrefs.getBoolean(tk.glucodata.DisplayDeltaSource.WEAR_ENABLED, false)
-    }
-    val deltaText by androidx.compose.runtime.key(storeSnapshot, deltaSettingsRevision) {
+    val deltaSettings = remember(deltaContext) { tk.glucodata.settings.DisplayDeltaSettings(deltaContext) }
+    val deltaState by deltaSettings.state.collectAsState(tk.glucodata.settings.DisplayDeltaSettings.State())
+    val showDelta = deltaState.wearEnabled
+    val deltaText by androidx.compose.runtime.key(storeSnapshot, deltaState) {
         androidx.compose.runtime.produceState("") {
             value = ""
             if (showDelta && newestReading != null && !storeSnapshot.sensorId.isNullOrBlank()) {
@@ -172,7 +160,7 @@ fun MainScreen(
                     )
                     tk.glucodata.DisplayDeltaSource.format(
                         true, history, storeSnapshot.sensorId, newestReading.timestamp, viewMode, isMmol,
-                        deltaPrefs.getInt(tk.glucodata.DisplayDeltaSource.INTERVAL, tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES),
+                        deltaState.intervalMinutes,
                         System.currentTimeMillis(), tk.glucodata.Notify.glucosetimeout
                     )
                 }

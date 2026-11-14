@@ -2220,6 +2220,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">Glukosfärger</string>
     <string name="notification_show_delta_desc">Uppmätt förändring över deltaintervallet, bredvid pilen</string>
     <string name="notification_show_delta_title">Visa delta (Δ)</string>
+    <string name="display_show_delta_title">Visa delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta i widgetar (Δ)</string>
     <string name="rising_fast_explanation">Varnar efter %1$d på varandra följande %2$d-minutersintervaller som vart och ett stiger med minst %3$s (≈ %4$d min ihållande ökning) medan värdet är på eller över %5$s. Ingen förutsägelse, bara den råa trenden.</string>
     <string name="sensor_expiry_warnings_desc">Varje vald tid varnar en gång per sensor</string>
     <string name="sensor_expiry_warnings_title">Varna innan utgången</string>

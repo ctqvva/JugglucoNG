@@ -2248,6 +2248,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucose_palette_title">Glikoz renkleri</string>
     <string name="notification_show_delta_desc">Okun yanındaki delta aralığında ölçülen değişiklik</string>
     <string name="notification_show_delta_title">Deltayı göster (Δ)</string>
+    <string name="display_show_delta_title">Deltayı göster (Δ)</string>
+    <string name="widget_show_delta_title">Widget deltası (Δ)</string>
     <string name="rising_fast_explanation">Değer %5$s değerinde veya üzerindeyken her biri en az %3$s (≈ %4$d sürekli yükseliş dakikası) kadar yükselen %1$d ardışık %2$d dakikalık aralıklardan sonra uyarır. Tahmin yok, sadece ham trend.</string>
     <string name="sensor_expiry_warnings_desc">Seçilen her zaman sensör başına bir kez uyarır</string>
     <string name="sensor_expiry_warnings_title">Süresi dolmadan uyar</string>

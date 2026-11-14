@@ -2342,6 +2342,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucose_palette_title">Глюкозын өнгө</string>
     <string name="notification_show_delta_desc">Сумны хажууд байрлах гурвалжин интервал дээрх хэмжсэн өөрчлөлт</string>
     <string name="notification_show_delta_title">Дельта (Δ) харуулах</string>
+    <string name="display_show_delta_title">Дельта (Δ) харуулах</string>
+    <string name="widget_show_delta_title">Вижетийн дельта (Δ)</string>
     <string name="rising_fast_explanation">%1$d дараалсан %2$d-минутын интервал бүр дор хаяж %3$s (≈ %4$d мин тасралтгүй өсөлт) %5$s буюу түүнээс дээш байх үед анхааруулдаг. Урьдчилан таамаглаагүй, зүгээр л түүхий чиг хандлага.</string>
     <string name="sensor_expiry_warnings_desc">Сонгосон цаг бүр мэдрэгч бүрт нэг удаа анхааруулдаг</string>
     <string name="sensor_expiry_warnings_title">Хугацаа дуусахаас өмнө анхааруул</string>

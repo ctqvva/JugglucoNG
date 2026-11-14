@@ -2255,6 +2255,8 @@
     <string name="glucose_palette_title">Kolory glukozy</string>
     <string name="notification_show_delta_desc">Zmierzona zmiana w przedziale delta, obok strzałki</string>
     <string name="notification_show_delta_title">Pokaż deltę (Δ)</string>
+    <string name="display_show_delta_title">Pokaż deltę (Δ)</string>
+    <string name="widget_show_delta_title">Delta w widżetach (Δ)</string>
     <string name="rising_fast_explanation">Ostrzega po %1$d kolejnych %2$d-minutowych odstępach, każdy wzrost o co najmniej %3$s (≈ %4$d min ciągłego wzrostu), podczas gdy wartość jest równa lub wyższa od %5$s. Żadnych przewidywań, tylko surowy trend.</string>
     <string name="sensor_expiry_warnings_desc">Każdy wybrany czas ostrzega raz na czujnik</string>
     <string name="sensor_expiry_warnings_title">Ostrzegaj przed wygaśnięciem</string>

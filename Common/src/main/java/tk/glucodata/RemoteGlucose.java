@@ -202,7 +202,7 @@ class RemoteGlucose {
       String timestr = minhourstr(snapshot.getTimeMillis());
       final var prefs = Applic.app.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE);
       final String deltaText = DisplayDeltaSource.resolve(
-            prefs.getBoolean(DisplayDeltaSource.NOTIFICATION_ENABLED, false), snapshot,
+            prefs.getBoolean(DisplayDeltaSource.WIDGET_ENABLED, false), snapshot,
             prefs.getInt(DisplayDeltaSource.INTERVAL, GlucoseDelta.DEFAULT_INTERVAL_MINUTES));
       if (!deltaText.isEmpty()) timestr = "Δ " + deltaText + " · " + timestr;
       glucosePaint.setTextSize(reducedTimeSize);

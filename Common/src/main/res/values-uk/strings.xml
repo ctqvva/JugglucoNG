@@ -2290,6 +2290,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">Кольори глюкози</string>
     <string name="notification_show_delta_desc">Виміряна зміна в дельта-інтервалі, поруч із стрілкою</string>
     <string name="notification_show_delta_title">Показати дельту (Δ)</string>
+    <string name="display_show_delta_title">Показати дельту (Δ)</string>
+    <string name="widget_show_delta_title">Дельта у віджетах (Δ)</string>
     <string name="rising_fast_explanation">Попереджає після %1$d послідовних %2$d-хвилинних інтервалів, кожен з яких зростає принаймні на %3$s (≈ %4$d хв. тривалого зростання), коли значення дорівнює або перевищує %5$s. Жодного прогнозу, лише необроблена тенденція.</string>
     <string name="sensor_expiry_warnings_desc">Кожен вибраний час попереджає один раз на датчик</string>
     <string name="sensor_expiry_warnings_title">Попередити перед закінченням терміну придатності</string>

@@ -2117,6 +2117,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="notification_show_cob_title">Felszívódó szénhidrát</string>
     <string name="notification_show_cob_desc">A napló COB értékének megjelenítése az állapotsorban</string>
     <string name="notification_show_delta_title">Változás a nyíl mellett</string>
+    <string name="display_show_delta_title">Delta (Δ) megjelenítése</string>
+    <string name="widget_show_delta_title">Modulok deltája (Δ)</string>
     <string name="notification_show_delta_desc">Mért változás megjelenítése a trendnyíl mellett</string>
     <string name="notification_show_delta_minutes_desc">%1$d perces változás megjelenítése a trendnyíl mellett</string>
     <string name="dashboard_show_delta_title">Változás az áttekintőn</string>

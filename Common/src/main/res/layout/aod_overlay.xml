@@ -52,7 +52,7 @@
             android:layout_marginBottom="8dp"
             android:adjustViewBounds="true"
             android:visibility="gone"
-            android:contentDescription="@string/notification_show_delta_title" />
+            android:contentDescription="@string/display_show_delta_title" />
 
         <!-- Status Text -->
         <TextView

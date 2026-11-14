@@ -2263,6 +2263,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucose_palette_title">Glucosekleuren</string>
     <string name="notification_show_delta_desc">Gemeten verandering over het delta-interval, naast de pijl</string>
     <string name="notification_show_delta_title">Toon delta (Δ)</string>
+    <string name="display_show_delta_title">Toon delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta in widgets (Δ)</string>
     <string name="rising_fast_explanation">Waarschuwt na %1$d opeenvolgende intervallen van %2$d-minuten die elk stijgen met ten minste %3$s (≈ %4$d min. aanhoudende stijging) terwijl de waarde op of boven %5$s ligt. Geen voorspelling, alleen de ruwe trend.</string>
     <string name="sensor_expiry_warnings_desc">Elke geselecteerde tijd waarschuwt één keer per sensor</string>
     <string name="sensor_expiry_warnings_title">Waarschuw vóór de vervaldatum</string>

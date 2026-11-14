@@ -176,7 +176,7 @@ static public int    getcolor() {
 
 
     final var deltaPrefs = act.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE);
-    var deltaShow = getcheckbox(act, R.string.notification_show_delta_title,
+    var deltaShow = getcheckbox(act, R.string.display_show_delta_title,
             deltaPrefs.getBoolean(DisplayDeltaSource.FLOATING_ENABLED, false));
     deltaShow.setOnCheckedChangeListener((buttonView, isChecked) -> {
         deltaPrefs.edit().putBoolean(DisplayDeltaSource.FLOATING_ENABLED, isChecked).apply();

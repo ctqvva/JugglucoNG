@@ -5,6 +5,7 @@ object DisplayDeltaSource {
     const val FLOATING_ENABLED = "floating_show_delta"
     const val WEAR_ENABLED = "wear_show_delta"
     const val AOD_ENABLED = "aod_show_delta"
+    const val WIDGET_ENABLED = "widget_show_delta"
     const val NOTIFICATION_ENABLED = "notification_show_delta"
     const val INTERVAL = "delta_interval_minutes"
 
