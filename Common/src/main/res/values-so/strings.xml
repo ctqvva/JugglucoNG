@@ -3292,6 +3292,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <!-- Settings search -->
     <string name="settings_search_hint">Raadi dejinta</string>
     <string name="settings_search_no_results">Ma jiro dejin u dhiganta “%1$s”</string>
+    <string name="settings_search_related">Dejimo la xiriira</string>
     <string name="settings_search_clear">Tirtir raadinta</string>
 
     <!-- Explicit firmware field test. -->

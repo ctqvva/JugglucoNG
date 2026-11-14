@@ -286,7 +286,8 @@ internal fun DataSmoothingSettingsContent(
                     icon = Icons.Default.Functions,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.SINGLE,
-                    enabled = isEnabled
+                    enabled = isEnabled,
+                    searchAnchor = SettingsSearchAnchors.SMOOTHING_CAUSAL
                 )
             }
         }

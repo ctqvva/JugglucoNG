@@ -3135,6 +3135,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <!-- Settings search -->
     <string name="settings_search_hint">Ayarlarda ara</string>
     <string name="settings_search_no_results">“%1$s” ile eşleşen ayar yok</string>
+    <string name="settings_search_related">İlgili ayarlar</string>
     <string name="settings_search_clear">Aramayı temizle</string>
 
     <!-- Explicit firmware field test. -->

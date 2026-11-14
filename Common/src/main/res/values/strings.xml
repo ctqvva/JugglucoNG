@@ -3376,6 +3376,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Search settings</string>
     <string name="settings_search_no_results">No settings match “%1$s”</string>
+    <string name="settings_search_related">Related settings</string>
     <string name="settings_search_clear">Clear search</string>
 
     <!-- Explicit firmware field test. -->

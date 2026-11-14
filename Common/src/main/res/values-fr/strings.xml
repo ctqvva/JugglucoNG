@@ -3114,6 +3114,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Rechercher dans les paramètres</string>
     <string name="settings_search_no_results">Aucun paramètre ne correspond à « %1$s »</string>
+    <string name="settings_search_related">Paramètres associés</string>
     <string name="settings_search_clear">Effacer la recherche</string>
 
     <!-- Explicit firmware field test. -->

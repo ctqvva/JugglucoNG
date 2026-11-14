@@ -5,6 +5,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.SettingsSearchAnchors
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.content.Context
@@ -145,6 +146,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                 ) {
                     SettingsSwitchItem(
                         title = stringResource(R.string.insulin_pen_background_title),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.insulin_pen_background_title),
                         subtitle = stringResource(R.string.insulin_pen_background_desc),
                         checked = backgroundImportEnabled,
                         onCheckedChange = { InsulinPenManager.setBackgroundImportEnabled(context, it) },
