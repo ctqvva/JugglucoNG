@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
 import tk.glucodata.ui.isAppInDarkTheme
 import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.acos
 import kotlin.math.atan2
 import kotlin.math.ceil
@@ -34,8 +33,6 @@ import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.pow
-import kotlin.math.sign
 import kotlin.math.sin
 
 /**
@@ -59,7 +56,7 @@ internal data class SensorTones(
     val glint: Color,
     val shadow: Color,
     val tint: Color,
-    /** How far the sensor is turned on its patch, in degrees clockwise; the light stays put. */
+    /** How far the sensor is turned, in degrees clockwise; the light stays put. */
     val turn: Float = 0f,
 ) {
     /**
@@ -174,9 +171,9 @@ internal fun rememberSensorTones(): SensorTones {
  * size; the same drawing serves a list tile and a wizard hero.
  */
 @Composable
-internal fun SensorArt(type: SensorType, modifier: Modifier = Modifier, onPad: Boolean = false) {
+internal fun SensorArt(type: SensorType, modifier: Modifier = Modifier) {
     val tones = rememberSensorTones()
-    Canvas(modifier = modifier) { drawSensor(type, tones, onPad) }
+    Canvas(modifier = modifier) { drawSensor(type, tones) }
 }
 
 /**
@@ -191,10 +188,10 @@ private inline fun DrawScope.inUnitSquare(block: DrawScope.() -> Unit) {
 }
 
 /**
- * [onPad] seats the sensor on the adhesive patch it is worn on. Off for a list tile, where the
- * tile is the frame and a second outline would only crowd it.
+ * The sensor alone, as it comes out of its applicator: never the adhesive patch it is worn on,
+ * which is tape, not part of the device.
  */
-internal fun DrawScope.drawSensor(type: SensorType, tones: SensorTones, onPad: Boolean = false) {
+internal fun DrawScope.drawSensor(type: SensorType, tones: SensorTones) {
     inUnitSquare {
         // The camera looks down at the skin a little from the front: the plan shortens by
         // SQUASH while the side walls show by WALL_SHOW, the same angle for both.
@@ -202,17 +199,17 @@ internal fun DrawScope.drawSensor(type: SensorType, tones: SensorTones, onPad: B
             rotate(type.tilt, pivot = Offset.Zero) {
                 val turned = tones.copy(turn = type.tilt)
                 when (type) {
-                    SensorType.LIBRE -> drawLibre(turned, onPad)
-                    SensorType.DEXCOM -> drawDexcom(turned, onPad)
+                    SensorType.LIBRE -> drawLibre(turned)
+                    SensorType.DEXCOM -> drawDexcom(turned)
                     SensorType.SIBIONICS -> drawSibionics(turned)
-                    SensorType.AIDEX -> drawAiDex(turned, onPad)
-                    SensorType.OTTAI -> drawOttai(turned, onPad)
-                    SensorType.ICANHEALTH -> drawICan(turned, onPad)
-                    SensorType.ANYTIME -> drawAnytime(turned, onPad)
-                    SensorType.ACCUCHEK -> drawAccuChek(turned, onPad)
-                    SensorType.CARESENS_AIR -> drawCareSensAir(turned, onPad)
-                    SensorType.MQ -> drawMq(turned, onPad)
-                    SensorType.MEDTRUM -> drawMedtrum(turned, onPad)
+                    SensorType.AIDEX -> drawAiDex(turned)
+                    SensorType.OTTAI -> drawOttai(turned)
+                    SensorType.ICANHEALTH -> drawICan(turned)
+                    SensorType.ANYTIME -> drawAnytime(turned)
+                    SensorType.ACCUCHEK -> drawAccuChek(turned)
+                    SensorType.CARESENS_AIR -> drawCareSensAir(turned)
+                    SensorType.MQ -> drawMq(turned)
+                    SensorType.MEDTRUM -> drawMedtrum(turned)
                 }
             }
         }
@@ -220,7 +217,7 @@ internal fun DrawScope.drawSensor(type: SensorType, tones: SensorTones, onPad: B
 }
 
 /**
- * How each sensor lies on its patch, in degrees clockwise: a few degrees off square, the way a
+ * How each sensor lies, in degrees clockwise: a few degrees off square, the way a
  * sensor put on by hand sits, alternating so a list of them doesn't lean one way.
  */
 internal val SensorType.tilt: Float
@@ -294,24 +291,6 @@ private fun roundRect(width: Float, height: Float, radius: Float, at: Offset = O
 
 private fun stadium(width: Float, height: Float, at: Offset = Offset.Zero): Outline =
     roundRect(width, height, min(width, height) / 2f, at)
-
-/** A superellipse: [n] = 2 is an ellipse, higher squares it off while keeping it soft. */
-private fun superellipse(a: Float, b: Float, n: Float): Outline = { inset ->
-    val ra = max(a - inset, 0.1f)
-    val rb = max(b - inset, 0.1f)
-    Path().apply {
-        val steps = 144
-        for (step in 0 until steps) {
-            val t = step / steps.toFloat() * 2f * PI.toFloat()
-            val c = cos(t)
-            val s = sin(t)
-            val x = ra * sign(c) * abs(c).pow(2f / n)
-            val y = rb * sign(s) * abs(s).pow(2f / n)
-            if (step == 0) moveTo(x, y) else lineTo(x, y)
-        }
-        close()
-    }
-}
 
 /** An egg standing on its broad end: [taper] narrows the top and widens the bottom. */
 private fun egg(a: Float, b: Float, taper: Float): Outline = { inset ->
@@ -430,16 +409,6 @@ private inline fun DrawScope.seated(tones: SensorTones, thickness: Float, block:
     translate(up.x, up.y, block)
 }
 
-/** The adhesive patch, flat on the skin under the sensor. */
-private fun DrawScope.patch(tones: SensorTones, outline: Outline, at: Offset = Offset.Zero) {
-    translate(at.x, at.y) {
-        val flat = outline(0f)
-        drawPath(flat, tones.highlight.copy(alpha = 0.22f))
-        drawPath(outline(1.8f), tones.highlight.copy(alpha = 0.1f))
-        drawPath(flat, tones.highlight.copy(alpha = 0.32f), style = Stroke(width = 0.6f))
-    }
-}
-
 /**
  * One part of a sensor: its shadow on the skin, as long as the part stands high; the wall
  * showing under the near edge, [thickness] deep and standing [base] above the skin; then the
@@ -547,8 +516,7 @@ private fun DrawScope.part(
  * Libre 3: a 21 mm disc 2.9 mm thick. Its one feature, a third of the way up and just left of
  * centre, is a clear round window holding the keyed filament slot, with a small nub at its right.
  */
-private fun DrawScope.drawLibre(tones: SensorTones, onPad: Boolean) = seated(tones, 10f) {
-    if (onPad) patch(tones, circle(40f))
+private fun DrawScope.drawLibre(tones: SensorTones) = seated(tones, 10f) {
     part(tones, circle(35f), thickness = 10f, bevel = 2.4f) {
         val window = Offset(-2.8f, -13f)
         drawCircle(lerp(tones.body, tones.shade, 0.35f), 9.5f, window)
@@ -601,8 +569,7 @@ private fun g7Radius(angle: Float): Float {
  * at the right and the foot. The round port sits left of centre on the long axis, the pinhole
  * below it.
  */
-private fun DrawScope.drawDexcom(tones: SensorTones, onPad: Boolean) = seated(tones, 12.4f) {
-    if (onPad) patch(tones, superellipse(45f, 41f, 2.2f), at = Offset(1f, 1f))
+private fun DrawScope.drawDexcom(tones: SensorTones) = seated(tones, 12.4f) {
     val outline = polar { angle ->
         g7Radius(angle) - cut(angle, 0f, 2.3f, 0.085f) - cut(angle, PI.toFloat(), 2.3f, 0.085f)
     }
@@ -653,12 +620,10 @@ private fun DrawScope.drawDexcom(tones: SensorTones, onPad: Boolean) = seated(to
 }
 
 /**
- * GS1: traced from a top-down shot, an upright capsule on a slightly wider flange, its top softly
- * cushioned. The round port sits a third of the way down, a metal key with a square C inside it.
+ * GS1: traced from a top-down shot, an upright capsule, its top softly cushioned. The round port sits a third of the way down, a metal key with a square C inside it.
  */
 private fun DrawScope.drawSibionics(tones: SensorTones) = seated(tones, 9.4f) {
-    part(tones, stadium(44.5f, 72.5f), thickness = 1.4f, bevel = 0.8f, stands = 9.4f)
-    part(tones, stadium(41f, 69f), thickness = 8f, bevel = 5f, base = 1.4f) {
+    part(tones, stadium(42f, 71f), thickness = 9.4f, bevel = 5f) {
         val port = Offset(0f, -9.6f)
         val radius = 4.8f
         drawCircle(tones.glint.copy(alpha = 0.7f), radius + 0.7f, port + tones.ground(0.3f, 0.5f))
@@ -699,37 +664,31 @@ private fun DrawScope.drawSibionics(tones: SensorTones) = seated(tones, 9.4f) {
 }
 
 /**
- * AiDEX X and LinX: a round white top on a wider grey base ring, a ringed port at the upper
- * right holding the upright slot of the filament.
+ * AiDEX X and LinX: a plain round disc, its edge well rounded, a ringed port at the upper right
+ * holding the upright slot of the filament.
  */
-private fun DrawScope.drawAiDex(tones: SensorTones, onPad: Boolean) = seated(tones, 12f) {
-    if (onPad) patch(tones, circle(45f))
-    part(tones.grey(), circle(38.5f), thickness = 3f, bevel = 1.2f, stands = 12f)
-    part(tones, circle(33f), thickness = 9f, bevel = 3f, base = 3f) {
-        val port = Offset(9.9f, -12.9f)
-        drawCircle(lerp(tones.body, tones.shade, 0.3f), 7.6f, port)
-        drawCircle(tones.wallDeep, 7.6f, port, style = Stroke(width = 0.9f))
+private fun DrawScope.drawAiDex(tones: SensorTones) = seated(tones, 11f) {
+    part(tones, circle(36f), thickness = 11f, bevel = 4f) {
+        val port = Offset(10.8f, -14.1f)
+        drawCircle(lerp(tones.body, tones.shade, 0.3f), 8.3f, port)
+        drawCircle(tones.wallDeep, 8.3f, port, style = Stroke(width = 0.9f))
         drawArc(
             color = tones.wall,
             startAngle = -60f - tones.turn,
             sweepAngle = 140f,
             useCenter = false,
-            topLeft = port - Offset(6.4f, 6.4f),
-            size = Size(12.8f, 12.8f),
+            topLeft = port - Offset(7f, 7f),
+            size = Size(14f, 14f),
             style = Stroke(width = 0.6f),
         )
-        val slot = stadium(4.6f, 9.6f, port + Offset(-0.6f, 0f))(0f)
+        val slot = stadium(5f, 10.5f, port + Offset(-0.6f, 0f))(0f)
         drawPath(slot, lerp(tones.ink, tones.wall, 0.35f))
         drawPath(slot, tones.ink, style = Stroke(width = 0.5f))
     }
 }
 
-/**
- * M8: a 24 mm coin 3.5 mm thin on a round patch notched at one side. Right of centre, a rounded
- * button framed by a raised ring, a short slit in it.
- */
-private fun DrawScope.drawOttai(tones: SensorTones, onPad: Boolean) = seated(tones, 10.8f) {
-    if (onPad) patch(tones, polar { angle -> 45f - cut(angle, 0.1f, 6f, 0.12f) }, at = Offset(2f, 2f))
+/** M8: a 24 mm coin 3.5 mm thin. Right of centre, a rounded button framed by a raised ring, a short slit in it. */
+private fun DrawScope.drawOttai(tones: SensorTones) = seated(tones, 10.8f) {
     part(tones, circle(35f), thickness = 10.8f, bevel = 3.5f) {
         val button = Offset(12.3f, -3.5f)
         val frame = roundRect(14f, 12f, 4.6f, button)
@@ -751,8 +710,7 @@ private fun DrawScope.drawOttai(tones: SensorTones, onPad: Boolean) = seated(ton
  * outline holds a square window in its broad end and three small contacts towards its tip, which
  * reaches the centre; small slots break the rim.
  */
-private fun DrawScope.drawICan(tones: SensorTones, onPad: Boolean) = seated(tones, 11f) {
-    if (onPad) patch(tones, circle(45f))
+private fun DrawScope.drawICan(tones: SensorTones) = seated(tones, 11f) {
     part(tones, circle(36.5f), thickness = 11f, bevel = 2.6f) {
         val recess = capsule(Offset(-14f, -14.5f), 9f, Offset(0.6f, -2.7f), 5f)
         drawPath(recess, lerp(tones.body, tones.shade, 0.3f))
@@ -768,20 +726,18 @@ private fun DrawScope.drawICan(tones: SensorTones, onPad: Boolean) = seated(tone
 }
 
 /** Anytime CT: a plain egg-shaped pebble, domed all over, the narrow end up. */
-private fun DrawScope.drawAnytime(tones: SensorTones, onPad: Boolean) = seated(tones, 10f) {
-    if (onPad) patch(tones, egg(34f, 45f, 0.06f))
+private fun DrawScope.drawAnytime(tones: SensorTones) = seated(tones, 10f) {
     part(tones, egg(27f, 37f, 0.08f), thickness = 10f, bevel = 9f, dome = true)
 }
 
 /**
- * SmartGuide sensor: a 33 mm disc 6 mm thick, a light grey cover with a rolled edge over a clear
- * base ring. The filament port sits just left of centre in a metal collar, a small light near the
+ * SmartGuide sensor: a 33 mm disc 6 mm thick, a light grey cover with a rolled edge on a clear
+ * lower shell of the same outline. The filament port sits just left of centre in a metal collar, a small light near the
  * rim, and a square cut in the rim to the upper right.
  */
-private fun DrawScope.drawAccuChek(tones: SensorTones, onPad: Boolean) = seated(tones, 13f) {
-    if (onPad) patch(tones, circle(45f))
-    part(tones.clear(), circle(37f), thickness = 4.2f, bevel = 1.2f, stands = 13f)
-    val cover = polar { angle -> 34.6f - cut(angle, -0.9f, 1.8f, 0.07f) }
+private fun DrawScope.drawAccuChek(tones: SensorTones) = seated(tones, 13f) {
+    val cover = polar { angle -> 35.5f - cut(angle, -0.9f, 1.8f, 0.07f) }
+    part(tones.clear(), cover, thickness = 4.2f, bevel = 0.6f, stands = 13f)
     val coverTones = tones.grey().copy(highlight = tones.highlight, body = lerp(tones.body, tones.shade, 0.3f))
     part(coverTones, cover, thickness = 8.8f, bevel = 4f, base = 4.2f) {
         val port = Offset(-4f, 1f)
@@ -802,12 +758,11 @@ private fun DrawScope.drawAccuChek(tones: SensorTones, onPad: Boolean) = seated(
     }
 }
 
-/** CareSens Air: a grey cushioned capsule on a thin clear base; a ribbed dial with a button. */
-private fun DrawScope.drawCareSensAir(tones: SensorTones, onPad: Boolean) = seated(tones, 9f) {
-    if (onPad) patch(tones, roundRect(86f, 58f, 22f))
+/** CareSens Air: a grey cushioned capsule on a clear lower shell; a ribbed dial with a button. */
+private fun DrawScope.drawCareSensAir(tones: SensorTones) = seated(tones, 9f) {
     val slate = tones.graphite()
-    part(tones.clear(), roundRect(70f, 42f, 19f), thickness = 1.4f, bevel = 0.6f, stands = 9f)
-    part(slate, roundRect(66f, 38f, 17f), thickness = 7.6f, bevel = 5f, base = 1.4f) {
+    part(tones.clear(), roundRect(68f, 40f, 18f), thickness = 1.4f, bevel = 0.4f, stands = 9f)
+    part(slate, roundRect(68f, 40f, 18f), thickness = 7.6f, bevel = 5f, base = 1.4f) {
         val dial = Offset(14f, 0f)
         val disc = Path().apply { addOval(Rect(dial.x - 11.5f, -11.5f, dial.x + 11.5f, 11.5f)) }
         drawPath(disc, lerp(slate.body, slate.wall, 0.35f))
@@ -836,10 +791,9 @@ private fun DrawScope.drawCareSensAir(tones: SensorTones, onPad: Boolean) = seat
 
 /**
  * Glutec v3: an upright rounded-rectangle transmitter, its top end carrying a framed tab and a
- * parting line across its lower third, on an oval clear patch.
+ * parting line across its lower third.
  */
-private fun DrawScope.drawMq(tones: SensorTones, onPad: Boolean) = seated(tones, 11f) {
-    if (onPad) patch(tones, roundRect(66f, 84f, 30f))
+private fun DrawScope.drawMq(tones: SensorTones) = seated(tones, 11f) {
     val body = roundRect(48f, 64f, 15f)
     part(tones, body, thickness = 11f, bevel = 4.5f) {
         val tab = Path().apply {
@@ -858,8 +812,7 @@ private fun DrawScope.drawMq(tones: SensorTones, onPad: Boolean) = seated(tones,
  * TouchCare Nano: traced from a top-down shot, a slim rounded slab clipped on a clear base, the
  * base's round tab showing past one end.
  */
-private fun DrawScope.drawMedtrum(tones: SensorTones, onPad: Boolean) = seated(tones, 6.6f) {
-    if (onPad) patch(tones, roundRect(62f, 86f, 22f))
+private fun DrawScope.drawMedtrum(tones: SensorTones) = seated(tones, 6.6f) {
     val baseOutline: Outline = { inset ->
         Path().apply {
             op(roundRect(48f, 74f, 12f)(inset), circle(8.5f, Offset(0f, -36f))(inset), PathOperation.Union)

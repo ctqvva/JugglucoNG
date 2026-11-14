@@ -50,8 +50,7 @@ import tk.glucodata.ui.util.ExpressiveMotion
  * in and turns it square to the row; letting go springs all three back. Everything moves in the
  * draw and layer phases, and nothing moves at rest or when a screen opens.
  *
- * [round] keeps the frame a circle throughout and the drawing inside it, patch and all, for the
- * wizard heroes. Raising [replay] drops the sensor on to its frame again.
+ * [round] keeps the frame a circle throughout and the drawing inside it, for the wizard heroes. Raising [replay] drops the sensor on to its frame again.
  */
 @Composable
 internal fun SensorArtTile(
@@ -61,7 +60,6 @@ internal fun SensorArtTile(
     interactionSource: InteractionSource,
     modifier: Modifier = Modifier,
     replay: Int = 0,
-    onPad: Boolean = false,
     round: Boolean = false,
 ) {
     val plain = rememberSensorTones()
@@ -110,7 +108,7 @@ internal fun SensorArtTile(
                     alpha = (1f - drop).coerceIn(0f, 1f) * 0.6f + 0.4f
                 },
         ) {
-            drawSensor(type, tones, onPad)
+            drawSensor(type, tones)
         }
     }
 }
@@ -138,8 +136,8 @@ private val SensorType.heroCompanion: HeroCompanion
     }
 
 /**
- * A sensor at wizard size, seated on its patch in a circle. It answers a touch: the circle gives
- * under the finger and letting go drops the sensor on again, with one tick. It is a toy, not a
+ * A sensor at wizard size in a circle. It answers a touch: the circle gives under the finger
+ * and letting go drops the sensor on again, with one tick. It is a toy, not a
  * control, so it adds nothing for accessibility services to announce. Between touches nothing
  * runs.
  *
@@ -228,7 +226,6 @@ internal fun SensorHeroArt(
             interactionSource = interactionSource,
             modifier = Modifier.offset(x = tileShift),
             replay = plays,
-            onPad = true,
             round = true,
         )
         if (companionKind != HeroCompanion.NONE) {
