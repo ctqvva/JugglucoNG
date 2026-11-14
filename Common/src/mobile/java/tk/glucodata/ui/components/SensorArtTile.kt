@@ -81,7 +81,7 @@ import tk.glucodata.ui.util.ExpressiveMotion
  * in and turns it square to the row; letting go springs all three back. Everything moves in the
  * draw and layer phases, and nothing moves at rest or when a screen opens.
  *
- * The wizard heroes draw the sensor alone ([frame] false, no lift), inside their orbits. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
+ * The wizard heroes draw the sensor alone ([frame] false, no lift), on their backdrop. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
  */
 @Composable
 internal fun SensorArtTile(
@@ -201,44 +201,29 @@ private class HeroStage(
 )
 
 /**
- * One of the orbits round a hero's scene, in tile sides from its middle: its half axes, its tilt
- * in degrees, how far its middle sits off the scene's, and which of the theme's accents it is.
+ * The shape the hero's scene stands in front of: one wide oval, tilted, behind the sensor and
+ * the phone together, so it frames the scene and never reads as something under the sensor.
+ * Half axes in tile sides (the long one for a scene 2.1 sides wide, stretched with wider ones),
+ * tilt in degrees, and how far its middle sits off the scene's.
  */
-private class Orbit(val across: Float, val deep: Float, val tilt: Float, val offset: Offset, val role: Int)
+private class Backdrop(val across: Float, val deep: Float, val tilt: Float, val offset: Offset)
 
-/**
- * Three orbits in the theme's three accents, tilted apart, wider than the scene: the sensor and
- * the phone sit inside them, the near half of each ring passing over them.
- */
-private val heroOrbits = listOf(
-    Orbit(across = 0.6f, deep = 0.6f, tilt = -14f, offset = Offset(0f, -0.04f), role = 2),
-    Orbit(across = 0.57f, deep = 0.56f, tilt = 12f, offset = Offset(-0.03f, 0f), role = 0),
-    Orbit(across = 0.64f, deep = 0.34f, tilt = -4f, offset = Offset(0.03f, 0.16f), role = 1),
-)
+/** The owner's three outlines, traced off his sketch on the Sibionics picker. */
+private val BackdropTall = Backdrop(across = 1.17f, deep = 0.56f, tilt = -15f, offset = Offset(0.03f, -0.04f))
+private val BackdropSteep = Backdrop(across = 1.27f, deep = 0.48f, tilt = -28f, offset = Offset(-0.03f, -0.04f))
+private val BackdropLow = Backdrop(across = 1.22f, deep = 0.44f, tilt = -4f, offset = Offset(0.08f, 0.22f))
 
-/**
- * Draws half of each orbit: the far half ([near] false) goes under the scene, the near half
- * over it. [spin] turns each ring from where it rests, staggered; [grow] scales it in.
- */
-private fun DrawScope.drawOrbits(colors: List<Color>, tile: Float, near: Boolean, spin: Float, grow: Float) {
-    heroOrbits.forEachIndexed { index, orbit ->
-        val rx = orbit.across * size.width * grow
-        val ry = orbit.deep * tile * grow
-        if (rx <= 0f || ry <= 0f) return@forEachIndexed
-        val at = center + Offset(orbit.offset.x * tile, orbit.offset.y * tile)
-        val turn = orbit.tilt + spin * (if (index % 2 == 0) 1f else -1f) * (1f + 0.4f * index)
-        rotate(turn, pivot = at) {
-            drawArc(
-                color = colors[orbit.role],
-                startAngle = if (near) 0f else 180f,
-                sweepAngle = 180f,
-                useCenter = false,
-                topLeft = at - Offset(rx, ry),
-                size = Size(rx * 2f, ry * 2f),
-                // Flat ends, so the two halves meet without a seam.
-                style = Stroke(width = 0.055f * tile, cap = StrokeCap.Butt),
-            )
-        }
+private val heroBackdrop = BackdropTall
+
+/** The backdrop, [grow] of its size and turned [spin] further than it rests. */
+private fun DrawScope.drawBackdrop(color: Color, tile: Float, stretch: Float, spin: Float, grow: Float) {
+    val shape = heroBackdrop
+    val rx = shape.across * stretch * tile * grow
+    val ry = shape.deep * tile * grow
+    if (rx <= 0f || ry <= 0f) return
+    val at = center + Offset(shape.offset.x * tile, shape.offset.y * tile)
+    rotate(shape.tilt + spin, pivot = at) {
+        drawOval(color, topLeft = at - Offset(rx, ry), size = Size(rx * 2f, ry * 2f))
     }
 }
 
@@ -253,11 +238,11 @@ private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage 
 }
 
 /**
- * A sensor at wizard size inside three orbits, with a phone acting out how it connects, and for the
+ * A sensor at wizard size with a phone acting out how it connects, in front of one tilted oval, and for the
  * families set up from a printed code, the thing the code is on. The phone's screen says what is
  * happening: the NFC mark, the Bluetooth mark, or the camera closing on the code.
  *
- * It answers a touch: the sensor gives under the finger, and letting go kicks the orbits, drops the sensor on
+ * It answers a touch: the sensor gives under the finger, and letting go kicks the oval, drops the sensor on
  * again and replays the whole story, with a click on letting go and a
  * double click when the phone has the code, the NFC read or the pairing. It is a toy, not a
  * control, so it adds nothing for accessibility services to announce. Between touches nothing
@@ -278,9 +263,7 @@ internal fun SensorHeroArt(
     val scheme = MaterialTheme.colorScheme
     val accent = scheme.primary
     val screenColor = scheme.surfaceContainerHighest
-    val orbitColors = remember(scheme) {
-        listOf(scheme.primary, scheme.secondary, scheme.tertiary).map { it.copy(alpha = 0.5f) }
-    }
+    val backdropColor = scheme.primaryContainer
     val nfcMark = rememberVectorPainter(Icons.Rounded.Nfc)
     val bluetoothMark = rememberVectorPainter(Icons.Rounded.Bluetooth)
     val tick = rememberNavigationTick()
@@ -314,8 +297,8 @@ internal fun SensorHeroArt(
     val signal = remember { Animatable(1f) }
     // The sensor springs up on a bounce, and bounces again on every replay.
     val pop = remember { Animatable(if (firstVisit) 0f else 1f) }
-    // The orbits: on entrance they swing in from apart and settle; a tap gives them a kick.
-    val swing = remember { Animatable(if (firstVisit) 50f else 0f) }
+    // The backdrop: on entrance it swings into its tilt and settles; a tap gives it a kick.
+    val swing = remember { Animatable(if (firstVisit) 24f else 0f) }
 
     LaunchedEffect(plays) {
         if (plays == 0 && !firstVisit) return@LaunchedEffect
@@ -326,7 +309,7 @@ internal fun SensorHeroArt(
                 pop.animateTo(1f, HeroBounce)
             }
             launch {
-                swing.snapTo(if (asked) 18f else 50f)
+                swing.snapTo(if (asked) 8f else 24f)
                 swing.animateTo(0f, HeroBounce)
             }
             arrival.snapTo(0f)
@@ -364,7 +347,7 @@ internal fun SensorHeroArt(
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.matchParentSize()) {
-            drawOrbits(orbitColors, tileSize.toPx(), near = false, spin = swing.value, grow = orbitGrow(pop.value))
+            drawBackdrop(backdropColor, tileSize.toPx(), stage.width / 2.1f, swing.value, backdropGrow(pop.value))
         }
         SensorArtTile(
             type = type,
@@ -486,14 +469,11 @@ internal fun SensorHeroArt(
             }
             drawHeroPhone(tones, screenColor, accent, screen)
         }
-        Canvas(modifier = Modifier.matchParentSize()) {
-            drawOrbits(orbitColors, tileSize.toPx(), near = true, spin = swing.value, grow = orbitGrow(pop.value))
-        }
     }
 }
 
-/** The orbits come in a little behind the sensor's own bounce, from 70% of their size. */
-private fun orbitGrow(pop: Float): Float = 0.7f + 0.3f * pop
+/** The backdrop comes in a little behind the sensor's own bounce, from 70% of its size. */
+private fun backdropGrow(pop: Float): Float = 0.7f + 0.3f * pop
 
 /** The bounce the hero's circle comes in on: under-damped, so it overshoots and settles. */
 private val HeroBounce = spring<Float>(dampingRatio = 0.45f, stiffness = 380f)

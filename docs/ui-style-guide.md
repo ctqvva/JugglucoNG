@@ -209,12 +209,11 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 - Every wizard's main step opens with one, never a bespoke card. The sensor stands free, with
   no shape of its own under it (a disc or square under a sensor reads as its adhesive patch),
-  next to a phone acting out how the family connects. Three orbits ring the whole scene: tilted
-  ellipses wider than it, in `primary`, `secondary` and `tertiary` at half alpha, stroked flat.
-  Each ring's far half is drawn under the scene and its near half over it, so the sensor and
-  the phone sit inside them. Nothing else is added; the owner rejected a cookie halo, a
-  colour-blocked pill with a success burst, a 3D stage, and the list tile reused as a backdrop
-  (2026-11-14/15).
+  next to a phone acting out how the family connects. Behind the whole scene lies one flat
+  oval in `primaryContainer`, wider than the scene and tilted, so it frames the sensor and the
+  phone together. The oval is drawn from the owner's outline. Nothing else is added: the owner
+  rejected a cookie halo, a colour-blocked pill with a success burst, a 3D stage, the list tile
+  reused as a backdrop, and rings drawn as lines (2026-11-14/15).
 - A step whose choice changes the picture passes it in: `pairLead` brings the chosen sensor of
   a pair to the front (Sibionics picker), `companion` swaps the phone's story (Ottai's region).
   The change animates; it is never a cut.
@@ -233,12 +232,12 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 **Hero motion and touch**
 
 - The entrance plays the first time a hero opens after launch: the sensor springs up and the
-  orbits swing in from apart and settle on an overshooting bounce (damping 0.45), the phone
+  oval swings into its tilt and settles on an overshooting bounce (damping 0.45), the phone
   and what the code is printed on come in, and the phone does its one beat. Later
   visits, rotation, and the fold between sizes find it already in place. Nothing runs at rest.
 - It is a toy, not a control, so it adds nothing for accessibility services. Under the finger
-  the sensor squares up. On release the hero clicks (`NavigationTick.play`), the orbits get a
-  kick and spring back, the sensor drops back on and the story replays. When the phone has the read, it
+  the sensor squares up. On release the hero clicks (`NavigationTick.play`), the oval gets a
+  kick and springs back, the sensor drops back on and the story replays. When the phone has the read, it
   double-clicks (`NavigationTick.playConfirm`).
 - A pair trading places clicks once as they pass.
 
