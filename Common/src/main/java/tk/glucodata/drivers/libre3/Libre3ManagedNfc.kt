@@ -113,7 +113,7 @@ object Libre3ManagedNfc {
         }
         // A0 starts the sensor's wear clock and A8 moves it to this receiver; neither is worth doing
         // when this phone could not authorize over BLE afterwards.
-        if (Libre3Persistence.loadIdentities(ctx).isEmpty()) return Outcome.MissingIdentity
+        if (!runCatching { Libre3Persistence.ensureIdentities(ctx) }.getOrDefault(false)) return Outcome.MissingIdentity
 
         val override = when (Libre3NfcSettings.getMode()) {
             Libre3NfcSettings.MODE_ACTIVATE_A0 -> Libre3Nfc.CMD_ACTIVATE

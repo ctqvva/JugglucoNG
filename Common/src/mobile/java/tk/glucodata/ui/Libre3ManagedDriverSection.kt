@@ -42,7 +42,6 @@ import tk.glucodata.drivers.libre3.Libre3ManagedNfc
 import tk.glucodata.drivers.libre3.Libre3Persistence
 import tk.glucodata.drivers.libre3.Libre3ReceiverId
 import tk.glucodata.ui.components.CardPosition
-import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsSwitchItem
 
 /**
@@ -58,7 +57,8 @@ fun Libre3ManagedDriverSection() {
     var labels by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedVersion by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
-    var provisionAfterLoad by remember { mutableStateOf(false) }
+    var provisionAfterLoad by remember { mutableStateOf(enabled && !Libre3Persistence.autoProvisionBlocked(context)) }
+    var showAdvanced by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var useAccountReceiver by remember {
@@ -128,7 +128,6 @@ fun Libre3ManagedDriverSection() {
         }
     }
 
-    SectionLabel(text = stringResource(R.string.libre3_managed_title))
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         SettingsSwitchItem(
             searchAnchor = SettingsSearchAnchors.forRow(R.string.libre3_managed_enable),
@@ -170,7 +169,9 @@ fun Libre3ManagedDriverSection() {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = if (labels.isEmpty()) {
+                text = if (!loaded || busy) {
+                    stringResource(R.string.loading_data)
+                } else if (labels.isEmpty()) {
                     stringResource(R.string.libre3_managed_identity_none)
                 } else {
                     stringResource(R.string.libre3_managed_identity_list, selectedVersion ?: "", labels.joinToString())
@@ -183,7 +184,7 @@ fun Libre3ManagedDriverSection() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             val source = Libre3Persistence.effectiveIdentitySource(context)
-            if (source != null) {
+            if (showAdvanced && source != null) {
                 Text(
                     text = stringResource(
                         R.string.libre3_managed_identity_source,
@@ -205,7 +206,7 @@ fun Libre3ManagedDriverSection() {
                         Text(stringResource(R.string.libre3_managed_identity_download))
                     }
                 }
-                FilledTonalButton(
+                if (showAdvanced) FilledTonalButton(
                     onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
                     enabled = !busy,
                     shapes = ButtonDefaults.shapes(),
@@ -234,6 +235,10 @@ fun Libre3ManagedDriverSection() {
                     }
                 }
             }
+            OutlinedButton(onClick = { showAdvanced = !showAdvanced }, shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(R.string.advanced))
+            }
+            if (showAdvanced) {
             OutlinedTextField(
                 value = customUrl,
                 onValueChange = { customUrl = it.trim() },
@@ -268,6 +273,7 @@ fun Libre3ManagedDriverSection() {
                 shapes = ButtonDefaults.shapes(),
             ) {
                 Text(stringResource(R.string.libre3_managed_source_save))
+            }
             }
         }
     }

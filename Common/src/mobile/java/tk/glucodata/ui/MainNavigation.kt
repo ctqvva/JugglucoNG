@@ -1194,6 +1194,7 @@ private fun NavGraphBuilder.appDestinations(
     gatedComposable("settings/restricted-mode") { RestrictedModeSettingsScreen(navController) }
     gatedComposable("settings/restricted-mode/pin") { RestrictedPinSetupScreen(navController) }
     gatedComposable("settings/nightscout") { NightscoutSettingsScreen(navController) }
+    gatedComposable("settings/libre3") { Libre3SettingsScreen(navController) }
     gatedComposable("settings/libreview") { LibreViewSettingsScreen(navController) }
     gatedComposable("settings/mq-account") { MQAccountSettingsScreen(navController) }
     gatedComposable("settings/mq-follower") { MQFollowerSettingsScreen(navController) }

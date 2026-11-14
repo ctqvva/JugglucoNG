@@ -222,9 +222,9 @@ object WatchInterop {
      */
     @JvmStatic
     fun setAutoSensorSwitch(nodeId: String, enabled: Boolean): Boolean {
+        AutoSensorSwitch.setEnabled(enabled)
         if (enabled && !ManagedSensorHandoff.supportsSensor(SensorIdentity.resolveMainSensor())) return false
         val sender = getWearMessageSender() ?: return false
-        AutoSensorSwitch.setEnabled(enabled)
         if (enabled) {
             val context = Applic.app ?: MainActivity.thisone ?: return false
             val payload = ManagedSensorHandoff.createOutgoingPayload(context)

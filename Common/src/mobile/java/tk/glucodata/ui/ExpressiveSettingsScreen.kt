@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -641,6 +642,14 @@ fun ExpressiveSettingsScreen(
                     icon = Icons.Default.CloudUpload,
                     iconTint = sharingColor,
                     position = CardPosition.MIDDLE
+                )
+                SettingsItem(
+                    title = stringResource(R.string.libre3_managed_title),
+                    subtitle = stringResource(R.string.libre3_managed_enable_desc),
+                    icon = Icons.Default.Nfc,
+                    iconTint = sharingColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { navController.navigate("settings/libre3") }
                 )
                 if (showLibreView) {
                     SettingsItem(
