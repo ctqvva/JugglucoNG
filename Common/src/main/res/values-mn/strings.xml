@@ -381,8 +381,8 @@
     <string name="humaninsulin">Human Insulin/Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
     <string name="not">Биш</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="eusibionics">Sibionics GS1 Глобал</string>
+    <string name="chsibionics">Sibionics GS1 Хятад</string>
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="datapresent">"Өгөгдөл байгаа: "</string>
@@ -673,7 +673,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sibionics_setup_title">Sibionics тохиргоо</string>
     <string name="scan_sensor_qr">Мэдрэгчийн QR кодыг уншуулах</string>
     <string name="scan_sensor_qr_desc">Мэдрэгчийн баглаа боодол дээрх дата матрицыг уншуулна уу</string>
-    <string name="select_sibionics_type">Мэдрэгчийн төрлийг сонгох</string>
+    <string name="select_sibionics_type">Мэдрэгчийн хувилбарыг сонгох</string>
     <string name="scan_transmitter">Дамжуулагчийг уншуулах</string>
     <string name="connecting">Холбогдож байна…</string>
     <string name="setup_complete">Тохиргоо дууслаа</string>
@@ -890,7 +890,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sibionics_code_not_for_type">Энэ код %1$s-д хамаарахгүй. Буцаж очоод тохирох мэдрэгчийн төрлийг сонгоно уу.</string>
     <string name="sibionics_serial_wrong_type">Энэ сериал дугаар %1$s-тай тохирохгүй байна. Буцаж очоод тохирох мэдрэгчийн төрлийг сонгоно уу.</string>
     <string name="no_qr_found">Зурагнаас QR код олдсонгүй</string>
-    <string name="choose_sibionics_variant">Савлагаан дээрх загварыг сонгоно уу.</string>
       <!-- ComposeHost Strings -->
     <string name="go">Явах</string>
     <string name="filter_by_date">Огноогоор шүүх</string>

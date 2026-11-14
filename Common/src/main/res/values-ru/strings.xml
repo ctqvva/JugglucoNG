@@ -520,7 +520,7 @@
     <string name="continue_without_sensor_desc">Записывайте инсулин, еду и пальцевые замеры в журнал</string>
     <string name="get_started_desc">Начните с добавления вашего сенсора</string>
     <string name="select_sensor">Выберите тип сенсора</string>
-    <string name="select_sibionics_type">Выберите сенсор Sibionics</string>
+    <string name="select_sibionics_type">Выберите вариант сенсора</string>
     <string name="or_divider">"  или  "</string>
     <string name="no_sensors_connected">Нет подключенных сенсоров</string>
     <string name="enter_sensor_codes">Введите коды сенсора</string>
@@ -541,7 +541,6 @@
     <string name="select_gallery_button">Выбрать из Галереи</string>
     <string name="skip_fake_sensor">Пропустить (Исп. фиктивный сенсор)</string>
     <string name="enter_code_manually">Ввести код вручную</string>
-    <string name="choose_sibionics_variant">Укажите модель с упаковки.</string>
     <string name="continue_action">Продолжить</string>
     <string name="sensor_init_failed">Инициализация сенсора не удалась</string>
     <string name="sensor_lost_restart">Ошибка: Сенсор потерян. Перезапустите настройку.</string>
@@ -844,7 +843,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Отсканируйте код датчика на упаковке CareSens Air.</string>
     <string name="caresens_air_setup_title">Настройка CareSens Air</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 Китай</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_history_confirm">Очистить историю?</string>
     <string name="clear_history_desc">Удалить показания, записи журнала или всё сразу</string>
@@ -871,7 +870,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="delete_calibration">Delete calibration?</string>
     <string name="dexfuture">Predict (Dexcom)</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exclude">Exclude</string>
     <string name="factory_reset_confirm">Сбросить к заводским настройкам?</string>
     <string name="factory_reset_message">Удаляет все показания, записи журнала, датчики и настройки, а также выданные разрешения, затем закрывает приложение. Мониторинг глюкозы и оповещения остановятся, пока вы снова не настроите датчик, и отменить это нельзя.</string>
@@ -3493,4 +3492,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Изменить порядок</string>
     <string name="food_move_up">Переместить выше</string>
     <string name="food_move_down">Переместить ниже</string>
+    <string name="scan_sensor_qr">Отсканируйте QR-код датчика</string>
 </resources>

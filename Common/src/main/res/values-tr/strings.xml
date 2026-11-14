@@ -373,8 +373,8 @@
     <string name="glulisine">Insülin Glulisine/Apidra</string>
     <string name="humaninsulin">Human Insülin/Humulin R/Novolin R</string>
     <string name="not">Değil</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
+    <string name="chsibionics">Sibionics GS1 Çin</string>
     <string name="hematonix">Hematonix - com.sisensing.rusibionics</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
@@ -472,7 +472,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="continue_without_sensor_desc">İnsülin, yiyecek ve parmak ölçümlerini günlüğe kaydedin</string>
     <string name="get_started_desc">Sensörünüzü ekleyerek başlayın</string>
     <string name="select_sensor">Sensör Tipini Seçin</string>
-    <string name="select_sibionics_type">Bir Sibionics sensörü seçin</string>
+    <string name="select_sibionics_type">Sensör varyantını seçin</string>
     <string name="or_divider">"  veya  "</string>
     <string name="no_sensors_connected">Bağlı sensör yok</string>
     <string name="enter_sensor_codes">Sensör Kodlarını Girin</string>
@@ -493,7 +493,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="select_gallery_button">Galeriden Seç</string>
     <string name="skip_fake_sensor">Atla (Sahte sensör kullan)</string>
     <string name="enter_code_manually">Kodu manuel girin</string>
-    <string name="choose_sibionics_variant">Ambalajda belirtilen modeli seçin.</string>
     <string name="continue_action">Devam Et</string>
     <string name="sensor_init_failed">Sensör başlatma başarısız</string>
     <string name="sensor_lost_restart">Hata: Sensör kayboldu. Kurulumu yeniden başlatın.</string>
@@ -3394,4 +3393,5 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="food_reorder">Yiyecekleri yeniden sırala</string>
     <string name="food_move_up">Yukarı taşı</string>
     <string name="food_move_down">Aşağı taşı</string>
+    <string name="scan_sensor_qr">Sensör QR kodunu tara</string>
 </resources>

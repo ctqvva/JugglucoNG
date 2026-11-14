@@ -320,7 +320,7 @@
     <string name="continue_without_sensor_desc">Registre insulina, alimentos e medições de ponta de dedo no diário</string>
     <string name="get_started_desc">Comece adicionando seu sensor</string>
     <string name="select_sensor">Selecionar Tipo de Sensor</string>
-    <string name="select_sibionics_type">Escolha um sensor Sibionics</string>
+    <string name="select_sibionics_type">Escolha a variante do sensor</string>
     <string name="or_divider">"  ou  "</string>
     <string name="no_sensors_connected">Nenhum sensor conectado</string>
     <string name="enter_sensor_codes">Inserir Códigos do Sensor</string>
@@ -341,7 +341,6 @@
     <string name="select_gallery_button">Selecionar da Galeria</string>
     <string name="skip_fake_sensor">Pular (Usar sensor falso)</string>
     <string name="enter_code_manually">Inserir código manualmente</string>
-    <string name="choose_sibionics_variant">Selecione o modelo indicado na embalagem.</string>
     <string name="continue_action">Continuar</string>
     <string name="sensor_init_failed">Falha na inicialização do sensor</string>
     <string name="sensor_lost_restart">Erro: Sensor perdido. Reinicie a configuração.</string>
@@ -633,7 +632,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="caresens_air_setup_title">Configuração de ar CareSens</string>
     <string name="changeinsulin">"Change insulin type to "</string>
     <string name="changestartbutton">Change start</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 China</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_history_confirm">Limpar histórico?</string>
     <string name="clear_history_desc">Remover leituras, entradas do diário ou ambos</string>
@@ -683,7 +682,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enabled_status">Enabled</string>
     <string name="endstime">" ends at this time"</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Repor definições de fábrica?</string>
@@ -3368,4 +3367,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Reordenar alimentos</string>
     <string name="food_move_up">Mover para cima</string>
     <string name="food_move_down">Mover para baixo</string>
+    <string name="scan_sensor_qr">Digitalizar o código QR do sensor</string>
 </resources>

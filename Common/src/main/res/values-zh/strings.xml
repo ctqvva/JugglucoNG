@@ -427,7 +427,7 @@
     <string name="continue_without_sensor_desc">在日志中记录胰岛素、食物和指尖血糖</string>
     <string name="get_started_desc">首先添加您的传感器</string>
     <string name="select_sensor">选择传感器类型</string>
-    <string name="select_sibionics_type">选择 Sibionics 传感器</string>
+    <string name="select_sibionics_type">选择传感器型号</string>
     <string name="or_divider">"  或  "</string>
     <string name="no_sensors_connected">没有连接的传感器</string>
     <string name="enter_sensor_codes">输入传感器代码</string>
@@ -448,7 +448,6 @@
     <string name="select_gallery_button">从图库选择</string>
     <string name="skip_fake_sensor">跳过 (使用模拟传感器)</string>
     <string name="enter_code_manually">手动输入代码</string>
-    <string name="choose_sibionics_variant">请选择包装上标示的型号。</string>
     <string name="continue_action">继续</string>
     <string name="sensor_init_failed">传感器初始化失败</string>
     <string name="sensor_lost_restart">错误：传感器丢失。重新开始设置。</string>
@@ -735,7 +734,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">扫描 CareSens Air 包装上的传感器代码</string>
     <string name="caresens_air_setup_title">CareSens 空气设置</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 中国版</string>
     <string name="clean_history_confirm">清除历史记录？</string>
     <string name="clear_history_desc">删除读数、日志条目或两者</string>
     <string name="clear_history_scope_readings">删除此手机上的所有血糖读数，且无法撤销。日志、传感器和设置将保留。</string>
@@ -772,7 +771,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 国际版</string>
     <string name="exchangedata">交换数据</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
@@ -3372,4 +3371,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">调整食物顺序</string>
     <string name="food_move_up">上移</string>
     <string name="food_move_down">下移</string>
+    <string name="scan_sensor_qr">扫描传感器二维码</string>
 </resources>
