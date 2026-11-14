@@ -885,13 +885,21 @@ public class Natives {
 
         public static native String getlibreDeviceID(boolean l3);
 
-        public static native void setlibreAccountID(String AccountID);
+        private static native void setlibreAccountIDNative(String accountID);
+        public static void setlibreAccountID(String accountID) {
+                setlibreAccountIDNative(accountID);
+                LibreViewAccountState.changed();
+        }
 
         public static native void askServerforAccountID();
 
         public static native long getlibreAccountIDnumber();
 
-        public static native void setlibreAccountIDnumber(long num);
+        private static native void setlibreAccountIDnumberNative(long num);
+        public static void setlibreAccountIDnumber(long num) {
+                setlibreAccountIDnumberNative(num);
+                LibreViewAccountState.changed();
+        }
 
         public static native String getlibreAccountID();
 

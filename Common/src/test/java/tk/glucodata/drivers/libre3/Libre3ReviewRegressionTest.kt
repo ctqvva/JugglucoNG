@@ -171,6 +171,41 @@ class Libre3ReviewRegressionTest {
         else assertTrue(healthWrites.isEmpty())
     }
 
+    @Test fun oldBackfillCannotClaimHealthConnectFromTheCurrentSensor() {
+        val oldBlue = SensorBluetooth.blueone
+        val oldCallbacks = SensorBluetooth.gattcallbacks.toList()
+        val current = Libre3BleManager("CURRENT")
+        val stopField = SuperGattCallback::class.java.getDeclaredField("stopHealth").apply { isAccessible = true }
+        val liveExport = SuperGattCallback::class.java.getDeclaredMethod("exportToHealthConnect").apply { isAccessible = true }
+        try {
+            SensorBluetooth.blueone = SensorBluetooth()
+            SensorBluetooth.gattcallbacks.clear()
+            SensorBluetooth.gattcallbacks.add(manager)
+            SensorBluetooth.gattcallbacks.add(current)
+            // Opening Sensors has reset both flags. Old history arrives first.
+            stopField.setBoolean(manager, false)
+            stopField.setBoolean(current, false)
+            minutes().add(reading())
+            invoke("flushBackfill")
+            assertFalse(stopField.getBoolean(current))
+            assertFalse(stopField.getBoolean(manager))
+            if (!Applic.isWearable) {
+                assertEquals(1, healthWrites.size)
+                liveExport.invoke(current)
+                assertEquals("CURRENT", healthWrites.last().second)
+                // Only the current LIVE export owns the health callback now.
+                assertTrue(stopField.getBoolean(manager))
+                assertFalse(stopField.getBoolean(current))
+            }
+        } finally {
+            current.setPause(true)
+            current.close()
+            SensorBluetooth.gattcallbacks.clear()
+            SensorBluetooth.gattcallbacks.addAll(oldCallbacks)
+            SensorBluetooth.blueone = oldBlue
+        }
+    }
+
     @Test fun setupTimeoutDoesNotRejectAnIdentity() {
         val hs = Libre3Handshake(Libre3Handshake.Mode.FULL, ByteArray(4), null, null)
         Libre3Handshake::class.java.getDeclaredField("stage").apply { isAccessible = true }.set(hs, Libre3Handshake.Stage.AWAIT_CERT_ACCEPTED)
@@ -270,12 +305,22 @@ class Libre3ReviewApplication : Applic() { override fun onCreate() {} }
 class Libre3ReviewNatives {
     companion object {
         val wakes = mutableListOf<Long>()
+        var accountNumber = 0L
         var wearDays = 0
         var stockWrites = 0
         var resolvedWrites = 0
-        fun reset() { stockWrites = 0; resolvedWrites = 0; wearDays = 0; wakes.clear() }
+        fun reset() { stockWrites = 0; resolvedWrites = 0; wearDays = 0; wakes.clear(); accountNumber = 0L }
         @JvmStatic @Implementation fun __staticInitializer__() {}
         @JvmStatic @Implementation fun setSensorWearDays(serial: String, days: Int) { wearDays = days }
+        @JvmStatic @Implementation fun getlibreAccountIDnumber(): Long = accountNumber
+        @JvmStatic @Implementation fun setlibreAccountIDNative(account: String) { accountNumber = 0x11223344L }
+        @JvmStatic @Implementation fun setlibreAccountIDnumberNative(value: Long) { accountNumber = value }
+        @JvmStatic @Implementation fun setlibreAccountID(account: String) {
+            Shadow.directlyOn<Any?, Natives>(Natives::class.java, "setlibreAccountID", org.robolectric.util.ReflectionHelpers.ClassParameter.from(String::class.java, account))
+        }
+        @JvmStatic @Implementation fun setlibreAccountIDnumber(value: Long) {
+            Shadow.directlyOn<Any?, Natives>(Natives::class.java, "setlibreAccountIDnumber", org.robolectric.util.ReflectionHelpers.ClassParameter.from(java.lang.Long.TYPE, value))
+        }
         @JvmStatic @Implementation fun getuseuploader(): Boolean = true
         @JvmStatic @Implementation fun gethealthConnect(): Boolean = true
         @JvmStatic @Implementation fun wakeNightscoutForLiveReading(source: String, at: Long): Boolean { wakes += at; return true }

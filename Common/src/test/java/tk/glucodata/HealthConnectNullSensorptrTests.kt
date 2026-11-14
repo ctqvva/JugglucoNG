@@ -57,8 +57,8 @@ class HealthConnectNullSensorptrTests {
     fun exportChecksSensorptrBeforeClaimingHealthConnect() {
         val callback = flattened("Common/src/main/java/tk/glucodata/SuperGattCallback.java")
         assertEquals(
-            "every export in SuperGattCallback goes through exportToHealthConnect()",
-            1,
+            "SuperGattCallback has separate live-owner and history-only export entry points",
+            2,
             Regex("[.]writeAll[(]").findAll(callback).count(),
         )
         val export = callback.substring(callback.indexOf("protected final void exportToHealthConnect()"))
@@ -78,10 +78,10 @@ class HealthConnectNullSensorptrTests {
     @Test
     fun writeAllReturnsOnZeroBeforeItStartsAnExport() {
         val health = flattened("Common/src/mobile/java/tk/glucodata/HealthConnection.kt")
-        val entry = health.substring(health.indexOf("private fun writeAllIns(")).substringBefore("scope.launch")
+        val entry = health.substring(health.indexOf("private fun writeAllIns(")).substringBefore("private suspend fun exportSensor(")
         val check = entry.indexOf("sensorptr == 0L")
-        val claim = entry.indexOf("active.getAndSet(true)")
-        assertTrue("writeAllIns must check sensorptr and take the active flag", check >= 0 && claim >= 0)
-        assertTrue("a 0 sensorptr must not take the active flag or start a coroutine", check < claim)
+        val enqueue = entry.indexOf("exportQueue.request(sensorptr, sensorName)")
+        assertTrue("writeAllIns must check sensorptr before queuing an export", check >= 0 && enqueue > check)
+
     }
 }

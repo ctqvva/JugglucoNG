@@ -36,6 +36,7 @@ class Libre3FirstSetupTests {
     @Before fun freshInstall() {
         app = RuntimeEnvironment.getApplication() as Applic
         Applic.app = app
+        Libre3ReviewNatives.reset()
         for (name in listOf(Libre3Persistence.PREFS_NAME, Libre3Persistence.SETTINGS_PREFS_NAME, "tk.glucodata_preferences")) {
             app.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().commit()
         }
@@ -89,6 +90,20 @@ class Libre3FirstSetupTests {
         compose.onNodeWithText(app.getString(R.string.ottai_retry)).performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithText(error).fetchSemanticsNodes().isEmpty() }
         assertTrue(tk.glucodata.drivers.libre3.Libre3ManagedNfc.receiverId(context) != 0L)
+    }
+
+    @Test fun fetchedAndManualAccountChangesRefreshTheOpenReceiverDisplay() {
+        compose.setContent { JugglucoTheme(ThemeMode.DARK) { Libre3ManagedDriverSection() } }
+        val missing = app.getString(R.string.libre3_managed_receiver_none)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(missing, substring = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnIdle { tk.glucodata.Natives.setlibreAccountID("fetched-test-account") }
+        val fetched = tk.glucodata.drivers.libre3.Libre3ReceiverId.toWireHex(0x11223344L)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(fetched, substring = true).fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(0x11223344L, tk.glucodata.drivers.libre3.Libre3ManagedNfc.receiverId(app))
+        compose.runOnIdle { tk.glucodata.Natives.setlibreAccountIDnumber(0x55667788L) }
+        val manual = tk.glucodata.drivers.libre3.Libre3ReceiverId.toWireHex(0x55667788L)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(manual, substring = true).fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(0x55667788L, tk.glucodata.drivers.libre3.Libre3ManagedNfc.receiverId(app))
     }
 
 }
