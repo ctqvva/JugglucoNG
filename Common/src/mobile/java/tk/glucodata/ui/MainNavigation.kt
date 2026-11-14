@@ -1201,6 +1201,8 @@ private fun NavGraphBuilder.appDestinations(
     gatedComposable("settings/mirror") { MirrorSettingsScreen(navController) }
     gatedComposable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
     gatedComposable("settings/dexcom-share") { DexcomShareSettingsScreen(navController) }
+    gatedComposable("settings/ican-health") { ICanHealthCloudSettingsScreen(navController) }
+    gatedComposable("settings/ican-health/followers") { ICanHealthCloudFollowersScreen(navController) }
     gatedComposable("settings/lumiflex") { LumiflexCloudSettingsScreen(navController) }
     gatedComposable("settings/lumiflex/followers") { LumiflexCloudFollowersScreen(navController) }
     gatedComposable("settings/api-source") { ApiSourceSettingsScreen(navController) }

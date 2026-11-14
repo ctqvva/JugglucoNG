@@ -401,6 +401,7 @@ ksp {
 
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.79'
 
     // Compose (versions come from the BOM unless pinned deliberately)
     def composeBom = platform('androidx.compose:compose-bom-alpha:2026.10.00')
