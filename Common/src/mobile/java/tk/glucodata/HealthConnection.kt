@@ -72,8 +72,7 @@ class HealthConnection(private val client: HealthConnectClient) {
                 if (!hasPermission) return false
             }
             val startSeconds = Natives.getSensorStartmsecFromSensorptr(sensorptr) / 1000L
-            val stablePrefix = if (tk.glucodata.drivers.ManagedSensorIdentityRegistry.resolvePersistedFamily(sensorName) ==
-                tk.glucodata.drivers.ManagedSensorUiFamily.LIBRE3) "libre3:$sensorName:$startSeconds:" else null
+            val stablePrefix = HealthConnectRecordMetadata.prefixForSensor(sensorptr, sensorName, startSeconds)
             val meta = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod(
                 device = Device(TYPE_UNKNOWN, "Libre", sensorName),
             )

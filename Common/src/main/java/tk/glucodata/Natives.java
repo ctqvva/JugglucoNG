@@ -1270,6 +1270,9 @@ public class Natives {
         public static native long getSensorStartmsecFromSensorptr(long sensorptr);
         public static native int getSensorWarmupMinutesByName(String sensor);
 
+        /** Family of the retained native record, independent of managed pairing metadata. */
+        public static native int getSensorManagedFamilyFromSensorptr(long sensorptr);
+
         // public static native void setnightscoutV3(boolean val);
         public static native boolean getnightscoutV3();
 
