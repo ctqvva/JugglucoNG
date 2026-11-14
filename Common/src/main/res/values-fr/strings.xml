@@ -680,7 +680,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="caresens_air_scan_instruction">Scannez le code du capteur sur votre forfait CareSens Air</string>
     <string name="caresens_air_setup_title">Configuration de CareSens Air</string>
     <string name="changestartbutton">Change start</string>
-    <string name="chsibionics">GS1 Chine</string>
+    <string name="chsibionics">Sibionics GS1 Chine</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_history_confirm">Effacer l\'historique ?</string>
     <string name="clear_history_desc">Supprimer les lectures, les entrées du journal ou les deux</string>
@@ -722,7 +722,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="endstime">" ends at this time"</string>
     <string name="enter_sensor_label_desc">Enter the codes printed on the sensor label</string>
     <string name="enter_transmitter_desc">Enter the transmitter ID from the label</string>
-    <string name="eusibionics">GS1 Europe</string>
+    <string name="eusibionics">Sibionics GS1 Europe</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="export_history_title">Export History</string>

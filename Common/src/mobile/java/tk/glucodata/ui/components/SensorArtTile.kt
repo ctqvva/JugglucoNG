@@ -4,20 +4,9 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Nfc
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.graphics.asComposePath
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.graphics.shapes.Morph
-import androidx.graphics.shapes.toPath
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.launch
 import kotlin.math.atan2
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
@@ -87,10 +76,8 @@ import tk.glucodata.ui.util.ExpressiveMotion
  * in and turns it square to the row; letting go springs all three back. Everything moves in the
  * draw and layer phases, and nothing moves at rest or when a screen opens.
  *
- * [round] sets the sensor on an M3 cookie instead, for the wizard heroes: pressing softens it
- * to a circle and [turn] turns it. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
+ * [round] keeps the frame a circle throughout, for the wizard heroes. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SensorArtTile(
     type: SensorType,
@@ -101,7 +88,6 @@ internal fun SensorArtTile(
     replay: Int = 0,
     round: Boolean = false,
     lead: () -> Float = { 0f },
-    turn: () -> Float = { 0f },
 ) {
     val context = LocalContext.current
     remember(context) { SensorImages.attach(context.applicationContext) }
@@ -122,20 +108,15 @@ internal fun SensorArtTile(
         }
     }
 
-    val cookie = remember(round) { if (round) Morph(MaterialShapes.Cookie9Sided, MaterialShapes.Circle) else null }
     Box(modifier = modifier.size(tileSize), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.matchParentSize()) {
             val progress = press.value
+            val half = size.minDimension / 2f
+            val rest = if (round) half else half * TILE_CORNER
+            val corner = (rest + (half - rest) * progress).coerceIn(0f, half)
             val shrink = 1f - 0.06f * progress
-            if (cookie != null) {
-                drawMorph(cookie, progress, size.minDimension * shrink, turn(), containerColor)
-            } else {
-                val half = size.minDimension / 2f
-                val rest = half * TILE_CORNER
-                val corner = (rest + (half - rest) * progress).coerceIn(0f, half)
-                scale(shrink, shrink) {
-                    drawRoundRect(containerColor, cornerRadius = CornerRadius(corner))
-                }
+            scale(shrink, shrink) {
+                drawRoundRect(containerColor, cornerRadius = CornerRadius(corner))
             }
         }
         Canvas(
@@ -168,27 +149,8 @@ private const val TILE_CORNER = 0.57f
 /** The sensor's drawing against the tile's side: a disc spans about its full width. */
 private const val TILE_REACH = 1.26f
 
-/** The sensor against the hero's cookie: a little past its lobes, so it sits on it, not in it. */
+/** The sensor against the hero's circle: a little past it, so it sits on it, not in it. */
 private const val HERO_REACH = 1.1f
-
-/** [morph] at [progress], [extent] across, centred and turned [degrees]. */
-private fun DrawScope.drawMorph(morph: Morph, progress: Float, extent: Float, degrees: Float, color: Color) {
-    val outline = android.graphics.Path()
-    morph.toPath(progress.coerceIn(0f, 1f), outline)
-    val bounds = android.graphics.RectF()
-    outline.computeBounds(bounds, true)
-    val across = maxOf(bounds.width(), bounds.height())
-    if (across <= 0f || extent <= 0f) return
-    val path = outline.asComposePath()
-    withTransform({
-        translate(center.x, center.y)
-        rotate(degrees, pivot = Offset.Zero)
-        scale(extent / across, extent / across, pivot = Offset.Zero)
-        translate(-bounds.centerX(), -bounds.centerY())
-    }) {
-        drawPath(path, color)
-    }
-}
 
 /** How far the sensor sits up out of the tile, against the tile's side. */
 private const val TILE_SHIFT = 0.11f
@@ -247,12 +209,12 @@ private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage 
 }
 
 /**
- * A sensor at wizard size on an M3 cookie, with a phone acting out how it connects, and for the
+ * A sensor at wizard size in a circle, with a phone acting out how it connects, and for the
  * families set up from a printed code, the thing the code is on. The phone's screen says what is
  * happening: the NFC mark, the Bluetooth mark, or the camera closing on the code.
  *
- * It answers a touch: the cookie softens to a circle under the finger, and letting go turns it a
- * notch, drops the sensor on again and replays the whole story, with a click on letting go and a
+ * It answers a touch: the circle gives under the finger, and letting go drops the sensor on
+ * again and replays the whole story, with a click on letting go and a
  * double click when the phone has the code, the NFC read or the pairing. It is a toy, not a
  * control, so it adds nothing for accessibility services to announce. Between touches nothing
  * runs; the entrance plays the first time a hero opens after launch, silently.
@@ -303,22 +265,14 @@ internal fun SensorHeroArt(
     val arrival = remember { Animatable(if (firstVisit) 0f else 1f) }
     // The phone's one beat: the NFC read, the camera's sweep and read, the Bluetooth signal.
     val signal = remember { Animatable(1f) }
-    // The cookie turns a notch on every entrance; nine lobes, so a notch of 40° looks the same.
-    val turn = remember { Animatable(if (firstVisit) -40f else 0f) }
     LaunchedEffect(plays) {
         if (plays == 0 && !firstVisit) return@LaunchedEffect
         val asked = plays > 0
-        coroutineScope {
-            launch {
-                if (asked) turn.snapTo(turn.value - 40f)
-                turn.animateTo(0f, ExpressiveMotion.slowSpatial())
-            }
-            arrival.snapTo(0f)
-            signal.snapTo(0f)
-            arrival.animateTo(1f, ExpressiveMotion.slowSpatial())
-            signal.animateTo(1f, tween(durationMillis = 1_200, easing = LinearOutSlowInEasing))
-            if (asked) tick.playConfirm()
-        }
+        arrival.snapTo(0f)
+        signal.snapTo(0f)
+        arrival.animateTo(1f, ExpressiveMotion.slowSpatial())
+        signal.animateTo(1f, tween(durationMillis = 1_200, easing = LinearOutSlowInEasing))
+        if (asked) tick.playConfirm()
     }
 
     val sensorShift by animateDpAsState(
@@ -356,7 +310,6 @@ internal fun SensorHeroArt(
             replay = plays,
             round = true,
             lead = { lead },
-            turn = { turn.value },
         )
         // The signal, over the sensor and under the phone: from the phone's edge to the sensor for
         // NFC, from the sensor to the phone for Bluetooth. It lights in turn and stays faint.

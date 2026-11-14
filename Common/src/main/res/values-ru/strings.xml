@@ -843,7 +843,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Отсканируйте код датчика на упаковке CareSens Air.</string>
     <string name="caresens_air_setup_title">Настройка CareSens Air</string>
-    <string name="chsibionics">GS1 Китай</string>
+    <string name="chsibionics">Sibionics GS1 Китай</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_history_confirm">Очистить историю?</string>
     <string name="clear_history_desc">Удалить показания, записи журнала или всё сразу</string>
@@ -870,7 +870,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="delete_calibration">Delete calibration?</string>
     <string name="dexfuture">Predict (Dexcom)</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">GS1 Европа</string>
+    <string name="eusibionics">Sibionics GS1 Европа</string>
     <string name="exclude">Exclude</string>
     <string name="factory_reset_confirm">Сбросить к заводским настройкам?</string>
     <string name="factory_reset_message">Удаляет все показания, записи журнала, датчики и настройки, а также выданные разрешения, затем закрывает приложение. Мониторинг глюкозы и оповещения остановятся, пока вы снова не настроите датчик, и отменить это нельзя.</string>

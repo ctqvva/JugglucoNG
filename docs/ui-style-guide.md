@@ -207,14 +207,13 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 **The wizard hero** (`SensorWizardHero`)
 
-- Every wizard's main step opens with one, never a bespoke card. It shows the sensor on an M3
-  cookie (`MaterialShapes.Cookie9Sided`, `primaryContainer`) and a phone acting out how the
-  family connects. The phone's screen says it in one glyph:
+- Every wizard's main step opens with one, never a bespoke card. It shows the sensor on a
+  circle in `primaryContainer` and a phone acting out how the family connects. The phone's screen says it in one glyph:
 
 | Family connects by | Phone | Screen | Beside them |
 |---|---|---|---|
 | NFC (Libre; Ottai China and Syai) | Held over the sensor, arcs running from its edge to the sensor | The NFC mark, pulsing once | — |
-| A printed code (Dexcom, iCan, Accu-Chek, CareSens Air, Sibionics) | Standing beside what the code is printed on | The viewfinder sweeping, then closing on the code | What the user points the camera at: the G7 applicator, the iCan i3 pack and i6 kit, the SmartGuide applicator cap, the CareSens pouch. Sibionics has none: its code is on the box |
+| A printed code (Dexcom, iCan, Accu-Chek, CareSens Air, Sibionics) | Standing beside what the code is printed on | The viewfinder sweeping, then closing on the code | What the user points the camera at: the G7 applicator, the iCan i3 pack and i6 kit, the SmartGuide applicator turned cap up, the CareSens pouch. Sibionics has none: its code is on the box |
 | Bluetooth (AiDEX, Anytime, MQ, Ottai Global, Medtrum) | Standing apart, arcs running from the sensor to it | The Bluetooth mark | — |
 
 - A step whose choice changes the picture passes it in: `pairLead` brings the chosen sensor of
@@ -222,7 +221,8 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
   The change animates; it is never a cut.
 - Text: `title` is the step's instruction, kept short. The family's name is already in the
   top bar, so a title that only names the family again ("Choose a Sibionics sensor") says
-  nothing; say what to do ("Choose sensor variant"). A subtitle only when the title can't
+  nothing; say what to do ("Choose sensor variant"). Option names keep the full product name
+  (Sibionics GS1 Europe). A subtitle only when the title can't
   carry the instruction alone.
   A step whose own header already says it shows the picture alone.
 - Room: `rememberSensorHeroCompact` folds the hero into a row (a small picture beside its
@@ -233,12 +233,12 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 **Hero motion and touch**
 
-- The entrance plays the first time a hero opens after launch: the cookie turns a notch, the
-  phone and what the code is printed on come in, and the phone does its one beat. Later
+- The entrance plays the first time a hero opens after launch: the phone and what the code is
+  printed on come in, and the phone does its one beat. Later
   visits, rotation, and the fold between sizes find it already in place. Nothing runs at rest.
 - It is a toy, not a control, so it adds nothing for accessibility services. Under the finger
-  the cookie softens towards a circle. On release the hero clicks (`NavigationTick.play`),
-  turns the cookie one lobe, drops the sensor back on and replays the story. When the phone has
+  the circle gives. On release the hero clicks (`NavigationTick.play`), drops the sensor back
+  on and replays the story. When the phone has
   the read, it double-clicks (`NavigationTick.playConfirm`).
 - A pair trading places clicks once as they pass.
 

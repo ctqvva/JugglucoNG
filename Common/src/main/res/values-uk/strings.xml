@@ -734,7 +734,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Відскануйте код датчика на упаковці CareSens Air</string>
     <string name="caresens_air_setup_title">Налаштування CareSens Air</string>
-    <string name="chsibionics">GS1 Китай</string>
+    <string name="chsibionics">Sibionics GS1 Китай</string>
     <string name="clean_history_confirm">Очистити історію?</string>
     <string name="clear_history_desc">Видалити показання, записи журналу або все разом</string>
     <string name="clear_history_scope_readings">Видаляє всі показання глюкози на цьому телефоні; скасувати це неможливо. Журнал, датчики та налаштування залишаються.</string>
@@ -771,7 +771,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">GS1 Європа</string>
+    <string name="eusibionics">Sibionics GS1 Європа</string>
     <string name="exchangedata">Для обміну даними</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>

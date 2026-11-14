@@ -373,8 +373,8 @@
     <string name="humaninsulin">Humán inzulin/Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
     <string name="not">Nem</string>
-    <string name="eusibionics">GS1 Európa</string>
-    <string name="chsibionics">GS1 Kína</string>
+    <string name="eusibionics">Sibionics GS1 Európa</string>
+    <string name="chsibionics">Sibionics GS1 Kína</string>
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2 osztott</string>
     <string name="gs3">Sibionics GS3</string>

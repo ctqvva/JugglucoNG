@@ -291,44 +291,58 @@ private fun DrawScope.drawDexcomApplicator(tones: SensorTones) {
 }
 
 /**
- * The SmartGuide applicator held up for its code, as its maker shows it scanned: the blue twist
- * cap on top, ribbed round, with the white label on its end, over the white barrel.
+ * The SmartGuide applicator turned cap up, as it is held to scan its code: the hero's earlier
+ * drawing of it, flipped. The blue twist cap, ribbed at its end, carries the white label with
+ * the code; the pull tab runs from the U cut in the cap down the slot in the white barrel.
  */
 private fun DrawScope.drawAccuChekApplicator(tones: SensorTones) {
-    val half = 24f
-    val rise = 12f
-    val top = -22f
-    val joint = 2f
-    val bottom = 40f
-    footShadow(tones, half - 2f, bottom, rise * 0.7f)
-    drawPath(band(half - 2.5f, joint, bottom, rise * 0.9f), barrelBrush(tones, half))
+    val half = 25f
+    val rise = 7f
+    val top = -38f
+    val joint = -4f
+    val bottom = 38f
+    footShadow(tones, half, bottom, rise)
+    drawPath(band(half, joint, bottom, rise), barrelBrush(tones, half))
     val capDeep = lerp(tones.cap, tones.ink, 0.45f)
-    val capLit = lerp(tones.cap, tones.highlight, 0.22f)
-    val cap = band(half, top, joint + 2f, rise)
+    val capLit = lerp(tones.cap, tones.highlight, 0.2f)
+    val cap = band(half, top, joint, rise)
     drawPath(
         cap,
         Brush.horizontalGradient(0f to capDeep, 0.28f to capLit, 0.6f to tones.cap, 1f to capDeep, startX = -half, endX = half),
     )
+    // The ribs follow the cap round: bunched at the edges, wide at the front.
     clipPath(cap) {
-        for (rib in 1 until 34) {
-            val angle = rib / 34f * PI.toFloat()
+        for (rib in 1 until 26) {
+            val angle = rib / 26f * PI.toFloat()
             val x = -half * cos(angle)
             val curve = rise * sin(angle)
-            drawLine(capDeep.copy(alpha = 0.55f), Offset(x, top + curve + 1f), Offset(x, joint + 2f + curve), strokeWidth = 0.7f)
+            drawLine(capDeep.copy(alpha = 0.5f), Offset(x, top + curve), Offset(x, top + 17f + curve), strokeWidth = 0.6f)
         }
+        // The U cut the tab comes out of.
+        drawRoundRect(
+            capDeep.copy(alpha = 0.55f),
+            topLeft = Offset(-9f, joint - 24f),
+            size = Size(18f, 26f),
+            cornerRadius = CornerRadius(9f),
+        )
     }
-    // The end: a blue rim round the white label, the code on the label.
+    // Slot and pull tab, front and centre.
+    val slot = Path().apply { addRoundRect(RoundRect(Rect(-7f, -22f, 7f, 20f), CornerRadius(7f))) }
+    drawPath(slot, Brush.verticalGradient(0f to tones.shade, 1f to tones.wall, startY = 0f, endY = 20f))
+    val tab = Path().apply { addRoundRect(RoundRect(Rect(-5f, -24f, 5f, 8f), CornerRadius(5f))) }
+    drawPath(tab, Brush.horizontalGradient(0f to capLit, 1f to capDeep, startX = -5f, endX = 5f))
+    drawPath(tab, tones.glint.copy(alpha = 0.35f), style = Stroke(width = 0.5f))
+    // The cap's end: a blue rim round the white label, the code on the label.
     drawOval(capLit, topLeft = Offset(-half, top - rise), size = Size(half * 2f, rise * 2f))
-    val label = Rect(-half + 3.4f, top - rise + 1.8f, half - 3.4f, top + rise - 1.8f)
+    val label = Rect(-half + 3f, top - rise + 1f, half - 3f, top + rise - 1f)
     drawOval(tones.highlight, topLeft = label.topLeft, size = label.size)
-    val squash = rise / half
     translate(0f, top) {
-        scale(1f, squash, pivot = Offset.Zero) {
+        scale(1f, rise / half, pivot = Offset.Zero) {
             val ink = lerp(tones.ink, Color.Black, 0.2f).copy(alpha = 0.85f)
             drawCode(CodeKind.DATA_MATRIX, Rect(-13f, -5f, -1f, 7f), ink)
-            smallPrint(ink, -10f, -12f, listOf(12f), 0f, 1.6f)
-            smallPrint(ink, 1.5f, -4f, listOf(11f, 9f, 10f, 10f), 2.8f, 0.9f)
-            smallPrint(ink, -10f, 11f, listOf(8f), 0f, 1.6f)
+            smallPrint(ink, -10f, -13f, listOf(12f), 0f, 2.2f)
+            smallPrint(ink, 1.5f, -4f, listOf(11f, 9f, 10f, 10f), 2.8f, 1.2f)
+            smallPrint(ink, -10f, 12f, listOf(8f), 0f, 2.2f)
         }
     }
 }
