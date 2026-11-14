@@ -1,6 +1,9 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.animation.core.spring
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -79,7 +82,7 @@ import tk.glucodata.ui.util.ExpressiveMotion
  * in and turns it square to the row; letting go springs all three back. Everything moves in the
  * draw and layer phases, and nothing moves at rest or when a screen opens.
  *
- * [round] keeps the frame a circle throughout, for the wizard heroes. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
+ * [onStage] leaves the square out, for the wizard heroes, which set the sensor on their stage. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
  */
 @Composable
 internal fun SensorArtTile(
@@ -89,7 +92,7 @@ internal fun SensorArtTile(
     interactionSource: InteractionSource,
     modifier: Modifier = Modifier,
     replay: Int = 0,
-    round: Boolean = false,
+    onStage: Boolean = false,
     lead: () -> Float = { 0f },
 ) {
     val context = LocalContext.current
@@ -112,19 +115,21 @@ internal fun SensorArtTile(
     }
 
     Box(modifier = modifier.size(tileSize), contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.matchParentSize()) {
-            val progress = press.value
-            val half = size.minDimension / 2f
-            val rest = if (round) half else half * TILE_CORNER
-            val corner = (rest + (half - rest) * progress).coerceIn(0f, half)
-            val shrink = 1f - 0.06f * progress
-            scale(shrink, shrink) {
-                drawRoundRect(containerColor, cornerRadius = CornerRadius(corner))
+        if (!onStage) {
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val progress = press.value
+                val half = size.minDimension / 2f
+                val rest = half * TILE_CORNER
+                val corner = (rest + (half - rest) * progress).coerceIn(0f, half)
+                val shrink = 1f - 0.06f * progress
+                scale(shrink, shrink) {
+                    drawRoundRect(containerColor, cornerRadius = CornerRadius(corner))
+                }
             }
         }
         Canvas(
             modifier = Modifier
-                .requiredSize(tileSize * if (round) HERO_REACH else TILE_REACH)
+                .requiredSize(tileSize * if (onStage) HERO_REACH else TILE_REACH)
                 .graphicsLayer {
                     val progress = press.value
                     val drop = landing.value
@@ -132,7 +137,7 @@ internal fun SensorArtTile(
                     scaleX = squeeze
                     scaleY = squeeze
                     rotationZ = -type.tilt * progress
-                    if (!round) {
+                    if (!onStage) {
                         // Up, and only a touch towards the text, so it stays clear of the title.
                         translationX = tileSize.toPx() * TILE_SHIFT_X * (1f - progress)
                         translationY = -tileSize.toPx() * TILE_SHIFT * (1f - progress)
@@ -152,7 +157,7 @@ private const val TILE_CORNER = 0.57f
 /** The sensor's drawing against the tile's side: a disc spans about its full width. */
 private const val TILE_REACH = 1.26f
 
-/** The sensor against the hero's circle: a little past it, so it sits on it, not in it. */
+/** The sensor's drawing against the hero's tile size. */
 private const val HERO_REACH = 1.1f
 
 /** How far the sensor sits up out of the tile, against the tile's side. */
@@ -201,22 +206,53 @@ private class HeroStage(
     val carrier: Offset = Offset.Zero,
 )
 
+/** How far down the scene stands, so it lies across the stage's top edge: see [drawHeroStage]. */
+private const val SCENE_DROP = 0.08f
+
 private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage = when (companion) {
     HeroCompanion.SCAN -> if (carrier != CodeCarrier.NONE) {
-        HeroStage(width = 2.75f, sensorX = -0.8f, carrier = Offset(0.1f, 0.08f), phone = Offset(0.92f, -0.1f), phoneTurn = 9f)
+        HeroStage(width = 2.75f, sensorX = -0.8f, carrier = Offset(0.1f, 0.12f), phone = Offset(0.92f, -0.06f), phoneTurn = 9f)
     } else {
-        HeroStage(width = 2.1f, sensorX = -0.3f, phone = Offset(0.5f, -0.1f), phoneTurn = 10f)
+        HeroStage(width = 2.1f, sensorX = -0.3f, phone = Offset(0.5f, -0.06f), phoneTurn = 10f)
     }
-    HeroCompanion.NFC -> HeroStage(width = 2.2f, sensorX = -0.32f, phone = Offset(0.66f, -0.14f), phoneTurn = 18f)
-    HeroCompanion.PAIR -> HeroStage(width = 2.3f, sensorX = -0.42f, phone = Offset(0.78f, 0.02f), phoneTurn = 6f)
+    HeroCompanion.NFC -> HeroStage(width = 2.2f, sensorX = -0.32f, phone = Offset(0.66f, -0.1f), phoneTurn = 18f)
+    HeroCompanion.PAIR -> HeroStage(width = 2.3f, sensorX = -0.42f, phone = Offset(0.78f, 0.04f), phoneTurn = 6f)
 }
 
 /**
- * A sensor at wizard size in a circle, with a phone acting out how it connects, and for the
+ * The hero's stage: one wide slab in the list tiles' tone and corner, turned a little against the
+ * sensors' own tilt, low behind the scene so the sensor and the phone rise out past its top edge,
+ * as the list sensor rises out of its square. [open] unfolds it sideways from the sensor; [press]
+ * rounds its corners and settles it under the finger, as a tile does.
+ */
+private fun DrawScope.drawHeroStage(color: Color, edge: Color, tile: Float, sensorX: Float, open: Float, press: Float) {
+    val top = center.y + 0.02f * tile
+    val bottom = size.height - 0.07f * tile
+    val height = bottom - top
+    val left = 0.04f * tile
+    val right = size.width - 0.04f * tile
+    val half = height / 2f
+    val rest = half * TILE_CORNER
+    val corner = rest + (half - rest) * press
+    val pivot = Offset(center.x + sensorX, (top + bottom) / 2f)
+    withTransform({
+        rotate(-2.5f, pivot = Offset(center.x, (top + bottom) / 2f))
+        scale(open * (1f - 0.03f * press), 1f - 0.06f * press, pivot = pivot)
+    }) {
+        // Its front edge, a shade deeper, seen under the same camera as the sensors; pressing
+        // pushes the slab down on to it.
+        val depth = 0.06f * tile * (1f - 0.6f * press)
+        drawRoundRect(edge, topLeft = Offset(left, top + depth), size = Size(right - left, height), cornerRadius = CornerRadius(corner))
+        drawRoundRect(color, topLeft = Offset(left, top + 0.06f * tile - depth), size = Size(right - left, height), cornerRadius = CornerRadius(corner))
+    }
+}
+
+/**
+ * A sensor at wizard size on its stage, with a phone acting out how it connects, and for the
  * families set up from a printed code, the thing the code is on. The phone's screen says what is
  * happening: the NFC mark, the Bluetooth mark, or the camera closing on the code.
  *
- * It answers a touch: the circle gives under the finger, and letting go drops the sensor on
+ * It answers a touch: the stage gives under the finger, and letting go drops the sensor on
  * again and replays the whole story, with a click on letting go and a
  * double click when the phone has the code, the NFC read or the pairing. It is a toy, not a
  * control, so it adds nothing for accessibility services to announce. Between touches nothing
@@ -237,6 +273,8 @@ internal fun SensorHeroArt(
     val scheme = MaterialTheme.colorScheme
     val accent = scheme.primary
     val screenColor = scheme.surfaceContainerHighest
+    val stageColor = scheme.primaryContainer
+    val stageEdge = androidx.compose.ui.graphics.lerp(scheme.primaryContainer, scheme.primary, 0.35f)
     val nfcMark = rememberVectorPainter(Icons.Rounded.Nfc)
     val bluetoothMark = rememberVectorPainter(Icons.Rounded.Bluetooth)
     val tick = rememberNavigationTick()
@@ -268,14 +306,19 @@ internal fun SensorHeroArt(
     val arrival = remember { Animatable(if (firstVisit) 0f else 1f) }
     // The phone's one beat: the NFC read, the camera's sweep and read, the Bluetooth signal.
     val signal = remember { Animatable(1f) }
-    // The sensor's circle springs in with a bounce, and bounces again on every replay.
+    // The stage unfolds from the sensor on a bounce, and bounces again on every replay.
     val pop = remember { Animatable(if (firstVisit) 0f else 1f) }
+    val press = remember { Animatable(0f) }
+    val pressed by interactionSource.collectIsPressedAsState()
+    LaunchedEffect(pressed) {
+        press.animateTo(if (pressed) 1f else 0f, ExpressiveMotion.fastSpatial())
+    }
     LaunchedEffect(plays) {
         if (plays == 0 && !firstVisit) return@LaunchedEffect
         val asked = plays > 0
         coroutineScope {
             launch {
-                pop.snapTo(if (asked) 0.86f else 0f)
+                pop.snapTo(if (asked) 0.9f else 0.2f)
                 pop.animateTo(1f, HeroBounce)
             }
             arrival.snapTo(0f)
@@ -312,20 +355,17 @@ internal fun SensorHeroArt(
             },
         contentAlignment = Alignment.Center,
     ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            drawHeroStage(stageColor, stageEdge, tileSize.toPx(), sensorShift.toPx(), pop.value, press.value)
+        }
         SensorArtTile(
             type = type,
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            containerColor = stageColor,
             tileSize = tileSize,
             interactionSource = interactionSource,
-            modifier = Modifier
-                .offset(x = sensorShift)
-                .graphicsLayer {
-                    val grow = 0.5f + 0.5f * pop.value
-                    scaleX = grow
-                    scaleY = grow
-                },
+            modifier = Modifier.offset(x = sensorShift, y = tileSize * SCENE_DROP),
             replay = plays,
-            round = true,
+            onStage = true,
             lead = { lead },
         )
         // The signal, over the sensor and under the phone: from the phone's edge to the sensor for
@@ -334,7 +374,7 @@ internal fun SensorHeroArt(
             Canvas(modifier = Modifier.matchParentSize()) {
                 val progress = signal.value
                 val tile = tileSize.toPx()
-                val sensor = center + Offset(sensorShift.toPx(), 0f)
+                val sensor = center + Offset(sensorShift.toPx(), SCENE_DROP * tile)
                 val phone = center + Offset(stage.phone.x * tile, stage.phone.y * tile)
                 val (from, toward) = if (companionKind == HeroCompanion.NFC) {
                     // The phone's near edge, where it faces the sensor.

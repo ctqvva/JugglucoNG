@@ -207,10 +207,14 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 **The wizard hero** (`SensorWizardHero`)
 
-- Every wizard's main step opens with one, never a bespoke card. It shows the sensor on a
-  circle in `primaryContainer` and a phone acting out how the family connects. Nothing else:
-  no backdrop shapes, badges or bursts around them. Owner rejected a cookie halo and a
-  colour-blocked pill with a success burst as clutter (2026-11-14). The phone's screen says it in one glyph:
+- Every wizard's main step opens with one, never a bespoke card. The sensor and a phone
+  acting out how the family connects stand on one stage: a wide slab in the list tiles' tone
+  (`primaryContainer`) and corner, turned 2.5° against the sensors' tilt, with a front edge a
+  shade deeper (`primaryContainer` 35% towards `primary`). It sits low, so the sensor, the
+  phone and what the code is printed on rise out past its top edge, as a list sensor rises out
+  of its square. Nothing is centred under the sensor: a disc under it reads as its adhesive
+  patch. Nothing else is added either; the owner rejected a cookie halo, and a colour-blocked
+  pill with a success burst, as clutter (2026-11-14). The phone's screen says it in one glyph:
 
 | Family connects by | Phone | Screen | Beside them |
 |---|---|---|---|
@@ -235,13 +239,14 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 **Hero motion and touch**
 
-- The entrance plays the first time a hero opens after launch: the circle springs up with an
-  overshooting bounce (damping 0.45), the phone and what the code is printed on come in, and
-  the phone does its one beat. Later
+- The entrance plays the first time a hero opens after launch: the stage unfolds sideways from
+  the sensor on an overshooting bounce (damping 0.45), the phone and what the code is printed
+  on come in, and the phone does its one beat. Later
   visits, rotation, and the fold between sizes find it already in place. Nothing runs at rest.
 - It is a toy, not a control, so it adds nothing for accessibility services. Under the finger
-  the circle gives. On release the hero clicks (`NavigationTick.play`), the circle bounces,
-  the sensor drops back on and the story replays. When the phone has the read, it
+  the stage is pushed down onto its edge and its corners round, as a pressed tile's do. On
+  release the hero clicks (`NavigationTick.play`), the stage bounces, the sensor drops back on
+  and the story replays. When the phone has the read, it
   double-clicks (`NavigationTick.playConfirm`).
 - A pair trading places clicks once as they pass.
 
