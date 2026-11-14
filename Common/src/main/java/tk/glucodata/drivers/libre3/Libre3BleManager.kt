@@ -1004,6 +1004,8 @@ class Libre3BleManager(sensorId: String) :
                     VirtualGlucoseSensorBridge.mirrorToNative(sensorId, gapFillers, "$LOG_LABEL history", ManagedSensorUiFamily.LIBRE3)
                 }
             }
+            // Backfill can arrive after the live export cursor has passed these slots.
+            if (minutes.isNotEmpty() || history.isNotEmpty()) exportToHealthConnect()
         }
         return true
     }

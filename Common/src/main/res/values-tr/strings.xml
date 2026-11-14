@@ -3420,4 +3420,5 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="libre3_status_certificate_rejected">Sensör sertifikası tanınmadı; sensörü yeniden tarayın</string>
     <string name="libre3_status_identity_missing">Libre 3 uygulama kimliği içe aktarılmadı</string>
     <string name="libre3_status_identity_rejected">Sensör uygulama kimliğini kabul etmedi</string>
+    <string name="libre3_managed_receiver_save_failed">Alıcı kimliği kaydedilemedi. Cihaz depolamasını kontrol edip yeniden deneyin. Kimlik kaydedilene kadar NFC eşleştirmesi engellenir.</string>
 </resources>

@@ -3577,4 +3577,5 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="libre3_status_certificate_rejected">Shahaadada dareemaha lama aqoonsan; mar kale iskaan garee</string>
     <string name="libre3_status_identity_missing">Aqoonsiga abka Libre 3 lama soo gelin</string>
     <string name="libre3_status_identity_rejected">Dareemuhu ma aqbalin aqoonsiga abka</string>
+    <string name="libre3_managed_receiver_save_failed">Aqoonsiga qaataha lama kaydin karin. Hubi kaydka qalabka oo mar kale isku day. Isku xirka NFC waa xanniban yahay ilaa aqoonsiga la kaydiyo.</string>
 </resources>

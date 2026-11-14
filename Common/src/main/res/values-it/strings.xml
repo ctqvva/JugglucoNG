@@ -3383,4 +3383,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_status_certificate_rejected">Certificato del sensore non riconosciuto; scansiona di nuovo il sensore</string>
     <string name="libre3_status_identity_missing">Nessuna identità Libre 3 importata</string>
     <string name="libre3_status_identity_rejected">Il sensore non ha accettato l’identità dell’app</string>
+    <string name="libre3_managed_receiver_save_failed">Impossibile salvare l’ID ricevitore. Controlla lo spazio sul dispositivo e riprova. L’associazione NFC resta bloccata finché l’ID non viene salvato.</string>
 </resources>

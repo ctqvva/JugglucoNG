@@ -3493,4 +3493,5 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="libre3_status_certificate_rejected">Мэдрэгчийн гэрчилгээ танигдсангүй; дахин уншуулна уу</string>
     <string name="libre3_status_identity_missing">Libre 3 аппын таних мэдээлэл импортлоогүй</string>
     <string name="libre3_status_identity_rejected">Мэдрэгч аппын таних мэдээллийг зөвшөөрсөнгүй</string>
+    <string name="libre3_managed_receiver_save_failed">Хүлээн авагчийн ID-г хадгалж чадсангүй. Төхөөрөмжийн санах ойг шалгаад дахин оролдоно уу. ID хадгалагдах хүртэл NFC холболт хаалттай байна.</string>
 </resources>

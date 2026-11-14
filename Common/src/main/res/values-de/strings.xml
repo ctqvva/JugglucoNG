@@ -3505,4 +3505,5 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="libre3_status_certificate_rejected">Sensorzertifikat nicht erkannt; Sensor erneut scannen</string>
     <string name="libre3_status_identity_missing">Keine Libre-3-App-Identität importiert</string>
     <string name="libre3_status_identity_rejected">Sensor hat die App-Identität nicht akzeptiert</string>
+    <string name="libre3_managed_receiver_save_failed">Empfänger-ID konnte nicht gespeichert werden. Gerätespeicher prüfen und erneut versuchen. NFC-Kopplung bleibt bis zum Speichern der ID gesperrt.</string>
 </resources>

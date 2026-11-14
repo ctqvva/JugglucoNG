@@ -3452,4 +3452,5 @@
     <string name="libre3_status_certificate_rejected">Nie rozpoznano certyfikatu sensora; zeskanuj sensor ponownie</string>
     <string name="libre3_status_identity_missing">Nie zaimportowano tożsamości aplikacji Libre 3</string>
     <string name="libre3_status_identity_rejected">Sensor nie zaakceptował tożsamości aplikacji</string>
+    <string name="libre3_managed_receiver_save_failed">Nie udało się zapisać ID odbiornika. Sprawdź pamięć urządzenia i spróbuj ponownie. Parowanie NFC jest zablokowane do czasu zapisania ID.</string>
 </resources>

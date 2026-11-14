@@ -64,7 +64,7 @@ public class GlucoseIterator implements ListIterator<BloodGlucoseRecord> {
 private    BloodGlucoseRecord getglucose(long time,double value) {
     final ZoneOffset offset = null;
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        return new BloodGlucoseRecord(Instant.ofEpochSecond(time), offset,base.metadata, BloodGlucose.milligramsPerDeciliter(value),1,0,0);
+        return new BloodGlucoseRecord(Instant.ofEpochSecond(time), offset, HealthConnectRecordMetadata.forReading(base.metadata, base.stablePrefix, base.startSeconds, time, base.exportVersion), BloodGlucose.milligramsPerDeciliter(value),1,0,0);
     }
     else
             return null;

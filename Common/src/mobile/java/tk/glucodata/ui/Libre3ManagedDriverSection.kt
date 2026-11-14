@@ -76,10 +76,18 @@ fun Libre3ManagedDriverSection() {
         loaded = true
     }
 
-    // Recomputed on every composition: the LibreView account ID can change while this is shown.
-    val receiver = Libre3ManagedNfc.receiverId(context)
-    val receiverText = if (receiver == 0L) stringResource(R.string.libre3_managed_receiver_none)
-    else Libre3ReceiverId.toWireHex(receiver)
+    var receiver by remember { mutableStateOf<Long?>(null) }
+    var receiverSaveFailed by remember { mutableStateOf(false) }
+    LaunchedEffect(useAccountReceiver, reload) {
+        val result = withContext(Dispatchers.IO) { runCatching { Libre3ManagedNfc.receiverId(context) } }
+        receiver = result.getOrNull()
+        receiverSaveFailed = result.isFailure
+    }
+    val receiverText = when (val id = receiver) {
+        null -> stringResource(R.string.loading_data)
+        0L -> stringResource(R.string.libre3_managed_receiver_none)
+        else -> Libre3ReceiverId.toWireHex(id)
+    }
 
     val importFailed = stringResource(R.string.libre3_managed_identity_import_failed)
     val importDone = stringResource(R.string.libre3_managed_identity_imported)
@@ -146,7 +154,8 @@ fun Libre3ManagedDriverSection() {
         SettingsSwitchItem(
             searchAnchor = SettingsSearchAnchors.forRow(R.string.libre3_managed_receiver_account),
             title = stringResource(R.string.libre3_managed_receiver_account),
-            subtitle = stringResource(R.string.libre3_managed_receiver_desc, receiverText),
+            subtitle = if (receiverSaveFailed) stringResource(R.string.libre3_managed_receiver_save_failed)
+                else stringResource(R.string.libre3_managed_receiver_desc, receiverText),
             checked = useAccountReceiver,
             onCheckedChange = {
                 useAccountReceiver = it
@@ -159,6 +168,11 @@ fun Libre3ManagedDriverSection() {
             iconTint = MaterialTheme.colorScheme.secondary,
             position = CardPosition.BOTTOM,
         )
+    }
+    if (receiverSaveFailed) {
+        OutlinedButton(onClick = { reload++ }, shapes = ButtonDefaults.shapes()) {
+            Text(stringResource(R.string.ottai_retry))
+        }
     }
     Card(
         shape = RoundedCornerShape(28.dp),

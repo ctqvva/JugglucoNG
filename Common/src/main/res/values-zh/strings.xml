@@ -3398,4 +3398,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_status_certificate_rejected">无法识别传感器证书；请重新扫描传感器</string>
     <string name="libre3_status_identity_missing">尚未导入 Libre 3 应用身份</string>
     <string name="libre3_status_identity_rejected">传感器未接受应用身份</string>
+    <string name="libre3_managed_receiver_save_failed">无法保存接收器 ID。请检查设备存储空间并重试。在 ID 保存成功前，NFC 配对将被阻止。</string>
 </resources>

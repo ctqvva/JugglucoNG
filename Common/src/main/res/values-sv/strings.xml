@@ -3392,4 +3392,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_status_certificate_rejected">Sensorcertifikatet känns inte igen; skanna sensorn igen</string>
     <string name="libre3_status_identity_missing">Ingen Libre 3-appidentitet importerad</string>
     <string name="libre3_status_identity_rejected">Sensorn accepterade inte appidentiteten</string>
+    <string name="libre3_managed_receiver_save_failed">Mottagar-ID kunde inte sparas. Kontrollera enhetens lagring och försök igen. NFC-parkoppling är blockerad tills ID har sparats.</string>
 </resources>

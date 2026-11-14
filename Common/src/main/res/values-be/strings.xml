@@ -3482,4 +3482,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_status_certificate_rejected">Сертыфікат сенсара не распазнаны; адскануйце сенсар зноў</string>
     <string name="libre3_status_identity_missing">Ключы праграмы Libre 3 не імпартаваны</string>
     <string name="libre3_status_identity_rejected">Сенсар не прыняў ключы праграмы</string>
+    <string name="libre3_managed_receiver_save_failed">Не ўдалося захаваць ID прыёмніка. Праверце памяць прылады і паўтарыце спробу. Спалучэнне праз NFC заблакавана да захавання ID.</string>
 </resources>

@@ -3435,4 +3435,5 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="libre3_status_certificate_rejected">Sensorcertificaat niet herkend; scan de sensor opnieuw</string>
     <string name="libre3_status_identity_missing">Geen Libre 3-app-identiteit geïmporteerd</string>
     <string name="libre3_status_identity_rejected">Sensor heeft de app-identiteit geweigerd</string>
+    <string name="libre3_managed_receiver_save_failed">De ontvanger-ID kon niet worden opgeslagen. Controleer de apparaatopslag en probeer opnieuw. NFC-koppeling blijft geblokkeerd totdat de ID is opgeslagen.</string>
 </resources>

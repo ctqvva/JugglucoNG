@@ -90,7 +90,7 @@ constexpr float convfactordL = 180.182f;
 constexpr int maxminutes = 100000;
 float gconvert(int value) { return value; }
 /* SCANDATA */;
-struct Info { uint32_t caliNr = 1, viewMode = 0, starttime = 1760000000, pollcount = 0, pollstart = 0; uint16_t nightiter = 0; CaliPara caliPara[1]; };
+struct Info { unsigned family = 0; unsigned managedFamilyCode() const { return family; } uint16_t healthconnectiter = 0; uint32_t caliNr = 1, viewMode = 0, starttime = 1760000000, pollcount = 0, pollstart = 0; uint16_t nightiter = 0; CaliPara caliPara[1]; };
 struct SensorGlucoseData {
     static recursive_mutex &pollWriteMutex() { static recursive_mutex lock; return lock; }
     // Whether the calling thread holds the poll write lock: it is a recursive mutex,
@@ -243,7 +243,11 @@ void setstreaming(SensorGlucoseData *) { ++streamings; }
             head, tail = body[:brace].rstrip(), body[brace:]
             body = head[:-1] + ",bool primaryIsResolved=false) " + tail
         return body
+    code += (CPP / "healthconnectbackfill.hpp").read_text().replace('#pragma once', '')
+    code += "\nstatic HealthConnectBackfillProgress healthConnectBackfillProgress;\n"
     code += extract("g.cpp", "static bool storeGlucoseStreamSample(")
+    code += "\njint " + extract("g.cpp", "fromjava(healthConnectfromSensorptr)(")
+    code += extract("g.cpp", 'extern "C" JNIEXPORT jboolean JNICALL fromjava(healthConnectWritten)(')
     code = code.replace("/* WEAR_HISTORY_ORIGIN */", (CPP / "wearhistoryorigin.hpp").read_text().replace('#pragma once', ''))
     code += "\n#define WEAROS\n"
     code += extract("g.cpp", "static bool addGlucoseStreamInternal(")
@@ -293,6 +297,48 @@ char *writev3entry(char *out, const ScanData *value, const sensorname_t *, bool,
     code += extract("net/watchserver/uploader.cpp", "static const char *writeNightscoutV3UploadEntry(")
     code += r'''
 int main() {
+    {
+        SensorGlucoseData libre3{"libre3"};
+        libre3.capacity = 128;
+        libre3.info.family = 9;
+        libre3.info.pollcount = 101;
+        libre3.info.pollstart = 100;
+        libre3.info.healthconnectiter = 101;
+        const auto ptr = reinterpret_cast<jlong>(&libre3);
+        const auto start = libre3.getstarttime();
+        // Exporting live first must not permanently hide an older recovered minute.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 12, 0, 0, false, false, true, nullptr));
+        assert(libre3.info.healthconnectiter == 50);
+        assert((healthConnectfromSensorptr(&env, nullptr, ptr) & 0xffff) == 50);
+        assert(healthConnectWritten(&env, nullptr, ptr, 101));
+        assert(libre3.info.healthconnectiter == 101);
+        // Replaying an occupied slot does not cause an endless export rewind.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 12, 0, 0, false, false, true, nullptr));
+        assert(libre3.info.healthconnectiter == 101);
+        // The gap may be ahead of the cursor but already skipped by serialization.
+        libre3.info.healthconnectiter = 20;
+        healthConnectfromSensorptr(&env, nullptr, ptr);
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+30*60, 12, 0, 0, false, false, true, nullptr));
+        assert(!healthConnectWritten(&env, nullptr, ptr, 101));
+        assert(libre3.info.healthconnectiter == 20);
+        healthConnectfromSensorptr(&env, nullptr, ptr);
+        assert(healthConnectWritten(&env, nullptr, ptr, 101));
+        // A late acknowledgement must not overwrite a rewind behind its start.
+        libre3.info.healthconnectiter = 80;
+        healthConnectfromSensorptr(&env, nullptr, ptr);
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+40*60, 12, 0, 0, false, false, true, nullptr));
+        assert(!healthConnectWritten(&env, nullptr, ptr, 101));
+        assert(libre3.info.healthconnectiter == 40);
+        // Only the in-flight guard is volatile: the lower durable cursor survives restart.
+        healthConnectBackfillProgress = HealthConnectBackfillProgress{};
+        assert((healthConnectfromSensorptr(&env, nullptr, ptr) & 0xffff) == 40);
+        assert(healthConnectWritten(&env, nullptr, ptr, 101));
+        // The new rewind policy is limited to the Libre 3 managed family.
+        libre3.info.family = 0;
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+10*60, 12, 0, 0, false, false, true, nullptr));
+        assert(libre3.info.healthconnectiter == 101);
+    }
+
     static_assert(sizeof(ScanData) == 20);
     {
         SensorGlucoseData managed{"SIBI:0111801JGS9"};

@@ -3461,4 +3461,5 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="libre3_status_certificate_rejected">A szenzor tanúsítványa nem ismerhető fel; olvassa be újra</string>
     <string name="libre3_status_identity_missing">Nincs importált Libre 3 alkalmazásazonosság</string>
     <string name="libre3_status_identity_rejected">A szenzor nem fogadta el az alkalmazásazonosságot</string>
+    <string name="libre3_managed_receiver_save_failed">Nem sikerült menteni a vevőazonosítót. Ellenőrizze az eszköz tárhelyét, majd próbálja újra. Az NFC-párosítás az azonosító mentéséig le van tiltva.</string>
 </resources>

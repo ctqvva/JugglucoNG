@@ -1276,7 +1276,7 @@ public class Natives {
 
         public static native int healthConnectfromSensorptr(long sensorptr);
 
-        public static native void healthConnectWritten(long sensorptr, int pos);
+        public static native boolean healthConnectWritten(long sensorptr, int pos);
 
         public static native void sethealthConnect(boolean val);
 
