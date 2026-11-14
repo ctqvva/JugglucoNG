@@ -102,6 +102,19 @@ class SettingsSearchMatcherTests {
     }
 
     @Test
+    fun aMatchThatTookSeveralTermsNamesEachOnce() {
+        val rows = listOf(
+            SettingsSearchMatcher.Candidate(
+                "Style", "Style", "Floating glucose", listOf("Opacity", "Corner radius", "Rounded corners"),
+            ),
+        )
+        // One term per word, in their own order; "Rounded corners" would only repeat "corner".
+        assertEquals("Opacity · Corner radius", SettingsSearchMatcher.matches("corner opacity", rows).single().via)
+        // A term that holds both words is enough on its own.
+        assertEquals("Rounded corners", SettingsSearchMatcher.matches("rounded corner", rows).single().via)
+    }
+
+    @Test
     fun caseAccentsAndPunctuationAreIgnored() {
         assertEquals(listOf("Étalonnage"), search("etalon"))
         assertEquals(listOf("Glucose unit"), search("MG/DL"))

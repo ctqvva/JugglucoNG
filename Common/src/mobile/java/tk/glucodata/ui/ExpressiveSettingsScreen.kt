@@ -239,10 +239,12 @@ fun ExpressiveSettingsScreen(
     // Like the Nightscout mode, these only change on their own screen: once per visit is enough.
     val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsStateWithLifecycle()
     val notificationRows = remember(context) { SettingsSearchIndex.notificationRows(context) }
+    val hiddenRows = remember(context) { SettingsSearchIndex.hiddenRows(context) }
+    val doseHints by viewModel.stateDoseHintEnabled.collectAsStateWithLifecycle()
     val searchCandidates = remember(
         context, searchLocales, showLibreView, showDexcomShare, showMqAccount, showOttaiSettings,
         showLibre2Identity, showAppTrend, nightscoutUploadMode, journalEnabled, journalQuickAddButton, showLumiflex,
-        notificationChartEnabled
+        notificationChartEnabled, doseHints
     ) {
         SettingsSearchIndex.resolve(context) { condition ->
             when (condition) {
@@ -260,6 +262,14 @@ fun ExpressiveSettingsScreen(
                 SettingsSearchCondition.NOTIFICATION_CHART -> notificationChartEnabled || notificationRows.collapsedChart
                 SettingsSearchCondition.NOTIFICATION_IOB_COB -> notificationRows.iobOrCob
                 SettingsSearchCondition.NOTIFICATION_RISK -> notificationRows.iobOrCob && notificationRows.riskColored
+                SettingsSearchCondition.NOTIFICATION_FONT_WEIGHT -> android.os.Build.VERSION.SDK_INT >= 31
+                SettingsSearchCondition.RESTRICTED_BIOMETRICS -> hiddenRows.restrictedBiometrics
+                SettingsSearchCondition.DOSE_HINTS -> doseHints
+                SettingsSearchCondition.WATCH_FORWARDING_INTERVAL -> hiddenRows.watchForwardingInterval
+                SettingsSearchCondition.MIRROR_CONNECTIONS -> hiddenRows.mirrorConnections
+                SettingsSearchCondition.CLONE_CUSTOM_SERVER -> hiddenRows.customCloneServer
+                SettingsSearchCondition.CLONE_CUSTOM_RENDEZVOUS -> hiddenRows.customRendezvous
+                SettingsSearchCondition.APP_UPDATES_SUPPORTED -> hiddenRows.appUpdatesSupported
             }
         }
     }
@@ -355,11 +365,11 @@ fun ExpressiveSettingsScreen(
         pendingExportPackageImportUri = null
     }
 
-    fun openSearchResult(entry: SettingsSearchEntry) {
+    fun openSearchResult(result: ResolvedSettingsSearchEntry) {
         focusManager.clearFocus()
-        when (val target = entry.target) {
+        when (val target = result.entry.target) {
             is SettingsSearchTarget.Route -> {
-                SettingsSearchReveal.request(entry.anchor)
+                SettingsSearchReveal.request(result.anchor)
                 navController.navigate(target.route)
             }
             is SettingsSearchTarget.Action -> when (target.action) {

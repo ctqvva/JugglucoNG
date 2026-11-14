@@ -36,8 +36,9 @@ internal object SettingsSearchMatcher {
     }
 
     /**
-     * One hit. [via] is the term that brought it in when the title and location alone do
-     * not hold every word of the query: the result shows it, so a match is never a mystery.
+     * One hit. [via] names the terms that brought it in when the title and location alone
+     * do not hold every word of the query, joined by [VIA_SEPARATOR]: the result shows
+     * them, so a match is never a mystery.
      * [direct] is false for an entry found only because of where it lives (everything inside
      * "Journal" for "journal"): it is not what was asked for, only near it.
      */
@@ -57,13 +58,21 @@ internal object SettingsSearchMatcher {
                 val via = if (missing.isEmpty()) {
                     null
                 } else {
-                    // Every missing word has to be in a term or description; name the one that
-                    // holds most, a term (another name) before a description on a tie.
+                    // Every missing word has to be in a term or description, and the result names
+                    // all it took: "opacity corner" may need two. Fewest first, by taking the
+                    // one that holds most of what is left, a term before a description on a tie.
                     val extras = candidate.normalizedExtras
                     if (!missing.all { token -> extras.any { it.contains(token) } }) {
                         return@mapIndexedNotNull null
                     }
-                    candidate.extras[extras.indices.maxBy { i -> missing.count { extras[i].contains(it) } }]
+                    val named = mutableListOf<Int>()
+                    var left = missing
+                    while (left.isNotEmpty()) {
+                        val best = extras.indices.maxBy { i -> left.count { extras[i].contains(it) } }
+                        named += best
+                        left = left.filterNot { extras[best].contains(it) }
+                    }
+                    named.sorted().joinToString(VIA_SEPARATOR) { candidate.extras[it] }
                 }
                 val rank = rank(candidate, phrase, tokens)
                 Ranked(Match(candidate.item, via, direct = rank < LOCATION_ONLY), rank, candidate.level, index)
@@ -75,6 +84,9 @@ internal object SettingsSearchMatcher {
     private class Ranked<T>(val match: Match<T>, val rank: Int, val level: Int, val index: Int)
 
     private const val LOCATION_ONLY = 4
+
+    /** Between the names [Match.via] lists, as the subtitle already separates its parts. */
+    const val VIA_SEPARATOR = " · "
 
     private fun rank(candidate: Candidate<*>, phrase: String, tokens: List<String>): Int {
         val title = candidate.normalizedTitle

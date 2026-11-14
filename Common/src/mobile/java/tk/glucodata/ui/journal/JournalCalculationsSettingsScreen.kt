@@ -104,7 +104,6 @@ fun JournalCalculationsSettingsScreen(
                 SettingsSearchAnchors.forRow(R.string.journal_eiob_display_title),
                 SettingsSearchAnchors.forRow(R.string.state_dose_hint_title),
                 SettingsSearchAnchors.forRow(R.string.state_dose_hint_in_range_title),
-        SettingsSearchAnchors.forRow(R.string.state_dose_hint_horizon),
                 SettingsSearchAnchors.forRow(R.string.state_dose_hint_horizon),
             )
         )

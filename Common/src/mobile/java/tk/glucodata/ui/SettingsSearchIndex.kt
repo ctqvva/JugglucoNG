@@ -92,7 +92,12 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TipsAndUpdates
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.ui.graphics.vector.ImageVector
+import tk.glucodata.CloneIceNetworkConfigStore
+import tk.glucodata.Natives
+import tk.glucodata.NotificationForwardingSettings
 import tk.glucodata.R
+import tk.glucodata.ui.restricted.RestrictedBiometrics
+import tk.glucodata.update.UpdateEligibility
 
 /** Something on the Settings tab itself that opens a dialog or sheet rather than a screen. */
 internal enum class SettingsSearchAction {
@@ -195,6 +200,30 @@ internal enum class SettingsSearchCondition {
 
     /** "Include missing COB", shown while uncovered insulin is highlighted. */
     NOTIFICATION_RISK,
+
+    /** The notification's font weight: Android 12 and later only. */
+    NOTIFICATION_FONT_WEIGHT,
+
+    /** Restricted mode's fingerprint unlock, on a phone that has biometrics set up. */
+    RESTRICTED_BIOMETRICS,
+
+    /** Dose hint horizon, shown while dose hints are on. */
+    DOSE_HINTS,
+
+    /** The watch forwarding interval, shown while forwarding is at an interval. */
+    WATCH_FORWARDING_INTERVAL,
+
+    /** Mirror's own options, shown once there is a connection. */
+    MIRROR_CONNECTIONS,
+
+    /** Fallback servers, shown next to a TURN or rendezvous server of the user's own. */
+    CLONE_CUSTOM_SERVER,
+
+    /** Certificate verification, shown with a rendezvous server of the user's own. */
+    CLONE_CUSTOM_RENDEZVOUS,
+
+    /** The update options; a store or debug build has none. */
+    APP_UPDATES_SUPPORTED,
 }
 
 /**
@@ -217,6 +246,11 @@ internal class SettingsSearchEntry(
     val condition: SettingsSearchCondition? = null,
     val anchor: String? = null,
     /**
+     * Where the result leads while [condition] hides the row: the control that brings it
+     * back (the dose hints switch for the horizon). Without one, a hidden row is no result.
+     */
+    val otherwise: String? = null,
+    /**
      * A setting on a screen rather than a screen or dialog of its own. Results show these
      * quieter, so the places stand out from what is inside them. Anything with an [anchor]
      * is one; a few rows that cannot be scrolled to say so here.
@@ -229,6 +263,8 @@ internal class ResolvedSettingsSearchEntry(
     val entry: SettingsSearchEntry,
     val title: String,
     val location: String,
+    /** The row to land on: the entry's own, or [SettingsSearchEntry.otherwise] while it is hidden. */
+    val anchor: String?,
 )
 
 internal object SettingsSearchIndex {
@@ -247,17 +283,46 @@ internal object SettingsSearchIndex {
         )
     }
 
+    /**
+     * The state behind the other rows that come and go, read from where their screens read
+     * it. Read once per visit to Settings: each only changes on the screen it belongs to.
+     */
+    class HiddenRows(
+        val watchForwardingInterval: Boolean,
+        val mirrorConnections: Boolean,
+        val customCloneServer: Boolean,
+        val customRendezvous: Boolean,
+        val restrictedBiometrics: Boolean,
+        val appUpdatesSupported: Boolean,
+    )
+
+    fun hiddenRows(context: Context): HiddenRows {
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+        val cloneConfig = CloneIceNetworkConfigStore.load(context)
+        val customRendezvous = cloneConfig.rendezvousHost.isNotEmpty()
+        return HiddenRows(
+            watchForwardingInterval = NotificationForwardingSettings.choice(NotificationForwardingSettings.mode(prefs)) ==
+                NotificationForwardingSettings.MODE_INTERVAL,
+            mirrorConnections = (0 until Natives.backuphostNr()).any { !Natives.isWearOS(it) },
+            customCloneServer = customRendezvous || Natives.TurnServerNR() > 0,
+            customRendezvous = customRendezvous,
+            restrictedBiometrics = RestrictedBiometrics.isAvailable(context),
+            appUpdatesSupported = UpdateEligibility.blocker(context) == null,
+        )
+    }
+
     fun resolve(
         context: Context,
         isShown: (SettingsSearchCondition) -> Boolean,
     ): List<SettingsSearchMatcher.Candidate<ResolvedSettingsSearchEntry>> =
         entries
-            .filter { entry -> entry.condition?.let(isShown) ?: true }
-            .map { entry ->
+            .mapNotNull { entry ->
+                val shown = entry.condition?.let(isShown) ?: true
+                val anchor = if (shown) entry.anchor else entry.otherwise ?: return@mapNotNull null
                 val title = context.getString(entry.title)
                 val location = entry.path.joinToString(" › ") { context.getString(it) }
                 SettingsSearchMatcher.Candidate(
-                    item = ResolvedSettingsSearchEntry(entry, title, location),
+                    item = ResolvedSettingsSearchEntry(entry, title, location, anchor),
                     title = title,
                     location = location,
                     terms = entry.terms,
@@ -323,9 +388,11 @@ internal object SettingsSearchIndex {
             terms = listOf("mg/dL", "mmol/L")),
         SettingsSearchEntry(R.string.app_updates_title, TOP, Icons.Default.SystemUpdate, P, route("settings/app-updates")),
         SettingsSearchEntry(R.string.app_updates_auto_title, APP_UPDATES, Icons.Default.NotificationsActive, P,
-            route("settings/app-updates"), anchor = row(R.string.app_updates_auto_title)),
+            route("settings/app-updates"), condition = SettingsSearchCondition.APP_UPDATES_SUPPORTED,
+            anchor = row(R.string.app_updates_auto_title)),
         SettingsSearchEntry(R.string.app_updates_source_title, APP_UPDATES, Icons.Default.Link, P,
-            route("settings/app-updates"), terms = listOf("GitHub"), anchor = row(R.string.app_updates_source_title)),
+            route("settings/app-updates"), terms = listOf("GitHub"), condition = SettingsSearchCondition.APP_UPDATES_SUPPORTED,
+            anchor = row(R.string.app_updates_source_title)),
 
         // Everyday (second group, no label)
         SettingsSearchEntry(R.string.glucose_alerts_title, TOP, Icons.Default.AddAlert, E, route("settings/alerts"),
@@ -431,8 +498,8 @@ internal object SettingsSearchIndex {
             Icons.Default.CenterFocusStrong, P, route("settings/journal/calculations"),
             anchor = row(R.string.state_dose_hint_in_range_title)),
         SettingsSearchEntry(R.string.state_dose_hint_horizon, CALCULATIONS + R.string.journal_calculations_suggestions_section,
-            Icons.Default.TipsAndUpdates, P, route("settings/journal/calculations"),
-            anchor = row(R.string.state_dose_hint_horizon)),
+            Icons.Default.TipsAndUpdates, P, route("settings/journal/calculations"), condition = SettingsSearchCondition.DOSE_HINTS,
+            anchor = row(R.string.state_dose_hint_horizon), otherwise = row(R.string.state_dose_hint_title)),
         SettingsSearchEntry(R.string.journal_import_health_activity, JOURNAL_IMPORT, Icons.AutoMirrored.Filled.DirectionsRun, P,
             route("settings/journal"), keywords = listOf(R.string.journal_import_health_activity_desc),
             terms = listOf("Health Connect"), anchor = SettingsSearchAnchors.JOURNAL_HEALTH_ACTIVITY),
@@ -521,7 +588,8 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.font_source, NOTIFICATION + R.string.typography, Icons.Default.ClearAll, S,
             route("settings/notification-display"), terms = listOf("font"), anchor = row(R.string.font_source)),
         SettingsSearchEntry(R.string.font_weight_label, NOTIFICATION + R.string.typography, Icons.Default.ClearAll, S,
-            route("settings/notification-display"), terms = listOf("bold"), anchor = row(R.string.font_weight_label)),
+            route("settings/notification-display"), terms = listOf("bold"),
+            condition = SettingsSearchCondition.NOTIFICATION_FONT_WEIGHT, anchor = row(R.string.font_weight_label)),
         SettingsSearchEntry(R.string.floatglucose, DISPLAY, Icons.Default.PictureInPicture, S, route("settings/floating-display"),
             keywords = listOf(R.string.settings_floating_desc), terms = listOf("overlay")),
         SettingsSearchEntry(R.string.dynamic_island_mode, DISPLAY + R.string.floatglucose, Icons.Default.PictureInPicture, S,
@@ -627,11 +695,13 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.settings_mirror_desc, R.string.mirror_send_data, R.string.mirror_receive_data),
             terms = listOf("clone", "follower", "QR")),
         SettingsSearchEntry(R.string.mirror_background_liveness, MIRROR, Icons.Default.BatterySaver, T,
-            route("settings/mirror"), anchor = row(R.string.mirror_background_liveness)),
+            route("settings/mirror"), condition = SettingsSearchCondition.MIRROR_CONNECTIONS,
+            anchor = row(R.string.mirror_background_liveness)),
         SettingsSearchEntry(R.string.clone_network_title, MIRROR, Icons.Default.Hub, T, route("settings/turnserver"),
             keywords = listOf(R.string.clone_network_summary), terms = listOf("TURN", "STUN", "ICE")),
         SettingsSearchEntry(R.string.clone_allow_fallback_servers, CLONE_NETWORK, Icons.Default.AltRoute, T,
-            route("settings/turnserver"), anchor = row(R.string.clone_allow_fallback_servers)),
+            route("settings/turnserver"), condition = SettingsSearchCondition.CLONE_CUSTOM_SERVER,
+            anchor = row(R.string.clone_allow_fallback_servers), otherwise = row(R.string.use_custom_rendezvous_server)),
         SettingsSearchEntry(R.string.clone_local_short, CLONE_NETWORK, Icons.Default.Lan, T,
             route("settings/turnserver"), terms = listOf("LAN"), anchor = row(R.string.clone_local_short)),
         SettingsSearchEntry(R.string.clone_stun_short, CLONE_NETWORK, Icons.Default.Hub, T,
@@ -641,7 +711,8 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.use_custom_rendezvous_server, CLONE_NETWORK, Icons.Default.Dns, T,
             route("settings/turnserver"), anchor = row(R.string.use_custom_rendezvous_server)),
         SettingsSearchEntry(R.string.verify_rendezvous_certificate, CLONE_NETWORK, Icons.Default.VerifiedUser, T,
-            route("settings/turnserver"), terms = listOf("TLS", "SSL"), anchor = row(R.string.verify_rendezvous_certificate)),
+            route("settings/turnserver"), terms = listOf("TLS", "SSL"), condition = SettingsSearchCondition.CLONE_CUSTOM_RENDEZVOUS,
+            anchor = row(R.string.verify_rendezvous_certificate), otherwise = row(R.string.use_custom_rendezvous_server)),
         SettingsSearchEntry(R.string.use_custom_turn_server, CLONE_NETWORK, Icons.Default.CloudQueue, T,
             route("settings/turnserver"), terms = listOf("TURN"), anchor = row(R.string.use_custom_turn_server)),
         SettingsSearchEntry(R.string.webserver, SHARING, Icons.Default.Dns, T, route("settings/webserver"),
@@ -661,7 +732,8 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.watch_forwarding_title, WATCH, Icons.AutoMirrored.Filled.Send, P,
             route("settings/watch"), terms = listOf("notification"), anchor = row(R.string.watch_forwarding_title)),
         SettingsSearchEntry(R.string.watch_forwarding_interval_title, WATCH, Icons.Default.Timer, P,
-            route("settings/watch"), anchor = row(R.string.watch_forwarding_interval_title)),
+            route("settings/watch"), condition = SettingsSearchCondition.WATCH_FORWARDING_INTERVAL,
+            anchor = row(R.string.watch_forwarding_interval_title), otherwise = row(R.string.watch_forwarding_title)),
         SettingsSearchEntry(R.string.wearos_config_title, WATCH, Icons.Default.Watch, P,
             route("settings/watch/wearos-config"), terms = listOf("Wear OS")),
         SettingsSearchEntry(R.string.wear_auto_sensor_switch, WATCH + R.string.wearos_config_title, Icons.Default.SwapHoriz, P,
@@ -709,7 +781,8 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.restricted_pin_title, RESTRICTED, Icons.Default.Password, N,
             route("settings/restricted-mode"), terms = listOf("PIN"), anchor = row(R.string.restricted_pin_title)),
         SettingsSearchEntry(R.string.restricted_biometric_title, RESTRICTED, Icons.Default.Fingerprint, N,
-            route("settings/restricted-mode"), anchor = row(R.string.restricted_biometric_title)),
+            route("settings/restricted-mode"), condition = SettingsSearchCondition.RESTRICTED_BIOMETRICS,
+            anchor = row(R.string.restricted_biometric_title)),
         SettingsSearchEntry(R.string.restricted_allow_sensor_change, RESTRICTED, Icons.Default.Sensors, N,
             route("settings/restricted-mode"), anchor = row(R.string.restricted_allow_sensor_change)),
         SettingsSearchEntry(R.string.restricted_allow_journal, RESTRICTED, Icons.Default.EditNote, N,

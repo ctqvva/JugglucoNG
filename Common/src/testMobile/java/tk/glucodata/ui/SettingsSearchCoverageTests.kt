@@ -29,10 +29,9 @@ class SettingsSearchCoverageTests {
     )
     // Worn as a row's `searchAnchor =` or through `Modifier.settingsSearchAnchor(…)`; a mention in
     // a RevealSettingsSearchAnchor set is not a row wearing it.
-    private val rowAnchor = Regex(
-        """(?:searchAnchor\s*=\s*|settingsSearchAnchor\(\s*)SettingsSearchAnchors\.forRow\(R\.string\.(\w+)\)"""
-    )
-    private val namedAnchor = Regex("""SettingsSearchAnchors\.([A-Z][A-Z0-9_]+)\b""")
+    private val wearing = """(?:searchAnchor\s*=\s*|settingsSearchAnchor\(\s*)"""
+    private val rowAnchor = Regex(wearing + """SettingsSearchAnchors\.forRow\(R\.string\.(\w+)\)""")
+    private val namedAnchor = Regex(wearing + """SettingsSearchAnchors\.([A-Z][A-Z0-9_]+)\b""")
 
     /** Titled rows that are deliberately not search results, by why. */
     private val notSearchable: Map<String, String> = buildMap {
@@ -126,17 +125,27 @@ class SettingsSearchCoverageTests {
             .filter { it.type == String::class.java }
             .associate { it.isAccessible = true; it.get(null) as String to it.name }
 
-        val unworn = SettingsSearchIndex.entries.mapNotNull { entry ->
-            val anchor = entry.anchor ?: return@mapNotNull null
-            val worn = if (anchor.startsWith("row/")) {
-                stringName(anchor.removePrefix("row/").toInt()) in wornByRow
-            } else {
-                named[anchor] in wornByName
+        // Both the row itself and, while it is hidden, the control a result leads to instead.
+        val unworn = SettingsSearchIndex.entries.flatMap { entry ->
+            listOfNotNull(entry.anchor, entry.otherwise).mapNotNull { anchor ->
+                val worn = if (anchor.startsWith("row/")) {
+                    stringName(anchor.removePrefix("row/").toInt()) in wornByRow
+                } else {
+                    named[anchor] in wornByName
+                }
+                if (worn) null else "${stringName(entry.title)} → $anchor"
             }
-            if (worn) null else "${stringName(entry.title)} → $anchor"
         }
         assertTrue("Results whose row does not wear their anchor (they would open at the top):\n" +
             unworn.joinToString("\n"), unworn.isEmpty())
+    }
+
+    @Test
+    fun onlyAHiddenRowLeadsElsewhere() {
+        val loose = SettingsSearchIndex.entries
+            .filter { it.otherwise != null && (it.condition == null || it.anchor == null || it.otherwise == it.anchor) }
+            .map { stringName(it.title) }
+        assertTrue("A fallback needs a condition that hides the entry's own row: $loose", loose.isEmpty())
     }
 
     @Test

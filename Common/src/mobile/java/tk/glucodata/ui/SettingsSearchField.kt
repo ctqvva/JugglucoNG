@@ -89,7 +89,7 @@ internal fun SettingsSearchField(
 internal fun SettingsSearchResults(
     query: String,
     results: List<SettingsSearchMatcher.Match<ResolvedSettingsSearchEntry>>,
-    onOpen: (SettingsSearchEntry) -> Unit,
+    onOpen: (ResolvedSettingsSearchEntry) -> Unit,
 ) {
     if (results.isEmpty()) {
         Text(
@@ -117,7 +117,7 @@ internal fun SettingsSearchResults(
 private fun ResultStack(
     query: String,
     results: List<SettingsSearchMatcher.Match<ResolvedSettingsSearchEntry>>,
-    onOpen: (SettingsSearchEntry) -> Unit,
+    onOpen: (ResolvedSettingsSearchEntry) -> Unit,
 ) {
     // The matched words take the emphasized weight of their own line's style. In the
     // subtitle only the other name that brought a result in is marked, and by weight alone:
@@ -151,7 +151,7 @@ private fun ResultStack(
                     index == results.lastIndex -> CardPosition.BOTTOM
                     else -> CardPosition.MIDDLE
                 },
-                onClick = { onOpen(result.entry) },
+                onClick = { onOpen(result) },
             )
         }
     }
