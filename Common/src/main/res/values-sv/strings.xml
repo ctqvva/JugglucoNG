@@ -759,7 +759,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 Europa</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exchangedata">Utbyta data</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>

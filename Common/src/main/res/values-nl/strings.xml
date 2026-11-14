@@ -841,7 +841,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="disconnect_sensor_failed">De sensor kon niet worden verwijderd en is nog actief. Probeer het opnieuw.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
-    <string name="eusibionics">Sibionics GS1 Europa</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Fabrieksinstellingen herstellen?</string>
     <string name="factory_reset_message">Verwijdert alle metingen, dagboekitems, sensoren en instellingen, plus de verleende rechten, en sluit daarna de app. Glucosebewaking en alarmen stoppen totdat je opnieuw een sensor instelt, en dit kan niet ongedaan worden gemaakt.</string>

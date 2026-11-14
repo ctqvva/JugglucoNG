@@ -658,7 +658,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enabled_status">Enabled</string>
     <string name="endstime">" ends at this time"</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 Europa</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Ripristinare i dati di fabbrica?</string>

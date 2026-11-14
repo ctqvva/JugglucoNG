@@ -1,6 +1,7 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlin.math.abs
 import kotlin.math.sign
 import kotlin.math.pow
@@ -108,6 +109,7 @@ internal fun SensorArtTile(
     lift: Float = TILE_SHIFT,
     drift: Float = TILE_SHIFT_X,
     frame: Boolean = true,
+    pairSpread: Float = 1f,
 ) {
     val context = LocalContext.current
     remember(context) { SensorImages.attach(context.applicationContext) }
@@ -123,8 +125,9 @@ internal fun SensorArtTile(
     val landing = remember { Animatable(0f) }
     LaunchedEffect(replay) {
         if (replay > 0) {
-            landing.snapTo(1f)
-            landing.animateTo(0f, ExpressiveMotion.fastSpatial())
+            // A soft hop and a springy settle, never a jump cut.
+            landing.animateTo(1f, tween(durationMillis = 120, easing = FastOutSlowInEasing))
+            landing.animateTo(0f, SoftSettle)
         }
     }
 
@@ -145,18 +148,17 @@ internal fun SensorArtTile(
                 .graphicsLayer {
                     val progress = press.value
                     val drop = landing.value
-                    val squeeze = (1f - 0.08f * progress) * (1f + 0.25f * drop)
+                    val squeeze = (1f - 0.08f * progress) * (1f + 0.07f * drop)
                     scaleX = squeeze
                     scaleY = squeeze
                     rotationZ = -type.tilt * progress
                     // Up, and only a touch towards the text, so it stays clear of the title.
                     translationX = tileSize.toPx() * drift * (1f - progress)
                     translationY = -tileSize.toPx() * lift * (1f - progress)
-                    translationY += -6.dp.toPx() * drop
-                    alpha = (1f - drop).coerceIn(0f, 1f) * 0.6f + 0.4f
+                    translationY += -5.dp.toPx() * drop
                 },
         ) {
-            drawPairLed(type, tones, lead())
+            drawPairLed(type, tones, lead(), pairSpread)
         }
     }
 }
@@ -225,11 +227,16 @@ private class HeroStage(
     val carrier: Offset = Offset.Zero,
 )
 
-private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage = when (companion) {
+private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier, pair: Boolean): HeroStage = when (companion) {
     HeroCompanion.SCAN -> if (carrier != CodeCarrier.NONE) {
         HeroStage(width = 2.75f, sensorX = -0.72f, carrier = Offset(0.16f, 0.12f), phone = Offset(0.96f, -0.06f), phoneTurn = 9f)
     } else {
-        HeroStage(width = 2.1f, sensorX = -0.3f, phone = Offset(0.5f, -0.06f), phoneTurn = 10f)
+        // A pair drawn apart takes more room, and the phone stands further off.
+        if (pair) {
+            HeroStage(width = 2.4f, sensorX = -0.4f, phone = Offset(0.7f, -0.04f), phoneTurn = 10f)
+        } else {
+            HeroStage(width = 2.1f, sensorX = -0.3f, phone = Offset(0.5f, -0.06f), phoneTurn = 10f)
+        }
     }
     HeroCompanion.NFC -> HeroStage(width = 2.3f, sensorX = -0.36f, phone = Offset(0.7f, -0.1f), phoneTurn = 18f)
     HeroCompanion.PAIR -> HeroStage(width = 2.3f, sensorX = -0.42f, phone = Offset(0.78f, 0.04f), phoneTurn = 6f)
@@ -427,9 +434,13 @@ internal fun SensorHeroArt(
     val tick = rememberNavigationTick()
     val interactionSource = remember { MutableInteractionSource() }
     var plays by remember { mutableIntStateOf(0) }
+    var entrances by remember { mutableIntStateOf(0) }
     val companionKind = companion ?: type.heroCompanion
     val carrier = if (companionKind == HeroCompanion.SCAN) type.codeCarrier else CodeCarrier.NONE
-    val stage = stageFor(companionKind, carrier)
+    val pair = type.tradesPlaces
+    val stage = stageFor(companionKind, carrier, pair)
+    // A pair is drawn a little larger and its two sensors further apart than in the list.
+    val sensorSize = if (pair) PAIR_HERO_SIZE else 1f
     // Where everything stands, moving on the spatial spring when the companion changes.
     val spring = ExpressiveMotion.defaultSpatial<Float>()
     val stageWidth by animateFloatAsState(stage.width, spring, label = "heroWidth")
@@ -441,7 +452,7 @@ internal fun SensorHeroArt(
     LaunchedEffect(companionKind) {
         if (companionKind != shownCompanion) {
             shownCompanion = companionKind
-            plays += 1
+            entrances += 1
         }
     }
     // Opens with the chosen sensor already in front; a new choice brings the other forward.
@@ -464,6 +475,11 @@ internal fun SensorHeroArt(
     // The shape is rolled fresh each time the hero is shown; a tap trades it for another.
     val random = remember { Random(System.nanoTime()) }
     var backdrop by remember { mutableStateOf(rollBackdrop(random)) }
+    var previousBackdrop by remember { mutableStateOf(backdrop) }
+    // 0 = the previous style showing, 1 = the new one: a tap's shape change melts across.
+    val melt = remember { Animatable(1f) }
+    // The phone leaning in towards the sensor on a tap, and back.
+    val nudge = remember { Animatable(0f) }
     // The shape's stretch: a tap pulls it wide and it springs back.
     val swing = remember { Animatable(0f) }
     // Under the finger the shape gathers in a little.
@@ -473,23 +489,45 @@ internal fun SensorHeroArt(
         press.animateTo(if (pressed) 1f else 0f, ExpressiveMotion.fastSpatial())
     }
 
-    LaunchedEffect(plays) {
-        if (plays == 0 && !firstVisit) return@LaunchedEffect
-        val asked = plays > 0
+    // The entrance: the first time after launch, and when a new companion comes in. Silent.
+    LaunchedEffect(entrances) {
+        if (entrances == 0 && !firstVisit) return@LaunchedEffect
         coroutineScope {
             launch {
-                pop.snapTo(if (asked) 0.9f else 0.2f)
+                pop.snapTo(0.2f)
                 pop.animateTo(1f, HeroBounce)
-            }
-            launch {
-                swing.snapTo(if (asked) 6f else 0f)
-                swing.animateTo(0f, HeroBounce)
             }
             arrival.snapTo(0f)
             signal.snapTo(0f)
             arrival.animateTo(1f, ExpressiveMotion.slowSpatial())
             signal.animateTo(1f, tween(durationMillis = 1_200, easing = LinearOutSlowInEasing))
-            if (asked) tick.playConfirm()
+        }
+    }
+    // A tap: nothing vanishes or jumps. The shape breathes out and melts into its next style,
+    // the sensor hops and settles, the phone leans in and back, and the signal plays again,
+    // ending on one light click.
+    LaunchedEffect(plays) {
+        if (plays == 0) return@LaunchedEffect
+        coroutineScope {
+            launch {
+                pop.animateTo(0.95f, tween(durationMillis = 120, easing = FastOutSlowInEasing))
+                pop.animateTo(1f, SoftSettle)
+            }
+            launch {
+                swing.animateTo(5f, tween(durationMillis = 140, easing = FastOutSlowInEasing))
+                swing.animateTo(0f, SoftSettle)
+            }
+            launch {
+                melt.snapTo(0f)
+                melt.animateTo(1f, tween(durationMillis = 420, easing = FastOutSlowInEasing))
+            }
+            launch {
+                nudge.animateTo(1f, tween(durationMillis = 160, easing = FastOutSlowInEasing))
+                nudge.animateTo(0f, SoftSettle)
+            }
+            signal.snapTo(0f)
+            signal.animateTo(1f, tween(durationMillis = 1_000, easing = LinearOutSlowInEasing))
+            tick.playLight()
         }
     }
 
@@ -513,6 +551,7 @@ internal fun SensorHeroArt(
                             if (released) PressInteraction.Release(press) else PressInteraction.Cancel(press),
                         )
                         if (released) {
+                            previousBackdrop = backdrop
                             backdrop = rollBackdrop(random, not = backdrop.first)
                             plays += 1
                             tick.play()
@@ -529,28 +568,40 @@ internal fun SensorHeroArt(
             // A box round each piece at the size the shape is built for; the pieces themselves
             // are drawn larger and stand out past it.
             val pieces = buildList {
-                add(ScenePiece(sensorAt, left = 0.46f * tile, right = 0.46f * tile, up = 0.4f * tile, down = 0.44f * tile))
+                val reach = tile * sensorSize
+                add(ScenePiece(sensorAt, left = 0.46f * reach, right = 0.46f * reach, up = 0.4f * reach, down = 0.44f * reach))
                 if (carrier != CodeCarrier.NONE) {
                     val carrierAt = center + Offset(stage.carrier.x * tile, stage.carrier.y * tile) * SPREAD
                     add(ScenePiece(carrierAt, left = 0.4f * tile, right = 0.36f * tile, up = 0.3f * tile, down = 0.48f * tile))
                 }
                 add(ScenePiece(phoneAt, left = 0.26f * tile, right = 0.26f * tile, up = 0.3f * tile, down = 0.5f * tile, turn = phoneTurn))
             }
-            val (style, tilt) = backdrop
-            val outline = backdropPath(style, pieces, sensorAt, phoneAt, tile)
             // Opens out from the sensor on entrance; a tap stretches it, a press gathers it in.
             val grow = backdropGrow(pop.value) * (1f - 0.04f * press.value)
             val kick = swing.value / 100f
+            val change = melt.value
             scale(grow * (1f + kick), grow * (1f - kick), pivot = sensorAt) {
-                rotate(tilt, pivot = center) {
-                    drawPath(outline, blobColor)
+                // The old style shrinks a touch and fades as the new one swells in over it.
+                if (change < 1f) {
+                    val (style, tilt) = previousBackdrop
+                    val outline = backdropPath(style, pieces, sensorAt, phoneAt, tile)
+                    val shrink = 1f - 0.06f * change
+                    scale(shrink, shrink, pivot = center) {
+                        rotate(tilt, pivot = center) { drawPath(outline, blobColor, alpha = 1f - change) }
+                    }
+                }
+                val (style, tilt) = backdrop
+                val outline = backdropPath(style, pieces, sensorAt, phoneAt, tile)
+                val swell = 0.94f + 0.06f * change
+                scale(swell, swell, pivot = center) {
+                    rotate(tilt, pivot = center) { drawPath(outline, blobColor, alpha = change) }
                 }
             }
         }
         SensorArtTile(
             type = type,
             containerColor = blobColor,
-            tileSize = tileSize * ART,
+            tileSize = tileSize * (ART * sensorSize),
             interactionSource = interactionSource,
             modifier = Modifier
                 .offset(x = sensorShift)
@@ -566,6 +617,7 @@ internal fun SensorHeroArt(
             lift = 0f,
             drift = 0f,
             frame = false,
+            pairSpread = if (pair) PAIR_HERO_SPREAD else 1f,
         )
         // The signal, over the sensor and under the phone: from the phone's edge to the sensor for
         // NFC, from the sensor to the phone for Bluetooth. It lights in turn and stays faint.
@@ -621,7 +673,7 @@ internal fun SensorHeroArt(
                         // Comes out from behind the sensor and stands beside it.
                         val start = sensorShift.toPx()
                         translationX = start + (stage.carrier.x * tile * SPREAD - start) * moved
-                        translationY = stage.carrier.y * tile * SPREAD + tile * 0.12f * (1f - moved)
+                        translationY = stage.carrier.y * tile * SPREAD + tile * 0.12f * (1f - moved) - nudge.value * 0.04f * tile
                         val grow = 0.7f + 0.3f * moved
                         scaleX = grow
                         scaleY = grow
@@ -638,9 +690,9 @@ internal fun SensorHeroArt(
                 .graphicsLayer {
                     val moved = arrival.value
                     val tile = tileSize.toPx()
-                    translationX = phoneX * tile * SPREAD
+                    translationX = phoneX * tile * SPREAD - nudge.value * 0.08f * tile
                     translationY = phoneY * tile * SPREAD
-                    rotationZ = phoneTurn
+                    rotationZ = phoneTurn - 5f * nudge.value
                     when (companionKind) {
                         HeroCompanion.NFC, HeroCompanion.SCAN -> {
                             // Comes in from the top corner.
@@ -673,6 +725,13 @@ internal fun SensorHeroArt(
 
 /** The shape opens out from the sensor, a little behind the sensor's own bounce. */
 private fun backdropGrow(pop: Float): Float = 0.35f + 0.65f * pop
+
+/** How much larger a pair is drawn in a hero than the tile size, and how far apart its two are. */
+private const val PAIR_HERO_SIZE = 1.1f
+private const val PAIR_HERO_SPREAD = 1.3f
+
+/** The settle after a tap's hop: soft, with one small overshoot. */
+private val SoftSettle = spring<Float>(dampingRatio = 0.55f, stiffness = 260f)
 
 /** The bounce the hero's circle comes in on: under-damped, so it overshoots and settles. */
 private val HeroBounce = spring<Float>(dampingRatio = 0.45f, stiffness = 380f)

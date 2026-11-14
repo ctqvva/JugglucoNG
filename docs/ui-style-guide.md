@@ -263,14 +263,22 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 **Hero motion and touch**
 
-- The entrance plays the first time a hero opens after launch: the sensor springs up and the
-  shape opens out sideways from it on an overshooting bounce (damping 0.45), the phone
-  and what the code is printed on come in, and the phone does its one beat. Later
-  visits, rotation, and the fold between sizes find it already in place. Nothing runs at rest.
+- The entrance plays the first time a hero opens after launch, and when a new companion comes
+  in (Ottai's region): the sensor springs up and the shape opens out from it on an
+  overshooting bounce (damping 0.45), the phone and what the code is printed on come in, and
+  the phone does its one beat. It is silent. Later visits, rotation, and the fold between sizes
+  find it already in place. Nothing runs at rest.
 - It is a toy, not a control, so it adds nothing for accessibility services. Under the finger
-  the sensor squares up and the shape gathers in a little. On release the hero
-  clicks (`NavigationTick.play`), the shape is pulled wide and springs back, the sensor drops back on and the story replays. When the phone has the read, it
-  double-clicks (`NavigationTick.playConfirm`).
+  the sensor squares up and the shape gathers in a little. A tap never makes anything vanish
+  or jump:
+  - on release, one click (`NavigationTick.play`);
+  - the shape breathes out and melts into its next style over 420ms, the old one shrinking
+    and fading as the new one swells in;
+  - the sensor hops 7% and settles, and the phone leans in towards it and back, on a soft
+    spring (damping 0.55, stiffness 260);
+  - the signal plays again and ends on one light click (`NavigationTick.playLight`, 0.3).
+- In the hero, a pair is drawn 1.1 times larger with its two sensors 1.3 times further apart
+  than in the list, and the phone stands further off.
 - A pair trading places clicks once as they pass.
 
 ### Row, card, dialog or sheet
@@ -400,9 +408,8 @@ what the rows around a slider already use.
   glyph once (`TabIcon`), never on launch or rotation. A switch ticks with
   `NavigationTick`, one `PRIMITIVE_CLICK` at 0.5, only on vibrators that support it.
 - Haptics answer the user, never the app: a click when something they touched gives way
-  (`NavigationTick.play`), a double click when something they started completes
-  (`NavigationTick.playConfirm`, clicks at 0.4 then 0.7, 70ms apart). An entrance that
-  plays by itself is silent.
+  (`NavigationTick.play`), one light click when something they started finishes
+  (`NavigationTick.playLight`, 0.3). An entrance that plays by itself is silent.
 - Attention motion is brief and repeats with rest: the signal-quality glyph shakes in
   half-second bursts every four seconds, not continuously.
 - An animation that runs while nothing changes is a bug: it costs battery and frames.

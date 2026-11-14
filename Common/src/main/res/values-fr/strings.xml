@@ -722,7 +722,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="endstime">" ends at this time"</string>
     <string name="enter_sensor_label_desc">Enter the codes printed on the sensor label</string>
     <string name="enter_transmitter_desc">Enter the transmitter ID from the label</string>
-    <string name="eusibionics">Sibionics GS1 Europe</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="export_history_title">Export History</string>

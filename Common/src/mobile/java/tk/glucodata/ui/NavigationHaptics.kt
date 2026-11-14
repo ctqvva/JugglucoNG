@@ -42,19 +42,14 @@ class NavigationTick internal constructor(context: Context) {
         }
     }
 
-    /**
-     * "Got it": two clicks, the second firmer, for a moment that completes something the user
-     * started, such as a wizard hero's phone reading the code after a tap. Never for a moment
-     * nobody asked for.
-     */
-    fun playConfirm() {
+    /** One light click, for the gentle end of something the user started, such as a hero's replay. */
+    fun playLight() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         val vibrator = vibrator ?: return
         runCatching {
             vibrator.vibrate(
                 VibrationEffect.startComposition()
-                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, CONFIRM_FIRST_SCALE)
-                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, CONFIRM_SECOND_SCALE, CONFIRM_GAP_MS)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, LIGHT_SCALE)
                     .compose(),
                 VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH)
             )
@@ -70,9 +65,7 @@ class NavigationTick internal constructor(context: Context) {
 
     private companion object {
         const val CLICK_SCALE = 0.5f
-        const val CONFIRM_FIRST_SCALE = 0.4f
-        const val CONFIRM_SECOND_SCALE = 0.7f
-        const val CONFIRM_GAP_MS = 70
+        const val LIGHT_SCALE = 0.3f
     }
 }
 

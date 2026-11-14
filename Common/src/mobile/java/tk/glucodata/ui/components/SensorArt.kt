@@ -322,8 +322,8 @@ internal val SensorType.tradesPlaces: Boolean
  * beside each other, the one coming forward lifting a little as it goes. Each sensor is drawn once
  * in each place and kept, so the move itself only slides and fades finished images.
  */
-internal fun DrawScope.drawPairLed(type: SensorType, tones: SensorTones, lead: Float) {
-    if (!type.tradesPlaces || lead <= 0f) {
+internal fun DrawScope.drawPairLed(type: SensorType, tones: SensorTones, lead: Float, spread: Float = 1f) {
+    if (!type.tradesPlaces || (lead <= 0f && spread == 1f)) {
         drawSensorCached(type, tones)
         return
     }
@@ -331,16 +331,16 @@ internal fun DrawScope.drawPairLed(type: SensorType, tones: SensorTones, lead: F
     val height = size.height.roundToInt()
     if (width <= 0 || height <= 0) return
     fun piece(which: Int, front: Boolean): ImageBitmap =
-        SensorImages.image(type, tones, width, height, part = "-$which${if (front) "f" else "b"}") {
+        SensorImages.image(type, tones, width, height, part = "-$which${if (front) "f" else "b"}-$spread") {
             ImageBitmap(width, height).also { image ->
                 CanvasDrawScope().draw(this, layoutDirection, ImageCanvas(image), Size(width.toFloat(), height.toFloat())) {
-                    drawPairPiece(type, tones, which, front)
+                    drawPairPiece(type, tones, which, front, spread)
                 }
             }
         }
     val unit = min(size.width, size.height) / 100f
     fun spot(front: Boolean): Offset {
-        val at = pairSpot(front)
+        val at = pairSpot(front, spread)
         val radians = type.tilt * PI.toFloat() / 180f
         val x = at.x
         val y = at.y * SQUASH
@@ -981,23 +981,24 @@ private fun DrawScope.drawSibionics(tones: SensorTones) = seated(tones, 8f) {
 }
 
 /** Where a pair's sensors lie: the one in front flat and turned, the one behind tipped up square. */
-private fun pairSpot(front: Boolean): Offset = if (front) Offset(10f, 15f) else Offset(-11f, -15f)
+private fun pairSpot(front: Boolean, spread: Float = 1f): Offset =
+    (if (front) Offset(10f, 15f) else Offset(-11f, -15f)) * spread
 
 /** One sensor of a pair on its own, framed as [drawSensor] frames the whole pair. */
-private fun DrawScope.drawPairPiece(type: SensorType, tones: SensorTones, which: Int, front: Boolean) {
+private fun DrawScope.drawPairPiece(type: SensorType, tones: SensorTones, which: Int, front: Boolean, spread: Float = 1f) {
     inUnitSquare {
         rotate(type.tilt, pivot = Offset.Zero) {
             scale(1f, SQUASH, pivot = Offset.Zero) {
                 val turned = tones.copy(turn = type.tilt)
-                seated(turned, 8f) { sibionicsPiece(turned, which, front) }
+                seated(turned, 8f) { sibionicsPiece(turned, which, front, spread) }
             }
         }
     }
 }
 
 /** The GS1 ([which] 0) or the Sibionics 2 (1), lying in front or tipped up behind. */
-private fun DrawScope.sibionicsPiece(tones: SensorTones, which: Int, front: Boolean) {
-    val at = pairSpot(front)
+private fun DrawScope.sibionicsPiece(tones: SensorTones, which: Int, front: Boolean, spread: Float = 1f) {
+    val at = pairSpot(front, spread)
     val by = if (front) -24f else -SensorType.SIBIONICS.tilt
     val lean = if (front) CAMERA_DEGREES else 62f
     if (which == 1) {
