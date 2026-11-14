@@ -156,7 +156,8 @@ object CurrentDisplaySource {
             isMmol = isMmol,
             smoothingMode = smoothingMode,
             sensorId = resolvedSensorId,
-            preferIncomingSample = preferIncomingSample
+            preferIncomingSample = preferIncomingSample,
+            preserveSameMinuteRaw = preferIncomingSample
         )
     }
 
@@ -268,13 +269,29 @@ object CurrentDisplaySource {
         smoothingMode: SmoothingMode,
         sensorId: String?,
         preferIncomingSample: Boolean = false,
-        nowMillis: Long = System.currentTimeMillis()
+        nowMillis: Long = System.currentTimeMillis(),
+        preserveSameMinuteRaw: Boolean = false
     ): ResolvedReading? {
+        // Native current caches can omit Raw although that same measurement is already
+        // in history under its minute-aligned timestamp. Enrich only that minute; an
+        // older minute is a different reading and cannot supply the outgoing Raw lane.
+        val rawHistory = if (preserveSameMinuteRaw && current != null &&
+            !GlucoseValuePlausibility.isPlausibleDisplayValue(current.rawNumericValue, isMmol)
+        ) recentPoints.lastOrNull {
+            it.timestamp <= current.timeMillis &&
+                it.timestamp / 60_000L == current.timeMillis / 60_000L &&
+                (it.sensorSerial == null || SensorIdentity.matches(it.sensorSerial, sensorId)) &&
+                GlucoseValuePlausibility.isPlausibleDisplayValue(it.rawValue, isMmol)
+        } else null
+        val live = if (rawHistory != null) current?.copy(rawNumericValue = rawHistory.rawValue) else current
+        // The enriched live point replaces its minute-aligned source; counting both
+        // would give one sensor measurement two votes in the fit.
+        val history = if (rawHistory != null) recentPoints.filterNot { it === rawHistory } else recentPoints
         val processedPoints = prepareRecentPointsForCurrent(
-            recentPoints = if (preferIncomingSample && current != null) {
-                recentPoints.filter { it.timestamp <= current.timeMillis }
-            } else recentPoints,
-            current = current,
+            recentPoints = if (preferIncomingSample && live != null) {
+                history.filter { it.timestamp <= live.timeMillis }
+            } else history,
+            current = live,
             historyStart = historyStart,
             viewMode = viewMode,
             smoothAllData = smoothingMode.smoothAllData,
@@ -288,18 +305,18 @@ object CurrentDisplaySource {
         val targetTime = exchangeTargetTimeMillis(
             collapseChunks = smoothingMode.collapseChunks && !preferIncomingSample,
             processedPoints = processedPoints,
-            liveTimeMillis = current?.timeMillis
+            liveTimeMillis = live?.timeMillis
         )
         val initialSnapshot = resolveFromLive(
-            liveValueText = current?.valueText,
-            liveNumericValue = current?.let { liveLaneValue(it, viewMode) } ?: Float.NaN,
-            liveCalibratedValue = current?.calibratedNumericValue ?: Float.NaN,
-            rate = current?.rate ?: Float.NaN,
+            liveValueText = live?.valueText,
+            liveNumericValue = live?.let { liveLaneValue(it, viewMode) } ?: Float.NaN,
+            liveCalibratedValue = live?.calibratedNumericValue ?: Float.NaN,
+            rate = live?.rate ?: Float.NaN,
             targetTimeMillis = targetTime,
             sensorId = sensorId,
-            sensorGen = current?.sensorGen ?: 0,
-            index = current?.index ?: 0,
-            source = current?.source ?: if (processedPoints.isNotEmpty()) "history" else "none",
+            sensorGen = live?.sensorGen ?: 0,
+            index = live?.index ?: 0,
+            source = live?.source ?: if (processedPoints.isNotEmpty()) "history" else "none",
             // A known live sample must not borrow a neighboring minute's glucose
             // (or its raw lane). Keep the full series for smoothing and trends.
             recentPoints = if (preferIncomingSample) {
@@ -319,7 +336,7 @@ object CurrentDisplaySource {
             current = initialSnapshot,
             viewMode = viewMode,
             isMmol = isMmol,
-            fallbackRate = current?.rate ?: Float.NaN
+            fallbackRate = live?.rate ?: Float.NaN
         )
         return ResolvedReading(initialSnapshot.copy(rate = canonicalRate), processedPoints)
     }

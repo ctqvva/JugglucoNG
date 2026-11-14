@@ -39,7 +39,7 @@ class ExchangeNoiseTests {
         mmol: Boolean = false,
     ) = requireNotNull(CurrentDisplaySource.resolveReading(
         live, history, now - 25 * minute, mode, mmol, smoothing, sensor,
-        preferIncomingSample = true, nowMillis = now
+        preferIncomingSample = true, nowMillis = now, preserveSameMinuteRaw = true
     ))
 
     private fun payload(reading: CurrentDisplaySource.ResolvedReading) =
@@ -106,6 +106,35 @@ class ExchangeNoiseTests {
         val captured = reading(history, live = live)
         assertEquals(115f, captured.snapshot.primaryValue, 0f)
         assertEquals(115f, DisplayTrendSource.exchangePoints(captured).last().value, 0f)
+    }
+
+    @Test fun nativeCacheWithoutRawUsesTheSameMinutesHistoryRawOnce() {
+        val minuteStart = now / minute * minute
+        val live = CurrentGlucoseSource.Snapshot(minuteStart + 30_000L, "100", 100f, Float.NaN,
+            rate = 0f, sensorId = sensor, sensorGen = 0, index = 0, source = "native")
+        val history = points().dropLast(1) + GlucosePoint(minuteStart, 100f, 140f)
+        for (mode in 0..3) {
+            val captured = reading(history, mode, live)
+            assertEquals(live.timeMillis, captured.snapshot.timeMillis)
+            assertEquals(140f, captured.snapshot.rawValue, 0f)
+            assertEquals(if (mode == 1 || mode == 3) 140 else 100, payload(captured).primaryMgdl)
+            val series = DisplayTrendSource.exchangePoints(captured)
+            assertEquals(5, series.size)
+            assertEquals(live.timeMillis, series.last().timestamp)
+        }
+    }
+
+    @Test fun aPreviousMinutesRawCannotReplaceMissingLiveRaw() {
+        val minuteStart = now / minute * minute
+        val live = CurrentGlucoseSource.Snapshot(minuteStart + 10_000L, "100", 100f, Float.NaN,
+            rate = 0f, sensorId = sensor, sensorGen = 0, index = 0, source = "native")
+        // Only 30 seconds apart, but these are different sensor minutes.
+        val history = points().dropLast(1) + GlucosePoint(minuteStart - 20_000L, 100f, 140f)
+        for (mode in listOf(1, 3)) {
+            val captured = reading(history, mode, live)
+            assertFalse(captured.snapshot.rawValue.isFinite())
+            assertEquals(100, payload(captured).primaryMgdl)
+        }
     }
 
     @Test fun newerHistoryCannotLeakIntoAnOlderPayload() {
