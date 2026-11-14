@@ -837,7 +837,8 @@ fun SelectTypeStep(
     onNext: () -> Unit,
 ) {
     val horizontalPadding = if (compact) 16.dp else 24.dp
-    val verticalPadding = if (compact) 12.dp else 16.dp
+    // The container's own padding, so Continue keeps a full 16 dp off the navigation bar.
+    val verticalPadding = 16.dp
     val listGap = if (compact) 12.dp else 16.dp
     val cardPadding = if (compact) 16.dp else 20.dp
     val buttonHeight = 48.dp

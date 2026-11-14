@@ -378,8 +378,8 @@
     <string name="humaninsulin">Insulina ludzka /Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
 
-    <string name="eusibionics">Sibionics GS1 EU</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="eusibionics">GS1 Europa</string>
+    <string name="chsibionics">GS1 Chiny</string>
     <string name="hematonix">Hematonix - com.sisensing.rusibionics</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
@@ -495,7 +495,7 @@
     <string name="continue_without_sensor_desc">Zapisuj insulinę, jedzenie i pomiary z palca w dzienniku</string>
     <string name="get_started_desc">Rozpocznij, dodając swój sensor</string>
     <string name="select_sensor">Wybierz Typ Sensora</string>
-    <string name="select_sibionics_type">Wybierz sensor Sibionics</string>
+    <string name="select_sibionics_type">Wybierz wariant sensora</string>
     <string name="or_divider">"  lub  "</string>
     <string name="no_sensors_connected">Brak połączonych sensorów</string>
     <string name="enter_sensor_codes">Wprowadź Kody Sensora</string>

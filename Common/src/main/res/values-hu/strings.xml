@@ -373,8 +373,8 @@
     <string name="humaninsulin">Humán inzulin/Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
     <string name="not">Nem</string>
-    <string name="eusibionics">Sibionics EU</string>
-    <string name="chsibionics">Sibionics kínai</string>
+    <string name="eusibionics">GS1 Európa</string>
+    <string name="chsibionics">GS1 Kína</string>
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2 osztott</string>
     <string name="gs3">Sibionics GS3</string>
@@ -672,7 +672,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sibionics_setup_title">Sibionics beállítása</string>
     <string name="scan_sensor_qr">Szenzor QR-kódjának szkennelése</string>
     <string name="scan_sensor_qr_desc">A szenzor csomagolásán lévő Data Matrix kód szkennelése</string>
-    <string name="select_sibionics_type">Sibionics szenzor kiválasztása</string>
+    <string name="select_sibionics_type">Szenzorváltozat kiválasztása</string>
     <string name="scan_transmitter">Jeladó szkennelése</string>
     <string name="connecting">Csatlakozás...</string>
     <string name="setup_complete">Beállítás kész</string>

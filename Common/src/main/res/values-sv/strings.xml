@@ -420,7 +420,7 @@
     <string name="continue_without_sensor_desc">Logga insulin, mat och fingerstick i journalen</string>
     <string name="get_started_desc">Börja med att lägga till din sensor</string>
     <string name="select_sensor">Välj sensortyp</string>
-    <string name="select_sibionics_type">Välj en Sibionics-sensor</string>
+    <string name="select_sibionics_type">Välj sensorvariant</string>
     <string name="or_divider">"  eller  "</string>
     <string name="no_sensors_connected">Inga sensorer anslutna</string>
     <string name="enter_sensor_codes">Ange sensorkoder</string>
@@ -722,7 +722,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Skanna sensorkoden på ditt CareSens Air-paket</string>
     <string name="caresens_air_setup_title">CareSens Air Setup</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">GS1 Kina</string>
     <string name="clean_history_confirm">Rensa historiken?</string>
     <string name="clear_history_desc">Ta bort avläsningar, journalposter eller båda</string>
     <string name="clear_history_scope_readings">Tar bort alla glukosavläsningar på den här telefonen och kan inte ångras. Journalen, sensorerna och inställningarna finns kvar.</string>
@@ -759,7 +759,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">GS1 Europa</string>
     <string name="exchangedata">Utbyta data</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>

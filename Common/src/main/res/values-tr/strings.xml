@@ -373,8 +373,8 @@
     <string name="glulisine">Insülin Glulisine/Apidra</string>
     <string name="humaninsulin">Human Insülin/Humulin R/Novolin R</string>
     <string name="not">Değil</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="eusibionics">GS1 Avrupa</string>
+    <string name="chsibionics">GS1 Çin</string>
     <string name="hematonix">Hematonix - com.sisensing.rusibionics</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
@@ -472,7 +472,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="continue_without_sensor_desc">İnsülin, yiyecek ve parmak ölçümlerini günlüğe kaydedin</string>
     <string name="get_started_desc">Sensörünüzü ekleyerek başlayın</string>
     <string name="select_sensor">Sensör Tipini Seçin</string>
-    <string name="select_sibionics_type">Bir Sibionics sensörü seçin</string>
+    <string name="select_sibionics_type">Sensör varyantını seçin</string>
     <string name="or_divider">"  veya  "</string>
     <string name="no_sensors_connected">Bağlı sensör yok</string>
     <string name="enter_sensor_codes">Sensör Kodlarını Girin</string>

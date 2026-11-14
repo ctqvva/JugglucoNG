@@ -159,7 +159,7 @@ Reach for these before building a surface by hand.
 | A destructive row | `DangerItem` | same |
 | Group label | `SectionLabel` (24 above, 8 below) | same |
 | Leading icon of a row/card | `IconTile` | `components/IconTile.kt` |
-| A sensor family, shown as itself | `SensorArtTile` in a list, `SensorWizardHero` at the top of every wizard's main step (the sensor with a companion showing how it connects: applicator, NFC phone, scanning phone or pairing phone; compact row via `rememberSensorHeroCompact` when a camera, long list or keyboard shares the screen); drawn from the makers' product photos in theme roles, no maker's name; one soft square for every row so the sensors' own outlines tell them apart, the sensor bigger than the square, lying across its upper right edge a few degrees off straight; one camera and one light for every drawing, the tile's colour thrown back into the shade; the device alone, never its adhesive patch; nothing moves when a screen opens; add a `SensorType` and the compiler asks for its drawing | `components/SensorArt.kt`, `components/SensorArtTile.kt` |
+| A sensor family, shown as itself | `SensorArtTile` in a list, `SensorWizardHero` at the top of every wizard's main step; see Sensor art and wizard heroes | `components/SensorArt.kt`, `components/SensorHeroDrawings.kt`, `components/SensorArtTile.kt` |
 | 2–5 exclusive choices | `ConnectedButtonGroup` (material3 `ToggleButton`s, connected shapes) | `util/ConnectedButtonGroup.kt` |
 | Two buttons as one control | `ConnectedButtonShapes` | `components/ConnectedButtonShapes.kt` |
 | An action with a related second action | `SplitButtonLayout` + `SplitButtonDefaults` | material3 |
@@ -178,6 +178,69 @@ Waiting: `LoadingIndicator` for a few seconds with nothing to count (a network c
 loading). Work that can run longer or knows its progress keeps a progress indicator. A spinner
 inside a button stays a small `CircularProgressIndicator`; the loading indicator's shapes don't
 read at 18dp.
+
+### Sensor art and wizard heroes
+
+A sensor family is shown as the device itself, never as a logo or a generic icon.
+
+**The drawings** (`SensorArt.kt`)
+
+- Drawn from the makers' photos and published dimensions, in theme roles, with no maker's
+  name. They are stylised, not photographs: one camera and one light for every drawing, white
+  or grey plastic in the theme's neutrals, the colour of what they lie on thrown back into the
+  shade.
+- The device alone, never its adhesive patch. A family with two current devices is drawn as a
+  pair at their true sizes against each other (Sibionics GS1 and Sibionics 2, iCan i3 and i6,
+  Anytime CT4 and 5 Pro).
+- Each drawing is built once per size and theme and kept, in memory and in the app's cache, so
+  nothing redraws or blinks when a screen opens. Add a `SensorType` and the compiler asks for
+  its drawing.
+
+**The list tile** (`SensorArtTile`)
+
+- One soft square in `primaryContainer` for every row, the same in the launch cards and the
+  picker sheet, so the sensors' own outlines tell the rows apart. No family gets its own
+  colour.
+- The sensor is drawn bigger than the square and lies across its upper edge a few degrees off
+  straight, clear of the title. Pressing the card rounds the square, pushes the sensor in and
+  squares it to the row.
+
+**The wizard hero** (`SensorWizardHero`)
+
+- Every wizard's main step opens with one, never a bespoke card. It shows the sensor on an M3
+  cookie (`MaterialShapes.Cookie9Sided`, `primaryContainer`) and a phone acting out how the
+  family connects. The phone's screen says it in one glyph:
+
+| Family connects by | Phone | Screen | Beside them |
+|---|---|---|---|
+| NFC (Libre; Ottai China and Syai) | Held over the sensor, arcs running from its edge to the sensor | The NFC mark, pulsing once | — |
+| A printed code (Dexcom, iCan, Accu-Chek, CareSens Air, Sibionics) | Standing beside what the code is printed on | The viewfinder sweeping, then closing on the code | What the user points the camera at: the G7 applicator, the iCan i3 pack and i6 kit, the SmartGuide applicator cap, the CareSens pouch. Sibionics has none: its code is on the box |
+| Bluetooth (AiDEX, Anytime, MQ, Ottai Global, Medtrum) | Standing apart, arcs running from the sensor to it | The Bluetooth mark | — |
+
+- A step whose choice changes the picture passes it in: `pairLead` brings the chosen sensor of
+  a pair to the front (Sibionics picker), `companion` swaps the phone's story (Ottai's region).
+  The change animates; it is never a cut.
+- Text: `title` is the step's instruction, kept short. The family's name is already in the
+  top bar, so a title that only names the family again ("Choose a Sibionics sensor") says
+  nothing; say what to do ("Choose sensor variant"). A subtitle only when the title can't
+  carry the instruction alone.
+  A step whose own header already says it shows the picture alone.
+- Room: `rememberSensorHeroCompact` folds the hero into a row (a small picture beside its
+  title) whenever the keyboard is up, the screen is under 600dp tall, or a camera or long list
+  shares a screen under 860dp. The fold animates on the spatial spring.
+- Size: 128dp per tile side on wide windows, 112dp on phones, 56dp folded. The stage is
+  2.1–2.75 tile sides wide, depending on how many objects it holds.
+
+**Hero motion and touch**
+
+- The entrance plays the first time a hero opens after launch: the cookie turns a notch, the
+  phone and what the code is printed on come in, and the phone does its one beat. Later
+  visits, rotation, and the fold between sizes find it already in place. Nothing runs at rest.
+- It is a toy, not a control, so it adds nothing for accessibility services. Under the finger
+  the cookie softens towards a circle. On release the hero clicks (`NavigationTick.play`),
+  turns the cookie one lobe, drops the sensor back on and replays the story. When the phone has
+  the read, it double-clicks (`NavigationTick.playConfirm`).
+- A pair trading places clicks once as they pass.
 
 ### Row, card, dialog or sheet
 
@@ -305,6 +368,10 @@ what the rows around a slider already use.
 - Navigation bar and rail keep the stock in-place indicator; the chosen icon acts out its
   glyph once (`TabIcon`), never on launch or rotation. A switch ticks with
   `NavigationTick`, one `PRIMITIVE_CLICK` at 0.5, only on vibrators that support it.
+- Haptics answer the user, never the app: a click when something they touched gives way
+  (`NavigationTick.play`), a double click when something they started completes
+  (`NavigationTick.playConfirm`, clicks at 0.4 then 0.7, 70ms apart). An entrance that
+  plays by itself is silent.
 - Attention motion is brief and repeats with rest: the signal-quality glyph shakes in
   half-second bursts every four seconds, not continuously.
 - An animation that runs while nothing changes is a bug: it costs battery and frames.

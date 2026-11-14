@@ -432,7 +432,7 @@
     <string name="continue_without_sensor_desc">Записуйте інсулін, їжу та пальцеві заміри в журнал</string>
     <string name="get_started_desc">Почніть з додавання вашого сенсора</string>
     <string name="select_sensor">Виберіть тип сенсора</string>
-    <string name="select_sibionics_type">Виберіть сенсор Sibionics</string>
+    <string name="select_sibionics_type">Виберіть варіант сенсора</string>
     <string name="or_divider">"  або  "</string>
     <string name="no_sensors_connected">Немає підключених сенсорів</string>
     <string name="enter_sensor_codes">Введіть коди сенсора</string>
@@ -734,7 +734,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Відскануйте код датчика на упаковці CareSens Air</string>
     <string name="caresens_air_setup_title">Налаштування CareSens Air</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">GS1 Китай</string>
     <string name="clean_history_confirm">Очистити історію?</string>
     <string name="clear_history_desc">Видалити показання, записи журналу або все разом</string>
     <string name="clear_history_scope_readings">Видаляє всі показання глюкози на цьому телефоні; скасувати це неможливо. Журнал, датчики та налаштування залишаються.</string>
@@ -771,7 +771,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">GS1 Європа</string>
     <string name="exchangedata">Для обміну даними</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>

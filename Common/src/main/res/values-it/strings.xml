@@ -293,7 +293,7 @@
     <string name="continue_without_sensor_desc">Registra insulina, cibo e punture al dito nel diario</string>
     <string name="get_started_desc">Inizia aggiungendo il tuo sensore</string>
     <string name="select_sensor">Seleziona tipo sensore</string>
-    <string name="select_sibionics_type">Scegli un sensore Sibionics</string>
+    <string name="select_sibionics_type">Scegli la variante del sensore</string>
     <string name="or_divider">"  o  "</string>
     <string name="no_sensors_connected">Nessun sensore connesso</string>
     <string name="enter_sensor_codes">Inserisci codici sensore</string>
@@ -605,7 +605,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="caresens_air_setup_title">Configurazione di CareSens Air</string>
     <string name="changeinsulin">"Change insulin type to "</string>
     <string name="changestartbutton">Change start</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">GS1 Cina</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_history_confirm">Cancellare la cronologia?</string>
     <string name="clear_history_desc">Rimuovi letture, voci del diario o entrambi</string>
@@ -658,7 +658,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enabled_status">Enabled</string>
     <string name="endstime">" ends at this time"</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">GS1 Europa</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Ripristinare i dati di fabbrica?</string>

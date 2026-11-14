@@ -1,6 +1,24 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bluetooth
+import androidx.compose.material.icons.rounded.Nfc
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.graphics.shapes.Morph
+import androidx.graphics.shapes.toPath
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
+import kotlin.math.atan2
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -69,8 +87,10 @@ import tk.glucodata.ui.util.ExpressiveMotion
  * in and turns it square to the row; letting go springs all three back. Everything moves in the
  * draw and layer phases, and nothing moves at rest or when a screen opens.
  *
- * [round] keeps the frame a circle throughout and the drawing inside it, for the wizard heroes. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
+ * [round] sets the sensor on an M3 cookie instead, for the wizard heroes: pressing softens it
+ * to a circle and [turn] turns it. Raising [replay] drops the sensor on to its frame again. [lead] brings a pair's second sensor to the front: see [drawPairLed].
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SensorArtTile(
     type: SensorType,
@@ -81,6 +101,7 @@ internal fun SensorArtTile(
     replay: Int = 0,
     round: Boolean = false,
     lead: () -> Float = { 0f },
+    turn: () -> Float = { 0f },
 ) {
     val context = LocalContext.current
     remember(context) { SensorImages.attach(context.applicationContext) }
@@ -101,20 +122,25 @@ internal fun SensorArtTile(
         }
     }
 
+    val cookie = remember(round) { if (round) Morph(MaterialShapes.Cookie9Sided, MaterialShapes.Circle) else null }
     Box(modifier = modifier.size(tileSize), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.matchParentSize()) {
             val progress = press.value
-            val half = size.minDimension / 2f
-            val rest = if (round) half else half * TILE_CORNER
-            val corner = (rest + (half - rest) * progress).coerceIn(0f, half)
             val shrink = 1f - 0.06f * progress
-            scale(shrink, shrink) {
-                drawRoundRect(containerColor, cornerRadius = CornerRadius(corner))
+            if (cookie != null) {
+                drawMorph(cookie, progress, size.minDimension * shrink, turn(), containerColor)
+            } else {
+                val half = size.minDimension / 2f
+                val rest = half * TILE_CORNER
+                val corner = (rest + (half - rest) * progress).coerceIn(0f, half)
+                scale(shrink, shrink) {
+                    drawRoundRect(containerColor, cornerRadius = CornerRadius(corner))
+                }
             }
         }
         Canvas(
             modifier = Modifier
-                .requiredSize(if (round) tileSize else tileSize * TILE_REACH)
+                .requiredSize(tileSize * if (round) HERO_REACH else TILE_REACH)
                 .graphicsLayer {
                     val progress = press.value
                     val drop = landing.value
@@ -142,6 +168,28 @@ private const val TILE_CORNER = 0.57f
 /** The sensor's drawing against the tile's side: a disc spans about its full width. */
 private const val TILE_REACH = 1.26f
 
+/** The sensor against the hero's cookie: a little past its lobes, so it sits on it, not in it. */
+private const val HERO_REACH = 1.1f
+
+/** [morph] at [progress], [extent] across, centred and turned [degrees]. */
+private fun DrawScope.drawMorph(morph: Morph, progress: Float, extent: Float, degrees: Float, color: Color) {
+    val outline = android.graphics.Path()
+    morph.toPath(progress.coerceIn(0f, 1f), outline)
+    val bounds = android.graphics.RectF()
+    outline.computeBounds(bounds, true)
+    val across = maxOf(bounds.width(), bounds.height())
+    if (across <= 0f || extent <= 0f) return
+    val path = outline.asComposePath()
+    withTransform({
+        translate(center.x, center.y)
+        rotate(degrees, pivot = Offset.Zero)
+        scale(extent / across, extent / across, pivot = Offset.Zero)
+        translate(-bounds.centerX(), -bounds.centerY())
+    }) {
+        drawPath(path, color)
+    }
+}
+
 /** How far the sensor sits up out of the tile, against the tile's side. */
 private const val TILE_SHIFT = 0.11f
 
@@ -152,28 +200,65 @@ private const val TILE_SHIFT_X = -0.01f
 private val heroesPlayed = mutableSetOf<SensorType>()
 
 /**
- * What a hero shows beside the sensor: how this family connects. The applicator lifts away from
- * the sensor it has just placed; a phone held over a Libre sends one NFC pulse; a phone reading a
- * code sweeps its viewfinder once; a phone pairing over Bluetooth gets a signal from the sensor.
+ * How a family connects, which the hero acts out with a phone: held over the sensor sending NFC
+ * from its back, reading the code off what the sensor comes in, or standing apart to pair over
+ * Bluetooth with the sensor's signal reaching it.
  */
-internal enum class HeroCompanion { APPLICATOR, NFC, SCAN, PAIR }
+internal enum class HeroCompanion { NFC, SCAN, PAIR }
 
 private val SensorType.heroCompanion: HeroCompanion
     get() = when (this) {
-        SensorType.CARESENS_AIR, SensorType.ACCUCHEK -> HeroCompanion.APPLICATOR
         SensorType.LIBRE -> HeroCompanion.NFC
-        SensorType.DEXCOM, SensorType.ICANHEALTH, SensorType.SIBIONICS -> HeroCompanion.SCAN
+        SensorType.DEXCOM, SensorType.ICANHEALTH, SensorType.SIBIONICS,
+        SensorType.ACCUCHEK, SensorType.CARESENS_AIR -> HeroCompanion.SCAN
         SensorType.AIDEX, SensorType.ANYTIME, SensorType.MQ, SensorType.OTTAI, SensorType.MEDTRUM -> HeroCompanion.PAIR
     }
 
+/** What the family's code is printed on, for the scanning heroes. */
+private val SensorType.codeCarrier: CodeCarrier
+    get() = when (this) {
+        SensorType.DEXCOM -> CodeCarrier.DEXCOM
+        SensorType.ICANHEALTH -> CodeCarrier.ICAN
+        SensorType.ACCUCHEK -> CodeCarrier.ACCUCHEK
+        SensorType.CARESENS_AIR -> CodeCarrier.CARESENS
+        else -> CodeCarrier.NONE
+    }
+
 /**
- * A sensor at wizard size in a circle, with its companion beside it. It answers a touch: the
- * circle gives under the finger and letting go drops the sensor on again and replays the
- * companion, with one tick. It is a toy, not a control, so it adds nothing for accessibility
- * services to announce. Between touches nothing runs.
+ * Where the pieces of a hero stand, in tile sides from the middle of the stage: the sensor, what
+ * the code is printed on, and the phone with its lean.
+ */
+private class HeroStage(
+    val width: Float,
+    val sensorX: Float,
+    val phone: Offset,
+    val phoneTurn: Float,
+    val carrier: Offset = Offset.Zero,
+)
+
+private fun stageFor(companion: HeroCompanion, carrier: CodeCarrier): HeroStage = when (companion) {
+    HeroCompanion.SCAN -> if (carrier != CodeCarrier.NONE) {
+        HeroStage(width = 2.75f, sensorX = -0.8f, carrier = Offset(0.1f, 0.08f), phone = Offset(0.92f, -0.1f), phoneTurn = 9f)
+    } else {
+        HeroStage(width = 2.1f, sensorX = -0.3f, phone = Offset(0.5f, -0.1f), phoneTurn = 10f)
+    }
+    HeroCompanion.NFC -> HeroStage(width = 2.2f, sensorX = -0.32f, phone = Offset(0.66f, -0.14f), phoneTurn = 18f)
+    HeroCompanion.PAIR -> HeroStage(width = 2.3f, sensorX = -0.42f, phone = Offset(0.78f, 0.02f), phoneTurn = 6f)
+}
+
+/**
+ * A sensor at wizard size on an M3 cookie, with a phone acting out how it connects, and for the
+ * families set up from a printed code, the thing the code is on. The phone's screen says what is
+ * happening: the NFC mark, the Bluetooth mark, or the camera closing on the code.
  *
- * The companion's motion plays the first time a hero opens after launch; later visits, and the
- * switch between full and compact sizes, find it already in place.
+ * It answers a touch: the cookie softens to a circle under the finger, and letting go turns it a
+ * notch, drops the sensor on again and replays the whole story, with a click on letting go and a
+ * double click when the phone has the code, the NFC read or the pairing. It is a toy, not a
+ * control, so it adds nothing for accessibility services to announce. Between touches nothing
+ * runs; the entrance plays the first time a hero opens after launch, silently.
+ *
+ * [pairLead] brings a pair's second sensor to the front with a click as they pass; a new
+ * [companion] replays the entrance with it.
  */
 @Composable
 internal fun SensorHeroArt(
@@ -184,12 +269,18 @@ internal fun SensorHeroArt(
     companion: HeroCompanion? = null,
 ) {
     val tones = rememberSensorTones()
-    val accent = MaterialTheme.colorScheme.primary
+    val scheme = MaterialTheme.colorScheme
+    val accent = scheme.primary
+    val screenColor = scheme.surfaceContainerHighest
+    val nfcMark = rememberVectorPainter(Icons.Rounded.Nfc)
+    val bluetoothMark = rememberVectorPainter(Icons.Rounded.Bluetooth)
     val tick = rememberNavigationTick()
     val interactionSource = remember { MutableInteractionSource() }
     var plays by remember { mutableIntStateOf(0) }
     val companionKind = companion ?: type.heroCompanion
-    // A new companion (Ottai's wake by NFC or not) comes in as on a first visit.
+    val carrier = if (companionKind == HeroCompanion.SCAN) type.codeCarrier else CodeCarrier.NONE
+    val stage = stageFor(companionKind, carrier)
+    // A new companion (Ottai's wake by NFC or not) comes in as on a first visit, and was asked for.
     var shownCompanion by remember { mutableStateOf(companionKind) }
     LaunchedEffect(companionKind) {
         if (companionKind != shownCompanion) {
@@ -203,34 +294,41 @@ internal fun SensorHeroArt(
         animationSpec = ExpressiveMotion.slowSpatial(),
         label = "pairLead",
     )
+    LaunchedEffect(Unit) {
+        snapshotFlow { lead >= 0.5f }.drop(1).collect { tick.play() }
+    }
 
     // 0 = not yet arrived, 1 = in place.
     val firstVisit = remember(type) { heroesPlayed.add(type) }
-    val companion = remember { Animatable(if (firstVisit) 0f else 1f) }
-    // The companion's one beat: the NFC pulse, the viewfinder's sweep, the Bluetooth signal.
+    val arrival = remember { Animatable(if (firstVisit) 0f else 1f) }
+    // The phone's one beat: the NFC read, the camera's sweep and read, the Bluetooth signal.
     val signal = remember { Animatable(1f) }
+    // The cookie turns a notch on every entrance; nine lobes, so a notch of 40° looks the same.
+    val turn = remember { Animatable(if (firstVisit) -40f else 0f) }
     LaunchedEffect(plays) {
         if (plays == 0 && !firstVisit) return@LaunchedEffect
-        companion.snapTo(0f)
-        signal.snapTo(0f)
-        companion.animateTo(1f, ExpressiveMotion.slowSpatial())
-        if (companionKind != HeroCompanion.APPLICATOR) {
-            signal.animateTo(1f, tween(durationMillis = 1100, easing = LinearOutSlowInEasing))
+        val asked = plays > 0
+        coroutineScope {
+            launch {
+                if (asked) turn.snapTo(turn.value - 40f)
+                turn.animateTo(0f, ExpressiveMotion.slowSpatial())
+            }
+            arrival.snapTo(0f)
+            signal.snapTo(0f)
+            arrival.animateTo(1f, ExpressiveMotion.slowSpatial())
+            signal.animateTo(1f, tween(durationMillis = 1_200, easing = LinearOutSlowInEasing))
+            if (asked) tick.playConfirm()
         }
     }
 
-    val tileShift by animateDpAsState(
-        targetValue = when (companionKind) {
-            HeroCompanion.APPLICATOR -> tileSize * 0.3f
-            HeroCompanion.NFC, HeroCompanion.SCAN -> -tileSize * 0.22f
-            HeroCompanion.PAIR -> -tileSize * 0.3f
-        },
+    val sensorShift by animateDpAsState(
+        targetValue = tileSize * stage.sensorX,
         animationSpec = ExpressiveMotion.defaultSpatial(),
         label = "heroShift",
     )
     Box(
         modifier = modifier
-            .size(width = tileSize * 2, height = tileSize * 1.25f)
+            .size(width = tileSize * stage.width, height = tileSize * 1.3f)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = { position ->
@@ -249,91 +347,115 @@ internal fun SensorHeroArt(
             },
         contentAlignment = Alignment.Center,
     ) {
-        if (companionKind == HeroCompanion.NFC || companionKind == HeroCompanion.PAIR) {
-            Canvas(modifier = Modifier.matchParentSize()) {
-                val progress = signal.value
-                val tile = tileSize.toPx()
-                val sensor = center + Offset(tileShift.toPx(), 0f)
-                if (companionKind == HeroCompanion.NFC) {
-                    // One pulse of the field, ringing out from the sensor and gone.
-                    if (progress < 1f) {
-                        for (ring in 0..2) {
-                            val local = (progress * 1.5f - ring * 0.25f).coerceIn(0f, 1f)
-                            if (local > 0f && local < 1f) {
-                                drawCircle(
-                                    accent.copy(alpha = (1f - local) * 0.7f),
-                                    radius = tile * 0.95f * (0.45f + 0.55f * local),
-                                    center = sensor,
-                                    style = Stroke(width = 2.dp.toPx()),
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    // Three arcs from the sensor towards the phone: they light in turn, then stay
-                    // faint, so the picture still says "pairing" at rest.
-                    val from = sensor + Offset(tile * 0.46f, 0f)
-                    for (arc in 0..2) {
-                        val lit = (progress * 3f - arc).coerceIn(0f, 1f)
-                        val radius = tile * (0.1f + 0.09f * arc)
-                        drawArc(
-                            color = accent.copy(alpha = 0.45f + 0.55f * lit * (1f - progress)),
-                            startAngle = -40f,
-                            sweepAngle = 80f,
-                            useCenter = false,
-                            topLeft = from - Offset(radius, radius),
-                            size = Size(radius * 2f, radius * 2f),
-                            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
-                        )
-                    }
-                }
-            }
-        }
         SensorArtTile(
             type = type,
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             tileSize = tileSize,
             interactionSource = interactionSource,
-            modifier = Modifier.offset(x = tileShift),
+            modifier = Modifier.offset(x = sensorShift),
             replay = plays,
             round = true,
             lead = { lead },
+            turn = { turn.value },
         )
+        // The signal, over the sensor and under the phone: from the phone's edge to the sensor for
+        // NFC, from the sensor to the phone for Bluetooth. It lights in turn and stays faint.
+        if (companionKind != HeroCompanion.SCAN) {
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val progress = signal.value
+                val tile = tileSize.toPx()
+                val sensor = center + Offset(sensorShift.toPx(), 0f)
+                val phone = center + Offset(stage.phone.x * tile, stage.phone.y * tile)
+                val (from, toward) = if (companionKind == HeroCompanion.NFC) {
+                    // The phone's near edge, where it faces the sensor.
+                    (phone + Offset(-0.3f * tile, 0.16f * tile)) to sensor
+                } else {
+                    (sensor + Offset(0.5f * tile, 0f)) to phone
+                }
+                val aim = Math.toDegrees(atan2((toward - from).y, (toward - from).x).toDouble()).toFloat()
+                if (companionKind == HeroCompanion.NFC && progress < 1f) {
+                    // The sensor answers: one ring out from it, gone by the end.
+                    val local = (progress * 1.6f - 0.4f).coerceIn(0f, 1f)
+                    if (local > 0f && local < 1f) {
+                        drawCircle(
+                            accent.copy(alpha = (1f - local) * 0.6f),
+                            radius = tile * (0.5f + 0.32f * local),
+                            center = sensor,
+                            style = Stroke(width = 2.dp.toPx()),
+                        )
+                    }
+                }
+                for (arc in 0..2) {
+                    val lit = (progress * 3f - arc).coerceIn(0f, 1f)
+                    val radius = tile * (0.1f + 0.08f * arc)
+                    drawArc(
+                        color = accent.copy(alpha = 0.5f + 0.5f * lit * (1f - progress)),
+                        startAngle = aim - 38f,
+                        sweepAngle = 76f,
+                        useCenter = false,
+                        topLeft = from - Offset(radius, radius),
+                        size = Size(radius * 2f, radius * 2f),
+                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round),
+                    )
+                }
+            }
+        }
+        if (carrier != CodeCarrier.NONE) {
+            Canvas(
+                modifier = Modifier
+                    .requiredSize(tileSize * 1.02f)
+                    .graphicsLayer {
+                        val moved = arrival.value
+                        val tile = tileSize.toPx()
+                        // Comes out from behind the sensor and stands beside it.
+                        val start = sensorShift.toPx()
+                        translationX = start + (stage.carrier.x * tile - start) * moved
+                        translationY = stage.carrier.y * tile + tile * 0.12f * (1f - moved)
+                        val grow = 0.7f + 0.3f * moved
+                        scaleX = grow
+                        scaleY = grow
+                        rotationZ = -12f * (1f - moved)
+                        alpha = (moved * 2.5f).coerceIn(0f, 1f)
+                    },
+            ) {
+                drawCodeCarrier(carrier, tones)
+            }
+        }
         Canvas(
             modifier = Modifier
-                .requiredSize(tileSize * 1.05f)
+                .requiredSize(tileSize * 1.08f)
                 .graphicsLayer {
-                    val moved = companion.value
+                    val moved = arrival.value
                     val tile = tileSize.toPx()
-                    val shift = tileShift.toPx()
+                    translationX = stage.phone.x * tile
+                    translationY = stage.phone.y * tile
+                    rotationZ = stage.phoneTurn
                     when (companionKind) {
-                        HeroCompanion.APPLICATOR -> {
-                            // Starts seated on the sensor, ends standing beside it.
-                            translationX = shift + (-tile * 0.62f) * moved
-                            translationY = (-tile * 0.42f) * (1f - moved) + tile * 0.02f * moved
-                            rotationZ = 14f * (1f - moved)
-                        }
                         HeroCompanion.NFC, HeroCompanion.SCAN -> {
-                            // Comes in from the top corner and hangs just over the sensor.
-                            translationX = tile * 0.46f + tile * 0.5f * (1f - moved)
-                            translationY = -tile * 0.1f - tile * 0.5f * (1f - moved)
-                            rotationZ = (if (companionKind == HeroCompanion.SCAN) 10f else 16f) + 18f * (1f - moved)
+                            // Comes in from the top corner.
+                            translationX += tile * 0.5f * (1f - moved)
+                            translationY += -tile * 0.5f * (1f - moved)
+                            rotationZ += 18f * (1f - moved)
                         }
                         HeroCompanion.PAIR -> {
                             // Rises into place a little way off, upright: it talks over the air.
-                            translationX = tile * 0.84f
-                            translationY = tile * 0.04f + tile * 0.35f * (1f - moved)
-                            rotationZ = 6f
+                            translationY += tile * 0.35f * (1f - moved)
                         }
                     }
                     alpha = (moved * 2.5f).coerceIn(0f, 1f)
                 },
         ) {
-            when (companionKind) {
-                HeroCompanion.APPLICATOR -> drawApplicator(type, tones)
-                HeroCompanion.NFC, HeroCompanion.PAIR -> drawNfcPhone(tones)
-                HeroCompanion.SCAN -> drawScanPhone(tones, accent, signal.value)
+            val beat = signal.value
+            val screen = when (companionKind) {
+                HeroCompanion.NFC -> PhoneScreen.Glyph(nfcMark, pulse = beat)
+                HeroCompanion.PAIR -> PhoneScreen.Glyph(bluetoothMark, pulse = beat)
+                HeroCompanion.SCAN -> PhoneScreen.Viewfinder(
+                    code = carrier.code,
+                    sweep = (beat / 0.6f).coerceIn(0f, 1f),
+                    lock = ((beat - 0.55f) / 0.45f).coerceIn(0f, 1f),
+                )
             }
+            drawHeroPhone(tones, screenColor, accent, screen)
         }
     }
 }
@@ -407,7 +529,7 @@ internal fun SensorWizardHero(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                SensorHeroArt(type, tileSize = if (wide) 120.dp else 104.dp, pairLead = pairLead, companion = companion)
+                SensorHeroArt(type, tileSize = if (wide) 128.dp else 112.dp, pairLead = pairLead, companion = companion)
                 if (title != null) {
                     Text(
                         title,
