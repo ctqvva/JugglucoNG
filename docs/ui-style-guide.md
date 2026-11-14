@@ -209,25 +209,17 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 **The wizard hero** (`SensorWizardHero`)
 
 - Every wizard's main step opens with one, never a bespoke card. The sensor and a phone acting
-  out how the family connects stand in front of one shape, built rather than drawn (`discHull`):
-  - the convex hull of discs: one behind each piece, sized to it, and more at each piece's foot
-    (a pack's base corners, a leaning phone's lower corners), so every piece is grounded
-    inside the shape while tops may break out;
-  - arcs and straight tangents give it structure; a disc inside the others' reach is passed
-    over, never pulled in (no notches behind a middle pack);
-  - the discs follow the pieces, so it fits each scene at any size and isn't held to a box.
-
-  How the family connects sets the discs (`HeroShape`):
-  | Connects by | Shape |
-  |---|---|
-  | A printed code | A full pocket round the sensor, tapering up to a smaller disc behind the phone |
-  | Bluetooth | Even, level discs. Only when two pieces leave open air between them, the top bows in by 0.07 tile where the signal crosses |
-  | NFC | A grounded disc low under the sensor sweeping up to a small one under the phone |
-  | A serial (Medtrum) | An even, level capsule, no waist, no flat cut |
-
-  - Tops may break out past it; bottoms never.
-  - Fill: `sensorBackdropColor`, the list tiles' colour.
-  - The scene sits 0.06 tile high in its box, and the heading is 12dp under it, because the
+  out how the family connects stand in front of one shape, built by one rule for every family
+  (`sceneShape`), never tailored to a sensor:
+  - each piece (the sensor, the pack, the phone at its lean) is a box round what it shows, its
+    top let out so tall things rise past the shape;
+  - the outline is the convex hull of those boxes with one wide corner radius (0.32 tile)
+    throughout, so no corner can pinch and every base stands inside;
+  - where two pieces leave open air for a radio signal (Bluetooth families, not Medtrum's serial
+    step), the top eases in by 0.07 tile, flat at both ends;
+  - tops may break out past it; bottoms never.
+  - fill: `sensorBackdropColor`, the list tiles' colour;
+  - the scene sits 0.06 tile high in its box, and the heading is 12dp under it, because the
     grounded shape reaches further down than up.
 
   Rules:
@@ -237,7 +229,19 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
   - Rejected by the owner (2026-11-14/15): a cookie halo, a colour-blocked pill with a success
     burst, a 3D stage, the list tile reused, rings drawn as lines, a fixed 280 x 148 box with
     hand-drawn blobs, a free-form silhouette ("blobs of randomness"), one rounded rectangle per
-    family, and a Medtrum mound cut flat (read as a doorstop).
+    family, a Medtrum mound cut flat (read as a doorstop), and small grounding discs that left
+    tight `_|` corners round the phone. The fix for a bad corner is the rule, not another disc.
+- The phone acts out how the family connects; its screen says it in one mark:
+
+  | Family connects by | Phone | Screen | Beside them |
+  |---|---|---|---|
+  | NFC (Libre; Ottai China and Syai) | Held over the sensor, arcs running from its edge to the sensor | The NFC mark, pulsing once | — |
+  | A printed code (Dexcom, iCan, Accu-Chek, CareSens Air, Sibionics) | Standing beside what the code is printed on | The viewfinder sweeping, then closing on the code | What the user points the camera at: the G7 applicator, the iCan i3 pack and i6 kit, the SmartGuide applicator turned cap up, the CareSens pouch. Sibionics has none: its code is on the box |
+  | Bluetooth (AiDEX, Anytime, MQ, Ottai Global, Medtrum) | Standing apart, arcs running from the sensor to it | The Bluetooth mark | — |
+
+  The phone has a rim in `outline`. Its screen is `surfaceContainerHighest` with `primary`
+  marks in light themes, and lit (`inverseSurface` with `inversePrimary`) in dark ones, where a
+  dark screen on a dark phone vanishes into the backdrop.
 - A step whose choice changes the picture passes it in: `pairLead` brings the chosen sensor of
   a pair to the front (Sibionics picker), `companion` swaps the phone's story (Ottai's region).
   The change animates; it is never a cut.

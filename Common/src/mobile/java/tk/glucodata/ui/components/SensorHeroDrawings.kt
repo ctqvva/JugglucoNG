@@ -127,12 +127,13 @@ internal sealed interface PhoneScreen {
  * The hero's phone: a flat slab with a bright screen, the way Material draws devices rather than
  * a photograph of one, so its screen can say plainly what is happening.
  */
-internal fun DrawScope.drawHeroPhone(tones: SensorTones, screenColor: Color, accent: Color, screen: PhoneScreen) = inUnitSquare {
+internal fun DrawScope.drawHeroPhone(tones: SensorTones, screenColor: Color, accent: Color, rim: Color, screen: PhoneScreen) = inUnitSquare {
     val outline = RoundRect(Rect(-24f, -46f, 24f, 46f), CornerRadius(10f))
     val slab = Path().apply { addRoundRect(outline) }
     translate(2.4f, 3f) { drawPath(slab, tones.shadow.copy(alpha = tones.shadow.alpha * 2.2f)) }
     drawPath(slab, tones.ink)
-    drawPath(slab, tones.glint.copy(alpha = 0.22f), style = Stroke(width = 0.9f))
+    // A rim in the theme's outline colour, so the phone keeps its edge on any backdrop.
+    drawPath(slab, rim, style = Stroke(width = 1.6f))
     val glass = RoundRect(Rect(-21.2f, -43.2f, 21.2f, 43.2f), CornerRadius(7.6f))
     val face = Path().apply { addRoundRect(glass) }
     drawPath(face, screenColor)
