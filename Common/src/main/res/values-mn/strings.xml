@@ -3471,12 +3471,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <!-- Kotlin Libre 3 driver -->
     <string name="libre3_managed_title">Kotlin Libre 3 драйвер (туршилтын)</string>
     <string name="libre3_managed_enable">Kotlin Libre 3 драйвер ашиглах</string>
-    <string name="libre3_managed_enable_desc">Шинэ Libre 3 / 3 Plus NFC уншилт нь хуучин сангийн оронд Kotlin драйвер ашиглана. Аппын таних мэдээлэл импортлох шаардлагатай.</string>
+    <string name="libre3_managed_enable_desc">Libre 3 / 3 Plus-ийг Kotlin драйвераар холбоно. Идэвхжүүлэхэд шаардлагатай холболтын мэдээлэл автоматаар татагдана.</string>
     <string name="libre3_managed_receiver_account">LibreView бүртгэлийг хүлээн авагчийн ID болгох</string>
     <string name="libre3_managed_receiver_desc">NFC командын хүлээн авагчийн ID: %1$s. Juggluco-оор өмнө нь эхлүүлсэн мэдрэгчид бүртгэлийн ID-г хадгална; унтраавал энэ утасны өөрийн ID-г ашиглана.</string>
-    <string name="libre3_managed_identity_none">Аппын таних мэдээлэл импортлоогүй. Libre 3 мэдрэгч зөвхөн тохирох гэрчилгээг хүлээн авна; энэ апп гэрчилгээ агуулахгүй.</string>
+    <string name="libre3_managed_identity_none">Холболтын мэдээлэл хараахан татагдаагүй. Драйверыг идэвхжүүлэх эсвэл «Таних мэдээлэл татах»-ыг сонгоод мэдрэгчийг уншуулна уу.</string>
     <string name="libre3_managed_identity_list">Аппын таних мэдээллийн багц %1$s: %2$s</string>
-    <string name="libre3_managed_identity_desc">SHA-256-аар шалгасан багц татах эсвэл JSON файл импортлох (формат 1, P-256 муруй: label, privateKeyHex, certificateHex). Холбосон мэдрэгч хувилбараа хадгална. Түлхүүрүүд энэ утасны түлхүүрээр шифрлэгдэж, тохиргооны экспортод орохгүй.</string>
+    <string name="libre3_managed_identity_desc">Апп холболтын мэдээллийг автоматаар татаж шалгаад, офлайн ашиглахын тулд утсан дээр шифрлэж хадгална. Файл импортлох болон өөр эх үүсвэр нь нэмэлт тохиргоо юм.</string>
     <string name="libre3_managed_identity_source">%3$s дахь %1$s эх үүсвэр (sha256 %2$s…)</string>
     <string name="libre3_managed_identity_download">Таних мэдээлэл татах</string>
     <string name="libre3_managed_source_url">Таних мэдээллийн эх үүсвэрийн URL (https)</string>
@@ -3487,8 +3487,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="libre3_managed_identity_import">Таних мэдээллийн файл импортлох</string>
     <string name="libre3_managed_identity_remove">Устгах</string>
     <string name="libre3_managed_identity_imported">%1$d таних мэдээлэл импортоллоо</string>
-    <string name="libre3_managed_identity_import_failed">Таних мэдээллийн файл импортлоогүй: %1$s</string>
-    <string name="libre3_managed_identity_missing">Эхлээд Libre 3 таних мэдээлэл импортлоно уу (LibreView тохиргоо, Kotlin Libre 3 драйвер). Мэдрэгч өөрчлөгдөөгүй.</string>
+    <string name="libre3_managed_identity_import_failed">Холболтын мэдээллийг ачаалж чадсангүй: %1$s</string>
+    <string name="libre3_managed_identity_missing">Холболтын мэдээлэл алга. Тохиргоо → Kotlin Libre 3 драйверыг нээж, интернетээ шалгаад дахин татна уу. Мэдрэгч өөрчлөгдөөгүй.</string>
     <string name="libre3_status_device_rejected">Төхөөрөмж Libre 3 биш (үйлчилгээ дутуу); мэдрэгчийг дахин уншуулна уу</string>
     <string name="libre3_status_certificate_rejected">Мэдрэгчийн гэрчилгээ танигдсангүй; дахин уншуулна уу</string>
     <string name="libre3_status_identity_missing">Libre 3 аппын таних мэдээлэл импортлоогүй</string>

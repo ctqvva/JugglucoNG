@@ -3377,12 +3377,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Kotlin Libre 3 driver -->
     <string name="libre3_managed_title">Pilote Libre 3 en Kotlin (expérimental)</string>
     <string name="libre3_managed_enable">Utiliser le pilote Libre 3 en Kotlin</string>
-    <string name="libre3_managed_enable_desc">Les nouveaux scans NFC Libre 3 / 3 Plus utilisent le pilote Kotlin au lieu de la bibliothèque native historique. Une identité d’application importée est nécessaire.</string>
+    <string name="libre3_managed_enable_desc">Connectez Libre 3 / 3 Plus avec le pilote Kotlin. Les données de connexion nécessaires sont téléchargées automatiquement à l’activation.</string>
     <string name="libre3_managed_receiver_account">Utiliser le compte LibreView comme ID du récepteur</string>
     <string name="libre3_managed_receiver_desc">ID du récepteur envoyé par NFC : %1$s. Gardez l’ID du compte pour les capteurs démarrés auparavant par Juggluco ; désactivez pour utiliser un ID propre à ce téléphone.</string>
-    <string name="libre3_managed_identity_none">Aucune identité importée. Un capteur Libre 3 accepte uniquement un certificat adapté ; cette application n’en contient aucun.</string>
+    <string name="libre3_managed_identity_none">Données de connexion non téléchargées. Activez le pilote ou choisissez « Télécharger les identités », puis scannez le capteur.</string>
     <string name="libre3_managed_identity_list">Jeu d’identités %1$s : %2$s</string>
-    <string name="libre3_managed_identity_desc">Téléchargez un jeu vérifié par SHA-256 ou importez un fichier JSON (format 1, courbe P-256 : label, privateKeyHex, certificateHex). Un capteur associé conserve sa version. Les clés sont chiffrées avec une clé propre au téléphone et exclues des exports des réglages.</string>
+    <string name="libre3_managed_identity_desc">L’application télécharge et vérifie automatiquement les données de connexion, puis les conserve chiffrées sur ce téléphone pour une utilisation hors ligne. L’import de fichiers et les sources personnalisées sont des options avancées.</string>
     <string name="libre3_managed_identity_source">Source %1$s (sha256 %2$s…) via %3$s</string>
     <string name="libre3_managed_identity_download">Télécharger les identités</string>
     <string name="libre3_managed_source_url">URL de la source d’identités (https)</string>
@@ -3393,8 +3393,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_import">Importer un fichier d’identités</string>
     <string name="libre3_managed_identity_remove">Supprimer</string>
     <string name="libre3_managed_identity_imported">%1$d identités importées</string>
-    <string name="libre3_managed_identity_import_failed">Fichier d’identités non importé : %1$s</string>
-    <string name="libre3_managed_identity_missing">Importez d’abord une identité Libre 3 (réglages LibreView, pilote Libre 3 en Kotlin). Le capteur n’a pas été modifié.</string>
+    <string name="libre3_managed_identity_import_failed">Impossible de charger les données de connexion : %1$s</string>
+    <string name="libre3_managed_identity_missing">Données de connexion indisponibles. Ouvrez Réglages → Pilote Libre 3 en Kotlin, vérifiez Internet et réessayez le téléchargement. Le capteur n’a pas été modifié.</string>
     <string name="libre3_status_device_rejected">Ce n’est pas un Libre 3 (services absents) ; scannez à nouveau le capteur</string>
     <string name="libre3_status_certificate_rejected">Certificat du capteur non reconnu ; scannez à nouveau le capteur</string>
     <string name="libre3_status_identity_missing">Aucune identité d’application Libre 3 importée</string>

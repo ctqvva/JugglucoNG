@@ -15,6 +15,8 @@ class Libre3DriverGuardTest {
 
     @Test fun marksArePersistedOnlyAfterRoomStorage() {
         val m = manager
+        assertTrue(m.contains("private fun flushBackfill()"))
+        assertTrue(m.contains("private fun storeBackfill("))
         val flush = m.substringAfter("private fun flushBackfill()").substringBefore("private fun storeBackfill(")
         assertTrue(flush.contains("if (stored) {\n            persistMarks()"))
         // Every persistMarks() call outside its definition sits inside flushBackfill.
@@ -48,4 +50,9 @@ class Libre3DriverGuardTest {
         assertFalse(m.contains("!pastWear(rec.lifeCount)"))
         assertFalse(m.contains("inWarmup(lifeCount) || pastWear(lifeCount)"))
     }
+    @Test fun rescansDoNotBroadcastAnotherActivation() {
+        val nfc = src("Common/src/main/java/tk/glucodata/ScanNfcV.java")
+        assertTrue(nfc.contains("if (!isWearable && tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastScanActivated())"))
+    }
+
 }

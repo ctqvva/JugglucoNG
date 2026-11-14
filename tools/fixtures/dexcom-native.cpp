@@ -25,6 +25,8 @@ struct pathconcat : string {
     operator const char*() const {return c_str();}
 };
 struct Info {
+    unsigned family=0;
+    unsigned managedFamilyCode() const { return family; }
     uint32_t starttime=1700000001, lastscantime=0;
     int32_t starthistory=0,endhistory=0;
     uint32_t scancount=0;
@@ -294,6 +296,14 @@ void batchedBackfill(){
     transport.hist=nullptr;assert(!dexbackfillInput(&env,0,ptr,single));
 }
 int main(){
+    {
+        SensorGlucoseData libre3;
+        libre3.metadata.family=9;
+        assert(libre3.pollStorageSize()==32*24*60);
+        libre3.metadata.family=0;
+        assert(libre3.pollStorageSize()<32*24*60);
+    }
+
     flexDiscovery();batchedBackfill();
     for(auto model:{"4574","4581","0071"}){
         auto scan=dexcom::parseScan(barcode(model));assert(scan);

@@ -183,6 +183,8 @@ class Libre3BleManager(sensorId: String) :
 
     // ---- ManagedBluetoothSensorDriver ----
 
+    override fun nativeSensorPtr(): Long = runCatching { Natives.str2sensorptr(sensorId) }.getOrDefault(0L)
+
     override fun canConnectWithoutDataptr(): Boolean = true
     override fun hasNativeSensorBacking(): Boolean = false
     override fun shouldUseNativeHistorySync(): Boolean = false
@@ -754,12 +756,13 @@ class Libre3BleManager(sensorId: String) :
             val safeRate = rate.takeIf { it.isFinite() } ?: 0f
             // Include live minutes in the blocking flush before its progress can be persisted.
             minuteBackfill += VirtualGlucoseSensorBridge.Reading(timestampMs = timeMs, glucoseMgdl = mgdl, rate = rate)
-            VirtualGlucoseSensorBridge.mirrorToNative(
+            val mirrored = VirtualGlucoseSensorBridge.mirrorToNative(
                 sensorId,
                 listOf(VirtualGlucoseSensorBridge.Reading(timestampMs = timeMs, glucoseMgdl = mgdl, rate = rate)),
                 LOG_LABEL,
                 ManagedSensorUiFamily.LIBRE3,
             )
+            if (mirrored > 0) tk.glucodata.NightscoutUploadWake.afterLiveNativeWrite(LOG_LABEL, timeMs)
             val display = if (Applic.unit == 1) mgdl / MGDL_PER_MMOL else mgdl
             // Stock lane: the sensor's own value, before this app's optional software calibration.
             SuperGattCallback.processExternalCurrentReading(
@@ -770,6 +773,7 @@ class Libre3BleManager(sensorId: String) :
                 SENSOR_GEN,
                 record?.startTimeMs ?: 0L,
             )
+            completeManagedLiveReading(timeMs)
         }
         UiRefreshBus.requestDataRefresh()
     }
@@ -807,6 +811,7 @@ class Libre3BleManager(sensorId: String) :
                 val ptr = Natives.ensureSensorShellWithCapacity(sensorId, startSec, NATIVE_WINDOW_MINUTES)
                 if (ptr == 0L && Natives.ensureSensorShell(sensorId, startSec) == 0L) return
             }
+            Natives.setSensorManagedFamily(sensorId, ManagedSensorUiFamily.LIBRE3.nativeCode)
             // Capacity alone does not update native lifecycle metadata. Without the actual wear
             // duration, checkinfo()/the uploader can retire a 3 Plus mirror on day 14.
             val wearDays = (rec.wearMinutes + 24 * 60 - 1) / (24 * 60)
@@ -1008,7 +1013,6 @@ class Libre3BleManager(sensorId: String) :
     private val setupDeadlineRunnable = Runnable {
         if (phase != Phase.STREAMING && !stop) {
             Log.w(TAG, "$sensorId: setup did not complete in $phase (handshake ${handshake?.stage})")
-            classifyLinkLossDuringHandshake()
             dropLink("setup timeout")
         }
     }

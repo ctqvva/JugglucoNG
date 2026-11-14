@@ -2034,6 +2034,17 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getSensorManagedFamily)(
   return info ? static_cast<jint>(info->managedFamilyCode()) : 0;
 }
 
+extern "C" JNIEXPORT jint JNICALL fromjava(getSensorStreamCapacity)(
+    JNIEnv *env, jclass cl, jstring sensorId) {
+  if (!sensors || !sensorId) return 0;
+  const char *str = env->GetStringUTFChars(sensorId, nullptr);
+  if (!str) return 0;
+  const int index = sensors->sensorindex(str);
+  env->ReleaseStringUTFChars(sensorId, str);
+  auto *hist = index >= 0 ? sensors->getSensorData(index) : nullptr;
+  return hist && !hist->error() ? static_cast<jint>(hist->pollStorageCapacity()) : 0;
+}
+
 extern "C" JNIEXPORT jboolean JNICALL fromjava(hasSensorStreamCapacity)(
     JNIEnv *env, jclass cl, jstring sensorId, jint minimumRecords) {
   if (!sensors || !sensorId || minimumRecords <= 0)

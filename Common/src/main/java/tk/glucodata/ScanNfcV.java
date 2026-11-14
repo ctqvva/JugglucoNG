@@ -578,7 +578,7 @@ public class ScanNfcV {
                 ? (act.getString(R.string.sensor) + " " + serial + act.getString(R.string.ready_in) + waitmin + " "
                         + act.getString(R.string.minutes))
                 : act.getString(R.string.ready_for_use);
-        if (!isWearable) {
+        if (!isWearable && tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastScanActivated()) {
             XInfuus.sendSensorActivateBroadcast(act, serial, record.getStartTimeMs() / 1000L);
         }
         // The calendar entry names the LibreView account; only when that is what the sensor holds.

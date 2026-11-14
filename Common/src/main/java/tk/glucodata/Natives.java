@@ -795,6 +795,8 @@ public class Natives {
         /** Updates an existing native record without allocating a BLE stream pointer. */
         public static native boolean setSensorViewMode(String sensorId, int mode);
 
+        /** Actual mapped minute-slot capacity; 0 when the shell does not exist. */
+        public static native int getSensorStreamCapacity(String sensorId);
         public static native boolean hasSensorStreamCapacity(String sensorId, int minimumRecords);
 
         public static native void rebaseDirectStreamWindow(String sensorId, long startTimeSec);
