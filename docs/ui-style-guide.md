@@ -207,21 +207,13 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 **The wizard hero** (`SensorWizardHero`)
 
-- Every wizard's main step opens with one, never a bespoke card. The sensor and a phone
-  acting out how the family connects stand on one stage: a wide slab in the list tiles' tone
-  (`primaryContainer`) and corner, turned 2.5° against the sensors' tilt, with a front edge a
-  shade deeper (`primaryContainer` 35% towards `primary`). It sits low, so the sensor, the
-  phone and what the code is printed on rise out past its top edge, as a list sensor rises out
-  of its square. Nothing is centred under the sensor: a disc under it reads as its adhesive
-  patch. Nothing else is added either; the owner rejected a cookie halo, and a colour-blocked
-  pill with a success burst, as clutter (2026-11-14). The phone's screen says it in one glyph:
-
-| Family connects by | Phone | Screen | Beside them |
-|---|---|---|---|
-| NFC (Libre; Ottai China and Syai) | Held over the sensor, arcs running from its edge to the sensor | The NFC mark, pulsing once | — |
-| A printed code (Dexcom, iCan, Accu-Chek, CareSens Air, Sibionics) | Standing beside what the code is printed on | The viewfinder sweeping, then closing on the code | What the user points the camera at: the G7 applicator, the iCan i3 pack and i6 kit, the SmartGuide applicator turned cap up, the CareSens pouch. Sibionics has none: its code is on the box |
-| Bluetooth (AiDEX, Anytime, MQ, Ottai Global, Medtrum) | Standing apart, arcs running from the sensor to it | The Bluetooth mark | — |
-
+- Every wizard's main step opens with one, never a bespoke card. The sensor sits on its own
+  list tile (`SensorArtTile`, `primaryContainer`, the list's corner), drawn large and set
+  further up and to the side of it than in the list (0.2 and 0.16 of the tile), so the square
+  reads as a flat block the sensor is set against. Beside it stands a phone acting out how the
+  family connects. Flat 2D shapes only, and never one centred under the sensor: a disc or slab
+  under it reads as its adhesive patch or a stage. Nothing else is added; the owner rejected a
+  cookie halo, a colour-blocked pill with a success burst, and a 3D stage (2026-11-14).
 - A step whose choice changes the picture passes it in: `pairLead` brings the chosen sensor of
   a pair to the front (Sibionics picker), `companion` swaps the phone's story (Ottai's region).
   The change animates; it is never a cut.
@@ -239,14 +231,13 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
 
 **Hero motion and touch**
 
-- The entrance plays the first time a hero opens after launch: the stage unfolds sideways from
-  the sensor on an overshooting bounce (damping 0.45), the phone and what the code is printed
+- The entrance plays the first time a hero opens after launch: the tile springs up and turns
+  into place on an overshooting bounce (damping 0.45), the phone and what the code is printed
   on come in, and the phone does its one beat. Later
   visits, rotation, and the fold between sizes find it already in place. Nothing runs at rest.
 - It is a toy, not a control, so it adds nothing for accessibility services. Under the finger
-  the stage is pushed down onto its edge and its corners round, as a pressed tile's do. On
-  release the hero clicks (`NavigationTick.play`), the stage bounces, the sensor drops back on
-  and the story replays. When the phone has the read, it
+  the tile rounds and the sensor squares up, as in the list. On release the hero clicks
+  (`NavigationTick.play`), the tile bounces, the sensor drops back on and the story replays. When the phone has the read, it
   double-clicks (`NavigationTick.playConfirm`).
 - A pair trading places clicks once as they pass.
 
