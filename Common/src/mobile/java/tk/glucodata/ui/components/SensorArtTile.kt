@@ -1,6 +1,9 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlin.math.abs
 import kotlin.math.sign
@@ -474,10 +477,10 @@ internal fun SensorHeroArt(
     val pop = remember { Animatable(if (firstVisit) 0f else 1f) }
     // The shape is rolled fresh each time the hero is shown; a tap trades it for another.
     val random = remember { Random(System.nanoTime()) }
-    var backdrop by remember { mutableStateOf(rollBackdrop(random)) }
-    var previousBackdrop by remember { mutableStateOf(backdrop) }
-    // 0 = the previous style showing, 1 = the new one: a tap's shape change melts across.
-    val melt = remember { Animatable(1f) }
+    // The styles on show, newest last, each with how far it has faded in. A tap adds one and
+    // fades every older one out from wherever it is, so taps in quick succession blend on
+    // instead of snapping a half-faded shape to full.
+    val backdrops = remember { mutableStateListOf(BackdropLayer(rollBackdrop(random), Animatable(1f))) }
     // The phone leaning in towards the sensor on a tap, and back.
     val nudge = remember { Animatable(0f) }
     // The shape's stretch: a tap pulls it wide and it springs back.
@@ -489,26 +492,36 @@ internal fun SensorHeroArt(
         press.animateTo(if (pressed) 1f else 0f, ExpressiveMotion.fastSpatial())
     }
 
-    // The entrance: the first time after launch, and when a new companion comes in. Silent.
-    LaunchedEffect(entrances) {
-        if (entrances == 0 && !firstVisit) return@LaunchedEffect
-        coroutineScope {
-            launch {
-                pop.snapTo(0.2f)
-                pop.animateTo(1f, HeroBounce)
+    // All of the hero's motion has one owner: a new tap or entrance restarts this effect, which
+    // cancels whatever was running and carries on from where every value then stands, so no
+    // two runs fight over the same animation and nothing is left halfway.
+    val handledPlays = remember { intArrayOf(0) }
+    LaunchedEffect(entrances, plays) {
+        val tapped = plays != handledPlays[0]
+        handledPlays[0] = plays
+        if (!tapped) {
+            // The entrance: the first time after launch, and when a new companion comes in. Silent.
+            if (entrances == 0 && !firstVisit) return@LaunchedEffect
+            coroutineScope {
+                launch {
+                    pop.snapTo(0.2f)
+                    pop.animateTo(1f, HeroBounce)
+                }
+                launch { settleBackdrops(backdrops) }
+                launch { nudge.animateTo(0f, SoftSettle) }
+                launch { swing.animateTo(0f, SoftSettle) }
+                arrival.snapTo(0f)
+                signal.snapTo(0f)
+                arrival.animateTo(1f, ExpressiveMotion.slowSpatial())
+                signal.animateTo(1f, tween(durationMillis = 1_200, easing = LinearOutSlowInEasing))
             }
-            arrival.snapTo(0f)
-            signal.snapTo(0f)
-            arrival.animateTo(1f, ExpressiveMotion.slowSpatial())
-            signal.animateTo(1f, tween(durationMillis = 1_200, easing = LinearOutSlowInEasing))
+            return@LaunchedEffect
         }
-    }
-    // A tap: nothing vanishes or jumps. The shape breathes out and melts into its next style,
-    // the sensor hops and settles, the phone leans in and back, and the signal plays again,
-    // ending on one light click.
-    LaunchedEffect(plays) {
-        if (plays == 0) return@LaunchedEffect
+        // A tap: nothing vanishes or jumps. The shape breathes out and melts into its next
+        // style, the sensor hops and settles, the phone leans in and back, and the signal plays
+        // again, ending on one light click. An entrance still under way finishes in place.
         coroutineScope {
+            launch { if (arrival.value < 1f) arrival.animateTo(1f, ExpressiveMotion.slowSpatial()) }
             launch {
                 pop.animateTo(0.95f, tween(durationMillis = 120, easing = FastOutSlowInEasing))
                 pop.animateTo(1f, SoftSettle)
@@ -517,10 +530,7 @@ internal fun SensorHeroArt(
                 swing.animateTo(5f, tween(durationMillis = 140, easing = FastOutSlowInEasing))
                 swing.animateTo(0f, SoftSettle)
             }
-            launch {
-                melt.snapTo(0f)
-                melt.animateTo(1f, tween(durationMillis = 420, easing = FastOutSlowInEasing))
-            }
+            launch { settleBackdrops(backdrops) }
             launch {
                 nudge.animateTo(1f, tween(durationMillis = 160, easing = FastOutSlowInEasing))
                 nudge.animateTo(0f, SoftSettle)
@@ -551,8 +561,7 @@ internal fun SensorHeroArt(
                             if (released) PressInteraction.Release(press) else PressInteraction.Cancel(press),
                         )
                         if (released) {
-                            previousBackdrop = backdrop
-                            backdrop = rollBackdrop(random, not = backdrop.first)
+                            backdrops += BackdropLayer(rollBackdrop(random, not = backdrops.last().style.first), Animatable(0f))
                             plays += 1
                             tick.play()
                         }
@@ -579,22 +588,17 @@ internal fun SensorHeroArt(
             // Opens out from the sensor on entrance; a tap stretches it, a press gathers it in.
             val grow = backdropGrow(pop.value) * (1f - 0.04f * press.value)
             val kick = swing.value / 100f
-            val change = melt.value
             scale(grow * (1f + kick), grow * (1f - kick), pivot = sensorAt) {
-                // The old style shrinks a touch and fades as the new one swells in over it.
-                if (change < 1f) {
-                    val (style, tilt) = previousBackdrop
+                // Each style at its own fade: a fading one shrinks a touch, a new one swells in.
+                for (layer in backdrops) {
+                    val shown = layer.shown.value
+                    if (shown <= 0f) continue
+                    val (style, tilt) = layer.style
                     val outline = backdropPath(style, pieces, sensorAt, phoneAt, tile)
-                    val shrink = 1f - 0.06f * change
-                    scale(shrink, shrink, pivot = center) {
-                        rotate(tilt, pivot = center) { drawPath(outline, blobColor, alpha = 1f - change) }
+                    val size = 0.94f + 0.06f * shown
+                    scale(size, size, pivot = center) {
+                        rotate(tilt, pivot = center) { drawPath(outline, blobColor, alpha = shown) }
                     }
-                }
-                val (style, tilt) = backdrop
-                val outline = backdropPath(style, pieces, sensorAt, phoneAt, tile)
-                val swell = 0.94f + 0.06f * change
-                scale(swell, swell, pivot = center) {
-                    rotate(tilt, pivot = center) { drawPath(outline, blobColor, alpha = change) }
                 }
             }
         }
@@ -729,6 +733,28 @@ private fun backdropGrow(pop: Float): Float = 0.35f + 0.65f * pop
 /** How much larger a pair is drawn in a hero than the tile size, and how far apart its two are. */
 private const val PAIR_HERO_SIZE = 1.1f
 private const val PAIR_HERO_SPREAD = 1.3f
+
+/** One style on show behind a hero, and how far it has faded in. */
+private class BackdropLayer(val style: Pair<BackdropStyle, Float>, val shown: Animatable<Float, AnimationVector1D>)
+
+/**
+ * Fades the newest style in and every older one out, each from where it stands, then drops the
+ * ones that have gone. Safe to cancel and run again at any point.
+ */
+private suspend fun settleBackdrops(layers: SnapshotStateList<BackdropLayer>) {
+    val newest = layers.last()
+    coroutineScope {
+        for (layer in layers.toList()) {
+            launch {
+                layer.shown.animateTo(
+                    if (layer === newest) 1f else 0f,
+                    tween(durationMillis = 420, easing = FastOutSlowInEasing),
+                )
+            }
+        }
+    }
+    layers.removeAll { it !== newest && it.shown.value <= 0f }
+}
 
 /** The settle after a tap's hop: soft, with one small overshoot. */
 private val SoftSettle = spring<Float>(dampingRatio = 0.55f, stiffness = 260f)
