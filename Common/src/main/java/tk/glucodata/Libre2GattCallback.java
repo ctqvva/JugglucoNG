@@ -89,6 +89,7 @@ public class Libre2GattCallback extends SuperGattCallback {
 		lastPacketAt = SystemClock.elapsedRealtime();
 		++linkPackets;
 		streamDeadline.arm(mBluetoothGatt, STREAM_SILENCE_MILLIS);
+		clearLossOfSignalState();
 	}
 
 	private synchronized void streamSilent(BluetoothGatt gatt) {
@@ -346,7 +347,7 @@ private boolean connected=false;
 				// stays in the history. Once "Loss of signal" is recorded, keep that label instead
 				// of replacing it with the bare transport code.
 				final boolean linkWasUp = linkConnectedAt >= 0L;
-				if (!"Loss of signal".equals(constatstatusstr)) {
+				if (status != GATT_SUCCESS && !"Loss of signal".equals(constatstatusstr)) {
 					setConStatus(status, linkWasUp && status != 22);
 				}
 				constatchange[1] = tim;

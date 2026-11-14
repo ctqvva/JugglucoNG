@@ -604,9 +604,14 @@ class SensorViewModel : ViewModel() {
     
                         // Get detailed status from native code
                         val nativeStatus = Natives.getsensortext(gatt.dataptr) ?: ""
-                        val sensorErrorCode = runCatching {
-                            Natives.getSensorErrorCode(gatt.dataptr)
-                        }.getOrDefault(0)
+                        val nativeStatusClass = classifyLegacySensorStatus(nativeStatus)
+                        val sensorErrorActive = nativeStatusClass == LegacySensorStatusText.SensorError ||
+                            nativeStatusClass == LegacySensorStatusText.ReplaceSensor
+                        val sensorErrorCode = if (sensorErrorActive) {
+                            runCatching { Natives.getSensorErrorCode(gatt.dataptr) }.getOrDefault(0)
+                        } else {
+                            0
+                        }
                         val bleStatus = gatt.constatstatusstr ?: ""
                         val warmupStatus = getLegacyWarmupStatus(tk.glucodata.Applic.app, gatt.dataptr, nativeStatus)
                         
@@ -671,10 +676,10 @@ class SensorViewModel : ViewModel() {
                             handoffUiState == SensorHandoffUiState.STREAMING_FROM_WATCH ->
                                 Applic.app.getString(tk.glucodata.R.string.status_watch_reading)
                             warmupStatus != null -> warmupStatus
-                            // A dead link is more actionable than an error the sensor
-                            // reported before it stopped sending packets.
-                            bleStatus == "Loss of signal" && !bleStatusOutdated -> mapBleStatus(bleStatus)
                             nativeStatus.isNotEmpty() -> mapNativeStatus(nativeStatus)
+                            // Only when the sensor reports no status of its own: a dead link
+                            // is then more useful than the last transport code.
+                            bleStatus == "Loss of signal" && !bleStatusOutdated -> mapBleStatus(bleStatus)
                             // Pass through custom status strings from GATT callbacks (e.g., "Connected, waiting for data...", "Connected, raw values received")
                             bleStatus.isNotEmpty() && !bleStatus.startsWith("Status=") && !bleStatusOutdated -> mapBleStatus(bleStatus)
                             isActivelyReceiving -> tk.glucodata.Applic.app.getString(tk.glucodata.R.string.status_connected)

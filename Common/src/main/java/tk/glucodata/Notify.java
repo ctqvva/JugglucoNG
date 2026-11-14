@@ -5175,7 +5175,7 @@ public class Notify {
      * }
      */
     void oldnotification(long time) {
-        placelargenotification(R.drawable.novalue, staleReadingStatus(time), GLUCOSENOTIFICATION, true);
+        placelargenotification(R.drawable.novalue, staleReadingStatus(time), GLUCOSENOTIFICATION, true, true);
     }
 
     /**
@@ -5192,7 +5192,16 @@ public class Notify {
     }
 
     private void signalLoss(long lastReadingMillis) {
-        placelargenotification(R.drawable.loss, signalLossStatus(lastReadingMillis), GLUCOSENOTIFICATION, true);
+        final String message = signalLossStatus(lastReadingMillis);
+        if (isWearable) {
+            // The watch owns its reading through the ongoing notification. Posting the
+            // stale status under the separate alarm id would leave the ongoing reading
+            // untouched and show two notifications.
+            notificationManager.notify(glucosenotificationid,
+                    makenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true));
+        } else {
+            placelargenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
+        }
     }
 
     static String signalLossStatus(long lastReadingMillis) {
@@ -5210,6 +5219,11 @@ public class Notify {
 
     @SuppressWarnings("deprecation")
     private Notification makenotification(int draw, String message, String type, boolean once) {
+        return makenotification(draw, message, type, once, false);
+    }
+
+    @SuppressWarnings("deprecation")
+    private Notification makenotification(int draw, String message, String type, boolean once, boolean persistent) {
         var GluNotBuilder = mkbuilder(type);
 
         if (TargetSDK < 31 || Build.VERSION.SDK_INT < 31) {
@@ -5240,7 +5254,9 @@ public class Notify {
             GluNotBuilder.setVisibility(VISIBILITY_PUBLIC);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            GluNotBuilder.setTimeoutAfter(glucosetimeout);
+            // Status-only ("Loss of signal") must survive the whole outage; a reading
+            // notification keeps the normal 5.5-minute lifetime.
+            GluNotBuilder.setTimeoutAfter(persistent ? 0L : glucosetimeout);
         }
         if (isWearable) {
             GluNotBuilder.setAutoCancel(true);
@@ -5613,9 +5629,12 @@ public class Notify {
     }
 
     public void placelargenotification(int draw, String message, String type, boolean once) {
-        hasvalue = true;
-        fornotify(makenotification(draw, message, type, once));
+        placelargenotification(draw, message, type, once, false);
+    }
 
+    public void placelargenotification(int draw, String message, String type, boolean once, boolean persistent) {
+        hasvalue = true;
+        fornotify(makenotification(draw, message, type, once, persistent));
     }
 
     static int testtimes = 1;

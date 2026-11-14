@@ -697,6 +697,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="status_bluetooth_off">Bluetooth uit</string>
     <string name="status_connection_failed">Verbinding mislukt</string>
     <string name="status_connected">Verbonden</string>
+    <string name="sensor_error">Sensorfout</string>
+    <string name="sensor_replace">Sensor vervangen</string>
+    <string name="sensor_ended">Sensor beëindigd</string>
+    <string name="sensor_warming_up">Opwarmen</string>
+    <string name="sensor_error_code">Sensorfoutcode</string>
     <string name="status_disconnected">Verbroken</string>
     <string name="select_sensor_type">Selecteer sensortype</string>
     <string name="choose_theme">Thema kiezen</string>

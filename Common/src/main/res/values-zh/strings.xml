@@ -614,6 +614,11 @@
     <string name="status_bluetooth_off">蓝牙关闭</string>
     <string name="status_connection_failed">连接失败</string>
     <string name="status_connected">已连接</string>
+    <string name="sensor_error">传感器错误</string>
+    <string name="sensor_replace">更换传感器</string>
+    <string name="sensor_ended">传感器已结束</string>
+    <string name="sensor_warming_up">预热中</string>
+    <string name="sensor_error_code">传感器错误代码</string>
     <string name="status_disconnected">已断开</string>
     <string name="select_sensor_type">选择传感器类型</string>
     <string name="choose_theme">选择主题</string>

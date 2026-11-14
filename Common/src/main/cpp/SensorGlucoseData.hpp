@@ -3342,7 +3342,12 @@ public:
    * clears them; ten minutes of continuous failure marks the sensor for replacement.
    */
   void setSensorError(uint32_t nu, uint32_t code = 0) {
-    if (!sensorerror) {
+    // A packet after a long silent gap starts a new episode; otherwise the first bad
+    // frame after a ten-minute link loss would immediately claim the sensor is finished.
+    const bool staleEpisode =
+        sensorerror &&
+        (nu < sensorErrorTime || (nu - sensorErrorTime) >= (10 * 60));
+    if (!sensorerror || staleEpisode) {
       sensorErrorStart = nu;
       sensorErrorCode = code;
       replacesensor = false;

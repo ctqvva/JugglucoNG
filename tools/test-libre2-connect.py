@@ -41,6 +41,7 @@ base_methods = '\n'.join(method(base, signature) for signature in [
     'public final boolean hasLocallyConnectedGatt(',
     'void setConStatus(int status)', 'void setConStatus(int status, boolean',
     'static String gattStatusText(', 'protected final void noteLossOfSignal(',
+    'protected final void clearLossOfSignalState(', 'private boolean isNotificationSensor(',
 ])
 libre_methods = '\n'.join(method(libre, signature) for signature in [
     'protected boolean useAutoConnect(', 'protected long connectionAttemptTimeoutMillis(',
@@ -71,6 +72,7 @@ class SuperGattCallback {
     static final int GATT_SUCCESS=0;
     static final String LOG_ID="test";
     boolean stop, connectPending;
+    private volatile boolean lossRecorded=false, lossNotified=false;
     static long lastfoundL=0L;
     long dataptr=1L, foundtime, connectTime, showtime=60_000L;
     long[] charcha={0L,0L}, constatchange={0L,0L}, wrotepass={0L,0L};
@@ -87,7 +89,8 @@ class SuperGattCallback {
     static class CloneSensorRegistry { static boolean clone; static boolean isCloneSensor(String s){return clone;} }
     static class SensorOwnershipRuntime { static boolean blocked; static boolean blocksLocalConnection(String s){return blocked;} }
     static class WearSensorClaim { static int releases; static void onLocalGattDisconnected(String s){releases++;} }
-    static class Natives { static int resets; static void resetbluetooth(long ptr){resets++;} static long lastglucosetime(){return 0L;} }
+    static class Natives { static int resets; static void resetbluetooth(long ptr){resets++;} static long lastglucosetime(){return 0L;} static String lastsensorname(){return "synthetic";} }
+    static class SensorIdentity { static boolean matches(String a,String b){return a!=null&&a.equals(b);} }
     static class Notify {
         static int signalLoss;
         static void notifySignalLoss(long lastReadingMillis){signalLoss++;}

@@ -472,9 +472,7 @@ static SensorGlucoseData *findSensorByName(JNIEnv *env, jstring jsensor) {
   if (!sens) {
     sens = sensors->gethistshort(sensorChars);
   }
-  if (sens) {
-    sens->clearSensorError();
-  } else {
+  if (!sens) {
     LOGGER("ERROR: %s unknown sensor\n", sensorChars);
   }
   env->ReleaseStringUTFChars(jsensor, sensorChars);

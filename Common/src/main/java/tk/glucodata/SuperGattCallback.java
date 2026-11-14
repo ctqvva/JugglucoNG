@@ -218,7 +218,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         // A reading proves a reported loss of signal is over. The timestamp above already
         // marks the old event as history for the UI; without clearing the literal the
         // diagnostic screen keeps reporting a loss that ended days ago.
-        if ("Loss of signal".equals(constatstatusstr)) constatstatusstr = "";
+        clearLossOfSignalState();
         // A reading imported over Clone is published through this same callback,
         // so accepting one is not proof this device read the sensor. Only a GATT
         // this process actually connected is, and without that check a mirrored
@@ -285,21 +285,42 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
      * link its own way still reports it the same to the UI and the error history.
      */
     protected final void noteLossOfSignal(long now) {
-        final boolean alreadyLost = "Loss of signal".equals(constatstatusstr);
+        final long wallNow = System.currentTimeMillis();
         constatstatusstr = "Loss of signal";
         constatchange[1] = now;
-        if (!alreadyLost) {
-            BleErrorHistory.record(SerialNumber, constatstatusstr, now);
-            if (Applic.app != null) {
-                // A status-only notification, not the optional audible loss alarm: users
-                // comparing with the official app expect to see the outage even when the
-                // alarm is switched off.
-                final long lastReading = lastfoundL != 0L ? lastfoundL : Natives.lastglucosetime();
-                Notify.notifySignalLoss(lastReading);
-            }
+        if (!lossRecorded) {
+            lossRecorded = true;
+            BleErrorHistory.record(SerialNumber, constatstatusstr, wallNow);
+        }
+        if (!lossNotified && isNotificationSensor() && Applic.app != null) {
+            // A status-only notification, not the optional audible loss alarm: users
+            // comparing with the official app expect to see the outage even when the
+            // alarm is switched off. A secondary sensor must not replace the reading of
+            // the sensor that owns the ongoing notification.
+            lossNotified = true;
+            final long lastReading = charcha[0] != 0L ? charcha[0]
+                    : (lastfoundL != 0L ? lastfoundL : Natives.lastglucosetime());
+            Notify.notifySignalLoss(lastReading);
         }
         Log.i(LOG_ID, SerialNumber + " loss of signal, last reading "
-                + (charcha[0] == 0L ? "never" : (now - charcha[0]) / 1000 + "s ago"));
+                + (charcha[0] == 0L ? "never" : (wallNow - charcha[0]) / 1000 + "s ago"));
+    }
+
+    /** A complete packet, or a valid reading, ends the outage that the latch describes. */
+    protected final void clearLossOfSignalState() {
+        if ("Loss of signal".equals(constatstatusstr)) constatstatusstr = "";
+        lossRecorded = false;
+        lossNotified = false;
+    }
+
+    private boolean isNotificationSensor() {
+        try {
+            final String main = Natives.lastsensorname();
+            return main != null && SerialNumber != null && SensorIdentity.matches(SerialNumber, main);
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, SerialNumber + " isNotificationSensor", t);
+            return false;
+        }
     }
 
     /**
@@ -379,6 +400,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
     long[] constatchange = { 0L, 0L };
     public String constatstatusstr = "";
+    private volatile boolean lossRecorded = false;
+    private volatile boolean lossNotified = false;
     public String handshake = "";
     long[] wrotepass = { 0L, 0L };
     long[] charcha = { 0L, 0L };

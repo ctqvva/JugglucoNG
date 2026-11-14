@@ -948,6 +948,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="status_bluetooth_off">Bluetooth kikapcsolva</string>
     <string name="status_connection_failed">Sikertelen kapcsolódás</string>
     <string name="status_connected">Csatlakoztatva</string>
+    <string name="sensor_error">Szenzorhiba</string>
+    <string name="sensor_replace">Cserélje a szenzort</string>
+    <string name="sensor_ended">A szenzor lejárt</string>
+    <string name="sensor_warming_up">Bemelegedés</string>
+    <string name="sensor_error_code">Szenzor hibakód</string>
     <string name="status_disconnected">Leválasztva</string>
     <string name="status_waiting_for_data">Csatlakoztatva, várakozás az adatokra...</string>
     <string name="status_raw_values_received">Csatlakoztatva, nyers értékek fogadva</string>

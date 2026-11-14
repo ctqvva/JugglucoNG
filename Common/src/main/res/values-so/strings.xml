@@ -1003,6 +1003,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="status_bluetooth_off">Bluetooth dansan</string>
     <string name="status_connection_failed">Xidhiidhku wuu fashilmay</string>
     <string name="status_connected">Ku xidhan</string>
+    <string name="sensor_error">Khalad sensor</string>
+    <string name="sensor_replace">Beddel sensor</string>
+    <string name="sensor_ended">Sensor-ku wuu dhamaaday</string>
+    <string name="sensor_warming_up">Diirimaad</string>
+    <string name="sensor_error_code">Lambarka khaladka sensor-ka</string>
     <string name="status_disconnected">Go\'ay</string>
     <string name="status_waiting_for_data">Ku xidhan, sugitaanka xogta…</string>
     <string name="status_raw_values_received">Ku xidhan, qiyam cayriin ayaa la helay</string>
