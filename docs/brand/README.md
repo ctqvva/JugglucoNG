@@ -36,7 +36,7 @@ The lockup is one file for both themes. GitHub's `<picture>` and `#gh-dark-mode-
 
 ## Second installation
 
-The second installation, "Glucy Dub" (`releasedub`), lets one phone follow two people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). Its icon is the main icon with the trace doubled: a copy runs 13 units below it, and the pair is lifted 6 units so it stays centred. Colours are unchanged. The difference is in the shape, so it also survives colour blindness, greyscale and Android's themed icons, and the installation has its own monochrome layer for that.
+The second installation, "Glucy Dub" (`releasedub`), lets one phone follow two people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). Its icon is the main icon plus a grey copy of the trace (`dub-clone`), 29 units lower, running out of the bottom edge. The copy is also in its monochrome layer, so the two installations stay apart with Android's themed icons.
 
 ## Colours
 
@@ -49,6 +49,7 @@ The second installation, "Glucy Dub" (`releasedub`), lets one phone follow two p
 | `rim` | `#C9D2E3` | sensor rim |
 | `paper` | `#F0F3F8` | wordmark on dark |
 | `card` | `#141E3F` | social preview background, a lifted navy so the badge still reads as a disc |
+| `dub-clone` | `#4A5470` | second installation: the grey copy of the trace |
 | `two-tone` | `#0B1020` above, `#121B36` below the trace | two-tone variant |
 
 Contrast (WCAG): `trace-muted` is 3.4 : 1 on white and 5.6 : 1 on GitHub's dark `#0D1117`, which clears the 3 : 1 needed for large graphic text on both. `trace` on `navy` is 5.3 : 1. `navy` on white is 18.1 : 1, and `paper` on `#0D1117` is 17.0 : 1.

@@ -79,30 +79,23 @@ MONO_D = d(TRACE.difference(Point(*NOW).buffer(R_SENSOR + CUT_MONO, quad_segs=48
 
 # ---------------------------------------------------- second installation ---
 # The second installation (releasedub) lets one phone follow two people (issue #714), so its icon
-# must not be mistaken for the main one: the trace is doubled, with the copy DOUBLE_GAP below.
-# The pair is lifted by DOUBLE_LIFT so it stays centred. The difference is in the shape, so it
-# also holds in the themed icon, which gets its own monochrome layer.
-DOUBLE_GAP, DOUBLE_LIFT = 13.0, 6.0
+# must not be mistaken for the main one. It is the main icon plus a grey copy of the trace,
+# CLONE_DY lower, running out of the bottom edge. The copy is also in its monochrome layer, so the
+# difference holds in the themed icon.
+CLONE_DY = 29.0
+CLONE = affinity.translate(TRACE, 0, CLONE_DY)
+CLONE_D = d(CLONE)
+MONO_CLONE_D = d(TRACE.difference(Point(*NOW).buffer(R_SENSOR + CUT_MONO, quad_segs=48))
+                 .union(CLONE).union(SENSOR.difference(RIM).difference(DOT)))
 
 
-def _shapes(double):
-    if not double:
-        return dict(trace=TRACE_D, sensor=SENSOR_D, rim=RIM_D, dot=DOT_D, mono=MONO_D)
-    up = lambda g: affinity.translate(g, 0, -DOUBLE_LIFT)
-    two = up(TRACE.union(affinity.translate(TRACE, 0, DOUBLE_GAP)))
-    sen, rim, dot = up(SENSOR), up(RIM), up(DOT)
-    cut = lambda r: up(Point(*NOW).buffer(R_SENSOR + r, quad_segs=48))
-    return dict(trace=d(two.difference(cut(CUT))), sensor=d(sen), rim=d(rim), dot=d(dot),
-                mono=d(two.difference(cut(CUT_MONO)).union(sen.difference(rim).difference(dot))))
-
-
-def shapes(c):
-    return _shapes(c.get('double', False))
+def mono_d(c):
+    return MONO_CLONE_D if 'clone' in c else MONO_D
 
 
 # ------------------------------------------------------------------ colours ---
 MAIN = dict(bg='#0D1430', line='#5B86F5', sensor='#F5F7FB', rim='#C9D2E3', dot='#0D1430')
-DUB = dict(MAIN, double=True)   # "Glucy Dub": the trace doubled
+DUB = dict(MAIN, clone='#4A5470')   # "Glucy Dub": a grey copy of the trace below
 TWO_TONE = dict(MAIN, bg='#0B1020', below='#121B36', dot='#0B1020')  # branding alternative
 
 # ----------------------------------------------------------------- writers ---
@@ -119,16 +112,16 @@ def background_xml(c):
 
 
 def foreground_xml(c):
-    g = shapes(c)
-    return HEAD + (
-        f'    <path android:fillColor="{ARGB(c["line"])}" android:pathData="{g["trace"]}"/>\n'
-        f'    <path android:fillColor="{ARGB(c["sensor"])}" android:pathData="{g["sensor"]}"/>\n'
-        f'    <path android:fillColor="{ARGB(c["rim"])}" android:fillType="evenOdd" android:pathData="{g["rim"]}"/>\n'
-        f'    <path android:fillColor="{ARGB(c["dot"])}" android:pathData="{g["dot"]}"/>\n</vector>\n')
+    clone = f'    <path android:fillColor="{ARGB(c["clone"])}" android:pathData="{CLONE_D}"/>\n' if 'clone' in c else ''
+    return HEAD + clone + (
+        f'    <path android:fillColor="{ARGB(c["line"])}" android:pathData="{TRACE_D}"/>\n'
+        f'    <path android:fillColor="{ARGB(c["sensor"])}" android:pathData="{SENSOR_D}"/>\n'
+        f'    <path android:fillColor="{ARGB(c["rim"])}" android:fillType="evenOdd" android:pathData="{RIM_D}"/>\n'
+        f'    <path android:fillColor="{ARGB(c["dot"])}" android:pathData="{DOT_D}"/>\n</vector>\n')
 
 
 def monochrome_xml(c=MAIN):
-    return HEAD + f'    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="{shapes(c)['mono']}"/>\n</vector>\n'
+    return HEAD + f'    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="{mono_d(c)}"/>\n</vector>\n'
 
 ADAPTIVE_XML = ('<?xml version="1.0" encoding="utf-8"?>\n'
                 '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
@@ -140,10 +133,11 @@ ADAPTIVE_XML = ('<?xml version="1.0" encoding="utf-8"?>\n'
 
 def svg(c, view='18 18 72 72', size=512):
     below = f'<path d="{BELOW_D}" fill="{c["below"]}"/>' if 'below' in c else ''
+    clone = f'<path d="{CLONE_D}" fill="{c["clone"]}"/>' if 'clone' in c else ''
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view}" width="{size}" height="{size}">'
-            f'<rect width="108" height="108" fill="{c["bg"]}"/>{below}'
-            f'<path d="{shapes(c)["trace"]}" fill="{c["line"]}"/><path d="{shapes(c)["sensor"]}" fill="{c["sensor"]}"/>'
-            f'<path d="{shapes(c)["rim"]}" fill="{c["rim"]}" fill-rule="evenodd"/><path d="{shapes(c)["dot"]}" fill="{c["dot"]}"/></svg>\n')
+            f'<rect width="108" height="108" fill="{c["bg"]}"/>{below}{clone}'
+            f'<path d="{TRACE_D}" fill="{c["line"]}"/><path d="{SENSOR_D}" fill="{c["sensor"]}"/>'
+            f'<path d="{RIM_D}" fill="{c["rim"]}" fill-rule="evenodd"/><path d="{DOT_D}" fill="{c["dot"]}"/></svg>\n')
 
 
 # ------------------------------------------------------- wordmark and lockup ---
