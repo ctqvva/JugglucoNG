@@ -234,14 +234,22 @@ class ICanHealthCloudUploader(
             }
         }
 
+        /**
+         * A pending flush is never replaced: a scheduled cooldown must not be cut short by the
+         * next live reading (new data simply waits queued for it), and a pending immediate
+         * flush already fires no later than any new request. Returns the delay to schedule,
+         * or null when the pending flush covers the request.
+         */
+        internal fun resolveFlushRequest(pendingDueAtMs: Long, newDelayMs: Long, nowMs: Long): Long? =
+            if (pendingDueAtMs > 0L) null else newDelayMs
+
         private fun requestFlush(context: Context, delayMs: Long = 0L) {
             val appContext = context.applicationContext
             synchronized(lock) {
-                val dueAt = System.currentTimeMillis() + delayMs
-                if (scheduledAtMs != 0L && scheduledAtMs <= dueAt) return
+                val delay = resolveFlushRequest(scheduledAtMs, delayMs, System.currentTimeMillis()) ?: return
                 scheduledFlush?.cancel(false)
-                scheduledAtMs = dueAt
-                scheduledFlush = executor.schedule({ runFlush(appContext) }, delayMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                scheduledAtMs = System.currentTimeMillis() + delay
+                scheduledFlush = executor.schedule({ runFlush(appContext) }, delay, java.util.concurrent.TimeUnit.MILLISECONDS)
             }
         }
 
