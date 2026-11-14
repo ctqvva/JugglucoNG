@@ -3394,4 +3394,30 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="food_reorder">Yiyecekleri yeniden sırala</string>
     <string name="food_move_up">Yukarı taşı</string>
     <string name="food_move_down">Aşağı taşı</string>
+
+    <!-- Kotlin Libre 3 driver -->
+    <string name="libre3_managed_title">Kotlin Libre 3 sürücüsü (deneysel)</string>
+    <string name="libre3_managed_enable">Kotlin Libre 3 sürücüsünü kullan</string>
+    <string name="libre3_managed_enable_desc">Libre 3 / 3 Plus cihazını Kotlin sürücüsüyle bağlayın. Gerekli bağlantı bilgileri etkinleştirildiğinde otomatik indirilir.</string>
+    <string name="libre3_managed_receiver_account">Alıcı kimliği olarak LibreView hesabını kullan</string>
+    <string name="libre3_managed_receiver_desc">NFC komutundaki alıcı kimliği: %1$s. Önceden Juggluco ile başlatılan sensörler için hesap kimliğini koruyun; bu telefona özel kimlik için kapatın.</string>
+    <string name="libre3_managed_identity_none">Bağlantı bilgileri henüz indirilmedi. Sürücüyü etkinleştirin veya “Kimlikleri indir” seçeneğini kullanın, ardından sensörü tarayın.</string>
+    <string name="libre3_managed_identity_list">Uygulama kimliği kümesi %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">Uygulama bağlantı bilgilerini otomatik indirip doğrular ve çevrimdışı kullanım için bu telefonda şifreli saklar. Dosya aktarımı ve özel kaynaklar isteğe bağlı gelişmiş ayarlardır.</string>
+    <string name="libre3_managed_identity_source">%3$s üzerinden %1$s kaynağı (sha256 %2$s…)</string>
+    <string name="libre3_managed_identity_download">Kimlikleri indir</string>
+    <string name="libre3_managed_source_url">Kimlik kaynağı URL’si (https)</string>
+    <string name="libre3_managed_source_digest">Kimlik dosyası SHA-256 özeti</string>
+    <string name="libre3_managed_source_save">Bu kaynağı kullan</string>
+    <string name="libre3_managed_source_invalid">HTTPS URL’sini ve dosyanın 64 karakterli SHA-256 özetini girin</string>
+    <string name="libre3_managed_receiver_none">henüz LibreView hesap kimliği yok</string>
+    <string name="libre3_managed_identity_import">Kimlik dosyasını içe aktar</string>
+    <string name="libre3_managed_identity_remove">Kaldır</string>
+    <string name="libre3_managed_identity_imported">%1$d uygulama kimliği içe aktarıldı</string>
+    <string name="libre3_managed_identity_import_failed">Bağlantı bilgileri yüklenemedi: %1$s</string>
+    <string name="libre3_managed_identity_missing">Bağlantı bilgileri kullanılamıyor. Ayarlar → Kotlin Libre 3 sürücüsünü açın, interneti kontrol edip indirmeyi yeniden deneyin. Sensör değiştirilmedi.</string>
+    <string name="libre3_status_device_rejected">Cihaz Libre 3 değil (hizmetler eksik); sensörü yeniden tarayın</string>
+    <string name="libre3_status_certificate_rejected">Sensör sertifikası tanınmadı; sensörü yeniden tarayın</string>
+    <string name="libre3_status_identity_missing">Libre 3 uygulama kimliği içe aktarılmadı</string>
+    <string name="libre3_status_identity_rejected">Sensör uygulama kimliğini kabul etmedi</string>
 </resources>

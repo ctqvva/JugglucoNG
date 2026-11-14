@@ -34,6 +34,7 @@ internal class VirtualSensorNativeMirror(
     private val openShell: (String, Long, Int) -> Unit,
     private val rebaseShell: (String, Long) -> Unit,
     private val writeBatch: (LongArray, FloatArray, FloatArray, String, Boolean) -> Int,
+    private val readCapacityMinutes: (String) -> Int = { Int.MAX_VALUE },
 ) {
 
     companion object {
@@ -98,6 +99,8 @@ internal class VirtualSensorNativeMirror(
         readings: List<VirtualGlucoseSensorBridge.Reading>,
         logLabel: String,
         primaryIsResolved: Boolean = true,
+        windowMinutes: Int = WINDOW_MINUTES,
+        allowRebase: Boolean = true,
     ): Int {
         if (sensorSerial.isBlank() || readings.isEmpty()) return 0
         fun mirroredGlucose(reading: VirtualGlucoseSensorBridge.Reading): Float =
@@ -111,15 +114,21 @@ internal class VirtualSensorNativeMirror(
             .toList()
         if (ordered.isEmpty()) return 0
 
+        val existingCapacity = readCapacityMinutes(sensorSerial)
+        val boundedMinutes = if (existingCapacity > 0) minOf(windowMinutes, existingCapacity) else windowMinutes
         val startSeconds = openWindow(
             sensorSerial = sensorSerial,
             oldestSeconds = ordered.first().first,
             newestSeconds = ordered.last().first,
             logLabel = logLabel,
+            windowMinutes = boundedMinutes,
+            allowRebase = allowRebase,
         )
         if (startSeconds <= 0L) return 0
 
-        val writable = ordered.filter { (seconds, _) -> isWritable(startSeconds, seconds) }
+        val actualCapacity = readCapacityMinutes(sensorSerial).takeIf { it > 0 } ?: boundedMinutes
+        val endSeconds = startSeconds + minOf(boundedMinutes, actualCapacity) * 60L
+        val writable = ordered.filter { (seconds, _) -> seconds >= startSeconds && seconds < endSeconds }
         if (writable.size < ordered.size) {
             Log.i(
                 TAG,
@@ -155,14 +164,16 @@ internal class VirtualSensorNativeMirror(
         oldestSeconds: Long,
         newestSeconds: Long,
         logLabel: String,
+        windowMinutes: Int,
+        allowRebase: Boolean,
     ): Long {
         val existing = readShellStartSeconds(sensorSerial)
         if (existing <= 0L) {
-            val start = initialStartSeconds(oldestSeconds, newestSeconds)
+            val start = maxOf(oldestSeconds - 60L, newestSeconds - windowMinutes * 60L + 60L).coerceAtLeast(1L)
             if (start <= 0L) return 0L
-            openShell(sensorSerial, start, WINDOW_MINUTES)
+            openShell(sensorSerial, start, windowMinutes)
             Log.i(TAG, "Opened native $logLabel mirror for $sensorSerial at $start")
-        } else if (needsRebase(existing, newestSeconds)) {
+        } else if (allowRebase && newestSeconds >= existing + windowMinutes * 60L) {
             val rebased = rebasedStartSeconds(newestSeconds)
             Log.w(
                 TAG,

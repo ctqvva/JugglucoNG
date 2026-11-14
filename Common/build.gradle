@@ -104,6 +104,9 @@ android {
         minSdk = 26
         buildConfigField 'int', 'targetSDK', "$targetSdk"
         buildConfigField 'int', 'minSDK', "$minSdk"
+        // Optional pinned Libre 3 app-identity source, "version|sha256|https://mirror …"
+        // (see drivers/libre3/Libre3IdentityProvisioning.kt). Empty uses the built-in pinned source.
+        buildConfigField 'String', 'LIBRE3_IDENTITY_SOURCE', groovy.json.JsonOutput.toJson((project.findProperty('libre3IdentitySource') ?: '').toString())
         manifestPlaceholders["minSDK"] = "$minSdk"
         manifestPlaceholders["targetSDK"] = "$targetSdk"
 
@@ -400,6 +403,7 @@ ksp {
 }
 
 dependencies {
+    implementation 'org.tukaani:xz:1.10'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 
     // Compose (versions come from the BOM unless pinned deliberately)

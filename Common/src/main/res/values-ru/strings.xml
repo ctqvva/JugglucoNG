@@ -3493,4 +3493,30 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Изменить порядок</string>
     <string name="food_move_up">Переместить выше</string>
     <string name="food_move_down">Переместить ниже</string>
+
+    <!-- Kotlin Libre 3 driver -->
+    <string name="libre3_managed_title">Драйвер Libre 3 на Kotlin (экспериментальный)</string>
+    <string name="libre3_managed_enable">Использовать драйвер Libre 3 на Kotlin</string>
+    <string name="libre3_managed_enable_desc">Подключение Libre 3 / 3 Plus через драйвер Kotlin. При включении данные для подключения загружаются автоматически.</string>
+    <string name="libre3_managed_receiver_account">Использовать аккаунт LibreView как ID приёмника</string>
+    <string name="libre3_managed_receiver_desc">ID приёмника в команде NFC: %1$s. Для ранее запущенных в Juggluco сенсоров сохраните ID аккаунта; выключите для использования ID этого телефона.</string>
+    <string name="libre3_managed_identity_none">Данные для подключения ещё не загружены. Включите драйвер или нажмите «Загрузить ключи», затем отсканируйте сенсор.</string>
+    <string name="libre3_managed_identity_list">Набор ключей %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">Приложение автоматически загружает и проверяет данные для подключения, затем хранит их на телефоне в зашифрованном виде для работы без интернета. Импорт файла и другой источник доступны в дополнительных настройках.</string>
+    <string name="libre3_managed_identity_source">Источник %1$s (sha256 %2$s…) с %3$s</string>
+    <string name="libre3_managed_identity_download">Загрузить ключи</string>
+    <string name="libre3_managed_source_url">URL источника ключей (https)</string>
+    <string name="libre3_managed_source_digest">SHA-256 файла ключей</string>
+    <string name="libre3_managed_source_save">Использовать источник</string>
+    <string name="libre3_managed_source_invalid">Введите URL https и SHA-256 файла из 64 символов</string>
+    <string name="libre3_managed_receiver_none">ID аккаунта LibreView пока отсутствует</string>
+    <string name="libre3_managed_identity_import">Импортировать файл ключей</string>
+    <string name="libre3_managed_identity_remove">Удалить</string>
+    <string name="libre3_managed_identity_imported">Импортировано ключей: %1$d</string>
+    <string name="libre3_managed_identity_import_failed">Не удалось загрузить данные для подключения: %1$s</string>
+    <string name="libre3_managed_identity_missing">Нет данных для подключения. Откройте Настройки → Драйвер Libre 3 на Kotlin, проверьте интернет и повторите загрузку. Сенсор не изменён.</string>
+    <string name="libre3_status_device_rejected">Устройство не Libre 3 (нет нужных сервисов); отсканируйте сенсор снова</string>
+    <string name="libre3_status_certificate_rejected">Сертификат сенсора не распознан; отсканируйте сенсор снова</string>
+    <string name="libre3_status_identity_missing">Ключи приложения Libre 3 не импортированы</string>
+    <string name="libre3_status_identity_rejected">Сенсор не принял ключи приложения</string>
 </resources>

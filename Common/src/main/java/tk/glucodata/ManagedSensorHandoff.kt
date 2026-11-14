@@ -54,6 +54,11 @@ object ManagedSensorHandoff {
         "view_mode_",
     )
 
+    /** Libre 3 credentials are device-bound and have no watch transfer implementation yet. */
+    @JvmStatic
+    fun supportsSensor(sensorId: String?): Boolean =
+        ManagedSensorIdentityRegistry.resolvePersistedFamily(sensorId) != tk.glucodata.drivers.ManagedSensorUiFamily.LIBRE3
+
     @JvmStatic
     fun createOutgoingPayload(context: Context? = Applic.app): ByteArray =
         createOutgoingPayload(context, refresh = false)

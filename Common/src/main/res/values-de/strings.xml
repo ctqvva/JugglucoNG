@@ -3479,4 +3479,30 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="food_reorder">Lebensmittel umordnen</string>
     <string name="food_move_up">Nach oben</string>
     <string name="food_move_down">Nach unten</string>
+
+    <!-- Kotlin Libre 3 driver -->
+    <string name="libre3_managed_title">Libre-3-Treiber in Kotlin (experimentell)</string>
+    <string name="libre3_managed_enable">Kotlin-Treiber für Libre 3 verwenden</string>
+    <string name="libre3_managed_enable_desc">Libre 3 / 3 Plus mit dem Kotlin-Treiber verbinden. Erforderliche Verbindungsdaten werden beim Einschalten automatisch heruntergeladen.</string>
+    <string name="libre3_managed_receiver_account">LibreView-Konto als Empfänger-ID verwenden</string>
+    <string name="libre3_managed_receiver_desc">Empfänger-ID im NFC-Befehl: %1$s. Für früher mit Juggluco gestartete Sensoren die Konto-ID beibehalten; ausschalten für eine eigene ID dieses Telefons.</string>
+    <string name="libre3_managed_identity_none">Verbindungsdaten noch nicht heruntergeladen. Treiber einschalten oder „Identitäten herunterladen“ wählen, dann den Sensor scannen.</string>
+    <string name="libre3_managed_identity_list">App-Identitätssatz %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">Die App lädt und prüft Verbindungsdaten automatisch und speichert sie verschlüsselt auf diesem Telefon zur Offline-Nutzung. Dateiimport und eigene Quellen sind optionale erweiterte Einstellungen.</string>
+    <string name="libre3_managed_identity_source">Quelle %1$s (sha256 %2$s…) von %3$s</string>
+    <string name="libre3_managed_identity_download">Identitäten herunterladen</string>
+    <string name="libre3_managed_source_url">URL der Identitätsquelle (https)</string>
+    <string name="libre3_managed_source_digest">SHA-256 der Identitätsdatei</string>
+    <string name="libre3_managed_source_save">Diese Quelle verwenden</string>
+    <string name="libre3_managed_source_invalid">Eine HTTPS-URL und den 64-stelligen SHA-256 der Datei eingeben</string>
+    <string name="libre3_managed_receiver_none">noch keine LibreView-Konto-ID</string>
+    <string name="libre3_managed_identity_import">Identitätsdatei importieren</string>
+    <string name="libre3_managed_identity_remove">Entfernen</string>
+    <string name="libre3_managed_identity_imported">%1$d App-Identitäten importiert</string>
+    <string name="libre3_managed_identity_import_failed">Verbindungsdaten konnten nicht geladen werden: %1$s</string>
+    <string name="libre3_managed_identity_missing">Verbindungsdaten fehlen. Einstellungen → Kotlin-Treiber für Libre 3 öffnen, Internetverbindung prüfen und Download wiederholen. Der Sensor wurde nicht verändert.</string>
+    <string name="libre3_status_device_rejected">Gerät ist kein Libre 3 (Dienste fehlen); Sensor erneut scannen</string>
+    <string name="libre3_status_certificate_rejected">Sensorzertifikat nicht erkannt; Sensor erneut scannen</string>
+    <string name="libre3_status_identity_missing">Keine Libre-3-App-Identität importiert</string>
+    <string name="libre3_status_identity_rejected">Sensor hat die App-Identität nicht akzeptiert</string>
 </resources>

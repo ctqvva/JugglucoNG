@@ -3368,4 +3368,30 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Reordenar alimentos</string>
     <string name="food_move_up">Mover para cima</string>
     <string name="food_move_down">Mover para baixo</string>
+
+    <!-- Kotlin Libre 3 driver -->
+    <string name="libre3_managed_title">Controlador Libre 3 em Kotlin (experimental)</string>
+    <string name="libre3_managed_enable">Usar o controlador Libre 3 em Kotlin</string>
+    <string name="libre3_managed_enable_desc">Ligue o Libre 3 / 3 Plus com o controlador Kotlin. Os dados de ligação necessários são transferidos automaticamente ao ativar.</string>
+    <string name="libre3_managed_receiver_account">Usar a conta LibreView como ID do recetor</string>
+    <string name="libre3_managed_receiver_desc">ID do recetor enviado por NFC: %1$s. Mantenha o ID da conta para sensores iniciados antes pelo Juggluco; desative para usar um ID próprio deste telefone.</string>
+    <string name="libre3_managed_identity_none">Dados de ligação ainda não transferidos. Ative o controlador ou escolha «Transferir identidades» e depois leia o sensor.</string>
+    <string name="libre3_managed_identity_list">Conjunto de identidades %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">A aplicação transfere e verifica automaticamente os dados de ligação e guarda-os cifrados neste telefone para uso offline. A importação de ficheiros e as origens personalizadas são opções avançadas.</string>
+    <string name="libre3_managed_identity_source">Origem %1$s (sha256 %2$s…) de %3$s</string>
+    <string name="libre3_managed_identity_download">Transferir identidades</string>
+    <string name="libre3_managed_source_url">URL da origem das identidades (https)</string>
+    <string name="libre3_managed_source_digest">SHA-256 do ficheiro de identidades</string>
+    <string name="libre3_managed_source_save">Usar esta origem</string>
+    <string name="libre3_managed_source_invalid">Introduza um URL HTTPS e o SHA-256 do ficheiro com 64 caracteres</string>
+    <string name="libre3_managed_receiver_none">ainda sem ID de conta LibreView</string>
+    <string name="libre3_managed_identity_import">Importar ficheiro de identidades</string>
+    <string name="libre3_managed_identity_remove">Remover</string>
+    <string name="libre3_managed_identity_imported">%1$d identidades importadas</string>
+    <string name="libre3_managed_identity_import_failed">Não foi possível carregar os dados de ligação: %1$s</string>
+    <string name="libre3_managed_identity_missing">Dados de ligação indisponíveis. Abra Definições → Controlador Libre 3 em Kotlin, verifique a Internet e tente transferir novamente. O sensor não foi alterado.</string>
+    <string name="libre3_status_device_rejected">O dispositivo não é Libre 3 (faltam serviços); leia o sensor novamente</string>
+    <string name="libre3_status_certificate_rejected">Certificado do sensor não reconhecido; leia o sensor novamente</string>
+    <string name="libre3_status_identity_missing">Nenhuma identidade de aplicação Libre 3 importada</string>
+    <string name="libre3_status_identity_rejected">O sensor não aceitou a identidade da aplicação</string>
 </resources>

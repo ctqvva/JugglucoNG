@@ -767,6 +767,26 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_nfc_command_activate_desc">Force the A0 Activate command during the scan</string>
     <string name="libre3_nfc_command_switch_receiver">A8 Switch Receiver</string>
     <string name="libre3_nfc_command_switch_receiver_desc">Force the A8 Switch Receiver command during the scan</string>
+    <string name="libre3_managed_title">Kotlin Libre 3 driver (experimental)</string>
+    <string name="libre3_managed_enable">Use the Kotlin Libre 3 driver</string>
+    <string name="libre3_managed_enable_desc">Connect to Libre 3 / 3 Plus using the Kotlin driver. Required connection credentials download automatically when enabled.</string>
+    <string name="libre3_managed_receiver_account">Use LibreView account as receiver ID</string>
+    <string name="libre3_managed_receiver_desc">Receiver ID sent in the NFC command: %1$s. Keep the account value for sensors started by Juggluco before; turn off to use an ID of this phone\'s own.</string>
+    <string name="libre3_managed_identity_none">Connection credentials are not downloaded yet. Enable the driver or select Download identities, then scan the sensor.</string>
+    <string name="libre3_managed_identity_list">App identity set %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">The app downloads and verifies connection credentials automatically, then stores them encrypted on this phone for offline use. File import and custom sources are optional advanced settings.</string>
+    <string name="libre3_managed_identity_source">Source %1$s (sha256 %2$s…) from %3$s</string>
+    <string name="libre3_managed_identity_download">Download identities</string>
+    <string name="libre3_managed_source_url">Identity source URL (https)</string>
+    <string name="libre3_managed_source_digest">Identity file SHA-256</string>
+    <string name="libre3_managed_source_save">Use this source</string>
+    <string name="libre3_managed_source_invalid">Enter an https URL and the 64-character SHA-256 of the identity file</string>
+    <string name="libre3_managed_receiver_none">no LibreView account ID yet</string>
+    <string name="libre3_managed_identity_import">Import identity file</string>
+    <string name="libre3_managed_identity_remove">Remove</string>
+    <string name="libre3_managed_identity_imported">Imported %1$d app identities</string>
+    <string name="libre3_managed_identity_import_failed">Could not load connection credentials: %1$s</string>
+    <string name="libre3_managed_identity_missing">Connection credentials are unavailable. Open Settings → Kotlin Libre 3 driver, check internet access and retry the download. The sensor was not changed.</string>
     <string name="libre3_activation_legacy_fallback">The open-source Libre 3 activation could not be verified; using the established method.</string>
     <string name="libreview_account_ready">Account ID ready</string>
     <string name="libreview_account_missing">Account ID missing</string>
@@ -3691,4 +3711,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Reorder food</string>
     <string name="food_move_up">Move up</string>
     <string name="food_move_down">Move down</string>
+    <string name="libre3_status_device_rejected">Device is not a Libre 3 (missing services); scan the sensor again</string>
+    <string name="libre3_status_certificate_rejected">Sensor certificate not recognised; scan the sensor again</string>
+    <string name="libre3_status_identity_missing">No Libre 3 app identity imported</string>
+    <string name="libre3_status_identity_rejected">Sensor did not accept the app identity</string>
 </resources>

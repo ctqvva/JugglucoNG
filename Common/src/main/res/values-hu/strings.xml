@@ -3435,4 +3435,30 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="food_reorder">Ételek átrendezése</string>
     <string name="food_move_up">Mozgatás fel</string>
     <string name="food_move_down">Mozgatás le</string>
+
+    <!-- Kotlin Libre 3 driver -->
+    <string name="libre3_managed_title">Kotlin Libre 3 illesztőprogram (kísérleti)</string>
+    <string name="libre3_managed_enable">Kotlin Libre 3 illesztőprogram használata</string>
+    <string name="libre3_managed_enable_desc">Libre 3 / 3 Plus csatlakoztatása a Kotlin illesztőprogrammal. A szükséges kapcsolati adatok bekapcsoláskor automatikusan letöltődnek.</string>
+    <string name="libre3_managed_receiver_account">LibreView-fiók használata vevőazonosítóként</string>
+    <string name="libre3_managed_receiver_desc">Az NFC-parancs vevőazonosítója: %1$s. A korábban Jugglucóval indított szenzorokhoz tartsa meg a fiókazonosítót; kikapcsolva a telefon saját azonosítóját használja.</string>
+    <string name="libre3_managed_identity_none">A kapcsolati adatok még nincsenek letöltve. Kapcsolja be az illesztőprogramot vagy válassza az „Azonosságok letöltése” lehetőséget, majd olvassa be a szenzort.</string>
+    <string name="libre3_managed_identity_list">Alkalmazásazonosság-készlet %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">Az alkalmazás automatikusan letölti és ellenőrzi a kapcsolati adatokat, majd titkosítva tárolja a telefonon offline használathoz. A fájlimport és az egyéni források speciális lehetőségek.</string>
+    <string name="libre3_managed_identity_source">Forrás: %1$s (sha256 %2$s…), innen: %3$s</string>
+    <string name="libre3_managed_identity_download">Azonosságok letöltése</string>
+    <string name="libre3_managed_source_url">Azonosságforrás URL-je (https)</string>
+    <string name="libre3_managed_source_digest">Az azonosságfájl SHA-256 értéke</string>
+    <string name="libre3_managed_source_save">Forrás használata</string>
+    <string name="libre3_managed_source_invalid">Adjon meg HTTPS URL-t és a fájl 64 karakteres SHA-256 értékét</string>
+    <string name="libre3_managed_receiver_none">még nincs LibreView-fiókazonosító</string>
+    <string name="libre3_managed_identity_import">Azonosságfájl importálása</string>
+    <string name="libre3_managed_identity_remove">Eltávolítás</string>
+    <string name="libre3_managed_identity_imported">Importált azonosságok: %1$d</string>
+    <string name="libre3_managed_identity_import_failed">Nem sikerült betölteni a kapcsolati adatokat: %1$s</string>
+    <string name="libre3_managed_identity_missing">A kapcsolati adatok nem érhetők el. Nyissa meg a Beállítások → Kotlin Libre 3 illesztőprogram oldalt, ellenőrizze az internetet, és próbálja újra a letöltést. A szenzor nem változott.</string>
+    <string name="libre3_status_device_rejected">Az eszköz nem Libre 3 (hiányzó szolgáltatások); olvassa be újra a szenzort</string>
+    <string name="libre3_status_certificate_rejected">A szenzor tanúsítványa nem ismerhető fel; olvassa be újra</string>
+    <string name="libre3_status_identity_missing">Nincs importált Libre 3 alkalmazásazonosság</string>
+    <string name="libre3_status_identity_rejected">A szenzor nem fogadta el az alkalmazásazonosságot</string>
 </resources>

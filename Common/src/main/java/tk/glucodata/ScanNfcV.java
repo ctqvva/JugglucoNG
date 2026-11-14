@@ -148,6 +148,20 @@ public class ScanNfcV {
     }
 
     static private int[] libre3scan(GlucoseCurve curve, MainActivity main, Vibrator vibrator, Tag tag) {
+        if (tk.glucodata.drivers.libre3.Libre3ManagedNfc.isEnabled()) {
+            // Kotlin-managed Libre 3 driver: no native Libre 3 code on this path.
+            final int[] managed = tk.glucodata.drivers.libre3.Libre3ManagedNfc.scanForUi(tag);
+            vibrator.cancel();
+            if (managed[0] == tk.glucodata.drivers.libre3.Libre3ManagedNfc.RESULT_PAIRED) {
+                askpermission = true;
+                askcalendar = true;
+                curve.render.badscan = managedCalendar(main,
+                        tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastPairedSensorId());
+            } else
+                failure(vibrator);
+            curve.requestRender();
+            return managed;
+        }
         int value = 0;
         int ret = 0x100000;
         if (android.os.Build.VERSION.SDK_INT >= 26) {
@@ -297,7 +311,10 @@ public class ScanNfcV {
         startvibration(vibrator);
         curve.render.stepresult = GlucoseCurve.STEPBACK;
         {
-            if (!Natives.gethaslibrary()) {
+            // The legacy library is not needed when the Kotlin Libre 3 driver takes the scan.
+            final boolean managedLibre3 = tk.glucodata.drivers.libre3.Libre3ManagedNfc.isEnabled()
+                    && tk.glucodata.drivers.libre3.Libre3ManagedNfc.isLibre3Tag(tag);
+            if (!managedLibre3 && !Natives.gethaslibrary()) {
                 vibrator.cancel();
                 failure(vibrator);
                 if (main.openfile != null)
@@ -541,6 +558,38 @@ public class ScanNfcV {
         if (!isWearable) {
             XInfuus.sendSensorActivateBroadcast(act, name, Natives.laststarttime());
         }
+        final long timedata = Natives.getSensorEndData(name);
+        newsensorDialog(act, text, name, accountid, (timedata & 0xFFFFFFFFL) * 1000L, (timedata >> 32) != 0L);
+    }
+
+    /**
+     * Success dialog for a sensor the Kotlin Libre 3 driver paired: same text and calendar offer
+     * as the legacy flow, with the start and end taken from the driver's own record.
+     */
+    static int managedCalendar(Activity act, String serial) {
+        if (!askcalendar || serial == null)
+            return 0;
+        final var record = tk.glucodata.drivers.libre3.Libre3Persistence.INSTANCE.loadSensor(act, serial);
+        if (record == null)
+            return 0;
+        final long readyAt = record.getStartTimeMs() + record.getWarmupMinutes() * 60_000L;
+        final long waitmin = (readyAt - System.currentTimeMillis() + 59_999L) / 60_000L;
+        final String mess = (waitmin > 0)
+                ? (act.getString(R.string.sensor) + " " + serial + act.getString(R.string.ready_in) + waitmin + " "
+                        + act.getString(R.string.minutes))
+                : act.getString(R.string.ready_for_use);
+        if (!isWearable && tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastScanActivated()) {
+            XInfuus.sendSensorActivateBroadcast(act, serial, record.getStartTimeMs() / 1000L);
+        }
+        // The calendar entry names the LibreView account; only when that is what the sensor holds.
+        final long account = Natives.getlibreAccountIDnumber();
+        final long shownAccount = (account & 0xFFFFFFFFL) == record.getReceiverId() ? account : 0L;
+        newsensorDialog(act, mess, serial, shownAccount, record.getExpectedEndMs(), tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastScanActivated());
+        return 0;
+    }
+
+    static private void newsensorDialog(Activity act, String text, String name, long accountid, long endtime,
+            boolean calendarChecked) {
 
         var metrics = act.getResources().getDisplayMetrics();
         int width = metrics.widthPixels;
@@ -561,9 +610,7 @@ public class ScanNfcV {
 
             CheckBox calBox = new CheckBox(act);
             calBox.setPadding(0, pad, 0, pad);
-            long timedata = Natives.getSensorEndData(name);
-            final var endtime = (timedata & 0xFFFFFFFFL) * 1000L;
-            calBox.setChecked((timedata >> 32) != 0L);
+            calBox.setChecked(calendarChecked);
             calBox.setText(R.string.addsensorenddate);
             final boolean stillused = endtime > System.currentTimeMillis();
             if (!stillused)

@@ -26,7 +26,8 @@ class VirtualSensorNativeMirrorTests {
         val rebased = mutableListOf<Long>()
     }
 
-    private fun mirrorOver(native: FakeNative) = VirtualSensorNativeMirror(
+    private fun mirrorOver(native: FakeNative, capacity: Int = Int.MAX_VALUE) = VirtualSensorNativeMirror(
+        readCapacityMinutes = { capacity },
         readShellStartSeconds = { native.startSeconds },
         openShell = { _, startSeconds, minimumRecords ->
             native.opened += startSeconds to minimumRecords
@@ -267,4 +268,25 @@ class VirtualSensorNativeMirrorTests {
         assertFalse(VirtualSensorNativeMirror.needsRebase(now, end - 60L))
         assertTrue(VirtualSensorNativeMirror.needsRebase(now, end))
     }
+    @Test fun libre3PlusKeepsEarlyHistoryWhenDayFifteenArrives() {
+        val native = FakeNative()
+        val mirror = mirrorOver(native)
+        val start = now - 15L * 24L * 60L * 60L
+        mirror.mirror(serial, listOf(reading(start + 60, 120f)), "Libre3", false, 32 * 24 * 60)
+        mirror.mirror(serial, listOf(reading(now, 125f)), "Libre3", false, 32 * 24 * 60)
+        assertTrue(native.rebased.isEmpty())
+        assertEquals(32 * 24 * 60, native.opened.single().second)
+        assertEquals(2, native.batches.size)
+        assertFalse(native.batches.last().primaryIsResolved)
+    }
+
+    @Test fun smallerLibre3PreviewMappingIsNotTreatedAsThirtyTwoDaysOrErased() {
+        val native = FakeNative(startSeconds = now - 15L * 24 * 60 * 60)
+        val mirror = mirrorOver(native, 14 * 24 * 60)
+        val stored = mirror.mirror(serial, listOf(reading(native.startSeconds + 60, 120f), reading(now, 125f)), "Libre3", false, 32 * 24 * 60, allowRebase = false)
+        assertEquals(1, stored)
+        assertTrue(native.rebased.isEmpty())
+        assertEquals(1, native.batches.single().timestampsSec.size)
+    }
+
 }
