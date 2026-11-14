@@ -133,6 +133,9 @@ object CurrentDisplaySource {
         )
         val historyStart = when {
             current != null && current.timeMillis > 0L -> (current.timeMillis - liveHistoryWindowMs).coerceAtLeast(0L)
+            // With no live cache the newest history row can lag the wall clock. Supply
+            // enough history for a full trend window anchored at that row, as below.
+            preferIncomingSample -> now - 2 * liveHistoryWindowMs
             else -> now - liveHistoryWindowMs
         }
         val recentPoints = try {
