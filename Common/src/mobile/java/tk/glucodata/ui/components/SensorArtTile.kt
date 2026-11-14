@@ -44,12 +44,14 @@ import tk.glucodata.ui.util.ExpressiveMotion
 
 /**
  * The launch tile: a sensor on the same soft square every row uses, so the sensors' own outlines
- * are what tells the rows apart. Pressing the card rounds the square towards a circle and pushes
- * the sensor in; letting go springs both back. Everything moves in the draw and layer phases, and
- * nothing moves at rest or when a screen opens.
+ * are what tells the rows apart. The sensor is drawn bigger than the square and set towards its
+ * upper right corner, so it lies across the edge rather than sitting framed inside it, a few
+ * degrees off straight. Pressing the card rounds the square towards a circle, pushes the sensor
+ * in and turns it square to the row; letting go springs all three back. Everything moves in the
+ * draw and layer phases, and nothing moves at rest or when a screen opens.
  *
- * [round] keeps the frame a circle throughout, for the wizard heroes. Raising [replay] drops the
- * sensor on to its frame again.
+ * [round] keeps the frame a circle throughout and the drawing inside it, patch and all, for the
+ * wizard heroes. Raising [replay] drops the sensor on to its frame again.
  */
 @Composable
 internal fun SensorArtTile(
@@ -62,7 +64,8 @@ internal fun SensorArtTile(
     onPad: Boolean = false,
     round: Boolean = false,
 ) {
-    val tones = rememberSensorTones()
+    val plain = rememberSensorTones()
+    val tones = remember(plain, containerColor) { plain.bounce(containerColor) }
 
     val press = remember { Animatable(0f) }
     val pressed by interactionSource.collectIsPressedAsState()
@@ -91,15 +94,19 @@ internal fun SensorArtTile(
         }
         Canvas(
             modifier = Modifier
-                .matchParentSize()
+                .requiredSize(if (round) tileSize else tileSize * TILE_REACH)
                 .graphicsLayer {
                     val progress = press.value
                     val drop = landing.value
                     val squeeze = (1f - 0.08f * progress) * (1f + 0.25f * drop)
                     scaleX = squeeze
                     scaleY = squeeze
-                    rotationX = 12f * progress
-                    translationY = -6.dp.toPx() * drop
+                    rotationZ = -type.tilt * progress
+                    if (!round) {
+                        translationX = tileSize.toPx() * TILE_SHIFT * (1f - progress)
+                        translationY = -tileSize.toPx() * TILE_SHIFT * (1f - progress)
+                    }
+                    translationY += -6.dp.toPx() * drop
                     alpha = (1f - drop).coerceIn(0f, 1f) * 0.6f + 0.4f
                 },
         ) {
@@ -110,6 +117,12 @@ internal fun SensorArtTile(
 
 /** The tile's corner at rest, against half its side: the 16 dp of the card's other squares at 56 dp. */
 private const val TILE_CORNER = 0.57f
+
+/** The sensor's drawing against the tile's side: a disc spans about its full width. */
+private const val TILE_REACH = 1.26f
+
+/** How far the sensor sits towards the tile's upper right corner, against the tile's side. */
+private const val TILE_SHIFT = 0.11f
 
 /** Heroes that have played their entrance; each plays once per launch, not on every visit. */
 private val heroesPlayed = mutableSetOf<SensorType>()
