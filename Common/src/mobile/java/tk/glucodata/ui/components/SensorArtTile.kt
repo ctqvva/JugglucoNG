@@ -119,7 +119,7 @@ private enum class HeroCompanion { NONE, APPLICATOR, PHONE }
 
 private val SensorType.heroCompanion: HeroCompanion
     get() = when (this) {
-        SensorType.CARESENS_AIR -> HeroCompanion.APPLICATOR
+        SensorType.CARESENS_AIR, SensorType.ACCUCHEK -> HeroCompanion.APPLICATOR
         SensorType.LIBRE -> HeroCompanion.PHONE
         else -> HeroCompanion.NONE
     }
@@ -130,9 +130,9 @@ private val SensorType.heroCompanion: HeroCompanion
  * control, so it adds nothing for accessibility services to announce. Between touches nothing
  * runs.
  *
- * Beside it, CareSens Air's applicator lifts away from the sensor it has just placed, and a
- * phone comes in over the Libre, its signal rippling out once from the sensor. That plays the
- * first time a hero opens after launch; later visits find it already in place.
+ * Beside it, the CareSens Air or SmartGuide applicator lifts away from the sensor it has just
+ * placed, and a phone comes in over the Libre, its signal rippling out once from the sensor. That
+ * plays the first time a hero opens after launch; later visits find it already in place.
  */
 @Composable
 internal fun SensorHeroArt(
@@ -241,7 +241,7 @@ internal fun SensorHeroArt(
                     },
             ) {
                 if (companionKind == HeroCompanion.APPLICATOR) {
-                    drawCareSensAirApplicator(tones)
+                    drawApplicator(type, tones)
                 } else {
                     drawNfcPhone(tones)
                 }
