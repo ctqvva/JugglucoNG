@@ -492,25 +492,82 @@ private fun DrawScope.drawLibre(tones: SensorTones, onPad: Boolean) = seated(10f
 }
 
 /**
- * G7: 27.5 x 24 mm, 4.6 thick, its plan fitted to a top-down shot: an oval fuller on the right,
- * a square cut in the middle of each side, a broad rolled edge round a flat top. The round port
- * sits left of centre on the long axis, the pinhole below it.
+ * G7 radius every 5 degrees from +x, clockwise on screen, fitted to a top-down photo of the
+ * sensor: an oval that is fuller on the right, wider than tall, the side cuts left out.
+ */
+private val G7_RADII = floatArrayOf(
+    36.72f, 36.70f, 36.68f, 36.63f, 36.53f, 36.37f, 36.20f, 36.02f,
+    35.85f, 35.65f, 35.39f, 35.03f, 34.60f, 34.16f, 33.73f, 33.34f,
+    32.95f, 32.54f, 32.10f, 31.69f, 31.44f, 31.42f, 31.68f, 32.16f,
+    32.73f, 33.29f, 33.77f, 34.21f, 34.66f, 35.17f, 35.72f, 36.22f,
+    36.59f, 36.77f, 36.83f, 36.85f, 36.93f, 37.07f, 37.19f, 37.16f,
+    36.90f, 36.41f, 35.78f, 35.15f, 34.59f, 34.09f, 33.60f, 33.04f,
+    32.42f, 31.81f, 31.36f, 31.19f, 31.31f, 31.66f, 32.11f, 32.55f,
+    32.94f, 33.29f, 33.65f, 34.06f, 34.50f, 34.91f, 35.24f, 35.50f,
+    35.72f, 35.94f, 36.18f, 36.42f, 36.62f, 36.74f, 36.78f, 36.76f,
+)
+
+private fun g7Radius(angle: Float): Float {
+    val turn = (angle / (2f * PI.toFloat())).mod(1f) * G7_RADII.size
+    val index = turn.toInt()
+    val next = (index + 1) % G7_RADII.size
+    val t = turn - index
+    return G7_RADII[index] + (G7_RADII[next] - G7_RADII[index]) * t
+}
+
+/**
+ * G7: 27.5 x 24 mm, 4.6 thick, its plan fitted to a top-down photo, a square cut in the middle of
+ * each side. The top is a raised plateau set up and to the left, a broad slope around it widest
+ * at the right and the foot. The round port sits left of centre on the long axis, the pinhole
+ * below it.
  */
 private fun DrawScope.drawDexcom(tones: SensorTones, onPad: Boolean) = seated(12.4f) {
     if (onPad) patch(tones, superellipse(45f, 41f, 2.2f), at = Offset(1f, 1f))
     val outline = polar { angle ->
-        37f * (
-            0.9319f - 0.0194f * cos(angle) + 0.0667f * cos(2f * angle) - 0.0235f * cos(3f * angle) -
-                0.0015f * cos(4f * angle) + 0.0065f * cos(5f * angle) + 0.001f * cos(6f * angle)
-            ) - cut(angle, 0f, 2.3f, 0.085f) - cut(angle, PI.toFloat(), 2.3f, 0.085f)
+        g7Radius(angle) - cut(angle, 0f, 2.3f, 0.085f) - cut(angle, PI.toFloat(), 2.3f, 0.085f)
     }
-    part(tones.grey(), outline, thickness = 12.4f, bevel = 4f) {
-        hole(tones, Offset(-15.4f, 0f), 2.9f)
+    val grey = tones.grey()
+    part(grey, outline, thickness = 12.4f, bevel = 1.2f) {
+        val plateau = Path().apply {
+            val steps = 144
+            for (step in 0 until steps) {
+                val angle = step / steps.toFloat() * 2f * PI.toFloat()
+                val r = g7Radius(angle)
+                val x = cos(angle) * r * 0.92f - 1.9f
+                val y = sin(angle) * r * 0.85f
+                if (step == 0) moveTo(x, y) else lineTo(x, y)
+            }
+            close()
+        }
+        val bounds = plateau.getBounds()
+        // The slope round the plateau: lit at the upper left, falling into shade at the lower right.
+        drawPath(
+            outline(0f),
+            Brush.linearGradient(
+                0f to grey.highlight,
+                0.5f to lerp(grey.body, grey.wall, 0.45f),
+                1f to grey.wall,
+                start = Offset(-37f, -33f),
+                end = Offset(37f, 33f),
+            ),
+        )
+        drawPath(
+            plateau,
+            Brush.linearGradient(
+                0f to grey.highlight,
+                0.6f to grey.body,
+                1f to lerp(grey.body, grey.shade, 0.4f),
+                start = bounds.topLeft,
+                end = bounds.bottomRight,
+            ),
+        )
+        drawPath(plateau, grey.wall.copy(alpha = 0.35f), style = Stroke(width = 0.5f))
+        hole(tones, Offset(-16f, -0.4f), 2.9f)
         drawRoundRect(
             tones.ink,
-            topLeft = Offset(-15f, 9.6f),
-            size = Size(1.8f, 3.2f),
-            cornerRadius = CornerRadius(0.9f),
+            topLeft = Offset(-15.7f, 9.3f),
+            size = Size(1.6f, 3f),
+            cornerRadius = CornerRadius(0.8f),
         )
     }
 }
@@ -610,21 +667,20 @@ private fun DrawScope.drawOttai(tones: SensorTones, onPad: Boolean) = seated(10.
 }
 
 /**
- * i3: a thick white puck on a dark base ring. A teardrop-shaped recess holds a square window in
- * its broad end and three small contacts towards its tip; small slots break the rim.
+ * i3: a thick white puck, measured from a top-down photo. Up and left of centre, a teardrop
+ * outline holds a square window in its broad end and three small contacts towards its tip, which
+ * reaches the centre; small slots break the rim.
  */
 private fun DrawScope.drawICan(tones: SensorTones, onPad: Boolean) = seated(11f) {
     if (onPad) patch(tones, circle(45f))
-    part(tones, circle(36.5f), thickness = 11f, bevel = 2.6f, band = 0.35f) {
-        val recess = capsule(Offset(-13.5f, -20.5f), 11f, Offset(3f, -4.5f), 8f)
+    part(tones, circle(36.5f), thickness = 11f, bevel = 2.6f) {
+        val recess = capsule(Offset(-14f, -14.5f), 9f, Offset(0.6f, -2.7f), 5f)
         drawPath(recess, lerp(tones.body, tones.shade, 0.3f))
-        drawPath(recess, tones.ink.copy(alpha = 0.65f), style = Stroke(width = 1.4f))
-        rotate(10f, pivot = Offset(-15.5f, -21f)) {
-            window(tones, Offset(-15.5f, -21f), 6f, filled = false)
-        }
-        window(tones, Offset(-0.5f, -10.5f), 2.8f, filled = true)
-        window(tones, Offset(-5.2f, -5.4f), 2.8f, filled = true)
-        window(tones, Offset(0.6f, -4.2f), 2.6f, filled = false)
+        drawPath(recess, tones.ink.copy(alpha = 0.65f), style = Stroke(width = 1f))
+        window(tones, Offset(-16.2f, -15.9f), 5.6f, filled = false)
+        window(tones, Offset(-1.4f, -8.5f), 2.7f, filled = true)
+        window(tones, Offset(-5.6f, -3.2f), 2.7f, filled = true)
+        window(tones, Offset(0f, -3.6f), 2.2f, filled = false)
         drawLine(tones.wallDeep, Offset(35f, 2f), Offset(35f, 6.6f), strokeWidth = 0.9f, cap = StrokeCap.Round)
         drawLine(tones.wallDeep, Offset(-1.8f, -35.4f), Offset(1.8f, -35.4f), strokeWidth = 0.9f, cap = StrokeCap.Round)
         drawLine(tones.wallDeep, Offset(-2.2f, 35.4f), Offset(2.2f, 35.4f), strokeWidth = 0.9f, cap = StrokeCap.Round)
