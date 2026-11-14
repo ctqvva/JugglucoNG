@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -23,6 +25,13 @@ fun SettingsScreen(
     onOpenSensor: () -> Unit,
     onOpenExchange: () -> Unit = {},
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prefs = androidx.compose.runtime.remember(context) {
+        context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+    }
+    var showDelta by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(prefs.getBoolean(tk.glucodata.DisplayDeltaSource.WEAR_ENABLED, false))
+    }
     ScreenScaffold(timeText = { TimeText() }) {
         ScalingLazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -52,6 +61,17 @@ fun SettingsScreen(
                             .request(tk.glucodata.WearToggleSync.SCOPE_PREF, "prediction", on)
                     },
                     label = { Text(stringResource(R.string.wear_prediction_title)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            item {
+                androidx.wear.compose.material3.SwitchButton(
+                    checked = showDelta,
+                    onCheckedChange = { on ->
+                        showDelta = on
+                        prefs.edit().putBoolean(tk.glucodata.DisplayDeltaSource.WEAR_ENABLED, on).apply()
+                    },
+                    label = { Text(stringResource(R.string.notification_show_delta_title)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

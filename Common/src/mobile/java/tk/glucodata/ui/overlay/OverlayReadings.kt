@@ -9,7 +9,9 @@ import tk.glucodata.ui.PeerCurrentReading
 internal data class OverlayReadings(
     val sensorId: String?,
     val snapshot: CurrentDisplaySource.Snapshot?,
-    val peers: List<PeerCurrentReading>
+    val peers: List<PeerCurrentReading>,
+    val deltaText: String = "",
+    val deltaIntervalMinutes: Int = tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES
 )
 
 /** Commit a complete main/peer frame. A refresh never publishes a temporary empty peer list. */

@@ -4348,8 +4348,6 @@ public class Notify {
         // 1. Determine Arrow
         float rate = glucose.rate;
 
-        // Delta (Current - Previous?) - omitted for now
-
         // 2. Build Chart
         long endT = System.currentTimeMillis();
         long startT = endT - 3 * 60 * 60 * 1000L;
@@ -4533,43 +4531,14 @@ public class Notify {
                         ? iobLine
                         : new android.text.SpannableStringBuilder(iobLine).append(" · ").append(sensorStatusText);
         }
-        // Signed change over the selected interval — a raw
-        // number to sanity-check the estimated arrow against. Leftmost, right
-        // next to the arrow. Walks back to the first point old enough for the
-        // window; the tail can hold near-duplicates (persisted vs live
-        // timestamp of the same reading), so never take blind indices.
-        if (showDelta && nativePoints.size() >= 2) {
-            final GlucosePoint newest = nativePoints.get(nativePoints.size() - 1);
-            final float newestValue = (isRawMode && newest.rawValue > 0f) ? newest.rawValue : newest.value;
-            GlucosePoint previous = null;
-            for (int i = nativePoints.size() - 2; i >= 0; i--) {
-                final GlucosePoint p = nativePoints.get(i);
-                final float value = (isRawMode && p.rawValue > 0f) ? p.rawValue : p.value;
-                if (value > 0.1f && newest.timestamp - p.timestamp >= GlucoseDelta.minGapMillis(deltaIntervalMinutes)) {
-                    previous = p;
-                    break;
-                }
-            }
-            final float previousValue = previous == null ? Float.NaN
-                    : (isRawMode && previous.rawValue > 0f) ? previous.rawValue : previous.value;
-            final String deltaText = previous == null ? "" : GlucoseDelta.format(
-                    GlucoseDelta.delta(newest.timestamp, newestValue, previous.timestamp, previousValue, deltaIntervalMinutes),
-                    isMmol);
-            if (doLog)
-                Log.i(LOG_ID, "notification delta=" + deltaText
-                        + " points=" + nativePoints.size()
-                        + " gap=" + (previous == null ? -1L : (newest.timestamp - previous.timestamp))
-                        + " mode=" + viewMode + " mmol=" + isMmol
-                        + " newest=" + newest.timestamp + ":" + newestValue
-                        + " previous=" + (previous == null ? -1L : previous.timestamp) + ":" + previousValue
-                        + " displayed=" + (fallbackDisplay == null ? -1L : fallbackDisplay.getTimeMillis())
-                        + ":" + displayGlucoseValue);
-            if (!deltaText.isEmpty()) {
-                newStatusText = (newStatusText == null || newStatusText.length() == 0)
-                        ? deltaText
-                        : new android.text.SpannableStringBuilder(deltaText)
-                                .append(" · ").append(newStatusText);
-            }
+        final String deltaText = DisplayDeltaSource.format(
+                showDelta, chartPoints, activeSensorSerial,
+                fallbackDisplay == null ? 0L : fallbackDisplay.getTimeMillis(), viewMode, isMmol,
+                deltaIntervalMinutes, endT, glucosetimeout);
+        if (!deltaText.isEmpty()) {
+            newStatusText = (newStatusText == null || newStatusText.length() == 0)
+                    ? deltaText
+                    : new android.text.SpannableStringBuilder(deltaText).append(" · ").append(newStatusText);
         }
 
         RemoteViews remoteViews;

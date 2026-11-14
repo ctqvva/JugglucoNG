@@ -480,6 +480,8 @@ fun FloatingGlucoseSettingsScreen(
     val fontSource by repository.fontSource.collectAsStateWithLifecycle(initialValue = "APP")
     val fontSize by repository.fontSize.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_FONT_SIZE)
     val fontWeight by repository.fontWeight.collectAsStateWithLifecycle(initialValue = "REGULAR")
+    val showDelta by repository.showDelta.collectAsStateWithLifecycle(initialValue = false)
+    val deltaIntervalMinutes by viewModel.deltaIntervalMinutes.collectAsStateWithLifecycle()
     val showArrow by repository.showArrow.collectAsStateWithLifecycle(initialValue = true)
     val cornerRadius by repository.cornerRadius.collectAsStateWithLifecycle(initialValue = 28f)
     val opacity by repository.backgroundOpacity.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_BACKGROUND_OPACITY)
@@ -651,6 +653,13 @@ fun FloatingGlucoseSettingsScreen(
                 title = stringResource(R.string.show_trend_arrow),
                 checked = showArrow,
                 onCheckedChange = { repository.setShowArrow(it) },
+                position = CardPosition.MIDDLE
+            )
+            SettingsSwitchItem(
+                title = stringResource(R.string.notification_show_delta_title),
+                subtitle = stringResource(R.string.notification_show_delta_minutes_desc, deltaIntervalMinutes),
+                checked = showDelta,
+                onCheckedChange = { repository.setShowDelta(it) },
                 position = CardPosition.BOTTOM
             )
         }
@@ -706,6 +715,7 @@ fun AodSettingsScreen(navController: NavController) {
     var showChart by rememberSaveable { mutableStateOf(prefs.getBoolean("aod_show_chart", true)) }
     var showArrow by rememberSaveable { mutableStateOf(prefs.getBoolean("aod_show_arrow", true)) }
     var showSecondary by rememberSaveable { mutableStateOf(prefs.getBoolean("aod_show_secondary", false)) }
+    var showDelta by rememberSaveable { mutableStateOf(prefs.getBoolean(tk.glucodata.DisplayDeltaSource.AOD_ENABLED, false)) }
     var arrowScale by rememberSaveable { mutableFloatStateOf(prefs.getFloat("aod_arrow_scale", 1.0f)) }
     var positions by rememberSaveable { mutableStateOf(prefs.getStringSet("aod_positions", setOf("TOP")) ?: setOf("TOP")) }
     var alignment by rememberSaveable { mutableStateOf(prefs.getString("aod_alignment", "CENTER") ?: "CENTER") }
@@ -728,6 +738,7 @@ fun AodSettingsScreen(navController: NavController) {
             .putBoolean("aod_show_chart", showChart)
             .putBoolean("aod_show_arrow", showArrow)
             .putBoolean("aod_show_secondary", showSecondary)
+            .putBoolean(tk.glucodata.DisplayDeltaSource.AOD_ENABLED, showDelta)
             .putFloat("aod_arrow_scale", arrowScale)
             .putStringSet("aod_positions", positions)
             .putString("aod_alignment", alignment)
@@ -867,6 +878,13 @@ fun AodSettingsScreen(navController: NavController) {
                 subtitle = stringResource(R.string.display_secondary_values_desc),
                 checked = showSecondary,
                 onCheckedChange = { showSecondary = it; save() },
+                position = CardPosition.MIDDLE
+            )
+            SettingsSwitchItem(
+                title = stringResource(R.string.notification_show_delta_title),
+                subtitle = stringResource(R.string.notification_show_delta_desc),
+                checked = showDelta,
+                onCheckedChange = { showDelta = it; save() },
                 position = CardPosition.MIDDLE
             )
             SettingsControlsCard(position = CardPosition.BOTTOM) {

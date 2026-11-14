@@ -146,6 +146,39 @@ fun MainScreen(
     val viewMode = storeSnapshot.viewMode
     val recent = remember(storeSnapshot) { WearGlucoseStore.recent(count = 6) }
     val newestReading = recent.firstOrNull()
+    val deltaContext = LocalContext.current
+    val deltaPrefs = remember(deltaContext) {
+        deltaContext.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+    }
+    var deltaSettingsRevision by remember { mutableIntStateOf(0) }
+    androidx.compose.runtime.DisposableEffect(deltaPrefs) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == null || key == tk.glucodata.DisplayDeltaSource.WEAR_ENABLED ||
+                key == tk.glucodata.DisplayDeltaSource.INTERVAL) deltaSettingsRevision++
+        }
+        deltaPrefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { deltaPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    val showDelta = remember(deltaSettingsRevision) {
+        deltaPrefs.getBoolean(tk.glucodata.DisplayDeltaSource.WEAR_ENABLED, false)
+    }
+    val deltaText by androidx.compose.runtime.key(storeSnapshot, deltaSettingsRevision) {
+        androidx.compose.runtime.produceState("") {
+            value = ""
+            if (showDelta && newestReading != null && !storeSnapshot.sensorId.isNullOrBlank()) {
+                value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val history = NotificationHistorySource.getDisplayHistory(
+                        newestReading.timestamp - 20 * 60_000L, isMmol, storeSnapshot.sensorId
+                    )
+                    tk.glucodata.DisplayDeltaSource.format(
+                        true, history, storeSnapshot.sensorId, newestReading.timestamp, viewMode, isMmol,
+                        deltaPrefs.getInt(tk.glucodata.DisplayDeltaSource.INTERVAL, tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES),
+                        System.currentTimeMillis(), tk.glucodata.Notify.glucosetimeout
+                    )
+                }
+            }
+        }
+    }
     // One pass over the shared history gives every row its own arrow, instead of
     // each row walking the snapshot again on the main thread.
     val velocities = remember(storeSnapshot, recent, isMmol) {
@@ -203,6 +236,7 @@ fun MainScreen(
                             isMmol = isMmol,
                             viewMode = viewMode,
                             stale = status.isStale,
+                            deltaText = if (showDelta && status.isFresh) deltaText else "",
                             sensorId = snap?.sensorId,
                             velocity = velocities[newestReading.timestamp] ?: 0f,
                             peers = peerReadings,
@@ -489,6 +523,7 @@ internal fun HeroCard(
     sensorId: String?,
     velocity: Float,
     peers: List<PeerReading> = emptyList(),
+    deltaText: String = "",
     onClick: (() -> Unit)? = null,
     onPeerClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -572,6 +607,9 @@ internal fun HeroCard(
             modifier = Modifier.size(28.dp).padding(start = 4.dp),
             color = valueColor,
         )
+    }
+    if (!stale && deltaText.isNotEmpty()) {
+        Text("Δ $deltaText", style = MaterialTheme.typography.labelMedium, color = valueColor)
     }
     if (peers.isNotEmpty()) {
         HeroPeerStrip(

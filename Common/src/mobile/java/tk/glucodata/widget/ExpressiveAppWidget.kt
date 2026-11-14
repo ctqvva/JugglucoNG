@@ -62,14 +62,14 @@ class ExpressiveAppWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val initialTick = GlucoseUpdateBroadcaster.tick.value
-        val initialState = withContext(Dispatchers.IO) { loadWidgetState() }
+        val initialState = withContext(Dispatchers.IO) { loadWidgetState(context) }
 
         provideContent {
             GlanceTheme {
                 val tick by GlucoseUpdateBroadcaster.tick.collectAsState()
                 val state by produceState(initialValue = initialState, key1 = tick) {
                     if (tick != initialTick) {
-                        value = withContext(Dispatchers.IO) { loadWidgetState() }
+                        value = withContext(Dispatchers.IO) { loadWidgetState(context) }
                     }
                 }
                 WidgetContent(
@@ -78,7 +78,8 @@ class ExpressiveAppWidget : GlanceAppWidget() {
                     dataState = state.dataState,
                     activeSensorSerial = state.activeSensorSerial,
                     viewMode = state.viewMode,
-                    hasCalibration = state.hasCalibration
+                    hasCalibration = state.hasCalibration,
+                    deltaText = state.deltaText
                 )
             }
         }
@@ -90,10 +91,11 @@ class ExpressiveAppWidget : GlanceAppWidget() {
         val dataState: DisplayDataState.Status,
         val activeSensorSerial: String?,
         val viewMode: Int,
-        val hasCalibration: Boolean
+        val hasCalibration: Boolean,
+        val deltaText: String
     )
 
-    private fun loadWidgetState(): WidgetState {
+    private fun loadWidgetState(context: Context): WidgetState {
         val currentDisplay = WidgetDisplaySource.resolveWidgetSnapshot()
         val chartHistory = WidgetDisplaySource.resolveChartHistory(currentDisplay, WidgetDisplaySource.CHART_WINDOW_MS)
         val activeSensorSerial = currentDisplay?.sensorId ?: WidgetDisplaySource.resolveActiveSensorSerial()
@@ -104,6 +106,14 @@ class ExpressiveAppWidget : GlanceAppWidget() {
         if (dataState.isFresh) {
             GlucoseUpdateBroadcaster.armFreshnessDeadline(dataState.latestTimestampMillis)
         }
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+        val deltaText = tk.glucodata.DisplayDeltaSource.format(
+            prefs.getBoolean(tk.glucodata.DisplayDeltaSource.NOTIFICATION_ENABLED, false),
+            chartHistory, activeSensorSerial, resolvedDisplay?.timeMillis ?: 0L,
+            viewMode, resolvedDisplay?.isMmol ?: (tk.glucodata.Applic.unit == 1),
+            prefs.getInt(tk.glucodata.DisplayDeltaSource.INTERVAL, tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES),
+            System.currentTimeMillis(), Notify.glucosetimeout
+        )
         return WidgetState(
             // Same rule as the dashboard hero: a reading past glucosetimeout is not
             // shown as current, whether it came from the live source or from history.
@@ -112,7 +122,8 @@ class ExpressiveAppWidget : GlanceAppWidget() {
             dataState = dataState,
             activeSensorSerial = activeSensorSerial,
             viewMode = viewMode,
-            hasCalibration = hasCalibration
+            hasCalibration = hasCalibration,
+            deltaText = deltaText
         )
     }
 
@@ -123,7 +134,8 @@ class ExpressiveAppWidget : GlanceAppWidget() {
         dataState: DisplayDataState.Status,
         activeSensorSerial: String?,
         viewMode: Int,
-        hasCalibration: Boolean
+        hasCalibration: Boolean,
+        deltaText: String
     ) {
         val context = LocalContext.current
         val size = LocalSize.current
@@ -168,12 +180,12 @@ class ExpressiveAppWidget : GlanceAppWidget() {
 
         val showChart = history.size >= 2 && size.height >= 144.dp
         val density = context.resources.displayMetrics.density
-        val chartBitmap = remember(history, showChart, size, isMmol, viewMode, hasCalibration, activeSensorSerial) {
+        val chartBitmap = remember(history, showChart, size, isMmol, viewMode, hasCalibration, activeSensorSerial, deltaText) {
             if (!showChart) {
                 null
             } else {
                 val widthPx = ((size.width.value - 24f).coerceAtLeast(96f) * density).roundToInt()
-                val heightPx = ((size.height.value - ChartReservedHeightDp).coerceAtLeast(60f) * density).roundToInt()
+                val heightPx = ((size.height.value - ChartReservedHeightDp - if (deltaText.isEmpty()) 0f else 20f).coerceAtLeast(60f) * density).roundToInt()
                 NotificationChartDrawer.drawChart(
                     context,
                     history,
@@ -209,7 +221,7 @@ class ExpressiveAppWidget : GlanceAppWidget() {
             Box(
                 modifier = GlanceModifier
                     .fillMaxWidth()
-                    .height(HeaderHeight)
+                    .height(if (deltaText.isEmpty()) HeaderHeight else HeaderHeight + 20.dp)
                     .background(GlanceTheme.colors.surface)
                     .cornerRadius(24.dp)
                     .padding(horizontal = 18.dp, vertical = 12.dp),
@@ -221,10 +233,19 @@ class ExpressiveAppWidget : GlanceAppWidget() {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalAlignment = Alignment.Start
                     ) {
-                        Image(
-                            provider = ImageProvider(valueBitmap),
-                            contentDescription = "Glucose"
-                        )
+                        Column {
+                            Image(
+                                provider = ImageProvider(valueBitmap),
+                                contentDescription = "Glucose"
+                            )
+                            if (deltaText.isNotEmpty()) {
+                                Text(
+                                    text = "Δ $deltaText",
+                                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp),
+                                    maxLines = 1
+                                )
+                            }
+                        }
 
                         Spacer(GlanceModifier.defaultWeight())
 

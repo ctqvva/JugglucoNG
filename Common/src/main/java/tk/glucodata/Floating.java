@@ -421,6 +421,7 @@ public class Floating extends View {
     static int floatingheight;
     private static int timesize;
     private static int timeHeight;
+    private static int deltaHeight;
     public static boolean showtime = true;
     private static float density;
     public static int floatfontsize;
@@ -477,6 +478,10 @@ public class Floating extends View {
                     timeHeight = timesize = 0;
                 }
 
+                final var deltaPrefs = Applic.app.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE);
+                deltaHeight = deltaPrefs.getBoolean(DisplayDeltaSource.FLOATING_ENABLED, false)
+                        ? (int) (floatfontsize * 0.4f) : 0;
+                notheight += deltaHeight;
                 floatPaint.setTextSize(floatfontsize);
                 /*
                  * if(colorAge) {
@@ -577,7 +582,7 @@ public class Floating extends View {
                 }
                 floatCanvas.drawColor(floatingbackground);
                 floatPaint.setColor(floatingforeground);
-                var gety = (floatCanvas.getHeight() - timeHeight) * 0.98f;
+                var gety = (floatCanvas.getHeight() - timeHeight - deltaHeight) * 0.98f;
                 var xpos = floatglucosex;
                 var rate = current.getRate();
                 if (!isNaN(rate)) {
@@ -606,6 +611,22 @@ public class Floating extends View {
                         ;
                     }
                     ;
+                }
+                if (deltaHeight > 0) {
+                    final var prefs = getContext().getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE);
+                    final String deltaText = DisplayDeltaSource.resolve(
+                            prefs.getBoolean(DisplayDeltaSource.FLOATING_ENABLED, false), current,
+                            prefs.getInt(DisplayDeltaSource.INTERVAL, GlucoseDelta.DEFAULT_INTERVAL_MINUTES));
+                    if (!deltaText.isEmpty()) {
+                        floatPaint.setTextSize(floatfontsize * 0.35f);
+                        final String label = "Δ " + deltaText;
+                        final float available = floatCanvas.getWidth() - density * 2f;
+                        final float width = floatPaint.measureText(label);
+                        if (width > available && available > 0f)
+                            floatPaint.setTextSize(floatPaint.getTextSize() * available / width);
+                        floatCanvas.drawText(label, density, gety + timeHeight + deltaHeight, floatPaint);
+                        floatPaint.setTextSize(floatfontsize);
+                    }
                 }
                 return;
             } else {
