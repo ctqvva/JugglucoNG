@@ -360,54 +360,6 @@ internal fun bleErrorValue(status: String, relativeAge: CharSequence?): String {
     return if (age.isEmpty()) status else "$status · $age"
 }
 
-/**
- * The status line: reading chip, connection status, and the day of wear at the far edge. The
- * status is what the line is for, so the day of wear is left out whenever showing it would cut
- * the status short.
- */
-@Composable
-private fun SensorStatusLine(
-    lead: @Composable () -> Unit,
-    status: @Composable () -> Unit,
-    trailing: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    androidx.compose.ui.layout.Layout(
-        contents = listOf(lead, status, trailing),
-        modifier = modifier,
-    ) { (leadMeasurables, statusMeasurables, trailingMeasurables), constraints ->
-        val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val gap = 12.dp.roundToPx()
-        val width = constraints.maxWidth
-        val leadPlaceable = leadMeasurables.firstOrNull()?.measure(loose)?.takeIf { it.width > 0 }
-        val statusMeasurable = statusMeasurables.firstOrNull()
-        val trailingPlaceable = trailingMeasurables.firstOrNull()?.measure(loose)?.takeIf { it.width > 0 }
-
-        val statusStart = leadPlaceable?.let { it.width + gap } ?: 0
-        val statusWanted = statusMeasurable?.maxIntrinsicWidth(constraints.maxHeight) ?: 0
-        val trailingFits = trailingPlaceable != null &&
-            statusStart + statusWanted + (if (statusWanted > 0) gap else 0) + trailingPlaceable.width <= width
-        val trailingReserved = if (trailingFits) trailingPlaceable!!.width + gap else 0
-        val statusPlaceable = statusMeasurable?.measure(
-            loose.copy(maxWidth = (width - statusStart - trailingReserved).coerceAtLeast(0))
-        )
-
-        val height = listOfNotNull(leadPlaceable, statusPlaceable, trailingPlaceable.takeIf { trailingFits })
-            .maxOfOrNull { it.height }
-            ?.coerceAtLeast(constraints.minHeight) ?: constraints.minHeight
-        layout(width, height) {
-            leadPlaceable?.placeRelative(0, (height - leadPlaceable.height) / 2)
-            statusPlaceable?.placeRelative(statusStart, (height - statusPlaceable.height) / 2)
-            if (trailingFits) {
-                trailingPlaceable!!.placeRelative(
-                    width - trailingPlaceable.width,
-                    (height - trailingPlaceable.height) / 2,
-                )
-            }
-        }
-    }
-}
-
 @Composable
 private fun SensorCurrentValueChip(
     snapshot: CurrentDisplaySource.Snapshot,
@@ -1977,38 +1929,10 @@ fun SensorCard(
         colors = CardDefaults.cardColors(containerColor = containerColor),
         shape = RoundedCornerShape(28.dp) 
     ) {
-        // --- Dynamic Background Logic ---
-        val now = System.currentTimeMillis()
-        val start = sensor.startMs
-        val end = sensor.lifetimeEndMs()
-        
-        val totalDuration = (end - start).coerceAtLeast(1) // Avoid div/0
-        val usedDuration = (now - start).coerceAtLeast(0)
-        val progress = (usedDuration.toFloat() / totalDuration).coerceIn(0f, 1f)
-        
-        // Color Shift: Safe -> Warning (80%) -> Critical (95%)
-        val fillColor = when {
-            progress > 0.95f -> MaterialTheme.colorScheme.error
-            progress > 0.80f -> MaterialTheme.colorScheme.tertiary 
-            else -> MaterialTheme.colorScheme.primary
-        }
-        val fillAlpha = 0.12f // Light tint
-
+        // The lifetime fill is not on the card itself: it lives in the name's pill
+        // (restricted) or the wear bar above the dates (full card).
         Box(modifier = Modifier.fillMaxSize()) {
-            // 1. Dynamic Fill Layer
-            // FIX: Only show fill if start date is valid (> Jan 1 2020)
-            // Prevents "100% Red Fill" bug when startMs is 0 or invalid (1970).
-            // Restricted, the fill lives in the name's pill instead.
-            if (sensor.startMs > 1577836800000L && !restricted) {
-                 Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(progress)
-                        .background(fillColor.copy(alpha = fillAlpha))
-                )
-            }
-
-            // 2. Content Layer with Color Indicator
+            // Content layer with the colour indicator
             Row(modifier = Modifier.fillMaxWidth().padding(0.dp).alpha(contentAlpha)) {
                 // Color indicator bar - shows sensor's assigned color
                 Box(
@@ -2058,7 +1982,7 @@ fun SensorCard(
                             onPickColor = { showColorSheet = true },
                             colorPickable = !restricted,
                             // Restricted, the pill has the room for the day of wear; with the
-                            // colour and pause controls beside it, the day sits on the status line.
+                            // colour and pause controls beside it, the wear bar below carries it.
                             life = life?.takeIf { restricted },
                             modifier = Modifier.weight(1f),
                         )
@@ -2188,72 +2112,56 @@ fun SensorCard(
                         sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
                         else -> null
                     }
-                    val showLifeDays = life != null && !restricted
-                    if (currentSnapshot != null || sensorStatusText != null || showLifeDays) {
+                    if (currentSnapshot != null || sensorStatusText != null) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        SensorStatusLine(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            lead = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    currentSnapshot?.let { snapshot ->
-                                        SensorCurrentValueChip(
-                                            snapshot = snapshot,
-                                            accentColor = sensorTint
-                                        )
-                                    }
-                                    if (sensor.isCloneSource) {
-                                        CloneSourceMark(
-                                            transport = cloneTransport,
-                                            showLabel = false,
-                                            tint = if (cloneHasRecentData) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
-                                            iconSize = 18.dp,
-                                        )
-                                    }
-                                }
-                            },
-                            status = {
-                                sensorStatusText?.let { status ->
-                                    Text(
-                                        text = status,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = if (sensor.isCloneSource && !cloneHasRecentData) {
-                                            MaterialTheme.colorScheme.error
-                                        } else if (isStreaming) {
-                                            MaterialTheme.colorScheme.onSurface
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    )
-                                }
-                            },
-                            trailing = {
-                                if (life != null && showLifeDays) {
-                                    tk.glucodata.ui.restricted.SensorLifeDays(
-                                        life = life,
-                                        color = when {
-                                            life.progress > 0.95f -> MaterialTheme.colorScheme.error
-                                            life.progress > 0.80f -> MaterialTheme.colorScheme.tertiary
-                                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                    )
-                                }
-                            },
-                        )
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            currentSnapshot?.let { snapshot ->
+                                SensorCurrentValueChip(
+                                    snapshot = snapshot,
+                                    accentColor = sensorTint
+                                )
+                            }
+                            if (sensor.isCloneSource) {
+                                CloneSourceMark(
+                                    transport = cloneTransport,
+                                    showLabel = false,
+                                    tint = if (cloneHasRecentData) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                                    iconSize = 18.dp,
+                                )
+                            }
+                            sensorStatusText?.let { status ->
+                                Text(
+                                    text = status,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = if (sensor.isCloneSource && !cloneHasRecentData) {
+                                        MaterialTheme.colorScheme.error
+                                    } else if (isStreaming) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                            }
+                        }
                     }
 //                } // Close Column (content)
 //                } // Close Column (content)
 //            } // Close Row (color indicator wrapper)
 //            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (!restricted) {
-            // Started and Ends sit on top of the details as one stacked group.
+            // The wear bar, Started and Ends sit on top of the details as one stacked group.
             if (life != null) {
                 Spacer(modifier = Modifier.height(16.dp))
-                tk.glucodata.ui.restricted.SensorDates(life, joinedBelow = true)
+                tk.glucodata.ui.restricted.SensorLifeBar(life)
+                Spacer(modifier = Modifier.height(2.dp))
+                tk.glucodata.ui.restricted.SensorDates(life, topCorner = 4.dp, bottomCorner = 4.dp, plainEndLabel = true)
                 Spacer(modifier = Modifier.height(2.dp))
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
