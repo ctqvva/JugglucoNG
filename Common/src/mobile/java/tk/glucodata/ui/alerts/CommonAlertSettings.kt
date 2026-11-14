@@ -185,8 +185,9 @@ fun CommonAlertSettings(
             }
 
             // The two things people come back to: does it get through silent mode,
-            // and when is it allowed to fire at all.
-            AnimatedVisibility(visible = config.soundEnabled) {
+            // and when is it allowed to fire at all. Silent mode holds back the
+            // vibration as well as the sound, so a vibration-only alert keeps its switch.
+            AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled) {
                 ClickableToggleRow(
                     title = stringResource(R.string.override_silent_mode),
                     subtitle = stringResource(R.string.override_silent_mode_desc),

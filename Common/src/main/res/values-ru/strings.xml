@@ -566,25 +566,8 @@
     <string name="export_history_sub">Сохранить показания в CSV или текст</string>
     <string name="import_history_title">Импорт истории</string>
     <string name="import_history_sub">Восстановить показания глюкозы из экспорта JugglucoNG или CSV-файла</string>
-    <string name="clear_history_title">Очистить историю?</string>
-    <string name="clear_history_confirmation">Это удалит все показания глюкозы из базы данных. Это действие необратимо.</string>
     <string name="delete_reading_title">Удалить показание?</string>
     <string name="delete_reading_confirmation">Удалить это показание глюкозы из локальной истории. Это действие необратимо.</string>
-    <string name="clear_button">Очистить</string>
-    <string name="clear_app_data_title">Очистить данные приложения?</string>
-    <string name="clear_app_data_intro">Это удалит:</string>
-    <string name="all_glucose_readings">• Все показания глюкозы</string>
-    <string name="cache_files">• Файлы кэша</string>
-    <string name="sensor_data">• Данные сенсора</string>
-    <string name="all_settings">• Все настройки</string>
-    <string name="settings_preserved">Настройки будут сохранены.</string>
-    <string name="cannot_be_undone_warning">Это действие необратимо.</string>
-    <string name="clear_data_button">Очистить данные</string>
-    <string name="factory_reset_title">⚠️ Сброс к заводским?</string>
-    <string name="factory_reset_intro">Это УДАЛИТ ВСЕ:</string>
-    <string name="factory_reset_outcome">Приложение вернется к исходному состоянию.</string>
-    <string name="cannot_be_undone_critical">ЭТО НЕОБРАТИМО!</string>
-    <string name="reset_everything_button">СБРОСИТЬ ВСЕ</string>
     <string name="alert_sound">Звук тревоги</string>
     <string name="vibrate_only">Только вибрация</string>
     <string name="sound_vibrate">Звук и вибрация</string>
@@ -676,9 +659,6 @@
     <string name="settings_import_successful">Настройки импортированы. Перезапуск…</string>
     <string name="danger_zone">Опасная зона</string>
     <string name="clear_history">Очистить историю</string>
-    <string name="clear_history_desc_short">Удалить все показания</string>
-    <string name="clear_app_data">Очистить данные приложения</string>
-    <string name="clear_app_data_desc">Удалить историю/кэш, оставить настройки</string>
     <string name="factory_reset">Сброс к заводским</string>
     <string name="factory_reset_desc">Удалить все, вернуть в исходное</string>
     <string name="sibionics_setup_title">Настройка Sibionics</string>
@@ -866,9 +846,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="caresens_air_setup_title">Настройка CareSens Air</string>
     <string name="chsibionics">Sibionics GS1 CN</string>
     <string name="clampnow">Now clamp</string>
-    <string name="clean_data_confirm">Clear App Data?</string>
-    <string name="clean_history_confirm">Clear History?</string>
-    <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
+    <string name="clean_history_confirm">Очистить историю?</string>
+    <string name="clear_history_desc">Удалить показания, записи журнала или всё сразу</string>
+    <string name="clear_history_scope_readings">Удаляет все показания глюкозы на этом телефоне; отменить это нельзя. Журнал, датчики и настройки сохраняются.</string>
+    <string name="clear_history_scope_journal">Удаляет все записи журнала, в том числе из Nightscout, если они были туда отправлены; отменить это нельзя. Показания, типы инсулина и настройки сохраняются.</string>
+    <string name="clear_history_scope_both">Удаляет все показания глюкозы и записи журнала, в том числе из Nightscout, если они были туда отправлены; отменить это нельзя. Датчики, типы инсулина и настройки сохраняются.</string>
+    <string name="clear_history_done">История очищена</string>
+    <string name="clear_history_failed">Не удалось очистить историю</string>
     <string name="complications">Complications</string>
     <string name="confidence">Надёжность</string>
     <string name="connected">Connected!</string>
@@ -889,8 +873,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enternums">Enter amounts on</string>
     <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="exclude">Exclude</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Сбросить к заводским настройкам?</string>
+    <string name="factory_reset_message">Удаляет все показания, записи журнала, датчики и настройки, а также выданные разрешения, затем закрывает приложение. Мониторинг глюкозы и оповещения остановятся, пока вы снова не настроите датчик, и отменить это нельзя.</string>
+    <string name="factory_reset_action">Удалить всё</string>
+    <string name="factory_reset_failed">Не удалось сбросить приложение</string>
     <string name="fiasp">Fiasp</string>
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>
@@ -1043,7 +1029,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Непрозрачность фона: %1$d%%</string>
+    <string name="background_opacity_label">Непрозрачность фона</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Не калибруйте в течение 2 часов после еды или инсулина.</string>
     <string name="calibration_with_mode">Калибровка (%1$s)</string>
@@ -1102,7 +1088,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">Удалены калибровки %1$d.</string>
     <string name="calibrations_will_be_removed_count">Калибровки %1$d будут удалены.</string>
     <string name="connection_number">Соединение %1$d</string>
-    <string name="corner_radius_dp">Радиус угла: %1$d dp</string>
+    <string name="corner_radius_label">Радиус угла</string>
     <string name="custom_sound_prefix">Пользовательский звук: %1$s</string>
     <string name="delete_calibrations_count">Удалить калибровки %1$d</string>
     <string name="disabled_calibrations_cleared">Очищены отключенные калибровки %1$d.</string>
@@ -1111,7 +1097,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d дп</string>
     <string name="end_time_with_value">Конец: %1$s</string>
     <string name="export_failed_with_error">Не удалось экспортировать: %1$s</string>
-    <string name="gap_width_value">Ширина зазора: %1$s</string>
+    <string name="gap_width_label">Ширина зазора</string>
     <string name="glucose_with_unit">Глюкоза (%1$s)</string>
     <string name="import_failed_with_error">Не удалось импортировать: %1$s.</string>
     <string name="import_no_glucose">В файле нет данных глюкозы</string>
@@ -1198,7 +1184,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">Приложение (IBM Plex)</string>
     <string name="font_system_sans">Система Санс</string>
     <string name="font_system_google_sans">Система</string>
-    <string name="size_sp">Размер: %1$d сп</string>
+    <string name="size_label">Размер</string>
+    <string name="sp_value">%1$d сп</string>
     <string name="font_weight_label">Вес шрифта</string>
     <string name="regular">Обычный</string>
     <string name="medium">Средний</string>
@@ -1852,12 +1839,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Компактный график в свернутом виде</string>
     <string name="show_target_range">Показать целевой диапазон</string>
     <string name="show_target_range_desc">Подсветить целевой диапазон глюкозы на графике</string>
-    <string name="font_size_percent">Размер шрифта: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Размер значка строки состояния: %1$d%%</string>
-    <string name="arrow_size_percent">Размер стрелки: %1$d%%</string>
-    <string name="opacity_percent">Непрозрачность: %1$d%%</string>
-    <string name="text_size_percent">Размер текста: %1$d%%</string>
-    <string name="chart_size_percent">Размер графика: %1$d%%</string>
+    <string name="font_size_label">Размер шрифта</string>
+    <string name="status_bar_icon_size_label">Размер значка строки состояния</string>
+    <string name="arrow_size_label">Размер стрелки</string>
+    <string name="opacity_label">Непрозрачность</string>
+    <string name="text_size_label">Размер текста</string>
+    <string name="chart_size_label">Размер графика</string>
     <string name="use_subtle_outline">Использовать тонкий контур</string>
     <string name="use_subtle_outline_desc">Тонкая подсветка края вокруг наложения</string>
     <string name="position_top">Верх</string>
@@ -2225,7 +2212,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s привязан к вашему аккаунту, но здесь не используется. Если срок закончился, отвяжите его, чтобы активировать новый датчик.</string>
     <string name="ottai_cloud_binding_checking">Проверка аккаунта…</string>
     <string name="ottai_cloud_binding_bound">Привязан к вашему аккаунту</string>
-    <string name="ottai_cloud_binding_not_bound">Не привязан к вашему аккаунту</string>
     <string name="ottai_cloud_binding_error">Не удалось проверить аккаунт</string>
     <string name="ottai_status_needs_ble_address">Нужен BLE-адрес</string>
     <string name="ottai_status_warmup_provisional">Предварительный прогрев • осталось %1$d мин</string>
@@ -2291,10 +2277,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Войдите, чтобы загрузить их, или импортируйте файл.</string>
     <string name="ottai_state_partial_title">Ключи неполные</string>
     <string name="ottai_state_partial_body">Нет формулы расчёта глюкозы. Загрузите или импортируйте их снова.</string>
-    <string name="ottai_v3_needs_nearby">Выберите этот датчик в списке найденных: его ключи проверяются по Bluetooth.</string>
     <string name="ottai_fetch_failed">Не удалось получить ключи этого датчика.</string>
+    <string name="ottai_server_unreachable">Не удалось связаться с сервером Ottai. Попробуйте ещё раз.</string>
     <string name="ottai_connect_failed">Не удалось начать подключение. Попробуйте снова.</string>
-    <string name="ottai_offline_hint">Также можно импортировать файл с ключами в разделе «Сохранённые датчики».</string>
     <string name="ottai_already_binding_hint">К аккаунту всё ещё привязан другой датчик. Отвяжите его в разделе «Сохранённые датчики» и попробуйте снова.</string>
     <string name="ottai_ota_upgrade_required">При привязке датчика сервис Ottai запросил обновление прошивки. Повторите настройку прошивки или импортируйте сохранённые ключи. Также можно попробовать официальное приложение Ottai.</string>
     <string name="ottai_retry">Повторить</string>
@@ -2466,7 +2451,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">Низкий</string>
     <string name="risk_moderate">Умеренный</string>
     <string name="risk_high">Высокий</string>
-    <string name="stats_coverage_active">CGM активен %1$d%%</string>
+    <string name="stats_coverage_active">Активен %1$d%%</string>
     <string name="stats_tight_range_chip">Узкий %1$d%%</string>
     <string name="stats_tight_range">Узкий диапазон</string>
     <string name="stats_tight_range_description">Время в пределах %1$s — на шаг уже вашего целевого диапазона, показывает, насколько сутки держатся у недиабетических значений.</string>
@@ -2945,6 +2930,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Ключ сопряжения удалён</string>
     <string name="rearm_margin_label">Запас до повторного срабатывания</string>
     <string name="rearm_min_interval_label">Минимальный интервал между тревогами</string>
+    <string name="pre_low_evidence_label">Учитывать IOB и недавнюю глюкозу</string>
+    <string name="pre_low_evidence_description">Может отложить прогнозное предупреждение, чтобы подтвердить устойчивое снижение</string>
     <string name="pre_high_iob_coverage_label">Покрытие инсулином</string>
     <string name="alert_feature_off">Выкл.</string>
     <string name="same_direction_suppression_title">Тихий период после сигнала о тренде</string>
@@ -3175,6 +3162,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Поиск по настройкам</string>
     <string name="settings_search_no_results">Нет настроек, подходящих под «%1$s»</string>
+    <string name="settings_search_related">Связанные настройки</string>
     <string name="settings_search_clear">Очистить поиск</string>
 
     <!-- Explicit firmware field test. -->
@@ -3454,4 +3442,55 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_notification_desc">Кнопка голоса в уведомлении с глюкозой</string>
     <string name="aidex_keys_before_connect">Импортируйте или запросите ключи этого сенсора перед подключением.</string>
     <string name="aidex_delete_keys_message">Удалить сохранённые ключи сенсора %1$s с этого телефона? Сначала экспортируйте их, если они могут понадобиться снова.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Сканировать штрихкод</string>
+    <string name="food_recent">Недавние</string>
+    <string name="food_my_foods">Мои продукты</string>
+    <string name="food_common_foods">Обычные продукты</string>
+    <string name="food_reference_tables">Таблицы продуктов (англ.)</string>
+    <string name="food_search_online">Искать в Open Food Facts</string>
+    <string name="food_online_empty">В Open Food Facts ничего не найдено</string>
+    <string name="food_online_failed">Не удалось связаться с Open Food Facts</string>
+    <string name="food_enter_values">Ввести значения для «%1$s»</string>
+    <string name="food_enter_label_values">Ввести значения с этикетки</string>
+    <string name="food_barcode_looking">Ищем %1$s…</string>
+    <string name="food_barcode_not_found">В Open Food Facts нет продукта со штрихкодом %1$s</string>
+    <string name="food_try_again">Повторить</string>
+    <string name="food_carbs">Углеводы</string>
+    <string name="food_carbs_value">%1$s г углеводов</string>
+    <string name="food_amount_ml">%1$s мл</string>
+    <string name="food_unit_ml">мл</string>
+    <string name="food_one_serving">1 порция</string>
+    <string name="food_servings">Порции</string>
+    <string name="food_weight">Вес</string>
+    <string name="food_volume">Объём</string>
+    <string name="food_portion_piece">штука</string>
+    <string name="food_portion_slice">ломтик</string>
+    <string name="food_portion_cup">чашка</string>
+    <string name="food_portion_glass">стакан</string>
+    <string name="food_portion_tbsp">ст. л.</string>
+    <string name="food_portion_tsp">ч. л.</string>
+    <string name="food_portion_serving">порция</string>
+    <string name="food_portion_package">упаковка</string>
+    <string name="food_per_100g_label">В 100 г, с этикетки</string>
+    <string name="food_sources">Источники</string>
+    <string name="food_online_desc">Поиск в интернете и штрихкоды</string>
+    <string name="food_file_title">Импорт и экспорт</string>
+    <string name="food_import">Импорт</string>
+    <string name="food_file_hint">Таблица CSV или JSON со столбцами name, carbs, protein, fat и per_grams. Без per_grams значения считаются на 100 г.</string>
+    <string name="food_import_empty">В этом файле продуктов не найдено. Нужны столбцы name и carbs.</string>
+    <string name="food_fiber">Клетчатка</string>
+    <string name="food_energy">Энергия</string>
+    <string name="food_kcal_value">%1$s ккал</string>
+    <string name="food_values_for">Значения указаны на</string>
+    <string name="food_serving_weight">Вес порции</string>
+    <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_delete_title">Удалить продукты (%1$d)?</string>
+    <string name="food_deleted">Удалено продуктов: %1$d</string>
+    <string name="food_manage_failed">Не удалось изменить базу еды</string>
+    <string name="food_reorder">Изменить порядок</string>
+    <string name="food_move_up">Переместить выше</string>
+    <string name="food_move_down">Переместить ниже</string>
 </resources>

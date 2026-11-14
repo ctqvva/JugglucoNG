@@ -33,6 +33,8 @@ explicitly request keys there, then press **Connect**. Other series retain local
 F-series advertisement labels are remembered for G/H serial batches so a later selection
 without an advertised name still uses the gate. Product detection changes setup routing,
 never the BLE driver's cryptographic strategy. BloodControl remains manual-only.
+Only an observed F-series advertisement establishes this requirement; an `F` within a
+serial does not. Legacy cached requirements inferred from serial prefixes are ignored.
 
 Saved records include their serial inside the encrypted payload, enabling offline listing.
 Older records are located through added/nearby/selected identities and previously cached

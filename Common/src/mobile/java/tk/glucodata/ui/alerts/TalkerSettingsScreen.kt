@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.alerts
 
+import tk.glucodata.ui.SettingsSearchAnchors
 import androidx.compose.material3.TimePickerDefaults
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.SelectableDropdownMenuItem
@@ -101,6 +102,8 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.cardShape
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
 import tk.glucodata.ui.util.findActivity
 
 private const val TALKER_SLIDER_MAX = 50000f
@@ -263,6 +266,7 @@ fun TalkerSettingsScreen(navController: NavController) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.speakglucose),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.speakglucose),
                     checked = uiState.speakGlucose,
                     onCheckedChange = { persist(uiState.copy(speakGlucose = it)) },
                     icon = Icons.Default.VolumeUp,
@@ -280,7 +284,8 @@ fun TalkerSettingsScreen(navController: NavController) {
                     icon = Icons.Default.Doorbell,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.MIDDLE,
-                    enabled = uiState.speakGlucose
+                    enabled = uiState.speakGlucose,
+                    searchAnchor = SettingsSearchAnchors.VOICE_CHIME
                 )
 //                SettingsSwitchItem(
 //                    title = stringResource(R.string.talk_touch),
@@ -300,6 +305,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 //                )
                 SettingsSwitchItem(
                     title = stringResource(R.string.speakalarms),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.speakalarms),
                     checked = uiState.speakAlarms,
                     onCheckedChange = { persist(uiState.copy(speakAlarms = it)) },
                     icon = Icons.Default.NotificationsActive,
@@ -376,6 +382,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 
                 SettingsSwitchItem(
                     title = stringResource(R.string.talker_media_sound),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.talker_media_sound),
                     checked = uiState.mediaSound,
                     onCheckedChange = { persist(uiState.copy(mediaSound = it, overrideSilent = false)) },
                     icon = Icons.Default.MusicNote,
@@ -389,7 +396,8 @@ fun TalkerSettingsScreen(navController: NavController) {
                     onCheckedChange = { persist(uiState.copy(overrideSilent = it, mediaSound = false)) },
                     icon = Icons.Default.NotificationsActive,
                     iconTint = MaterialTheme.colorScheme.error,
-                    position = CardPosition.BOTTOM
+                    position = CardPosition.BOTTOM,
+                    searchAnchor = SettingsSearchAnchors.VOICE_OVERRIDE_SILENT
                 )
             }
 
@@ -475,7 +483,8 @@ fun TalkerSettingsScreen(navController: NavController) {
                     },
                     icon = Icons.Default.Schedule,
                     iconTint = MaterialTheme.colorScheme.primary,
-                    position = if (scheduleEnabled) CardPosition.TOP else CardPosition.SINGLE
+                    position = if (scheduleEnabled) CardPosition.TOP else CardPosition.SINGLE,
+                    searchAnchor = SettingsSearchAnchors.VOICE_SCHEDULE
                 )
                 if (scheduleEnabled) {
                     SettingsItem(
@@ -501,6 +510,7 @@ fun TalkerSettingsScreen(navController: NavController) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.voice_quick_dashboard),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.voice_quick_dashboard),
                     subtitle = stringResource(R.string.voice_quick_dashboard_desc),
                     checked = showOnDashboard,
                     onCheckedChange = {
@@ -513,6 +523,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                 )
                 SettingsSwitchItem(
                     title = stringResource(R.string.voice_quick_notification),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.voice_quick_notification),
                     subtitle = stringResource(R.string.voice_quick_notification_desc),
                     checked = showInNotification,
                     onCheckedChange = {
@@ -730,17 +741,14 @@ private fun SliderCard(
 
                 Spacer(Modifier.size(12.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        valueLabel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                SliderHeader(
+                    label = title,
+                    value = valueLabel,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(SliderHeaderGap))
             Slider(
                 value = sliderValue,
                 onValueChange = onValueChange,

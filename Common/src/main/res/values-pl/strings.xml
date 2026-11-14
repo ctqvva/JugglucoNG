@@ -485,7 +485,7 @@
     <string name="stream">Strumień</string>
     
     <string name="exchanges">Wyślij/Odbierz</string>
-    <string name="duration_days">days</string>
+    <string name="duration_days">dni</string>
     <string name="sensor_state">Status</string>
 
     <!-- Newly Extracted Strings -->
@@ -543,25 +543,8 @@
     <string name="import_history_sub">Przywróć odczyty glukozy z eksportu JugglucoNG lub pliku CSV</string>
     <string name="import_no_glucose">Ten plik nie zawiera danych glukozy</string>
     <string name="import_unsupported_file">Nieobsługiwany plik. Wybierz eksport JugglucoNG lub plik CSV z historią glukozy.</string>
-    <string name="clear_history_title">Wyczyścić Historię?</string>
-    <string name="clear_history_confirmation">To usunie wszystkie odczyty glukozy z bazy danych. Tej operacji nie można cofnąć.</string>
     <string name="delete_reading_title">Usunąć odczyt?</string>
     <string name="delete_reading_confirmation">Usuń ten odczyt glukozy z lokalnej historii. Tej operacji nie można cofnąć.</string>
-    <string name="clear_button">Wyczyść</string>
-    <string name="clear_app_data_title">Wyczyścić Dane Aplikacji?</string>
-    <string name="clear_app_data_intro">To usunie:</string>
-    <string name="all_glucose_readings">• Wszystkie odczyty glukozy</string>
-    <string name="cache_files">• Pliki pamięci podręcznej</string>
-    <string name="sensor_data">• Dane sensora</string>
-    <string name="all_settings">• Wszystkie ustawienia</string>
-    <string name="settings_preserved">Ustawienia zostaną zachowane.</string>
-    <string name="cannot_be_undone_warning">Tej operacji nie można cofnąć.</string>
-    <string name="clear_data_button">Wyczyść Dane</string>
-    <string name="factory_reset_title">⚠️ Reset Fabryczny?</string>
-    <string name="factory_reset_intro">To USUNIE WSZYSTKO:</string>
-    <string name="factory_reset_outcome">Aplikacja powróci do stanu początkowego.</string>
-    <string name="cannot_be_undone_critical">TEGO NIE MOŻNA COFNĄĆ!</string>
-    <string name="reset_everything_button">RESETUJ WSZYSTKO</string>
     <string name="alert_sound">Dźwięk Alarmu</string>
     <string name="vibrate_only">Tylko Wibracja</string>
     <string name="sound_vibrate">Dźwięk i Wibracja</string>
@@ -653,9 +636,6 @@
     <string name="settings_import_successful">Ustawienia zaimportowane. Ponowne uruchamianie…</string>
     <string name="danger_zone">Strefa Niebezpieczeństwa</string>
     <string name="clear_history">Wyczyść Historię</string>
-    <string name="clear_history_desc_short">Usuń wszystkie odczyty</string>
-    <string name="clear_app_data">Wyczyść Dane Aplikacji</string>
-    <string name="clear_app_data_desc">Usuń historię/cache, zachowaj ustawienia</string>
     <string name="factory_reset">Reset Fabryczny</string>
     <string name="factory_reset_desc">Usuń wszystko, powrót do początkowego</string>
     <string name="sibionics_setup_title">Konfiguracja Sibionics</string>
@@ -800,7 +780,7 @@
     <string name="allvalues">Wszystkie wartości</string>
     <string name="auto">Auto</string>
     <string name="auto_raw">Auto+Raw</string>
-    <string name="auto_reset_days">%1$d days</string>
+    <string name="auto_reset_days">%1$d dni</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="avg">Śr</string>
     <string name="bloodafter">"Dodaj tylko odczyty glukozy z okresu po: "</string>
@@ -813,9 +793,13 @@
     <string name="calibrations">Kalibracje</string>
     <string name="caresens_air_scan_instruction">Zeskanuj kod czujnika na opakowaniu CareSens Air</string>
     <string name="caresens_air_setup_title">Konfiguracja powietrza CareSens</string>
-    <string name="clean_data_confirm">Clear App Data?</string>
-    <string name="clean_history_confirm">Clear History?</string>
-    <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
+    <string name="clean_history_confirm">Wyczyścić historię?</string>
+    <string name="clear_history_desc">Usuń odczyty, wpisy dziennika lub oba</string>
+    <string name="clear_history_scope_readings">Usuwa wszystkie odczyty glukozy z tego telefonu i nie można tego cofnąć. Dziennik, sensory i ustawienia zostają.</string>
+    <string name="clear_history_scope_journal">Usuwa wszystkie wpisy dziennika, także z Nightscout, jeśli tam wysłano, i nie można tego cofnąć. Odczyty, typy insuliny i ustawienia zostają.</string>
+    <string name="clear_history_scope_both">Usuwa wszystkie odczyty glukozy i wpisy dziennika, także z Nightscout, jeśli tam wysłano, i nie można tego cofnąć. Sensory, typy insuliny i ustawienia zostają.</string>
+    <string name="clear_history_done">Historia wyczyszczona</string>
+    <string name="clear_history_failed">Nie udało się wyczyścić historii</string>
     <string name="confidence">Zaufanie</string>
     <string name="connecting_to_sensor">Podłączanie do czujnika…</string>
     <string name="connecting_to_sensor_wait">Proszę poczekać, aż nawiążemy połączenie.</string>
@@ -844,8 +828,10 @@
     <string name="enternums">Wpisuj wartości na</string>
     <string name="exclude">Wyklucz</string>
     <string name="expired">Expired</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Przywrócić ustawienia fabryczne?</string>
+    <string name="factory_reset_message">Usuwa wszystkie odczyty, wpisy dziennika, sensory i ustawienia oraz przyznane uprawnienia, a potem zamyka aplikację. Monitorowanie glukozy i alarmy wyłączą się, dopóki nie skonfigurujesz sensora ponownie, a tego nie można cofnąć.</string>
+    <string name="factory_reset_action">Usuń wszystko</string>
+    <string name="factory_reset_failed">Nie udało się zresetować aplikacji</string>
     <string name="finddevices">"Wyszukaj urządzenia"</string>
     <string name="finish_setup">Zakończ</string>
     <string name="forget_sensor_desc">This will remove the sensor from the list. It may reappear if scanned again.</string>
@@ -1035,7 +1021,7 @@
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Nieprzezroczystość tła: %1$d%%</string>
+    <string name="background_opacity_label">Nieprzezroczystość tła</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Unikaj kalibracji w ciągu 2 godzin po posiłku lub insulinie.</string>
     <string name="calibration_with_mode">Kalibracja (%1$s)</string>
@@ -1094,7 +1080,7 @@
     <string name="calibrations_deleted_count">Usunięto kalibracje %1$d</string>
     <string name="calibrations_will_be_removed_count">Kalibracje %1$d zostaną usunięte</string>
     <string name="connection_number">Połączenie %1$d</string>
-    <string name="corner_radius_dp">Promień narożnika: %1$d dp</string>
+    <string name="corner_radius_label">Promień narożnika</string>
     <string name="custom_sound_prefix">Niestandardowy dźwięk: %1$s</string>
     <string name="delete_calibrations_count">Usuń kalibracje %1$d</string>
     <string name="disabled_calibrations_cleared">Wyczyszczono %1$d wyłączone kalibracje</string>
@@ -1103,7 +1089,7 @@
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Koniec: %1$s</string>
     <string name="export_failed_with_error">Eksport nie powiódł się: %1$s</string>
-    <string name="gap_width_value">Szerokość szczeliny: %1$s</string>
+    <string name="gap_width_label">Szerokość szczeliny</string>
     <string name="glucose_with_unit">Glukoza (%1$s)</string>
     <string name="import_failed_with_error">Import nie powiódł się: %1$s</string>
     <string name="import_summary">Zaimportowano: %1$d, pominięto: %2$d, zastąpiono: %3$d</string>
@@ -1193,7 +1179,8 @@
     <string name="font_app_plex">Aplikacja (IBM Plex)</string>
     <string name="font_system_sans">System bez</string>
     <string name="font_system_google_sans">Systemu</string>
-    <string name="size_sp">Rozmiar: %1$d sp</string>
+    <string name="size_label">Rozmiar</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Waga czcionki</string>
     <string name="regular">Regularne</string>
     <string name="medium">Średni</string>
@@ -1840,12 +1827,12 @@
     <string name="show_chart_collapsed_desc">Kompaktowy wykres w widoku zwiniętym</string>
     <string name="show_target_range">Pokaż zakres docelowy</string>
     <string name="show_target_range_desc">Podświetl docelowy zakres glukozy na wykresie</string>
-    <string name="font_size_percent">Rozmiar czcionki: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Rozmiar ikony paska stanu: %1$d%%</string>
-    <string name="arrow_size_percent">Rozmiar strzałki: %1$d%%</string>
-    <string name="opacity_percent">Nieprzezroczystość: %1$d%%</string>
-    <string name="text_size_percent">Rozmiar tekstu: %1$d%%</string>
-    <string name="chart_size_percent">Rozmiar wykresu: %1$d%%</string>
+    <string name="font_size_label">Rozmiar czcionki</string>
+    <string name="status_bar_icon_size_label">Rozmiar ikony paska stanu</string>
+    <string name="arrow_size_label">Rozmiar strzałki</string>
+    <string name="opacity_label">Nieprzezroczystość</string>
+    <string name="text_size_label">Rozmiar tekstu</string>
+    <string name="chart_size_label">Rozmiar wykresu</string>
     <string name="use_subtle_outline">Użyj delikatnego obrysu</string>
     <string name="use_subtle_outline_desc">Delikatne podświetlenie krawędzi wokół nakładki</string>
     <string name="position_top">Góra</string>
@@ -2369,7 +2356,7 @@
     <string name="risk_low">Niskie</string>
     <string name="risk_moderate">Umiarkowane</string>
     <string name="risk_high">Wysokie</string>
-    <string name="stats_coverage_active">CGM aktywny %1$d%%</string>
+    <string name="stats_coverage_active">Aktywny %1$d%%</string>
     <string name="stats_tight_range_chip">Wąski %1$d%%</string>
     <string name="stats_tight_range">Wąski zakres</string>
     <string name="stats_tight_range_description">Czas w zakresie %1$s — o stopień węższym niż Twój zakres docelowy, pokazuje, jak blisko wartości niecukrzycowych trzyma się doba.</string>
@@ -2500,7 +2487,6 @@
     <string name="ottai_unused_binding_desc">%1$s jest powiązany z Twoim kontem, ale nie jest tu używany. Jeśli się zakończył, odłącz go, aby można było aktywować nowy sensor.</string>
     <string name="ottai_cloud_binding_checking">Sprawdzanie konta…</string>
     <string name="ottai_cloud_binding_bound">Powiązany z Twoim kontem</string>
-    <string name="ottai_cloud_binding_not_bound">Niepowiązany z Twoim kontem</string>
     <string name="ottai_cloud_binding_error">Nie udało się sprawdzić konta</string>
     <string name="ottai_account_title">Konto Ottai</string>
     <string name="ottai_saved_sensors_title">Zapisane sensory</string>
@@ -2519,10 +2505,9 @@
     <string name="ottai_state_missing_signed_out">Zaloguj się, aby je pobrać, albo zaimportuj plik.</string>
     <string name="ottai_state_partial_title">Niekompletne dane dostępowe</string>
     <string name="ottai_state_partial_body">Brakuje formuły glukozy. Pobierz lub zaimportuj je ponownie.</string>
-    <string name="ottai_v3_needs_nearby">Wybierz ten sensor z listy znalezionych sensorów: jego dane dostępowe są weryfikowane przez Bluetooth.</string>
     <string name="ottai_fetch_failed">Nie udało się pobrać danych dostępowych tego sensora.</string>
+    <string name="ottai_server_unreachable">Nie można połączyć się z serwerem Ottai. Spróbuj ponownie.</string>
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
-    <string name="ottai_offline_hint">Możesz też zaimportować plik z danymi dostępowymi w sekcji Zapisane sensory.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
     <string name="ottai_ota_upgrade_required">Podczas wiązania sensora usługa Ottai zażądała aktualizacji firmware. Ponów konfigurację firmware lub zaimportuj zapisane dane uwierzytelniające. Możesz też spróbować oficjalnej aplikacji Ottai.</string>
     <string name="ottai_retry">Spróbuj ponownie</string>
@@ -2913,6 +2898,8 @@
     <string name="aidex_pairing_key_deleted">Klucz parowania usunięty</string>
     <string name="rearm_margin_label">Margines ponownego alarmu</string>
     <string name="rearm_min_interval_label">Minimalny odstęp między alarmami</string>
+    <string name="pre_low_evidence_label">Uwzględniaj IOB i ostatni przebieg glikemii</string>
+    <string name="pre_low_evidence_description">Może opóźniać ostrzeżenia predykcyjne, aby potwierdzić utrzymujący się spadek</string>
     <string name="pre_high_iob_coverage_label">Pokrycie insuliną</string>
     <string name="alert_feature_off">Wył.</string>
     <string name="same_direction_suppression_title">Cisza po alarmie trendu</string>
@@ -3166,6 +3153,7 @@
     <!-- Settings search -->
     <string name="settings_search_hint">Szukaj w ustawieniach</string>
     <string name="settings_search_no_results">Brak ustawień pasujących do „%1$s”</string>
+    <string name="settings_search_related">Powiązane ustawienia</string>
     <string name="settings_search_clear">Wyczyść wyszukiwanie</string>
 
     <!-- Explicit firmware field test. -->
@@ -3387,4 +3375,55 @@
     <string name="voice_quick_notification_desc">Przycisk głosu w powiadomieniu o glukozie</string>
     <string name="aidex_keys_before_connect">Przed połączeniem zaimportuj lub pobierz klucze tego sensora.</string>
     <string name="aidex_delete_keys_message">Usunąć z tego telefonu zapisane klucze parowania dla %1$s? Najpierw je wyeksportuj, jeśli mogą być jeszcze potrzebne.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Skanuj kod kreskowy</string>
+    <string name="food_recent">Ostatnie</string>
+    <string name="food_my_foods">Moje produkty</string>
+    <string name="food_common_foods">Popularne produkty</string>
+    <string name="food_reference_tables">Tabele produktów (ang.)</string>
+    <string name="food_search_online">Szukaj w Open Food Facts</string>
+    <string name="food_online_empty">Nic nie znaleziono w Open Food Facts</string>
+    <string name="food_online_failed">Nie udało się połączyć z Open Food Facts</string>
+    <string name="food_enter_values">Wpisz wartości dla „%1$s”</string>
+    <string name="food_enter_label_values">Wpisz wartości z etykiety</string>
+    <string name="food_barcode_looking">Szukam %1$s…</string>
+    <string name="food_barcode_not_found">W Open Food Facts nie ma produktu o kodzie %1$s</string>
+    <string name="food_try_again">Spróbuj ponownie</string>
+    <string name="food_carbs">Węglowodany</string>
+    <string name="food_carbs_value">%1$s g węglowodanów</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 porcja</string>
+    <string name="food_servings">Porcje</string>
+    <string name="food_weight">Waga</string>
+    <string name="food_volume">Objętość</string>
+    <string name="food_portion_piece">sztuka</string>
+    <string name="food_portion_slice">kromka</string>
+    <string name="food_portion_cup">filiżanka</string>
+    <string name="food_portion_glass">szklanka</string>
+    <string name="food_portion_tbsp">łyżka</string>
+    <string name="food_portion_tsp">łyżeczka</string>
+    <string name="food_portion_serving">porcja</string>
+    <string name="food_portion_package">opakowanie</string>
+    <string name="food_per_100g_label">W 100 g, z etykiety</string>
+    <string name="food_sources">Źródła</string>
+    <string name="food_online_desc">Wyszukiwanie online i kody kreskowe</string>
+    <string name="food_file_title">Import i eksport</string>
+    <string name="food_import">Importuj</string>
+    <string name="food_file_hint">Tabela CSV lub JSON z kolumnami name, carbs, protein, fat i per_grams. Bez per_grams wartości liczą się na 100 g.</string>
+    <string name="food_import_empty">W tym pliku nie znaleziono produktów. Potrzebne są kolumny name i carbs.</string>
+    <string name="food_fiber">Błonnik</string>
+    <string name="food_energy">Energia</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Wartości podane na</string>
+    <string name="food_serving_weight">Waga porcji</string>
+    <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_delete_title">Usunąć produkty (%1$d)?</string>
+    <string name="food_deleted">Usunięte produkty: %1$d</string>
+    <string name="food_manage_failed">Nie udało się zaktualizować bazy żywności</string>
+    <string name="food_reorder">Zmień kolejność produktów</string>
+    <string name="food_move_up">Przenieś w górę</string>
+    <string name="food_move_down">Przenieś w dół</string>
 </resources>

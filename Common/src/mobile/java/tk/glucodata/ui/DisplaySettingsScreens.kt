@@ -72,6 +72,7 @@ import tk.glucodata.ui.components.SettingsChoice
 import tk.glucodata.ui.components.SettingsControlsCard
 import tk.glucodata.ui.components.SettingsSlider
 import tk.glucodata.ui.viewmodel.DashboardViewModel
+import kotlin.math.roundToInt
 
 private val screenHorizontalPadding = 16.dp
 private val aodPositionOptions = listOf(
@@ -147,6 +148,7 @@ fun NotificationSettingsScreen(
         SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
             SettingsChoice(
                 title = stringResource(R.string.font_source),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.font_source),
                 options = listOf(0, 1),
                 labels = listOf(
                     stringResource(R.string.font_app_plex),
@@ -158,6 +160,7 @@ fun NotificationSettingsScreen(
             if (showFontWeight) {
                 SettingsChoice(
                     title = stringResource(R.string.font_weight_label),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.font_weight_label),
                     options = listOf(300, 400, 500),
                     labels = listOf(
                         stringResource(R.string.theme_light),
@@ -169,13 +172,15 @@ fun NotificationSettingsScreen(
                 )
             }
             SettingsSlider(
-                title = stringResource(R.string.font_size_percent, (fontSize * 100).toInt()),
+                title = stringResource(R.string.font_size_label),
+                valueText = stringResource(R.string.percentage_format, (fontSize * 100).roundToInt()),
                 value = fontSize,
                 onValueChange = { fontSize = it; save() },
                 range = 0.6f..1.5f
             )
             SettingsSlider(
-                title = stringResource(R.string.status_bar_icon_size_percent, (statusIconScale * 100).toInt()),
+                title = stringResource(R.string.status_bar_icon_size_label),
+                valueText = stringResource(R.string.percentage_format, (statusIconScale * 100).roundToInt()),
                 value = statusIconScale,
                 onValueChange = { statusIconScale = it; save() },
                 range = 0f..1.25f
@@ -199,6 +204,7 @@ fun NotificationSettingsScreen(
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.notification_large_arrow_title),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.notification_large_arrow_title),
                 subtitle = stringResource(R.string.notification_large_arrow_desc),
                 checked = largeArrow,
                 onCheckedChange = { largeArrow = it; save() },
@@ -212,7 +218,8 @@ fun NotificationSettingsScreen(
             ) {
                 SettingsControlsCard(position = CardPosition.BOTTOM) {
                     SettingsSlider(
-                        title = stringResource(R.string.arrow_size_percent, (arrowSize * 100).toInt()),
+                        title = stringResource(R.string.arrow_size_label),
+                        valueText = stringResource(R.string.percentage_format, (arrowSize * 100).roundToInt()),
                         value = arrowSize,
                         onValueChange = { arrowSize = it; save() },
                         range = 0.5f..1.5f
@@ -240,6 +247,7 @@ fun NotificationSettingsScreen(
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.show_chart_collapsed),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.show_chart_collapsed),
                 subtitle = stringResource(R.string.show_chart_collapsed_desc),
                 checked = collapsedChart,
                 onCheckedChange = { collapsedChart = it; save() },
@@ -253,6 +261,7 @@ fun NotificationSettingsScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsSwitchItem(
                         title = stringResource(R.string.show_target_range),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.show_target_range),
                         subtitle = stringResource(R.string.show_target_range_desc),
                         checked = showTargetRange,
                         onCheckedChange = { showTargetRange = it; save() },
@@ -260,6 +269,7 @@ fun NotificationSettingsScreen(
                     )
                     SettingsSwitchItem(
                         title = stringResource(R.string.notification_chart_pause_screen_off),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.notification_chart_pause_screen_off),
                         subtitle = stringResource(R.string.notification_chart_pause_screen_off_summary),
                         checked = pauseChartScreenOff,
                         onCheckedChange = { pauseChartScreenOff = it; save() },
@@ -296,6 +306,7 @@ fun NotificationSettingsScreen(
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.notification_show_cob_title),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.notification_show_cob_title),
                 subtitle = stringResource(R.string.notification_show_cob_desc),
                 checked = showCob,
                 onCheckedChange = { showCob = it; save() },
@@ -308,6 +319,7 @@ fun NotificationSettingsScreen(
             ) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.notification_iob_cob_risk_title),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.notification_iob_cob_risk_title),
                     subtitle = stringResource(R.string.notification_iob_cob_risk_desc),
                     checked = iobCobRiskColored,
                     onCheckedChange = { iobCobRiskColored = it; save() },
@@ -321,6 +333,7 @@ fun NotificationSettingsScreen(
             ) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.notification_iob_risk_without_cob_title),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.notification_iob_risk_without_cob_title),
                     subtitle = stringResource(R.string.notification_iob_risk_without_cob_desc),
                     checked = iobRiskWithoutCob,
                     onCheckedChange = { iobRiskWithoutCob = it; save() },
@@ -423,6 +436,7 @@ fun DisplayAndColorSettingsScreen(
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.dashboard_rows_show_delta_title),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.dashboard_rows_show_delta_title),
                 subtitle = stringResource(R.string.dashboard_rows_show_delta_desc),
                 checked = dashboardRowsDeltaEnabled,
                 onCheckedChange = { viewModel.setDashboardRowsShowDelta(it) },
@@ -523,6 +537,7 @@ fun FloatingGlucoseSettingsScreen(
             SettingsControlsCard(position = CardPosition.TOP) {
                 SettingsChoice(
                     title = stringResource(R.string.background),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.background),
                     options = listOf(false, true),
                     labels = listOf(stringResource(R.string.filled), stringResource(R.string.transparent)),
                     selectedOption = isTransparent,
@@ -530,14 +545,16 @@ fun FloatingGlucoseSettingsScreen(
                 )
                 if (!isTransparent) {
                     SettingsSlider(
-                        title = stringResource(R.string.corner_radius_dp, cornerRadius.toInt()),
+                        title = stringResource(R.string.corner_radius_label),
+                        valueText = stringResource(R.string.dp_value, cornerRadius.toInt()),
                         value = cornerRadius,
                         onValueChange = { repository.setCornerRadius(it) },
                         range = 0f..48f,
                         steps = 24
                     )
                     SettingsSlider(
-                        title = stringResource(R.string.background_opacity_percent, (opacity * 100).toInt()),
+                        title = stringResource(R.string.background_opacity_label),
+                        valueText = stringResource(R.string.percentage_format, (opacity * 100).roundToInt()),
                         value = opacity,
                         onValueChange = { repository.setBackgroundOpacity(it) },
                         range = 0.1f..1.0f,
@@ -547,6 +564,7 @@ fun FloatingGlucoseSettingsScreen(
             }
             SettingsSwitchItem(
                 title = stringResource(R.string.use_subtle_outline),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.use_subtle_outline),
                 subtitle = stringResource(R.string.use_subtle_outline_desc),
                 checked = useSubtleOutline,
                 onCheckedChange = { repository.setUseSubtleOutline(it) },
@@ -568,12 +586,14 @@ fun FloatingGlucoseSettingsScreen(
                 checked = isDynamicIsland,
                 onCheckedChange = { repository.setDynamicIslandEnabled(it) },
                 position = if (isDynamicIsland) CardPosition.TOP else CardPosition.SINGLE,
-                animatePosition = true
+                animatePosition = true,
+                searchAnchor = SettingsSearchAnchors.FLOATING_ISLAND
             )
             if (isDynamicIsland) {
                 SettingsControlsCard(position = CardPosition.BOTTOM) {
                     SettingsSlider(
-                        title = "${stringResource(R.string.offset)}: ${stringResource(R.string.dp_value, verticalOffset.toInt())}",
+                        title = stringResource(R.string.offset),
+                        valueText = stringResource(R.string.dp_value, verticalOffset.toInt()),
                         value = verticalOffset,
                         onValueChange = { repository.setIslandVerticalOffset(it) },
                         range = 0f..50f,
@@ -581,7 +601,8 @@ fun FloatingGlucoseSettingsScreen(
                     )
                     val gapDisplay = if (manualGap == 0f) stringResource(R.string.auto) else stringResource(R.string.dp_value, manualGap.toInt())
                     SettingsSlider(
-                        title = stringResource(R.string.gap_width_value, gapDisplay),
+                        title = stringResource(R.string.gap_width_label),
+                        valueText = gapDisplay,
                         value = manualGap,
                         onValueChange = { repository.setIslandGap(it) },
                         range = 0f..200f,
@@ -623,7 +644,8 @@ fun FloatingGlucoseSettingsScreen(
                 subtitle = stringResource(R.string.display_secondary_values_desc),
                 checked = showSecondary,
                 onCheckedChange = { repository.setShowSecondary(it) },
-                position = CardPosition.TOP
+                position = CardPosition.TOP,
+                searchAnchor = SettingsSearchAnchors.FLOATING_SECONDARY
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.show_trend_arrow),
@@ -640,13 +662,15 @@ fun FloatingGlucoseSettingsScreen(
         SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
             SettingsChoice(
                 title = stringResource(R.string.font_source),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.font_source),
                 options = listOf("APP", "SYSTEM"),
                 labels = listOf(stringResource(R.string.font_app_plex), stringResource(R.string.font_system_sans)),
                 selectedOption = fontSource,
                 onOptionSelected = { repository.setFontSource(it) }
             )
             SettingsSlider(
-                title = stringResource(R.string.size_sp, fontSize.toInt()),
+                title = stringResource(R.string.size_label),
+                valueText = stringResource(R.string.sp_value, fontSize.toInt()),
                 value = fontSize,
                 onValueChange = { repository.setFontSize(it) },
                 range = 12f..48f,
@@ -654,6 +678,7 @@ fun FloatingGlucoseSettingsScreen(
             )
             SettingsChoice(
                 title = stringResource(R.string.font_weight_label),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.font_weight_label),
                 options = listOf("LIGHT", "REGULAR", "MEDIUM"),
                 labels = listOf(
                     stringResource(R.string.theme_light),
@@ -747,6 +772,7 @@ fun AodSettingsScreen(navController: NavController) {
                     Intent(AODOverlayService.ACTION_IMMEDIATE_REFRESH).setPackage(context.packageName)
                 )
             },
+            searchAnchor = SettingsSearchAnchors.AOD_LOCK_SCREEN,
             icon = Icons.Default.Lock,
             position = CardPosition.SINGLE,
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)
@@ -759,6 +785,7 @@ fun AodSettingsScreen(navController: NavController) {
         SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
             SettingsChoice(
                 title = stringResource(R.string.font_source),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.font_source),
                 options = listOf("APP", "SYSTEM"),
                 labels = listOf(stringResource(R.string.font_app_plex), stringResource(R.string.font_system_google_sans)),
                 selectedOption = fontSource,
@@ -766,6 +793,7 @@ fun AodSettingsScreen(navController: NavController) {
             )
             SettingsChoice(
                 title = stringResource(R.string.font_weight_label),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.font_weight_label),
                 options = listOf(300, 400, 500),
                 labels = listOf(
                     stringResource(R.string.theme_light),
@@ -784,6 +812,7 @@ fun AodSettingsScreen(navController: NavController) {
         SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
             SettingsChoice(
                 title = stringResource(R.string.active_positions_randomized),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.active_positions_randomized),
                 options = aodPositionOptions.map { it.first },
                 labels = aodPositionOptions.map { stringResource(it.second) },
                 selectedOptions = aodPositionOptions.map { it.first }.filter { it in positions },
@@ -802,6 +831,7 @@ fun AodSettingsScreen(navController: NavController) {
             )
             SettingsChoice(
                 title = stringResource(R.string.text_alignment),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.text_alignment),
                 options = aodAlignmentOptions.map { it.first },
                 labels = aodAlignmentOptions.map { stringResource(it.second) },
                 selectedOption = alignment,
@@ -821,6 +851,7 @@ fun AodSettingsScreen(navController: NavController) {
         ) {
             SettingsSwitchItem(
                 title = stringResource(R.string.show_chart),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.show_chart),
                 checked = showChart,
                 onCheckedChange = { showChart = it; save() },
                 position = CardPosition.TOP
@@ -840,20 +871,23 @@ fun AodSettingsScreen(navController: NavController) {
             )
             SettingsControlsCard(position = CardPosition.BOTTOM) {
                 SettingsSlider(
-                    title = stringResource(R.string.opacity_percent, (opacity * 100).toInt()),
+                    title = stringResource(R.string.opacity_label),
+                    valueText = stringResource(R.string.percentage_format, (opacity * 100).roundToInt()),
                     value = opacity,
                     onValueChange = { opacity = it; save() },
                     range = 0.1f..1.0f
                 )
                 SettingsSlider(
-                    title = stringResource(R.string.text_size_percent, (textScale * 100).toInt()),
+                    title = stringResource(R.string.text_size_label),
+                    valueText = stringResource(R.string.percentage_format, (textScale * 100).roundToInt()),
                     value = textScale,
                     onValueChange = { textScale = it; save() },
                     range = 0.5f..6.0f
                 )
                 if (showChart) {
                     SettingsSlider(
-                        title = stringResource(R.string.chart_size_percent, (chartScale * 100).toInt()),
+                        title = stringResource(R.string.chart_size_label),
+                        valueText = stringResource(R.string.percentage_format, (chartScale * 100).roundToInt()),
                         value = chartScale,
                         onValueChange = { chartScale = it; save() },
                         range = 0.5f..2.0f
@@ -861,7 +895,8 @@ fun AodSettingsScreen(navController: NavController) {
                 }
                 if (showArrow) {
                     SettingsSlider(
-                        title = stringResource(R.string.arrow_size_percent, (arrowScale * 100).toInt()),
+                        title = stringResource(R.string.arrow_size_label),
+                        valueText = stringResource(R.string.percentage_format, (arrowScale * 100).roundToInt()),
                         value = arrowScale,
                         onValueChange = { arrowScale = it; save() },
                         range = 0.5f..2.0f

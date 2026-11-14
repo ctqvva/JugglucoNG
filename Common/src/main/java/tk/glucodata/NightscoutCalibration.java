@@ -92,6 +92,23 @@ public final class NightscoutCalibration {
     }
 
     @Keep
+    public static int resolveNativeExportedValueMgdl(
+            String sensorId,
+            int nativeViewMode,
+            int autoMgdl,
+            int rawCurrent,
+            long timestampMillis
+    ) {
+        // Keep explicit-mode callers (including Room backfill) independent of
+        // current settings. Only native exports need to reconcile the mirror.
+        final String resolvedSensorId = SensorIdentity.resolveAppSensorId(sensorId);
+        final int viewMode = CurrentDisplaySource.resolveViewModeForNativeExport(
+                resolvedSensorId, nativeViewMode);
+        return resolveExportedValueMgdl(
+                resolvedSensorId, viewMode, autoMgdl, rawCurrent, timestampMillis);
+    }
+
+    @Keep
     public static boolean hasCalibrationForViewMode(String sensorId, int viewMode) {
         try {
             final boolean rawPrimary = isRawPrimary(viewMode);
@@ -145,7 +162,7 @@ public final class NightscoutCalibration {
             int rawCurrent,
             long timestampMillis
     ) {
-        return resolveExportedValueMgdl(sensorId, viewMode, autoMgdl, rawCurrent, timestampMillis);
+        return resolveNativeExportedValueMgdl(sensorId, viewMode, autoMgdl, rawCurrent, timestampMillis);
     }
 
     /**

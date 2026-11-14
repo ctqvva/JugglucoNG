@@ -41,6 +41,8 @@ object OutboundApiJournalSnapshot : JournalSnapshotBridge {
     private const val CLONE_JOURNAL_MAX_EVENTS = 128
     private const val CLONE_JOURNAL_TOMBSTONE_WINDOW_MS = 30L * 24L * 60L * 60L * 1000L
     private const val CLONE_JOURNAL_MAX_TOMBSTONES = 256
+    private const val CLONE_JOURNAL_NEWEST_TOMBSTONES = 192
+    private val cloneJournalTombstoneRotation = java.util.concurrent.atomic.AtomicInteger()
     private val cloneJournalImportMutex = Mutex()
 
     override fun snapshotJson(timeMillis: Long): String = runBlocking {
@@ -433,10 +435,12 @@ object OutboundApiJournalSnapshot : JournalSnapshotBridge {
                 events.put(entry.toTransferJson(presetsById, foodsById, includeRecoveryId = true))
             }
         val deleted = JSONArray()
-        dao.getCloneJournalTombstonesSince(
-            (atMillis - CLONE_JOURNAL_TOMBSTONE_WINDOW_MS).coerceAtLeast(0L)
+        cloneJournalTombstonesForSnapshot(
+            dao.getCloneJournalTombstonesSince(
+                (atMillis - CLONE_JOURNAL_TOMBSTONE_WINDOW_MS).coerceAtLeast(0L)
+            ),
+            cloneJournalTombstoneRotation.getAndIncrement(),
         )
-            .takeLast(CLONE_JOURNAL_MAX_TOMBSTONES)
             .forEach { tombstone ->
                 deleted.put(
                     JSONObject()
@@ -450,6 +454,25 @@ object OutboundApiJournalSnapshot : JournalSnapshotBridge {
             .put("origin", CloneJournalIdentity.originId())
             .put("events", events)
             .put("deleted", deleted)
+    }
+
+    /**
+     * The tombstones one snapshot carries, from [oldestFirst]. A receiver accepts at most
+     * [CLONE_JOURNAL_MAX_TOMBSTONES]: up to that many all go. Beyond it, as after clearing a long
+     * journal, the newest [CLONE_JOURNAL_NEWEST_TOMBSTONES] go every time, so a fresh deletion is
+     * never kept waiting, and the older ones take turns in the slots left, one slice per
+     * snapshot ([rotation] counts them). A peer is told of every deletion within a few
+     * snapshots, where cutting the list to its newest part would leave the rest unannounced
+     * until they expire.
+     */
+    internal fun <T> cloneJournalTombstonesForSnapshot(oldestFirst: List<T>, rotation: Int): List<T> {
+        if (oldestFirst.size <= CLONE_JOURNAL_MAX_TOMBSTONES) return oldestFirst
+        val newest = oldestFirst.takeLast(CLONE_JOURNAL_NEWEST_TOMBSTONES)
+        val older = oldestFirst.subList(0, oldestFirst.size - CLONE_JOURNAL_NEWEST_TOMBSTONES)
+        val slice = CLONE_JOURNAL_MAX_TOMBSTONES - CLONE_JOURNAL_NEWEST_TOMBSTONES
+        val slices = (older.size + slice - 1) / slice
+        val from = Math.floorMod(rotation, slices) * slice
+        return older.subList(from, minOf(from + slice, older.size)) + newest
     }
 
     internal data class CloneJournalEnvelope(

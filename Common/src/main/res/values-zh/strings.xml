@@ -40,7 +40,7 @@
     <string name="testlabel">测试标签</string>
     <string name="passiveonly">仅被动</string>
     <string name="activeonly">仅主动</string>
-    <string name="both">双向</string>
+    <string name="both">两者</string>
     <string name="receivefrom">接收数据</string>
     <string name="datapresentuntil">"数据在接收器上存在直到: "</string>
     <string name="visible">可见</string>
@@ -417,7 +417,7 @@
     <string name="stream">流</string>
     
     <string name="exchanges">发送/接收</string>
-    <string name="duration_days">days</string>
+    <string name="duration_days">天</string>
     <string name="sensor_state">Status</string>
 
     <!-- Newly Extracted Strings -->
@@ -475,25 +475,8 @@
     <string name="import_history_sub">从 JugglucoNG 导出文件或 CSV 文件恢复血糖读数</string>
     <string name="import_no_glucose">此文件中没有血糖数据</string>
     <string name="import_unsupported_file">不支持此文件。请选择 JugglucoNG 导出文件或血糖历史 CSV 文件。</string>
-    <string name="clear_history_title">清除历史记录？</string>
-    <string name="clear_history_confirmation">这将从数据库中删除所有血糖读数。此操作无法撤销。</string>
     <string name="delete_reading_title">删除读数？</string>
     <string name="delete_reading_confirmation">从本地历史记录中删除这条血糖读数。此操作无法撤销。</string>
-    <string name="clear_button">清除</string>
-    <string name="clear_app_data_title">清除应用数据？</string>
-    <string name="clear_app_data_intro">这将删除：</string>
-    <string name="all_glucose_readings">• 所有血糖读数</string>
-    <string name="cache_files">• 缓存文件</string>
-    <string name="sensor_data">• 传感器数据</string>
-    <string name="all_settings">• 所有设置</string>
-    <string name="settings_preserved">设置将被保留。</string>
-    <string name="cannot_be_undone_warning">此操作无法撤销。</string>
-    <string name="clear_data_button">清除数据</string>
-    <string name="factory_reset_title">⚠️ 恢复出厂设置？</string>
-    <string name="factory_reset_intro">这将删除所有内容：</string>
-    <string name="factory_reset_outcome">应用程序将恢复到初始状态。</string>
-    <string name="cannot_be_undone_critical">这无法撤销！</string>
-    <string name="reset_everything_button">重置所有</string>
     <string name="alert_sound">警报声音</string>
     <string name="vibrate_only">仅振动</string>
     <string name="sound_vibrate">声音和振动</string>
@@ -585,9 +568,6 @@
     <string name="settings_import_successful">设置已导入。正在重启…</string>
     <string name="danger_zone">危险区域</string>
     <string name="clear_history">清除历史记录</string>
-    <string name="clear_history_desc_short">删除所有读数</string>
-    <string name="clear_app_data">清除应用数据</string>
-    <string name="clear_app_data_desc">删除历史/缓存，保留设置</string>
     <string name="factory_reset">恢复出厂设置</string>
     <string name="factory_reset_desc">删除所有内容，恢复初始状态</string>
     <string name="sibionics_setup_title">Sibionics 设置</string>
@@ -739,7 +719,7 @@
     <string name="aspart">Insulin Aspart/NovoRapid/NovoLog</string>
     <string name="auto">Auto</string>
     <string name="auto_raw">Auto+Raw</string>
-    <string name="auto_reset_days">%1$d days</string>
+    <string name="auto_reset_days">%1$d 天</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="autoqr">Auto QR</string>
     <string name="autoqrmessage">Send data from this phone to another phone on your home network.
@@ -756,9 +736,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="caresens_air_scan_instruction">扫描 CareSens Air 包装上的传感器代码</string>
     <string name="caresens_air_setup_title">CareSens 空气设置</string>
     <string name="chsibionics">Sibionics GS1 CN</string>
-    <string name="clean_data_confirm">Clear App Data?</string>
-    <string name="clean_history_confirm">Clear History?</string>
-    <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
+    <string name="clean_history_confirm">清除历史记录？</string>
+    <string name="clear_history_desc">删除读数、日志条目或两者</string>
+    <string name="clear_history_scope_readings">删除此手机上的所有血糖读数，且无法撤销。日志、传感器和设置将保留。</string>
+    <string name="clear_history_scope_journal">删除所有日志条目；若已发送到 Nightscout，也会从那里删除，且无法撤销。读数、胰岛素类型和设置将保留。</string>
+    <string name="clear_history_scope_both">删除所有血糖读数和日志条目；若已发送到 Nightscout，也会从那里删除，且无法撤销。传感器、胰岛素类型和设置将保留。</string>
+    <string name="clear_history_done">历史记录已清除</string>
+    <string name="clear_history_failed">无法清除历史记录</string>
     <string name="complications">Complications</string>
     <string name="confidence">信心</string>
     <string name="connected">Connected!</string>
@@ -792,8 +776,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="exchangedata">交换数据</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">恢复出厂设置？</string>
+    <string name="factory_reset_message">删除所有读数、日志条目、传感器和设置，以及已授予的权限，然后关闭应用。在重新设置传感器之前，血糖监测和警报将停止，且此操作无法撤销。</string>
+    <string name="factory_reset_action">全部删除</string>
+    <string name="factory_reset_failed">无法重置应用</string>
     <string name="fiasp">Fiasp</string>
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>
@@ -1016,7 +1002,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">背景不透明度：%1$d%%</string>
+    <string name="background_opacity_label">背景不透明度</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">进餐或使用胰岛素后 2 小时内避免校准。</string>
     <string name="calibration_with_mode">校准 (%1$s)</string>
@@ -1075,7 +1061,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">删除了 %1$d 校准</string>
     <string name="calibrations_will_be_removed_count">%1$d 校准将被删除</string>
     <string name="connection_number">连接 %1$d</string>
-    <string name="corner_radius_dp">圆角半径：%1$d dp</string>
+    <string name="corner_radius_label">圆角半径</string>
     <string name="custom_sound_prefix">自定义声音：%1$s</string>
     <string name="delete_calibrations_count">删除 %1$d 校准</string>
     <string name="disabled_calibrations_cleared">清除 %1$d 禁用校准</string>
@@ -1084,7 +1070,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">结束： %1$s</string>
     <string name="export_failed_with_error">导出失败：%1$s</string>
-    <string name="gap_width_value">间隙宽度：%1$s</string>
+    <string name="gap_width_label">间隙宽度</string>
     <string name="glucose_with_unit">葡萄糖 (%1$s)</string>
     <string name="import_failed_with_error">导入失败：%1$s</string>
     <string name="import_summary">导入：%1$d，跳过：%2$d，替换：%3$d</string>
@@ -1118,7 +1104,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gmi_target_value">&lt;7.0%</string>
     <string name="hourly_patterns">每小时模式</string>
     <string name="detailed_statistics">详细统计</string>
-    <string name="readings">读物</string>
+    <string name="readings">读数</string>
     <string name="range">范围</string>
     <string name="variability_excellent">优秀</string>
     <string name="variability_very_good">非常好</string>
@@ -1174,7 +1160,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">应用程序（IBM Plex）</string>
     <string name="font_system_sans">系统无字体</string>
     <string name="font_system_google_sans">系统</string>
-    <string name="size_sp">尺寸：%1$d sp</string>
+    <string name="size_label">尺寸</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">字体粗细</string>
     <string name="regular">常规</string>
     <string name="medium">中等</string>
@@ -1821,12 +1808,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">折叠视图中的紧凑图表</string>
     <string name="show_target_range">显示目标范围</string>
     <string name="show_target_range_desc">在图表上高亮目标血糖范围</string>
-    <string name="font_size_percent">字体大小：%1$d%%</string>
-    <string name="status_bar_icon_size_percent">状态栏图标大小：%1$d%%</string>
-    <string name="arrow_size_percent">箭头大小：%1$d%%</string>
-    <string name="opacity_percent">不透明度：%1$d%%</string>
-    <string name="text_size_percent">文字大小：%1$d%%</string>
-    <string name="chart_size_percent">图表大小：%1$d%%</string>
+    <string name="font_size_label">字体大小</string>
+    <string name="status_bar_icon_size_label">状态栏图标大小</string>
+    <string name="arrow_size_label">箭头大小</string>
+    <string name="opacity_label">不透明度</string>
+    <string name="text_size_label">文字大小</string>
+    <string name="chart_size_label">图表大小</string>
     <string name="use_subtle_outline">使用细边框</string>
     <string name="use_subtle_outline_desc">在覆盖层周围添加细微边缘高亮</string>
     <string name="position_top">顶部</string>
@@ -2351,7 +2338,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">低</string>
     <string name="risk_moderate">中等</string>
     <string name="risk_high">高</string>
-    <string name="stats_coverage_active">CGM 覆盖 %1$d%%</string>
+    <string name="stats_coverage_active">覆盖 %1$d%%</string>
     <string name="stats_tight_range_chip">严格 %1$d%%</string>
     <string name="stats_tight_range">严格范围</string>
     <string name="stats_tight_range_description">处于 %1$s 之间的时间，比你的目标范围更严格一档，用来衡量一天有多接近非糖尿病水平。</string>
@@ -2482,7 +2469,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s 已绑定到你的账户，但未在此使用。如果已到期，请解除绑定，以便激活新传感器。</string>
     <string name="ottai_cloud_binding_checking">正在检查账户…</string>
     <string name="ottai_cloud_binding_bound">已绑定到你的账户</string>
-    <string name="ottai_cloud_binding_not_bound">未绑定到你的账户</string>
     <string name="ottai_cloud_binding_error">无法检查账户</string>
     <string name="ottai_account_title">Ottai 账号</string>
     <string name="ottai_saved_sensors_title">已保存的传感器</string>
@@ -2501,10 +2487,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">登录以获取凭据，或导入文件。</string>
     <string name="ottai_state_partial_title">凭据不完整</string>
     <string name="ottai_state_partial_body">缺少血糖公式。请重新获取或导入。</string>
-    <string name="ottai_v3_needs_nearby">请在搜索到的传感器列表中选择此传感器：其凭据需通过蓝牙验证。</string>
     <string name="ottai_fetch_failed">无法获取此传感器的凭据。</string>
+    <string name="ottai_server_unreachable">无法连接 Ottai 服务器，请重试。</string>
     <string name="ottai_connect_failed">无法开始连接，请重试。</string>
-    <string name="ottai_offline_hint">也可以在“已保存的传感器”中导入凭据文件。</string>
     <string name="ottai_already_binding_hint">您的账号仍绑定着另一个传感器。请在“已保存的传感器”中解绑后重试。</string>
     <string name="ottai_ota_upgrade_required">Ottai 服务在绑定此传感器时要求更新固件。请重试固件设置，或导入已保存的凭据。也可以尝试使用 Ottai 官方应用。</string>
     <string name="ottai_retry">重试</string>
@@ -2888,6 +2873,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">配对密钥已删除</string>
     <string name="rearm_margin_label">重新触发余量</string>
     <string name="rearm_min_interval_label">警报最小间隔</string>
+    <string name="pre_low_evidence_label">考虑 IOB 和近期血糖</string>
+    <string name="pre_low_evidence_description">可能延迟预测警报，以确认血糖持续下降</string>
     <string name="pre_high_iob_coverage_label">胰岛素覆盖</string>
     <string name="alert_feature_off">关闭</string>
     <string name="same_direction_suppression_title">趋势警报后的静默期</string>
@@ -3133,6 +3120,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">搜索设置</string>
     <string name="settings_search_no_results">没有与“%1$s”匹配的设置</string>
+    <string name="settings_search_related">相关设置</string>
     <string name="settings_search_clear">清除搜索</string>
 
     <!-- Explicit firmware field test. -->
@@ -3333,4 +3321,55 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_notification_desc">血糖通知上的语音按钮</string>
     <string name="aidex_keys_before_connect">连接前，请导入或请求此传感器的密钥。</string>
     <string name="aidex_delete_keys_message">要从此手机中删除 %1$s 已保存的配对密钥吗？如果以后可能还需要，请先将其导出。</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">扫描条形码</string>
+    <string name="food_recent">最近</string>
+    <string name="food_my_foods">我的食物</string>
+    <string name="food_common_foods">常见食物</string>
+    <string name="food_reference_tables">食物成分表（英文）</string>
+    <string name="food_search_online">在 Open Food Facts 中搜索</string>
+    <string name="food_online_empty">Open Food Facts 中没有结果</string>
+    <string name="food_online_failed">无法连接 Open Food Facts</string>
+    <string name="food_enter_values">为“%1$s”输入数值</string>
+    <string name="food_enter_label_values">按标签输入数值</string>
+    <string name="food_barcode_looking">正在查找 %1$s…</string>
+    <string name="food_barcode_not_found">Open Food Facts 中没有条形码为 %1$s 的产品</string>
+    <string name="food_try_again">重试</string>
+    <string name="food_carbs">碳水化合物</string>
+    <string name="food_carbs_value">%1$s 克碳水</string>
+    <string name="food_amount_ml">%1$s 毫升</string>
+    <string name="food_unit_ml">毫升</string>
+    <string name="food_one_serving">1 份</string>
+    <string name="food_servings">份数</string>
+    <string name="food_weight">重量</string>
+    <string name="food_volume">容量</string>
+    <string name="food_portion_piece">个</string>
+    <string name="food_portion_slice">片</string>
+    <string name="food_portion_cup">杯</string>
+    <string name="food_portion_glass">玻璃杯</string>
+    <string name="food_portion_tbsp">汤匙</string>
+    <string name="food_portion_tsp">茶匙</string>
+    <string name="food_portion_serving">份</string>
+    <string name="food_portion_package">包</string>
+    <string name="food_per_100g_label">每 100 克，按标签</string>
+    <string name="food_sources">来源</string>
+    <string name="food_online_desc">在线搜索和条形码</string>
+    <string name="food_file_title">导入和导出</string>
+    <string name="food_import">导入</string>
+    <string name="food_file_hint">包含 name、carbs、protein、fat 和 per_grams 列的 CSV 或 JSON 表格。没有 per_grams 时数值按每 100 克计算。</string>
+    <string name="food_import_empty">此文件中没有找到食物。需要 name 和 carbs 列。</string>
+    <string name="food_fiber">膳食纤维</string>
+    <string name="food_energy">能量</string>
+    <string name="food_kcal_value">%1$s 千卡</string>
+    <string name="food_values_for">数值对应</string>
+    <string name="food_serving_weight">每份重量</string>
+    <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_delete_title">删除食物（%1$d）？</string>
+    <string name="food_deleted">已删除食物：%1$d</string>
+    <string name="food_manage_failed">无法更新食物库</string>
+    <string name="food_reorder">调整食物顺序</string>
+    <string name="food_move_up">上移</string>
+    <string name="food_move_down">下移</string>
 </resources>

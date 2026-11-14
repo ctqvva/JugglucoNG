@@ -182,7 +182,10 @@ internal class AiDexAlgorithmRuntime(
             publish(latestPublished!!, true)
             true
         }
-        if (controller.needsReplay() && (roomRepairNeeded || everAdaptive || controller.requestedSelection.adaptive || controller.appliedSelection.adaptive)) requestReplay()
+        // A startup/bootstrap exception can leave Stock pending too. Retry on
+        // the next reading so a transient failure cannot pin its error status.
+        if (controller.needsReplay() && (failed || roomRepairNeeded || everAdaptive ||
+                controller.requestedSelection.adaptive || controller.appliedSelection.adaptive)) requestReplay()
         return stored
     }
 
@@ -299,8 +302,10 @@ internal class AiDexAlgorithmRuntime(
             }
         }
         roomRepairNeeded = false
+        val wasFailed = failed
         failed = false
         controller.settleStock()
+        if (wasFailed) UiRefreshBus.requestStatusRefresh()
         true
     }
 

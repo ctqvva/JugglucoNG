@@ -396,6 +396,7 @@ fun DashboardScreen(
     val predictionModelProfileSaved by viewModel.predictionModelProfileSaved.collectAsStateWithLifecycle()
     val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsStateWithLifecycle()
     val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsStateWithLifecycle()
+    val journalFoodOnlineEnabled by viewModel.journalFoodOnlineEnabled.collectAsStateWithLifecycle()
     val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsStateWithLifecycle()
     val predictionTrendMomentumEnabled by viewModel.predictionTrendMomentumEnabled.collectAsStateWithLifecycle()
     val predictionAdaptiveEnabled by viewModel.predictionAdaptiveEnabled.collectAsStateWithLifecycle()
@@ -1010,7 +1011,9 @@ fun DashboardScreen(
             suggestedAmountFraction = request.suggestedAmountFraction,
             suggestedDose = stateDoseHint,
             insulinPresets = journalInsulinPresets,
-            foods = if (journalFoodLibraryEnabled) journalFoods else emptyList(),
+            foods = journalFoods,
+            foodLibraryEnabled = journalFoodLibraryEnabled,
+            foodOnlineEnabled = journalFoodOnlineEnabled,
             foodMacrosEnabled = journalFoodMacrosEnabled,
             doseJournalEntries = scopedJournalEntries,
             doseProfile = JournalDoseProfile(
@@ -1040,7 +1043,6 @@ fun DashboardScreen(
                     clearJournalAction()
                 }
             },
-            onSaveFood = viewModel::saveJournalFood,
             onDelete = { entryId ->
                 journalGuard.delete {
                     viewModel.deleteJournalEntry(entryId)
@@ -1644,6 +1646,7 @@ fun DashboardScreen(
                                 quietWindowUntilMs = quietWindowUntilMs,
                                 onQuietWindowClick = onNavigateToQuietWindow,
                                 onAddSensorClick = onNavigateToSensors,
+                                onSensorCardClick = onNavigateToSensors,
                                 onHeroClick = {
                                     val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
                                     val rawVal = latestPoint?.rawValue ?: autoVal
@@ -1966,6 +1969,7 @@ fun DashboardScreen(
                                 quietWindowUntilMs = quietWindowUntilMs,
                                 onQuietWindowClick = onNavigateToQuietWindow,
                                 onAddSensorClick = onNavigateToSensors,
+                                onSensorCardClick = onNavigateToSensors,
                                 onHeroClick = {
                                     val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
                                     val rawVal = latestPoint?.rawValue ?: autoVal

@@ -983,6 +983,7 @@ class MedtrumBleManager(
                 "Medtrum",
                 ManagedSensorUiFamily.MEDTRUM,
             )
+            reviveRemovedMirror(sensorSerial)
             // Stock lane, as every BLE driver publishes: the patch's own value is before this app's
             // software calibration, which is applied once downstream. The follower bridge used before
             // marked it resolved, so live readings and alerts skipped that calibration.
@@ -995,6 +996,21 @@ class MedtrumBleManager(
             )
         }
         UiRefreshBus.requestDataRefresh()
+    }
+
+    /**
+     * The write above revives a finished mirror, but not one marked removed by the user, and the
+     * serial belongs to the transmitter: the same slot comes back with every new sensor, and with
+     * the phantom callback an unrecognised short name used to get, whose removal marked this slot.
+     * A slot left that way reads as "sensor gone" to everything that resolves the main sensor
+     * (#876). Called under [readingLock] after the stop check, so it cannot undo a removal.
+     */
+    private fun reviveRemovedMirror(sensorSerial: String) {
+        runCatching {
+            if (Natives.sensorFinishedById(sensorSerial) && Natives.unfinishSensorById(sensorSerial)) {
+                Log.i(TAG, "Medtrum mirror of $sensorSerial was still finished while streaming; reactivated")
+            }
+        }.onFailure { Log.stack(TAG, "reviveRemovedMirror", it) }
     }
 
     // ---- calibration ----

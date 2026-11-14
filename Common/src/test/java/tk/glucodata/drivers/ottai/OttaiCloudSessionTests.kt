@@ -40,6 +40,30 @@ class OttaiCloudSessionTests {
     }
 
     @Test
+    fun globalLoginStopsOnACredentialVerdictAndFallsBackOnlyWithoutAnAnswer() {
+        val session = OttaiCloudClient.LoginResult("42", "mobile-token", "sensor-root")
+        val answer = OttaiCloudClient::globalLoginAnswer
+        assertEquals(OttaiCloudClient.GlobalLoginAnswer.SIGNED_IN, answer(null, session))
+        // The server judged the credentials: never repeat the password on another route.
+        for (code in listOf("User_InvalidParams", "User_FAILED_RETRY_TIMES", "AuthFailed_TokenInvalid")) {
+            assertEquals(code, OttaiCloudClient.GlobalLoginAnswer.REFUSED,
+                answer(OttaiCloudClient.CloudFailure("http=200 biz=$code", code, 200), null))
+        }
+        // No verdict: transport, server faults (the dead accountLogin's 500), a missing route,
+        // or a reply without the sensor decrypt root.
+        listOf(
+            OttaiCloudClient.CloudFailure("http=500 biz=NET_SECURITY_SYSTEM_ERROR", "NET_SECURITY_SYSTEM_ERROR", 500),
+            OttaiCloudClient.CloudFailure("ota_exchange_http=200_biz=Error", "Error", 200),
+            OttaiCloudClient.CloudFailure("network: timeout"),
+            OttaiCloudClient.CloudFailure("http=404 biz=", "", 404),
+            OttaiCloudClient.CloudFailure("http=404 biz=NotFound", "NotFound", 404),
+        ).forEach { assertEquals(it.text, OttaiCloudClient.GlobalLoginAnswer.NO_ANSWER, answer(it, null)) }
+        assertEquals(OttaiCloudClient.GlobalLoginAnswer.NO_ANSWER, answer(null, null))
+        assertEquals(OttaiCloudClient.GlobalLoginAnswer.NO_ANSWER,
+            answer(null, OttaiCloudClient.LoginResult("42", "mobile-token", "")))
+    }
+
+    @Test
     fun nestedWebLoginUpgradesTheResolvedUsernameExactlyOnce() {
         var profileCalls = 0
         var loginCalls = 0

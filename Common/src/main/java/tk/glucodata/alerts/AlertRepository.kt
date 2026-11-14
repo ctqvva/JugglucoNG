@@ -85,6 +85,8 @@ object AlertRepository {
         return prefs.getInt(key, 0).coerceAtLeast(0)
     }
 
+    private fun keyPreLowEvidence(type: AlertType) = "alert_${type.id}_preLowEvidence"
+
     // PRE_HIGH only: IOB coverage factor. 0 = feature off, so contains()-guarded.
     private fun keyIobCoverage(type: AlertType) = "alert_${type.id}_iobCoverage"
 
@@ -372,6 +374,7 @@ object AlertRepository {
             rearmMargin = readRearmMargin(type, base.rearmMargin),
             rearmMinIntervalMinutes = readRearmMinInterval(type, base.rearmMinIntervalMinutes),
             iobCoverageFactor = readIobCoverage(type, base.iobCoverageFactor),
+            preLowEvidenceEnabled = prefs.getBoolean(keyPreLowEvidence(type), base.preLowEvidenceEnabled),
             // HIGH is a native-backed type and so loads through here, not through
             // loadFromPrefs. The setting has no native counterpart, so without this
             // read it is written on save and dropped on every restart.
@@ -440,8 +443,29 @@ object AlertRepository {
             rearmMargin = readRearmMargin(type, default.rearmMargin),
             rearmMinIntervalMinutes = readRearmMinInterval(type, default.rearmMinIntervalMinutes),
             iobCoverageFactor = readIobCoverage(type, default.iobCoverageFactor),
+            preLowEvidenceEnabled = prefs.getBoolean(keyPreLowEvidence(type), default.preLowEvidenceEnabled),
             fallRateSuppress = readFallRateSuppress(type, default.fallRateSuppress)
         )
+    }
+
+    // The watch has no override switch; the phone's setting travels to it
+    // (WearToggleSync.SCOPE_ALERT_DND). The flag says the value in keyOverrideDND
+    // came from the phone and not from this device's own default.
+    private fun keyOverrideDndFromPhone(typeId: Int) = "alert_${typeId}_dnd_from_phone"
+
+    /** Watch: the phone has reported this alert's "Override silent mode" setting. */
+    fun isOverrideDndFromPhone(typeId: Int): Boolean =
+        runCatching { prefs.getBoolean(keyOverrideDndFromPhone(typeId), false) }.getOrDefault(false)
+
+    /**
+     * Watch: stores the phone's setting. Written to the same key the alert reads, so
+     * the watch's own copy of the config agrees with it, and marked as the phone's.
+     */
+    fun applyOverrideDndFromPhone(type: AlertType, overrideDnd: Boolean) {
+        prefs.edit {
+            putBoolean(keyOverrideDND(type), overrideDnd)
+            putBoolean(keyOverrideDndFromPhone(type.id), true)
+        }
     }
 
     /**
@@ -507,6 +531,7 @@ object AlertRepository {
             putInt(keySoundDelaySeconds(config.type), sanitizeSoundDelaySeconds(config.type, config.soundDelaySeconds))
             if (config.rearmMargin != null) putFloat(keyRearmMargin(config.type), config.rearmMargin.coerceAtLeast(0f)) else remove(keyRearmMargin(config.type))
             if (config.rearmMinIntervalMinutes != null) putInt(keyRearmMinInterval(config.type), config.rearmMinIntervalMinutes.coerceAtLeast(0)) else remove(keyRearmMinInterval(config.type))
+            putBoolean(keyPreLowEvidence(config.type), config.preLowEvidenceEnabled)
             if (config.iobCoverageFactor != null) putFloat(keyIobCoverage(config.type), config.iobCoverageFactor.coerceAtLeast(0f)) else remove(keyIobCoverage(config.type))
             if (config.fallRateSuppress != null) putFloat(keyFallRateSuppress(config.type), config.fallRateSuppress.coerceAtLeast(0f)) else remove(keyFallRateSuppress(config.type))
             // Type-specific: only the sensor-expiry alert carries pre-warnings.

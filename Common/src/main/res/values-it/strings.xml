@@ -283,7 +283,7 @@
     <string name="scans">Scansioni</string>
     <string name="stream">Flusso</string>
     <string name="exchanges">Invia/Ricevi</string>
-    <string name="duration_days">days</string>
+    <string name="duration_days">giorni</string>
     <string name="sensor_state">Status</string>
 
     <!-- Newly Extracted Strings -->
@@ -341,25 +341,8 @@
     <string name="import_history_sub">Ripristina le letture del glucosio da un\'esportazione JugglucoNG o da un file CSV</string>
     <string name="import_no_glucose">Questo file non contiene dati del glucosio</string>
     <string name="import_unsupported_file">File non supportato. Seleziona un\'esportazione JugglucoNG o una cronologia del glucosio in CSV.</string>
-    <string name="clear_history_title">Cancellare Cronologia?</string>
-    <string name="clear_history_confirmation">Questo rimuoverà tutte le letture glucosio dal database. Azione irreversibile.</string>
     <string name="delete_reading_title">Eliminare lettura?</string>
     <string name="delete_reading_confirmation">Rimuovere questa lettura del glucosio dalla cronologia locale. Questa azione non può essere annullata.</string>
-    <string name="clear_button">Cancella</string>
-    <string name="clear_app_data_title">Cancellare Dati App?</string>
-    <string name="clear_app_data_intro">Questo rimuoverà:</string>
-    <string name="all_glucose_readings">• Tutte le letture glucosio</string>
-    <string name="cache_files">• File cache</string>
-    <string name="sensor_data">• Dati sensore</string>
-    <string name="all_settings">• Tutte le impostazioni</string>
-    <string name="settings_preserved">Le impostazioni verranno conservate.</string>
-    <string name="cannot_be_undone_warning">Questa azione è irreversibile.</string>
-    <string name="clear_data_button">Cancella Dati</string>
-    <string name="factory_reset_title">⚠️ Ripristino Fabbrica?</string>
-    <string name="factory_reset_intro">Questo RIMUOVERÀ TUTTO:</string>
-    <string name="factory_reset_outcome">L\'app tornerà allo stato iniziale.</string>
-    <string name="cannot_be_undone_critical">AZIONE IRREVERSIBILE!</string>
-    <string name="reset_everything_button">RIPRISTINA TUTTO</string>
     <string name="alert_sound">Suono Avviso</string>
     <string name="vibrate_only">Solo Vibrazione</string>
     <string name="sound_vibrate">Suono &amp; Vibrazione</string>
@@ -451,9 +434,6 @@
     <string name="settings_import_successful">Impostazioni importate. Riavvio…</string>
     <string name="danger_zone">Zona Pericolo</string>
     <string name="clear_history">Cancella Cronologia</string>
-    <string name="clear_history_desc_short">Rimuovi tutte le letture</string>
-    <string name="clear_app_data">Cancella Dati App</string>
-    <string name="clear_app_data_desc">Rimuovi cronologia/cache, mantieni impostazioni</string>
     <string name="factory_reset">Ripristino Fabbrica</string>
     <string name="factory_reset_desc">Rimuovi tutto, torna allo stato iniziale</string>
     <string name="sibionics_setup_title">Configurazione Sibionics</string>
@@ -604,7 +584,7 @@
     <string name="aspart">Insulin Aspart/NovoRapid/NovoLog</string>
     <string name="auto">Auto</string>
     <string name="auto_raw">Auto+Raw</string>
-    <string name="auto_reset_days">%1$d days</string>
+    <string name="auto_reset_days">%1$d giorni</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="autoqr">Auto QR</string>
     <string name="autoqrmessage">Send data from this phone to another phone on your home network.
@@ -628,9 +608,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="changestartbutton">Change start</string>
     <string name="chsibionics">Sibionics GS1 CN</string>
     <string name="clampnow">Now clamp</string>
-    <string name="clean_data_confirm">Clear App Data?</string>
-    <string name="clean_history_confirm">Clear History?</string>
-    <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
+    <string name="clean_history_confirm">Cancellare la cronologia?</string>
+    <string name="clear_history_desc">Rimuovi letture, voci del diario o entrambi</string>
+    <string name="clear_history_scope_readings">Rimuove tutte le letture della glicemia su questo telefono e non può essere annullato. Diario, sensori e impostazioni restano.</string>
+    <string name="clear_history_scope_journal">Rimuove tutte le voci del diario, anche da Nightscout se vi sono state inviate, e non può essere annullato. Letture, tipi di insulina e impostazioni restano.</string>
+    <string name="clear_history_scope_both">Rimuove tutte le letture della glicemia e le voci del diario, anche da Nightscout se vi sono state inviate, e non può essere annullato. Sensori, tipi di insulina e impostazioni restano.</string>
+    <string name="clear_history_done">Cronologia cancellata</string>
+    <string name="clear_history_failed">Impossibile cancellare la cronologia</string>
     <string name="complications">Complications</string>
     <string name="confidence">Fiducia</string>
     <string name="connected">Connected!</string>
@@ -678,8 +662,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
-    <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
-    <string name="factory_reset_confirm">Factory Reset?</string>
+    <string name="factory_reset_confirm">Ripristinare i dati di fabbrica?</string>
+    <string name="factory_reset_message">Cancella tutte le letture, le voci del diario, i sensori e le impostazioni, oltre ai permessi concessi, poi chiude l\'app. Il monitoraggio della glicemia e gli avvisi si fermano finché non configuri di nuovo un sensore, e l\'operazione non può essere annullata.</string>
+    <string name="factory_reset_action">Cancella tutto</string>
+    <string name="factory_reset_failed">Impossibile ripristinare l\'app</string>
     <string name="fiasp">Fiasp</string>
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>
@@ -804,7 +790,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mgdL">mg/dL</string>
     <string name="min">minimo</string>
     <string name="min_glucose">minimo</string>
-    <string name="minutes">minutes</string>
+    <string name="minutes">minuti</string>
     <string name="mmolL">mmol/L</string>
     <string name="modify">Modify</string>
     <string name="newdata">"New data"</string>
@@ -873,7 +859,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scan_accuchek">Scansione Accu-Chek</string>
     <string name="scan_caresens_air">Scansione CareSens Air</string>
     <string name="schedules">Schedules</string>
-    <string name="seconds">" seconds"</string>
+    <string name="seconds">" secondi"</string>
     <string name="secondsbetween">Seconds between</string>
     <string name="secret">api_secret</string>
     <string name="sendamounts">Send amounts</string>
@@ -990,7 +976,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Opacità dello sfondo: %1$d%%</string>
+    <string name="background_opacity_label">Opacità dello sfondo</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Evita di calibrare entro 2 ore dai pasti o dall\'insulina.</string>
     <string name="calibration_with_mode">Calibrazione (%1$s)</string>
@@ -1049,7 +1035,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">Calibrazioni %1$d eliminate</string>
     <string name="calibrations_will_be_removed_count">Le calibrazioni %1$d verranno rimosse</string>
     <string name="connection_number">Connessione %1$d</string>
-    <string name="corner_radius_dp">Raggio dell\'angolo: %1$d dp</string>
+    <string name="corner_radius_label">Raggio dell\'angolo</string>
     <string name="custom_sound_prefix">Suono personalizzato: %1$s</string>
     <string name="delete_calibrations_count">Elimina le calibrazioni %1$d</string>
     <string name="disabled_calibrations_cleared">Cancellate %1$d calibrazioni disabilitate</string>
@@ -1058,7 +1044,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Fine: %1$s</string>
     <string name="export_failed_with_error">Esportazione non riuscita: %1$s</string>
-    <string name="gap_width_value">Larghezza spazio: %1$s</string>
+    <string name="gap_width_label">Larghezza spazio</string>
     <string name="glucose_with_unit">Glucosio (%1$s)</string>
     <string name="import_failed_with_error">Importazione non riuscita: %1$s</string>
     <string name="import_summary">Importato: %1$d, saltato: %2$d, sostituito: %3$d</string>
@@ -1148,7 +1134,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">Applicazione (IBM Plex)</string>
     <string name="font_system_sans">Sistema Sans</string>
     <string name="font_system_google_sans">Sistema</string>
-    <string name="size_sp">Dimensioni: %1$d sp</string>
+    <string name="size_label">Dimensioni</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Peso del carattere</string>
     <string name="regular">Regolare</string>
     <string name="medium">Medio</string>
@@ -1795,12 +1782,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Grafico compatto nella vista compressa</string>
     <string name="show_target_range">Mostra intervallo obiettivo</string>
     <string name="show_target_range_desc">Evidenzia l\'intervallo target del glucosio sul grafico</string>
-    <string name="font_size_percent">Dimensione carattere: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Dimensione icona barra di stato: %1$d%%</string>
-    <string name="arrow_size_percent">Dimensione freccia: %1$d%%</string>
-    <string name="opacity_percent">Opacità: %1$d%%</string>
-    <string name="text_size_percent">Dimensione testo: %1$d%%</string>
-    <string name="chart_size_percent">Dimensione grafico: %1$d%%</string>
+    <string name="font_size_label">Dimensione carattere</string>
+    <string name="status_bar_icon_size_label">Dimensione icona barra di stato</string>
+    <string name="arrow_size_label">Dimensione freccia</string>
+    <string name="opacity_label">Opacità</string>
+    <string name="text_size_label">Dimensione testo</string>
+    <string name="chart_size_label">Dimensione grafico</string>
     <string name="use_subtle_outline">Usa contorno sottile</string>
     <string name="use_subtle_outline_desc">Sottile evidenziazione del bordo attorno all\'overlay</string>
     <string name="position_top">Alto</string>
@@ -2325,7 +2312,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="risk_low">Basso</string>
     <string name="risk_moderate">Moderato</string>
     <string name="risk_high">Alto</string>
-    <string name="stats_coverage_active">CGM attivo %1$d%%</string>
+    <string name="stats_coverage_active">Attivo %1$d%%</string>
     <string name="stats_tight_range_chip">Stretto %1$d%%</string>
     <string name="stats_tight_range">Range stretto</string>
     <string name="stats_tight_range_description">Tempo entro %1$s — un gradino più stretto del tuo range obiettivo, per seguire quanto la giornata resta vicina a valori non diabetici.</string>
@@ -2456,7 +2443,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_unused_binding_desc">%1$s è associato al tuo account ma qui non è in uso. Se è terminato, scollegalo per poter attivare un nuovo sensore.</string>
     <string name="ottai_cloud_binding_checking">Verifica dell\'account…</string>
     <string name="ottai_cloud_binding_bound">Associato al tuo account</string>
-    <string name="ottai_cloud_binding_not_bound">Non associato al tuo account</string>
     <string name="ottai_cloud_binding_error">Impossibile verificare l\'account</string>
     <string name="ottai_account_title">Account Ottai</string>
     <string name="ottai_saved_sensors_title">Sensori salvati</string>
@@ -2475,10 +2461,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_state_missing_signed_out">Accedi per recuperarle, oppure importa un file.</string>
     <string name="ottai_state_partial_title">Credenziali incomplete</string>
     <string name="ottai_state_partial_body">Manca la formula della glicemia. Recuperale o importale di nuovo.</string>
-    <string name="ottai_v3_needs_nearby">Scegli questo sensore dall\'elenco dei sensori trovati: le sue credenziali vengono verificate via Bluetooth.</string>
     <string name="ottai_fetch_failed">Impossibile ottenere le credenziali di questo sensore.</string>
+    <string name="ottai_server_unreachable">Impossibile raggiungere il server Ottai. Riprova.</string>
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
-    <string name="ottai_offline_hint">Puoi anche importare un file di credenziali in Sensori salvati.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
     <string name="ottai_ota_upgrade_required">Il servizio Ottai ha richiesto un aggiornamento del firmware durante l’associazione del sensore. Riprova la configurazione o importa le credenziali salvate. Puoi anche provare l’app ufficiale Ottai.</string>
     <string name="ottai_retry">Riprova</string>
@@ -2756,8 +2741,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_color_title">Colore del sensore</string>
     <string name="journal_curve_activity">Attività relativa</string>
     <string name="journal_curve_activity_desc">Attività ipoglicemizzante rispetto al picco di questa curva (100%).</string>
-    <string name="journal_preset_rapid_generic">Ad azione rapida (generica)</string>
-    <string name="journal_preset_long_generic">Ad azione prolungata (generica)</string>
+    <string name="journal_preset_rapid_generic">Rapida</string>
+    <string name="journal_preset_long_generic">Lenta</string>
     <string name="journal_preset_ultra_long_generic">Basale ultra-lenta (generica)</string>
     <string name="journal_scientific_name">Nome scientifico</string>
     <string name="journal_curve_unverified">Curva non verificata</string>
@@ -2863,6 +2848,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_pairing_key_deleted">Chiave di associazione eliminata</string>
     <string name="rearm_margin_label">Margine di riarmo</string>
     <string name="rearm_min_interval_label">Tempo minimo tra gli allarmi</string>
+    <string name="pre_low_evidence_label">Considera IOB e glicemia recente</string>
+    <string name="pre_low_evidence_description">Può ritardare gli avvisi predittivi per confermare un calo persistente</string>
     <string name="pre_high_iob_coverage_label">Copertura insulinica</string>
     <string name="alert_feature_off">Disattivato</string>
     <string name="same_direction_suppression_title">Periodo di silenzio dopo un avviso di tendenza</string>
@@ -3111,6 +3098,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Cerca nelle impostazioni</string>
     <string name="settings_search_no_results">Nessuna impostazione corrisponde a “%1$s”</string>
+    <string name="settings_search_related">Impostazioni correlate</string>
     <string name="settings_search_clear">Cancella ricerca</string>
 
     <!-- Explicit firmware field test. -->
@@ -3318,4 +3306,55 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_quick_notification_desc">Pulsante voce nella notifica della glicemia</string>
     <string name="aidex_keys_before_connect">Importa o richiedi le chiavi di questo sensore prima di connetterti.</string>
     <string name="aidex_delete_keys_message">Rimuovere da questo telefono le chiavi di associazione salvate per %1$s? Esportale prima se potrebbero servirti ancora.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Scansiona il codice a barre</string>
+    <string name="food_recent">Recenti</string>
+    <string name="food_my_foods">I miei alimenti</string>
+    <string name="food_common_foods">Alimenti comuni</string>
+    <string name="food_reference_tables">Tabelle degli alimenti (inglese)</string>
+    <string name="food_search_online">Cerca in Open Food Facts</string>
+    <string name="food_online_empty">Nessun risultato in Open Food Facts</string>
+    <string name="food_online_failed">Impossibile raggiungere Open Food Facts</string>
+    <string name="food_enter_values">Inserisci i valori per “%1$s”</string>
+    <string name="food_enter_label_values">Inserisci i valori dell’etichetta</string>
+    <string name="food_barcode_looking">Ricerca di %1$s…</string>
+    <string name="food_barcode_not_found">Nessun prodotto con codice a barre %1$s in Open Food Facts</string>
+    <string name="food_try_again">Riprova</string>
+    <string name="food_carbs">Carboidrati</string>
+    <string name="food_carbs_value">%1$s g di carboidrati</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 porzione</string>
+    <string name="food_servings">Porzioni</string>
+    <string name="food_weight">Peso</string>
+    <string name="food_volume">Volume</string>
+    <string name="food_portion_piece">pezzo</string>
+    <string name="food_portion_slice">fetta</string>
+    <string name="food_portion_cup">tazza</string>
+    <string name="food_portion_glass">bicchiere</string>
+    <string name="food_portion_tbsp">cucchiaio</string>
+    <string name="food_portion_tsp">cucchiaino</string>
+    <string name="food_portion_serving">porzione</string>
+    <string name="food_portion_package">confezione</string>
+    <string name="food_per_100g_label">Per 100 g, dall’etichetta</string>
+    <string name="food_sources">Fonti</string>
+    <string name="food_online_desc">Ricerca online e codici a barre</string>
+    <string name="food_file_title">Importazione ed esportazione</string>
+    <string name="food_import">Importa</string>
+    <string name="food_file_hint">Una tabella CSV o JSON con le colonne name, carbs, protein, fat e per_grams. Senza per_grams i valori valgono per 100 g.</string>
+    <string name="food_import_empty">Nessun alimento trovato in questo file. Servono le colonne name e carbs.</string>
+    <string name="food_fiber">Fibre</string>
+    <string name="food_energy">Energia</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Valori riferiti a</string>
+    <string name="food_serving_weight">Peso della porzione</string>
+    <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_delete_title">Eliminare gli alimenti (%1$d)?</string>
+    <string name="food_deleted">Alimenti eliminati: %1$d</string>
+    <string name="food_manage_failed">Impossibile aggiornare la raccolta alimenti</string>
+    <string name="food_reorder">Riordina alimenti</string>
+    <string name="food_move_up">Sposta in alto</string>
+    <string name="food_move_down">Sposta in basso</string>
 </resources>

@@ -67,17 +67,28 @@ object NotificationHistorySource {
         if (!SensorIdentity.shouldUseNativeHistorySync(resolvedSerial)) {
             return emptyList()
         }
-        val history = try {
-            Natives.getGlucoseHistoryForSensor(resolvedSerial, startSec)
-        } catch (t: Throwable) {
-            Log.w(TAG, "loadHistory(${resolvedSerial ?: "main"}, $startSec) failed", t)
-            null
-        } ?: return emptyList()
-
-        if (history.size < 3) {
-            return emptyList()
+        // Keep the preferred record authoritative when it has data. A migrated
+        // managed id can instead point at an empty shell while its registered
+        // legacy alias still holds the readings. Do not invent suffix aliases
+        // or combine competing records with different algorithm revisions.
+        val names = sequence {
+            yield(resolvedSerial)
+            yieldAll(SensorIdentity.resolveNativeHistorySensorNames(resolvedSerial).filter { it != resolvedSerial })
         }
+        for (name in names) {
+            val history = try {
+                Natives.getGlucoseHistoryForSensor(name, startSec)
+            } catch (t: Throwable) {
+                Log.w(TAG, "loadHistory($name, $startSec) failed", t)
+                null
+            } ?: continue
+            val points = nativePoints(history, isMmol)
+            if (points.isNotEmpty()) return points
+        }
+        return emptyList()
+    }
 
+    private fun nativePoints(history: LongArray, isMmol: Boolean): List<GlucosePoint> {
         val orderedPoints = TreeMap<Long, GlucosePoint>()
         for (i in history.indices step 3) {
             if (i + 2 >= history.size) break

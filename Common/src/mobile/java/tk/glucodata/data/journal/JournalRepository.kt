@@ -10,6 +10,8 @@ import android.content.Context
 import tk.glucodata.Applic
 import tk.glucodata.R
 import tk.glucodata.data.HistoryDatabase
+import tk.glucodata.data.food.FoodLibrary
+import tk.glucodata.data.food.FoodLibraryDatabase
 
 class JournalRepository {
     private companion object {
@@ -24,6 +26,7 @@ class JournalRepository {
     private val database = HistoryDatabase.getInstance(Applic.app)
     private val dao = database.journalDao()
     private val prefs = Applic.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val foodLibrary = FoodLibrary(dao, FoodLibraryDatabase.getInstance(Applic.app).foodDetailsDao())
 
     // Room runs the query on its own executor, but the map runs wherever the
     // flow is collected — the view model's main-thread scope — so every journal
@@ -53,9 +56,7 @@ class JournalRepository {
     }
 
     fun observeFoods(): Flow<List<JournalFood>> {
-        return dao.observeFoods()
-            .map { foods -> foods.map(JournalFoodEntity::toModel) }
-            .flowOn(Dispatchers.Default)
+        return foodLibrary.observe().flowOn(Dispatchers.Default)
     }
 
     suspend fun ensureDefaultInsulinPresets() {
@@ -78,7 +79,21 @@ class JournalRepository {
         }
     }
 
+    /**
+     * Saves an entry. The foods a meal was built from go to the food library first, so they
+     * are there to pick the next time; a meal of one food keeps the link to it.
+     */
     suspend fun upsertEntry(input: JournalEntryInput): Long {
+        if (input.foodUses.isEmpty()) return upsertEntryRow(input)
+        val foodIds = runCatching { foodLibrary.noteUses(input.foodUses) }
+            .onFailure { tk.glucodata.Log.stack("JournalRepository", "noteUses", it) }
+            .getOrDefault(emptyList())
+        return upsertEntryRow(
+            input.withRememberedFoodIds(foodIds)
+        )
+    }
+
+    private suspend fun upsertEntryRow(input: JournalEntryInput): Long {
         val (id, entity, existing) = database.withTransaction {
             val sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() }
             val recoveryId = CloneJournalIdentity.normalizeRecoveryId(input.recoveryId)
@@ -402,25 +417,8 @@ class JournalRepository {
             val existing = dao.getEntryById(entryId)
             deletedType = existing?.entryType
             deletedGlucose = existing?.glucoseValueMgDl
-            if (existing != null && isCloneJournalExportSource(existing.source)) {
-                dao.upsertCloneJournalTombstone(
-                    CloneJournalTombstoneEntity(
-                        entryId = existing.id,
-                        deletedAt = System.currentTimeMillis(),
-                        recoveryId = existing.recoveryId,
-                    )
-                )
-                cloneDeleteQueued = true
-            }
-            val remoteId = existing?.nightscoutDeleteRemoteId()
-            if (remoteId != null) {
-                dao.enqueuePendingNightscoutDelete(
-                    JournalPendingDeleteEntity(
-                        entryId = entryId,
-                        nsRemoteId = remoteId,
-                        deletedAt = System.currentTimeMillis()
-                    )
-                )
+            if (existing != null) {
+                cloneDeleteQueued = dao.recordEntryDeletion(existing, System.currentTimeMillis())
             }
             dao.deleteEntryById(entryId)
         }
@@ -432,6 +430,34 @@ class JournalRepository {
         }
         // A deletion queues a tombstone, which is the uploader's to carry out.
         tk.glucodata.NightscoutUploadWake.afterJournalChange()
+    }
+
+    /**
+     * Deletes every entry, as deleting each one in turn would: Clone peers and Nightscout are
+     * told, and what the entries fed (IOB, calibrations from fingersticks) is recomputed. The
+     * insulin presets and the food library stay.
+     *
+     * @return how many entries were deleted
+     */
+    suspend fun deleteAllEntries(): Int = announceDeletion(database.deleteAllJournalEntries())
+
+    /**
+     * Tells Clone peers, Nightscout and the IOB and calibration consumers that [deleted] is gone.
+     * Call once the transaction that removed the entries has committed, so what they read back
+     * is the state after it.
+     *
+     * @return how many entries were deleted
+     */
+    internal fun announceDeletion(deleted: DeletedJournalEntries): Int {
+        if (deleted.count == 0) return 0
+        if (deleted.cloneTombstoned || deleted.affectsIob) {
+            tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
+        }
+        if (deleted.hadGlucose) {
+            tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
+        }
+        tk.glucodata.NightscoutUploadWake.afterJournalChange()
+        return deleted.count
     }
 
     /** Applies sender tombstones without turning a receiver-side delete into outbound work. */
@@ -538,11 +564,6 @@ class JournalRepository {
     private fun isMirroredSource(source: JournalEntrySource): Boolean =
         isExternalJournalMirrorSource(source)
 
-    private fun affectsIob(entryType: String?): Boolean {
-        return entryType == JournalEntryType.INSULIN.storageValue ||
-            entryType == JournalEntryType.CARBS.storageValue
-    }
-
     suspend fun getInsulinPresetsSnapshot(): List<JournalInsulinPreset> {
         return dao.getInsulinPresets().map(JournalInsulinPresetEntity::toModel)
     }
@@ -558,49 +579,47 @@ class JournalRepository {
 
     suspend fun ensureDefaultFoods() {
         if (prefs.getBoolean(DEFAULT_FOODS_SEEDED_KEY, false)) return
-        database.withTransaction {
-            val existing = dao.getFoods()
-            if (existing.isEmpty()) {
-                dao.insertFoods(defaultFoods())
-            } else {
-                val builtIns = existing.filter { it.isBuiltIn }
-                val missingDefaults = defaultFoods().filter { preset ->
-                    builtIns.none { existingFood ->
-                        existingFood.sortOrder == preset.sortOrder ||
-                            existingFood.displayName.equals(preset.displayName, ignoreCase = true)
+        foodLibrary.withWrites {
+            database.withTransaction {
+                val existing = dao.getFoods()
+                if (existing.isEmpty()) {
+                    dao.insertFoods(defaultFoods())
+                } else {
+                    val builtIns = existing.filter { it.isBuiltIn }
+                    val missingDefaults = defaultFoods().filter { preset ->
+                        builtIns.none { existingFood ->
+                            existingFood.sortOrder == preset.sortOrder ||
+                                existingFood.displayName.equals(preset.displayName, ignoreCase = true)
+                        }
+                    }
+                    if (missingDefaults.isNotEmpty()) {
+                        dao.insertFoods(missingDefaults)
                     }
                 }
-                if (missingDefaults.isNotEmpty()) {
-                    dao.insertFoods(missingDefaults)
-                }
+                prefs.edit().putBoolean(DEFAULT_FOODS_SEEDED_KEY, true).apply()
             }
-            prefs.edit().putBoolean(DEFAULT_FOODS_SEEDED_KEY, true).apply()
         }
     }
 
-    suspend fun upsertFood(input: JournalFoodInput): Long {
-        val existing = input.id?.let { dao.getFoodById(it) }
-        val now = System.currentTimeMillis()
-        val entity = JournalFoodEntity(
-            id = existing?.id ?: (input.id ?: 0L),
-            displayName = input.displayName.trim(),
-            carbsGrams = input.carbsGrams.coerceAtLeast(0f),
-            proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
-            fatGrams = input.fatGrams?.coerceAtLeast(0f),
-            absorptionMinutes = input.absorptionMinutes.coerceIn(15, 480),
-            accentColor = input.accentColor,
-            isBuiltIn = existing?.isBuiltIn ?: input.isBuiltIn,
-            isArchived = input.isArchived,
-            sortOrder = input.sortOrder,
-            createdAt = existing?.createdAt ?: now,
-            updatedAt = now
-        )
-        return dao.upsertFood(entity)
-    }
+    suspend fun keepFood(food: tk.glucodata.data.food.FoodItem): Long = foodLibrary.keep(food)
 
-    suspend fun deleteFood(foodId: Long) {
-        dao.deleteFoodById(foodId)
-    }
+    suspend fun upsertFood(input: JournalFoodInput): Long = foodLibrary.upsert(input)
+
+    suspend fun deleteFood(foodId: Long) = foodLibrary.delete(foodId)
+
+    suspend fun deleteFoods(ids: Set<Long>) = foodLibrary.delete(ids)
+
+    suspend fun undoDeleteFoods(deleted: tk.glucodata.data.food.DeletedFoods) = foodLibrary.undoDelete(deleted)
+
+    suspend fun setFoodsArchived(ids: Set<Long>, archived: Boolean) = foodLibrary.setArchived(ids, archived)
+
+    suspend fun moveFoodsBefore(ids: Set<Long>, beforeId: Long?) = foodLibrary.moveBefore(ids, beforeId)
+
+    /** Adds a table of foods; returns how many were new and how many replaced a food of that name. */
+    suspend fun importFoods(foods: List<JournalFoodInput>): Pair<Int, Int> = foodLibrary.import(foods)
+
+    /** The library as it stands, for export. */
+    suspend fun foods(): List<JournalFood> = foodLibrary.foods()
 
     private fun defaultPresets(): List<JournalInsulinPresetEntity> {
         val app = Applic.app
@@ -915,7 +934,7 @@ internal fun isEarlierJournalRow(
 ): Boolean = firstCreatedAt < secondCreatedAt ||
     (firstCreatedAt == secondCreatedAt && firstId <= secondId)
 
-private fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? =
+internal fun JournalEntryEntity.nightscoutDeleteRemoteId(): String? =
     nightscoutDeleteRemoteId(source, nsRemoteId)
 
 internal fun nightscoutDeleteRemoteId(source: String, nsRemoteId: String?): String? {
@@ -976,17 +995,9 @@ private fun JournalInsulinPresetEntity.toModel(): JournalInsulinPreset {
     )
 }
 
-private fun JournalFoodEntity.toModel(): JournalFood {
-    return JournalFood(
-        id = id,
-        displayName = displayName,
-        carbsGrams = carbsGrams,
-        proteinGrams = proteinGrams,
-        fatGrams = fatGrams,
-        absorptionMinutes = absorptionMinutes,
-        accentColor = accentColor,
-        isBuiltIn = isBuiltIn,
-        isArchived = isArchived,
-        sortOrder = sortOrder
-    )
-}
+
+/** Usage eligibility does not determine whether the saved meal contains a single food. */
+internal fun JournalEntryInput.withRememberedFoodIds(foodIds: List<Long>): JournalEntryInput = copy(
+    foodId = if (foodItemCount == 1) foodIds.singleOrNull() ?: foodId else null,
+    foodUses = emptyList()
+)

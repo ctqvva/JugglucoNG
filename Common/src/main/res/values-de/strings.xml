@@ -575,25 +575,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="import_history_sub">Glukosewerte aus einem JugglucoNG-Export oder einer CSV-Datei wiederherstellen</string>
     <string name="import_no_glucose">Diese Datei enthält keine Glukosedaten</string>
     <string name="import_unsupported_file">Nicht unterstützte Datei. Wählen Sie einen JugglucoNG-Export oder eine CSV-Datei mit Glukoseverlauf.</string>
-    <string name="clear_history_title">Verlauf löschen?</string>
-    <string name="clear_history_confirmation">Dies löscht alle Glukosewerte aus der Datenbank. Diese Aktion kann nicht rückgängig gemacht werden.</string>
     <string name="delete_reading_title">Messwert löschen?</string>
     <string name="delete_reading_confirmation">Diesen Glukosewert aus der lokalen Historie entfernen. Diese Aktion kann nicht rückgängig gemacht werden.</string>
-    <string name="clear_button">Löschen</string>
-    <string name="clear_app_data_title">App-Daten löschen?</string>
-    <string name="clear_app_data_intro">Dies entfernt:</string>
-    <string name="all_glucose_readings">• Alle Glukosewerte</string>
-    <string name="cache_files">• Cache-Dateien</string>
-    <string name="sensor_data">• Sensordaten</string>
-    <string name="all_settings">• Alle Einstellungen</string>
-    <string name="settings_preserved">Einstellungen bleiben erhalten.</string>
-    <string name="cannot_be_undone_warning">Diese Aktion kann nicht rückgängig gemacht werden.</string>
-    <string name="clear_data_button">Daten löschen</string>
-    <string name="factory_reset_title">⚠️ Werkseinstellungen?</string>
-    <string name="factory_reset_intro">Dies ENTFERNT ALLES:</string>
-    <string name="factory_reset_outcome">Die App wird in den ersten Ausführungszustand zurückgesetzt.</string>
-    <string name="cannot_be_undone_critical">DIES KANN NICHT RÜCKGÄNGIG GEMACHT WERDEN!</string>
-    <string name="reset_everything_button">ALLES ZURÜCKSETZEN</string>
     <string name="alert_sound">Alarmton</string>
     <string name="vibrate_only">Nur Vibrieren</string>
     <string name="sound_vibrate">Ton &amp; Vibrieren</string>
@@ -685,9 +668,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="settings_import_successful">Einstellungen importiert. Neustart…</string>
     <string name="danger_zone">Gefahrenzone</string>
     <string name="clear_history">Verlauf löschen</string>
-    <string name="clear_history_desc_short">Alle Glukosewerte entfernen</string>
-    <string name="clear_app_data">App-Daten löschen</string>
-    <string name="clear_app_data_desc">Verlauf und Cache entfernen, Einstellungen behalten</string>
     <string name="factory_reset">Werkseinstellungen</string>
     <string name="factory_reset_desc">Alles entfernen, zurück zum Ausgangszustand</string>
     <string name="sibionics_setup_title">Sibionics Einrichtung</string>
@@ -882,9 +862,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="caresens_air_scan_instruction">Scannen Sie den Sensorcode auf Ihrem CareSens Air-Paket</string>
     <string name="caresens_air_setup_title">CareSens Air einrichten</string>
     <string name="chsibionics">Sibionics GS1 CN</string>
-    <string name="clean_data_confirm">App-Daten löschen?</string>
     <string name="clean_history_confirm">Verlauf löschen?</string>
-    <string name="clear_history_desc_long">Alle Glukosewerte entfernen. Kann nicht rückgängig gemacht werden.</string>
+    <string name="clear_history_desc">Messwerte, Journaleinträge oder beides entfernen</string>
+    <string name="clear_history_scope_readings">Entfernt alle Glukosewerte auf diesem Telefon und kann nicht rückgängig gemacht werden. Journal, Sensoren und Einstellungen bleiben erhalten.</string>
+    <string name="clear_history_scope_journal">Entfernt alle Journaleinträge, auch aus Nightscout, falls dorthin gesendet, und kann nicht rückgängig gemacht werden. Messwerte, Insulintypen und Einstellungen bleiben erhalten.</string>
+    <string name="clear_history_scope_both">Entfernt alle Glukosewerte und Journaleinträge, auch aus Nightscout, falls dorthin gesendet, und kann nicht rückgängig gemacht werden. Sensoren, Insulintypen und Einstellungen bleiben erhalten.</string>
+    <string name="clear_history_done">Verlauf gelöscht</string>
+    <string name="clear_history_failed">Verlauf konnte nicht gelöscht werden</string>
     <string name="confidence">Vertrauen</string>
     <string name="connecting_to_sensor">Verbindung zum Sensor wird hergestellt…</string>
     <string name="connecting_to_sensor_wait">Verbindung wird hergestellt, bitte warten.</string>
@@ -914,8 +898,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="expired">Abgelaufen</string>
     <string name="days_short">%1$d T</string>
     <string name="hours_short">%1$d h</string>
-    <string name="factory_reset_alert">ALLES wird entfernt. Kann nicht rückgängig gemacht werden!</string>
-    <string name="factory_reset_confirm">Werkseinstellungen?</string>
+    <string name="factory_reset_confirm">Auf Werkseinstellungen zurücksetzen?</string>
+    <string name="factory_reset_message">Löscht alle Messwerte, Journaleinträge, Sensoren und Einstellungen sowie die erteilten Berechtigungen und schließt dann die App. Glukoseüberwachung und Alarme sind aus, bis Sie wieder einen Sensor einrichten, und das kann nicht rückgängig gemacht werden.</string>
+    <string name="factory_reset_action">Alles löschen</string>
+    <string name="factory_reset_failed">App konnte nicht zurückgesetzt werden</string>
     <string name="fiasp">Fiasp</string>
     <string name="finish_setup">Fertig</string>
     <string name="forget_sensor_desc">Entfernt den Sensor aus der Liste. Nach erneutem Scannen kann er wieder erscheinen.</string>
@@ -1109,7 +1095,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Hintergrunddeckkraft: %1$d%%</string>
+    <string name="background_opacity_label">Hintergrunddeckkraft</string>
     <string name="calibrate_sensor_desc">Zum Kalibrieren einen Blutzuckerwert in %1$s eingeben.</string>
     <string name="calibrate_sensor_timing_note">Vermeide eine Kalibrierung innerhalb von 2 Stunden nach Mahlzeiten oder Insulin.</string>
     <string name="calibration_with_mode">Kalibrierung (%1$s)</string>
@@ -1168,7 +1154,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="calibrations_deleted_count">%1$d Kalibrierungen gelöscht</string>
     <string name="calibrations_will_be_removed_count">%1$d Kalibrierungen werden entfernt</string>
     <string name="connection_number">Verbindung %1$d</string>
-    <string name="corner_radius_dp">Eckenradius: %1$d dp</string>
+    <string name="corner_radius_label">Eckenradius</string>
     <string name="custom_sound_prefix">Benutzerdefinierter Ton: %1$s</string>
     <string name="delete_calibrations_count">%1$d Kalibrierungen löschen</string>
     <string name="disabled_calibrations_cleared">%1$d deaktivierte Kalibrierungen gelöscht</string>
@@ -1177,7 +1163,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Ende: %1$s</string>
     <string name="export_failed_with_error">Export fehlgeschlagen: %1$s</string>
-    <string name="gap_width_value">Spaltbreite: %1$s</string>
+    <string name="gap_width_label">Spaltbreite</string>
     <string name="glucose_with_unit">Glukose (%1$s)</string>
     <string name="import_failed_with_error">Import fehlgeschlagen: %1$s</string>
     <string name="import_summary">Importiert: %1$d, übersprungen: %2$d, ersetzt: %3$d</string>
@@ -1267,7 +1253,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="font_app_plex">App (IBM Plex)</string>
     <string name="font_system_sans">Serifenlose Systemschrift</string>
     <string name="font_system_google_sans">System</string>
-    <string name="size_sp">Größe: %1$d sp</string>
+    <string name="size_label">Größe</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Schriftstärke</string>
     <string name="regular">Normal</string>
     <string name="medium">Mittel</string>
@@ -1993,12 +1980,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="show_chart_collapsed_desc">Kompaktes Diagramm in der eingeklappten Ansicht</string>
     <string name="show_target_range">Zielbereich anzeigen</string>
     <string name="show_target_range_desc">Zielglukosebereich im Diagramm hervorheben</string>
-    <string name="font_size_percent">Schriftgröße: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Größe des Statusleistensymbols: %1$d%%</string>
-    <string name="arrow_size_percent">Pfeilgröße: %1$d%%</string>
-    <string name="opacity_percent">Deckkraft: %1$d%%</string>
-    <string name="text_size_percent">Textgröße: %1$d%%</string>
-    <string name="chart_size_percent">Diagrammgröße: %1$d%%</string>
+    <string name="font_size_label">Schriftgröße</string>
+    <string name="status_bar_icon_size_label">Größe des Statusleistensymbols</string>
+    <string name="arrow_size_label">Pfeilgröße</string>
+    <string name="opacity_label">Deckkraft</string>
+    <string name="text_size_label">Textgröße</string>
+    <string name="chart_size_label">Diagrammgröße</string>
     <string name="use_subtle_outline">Subtile Kontur verwenden</string>
     <string name="use_subtle_outline_desc">Feine Kantenhervorhebung um das Overlay</string>
     <string name="position_top">Oben</string>
@@ -2448,7 +2435,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="risk_low">Niedrig</string>
     <string name="risk_moderate">Mittel</string>
     <string name="risk_high">Hoch</string>
-    <string name="stats_coverage_active">CGM aktiv %1$d%%</string>
+    <string name="stats_coverage_active">Aktiv %1$d%%</string>
     <string name="stats_tight_range_chip">Eng %1$d%%</string>
     <string name="stats_tight_range">Enger Bereich</string>
     <string name="stats_tight_range_description">Zeit innerhalb %1$s — eine Stufe enger als Ihr Zielbereich, um zu verfolgen, wie nah der Tag an nicht-diabetischen Werten bleibt.</string>
@@ -2576,7 +2563,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_unused_binding_desc">%1$s ist mit deinem Konto verknüpft, wird hier aber nicht genutzt. Ist er abgelaufen, löse ihn, damit ein neuer Sensor aktiviert werden kann.</string>
     <string name="ottai_cloud_binding_checking">Konto wird geprüft…</string>
     <string name="ottai_cloud_binding_bound">Mit deinem Konto verknüpft</string>
-    <string name="ottai_cloud_binding_not_bound">Nicht mit deinem Konto verknüpft</string>
     <string name="ottai_cloud_binding_error">Konto konnte nicht geprüft werden</string>
     <string name="ottai_account_title">Ottai-Konto</string>
     <string name="ottai_saved_sensors_title">Gespeicherte Sensoren</string>
@@ -2595,10 +2581,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_state_missing_signed_out">Melde dich an, um sie abzurufen, oder importiere eine Datei.</string>
     <string name="ottai_state_partial_title">Zugangsdaten unvollständig</string>
     <string name="ottai_state_partial_body">Die Glukoseformel fehlt. Ruf sie erneut ab oder importiere sie.</string>
-    <string name="ottai_v3_needs_nearby">Wähle diesen Sensor in der Liste der gefundenen Sensoren: Seine Zugangsdaten werden per Bluetooth geprüft.</string>
     <string name="ottai_fetch_failed">Die Zugangsdaten dieses Sensors konnten nicht abgerufen werden.</string>
+    <string name="ottai_server_unreachable">Ottai-Server nicht erreichbar. Bitte erneut versuchen.</string>
     <string name="ottai_connect_failed">Die Verbindung konnte nicht gestartet werden. Versuche es erneut.</string>
-    <string name="ottai_offline_hint">Du kannst auch unter „Gespeicherte Sensoren“ eine Zugangsdaten-Datei importieren.</string>
     <string name="ottai_already_binding_hint">Dein Konto hat noch einen anderen Sensor gebunden. Löse ihn unter „Gespeicherte Sensoren“ und versuche es dann erneut.</string>
     <string name="ottai_ota_upgrade_required">Der Ottai-Dienst hat beim Verknüpfen dieses Sensors ein Firmwareupdate angefordert. Wiederhole die Firmwareeinrichtung oder importiere gespeicherte Zugangsdaten. Du kannst auch die offizielle Ottai-App versuchen.</string>
     <string name="ottai_retry">Erneut versuchen</string>
@@ -2986,6 +2971,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="aidex_pairing_key_deleted">Kopplungsschlüssel gelöscht</string>
     <string name="rearm_margin_label">Erholungsabstand für erneuten Alarm</string>
     <string name="rearm_min_interval_label">Mindestabstand zwischen Alarmen</string>
+    <string name="pre_low_evidence_label">IOB und Glukoseverlauf berücksichtigen</string>
+    <string name="pre_low_evidence_description">Kann Prognosewarnungen verzögern, um einen anhaltenden Abfall zu bestätigen</string>
     <string name="pre_high_iob_coverage_label">Insulindeckung</string>
     <string name="alert_feature_off">Aus</string>
     <string name="same_direction_suppression_title">Ruhezeit nach einem Trendalarm</string>
@@ -3233,6 +3220,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <!-- Settings search -->
     <string name="settings_search_hint">Einstellungen durchsuchen</string>
     <string name="settings_search_no_results">Keine Einstellung passt zu „%1$s“</string>
+    <string name="settings_search_related">Verwandte Einstellungen</string>
     <string name="settings_search_clear">Suche löschen</string>
 
     <!-- Explicit firmware field test. -->
@@ -3440,4 +3428,55 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="voice_quick_notification_desc">Sprachtaste in der Glukose-Benachrichtigung</string>
     <string name="aidex_keys_before_connect">Importiere oder fordere die Schlüssel dieses Sensors an, bevor du dich verbindest.</string>
     <string name="aidex_delete_keys_message">Gespeicherte Kopplungsschlüssel für %1$s von diesem Telefon entfernen? Exportiere sie zuerst, falls du sie später noch benötigst.</string>
+    <!-- food catalogue -->
+    <string name="food_scan_barcode">Barcode scannen</string>
+    <string name="food_recent">Zuletzt</string>
+    <string name="food_my_foods">Meine Lebensmittel</string>
+    <string name="food_common_foods">Gängige Lebensmittel</string>
+    <string name="food_reference_tables">Lebensmitteltabellen (Englisch)</string>
+    <string name="food_search_online">In Open Food Facts suchen</string>
+    <string name="food_online_empty">Nichts in Open Food Facts gefunden</string>
+    <string name="food_online_failed">Open Food Facts nicht erreichbar</string>
+    <string name="food_enter_values">Werte für „%1$s“ eingeben</string>
+    <string name="food_enter_label_values">Werte vom Etikett eingeben</string>
+    <string name="food_barcode_looking">%1$s wird gesucht…</string>
+    <string name="food_barcode_not_found">Kein Produkt mit Barcode %1$s in Open Food Facts</string>
+    <string name="food_try_again">Erneut versuchen</string>
+    <string name="food_carbs">Kohlenhydrate</string>
+    <string name="food_carbs_value">%1$s g Kohlenhydrate</string>
+    <string name="food_amount_ml">%1$s ml</string>
+    <string name="food_unit_ml">ml</string>
+    <string name="food_one_serving">1 Portion</string>
+    <string name="food_servings">Portionen</string>
+    <string name="food_weight">Gewicht</string>
+    <string name="food_volume">Menge</string>
+    <string name="food_portion_piece">Stück</string>
+    <string name="food_portion_slice">Scheibe</string>
+    <string name="food_portion_cup">Tasse</string>
+    <string name="food_portion_glass">Glas</string>
+    <string name="food_portion_tbsp">EL</string>
+    <string name="food_portion_tsp">TL</string>
+    <string name="food_portion_serving">Portion</string>
+    <string name="food_portion_package">Packung</string>
+    <string name="food_per_100g_label">In 100 g, laut Etikett</string>
+    <string name="food_sources">Quellen</string>
+    <string name="food_online_desc">Online-Suche und Barcodes</string>
+    <string name="food_file_title">Import und Export</string>
+    <string name="food_import">Importieren</string>
+    <string name="food_file_hint">Eine CSV- oder JSON-Tabelle mit den Spalten name, carbs, protein, fat und per_grams. Ohne per_grams gelten die Werte pro 100 g.</string>
+    <string name="food_import_empty">In dieser Datei wurden keine Lebensmittel gefunden. Sie braucht die Spalten name und carbs.</string>
+    <string name="food_fiber">Ballaststoffe</string>
+    <string name="food_energy">Energie</string>
+    <string name="food_kcal_value">%1$s kcal</string>
+    <string name="food_values_for">Werte gelten für</string>
+    <string name="food_serving_weight">Portionsgewicht</string>
+    <!-- /food catalogue -->
+
+    <!-- Food library management -->
+    <string name="food_delete_title">Lebensmittel löschen (%1$d)?</string>
+    <string name="food_deleted">Gelöschte Lebensmittel: %1$d</string>
+    <string name="food_manage_failed">Die Lebensmittelsammlung konnte nicht aktualisiert werden</string>
+    <string name="food_reorder">Lebensmittel umordnen</string>
+    <string name="food_move_up">Nach oben</string>
+    <string name="food_move_down">Nach unten</string>
 </resources>

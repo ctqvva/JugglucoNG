@@ -241,6 +241,20 @@ interface HistoryDao {
     @Query("DELETE FROM history_deleted_readings")
     suspend fun deleteAllDeletedReadings()
 
+    /**
+     * Tombstones every stored reading, so a re-sync from the sensor's own store cannot bring
+     * back what the user just cleared. Same rows [insertDeletedReadings] writes for one
+     * deleted reading, in a single statement.
+     */
+    @Query("""
+        INSERT OR IGNORE INTO history_deleted_readings (timestamp, sensorSerial, deletedAt)
+        SELECT timestamp, sensorSerial, :deletedAt FROM history_readings
+    """)
+    suspend fun tombstoneAllReadings(deletedAt: Long)
+
+    @Query("SELECT MAX(timestamp) FROM history_deleted_readings WHERE sensorSerial IN (:serials)")
+    suspend fun getLatestDeletedTimestampForSensors(serials: List<String>): Long?
+
     @Query("""
         DELETE FROM history_readings
         WHERE sensorSerial IN (:serials) AND timestamp = :timestamp

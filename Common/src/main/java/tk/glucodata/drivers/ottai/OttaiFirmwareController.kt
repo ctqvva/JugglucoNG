@@ -67,8 +67,9 @@ internal interface OttaiFirmwareIo {
 }
 
 /**
- * Wizard-only experiment. No RTC, lifetime, retain or ACTIVATE_CMD writes exist
- * here. Firmware and factory-parameter experiments are explicit, separate actions.
+ * Wizard-owned preparation and firmware experiment. No RTC, lifetime, retain or
+ * ACTIVATE_CMD writes exist here. Normal setup prepares the installed firmware;
+ * firmware offers and transfers belong to the separate experimental action.
  */
 internal class OttaiFirmwareController(
     private val sensorId: String,
@@ -217,9 +218,17 @@ internal class OttaiFirmwareController(
                 }
                 return
             }
+            if (prepareForSetup && mode == OttaiFirmwareMode.PREACTIVATION) {
+                // The normal Connect action uses the same installed-firmware preparation
+                // proven by the parameter-only path. An OTA judge/download is not required
+                // to bind, authenticate locally, and write the sensor's factory parameters.
+                // Saved transfers were handled above and still require explicit recovery.
+                io.log("setup_preparing_installed_firmware_without_ota")
+                prepareParameters()
+                return
+            }
             if (io.preparationPending()) {
-                if (prepareForSetup) prepareParameters()
-                else update(OttaiFirmwareStage.PREPARATION_READY)
+                update(OttaiFirmwareStage.PREPARATION_READY)
                 return
             }
             update(OttaiFirmwareStage.CHECKING)

@@ -5,12 +5,13 @@ version: 1
 
 reviews:
   enabled: true
+  sensitivity: medium
   incremental_commits: true
   check_drafts: false
   resolve_threads_when_addressed: true
   auto_approve_behavior: disabled
   auto_approve: disabled
-  ultrareview: manual
+  ultrareview: automatic
 
   custom_instructions: |
     JugglucoNG is an Android continuous glucose monitoring app,
@@ -66,12 +67,20 @@ reviews:
       - 'Common/src/main/cpp/curve/nanovg/**'
       - 'Common/schemas/**'
       - 'tools/archive/**'
-      - 'docs/test-coverage-map.md'
+      - 'docs/**'
+      - 'tools/**'
       - '**/*.so'
       - '**/*.png'
       - '**/*.webp'
       - '**/*.bak'
       - '**/*.xml'
+      - '**/*.md'
+      - '**/*.py'
+      - '**/*.js'
+      - '**/*.sh'
+      - '**/*.txt'
+      - '**/*.psv'
+      - '**/*.tsv'
 
 
   custom_rules:

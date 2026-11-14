@@ -182,6 +182,7 @@ class DashboardViewModel(
         const val SENSOR_SETUP_SKIPPED_KEY = "dashboard_sensor_setup_skipped"
         const val JOURNAL_FOOD_MACROS_KEY = "dashboard_journal_food_macros_enabled"
         const val JOURNAL_FOOD_LIBRARY_KEY = "dashboard_journal_food_library_enabled"
+        const val JOURNAL_FOOD_ONLINE_KEY = "dashboard_journal_food_online_enabled"
         const val JOURNAL_EIOB_DISPLAY_KEY = "dashboard_journal_eiob_display_enabled"
         const val JOURNAL_QUICKADD_ALWAYS_NOW_KEY = "dashboard_journal_quickadd_always_now"
         const val JOURNAL_DASHBOARD_QUICKADD_KEY = "dashboard_journal_quickadd_button"
@@ -476,6 +477,10 @@ class DashboardViewModel(
 
     private val _journalFoodLibraryEnabled = MutableStateFlow(true)
     val journalFoodLibraryEnabled = _journalFoodLibraryEnabled.asStateFlow()
+
+    /** Whether the food search offers Open Food Facts and the barcode scanner. */
+    private val _journalFoodOnlineEnabled = MutableStateFlow(true)
+    val journalFoodOnlineEnabled = _journalFoodOnlineEnabled.asStateFlow()
 
     private val _journalEiobDisplayEnabled = MutableStateFlow(true)
     val journalEiobDisplayEnabled = _journalEiobDisplayEnabled.asStateFlow()
@@ -879,6 +884,7 @@ class DashboardViewModel(
             )
         _journalFoodMacrosEnabled.value = prefs.getBoolean(JOURNAL_FOOD_MACROS_KEY, false)
         _journalFoodLibraryEnabled.value = prefs.getBoolean(JOURNAL_FOOD_LIBRARY_KEY, true)
+        _journalFoodOnlineEnabled.value = prefs.getBoolean(JOURNAL_FOOD_ONLINE_KEY, true)
         _journalEiobDisplayEnabled.value = prefs.getBoolean(JOURNAL_EIOB_DISPLAY_KEY, true)
         _journalQuickAddAlwaysNow.value = prefs.getBoolean(JOURNAL_QUICKADD_ALWAYS_NOW_KEY, false)
         _journalDashboardQuickAddButton.value = prefs.getBoolean(JOURNAL_DASHBOARD_QUICKADD_KEY, false)
@@ -1865,6 +1871,13 @@ class DashboardViewModel(
         _journalFoodLibraryEnabled.value = enabled
     }
 
+    fun setJournalFoodOnlineEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(JOURNAL_FOOD_ONLINE_KEY, enabled).apply()
+        _journalFoodOnlineEnabled.value = enabled
+    }
+
     fun setJournalEiobDisplayEnabled(enabled: Boolean) {
         val context = tk.glucodata.Applic.app
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
@@ -2177,9 +2190,31 @@ class DashboardViewModel(
         }
     }
 
+    fun keepJournalFood(food: tk.glucodata.data.food.FoodItem, onSaved: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                journalRepository.keepFood(food)
+                onSaved(true)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                tk.glucodata.Log.stack("FoodLibrary", "save", failure)
+                onSaved(false)
+            }
+        }
+    }
+
     fun saveJournalFood(input: JournalFoodInput) {
         viewModelScope.launch {
             journalRepository.upsertFood(input)
+        }
+    }
+
+    /** Adds [foods] to the library; [onDone] gets how many were new and how many replaced a food. */
+    fun importJournalFoods(foods: List<JournalFoodInput>, onDone: (added: Int, replaced: Int) -> Unit) {
+        viewModelScope.launch {
+            val (added, replaced) = journalRepository.importFoods(foods)
+            onDone(added, replaced)
         }
     }
 
@@ -2187,6 +2222,31 @@ class DashboardViewModel(
         viewModelScope.launch {
             journalRepository.deleteFood(foodId)
         }
+    }
+
+    fun deleteJournalFoods(ids: Set<Long>, onDone: (Result<tk.glucodata.data.food.DeletedFoods>) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.deleteFoods(ids) }) }
+    }
+
+    fun undoDeleteJournalFoods(deleted: tk.glucodata.data.food.DeletedFoods, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.undoDeleteFoods(deleted) }.isSuccess) }
+    }
+
+    fun setJournalFoodsArchived(ids: Set<Long>, archived: Boolean, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.setFoodsArchived(ids, archived) }.isSuccess) }
+    }
+
+    fun moveJournalFoodsBefore(ids: Set<Long>, beforeId: Long?, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch { onDone(foodLibraryAction { journalRepository.moveFoodsBefore(ids, beforeId) }.isSuccess) }
+    }
+
+    private suspend fun <T> foodLibraryAction(block: suspend () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        tk.glucodata.Log.stack("FoodLibrary", "manage", failure)
+        Result.failure(failure)
     }
 
     // Floating Glucose Logic

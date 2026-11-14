@@ -43,6 +43,57 @@ class CloneJournalSnapshotPolicyTests {
     }
 
     @Test
+    fun aSnapshotWithinTheCapCarriesEveryTombstone() {
+        val tombstones = (1..256).toList()
+
+        assertEquals(tombstones, OutboundApiJournalSnapshot.cloneJournalTombstonesForSnapshot(tombstones, 0))
+        assertEquals(tombstones, OutboundApiJournalSnapshot.cloneJournalTombstonesForSnapshot(tombstones, 7))
+    }
+
+    @Test
+    fun snapshotsOfAClearedJournalStayWithinTheCapAndKeepTheNewestDeletions() {
+        // 700 deletions at once, as after clearing a long journal; larger numbers are newer.
+        val tombstones = (1..700).toList()
+
+        repeat(12) { rotation ->
+            val sent = OutboundApiJournalSnapshot.cloneJournalTombstonesForSnapshot(tombstones, rotation)
+
+            assertTrue("a receiver rejects more than 256", sent.size <= 256)
+            assertEquals("oldest first, like the list it came from", sent.sorted(), sent)
+            assertTrue(
+                "the newest deletions go in every snapshot",
+                sent.containsAll(((700 - 191)..700).toList()),
+            )
+        }
+    }
+
+    @Test
+    fun everyTombstoneOfAClearedJournalIsSentWithinAFewSnapshots() {
+        val tombstones = (1..700).toList()
+
+        val seen = HashSet<Int>()
+        var snapshots = 0
+        while (seen.size < tombstones.size && snapshots < 100) {
+            seen += OutboundApiJournalSnapshot.cloneJournalTombstonesForSnapshot(tombstones, snapshots)
+            snapshots++
+        }
+
+        assertEquals(tombstones.toSet(), seen)
+        // 508 older ones in slices of 64.
+        assertTrue("took $snapshots snapshots", snapshots <= 8)
+    }
+
+    @Test
+    fun tombstoneRotationHandlesAnyCounterValue() {
+        val tombstones = (1..300).toList()
+
+        listOf(0, 1, -1, Int.MAX_VALUE, Int.MIN_VALUE).forEach { rotation ->
+            val sent = OutboundApiJournalSnapshot.cloneJournalTombstonesForSnapshot(tombstones, rotation)
+            assertTrue(sent.size in 192..256)
+        }
+    }
+
+    @Test
     fun cloneIdentityUsesTheImmutableLocalRowAfterOtherIdentifiersChange() {
         assertEquals(
             "journal:42",

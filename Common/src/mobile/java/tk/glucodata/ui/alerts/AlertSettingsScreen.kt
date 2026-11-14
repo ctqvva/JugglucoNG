@@ -65,6 +65,9 @@ import tk.glucodata.ui.components.RevealSettingsSearchAnchor
 import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StyledSwitch
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
+import tk.glucodata.ui.components.SliderHeaderStyle
 import tk.glucodata.ui.components.CardPosition as SettingsItemPosition
 import tk.glucodata.ui.theme.displayLargeExpressive
 import tk.glucodata.ui.theme.labelLargeExpressive
@@ -208,7 +211,8 @@ fun AlertSettingsScreen(
             listState,
             setOf(
                 SettingsSearchAnchors.HIGH_ALERTS, SettingsSearchAnchors.LOW_ALERTS,
-                SettingsSearchAnchors.PREDICTIVE_ALERTS, SettingsSearchAnchors.OTHER_ALERTS
+                SettingsSearchAnchors.PREDICTIVE_ALERTS, SettingsSearchAnchors.OTHER_ALERTS,
+                SettingsSearchAnchors.forRow(R.string.preemptive_snooze),
             )
         )
         LazyColumn(
@@ -552,6 +556,7 @@ fun AlertSettingsScreen(
                 Spacer(Modifier.height(24.dp))
                 SettingsItem(
                     title = stringResource(R.string.preemptive_snooze),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.preemptive_snooze),
                     subtitle = stringResource(R.string.preemptive_snooze_desc),
                     icon = Icons.Default.Snooze,
                     iconTint = MaterialTheme.colorScheme.primary,
@@ -1131,7 +1136,7 @@ private fun AlertCard(
  */
 
 @Composable
-private fun AlertSettingsExpanded(
+internal fun AlertSettingsExpanded(
     config: AlertConfig,
     isMmol: Boolean,
     onConfigChange: (AlertConfig) -> Unit,
@@ -1252,6 +1257,14 @@ private fun AlertSettingsExpanded(
                         stepSize = 5,
                         onValueChange = { v -> onConfigChange(config.copy(rearmMinIntervalMinutes = v)) },
                         modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+                if (config.type == AlertType.PRE_LOW) {
+                    ClickableToggleRow(
+                        title = stringResource(R.string.pre_low_evidence_label),
+                        subtitle = stringResource(R.string.pre_low_evidence_description),
+                        checked = config.preLowEvidenceEnabled,
+                        onCheckedChange = { onConfigChange(config.copy(preLowEvidenceEnabled = it)) }
                     )
                 }
                 // PRE_HIGH only: insulin makes a predicted LOW more likely, so PRE_LOW
@@ -1496,29 +1509,13 @@ private fun ThresholdSlider(
             sliderValue = value
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                style = if (prominent) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                // A long (localised) label must wrap, not push the value out
-                // of the row.
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            )
-            Text(
-                // Use LOCAL sliderValue for real-time updates
-                formatThreshold(sliderValue, isMmol),
-                style = if (prominent) MaterialTheme.typography.headlineSmallEmphasized else MaterialTheme.typography.bodyMediumEmphasized,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        
+        SliderHeader(
+            label = label,
+            // Use LOCAL sliderValue for real-time updates
+            value = formatThreshold(sliderValue, isMmol),
+            style = if (prominent) SliderHeaderStyle.Glucose else SliderHeaderStyle.Compact
+        )
+        Spacer(Modifier.height(SliderHeaderGap))
         Slider(
             value = sliderValue,
             onValueChange = { sliderValue = it },
@@ -1568,26 +1565,12 @@ internal fun DurationSlider(
         // Calculate display value based on current slider position, rounded to step
         val displayValue = (kotlin.math.round(sliderValue / stepSize) * stepSize).toInt()
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                label,
-                style = MaterialTheme.typography.bodyMedium,
-                // A long (localised) label must wrap, not push the value out
-                // of the row.
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            )
-            Text(
-                valueText(displayValue),
-                style = MaterialTheme.typography.bodyMediumEmphasized,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        
+        SliderHeader(
+            label = label,
+            value = valueText(displayValue),
+            style = SliderHeaderStyle.Compact
+        )
+        Spacer(Modifier.height(SliderHeaderGap))
         Slider(
             value = sliderValue,
             onValueChange = { sliderValue = it },

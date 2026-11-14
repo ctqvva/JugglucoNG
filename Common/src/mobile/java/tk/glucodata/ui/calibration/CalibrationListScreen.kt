@@ -1,10 +1,7 @@
 package tk.glucodata.ui.calibration
 
 import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.activity.compose.BackHandler
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.Block
 import tk.glucodata.ui.components.IconButtonTooltip
 import android.content.Context
@@ -1320,23 +1317,8 @@ private fun CalibrationItemContent(
                 .defaultMinSize(minHeight = 48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Selection checkbox with standard M3 scale animation
-            AnimatedVisibility(
-                visible = isSelectionMode,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut()
-            ) {
-                Row {
-                    Icon(
-                        imageVector = if (isSelected) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
-                        contentDescription = null,
-                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
-            }
-            
+            tk.glucodata.ui.components.SelectionIndicator(isSelectionMode, isSelected)
+
             // Values & Info
             Column(modifier = Modifier.weight(1f).graphicsLayer { alpha = cardAlpha }) {
                 // Primary: Sensor → Calibrated
@@ -1484,32 +1466,12 @@ private fun SelectionModeToolbar(
     onDisable: () -> Unit,
     onEnable: () -> Unit
 ) {
-    HorizontalFloatingToolbar(
-        expanded = true,
-        leadingContent = {
-            IconButtonTooltip(stringResource(R.string.cancel)) {
-                IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
-                }
-            }
-            Text(
-                text = stringResource(R.string.selected_count, selectedCount),
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier
-                    .align(Alignment.CenterVertically)
-                    .padding(end = 8.dp)
-            )
-        }
+    tk.glucodata.ui.components.SelectionToolbar(
+        selectedCount = selectedCount,
+        allSelected = allSelected,
+        onCancel = onCancel,
+        onToggleSelectAll = onToggleSelectAll
     ) {
-        val selectAllLabel = stringResource(if (allSelected) R.string.deselect_all else R.string.select_all)
-        IconButtonTooltip(selectAllLabel) {
-            IconButton(onClick = onToggleSelectAll, shapes = IconButtonDefaults.shapes()) {
-                Icon(
-                    imageVector = if (allSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
-                    contentDescription = selectAllLabel
-                )
-            }
-        }
         IconButtonTooltip(stringResource(R.string.disable)) {
             IconButton(onClick = onDisable, shapes = IconButtonDefaults.shapes()) {
                 Icon(Icons.Default.Block, contentDescription = stringResource(R.string.disable))

@@ -5,6 +5,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.SettingsSearchAnchors
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.content.Context
@@ -71,6 +72,8 @@ import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StableModalBottomSheet
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
 import tk.glucodata.ui.components.SettingsSwitchItem
 import java.text.DateFormat
 import java.util.Calendar
@@ -143,6 +146,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                 ) {
                     SettingsSwitchItem(
                         title = stringResource(R.string.insulin_pen_background_title),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.insulin_pen_background_title),
                         subtitle = stringResource(R.string.insulin_pen_background_desc),
                         checked = backgroundImportEnabled,
                         onCheckedChange = { InsulinPenManager.setBackgroundImportEnabled(context, it) },
@@ -165,22 +169,15 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                         shape = cardShape(CardPosition.BOTTOM),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    stringResource(R.string.insulin_pen_notification_duration),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                Text(
-                                    penImportNotificationDurationLabel(pendingDurationMinutes),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(SliderHeaderGap),
+                        ) {
+                            SliderHeader(
+                                label = stringResource(R.string.insulin_pen_notification_duration),
+                                value = penImportNotificationDurationLabel(pendingDurationMinutes),
+                                enabled = enabled && backgroundImportEnabled,
+                            )
                             Slider(
                                 value = notificationDurationIndex,
                                 onValueChange = { value ->

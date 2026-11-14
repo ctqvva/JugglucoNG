@@ -161,7 +161,7 @@ static String getFriendlyVoiceName(Voice voice) {
             case "tpc": return "Voice F";
             case "tpd": return "Voice G";
             case "tpf": return "Voice H";
-            default:    return "Voice (" + id.toUpperCase() + ")";
+            default:    return "Voice (" + id.toUpperCase(java.util.Locale.ROOT) + ")";
         }
     }
     return systemName;

@@ -1,10 +1,15 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -20,7 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
 /**
@@ -37,9 +41,9 @@ import androidx.compose.ui.unit.dp
  * [contentKey] when one sheet instance swaps between layouts with fundamentally different
  * intrinsic heights.
  *
- * A sheet whose content animates its height passes the same [contentHeight] to
- * [Modifier.animateSheetContentHeight]; otherwise the first frame after a [contentKey] change
- * still shows the old, viewport-tall height and would lock the shorter layout at full height.
+ * Forms that grow and shrink opt into [adaptiveHeight]. Their top inset is reserved outside the
+ * moving surface, keeping the viewport stable without a height lock. Keyboard padding and tall
+ * search results can then disappear without leaving a permanent minimum height behind.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,14 +62,15 @@ fun StableModalBottomSheet(
     contentWindowInsets: @Composable () -> WindowInsets = { BottomSheetDefaults.windowInsets },
     properties: ModalBottomSheetProperties = ModalBottomSheetProperties(),
     contentKey: Any? = Unit,
-    contentHeight: SheetContentHeightAnimation? = null,
+    adaptiveHeight: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val heightPolicy = remember(sheetState, contentKey) { StableSheetHeightPolicy() }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        modifier = modifier.stabilizeViewportHeight(heightPolicy, contentHeight),
+        modifier = if (adaptiveHeight) modifier.reserveSheetTopInset()
+            else modifier.stabilizeViewportHeight(heightPolicy),
         sheetState = sheetState,
         sheetMaxWidth = sheetMaxWidth,
         sheetGesturesEnabled = sheetGesturesEnabled,
@@ -90,50 +95,36 @@ internal class StableSheetHeightPolicy {
 
     /**
      * A short sheet can fill the reduced viewport while the keyboard is open. Do not mistake that
-     * temporary measurement for content that genuinely needs the full viewport. The same goes for
-     * a frame of a height animation: only the height it settles on says what the content needs.
+     * temporary measurement for content that genuinely needs the full viewport.
      */
     fun onMeasured(
         measuredHeight: Int,
         maxHeight: Int,
         hasBoundedHeight: Boolean,
         isImeVisible: Boolean,
-        isContentHeightSettled: Boolean = true,
     ) {
-        if (hasBoundedHeight && !isImeVisible && isContentHeightSettled && measuredHeight >= maxHeight) {
+        if (hasBoundedHeight && !isImeVisible && measuredHeight >= maxHeight) {
             isViewportHeightLocked = true
         }
     }
 }
 
-/**
- * Records a content height animation's shown and target heights within one measure pass, so the
- * sheet can tell an in-between frame from the height the content actually needs.
- */
-class SheetContentHeightAnimation {
-    internal var shownHeight: Int = 0
-    internal var targetHeight: Int = 0
-
-    internal val isSettled: Boolean
-        get() = shownHeight == targetHeight
+/** Read in the dialog window, before Material consumes top insets based on the sheet's offset. */
+private fun Modifier.reserveSheetTopInset(): Modifier = composed {
+    windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
 }
 
-/** [animateContentSize] for a sheet's content, reporting its progress to [animation]. */
-fun Modifier.animateSheetContentHeight(
-    animation: SheetContentHeightAnimation,
-    animationSpec: FiniteAnimationSpec<IntSize>,
-): Modifier =
-    layout { measurable, constraints ->
-        val placeable = measurable.measure(constraints)
-        animation.shownHeight = placeable.height
-        layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
-    }
-        .animateContentSize(animationSpec = animationSpec)
-        .layout { measurable, constraints ->
-            val placeable = measurable.measure(constraints)
-            animation.targetHeight = placeable.height
-            layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
-        }
+/**
+ * Animate changes to a form, but let the IME's own inset animation resize its viewport directly.
+ * Keeping a second size animation during IME dismissal briefly subtracts the keyboard's padding
+ * before the form catches up, pulling the sheet down and back up. Removing the modifier while
+ * the IME is present also initializes it at the new viewport when the keyboard finishes closing.
+ */
+fun Modifier.animateSheetContentSize(isImeVisible: Boolean): Modifier =
+    if (isImeVisible) this else animateContentSize(animationSpec = spring(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = 380f
+    ))
 
 /**
  * The sheet is a window of its own, and the keyboard's inset has to come from that window: it is
@@ -144,7 +135,6 @@ fun Modifier.animateSheetContentHeight(
  */
 private fun Modifier.stabilizeViewportHeight(
     policy: StableSheetHeightPolicy,
-    contentHeight: SheetContentHeightAnimation?,
 ): Modifier = composed {
     val ime = WindowInsets.ime
     layout { measurable, constraints ->
@@ -163,7 +153,6 @@ private fun Modifier.stabilizeViewportHeight(
             maxHeight = constraints.maxHeight,
             hasBoundedHeight = constraints.hasBoundedHeight,
             isImeVisible = ime.getBottom(this) > 0,
-            isContentHeightSettled = contentHeight?.isSettled ?: true,
         )
 
         layout(placeable.width, placeable.height) {

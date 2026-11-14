@@ -45,6 +45,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -133,6 +134,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -150,6 +153,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import tk.glucodata.ui.components.TabScreenDefaults
 import tk.glucodata.ui.components.TabScreenHeader
 import tk.glucodata.R
@@ -162,6 +166,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.text.NumberFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.PI
@@ -178,6 +183,8 @@ private const val PrefKeyReportPdfStyle = "stats_report_pdf_style"
 
 /** Below this a calendar grid is just a row of squares — the daily view already covers it. */
 private const val MIN_CALENDAR_DAYS = 3
+
+private val OverviewRingStroke = 15.dp
 
 internal enum class TirBand {
     VERY_LOW,
@@ -1316,13 +1323,14 @@ private fun EmptyStateCard(title: String, subtitle: String) {
 }
 
 @Composable
-private fun GlycemicOverviewCard(
+internal fun GlycemicOverviewCard(
     summary: StatsSummary,
     targets: StatsTargets,
     unit: GlucoseUnit,
     selectedRange: StatsTimeRange?,
     selectedBand: TirBand?,
-    onBandSelected: (TirBand?) -> Unit
+    onBandSelected: (TirBand?) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val rows = listOf(
         TirRowDescriptor(
@@ -1363,7 +1371,7 @@ private fun GlycemicOverviewCard(
     )
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(
                 indication = null,
@@ -1397,16 +1405,20 @@ private fun GlycemicOverviewCard(
                 // What the widest row actually needs at the current text size: label, range
                 // and percent columns, the two 8dp gaps and the row's 8dp start padding.
                 val widestLabel = rememberTirLabelWidth(rows.map { it.label }, compactText)
-                val minRowsWidth = maxOf(
-                    180.dp,
-                    widestLabel + columns.range + columns.percent + 8.dp * 3
-                )
+                val fullRowsWidth = maxOf(180.dp, widestLabel + columns.range + columns.percent + 8.dp * 3)
                 val ringSpacing = 8.dp
-                val ringMin = 88.dp
+                val ringMin = 104.dp
                 val ringMax = 176.dp
+                val wrapLabels = maxWidth < ringMin + ringSpacing + fullRowsWidth
+                val minimumLabelWidth = rememberTirLabelWidth(
+                    rows.map { it.label }, compactText, twoLines = true
+                )
+                val minRowsWidth = if (wrapLabels) {
+                    maxOf(180.dp, minimumLabelWidth + columns.range + columns.percent + 8.dp * 3)
+                } else fullRowsWidth
                 val isCompact = maxWidth < ringMin + ringSpacing + minRowsWidth
                 val ringSize = if (isCompact) {
-                    (maxWidth * 0.55f).coerceIn(118.dp, 206.dp)
+                    (maxWidth * 0.34f).coerceIn(128.dp, 160.dp).coerceAtMost(maxWidth)
                 } else {
                     (maxWidth * 0.34f)
                         .coerceIn(ringMin, ringMax)
@@ -1427,6 +1439,7 @@ private fun GlycemicOverviewCard(
                                 selected = selectedBand == row.band,
                                 compactText = compactText,
                                 columns = columns,
+                                wrapLabel = wrapLabels,
                                 onClick = {
                                     onBandSelected(if (selectedBand == row.band) null else row.band)
                                 }
@@ -1446,7 +1459,7 @@ private fun GlycemicOverviewCard(
                             comparison = summary.comparison,
                             selectedBand = selectedBand,
                             onBandSelected = onBandSelected,
-                            modifier = Modifier.size(ringSize)
+                            modifier = Modifier.width(ringSize)
                         )
                         tirRows()
                     }
@@ -1461,7 +1474,7 @@ private fun GlycemicOverviewCard(
                             comparison = summary.comparison,
                             selectedBand = selectedBand,
                             onBandSelected = onBandSelected,
-                            modifier = Modifier.size(ringSize)
+                            modifier = Modifier.width(ringSize)
                         )
                         Box(modifier = Modifier.weight(1f)) {
                             tirRows()
@@ -1474,8 +1487,30 @@ private fun GlycemicOverviewCard(
     }
 }
 
+/** Keep the original center typography unless this particular circle cannot contain it. */
 @Composable
-private fun OverviewRing(
+private fun ringTextStyles(diameter: Dp, value: String): Pair<TextStyle, TextStyle> {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val label = stringResource(R.string.tir)
+    val values = listOf(MaterialTheme.typography.headlineLarge, MaterialTheme.typography.headlineMedium,
+        MaterialTheme.typography.headlineSmall, MaterialTheme.typography.titleLarge,
+        MaterialTheme.typography.titleMediumEmphasized)
+    val labels = listOf(MaterialTheme.typography.titleMedium, MaterialTheme.typography.labelLarge,
+        MaterialTheme.typography.labelMedium, MaterialTheme.typography.labelSmall)
+    val available = with(density) { (diameter - OverviewRingStroke * 2 - 4.dp).toPx() }
+    for (labelStyle in labels) for (valueStyle in values) {
+        val number = measurer.measure(value, valueStyle.copy(fontFeatureSettings = "tnum")).size
+        val caption = measurer.measure(label, labelStyle).size
+        val w = maxOf(number.width, caption.width).toFloat()
+        val h = (number.height + caption.height).toFloat()
+        if (kotlin.math.sqrt(w * w + h * h) <= available) return valueStyle to labelStyle
+    }
+    return values.last() to labels.last()
+}
+
+@Composable
+internal fun OverviewRing(
     tir: TimeInRangeBreakdown,
     comparison: StatsComparison?,
     selectedBand: TirBand?,
@@ -1505,125 +1540,116 @@ private fun OverviewRing(
         Triple(TirBand.VERY_HIGH, veryHigh, TirVeryHighColor)
     )
 
-    Box(
-        modifier = modifier.pointerInput(veryLow, low, inRange, high, veryHigh, selectedBand) {
-            detectTapGestures { tapOffset ->
-                val center = Offset(size.width / 2f, size.height / 2f)
-                val dx = tapOffset.x - center.x
-                val dy = tapOffset.y - center.y
-                val distance = kotlin.math.sqrt(dx * dx + dy * dy)
-                val outerRadius = minOf(size.width, size.height) / 2f
-                val strokePx = 15.dp.toPx()
-                val innerRadius = (outerRadius - strokePx * 1.35f).coerceAtLeast(0f)
-                if (distance < innerRadius || distance > outerRadius + strokePx * 0.35f) {
-                    onBandSelected(null)
-                    return@detectTapGestures
-                }
-
-                val angle = ((atan2(dy, dx) * 180f / PI.toFloat()) + 450f) % 360f
-                var start = 0f
-                for ((band, percent, _) in segments) {
-                    val sweep = 360f * (percent / 100f)
-                    if (sweep > 0f && angle >= start && angle < start + sweep) {
-                        onBandSelected(if (selectedBand == band) null else band)
+    val label = stringResource(R.string.tir)
+    val formattedPercent = String.format(Locale.getDefault(), "%.0f%%", inRange)
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        BoxWithConstraints(
+            modifier = Modifier.aspectRatio(1f).semantics { contentDescription = "$formattedPercent $label" }.pointerInput(veryLow, low, inRange, high, veryHigh, selectedBand) {
+                detectTapGestures { tapOffset ->
+                    val center = Offset(size.width / 2f, size.height / 2f)
+                    val dx = tapOffset.x - center.x
+                    val dy = tapOffset.y - center.y
+                    val distance = kotlin.math.sqrt(dx * dx + dy * dy)
+                    val outerRadius = minOf(size.width, size.height) / 2f
+                    val strokePx = OverviewRingStroke.toPx()
+                    val innerRadius = (outerRadius - strokePx * 1.35f).coerceAtLeast(0f)
+                    if (distance < innerRadius || distance > outerRadius + strokePx * 0.35f) {
+                        onBandSelected(null)
                         return@detectTapGestures
                     }
-                    start += sweep
-                }
-                onBandSelected(null)
-            }
-        },
-        contentAlignment = Alignment.Center
-    ) {
-        val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val stroke = 15.dp.toPx()
-            val diameter = size.minDimension - stroke
-            drawCircle(
-                color = trackColor,
-                radius = diameter / 2f,
-                center = center,
-                style = Stroke(width = stroke)
-            )
 
-            var startAngle = -90f
-            segments.forEach { (band, percent, color) ->
-                val sweepAngle = 360f * (percent / 100f)
-                if (sweepAngle > 0.8f) {
-                    val gap = 1.2f
-                    val drawColor = if (selectedBand == null || selectedBand == band) {
-                        color
-                    } else {
-                        color.copy(alpha = 0.35f)
+                    val angle = ((atan2(dy, dx) * 180f / PI.toFloat()) + 450f) % 360f
+                    var start = 0f
+                    for ((band, percent, _) in segments) {
+                        val sweep = 360f * (percent / 100f)
+                        if (sweep > 0f && angle >= start && angle < start + sweep) {
+                            onBandSelected(if (selectedBand == band) null else band)
+                            return@detectTapGestures
+                        }
+                        start += sweep
                     }
-                    val drawStroke = if (selectedBand == band) stroke + 2.dp.toPx() else stroke
-                    drawArc(
-                        color = drawColor,
-                        startAngle = startAngle + (gap / 2f),
-                        sweepAngle = (sweepAngle - gap).coerceAtLeast(0.2f),
-                        useCenter = false,
-                        topLeft = Offset(center.x - diameter / 2f, center.y - diameter / 2f),
-                        size = Size(diameter, diameter),
-                        style = Stroke(width = drawStroke, cap = StrokeCap.Butt)
-                    )
+                    onBandSelected(null)
                 }
-                startAngle += sweepAngle
+            },
+            contentAlignment = Alignment.Center
+        ) {
+            val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val stroke = OverviewRingStroke.toPx()
+                val diameter = size.minDimension - stroke
+                drawCircle(
+                    color = trackColor,
+                    radius = diameter / 2f,
+                    center = center,
+                    style = Stroke(width = stroke)
+                )
+
+                var startAngle = -90f
+                segments.forEach { (band, percent, color) ->
+                    val sweepAngle = 360f * (percent / 100f)
+                    if (sweepAngle > 0.8f) {
+                        val gap = 1.2f
+                        val drawColor = if (selectedBand == null || selectedBand == band) {
+                            color
+                        } else {
+                            color.copy(alpha = 0.35f)
+                        }
+                        val drawStroke = if (selectedBand == band) stroke + 2.dp.toPx() else stroke
+                        drawArc(
+                            color = drawColor,
+                            startAngle = startAngle + (gap / 2f),
+                            sweepAngle = (sweepAngle - gap).coerceAtLeast(0.2f),
+                            useCenter = false,
+                            topLeft = Offset(center.x - diameter / 2f, center.y - diameter / 2f),
+                            size = Size(diameter, diameter),
+                            style = Stroke(width = drawStroke, cap = StrokeCap.Butt)
+                        )
+                    }
+                    startAngle += sweepAngle
+                }
+            }
+
+            val (valueStyle, labelStyle) = ringTextStyles(minOf(maxWidth, maxHeight), formattedPercent)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = buildAnnotatedString {
+                        append(formattedPercent)
+                        val number = NumberFormat.getIntegerInstance().format(inRange.roundToInt())
+                        val start = formattedPercent.indexOf(number)
+                        if (start >= 0) addStyle(SpanStyle(color = inRangeTone, fontFeatureSettings = "tnum"), start, start + number.length)
+                    },
+                    style = valueStyle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+                Text(label, style = labelStyle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
         }
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(
-                        style = SpanStyle(
-                            color = inRangeTone,
-                            fontFeatureSettings = "tnum" // Keeps digits monospaced so they don't jitter during animation
-                        )
-                    ) {
-                        // Rounds to integer and formats based on user locale
-                        append(String.format(Locale.getDefault(), "%.0f", inRange))
-                    }
-                    withStyle(
-                        style = SpanStyle(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    ) {
-                        append("%")
-                    }
-                },
-                style = MaterialTheme.typography.headlineLarge
-            )
-            Text(
-                text = stringResource(R.string.tir),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            // The change against the previous period belongs on the number it describes,
-            // not on a line of its own below the card.
-            comparison?.takeIf { abs(it.inRangeDelta) >= 1f }?.let { delta ->
-                val rising = delta.inRangeDelta >= 0f
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(1.dp)
-                ) {
-                    Icon(
-                        imageVector = if (rising) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                        contentDescription = null,
-                        tint = if (rising) TirInRangeColor else TirHighColor,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = abs(delta.inRangeDelta).roundToInt().toString(),
-                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                        color = if (rising) TirInRangeColor else TirHighColor,
-                        maxLines = 1
-                    )
-                }
+        // The change remains next to the headline without competing for its circular opening.
+        comparison?.takeIf { abs(it.inRangeDelta) >= 1f }?.let { delta ->
+            val rising = delta.inRangeDelta >= 0f
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                Icon(
+                    imageVector = if (rising) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = if (rising) TirInRangeColor else TirHighColor,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = NumberFormat.getIntegerInstance().format(abs(delta.inRangeDelta).roundToInt()),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                    color = if (rising) TirInRangeColor else TirHighColor,
+                    maxLines = 1
+                )
             }
         }
     }
 }
-
 internal data class TirColumnWidths(val range: Dp, val percent: Dp)
 
 @Composable
@@ -1646,13 +1672,29 @@ private fun tirLabelStyle(compactText: Boolean) =
     if (compactText) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium
 
 @Composable
-private fun rememberTirLabelWidth(labels: List<String>, compactText: Boolean): Dp {
+private fun rememberTirLabelWidth(labels: List<String>, compactText: Boolean, twoLines: Boolean = false): Dp {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val style = tirLabelStyle(compactText)
-    return remember(labels, density, style) {
+    return remember(labels, density, style, twoLines) {
         labels.maxOfOrNull { label ->
-            with(density) { measurer.measure(label, style, maxLines = 1, softWrap = false).size.width.toDp() }
+            val full = measurer.measure(label, style, maxLines = 1, softWrap = false)
+            var width = full.size.width
+            if (twoLines) {
+                // Respect each script's word boundaries, and measure the width needed
+                // for two complete lines instead of making every translation one line.
+                var low = kotlin.math.ceil(full.multiParagraph.intrinsics.minIntrinsicWidth).toInt()
+                var high = width
+                while (low < high) {
+                    val mid = (low + high) / 2
+                    val layout = measurer.measure(label, style,
+                        constraints = androidx.compose.ui.unit.Constraints(maxWidth = mid),
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (layout.isLineEllipsized(layout.lineCount - 1)) low = mid + 1 else high = mid
+                }
+                width = low
+            }
+            with(density) { width.toDp() }
         } ?: 0.dp
     }
 }
@@ -1683,6 +1725,7 @@ private fun TirCompactRow(
     selected: Boolean,
     compactText: Boolean,
     columns: TirColumnWidths,
+    wrapLabel: Boolean,
     onClick: () -> Unit
 ) {
     val rangeColumnWidth = columns.range
@@ -1711,8 +1754,8 @@ private fun TirCompactRow(
             style = labelStyle,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
-            maxLines = 1,
-            softWrap = false,
+            maxLines = if (wrapLabel) 2 else 1,
+            softWrap = wrapLabel,
             overflow = TextOverflow.Ellipsis
         )
         Text(
@@ -1734,6 +1777,52 @@ private fun TirCompactRow(
             softWrap = false,
             textAlign = TextAlign.End
         )
+    }
+}
+
+@Composable
+internal fun PatternsHeader(subtitle: String, primary: String, secondary: String) {
+    AdaptiveTrailingRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp),
+        trailingContent = {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = primary,
+                    style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                        fontFeatureSettings = "tnum"
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.End,
+                    maxLines = 2
+                )
+                Text(
+                    text = secondary,
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    textAlign = TextAlign.End,
+                    maxLines = 2
+                )
+            }
+        }
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.stats_patterns),
+                style = MaterialTheme.typography.headlineSmallEmphasized
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+            )
+        }
     }
 }
 
@@ -1864,60 +1953,16 @@ private fun PatternsCard(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                val subtitle = when (selectedTab) {
+            PatternsHeader(
+                subtitle = when (selectedTab) {
                     PatternTab.AGP -> stringResource(R.string.hourly_patterns)
                     PatternTab.DAILY -> stringResource(R.string.daily_trends)
                     PatternTab.TIME_OF_DAY -> stringResource(R.string.stats_time_of_day_subtitle)
                     PatternTab.WEEKDAY -> stringResource(R.string.stats_weekday_subtitle)
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.stats_patterns),
-                        style = MaterialTheme.typography.headlineSmallEmphasized
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
-                    )
-                }
-                Column(
-                    modifier = Modifier
-                        .padding(start = 12.dp, top = 2.dp)
-                        .width(190.dp),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = headerPrimary,
-                        style = MaterialTheme.typography.titleMediumEmphasized.copy(
-                            fontFeatureSettings = "tnum"
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.End,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = headerSecondary,
-                        style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        textAlign = TextAlign.End,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+                },
+                primary = headerPrimary,
+                secondary = headerSecondary
+            )
 
             if (availableTabs.size > 1) {
                 val tabLabels = mapOf(
