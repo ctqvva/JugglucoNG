@@ -300,8 +300,13 @@ fun NotificationSettingsScreen(
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.widget_show_delta_title),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.widget_show_delta_title),
                 checked = widgetShowDelta,
-                onCheckedChange = { widgetShowDelta = it; save() },
+                onCheckedChange = {
+                    widgetShowDelta = it
+                    save()
+                    tk.glucodata.GlucoseUpdateBroadcaster.sendNow(context)
+                },
                 position = CardPosition.MIDDLE
             )
             SettingsSwitchItem(
@@ -664,6 +669,7 @@ fun FloatingGlucoseSettingsScreen(
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.display_show_delta_title),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.display_show_delta_title),
                 checked = showDelta,
                 onCheckedChange = { repository.setShowDelta(it) },
                 position = CardPosition.BOTTOM
@@ -888,8 +894,13 @@ fun AodSettingsScreen(navController: NavController) {
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.display_show_delta_title),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.display_show_delta_title),
                 checked = showDelta,
-                onCheckedChange = { showDelta = it; save() },
+                onCheckedChange = {
+                    showDelta = it
+                    save()
+                    context.sendBroadcast(Intent(AODOverlayService.ACTION_IMMEDIATE_REFRESH).setPackage(context.packageName))
+                },
                 position = CardPosition.MIDDLE
             )
             SettingsControlsCard(position = CardPosition.BOTTOM) {
