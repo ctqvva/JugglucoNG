@@ -3697,4 +3697,5 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="food_reorder">Reordenar alimento</string>
      <string name="food_move_up">Mover arriba</string>
      <string name="food_move_down">Mover abajo</string>
+    <string name="spanish">Español</string>
 </resources>

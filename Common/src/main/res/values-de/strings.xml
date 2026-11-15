@@ -3485,4 +3485,5 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="food_reorder">Lebensmittel umordnen</string>
     <string name="food_move_up">Nach oben</string>
     <string name="food_move_down">Nach unten</string>
+    <string name="spanish">Spanish</string>
 </resources>

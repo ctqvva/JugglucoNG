@@ -3462,4 +3462,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Змяніць парадак</string>
     <string name="food_move_up">Перамясціць вышэй</string>
     <string name="food_move_down">Перамясціць ніжэй</string>
+    <string name="spanish">Spanish</string>
 </resources>

@@ -3697,4 +3697,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Reorder food</string>
     <string name="food_move_up">Move up</string>
     <string name="food_move_down">Move down</string>
+    <string name="spanish">Spanish</string>
 </resources>

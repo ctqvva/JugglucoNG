@@ -3441,4 +3441,5 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="food_reorder">Ételek átrendezése</string>
     <string name="food_move_up">Mozgatás fel</string>
     <string name="food_move_down">Mozgatás le</string>
+    <string name="spanish">Spanish</string>
 </resources>
