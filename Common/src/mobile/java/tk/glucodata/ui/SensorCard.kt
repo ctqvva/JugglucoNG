@@ -78,8 +78,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.animateFloatAsState
@@ -409,18 +407,16 @@ private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable
 }
 
 /**
- * The link's signal level as one mark: the Bluetooth sign, lit from the bottom up as far as
- * the signal is strong and dim above that. No bars beside it, which read as a battery or the
- * phone's own reception. A tap puts the figure it is drawn from beside it, and that goes
- * away by itself.
+ * The link's signal level: the Bluetooth sign with three waves leaving it, as many lit as the
+ * signal is strong. Not rising bars, which read as a battery or the phone's own reception. A
+ * tap puts the figure it is drawn from beside it, and that goes away by itself.
  */
 @Composable
 private fun SensorSignalLevel(rssi: Int, color: Color, modifier: Modifier = Modifier) {
-    val lit = when {
-        rssi >= -65 -> 1f
-        rssi >= -75 -> 0.75f
-        rssi >= -85 -> 0.5f
-        else -> 0.25f
+    val waves = when {
+        rssi >= -65 -> 3
+        rssi >= -80 -> 2
+        else -> 1
     }
     val figure = stringResource(R.string.ottai_rssi_dbm, rssi)
     var showFigure by remember { mutableStateOf(false) }
@@ -430,11 +426,6 @@ private fun SensorSignalLevel(rssi: Int, color: Color, modifier: Modifier = Modi
             showFigure = false
         }
     }
-    val litFraction by animateFloatAsState(
-        targetValue = lit,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "sensorSignalLit",
-    )
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
@@ -458,26 +449,32 @@ private fun SensorSignalLevel(rssi: Int, color: Color, modifier: Modifier = Modi
                 modifier = Modifier.padding(end = 4.dp),
             )
         }
-        Box {
-            Icon(
-                imageVector = Icons.Default.Bluetooth,
-                contentDescription = null,
-                tint = color.copy(alpha = 0.3f),
-                modifier = Modifier.size(20.dp),
+        Icon(
+            imageVector = Icons.Default.Bluetooth,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(20.dp),
+        )
+        // Waves leaving the sign, nearest first: as many lit as the signal is strong.
+        androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 12.dp, height = 20.dp)) {
+            val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
+            val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = 1.5.dp.toPx(),
+                cap = androidx.compose.ui.graphics.StrokeCap.Round,
             )
-            Icon(
-                imageVector = Icons.Default.Bluetooth,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier
-                    .size(20.dp)
-                    .drawWithContent {
-                        // The sign's own glyph spans the middle five sixths of its box.
-                        val inset = size.height / 12f
-                        val top = inset + (size.height - inset * 2) * (1f - litFraction)
-                        clipRect(top = top) { this@drawWithContent.drawContent() }
-                    },
-            )
+            val centerX = if (rtl) size.width + 2.dp.toPx() else -2.dp.toPx()
+            for (wave in 0 until 3) {
+                val radius = (5 + wave * 4).dp.toPx()
+                drawArc(
+                    color = if (wave < waves) color else color.copy(alpha = 0.3f),
+                    startAngle = if (rtl) 140f else -40f,
+                    sweepAngle = 80f,
+                    useCenter = false,
+                    topLeft = androidx.compose.ui.geometry.Offset(centerX - radius, size.height / 2f - radius),
+                    size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
+                    style = stroke,
+                )
+            }
         }
     }
 }
