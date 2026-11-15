@@ -345,14 +345,17 @@ class SensorHandoverStateTests {
     fun graceEndIsTheNativeExpectedEndUpToTwelveHours() {
         val official = 1_700_000_000_000L
         val twelveHours = 12L * 60 * 60_000L
-        // Dexcom and Libre 1/2: native's expected end adds 12 h.
-        assertEquals(official + twelveHours, SensorHandoverState.graceEnd(official, official + twelveHours))
-        // Libre 3, Accu-Chek, CareSens Air: expected end is the official end.
-        assertEquals(0L, SensorHandoverState.graceEnd(official, official))
+        // Dexcom and Libre 2: native's expected end adds 12 h.
+        assertEquals(official + twelveHours, SensorHandoverState.graceEnd(true, official, official + twelveHours))
+        // AiDEX and other managed shells: native adds the same 12 h, but the
+        // sensor has no grace period.
+        assertEquals(0L, SensorHandoverState.graceEnd(false, official, official + twelveHours))
+        // Expected end equal to the official end.
+        assertEquals(0L, SensorHandoverState.graceEnd(true, official, official))
         // A wear extension of days is not a grace period.
-        assertEquals(0L, SensorHandoverState.graceEnd(official, official + 8L * 24 * 60 * 60_000L))
+        assertEquals(0L, SensorHandoverState.graceEnd(true, official, official + 8L * 24 * 60 * 60_000L))
         // Unknown ends never make one up.
-        assertEquals(0L, SensorHandoverState.graceEnd(0L, official))
-        assertEquals(0L, SensorHandoverState.graceEnd(official, 0L))
+        assertEquals(0L, SensorHandoverState.graceEnd(true, 0L, official))
+        assertEquals(0L, SensorHandoverState.graceEnd(true, official, 0L))
     }
 }

@@ -4,7 +4,7 @@ package tk.glucodata.alerts
  * One sensor as the handover evaluation sees it. [endMs] is the official end
  * (start + wear duration, the same source the expiry alarm uses); 0 means
  * unknown. [graceEndMs] is the end of the grace period the sensor keeps
- * reading through after [endMs] (Dexcom G7/ONE+: 12 h), 0 when it has none.
+ * reading through after [endMs] (Dexcom, Libre 2: 12 h), 0 when it has none.
  * [hasRecentReading] is evaluated lazily because it needs a history lookup -
  * the decision only asks for it when the answer matters.
  */
@@ -168,14 +168,21 @@ internal class SensorHandoverState(
 
         /**
          * The longest stretch past the official end taken as a grace period:
-         * Dexcom's documented 12 h, which native's expected end also adds for
-         * Libre 1/2. Longer native estimates (Sibionics) are wear extensions,
-         * not a grace period, and keep the switch at the official end.
+         * Dexcom's documented 12 h, which Libre 2 has too. Longer native
+         * estimates (Sibionics) are wear extensions, not a grace period, and
+         * keep the switch at the official end.
          */
         const val MAX_GRACE_MS = 12L * 60 * 60_000L
 
-        /** The grace period's end for [HandoverSensor.graceEndMs], 0 when there is none. */
-        fun graceEnd(officialEndMs: Long, expectedEndMs: Long): Long {
+        /**
+         * The grace period's end for [HandoverSensor.graceEndMs], 0 when there
+         * is none. [hasGracePeriod] is the sensor kind's own answer: native's
+         * expected end adds 12 h to every kind it does not special-case
+         * (AiDEX and other managed shells too), so the time gap alone does not
+         * say the sensor keeps reading past its official end.
+         */
+        fun graceEnd(hasGracePeriod: Boolean, officialEndMs: Long, expectedEndMs: Long): Long {
+            if (!hasGracePeriod) return 0L
             if (officialEndMs <= 0L || expectedEndMs <= officialEndMs) return 0L
             return if (expectedEndMs - officialEndMs <= MAX_GRACE_MS) expectedEndMs else 0L
         }
