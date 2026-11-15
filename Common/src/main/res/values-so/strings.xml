@@ -3434,6 +3434,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ican_health_followers">Raacsatayaal</string>
     <string name="ican_health_invited">La casriyay</string>
     <string name="ican_health_invite_failed">Martidu way fashilantay: %1$s</string>
+    <string name="ican_health_follower_load_failed">Raacsatayaasha lama soo dejin karin: %1$s</string>
     <string name="ican_health_remove">Ka saar</string>
     <string name="ican_health_follower_status">Xaalad: %1$s</string>
     <string name="ican_health_show_password">Muuji furaha sirta ah</string>

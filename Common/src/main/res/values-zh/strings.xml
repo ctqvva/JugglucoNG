@@ -3258,6 +3258,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ican_health_followers">关注者</string>
     <string name="ican_health_invited">已邀请</string>
     <string name="ican_health_invite_failed">邀请失败：%1$s</string>
+    <string name="ican_health_follower_load_failed">无法加载关注者：%1$s</string>
     <string name="ican_health_remove">移除</string>
     <string name="ican_health_follower_status">状态：%1$s</string>
     <string name="ican_health_show_password">显示密码</string>

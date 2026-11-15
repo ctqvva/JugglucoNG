@@ -3318,6 +3318,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ican_health_followers">Követők</string>
     <string name="ican_health_invited">Meghívva</string>
     <string name="ican_health_invite_failed">Meghívás sikertelen: %1$s</string>
+    <string name="ican_health_follower_load_failed">A követők betöltése nem sikerült: %1$s</string>
     <string name="ican_health_remove">Eltávolítás</string>
     <string name="ican_health_follower_status">Állapot: %1$s</string>
     <string name="ican_health_show_password">Jelszó megjelenítése</string>

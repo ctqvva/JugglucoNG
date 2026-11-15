@@ -3303,6 +3303,7 @@
     <string name="ican_health_followers">Obserwujący</string>
     <string name="ican_health_invited">Zaproszono</string>
     <string name="ican_health_invite_failed">Błąd zaproszenia: %1$s</string>
+    <string name="ican_health_follower_load_failed">Nie udało się wczytać obserwujących: %1$s</string>
     <string name="ican_health_remove">Usuń</string>
     <string name="ican_health_follower_status">Stan: %1$s</string>
     <string name="ican_health_show_password">Pokaż hasło</string>

@@ -3362,6 +3362,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ican_health_followers">Follower</string>
     <string name="ican_health_invited">Eingeladen</string>
     <string name="ican_health_invite_failed">Einladung fehlgeschlagen: %1$s</string>
+    <string name="ican_health_follower_load_failed">Follower konnten nicht geladen werden: %1$s</string>
     <string name="ican_health_remove">Entfernen</string>
     <string name="ican_health_follower_status">Status: %1$s</string>
     <string name="ican_health_show_password">Passwort anzeigen</string>

@@ -3277,6 +3277,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ican_health_followers">Takipçiler</string>
     <string name="ican_health_invited">Davet edildi</string>
     <string name="ican_health_invite_failed">Davet hatası: %1$s</string>
+    <string name="ican_health_follower_load_failed">Takipçiler yüklenemedi: %1$s</string>
     <string name="ican_health_remove">Kaldır</string>
     <string name="ican_health_follower_status">Durum: %1$s</string>
     <string name="ican_health_show_password">Şifreyi göster</string>

@@ -3333,6 +3333,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ican_health_followers">Фоловеры</string>
     <string name="ican_health_invited">Запрошаны</string>
     <string name="ican_health_invite_failed">Памылка запрашэння: %1$s</string>
+    <string name="ican_health_follower_load_failed">Не ўдалося загрузіць фоловераў: %1$s</string>
     <string name="ican_health_remove">Выдаліць</string>
     <string name="ican_health_follower_status">Статус: %1$s</string>
     <string name="ican_health_show_password">Паказаць пароль</string>

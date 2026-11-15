@@ -53,12 +53,23 @@ import tk.glucodata.ui.components.AppTopBar
 @Composable
 fun ICanHealthCloudFollowersScreen(navController: NavController) {
     val context = LocalContext.current
+    val manager = remember {
+        ICanHealthCloudFollowerManager(
+            tk.glucodata.share.ican.ICanHealthCloudClient(),
+            ICanHealthCloudSettings(context),
+        )
+    }
+    ICanHealthCloudFollowersContent(navController, manager)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun ICanHealthCloudFollowersContent(
+    navController: NavController,
+    manager: ICanHealthCloudFollowerManager,
+) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val settings = remember { ICanHealthCloudSettings(context) }
-    val manager = remember { ICanHealthCloudFollowerManager(
-        tk.glucodata.share.ican.ICanHealthCloudClient(),
-        settings
-    ) }
 
     var followers by remember { mutableStateOf<List<FollowerFriends>>(emptyList()) }
     var email by remember { mutableStateOf("") }
@@ -70,8 +81,19 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
     fun reload() {
         val gen = ++generation
         scope.launch {
-            val list = withContext(Dispatchers.IO) { manager.list() }
-            if (gen == generation) followers = list
+            try {
+                val list = withContext(Dispatchers.IO) { manager.list() }
+                if (gen == generation) followers = list
+            } catch (e: Exception) {
+                // An expired session or a transport failure must not crash the screen:
+                // keep the last known list and surface the error instead.
+                status = context.getString(
+                    if (e is tk.glucodata.share.ican.ICanHealthCloudClient.SessionExpired)
+                        R.string.ican_health_login_failed
+                    else R.string.ican_health_follower_load_failed,
+                    e.message ?: "",
+                )
+            }
         }
     }
 
@@ -146,11 +168,15 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
                         }
                         IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
                             scope.launch {
-                                val ok = withContext(Dispatchers.IO) { manager.remove(f.id) }
-                                if (ok) {
-                                    reload()
-                                } else {
-                                    status = context.getString(R.string.ican_health_invite_failed, "")
+                                try {
+                                    val ok = withContext(Dispatchers.IO) { manager.remove(f.id) }
+                                    if (ok) {
+                                        reload()
+                                    } else {
+                                        status = context.getString(R.string.ican_health_invite_failed, "")
+                                    }
+                                } catch (e: Exception) {
+                                    status = context.getString(R.string.ican_health_invite_failed, e.message ?: "")
                                 }
                             }
                         }) {

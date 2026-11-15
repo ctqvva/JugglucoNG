@@ -3240,6 +3240,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ican_health_followers">Follower</string>
     <string name="ican_health_invited">Invitato</string>
     <string name="ican_health_invite_failed">Invito non riuscito: %1$s</string>
+    <string name="ican_health_follower_load_failed">Impossibile caricare i follower: %1$s</string>
     <string name="ican_health_remove">Rimuovi</string>
     <string name="ican_health_follower_status">Stato: %1$s</string>
     <string name="ican_health_show_password">Mostra password</string>

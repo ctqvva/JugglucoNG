@@ -3292,6 +3292,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ican_health_followers">Volgers</string>
     <string name="ican_health_invited">Uitgenodigd</string>
     <string name="ican_health_invite_failed">Uitnodiging mislukt: %1$s</string>
+    <string name="ican_health_follower_load_failed">Volgers konden niet worden geladen: %1$s</string>
     <string name="ican_health_remove">Verwijderen</string>
     <string name="ican_health_follower_status">Status: %1$s</string>
     <string name="ican_health_show_password">Wachtwoord tonen</string>

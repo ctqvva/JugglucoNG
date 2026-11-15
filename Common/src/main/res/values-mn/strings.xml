@@ -3350,6 +3350,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ican_health_followers">Дагагчид</string>
     <string name="ican_health_invited">Урьсан</string>
     <string name="ican_health_invite_failed">Урилга амжилтгүй: %1$s</string>
+    <string name="ican_health_follower_load_failed">Дагагчдыг ачаалж чадсангүй: %1$s</string>
     <string name="ican_health_remove">Хасах</string>
     <string name="ican_health_follower_status">Байдал: %1$s</string>
     <string name="ican_health_show_password">Нууц үгийг харуулах</string>
