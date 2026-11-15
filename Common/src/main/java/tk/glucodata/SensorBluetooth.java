@@ -857,6 +857,7 @@ public class SensorBluetooth {
                 && SensorIdentity.matches(previous, serial);
         if (!sameSensor) {
             Notify.clearSignalLoss();
+            Notify.stoplossalarm();
             SuperGattCallback.resetLossNotificationLatches();
         }
         if (serial == null || serial.isEmpty()) {

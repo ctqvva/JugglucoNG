@@ -963,11 +963,6 @@ public class Notify {
         var noti = onenot;
         if (noti == null)
             return;
-        if (isWearable) {
-            // The dedicated fallback can outlive a process restart; this startup/refresh
-            // path restores the normal reading without the in-memory latch.
-            noti.notificationManager.cancel(signalLossNotificationId);
-        }
         if (!isWearable) {
             noti.scheduleVisualNotificationRefresh();
             return;
@@ -975,6 +970,9 @@ public class Notify {
         final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
         if (current == null || current.getPrimaryValue() < 2.0f)
             return;
+        // Keep a fallback loss notification until there is actually a reading to
+        // replace it with; a restart must not silently erase a still-active outage.
+        noti.notificationManager.cancel(signalLossNotificationId);
         noti.postForegroundGlucoseNotification(
                 FOREGROUND_GLUCOSE_NOTIFICATION_KIND,
                 current.getPrimaryValue(),
@@ -5250,8 +5248,13 @@ public class Notify {
                 updated = ongoing.updateStatusText(Applic.app, glucosenotificationid, message);
             }
             if (!updated) {
-                notificationManager.notify(signalLossNotificationId,
-                        makenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true));
+                final Notification lossNotification = makenotification(
+                        R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
+                // The latch prevents a repost during the same outage, so the fallback
+                // must not be dismissible or auto-cancelled.
+                lossNotification.flags |= FLAG_ONGOING_EVENT;
+                lossNotification.flags &= ~Notification.FLAG_AUTO_CANCEL;
+                notificationManager.notify(signalLossNotificationId, lossNotification);
             }
         } else {
             placelargenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
