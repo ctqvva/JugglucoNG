@@ -325,6 +325,24 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
     }
 
+    /**
+     * Selecting a sensor that is already in an outage must show that outage now, not wait
+     * for its next periodic loss check. The caller has already made this sensor main.
+     */
+    static void repostLossForSelectedSensor(String serial) {
+        if (serial == null || serial.isEmpty()) return;
+        for (SuperGattCallback cb : SensorBluetooth.gattcallbacks) {
+            if (cb == null || cb.SerialNumber == null
+                    || !SensorIdentity.matches(cb.SerialNumber, serial)) continue;
+            if (!"Loss of signal".equals(cb.constatstatusstr)) return;
+            cb.lossNotified = true;
+            final long lastReading = cb.charcha[0] != 0L ? cb.charcha[0]
+                    : (lastfoundL != 0L ? lastfoundL : Natives.lastglucosetime());
+            Notify.notifySignalLoss(lastReading);
+            return;
+        }
+    }
+
     private boolean isNotificationSensor() {
         try {
             final String main = Natives.lastsensorname();

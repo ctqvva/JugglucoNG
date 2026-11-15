@@ -859,6 +859,7 @@ public class SensorBluetooth {
             Notify.clearSignalLoss();
             Notify.stoplossalarm();
             SuperGattCallback.resetLossNotificationLatches();
+            SuperGattCallback.repostLossForSelectedSensor(serial);
         }
         if (serial == null || serial.isEmpty()) {
             onMainSensorCleared();
