@@ -164,9 +164,15 @@ class ICanHealthCloudClient(
         val decrypted = decryptResponse(key, response.body)
         if (decrypted != null) {
             val json = runCatching { JSONObject(decrypted) }.getOrNull()
-            val code = json?.optInt("code", 0) ?: 0
-            if (code != 0 && code != 200) {
-                return UploadResult.Failed(
+            val code = json?.let { explicitCode(it) }
+            when {
+                // A decrypted body without an explicit result is ambiguous: keep the batch.
+                code == null -> return UploadResult.Failed(
+                    ICanHealthCloudError.Kind.TRANSIENT,
+                    0,
+                    "encrypted response without explicit result",
+                )
+                code != 0 && code != 200 -> return UploadResult.Failed(
                     ICanHealthCloudError.classify(code, decrypted),
                     code,
                     ICanHealthCloudError.message(decrypted),
@@ -182,7 +188,13 @@ class ICanHealthCloudClient(
     private fun plainBodyCode(body: String): Int? {
         val trimmed = body.trim()
         if (!trimmed.startsWith("{")) return null
-        return runCatching { org.json.JSONObject(trimmed).optInt("code", 0) }.getOrNull()
+        return runCatching { explicitCode(org.json.JSONObject(trimmed)) }.getOrNull()
+    }
+
+    /** Explicit application result code; an absent or null `code` is never a success. */
+    private fun explicitCode(json: org.json.JSONObject): Int? {
+        if (!json.has("code") || json.isNull("code")) return null
+        return json.optInt("code", Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE }
     }
 
     fun followerList(token: String): List<FollowerFriends> {
@@ -255,7 +267,8 @@ class ICanHealthCloudClient(
         if (bodyCode != null && bodyCode != 0 && bodyCode != 200) return null
         val decrypted = decryptResponse(key, response.body) ?: return null
         val json = runCatching { JSONObject(decrypted) }.getOrNull()
-        val code = json?.optInt("code", 0) ?: -1
+        // Without an explicit result code the response is ambiguous: not an accepted invitation.
+        val code = json?.let { explicitCode(it) } ?: return null
         if (code != 0 && code != 200) return null
         val data = json?.optJSONObject("data") ?: json
         val follower = FollowerFriends.fromJson(data)
@@ -293,7 +306,9 @@ class ICanHealthCloudClient(
     private fun acknowledgedCode(response: HttpResult, key: String): Boolean {
         val decrypted = decryptResponse(key, response.body)
         if (decrypted != null) {
-            val code = runCatching { JSONObject(decrypted).optInt("code", 0) }.getOrDefault(0)
+            val json = runCatching { JSONObject(decrypted) }.getOrNull() ?: return false
+            // Without an explicit result code the response is ambiguous: do not acknowledge.
+            val code = explicitCode(json) ?: return false
             return code == 0 || code == 200
         }
         val bodyCode = plainBodyCode(response.body) ?: return false
