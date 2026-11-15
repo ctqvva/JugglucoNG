@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -358,6 +359,86 @@ internal fun bleErrorEventTimeForDisplay(eventAtMs: Long, nowMs: Long): Long? {
 internal fun bleErrorValue(status: String, relativeAge: CharSequence?): String {
     val age = relativeAge?.toString()?.trim().orEmpty()
     return if (age.isEmpty()) status else "$status · $age"
+}
+
+/**
+ * A label and its value on one line. Each takes the width its text needs; only when the two
+ * do not fit is the label held to its share, so a short label never forces a value that would
+ * have fitted beside it onto a second line. A value that could only be cut mid-word there
+ * goes on its own line under the label.
+ */
+@Composable
+private fun SensorDetailRow(
+    modifier: Modifier = Modifier,
+    /** Whether the value has spaces to wrap at. */
+    valueWraps: Boolean,
+    label: @Composable () -> Unit,
+    value: @Composable () -> Unit,
+) {
+    androidx.compose.ui.layout.Layout(
+        content = {
+            Box { label() }
+            Box(contentAlignment = Alignment.TopEnd) { value() }
+        },
+        modifier = modifier,
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val gap = 12.dp.roundToPx()
+        val labelWant = measurables[0].maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity)
+        val valueWant = measurables[1].maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity)
+        val labelWidth = if (labelWant + gap + valueWant <= width) {
+            labelWant
+        } else {
+            minOf(labelWant, maxOf((width * 0.42f).toInt(), width - gap - valueWant))
+        }.coerceIn(0, width)
+        val besideWidth = (width - gap - labelWidth).coerceAtLeast(0)
+        // A value with nowhere to wrap (a firmware string at a large font size) would be cut
+        // mid-word beside the label; it goes under the label at the full width instead.
+        val stacked = !valueWraps && valueWant > besideWidth
+        val valueWidth = if (stacked) width else besideWidth
+        val labelPlaceable = measurables[0].measure(
+            androidx.compose.ui.unit.Constraints(maxWidth = if (stacked) width else labelWidth),
+        )
+        val valuePlaceable = measurables[1].measure(
+            androidx.compose.ui.unit.Constraints.fixedWidth(valueWidth),
+        )
+        val valueY = if (stacked) labelPlaceable.height + 2.dp.roundToPx() else 0
+        layout(width, maxOf(labelPlaceable.height, valueY + valuePlaceable.height)) {
+            labelPlaceable.placeRelative(0, 0)
+            valuePlaceable.placeRelative(width - valueWidth, valueY)
+        }
+    }
+}
+
+/** Four rising bars for the link's signal level, as a phone shows its own. */
+@Composable
+private fun SensorSignalBars(rssi: Int, color: Color, modifier: Modifier = Modifier) {
+    val level = when {
+        rssi >= -65 -> 4
+        rssi >= -75 -> 3
+        rssi >= -85 -> 2
+        else -> 1
+    }
+    val description = stringResource(R.string.ottai_rssi_dbm, rssi)
+    androidx.compose.foundation.Canvas(
+        modifier = modifier
+            .size(width = 18.dp, height = 14.dp)
+            .semantics { contentDescription = description },
+    ) {
+        val gap = 2.dp.toPx()
+        val barWidth = (size.width - gap * 3) / 4
+        val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
+        for (bar in 0 until 4) {
+            val barHeight = size.height * (bar + 1) / 4
+            val slot = if (rtl) 3 - bar else bar
+            drawRoundRect(
+                color = if (bar < level) color else color.copy(alpha = 0.3f),
+                topLeft = androidx.compose.ui.geometry.Offset(slot * (barWidth + gap), size.height - barHeight),
+                size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()),
+            )
+        }
+    }
 }
 
 @Composable
@@ -2146,7 +2227,16 @@ fun SensorCard(
                                     },
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
+                                    modifier = Modifier.weight(1f)
+                                )
+                            } ?: Spacer(modifier = Modifier.weight(1f))
+                            // The link's signal level, at the far end of the line. Only for a
+                            // sensor this phone's radio is connected to, and only once the
+                            // controller has answered with a real figure.
+                            if (!restricted && !sensor.isCloneSource && isStreaming && sensor.rssi in -120..-1) {
+                                SensorSignalBars(
+                                    rssi = sensor.rssi,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -2161,7 +2251,7 @@ fun SensorCard(
                 Spacer(modifier = Modifier.height(16.dp))
                 tk.glucodata.ui.restricted.SensorLifeBar(life)
                 Spacer(modifier = Modifier.height(2.dp))
-                tk.glucodata.ui.restricted.SensorDates(life, topCorner = 4.dp, bottomCorner = 4.dp, plainEndLabel = true)
+                tk.glucodata.ui.restricted.SensorDates(life, topCorner = 4.dp, bottomCorner = 4.dp, plain = true)
                 Spacer(modifier = Modifier.height(2.dp))
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -2205,51 +2295,50 @@ fun SensorCard(
                             } else {
                                 Modifier.fillMaxWidth()
                             }
-                            Row(
+                            SensorDetailRow(
                                 modifier = rowModifier,
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                Text(
-                                    text = label,
-                                    style = labelStyle,
-                                    maxLines = 2,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(0.42f)
-                                )
-                                if (valueAnimationKey == null) {
+                                valueWraps = value.any { it.isWhitespace() },
+                                label = {
                                     Text(
-                                        text = value,
-                                        style = valueStyle,
+                                        text = label,
+                                        style = labelStyle,
                                         maxLines = 2,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                                        modifier = Modifier.weight(0.58f)
                                     )
-                                } else {
-                                    AnimatedContent(
-                                        targetState = value to valueAnimationKey,
-                                        transitionSpec = {
-                                            (fadeIn(tween(180)) + slideInVertically(tween(180)) { it / 3 })
-                                                .togetherWith(
-                                                    fadeOut(tween(120)) + slideOutVertically(tween(120)) { -it / 3 },
-                                                )
-                                        },
-                                        contentAlignment = Alignment.CenterEnd,
-                                        label = "sensorBatteryValue",
-                                        modifier = Modifier.weight(0.58f),
-                                    ) { (animatedValue, _) ->
+                                },
+                                value = {
+                                    if (valueAnimationKey == null) {
                                         Text(
-                                            text = animatedValue,
+                                            text = value,
                                             style = valueStyle,
                                             maxLines = 2,
                                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                                            modifier = Modifier.fillMaxWidth(),
                                         )
+                                    } else {
+                                        AnimatedContent(
+                                            targetState = value to valueAnimationKey,
+                                            transitionSpec = {
+                                                (fadeIn(tween(180)) + slideInVertically(tween(180)) { it / 3 })
+                                                    .togetherWith(
+                                                        fadeOut(tween(120)) + slideOutVertically(tween(120)) { -it / 3 },
+                                                    )
+                                            },
+                                            contentAlignment = Alignment.CenterEnd,
+                                            label = "sensorBatteryValue",
+                                        ) { (animatedValue, _) ->
+                                            Text(
+                                                text = animatedValue,
+                                                style = valueStyle,
+                                                maxLines = 2,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        }
                                     }
-                                }
-                            }
+                                },
+                            )
                         }
 
                         val connectedStatus = stringResource(R.string.status_connected)

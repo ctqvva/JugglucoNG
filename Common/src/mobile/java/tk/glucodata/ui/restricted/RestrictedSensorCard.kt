@@ -3,6 +3,9 @@
 package tk.glucodata.ui.restricted
 
 import android.content.Context
+import android.icu.text.MeasureFormat
+import android.icu.util.Measure
+import android.icu.util.MeasureUnit
 import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -10,7 +13,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -41,25 +44,27 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import java.util.Locale
 import tk.glucodata.R
 import tk.glucodata.SensorVendor
 import tk.glucodata.drivers.ManagedSensorStatusPolicy
@@ -172,87 +177,122 @@ internal fun SensorLifeDays(life: SensorLife, color: Color = life.contentColor) 
     }
 }
 
+/** "17d 4h", "5h" or "12m" in the locale's own narrow units, plurals and all. */
+private fun sensorSpanText(locale: Locale, spanMs: Long): String {
+    val format = MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.NARROW)
+    val days = spanMs / DAY_MS
+    val hours = (spanMs % DAY_MS) / HOUR_MS
+    return when {
+        days > 0L -> format.formatMeasures(Measure(days, MeasureUnit.DAY), Measure(hours, MeasureUnit.HOUR))
+        hours > 0L -> format.format(Measure(hours, MeasureUnit.HOUR))
+        else -> format.format(Measure((spanMs / 60_000L).coerceAtLeast(0L), MeasureUnit.MINUTE))
+    }
+}
+
 /**
- * The full card's wear bar: the dashboard's lifetime fill across the width, with the day of
- * wear at the start, over the Started tile, and the time left at the end, over the Ends tile.
- * It is the top of the stack that continues with the dates and the details, so only its top
- * corners are round.
+ * The full card's wear bar: the dashboard's lifetime fill across the width, with the sensor's
+ * age out of its rated days at the start, over the start date, and the time left at the end,
+ * over the end date. It is the top of the stack that continues with the dates and the
+ * details, so only its top corners are round.
  */
 @Composable
 internal fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
+    val locale = LocalConfiguration.current.locales[0]
     val leftMs = life.endMs - life.nowMs
-    // In the last day the day of wear is already the hours left; ended or running past an
-    // advisory end, the Ends tile says so. Neither leaves a second figure to state.
-    val leftText = if (life.overrun || leftMs <= 0L || life.hoursLeft != null) {
-        null
-    } else {
-        stringResource(
-            R.string.days_hours_remaining,
-            (leftMs / DAY_MS).toInt(),
-            ((leftMs % DAY_MS) / HOUR_MS).toInt(),
-        )
-    }
+    val format = remember(locale) { MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.NARROW) }
+    val ageText = sensorSpanText(locale, (life.nowMs - life.startMs).coerceAtLeast(0L))
+    val ratedDays = ((life.endMs - life.startMs + DAY_MS / 2) / DAY_MS).coerceAtLeast(1L)
+    val ratedText = format.format(Measure(ratedDays, MeasureUnit.DAY))
+    // Ended, or running past an advisory end: the dates below say which, and nothing is left.
+    val leftText = if (life.overrun || leftMs <= 0L) null else sensorSpanText(locale, leftMs)
+    val textStyle = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum")
+    val sensorAgeLabel = stringResource(R.string.sensor_age)
+    val remainingLabel = stringResource(R.string.sensor_life)
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
         color = life.containerColor,
         contentColor = life.contentColor,
     ) {
-        // The tiles' own side padding, so the bar's two ends sit over the tiles' text.
+        // The dates' own side padding, so the bar's two ends sit over the two dates.
         Row(
             modifier = Modifier
                 .sensorLifeFill(life)
                 .heightIn(min = 40.dp)
-                .padding(horizontal = SensorDateTilePadding, vertical = 8.dp),
+                .padding(horizontal = SensorDatesPadding, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SensorLifeDays(life)
-            Spacer(Modifier.width(12.dp))
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (leftText != null) {
+            CustomCalendarIcon(
+                color = life.contentColor.copy(alpha = 0.7f),
+                modifier = Modifier.size(16.dp),
+                currentDay = life.currentDay,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = buildAnnotatedString {
+                    append(ageText)
+                    withStyle(SpanStyle(color = life.contentColor.copy(alpha = 0.7f))) {
+                        append(" / ")
+                        append(ratedText)
+                    }
+                },
+                style = textStyle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { contentDescription = "$sensorAgeLabel $ageText / $ratedText" },
+            )
+            if (leftText != null) {
+                Spacer(Modifier.width(12.dp))
+                val hoursLeft = life.hoursLeft
+                if (hoursLeft != null) {
+                    AnimatedHourglassIcon(
+                        color = life.contentColor.copy(alpha = 0.8f),
+                        modifier = Modifier.size(16.dp),
+                        cycleDuration = (500 + (1500 * (hoursLeft / 24f))).toInt().coerceAtLeast(500),
+                    )
+                } else {
                     Icon(
                         imageVector = Icons.Default.HourglassBottom,
-                        contentDescription = stringResource(R.string.sensor_life),
+                        contentDescription = null,
                         tint = life.contentColor.copy(alpha = 0.7f),
                         modifier = Modifier.size(16.dp),
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = leftText,
-                        style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
                 }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = leftText,
+                    style = textStyle,
+                    maxLines = 1,
+                    modifier = Modifier.semantics { contentDescription = "$remainingLabel $leftText" },
+                )
             }
         }
     }
 }
 
 /**
- * Started and Ends side by side, one tile each: the date with its time beside it, or under it
- * where the two do not fit on a line. The full card stacks these between its wear bar and
- * details, squares the corners that touch, and names the end plainly ([plainEndLabel]) since
- * its bar already states the time left.
+ * Start and end as one tile, the start date at one edge, the end date at the other and an
+ * arrow between: the date with its time beside it, or under it where the two do not fit on a
+ * line. The restricted card labels the two; the full card stacks the tile between its wear
+ * bar and details, squares the corners that touch, and labels them ([plain]) only when the
+ * end is something other than the rated one ahead, since its bar already gives the age and
+ * the time left.
  */
 @Composable
 internal fun SensorDates(
     life: SensorLife,
     topCorner: Dp = 12.dp,
     bottomCorner: Dp = 12.dp,
-    plainEndLabel: Boolean = false,
+    plain: Boolean = false,
 ) {
     val leftMs = life.endMs - life.nowMs
     val ended = leftMs <= 0L && !life.overrun
     val endLabel = when {
         life.overrun -> stringResource(R.string.sensor_expected_end)
         ended -> stringResource(R.string.restricted_sensor_ended)
-        plainEndLabel && life.hoursLeft == null -> stringResource(R.string.sensor_ends_officially)
+        plain -> null
         leftMs < HOUR_MS -> stringResource(R.string.restricted_sensor_ends_soon)
         // Up to 24 hours in hours, as the pill shows "24h" with the hourglass.
         leftMs < DAY_MS + HOUR_MS -> (leftMs / HOUR_MS).toInt().let {
@@ -262,6 +302,7 @@ internal fun SensorDates(
             pluralStringResource(R.plurals.restricted_sensor_ends_in_days, it, it)
         }
     }
+    val startLabel = if (endLabel != null) stringResource(R.string.sensor_started) else null
     val context = LocalContext.current
     val dateStyle = MaterialTheme.typography.titleMediumEmphasized
     val timeStyle = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum")
@@ -273,40 +314,58 @@ internal fun SensorDates(
         sensorDateTexts(context, life.endMs, timeStyle, timeColor)
     }
     val measurer = rememberTextMeasurer()
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        // The time sits beside the date when both tiles have the room, and under it in both
-        // when either does not, so the two tiles always read the same way.
-        val tileTextWidth = with(LocalDensity.current) {
-            ((maxWidth - SensorDateTileGap) / 2 - SensorDateTilePadding * 2).roundToPx()
-        }
-        val timeBeside = remember(start, end, dateStyle, tileTextWidth) {
-            listOf(start, end).all {
-                measurer.measure(it.oneLine, dateStyle, softWrap = false).size.width <= tileTextWidth
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = topCorner, topEnd = topCorner, bottomStart = bottomCorner, bottomEnd = bottomCorner),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        BoxWithConstraints(modifier = Modifier.padding(SensorDatesPadding)) {
+            // The time sits beside the date when both dates have the room, and under it in
+            // both when either does not, so the two always read the same way.
+            val sideWidth = with(LocalDensity.current) {
+                ((maxWidth - SensorDatesArrowSize - SensorDatesArrowGap * 2) / 2).roundToPx()
             }
-        }
-        // Same height when one tile's label wraps and the other's does not.
-        EqualHeightPair(gap = SensorDateTileGap) {
-            SensorDateTile(
-                label = stringResource(R.string.sensor_started),
-                texts = start,
-                timeBeside = timeBeside,
-                shape = RoundedCornerShape(topStart = topCorner, bottomStart = bottomCorner, topEnd = 4.dp, bottomEnd = 4.dp),
-            )
-            SensorDateTile(
-                label = endLabel,
-                labelColor = if (ended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                texts = end,
-                timeBeside = timeBeside,
-                shape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = topCorner, bottomEnd = bottomCorner),
-            )
+            val timeBeside = remember(start, end, dateStyle, sideWidth) {
+                listOf(start, end).all {
+                    measurer.measure(it.oneLine, dateStyle, softWrap = false).size.width <= sideWidth
+                }
+            }
+            // From the bottom, so the two dates stay level when one label takes two lines.
+            Row(verticalAlignment = Alignment.Bottom) {
+                SensorDate(
+                    label = startLabel,
+                    texts = start,
+                    timeBeside = timeBeside,
+                    alignment = Alignment.Start,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier
+                        .padding(horizontal = SensorDatesArrowGap)
+                        .size(SensorDatesArrowSize)
+                        .align(Alignment.CenterVertically),
+                )
+                SensorDate(
+                    label = endLabel,
+                    labelColor = if (ended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    texts = end,
+                    timeBeside = timeBeside,
+                    alignment = Alignment.End,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
 
-private val SensorDateTileGap = 2.dp
-private val SensorDateTilePadding = 12.dp
+private val SensorDatesPadding = 12.dp
+private val SensorDatesArrowSize = 20.dp
+private val SensorDatesArrowGap = 8.dp
 
-/** A tile's date and time, apart and as the one line that carries both. */
+/** A date and its time, apart and as the one line that carries both. */
 private class SensorDateTexts(val date: String, val time: String, val oneLine: AnnotatedString)
 
 private fun sensorDateTexts(
@@ -330,68 +389,46 @@ private fun sensorDateTexts(
     return SensorDateTexts(date, time, oneLine)
 }
 
-/** Two children, each half the width less the gap, both as tall as the taller needs. */
 @Composable
-private fun EqualHeightPair(gap: Dp, content: @Composable () -> Unit) {
-    Layout(content = content, modifier = Modifier.fillMaxWidth()) { measurables, constraints ->
-        val gapPx = gap.roundToPx()
-        val childWidth = ((constraints.maxWidth - gapPx) / 2).coerceAtLeast(0)
-        val height = measurables.maxOfOrNull { it.minIntrinsicHeight(childWidth) } ?: 0
-        val placeables = measurables.map { it.measure(Constraints.fixed(childWidth, height)) }
-        layout(constraints.maxWidth, height) {
-            placeables.forEachIndexed { index, placeable ->
-                placeable.placeRelative(index * (childWidth + gapPx), 0)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SensorDateTile(
-    label: String,
+private fun SensorDate(
+    label: String?,
     texts: SensorDateTexts,
     timeBeside: Boolean,
-    shape: Shape,
+    alignment: Alignment.Horizontal,
+    modifier: Modifier = Modifier,
     labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxHeight(),
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        // From the bottom, so the two dates stay level when one label takes two lines.
-        Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .padding(SensorDateTilePadding),
-            verticalArrangement = Arrangement.Bottom,
-        ) {
+    val textAlign = if (alignment == Alignment.End) TextAlign.End else TextAlign.Start
+    Column(modifier = modifier, horizontalAlignment = alignment) {
+        if (label != null) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = labelColor,
+                textAlign = textAlign,
             )
             Spacer(Modifier.height(4.dp))
-            if (timeBeside) {
-                Text(
-                    text = texts.oneLine,
-                    style = MaterialTheme.typography.titleMediumEmphasized,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            } else {
-                Text(
-                    text = texts.date,
-                    style = MaterialTheme.typography.titleMediumEmphasized,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = texts.time,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        }
+        if (timeBeside) {
+            Text(
+                text = texts.oneLine,
+                style = MaterialTheme.typography.titleMediumEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false,
+            )
+        } else {
+            Text(
+                text = texts.date,
+                style = MaterialTheme.typography.titleMediumEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = textAlign,
+            )
+            Text(
+                text = texts.time,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

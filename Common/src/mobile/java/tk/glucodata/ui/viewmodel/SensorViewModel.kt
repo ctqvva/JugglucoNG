@@ -155,6 +155,8 @@ class SensorViewModel : ViewModel() {
 
         /** Refresh cadence while the list is actually moving. */
         private const val ACTIVE_POLL_INTERVAL_MS = 2000L
+        /** How often the open Sensors screen asks each link for its signal level. */
+        private const val RSSI_REQUEST_INTERVAL_MS = 10_000L
 
         /** Refresh cadence once the list has been static for a while. */
         private const val IDLE_POLL_INTERVAL_MS = 5000L
@@ -283,7 +285,15 @@ class SensorViewModel : ViewModel() {
             // back off toward IDLE_POLL_INTERVAL_MS; any real change snaps straight back to
             // the responsive interval, so a visible screen still feels live.
             var idleTicks = 0
+            var lastRssiRequestElapsedMs = 0L
             while (true) {
+                // The card's signal bars: asked of the phone's controller only while the
+                // screen is open, and the answer is picked up by a later refresh.
+                val elapsedNow = SystemClock.elapsedRealtime()
+                if (elapsedNow - lastRssiRequestElapsedMs >= RSSI_REQUEST_INTERVAL_MS) {
+                    lastRssiRequestElapsedMs = elapsedNow
+                    runCatching { SensorBluetooth.mygatts()?.forEach { it.requestRssi() } }
+                }
                 val deviceListDirty = ManagedSensorUiSignals.consumeDeviceListDirty()
                 if (deviceListDirty) {
                     lastDeviceSyncElapsedMs = SystemClock.elapsedRealtime()
