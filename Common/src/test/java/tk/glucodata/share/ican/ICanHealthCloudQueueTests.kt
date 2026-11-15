@@ -114,15 +114,49 @@ class ICanHealthCloudQueueTests {
     }
 
     @Test
-    fun corruptFileKeepsInMemoryState() {
+    fun corruptFileDoesNotCarryRowsAcrossAccountSwitch() {
         val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context)
+        settings.userId = "patient-a"
         val queue = ICanHealthCloudQueue(context)
         queue.remove(queue.peek())
         queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
         context.filesDir.resolve("ican_cloud_queue.json").writeText("CORRUPT")
-        queue.enqueue(EgvUpload("SN2", 2L, 100, 1))
-        // The previously queued row is still there, and the durable copy is rewritten.
-        assertEquals(listOf(1L, 2L), ICanHealthCloudQueue(context).peek().map { it.timeMs })
+        settings.userId = "patient-b"
+        // Rows queued under patient-a must never surface under patient-b.
+        assertTrue(queue.peek().isEmpty())
+        assertTrue(ICanHealthCloudQueue(context).peek().isEmpty())
+    }
+
+    @Test
+    fun readFailureDoesNotCarryRowsAcrossAccountSwitch() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context)
+        settings.userId = "patient-a"
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        val file = context.filesDir.resolve("ican_cloud_queue.json")
+        assertTrue(file.setReadable(false))
+        settings.userId = "patient-b"
+        try {
+            assertTrue(queue.peek().isEmpty())
+            assertTrue(ICanHealthCloudQueue(context).peek().isEmpty())
+        } finally {
+            assertTrue(file.setReadable(true))
+        }
+    }
+
+    @Test
+    fun corruptFileRowsSurviveForTheSameAccount() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context)
+        settings.userId = "patient-a"
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        context.filesDir.resolve("ican_cloud_queue.json").writeText("CORRUPT")
+        assertEquals(listOf(1L), queue.peek().map { it.timeMs })
     }
 
 }

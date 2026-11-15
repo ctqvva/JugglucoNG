@@ -11,10 +11,11 @@ class ICanHealthCloudQueue(context: Context) {
     private val settings = ICanHealthCloudSettings(context)
     private val lock = ICanHealthCloudSettings.sessionLock
     private val items = ArrayList<EgvUpload>()
-    // True when the last persist failed: memory holds the only complete copy.
+    /** Account the in-memory rows were queued/loaded under; null = no trusted rows. */
+    private var itemsAccount: String? = null
+    // True when the durable copy is behind memory (unreadable file or failed persist):
+    // memory holds the only complete copy until the next successful persist.
     private var dirty = false
-    // Account the unsaved rows were queued under, to fence account switches.
-    private var dirtyAccount: String? = null
 
     init {
         synchronized(lock) { sync() }
@@ -124,31 +125,34 @@ class ICanHealthCloudQueue(context: Context) {
 
     private fun load() {
         if (!file.exists()) {
-            // Unsaved in-memory rows survive an externally deleted file.
-            if (!(dirty && items.isNotEmpty())) items.clear()
+            // Unsaved in-memory rows survive an externally deleted file,
+            // but only while they provably belong to the current account.
+            if (!(dirty && items.isNotEmpty() && itemsAccount == settings.accountKey)) {
+                items.clear()
+                itemsAccount = null
+            }
             return
         }
         val text = runCatching { file.readText() }.getOrNull()
         if (text == null) {
-            // An unreadable file must not erase the rows we still hold in memory;
-            // mark them dirty so the next persist rewrites the durable copy.
-            dirty = items.isNotEmpty()
-            dirtyAccount = settings.accountKey
+            rememberUnreadable()
             return
         }
         val stored = runCatching { JSONObject(text) }.getOrNull()
         if (stored == null) {
-            dirty = items.isNotEmpty()
+            rememberUnreadable()
             return
         }
         // A legacy queue has no provable account owner. Never attach it to a new session.
-        if (stored.optString("account") != settings.accountKey) {
+        val storedAccount = stored.optString("account")
+        if (storedAccount != settings.accountKey) {
             items.clear()
+            itemsAccount = null
             dirty = false
             return
         }
         val array = stored.optJSONArray("items") ?: run {
-            dirty = items.isNotEmpty()
+            rememberUnreadable()
             return
         }
         items.clear()
@@ -157,28 +161,48 @@ class ICanHealthCloudQueue(context: Context) {
             items.add(EgvUpload.fromJson(obj))
         }
         items.sortBy { it.timeMs }
+        itemsAccount = storedAccount
         dirty = false
     }
 
     /**
-     * Refresh the in-memory queue from the durable copy — unless the last persist
-     * failed, in which case memory is the only complete copy and must not be
-     * overwritten by the stale file.
+     * The durable copy is unreadable or malformed: keep the rows we still hold in
+     * memory, but only if they provably belong to the current account — rows whose
+     * owner is unknown or different are dropped rather than leaked across a
+     * session change.
+     */
+    private fun rememberUnreadable() {
+        if (itemsAccount != settings.accountKey) {
+            items.clear()
+            itemsAccount = null
+            dirty = false
+        } else {
+            dirty = items.isNotEmpty()
+        }
+    }
+
+    /**
+     * Refresh the in-memory queue from the durable copy — unless the durable copy
+     * is known to be behind memory, in which case memory is authoritative and
+     * must not be overwritten by the stale file.
      */
     private fun sync() {
         if (!dirty) {
             load()
             return
         }
-        // Dirty rows belong to the account they were queued under.
-        if (dirtyAccount != null && dirtyAccount != settings.accountKey) {
+        // Dirty rows are kept only while their recorded owner is the current account.
+        if (itemsAccount != settings.accountKey) {
             items.clear()
+            itemsAccount = null
             dirty = false
-            dirtyAccount = null
         }
     }
 
     private fun persist() {
+        // sync() guarantees in-memory rows belong to the current account before
+        // any mutation, so the durable copy records the current owner.
+        itemsAccount = settings.accountKey
         val ok = runCatching {
             val array = JSONArray()
             items.forEach { array.put(it.toJson()) }
@@ -191,7 +215,6 @@ class ICanHealthCloudQueue(context: Context) {
             }
         }.isSuccess
         dirty = !ok
-        dirtyAccount = if (ok) null else settings.accountKey
     }
 
     companion object {
