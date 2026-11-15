@@ -5291,6 +5291,7 @@ public class Notify {
             // status text instead of posting a second notification; the next reading
             // calls updateStatus() and restores the normal value. If no ongoing activity
             // can be recovered, fall back to the normal notification slot.
+            notificationManager.cancel(glucosealarmid);
             boolean updated = false;
             final var ongoing = OngoingNotificationAccess.get();
             if (ongoing != null) {
@@ -5390,6 +5391,12 @@ public class Notify {
 
         Notification notif = GluNotBuilder.build();
         notif.when = System.currentTimeMillis();
+        if (persistent) {
+            // A status that must survive the whole outage cannot be swiped away; the
+            // latch prevents a repost until recovery.
+            notif.flags |= FLAG_ONGOING_EVENT;
+            notif.flags &= ~Notification.FLAG_AUTO_CANCEL;
+        }
         return notif;
 
     }
