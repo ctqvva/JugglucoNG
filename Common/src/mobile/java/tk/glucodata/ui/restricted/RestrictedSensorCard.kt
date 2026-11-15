@@ -8,7 +8,9 @@ import android.icu.util.Measure
 import android.icu.util.MeasureUnit
 import android.text.format.DateUtils
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,14 +42,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Matrix
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
@@ -58,7 +62,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.buildAnnotatedString
@@ -66,7 +69,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -197,19 +199,89 @@ private fun sensorSpanText(locale: Locale, spanMs: Long, width: MeasureFormat.Fo
 }
 
 /**
- * The full card's wear bar: the dashboard's lifetime fill across the width, with the sensor's
- * age out of its rated days and the calendar at the start, over the start date, and the time
- * left at the end, over the end date. Units are spelled out where both ends have the room and
- * abbreviated where they do not. It is the top of the stack that continues with the dates and
- * the details, so only its top corners are round.
+ * The full card's wear block: the wear bar over the two dates, with the sensor's rated days
+ * as a calendar page cut into the middle of both. Age and start date sit to one side of the
+ * page, time left and end date to the other.
  */
 @Composable
-internal fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
+internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
+    val locale = LocalConfiguration.current.locales[0]
+    val ratedDays = ((life.endMs - life.startMs + DAY_MS / 2) / DAY_MS).coerceAtLeast(1L)
+    val ratedText = String.format(locale, "%d", ratedDays)
+    val ratedSpoken = remember(locale, ratedDays) {
+        MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.WIDE).format(Measure(ratedDays, MeasureUnit.DAY))
+    }
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier
+                // Its own layer, so the hole for the page is cut out of the bar, its fill
+                // and both date tiles at once, down to whatever the card is drawn on.
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    val hole = (SensorRatedPageSize + SensorRatedPageCut * 2).toPx()
+                    drawRoundRect(
+                        color = Color.Black,
+                        topLeft = Offset((size.width - hole) / 2f, (size.height - hole) / 2f),
+                        size = Size(hole, hole),
+                        cornerRadius = CornerRadius(16.dp.toPx()),
+                        blendMode = BlendMode.Clear,
+                    )
+                },
+        ) {
+            SensorLifeBar(life, centerReserve = SensorRatedPageReserve)
+            Spacer(Modifier.height(SensorDatesGap))
+            SensorDates(life, topCorner = 4.dp, bottomCorner = 4.dp, plain = true, centerReserve = SensorRatedPageReserve)
+        }
+        // The calendar page: two binding pegs over the number of days the sensor is rated for.
+        val pegColor = life.containerColor
+        Box(
+            modifier = Modifier
+                .size(SensorRatedPageSize)
+                .clip(RoundedCornerShape(12.dp))
+                .background(life.contentColor)
+                .drawBehind {
+                    val pegWidth = 2.dp.toPx()
+                    val pegHeight = 5.dp.toPx()
+                    listOf(size.width * 0.32f, size.width * 0.68f).forEach { x ->
+                        drawRoundRect(
+                            color = pegColor,
+                            topLeft = Offset(x - pegWidth / 2f, 3.dp.toPx()),
+                            size = Size(pegWidth, pegHeight),
+                            cornerRadius = CornerRadius(pegWidth / 2f),
+                        )
+                    }
+                }
+                .semantics { contentDescription = ratedSpoken },
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Text(
+                text = ratedText,
+                style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
+                color = life.containerColor,
+                maxLines = 1,
+                modifier = Modifier.padding(bottom = 2.dp),
+            )
+        }
+    }
+}
+
+private val SensorRatedPageSize = 36.dp
+/** The ring of card showing around the page. */
+private val SensorRatedPageCut = 4.dp
+/** What each half keeps clear of the middle: half the page, its cut, and a gap to the text. */
+private val SensorRatedPageReserve = SensorRatedPageSize / 2 + SensorRatedPageCut + 4.dp
+
+/**
+ * The wear bar: the dashboard's lifetime fill across the width, the sensor's age at the start
+ * and the time left at the end. Units are spelled out where each end has the room and
+ * abbreviated where either does not. It is the top of a stack, so only its top corners are round.
+ */
+@Composable
+private fun SensorLifeBar(life: SensorLife, centerReserve: Dp, modifier: Modifier = Modifier) {
     val locale = LocalConfiguration.current.locales[0]
     val leftMs = life.endMs - life.nowMs
     val ageMs = (life.nowMs - life.startMs).coerceAtLeast(0L)
-    // The rated length is always in days, so it is a bare number beside the calendar.
-    val ratedText = String.format(locale, "%d", ((life.endMs - life.startMs + DAY_MS / 2) / DAY_MS).coerceAtLeast(1L))
     // Ended, or running past an advisory end: the dates below say which, and nothing is left.
     val hasLeft = !life.overrun && leftMs > 0L
     val textStyle = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum")
@@ -223,15 +295,15 @@ internal fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
         contentColor = life.contentColor,
     ) {
         BoxWithConstraints(modifier = Modifier.sensorLifeFill(life)) {
-            // Icons and gaps: text, 8, calendar, 12, hourglass, 8, text, inside the side padding.
-            val textRoom = with(LocalDensity.current) {
-                (maxWidth - SensorDatesPadding * 2 - 16.dp * 2 - 8.dp * 2 - 12.dp).roundToPx()
+            val sideRoom = with(LocalDensity.current) {
+                (maxWidth / 2 - centerReserve - SensorDatesPadding).roundToPx()
             }
-            val wide = remember(locale, ageMs / 60_000L, leftMs / 60_000L, ratedText, textRoom, measurer, textStyle) {
+            val iconRoom = with(LocalDensity.current) { (16.dp + 8.dp).roundToPx() }
+            val wide = remember(locale, ageMs / 60_000L, leftMs / 60_000L, sideRoom, measurer, textStyle) {
                 val age = sensorSpanText(locale, ageMs, MeasureFormat.FormatWidth.WIDE)
                 val left = if (hasLeft) sensorSpanText(locale, leftMs, MeasureFormat.FormatWidth.WIDE) else ""
-                measurer.measure("$age / $ratedText", textStyle, softWrap = false).size.width +
-                    measurer.measure(left, textStyle, softWrap = false).size.width <= textRoom
+                measurer.measure(age, textStyle, softWrap = false).size.width <= sideRoom &&
+                    measurer.measure(left, textStyle, softWrap = false).size.width + iconRoom <= sideRoom
             }
             val unitWidth = if (wide) MeasureFormat.FormatWidth.WIDE else MeasureFormat.FormatWidth.NARROW
             val ageText = sensorSpanText(locale, ageMs, unitWidth)
@@ -243,54 +315,48 @@ internal fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
                     .padding(horizontal = SensorDatesPadding, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // One weighted group, so the age gives way only when the two ends truly collide.
-                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = buildAnnotatedString {
-                        append(ageText)
-                        withStyle(SpanStyle(color = life.contentColor.copy(alpha = 0.7f))) {
-                            append(" / ")
-                            append(ratedText)
-                        }
-                    },
+                    text = ageText,
                     style = textStyle,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        .weight(1f, fill = false)
-                        .semantics { contentDescription = "$sensorAgeLabel $ageText / $ratedText" },
+                        .weight(1f)
+                        .semantics { contentDescription = "$sensorAgeLabel $ageText" },
                 )
-                Spacer(Modifier.width(8.dp))
-                CustomCalendarIcon(
-                    color = life.contentColor.copy(alpha = 0.7f),
-                    modifier = Modifier.size(16.dp),
-                    currentDay = life.currentDay,
-                )
-                }
-                if (leftText != null) {
-                    Spacer(Modifier.width(12.dp))
-                    val hoursLeft = life.hoursLeft
-                    if (hoursLeft != null) {
-                        AnimatedHourglassIcon(
-                            color = life.contentColor.copy(alpha = 0.8f),
-                            modifier = Modifier.size(16.dp),
-                            cycleDuration = (500 + (1500 * (hoursLeft / 24f))).toInt().coerceAtLeast(500),
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.HourglassBottom,
-                            contentDescription = null,
-                            tint = life.contentColor.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp),
+                Spacer(Modifier.width(centerReserve * 2))
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (leftText != null) {
+                        val hoursLeft = life.hoursLeft
+                        if (hoursLeft != null) {
+                            AnimatedHourglassIcon(
+                                color = life.contentColor.copy(alpha = 0.8f),
+                                modifier = Modifier.size(16.dp),
+                                cycleDuration = (500 + (1500 * (hoursLeft / 24f))).toInt().coerceAtLeast(500),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.HourglassBottom,
+                                contentDescription = null,
+                                tint = life.contentColor.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = leftText,
+                            style = textStyle,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .semantics { contentDescription = "$remainingLabel $leftText" },
                         )
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = leftText,
-                        style = textStyle,
-                        maxLines = 1,
-                        modifier = Modifier.semantics { contentDescription = "$remainingLabel $leftText" },
-                    )
                 }
             }
         }
@@ -298,12 +364,12 @@ internal fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
 }
 
 /**
- * Start and end as two tiles that together make an arrow, the start date at one edge and the
- * end date at the other: the date with its time beside it, or under it where the two do not
- * fit on a line. The restricted card labels the two; the full card stacks them between its wear
- * bar and details, squares the corners that touch, and labels them ([plain]) only when the
- * end is something other than the rated one ahead, since its bar already gives the age and
- * the time left.
+ * Start and end side by side, one tile each, the start date at one edge and the end date at
+ * the other: the date with its time beside it, or under it where the two do not fit on a
+ * line. The restricted card labels the two; the full card puts them under its wear bar,
+ * squares the corners that touch, keeps [centerReserve] clear in the middle for the rated-days
+ * page, and labels them ([plain]) only when the end is something other than the rated one
+ * ahead, since its bar already gives the age and the time left.
  */
 @Composable
 internal fun SensorDates(
@@ -311,6 +377,7 @@ internal fun SensorDates(
     topCorner: Dp = 12.dp,
     bottomCorner: Dp = 12.dp,
     plain: Boolean = false,
+    centerReserve: Dp = SensorDatesPadding,
 ) {
     val leftMs = life.endMs - life.nowMs
     val ended = leftMs <= 0L && !life.overrun
@@ -343,7 +410,7 @@ internal fun SensorDates(
         // The time sits beside the date when both dates have the room, and under it in
         // both when either does not, so the two always read the same way.
         val sideWidth = with(LocalDensity.current) {
-            ((maxWidth - SensorDatesGap - SensorDatesPoint) / 2 - SensorDatesPadding * 2).roundToPx()
+            (maxWidth / 2 - SensorDatesPadding - centerReserve).roundToPx()
         }
         // The measurer is a new one after a font-size change, which redoes the fit.
         val timeBeside = remember(start, end, dateStyle, sideWidth, measurer) {
@@ -352,12 +419,14 @@ internal fun SensorDates(
             }
         }
         val tileColor = MaterialTheme.colorScheme.surfaceContainer
-        // The start tile ends in a point and the end tile is notched to take it, so the
-        // pair itself is the arrow from one date to the other. They overlap by the point's
-        // depth and are as tall as the taller needs.
+        val innerPadding = centerReserve - SensorDatesGap / 2
+        // Two halves, as tall as the taller needs.
         Layout(
             content = {
-                Surface(shape = SensorDateTileShape(pointed = true, topCorner, bottomCorner), color = tileColor) {
+                Surface(
+                    shape = RoundedCornerShape(topStart = topCorner, bottomStart = bottomCorner, topEnd = 4.dp, bottomEnd = 4.dp),
+                    color = tileColor,
+                ) {
                     SensorDate(
                         label = startLabel,
                         texts = start,
@@ -366,12 +435,15 @@ internal fun SensorDates(
                         modifier = Modifier.padding(
                             start = SensorDatesPadding,
                             top = SensorDatesPadding,
-                            end = SensorDatesPadding + SensorDatesPoint,
+                            end = innerPadding,
                             bottom = SensorDatesPadding,
                         ),
                     )
                 }
-                Surface(shape = SensorDateTileShape(pointed = false, topCorner, bottomCorner), color = tileColor) {
+                Surface(
+                    shape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = topCorner, bottomEnd = bottomCorner),
+                    color = tileColor,
+                ) {
                     SensorDate(
                         label = endLabel,
                         labelColor = if (ended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -379,7 +451,7 @@ internal fun SensorDates(
                         timeBeside = timeBeside,
                         alignment = Alignment.End,
                         modifier = Modifier.padding(
-                            start = SensorDatesPadding + SensorDatesPoint,
+                            start = innerPadding,
                             top = SensorDatesPadding,
                             end = SensorDatesPadding,
                             bottom = SensorDatesPadding,
@@ -389,7 +461,7 @@ internal fun SensorDates(
             },
         ) { measurables, constraints ->
             val width = constraints.maxWidth
-            val tileWidth = ((width - SensorDatesGap.roundToPx() + SensorDatesPoint.roundToPx()) / 2).coerceAtLeast(0)
+            val tileWidth = ((width - SensorDatesGap.roundToPx()) / 2).coerceAtLeast(0)
             val height = measurables.maxOfOrNull { it.minIntrinsicHeight(tileWidth) } ?: 0
             val placeables = measurables.map { it.measure(Constraints.fixed(tileWidth, height)) }
             layout(width, height) {
@@ -400,52 +472,8 @@ internal fun SensorDates(
     }
 }
 
-/**
- * One of the two date tiles. The start tile's far edge runs out to a point at mid-height;
- * the end tile's near edge is cut back to the same line. Outer corners take the given radii.
- */
-private class SensorDateTileShape(
-    private val pointed: Boolean,
-    private val topCorner: Dp,
-    private val bottomCorner: Dp,
-) : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        val point = with(density) { SensorDatesPoint.toPx() }
-        val top = with(density) { topCorner.toPx() }
-        val bottom = with(density) { bottomCorner.toPx() }
-        val w = size.width
-        val h = size.height
-        val path = Path()
-        if (pointed) {
-            path.moveTo(top, 0f)
-            path.lineTo(w - point, 0f)
-            path.lineTo(w, h / 2f)
-            path.lineTo(w - point, h)
-            path.lineTo(bottom, h)
-            path.quadraticTo(0f, h, 0f, h - bottom)
-            path.lineTo(0f, top)
-            path.quadraticTo(0f, 0f, top, 0f)
-        } else {
-            path.moveTo(0f, 0f)
-            path.lineTo(w - top, 0f)
-            path.quadraticTo(w, 0f, w, top)
-            path.lineTo(w, h - bottom)
-            path.quadraticTo(w, h, w - bottom, h)
-            path.lineTo(0f, h)
-            path.lineTo(point, h / 2f)
-        }
-        path.close()
-        if (layoutDirection == LayoutDirection.Rtl) {
-            path.transform(Matrix().apply { translate(w, 0f); scale(-1f, 1f) })
-        }
-        return Outline.Generic(path)
-    }
-}
-
 private val SensorDatesPadding = 12.dp
 private val SensorDatesGap = 2.dp
-/** How far the start tile's point reaches into the end tile. */
-private val SensorDatesPoint = 12.dp
 
 /** A date and its time, apart and as the one line that carries both. */
 private class SensorDateTexts(val date: String, val time: String, val oneLine: AnnotatedString)

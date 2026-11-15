@@ -406,19 +406,24 @@ private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable
     }
 }
 
+private enum class SensorLinkState { UP, WAITING, DOWN }
+
 /**
- * The link's signal level: the Bluetooth sign with three waves leaving it, as many lit as the
- * signal is strong. Not rising bars, which read as a battery or the phone's own reception. A
- * tap puts the figure it is drawn from beside it, and that goes away by itself.
+ * The Bluetooth link at a glance. Up: the sign with three waves leaving it, as many lit as the
+ * signal is strong, and a tap puts the figure they are drawn from beside it for a moment.
+ * Waiting (searching, warming up): the sign with its waves unlit. Down: the struck-through
+ * sign in the error colour. Small enough to sit inside the status line's own height.
  */
 @Composable
-private fun SensorSignalLevel(rssi: Int, color: Color, modifier: Modifier = Modifier) {
+private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifier = Modifier) {
+    val color = if (state == SensorLinkState.DOWN) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
     val waves = when {
+        state != SensorLinkState.UP || rssi == null -> 0
         rssi >= -65 -> 3
         rssi >= -80 -> 2
         else -> 1
     }
-    val figure = stringResource(R.string.ottai_rssi_dbm, rssi)
+    val figure = if (state == SensorLinkState.UP && rssi != null) stringResource(R.string.ottai_rssi_dbm, rssi) else null
     var showFigure by remember { mutableStateOf(false) }
     LaunchedEffect(showFigure) {
         if (showFigure) {
@@ -426,23 +431,30 @@ private fun SensorSignalLevel(rssi: Int, color: Color, modifier: Modifier = Modi
             showFigure = false
         }
     }
+    val tap = if (figure != null) {
+        Modifier.clickable(role = Role.Button) { showFigure = !showFigure }
+    } else {
+        Modifier
+    }
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable(role = Role.Button) { showFigure = !showFigure }
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .semantics { contentDescription = figure },
+            .then(tap)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .semantics {
+                contentDescription = figure ?: ""
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AnimatedVisibility(
-            visible = showFigure,
+            visible = showFigure && figure != null,
             enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) +
                 fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
             exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
                 fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         ) {
             Text(
-                text = figure,
+                text = figure.orEmpty(),
                 style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
                 color = color,
                 maxLines = 1,
@@ -450,34 +462,38 @@ private fun SensorSignalLevel(rssi: Int, color: Color, modifier: Modifier = Modi
             )
         }
         Icon(
-            imageVector = Icons.Default.Bluetooth,
+            imageVector = if (state == SensorLinkState.DOWN) Icons.Default.BluetoothDisabled else Icons.Default.Bluetooth,
             contentDescription = null,
             tint = color,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(16.dp),
         )
-        // Waves leaving the sign, nearest first: as many lit as the signal is strong.
-        androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 12.dp, height = 20.dp)) {
-            val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
-            val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
-                width = 1.5.dp.toPx(),
-                cap = androidx.compose.ui.graphics.StrokeCap.Round,
-            )
-            val centerX = if (rtl) size.width + 2.dp.toPx() else -2.dp.toPx()
-            for (wave in 0 until 3) {
-                val radius = (5 + wave * 4).dp.toPx()
-                drawArc(
-                    color = if (wave < waves) color else color.copy(alpha = 0.3f),
-                    startAngle = if (rtl) 140f else -40f,
-                    sweepAngle = 80f,
-                    useCenter = false,
-                    topLeft = androidx.compose.ui.geometry.Offset(centerX - radius, size.height / 2f - radius),
-                    size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
-                    style = stroke,
+        if (state != SensorLinkState.DOWN) {
+            // Waves leaving the sign, nearest first: as many lit as the signal is strong.
+            androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 10.dp, height = 16.dp)) {
+                val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
+                val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 1.5.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
                 )
+                val centerX = if (rtl) size.width + 2.dp.toPx() else -2.dp.toPx()
+                for (wave in 0 until 3) {
+                    val radius = (4 + wave * 3.5f).dp.toPx()
+                    drawArc(
+                        color = if (wave < waves) color else color.copy(alpha = 0.3f),
+                        startAngle = if (rtl) 140f else -40f,
+                        sweepAngle = 80f,
+                        useCenter = false,
+                        topLeft = androidx.compose.ui.geometry.Offset(centerX - radius, size.height / 2f - radius),
+                        size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
+                        style = stroke,
+                    )
+                }
             }
         }
     }
 }
+
+private const val SENSOR_DETAILS_EXPANDED_PREF = "sensor_card_details_expanded"
 
 @Composable
 private fun SensorCurrentValueChip(
@@ -2260,6 +2276,13 @@ fun SensorCard(
                                         MaterialTheme.colorScheme.error
                                     } else if (isStreaming) {
                                         MaterialTheme.colorScheme.onSurface
+                                    } else if (!sensor.isCloneSource && !isHandedOff && isLocallyEnabled && (
+                                            status.equals(stringResource(R.string.status_disconnected), ignoreCase = true) ||
+                                                status.equals(stringResource(R.string.lossofsignal), ignoreCase = true)
+                                            )
+                                    ) {
+                                        // A dead link says so in the error colour, as its mark does.
+                                        MaterialTheme.colorScheme.error
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
@@ -2268,15 +2291,23 @@ fun SensorCard(
                                     modifier = Modifier.weight(1f)
                                 )
                             } ?: Spacer(modifier = Modifier.weight(1f))
-                            // The link's signal level, at the far end of the line. Only for a
-                            // sensor this phone's radio is connected to, and only once the
-                            // controller has answered with a real figure.
-                            if (!restricted && !sensor.isCloneSource && isStreaming && sensor.rssi in -120..-1) {
+                            // The link itself, at the far end of the line: up with its signal
+                            // level, down, or neither yet. Only for a sensor this phone's own
+                            // radio reads and has not been told to leave alone.
+                            if (!restricted && !sensor.isCloneSource && !isHandedOff && isLocallyEnabled) {
+                                val linkDown = !isStreaming && sensorStatusText != null && (
+                                    sensorStatusText.equals(stringResource(R.string.status_disconnected), ignoreCase = true) ||
+                                        sensorStatusText.equals(stringResource(R.string.lossofsignal), ignoreCase = true)
+                                    )
                                 // Its own 12dp side padding puts the sign's end on the line
                                 // the wear bar's and the dates' text ends on.
-                                SensorSignalLevel(
-                                    rssi = sensor.rssi,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                SensorLinkMark(
+                                    state = when {
+                                        isStreaming -> SensorLinkState.UP
+                                        linkDown -> SensorLinkState.DOWN
+                                        else -> SensorLinkState.WAITING
+                                    },
+                                    rssi = sensor.rssi.takeIf { it in -120..-1 },
                                 )
                             }
                         }
@@ -2289,9 +2320,7 @@ fun SensorCard(
             // The wear bar, Started and Ends sit on top of the details as one stacked group.
             if (life != null) {
                 Spacer(modifier = Modifier.height(16.dp))
-                tk.glucodata.ui.restricted.SensorLifeBar(life)
-                Spacer(modifier = Modifier.height(2.dp))
-                tk.glucodata.ui.restricted.SensorDates(life, topCorner = 4.dp, bottomCorner = 4.dp, plain = true)
+                tk.glucodata.ui.restricted.SensorWear(life)
                 Spacer(modifier = Modifier.height(2.dp))
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -2316,16 +2345,37 @@ fun SensorCard(
                             if (it.isEmpty() || it.startsWith("v", ignoreCase = true)) it else "v$it"
                         },
                     ).filter { it.isNotEmpty() }.joinToString(" · ").ifEmpty { sensor.deviceAddress }
-                    var detailsExpanded by rememberSaveable(sensor.serial) { mutableStateOf(false) }
-                    val detailsChevron by animateFloatAsState(
-                        targetValue = if (detailsExpanded) 180f else 0f,
-                        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-                        label = "sensorDetailsChevron",
-                    )
+                    // Open stays open: the choice is kept across sensors and restarts.
+                    val detailsPrefs = remember(context) {
+                        context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+                    }
+                    var detailsExpanded by remember {
+                        mutableStateOf(detailsPrefs.getBoolean(SENSOR_DETAILS_EXPANDED_PREF, false))
+                    }
+                    val setDetailsExpanded = { expanded: Boolean ->
+                        detailsExpanded = expanded
+                        detailsPrefs.edit().putBoolean(SENSOR_DETAILS_EXPANDED_PREF, expanded).apply()
+                    }
+                    val detailsFadeIn = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+                    val detailsFadeOut = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                    val detailsResize = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.unit.IntSize>()
+                    // The line and the rows are one thing in two states: the line turns into the
+                    // rows in place, and a tap anywhere on the rows turns them back.
+                    AnimatedContent(
+                        targetState = detailsExpanded,
+                        transitionSpec = {
+                            fadeIn(detailsFadeIn)
+                                .togetherWith(fadeOut(detailsFadeOut))
+                                .using(androidx.compose.animation.SizeTransform(clip = true) { _, _ -> detailsResize })
+                        },
+                        contentAlignment = Alignment.TopStart,
+                        label = "sensorDetails",
+                    ) { detailsOpen ->
+                    if (!detailsOpen) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(role = Role.Button) { detailsExpanded = !detailsExpanded }
+                            .clickable(role = Role.Button) { setDetailsExpanded(true) }
                             .heightIn(min = 48.dp)
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -2349,22 +2399,15 @@ fun SensorCard(
                             imageVector = Icons.Default.ExpandMore,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .rotate(detailsChevron),
+                            modifier = Modifier.size(20.dp),
                         )
                     }
-                    AnimatedVisibility(
-                        visible = detailsExpanded,
-                        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
-                            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
-                            fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-                    ) {
+                    } else {
                     SensorDetailList(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                            .clickable(role = Role.Button) { setDetailsExpanded(false) }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                     ) {
                         // Clean Label-Value rows
                         val labelStyle = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2576,6 +2619,7 @@ fun SensorCard(
                         if (!(sensor.isCloneSource && sensor.deviceAddress.equals("Unknown", ignoreCase = true))) {
                             DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
                         }
+                    }
                     }
                     }
 
