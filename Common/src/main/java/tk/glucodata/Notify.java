@@ -880,6 +880,8 @@ public class Notify {
 
     static private final int glucosenotificationid = 81431;
     static private final int glucosealarmid = 81432;
+    /** Wear-only fallback slot when the ongoing activity cannot be recovered. */
+    static private final int signalLossNotificationId = 81433;
     static boolean alertwatch = false;
     static private boolean showalways = Natives.getshowalways();
 
@@ -5216,14 +5218,17 @@ public class Notify {
         final Notify notify = onenot;
         if (notify == null) return;
         if (signalLossFallbackPosted) {
-            notify.notificationManager.cancel(glucosealarmid);
+            notify.notificationManager.cancel(signalLossNotificationId);
             signalLossFallbackPosted = false;
         }
         if (isWearable) {
             final var ongoing = OngoingNotificationAccess.get();
             if (ongoing != null) ongoing.updateStatus(Applic.app, glucosenotificationid);
-        } else {
+        } else if (notify.shouldKeepForegroundGlucoseNotification()) {
             notify.scheduleVisualNotificationRefresh();
+        } else {
+            notify.notificationManager.cancel(glucosenotificationid);
+            Notify.forgetPublishedOngoingContent();
         }
     }
 
@@ -5241,7 +5246,7 @@ public class Notify {
                 updated = ongoing.updateStatusText(Applic.app, glucosenotificationid, message);
             }
             if (!updated) {
-                notificationManager.notify(glucosealarmid,
+                notificationManager.notify(signalLossNotificationId,
                         makenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true));
                 signalLossFallbackPosted = true;
             }
