@@ -612,6 +612,7 @@ public class Notify {
 
     Notify(Context cont) {
         showalways = Natives.getshowalways();
+        glucoseStatusDisabled = !showalways;
         {
             if (doLog) {
                 Log.i(LOG_ID, "showalways=" + showalways);
@@ -5305,7 +5306,7 @@ public class Notify {
                 notificationManager.notify(signalLossNotificationId, lossNotification);
             }
         } else {
-            if (!glucoseStatusDisabled) {
+            if (showalways && !glucoseStatusDisabled) {
                 placelargenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
             }
         }
