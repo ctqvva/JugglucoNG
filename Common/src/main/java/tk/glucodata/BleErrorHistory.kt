@@ -77,6 +77,22 @@ internal fun decodeBleErrorEvents(encoded: String): List<BleErrorEvent> {
     }.toList()
 }
 
+/**
+ * A loss warning is a current-state signal, not a historical detail row. Once a reading is
+ * newer than the recorded loss, the card must stop showing it; the retained history remains
+ * available in Debug -> BLE error history.
+ */
+internal fun persistedBleErrorStillRelevant(
+    status: String,
+    eventAtMs: Long,
+    lastReadingMs: Long,
+    activelyReceiving: Boolean,
+): Boolean {
+    if (!activelyReceiving) return true
+    if (status != "Loss of signal") return true
+    return lastReadingMs <= 0L || eventAtMs >= lastReadingMs
+}
+
 /** Durable, bounded diagnostics for BLE failures. This is independent of trace recording. */
 object BleErrorHistory {
     private const val PREFS_NAME = "ble_error_history"
