@@ -67,46 +67,9 @@ class BleErrorHistoryTests {
     }
 
     @Test
-    fun `loss warning older than the current reading is not restored`() {
-        assertFalse(
-            persistedBleErrorStillRelevant(
-                status = "Loss of signal",
-                eventAtMs = 1_000L,
-                lastReadingMs = 2_000L,
-                activelyReceiving = true,
-            )
-        )
-        assertTrue(
-            persistedBleErrorStillRelevant(
-                status = "Loss of signal",
-                eventAtMs = 3_000L,
-                lastReadingMs = 2_000L,
-                activelyReceiving = true,
-            )
-        )
-        assertTrue(
-            persistedBleErrorStillRelevant(
-                status = "Loss of signal",
-                eventAtMs = 1_000L,
-                lastReadingMs = 2_000L,
-                activelyReceiving = false,
-            )
-        )
-        assertTrue(
-            persistedBleErrorStillRelevant(
-                status = "Loss of signal",
-                eventAtMs = 2_000L,
-                lastReadingMs = 2_000L,
-                activelyReceiving = true,
-            )
-        )
-        assertTrue(
-            persistedBleErrorStillRelevant(
-                status = "Status=147",
-                eventAtMs = 1_000L,
-                lastReadingMs = 2_000L,
-                activelyReceiving = true,
-            )
-        )
+    fun `loss warning is never restored from history`() {
+        assertFalse(persistedBleErrorStillRelevant("Loss of signal"))
+        assertTrue(persistedBleErrorStillRelevant("Status=147"))
+        assertTrue(persistedBleErrorStillRelevant("Status=8"))
     }
 }

@@ -707,14 +707,11 @@ class SensorViewModel : ViewModel() {
                         // A newly constructed callback has no memory of the previous process.
                         // Once readings are flowing again, restore its latest retained failure so
                         // the one-hour card window survives an app or APK restart. A loss warning
-                        // older than the current reading is not restored: it would look current.
-                        val lastReadingMs = SensorBluetooth.lastReadingTime(gatt)
+                        // is never restored: it is a current-state signal, not history.
                         val displayedError = liveError
                             ?: persistedBleErrors.firstOrNull {
                                 SensorIdentity.matches(it.sensorId, sensorSerial) &&
-                                    persistedBleErrorStillRelevant(
-                                        it.status, it.atMs, lastReadingMs, isActivelyReceiving,
-                                    )
+                                    persistedBleErrorStillRelevant(it.status)
                             }.takeIf { isActivelyReceiving }
                         val sensorIndex = Natives.getSensorIndexFromDataPtr(gatt.dataptr)
                         val currentViewMode = nativeViewMode

@@ -320,10 +320,12 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
     /** A complete packet, or a valid reading, ends the outage that the latch describes. */
     protected final synchronized void clearLossOfSignalState() {
+        final boolean hadLoss = "Loss of signal".equals(constatstatusstr) || lossRecorded || lossNotified;
         if ("Loss of signal".equals(constatstatusstr)) constatstatusstr = "";
         lossRecorded = false;
         lossNotified = false;
         if (Notify.hasSignalLoss() && isNotificationSensor()) Notify.clearSignalLoss();
+        if (hadLoss) Log.i(LOG_ID, SerialNumber + " loss of signal cleared");
     }
 
     /**

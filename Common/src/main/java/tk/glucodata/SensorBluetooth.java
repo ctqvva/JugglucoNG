@@ -1242,11 +1242,6 @@ public class SensorBluetooth {
         return gatt == null ? 0L : gatt.constatchange[1];
     }
 
-    /** Wall-clock time of the last accepted glucose reading for this callback. */
-    public static long lastReadingTime(SuperGattCallback gatt) {
-        return gatt == null ? 0L : gatt.charcha[0];
-    }
-
     /**
      * Runs {@code block} under the roster lock that {@link #blockLocalCloneConnection}
      * pauses callbacks under, so a Clone flag change cannot land between a sync's
