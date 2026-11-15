@@ -1879,6 +1879,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="notification_show_cob_title">Aktive Kohlenhydrate</string>
     <string name="notification_show_cob_desc">Journal-COB in der Statuszeile anzeigen</string>
     <string name="notification_show_delta_title">Delta (Δ) anzeigen</string>
+    <string name="display_show_delta_title">Delta (Δ) anzeigen</string>
+    <string name="widget_show_delta_title">Widget-Delta (Δ)</string>
     <string name="notification_show_delta_desc">Gemessene Änderung über das Delta-Intervall, neben dem Pfeil</string>
     <string name="dashboard_show_delta_title">Delta (Δ) auf der Startseite</string>
     <string name="dashboard_show_delta_desc">Gemessene Änderung über das Delta-Intervall, unter dem Trendpfeil</string>

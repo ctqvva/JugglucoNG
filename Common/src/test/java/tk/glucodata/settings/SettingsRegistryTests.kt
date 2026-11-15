@@ -46,9 +46,10 @@ class SettingsRegistryTests {
     }
 
     @Test
-    fun thePilotMirrorIsExactlyThePredictionAndSmoothingSettings() {
+    fun theMirrorContainsTheSharedDisplaySettings() {
         assertEquals(
             setOf(
+                tk.glucodata.DisplayDeltaSource.INTERVAL,
                 KEY_SMOOTHING_MINUTES,
                 KEY_SMOOTHING_GRAPH_ONLY,
                 KEY_SMOOTHING_COLLAPSE_CHUNKS,

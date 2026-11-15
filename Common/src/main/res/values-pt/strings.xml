@@ -2221,6 +2221,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">Cores da glicose</string>
     <string name="notification_show_delta_desc">Mudança medida ao longo do intervalo delta, próximo à seta</string>
     <string name="notification_show_delta_title">Mostrar delta (Δ)</string>
+    <string name="display_show_delta_title">Mostrar delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta nos widgets (Δ)</string>
     <string name="rising_fast_explanation">Avisa após %1$d intervalos consecutivos de %2$d minutos, cada um aumentando em pelo menos %3$s (≈ %4$d min de aumento sustentado) enquanto o valor estiver igual ou superior a %5$s. Nenhuma previsão, apenas a tendência bruta.</string>
     <string name="sensor_expiry_warnings_desc">Cada horário selecionado avisa uma vez por sensor</string>
     <string name="sensor_expiry_warnings_title">Avisar antes de expirar</string>

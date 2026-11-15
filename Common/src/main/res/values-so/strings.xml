@@ -2428,6 +2428,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucose_palette_title">Midabada gulukooska</string>
     <string name="notification_show_delta_desc">Isbeddel lagu qiyaasay inta u dhexaysa delta, ee ku xigta falaarta</string>
     <string name="notification_show_delta_title">Muuji delta (Δ)</string>
+    <string name="display_show_delta_title">Muuji delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta ee widget-yada (Δ)</string>
     <string name="rising_fast_explanation">Ka digaya ka dib %1$d isku xigta ee %2$d-daqiiqo mid walba wuxuu kor u kacayaa ugu yaraan %3$s (≈ %4$d daqiqo koror joogta ah) halka qiimuhu uu joogo ama ka sarreeyo %5$s. Ma jirto saadaal, kaliya isbeddelka cayriin.</string>
     <string name="sensor_expiry_warnings_desc">Waqti kasta oo la doortay wuxuu ka digayaa hal mar dareeme kasta</string>
     <string name="sensor_expiry_warnings_title">Ka dig inta aanu dhicin</string>
