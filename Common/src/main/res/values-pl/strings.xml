@@ -378,8 +378,8 @@
     <string name="humaninsulin">Insulina ludzka /Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
 
-    <string name="eusibionics">Sibionics GS1 EU</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
+    <string name="chsibionics">Sibionics GS1 Chiny</string>
     <string name="hematonix">Hematonix - com.sisensing.rusibionics</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
@@ -495,7 +495,7 @@
     <string name="continue_without_sensor_desc">Zapisuj insulinę, jedzenie i pomiary z palca w dzienniku</string>
     <string name="get_started_desc">Rozpocznij, dodając swój sensor</string>
     <string name="select_sensor">Wybierz Typ Sensora</string>
-    <string name="select_sibionics_type">Wybierz sensor Sibionics</string>
+    <string name="select_sibionics_type">Wybierz wariant sensora</string>
     <string name="or_divider">"  lub  "</string>
     <string name="no_sensors_connected">Brak połączonych sensorów</string>
     <string name="enter_sensor_codes">Wprowadź Kody Sensora</string>
@@ -516,7 +516,6 @@
     <string name="select_gallery_button">Wybierz z Galerii</string>
     <string name="skip_fake_sensor">Pomiń (Użyj fałszywego sensora)</string>
     <string name="enter_code_manually">Wprowadź kod ręcznie</string>
-    <string name="choose_sibionics_variant">Wybierz model podany na opakowaniu.</string>
     <string name="continue_action">Kontynuuj</string>
     <string name="sensor_init_failed">Inicjalizacja sensora nie powiodła się</string>
     <string name="sensor_lost_restart">Błąd: Utracono sensor. Uruchom ponownie konfigurację.</string>
@@ -3453,4 +3452,5 @@
     <string name="libre3_status_identity_missing">Nie zaimportowano tożsamości aplikacji Libre 3</string>
     <string name="libre3_status_identity_rejected">Sensor nie zaakceptował tożsamości aplikacji</string>
     <string name="libre3_managed_receiver_save_failed">Nie udało się zapisać ID odbiornika. Sprawdź pamięć urządzenia i spróbuj ponownie. Parowanie NFC jest zablokowane do czasu zapisania ID.</string>
+    <string name="scan_sensor_qr">Zeskanuj kod QR sensora</string>
 </resources>

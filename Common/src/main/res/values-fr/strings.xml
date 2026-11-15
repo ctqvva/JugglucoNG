@@ -381,7 +381,7 @@
     <string name="continue_without_sensor_desc">Notez insuline, aliments et mesures capillaires dans le journal</string>
     <string name="get_started_desc">Commencez par ajouter votre capteur</string>
     <string name="select_sensor">Sélectionner le type de capteur</string>
-    <string name="select_sibionics_type">Choisir un capteur Sibionics</string>
+    <string name="select_sibionics_type">Choisir la variante du capteur</string>
     <string name="or_divider">"  ou  "</string>
     <string name="no_sensors_connected">Aucun capteur connecté</string>
     <string name="enter_sensor_codes">Entrer les codes du capteur</string>
@@ -398,7 +398,6 @@
     <string name="select_gallery_button">Sélectionner depuis la Galerie</string>
     <string name="skip_fake_sensor">Ignorer (Utiliser faux capteur)</string>
     <string name="enter_code_manually">Entrer le code manuellement</string>
-    <string name="choose_sibionics_variant">Sélectionnez le modèle indiqué sur l’emballage.</string>
     <string name="continue_action">Continuer</string>
     <string name="sensor_init_failed">Initialisation du capteur échouée</string>
     <string name="sensor_lost_restart">Erreur: Capteur perdu. Veuillez recommencer la configuration.</string>
@@ -681,7 +680,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="caresens_air_scan_instruction">Scannez le code du capteur sur votre forfait CareSens Air</string>
     <string name="caresens_air_setup_title">Configuration de CareSens Air</string>
     <string name="changestartbutton">Change start</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 Chine</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_history_confirm">Effacer l\'historique ?</string>
     <string name="clear_history_desc">Supprimer les lectures, les entrées du journal ou les deux</string>
@@ -723,7 +722,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="endstime">" ends at this time"</string>
     <string name="enter_sensor_label_desc">Enter the codes printed on the sensor label</string>
     <string name="enter_transmitter_desc">Enter the transmitter ID from the label</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="export_history_title">Export History</string>
@@ -3400,4 +3399,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_status_identity_missing">Aucune identité d’application Libre 3 importée</string>
     <string name="libre3_status_identity_rejected">Le capteur a refusé l’identité de l’application</string>
     <string name="libre3_managed_receiver_save_failed">Impossible d’enregistrer l’ID du récepteur. Vérifiez le stockage et réessayez. L’association NFC reste bloquée tant que l’ID n’est pas enregistré.</string>
+    <string name="scan_sensor_qr">Scanner le code QR du capteur</string>
 </resources>

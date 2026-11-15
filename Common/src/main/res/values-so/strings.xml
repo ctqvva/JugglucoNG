@@ -397,8 +397,8 @@
     <string name="humaninsulin">Insulin bini\'aadamka/Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
     <string name="not">Maya</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="eusibionics">Sibionics GS1 Caalami</string>
+    <string name="chsibionics">Sibionics GS1 Shiinaha</string>
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
@@ -718,7 +718,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sibionics_setup_title">Dejinta Sibionics</string>
     <string name="scan_sensor_qr">Sawirka Sensor code QR</string>
     <string name="scan_sensor_qr_desc">Sawir shaxanka xogta ee baakadaha dareemayaasha</string>
-    <string name="select_sibionics_type">Dooro dareeme Sibionics</string>
+    <string name="select_sibionics_type">Dooro nooca dareemaha</string>
     <string name="scan_transmitter">Iskaan Wariyaha</string>
 
     <string name="connecting">Isku xidhka…</string>
@@ -957,7 +957,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="skip_fake_sensor">Ka bood (Isticmaal sensor been abuur ah)</string>
     <string name="enter_code_manually">Gacanta u geli Koodhka</string>
     
-    <string name="choose_sibionics_variant">Dooro nooca ku qoran baakadka.</string>
     <string name="continue_action">Sii wad</string>
     
     <string name="sensor_init_failed">Dareemida bilawga waa fashilantay</string>

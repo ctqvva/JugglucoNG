@@ -363,7 +363,7 @@
     <string name="continue_without_sensor_desc">Запісвайце інсулін, ежу і вымярэнні з пальца ў журнал</string>
     <string name="get_started_desc">Пачніце з дадання вашага сэнсара</string>
     <string name="select_sensor">Выберыце тып сэнсара</string>
-    <string name="select_sibionics_type">Выберыце сэнсар Sibionics</string>
+    <string name="select_sibionics_type">Выберыце варыянт сэнсара</string>
     <string name="or_divider">"  або  "</string>
     <string name="no_sensors_connected">Няма падлучаных сэнсараў</string>
     <string name="enter_sensor_codes">Увядзіце коды сэнсара</string>
@@ -384,7 +384,6 @@
     <string name="select_gallery_button">Выбраць з Галерэі</string>
     <string name="skip_fake_sensor">Прапусціць (Вык. фіктыўны сэнсар)</string>
     <string name="enter_code_manually">Увесці код уручную</string>
-    <string name="choose_sibionics_variant">Выберыце мадэль, указаную на ўпакоўцы.</string>
     <string name="continue_action">Працягнуць</string>
     <string name="sensor_init_failed">Ініцыялізацыя сэнсара не атрымалася</string>
     <string name="sensor_lost_restart">Памылка: Сэнсар страчаны. Перазапусціце наладу.</string>
@@ -714,7 +713,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Адсканіруйце код датчыка на ўпакоўцы CareSens Air</string>
     <string name="caresens_air_setup_title">Налада CareSens Air</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 Кітай</string>
     <string name="clean_history_confirm">Ачысціць гісторыю?</string>
     <string name="clear_history_desc">Выдаліць паказанні, запісы журнала або абодва</string>
     <string name="clear_history_scope_readings">Выдаляе ўсе паказанні глюкозы на гэтым тэлефоне; гэта нельга адрабіць. Журнал, датчыкі і налады застаюцца.</string>
@@ -754,7 +753,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Скінуць да завадскіх налад?</string>
