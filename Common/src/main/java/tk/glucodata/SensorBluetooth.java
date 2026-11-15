@@ -849,6 +849,9 @@ public class SensorBluetooth {
 
     public static void setCurrentSensorSelection(String serial) {
         CurrentSensorSelection.select(serial);
+        // A loss warning belongs to the sensor that owned the notification; selecting a
+        // different main sensor must not keep it pinned while the new source settles.
+        Notify.clearSignalLoss();
         if (serial == null || serial.isEmpty()) {
             onMainSensorCleared();
         }
