@@ -306,6 +306,18 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 + (charcha[0] == 0L ? "never" : (wallNow - charcha[0]) / 1000 + "s ago"));
     }
 
+    /** Clear a matching callback's loss label when an external/managed reading recovers it. */
+    private static void clearCallbackLossState(String sensorSerial) {
+        if (sensorSerial == null || sensorSerial.isEmpty()) return;
+        for (SuperGattCallback cb : SensorBluetooth.gattcallbacks) {
+            if (cb != null && cb.SerialNumber != null
+                    && SensorIdentity.matches(cb.SerialNumber, sensorSerial)) {
+                cb.clearLossOfSignalState();
+                return;
+            }
+        }
+    }
+
     /** A complete packet, or a valid reading, ends the outage that the latch describes. */
     protected final synchronized void clearLossOfSignalState() {
         if ("Loss of signal".equals(constatstatusstr)) constatstatusstr = "";
@@ -900,6 +912,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
         // Only an accepted main-sensor reading ends a loss warning. A historical or
         // out-of-order sample was rejected above and must not hide an active outage.
+        clearCallbackLossState(SerialNumber);
         Notify.clearSignalLoss();
 
         // A managed main sensor's native mirror may only now exist (first reading after

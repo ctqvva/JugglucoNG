@@ -1555,16 +1555,16 @@ public class Notify {
         if (isWearable) {
             return;
         }
-        if (glucoseStatusDisabled) {
-            if (signalLossActive) {
-                synchronized (foregroundPublicationLock) {
-                    notificationManager.cancel(glucosenotificationid);
-                    forgetPublishedContentLocked();
-                }
+        if (glucoseStatusDisabled && signalLossActive) {
+            synchronized (foregroundPublicationLock) {
+                notificationManager.cancel(glucosenotificationid);
+                forgetPublishedContentLocked();
             }
+        }
+        if (!shouldKeepForegroundGlucoseNotification()) {
             return;
         }
-        if (signalLossActive || !shouldKeepForegroundGlucoseNotification()) {
+        if (signalLossActive && !glucoseStatusDisabled) {
             return;
         }
         synchronized (foregroundPublicationLock) {
