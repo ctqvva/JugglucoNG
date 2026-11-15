@@ -1376,6 +1376,7 @@ if(alg) {
         int gid=gl.getId();
         LOGGER("processStream %d %d %.1f\n",gid,qual,gluc/convfactordL);
         if(!qual&&gluc) {
+            hist->clearSensorError();
             if(hist->savepoll(nutime,gid,gluc,gl.trend(),gl.rate())) {
                 if(streamHistory()) {
                          addStreamHistory(alg->history(), nutime,gid, *hist) ;
