@@ -848,10 +848,17 @@ public class SensorBluetooth {
     }
 
     public static void setCurrentSensorSelection(String serial) {
+        final String previous = SensorIdentity.resolveMainSensor();
         CurrentSensorSelection.select(serial);
-        // A loss warning belongs to the sensor that owned the notification; selecting a
-        // different main sensor must not keep it pinned while the new source settles.
-        Notify.clearSignalLoss();
+        // A loss warning belongs to the sensor that owned the notification. Re-selecting
+        // the same sensor must keep it; selecting a different one retires it and lets the
+        // previous owner post again if it is still in the same outage.
+        final boolean sameSensor = previous != null && serial != null
+                && SensorIdentity.matches(previous, serial);
+        if (!sameSensor) {
+            Notify.clearSignalLoss();
+            SuperGattCallback.resetLossNotificationLatches();
+        }
         if (serial == null || serial.isEmpty()) {
             onMainSensorCleared();
         }

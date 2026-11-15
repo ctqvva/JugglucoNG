@@ -314,6 +314,17 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         if (Notify.hasSignalLoss() && isNotificationSensor()) Notify.clearSignalLoss();
     }
 
+    /**
+     * A main-sensor switch retires the displayed loss, but the previous owner's callback
+     * may still be in the same outage. Let every callback post again on its next loss
+     * check; the history entry stays latched so it is not duplicated.
+     */
+    static void resetLossNotificationLatches() {
+        for (SuperGattCallback cb : SensorBluetooth.gattcallbacks) {
+            if (cb != null) cb.lossNotified = false;
+        }
+    }
+
     private boolean isNotificationSensor() {
         try {
             final String main = Natives.lastsensorname();
@@ -631,18 +642,6 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         final String resolvedSensorSerial = (sensorSerial != null && !sensorSerial.isEmpty())
                 ? sensorSerial
                 : Natives.lastsensorname();
-        // Followers and managed drivers publish here without a SuperGattCallback. A fresh
-        // reading from the sensor that owns the ongoing notification ends a prior loss,
-        // including after the main sensor was switched.
-        try {
-            final String main = Natives.lastsensorname();
-            if (main != null && resolvedSensorSerial != null
-                    && SensorIdentity.matches(resolvedSensorSerial, main)) {
-                Notify.clearSignalLoss();
-            }
-        } catch (Throwable t) {
-            Log.stack(LOG_ID, "processExternalCurrentReading clearSignalLoss", t);
-        }
         final float glucoseValue;
         if (reading.isResolved()) {
             glucoseValue = reading.getResolvedValue();
@@ -874,6 +873,9 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             UiRefreshBus.requestDataRefresh();
             return;
         }
+        // Only an accepted main-sensor reading ends a loss warning. A historical or
+        // out-of-order sample was rejected above and must not hide an active outage.
+        Notify.clearSignalLoss();
 
         // A managed main sensor's native mirror may only now exist (first reading after
         // selection), and a main re-added after removal has no selection at all. Native
