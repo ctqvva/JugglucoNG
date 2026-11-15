@@ -325,7 +325,8 @@ internal fun SensorDates(
             val sideWidth = with(LocalDensity.current) {
                 ((maxWidth - SensorDatesArrowSize - SensorDatesArrowGap * 2) / 2).roundToPx()
             }
-            val timeBeside = remember(start, end, dateStyle, sideWidth) {
+            // The measurer is a new one after a font-size change, which redoes the fit.
+            val timeBeside = remember(start, end, dateStyle, sideWidth, measurer) {
                 listOf(start, end).all {
                     measurer.measure(it.oneLine, dateStyle, softWrap = false).size.width <= sideWidth
                 }
