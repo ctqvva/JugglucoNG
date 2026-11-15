@@ -1,6 +1,7 @@
 package tk.glucodata
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -63,5 +64,49 @@ class BleErrorHistoryTests {
 
         assertEquals(listOf("recent", "boundary"), retained.map { it.status })
         assertTrue(retained.none { it.status == "old" })
+    }
+
+    @Test
+    fun `loss warning older than the current reading is not restored`() {
+        assertFalse(
+            persistedBleErrorStillRelevant(
+                status = "Loss of signal",
+                eventAtMs = 1_000L,
+                lastReadingMs = 2_000L,
+                activelyReceiving = true,
+            )
+        )
+        assertTrue(
+            persistedBleErrorStillRelevant(
+                status = "Loss of signal",
+                eventAtMs = 3_000L,
+                lastReadingMs = 2_000L,
+                activelyReceiving = true,
+            )
+        )
+        assertTrue(
+            persistedBleErrorStillRelevant(
+                status = "Loss of signal",
+                eventAtMs = 1_000L,
+                lastReadingMs = 2_000L,
+                activelyReceiving = false,
+            )
+        )
+        assertTrue(
+            persistedBleErrorStillRelevant(
+                status = "Loss of signal",
+                eventAtMs = 2_000L,
+                lastReadingMs = 2_000L,
+                activelyReceiving = true,
+            )
+        )
+        assertTrue(
+            persistedBleErrorStillRelevant(
+                status = "Status=147",
+                eventAtMs = 1_000L,
+                lastReadingMs = 2_000L,
+                activelyReceiving = true,
+            )
+        )
     }
 }
