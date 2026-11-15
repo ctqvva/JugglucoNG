@@ -710,6 +710,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="scan_sensor_qr">Sensor-QR-Code scannen</string>
     <string name="scan_sensor_qr_desc">Den Data-Matrix-Code auf der Sensorverpackung scannen</string>
     <string name="status_connected">Verbunden</string>
+    <string name="sensor_error">Sensorfehler</string>
+    <string name="sensor_replace">Sensor ersetzen</string>
+    <string name="sensor_ended">Sensor beendet</string>
+    <string name="sensor_warming_up">Aufwärmen</string>
+    <string name="sensor_error_code">Sensor-Fehlercode</string>
     <string name="status_disconnected">Getrennt</string>
     <string name="select_sensor_type">Sensortyp wählen</string>
     <string name="choose_theme">Design wählen</string>

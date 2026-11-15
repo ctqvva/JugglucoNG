@@ -832,6 +832,7 @@ public class Natives {
         public static native void setshownumbers(boolean val);
 
         public static native String getsensortext(long dataptr);
+        public static native int getSensorErrorCode(long dataptr);
 
         public static native void reenableStreaming();
 

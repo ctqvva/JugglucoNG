@@ -653,6 +653,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="status_bluetooth_off">Bluetooth kapalı</string>
     <string name="status_connection_failed">Bağlantı hatası</string>
     <string name="status_connected">Bağlı</string>
+    <string name="sensor_error">Sensör hatası</string>
+    <string name="sensor_replace">Sensörü değiştirin</string>
+    <string name="sensor_ended">Sensör sona erdi</string>
+    <string name="sensor_warming_up">Isınıyor</string>
+    <string name="sensor_error_code">Sensör hata kodu</string>
     <string name="status_disconnected">Bağlantı kesildi</string>
     <string name="select_sensor_type">Sensör tipi seç</string>
     <string name="choose_theme">Tema seç</string>

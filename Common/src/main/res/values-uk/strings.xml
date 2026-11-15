@@ -613,6 +613,11 @@
     <string name="status_bluetooth_off">Bluetooth вимк.</string>
     <string name="status_connection_failed">Помилка з\'єднання</string>
     <string name="status_connected">Підключено</string>
+    <string name="sensor_error">Помилка датчика</string>
+    <string name="sensor_replace">Замініть датчик</string>
+    <string name="sensor_ended">Датчик завершив роботу</string>
+    <string name="sensor_warming_up">Йде прогрів</string>
+    <string name="sensor_error_code">Код помилки датчика</string>
     <string name="status_disconnected">Відключено</string>
     <string name="select_sensor_type">Виберіть тип сенсора</string>
     <string name="choose_theme">Виберіть тему</string>

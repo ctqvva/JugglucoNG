@@ -114,6 +114,14 @@ public class Notify {
 
     static final private String LOG_ID = "Notify";
     static Notify onenot = null;
+    /** True while a loss status owns the notification surface; reading refreshes must not replace it. */
+    private static volatile boolean signalLossActive = false;
+    /** Last reading timestamp shown in the active loss status, for re-posting. */
+    private static volatile long signalLossLastReadingMillis = 0L;
+    private static final Object signalLossLock = new Object();
+    private static long signalLossGeneration = 0L;
+    /** User disabled the glucose status notification. */
+    private static volatile boolean glucoseStatusDisabled = false;
 
     private static Handler makeGlucoseRefreshHandler() {
         HandlerThread thread = new HandlerThread("JugglucoNotifyRefresh", Process.THREAD_PRIORITY_BACKGROUND);
@@ -604,6 +612,7 @@ public class Notify {
 
     Notify(Context cont) {
         showalways = Natives.getshowalways();
+        glucoseStatusDisabled = !showalways;
         {
             if (doLog) {
                 Log.i(LOG_ID, "showalways=" + showalways);
@@ -876,6 +885,8 @@ public class Notify {
 
     static private final int glucosenotificationid = 81431;
     static private final int glucosealarmid = 81432;
+    /** Wear-only fallback slot when the ongoing activity cannot be recovered. */
+    static private final int signalLossNotificationId = 81433;
     static boolean alertwatch = false;
     static private boolean showalways = Natives.getshowalways();
 
@@ -885,6 +896,7 @@ public class Notify {
 
     static public void glucosestatus(boolean val) {
         showalways = val;
+        glucoseStatusDisabled = !val;
         Natives.setshowalways(val);
         if (!val) {
             if (onenot != null) {
@@ -955,6 +967,14 @@ public class Notify {
     }
 
     public static void showoldglucose() {
+        synchronized (signalLossLock) {
+            if (signalLossActive) {
+                // Re-enabling the glucose status during an outage must restore the loss
+                // notice, not leave the surface empty until the next reading.
+                repostSignalLoss(signalLossLastReadingMillis, signalLossGeneration);
+                return;
+            }
+        }
         var noti = onenot;
         if (noti == null)
             return;
@@ -965,6 +985,9 @@ public class Notify {
         final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
         if (current == null || current.getPrimaryValue() < 2.0f)
             return;
+        // Keep a fallback loss notification until there is actually a reading to
+        // replace it with; a restart must not silently erase a still-active outage.
+        noti.notificationManager.cancel(signalLossNotificationId);
         noti.postForegroundGlucoseNotification(
                 FOREGROUND_GLUCOSE_NOTIFICATION_KIND,
                 current.getPrimaryValue(),
@@ -1013,6 +1036,9 @@ public class Notify {
                 }
             }
         } else {
+            final var ongoing = OngoingNotificationAccess.get();
+            if (ongoing != null) ongoing.updateStatus(Applic.app, glucosenotificationid);
+            notificationManager.cancel(signalLossNotificationId);
             notificationManager.cancel(glucosealarmid);
         }
     }
@@ -1527,7 +1553,19 @@ public class Notify {
     }
 
     private void reconcileOngoingPhoneNotification(long generation, Service capturedService) {
-        if (isWearable || !shouldKeepForegroundGlucoseNotification()) {
+        if (isWearable) {
+            return;
+        }
+        if (glucoseStatusDisabled && signalLossActive) {
+            synchronized (foregroundPublicationLock) {
+                notificationManager.cancel(glucosenotificationid);
+                forgetPublishedContentLocked();
+            }
+        }
+        if (!shouldKeepForegroundGlucoseNotification()) {
+            return;
+        }
+        if (signalLossActive && !glucoseStatusDisabled) {
             return;
         }
         synchronized (foregroundPublicationLock) {
@@ -5147,6 +5185,110 @@ public class Notify {
         placelargenotification(R.drawable.novalue, staleReadingStatus(time), GLUCOSENOTIFICATION, true);
     }
 
+    /**
+     * Status-only update for a link that stopped delivering packets, independent of the
+     * optional sound/vibration loss alarm. Same ongoing notification slot as
+     * {@link #oldnotification(long)}, so it replaces the reading in place and does not
+     * create a second channel or a second alert.
+     */
+    static void notifySignalLoss(long lastReadingMillis) {
+        synchronized (signalLossLock) {
+            signalLossLastReadingMillis = lastReadingMillis;
+            ++signalLossGeneration;
+            signalLossActive = true;
+            if (Applic.app == null) return;
+            init(Applic.app);
+            final Notify notify = onenot;
+            if (notify != null) notify.signalLoss(lastReadingMillis);
+        }
+    }
+
+    /**
+     * Re-post only the outage that was active when the caller observed it. A reading or
+     * sensor switch may have advanced the generation while the refresh was queued.
+     */
+    static void repostSignalLoss(long lastReadingMillis, long expectedGeneration) {
+        synchronized (signalLossLock) {
+            if (!signalLossActive || signalLossGeneration != expectedGeneration) return;
+            if (Applic.app == null) return;
+            init(Applic.app);
+            final Notify notify = onenot;
+            if (notify != null) notify.signalLoss(lastReadingMillis);
+        }
+    }
+
+    /** True while a loss status owns the notification surface. */
+    static boolean hasSignalLoss() {
+        return signalLossActive;
+    }
+
+    /**
+     * A complete packet or a valid reading ends the outage. On Wear restore the ongoing
+     * status immediately; on the phone queue the normal visual reconciliation so the
+     * loss text is replaced by the next reading/stale status.
+     */
+    static void clearSignalLoss() {
+        final boolean wasActive;
+        synchronized (signalLossLock) {
+            wasActive = signalLossActive;
+            signalLossActive = false;
+            ++signalLossGeneration;
+        }
+        if (Applic.app == null) return;
+        init(Applic.app);
+        final Notify notify = onenot;
+        if (notify == null) return;
+        // The Wear fallback has a dedicated id and can survive a process restart, when
+        // the in-memory latch starts false. Cancel it on every accepted reading.
+        notify.notificationManager.cancel(signalLossNotificationId);
+        if (!wasActive) return;
+        if (isWearable) {
+            final var ongoing = OngoingNotificationAccess.get();
+            if (ongoing != null) ongoing.updateStatus(Applic.app, glucosenotificationid);
+        } else if (notify.shouldKeepForegroundGlucoseNotification()) {
+            notify.scheduleVisualNotificationRefresh();
+        } else {
+            notify.notificationManager.cancel(glucosenotificationid);
+            Notify.forgetPublishedOngoingContent();
+        }
+    }
+
+    private void signalLoss(long lastReadingMillis) {
+        final String message = signalLossStatus(lastReadingMillis);
+        if (isWearable) {
+            // The watch owns its reading through the ongoing notification. Replace its
+            // status text instead of posting a second notification; the next reading
+            // calls updateStatus() and restores the normal value. If no ongoing activity
+            // can be recovered, fall back to the normal notification slot.
+            notificationManager.cancel(glucosealarmid);
+            boolean updated = false;
+            final var ongoing = OngoingNotificationAccess.get();
+            if (ongoing != null) {
+                updated = ongoing.updateStatusText(Applic.app, glucosenotificationid, message);
+            }
+            if (!updated) {
+                final Notification lossNotification = makenotification(
+                        R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
+                // The latch prevents a repost during the same outage, so the fallback
+                // must not be dismissible or auto-cancelled.
+                lossNotification.flags |= FLAG_ONGOING_EVENT;
+                lossNotification.flags &= ~Notification.FLAG_AUTO_CANCEL;
+                notificationManager.notify(signalLossNotificationId, lossNotification);
+            }
+        } else {
+            if (showalways && !glucoseStatusDisabled) {
+                placelargenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
+            }
+        }
+    }
+
+    static String signalLossStatus(long lastReadingMillis) {
+        final String loss = Applic.getContext().getString(R.string.lossofsignal);
+        if (lastReadingMillis <= 0L) return loss;
+        return loss + " (" + Applic.getContext().getString(R.string.nonewvalue)
+                + timef.format(lastReadingMillis) + ")";
+    }
+
     /** "No new value since 14:32": what the lock-screen overlay and widgets show in
      * place of a reading older than {@link #glucosetimeout}. */
     public static String staleReadingStatus(long lastReadingMillis) {
@@ -5155,6 +5297,11 @@ public class Notify {
 
     @SuppressWarnings("deprecation")
     private Notification makenotification(int draw, String message, String type, boolean once) {
+        return makenotification(draw, message, type, once, false);
+    }
+
+    @SuppressWarnings("deprecation")
+    private Notification makenotification(int draw, String message, String type, boolean once, boolean persistent) {
         var GluNotBuilder = mkbuilder(type);
 
         if (TargetSDK < 31 || Build.VERSION.SDK_INT < 31) {
@@ -5185,7 +5332,9 @@ public class Notify {
             GluNotBuilder.setVisibility(VISIBILITY_PUBLIC);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            GluNotBuilder.setTimeoutAfter(glucosetimeout);
+            // Status-only ("Loss of signal") must survive the whole outage; a reading
+            // notification keeps the normal 5.5-minute lifetime.
+            GluNotBuilder.setTimeoutAfter(persistent ? 0L : glucosetimeout);
         }
         if (isWearable) {
             GluNotBuilder.setAutoCancel(true);
@@ -5211,6 +5360,12 @@ public class Notify {
 
         Notification notif = GluNotBuilder.build();
         notif.when = System.currentTimeMillis();
+        if (persistent) {
+            // A status that must survive the whole outage cannot be swiped away; the
+            // latch prevents a repost until recovery.
+            notif.flags |= FLAG_ONGOING_EVENT;
+            notif.flags &= ~Notification.FLAG_AUTO_CANCEL;
+        }
         return notif;
 
     }
@@ -5558,9 +5713,12 @@ public class Notify {
     }
 
     public void placelargenotification(int draw, String message, String type, boolean once) {
-        hasvalue = true;
-        fornotify(makenotification(draw, message, type, once));
+        placelargenotification(draw, message, type, once, false);
+    }
 
+    public void placelargenotification(int draw, String message, String type, boolean once, boolean persistent) {
+        hasvalue = true;
+        fornotify(makenotification(draw, message, type, once, persistent));
     }
 
     static int testtimes = 1;

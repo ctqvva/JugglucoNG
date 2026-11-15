@@ -591,6 +591,11 @@
     <string name="status_bluetooth_off">Bluetooth выкл.</string>
     <string name="status_connection_failed">Памылка злучэння</string>
     <string name="status_connected">Падлучана</string>
+    <string name="sensor_error">Памылка датчыка</string>
+    <string name="sensor_replace">Замяніць датчык</string>
+    <string name="sensor_ended">Датчык завершаны</string>
+    <string name="sensor_warming_up">Ідзе прагрэў</string>
+    <string name="sensor_error_code">Код памылкі датчыка</string>
     <string name="status_disconnected">Адключана</string>
     <string name="select_sensor_type">Абярыце тып сэнсара</string>
     <string name="choose_theme">Абярыце тэму</string>

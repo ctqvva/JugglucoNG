@@ -501,6 +501,11 @@
     <string name="status_bluetooth_off">Bluetooth desl.</string>
     <string name="status_connection_failed">Falha na conexão</string>
     <string name="status_connected">Conectado</string>
+    <string name="sensor_error">Erro do sensor</string>
+    <string name="sensor_replace">Substituir o sensor</string>
+    <string name="sensor_ended">Sensor terminado</string>
+    <string name="sensor_warming_up">Aquecendo</string>
+    <string name="sensor_error_code">Código de erro do sensor</string>
     <string name="status_disconnected">Desconectado</string>
     <string name="select_sensor_type">Selec. tipo de sensor</string>
     <string name="choose_theme">Escolher tema</string>

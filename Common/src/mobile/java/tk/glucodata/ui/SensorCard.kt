@@ -2294,6 +2294,12 @@ fun SensorCard(
                             // off after the one-hour card window.
                             DataRow(stringResource(R.string.last_ble_status), sensor.connectionStatus)
                         }
+                        if (!sensor.isCloneSource && sensor.sensorErrorCode != 0) {
+                            DataRow(
+                                stringResource(R.string.sensor_error_code),
+                                sensor.sensorErrorCode.toString(),
+                            )
+                        }
                         // A mirrored sensor may never have resolved an address on this phone;
                         // a row saying "Unknown" is a row saying nothing.
                         if (!(sensor.isCloneSource && sensor.deviceAddress.equals("Unknown", ignoreCase = true))) {

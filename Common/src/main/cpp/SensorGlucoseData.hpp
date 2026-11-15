@@ -3331,11 +3331,58 @@ public:
 
   bool sensorerror = false;
   uint32_t sensorErrorTime = 0;
-  bool hasSensorError(uint32_t nu) const {
-    return sensorerror &&
-           ((nu - sensorErrorTime) < (60 * (isDexcom() ? 15 : 10)));
-  }
+  uint32_t sensorErrorStart = 0;
+  uint32_t sensorErrorCode = 0;
+  uint32_t lastPacketTime = 0;
+  bool persistentSensorError = false;
   bool replacesensor = false;
+
+  /**
+   * Start or refresh an error episode. Libre 2 errors are kept until a valid reading
+   * clears them; ten minutes of continuous failure marks the sensor for replacement.
+   */
+  void setSensorError(uint32_t nu, uint32_t code = 0) {
+    // A packet after a long silent gap starts a new episode; otherwise the first bad
+    // frame after a ten-minute link loss would immediately claim the sensor is finished.
+    const bool staleEpisode =
+        sensorerror &&
+        (nu < sensorErrorTime || (nu - sensorErrorTime) >= (10 * 60));
+    if (!sensorerror || staleEpisode) {
+      sensorErrorStart = nu;
+      sensorErrorCode = code;
+      replacesensor = false;
+    } else if (code) {
+      sensorErrorCode = code;
+    }
+    sensorerror = true;
+    sensorErrorTime = nu;
+    persistentSensorError = true;
+    if (sensorErrorStart && nu >= sensorErrorStart &&
+        (nu - sensorErrorStart) >= 10 * 60) {
+      replacesensor = true;
+    }
+  }
+
+  void clearSensorError() {
+    sensorerror = false;
+    sensorErrorTime = 0;
+    sensorErrorStart = 0;
+    sensorErrorCode = 0;
+    persistentSensorError = false;
+    replacesensor = false;
+  }
+
+  bool hasSensorError(uint32_t nu) const {
+    if (!sensorerror) return false;
+    if (persistentSensorError) {
+      // Keep the error until a valid reading, but do not mask a link that stopped
+      // delivering frames: after ten minutes without a packet, no connection is the
+      // truthful state.
+      return lastPacketTime == 0 || nu < lastPacketTime ||
+             (nu - lastPacketTime) < (10 * 60);
+    }
+    return (nu - sensorErrorTime) < (60 * (isDexcom() ? 15 : 10));
+  }
   std::vector<int> viewed;
   int getSiIndex() const { return getinfo()->lockcount; }
   void setSiIndex(int index) { getinfo()->lockcount = index; }
