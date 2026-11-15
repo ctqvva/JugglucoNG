@@ -631,6 +631,18 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         final String resolvedSensorSerial = (sensorSerial != null && !sensorSerial.isEmpty())
                 ? sensorSerial
                 : Natives.lastsensorname();
+        // Followers and managed drivers publish here without a SuperGattCallback. A fresh
+        // reading from the sensor that owns the ongoing notification ends a prior loss,
+        // including after the main sensor was switched.
+        try {
+            final String main = Natives.lastsensorname();
+            if (main != null && resolvedSensorSerial != null
+                    && SensorIdentity.matches(resolvedSensorSerial, main)) {
+                Notify.clearSignalLoss();
+            }
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, "processExternalCurrentReading clearSignalLoss", t);
+        }
         final float glucoseValue;
         if (reading.isResolved()) {
             glucoseValue = reading.getResolvedValue();
