@@ -66,6 +66,8 @@ object OttaiConstants {
     // Ottai Global 1.51.x signs in here (email or username in encryptInfo). The legacy
     // accountLogin answers 500 NET_SECURITY_SYSTEM_ERROR on seas.ottai.com since ~2026-11-13.
     const val EP_THIRD_LOGIN_BY_PASSWORD = "$PREFIX/user/login/thirdLoginByPassword"
+    // Ottai Global 1.51 username sign-in (type 3; type 2 is email). thirdLoginByPassword refuses usernames.
+    const val EP_VARIOUS_LOGIN = "$PREFIX/user/login/variousLogin"
     const val EP_LOGOUT = "$PREFIX/user/logout"
     const val EP_GET_USER = "$PREFIX/user/getUser"
     const val EP_VALIDATE_BY_MAC = "$PREFIX/device/validateDeviceByMacV2"
