@@ -284,7 +284,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
      * Record the shared "Loss of signal" state. Extracted so a driver that recovers the
      * link its own way still reports it the same to the UI and the error history.
      */
-    protected final void noteLossOfSignal(long now) {
+    protected final synchronized void noteLossOfSignal(long now) {
         final long wallNow = System.currentTimeMillis();
         constatstatusstr = "Loss of signal";
         constatchange[1] = now;
@@ -307,7 +307,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     }
 
     /** A complete packet, or a valid reading, ends the outage that the latch describes. */
-    protected final void clearLossOfSignalState() {
+    protected final synchronized void clearLossOfSignalState() {
         if ("Loss of signal".equals(constatstatusstr)) constatstatusstr = "";
         lossRecorded = false;
         lossNotified = false;
@@ -334,12 +334,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         for (SuperGattCallback cb : SensorBluetooth.gattcallbacks) {
             if (cb == null || cb.SerialNumber == null
                     || !SensorIdentity.matches(cb.SerialNumber, serial)) continue;
-            if (!"Loss of signal".equals(cb.constatstatusstr)) return;
-            cb.lossNotified = true;
-            final long lastReading = cb.charcha[0] != 0L ? cb.charcha[0]
-                    : (lastfoundL != 0L ? lastfoundL : Natives.lastglucosetime());
-            Notify.notifySignalLoss(lastReading);
-            return;
+            synchronized (cb) {
+                if (!"Loss of signal".equals(cb.constatstatusstr)) return;
+                cb.lossNotified = true;
+                final long lastReading = cb.charcha[0] != 0L ? cb.charcha[0]
+                        : (lastfoundL != 0L ? lastfoundL : Natives.lastglucosetime());
+                Notify.notifySignalLoss(lastReading);
+                return;
+            }
         }
     }
 
@@ -1379,7 +1381,11 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
     String getinfo() {
         if (dataptr == 0L) return "";
-        final String text = Natives.getsensortext(dataptr);
+        return localizeSensorStatus(Natives.getsensortext(dataptr));
+    }
+
+    /** Localize the native status literals used by the sensor-info screens. */
+    static String localizeSensorStatus(String text) {
         if (text == null || text.isEmpty()) return "";
         final tk.glucodata.ui.LegacySensorStatusText kind =
                 tk.glucodata.ui.LegacySensorStatusPolicyKt.classifyLegacySensorStatus(text);

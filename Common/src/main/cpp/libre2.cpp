@@ -1345,7 +1345,7 @@ return (AlgorithmResults *)outalgres.ptr;
 extern bool addStreamHistory(const jniHistory &hist,time_t nutime,int nuid, SensorGlucoseData &save) ;
 
 const AlgorithmResults *  libre2stream::processTooth(data_t * bluedata, scanstate *newstate,uint32_t nutime) {
-
+hist->lastPacketTime = nutime;
 const data_t *ident=getident();
 #ifdef HASP1
 const data_t *info=getinfo();

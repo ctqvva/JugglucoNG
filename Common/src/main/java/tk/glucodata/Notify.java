@@ -120,6 +120,8 @@ public class Notify {
     private static volatile long signalLossLastReadingMillis = 0L;
     private static final Object signalLossLock = new Object();
     private static long signalLossGeneration = 0L;
+    /** User disabled the glucose status notification. */
+    private static volatile boolean glucoseStatusDisabled = false;
 
     private static Handler makeGlucoseRefreshHandler() {
         HandlerThread thread = new HandlerThread("JugglucoNotifyRefresh", Process.THREAD_PRIORITY_BACKGROUND);
@@ -893,6 +895,7 @@ public class Notify {
 
     static public void glucosestatus(boolean val) {
         showalways = val;
+        glucoseStatusDisabled = !val;
         Natives.setshowalways(val);
         if (!val) {
             if (onenot != null) {
@@ -1549,7 +1552,19 @@ public class Notify {
     }
 
     private void reconcileOngoingPhoneNotification(long generation, Service capturedService) {
-        if (isWearable || signalLossActive || !shouldKeepForegroundGlucoseNotification()) {
+        if (isWearable) {
+            return;
+        }
+        if (glucoseStatusDisabled) {
+            if (signalLossActive) {
+                synchronized (foregroundPublicationLock) {
+                    notificationManager.cancel(glucosenotificationid);
+                    forgetPublishedContentLocked();
+                }
+            }
+            return;
+        }
+        if (signalLossActive || !shouldKeepForegroundGlucoseNotification()) {
             return;
         }
         synchronized (foregroundPublicationLock) {
@@ -5290,7 +5305,9 @@ public class Notify {
                 notificationManager.notify(signalLossNotificationId, lossNotification);
             }
         } else {
-            placelargenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
+            if (!glucoseStatusDisabled) {
+                placelargenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
+            }
         }
     }
 

@@ -40,8 +40,8 @@ base_methods = '\n'.join(method(base, signature) for signature in [
     'protected void onConnectionAttemptTimeout(',
     'public final boolean hasLocallyConnectedGatt(',
     'void setConStatus(int status)', 'void setConStatus(int status, boolean',
-    'static String gattStatusText(', 'protected final void noteLossOfSignal(',
-    'protected final void clearLossOfSignalState(', 'private boolean isNotificationSensor(',
+    'static String gattStatusText(', 'protected final synchronized void noteLossOfSignal(',
+    'protected final synchronized void clearLossOfSignalState(', 'private boolean isNotificationSensor(',
     'protected final void recordEstablishedLinkDrop(',
 ])
 libre_methods = '\n'.join(method(libre, signature) for signature in [

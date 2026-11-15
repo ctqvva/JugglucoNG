@@ -791,6 +791,7 @@ class NotificationStartupRestoreTests {
                 public class NotifyStartupHarness {
                     public static boolean isWearable = false;
                     public static volatile boolean signalLossActive = false;
+                    public static volatile boolean glucoseStatusDisabled = false;
                     public boolean doLog = false;
                     public static String LOG_ID = "test";
                     public static java.util.Locale usedlocale = java.util.Locale.ROOT;
