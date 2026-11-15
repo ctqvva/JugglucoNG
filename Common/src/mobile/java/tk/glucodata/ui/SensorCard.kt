@@ -78,6 +78,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material.icons.outlined.Info
 
@@ -405,17 +409,18 @@ private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable
 }
 
 /**
- * The link's signal level: the Bluetooth mark, so the bars are not taken for a battery or the
- * phone's own reception, then four rising bars. A tap swaps the bars for the figure they are
- * drawn from, and it swaps back by itself.
+ * The link's signal level as one mark: the Bluetooth sign, lit from the bottom up as far as
+ * the signal is strong and dim above that. No bars beside it, which read as a battery or the
+ * phone's own reception. A tap puts the figure it is drawn from beside it, and that goes
+ * away by itself.
  */
 @Composable
 private fun SensorSignalLevel(rssi: Int, color: Color, modifier: Modifier = Modifier) {
-    val level = when {
-        rssi >= -65 -> 4
-        rssi >= -75 -> 3
-        rssi >= -85 -> 2
-        else -> 1
+    val lit = when {
+        rssi >= -65 -> 1f
+        rssi >= -75 -> 0.75f
+        rssi >= -85 -> 0.5f
+        else -> 0.25f
     }
     val figure = stringResource(R.string.ottai_rssi_dbm, rssi)
     var showFigure by remember { mutableStateOf(false) }
@@ -425,9 +430,11 @@ private fun SensorSignalLevel(rssi: Int, color: Color, modifier: Modifier = Modi
             showFigure = false
         }
     }
-    val fadeInSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    val fadeOutSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-    val sizeSpec = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.unit.IntSize>()
+    val litFraction by animateFloatAsState(
+        targetValue = lit,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "sensorSignalLit",
+    )
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
@@ -436,47 +443,41 @@ private fun SensorSignalLevel(rssi: Int, color: Color, modifier: Modifier = Modi
             .semantics { contentDescription = figure },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = Icons.Default.Bluetooth,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(16.dp),
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        AnimatedContent(
-            targetState = showFigure,
-            transitionSpec = {
-                fadeIn(fadeInSpec)
-                    .togetherWith(fadeOut(fadeOutSpec))
-                    .using(androidx.compose.animation.SizeTransform(clip = false) { _, _ -> sizeSpec })
-            },
-            contentAlignment = Alignment.CenterEnd,
-            label = "sensorSignal",
-        ) { figureShown ->
-            if (figureShown) {
-                Text(
-                    text = figure,
-                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = color,
-                    maxLines = 1,
-                )
-            } else {
-                androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 18.dp, height = 12.dp)) {
-                    val gap = 2.dp.toPx()
-                    val barWidth = (size.width - gap * 3) / 4
-                    val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
-                    for (bar in 0 until 4) {
-                        val barHeight = size.height * (bar + 1) / 4
-                        val slot = if (rtl) 3 - bar else bar
-                        drawRoundRect(
-                            color = if (bar < level) color else color.copy(alpha = 0.3f),
-                            topLeft = androidx.compose.ui.geometry.Offset(slot * (barWidth + gap), size.height - barHeight),
-                            size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()),
-                        )
-                    }
-                }
-            }
+        AnimatedVisibility(
+            visible = showFigure,
+            enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+        ) {
+            Text(
+                text = figure,
+                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                color = color,
+                maxLines = 1,
+                modifier = Modifier.padding(end = 4.dp),
+            )
+        }
+        Box {
+            Icon(
+                imageVector = Icons.Default.Bluetooth,
+                contentDescription = null,
+                tint = color.copy(alpha = 0.3f),
+                modifier = Modifier.size(20.dp),
+            )
+            Icon(
+                imageVector = Icons.Default.Bluetooth,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier
+                    .size(20.dp)
+                    .drawWithContent {
+                        // The sign's own glyph spans the middle five sixths of its box.
+                        val inset = size.height / 12f
+                        val top = inset + (size.height - inset * 2) * (1f - litFraction)
+                        clipRect(top = top) { this@drawWithContent.drawContent() }
+                    },
+            )
         }
     }
 }
@@ -2274,7 +2275,7 @@ fun SensorCard(
                             // sensor this phone's radio is connected to, and only once the
                             // controller has answered with a real figure.
                             if (!restricted && !sensor.isCloneSource && isStreaming && sensor.rssi in -120..-1) {
-                                // Its own 12dp side padding puts the bars' end on the line
+                                // Its own 12dp side padding puts the sign's end on the line
                                 // the wear bar's and the dates' text ends on.
                                 SensorSignalLevel(
                                     rssi = sensor.rssi,
