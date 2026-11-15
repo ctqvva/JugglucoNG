@@ -412,11 +412,12 @@ private enum class SensorLinkState { UP, WAITING, DOWN }
  * The Bluetooth link at a glance. Up: the sign with three waves leaving it, as many lit as the
  * signal is strong, and a tap puts the figure they are drawn from beside it for a moment.
  * Waiting (searching, warming up): the sign with its waves unlit. Down: the struck-through
- * sign in the error colour. Small enough to sit inside the status line's own height.
+ * sign on the error container. It is a chip the size of the reading chip at the line's other end.
  */
 @Composable
 private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifier = Modifier) {
-    val color = if (state == SensorLinkState.DOWN) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    val down = state == SensorLinkState.DOWN
+    val color = if (down) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
     val waves = when {
         state != SensorLinkState.UP || rssi == null -> 0
         rssi >= -65 -> 3
@@ -436,57 +437,64 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
     } else {
         Modifier
     }
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .then(tap)
-            .padding(horizontal = 12.dp, vertical = 4.dp)
-            .semantics {
-                contentDescription = figure ?: ""
-            },
-        verticalAlignment = Alignment.CenterVertically,
+    // The reading chip's own shape, height and padding: the line's two ends are a pair.
+    Surface(
+        modifier = modifier.semantics { contentDescription = figure ?: "" },
+        shape = RoundedCornerShape(16.dp),
+        color = if (down) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = color,
+        tonalElevation = 1.dp,
     ) {
-        AnimatedVisibility(
-            visible = showFigure && figure != null,
-            enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) +
-                fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-            exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
-                fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+        Row(
+            modifier = Modifier
+                .then(tap)
+                .heightIn(min = 32.dp)
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = figure.orEmpty(),
-                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                color = color,
-                maxLines = 1,
-                modifier = Modifier.padding(end = 4.dp),
-            )
-        }
-        Icon(
-            imageVector = if (state == SensorLinkState.DOWN) Icons.Default.BluetoothDisabled else Icons.Default.Bluetooth,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(16.dp),
-        )
-        if (state != SensorLinkState.DOWN) {
-            // Waves leaving the sign, nearest first: as many lit as the signal is strong.
-            androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 10.dp, height = 16.dp)) {
-                val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
-                val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
-                    width = 1.5.dp.toPx(),
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+            AnimatedVisibility(
+                visible = showFigure && figure != null,
+                enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                    fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                    fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            ) {
+                Text(
+                    text = figure.orEmpty(),
+                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                    color = color,
+                    maxLines = 1,
+                    modifier = Modifier.padding(end = 8.dp),
                 )
-                val centerX = if (rtl) size.width + 2.dp.toPx() else -2.dp.toPx()
-                for (wave in 0 until 3) {
-                    val radius = (4 + wave * 3.5f).dp.toPx()
-                    drawArc(
-                        color = if (wave < waves) color else color.copy(alpha = 0.3f),
-                        startAngle = if (rtl) 140f else -40f,
-                        sweepAngle = 80f,
-                        useCenter = false,
-                        topLeft = androidx.compose.ui.geometry.Offset(centerX - radius, size.height / 2f - radius),
-                        size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
-                        style = stroke,
+            }
+            // The sign names what the waves measure, so it is the smaller of the two.
+            Icon(
+                imageVector = if (down) Icons.Default.BluetoothDisabled else Icons.Default.Bluetooth,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(if (down) 16.dp else 12.dp),
+            )
+            if (!down) {
+                // Waves leaving the sign, nearest first: as many lit as the signal is strong.
+                androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 12.dp, height = 20.dp)) {
+                    val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
+                    val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = 1.5.dp.toPx(),
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
                     )
+                    val centerX = if (rtl) size.width + 2.dp.toPx() else -2.dp.toPx()
+                    for (wave in 0 until 3) {
+                        val radius = (5 + wave * 4).dp.toPx()
+                        drawArc(
+                            color = if (wave < waves) color else color.copy(alpha = 0.3f),
+                            startAngle = if (rtl) 140f else -40f,
+                            sweepAngle = 80f,
+                            useCenter = false,
+                            topLeft = androidx.compose.ui.geometry.Offset(centerX - radius, size.height / 2f - radius),
+                            size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
+                            style = stroke,
+                        )
+                    }
                 }
             }
         }
@@ -2299,8 +2307,6 @@ fun SensorCard(
                                     sensorStatusText.equals(stringResource(R.string.status_disconnected), ignoreCase = true) ||
                                         sensorStatusText.equals(stringResource(R.string.lossofsignal), ignoreCase = true)
                                     )
-                                // Its own 12dp side padding puts the sign's end on the line
-                                // the wear bar's and the dates' text ends on.
                                 SensorLinkMark(
                                     state = when {
                                         isStreaming -> SensorLinkState.UP
