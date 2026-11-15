@@ -118,6 +118,8 @@ public class Notify {
     private static volatile boolean signalLossActive = false;
     /** Last reading timestamp shown in the active loss status, for re-posting. */
     private static volatile long signalLossLastReadingMillis = 0L;
+    private static final Object signalLossLock = new Object();
+    private static long signalLossGeneration = 0L;
 
     private static Handler makeGlucoseRefreshHandler() {
         HandlerThread thread = new HandlerThread("JugglucoNotifyRefresh", Process.THREAD_PRIORITY_BACKGROUND);
@@ -961,11 +963,13 @@ public class Notify {
     }
 
     public static void showoldglucose() {
-        if (signalLossActive) {
-            // Re-enabling the glucose status during an outage must restore the loss
-            // notice, not leave the surface empty until the next reading.
-            notifySignalLoss(signalLossLastReadingMillis);
-            return;
+        synchronized (signalLossLock) {
+            if (signalLossActive) {
+                // Re-enabling the glucose status during an outage must restore the loss
+                // notice, not leave the surface empty until the next reading.
+                repostSignalLoss(signalLossLastReadingMillis, signalLossGeneration);
+                return;
+            }
         }
         var noti = onenot;
         if (noti == null)
@@ -5203,11 +5207,29 @@ public class Notify {
      * create a second channel or a second alert.
      */
     static void notifySignalLoss(long lastReadingMillis) {
-        signalLossLastReadingMillis = lastReadingMillis;
-        if (Applic.app == null) return;
-        init(Applic.app);
-        final Notify notify = onenot;
-        if (notify != null) notify.signalLoss(lastReadingMillis);
+        synchronized (signalLossLock) {
+            signalLossLastReadingMillis = lastReadingMillis;
+            ++signalLossGeneration;
+            signalLossActive = true;
+            if (Applic.app == null) return;
+            init(Applic.app);
+            final Notify notify = onenot;
+            if (notify != null) notify.signalLoss(lastReadingMillis);
+        }
+    }
+
+    /**
+     * Re-post only the outage that was active when the caller observed it. A reading or
+     * sensor switch may have advanced the generation while the refresh was queued.
+     */
+    static void repostSignalLoss(long lastReadingMillis, long expectedGeneration) {
+        synchronized (signalLossLock) {
+            if (!signalLossActive || signalLossGeneration != expectedGeneration) return;
+            if (Applic.app == null) return;
+            init(Applic.app);
+            final Notify notify = onenot;
+            if (notify != null) notify.signalLoss(lastReadingMillis);
+        }
     }
 
     /** True while a loss status owns the notification surface. */
@@ -5221,8 +5243,12 @@ public class Notify {
      * loss text is replaced by the next reading/stale status.
      */
     static void clearSignalLoss() {
-        final boolean wasActive = signalLossActive;
-        signalLossActive = false;
+        final boolean wasActive;
+        synchronized (signalLossLock) {
+            wasActive = signalLossActive;
+            signalLossActive = false;
+            ++signalLossGeneration;
+        }
         if (Applic.app == null) return;
         init(Applic.app);
         final Notify notify = onenot;
@@ -5243,7 +5269,6 @@ public class Notify {
     }
 
     private void signalLoss(long lastReadingMillis) {
-        signalLossActive = true;
         final String message = signalLossStatus(lastReadingMillis);
         if (isWearable) {
             // The watch owns its reading through the ongoing notification. Replace its
