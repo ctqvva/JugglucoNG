@@ -496,6 +496,12 @@ object OttaiCloudClient {
     ): LoginResult? {
         val acct = account.trim()
         if (acct.isBlank() || password.isBlank()) { lastFailure = CloudFailure("account/password required"); return null }
+        if (base == OttaiConstants.API_BASE_GLOBAL && authorizationOverride == null) {
+            // accountLogin answers 500 on Global since 2026-11-13; the app's own routes come first.
+            val (answer, result) = globalThirdLogin(ctx, acct, password)
+            if (answer == GlobalLoginAnswer.SIGNED_IN) return result
+            if (answer == GlobalLoginAnswer.REFUSED) return null
+        }
         // Username + password login on a GLOBAL backend (seas.ottai.com / api.syai.com) — same
         // API + signature scheme, different host. The server keys on the account USERNAME, which
         // is a server-assigned RANDOM string (verified: NOT derived from the email), so the email
@@ -554,30 +560,56 @@ object OttaiCloudClient {
         else -> GlobalLoginAnswer.NO_ANSWER
     }
 
+    /** Global sign-in request: an email goes to thirdLoginByPassword, a username to variousLogin type 3. */
+    internal fun globalLoginRequest(
+        identifier: String,
+        encryptInfo: String,
+        apiToken: String,
+        signature: String,
+    ): Pair<String, JSONObject> {
+        val body = JSONObject().apply {
+            put("uuid", UUID.randomUUID().toString().replace("-", ""))
+            put("encryptInfo", encryptInfo)
+            put("apiToken", apiToken)
+            put("source", 5)
+            put("signature", signature)
+        }
+        if (identifier.contains('@')) return OttaiConstants.EP_THIRD_LOGIN_BY_PASSWORD to body
+        // Live 2026-11-15: type 3 + the username signs in; types 1 and 2 refuse it as a wrong
+        // password (type 2 is the email login). The server's DTO reads `type`; the app also
+        // sends the username in clear next to encryptInfo.
+        body.put("type", GLOBAL_USERNAME_LOGIN_TYPE)
+        body.put("loginType", GLOBAL_USERNAME_LOGIN_TYPE)
+        body.put("username", identifier)
+        return OttaiConstants.EP_VARIOUS_LOGIN to body
+    }
+
+    private const val GLOBAL_USERNAME_LOGIN_TYPE = 3
+
     /**
      * Ottai Global email sign-in as the official app 1.51 does it: mobile
      * `/user/login/thirdLoginByPassword` on the secure route, the email plus password in the
      * web-style AES encryptInfo, signed like every watch-profile call. One reply carries the whole
      * mobile session (accessToken, glucoseSecretKey, userId), and device calls accept it under the
      * watch identity (verified 2026-11-13). It replaces web login + getUser + accountLogin, whose
-     * last step now fails with 500 NET_SECURITY_SYSTEM_ERROR. EMAIL ONLY: the same account's
-     * server username is refused here with User_InvalidParams (a failed login attempt).
+     * last step now fails with 500 NET_SECURITY_SYSTEM_ERROR. thirdLoginByPassword refuses a
+     * username with User_InvalidParams (a failed login attempt), so a username goes to the app's
+     * `/user/login/variousLogin` as type 3 instead ([globalLoginRequest]).
      */
     private fun globalThirdLogin(ctx: Context, identifier: String, password: String): Pair<GlobalLoginAnswer, LoginResult?> {
         val base = OttaiConstants.API_BASE_GLOBAL
         val apiToken = getApiToken(ctx, base, "") ?: return GlobalLoginAnswer.NO_ANSWER to null
         val ts = now()
         val deviceId = requestDeviceId(ctx, OttaiRegistry.SessionProfile.WATCH)
-        val body = JSONObject().apply {
-            put("uuid", UUID.randomUUID().toString().replace("-", ""))
-            put("encryptInfo", webEncrypt(JSONObject().put("username", identifier).put("password", password).toString()))
-            put("apiToken", apiToken)
-            put("source", 5)
-            put("signature", signForProfile(OttaiRegistry.SessionProfile.WATCH, deviceId, ts, apiToken, identifier, password))
-        }
+        val (endpoint, body) = globalLoginRequest(
+            identifier,
+            webEncrypt(JSONObject().put("username", identifier).put("password", password).toString()),
+            apiToken,
+            signForProfile(OttaiRegistry.SessionProfile.WATCH, deviceId, ts, apiToken, identifier, password),
+        )
         val reply = requestWithResult(
             "POST",
-            base + OttaiConstants.EP_THIRD_LOGIN_BY_PASSWORD,
+            base + endpoint,
             body.toString(),
             headers(ctx, ts, base, "") + ("Content-Type" to "application/json;charset=UTF-8"),
         )
@@ -586,7 +618,7 @@ object OttaiCloudClient {
         val answer = globalLoginAnswer(reply.failure, result)
         if (answer == GlobalLoginAnswer.SIGNED_IN && result != null) {
             saveMobileSession(ctx, base, result)
-            Log.i(TAG, "Global login ok route=thirdLoginByPassword")
+            Log.i(TAG, "Global login ok route=${endpoint.substringAfterLast('/')}")
             return answer to result
         }
         if (reply.failure == null) lastFailure = CloudFailure("login returned no session")
