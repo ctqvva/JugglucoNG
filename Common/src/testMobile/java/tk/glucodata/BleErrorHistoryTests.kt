@@ -94,6 +94,14 @@ class BleErrorHistoryTests {
         )
         assertTrue(
             persistedBleErrorStillRelevant(
+                status = "Loss of signal",
+                eventAtMs = 2_000L,
+                lastReadingMs = 2_000L,
+                activelyReceiving = true,
+            )
+        )
+        assertTrue(
+            persistedBleErrorStillRelevant(
                 status = "Status=147",
                 eventAtMs = 1_000L,
                 lastReadingMs = 2_000L,
