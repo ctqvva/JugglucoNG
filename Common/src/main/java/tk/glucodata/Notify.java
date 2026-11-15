@@ -963,6 +963,11 @@ public class Notify {
         var noti = onenot;
         if (noti == null)
             return;
+        if (isWearable) {
+            // The dedicated fallback can outlive a process restart; this startup/refresh
+            // path restores the normal reading without the in-memory latch.
+            noti.notificationManager.cancel(signalLossNotificationId);
+        }
         if (!isWearable) {
             noti.scheduleVisualNotificationRefresh();
             return;
