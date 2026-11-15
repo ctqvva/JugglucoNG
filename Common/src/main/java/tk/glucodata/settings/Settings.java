@@ -132,7 +132,7 @@ import java.text.DecimalFormat;
 import java.util.Locale;
 
 public class Settings  {
-private final static boolean SPANISH=false;
+private final static boolean SPANISH=true;
 private final static String LOG_ID="Settings";
 MainActivity activity;
 
