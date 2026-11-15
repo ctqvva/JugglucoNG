@@ -8,6 +8,12 @@ import android.icu.util.Measure
 import android.icu.util.MeasureUnit
 import android.text.format.DateUtils
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -219,160 +225,143 @@ private fun sensorSpanText(locale: Locale, spanMs: Long, width: MeasureFormat.Fo
 
 /**
  * The full card's wear block: the wear bar over the two dates, with the sensor's rated days
- * as a calendar page cut into the middle of both. Age and start date sit to one side of the
- * page, time left and end date to the other.
+ * on a calendar page cut into the middle of both. The page is a tag pointed at the end date,
+ * so it is also the arrow from start to end: age and start date sit behind it, time left and
+ * end date ahead of it. It settles into place with a push that way, and a tap turns it over
+ * to today's day of wear for a moment.
  */
 @Composable
 internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
     val locale = LocalConfiguration.current.locales[0]
     val ratedDays = ((life.endMs - life.startMs + DAY_MS / 2) / DAY_MS).coerceAtLeast(1L)
-    val ratedText = String.format(locale, "%d", ratedDays)
     val ratedSpoken = remember(locale, ratedDays) {
         MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.WIDE).format(Measure(ratedDays, MeasureUnit.DAY))
     }
-    // The leaf above the page counts the days worn, one sheet at a time, up to today's: when
-    // the card appears, when the day turns, and again on a tap.
-    var replay by remember { mutableIntStateOf(0) }
-    val shownDay = remember { Animatable(1f) }
-    val pageScale = remember { Animatable(1f) }
     val day = life.currentDay.coerceAtLeast(1)
-    LaunchedEffect(day, replay) {
-        if (replay > 0) {
-            shownDay.snapTo(1f)
-            launch {
-                pageScale.snapTo(0.9f)
-                pageScale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow))
-            }
-        }
-        val sheets = kotlin.math.abs(day - shownDay.value).toInt()
-        shownDay.animateTo(day.toFloat(), tween((sheets * 90).coerceIn(200, 1200), easing = FastOutSlowInEasing))
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    // Which face is up, how far the turn has got (the page narrows to nothing and opens
+    // again on the other face), and the push along the arrow.
+    var showDay by remember { mutableStateOf(false) }
+    var dayFace by remember { mutableStateOf(false) }
+    val turn = remember { Animatable(1f) }
+    val push = remember { Animatable(-1f) }
+    LaunchedEffect(Unit) {
+        push.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
     }
-    val leafDay = shownDay.value.roundToInt()
+    LaunchedEffect(showDay) {
+        if (dayFace != showDay) {
+            turn.animateTo(0f, tween(120, easing = FastOutLinearInEasing))
+            dayFace = showDay
+            turn.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+        }
+        if (showDay) {
+            delay(3_000L)
+            showDay = false
+        }
+    }
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier
-                // Its own layer, so the holes are cut out of the bar, its fill and both date
-                // tiles at once, down to whatever the card is drawn on: one round the page,
-                // one round the leaf above it, and a channel from the page down between the
-                // dates, which holds the arrow from one to the other.
+                // Its own layer, so the page's hole is cut out of the bar, its fill and both
+                // date tiles at once, down to whatever the card is drawn on.
                 .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                 .drawWithContent {
                     drawContent()
-                    val cut = SensorRatedPageCut.toPx()
-                    val page = SensorRatedPageSize.toPx() + cut * 2
-                    drawRoundRect(
-                        color = Color.Black,
-                        topLeft = Offset((size.width - page) / 2f, (size.height - page) / 2f),
-                        size = Size(page, page),
-                        cornerRadius = CornerRadius(16.dp.toPx()),
-                        blendMode = BlendMode.Clear,
-                    )
-                    val leaf = SensorDayLeafSize.toPx() + cut * 2
-                    drawRoundRect(
-                        color = Color.Black,
-                        topLeft = Offset((size.width - leaf) / 2f, size.height / 2f + SensorDayLeafOffset.toPx() - leaf / 2f),
-                        size = Size(leaf, leaf),
-                        cornerRadius = CornerRadius(8.dp.toPx()),
-                        blendMode = BlendMode.Clear,
-                    )
-                    val channel = SensorDatesChannel.toPx()
-                    drawRect(
-                        color = Color.Black,
-                        topLeft = Offset((size.width - channel) / 2f, size.height / 2f),
-                        size = Size(channel, size.height / 2f),
-                        blendMode = BlendMode.Clear,
-                    )
+                    val left = (size.width - SensorRatedPageWidth.toPx()) / 2f
+                    val top = (size.height - SensorRatedPageHeight.toPx()) / 2f
+                    drawSensorRatedPage(Color.Black, Offset(left, top), rtl, grow = SensorRatedPageCut.toPx(), blendMode = BlendMode.Clear)
                 },
         ) {
             SensorLifeBar(life, centerReserve = SensorRatedPageReserve)
             Spacer(Modifier.height(SensorDatesGap))
             SensorDates(life, topCorner = 4.dp, bottomCorner = 4.dp, plain = true, centerReserve = SensorRatedPageReserve)
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 4.dp)
-                .size(16.dp),
-        )
-        // The day leaf: today's day of wear, on the sheet about to be torn off.
+        val faceColor = if (dayFace) life.containerColor else life.contentColor
+        val inkColor = if (dayFace) life.contentColor else life.containerColor
         Box(
             modifier = Modifier
-                .offset(y = SensorDayLeafOffset)
-                .size(SensorDayLeafSize)
-                .clip(RoundedCornerShape(4.dp))
-                .background(life.contentColor.copy(alpha = 0.7f).compositeOver(life.containerColor)),
-            contentAlignment = Alignment.Center,
-        ) {
-            AnimatedContent(
-                targetState = leafDay,
-                transitionSpec = {
-                    (slideInVertically(tween(120)) { it } + fadeIn(tween(120)))
-                        .togetherWith(slideOutVertically(tween(120)) { -it } + fadeOut(tween(90)))
-                },
-                label = "sensorDayLeaf",
-            ) { shown ->
-                Text(
-                    text = String.format(locale, "%d", shown),
-                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = life.containerColor,
-                    maxLines = 1,
-                )
-            }
-        }
-        // The calendar page: two binding pegs over the number of days the sensor is rated for.
-        val pegColor = life.containerColor
-        Box(
-            modifier = Modifier
+                .size(SensorRatedPageWidth, SensorRatedPageHeight)
                 .graphicsLayer {
-                    scaleX = pageScale.value
-                    scaleY = pageScale.value
+                    scaleX = turn.value
+                    translationX = push.value * 8.dp.toPx() * (if (rtl) -1f else 1f)
                 }
-                .size(SensorRatedPageSize)
-                .clip(RoundedCornerShape(12.dp))
-                .background(life.contentColor)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                ) { replay++ }
+                ) { showDay = !showDay }
                 .drawBehind {
+                    drawSensorRatedPage(faceColor, Offset.Zero, rtl)
+                    // Two binding pegs over the page's square part.
+                    val bodyCenter = if (rtl) size.width - SensorRatedPageBodyCenter.toPx() else SensorRatedPageBodyCenter.toPx()
                     val pegWidth = 2.dp.toPx()
-                    val pegHeight = 5.dp.toPx()
-                    listOf(size.width * 0.32f, size.width * 0.68f).forEach { x ->
+                    listOf(-6.dp.toPx(), 6.dp.toPx()).forEach { dx ->
                         drawRoundRect(
-                            color = pegColor,
-                            topLeft = Offset(x - pegWidth / 2f, 3.dp.toPx()),
-                            size = Size(pegWidth, pegHeight),
+                            color = inkColor,
+                            topLeft = Offset(bodyCenter + dx - pegWidth / 2f, 3.dp.toPx()),
+                            size = Size(pegWidth, 5.dp.toPx()),
                             cornerRadius = CornerRadius(pegWidth / 2f),
                         )
                     }
                 }
                 .semantics { contentDescription = "$day / $ratedSpoken" },
-            contentAlignment = Alignment.BottomCenter,
         ) {
             Text(
-                text = ratedText,
+                text = String.format(locale, "%d", if (dayFace) day.toLong() else ratedDays),
                 style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
-                color = life.containerColor,
+                color = inkColor,
                 maxLines = 1,
-                modifier = Modifier.padding(bottom = 2.dp),
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .width(SensorRatedPageBodyCenter * 2)
+                    .padding(bottom = 2.dp),
             )
         }
     }
 }
 
-/** The cut from the page down between the two dates. */
-private val SensorDatesChannel = 24.dp
-private val SensorRatedPageSize = 36.dp
-private val SensorDayLeafSize = 20.dp
-/** The leaf's centre above the page's: half of each, and the 2dp between them. */
-private val SensorDayLeafOffset = -(SensorRatedPageSize / 2 + 2.dp + SensorDayLeafSize / 2)
+private val SensorRatedPageWidth = 44.dp
+private val SensorRatedPageHeight = 36.dp
+/** The middle of the page's square part, from its blunt end; the rest is the point. */
+private val SensorRatedPageBodyCenter = 17.dp
 /** The ring of card showing around the page. */
 private val SensorRatedPageCut = 4.dp
 /** What each half keeps clear of the middle: half the page, its cut, and a gap to the text. */
-private val SensorRatedPageReserve = SensorRatedPageSize / 2 + SensorRatedPageCut + 4.dp
+private val SensorRatedPageReserve = SensorRatedPageWidth / 2 + SensorRatedPageCut + 4.dp
+
+/**
+ * The page's outline: a square with rounded corners whose far side runs out to a point at
+ * mid-height. Drawn as a small polygon filled and stroked with round joins, which is what
+ * rounds every corner, the point included; [grow] widens it evenly, for the hole it sits in.
+ */
+private fun DrawScope.drawSensorRatedPage(
+    color: Color,
+    topLeft: Offset,
+    rtl: Boolean,
+    grow: Float = 0f,
+    blendMode: BlendMode = BlendMode.SrcOver,
+) {
+    val round = 6.dp.toPx()
+    val width = SensorRatedPageWidth.toPx()
+    val height = SensorRatedPageHeight.toPx()
+    val shoulder = 30.dp.toPx()
+    fun x(value: Float) = topLeft.x + if (rtl) width - value else value
+    val path = Path().apply {
+        moveTo(x(round), topLeft.y + round)
+        lineTo(x(shoulder), topLeft.y + round)
+        lineTo(x(width - round), topLeft.y + height / 2f)
+        lineTo(x(shoulder), topLeft.y + height - round)
+        lineTo(x(round), topLeft.y + height - round)
+        close()
+    }
+    drawPath(path, color, blendMode = blendMode)
+    drawPath(
+        path,
+        color,
+        style = Stroke(width = (round + grow) * 2f, join = StrokeJoin.Round),
+        blendMode = blendMode,
+    )
+}
 
 /**
  * The wear bar: the dashboard's lifetime fill across the width, the sensor's age at the start
