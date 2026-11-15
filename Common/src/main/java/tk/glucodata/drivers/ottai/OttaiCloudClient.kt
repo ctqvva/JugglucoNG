@@ -73,6 +73,8 @@ object OttaiCloudClient {
     const val BIZ_ALREADY_BINDING = "AppUser_AlreadyBinding"
     const val BIZ_OUT_OF_PRODUCE_TIME = "AppDevice_OutOfProduceTime"
     const val BIZ_UPGRADE_VERSION = "AppDevice_Upgrade_Version"
+    /** Ottai global's answer to a route its app no longer calls (see [shouldValidateViaV3]). */
+    const val BIZ_NET_SECURITY_SYSTEM_ERROR = "NET_SECURITY_SYSTEM_ERROR"
     // A bind rejection, not proof of an available/necessary update. The 2026-11-02 Global
     // test bound/activated on the same firmware using its full BLE revision instead.
     const val BIZ_OTA_UPGRADE_REQUIRED = "OTA_UPGRADE_REQUIRED"
@@ -258,8 +260,10 @@ object OttaiCloudClient {
 
     /**
      * Read-only V2 validation has to give way to V3 when the backend answers
-     * AppDevice_Upgrade_Version (CN, new firmware) or no longer routes V2 at all (HTTP 404, every
-     * Syai sensor since October 2026).
+     * AppDevice_Upgrade_Version (CN, new firmware) or no longer routes V2 at all: HTTP 404 on Syai
+     * since October 2026, and 500 NET_SECURITY_SYSTEM_ERROR on Ottai global since November 2026.
+     * Global answers every route its app dropped that way (accountLogin too); Ottai global 1.51.1
+     * only calls validateDeviceByMacV3.
      */
     internal fun shouldValidateViaV3(
         apiBase: String,
@@ -267,7 +271,10 @@ object OttaiCloudClient {
         v2Failure: CloudFailure?,
     ): Boolean {
         if (v2Failure == null || !supportsActiveAuth(apiBase, profile)) return false
-        return v2Failure.code.equals(BIZ_UPGRADE_VERSION, ignoreCase = true) || v2Failure.httpStatus == 404
+        return v2Failure.code.equals(BIZ_UPGRADE_VERSION, ignoreCase = true) ||
+            v2Failure.httpStatus == 404 ||
+            (apiBase == OttaiConstants.API_BASE_GLOBAL && v2Failure.httpStatus == 500 &&
+                v2Failure.code.equals(BIZ_NET_SECURITY_SYSTEM_ERROR, ignoreCase = true))
     }
 
     private fun requestDeviceId(ctx: Context, profile: OttaiRegistry.SessionProfile): String =

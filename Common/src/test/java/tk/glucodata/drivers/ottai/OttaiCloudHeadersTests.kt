@@ -368,6 +368,27 @@ class OttaiCloudHeadersTests {
     }
 
     @Test
+    fun globalRetiredV2RouteFallsBackToV3() {
+        // Live Ottai global 2026-11-15, signed in: GET validateDeviceByMacV2 -> 500 NET_SECURITY_SYSTEM_ERROR.
+        val retired = OttaiCloudClient.CloudFailure(
+            "http=500 biz=NET_SECURITY_SYSTEM_ERROR System Error",
+            OttaiCloudClient.BIZ_NET_SECURITY_SYSTEM_ERROR,
+            500,
+        )
+        val watch = OttaiRegistry.SessionProfile.WATCH
+        assertTrue(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_GLOBAL, watch, retired))
+        // Syai still routes its own errors; a 500 there is a real fault, not a retired route.
+        assertFalse(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_SYAI, watch, retired))
+        assertFalse(
+            OttaiCloudClient.shouldValidateViaV3(
+                OttaiConstants.API_BASE_GLOBAL,
+                watch,
+                OttaiCloudClient.CloudFailure("http=500 biz=", "", 500),
+            ),
+        )
+    }
+
+    @Test
     fun cnUpgradeVersionStillFallsBackToV3OnlyForThePhoneSession() {
         val upgrade = OttaiCloudClient.CloudFailure(
             "http=200 biz=AppDevice_Upgrade_Version",
