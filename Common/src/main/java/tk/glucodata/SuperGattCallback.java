@@ -386,6 +386,11 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         setConStatus(status, true);
     }
 
+    /** Record a drop of an established link whose callback carried no error code. */
+    protected final void recordEstablishedLinkDrop(int status) {
+        BleErrorHistory.record(SerialNumber, "Status=" + status, System.currentTimeMillis());
+    }
+
     /**
      * @param durable keep the event in {@link BleErrorHistory}. A connection attempt that
      *                the driver immediately retries is transport chatter: it is worth

@@ -116,8 +116,6 @@ public class Notify {
     static Notify onenot = null;
     /** True while a loss status owns the notification surface; reading refreshes must not replace it. */
     private static volatile boolean signalLossActive = false;
-    /** True when the Wear fallback posted the loss under the alarm id and it must be cancelled. */
-    private static volatile boolean signalLossFallbackPosted = false;
 
     private static Handler makeGlucoseRefreshHandler() {
         HandlerThread thread = new HandlerThread("JugglucoNotifyRefresh", Process.THREAD_PRIORITY_BACKGROUND);
@@ -1022,6 +1020,7 @@ public class Notify {
         } else {
             final var ongoing = OngoingNotificationAccess.get();
             if (ongoing != null) ongoing.updateStatus(Applic.app, glucosenotificationid);
+            notificationManager.cancel(signalLossNotificationId);
             notificationManager.cancel(glucosealarmid);
         }
     }
@@ -5211,16 +5210,16 @@ public class Notify {
      * loss text is replaced by the next reading/stale status.
      */
     static void clearSignalLoss() {
-        if (!signalLossActive) return;
+        final boolean wasActive = signalLossActive;
         signalLossActive = false;
         if (Applic.app == null) return;
         init(Applic.app);
         final Notify notify = onenot;
         if (notify == null) return;
-        if (signalLossFallbackPosted) {
-            notify.notificationManager.cancel(signalLossNotificationId);
-            signalLossFallbackPosted = false;
-        }
+        // The Wear fallback has a dedicated id and can survive a process restart, when
+        // the in-memory latch starts false. Cancel it on every accepted reading.
+        notify.notificationManager.cancel(signalLossNotificationId);
+        if (!wasActive) return;
         if (isWearable) {
             final var ongoing = OngoingNotificationAccess.get();
             if (ongoing != null) ongoing.updateStatus(Applic.app, glucosenotificationid);
@@ -5248,7 +5247,6 @@ public class Notify {
             if (!updated) {
                 notificationManager.notify(signalLossNotificationId,
                         makenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true));
-                signalLossFallbackPosted = true;
             }
         } else {
             placelargenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);

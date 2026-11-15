@@ -348,12 +348,21 @@ private boolean connected=false;
 				// stays in the history. Once "Loss of signal" is recorded, keep that label instead
 				// of replacing it with the bare transport code.
 				final boolean linkWasUp = linkConnectedAt >= 0L;
-				if (status != GATT_SUCCESS && !"Loss of signal".equals(constatstatusstr)) {
-					// Status 22 is "local host terminated": our own requested disconnect is
-					// expected, but the same code arriving unsolicited after a live link is a
-					// real event and belongs in the history.
-					final boolean intentionalLocalDisconnect = status == 22 && disconnectingGatt != null;
-					setConStatus(status, linkWasUp && !intentionalLocalDisconnect);
+				final boolean intentionalLocalDisconnect = disconnectingGatt != null;
+				if (!"Loss of signal".equals(constatstatusstr)) {
+					if (status == GATT_SUCCESS) {
+						// Android 12 can report a remote drop as status 0. It is a real outage
+						// when the link was up and we did not ask for the disconnect.
+						if (linkWasUp && !intentionalLocalDisconnect) {
+							recordEstablishedLinkDrop(0);
+						}
+					} else {
+						// Status 22 is "local host terminated": our own requested disconnect is
+						// expected, but the same code arriving unsolicited after a live link is a
+						// real event and belongs in the history.
+						final boolean intentionalLocal22 = status == 22 && intentionalLocalDisconnect;
+						setConStatus(status, linkWasUp && !intentionalLocal22);
+					}
 				}
 				constatchange[1] = tim;
 				if (newState == BluetoothProfile.STATE_DISCONNECTED) {
