@@ -116,6 +116,8 @@ public class Notify {
     static Notify onenot = null;
     /** True while a loss status owns the notification surface; reading refreshes must not replace it. */
     private static volatile boolean signalLossActive = false;
+    /** Last reading timestamp shown in the active loss status, for re-posting. */
+    private static volatile long signalLossLastReadingMillis = 0L;
 
     private static Handler makeGlucoseRefreshHandler() {
         HandlerThread thread = new HandlerThread("JugglucoNotifyRefresh", Process.THREAD_PRIORITY_BACKGROUND);
@@ -959,7 +961,12 @@ public class Notify {
     }
 
     public static void showoldglucose() {
-        if (signalLossActive) return;
+        if (signalLossActive) {
+            // Re-enabling the glucose status during an outage must restore the loss
+            // notice, not leave the surface empty until the next reading.
+            notifySignalLoss(signalLossLastReadingMillis);
+            return;
+        }
         var noti = onenot;
         if (noti == null)
             return;
@@ -5196,6 +5203,7 @@ public class Notify {
      * create a second channel or a second alert.
      */
     static void notifySignalLoss(long lastReadingMillis) {
+        signalLossLastReadingMillis = lastReadingMillis;
         if (Applic.app == null) return;
         init(Applic.app);
         final Notify notify = onenot;

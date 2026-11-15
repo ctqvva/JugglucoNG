@@ -1360,9 +1360,27 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     }
 
     String getinfo() {
-        if (dataptr != 0L)
-            return Natives.getsensortext(dataptr);
-        return "";
+        if (dataptr == 0L) return "";
+        final String text = Natives.getsensortext(dataptr);
+        if (text == null || text.isEmpty()) return "";
+        final tk.glucodata.ui.LegacySensorStatusText kind =
+                tk.glucodata.ui.LegacySensorStatusPolicyKt.classifyLegacySensorStatus(text);
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.Other) return text;
+        final android.content.Context app = Applic.app;
+        if (app == null) return text;
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.SensorError) {
+            return app.getString(tk.glucodata.R.string.sensor_error);
+        }
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.ReplaceSensor) {
+            return app.getString(tk.glucodata.R.string.sensor_replace);
+        }
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.SensorEnded) {
+            return app.getString(tk.glucodata.R.string.sensor_ended);
+        }
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.WarmingUp) {
+            return app.getString(tk.glucodata.R.string.sensor_warming_up);
+        }
+        return text;
     }
 
     public long resetdataptr() {
