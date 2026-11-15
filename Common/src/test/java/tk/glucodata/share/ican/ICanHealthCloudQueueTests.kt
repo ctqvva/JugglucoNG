@@ -75,6 +75,56 @@ class ICanHealthCloudQueueTests {
         assertTrue(ICanHealthCloudQueue(context).peek().isEmpty())
     }
 
+    @Test
+    fun writeFailureKeepsQueuedRowsForRetry() {
+        val context = RuntimeEnvironment.getApplication()
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        val dir = context.filesDir
+        assertTrue(dir.setWritable(false))
+        try {
+            queue.enqueue(EgvUpload("SN2", 2L, 100, 1))
+            // The failed write must not let the next load() drop the unsaved row.
+            assertEquals(2, queue.size())
+            assertTrue(queue.peek().any { it.timeMs == 2L })
+        } finally {
+            assertTrue(dir.setWritable(true))
+        }
+        // A later successful persist makes the unsaved rows durable.
+        queue.enqueue(EgvUpload("SN3", 3L, 100, 1))
+        val times = ICanHealthCloudQueue(context).peek().map { it.timeMs }
+        assertEquals(listOf(1L, 2L, 3L), times)
+    }
+
+    @Test
+    fun readFailureKeepsInMemoryState() {
+        val context = RuntimeEnvironment.getApplication()
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        val file = context.filesDir.resolve("ican_cloud_queue.json")
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        assertTrue(file.setReadable(false))
+        try {
+            // A failed read must not erase rows that were loaded earlier.
+            assertEquals(listOf(1L), queue.peek().map { it.timeMs })
+        } finally {
+            assertTrue(file.setReadable(true))
+        }
+    }
+
+    @Test
+    fun corruptFileKeepsInMemoryState() {
+        val context = RuntimeEnvironment.getApplication()
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+        context.filesDir.resolve("ican_cloud_queue.json").writeText("CORRUPT")
+        queue.enqueue(EgvUpload("SN2", 2L, 100, 1))
+        // The previously queued row is still there, and the durable copy is rewritten.
+        assertEquals(listOf(1L, 2L), ICanHealthCloudQueue(context).peek().map { it.timeMs })
+    }
+
 }
 
 class ICanHealthCloudQueueTestApplication : Applic() {

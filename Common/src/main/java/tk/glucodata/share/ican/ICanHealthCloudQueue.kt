@@ -11,14 +11,18 @@ class ICanHealthCloudQueue(context: Context) {
     private val settings = ICanHealthCloudSettings(context)
     private val lock = ICanHealthCloudSettings.sessionLock
     private val items = ArrayList<EgvUpload>()
+    // True when the last persist failed: memory holds the only complete copy.
+    private var dirty = false
+    // Account the unsaved rows were queued under, to fence account switches.
+    private var dirtyAccount: String? = null
 
     init {
-        synchronized(lock) { load() }
+        synchronized(lock) { sync() }
     }
 
     fun enqueue(egv: EgvUpload) {
         synchronized(lock) {
-            load()
+            sync()
             val clamped = egv.copy(mgdl = egv.mgdl.coerceIn(MIN_MGDL, MAX_MGDL))
             if (items.any { it.serial == clamped.serial && it.timeMs == clamped.timeMs }) return
             items.add(clamped)
@@ -30,7 +34,7 @@ class ICanHealthCloudQueue(context: Context) {
     fun enqueueAll(egvs: List<EgvUpload>): Int {
         if (egvs.isEmpty()) return 0
         synchronized(lock) {
-            load()
+            sync()
             val keys = items.map { it.serial to it.timeMs }.toHashSet()
             var added = 0
             for (egv in egvs) {
@@ -50,7 +54,7 @@ class ICanHealthCloudQueue(context: Context) {
 
     fun clear() {
         synchronized(lock) {
-            load()
+            sync()
             items.clear()
             persist()
         }
@@ -58,14 +62,14 @@ class ICanHealthCloudQueue(context: Context) {
 
     fun peek(): List<EgvUpload> {
         synchronized(lock) {
-            load()
+            sync()
             return items.toList()
         }
     }
 
     fun remove(ids: Any?) {
         synchronized(lock) {
-            load()
+            sync()
             val targets = when (ids) {
                 is Iterable<*> -> ids.toList()
                 is Array<*> -> ids.toList()
@@ -89,7 +93,7 @@ class ICanHealthCloudQueue(context: Context) {
 
     fun size(): Int {
         synchronized(lock) {
-            load()
+            sync()
             return items.size
         }
     }
@@ -119,22 +123,63 @@ class ICanHealthCloudQueue(context: Context) {
     }
 
     private fun load() {
-        items.clear()
-        if (!file.exists()) return
-        val text = runCatching { file.readText() }.getOrNull() ?: return
-        val stored = runCatching { JSONObject(text) }.getOrNull() ?: return
+        if (!file.exists()) {
+            // Unsaved in-memory rows survive an externally deleted file.
+            if (!(dirty && items.isNotEmpty())) items.clear()
+            return
+        }
+        val text = runCatching { file.readText() }.getOrNull()
+        if (text == null) {
+            // An unreadable file must not erase the rows we still hold in memory;
+            // mark them dirty so the next persist rewrites the durable copy.
+            dirty = items.isNotEmpty()
+            dirtyAccount = settings.accountKey
+            return
+        }
+        val stored = runCatching { JSONObject(text) }.getOrNull()
+        if (stored == null) {
+            dirty = items.isNotEmpty()
+            return
+        }
         // A legacy queue has no provable account owner. Never attach it to a new session.
-        if (stored.optString("account") != settings.accountKey) return
-        val array = stored.optJSONArray("items") ?: return
+        if (stored.optString("account") != settings.accountKey) {
+            items.clear()
+            dirty = false
+            return
+        }
+        val array = stored.optJSONArray("items") ?: run {
+            dirty = items.isNotEmpty()
+            return
+        }
+        items.clear()
         for (i in 0 until array.length()) {
             val obj = array.optJSONObject(i) ?: continue
             items.add(EgvUpload.fromJson(obj))
         }
         items.sortBy { it.timeMs }
+        dirty = false
+    }
+
+    /**
+     * Refresh the in-memory queue from the durable copy — unless the last persist
+     * failed, in which case memory is the only complete copy and must not be
+     * overwritten by the stale file.
+     */
+    private fun sync() {
+        if (!dirty) {
+            load()
+            return
+        }
+        // Dirty rows belong to the account they were queued under.
+        if (dirtyAccount != null && dirtyAccount != settings.accountKey) {
+            items.clear()
+            dirty = false
+            dirtyAccount = null
+        }
     }
 
     private fun persist() {
-        runCatching {
+        val ok = runCatching {
             val array = JSONArray()
             items.forEach { array.put(it.toJson()) }
             file.parentFile?.mkdirs()
@@ -144,7 +189,9 @@ class ICanHealthCloudQueue(context: Context) {
                 file.writeText(tmp.readText())
                 tmp.delete()
             }
-        }
+        }.isSuccess
+        dirty = !ok
+        dirtyAccount = if (ok) null else settings.accountKey
     }
 
     companion object {
