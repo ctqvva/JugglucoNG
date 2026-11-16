@@ -420,7 +420,7 @@
     <string name="continue_without_sensor_desc">Logga insulin, mat och fingerstick i journalen</string>
     <string name="get_started_desc">Börja med att lägga till din sensor</string>
     <string name="select_sensor">Välj sensortyp</string>
-    <string name="select_sibionics_type">Välj en Sibionics-sensor</string>
+    <string name="select_sibionics_type">Välj sensorvariant</string>
     <string name="or_divider">"  eller  "</string>
     <string name="no_sensors_connected">Inga sensorer anslutna</string>
     <string name="enter_sensor_codes">Ange sensorkoder</string>
@@ -441,7 +441,6 @@
     <string name="select_gallery_button">Välj från Galleri</string>
     <string name="skip_fake_sensor">Hoppa över (Använd falsk sensor)</string>
     <string name="enter_code_manually">Ange kod manuellt</string>
-    <string name="choose_sibionics_variant">Välj modellen som står på förpackningen.</string>
     <string name="continue_action">Fortsätt</string>
     <string name="sensor_init_failed">Sensorinitiering misslyckades</string>
     <string name="sensor_lost_restart">Fel: Sensor förlorad. Starta om installationen.</string>
@@ -602,6 +601,11 @@
     <string name="status_bluetooth_off">Bluetooth av</string>
     <string name="status_connection_failed">Anslutning misslyckades</string>
     <string name="status_connected">Ansluten</string>
+    <string name="sensor_error">Sensorfel</string>
+    <string name="sensor_replace">Byt sensor</string>
+    <string name="sensor_ended">Sensorn har avslutats</string>
+    <string name="sensor_warming_up">Värms upp</string>
+    <string name="sensor_error_code">Sensorfelkod</string>
     <string name="status_disconnected">Frånkopplad</string>
     <string name="select_sensor_type">Välj sensortyp</string>
     <string name="choose_theme">Välj tema</string>
@@ -723,7 +727,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Skanna sensorkoden på ditt CareSens Air-paket</string>
     <string name="caresens_air_setup_title">CareSens Air Setup</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 Kina</string>
     <string name="clean_history_confirm">Rensa historiken?</string>
     <string name="clear_history_desc">Ta bort avläsningar, journalposter eller båda</string>
     <string name="clear_history_scope_readings">Tar bort alla glukosavläsningar på den här telefonen och kan inte ångras. Journalen, sensorerna och inställningarna finns kvar.</string>
@@ -760,7 +764,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exchangedata">Utbyta data</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
@@ -1718,6 +1722,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">Tillfällig basal</string>
     <string name="journal_dashboard_types_title">Visa på huvudskärmen</string>
     <string name="journal_dashboard_types_desc">Dolda poster försvinner bara från huvuddiagrammet och avläsningslistan. De räknas fortfarande in i IOB, COB, prognosen och dosförslagen.</string>
+    <string name="journal_entry_types_order_desc">Menyn + och diagrammets lägg till-meny visar dem i den här ordningen. Dra i ett handtag för att flytta en.</string>
     <string name="journal_import_health_activity_desc">Lägg till träningspass och steg i journalen</string>
     <string name="journal_section_main_screen">Huvudskärm</string>
     <string name="journal_section_dosing">Dosering</string>
@@ -2220,6 +2225,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">Glukosfärger</string>
     <string name="notification_show_delta_desc">Uppmätt förändring över deltaintervallet, bredvid pilen</string>
     <string name="notification_show_delta_title">Visa delta (Δ)</string>
+    <string name="display_show_delta_title">Visa delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta i widgetar (Δ)</string>
     <string name="rising_fast_explanation">Varnar efter %1$d på varandra följande %2$d-minutersintervaller som vart och ett stiger med minst %3$s (≈ %4$d min ihållande ökning) medan värdet är på eller över %5$s. Ingen förutsägelse, bara den råa trenden.</string>
     <string name="sensor_expiry_warnings_desc">Varje vald tid varnar en gång per sensor</string>
     <string name="sensor_expiry_warnings_title">Varna innan utgången</string>
@@ -3107,6 +3114,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Sök i inställningar</string>
     <string name="settings_search_no_results">Inga inställningar matchar ”%1$s”</string>
+    <string name="settings_search_related">Relaterade inställningar</string>
     <string name="settings_search_clear">Rensa sökning</string>
 
     <!-- Explicit firmware field test. -->
@@ -3365,4 +3373,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Ändra ordning på livsmedel</string>
     <string name="food_move_up">Flytta upp</string>
     <string name="food_move_down">Flytta ner</string>
+    <string name="scan_sensor_qr">Skanna sensorns QR-kod</string>
+    <string name="spanish">Spanska</string>
 </resources>

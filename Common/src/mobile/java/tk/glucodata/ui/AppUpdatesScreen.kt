@@ -177,6 +177,7 @@ fun AppUpdatesScreen(navController: NavController) {
 
             SettingsSwitchItem(
                 title = stringResource(R.string.app_updates_auto_title),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.app_updates_auto_title),
                 subtitle = stringResource(R.string.app_updates_auto_desc),
                 checked = state.autoCheckEnabled,
                 icon = Icons.Filled.NotificationsActive,
@@ -186,6 +187,7 @@ fun AppUpdatesScreen(navController: NavController) {
             )
             SettingsItem(
                 title = stringResource(R.string.app_updates_source_title),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.app_updates_source_title),
                 subtitle = state.updateSource,
                 icon = Icons.Filled.Link,
                 iconTint = MaterialTheme.colorScheme.secondary,

@@ -1,5 +1,7 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
+import androidx.compose.foundation.lazy.rememberLazyListState
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import android.widget.Toast
@@ -499,7 +501,30 @@ fun NightscoutSettingsScreen(navController: NavController) {
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        // Each mode lists only the rows it has, or an absent one would page to the end.
+        RevealSettingsSearchAnchor(
+            listState,
+            if (mode == NightscoutModePreference.Mode.UPLOAD) {
+                setOf(
+                    SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS,
+                    SettingsSearchAnchors.NIGHTSCOUT_RECEIVE_TREATMENTS,
+                    SettingsSearchAnchors.NIGHTSCOUT_UPLOAD_IOB,
+                    SettingsSearchAnchors.NIGHTSCOUT_V3,
+                    SettingsSearchAnchors.forRow(R.string.nightscout_send_long_insulin),
+                    SettingsSearchAnchors.forRow(R.string.nightscout_upload_sensor_start),
+                )
+            } else {
+                setOf(
+                    SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS,
+                    SettingsSearchAnchors.forRow(R.string.nightscout_send_long_insulin),
+                    SettingsSearchAnchors.forRow(R.string.nightscout_follow_interval_title),
+                    SettingsSearchAnchors.forRow(R.string.nightscout_follow_use_v3_api),
+                )
+            }
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -722,6 +747,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     SettingsControlsCard {
                         SettingsChoice(
                             title = stringResource(R.string.nightscout_follow_interval_title),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_follow_interval_title),
                             options = NightscoutFollowerPollPolicy.CHOICES_MINUTES,
                             labels = NightscoutFollowerPollPolicy.CHOICES_MINUTES.map {
                                 stringResource(R.string.minutes_short_format, it)
@@ -761,10 +787,12 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.Medication,
                             iconTint = MaterialTheme.colorScheme.primary,
                             enabled = isActive,
-                            position = CardPosition.TOP
+                            position = CardPosition.TOP,
+                            searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_send_long_insulin),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_send_long_insulin),
                             subtitle = stringResource(R.string.nightscout_send_long_insulin_desc),
                             checked = sendLongInsulin,
                             onCheckedChange = {
@@ -858,10 +886,12 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.Medication,
                             iconTint = MaterialTheme.colorScheme.primary,
                             enabled = isActive,
-                            position = CardPosition.TOP
+                            position = CardPosition.TOP,
+                            searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_send_long_insulin),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_send_long_insulin),
                             subtitle = stringResource(R.string.nightscout_send_long_insulin_desc),
                             checked = sendLongInsulin,
                             onCheckedChange = {
@@ -885,7 +915,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.Link,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
-                            position = CardPosition.MIDDLE
+                            position = CardPosition.MIDDLE,
+                            searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_RECEIVE_TREATMENTS
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_upload_iob),
@@ -899,10 +930,12 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.CloudUpload,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
-                            position = CardPosition.MIDDLE
+                            position = CardPosition.MIDDLE,
+                            searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_UPLOAD_IOB
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_upload_sensor_start),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_upload_sensor_start),
                             subtitle = stringResource(R.string.nightscout_upload_sensor_start_desc),
                             checked = uploadSensorStart,
                             onCheckedChange = {
@@ -926,7 +959,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.Api,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
-                            position = CardPosition.BOTTOM
+                            position = CardPosition.BOTTOM,
+                            searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_V3
                         )
                     }
                 }
@@ -984,6 +1018,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 item("nightscout_follow_options_group") {
                     SettingsSwitchItem(
                         title = stringResource(R.string.nightscout_follow_use_v3_api),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_follow_use_v3_api),
                         subtitle = stringResource(R.string.nightscout_follow_use_v3_api_desc),
                         checked = followerV3,
                         onCheckedChange = {

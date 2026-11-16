@@ -373,8 +373,8 @@
     <string name="glulisine">Insülin Glulisine/Apidra</string>
     <string name="humaninsulin">Human Insülin/Humulin R/Novolin R</string>
     <string name="not">Değil</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
+    <string name="chsibionics">Sibionics GS1 Çin</string>
     <string name="hematonix">Hematonix - com.sisensing.rusibionics</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
@@ -472,7 +472,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="continue_without_sensor_desc">İnsülin, yiyecek ve parmak ölçümlerini günlüğe kaydedin</string>
     <string name="get_started_desc">Sensörünüzü ekleyerek başlayın</string>
     <string name="select_sensor">Sensör Tipini Seçin</string>
-    <string name="select_sibionics_type">Bir Sibionics sensörü seçin</string>
+    <string name="select_sibionics_type">Sensör varyantını seçin</string>
     <string name="or_divider">"  veya  "</string>
     <string name="no_sensors_connected">Bağlı sensör yok</string>
     <string name="enter_sensor_codes">Sensör Kodlarını Girin</string>
@@ -493,7 +493,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="select_gallery_button">Galeriden Seç</string>
     <string name="skip_fake_sensor">Atla (Sahte sensör kullan)</string>
     <string name="enter_code_manually">Kodu manuel girin</string>
-    <string name="choose_sibionics_variant">Ambalajda belirtilen modeli seçin.</string>
     <string name="continue_action">Devam Et</string>
     <string name="sensor_init_failed">Sensör başlatma başarısız</string>
     <string name="sensor_lost_restart">Hata: Sensör kayboldu. Kurulumu yeniden başlatın.</string>
@@ -654,6 +653,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="status_bluetooth_off">Bluetooth kapalı</string>
     <string name="status_connection_failed">Bağlantı hatası</string>
     <string name="status_connected">Bağlı</string>
+    <string name="sensor_error">Sensör hatası</string>
+    <string name="sensor_replace">Sensörü değiştirin</string>
+    <string name="sensor_ended">Sensör sona erdi</string>
+    <string name="sensor_warming_up">Isınıyor</string>
+    <string name="sensor_error_code">Sensör hata kodu</string>
     <string name="status_disconnected">Bağlantı kesildi</string>
     <string name="select_sensor_type">Sensör tipi seç</string>
     <string name="choose_theme">Tema seç</string>
@@ -1746,6 +1750,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_type_temp_basal">Geçici bazal</string>
     <string name="journal_dashboard_types_title">Ana ekranda göster</string>
     <string name="journal_dashboard_types_desc">Gizlenen kayıtlar yalnızca ana grafikten ve ölçüm listesinden kalkar. IOB, COB, tahmin ve doz önerilerinde sayılmaya devam eder.</string>
+    <string name="journal_entry_types_order_desc">+ menüsü ve grafiğin ekleme menüsü bunları bu sırayla gösterir. Taşımak için tutamacı sürükleyin.</string>
     <string name="journal_import_health_activity_desc">Antrenmanları ve adımları günlüğe ekle</string>
     <string name="journal_section_main_screen">Ana ekran</string>
     <string name="journal_section_dosing">Dozlama</string>
@@ -2248,6 +2253,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="glucose_palette_title">Glikoz renkleri</string>
     <string name="notification_show_delta_desc">Okun yanındaki delta aralığında ölçülen değişiklik</string>
     <string name="notification_show_delta_title">Deltayı göster (Δ)</string>
+    <string name="display_show_delta_title">Deltayı göster (Δ)</string>
+    <string name="widget_show_delta_title">Widget deltası (Δ)</string>
     <string name="rising_fast_explanation">Değer %5$s değerinde veya üzerindeyken her biri en az %3$s (≈ %4$d sürekli yükseliş dakikası) kadar yükselen %1$d ardışık %2$d dakikalık aralıklardan sonra uyarır. Tahmin yok, sadece ham trend.</string>
     <string name="sensor_expiry_warnings_desc">Seçilen her zaman sensör başına bir kez uyarır</string>
     <string name="sensor_expiry_warnings_title">Süresi dolmadan uyar</string>
@@ -3135,6 +3142,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <!-- Settings search -->
     <string name="settings_search_hint">Ayarlarda ara</string>
     <string name="settings_search_no_results">“%1$s” ile eşleşen ayar yok</string>
+    <string name="settings_search_related">İlgili ayarlar</string>
     <string name="settings_search_clear">Aramayı temizle</string>
 
     <!-- Explicit firmware field test. -->
@@ -3393,4 +3401,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="food_reorder">Yiyecekleri yeniden sırala</string>
     <string name="food_move_up">Yukarı taşı</string>
     <string name="food_move_down">Aşağı taşı</string>
+    <string name="scan_sensor_qr">Sensör QR kodunu tara</string>
+    <string name="spanish">İspanyolca</string>
 </resources>

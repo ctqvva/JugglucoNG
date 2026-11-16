@@ -399,8 +399,8 @@
     <string name="humaninsulin">Human Insulin/Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
     <string name="not">Not</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
+    <string name="chsibionics">Sibionics GS1 China</string>
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
@@ -741,7 +741,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_setup_title">Sibionics setup</string>
     <string name="scan_sensor_qr">Scan sensor QR code</string>
     <string name="scan_sensor_qr_desc">Scan the data matrix on the sensor packaging</string>
-    <string name="select_sibionics_type">Choose a Sibionics sensor</string>
+    <string name="select_sibionics_type">Choose sensor variant</string>
     <string name="scan_transmitter">Scan Transmitter</string>
 
     <string name="connecting">Connecting…</string>
@@ -1004,7 +1004,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="skip_fake_sensor">Skip (Use Fake Sensor)</string>
     <string name="enter_code_manually">Enter code manually</string>
     
-    <string name="choose_sibionics_variant">Select the model shown on its packaging.</string>
     <string name="continue_action">Continue</string>
     
     <string name="sensor_init_failed">Sensor initialization failed</string>
@@ -1058,6 +1057,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_bluetooth_off">Bluetooth off</string>
     <string name="status_connection_failed">Connection failed</string>
     <string name="status_connected">Connected</string>
+    <string name="sensor_error">Sensor error</string>
+    <string name="sensor_replace">Replace sensor</string>
+    <string name="sensor_ended">Sensor ended</string>
+    <string name="sensor_warming_up">Warming up</string>
+    <string name="sensor_error_code">Sensor error code</string>
     <string name="status_disconnected">Disconnected</string>
     <string name="status_waiting_for_data">Connected, waiting for data…</string>
     <string name="status_raw_values_received">Connected, raw values received</string>
@@ -2255,6 +2259,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_show_tab_desc">Add Journal to the bottom navigation</string>
     <string name="journal_dashboard_types_title">Show on the main screen</string>
     <string name="journal_dashboard_types_desc">Hidden entries leave the main chart and the reading list only. They still count toward IOB, COB, the prediction and the dose hints.</string>
+    <string name="journal_entry_types_order_desc">The + menu and the chart\'s add menu list these in this order. Drag a handle to move one.</string>
     <string name="journal_import_health_activity_desc">Add workouts and steps to the journal</string>
     <string name="journal_section_main_screen">Main screen</string>
     <string name="journal_section_dosing">Dosing</string>
@@ -2286,6 +2291,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_show_cob_title">Carbs on board</string>
     <string name="notification_show_cob_desc">Show Journal COB in the status line</string>
     <string name="notification_show_delta_title">Delta beside arrow</string>
+    <string name="display_show_delta_title">Show delta (Δ)</string>
+    <string name="widget_show_delta_title">Widget delta (Δ)</string>
     <string name="notification_show_delta_desc">Show measured change beside the trend arrow</string>
     <string name="notification_show_delta_minutes_desc">Show %1$d-minute change beside the trend arrow</string>
     <string name="dashboard_show_delta_title">Dashboard delta</string>
@@ -3376,6 +3383,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Search settings</string>
     <string name="settings_search_no_results">No settings match “%1$s”</string>
+    <string name="settings_search_related">Related settings</string>
     <string name="settings_search_clear">Clear search</string>
 
     <!-- Explicit firmware field test. -->
@@ -3690,4 +3698,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Reorder food</string>
     <string name="food_move_up">Move up</string>
     <string name="food_move_down">Move down</string>
+    <string name="spanish">Spanish</string>
 </resources>

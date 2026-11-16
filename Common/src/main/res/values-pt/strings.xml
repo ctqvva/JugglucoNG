@@ -320,7 +320,7 @@
     <string name="continue_without_sensor_desc">Registre insulina, alimentos e medições de ponta de dedo no diário</string>
     <string name="get_started_desc">Comece adicionando seu sensor</string>
     <string name="select_sensor">Selecionar Tipo de Sensor</string>
-    <string name="select_sibionics_type">Escolha um sensor Sibionics</string>
+    <string name="select_sibionics_type">Escolha a variante do sensor</string>
     <string name="or_divider">"  ou  "</string>
     <string name="no_sensors_connected">Nenhum sensor conectado</string>
     <string name="enter_sensor_codes">Inserir Códigos do Sensor</string>
@@ -341,7 +341,6 @@
     <string name="select_gallery_button">Selecionar da Galeria</string>
     <string name="skip_fake_sensor">Pular (Usar sensor falso)</string>
     <string name="enter_code_manually">Inserir código manualmente</string>
-    <string name="choose_sibionics_variant">Selecione o modelo indicado na embalagem.</string>
     <string name="continue_action">Continuar</string>
     <string name="sensor_init_failed">Falha na inicialização do sensor</string>
     <string name="sensor_lost_restart">Erro: Sensor perdido. Reinicie a configuração.</string>
@@ -502,6 +501,11 @@
     <string name="status_bluetooth_off">Bluetooth desl.</string>
     <string name="status_connection_failed">Falha na conexão</string>
     <string name="status_connected">Conectado</string>
+    <string name="sensor_error">Erro do sensor</string>
+    <string name="sensor_replace">Substituir o sensor</string>
+    <string name="sensor_ended">Sensor terminado</string>
+    <string name="sensor_warming_up">Aquecendo</string>
+    <string name="sensor_error_code">Código de erro do sensor</string>
     <string name="status_disconnected">Desconectado</string>
     <string name="select_sensor_type">Selec. tipo de sensor</string>
     <string name="choose_theme">Escolher tema</string>
@@ -633,7 +637,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="caresens_air_setup_title">Configuração de ar CareSens</string>
     <string name="changeinsulin">"Change insulin type to "</string>
     <string name="changestartbutton">Change start</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 China</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_history_confirm">Limpar histórico?</string>
     <string name="clear_history_desc">Remover leituras, entradas do diário ou ambos</string>
@@ -683,7 +687,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enabled_status">Enabled</string>
     <string name="endstime">" ends at this time"</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Repor definições de fábrica?</string>
@@ -1719,6 +1723,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">Basal temporária</string>
     <string name="journal_dashboard_types_title">Mostrar na tela principal</string>
     <string name="journal_dashboard_types_desc">As entradas ocultas saem apenas do gráfico principal e da lista de leituras. Continuam a contar para IOB, COB, a previsão e as sugestões de dose.</string>
+    <string name="journal_entry_types_order_desc">O menu + e o menu de adicionar do gráfico mostram-nos por esta ordem. Arraste uma pega para mover.</string>
     <string name="journal_import_health_activity_desc">Adicionar treinos e passos ao diário</string>
     <string name="journal_section_main_screen">Tela principal</string>
     <string name="journal_section_dosing">Dosagem</string>
@@ -2222,6 +2227,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">Cores da glicose</string>
     <string name="notification_show_delta_desc">Mudança medida ao longo do intervalo delta, próximo à seta</string>
     <string name="notification_show_delta_title">Mostrar delta (Δ)</string>
+    <string name="display_show_delta_title">Mostrar delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta nos widgets (Δ)</string>
     <string name="rising_fast_explanation">Avisa após %1$d intervalos consecutivos de %2$d minutos, cada um aumentando em pelo menos %3$s (≈ %4$d min de aumento sustentado) enquanto o valor estiver igual ou superior a %5$s. Nenhuma previsão, apenas a tendência bruta.</string>
     <string name="sensor_expiry_warnings_desc">Cada horário selecionado avisa uma vez por sensor</string>
     <string name="sensor_expiry_warnings_title">Avisar antes de expirar</string>
@@ -3109,6 +3116,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Pesquisar definições</string>
     <string name="settings_search_no_results">Nenhuma definição corresponde a “%1$s”</string>
+    <string name="settings_search_related">Definições relacionadas</string>
     <string name="settings_search_clear">Limpar pesquisa</string>
 
     <!-- Explicit firmware field test. -->
@@ -3367,4 +3375,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Reordenar alimentos</string>
     <string name="food_move_up">Mover para cima</string>
     <string name="food_move_down">Mover para baixo</string>
+    <string name="scan_sensor_qr">Digitalizar o código QR do sensor</string>
+    <string name="spanish">Espanhol</string>
 </resources>

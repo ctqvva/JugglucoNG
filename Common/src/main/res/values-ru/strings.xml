@@ -520,7 +520,7 @@
     <string name="continue_without_sensor_desc">Записывайте инсулин, еду и пальцевые замеры в журнал</string>
     <string name="get_started_desc">Начните с добавления вашего сенсора</string>
     <string name="select_sensor">Выберите тип сенсора</string>
-    <string name="select_sibionics_type">Выберите сенсор Sibionics</string>
+    <string name="select_sibionics_type">Выберите вариант сенсора</string>
     <string name="or_divider">"  или  "</string>
     <string name="no_sensors_connected">Нет подключенных сенсоров</string>
     <string name="enter_sensor_codes">Введите коды сенсора</string>
@@ -541,7 +541,6 @@
     <string name="select_gallery_button">Выбрать из Галереи</string>
     <string name="skip_fake_sensor">Пропустить (Исп. фиктивный сенсор)</string>
     <string name="enter_code_manually">Ввести код вручную</string>
-    <string name="choose_sibionics_variant">Укажите модель с упаковки.</string>
     <string name="continue_action">Продолжить</string>
     <string name="sensor_init_failed">Инициализация сенсора не удалась</string>
     <string name="sensor_lost_restart">Ошибка: Сенсор потерян. Перезапустите настройку.</string>
@@ -703,6 +702,11 @@
     <string name="status_bluetooth_off">Bluetooth выкл.</string>
     <string name="status_connection_failed">Ошибка подключения</string>
     <string name="status_connected">Подключено</string>
+    <string name="sensor_error">Ошибка датчика</string>
+    <string name="sensor_replace">Замените датчик</string>
+    <string name="sensor_ended">Датчик завершил работу</string>
+    <string name="sensor_warming_up">Идёт прогрев</string>
+    <string name="sensor_error_code">Код ошибки датчика</string>
     <string name="status_disconnected">Отключено</string>
     
     <string name="select_sensor_type">Выберите тип сенсора</string>
@@ -844,7 +848,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Отсканируйте код датчика на упаковке CareSens Air.</string>
     <string name="caresens_air_setup_title">Настройка CareSens Air</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 Китай</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_history_confirm">Очистить историю?</string>
     <string name="clear_history_desc">Удалить показания, записи журнала или всё сразу</string>
@@ -871,7 +875,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="delete_calibration">Delete calibration?</string>
     <string name="dexfuture">Predict (Dexcom)</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exclude">Exclude</string>
     <string name="factory_reset_confirm">Сбросить к заводским настройкам?</string>
     <string name="factory_reset_message">Удаляет все показания, записи журнала, датчики и настройки, а также выданные разрешения, затем закрывает приложение. Мониторинг глюкозы и оповещения остановятся, пока вы снова не настроите датчик, и отменить это нельзя.</string>
@@ -1763,6 +1767,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_rate_units_per_hour">%1$s ЕД/ч</string>
     <string name="journal_dashboard_types_title">Показывать на главной</string>
     <string name="journal_dashboard_types_desc">Скрытые записи пропадают только с графика и из списка показаний на главной. В IOB, COB, прогнозе и подсказках дозы они по-прежнему учитываются.</string>
+    <string name="journal_entry_types_order_desc">Меню + и меню добавления на графике показывают их в этом порядке. Перетащите маркер, чтобы переместить.</string>
     <string name="journal_import_health_activity_desc">Добавлять тренировки и шаги в журнал</string>
     <string name="journal_section_main_screen">Главный экран</string>
     <string name="journal_section_dosing">Дозирование</string>
@@ -2350,6 +2355,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">Цвета глюкозы</string>
     <string name="notification_show_delta_desc">Измеренное изменение в интервале дельта, рядом со стрелкой.</string>
     <string name="notification_show_delta_title">Показать дельту (Δ)</string>
+    <string name="display_show_delta_title">Показать дельту (Δ)</string>
+    <string name="widget_show_delta_title">Дельта в виджетах (Δ)</string>
     <string name="rising_fast_explanation">Предупреждает после %1$d последовательных %2$d-минутных интервалов, каждый из которых увеличивается как минимум на %3$s (≈ %4$d мин устойчивого роста), когда значение равно или превышает %5$s. Никаких прогнозов, только чистая тенденция.</string>
     <string name="sensor_expiry_warnings_desc">Каждое выбранное время предупреждает один раз для каждого датчика</string>
     <string name="sensor_expiry_warnings_title">Предупреждать до истечения срока действия</string>
@@ -3162,6 +3169,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Поиск по настройкам</string>
     <string name="settings_search_no_results">Нет настроек, подходящих под «%1$s»</string>
+    <string name="settings_search_related">Связанные настройки</string>
     <string name="settings_search_clear">Очистить поиск</string>
 
     <!-- Explicit firmware field test. -->
@@ -3492,4 +3500,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Изменить порядок</string>
     <string name="food_move_up">Переместить выше</string>
     <string name="food_move_down">Переместить ниже</string>
+    <string name="scan_sensor_qr">Отсканируйте QR-код датчика</string>
+    <string name="spanish">Испанский</string>
 </resources>

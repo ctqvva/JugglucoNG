@@ -174,11 +174,11 @@ internal class OttaiFirmwareController(
         read(OttaiConstants.SERVICE_CGM, OttaiConstants.CHAR_COMMAND) { command ->
             val status = command.firstOrNull()?.toInt()?.and(255) ?: -1
             if (mode == OttaiFirmwareMode.PREACTIVATION) {
-                if (prepareForSetup && status == 3 && !afterInstall && io.savedImage() == null && materials.authKeys != null) {
-                    // Another client may have activated a previously interrupted setup. Verified
-                    // active credentials can stream; never rewrite its factory parameters.
-                    io.clearRecovery()
-                    update(OttaiFirmwareStage.COMPLETE)
+                if (prepareForSetup && status == 3 && !afterInstall && io.savedImage() == null) {
+                    // Official-app activation does not imply that this installation has keyA.
+                    // Recover it after cloud auth, without entering factory preparation.
+                    if (materials.authKeys == null) recoverActiveSetupCredentials()
+                    else completeActiveSetup()
                     return@read
                 }
                 require(OttaiConstants.commandNeedsActivation(status)) { "sensor_already_active_or_ended" }
@@ -194,6 +194,32 @@ internal class OttaiFirmwareController(
                 }
             }
         }
+    }
+
+    private fun completeActiveSetup() {
+        io.clearRecovery()
+        update(OttaiFirmwareStage.COMPLETE)
+    }
+
+    private fun recoverActiveSetupCredentials() {
+        io.log("setup_recovering_active_sensor_credentials")
+        update(OttaiFirmwareStage.AUTHENTICATING)
+        io.refreshMaterials(state.firmware, completion { fresh ->
+            require(OttaiOtaProtocol.materialsVersionMatches(state.firmware, fresh.deviceVersion) && fresh.authKeys != null) { "materials_version" }
+            materials = fresh
+            // The server owned the initial ECDH session. Prove the recovered keys against
+            // this sensor locally before handing it to the managed connection.
+            authenticate {
+                io.rediscover(completion { local ->
+                    require(!local.bootloaderOnly) { "post_auth_services" }
+                    read(OttaiConstants.SERVICE_CGM, OttaiConstants.CHAR_COMMAND) { command ->
+                        // A changed status must not fall through to fresh-sensor preparation.
+                        require(command.firstOrNull()?.toInt()?.and(255) == 3) { "started_sensor_status" }
+                        completeActiveSetup()
+                    }
+                })
+            }
+        })
     }
 
     private fun continueAfterStatus(version: String, afterInstall: Boolean, resumed: Boolean) {

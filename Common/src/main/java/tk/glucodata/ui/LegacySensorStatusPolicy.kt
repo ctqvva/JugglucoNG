@@ -1,5 +1,22 @@
 package tk.glucodata.ui
 
+/** Native `getsensortext` literals that the card needs to localize. */
+enum class LegacySensorStatusText {
+    SensorError,
+    ReplaceSensor,
+    SensorEnded,
+    WarmingUp,
+    Other,
+}
+
+fun classifyLegacySensorStatus(status: String): LegacySensorStatusText = when (status) {
+    "Sensor Error" -> LegacySensorStatusText.SensorError
+    "Replace Sensor?" -> LegacySensorStatusText.ReplaceSensor
+    "Sensor Ended" -> LegacySensorStatusText.SensorEnded
+    "Warming Up" -> LegacySensorStatusText.WarmingUp
+    else -> LegacySensorStatusText.Other
+}
+
 /** A connecting or warming sensor is enabled unless its callback was paused. */
 fun isSensorLocallyEnabled(streaming: Boolean, paused: Boolean?): Boolean =
     paused?.not() ?: streaming

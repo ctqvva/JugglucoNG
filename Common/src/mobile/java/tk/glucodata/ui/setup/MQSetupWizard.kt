@@ -5,6 +5,8 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import android.bluetooth.BluetoothAdapter
@@ -69,6 +71,7 @@ import kotlinx.coroutines.withContext
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.drivers.mq.MQBootstrapClient
 import tk.glucodata.drivers.mq.MQConstants
 import tk.glucodata.drivers.mq.MQRegistry
@@ -251,6 +254,7 @@ fun MQSetupWizard(
                 ) {
                     SensorSetupConnectingScreen(
                         ui = ui,
+                        sensor = SensorType.MQ,
                         sensorLabel = selectedLabel.ifBlank { null }
                     )
                 }
@@ -260,6 +264,7 @@ fun MQSetupWizard(
                 ) {
                     SensorSetupSuccessScreen(
                         ui = ui,
+                        sensor = SensorType.MQ,
                         sensorLabel = selectedLabel.ifBlank { null }
                     )
                 }
@@ -393,6 +398,12 @@ private fun MQScanStep(
                 tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             }
             item {
+                SensorWizardHero(
+                    SensorType.MQ,
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+                    compact = rememberSensorHeroCompact(sharesScreen = true),
+                )
+                Spacer(Modifier.height(ui.spacerSmall))
                 ScanFilterHeader(
                     title = stringResource(R.string.mq_searching_sensors),
                     showAllDevices = showAllDevices,

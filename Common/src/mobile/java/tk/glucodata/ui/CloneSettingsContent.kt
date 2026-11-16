@@ -2,6 +2,8 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -77,8 +79,16 @@ internal fun CloneSettingsContent(
             )
         },
     ) { padding ->
+        val listState = rememberLazyListState()
+        RevealSettingsSearchAnchor(
+            listState,
+            setOf(
+                SettingsSearchAnchors.forRow(R.string.mirror_background_liveness),
+            )
+        )
         LazyColumn(
-            Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding),
+            state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -143,6 +153,7 @@ internal fun CloneSettingsContent(
                 item(key = "clone_background_liveness") {
                     SettingsSwitchItem(
                         title = stringResource(R.string.mirror_background_liveness),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.mirror_background_liveness),
                         subtitle = stringResource(R.string.clone_background_desc),
                         checked = backgroundLiveness,
                         enabled = controlsEnabled,

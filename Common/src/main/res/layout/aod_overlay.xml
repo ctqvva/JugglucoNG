@@ -45,6 +45,15 @@
                 android:contentDescription="Trend" />
         </LinearLayout>
 
+        <ImageView
+            android:id="@+id/aod_delta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:adjustViewBounds="true"
+            android:visibility="gone"
+            android:contentDescription="@string/display_show_delta_title" />
+
         <!-- Status Text -->
         <TextView
             android:id="@+id/notification_status"

@@ -215,6 +215,10 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         // sensors the slot stayed 0 and both checks read every session as if no reading
         // had ever arrived.
         charcha[0] = sampleTimeMs;
+        // A reading proves a reported loss of signal is over. The timestamp above already
+        // marks the old event as history for the UI; without clearing the literal the
+        // diagnostic screen keeps reporting a loss that ended days ago.
+        clearLossOfSignalState();
         // A reading imported over Clone is published through this same callback,
         // so accepting one is not proof this device read the sensor. Only a GATT
         // this process actually connected is, and without that check a mirrored
@@ -280,10 +284,89 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
      * Record the shared "Loss of signal" state. Extracted so a driver that recovers the
      * link its own way still reports it the same to the UI and the error history.
      */
-    protected final void noteLossOfSignal(long now) {
+    protected final synchronized void noteLossOfSignal(long now) {
+        final long wallNow = System.currentTimeMillis();
         constatstatusstr = "Loss of signal";
         constatchange[1] = now;
-        BleErrorHistory.record(SerialNumber, constatstatusstr, now);
+        if (!lossRecorded) {
+            lossRecorded = true;
+            BleErrorHistory.record(SerialNumber, constatstatusstr, wallNow);
+        }
+        if (!lossNotified && isNotificationSensor() && Applic.app != null) {
+            // A status-only notification, not the optional audible loss alarm: users
+            // comparing with the official app expect to see the outage even when the
+            // alarm is switched off. A secondary sensor must not replace the reading of
+            // the sensor that owns the ongoing notification.
+            lossNotified = true;
+            final long lastReading = charcha[0] != 0L ? charcha[0]
+                    : (lastfoundL != 0L ? lastfoundL : Natives.lastglucosetime());
+            Notify.notifySignalLoss(lastReading);
+        }
+        Log.i(LOG_ID, SerialNumber + " loss of signal, last reading "
+                + (charcha[0] == 0L ? "never" : (wallNow - charcha[0]) / 1000 + "s ago"));
+    }
+
+    /** Clear a matching callback's loss label when an external/managed reading recovers it. */
+    private static void clearCallbackLossState(String sensorSerial) {
+        if (sensorSerial == null || sensorSerial.isEmpty()) return;
+        for (SuperGattCallback cb : SensorBluetooth.gattcallbacks) {
+            if (cb != null && cb.SerialNumber != null
+                    && SensorIdentity.matches(cb.SerialNumber, sensorSerial)) {
+                cb.clearLossOfSignalState();
+                return;
+            }
+        }
+    }
+
+    /** A complete packet, or a valid reading, ends the outage that the latch describes. */
+    protected final synchronized void clearLossOfSignalState() {
+        final boolean hadLoss = "Loss of signal".equals(constatstatusstr) || lossRecorded || lossNotified;
+        if ("Loss of signal".equals(constatstatusstr)) constatstatusstr = "";
+        lossRecorded = false;
+        lossNotified = false;
+        if (Notify.hasSignalLoss() && isNotificationSensor()) Notify.clearSignalLoss();
+        if (hadLoss) Log.i(LOG_ID, SerialNumber + " loss of signal cleared");
+    }
+
+    /**
+     * A main-sensor switch retires the displayed loss, but the previous owner's callback
+     * may still be in the same outage. Let every callback post again on its next loss
+     * check; the history entry stays latched so it is not duplicated.
+     */
+    static void resetLossNotificationLatches() {
+        for (SuperGattCallback cb : SensorBluetooth.gattcallbacks) {
+            if (cb != null) cb.lossNotified = false;
+        }
+    }
+
+    /**
+     * Selecting a sensor that is already in an outage must show that outage now, not wait
+     * for its next periodic loss check. The caller has already made this sensor main.
+     */
+    static void repostLossForSelectedSensor(String serial) {
+        if (serial == null || serial.isEmpty()) return;
+        for (SuperGattCallback cb : SensorBluetooth.gattcallbacks) {
+            if (cb == null || cb.SerialNumber == null
+                    || !SensorIdentity.matches(cb.SerialNumber, serial)) continue;
+            synchronized (cb) {
+                if (!"Loss of signal".equals(cb.constatstatusstr)) return;
+                cb.lossNotified = true;
+                final long lastReading = cb.charcha[0] != 0L ? cb.charcha[0]
+                        : (lastfoundL != 0L ? lastfoundL : Natives.lastglucosetime());
+                Notify.notifySignalLoss(lastReading);
+                return;
+            }
+        }
+    }
+
+    private boolean isNotificationSensor() {
+        try {
+            final String main = Natives.lastsensorname();
+            return main != null && SerialNumber != null && SensorIdentity.matches(SerialNumber, main);
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, SerialNumber + " isNotificationSensor", t);
+            return false;
+        }
     }
 
     /**
@@ -320,9 +403,42 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         return true;
     }
 
+    /** Human-readable name for the Android GATT status codes seen on a sensor link. */
+    static String gattStatusText(int status) {
+        switch (status) {
+            case BluetoothGatt.GATT_SUCCESS: return "success";
+            case 8: return "link timeout";
+            case 19: return "peer terminated the link";
+            case 22: return "local host terminated the link";
+            case 133: return "GATT error";
+            case 147: return "connection attempt failed";
+            default: return "GATT status " + status;
+        }
+    }
+
     void setConStatus(int status) {
+        setConStatus(status, true);
+    }
+
+    /** Record a drop of an established link whose callback carried no error code. */
+    protected final void recordEstablishedLinkDrop(int status) {
+        BleErrorHistory.record(SerialNumber, "Status=" + status, System.currentTimeMillis());
+    }
+
+    /**
+     * @param durable keep the event in {@link BleErrorHistory}. A connection attempt that
+     *                the driver immediately retries is transport chatter: it is worth
+     *                showing while it happens, but not as the sensor's last BLE error for
+     *                the next hour after the retry succeeded.
+     */
+    void setConStatus(int status, boolean durable) {
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+            // A successful connection retires the transport failure that preceded it.
+            if (constatstatusstr.startsWith("Status=")) constatstatusstr = "";
+            return;
+        }
         constatstatusstr = "Status=" + status;
-        if (status != BluetoothGatt.GATT_SUCCESS) {
+        if (durable) {
             BleErrorHistory.record(SerialNumber, constatstatusstr, System.currentTimeMillis());
         }
     }
@@ -335,6 +451,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
     long[] constatchange = { 0L, 0L };
     public String constatstatusstr = "";
+    private volatile boolean lossRecorded = false;
+    private volatile boolean lossNotified = false;
     public String handshake = "";
     long[] wrotepass = { 0L, 0L };
     long[] charcha = { 0L, 0L };
@@ -794,6 +912,10 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             UiRefreshBus.requestDataRefresh();
             return;
         }
+        // Only an accepted main-sensor reading ends a loss warning. A historical or
+        // out-of-order sample was rejected above and must not hide an active outage.
+        clearCallbackLossState(SerialNumber);
+        Notify.clearSignalLoss();
 
         // A managed main sensor's native mirror may only now exist (first reading after
         // selection), and a main re-added after removal has no selection at all. Native
@@ -1273,9 +1395,31 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     }
 
     String getinfo() {
-        if (dataptr != 0L)
-            return Natives.getsensortext(dataptr);
-        return "";
+        if (dataptr == 0L) return "";
+        return localizeSensorStatus(Natives.getsensortext(dataptr));
+    }
+
+    /** Localize the native status literals used by the sensor-info screens. */
+    static String localizeSensorStatus(String text) {
+        if (text == null || text.isEmpty()) return "";
+        final tk.glucodata.ui.LegacySensorStatusText kind =
+                tk.glucodata.ui.LegacySensorStatusPolicyKt.classifyLegacySensorStatus(text);
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.Other) return text;
+        final android.content.Context app = Applic.app;
+        if (app == null) return text;
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.SensorError) {
+            return app.getString(tk.glucodata.R.string.sensor_error);
+        }
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.ReplaceSensor) {
+            return app.getString(tk.glucodata.R.string.sensor_replace);
+        }
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.SensorEnded) {
+            return app.getString(tk.glucodata.R.string.sensor_ended);
+        }
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.WarmingUp) {
+            return app.getString(tk.glucodata.R.string.sensor_warming_up);
+        }
+        return text;
     }
 
     public long resetdataptr() {

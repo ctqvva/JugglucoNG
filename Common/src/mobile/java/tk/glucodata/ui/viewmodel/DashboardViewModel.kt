@@ -1942,9 +1942,8 @@ class DashboardViewModel(
      */
     fun setDeltaIntervalMinutes(minutes: Int) {
         val context = tk.glucodata.Applic.app
-        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         val sanitized = tk.glucodata.GlucoseDelta.sanitizeIntervalMinutes(minutes)
-        prefs.edit().putInt(DELTA_INTERVAL_KEY, sanitized).apply()
+        tk.glucodata.settings.DisplayDeltaSettings(context).setIntervalMinutes(sanitized)
         _deltaIntervalMinutes.value = sanitized
         refreshNotificationPredictionSurfaces(context)
     }

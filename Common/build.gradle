@@ -296,6 +296,22 @@ android {
             ]
             // Preserve exact inventoried vendor bytes, including newly added library names.
             def vendorInputs = new groovy.json.JsonSlurper().parse(rootProject.file('scripts/dist/build-inputs.json'))
+            // Block retired names from stale sources/AARs, except exact ABI paths
+            // explicitly re-approved by the vendor inventory.
+            def activeVendorPaths = vendorInputs.files.collect { it.path }.toSet()
+            def retiredVendorNames = (vendorInputs.removedFiles ?: []).collect { new File(it).name }.toSet()
+            retiredVendorNames.each { name ->
+                if (vendorInputs.files.any { new File(it.path).name == name }) {
+                    android.defaultConfig.ndk.abiFilters.each { abi ->
+                        def path = "Common/src/main/jniLibs/${abi}/${name}".toString()
+                        if (!activeVendorPaths.contains(path)) {
+                            excludes += "**/${abi}/${name}"
+                        }
+                    }
+                } else {
+                    excludes += "**/${name}"
+                }
+            }
             vendorInputs.files.each { input ->
                 doNotStrip "**/${new File(input.path).name}"
             }

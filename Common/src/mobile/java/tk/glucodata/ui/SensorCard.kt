@@ -2510,9 +2510,39 @@ fun SensorCard(
                                 Text(stringResource(R.string.status), style = labelStyle)
                                 Text(
                                     stringResource(R.string.sensor_expired_text),
-                                    style = MaterialTheme.typography.bodyMediumEmphasized.copy(color = MaterialTheme.colorScheme.error)
+                                    style = MaterialTheme.typography.bodyMediumEmphasized.copy(
+                                        color = MaterialTheme.colorScheme.error
+                                    )
                                 )
                             }
+                        }
+
+                        if (!sensor.isCloneSource && sensor.sensorErrorCode != 0) {
+                            DataRow(
+                                stringResource(R.string.sensor_error_code),
+                                sensor.sensorErrorCode.toString(),
+                            )
+                        }
+                        // A mirrored sensor may never have resolved an address on this phone;
+                        // a row saying "Unknown" is a row saying nothing.
+                        if (!(sensor.isCloneSource && sensor.deviceAddress.equals("Unknown", ignoreCase = true))) {
+                            DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
+                        }
+                        if (sensor.dexcomPairingCode.isNotEmpty()) {
+                            DataRow(stringResource(R.string.dexcom_pairing_code), sensor.dexcomPairingCode)
+                        }
+                    
+                        // FIX: Use Long timestamp directly to avoid String Parsing Locale bugs in formatSensorTime
+                        // User reported "100% Fill / Red Color" bug in English Locale, likely due to startMs being 0 or parse fail.
+                        // We also ensure we only show valid dates.
+                        if (sensor.startMs > 1577836800000L) { // > Jan 1 2020
+                            DataRow(stringResource(R.string.sensor_started), formatSensorTime(sensor.startMs.toString()))
+                        }
+
+                        if (sensor.officialEndMs > 0) {
+                            DataRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEndMs.toString()))
+                        } else if (sensor.officialEnd.isNotEmpty()) {
+                            DataRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEnd))
                         }
 
                         // The tiles above the block say when the sensor started and ends, how long is

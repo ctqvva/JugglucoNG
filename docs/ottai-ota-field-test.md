@@ -16,14 +16,22 @@ OTA experiment. Both require the sensor to be disconnected from managed monitori
 ### Normal Connect and fallbacks
 
 Normal **Connect** uses the same V3 preparation owner as the field test when credentials are
-missing. It reads the actual BLE revision, authenticates with the server and checks firmware
-before binding. A no-update response or a failed offer/download continues with preparation of
-the installed firmware. A cancelled request or expired account stops instead. An offered
-firmware package always waits for a separate install confirmation; opening setup cannot flash.
+missing. It reads the actual BLE revision, authenticates with the server and checks command
+status before binding. Unactivated sensors continue with preparation of the installed firmware,
+without an OTA offer/download. A cancelled request or expired account stops instead. Firmware
+offers belong to the separate experimental action and always require install confirmation.
 After successful preparation, BLE is closed before the managed connection is started, and its
 authenticated command status determines activation versus streaming. For an existing unknown
 factory profile, normal setup can fetch/verify credentials without inventing V1 factory packets;
 this does not relax the pre-flash gate for an unsupported Fresh OTA target.
+
+For a sensor already started in the official app (command status 3), Connect recovers missing
+keys through the same authenticated V3 bind, then proves those keys with local BLE authentication
+and rechecks active status. It does not write factory parameters, create a preparation checkpoint,
+or activate the sensor again. The bind's echoed request time is discarded; the managed reader
+recovers the original start from corroborated sensor data. Ended status and saved firmware
+transfers cannot enter this credential-only recovery path. Read-only V3 cloud validation can
+show a device version without returning keys or proving that the sensor is within BLE range.
 
 Bind sends the actual BLE string, including any variant, rather than the shortened version from
 cloud validation. It performs one bind. If the response is lost, empty, or rejected, a read-only

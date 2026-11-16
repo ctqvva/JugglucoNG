@@ -848,7 +848,19 @@ public class SensorBluetooth {
     }
 
     public static void setCurrentSensorSelection(String serial) {
+        final String previous = SensorIdentity.resolveMainSensor();
         CurrentSensorSelection.select(serial);
+        // A loss warning belongs to the sensor that owned the notification. Re-selecting
+        // the same sensor must keep it; selecting a different one retires it and lets the
+        // previous owner post again if it is still in the same outage.
+        final boolean sameSensor = previous != null && serial != null
+                && SensorIdentity.matches(previous, serial);
+        if (!sameSensor) {
+            Notify.clearSignalLoss();
+            Notify.stoplossalarm();
+            SuperGattCallback.resetLossNotificationLatches();
+            SuperGattCallback.repostLossForSelectedSensor(serial);
+        }
         if (serial == null || serial.isEmpty()) {
             onMainSensorCleared();
         }
@@ -945,9 +957,10 @@ public class SensorBluetooth {
         // canonical, or 24-char vendor-padded form. Strict equality previously
         // logged "didn't remove" whenever any of those forms didn't byte-match
         // the live gattcallbacks SerialNumber, leaving stale gatts in the list.
+        final int target = findGattCallbackIndex(str);
         for (int i = 0; i < gattcallbacks.size(); i++) {
             var gatt = gattcallbacks.get(i);
-            if (callbackMatchesSensorId(gatt, str)) {
+            if (i == target) {
                 final String removedSerial = gatt.SerialNumber;
                 {
                     if (doLog) {
@@ -1395,7 +1408,10 @@ public class SensorBluetooth {
         if (callback == null || sensorId == null) {
             return false;
         }
-        if (SensorIdentity.matches(sensorId, callback.SerialNumber)) {
+        // SensorIdentity.matches() takes a blank expected id as "any sensor", so a callback
+        // without an identity of its own would match, and be removed or connected for, every id.
+        if (SensorIdentity.isUsableSensorId(callback.SerialNumber)
+                && SensorIdentity.matches(sensorId, callback.SerialNumber)) {
             return true;
         }
         if (callback instanceof ManagedBluetoothSensorDriver managed) {
@@ -1825,9 +1841,20 @@ public class SensorBluetooth {
         return new Libre2GattCallback(name, dataptr);
     }
 
+    /**
+     * The callback for this sensor. An exact serial comes first: the identity match also takes
+     * aliases, and the first callback it accepted is not necessarily this sensor's when another
+     * sensor's callback comes earlier in the list. Freeing that one would stop a live sensor
+     * and drop its bond.
+     */
     private int findGattCallbackIndex(String serial) {
         if (serial == null) {
             return -1;
+        }
+        for (int i = 0; i < gattcallbacks.size(); i++) {
+            if (serial.equals(gattcallbacks.get(i).SerialNumber)) {
+                return i;
+            }
         }
         for (int i = 0; i < gattcallbacks.size(); i++) {
             SuperGattCallback cb = gattcallbacks.get(i);

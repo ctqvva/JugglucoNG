@@ -373,8 +373,8 @@
     <string name="humaninsulin">Humán inzulin/Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
     <string name="not">Nem</string>
-    <string name="eusibionics">Sibionics EU</string>
-    <string name="chsibionics">Sibionics kínai</string>
+    <string name="eusibionics">Sibionics GS1 Globális</string>
+    <string name="chsibionics">Sibionics GS1 Kína</string>
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2 osztott</string>
     <string name="gs3">Sibionics GS3</string>
@@ -672,7 +672,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sibionics_setup_title">Sibionics beállítása</string>
     <string name="scan_sensor_qr">Szenzor QR-kódjának szkennelése</string>
     <string name="scan_sensor_qr_desc">A szenzor csomagolásán lévő Data Matrix kód szkennelése</string>
-    <string name="select_sibionics_type">Sibionics szenzor kiválasztása</string>
+    <string name="select_sibionics_type">Szenzorváltozat kiválasztása</string>
     <string name="scan_transmitter">Jeladó szkennelése</string>
     <string name="connecting">Csatlakozás...</string>
     <string name="setup_complete">Beállítás kész</string>
@@ -903,7 +903,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="select_gallery_button">Kiválasztás a Galériából</string>
     <string name="skip_fake_sensor">Kihagyás (tesztszenzor)</string>
     <string name="enter_code_manually">Kód kézi megadása</string>
-    <string name="choose_sibionics_variant">Válassza ki a csomagoláson szereplő modellt.</string>
     <string name="continue_action">Folytatás</string>
     <string name="sensor_init_failed">A szenzor inicializálása sikertelen</string>
     <string name="sensor_lost_restart">Hiba: a szenzor elveszett. Indítsa újra a beállítást.</string>
@@ -948,6 +947,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="status_bluetooth_off">Bluetooth kikapcsolva</string>
     <string name="status_connection_failed">Sikertelen kapcsolódás</string>
     <string name="status_connected">Csatlakoztatva</string>
+    <string name="sensor_error">Szenzorhiba</string>
+    <string name="sensor_replace">Cserélje a szenzort</string>
+    <string name="sensor_ended">A szenzor lejárt</string>
+    <string name="sensor_warming_up">Bemelegedés</string>
+    <string name="sensor_error_code">Szenzor hibakód</string>
     <string name="status_disconnected">Leválasztva</string>
     <string name="status_waiting_for_data">Csatlakoztatva, várakozás az adatokra...</string>
     <string name="status_raw_values_received">Csatlakoztatva, nyers értékek fogadva</string>
@@ -2086,6 +2090,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_type_temp_basal">Ideiglenes bázis</string>
     <string name="journal_dashboard_types_title">Megjelenítés a főképernyőn</string>
     <string name="journal_dashboard_types_desc">A rejtett bejegyzések csak a fő grafikonról és az értéklistáról tűnnek el. Az IOB, a COB, az előrejelzés és az adagjavaslatok továbbra is számolnak velük.</string>
+    <string name="journal_entry_types_order_desc">A + menü és a diagram hozzáadás menüje ebben a sorrendben mutatja őket. Áthelyezéshez húzza a fogantyút.</string>
     <string name="journal_import_health_activity_desc">Edzések és lépések hozzáadása a naplóhoz</string>
     <string name="journal_section_main_screen">Főképernyő</string>
     <string name="journal_section_dosing">Adagolás</string>
@@ -2117,6 +2122,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="notification_show_cob_title">Felszívódó szénhidrát</string>
     <string name="notification_show_cob_desc">A napló COB értékének megjelenítése az állapotsorban</string>
     <string name="notification_show_delta_title">Változás a nyíl mellett</string>
+    <string name="display_show_delta_title">Delta (Δ) megjelenítése</string>
+    <string name="widget_show_delta_title">Modulok deltája (Δ)</string>
     <string name="notification_show_delta_desc">Mért változás megjelenítése a trendnyíl mellett</string>
     <string name="notification_show_delta_minutes_desc">%1$d perces változás megjelenítése a trendnyíl mellett</string>
     <string name="dashboard_show_delta_title">Változás az áttekintőn</string>
@@ -3176,6 +3183,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <!-- Settings search -->
     <string name="settings_search_hint">Keresés a beállításokban</string>
     <string name="settings_search_no_results">Nincs a(z) „%1$s” keresésnek megfelelő beállítás</string>
+    <string name="settings_search_related">Kapcsolódó beállítások</string>
     <string name="settings_search_clear">Keresés törlése</string>
 
     <!-- Explicit firmware field test. -->
@@ -3434,4 +3442,5 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="food_reorder">Ételek átrendezése</string>
     <string name="food_move_up">Mozgatás fel</string>
     <string name="food_move_down">Mozgatás le</string>
+    <string name="spanish">Spanyol</string>
 </resources>

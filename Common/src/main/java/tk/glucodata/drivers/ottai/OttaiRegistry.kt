@@ -37,6 +37,8 @@ object OttaiRegistry {
     enum class SessionProfile {
         WATCH,
         CN_PHONE,
+        /** Ottai Global's phone app identity (appName "ottai"); see OttaiCloudClient.sessionIdentity. */
+        GLOBAL_PHONE,
     }
     private const val TAG = OttaiConstants.TAG
     private const val PREFS_NAME = "tk.glucodata_preferences"

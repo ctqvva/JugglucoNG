@@ -506,7 +506,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="continue_without_sensor_desc">Leg insuline, voeding en vingerprikken vast in het dagboek</string>
     <string name="get_started_desc">Ga aan de slag door je sensor toe te voegen</string>
     <string name="select_sensor">Selecteer sensortype</string>
-    <string name="select_sibionics_type">Kies een Sibionics-sensor</string>
+    <string name="select_sibionics_type">Kies sensorvariant</string>
     <string name="or_divider">"  of  "</string>
     <string name="no_sensors_connected">Geen sensoren verbonden</string>
     
@@ -530,7 +530,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="select_gallery_button">Selecteer uit galerij</string>
     <string name="skip_fake_sensor">Overslaan (Gebruik nepsensor)</string>
     <string name="enter_code_manually">Code handmatig invoeren</string>
-    <string name="choose_sibionics_variant">Kies het model dat op de verpakking staat.</string>
     <string name="continue_action">Doorgaan</string>
     
     <string name="sensor_init_failed">Sensorinitialisatie mislukt</string>
@@ -697,6 +696,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="status_bluetooth_off">Bluetooth uit</string>
     <string name="status_connection_failed">Verbinding mislukt</string>
     <string name="status_connected">Verbonden</string>
+    <string name="sensor_error">Sensorfout</string>
+    <string name="sensor_replace">Sensor vervangen</string>
+    <string name="sensor_ended">Sensor beëindigd</string>
+    <string name="sensor_warming_up">Opwarmen</string>
+    <string name="sensor_error_code">Sensorfoutcode</string>
     <string name="status_disconnected">Verbroken</string>
     <string name="select_sensor_type">Selecteer sensortype</string>
     <string name="choose_theme">Thema kiezen</string>
@@ -809,7 +813,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="calibration_algorithm">Calibration Algorithm</string>
     <string name="caresens_air_scan_instruction">Scan de sensorcode op uw CareSens Air-pakket</string>
     <string name="caresens_air_setup_title">CareSens Air-installatie</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 China</string>
     <string name="clean_history_confirm">Geschiedenis wissen?</string>
     <string name="clear_history_desc">Verwijder metingen, dagboekitems of beide</string>
     <string name="clear_history_scope_readings">Verwijdert alle glucosemetingen op deze telefoon en kan niet ongedaan worden gemaakt. Dagboek, sensoren en instellingen blijven behouden.</string>
@@ -842,7 +846,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="disconnect_sensor_failed">De sensor kon niet worden verwijderd en is nog actief. Probeer het opnieuw.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_confirm">Fabrieksinstellingen herstellen?</string>
     <string name="factory_reset_message">Verwijdert alle metingen, dagboekitems, sensoren en instellingen, plus de verleende rechten, en sluit daarna de app. Glucosebewaking en alarmen stoppen totdat je opnieuw een sensor instelt, en dit kan niet ongedaan worden gemaakt.</string>
@@ -1761,6 +1765,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_type_temp_basal">Tijdelijke basaal</string>
     <string name="journal_dashboard_types_title">Tonen op het hoofdscherm</string>
     <string name="journal_dashboard_types_desc">Verborgen items verdwijnen alleen uit de hoofdgrafiek en de lijst met metingen. Ze tellen nog steeds mee voor IOB, COB, de voorspelling en de dosishints.</string>
+    <string name="journal_entry_types_order_desc">Het +-menu en het toevoegmenu van de grafiek tonen ze in deze volgorde. Sleep aan een greep om er een te verplaatsen.</string>
     <string name="journal_import_health_activity_desc">Voeg trainingen en stappen toe aan het dagboek</string>
     <string name="journal_section_main_screen">Hoofdscherm</string>
     <string name="journal_section_dosing">Dosering</string>
@@ -2263,6 +2268,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucose_palette_title">Glucosekleuren</string>
     <string name="notification_show_delta_desc">Gemeten verandering over het delta-interval, naast de pijl</string>
     <string name="notification_show_delta_title">Toon delta (Δ)</string>
+    <string name="display_show_delta_title">Toon delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta in widgets (Δ)</string>
     <string name="rising_fast_explanation">Waarschuwt na %1$d opeenvolgende intervallen van %2$d-minuten die elk stijgen met ten minste %3$s (≈ %4$d min. aanhoudende stijging) terwijl de waarde op of boven %5$s ligt. Geen voorspelling, alleen de ruwe trend.</string>
     <string name="sensor_expiry_warnings_desc">Elke geselecteerde tijd waarschuwt één keer per sensor</string>
     <string name="sensor_expiry_warnings_title">Waarschuw vóór de vervaldatum</string>
@@ -3150,6 +3157,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <!-- Settings search -->
     <string name="settings_search_hint">Instellingen zoeken</string>
     <string name="settings_search_no_results">Geen instellingen gevonden voor ‘%1$s’</string>
+    <string name="settings_search_related">Gerelateerde instellingen</string>
     <string name="settings_search_clear">Zoekopdracht wissen</string>
 
     <!-- Explicit firmware field test. -->
@@ -3408,4 +3416,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="food_reorder">Voeding herschikken</string>
     <string name="food_move_up">Omhoog verplaatsen</string>
     <string name="food_move_down">Omlaag verplaatsen</string>
+    <string name="scan_sensor_qr">QR-code van de sensor scannen</string>
+    <string name="spanish">Spaans</string>
 </resources>

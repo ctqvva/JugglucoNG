@@ -980,6 +980,9 @@ public class Applic extends Application implements androidx.work.Configuration.P
             // can repair polling without waiting for MainActivity to initialize Bluetooth.
             tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
                     .restoreConfiguredFollower(this);
+            // Followers an earlier URL change left behind as the main sensor.
+            tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
+                    .reconcileOrphanedFollowers(this);
             tk.glucodata.share.lumiflex.LumiflexFollowerRegistry.reconcile(this);
             initialize();
 

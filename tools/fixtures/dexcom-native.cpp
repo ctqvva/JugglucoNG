@@ -120,8 +120,10 @@ struct SensorGlucoseData {
 };
 struct sensor {
     char name[17]{};
-    bool present=true,finished=false,initialized=false;
+    bool present=true,initialized=false;
+    uint8_t finished=0;
     int halfdays=24;
+    bool wasRemovedByUser()const{return finished==2;}
     uint32_t starttime=1700000001,endtime=0;
     const char* showsensorname(){return name;}
     string_view fullname()const{return string_view(name,16);}
@@ -241,6 +243,13 @@ void flexDiscovery(){
     registry.records[0].name[0]='F';registry.data.push_back(std::move(owner));
     assert(!dexCandidate(&env,0,ptr,"DX0412345",d.address.c_str()));
     assert(dexCandidate(&env,0,ptr,"DX0412345","F0:00:00:00:00:02"));
+    // An expired record still owns its transmitter; one the user removed does
+    // not, or the same sensor entered again by pairing code never connects.
+    registry.records[0].finished=1;
+    assert(!dexCandidate(&env,0,ptr,"DX0412345",d.address.c_str()));
+    registry.records[0].finished=2;
+    assert(dexCandidate(&env,0,ptr,"DX0412345",d.address.c_str()));
+    registry.records[0].finished=0;
     // A saved Flex binding requires an exact name match, just like G7/ONE+.
     strcpy(d.metadata.DexDeviceName,"DX0412345");d.metadata.sharedKey[0]=42;
     assert(dexCandidate(&env,0,ptr,"DX0412345",d.address.c_str()));

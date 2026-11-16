@@ -193,6 +193,7 @@ internal fun HybridSettingsContent(
                     Spacer(Modifier.height(2.dp))
                     SettingsSwitchItem(
                         title = stringResource(R.string.clone_allow_fallback_servers),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.clone_allow_fallback_servers),
                         subtitle = stringResource(R.string.clone_allow_fallback_servers_desc),
                         icon = Icons.Default.AltRoute,
                         iconTint = accent,
@@ -206,6 +207,7 @@ internal fun HybridSettingsContent(
             SectionLabel(stringResource(R.string.clone_connection_options))
             SettingsSwitchItem(
                 title = stringResource(R.string.clone_local_short),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.clone_local_short),
                 subtitle = stringResource(R.string.clone_local_short_desc),
                 icon = Icons.Default.Lan,
                 iconTint = accent,
@@ -217,6 +219,7 @@ internal fun HybridSettingsContent(
             val turnAvailable = draft.turnEndpoint != null
             SettingsSwitchItem(
                 title = stringResource(R.string.clone_stun_short),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.clone_stun_short),
                 subtitle = stringResource(if (turnAvailable) R.string.clone_stun_short_desc else R.string.clone_stun_needs_server),
                 icon = Icons.Default.Hub,
                 iconTint = accent,
@@ -228,6 +231,7 @@ internal fun HybridSettingsContent(
             Spacer(Modifier.height(2.dp))
             SettingsSwitchItem(
                 title = stringResource(R.string.clone_prefer_ipv4),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.clone_prefer_ipv4),
                 subtitle = stringResource(R.string.clone_prefer_ipv4_summary),
                 icon = Icons.Default.SettingsEthernet,
                 iconTint = accent,
@@ -292,6 +296,7 @@ private fun ColumnScope.RendezvousServerSetting(
 ) {
     DisclosingSwitchCard(
         title = stringResource(R.string.use_custom_rendezvous_server),
+        searchAnchor = SettingsSearchAnchors.forRow(R.string.use_custom_rendezvous_server),
         subtitle = formatNetworkEndpoint(saved.toConfig(CloneIceNetworkConfig()).rendezvousHost, saved.rendezvousPortValue ?: CloneIceNetworkConfig.DEFAULT_RENDEZVOUS_PORT)
             ?: stringResource(R.string.clone_server_default),
         icon = Icons.Default.Dns,
@@ -325,6 +330,7 @@ private fun ColumnScope.RendezvousServerSetting(
             val verify = draft.verifyRendezvousCertificate
             SettingsSwitchItem(
                 title = stringResource(R.string.verify_rendezvous_certificate),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.verify_rendezvous_certificate),
                 subtitle = if (verify) null else stringResource(R.string.verify_rendezvous_certificate_summary),
                 subtitleStyle = if (verify) null else MaterialTheme.typography.bodySmall,
                 icon = Icons.Default.VerifiedUser,
@@ -350,6 +356,7 @@ private fun TurnServerSetting(
     var visible by rememberSaveable { mutableStateOf(false) }
     DisclosingSwitchCard(
         title = stringResource(R.string.use_custom_turn_server),
+        searchAnchor = SettingsSearchAnchors.forRow(R.string.use_custom_turn_server),
         subtitle = saved.turnEndpoint?.let { formatNetworkEndpoint(it.host, it.port) }
             ?: stringResource(R.string.mirror_app_turn_server),
         icon = Icons.Default.CloudQueue,

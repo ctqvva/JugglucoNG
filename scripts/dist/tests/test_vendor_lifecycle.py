@@ -105,6 +105,79 @@ class Lifecycle(unittest.TestCase):
         vendor.regenerate(self.old_apk)
         self.assertNotIn('removedFiles', dist.inventory())
 
+    def test_clean_ci_restore_does_not_resurrect_retired_files_in_either_abi(self):
+        retired = {f'Common/src/main/jniLibs/{abi}/libretired.so': b'retired'
+                   for abi in dist.ARM_ABIS}
+        original = dict(self.initial, **retired)
+        self.make_apk(self.old_apk, original)
+        data = dist.inventory()
+        data['source']['sha256'] = dist.digest(self.old_apk.read_bytes())
+        data['files'] += [dict(path=path, size=len(content), sha256=dist.digest(content))
+                          for path, content in retired.items()]
+        self.inventory_path.write_text(json.dumps(data))
+        vendor.regenerate(self.old_apk)
+        self.assertEqual(set(dist.inventory()['removedFiles']), set(retired))
+        for path in self.initial:
+            (self.root / path).unlink()
+        vendor.audit_and_restore(self.old_apk)
+        self.assertTrue(all((self.root / path).is_file() for path in self.initial))
+        self.assertTrue(all(not (self.root / path).exists() for path in retired))
+        # Stale caches/source-set copies must fail the canonical input check.
+        for path in retired:
+            with self.subTest(path=path):
+                (self.root / path).write_bytes(b'retired')
+                with self.assertRaisesRegex(ValueError, 'Uninventoried distribution input'):
+                    dist.inputs_check()
+                (self.root / path).unlink()
+
+    def test_single_abi_readd_allows_only_the_inventoried_copy(self):
+        # Keep another input in each ABI so retiring the target everywhere is
+        # a valid inventory update rather than an empty-directory mistake.
+        kept = {f'Common/src/main/jniLibs/{abi}/libkept.so': b'kept-' + abi.encode()
+                for abi in dist.ARM_ABIS}
+        for path, content in kept.items():
+            (self.root / path).write_bytes(content)
+        self.make_apk(self.old_apk, {**self.initial, **kept})
+        data = dist.inventory()
+        data['source']['sha256'] = dist.digest(self.old_apk.read_bytes())
+        data['files'] += [dict(path=path, size=len(content), sha256=dist.digest(content))
+                          for path, content in kept.items()]
+        self.inventory_path.write_text(json.dumps(data))
+        for path in self.initial:
+            (self.root / path).unlink()
+        vendor.regenerate(self.old_apk)
+
+        def verify(apk):
+            outputs = ['Signer #1 certificate SHA-256 digest: ' + 'a' * 64,
+                       "package: name='tk.glucodata.ng' versionCode='1023' versionName='1.2.3-Alpha-phone'"]
+            with patch.object(dist, 'sdk_tool', side_effect=lambda n: n), \
+                 patch.object(dist.subprocess, 'check_output', side_effect=outputs):
+                dist.verify_apk(apk, 'mobile', 'release', expected_certificate='a' * 64)
+
+        for active in self.initial:
+            with self.subTest(active=active):
+                for path in self.initial:
+                    (self.root / path).unlink(missing_ok=True)
+                vendor.regenerate(self.old_apk)
+                content = self.initial[active]
+                (self.root / active).write_bytes(content)
+                vendor.regenerate(self.old_apk)
+                self.assertEqual(set(dist.inventory()['removedFiles']), set(self.initial) - {active})
+                self.assertNotIn('bootstrapRequired', dist.inventory())
+                dist.inputs_check()
+                apk = self.root / 'readded.apk'
+                self.make_apk(apk, {**kept, active: content})
+                verify(apk)
+                # Approval is still tied to the exact ABI/path and its hash.
+                self.make_apk(apk, {**kept, active: b'tampered'})
+                with self.assertRaisesRegex(ValueError, 'APK JNI checksum mismatch'):
+                    verify(apk)
+                self.make_apk(apk, {**kept, **self.initial})
+                with self.assertRaisesRegex(ValueError, 'Removed vendor input still packaged'):
+                    verify(apk)
+                (self.root / active).unlink()
+                vendor.regenerate(self.old_apk)
+
     def test_bad_bootstrap_declaration_and_source_tamper_rejected(self):
         data = dist.inventory()
         data['bootstrapRequired'] = True
@@ -154,6 +227,73 @@ class Lifecycle(unittest.TestCase):
         with patch.object(dist, 'sdk_tool', side_effect=lambda n: n), patch.object(dist.subprocess, 'check_output', side_effect=outputs):
             with self.assertRaisesRegex(ValueError, 'Removed vendor input still packaged'):
                 dist.verify_apk(self.old_apk, 'mobile', 'release')
+
+
+class RetiredNativeLibraries(unittest.TestCase):
+    """Exercise the real retirement inventory through distribution APK validation."""
+
+    RETIRED = {
+        'libalgorithm-jni.so', 'libcgat-lib.so', 'libobjectbox-jni.so',
+        'libscannative.so', 'libjniPdfium.so', 'libmodpdfium.so',
+        'libmodft2.so', 'libmodpng.so', 'libmarsxlog.so', 'libmmkv.so',
+    }
+
+    def setUp(self):
+        self.data = dist.inventory()
+        self.expected = {
+            f'Common/src/main/jniLibs/{abi}/{name}'
+            for abi in dist.ARM_ABIS for name in self.RETIRED
+        } | {'Common/src/main/jniLibs/armeabi-v7a/libgetuiext3.so'}
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.apk = Path(self.tmp.name) / 'distribution.apk'
+        self.payloads = {spec['path']: b'fixture-' + spec['path'].encode()
+                         for spec in self.data['files']}
+        self.data['files'] = [dict(path=path, size=len(content), sha256=dist.digest(content))
+                              for path, content in self.payloads.items()]
+
+    def make_apk(self, retired=None):
+        with zipfile.ZipFile(self.apk, 'w') as z:
+            for path, content in self.payloads.items():
+                z.writestr(dist.input_entry(path), content)
+            for abi in dist.ARM_ABIS:
+                z.writestr(f'lib/{abi}/libg.so', b'production-target-fixture')
+                z.writestr(f'lib/{abi}/libnative.so', b'active-libre-recovery-fixture')
+            if retired:
+                z.writestr(dist.input_entry(retired), b'accidentally-repackaged')
+
+    def verify(self, flavor, build_type):
+        name, code = dist.version()
+        code += 1000000 if flavor == 'wear' else 0
+        appid = 'tk.glucodata.ng' + ('.dub' if build_type == 'releasedub' else '')
+        vn = name + ('-wear' if flavor == 'wear' else '-phone') + ('DUB' if build_type == 'releasedub' else '')
+        outputs = ['Signer #1 certificate SHA-256 digest: ' + 'a' * 64,
+                   f"package: name='{appid}' versionCode='{code}' versionName='{vn}'"]
+        with patch.object(dist, 'inventory', return_value=self.data), \
+             patch.object(dist, 'abis', return_value=dist.ARM_ABIS), \
+             patch.object(dist, 'sdk_tool', side_effect=lambda n: n), \
+             patch.object(dist.subprocess, 'check_output', side_effect=outputs):
+            dist.verify_apk(self.apk, flavor, build_type, expected_certificate='a' * 64)
+
+    def test_all_retired_candidates_are_protected_for_each_existing_abi(self):
+        self.assertTrue(self.expected <= set(self.data['removedFiles']))
+        self.assertFalse(self.expected & {spec['path'] for spec in self.data['files']})
+
+    def test_phone_wear_and_dub_apks_reject_each_retired_payload_in_either_abi(self):
+        for flavor, build_type in dist.TARGETS['all']:
+            with self.subTest(flavor=flavor, build_type=build_type):
+                self.make_apk()
+                self.verify(flavor, build_type)
+            for retired in sorted(self.expected):
+                with self.subTest(flavor=flavor, build_type=build_type, retired=retired):
+                    self.make_apk(retired)
+                    with self.assertRaisesRegex(ValueError, 'Removed vendor input still packaged'):
+                        self.verify(flavor, build_type)
+
+    def test_arm32_only_retired_library_cannot_return_via_an_arm64_aar(self):
+        self.make_apk('Common/src/main/jniLibs/arm64-v8a/libgetuiext3.so')
+        with self.assertRaisesRegex(ValueError, 'Removed vendor input still packaged'):
+            self.verify('mobile', 'release')
 
 
 class Publication(unittest.TestCase):

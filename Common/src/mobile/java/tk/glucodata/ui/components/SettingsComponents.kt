@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -132,11 +133,12 @@ fun DisclosingSwitchCard(
     position: CardPosition,
     iconTint: Color? = null,
     enabled: Boolean = true,
+    searchAnchor: String? = null,
     content: @Composable () -> Unit,
 ) {
     val tint = iconTint ?: MaterialTheme.colorScheme.primary
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().settingsSearchAnchor(searchAnchor, cardShape(position)),
         shape = cardShape(position),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
@@ -252,6 +254,34 @@ fun SettingsItem(
     onClick: (() -> Unit)? = null,
     icon: ImageVector? = null,
     iconTint: Color? = null, // Added tint
+    trailingContent: (@Composable () -> Unit)? = null,
+    position: CardPosition = CardPosition.SINGLE,
+    animatePosition: Boolean = false,
+    modifier: Modifier = Modifier,
+    subtitleStyle: TextStyle? = null,
+    searchAnchor: String? = null,
+) = SettingsItem(
+    title = AnnotatedString(title),
+    subtitle = subtitle?.let(::AnnotatedString),
+    onClick = onClick,
+    icon = icon,
+    iconTint = iconTint,
+    trailingContent = trailingContent,
+    position = position,
+    animatePosition = animatePosition,
+    modifier = modifier,
+    subtitleStyle = subtitleStyle,
+    searchAnchor = searchAnchor,
+)
+
+/** The same row with styled text, for a search result that marks the words it matched. */
+@Composable
+fun SettingsItem(
+    title: AnnotatedString,
+    subtitle: AnnotatedString?,
+    onClick: (() -> Unit)? = null,
+    icon: ImageVector? = null,
+    iconTint: Color? = null,
     trailingContent: (@Composable () -> Unit)? = null,
     position: CardPosition = CardPosition.SINGLE,
     animatePosition: Boolean = false,
@@ -501,6 +531,11 @@ fun SettingsControlsCard(
     }
 }
 
+// A control inside a [SettingsControlsCard] sits in the card's 16dp padding; its search
+// mark grows into half of it, so it frames the control without touching the card edge.
+private val SearchAnchorInCardShape = RoundedCornerShape(12.dp)
+private val SearchAnchorInCardOutset = 8.dp
+
 /**
  * A slider in a [SettingsControlsCard], under a [SliderHeader]: [title] at the start,
  * [valueText] at the end. The header shows the value, so the track draws no tick per step:
@@ -515,12 +550,19 @@ fun SettingsSlider(
     range: ClosedFloatingPointRange<Float>,
     steps: Int = 0,
     modifier: Modifier = Modifier,
+    searchAnchor: String? = null,
 ) {
     Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(SliderHeaderGap)
+    modifier = modifier
+        .fillMaxWidth()
+        .settingsSearchAnchor(
+            searchAnchor,
+            SearchAnchorInCardShape,
+            outset = SearchAnchorInCardOutset
+        ),
+    verticalArrangement = Arrangement.spacedBy(SliderHeaderGap)
     ) {
-        SliderHeader(label = title, value = valueText)
+    SliderHeader(label = title, value = valueText)
         Slider(
             value = value,
             onValueChange = onValueChange,
@@ -553,10 +595,14 @@ fun <T> SettingsChoice(
     modifier: Modifier = Modifier,
     maxItemsPerRow: Int = Int.MAX_VALUE,
     titleTrailingContent: (@Composable () -> Unit)? = null,
+    searchAnchor: String? = null,
 ) {
     // The bottom padding matches the room a slider leaves under its track.
     Column(
-        modifier = modifier.fillMaxWidth().padding(bottom = 12.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .settingsSearchAnchor(searchAnchor, SearchAnchorInCardShape, outset = SearchAnchorInCardOutset)
+            .padding(bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (titleTrailingContent == null) {
