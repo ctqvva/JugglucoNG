@@ -219,7 +219,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth()) {
         SensorLifeBar(life)
         Spacer(Modifier.height(SensorDatesGap))
-        SensorDates(life, topCorner = SensorStackCorner, bottomCorner = SensorStackCorner)
+        SensorDates(life, topCorner = SensorStackCorner, bottomCorner = SensorStackCorner, labelBelow = true)
     }
 }
 
@@ -299,13 +299,15 @@ private fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
  * Start and end side by side, one labelled tile each, the start date at one edge and the end
  * date at the other: the date with its time beside it, or under it where the two do not fit
  * on a line. The end's label is the time left, or what the end is when it is not ahead. The
- * full card puts the two under its wear bar and squares the corners that touch it.
+ * full card puts the two under its wear bar, squares the corners that touch it, and sets each
+ * label under its date ([labelBelow]) so the dates sit right under the bar.
  */
 @Composable
 internal fun SensorDates(
     life: SensorLife,
     topCorner: Dp = 12.dp,
     bottomCorner: Dp = 12.dp,
+    labelBelow: Boolean = false,
 ) {
     val leftMs = life.endMs - life.nowMs
     val ended = leftMs <= 0L && !life.overrun
@@ -357,6 +359,7 @@ internal fun SensorDates(
                         label = startLabel,
                         texts = start,
                         timeBeside = timeBeside,
+                        labelBelow = labelBelow,
                         alignment = Alignment.Start,
                         modifier = Modifier.padding(SensorDatesPadding),
                     )
@@ -370,6 +373,7 @@ internal fun SensorDates(
                         labelColor = if (ended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         texts = end,
                         timeBeside = timeBeside,
+                        labelBelow = labelBelow,
                         alignment = Alignment.End,
                         modifier = Modifier.padding(SensorDatesPadding),
                     )
@@ -420,17 +424,13 @@ private fun SensorDate(
     label: String?,
     texts: SensorDateTexts,
     timeBeside: Boolean,
+    labelBelow: Boolean,
     alignment: Alignment.Horizontal,
     modifier: Modifier = Modifier,
     labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
     val textAlign = if (alignment == Alignment.End) TextAlign.End else TextAlign.Start
-    // From the bottom, so the two dates stay level when one label takes two lines.
-    Column(
-        modifier = Modifier.fillMaxSize().then(modifier),
-        verticalArrangement = Arrangement.Bottom,
-        horizontalAlignment = alignment,
-    ) {
+    val labelText: @Composable () -> Unit = {
         if (label != null) {
             Text(
                 text = label,
@@ -438,6 +438,16 @@ private fun SensorDate(
                 color = labelColor,
                 textAlign = textAlign,
             )
+        }
+    }
+    // From the edge the dates are on, so the two dates stay level when one label takes two lines.
+    Column(
+        modifier = Modifier.fillMaxSize().then(modifier),
+        verticalArrangement = if (labelBelow) Arrangement.Top else Arrangement.Bottom,
+        horizontalAlignment = alignment,
+    ) {
+        if (label != null && !labelBelow) {
+            labelText()
             Spacer(Modifier.height(4.dp))
         }
         if (timeBeside) {
@@ -460,6 +470,10 @@ private fun SensorDate(
                 style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        if (label != null && labelBelow) {
+            Spacer(Modifier.height(4.dp))
+            labelText()
         }
     }
 }
