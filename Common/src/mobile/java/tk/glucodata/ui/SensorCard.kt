@@ -302,7 +302,7 @@ private fun SensorIdentityControl(
                     .width(40.dp)
                     .fillMaxHeight()
                     .clip(ConnectedButtonShapes.Trailing)
-                    .background(color.copy(alpha = 0.12f))
+                    .background(color.copy(alpha = SENSOR_TINT_CONTAINER_ALPHA))
                     .clickable(onClick = onPickColor),
                 contentAlignment = Alignment.Center,
             ) {
@@ -316,6 +316,9 @@ private fun SensorIdentityControl(
         }
     }
 }
+
+/** How strongly the sensor's colour tints the tiles that wear it: the colour chip, the rated days. */
+private const val SENSOR_TINT_CONTAINER_ALPHA = 0.12f
 
 /**
  * The serial is the card's identity, so it steps down a couple of sizes to stay whole rather
@@ -2324,10 +2327,14 @@ fun SensorCard(
 //            } // Close Row (color indicator wrapper)
 //            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (!restricted) {
-            // The wear bar, Started and Ends sit on top of the details as one stacked group.
+            // Started and Ends over the wear bar sit on top of the details as one stacked group.
             if (life != null) {
                 Spacer(modifier = Modifier.height(16.dp))
-                tk.glucodata.ui.restricted.SensorWear(life, tint = sensorTint)
+                tk.glucodata.ui.restricted.SensorWear(
+                    life,
+                    ratedColor = sensorTint,
+                    ratedContainerColor = sensorTint.copy(alpha = SENSOR_TINT_CONTAINER_ALPHA),
+                )
                 Spacer(modifier = Modifier.height(2.dp))
             } else {
                 Spacer(modifier = Modifier.height(16.dp))

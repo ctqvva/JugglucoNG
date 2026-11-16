@@ -45,12 +45,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Matrix
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.Layout
@@ -95,8 +89,6 @@ internal class SensorLife(
     val containerColor: Color,
     val contentColor: Color,
     val fillColor: Color,
-    /** Near its end: the fill is a warning colour then, not a neutral one. */
-    val nearEnd: Boolean,
     val daysText: String,
     val currentDay: Int,
     val hoursLeft: Long?,
@@ -158,7 +150,6 @@ internal fun sensorLife(sensor: SensorInfo): SensorLife? {
             lifecycle.progress > 0.80f -> scheme.tertiary
             else -> StatusPalette.sensorLifeFill
         }.copy(alpha = 0.25f),
-        nearEnd = lifecycle.progress > 0.80f,
         daysText = lifecycle.daysText,
         currentDay = lifecycle.currentDay,
         hoursLeft = lifecycle.remainingHours.takeIf { now < endMs && it in 0L..24L },
@@ -170,10 +161,10 @@ internal fun sensorLife(sensor: SensorInfo): SensorLife? {
 }
 
 /** The dashboard's lifetime fill, from the start edge. */
-internal fun Modifier.sensorLifeFill(life: SensorLife, color: Color = life.fillColor): Modifier = drawBehind {
+internal fun Modifier.sensorLifeFill(life: SensorLife): Modifier = drawBehind {
     val width = size.width * life.progress
     val left = if (layoutDirection == LayoutDirection.Rtl) size.width - width else 0f
-    drawRect(color = color, topLeft = Offset(left, 0f), size = Size(width, size.height))
+    drawRect(color = life.fillColor, topLeft = Offset(left, 0f), size = Size(width, size.height))
 }
 
 /** "8 / 28" with the calendar, or the hours left with the hourglass in the last day. */
@@ -217,76 +208,42 @@ private fun sensorSpanText(locale: Locale, spanMs: Long, width: MeasureFormat.Fo
 }
 
 /**
- * The full card's wear block, a stack of four tiles: the wear bar pointing at the days the
- * sensor is rated for, over the start and the end, each of those under its label. The time left
- * is the end date's label, in whole days until the last one. The bar fills in the sensor's own
- * colour ([tint]) until the fill turns into a warning near the end.
+ * The full card's wear block, a stack of four tiles: the start and the end, each under its
+ * label, over the wear bar and the days the sensor is rated for. The time left is the end
+ * date's label, in whole days until the last one. The rated days sit under the end date, in
+ * the sensor's own colour as the header's colour chip wears it ([ratedColor] on
+ * [ratedContainerColor]).
  */
 @Composable
-internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier, tint: Color = Color.Unspecified) {
+internal fun SensorWear(
+    life: SensorLife,
+    ratedColor: Color,
+    ratedContainerColor: Color,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier = modifier.fillMaxWidth()) {
-        SensorLifeBar(life, tint)
+        SensorDates(life, bottomCorner = SensorStackCorner)
         Spacer(Modifier.height(SensorDatesGap))
-        SensorDates(life, topCorner = SensorStackCorner, bottomCorner = SensorStackCorner)
+        SensorLifeBar(life, ratedColor, ratedContainerColor)
     }
 }
 
 /** The radius of the corners inside the wear stack, where one tile meets another. */
 private val SensorStackCorner = 4.dp
-/** The radius of the stack's outer corners. */
-private val SensorStackOuterCorner = 12.dp
-/** How far the bar's end points into the rated-days tile. */
-private val SensorLifePoint = 8.dp
 
 /**
- * Either half of the wear bar's row. The half at the start is round at the start like the stack
- * and ends in a point; the other begins with the matching notch and is round at the end.
- */
-private class SensorLifeShape(private val pointed: Boolean) : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        val (w, h) = size
-        val point = with(density) { SensorLifePoint.toPx() }
-        val outer = with(density) { SensorStackOuterCorner.toPx() }
-        val inner = with(density) { SensorStackCorner.toPx() }
-        val path = Path().apply {
-            if (pointed) {
-                moveTo(outer, 0f)
-                lineTo(w - point, 0f)
-                lineTo(w, h / 2f)
-                lineTo(w - point, h)
-                lineTo(inner, h)
-                arcTo(Rect(0f, h - inner * 2f, inner * 2f, h), 90f, 90f, false)
-                lineTo(0f, outer)
-                arcTo(Rect(0f, 0f, outer * 2f, outer * 2f), 180f, 90f, false)
-            } else {
-                moveTo(0f, 0f)
-                lineTo(w - outer, 0f)
-                arcTo(Rect(w - outer * 2f, 0f, w, outer * 2f), 270f, 90f, false)
-                lineTo(w, h - inner)
-                arcTo(Rect(w - inner * 2f, h - inner * 2f, w, h), 0f, 90f, false)
-                lineTo(0f, h)
-                lineTo(point, h / 2f)
-            }
-            close()
-            if (layoutDirection == LayoutDirection.Rtl) {
-                transform(Matrix().apply {
-                    translate(w, 0f)
-                    scale(-1f, 1f)
-                })
-            }
-        }
-        return Outline.Generic(path)
-    }
-}
-
-/**
- * The top of the wear stack: the lifetime fill with the sensor's age on it, pointing at a tile
- * with the days the sensor is rated for and the dashboard's calendar. That tile is the bar's
- * own track colour, so the row reads as one bar and the fill is read against the number. The
- * age's units are spelled out where there is the room and abbreviated where not.
+ * The middle of the card's stack, under the dates: the dashboard's lifetime fill with the
+ * sensor's age on it, running up to a tile with the days the sensor is rated for and the
+ * dashboard's calendar. The age's units are spelled out where there is the room and
+ * abbreviated where not.
  */
 @Composable
-private fun SensorLifeBar(life: SensorLife, tint: Color, modifier: Modifier = Modifier) {
+private fun SensorLifeBar(
+    life: SensorLife,
+    ratedColor: Color,
+    ratedContainerColor: Color,
+    modifier: Modifier = Modifier,
+) {
     val locale = LocalConfiguration.current.locales[0]
     val ageMs = (life.nowMs - life.startMs).coerceAtLeast(0L)
     val ratedDays = ((life.endMs - life.startMs + DAY_MS / 2) / DAY_MS).coerceAtLeast(1L)
@@ -295,24 +252,22 @@ private fun SensorLifeBar(life: SensorLife, tint: Color, modifier: Modifier = Mo
     }
     val textStyle = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum")
     val sensorAgeLabel = stringResource(R.string.sensor_age)
-    // The sensor's colour at the strength of the dashboard's fill; near the end, the warning.
-    val fill = if (life.nearEnd || tint == Color.Unspecified) life.fillColor else tint.copy(alpha = life.fillColor.alpha)
+    val shape = RoundedCornerShape(SensorStackCorner)
     Row(
         modifier = modifier.fillMaxWidth().height(IntrinsicSize.Min),
-        // The tile's notch sits round the bar's point, the stack's gap between them.
-        horizontalArrangement = Arrangement.spacedBy(SensorDatesGap - SensorLifePoint),
+        horizontalArrangement = Arrangement.spacedBy(SensorDatesGap),
     ) {
         Surface(
             modifier = Modifier.weight(1f).fillMaxHeight(),
-            shape = remember { SensorLifeShape(pointed = true) },
+            shape = shape,
             color = life.containerColor,
             contentColor = life.contentColor,
         ) {
             Box(
                 modifier = Modifier
-                    .sensorLifeFill(life, fill)
+                    .sensorLifeFill(life)
                     .heightIn(min = 40.dp)
-                    .padding(start = SensorDatesPadding, top = 8.dp, end = SensorDatesPadding + SensorLifePoint, bottom = 8.dp),
+                    .padding(horizontal = SensorDatesPadding, vertical = 8.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 val wideText = sensorSpanText(locale, ageMs, MeasureFormat.FormatWidth.WIDE)
@@ -331,13 +286,13 @@ private fun SensorLifeBar(life: SensorLife, tint: Color, modifier: Modifier = Mo
         }
         Surface(
             modifier = Modifier.fillMaxHeight(),
-            shape = remember { SensorLifeShape(pointed = false) },
-            color = life.containerColor,
-            contentColor = life.contentColor,
+            shape = shape,
+            color = ratedContainerColor,
+            contentColor = ratedColor,
         ) {
             Row(
                 modifier = Modifier
-                    .padding(start = SensorDatesPadding + SensorLifePoint, end = SensorDatesPadding)
+                    .padding(horizontal = SensorDatesPadding)
                     .semantics(mergeDescendants = true) { contentDescription = ratedSpoken },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -349,8 +304,8 @@ private fun SensorLifeBar(life: SensorLife, tint: Color, modifier: Modifier = Mo
                 )
                 Spacer(Modifier.width(8.dp))
                 CustomCalendarIcon(
-                    color = life.contentColor,
-                    modifier = Modifier.size(16.dp),
+                    color = ratedColor,
+                    modifier = Modifier.size(12.dp),
                     currentDay = life.currentDay,
                 )
             }
@@ -362,7 +317,7 @@ private fun SensorLifeBar(life: SensorLife, tint: Color, modifier: Modifier = Mo
  * Start and end side by side, one labelled tile each, the start date at one edge and the end
  * date at the other: the date with its time beside it, or under it where the two do not fit
  * on a line. The end's label is the time left, or what the end is when it is not ahead. The
- * full card puts the two under its wear bar and squares the corners that touch it.
+ * full card puts the two over its wear bar and squares the corners that touch it.
  */
 @Composable
 internal fun SensorDates(
