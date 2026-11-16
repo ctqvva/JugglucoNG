@@ -48,6 +48,16 @@ class JournalActionOrderTests {
     }
 
     @Test
+    fun theSheetLeadsWithTheTypeNearestTheButton() {
+        // The default keeps the sheet as it always was.
+        assertEquals(JournalEntryType.journalRowTypes, JournalActionOrder.sheetOrder(JournalActionOrder.DEFAULT))
+        assertEquals(
+            listOf(activity, note, insulin, glucose, food),
+            JournalActionOrder.sheetOrder(listOf(food, glucose, insulin, note, activity))
+        )
+    }
+
+    @Test
     fun movedTakesOutAndPutsBack() {
         val order = JournalActionOrder.DEFAULT
         assertEquals(listOf(insulin, note, activity, glucose, food), JournalActionOrder.moved(order, 4, 0))

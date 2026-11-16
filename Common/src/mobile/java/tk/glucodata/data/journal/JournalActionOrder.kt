@@ -32,6 +32,12 @@ object JournalActionOrder {
         return order
     }
 
+    /**
+     * The entry sheet's type row, left to right: the menus read from the + button up, so the
+     * type nearest the button leads. By default Insulin, Food, Glucose, Activity, Note.
+     */
+    fun sheetOrder(menuOrder: List<JournalEntryType>): List<JournalEntryType> = menuOrder.asReversed()
+
     fun encode(order: List<JournalEntryType>): String = order.joinToString(",") { it.storageValue }
 
     /** [order] with the type at [from] taken out and put back at [to]; out-of-range is a no-op. */
