@@ -283,9 +283,10 @@ private fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
                     softWrap = false,
                 )
                 Spacer(Modifier.width(8.dp))
+                // The dashboard's sensor card draws it at this size and strength.
                 CustomCalendarIcon(
-                    color = life.contentColor,
-                    modifier = Modifier.size(16.dp),
+                    color = life.contentColor.copy(alpha = 0.6f),
+                    modifier = Modifier.size(14.dp),
                     currentDay = life.currentDay,
                 )
             }
