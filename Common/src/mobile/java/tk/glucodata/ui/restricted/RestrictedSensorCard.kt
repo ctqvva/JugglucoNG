@@ -380,8 +380,8 @@ private val SensorDayTagCut = 4.dp
 /** What each half keeps clear of the middle: half the pair and its cut. */
 private val SensorDayTagReserve = SensorDayTagWidth / 2 + SensorDayTagCut
 /** Where each number sits, from the pair's blunt end. */
-private val SensorDayTagDayStart = 0.dp
-private val SensorDayTagDayRoom = 26.dp
+private val SensorDayTagDayStart = 6.dp
+private val SensorDayTagDayRoom = 20.dp
 private val SensorDayTagRatedStart = 28.dp
 private val SensorDayTagRatedRoom = 23.dp
 /** How far the arrow travels as it settles toward the end date. */
@@ -390,25 +390,28 @@ private val SensorDayTagReach = 3.dp
 /** How far the round joins carry each outline past its corner points. */
 private const val SENSOR_DAY_TAG_ROUND_DP = 5f
 
+/** Where the day's block starts: it is the narrower piece, 20dp to the arrowhead's 26dp. */
+private const val SENSOR_DAY_TAG_BLOCK_DP = 11f
+
 /**
  * The arrow's outline in dp from its blunt end, before the round joins carry it outward by
  * SENSOR_DAY_TAG_ROUND_DP; the hole is the same outline grown by the cut.
  */
 private fun Density.sensorDayTagHole() = Path().apply {
-    moveTo(5.dp.toPx(), 5.dp.toPx())
+    moveTo(SENSOR_DAY_TAG_BLOCK_DP.dp.toPx(), 5.dp.toPx())
     lineTo(43.dp.toPx(), 5.dp.toPx())
     lineTo(49.dp.toPx(), 16.dp.toPx())
     lineTo(43.dp.toPx(), 27.dp.toPx())
-    lineTo(5.dp.toPx(), 27.dp.toPx())
+    lineTo(SENSOR_DAY_TAG_BLOCK_DP.dp.toPx(), 27.dp.toPx())
     close()
 }
 
 /** The day's block: the half behind the middle, where the gap between the dates comes up. */
 private fun Density.sensorDayTagDay() = Path().apply {
-    moveTo(5.dp.toPx(), 5.dp.toPx())
+    moveTo(SENSOR_DAY_TAG_BLOCK_DP.dp.toPx(), 5.dp.toPx())
     lineTo(21.dp.toPx(), 5.dp.toPx())
     lineTo(21.dp.toPx(), 27.dp.toPx())
-    lineTo(5.dp.toPx(), 27.dp.toPx())
+    lineTo(SENSOR_DAY_TAG_BLOCK_DP.dp.toPx(), 27.dp.toPx())
     close()
 }
 
@@ -427,7 +430,7 @@ private fun Density.sensorDayTagRated() = Path().apply {
  * the outline round both, carried outward by the rounding and the cut (9dp), is upright at
  * mid-height on both sides and level underneath.
  */
-private val SensorDayTagHoleNear = (-4).dp
+private val SensorDayTagHoleNear = 2.dp
 private val SensorDayTagHoleFar = 58.dp
 private val SensorDayTagHoleUnderside = 36.dp
 
