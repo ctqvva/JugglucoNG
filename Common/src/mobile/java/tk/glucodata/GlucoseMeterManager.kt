@@ -11,12 +11,16 @@ import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntrySource
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalRepository
+import tk.glucodata.glucosemeter.MeterNames
 import tk.glucodata.glucosemeter.MeterSyncPacing
 import tk.glucodata.glucosemeter.SatelliteMeterCredentials
 
 data class GlucoseMeterSnapshot(
     val index: Int,
+    /** What the screen and the journal call it: the user's name, or [deviceName]. */
     val name: String,
+    /** The name the meter advertises, which is also its identity in the native table. */
+    val deviceName: String,
     val address: String?,
     val active: Boolean,
     val connected: Boolean,
@@ -49,6 +53,11 @@ object GlucoseMeterManager {
 
     fun configuredMeters(): List<GlucoseMeterSnapshot> =
         (0 until Natives.GlucoseMeterCount()).mapNotNull(::snapshot)
+
+    /** Names the meter for the screen and for the journal notes of its next readings. */
+    fun rename(meter: GlucoseMeterSnapshot, name: String) {
+        MeterNames.set(meter.deviceName, name)
+    }
 
     fun setEnabled(index: Int, enabled: Boolean) {
         if (enabled) {
@@ -117,7 +126,8 @@ object GlucoseMeterManager {
         val gatt = BluetoothGlucoseMeter.getExistingGatt(index)
         return GlucoseMeterSnapshot(
             index = index,
-            name = name,
+            name = MeterNames.display(name),
+            deviceName = name,
             address = address,
             active = Natives.GlucoseMeterGetActive(index),
             connected = gatt?.connected == true,
@@ -143,6 +153,7 @@ object GlucoseMeterJournalBridge {
             return
         }
         val meterName = Natives.GlucoseMeterDeviceName(meterIndex)?.takeIf(String::isNotBlank)
+            ?.let(MeterNames::display)
         scope.launch {
             runCatching {
                 JournalRepository().upsertEntry(

@@ -46,7 +46,7 @@ class SettingsSearchCoverageTests {
             "a status line or a list entry, not a setting",
             "app_updates_installed_title", "app_updates_latest_title", "config", "status", "watch_none_found",
             "garmin_sdk_ready", "garmin_registered", "garmin_last_send", "garmin_last_received",
-            "garmin_queued_messages", "glucose_meters_none", "insulin_pens_none", "insulin_pen_name",
+            "garmin_queued_messages", "glucose_meters_other", "insulin_pens_none", "insulin_pen_name",
         )
         because(
             "an action or a way into a sub-list, found through the screen that holds it",
@@ -72,6 +72,10 @@ class SettingsSearchCoverageTests {
             "inside the scheduled-backup dialog, which search opens as a whole",
             "scheduled_backup_enabled", "scheduled_backup_folder", "scheduled_backup_time",
             "scheduled_backup_retention",
+        )
+        because(
+            "shows only while a meter that never switches off is set up; found through Glucose meters",
+            "glucose_meter_recheck",
         )
         because(
             "on a mirror connection's own sheet, not a screen search can open",
