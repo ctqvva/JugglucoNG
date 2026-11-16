@@ -78,6 +78,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -131,6 +132,12 @@ internal class SensorLife(
     val overrun: Boolean,
 )
 
+/** WCAG contrast ratio between two opaque colours. */
+private fun contrastRatio(a: Color, b: Color): Float {
+    val (light, dark) = a.luminance().let { la -> b.luminance().let { lb -> if (la > lb) la to lb else lb to la } }
+    return (light + 0.05f) / (dark + 0.05f)
+}
+
 /** Null when the start is unset or bogus: nothing about the wear is known then. */
 @Composable
 internal fun sensorLife(sensor: SensorInfo): SensorLife? {
@@ -154,14 +161,23 @@ internal fun sensorLife(sensor: SensorInfo): SensorLife? {
     )
     val scheme = MaterialTheme.colorScheme
     val isExpiring = lifecycle.progress > 0.90f
+    val container = if (isExpiring) {
+        scheme.tertiaryContainer
+    } else {
+        scheme.primaryContainer.copy(alpha = 0.4f).compositeOver(scheme.background)
+    }
+    // The 40% tone is no longer primaryContainer, so its "on" colour is not guaranteed to read
+    // on it: a vivid dynamic scheme leaves it mid-toned with a dark onPrimaryContainer. Take
+    // whichever of that and onSurface stands out more from the tone actually drawn.
+    val content = if (isExpiring) {
+        scheme.onTertiaryContainer
+    } else {
+        listOf(scheme.onPrimaryContainer, scheme.onSurface).maxBy { contrastRatio(it, container) }
+    }
     return SensorLife(
         progress = lifecycle.progress,
-        containerColor = if (isExpiring) {
-            scheme.tertiaryContainer
-        } else {
-            scheme.primaryContainer.copy(alpha = 0.4f).compositeOver(scheme.background)
-        },
-        contentColor = if (isExpiring) scheme.onTertiaryContainer else scheme.onPrimaryContainer,
+        containerColor = container,
+        contentColor = content,
         fillColor = when {
             lifecycle.progress > 0.95f -> scheme.error
             lifecycle.progress > 0.80f -> scheme.tertiary
