@@ -2390,7 +2390,7 @@ fun SensorCard(
                             .fillMaxWidth()
                             .clickable(role = Role.Button) { setDetailsExpanded(true) }
                             .heightIn(min = 48.dp)
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
@@ -2420,7 +2420,7 @@ fun SensorCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(role = Role.Button) { setDetailsExpanded(false) }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
                     ) {
                         // Clean Label-Value rows
                         val labelStyle = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2639,7 +2639,7 @@ fun SensorCard(
                     // Inset and softened: this separates two parts of one card, and at full
                     // strength edge to edge it read as a rule between two cards instead.
                     HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                     )
                     Row(
@@ -2649,7 +2649,7 @@ fun SensorCard(
                             // A whole-width row that only toggles one thing can afford the list
                             // item's own height, and it is the easiest thing on the card to hit.
                             .heightIn(min = 48.dp)
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
@@ -2680,7 +2680,7 @@ fun SensorCard(
                     ) {
                         // The taller header already spaces the log off the rows above, so the
                         // gap that matters is the one under it -- and Copy/Share bring their own.
-                        Box(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)) {
+                        Box(modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 4.dp)) {
                             SensorTraceLog(sensor)
                         }
                     }

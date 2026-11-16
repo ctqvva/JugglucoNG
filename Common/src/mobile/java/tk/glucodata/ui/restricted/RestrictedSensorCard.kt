@@ -193,13 +193,17 @@ internal fun SensorLifeDays(life: SensorLife, color: Color = life.contentColor) 
     }
 }
 
-/** "17 days, 4 hours" or "17d 4h" (a "5h", a "12m") in the locale's own units and plurals. */
+/**
+ * "17 days 4 hours" or "17d 4h" (a "5h", a "12m") in the locale's own units and plurals. The two
+ * are set side by side, not joined by the locale's list pattern, which puts a comma between
+ * them in some languages and not in others.
+ */
 private fun sensorSpanText(locale: Locale, spanMs: Long, width: MeasureFormat.FormatWidth): String {
     val format = MeasureFormat.getInstance(locale, width)
     val days = spanMs / DAY_MS
     val hours = (spanMs % DAY_MS) / HOUR_MS
     return when {
-        days > 0L -> format.formatMeasures(Measure(days, MeasureUnit.DAY), Measure(hours, MeasureUnit.HOUR))
+        days > 0L -> format.format(Measure(days, MeasureUnit.DAY)) + " " + format.format(Measure(hours, MeasureUnit.HOUR))
         hours > 0L -> format.format(Measure(hours, MeasureUnit.HOUR))
         else -> format.format(Measure((spanMs / 60_000L).coerceAtLeast(0L), MeasureUnit.MINUTE))
     }
@@ -224,8 +228,8 @@ private val SensorStackCorner = 4.dp
 
 /**
  * The top of the wear stack: the dashboard's lifetime fill across the width, the sensor's age
- * at the start, and at the end the days the sensor is rated for with the dashboard's calendar,
- * so the fill is read against that number. The age's units are spelled out where there is the
+ * at the start, and at the end the dashboard's calendar with the days the sensor is rated for
+ * ("28 days"), so the fill is read against that span. The age's units are spelled out where there is the
  * room and abbreviated where not.
  */
 @Composable
@@ -233,9 +237,6 @@ private fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
     val locale = LocalConfiguration.current.locales[0]
     val ageMs = (life.nowMs - life.startMs).coerceAtLeast(0L)
     val ratedDays = ((life.endMs - life.startMs + DAY_MS / 2) / DAY_MS).coerceAtLeast(1L)
-    val ratedSpoken = remember(locale, ratedDays) {
-        MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.WIDE).format(Measure(ratedDays, MeasureUnit.DAY))
-    }
     val textStyle = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum")
     val sensorAgeLabel = stringResource(R.string.sensor_age)
     Surface(
@@ -260,7 +261,11 @@ private fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
             val wideText = sensorSpanText(locale, ageMs, MeasureFormat.FormatWidth.WIDE)
             // Abbreviated once the spelled-out age has been seen not to fit.
             var abbreviated by remember(wideText.length, textStyle) { mutableStateOf(false) }
-            val ageText = if (abbreviated) sensorSpanText(locale, ageMs, MeasureFormat.FormatWidth.NARROW) else wideText
+            val unitWidth = if (abbreviated) MeasureFormat.FormatWidth.NARROW else MeasureFormat.FormatWidth.WIDE
+            val ageText = if (abbreviated) sensorSpanText(locale, ageMs, unitWidth) else wideText
+            val ratedText = remember(locale, ratedDays, unitWidth) {
+                MeasureFormat.getInstance(locale, unitWidth).format(Measure(ratedDays, MeasureUnit.DAY))
+            }
             Text(
                 text = ageText,
                 style = textStyle,
@@ -272,24 +277,20 @@ private fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
                     .semantics { contentDescription = "$sensorAgeLabel $ageText" },
             )
             Spacer(Modifier.width(16.dp))
-            Row(
-                modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = ratedSpoken },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = String.format(locale, "%d", ratedDays),
-                    style = textStyle,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-                Spacer(Modifier.width(8.dp))
-                // The dashboard's sensor card draws it at this size and strength.
-                CustomCalendarIcon(
-                    color = life.contentColor.copy(alpha = 0.6f),
-                    modifier = Modifier.size(14.dp),
-                    currentDay = life.currentDay,
-                )
-            }
+            // The dashboard's sensor card draws the calendar at this size and strength.
+            CustomCalendarIcon(
+                color = life.contentColor.copy(alpha = 0.6f),
+                modifier = Modifier.size(14.dp),
+                currentDay = life.currentDay,
+            )
+            Spacer(Modifier.width(8.dp))
+            // Text at the edge, so it ends where the end date's time ends below it.
+            Text(
+                text = ratedText,
+                style = textStyle,
+                maxLines = 1,
+                softWrap = false,
+            )
         }
     }
 }
