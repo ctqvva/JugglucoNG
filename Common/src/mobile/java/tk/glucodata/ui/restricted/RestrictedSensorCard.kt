@@ -198,13 +198,13 @@ internal fun SensorLifeDays(life: SensorLife, color: Color = life.contentColor) 
         Spacer(Modifier.width(8.dp))
         if (hoursLeft != null) {
             AnimatedHourglassIcon(
-                color = color.copy(alpha = 0.8f),
+                color = color,
                 modifier = Modifier.size(16.dp),
                 cycleDuration = (500 + (1500 * (hoursLeft / 24f))).toInt().coerceAtLeast(500),
             )
         } else {
             CustomCalendarIcon(
-                color = color.copy(alpha = 0.7f),
+                color = color,
                 modifier = Modifier.size(16.dp),
                 currentDay = life.currentDay,
             )
@@ -537,7 +537,7 @@ private fun SensorLifeBar(life: SensorLife, centerReserve: Dp, modifier: Modifie
                         val hoursLeft = life.hoursLeft
                         if (hoursLeft != null) {
                             AnimatedHourglassIcon(
-                                color = life.contentColor.copy(alpha = 0.8f),
+                                color = life.contentColor,
                                 modifier = Modifier.size(16.dp),
                                 cycleDuration = (500 + (1500 * (hoursLeft / 24f))).toInt().coerceAtLeast(500),
                             )
@@ -545,7 +545,7 @@ private fun SensorLifeBar(life: SensorLife, centerReserve: Dp, modifier: Modifie
                             Icon(
                                 imageVector = Icons.Default.HourglassBottom,
                                 contentDescription = null,
-                                tint = life.contentColor.copy(alpha = 0.7f),
+                                tint = life.contentColor,
                                 modifier = Modifier.size(16.dp),
                             )
                         }

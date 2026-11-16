@@ -467,6 +467,7 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
                     modifier = Modifier.padding(end = 8.dp),
                 )
             }
+            val unlit = MaterialTheme.colorScheme.outlineVariant
             // The sign names what the waves measure, so it is the smaller of the two.
             Icon(
                 imageVector = if (down) Icons.Default.BluetoothDisabled else Icons.Default.Bluetooth,
@@ -486,7 +487,7 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
                     for (wave in 0 until 3) {
                         val radius = (5 + wave * 4).dp.toPx()
                         drawArc(
-                            color = if (wave < waves) color else color.copy(alpha = 0.3f),
+                            color = if (wave < waves) color else unlit,
                             startAngle = if (rtl) 140f else -40f,
                             sweepAngle = 80f,
                             useCenter = false,
