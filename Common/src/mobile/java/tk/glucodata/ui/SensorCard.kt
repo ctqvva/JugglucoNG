@@ -2327,7 +2327,7 @@ fun SensorCard(
             // The wear bar, Started and Ends sit on top of the details as one stacked group.
             if (life != null) {
                 Spacer(modifier = Modifier.height(16.dp))
-                tk.glucodata.ui.restricted.SensorWear(life)
+                tk.glucodata.ui.restricted.SensorWear(life, tint = sensorTint)
                 Spacer(modifier = Modifier.height(2.dp))
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
