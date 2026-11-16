@@ -388,38 +388,35 @@ private const val SENSOR_DAY_TAG_ROUND_DP = 5f
 
 /*
  * The pair's outlines in dp from the blunt end, before the round joins carry them outward by
- * SENSOR_DAY_TAG_ROUND_DP. The day's is a small block run out to a point. The rated days' is
- * the same point with its near side cut back to the day's own outline, 2dp further out all the
- * way round: straight where the day's sides are straight and an arc about the day's point
- * where that is round, so the cut between them is one even width.
+ * SENSOR_DAY_TAG_ROUND_DP. Only the rated days' is an arrowhead, since it is what points at
+ * the end date. The day's is a tab with a bowed front, and the rated days' near side is hollowed
+ * about the same centre, 2dp further out, so the tab sits in it like a ball in a socket.
  */
+private const val SENSOR_DAY_TAG_BOW_X = 2f
+private const val SENSOR_DAY_TAG_BOW_Y = 16f
+
+private fun Density.sensorDayTagBow(radius: Float) = androidx.compose.ui.geometry.Rect(
+    center = Offset(SENSOR_DAY_TAG_BOW_X.dp.toPx(), SENSOR_DAY_TAG_BOW_Y.dp.toPx()),
+    radius = radius.dp.toPx(),
+)
+
 private fun Density.sensorDayTagDay() = Path().apply {
+    // A 15dp bow (20dp once rounded) between the top and bottom edges: 47.17 degrees each way.
     moveTo(5.dp.toPx(), 5.dp.toPx())
-    lineTo(14.dp.toPx(), 5.dp.toPx())
-    lineTo(20.dp.toPx(), 16.dp.toPx())
-    lineTo(14.dp.toPx(), 27.dp.toPx())
+    lineTo(12.19f.dp.toPx(), 5.dp.toPx())
+    arcTo(sensorDayTagBow(15f), startAngleDegrees = -47.17f, sweepAngleDegrees = 94.34f, forceMoveTo = false)
     lineTo(5.dp.toPx(), 27.dp.toPx())
     close()
 }
 
 private fun Density.sensorDayTagRated() = Path().apply {
-    // 12dp out from the day's corner points: its 5dp of rounding, the 2dp cut, and this
-    // outline's own 5dp. 13.67 is that distance measured along the bar across a slanted side.
-    moveTo(27.67f.dp.toPx(), 5.dp.toPx())
+    // 12dp out from the day's bow: its 5dp of rounding, the 2dp cut, and this outline's own 5dp.
+    moveTo(26.66f.dp.toPx(), 5.dp.toPx())
     lineTo(41.dp.toPx(), 5.dp.toPx())
     lineTo(47.dp.toPx(), 16.dp.toPx())
     lineTo(41.dp.toPx(), 27.dp.toPx())
-    lineTo(27.67f.dp.toPx(), 27.dp.toPx())
-    lineTo(30.54f.dp.toPx(), 21.75f.dp.toPx())
-    arcTo(
-        rect = androidx.compose.ui.geometry.Rect(
-            center = Offset(20.dp.toPx(), 16.dp.toPx()),
-            radius = 12.dp.toPx(),
-        ),
-        startAngleDegrees = 28.6f,
-        sweepAngleDegrees = -57.2f,
-        forceMoveTo = false,
-    )
+    lineTo(26.66f.dp.toPx(), 27.dp.toPx())
+    arcTo(sensorDayTagBow(27f), startAngleDegrees = 24.04f, sweepAngleDegrees = -48.08f, forceMoveTo = false)
     close()
 }
 
