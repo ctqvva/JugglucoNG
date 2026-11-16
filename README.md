@@ -8,7 +8,7 @@ Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap 
 
 ![Screenshot](docs/assets/juggluco_screenshot.png)
 
-<sub>English · Беларуская · 中文 · Deutsch · Français · Italiano · Nederlands · Polski · Português · Русский · Svenska · Soomaali · Türkçe · Українська · Монгол</sub>
+<sub>English · Беларуская · 中文 · Deutsch · Español · Français · Italiano · Nederlands · Polski · Português · Русский · Svenska · Soomaali · Türkçe · Українська · Монгол</sub>
 
 > [!WARNING]
 > **Experimental software — not a medical device.**

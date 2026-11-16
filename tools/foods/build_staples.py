@@ -23,7 +23,7 @@ OUT = os.path.join(HERE, '..', '..', 'Common', 'src', 'mobile', 'assets', 'foods
 NUTRIENTS = {'1003': 'protein', '1004': 'fat', '1005': 'carbs', '1008': 'kcal', '1079': 'fiber'}
 PORTION_KINDS = ('piece', 'slice', 'cup', 'glass', 'tbsp', 'tsp', 'serving')
 # The order the names are written in staples_names.psv.
-LANGUAGES = ('en', 'ru', 'uk', 'be', 'pl', 'de', 'nl', 'sv', 'fr', 'it', 'pt', 'hu', 'tr', 'zh', 'mn', 'so')
+LANGUAGES = ('en', 'ru', 'uk', 'be', 'pl', 'de', 'nl', 'sv', 'fr', 'it', 'pt', 'hu', 'tr', 'zh', 'mn', 'so', 'es')
 
 
 def rows(path):
