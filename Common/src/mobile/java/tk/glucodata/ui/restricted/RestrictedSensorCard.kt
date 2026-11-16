@@ -227,14 +227,12 @@ private fun sensorSpanText(locale: Locale, spanMs: Long, width: MeasureFormat.Fo
 }
 
 /**
- * The full card's wear block: the wear bar over the two dates, with the day of wear out of
- * the rated days cut into the middle of both as two arrowheads, one nested in the other and
- * both pointed at the end date. The small, light one is today's day; the larger, solid one is
- * the days the sensor is rated for. Their shape is the arrow from start to end and the slanted
- * cut between them is the divider: age and start date sit behind them, time left and end date
- * ahead. The pair sits on the gap between the bar and the dates with its point on the gap,
- * and its hole is the stack's own edge: pair and hole settle in together with a push toward
- * the end, and again on a tap.
+ * The full card's wear block: the wear bar over the two dates, with one arrowhead cut into the
+ * middle of both and pointed at the end date. It holds the day of wear, small and subdued since
+ * the bar's age already says it, and the days the sensor is rated for, large and bold. Age and
+ * start date sit behind the arrow, time left and end date ahead. It sits on the gap between
+ * the bar and the dates with its point on the gap, and its hole is the stack's own edge: arrow
+ * and hole ease into place together when the day turns, and on a tap.
  */
 @Composable
 internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
@@ -250,9 +248,9 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
     val push = remember { Animatable(-1f) }
     LaunchedEffect(day, replay) {
         push.snapTo(-1f)
-        push.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow))
+        // A slow ease with no overshoot: it should be noticed on a day change, not on every open.
+        push.animateTo(0f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessVeryLow))
     }
-    val dayFace = life.contentColor.copy(alpha = 0.2f).compositeOver(life.containerColor)
     var barHeight by remember { mutableIntStateOf(0) }
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
@@ -267,7 +265,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                     // edges of the bar and the dates move, not two chips over them.
                     val seamTop = barHeight.toFloat()
                     val seamBottom = seamTop + SensorDatesGap.toPx()
-                    val reach = 6.dp.toPx() * (if (rtl) -1f else 1f)
+                    val reach = SensorDayTagReach.toPx() * (if (rtl) -1f else 1f)
                     val origin = Offset(
                         (size.width - SensorDayTagWidth.toPx()) / 2f + push.value * reach,
                         (seamTop + seamBottom - SensorDayTagHeight.toPx()) / 2f,
@@ -321,13 +319,12 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                     indication = null,
                 ) { replay++ }
                 .drawBehind {
-                    val reach = 6.dp.toPx() * (if (rtl) -1f else 1f)
-                    drawSensorDayTag(sensorDayTagDay(), dayFace, Offset(push.value * reach, 0f), rtl)
-                    drawSensorDayTag(sensorDayTagRated(), life.contentColor, Offset(push.value * reach, 0f), rtl)
+                    val reach = SensorDayTagReach.toPx() * (if (rtl) -1f else 1f)
+                    drawSensorDayTag(sensorDayTagHole(), life.contentColor, Offset(push.value * reach, 0f), rtl)
                 }
                 .semantics { contentDescription = "$day / $ratedSpoken" },
         ) {
-            val reach = with(LocalDensity.current) { 6.dp.toPx() } * (if (rtl) -1f else 1f)
+            val reach = with(LocalDensity.current) { SensorDayTagReach.toPx() } * (if (rtl) -1f else 1f)
             val fixedDay = with(LocalDensity.current) { 11.dp.toSp() }
             val fixedRated = with(LocalDensity.current) { 16.dp.toSp() }
             // Today's day: the smaller and lighter of the two, and it rolls over when the day turns.
@@ -341,6 +338,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                 label = "sensorDayOfWear",
                 modifier = Modifier
                     .align(Alignment.CenterStart)
+                    .padding(start = SensorDayTagDayStart)
                     .width(SensorDayTagDayRoom)
                     .graphicsLayer { translationX = push.value * reach },
             ) { shown ->
@@ -349,7 +347,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                     // The shapes are a fixed size, so the type in them is too.
                     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum", fontSize = fixedDay, lineHeight = fixedDay),
                     // It repeats what the bar's age already says, so it stays in the background.
-                    color = life.contentColor.copy(alpha = 0.7f),
+                    color = life.containerColor.copy(alpha = 0.6f),
                     maxLines = 1,
                     softWrap = false,
                     textAlign = TextAlign.Center,
@@ -379,48 +377,20 @@ private val SensorDayTagCut = 4.dp
 /** What each half keeps clear of the middle: half the pair and its cut. */
 private val SensorDayTagReserve = SensorDayTagWidth / 2 + SensorDayTagCut
 /** Where each number sits, from the pair's blunt end. */
-private val SensorDayTagDayRoom = 20.dp
-private val SensorDayTagRatedStart = 27.dp
+private val SensorDayTagDayStart = 4.dp
+private val SensorDayTagDayRoom = 16.dp
+private val SensorDayTagRatedStart = 21.dp
 private val SensorDayTagRatedRoom = 22.dp
+/** How far the arrow travels as it settles toward the end date. */
+private val SensorDayTagReach = 3.dp
 
 /** How far the round joins carry each outline past its corner points. */
 private const val SENSOR_DAY_TAG_ROUND_DP = 5f
 
-/*
- * The pair's outlines in dp from the blunt end, before the round joins carry them outward by
- * SENSOR_DAY_TAG_ROUND_DP. Only the rated days' is an arrowhead, since it is what points at
- * the end date. The day's is a tab with a bowed front, and the rated days' near side is hollowed
- * about the same centre, 2dp further out, so the tab sits in it like a ball in a socket.
+/**
+ * The arrow's outline in dp from its blunt end, before the round joins carry it outward by
+ * SENSOR_DAY_TAG_ROUND_DP; the hole is the same outline grown by the cut.
  */
-private const val SENSOR_DAY_TAG_BOW_X = 2f
-private const val SENSOR_DAY_TAG_BOW_Y = 16f
-
-private fun Density.sensorDayTagBow(radius: Float) = androidx.compose.ui.geometry.Rect(
-    center = Offset(SENSOR_DAY_TAG_BOW_X.dp.toPx(), SENSOR_DAY_TAG_BOW_Y.dp.toPx()),
-    radius = radius.dp.toPx(),
-)
-
-private fun Density.sensorDayTagDay() = Path().apply {
-    // A 15dp bow (20dp once rounded) between the top and bottom edges: 47.17 degrees each way.
-    moveTo(5.dp.toPx(), 5.dp.toPx())
-    lineTo(12.19f.dp.toPx(), 5.dp.toPx())
-    arcTo(sensorDayTagBow(15f), startAngleDegrees = -47.17f, sweepAngleDegrees = 94.34f, forceMoveTo = false)
-    lineTo(5.dp.toPx(), 27.dp.toPx())
-    close()
-}
-
-private fun Density.sensorDayTagRated() = Path().apply {
-    // 12dp out from the day's bow: its 5dp of rounding, the 2dp cut, and this outline's own 5dp.
-    moveTo(26.66f.dp.toPx(), 5.dp.toPx())
-    lineTo(41.dp.toPx(), 5.dp.toPx())
-    lineTo(47.dp.toPx(), 16.dp.toPx())
-    lineTo(41.dp.toPx(), 27.dp.toPx())
-    lineTo(26.66f.dp.toPx(), 27.dp.toPx())
-    arcTo(sensorDayTagBow(27f), startAngleDegrees = 24.04f, sweepAngleDegrees = -48.08f, forceMoveTo = false)
-    close()
-}
-
-/** The outline round both: the day's blunt end to the rated days' point. */
 private fun Density.sensorDayTagHole() = Path().apply {
     moveTo(5.dp.toPx(), 5.dp.toPx())
     lineTo(41.dp.toPx(), 5.dp.toPx())

@@ -2331,6 +2331,23 @@ fun SensorCard(
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
             }
+            // Open stays open: the choice is kept across sensors and restarts.
+            val detailsPrefs = remember(context) {
+                context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+            }
+            var detailsExpanded by remember {
+                mutableStateOf(detailsPrefs.getBoolean(SENSOR_DETAILS_EXPANDED_PREF, false))
+            }
+            val setDetailsExpanded = { expanded: Boolean ->
+                detailsExpanded = expanded
+                detailsPrefs.edit().putBoolean(SENSOR_DETAILS_EXPANDED_PREF, expanded).apply()
+            }
+            // Open, the rows sit a step back from the line they came out of.
+            val detailsColor by animateColorAsState(
+                targetValue = if (detailsExpanded) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainer,
+                animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+                label = "sensorDetailsColor",
+            )
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = if (life != null) {
@@ -2338,7 +2355,7 @@ fun SensorCard(
                 } else {
                     RoundedCornerShape(12.dp)
                 },
-                color = MaterialTheme.colorScheme.surfaceContainer // Tonal separation
+                color = detailsColor,
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -2351,17 +2368,6 @@ fun SensorCard(
                             if (it.isEmpty() || it.startsWith("v", ignoreCase = true)) it else "v$it"
                         },
                     ).filter { it.isNotEmpty() }.joinToString(" · ").ifEmpty { sensor.deviceAddress }
-                    // Open stays open: the choice is kept across sensors and restarts.
-                    val detailsPrefs = remember(context) {
-                        context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
-                    }
-                    var detailsExpanded by remember {
-                        mutableStateOf(detailsPrefs.getBoolean(SENSOR_DETAILS_EXPANDED_PREF, false))
-                    }
-                    val setDetailsExpanded = { expanded: Boolean ->
-                        detailsExpanded = expanded
-                        detailsPrefs.edit().putBoolean(SENSOR_DETAILS_EXPANDED_PREF, expanded).apply()
-                    }
                     val detailsFadeIn = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                     val detailsFadeOut = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
                     val detailsResize = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.unit.IntSize>()
