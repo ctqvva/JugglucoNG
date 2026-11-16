@@ -374,7 +374,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
 }
 
 private val SensorDayTagWidth = 54.dp
-private val SensorDayTagHeight = 32.dp
+private val SensorDayTagHeight = 24.dp
 /** The ring of card showing around the pair. */
 private val SensorDayTagCut = 4.dp
 /** What each half keeps clear of the middle: half the pair and its cut. */
@@ -399,10 +399,10 @@ private const val SENSOR_DAY_TAG_BLOCK_DP = 11f
  */
 private fun Density.sensorDayTagHole() = Path().apply {
     moveTo(SENSOR_DAY_TAG_BLOCK_DP.dp.toPx(), 5.dp.toPx())
-    lineTo(43.dp.toPx(), 5.dp.toPx())
-    lineTo(49.dp.toPx(), 16.dp.toPx())
-    lineTo(43.dp.toPx(), 27.dp.toPx())
-    lineTo(SENSOR_DAY_TAG_BLOCK_DP.dp.toPx(), 27.dp.toPx())
+    lineTo(45.dp.toPx(), 5.dp.toPx())
+    lineTo(49.dp.toPx(), 12.dp.toPx())
+    lineTo(45.dp.toPx(), 19.dp.toPx())
+    lineTo(SENSOR_DAY_TAG_BLOCK_DP.dp.toPx(), 19.dp.toPx())
     close()
 }
 
@@ -410,18 +410,18 @@ private fun Density.sensorDayTagHole() = Path().apply {
 private fun Density.sensorDayTagDay() = Path().apply {
     moveTo(SENSOR_DAY_TAG_BLOCK_DP.dp.toPx(), 5.dp.toPx())
     lineTo(21.dp.toPx(), 5.dp.toPx())
-    lineTo(21.dp.toPx(), 27.dp.toPx())
-    lineTo(SENSOR_DAY_TAG_BLOCK_DP.dp.toPx(), 27.dp.toPx())
+    lineTo(21.dp.toPx(), 19.dp.toPx())
+    lineTo(SENSOR_DAY_TAG_BLOCK_DP.dp.toPx(), 19.dp.toPx())
     close()
 }
 
 /** The rated days' arrowhead: the half ahead of the middle, flat at the back, 2dp from the block. */
 private fun Density.sensorDayTagRated() = Path().apply {
     moveTo(33.dp.toPx(), 5.dp.toPx())
-    lineTo(43.dp.toPx(), 5.dp.toPx())
-    lineTo(49.dp.toPx(), 16.dp.toPx())
-    lineTo(43.dp.toPx(), 27.dp.toPx())
-    lineTo(33.dp.toPx(), 27.dp.toPx())
+    lineTo(45.dp.toPx(), 5.dp.toPx())
+    lineTo(49.dp.toPx(), 12.dp.toPx())
+    lineTo(45.dp.toPx(), 19.dp.toPx())
+    lineTo(33.dp.toPx(), 19.dp.toPx())
     close()
 }
 
@@ -432,7 +432,7 @@ private fun Density.sensorDayTagRated() = Path().apply {
  */
 private val SensorDayTagHoleNear = 2.dp
 private val SensorDayTagHoleFar = 58.dp
-private val SensorDayTagHoleUnderside = 36.dp
+private val SensorDayTagHoleUnderside = 28.dp
 
 /**
  * The sliver between a tile's square corner at ([x], [y]) and that corner rounded by
