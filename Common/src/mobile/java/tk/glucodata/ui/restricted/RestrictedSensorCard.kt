@@ -8,34 +8,12 @@ import android.icu.util.Measure
 import android.icu.util.MeasureUnit
 import android.text.format.DateUtils
 import android.widget.Toast
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.graphics.Matrix
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.offset
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableIntStateOf
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,13 +26,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -67,16 +42,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.Layout
@@ -97,7 +66,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -241,369 +209,117 @@ private fun sensorSpanText(locale: Locale, spanMs: Long, width: MeasureFormat.Fo
 }
 
 /**
- * The full card's wear block: the wear bar over the two dates, with one arrowhead cut into the
- * middle of both and pointed at the end date. It holds the day of wear, small and subdued since
- * the bar's age already says it, and the days the sensor is rated for, large and bold. Age and
- * start date sit behind the arrow, time left and end date ahead. It sits on the gap between
- * the bar and the dates with its point on the gap, and its hole is the stack's own edge: arrow
- * and hole ease into place together when the day turns, and on a tap.
+ * The full card's wear block, a stack of four tiles: the wear bar and the days the sensor is
+ * rated for over the start and the end, each of those under its label. The time left is the end
+ * date's label, in whole days until the last one.
  */
 @Composable
 internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        SensorLifeBar(life)
+        Spacer(Modifier.height(SensorDatesGap))
+        SensorDates(life, topCorner = SensorStackCorner, bottomCorner = SensorStackCorner)
+    }
+}
+
+/** The radius of the corners inside the wear stack, where one tile meets another. */
+private val SensorStackCorner = 4.dp
+
+/**
+ * The top of the wear stack: the dashboard's lifetime fill with the sensor's age on it, running
+ * up to a tile with the days the sensor is rated for, so the fill is read against that number.
+ * The age's units are spelled out where there is the room and abbreviated where not.
+ */
+@Composable
+private fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
     val locale = LocalConfiguration.current.locales[0]
+    val ageMs = (life.nowMs - life.startMs).coerceAtLeast(0L)
     val ratedDays = ((life.endMs - life.startMs + DAY_MS / 2) / DAY_MS).coerceAtLeast(1L)
     val ratedSpoken = remember(locale, ratedDays) {
         MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.WIDE).format(Measure(ratedDays, MeasureUnit.DAY))
     }
-    val day = life.currentDay.coerceAtLeast(1)
-    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    // How far behind its place the pair is, as a share of the push.
-    var replay by remember { mutableIntStateOf(0) }
-    val push = remember { Animatable(-1f) }
-    val settle = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
-    val rollIn = MaterialTheme.motionScheme.fastSpatialSpec<IntOffset>()
-    val fadeInSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-    LaunchedEffect(day, replay) {
-        push.snapTo(-1f)
-        push.animateTo(0f, settle)
-    }
-    // Plain theme roles, no mixed tones: the day is the quiet neutral pair, the rated days the tonal one.
-    val scheme = MaterialTheme.colorScheme
-    val dayFace = scheme.surfaceContainerHighest
-    val dayInk = scheme.onSurfaceVariant
-    val ratedFace = scheme.secondaryContainer
-    val ratedInk = scheme.onSecondaryContainer
-    var barHeight by remember { mutableIntStateOf(0) }
-    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier
-                // Its own layer, so the hole is cut out of the bar, its fill and both date
-                // tiles at once, down to whatever the card is drawn on.
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                .drawWithContent {
-                    drawContent()
-                    // The pair sits on the gap between the bar and the dates, its point on
-                    // the gap itself, and the hole travels with it: when the pair moves, the
-                    // edges of the bar and the dates move, not two chips over them.
-                    val seamTop = barHeight.toFloat()
-                    val seamBottom = seamTop + SensorDatesGap.toPx()
-                    val reach = SensorDayTagReach.toPx() * (if (rtl) -1f else 1f)
-                    val origin = Offset(
-                        (size.width - SensorDayTagWidth.toPx()) / 2f + push.value * reach,
-                        (seamTop + seamBottom - SensorDayTagHeight.toPx()) / 2f,
-                    )
-                    // One hole round the pair, not one round each, so its outline has no dips.
-                    drawSensorDayTag(sensorDayTagOutline(SensorDayTagPiece.BOTH), Color.Black, origin, rtl, grow = SensorDayTagCut.toPx(), blendMode = BlendMode.Clear)
-                    // Every tile corner the hole makes is rounded like the stack's others.
-                    // The gap between the bar and the dates runs into the hole's blunt end
-                    // and its point, both at mid-height where its edge is upright; the gap
-                    // between the two dates runs into its flat underside. All six corners
-                    // are square ones.
-                    val holeNear = (SensorDayTagWidth - SensorDatesGap) / 2 - SensorDayTagDayWidth - SensorDayTagCut
-                    val holeFar = SensorDayTagWidth + SensorDayTagCut
-                    val near = origin.x + if (rtl) (SensorDayTagWidth - holeNear).toPx() else holeNear.toPx()
-                    val far = origin.x + if (rtl) (SensorDayTagWidth - holeFar).toPx() else holeFar.toPx()
-                    val away = if (rtl) -1f else 1f
-                    val underside = origin.y + (SensorDayTagHeight + SensorDayTagCut).toPx()
-                    val halfGap = SensorDatesGap.toPx() / 2f
-                    val corner = SensorDayTagRound.toPx()
-                    // At the point the hole's edge curves away above and below the gap, so
-                    // the rounding there ends on the edge itself, a corner's height off the
-                    // gap, not straight above the corner; otherwise a sliver of tile is left.
-                    val pointRound = (SensorDayTagRound + SensorDayTagCut).toPx()
-                    val fromMiddle = halfGap + corner
-                    val farTurn = (SensorDayTagWidth - SensorDayTagRound).toPx() +
-                        kotlin.math.sqrt((pointRound * pointRound - fromMiddle * fromMiddle).coerceAtLeast(0f))
-                    val farEdge = origin.x + if (rtl) SensorDayTagWidth.toPx() - farTurn else farTurn
-                    val fillets = Path().apply {
-                        listOf(seamTop to -1f, seamBottom to 1f).forEach { (y, into) ->
-                            addSensorTileFillet(near, y, -away, into, corner)
-                            moveTo(far, y)
-                            lineTo(far + away * corner, y)
-                            quadraticTo(far, y, farEdge, y + into * corner)
-                            close()
-                        }
-                        addSensorTileFillet(size.width / 2f - halfGap, underside, -1f, 1f, corner)
-                        addSensorTileFillet(size.width / 2f + halfGap, underside, 1f, 1f, corner)
-                    }
-                    drawPath(fillets, Color.Black, blendMode = BlendMode.Clear)
-                },
-        ) {
-            SensorLifeBar(life, centerReserve = SensorDayTagReserve, modifier = Modifier.onSizeChanged { barHeight = it.height })
-            Spacer(Modifier.height(SensorDatesGap))
-            SensorDates(life, topCorner = SensorDayTagRound, bottomCorner = SensorDayTagRound, plain = true, centerReserve = SensorDayTagReserve)
-        }
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset {
-                    IntOffset(0, (barHeight + (SensorDatesGap.toPx() - SensorDayTagHeight.toPx()) / 2f).roundToInt())
-                }
-                .size(SensorDayTagWidth, SensorDayTagHeight)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) { replay++ }
-                .drawBehind {
-                    val shift = Offset(push.value * SensorDayTagReach.toPx() * (if (rtl) -1f else 1f), 0f)
-                    drawSensorDayTag(sensorDayTagOutline(SensorDayTagPiece.DAY), dayFace, shift, rtl)
-                    drawSensorDayTag(sensorDayTagOutline(SensorDayTagPiece.RATED), ratedFace, shift, rtl)
-                }
-                .semantics { contentDescription = "$day / $ratedSpoken" },
-        ) {
-            val density = LocalDensity.current
-            val reach = with(density) { SensorDayTagReach.toPx() } * (if (rtl) -1f else 1f)
-            // The shapes are a fixed size, so the type in them keeps the type scale's own
-            // sizes and does not follow the system font size.
-            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 1f)) {
-                // Today's day: the smaller and quieter of the two, since the bar's age already
-                // says it; it rolls over when the day turns.
-                AnimatedContent(
-                    targetState = day,
-                    transitionSpec = {
-                        (slideInVertically(rollIn) { it } + fadeIn(fadeInSpec))
-                            .togetherWith(slideOutVertically(rollIn) { -it } + fadeOut(fadeInSpec))
-                    },
-                    contentAlignment = Alignment.Center,
-                    label = "sensorDayOfWear",
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .padding(start = (SensorDayTagWidth - SensorDatesGap) / 2 - SensorDayTagDayWidth)
-                        .width(SensorDayTagDayWidth)
-                        .graphicsLayer { translationX = push.value * reach },
-                ) { shown ->
-                    Text(
-                        text = String.format(locale, "%d", shown),
-                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                        color = dayInk,
-                        maxLines = 1,
-                        softWrap = false,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-                Text(
-                    text = String.format(locale, "%d", ratedDays),
-                    style = MaterialTheme.typography.titleSmallEmphasized.copy(fontFeatureSettings = "tnum"),
-                    color = ratedInk,
-                    maxLines = 1,
-                    softWrap = false,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .padding(start = (SensorDayTagWidth + SensorDatesGap) / 2)
-                        // Centred on the arrowhead's body and half of its point.
-                        .width(SensorDayTagRatedWidth - SensorDayTagPoint / 2)
-                        .graphicsLayer { translationX = push.value * reach },
-                )
-            }
-        }
-    }
-}
-
-/*
- * The pair's measures, all on the 4dp grid but the arrowhead's width, which is on the 2dp one
- * so the dates beside it keep their time on one line. The gap between the two pieces is the
- * stack's own SensorDatesGap, and it sits on the middle of the card.
- */
-private val SensorDayTagHeight = 24.dp
-private val SensorDayTagDayWidth = 20.dp
-private val SensorDayTagRatedWidth = 26.dp
-/** How far the arrowhead's point runs past its body. */
-private val SensorDayTagPoint = 4.dp
-/** Corner radius of both pieces, the same as the stack's inner corners. */
-private val SensorDayTagRound = 4.dp
-/** The ring of card showing around the pair. */
-private val SensorDayTagCut = 4.dp
-/** The pair's box: the gap in its middle, and the wider piece's width either side of it. */
-private val SensorDayTagWidth get() = SensorDayTagRatedWidth * 2 + SensorDatesGap
-/** What each half keeps clear of the middle: half the pair and its cut. */
-private val SensorDayTagReserve get() = SensorDayTagWidth / 2 + SensorDayTagCut
-/** How far the pair travels as it settles toward the end date. */
-private val SensorDayTagReach = 4.dp
-
-private enum class SensorDayTagPiece { DAY, RATED, BOTH }
-
-/**
- * A piece's outline inside the pair's box, drawn [SensorDayTagRound] in from its edges: the
- * round joins it is stroked with carry it back out, which is what rounds the corners.
- */
-private fun Density.sensorDayTagOutline(piece: SensorDayTagPiece) = Path().apply {
-    val round = SensorDayTagRound.toPx()
-    val middle = SensorDayTagWidth.toPx() / 2f
-    val halfGap = SensorDatesGap.toPx() / 2f
-    val top = round
-    val bottom = SensorDayTagHeight.toPx() - round
-    val dayStart = middle - halfGap - SensorDayTagDayWidth.toPx() + round
-    val tip = SensorDayTagWidth.toPx() - round
-    val shoulder = tip - SensorDayTagPoint.toPx()
-    val start = if (piece == SensorDayTagPiece.RATED) middle + halfGap + round else dayStart
-    moveTo(start, top)
-    if (piece == SensorDayTagPiece.DAY) {
-        lineTo(middle - halfGap - round, top)
-        lineTo(middle - halfGap - round, bottom)
-    } else {
-        lineTo(shoulder, top)
-        lineTo(tip, (top + bottom) / 2f)
-        lineTo(shoulder, bottom)
-    }
-    lineTo(start, bottom)
-    close()
-}
-
-/**
- * The sliver between a tile's square corner at ([x], [y]) and that corner rounded by
- * [radius]; the tile lies toward [alongX] and [alongY] from the corner.
- */
-private fun Path.addSensorTileFillet(x: Float, y: Float, alongX: Float, alongY: Float, radius: Float) {
-    moveTo(x, y)
-    lineTo(x + alongX * radius, y)
-    quadraticTo(x, y, x, y + alongY * radius)
-    close()
-}
-
-private fun Path.mirrorAcross(x: Float) {
-    transform(Matrix().apply {
-        translate(x * 2f, 0f)
-        scale(-1f, 1f)
-    })
-}
-
-/**
- * One of the pair's outlines, filled and stroked with round joins, which is what rounds its
- * outer corners, the point included; [grow] widens it evenly, for the hole it sits in.
- */
-private fun DrawScope.drawSensorDayTag(
-    outline: Path,
-    color: Color,
-    topLeft: Offset,
-    rtl: Boolean,
-    grow: Float = 0f,
-    blendMode: BlendMode = BlendMode.SrcOver,
-) {
-    if (rtl) outline.mirrorAcross(SensorDayTagWidth.toPx() / 2f)
-    outline.translate(topLeft)
-    drawPath(outline, color, blendMode = blendMode)
-    drawPath(
-        outline,
-        color,
-        style = Stroke(width = (SensorDayTagRound.toPx() + grow) * 2f, join = StrokeJoin.Round),
-        blendMode = blendMode,
-    )
-}
-
-/**
- * The wear bar: the dashboard's lifetime fill across the width, the sensor's age at the start
- * and the time left at the end. Units are spelled out where each end has the room and
- * abbreviated where either does not. It is the top of a stack, so only its top corners are round.
- */
-@Composable
-private fun SensorLifeBar(life: SensorLife, centerReserve: Dp, modifier: Modifier = Modifier) {
-    val locale = LocalConfiguration.current.locales[0]
-    val leftMs = life.endMs - life.nowMs
-    val ageMs = (life.nowMs - life.startMs).coerceAtLeast(0L)
-    // Ended, or running past an advisory end: the dates below say which, and nothing is left.
-    val hasLeft = !life.overrun && leftMs > 0L
     val textStyle = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum")
     val sensorAgeLabel = stringResource(R.string.sensor_age)
-    val remainingLabel = stringResource(R.string.sensor_life)
-    val measurer = rememberTextMeasurer()
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
-        color = life.containerColor,
-        contentColor = life.contentColor,
-    ) {
-        BoxWithConstraints(modifier = Modifier.sensorLifeFill(life)) {
-            val sideRoom = with(LocalDensity.current) {
-                (maxWidth / 2 - centerReserve - SensorDatesPadding).roundToPx()
-            }
-            val iconRoom = with(LocalDensity.current) { (16.dp + 8.dp).roundToPx() }
-            val wide = remember(locale, ageMs / 60_000L, leftMs / 60_000L, sideRoom, measurer, textStyle) {
-                val age = sensorSpanText(locale, ageMs, MeasureFormat.FormatWidth.WIDE)
-                val left = if (hasLeft) sensorSpanText(locale, leftMs, MeasureFormat.FormatWidth.WIDE) else ""
-                measurer.measure(age, textStyle, softWrap = false).size.width <= sideRoom &&
-                    measurer.measure(left, textStyle, softWrap = false).size.width + iconRoom <= sideRoom
-            }
-            val unitWidth = if (wide) MeasureFormat.FormatWidth.WIDE else MeasureFormat.FormatWidth.NARROW
-            val ageText = sensorSpanText(locale, ageMs, unitWidth)
-            val leftText = if (hasLeft) sensorSpanText(locale, leftMs, unitWidth) else null
-            // The dates' own side padding, so the bar's two ends sit over the two dates.
-            Row(
+    Row(modifier = modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+        Surface(
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            shape = RoundedCornerShape(
+                topStart = 12.dp,
+                topEnd = SensorStackCorner,
+                bottomStart = SensorStackCorner,
+                bottomEnd = SensorStackCorner,
+            ),
+            color = life.containerColor,
+            contentColor = life.contentColor,
+        ) {
+            Box(
                 modifier = Modifier
+                    .sensorLifeFill(life)
                     .heightIn(min = 40.dp)
                     .padding(horizontal = SensorDatesPadding, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                contentAlignment = Alignment.CenterStart,
             ) {
+                val wideText = sensorSpanText(locale, ageMs, MeasureFormat.FormatWidth.WIDE)
+                // Abbreviated once the spelled-out age has been seen not to fit.
+                var abbreviated by remember(wideText.length, textStyle) { mutableStateOf(false) }
+                val ageText = if (abbreviated) sensorSpanText(locale, ageMs, MeasureFormat.FormatWidth.NARROW) else wideText
                 Text(
                     text = ageText,
                     style = textStyle,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .semantics { contentDescription = "$sensorAgeLabel $ageText" },
+                    onTextLayout = { if (it.hasVisualOverflow) abbreviated = true },
+                    modifier = Modifier.semantics { contentDescription = "$sensorAgeLabel $ageText" },
                 )
-                Spacer(Modifier.width(centerReserve * 2))
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (leftText != null) {
-                        val hoursLeft = life.hoursLeft
-                        if (hoursLeft != null) {
-                            AnimatedHourglassIcon(
-                                color = life.contentColor,
-                                modifier = Modifier.size(16.dp),
-                                cycleDuration = (500 + (1500 * (hoursLeft / 24f))).toInt().coerceAtLeast(500),
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.HourglassBottom,
-                                contentDescription = null,
-                                tint = life.contentColor,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = leftText,
-                            style = textStyle,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .weight(1f, fill = false)
-                                .semantics { contentDescription = "$remainingLabel $leftText" },
-                        )
-                    }
-                }
+            }
+        }
+        Spacer(Modifier.width(SensorDatesGap))
+        Surface(
+            modifier = Modifier.fillMaxHeight(),
+            shape = RoundedCornerShape(
+                topStart = SensorStackCorner,
+                topEnd = 12.dp,
+                bottomStart = SensorStackCorner,
+                bottomEnd = SensorStackCorner,
+            ),
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ) {
+            Box(
+                modifier = Modifier
+                    .widthIn(min = 48.dp)
+                    .padding(horizontal = SensorDatesPadding)
+                    .semantics { contentDescription = ratedSpoken },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = String.format(locale, "%d", ratedDays),
+                    style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
+                    maxLines = 1,
+                    softWrap = false,
+                )
             }
         }
     }
 }
 
 /**
- * Start and end side by side, one tile each, the start date at one edge and the end date at
- * the other: the date with its time beside it, or under it where the two do not fit on a
- * line. The restricted card labels the two; the full card puts them under its wear bar,
- * squares the corners that touch, keeps [centerReserve] clear in the middle for the rated-days
- * page, and labels them ([plain]) only when the end is something other than the rated one
- * ahead, since its bar already gives the age and the time left.
+ * Start and end side by side, one labelled tile each, the start date at one edge and the end
+ * date at the other: the date with its time beside it, or under it where the two do not fit
+ * on a line. The end's label is the time left, or what the end is when it is not ahead. The
+ * full card puts the two under its wear bar and squares the corners that touch it.
  */
 @Composable
 internal fun SensorDates(
     life: SensorLife,
     topCorner: Dp = 12.dp,
     bottomCorner: Dp = 12.dp,
-    plain: Boolean = false,
-    centerReserve: Dp = SensorDatesPadding,
 ) {
     val leftMs = life.endMs - life.nowMs
     val ended = leftMs <= 0L && !life.overrun
     val endLabel = when {
         life.overrun -> stringResource(R.string.sensor_expected_end)
         ended -> stringResource(R.string.restricted_sensor_ended)
-        plain -> null
         leftMs < HOUR_MS -> stringResource(R.string.restricted_sensor_ends_soon)
         // Up to 24 hours in hours, as the pill shows "24h" with the hourglass.
         leftMs < DAY_MS + HOUR_MS -> (leftMs / HOUR_MS).toInt().let {
@@ -613,7 +329,7 @@ internal fun SensorDates(
             pluralStringResource(R.plurals.restricted_sensor_ends_in_days, it, it)
         }
     }
-    val startLabel = if (endLabel != null) stringResource(R.string.sensor_started) else null
+    val startLabel = stringResource(R.string.sensor_started)
     val context = LocalContext.current
     val dateStyle = MaterialTheme.typography.titleMediumEmphasized
     val timeStyle = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum")
@@ -629,7 +345,7 @@ internal fun SensorDates(
         // The time sits beside the date when both dates have the room, and under it in
         // both when either does not, so the two always read the same way.
         val sideWidth = with(LocalDensity.current) {
-            (maxWidth / 2 - SensorDatesPadding - centerReserve).roundToPx()
+            (maxWidth / 2 - SensorDatesPadding * 2).roundToPx()
         }
         // The measurer is a new one after a font-size change, which redoes the fit.
         val timeBeside = remember(start, end, dateStyle, sideWidth, measurer) {
@@ -638,12 +354,11 @@ internal fun SensorDates(
             }
         }
         val tileColor = MaterialTheme.colorScheme.surfaceContainer
-        val innerPadding = centerReserve - SensorDatesGap / 2
         // Two halves, as tall as the taller needs.
         Layout(
             content = {
                 Surface(
-                    shape = RoundedCornerShape(topStart = topCorner, bottomStart = bottomCorner, topEnd = 4.dp, bottomEnd = 4.dp),
+                    shape = RoundedCornerShape(topStart = topCorner, bottomStart = bottomCorner, topEnd = SensorStackCorner, bottomEnd = SensorStackCorner),
                     color = tileColor,
                 ) {
                     SensorDate(
@@ -651,16 +366,11 @@ internal fun SensorDates(
                         texts = start,
                         timeBeside = timeBeside,
                         alignment = Alignment.Start,
-                        modifier = Modifier.padding(
-                            start = SensorDatesPadding,
-                            top = SensorDatesPadding,
-                            end = innerPadding,
-                            bottom = SensorDatesPadding,
-                        ),
+                        modifier = Modifier.padding(SensorDatesPadding),
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = topCorner, bottomEnd = bottomCorner),
+                    shape = RoundedCornerShape(topStart = SensorStackCorner, bottomStart = SensorStackCorner, topEnd = topCorner, bottomEnd = bottomCorner),
                     color = tileColor,
                 ) {
                     SensorDate(
@@ -669,12 +379,7 @@ internal fun SensorDates(
                         texts = end,
                         timeBeside = timeBeside,
                         alignment = Alignment.End,
-                        modifier = Modifier.padding(
-                            start = innerPadding,
-                            top = SensorDatesPadding,
-                            end = SensorDatesPadding,
-                            bottom = SensorDatesPadding,
-                        ),
+                        modifier = Modifier.padding(SensorDatesPadding),
                     )
                 }
             },
