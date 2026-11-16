@@ -1712,6 +1712,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">Basale temporanea</string>
     <string name="journal_dashboard_types_title">Mostra nella schermata principale</string>
     <string name="journal_dashboard_types_desc">Le voci nascoste spariscono solo dal grafico principale e dall’elenco delle letture. Continuano a contare per IOB, COB, previsione e suggerimenti di dose.</string>
+    <string name="journal_entry_types_order_desc">Il menu + e il menu di aggiunta del grafico li elencano in quest’ordine. Trascina una maniglia per spostarne uno.</string>
     <string name="journal_import_health_activity_desc">Aggiungi allenamenti e passi al diario</string>
     <string name="journal_section_main_screen">Schermata principale</string>
     <string name="journal_section_dosing">Dosaggio</string>

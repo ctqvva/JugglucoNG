@@ -2,6 +2,8 @@
 
 package tk.glucodata.ui.journal
 
+import tk.glucodata.data.journal.JournalActionOrder
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.TimePickerDefaults
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
@@ -1956,8 +1958,9 @@ private fun JournalTypeSelector(
 ) {
     val selectedContentColor = MaterialTheme.colorScheme.onSurface
     val selectedContainerBase = MaterialTheme.colorScheme.surfaceContainerHigh
+    val menuOrder by JournalActionOrderStore.order.collectAsStateWithLifecycle()
     ConnectedButtonGroup(
-        options = JournalEntryType.journalRowTypes,
+        options = JournalActionOrder.sheetOrder(menuOrder),
         selectedOption = selectedType,
         onOptionSelected = onTypeSelected,
         label = { _ -> },

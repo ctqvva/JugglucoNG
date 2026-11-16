@@ -2,6 +2,17 @@
 
 package tk.glucodata.ui.journal
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.runtime.key
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import android.view.HapticFeedbackConstants
+import sh.calvin.reorderable.ReorderableColumn
+import tk.glucodata.data.journal.JournalActionOrder
 import tk.glucodata.ui.components.RevealSettingsSearchAnchor
 import tk.glucodata.ui.SettingsSearchAnchors
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -415,7 +426,8 @@ fun JournalSettingsScreen(
 /** "All shown", "All hidden", or the hidden types by name, in the order the switches list them. */
 @Composable
 private fun journalEntryTypesSummary(hiddenTypes: Set<JournalEntryType>): String {
-    val hidden = JournalEntryType.entries.filter { it in hiddenTypes }
+    val actionOrder by JournalActionOrderStore.order.collectAsStateWithLifecycle()
+    val hidden = (actionOrder + JournalEntryType.TEMP_BASAL).filter { it in hiddenTypes }
     return when (hidden.size) {
         0 -> stringResource(R.string.journal_entry_types_all_shown)
         JournalEntryType.entries.size -> stringResource(R.string.journal_entry_types_all_hidden)
@@ -426,7 +438,12 @@ private fun journalEntryTypesSummary(hiddenTypes: Set<JournalEntryType>): String
     }
 }
 
-/** Which journal entry types the main chart and the reading list draw. */
+/**
+ * Which journal entry types the main chart and the reading list draw, and the order of the
+ * add menus: the rows a person adds by hand stand in the menus' order, top to bottom, and
+ * drag by their handles. Temp basals come from AAPS and are in no menu, so they keep a card
+ * of their own below.
+ */
 @Composable
 fun JournalEntryTypesSettingsScreen(
     navController: NavController,
@@ -434,6 +451,7 @@ fun JournalEntryTypesSettingsScreen(
 ) {
     val journalEnabled by viewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalDashboardHiddenTypes by viewModel.journalDashboardHiddenTypes.collectAsStateWithLifecycle()
+    val actionOrder by JournalActionOrderStore.order.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -443,44 +461,156 @@ fun JournalEntryTypesSettingsScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
+        JournalEntryTypesContent(
+            journalEnabled = journalEnabled,
+            hiddenTypes = journalDashboardHiddenTypes,
+            actionOrder = actionOrder,
+            onShownChange = viewModel::setJournalTypeShownOnDashboard,
+            onOrderChange = JournalActionOrderStore::set,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item(key = "dashboard_types") {
-                Column {
-                    SectionLabel(text = stringResource(R.string.journal_dashboard_types_title), topPadding = 8.dp)
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        JournalEntryType.entries.forEachIndexed { index, type ->
-                            SettingsSwitchItem(
-                                title = type.journalActionLabel(),
-                                subtitle = if (type == JournalEntryType.TEMP_BASAL) {
-                                    stringResource(R.string.journal_dashboard_temp_basal_desc)
-                                } else {
-                                    null
-                                },
-                                checked = type !in journalDashboardHiddenTypes,
-                                onCheckedChange = { viewModel.setJournalTypeShownOnDashboard(type, it) },
-                                icon = type.journalActionIcon(),
-                                iconTint = journalTypeColor(type),
-                                position = cardPosition(index, JournalEntryType.entries.size),
-                                enabled = journalEnabled
+                .padding(padding)
+        )
+    }
+}
+
+@Composable
+internal fun JournalEntryTypesContent(
+    journalEnabled: Boolean,
+    hiddenTypes: Set<JournalEntryType>,
+    actionOrder: List<JournalEntryType>,
+    onShownChange: (JournalEntryType, Boolean) -> Unit,
+    onOrderChange: (List<JournalEntryType>) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val view = LocalView.current
+    // The drop reads the order it lands on, not the one the gesture started from.
+    val currentOrder by rememberUpdatedState(actionOrder)
+    val currentOnOrderChange by rememberUpdatedState(onOrderChange)
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item(key = "dashboard_types") {
+            Column {
+                SectionLabel(text = stringResource(R.string.journal_dashboard_types_title), topPadding = 8.dp)
+                ReorderableColumn(
+                    list = actionOrder,
+                    onSettle = { from, to ->
+                        currentOnOrderChange(JournalActionOrder.moved(currentOrder, from, to))
+                    },
+                    onMove = { view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) },
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) { index, type, dragging ->
+                    key(type) {
+                        ReorderableItem {
+                            JournalEntryTypeOrderRow(
+                                type = type,
+                                index = index,
+                                count = actionOrder.size,
+                                shown = type !in hiddenTypes,
+                                enabled = journalEnabled,
+                                dragging = dragging,
+                                handle = Modifier.draggableHandle(
+                                    enabled = journalEnabled,
+                                    onDragStarted = {
+                                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                    }
+                                ),
+                                onShownChange = { onShownChange(type, it) },
+                                onMove = { to ->
+                                    onOrderChange(JournalActionOrder.moved(actionOrder, index, to))
+                                }
                             )
                         }
                     }
-                    Text(
-                        text = stringResource(R.string.journal_dashboard_types_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)
-                    )
                 }
+                SettingsSwitchItem(
+                    title = JournalEntryType.TEMP_BASAL.journalActionLabel(),
+                    subtitle = stringResource(R.string.journal_dashboard_temp_basal_desc),
+                    checked = JournalEntryType.TEMP_BASAL !in hiddenTypes,
+                    onCheckedChange = { onShownChange(JournalEntryType.TEMP_BASAL, it) },
+                    icon = JournalEntryType.TEMP_BASAL.journalActionIcon(),
+                    iconTint = journalTypeColor(JournalEntryType.TEMP_BASAL),
+                    enabled = journalEnabled,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                Text(
+                    text = stringResource(R.string.journal_dashboard_types_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)
+                )
+                Text(
+                    text = stringResource(R.string.journal_entry_types_order_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp, end = 16.dp)
+                )
             }
         }
     }
+}
+
+/**
+ * One menu type: its visibility switch, as on any settings row, with the drag handle just
+ * before it so the switches keep the right edge they share with the temp basal card. A tap on
+ * the handle does nothing rather than flip the switch beside it; talkback moves the row with
+ * the Move up and Move down actions.
+ */
+@Composable
+private fun JournalEntryTypeOrderRow(
+    type: JournalEntryType,
+    index: Int,
+    count: Int,
+    shown: Boolean,
+    enabled: Boolean,
+    dragging: Boolean,
+    handle: Modifier,
+    onShownChange: (Boolean) -> Unit,
+    onMove: (to: Int) -> Unit
+) {
+    val position = cardPosition(index, count)
+    val shape = cardShape(position)
+    val lift by animateDpAsState(if (dragging) 6.dp else 0.dp, label = "entryTypeLift")
+    val moveUp = stringResource(R.string.food_move_up)
+    val moveDown = stringResource(R.string.food_move_down)
+    val moves = buildList {
+        if (enabled && index > 0) add(CustomAccessibilityAction(moveUp) { onMove(index - 1); true })
+        if (enabled && index < count - 1) add(CustomAccessibilityAction(moveDown) { onMove(index + 1); true })
+    }
+    SettingsItem(
+        title = type.journalActionLabel(),
+        icon = type.journalActionIcon(),
+        iconTint = journalTypeColor(type),
+        onClick = if (enabled) {
+            { onShownChange(!shown) }
+        } else {
+            null
+        },
+        position = position,
+        animatePosition = true,
+        modifier = Modifier
+            .shadow(lift, shape)
+            .semantics { customActions = moves },
+        trailingContent = {
+            Box(
+                modifier = handle
+                    .size(40.dp)
+                    .pointerInput(Unit) { detectTapGestures { } },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DragHandle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.38f)
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            StyledSwitch(checked = shown, onCheckedChange = null, enabled = enabled)
+        }
+    )
 }
 
 private fun InsulinChartStyle.labelRes(): Int = when (this) {

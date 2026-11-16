@@ -1738,6 +1738,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">临时基础率</string>
     <string name="journal_dashboard_types_title">在主屏幕上显示</string>
     <string name="journal_dashboard_types_desc">隐藏的记录只会从主图表和读数列表中消失，仍会计入 IOB、COB、预测和剂量提示。</string>
+    <string name="journal_entry_types_order_desc">+ 菜单和图表的添加菜单按此顺序列出。拖动手柄即可移动。</string>
     <string name="journal_import_health_activity_desc">将锻炼和步数添加到日志</string>
     <string name="journal_section_main_screen">主屏幕</string>
     <string name="journal_section_dosing">剂量</string>

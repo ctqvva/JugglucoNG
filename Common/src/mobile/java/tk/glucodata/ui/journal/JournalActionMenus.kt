@@ -7,6 +7,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonMenuItem
@@ -112,14 +113,6 @@ import tk.glucodata.ui.ChartActionAnchor
 import tk.glucodata.ui.components.CatchNavigationTaps
 import kotlin.math.roundToInt
 
-fun journalReachActionTypes(): List<JournalEntryType> = listOf(
-    JournalEntryType.NOTE,
-    JournalEntryType.ACTIVITY,
-    JournalEntryType.FINGERSTICK,
-    JournalEntryType.CARBS,
-    JournalEntryType.INSULIN
-)
-
 @Composable
 fun JournalEntryType.journalActionLabel(): String = when (this) {
     JournalEntryType.INSULIN -> stringResource(R.string.journal_type_insulin)
@@ -160,8 +153,8 @@ fun JournalFloatingActionMenu(
 ) = FontScaleCap {
     // Position-based journal menus follow the chart and navigation font cap.
     val view = LocalView.current
-    // The FAB menu's order, top to bottom.
-    val actionTypes = remember { journalReachActionTypes() }
+    // The FAB menu's order, top to bottom, as arranged under Entry types.
+    val actionTypes by JournalActionOrderStore.order.collectAsStateWithLifecycle()
     val progress = remember { List(actionTypes.size) { Animatable(0f) } }
     val enterSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     val exitSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
@@ -481,7 +474,7 @@ fun BoxScope.JournalExpandableFab(
     horizontalAlignment: Alignment.Horizontal = Alignment.End
 ) = FontScaleCap {
     val view = LocalView.current
-    val actionTypes = remember { journalReachActionTypes() }
+    val actionTypes by JournalActionOrderStore.order.collectAsStateWithLifecycle()
     val itemCoordinates = remember { arrayOfNulls<LayoutCoordinates>(actionTypes.size) }
     var hoveredType by remember { mutableStateOf<JournalEntryType?>(null) }
     val currentExpanded by rememberUpdatedState(expanded)

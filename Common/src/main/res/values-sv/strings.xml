@@ -1722,6 +1722,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">Tillfällig basal</string>
     <string name="journal_dashboard_types_title">Visa på huvudskärmen</string>
     <string name="journal_dashboard_types_desc">Dolda poster försvinner bara från huvuddiagrammet och avläsningslistan. De räknas fortfarande in i IOB, COB, prognosen och dosförslagen.</string>
+    <string name="journal_entry_types_order_desc">Menyn + och diagrammets lägg till-meny visar dem i den här ordningen. Dra i ett handtag för att flytta en.</string>
     <string name="journal_import_health_activity_desc">Lägg till träningspass och steg i journalen</string>
     <string name="journal_section_main_screen">Huvudskärm</string>
     <string name="journal_section_dosing">Dosering</string>

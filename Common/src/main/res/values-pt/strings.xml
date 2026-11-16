@@ -1723,6 +1723,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">Basal temporária</string>
     <string name="journal_dashboard_types_title">Mostrar na tela principal</string>
     <string name="journal_dashboard_types_desc">As entradas ocultas saem apenas do gráfico principal e da lista de leituras. Continuam a contar para IOB, COB, a previsão e as sugestões de dose.</string>
+    <string name="journal_entry_types_order_desc">O menu + e o menu de adicionar do gráfico mostram-nos por esta ordem. Arraste uma pega para mover.</string>
     <string name="journal_import_health_activity_desc">Adicionar treinos e passos ao diário</string>
     <string name="journal_section_main_screen">Tela principal</string>
     <string name="journal_section_dosing">Dosagem</string>

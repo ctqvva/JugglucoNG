@@ -1791,6 +1791,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">Часовы базал</string>
     <string name="journal_dashboard_types_title">Паказваць на галоўнай</string>
     <string name="journal_dashboard_types_desc">Схаваныя запісы знікаюць толькі з графіка і спіса паказанняў на галоўнай. У IOB, COB, прагнозе і падказках дозы яны па-ранейшаму ўлічваюцца.</string>
+    <string name="journal_entry_types_order_desc">Меню + і меню дадавання на графіку паказваюць іх у гэтым парадку. Перацягніце маркер, каб перамясціць.</string>
     <string name="journal_import_health_activity_desc">Дадаваць трэніроўкі і крокі ў журнал</string>
     <string name="journal_section_main_screen">Галоўны экран</string>
     <string name="journal_section_dosing">Дазаванне</string>

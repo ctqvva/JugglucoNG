@@ -1765,6 +1765,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_type_temp_basal">Tijdelijke basaal</string>
     <string name="journal_dashboard_types_title">Tonen op het hoofdscherm</string>
     <string name="journal_dashboard_types_desc">Verborgen items verdwijnen alleen uit de hoofdgrafiek en de lijst met metingen. Ze tellen nog steeds mee voor IOB, COB, de voorspelling en de dosishints.</string>
+    <string name="journal_entry_types_order_desc">Het +-menu en het toevoegmenu van de grafiek tonen ze in deze volgorde. Sleep aan een greep om er een te verplaatsen.</string>
     <string name="journal_import_health_activity_desc">Voeg trainingen en stappen toe aan het dagboek</string>
     <string name="journal_section_main_screen">Hoofdscherm</string>
     <string name="journal_section_dosing">Dosering</string>

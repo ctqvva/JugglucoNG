@@ -1954,6 +1954,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_type_temp_basal">Basal ku meel gaar ah</string>
     <string name="journal_dashboard_types_title">Ku muuji shaashadda hore</string>
     <string name="journal_dashboard_types_desc">Gelinnada la qariyay waxay ka baxaan oo keliya shaxda weyn iyo liiska akhrisyada. Weli waa lagu xisaabiyaa IOB, COB, saadaasha iyo talooyinka qiyaasta.</string>
+    <string name="journal_entry_types_order_desc">Liiska + iyo liiska ku darista jaantuska waxay u muujiyaan sidan. Jiid gacanta si aad mid u guuriso.</string>
     <string name="journal_import_health_activity_desc">Ku dar jimicsiga iyo tallaabooyinka joornaalka</string>
     <string name="journal_section_main_screen">Shaashadda hore</string>
     <string name="journal_section_dosing">Qiyaasta</string>
