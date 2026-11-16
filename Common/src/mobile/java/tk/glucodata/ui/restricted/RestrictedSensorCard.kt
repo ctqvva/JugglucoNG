@@ -252,7 +252,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
         push.snapTo(-1f)
         push.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow))
     }
-    val dayFace = life.contentColor.copy(alpha = 0.3f).compositeOver(life.containerColor)
+    val dayFace = life.contentColor.copy(alpha = 0.2f).compositeOver(life.containerColor)
     var barHeight by remember { mutableIntStateOf(0) }
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
@@ -285,10 +285,19 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                     val underside = origin.y + SensorDayTagHoleUnderside.toPx()
                     val halfGap = SensorDatesGap.toPx() / 2f
                     val corner = 4.dp.toPx()
+                    // At the point the hole's edge curves away above and below the gap, so
+                    // the rounding there ends on the edge itself, a corner's height off the
+                    // gap, not straight above the corner; otherwise a sliver of tile is left.
+                    val fromMiddle = (halfGap + corner) / 1.dp.toPx()
+                    val farTurn = 47f + kotlin.math.sqrt((81f - fromMiddle * fromMiddle).coerceAtLeast(0f))
+                    val farEdge = origin.x + if (rtl) SensorDayTagWidth.toPx() - farTurn.dp.toPx() else farTurn.dp.toPx()
                     val fillets = Path().apply {
                         listOf(seamTop to -1f, seamBottom to 1f).forEach { (y, into) ->
                             addSensorTileFillet(near, y, -away, into, corner)
-                            addSensorTileFillet(far, y, away, into, corner)
+                            moveTo(far, y)
+                            lineTo(far + away * corner, y)
+                            quadraticTo(far, y, farEdge, y + into * corner)
+                            close()
                         }
                         addSensorTileFillet(size.width / 2f - halfGap, underside, -1f, 1f, corner)
                         addSensorTileFillet(size.width / 2f + halfGap, underside, 1f, 1f, corner)
@@ -319,8 +328,8 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                 .semantics { contentDescription = "$day / $ratedSpoken" },
         ) {
             val reach = with(LocalDensity.current) { 6.dp.toPx() } * (if (rtl) -1f else 1f)
-            val fixedDay = with(LocalDensity.current) { 12.dp.toSp() }
-            val fixedRated = with(LocalDensity.current) { 14.dp.toSp() }
+            val fixedDay = with(LocalDensity.current) { 11.dp.toSp() }
+            val fixedRated = with(LocalDensity.current) { 16.dp.toSp() }
             // Today's day: the smaller and lighter of the two, and it rolls over when the day turns.
             AnimatedContent(
                 targetState = day,
@@ -339,7 +348,8 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                     text = String.format(locale, "%d", shown),
                     // The shapes are a fixed size, so the type in them is too.
                     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum", fontSize = fixedDay, lineHeight = fixedDay),
-                    color = life.contentColor,
+                    // It repeats what the bar's age already says, so it stays in the background.
+                    color = life.contentColor.copy(alpha = 0.7f),
                     maxLines = 1,
                     softWrap = false,
                     textAlign = TextAlign.Center,
@@ -370,8 +380,8 @@ private val SensorDayTagCut = 4.dp
 private val SensorDayTagReserve = SensorDayTagWidth / 2 + SensorDayTagCut
 /** Where each number sits, from the pair's blunt end. */
 private val SensorDayTagDayRoom = 20.dp
-private val SensorDayTagRatedStart = 29.dp
-private val SensorDayTagRatedRoom = 18.dp
+private val SensorDayTagRatedStart = 27.dp
+private val SensorDayTagRatedRoom = 22.dp
 
 /** How far the round joins carry each outline past its corner points. */
 private const val SENSOR_DAY_TAG_ROUND_DP = 5f
