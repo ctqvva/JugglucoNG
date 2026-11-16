@@ -252,9 +252,9 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
         // A slow ease with no overshoot: it should be noticed on a day change, not on every open.
         push.animateTo(0f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessVeryLow))
     }
-    // The pair wears the bar's own colours: the day sits on its track, the rated days on its fill.
-    val dayFace = life.containerColor
-    val ratedFace = life.fillColor.compositeOver(life.containerColor)
+    // The pair wears the bar's own colours: the days worn sit on its fill, the rated days on its track.
+    val dayFace = life.fillColor.compositeOver(life.containerColor)
+    val ratedFace = life.containerColor
     var barHeight by remember { mutableIntStateOf(0) }
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
@@ -385,8 +385,8 @@ private val SensorDayTagReserve = SensorDayTagWidth / 2 + SensorDayTagCut
 /** Where each number sits, from the pair's blunt end. */
 private val SensorDayTagDayStart = 6.dp
 private val SensorDayTagDayRoom = 20.dp
-private val SensorDayTagRatedStart = 28.dp
-private val SensorDayTagRatedRoom = 23.dp
+private val SensorDayTagRatedStart = 29.dp
+private val SensorDayTagRatedRoom = 22.dp
 /** How far the arrow travels as it settles toward the end date. */
 private val SensorDayTagReach = 3.dp
 
