@@ -81,6 +81,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -251,6 +252,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
         // A slow ease with no overshoot: it should be noticed on a day change, not on every open.
         push.animateTo(0f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessVeryLow))
     }
+    val dayFace = life.contentColor.copy(alpha = 0.22f).compositeOver(life.containerColor)
     var barHeight by remember { mutableIntStateOf(0) }
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
@@ -320,7 +322,17 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                 ) { replay++ }
                 .drawBehind {
                     val reach = SensorDayTagReach.toPx() * (if (rtl) -1f else 1f)
-                    drawSensorDayTag(sensorDayTagHole(), life.contentColor, Offset(push.value * reach, 0f), rtl)
+                    // One arrow in two tones: a quiet tail for the day, a solid head for the rated days.
+                    val shift = push.value * reach
+                    val tail = SensorDayTagTail.toPx()
+                    val split = shift + if (rtl) size.width - tail else tail
+                    val far = size.width * 2f
+                    clipRect(left = if (rtl) split else -far, right = if (rtl) far else split, top = -far, bottom = far) {
+                        drawSensorDayTag(sensorDayTagHole(), dayFace, Offset(shift, 0f), rtl)
+                    }
+                    clipRect(left = if (rtl) -far else split, right = if (rtl) split else far, top = -far, bottom = far) {
+                        drawSensorDayTag(sensorDayTagHole(), life.contentColor, Offset(shift, 0f), rtl)
+                    }
                 }
                 .semantics { contentDescription = "$day / $ratedSpoken" },
         ) {
@@ -347,7 +359,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                     // The shapes are a fixed size, so the type in them is too.
                     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum", fontSize = fixedDay, lineHeight = fixedDay),
                     // It repeats what the bar's age already says, so it stays in the background.
-                    color = life.containerColor.copy(alpha = 0.6f),
+                    color = life.contentColor.copy(alpha = 0.8f),
                     maxLines = 1,
                     softWrap = false,
                     textAlign = TextAlign.Center,
@@ -377,9 +389,11 @@ private val SensorDayTagCut = 4.dp
 /** What each half keeps clear of the middle: half the pair and its cut. */
 private val SensorDayTagReserve = SensorDayTagWidth / 2 + SensorDayTagCut
 /** Where each number sits, from the pair's blunt end. */
-private val SensorDayTagDayStart = 4.dp
+/** Where the arrow's quiet tail ends and its solid head begins. */
+private val SensorDayTagTail = 21.dp
+private val SensorDayTagDayStart = 3.dp
 private val SensorDayTagDayRoom = 16.dp
-private val SensorDayTagRatedStart = 21.dp
+private val SensorDayTagRatedStart = 23.dp
 private val SensorDayTagRatedRoom = 22.dp
 /** How far the arrow travels as it settles toward the end date. */
 private val SensorDayTagReach = 3.dp
