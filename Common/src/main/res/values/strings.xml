@@ -2259,6 +2259,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_show_tab_desc">Add Journal to the bottom navigation</string>
     <string name="journal_dashboard_types_title">Show on the main screen</string>
     <string name="journal_dashboard_types_desc">Hidden entries leave the main chart and the reading list only. They still count toward IOB, COB, the prediction and the dose hints.</string>
+    <string name="journal_entry_types_order_desc">The + menu and the chart\'s add menu list these in this order. Drag a handle to move one.</string>
     <string name="journal_import_health_activity_desc">Add workouts and steps to the journal</string>
     <string name="journal_section_main_screen">Main screen</string>
     <string name="journal_section_dosing">Dosing</string>

@@ -1757,6 +1757,7 @@
     <string name="journal_type_temp_basal">Tymczasowa baza</string>
     <string name="journal_dashboard_types_title">Pokaż na ekranie głównym</string>
     <string name="journal_dashboard_types_desc">Ukryte wpisy znikają tylko z głównego wykresu i listy odczytów. Nadal liczą się do IOB, COB, prognozy i podpowiedzi dawki.</string>
+    <string name="journal_entry_types_order_desc">Menu + i menu dodawania na wykresie pokazują je w tej kolejności. Przeciągnij uchwyt, aby przenieść.</string>
     <string name="journal_import_health_activity_desc">Dodawaj treningi i kroki do dziennika</string>
     <string name="journal_section_main_screen">Ekran główny</string>
     <string name="journal_section_dosing">Dawkowanie</string>

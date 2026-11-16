@@ -465,7 +465,7 @@ internal object SettingsSearchIndex {
             route("settings/journal"), condition = SettingsSearchCondition.JOURNAL_QUICK_ADD,
             anchor = row(R.string.journal_quickadd_always_now_title)),
         SettingsSearchEntry(R.string.journal_entry_types_title, JOURNAL_MAIN_SCREEN, Icons.Default.Visibility, P,
-            route("settings/journal/entry-types"), keywords = listOf(R.string.journal_dashboard_types_title)),
+            route("settings/journal/entry-types"), keywords = listOf(R.string.journal_dashboard_types_title, R.string.journal_entry_types_order_desc)),
         SettingsSearchEntry(R.string.journal_insulin_chart_title, JOURNAL_MAIN_SCREEN, Icons.Default.AreaChart, P,
             route("settings/journal"), anchor = SettingsSearchAnchors.JOURNAL_INSULIN_CHART),
         SettingsSearchEntry(R.string.journal_dose_math_title, JOURNAL_DOSING, Icons.Default.Calculate, P,

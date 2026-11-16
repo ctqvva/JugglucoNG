@@ -2090,6 +2090,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_type_temp_basal">Ideiglenes bázis</string>
     <string name="journal_dashboard_types_title">Megjelenítés a főképernyőn</string>
     <string name="journal_dashboard_types_desc">A rejtett bejegyzések csak a fő grafikonról és az értéklistáról tűnnek el. Az IOB, a COB, az előrejelzés és az adagjavaslatok továbbra is számolnak velük.</string>
+    <string name="journal_entry_types_order_desc">A + menü és a diagram hozzáadás menüje ebben a sorrendben mutatja őket. Áthelyezéshez húzza a fogantyút.</string>
     <string name="journal_import_health_activity_desc">Edzések és lépések hozzáadása a naplóhoz</string>
     <string name="journal_section_main_screen">Főképernyő</string>
     <string name="journal_section_dosing">Adagolás</string>

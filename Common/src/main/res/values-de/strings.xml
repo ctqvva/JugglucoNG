@@ -1853,6 +1853,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_type_temp_basal">Temporäre Basalrate</string>
     <string name="journal_dashboard_types_title">Auf dem Hauptbildschirm zeigen</string>
     <string name="journal_dashboard_types_desc">Ausgeblendete Einträge verschwinden nur aus dem Hauptdiagramm und der Werteliste. Sie zählen weiter für IOB, COB, die Prognose und die Dosishinweise.</string>
+    <string name="journal_entry_types_order_desc">Das +-Menü und das Hinzufügen-Menü im Diagramm zeigen sie in dieser Reihenfolge. Zum Verschieben am Griff ziehen.</string>
     <string name="journal_import_health_activity_desc">Trainings und Schritte ins Journal eintragen</string>
     <string name="journal_section_main_screen">Hauptbildschirm</string>
     <string name="journal_section_dosing">Dosierung</string>
