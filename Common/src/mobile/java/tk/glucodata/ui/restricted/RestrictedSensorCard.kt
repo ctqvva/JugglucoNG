@@ -93,6 +93,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -251,7 +252,10 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
         // A slow ease with no overshoot: it should be noticed on a day change, not on every open.
         push.animateTo(0f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessVeryLow))
     }
-    val dayFace = life.contentColor.copy(alpha = 0.22f).compositeOver(life.containerColor)
+    // Both faces are tones of the bar, not a solid block of its content colour: the rated days'
+    // is the stronger of the two, and its weight comes from the type.
+    val dayFace = life.contentColor.copy(alpha = 0.12f).compositeOver(life.containerColor)
+    val ratedFace = life.contentColor.copy(alpha = 0.3f).compositeOver(life.containerColor)
     var barHeight by remember { mutableIntStateOf(0) }
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
@@ -323,7 +327,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                     val reach = SensorDayTagReach.toPx() * (if (rtl) -1f else 1f)
                     val shift = Offset(push.value * reach, 0f)
                     drawSensorDayTag(sensorDayTagDay(), dayFace, shift, rtl)
-                    drawSensorDayTag(sensorDayTagRated(), life.contentColor, shift, rtl)
+                    drawSensorDayTag(sensorDayTagRated(), ratedFace, shift, rtl)
                 }
                 .semantics { contentDescription = "$day / $ratedSpoken" },
         ) {
@@ -350,7 +354,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                     // The shapes are a fixed size, so the type in them is too.
                     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum", fontSize = fixedDay, lineHeight = fixedDay),
                     // It repeats what the bar's age already says, so it stays in the background.
-                    color = life.contentColor.copy(alpha = 0.8f),
+                    color = life.contentColor.copy(alpha = 0.7f),
                     maxLines = 1,
                     softWrap = false,
                     textAlign = TextAlign.Center,
@@ -358,8 +362,8 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
             }
             Text(
                 text = String.format(locale, "%d", ratedDays),
-                style = MaterialTheme.typography.titleSmallEmphasized.copy(fontFeatureSettings = "tnum", fontSize = fixedRated, lineHeight = fixedRated),
-                color = life.containerColor,
+                style = MaterialTheme.typography.titleSmallEmphasized.copy(fontFeatureSettings = "tnum", fontSize = fixedRated, lineHeight = fixedRated, fontWeight = FontWeight.Black),
+                color = life.contentColor,
                 maxLines = 1,
                 softWrap = false,
                 textAlign = TextAlign.Center,
