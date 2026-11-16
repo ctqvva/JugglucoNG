@@ -81,7 +81,6 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -289,7 +288,7 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                     // the rounding there ends on the edge itself, a corner's height off the
                     // gap, not straight above the corner; otherwise a sliver of tile is left.
                     val fromMiddle = (halfGap + corner) / 1.dp.toPx()
-                    val farTurn = 47f + kotlin.math.sqrt((81f - fromMiddle * fromMiddle).coerceAtLeast(0f))
+                    val farTurn = 49f + kotlin.math.sqrt((81f - fromMiddle * fromMiddle).coerceAtLeast(0f))
                     val farEdge = origin.x + if (rtl) SensorDayTagWidth.toPx() - farTurn.dp.toPx() else farTurn.dp.toPx()
                     val fillets = Path().apply {
                         listOf(seamTop to -1f, seamBottom to 1f).forEach { (y, into) ->
@@ -322,17 +321,9 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
                 ) { replay++ }
                 .drawBehind {
                     val reach = SensorDayTagReach.toPx() * (if (rtl) -1f else 1f)
-                    // One arrow in two tones: a quiet tail for the day, a solid head for the rated days.
-                    val shift = push.value * reach
-                    val tail = SensorDayTagTail.toPx()
-                    val split = shift + if (rtl) size.width - tail else tail
-                    val far = size.width * 2f
-                    clipRect(left = if (rtl) split else -far, right = if (rtl) far else split, top = -far, bottom = far) {
-                        drawSensorDayTag(sensorDayTagHole(), dayFace, Offset(shift, 0f), rtl)
-                    }
-                    clipRect(left = if (rtl) -far else split, right = if (rtl) split else far, top = -far, bottom = far) {
-                        drawSensorDayTag(sensorDayTagHole(), life.contentColor, Offset(shift, 0f), rtl)
-                    }
+                    val shift = Offset(push.value * reach, 0f)
+                    drawSensorDayTag(sensorDayTagDay(), dayFace, shift, rtl)
+                    drawSensorDayTag(sensorDayTagRated(), life.contentColor, shift, rtl)
                 }
                 .semantics { contentDescription = "$day / $ratedSpoken" },
         ) {
@@ -382,19 +373,17 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
     }
 }
 
-private val SensorDayTagWidth = 52.dp
+private val SensorDayTagWidth = 54.dp
 private val SensorDayTagHeight = 32.dp
 /** The ring of card showing around the pair. */
 private val SensorDayTagCut = 4.dp
 /** What each half keeps clear of the middle: half the pair and its cut. */
 private val SensorDayTagReserve = SensorDayTagWidth / 2 + SensorDayTagCut
 /** Where each number sits, from the pair's blunt end. */
-/** Where the arrow's quiet tail ends and its solid head begins. */
-private val SensorDayTagTail = 21.dp
-private val SensorDayTagDayStart = 3.dp
-private val SensorDayTagDayRoom = 16.dp
-private val SensorDayTagRatedStart = 23.dp
-private val SensorDayTagRatedRoom = 22.dp
+private val SensorDayTagDayStart = 0.dp
+private val SensorDayTagDayRoom = 26.dp
+private val SensorDayTagRatedStart = 28.dp
+private val SensorDayTagRatedRoom = 23.dp
 /** How far the arrow travels as it settles toward the end date. */
 private val SensorDayTagReach = 3.dp
 
@@ -407,10 +396,29 @@ private const val SENSOR_DAY_TAG_ROUND_DP = 5f
  */
 private fun Density.sensorDayTagHole() = Path().apply {
     moveTo(5.dp.toPx(), 5.dp.toPx())
-    lineTo(41.dp.toPx(), 5.dp.toPx())
-    lineTo(47.dp.toPx(), 16.dp.toPx())
-    lineTo(41.dp.toPx(), 27.dp.toPx())
+    lineTo(43.dp.toPx(), 5.dp.toPx())
+    lineTo(49.dp.toPx(), 16.dp.toPx())
+    lineTo(43.dp.toPx(), 27.dp.toPx())
     lineTo(5.dp.toPx(), 27.dp.toPx())
+    close()
+}
+
+/** The day's block: the half behind the middle, where the gap between the dates comes up. */
+private fun Density.sensorDayTagDay() = Path().apply {
+    moveTo(5.dp.toPx(), 5.dp.toPx())
+    lineTo(21.dp.toPx(), 5.dp.toPx())
+    lineTo(21.dp.toPx(), 27.dp.toPx())
+    lineTo(5.dp.toPx(), 27.dp.toPx())
+    close()
+}
+
+/** The rated days' arrowhead: the half ahead of the middle, flat at the back, 2dp from the block. */
+private fun Density.sensorDayTagRated() = Path().apply {
+    moveTo(33.dp.toPx(), 5.dp.toPx())
+    lineTo(43.dp.toPx(), 5.dp.toPx())
+    lineTo(49.dp.toPx(), 16.dp.toPx())
+    lineTo(43.dp.toPx(), 27.dp.toPx())
+    lineTo(33.dp.toPx(), 27.dp.toPx())
     close()
 }
 
@@ -420,7 +428,7 @@ private fun Density.sensorDayTagHole() = Path().apply {
  * mid-height on both sides and level underneath.
  */
 private val SensorDayTagHoleNear = (-4).dp
-private val SensorDayTagHoleFar = 56.dp
+private val SensorDayTagHoleFar = 58.dp
 private val SensorDayTagHoleUnderside = 36.dp
 
 /**
