@@ -252,10 +252,9 @@ internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
         // A slow ease with no overshoot: it should be noticed on a day change, not on every open.
         push.animateTo(0f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessVeryLow))
     }
-    // Both faces are tones of the bar, not a solid block of its content colour: the rated days'
-    // is the stronger of the two, and its weight comes from the type.
-    val dayFace = life.contentColor.copy(alpha = 0.12f).compositeOver(life.containerColor)
-    val ratedFace = life.contentColor.copy(alpha = 0.3f).compositeOver(life.containerColor)
+    // The pair wears the bar's own colours: the day sits on its track, the rated days on its fill.
+    val dayFace = life.containerColor
+    val ratedFace = life.fillColor.compositeOver(life.containerColor)
     var barHeight by remember { mutableIntStateOf(0) }
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
