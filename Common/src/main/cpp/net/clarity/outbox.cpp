@@ -336,7 +336,8 @@ struct Outbox::Impl {
             auto active = index.floor(r.timelineIndex, reading.time);
             return active && data.get(data.get<SensorNode>(active->value, r.end).sensor, r.end) == reading.sensor;
         };
-        auto readings = selectIndexedReadings(s.readings, since, now, 256, occupied, selected);
+        // s.exported (a Java call) is only asked about readings that would be sent.
+        auto readings = selectIndexedReadings(s.readings, since, now, 256, occupied, selected, s.exported);
         Json groups=Json::object();
         auto add=[&](const char *type,Json record) {
             if(!groups.contains(type)) groups[type]=Json::array();
@@ -345,11 +346,7 @@ struct Outbox::Impl {
         PendingBatch p;
         std::set<std::string> newSessions;
         std::string tx;
-        for(auto &v:readings) {
-            // Selection used the stored value; send the one the app shows. An
-            // out-of-range result keeps the stored value that passed selection.
-            if (s.exported)
-                if (const int value = s.exported(v); value >= 20 && value <= 600) v.mgdl = value;
+        for(const auto &v:readings) {
             tx=transmitterId(installation,v.sensor);
             if(!index.findString(r.sessionIndex, v.sensor) && newSessions.insert(v.sensor).second) {
                 auto session=sessionRecord(v,tx); add("SensorSessionRecord",session);

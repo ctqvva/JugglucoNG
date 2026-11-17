@@ -39,8 +39,13 @@ std::vector<Reading> selectReadings(const std::vector<Reading> &input,
 struct SentNeighbours { std::optional<int64_t> before, atOrAfter; };
 using SentLookup = std::function<SentNeighbours(int64_t)>;
 using SensorLookup = std::function<bool(const Reading &)>;
+// The value to upload instead of Reading::mgdl (<= 0 keeps it). Asked last,
+// only for a reading that would otherwise be selected; a result outside
+// 20-600 rejects the reading, so a value the app would not show is never sent.
+using ReadingValue = std::function<int(const Reading &)>;
 std::vector<Reading> selectIndexedReadings(const std::vector<Reading> &input,
-    int64_t since, int64_t now, size_t limit, const SentLookup &sent, const SensorLookup &sensor);
+    int64_t since, int64_t now, size_t limit, const SentLookup &sent, const SensorLookup &sensor,
+    const ReadingValue &value = {});
 std::string transmitterId(const std::string &installation, const std::string &sensor);
 Json glucoseRecord(const Reading &reading, const std::string &transmitter);
 Json sessionRecord(const Reading &reading, const std::string &transmitter);

@@ -139,6 +139,34 @@ void exportedValueOnlyForSentReadings() {
     assert(calls == before && "an up-to-date scan resolves nothing");
 }
 
+// A calibrated value outside 20-600 is not sent at all: neither as itself nor
+// as the stored value the app does not show. A long run of them (more than a
+// whole batch) must not hold back the readings after it.
+void unsupportedExportedValueIsSkipped() {
+    const int64_t start = base - 3 * day, lowFrom = start + 2 * 60 * minute, lowTo = lowFrom + 2 * day;
+    std::vector<Reading> readings;
+    stream(readings, "G7SENSOR", start, 10, start + 60 * minute, base, 60);
+    auto s = snapshotOf(readings);
+    s.exported = [&](const Reading &r) { return r.time >= lowFrom && r.time <= lowTo ? 19 : r.mgdl + 7; };
+    Outbox box(fresh("unsupported"), account, installation);
+    std::set<int64_t> sent;
+    for (int batch = 0; box.prepare(s, start, base, false); ++batch) {
+        for (int v : uploadedGlucose(box.pendingBody())) assert(v == 67 && "only supported, calibrated values");
+        for (auto t : box.pending().times) sent.insert(t);
+        char receipt[37];
+        std::snprintf(receipt, sizeof receipt, "00000000-0000-4000-8000-%012d", batch);
+        box.acknowledge(receipt);
+    }
+    size_t low = 0, after = 0, afterTotal = 0;
+    for (const auto &r : readings) {
+        if (r.time >= lowFrom && r.time <= lowTo) low += sent.contains(r.time);
+        else if (r.time > lowTo) { ++afterTotal; after += sent.contains(r.time); }
+    }
+    std::printf("unsupported: %zu low readings sent, %zu/%zu after them\n", low, after, afterTotal);
+    assert(low == 0 && "an unsupported calibrated value is never uploaded");
+    assert(after == afterTotal && "later readings are not starved");
+}
+
 struct Small { uint64_t value; };
 
 // A creation interrupted before its first checkpoint was published reopens.
@@ -234,6 +262,7 @@ int main() {
     shorterReplacementTakesOver();
     lateBackfillIsUploaded();
     exportedValueOnlyForSentReadings();
+    unsupportedExportedValueIsSkipped();
     interruptedCreationRecovers();
     selectReadingsMatchesOutbox();
     fs::remove_all(scratch);

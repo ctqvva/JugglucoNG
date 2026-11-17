@@ -23,8 +23,10 @@ requested in [issue 790](https://github.com/ctqvva/JugglucoNG/issues/790).
   `resolveExportedMgdl()` (calibration and chosen lane), like Nightscout,
   the webserver and LibreView. Libre 3 history records have no raw value, so
   they use the auto lane there too. The snapshot keeps stored values and where
-  each reading lives; only the readings `Outbox::prepare` puts in a batch (at
-  most 256) are resolved, so an up-to-date scan makes no Java calls.
+  each reading lives; a reading is resolved only once it would otherwise be
+  selected for a batch (at most 256), so an up-to-date scan makes no Java calls.
+  A calibrated value outside 20–600 is not sent at all (never the stored value
+  in its place), and the next reading takes its slot.
 - **Which sensor** a reading may come from: the one activated last, from its
   first usable reading on. Upstream ordered sensors by planned wear end, which
   blocked a 10-day G7 that replaced a 15-day Libre early. A sensor's first
