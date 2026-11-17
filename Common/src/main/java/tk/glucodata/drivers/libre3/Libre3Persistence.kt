@@ -420,6 +420,14 @@ object Libre3Persistence {
         prefs(context).edit().putInt("$sensorId.lastLife", lastLife).putInt("$sensorId.lastHist", lastHistoric).apply()
     }
 
+    /** Room timestamps holding this driver's five-minute fill-ins (Libre3BackfillMerge). */
+    fun getHistoryFillers(context: Context, sensorId: String): MutableSet<Long> =
+        Libre3BackfillMerge.decode(prefs(context).getString("$sensorId.fillers", null))
+
+    fun setHistoryFillers(context: Context, sensorId: String, fillers: Collection<Long>) {
+        prefs(context).edit().putString("$sensorId.fillers", Libre3BackfillMerge.encode(fillers)).apply()
+    }
+
     /** Phone time of the sensor's life count 0, learned from realtime frames. */
     fun getAnchor(context: Context, sensorId: String): Long = prefs(context).getLong("$sensorId.anchor", 0L)
 
