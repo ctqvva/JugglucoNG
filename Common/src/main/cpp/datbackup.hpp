@@ -1249,21 +1249,27 @@ sendindex); extern bool doend(int sendindex); */
     // Counted per sender thread: a function static was shared, unlocked,
     // by every host's thread.
     int streamwakes = 0;
+    // This thread's own condition. The slot can be handed to a new thread
+    // (a host deleted and another added, or paused and resumed) before this
+    // one has seen its end flag; startthread then puts a new condition in
+    // con_vars[sendindex]. Reading the slot afresh would make this thread
+    // run on, or end by deleting, the new thread's condition.
+    condvar_t *const own = con_vars[sendindex];
     if (resumeCloneRecoveryForHost(allindex, sendindex) == 1) {
-      con_vars[sendindex]->wakebackup(wakerecovery);
+      own->wakebackup(wakerecovery);
     }
     while (true) {
-      if (doend(sendindex))
+      if (doend(sendindex, own))
         return;
-      if (!con_vars[sendindex]->dobackup) {
+      if (!own->dobackup) {
         status.locked = true;
-        lockwait(current, sendindex);
+        lockwait(current, sendindex, own);
         status.locked = false;
       }
-      if (doend(sendindex))
+      if (doend(sendindex, own))
         return;
-      current = con_vars[sendindex]->dobackup;
-      con_vars[sendindex]->dobackup = 0;
+      current = own->dobackup;
+      own->dobackup = 0;
       if (!passive) {
         notpassive(current, sendindex);
       }
@@ -1273,7 +1279,7 @@ sendindex); extern bool doend(int sendindex); */
           streamwakes++ % 5 == 4) {
         current = (current & ~wakestream) | wakeall;
       }
-      doupdates(current, sendindex);
+      doupdates(current, sendindex, own);
     }
   }
 
@@ -1289,11 +1295,11 @@ sendindex); extern bool doend(int sendindex); */
       sendwakestreamsender(sendindex);
     }
   }
-  bool doend(int sendindex) {
+  bool doend(int sendindex, condvar_t *own) {
     const condvar_t *var = con_vars[sendindex];
-    LOGGER("doend: con_vars=%p\n", var);
-    if (!var || (var->dobackup & wakeend)) {
-      endbackupthread(sendindex);
+    LOGGER("doend: con_vars=%p own=%p\n", var, own);
+    if (var != own || (own->dobackup & wakeend)) {
+      endbackupthread(sendindex, own);
       return true;
     }
     return false;
@@ -1332,12 +1338,19 @@ sendindex); extern bool doend(int sendindex); */
       return 2;
   }
 
-  void endbackupthread(int h) {
+  void endbackupthread(int h, condvar_t *own) {
     const int sendnr = getupdatedata()->sendnr;
-    LOGGER("%d:sendnr=%d end backupthread  %p \n", h, sendnr, con_vars[h]);
+    LOGGER("%d:sendnr=%d end backupthread  %p own=%p\n", h, sendnr, con_vars[h], own);
 #ifndef TESTMENU
     const std::lock_guard<std::mutex> lock(change_host_mutex);
 #endif
+    if (h >= con_vars.size() || con_vars[h] != own) {
+      // The slot already belongs to a newer thread: its connection and its
+      // condition are that thread's. Only this thread's own condition goes.
+      LOGGER("endbackupthread %d: slot taken over, leaving it\n", h);
+      delete own;
+      return;
+    }
 
     if (h < sendnr) {
       getupdatedata()->tosend[h].close();
@@ -1353,19 +1366,19 @@ sendindex); extern bool doend(int sendindex); */
     LOGAR("after delete con_vars[h]");
   }
 
-  void doupdates(const uintptr_t current, const int h) {
+  void doupdates(const uintptr_t current, const int h, condvar_t *own) {
     int didnums = 0, didstream = 0, didscans = 0, didupdate = 0;
     (didnums =
-         updateproc(con_vars[h], current & wakenums, getupdatedata()->tosend[h],
+         updateproc(own, current & wakenums, getupdatedata()->tosend[h],
                     &updateone::updatenums)) &&
-        (didstream = updateproc(con_vars[h], current & wakestream,
+        (didstream = updateproc(own, current & wakestream,
                                 getupdatedata()->tosend[h],
                                 &updateone::updatestreamu)) &&
-        (didscans = updateproc(con_vars[h], current & wakescan,
+        (didscans = updateproc(own, current & wakescan,
                                getupdatedata()->tosend[h],
                                &updateone::updatescansu)) &&
         (didupdate =
-             updateproc(con_vars[h], current & wakeall,
+             updateproc(own, current & wakeall,
                         getupdatedata()->tosend[h], &updateone::update));
     const uint16_t command =
         ((didnums & 1) ? wakenums : 0) | (didstream & 1 ? wakestream : 0) |
@@ -1379,19 +1392,17 @@ sendindex); extern bool doend(int sendindex); */
        first. Exactly one recovery transaction may follow, then Java decides
        whether to schedule another wake now or later. */
     if (current & (wakerecovery | wakereconnect | wakeall)) {
-      if (processCloneRecoveryAction(h) == 1 && h < con_vars.size() &&
-          con_vars[h]) {
-        con_vars[h]->wakebackup(wakerecovery);
+      if (processCloneRecoveryAction(h) == 1) {
+        own->wakebackup(wakerecovery);
       }
     }
   }
-  void lockwait(uintptr_t &current, int h) {
+  void lockwait(uintptr_t &current, int h, condvar_t *own) {
     LOGGER("%d before lock\n", h);
-    std::unique_lock<std::mutex> lck(con_vars[h]->backupmutex);
-    con_vars[h]->dobackup = con_vars[h]->dobackup & ~current;
-    con_vars[h]->backupcond.wait(lck,
-                                 [h] { return backup->con_vars[h]->dobackup; });
-    current = con_vars[h]->dobackup;
+    std::unique_lock<std::mutex> lck(own->backupmutex);
+    own->dobackup = own->dobackup & ~current;
+    own->backupcond.wait(lck, [own] { return own->dobackup; });
+    current = own->dobackup;
     LOGGER("%d after lock sock=%d\n", h, getupdatedata()->tosend[h].getsock());
   }
 
