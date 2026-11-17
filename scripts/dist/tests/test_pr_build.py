@@ -28,6 +28,25 @@ PR = {'state': 'open', 'merged': False, 'mergeable': True,
       'head': {'sha': SHA, 'repo': {'full_name': EXPECTED['head_repo']}}}
 
 
+class SupplementarySources(unittest.TestCase):
+    def test_controller_supplements_are_valid_and_pinned(self):
+        sources = pr_build.dist.supplement_sources(pr_build.SUPPLEMENTARY_SOURCES)
+        self.assertTrue(sources)
+        for source in sources:
+            self.assertRegex(source['sha256'], r'^[0-9a-f]{64}$')
+
+    def test_restore_passes_only_controller_supplements(self):
+        env = dict(EXPECTED, GITHUB_REPOSITORY=pr_build.REPOSITORY, GITHUB_REF='refs/heads/main',
+                   SOURCE_DIR='/approved', GITHUB_RUN_ID='1')
+        env = {k.upper(): v for k, v in env.items()}
+        with patch.dict(os.environ, env), patch.object(sys, 'argv', ['pr-build.py', 'restore']), \
+                patch.object(pr_build, 'check_current'), patch.object(pr_build, 'check_approval'), \
+                patch.object(pr_build, 'check_checkout'), patch.object(pr_build.dist, 'ROOT', pr_build.dist.ROOT), \
+                patch.object(pr_build.dist, 'restore') as restore:
+            pr_build.main()
+        restore.assert_called_once_with(supplements=pr_build.SUPPLEMENTARY_SOURCES)
+
+
 class PrRequests(unittest.TestCase):
     def test_pr_comments_select_the_pr_and_issues_select_main(self):
         event = {'issue': {'number': 547, 'pull_request': {'url': 'ignored'}}}
