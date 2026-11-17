@@ -1,32 +1,24 @@
 package tk.glucodata.ui
 
 import android.content.Context
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateMapOf
 
 /**
- * Whether the sensor cards show their detail rows. One choice for every card, kept across
- * restarts: opening the details on one card opens them on all, at once.
+ * Whether a sensor card shows its detail rows. Each card keeps its own choice, by serial,
+ * across restarts: opening one card's details never opens another's.
  */
 internal object SensorCardDetails {
     private const val PREFS = "tk.glucodata_preferences"
-    private const val KEY = "sensor_card_details_expanded"
+    private const val KEY = "sensor_card_details_expanded_"
 
-    private var loaded = false
-    private var state by mutableStateOf(false)
+    private val state = mutableStateMapOf<String, Boolean>()
 
-    fun expanded(context: Context): Boolean {
-        if (!loaded) {
-            state = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY, false)
-            loaded = true
-        }
-        return state
-    }
+    fun expanded(context: Context, serial: String): Boolean =
+        state[serial]
+            ?: context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY + serial, false)
 
-    fun setExpanded(context: Context, expanded: Boolean) {
-        loaded = true
-        state = expanded
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY, expanded).apply()
+    fun setExpanded(context: Context, serial: String, expanded: Boolean) {
+        state[serial] = expanded
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY + serial, expanded).apply()
     }
 }

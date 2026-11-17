@@ -2387,8 +2387,8 @@ fun SensorCard(
                 Spacer(modifier = Modifier.height(16.dp))
             }
             // Open stays open: the choice is kept across sensors and restarts.
-            val detailsExpanded = SensorCardDetails.expanded(context)
-            val setDetailsExpanded = { expanded: Boolean -> SensorCardDetails.setExpanded(context, expanded) }
+            val detailsExpanded = SensorCardDetails.expanded(context, sensor.serial)
+            val setDetailsExpanded = { expanded: Boolean -> SensorCardDetails.setExpanded(context, sensor.serial, expanded) }
             // Open, the rows sit a step back from the line they came out of.
             val detailsColor by animateColorAsState(
                 targetValue = if (detailsExpanded) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainer,
