@@ -185,6 +185,7 @@ fun ClaritySettingsScreen(navController: NavController) {
                     icon = Icons.Default.CalendarMonth,
                     position = CardPosition.TOP,
                     onClick = { pickingDate = true },
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.clarity_change_start),
                 )
                 SettingsSwitchItem(
                     title = stringResource(R.string.clarity_use_history),
@@ -193,6 +194,7 @@ fun ClaritySettingsScreen(navController: NavController) {
                     onCheckedChange = { configure(s.enabled, it, s.since) },
                     icon = Icons.Default.History,
                     position = CardPosition.MIDDLE,
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.clarity_use_history),
                 )
                 SettingsItem(
                     title = stringResource(R.string.sendnow),

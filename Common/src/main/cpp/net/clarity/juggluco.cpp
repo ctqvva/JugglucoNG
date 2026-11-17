@@ -37,12 +37,9 @@ struct Status {
 #include <thread>
 extern Sensoren *sensors;
 extern Backup *backup;
-// net/watchserver/common.cpp: the value every other export sends (the user's
+// resolveExportedMgdl*: the value every other export sends (the user's
 // calibration and chosen lane), so the clinic sees what the app shows.
-extern int resolveExportedMgdl(const SensorGlucoseData *sens, const ScanData *val,
-                               const sensorname_t *sensorname);
-extern int resolveExportedMgdlAt(const SensorGlucoseData *sens, const sensorname_t *sensorname,
-                                 const uint32_t tim, const int storedMgdl, const int rawCurrent);
+#include "net/watchserver/common.hpp"
 namespace clarity {
 class Worker {
     std::mutex mutex, sourcesMutex, networkMutex;
@@ -70,13 +67,14 @@ class Worker {
         if (!s)
             return 0;
         if (v.history) {
-            // History records have no raw counterpart (rawCurrent 0), as in LibreView.
+            // History records have no raw counterpart (rawCurrent 0) and no resolved
+            // primary, as in LibreView's history (mkrealhistory).
             if (v.position >= s->getScanendhistory())
                 return 0;
             const auto *g = s->getglucose(v.position);
             if (!g || !g->valid() || int64_t(g->gettime()) != v.time)
                 return 0;
-            return resolveExportedMgdlAt(s, s->shortsensorname(), g->gettime(), g->getmgdL(), 0);
+            return resolveExportedMgdlAt(s, s->shortsensorname(), g->gettime(), g->getmgdL(), 0, false);
         }
         const auto rows = s->getPolldata();
         const auto *r = s->beginpolls() + v.position;
