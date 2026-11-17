@@ -64,7 +64,8 @@ std::vector<Reading> selectReadings(const std::vector<Reading> &input,
     return selectIndexedReadings(input, since, now, limit, occupied, sensor);
 }
 std::vector<Reading> selectIndexedReadings(const std::vector<Reading> &input,
-    int64_t since, int64_t now, size_t limit, const SentLookup &sent, const SensorLookup &sensor) {
+    int64_t since, int64_t now, size_t limit, const SentLookup &sent, const SensorLookup &sensor,
+    const ReadingValue &value) {
     // Bounded scratch for this not-yet-persisted batch only.
     std::set<int64_t> selectedTimes;
     std::vector<Reading> out;
@@ -110,8 +111,16 @@ std::vector<Reading> selectIndexedReadings(const std::vector<Reading> &input,
         if ((nearby.before && conflicts(*nearby.before)) ||
             (nearby.atOrAfter && conflicts(*nearby.atOrAfter)) || clashes(selectedTimes))
             continue;
+        int mgdl = r.mgdl;
+        if (value)
+            if (const int exported = value(r); exported > 0) {
+                if (exported < 20 || exported > 600)
+                    continue;
+                mgdl = exported;
+            }
         selectedTimes.insert(r.time);
         out.push_back(r);
+        out.back().mgdl = mgdl;
         if (out.size() >= limit)
             break;
     }

@@ -16,8 +16,9 @@ struct Snapshot {
     // existing Clarity events. Only a complete retained source can do that.
     std::vector<NumberInventory> numberInventories;
     // The value to upload for a reading (the app's calibrated, chosen lane),
-    // or <= 0 to keep Reading::mgdl. Called only for readings that go into a
-    // new batch, never for the whole snapshot: it can call into Java.
+    // or <= 0 to keep Reading::mgdl; outside 20-600 the reading is not sent.
+    // Called only for readings that would go into a new batch, never for the
+    // whole snapshot: it can call into Java (selectIndexedReadings' `value`).
     std::function<int(const Reading &)> exported;
 };
 struct GlucoseRange { int64_t count = 0, first = 0, last = 0; };
