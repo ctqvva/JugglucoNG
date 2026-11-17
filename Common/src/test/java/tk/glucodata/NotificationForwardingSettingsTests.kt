@@ -336,7 +336,10 @@ class NotificationForwardingSettingsTests {
         val placeholders = Regex("%[0-9]+\\\$[ds]")
         val locales = resDir.listFiles { f -> f.isDirectory && f.name.startsWith("values-") }!!
             .map { File(it, "strings.xml") }.filter { it.isFile }
-        assertEquals(15, locales.size)
+        assertEquals(
+            setOf("be", "de", "es", "fr", "hu", "it", "mn", "nl", "pl", "pt", "ru", "so", "sv", "tr", "uk", "zh"),
+            locales.map { it.parentFile.name.removePrefix("values-") }.toSet()
+        )
         for (file in locales) {
             for (key in keys) {
                 val translated = value(file, key)

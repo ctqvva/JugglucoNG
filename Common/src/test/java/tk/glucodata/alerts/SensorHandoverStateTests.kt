@@ -288,4 +288,74 @@ class SensorHandoverStateTests {
         assertEquals(0L, store.suppressUntil)
         assertFalse(state.missedReadingSuppressed(now))
     }
+
+    // A G7 keeps reading for 12 h past its official end. While it does, it
+    // stays the source: switching at the official end threw those hours away.
+    private fun primaryInGrace(delivering: Boolean, graceEndMs: Long = oldEnd + 12L * 60 * 60_000L) =
+        HandoverSensor(
+            "OLD",
+            startMs = oldEnd - 10L * 24 * 60 * 60 * 1000,
+            endMs = oldEnd,
+            graceEndMs = graceEndMs
+        ) { delivering }
+
+    @Test
+    fun keepsPrimaryThatStillReadsInItsGracePeriod() {
+        val store = FakeStore()
+        val state = SensorHandoverState(store)
+        assertEquals(
+            HandoverDecision.None,
+            state.evaluate(true, primaryInGrace(delivering = true), listOf(successor()), now)
+        )
+        // Nothing was latched, so the switch is still to come.
+        assertEquals(null, store.handled)
+        // Neither is an ambiguity warned about before anything has ended.
+        assertEquals(
+            HandoverDecision.None,
+            state.evaluate(
+                true,
+                primaryInGrace(delivering = true),
+                listOf(successor("A"), successor("B")),
+                now
+            )
+        )
+        assertEquals(null, store.warned)
+    }
+
+    @Test
+    fun switchesOnceTheGracePeriodPrimaryStopsReading() {
+        val state = SensorHandoverState(FakeStore())
+        assertEquals(
+            HandoverDecision.Switch("OLD", "NEW", successorWarming = false),
+            state.evaluate(true, primaryInGrace(delivering = false), listOf(successor()), now)
+        )
+    }
+
+    @Test
+    fun switchesWhenTheGracePeriodRunsOutEvenWhileReading() {
+        val state = SensorHandoverState(FakeStore())
+        val graceOver = primaryInGrace(delivering = true, graceEndMs = now)
+        assertEquals(
+            HandoverDecision.Switch("OLD", "NEW", successorWarming = false),
+            state.evaluate(true, graceOver, listOf(successor()), now)
+        )
+    }
+
+    @Test
+    fun graceEndIsTheNativeExpectedEndUpToTwelveHours() {
+        val official = 1_700_000_000_000L
+        val twelveHours = 12L * 60 * 60_000L
+        // Dexcom and Libre 2: native's expected end adds 12 h.
+        assertEquals(official + twelveHours, SensorHandoverState.graceEnd(true, official, official + twelveHours))
+        // AiDEX and other managed shells: native adds the same 12 h, but the
+        // sensor has no grace period.
+        assertEquals(0L, SensorHandoverState.graceEnd(false, official, official + twelveHours))
+        // Expected end equal to the official end.
+        assertEquals(0L, SensorHandoverState.graceEnd(true, official, official))
+        // A wear extension of days is not a grace period.
+        assertEquals(0L, SensorHandoverState.graceEnd(true, official, official + 8L * 24 * 60 * 60_000L))
+        // Unknown ends never make one up.
+        assertEquals(0L, SensorHandoverState.graceEnd(true, 0L, official))
+        assertEquals(0L, SensorHandoverState.graceEnd(true, official, 0L))
+    }
 }

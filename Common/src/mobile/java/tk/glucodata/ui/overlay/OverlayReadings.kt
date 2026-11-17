@@ -9,7 +9,9 @@ import tk.glucodata.ui.PeerCurrentReading
 internal data class OverlayReadings(
     val sensorId: String?,
     val snapshot: CurrentDisplaySource.Snapshot?,
-    val peers: List<PeerCurrentReading>
+    val peers: List<PeerCurrentReading>,
+    val deltaText: String = "",
+    val deltaIntervalMinutes: Int = tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES
 )
 
 /** Commit a complete main/peer frame. A refresh never publishes a temporary empty peer list. */
@@ -26,4 +28,21 @@ internal fun rememberOverlayReadings(
     key3 = revision
 ) {
     value = resolve(sensorId, showSecondary)
+}
+
+/** The number is drawn from snapshot.displayValues, even when history has newer bucket rows. */
+internal fun overlayDeltaText(
+    readings: OverlayReadings,
+    enabled: Boolean,
+    requestedSensorId: String?,
+    intervalMinutes: Int,
+    nowMillis: Long,
+    maxAgeMillis: Long = tk.glucodata.Notify.glucosetimeout
+): String {
+    val snapshot = readings.snapshot ?: return ""
+    if (!enabled || readings.deltaIntervalMinutes != intervalMinutes || requestedSensorId.isNullOrBlank() ||
+        !tk.glucodata.SensorIdentity.matches(snapshot.sensorId, requestedSensorId) ||
+        snapshot.timeMillis <= 0L || snapshot.timeMillis > nowMillis || nowMillis - snapshot.timeMillis > maxAgeMillis
+    ) return ""
+    return readings.deltaText
 }

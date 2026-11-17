@@ -676,6 +676,11 @@
     <string name="status_bluetooth_off">Bluetooth wył.</string>
     <string name="status_connection_failed">Błąd połączenia</string>
     <string name="status_connected">Połączono</string>
+    <string name="sensor_error">Błąd czujnika</string>
+    <string name="sensor_replace">Wymień czujnik</string>
+    <string name="sensor_ended">Czujnik zakończył pracę</string>
+    <string name="sensor_warming_up">Nagrzewanie</string>
+    <string name="sensor_error_code">Kod błędu czujnika</string>
     <string name="status_disconnected">Rozłączono</string>
     <string name="select_sensor_type">Wybierz typ sensora</string>
     <string name="choose_theme">Wybierz motyw</string>
@@ -1752,6 +1757,7 @@
     <string name="journal_type_temp_basal">Tymczasowa baza</string>
     <string name="journal_dashboard_types_title">Pokaż na ekranie głównym</string>
     <string name="journal_dashboard_types_desc">Ukryte wpisy znikają tylko z głównego wykresu i listy odczytów. Nadal liczą się do IOB, COB, prognozy i podpowiedzi dawki.</string>
+    <string name="journal_entry_types_order_desc">Menu + i menu dodawania na wykresie pokazują je w tej kolejności. Przeciągnij uchwyt, aby przenieść.</string>
     <string name="journal_import_health_activity_desc">Dodawaj treningi i kroki do dziennika</string>
     <string name="journal_section_main_screen">Ekran główny</string>
     <string name="journal_section_dosing">Dawkowanie</string>
@@ -2254,6 +2260,8 @@
     <string name="glucose_palette_title">Kolory glukozy</string>
     <string name="notification_show_delta_desc">Zmierzona zmiana w przedziale delta, obok strzałki</string>
     <string name="notification_show_delta_title">Pokaż deltę (Δ)</string>
+    <string name="display_show_delta_title">Pokaż deltę (Δ)</string>
+    <string name="widget_show_delta_title">Delta w widżetach (Δ)</string>
     <string name="rising_fast_explanation">Ostrzega po %1$d kolejnych %2$d-minutowych odstępach, każdy wzrost o co najmniej %3$s (≈ %4$d min ciągłego wzrostu), podczas gdy wartość jest równa lub wyższa od %5$s. Żadnych przewidywań, tylko surowy trend.</string>
     <string name="sensor_expiry_warnings_desc">Każdy wybrany czas ostrzega raz na czujnik</string>
     <string name="sensor_expiry_warnings_title">Ostrzegaj przed wygaśnięciem</string>
@@ -3453,4 +3461,5 @@
     <string name="libre3_status_identity_rejected">Sensor nie zaakceptował tożsamości aplikacji</string>
     <string name="libre3_managed_receiver_save_failed">Nie udało się zapisać ID odbiornika. Sprawdź pamięć urządzenia i spróbuj ponownie. Parowanie NFC jest zablokowane do czasu zapisania ID.</string>
     <string name="scan_sensor_qr">Zeskanuj kod QR sensora</string>
+    <string name="spanish">Hiszpański</string>
 </resources>

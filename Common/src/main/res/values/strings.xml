@@ -1077,6 +1077,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_bluetooth_off">Bluetooth off</string>
     <string name="status_connection_failed">Connection failed</string>
     <string name="status_connected">Connected</string>
+    <string name="sensor_error">Sensor error</string>
+    <string name="sensor_replace">Replace sensor</string>
+    <string name="sensor_ended">Sensor ended</string>
+    <string name="sensor_warming_up">Warming up</string>
+    <string name="sensor_error_code">Sensor error code</string>
     <string name="status_disconnected">Disconnected</string>
     <string name="status_waiting_for_data">Connected, waiting for data…</string>
     <string name="status_raw_values_received">Connected, raw values received</string>
@@ -2274,6 +2279,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_show_tab_desc">Add Journal to the bottom navigation</string>
     <string name="journal_dashboard_types_title">Show on the main screen</string>
     <string name="journal_dashboard_types_desc">Hidden entries leave the main chart and the reading list only. They still count toward IOB, COB, the prediction and the dose hints.</string>
+    <string name="journal_entry_types_order_desc">The + menu and the chart\'s add menu list these in this order. Drag a handle to move one.</string>
     <string name="journal_import_health_activity_desc">Add workouts and steps to the journal</string>
     <string name="journal_section_main_screen">Main screen</string>
     <string name="journal_section_dosing">Dosing</string>
@@ -2305,6 +2311,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_show_cob_title">Carbs on board</string>
     <string name="notification_show_cob_desc">Show Journal COB in the status line</string>
     <string name="notification_show_delta_title">Delta beside arrow</string>
+    <string name="display_show_delta_title">Show delta (Δ)</string>
+    <string name="widget_show_delta_title">Widget delta (Δ)</string>
     <string name="notification_show_delta_desc">Show measured change beside the trend arrow</string>
     <string name="notification_show_delta_minutes_desc">Show %1$d-minute change beside the trend arrow</string>
     <string name="dashboard_show_delta_title">Dashboard delta</string>
@@ -3715,4 +3723,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_status_identity_missing">No Libre 3 app identity imported</string>
     <string name="libre3_status_identity_rejected">Sensor did not accept the app identity</string>
     <string name="libre3_managed_receiver_save_failed">Could not save the receiver ID. Check device storage and try again. NFC pairing is blocked until the ID is saved.</string>
+    <string name="spanish">Spanish</string>
 </resources>

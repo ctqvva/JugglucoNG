@@ -445,6 +445,89 @@ class OttaiFirmwareControllerTests {
         assertEquals(2, io.writes.size) // Local identity proof only.
     }
 
+    @Test fun officialAppStartedSensorRecoversMissingKeysWithoutFactoryPreparation() {
+        for (version in listOf("V1.5.S2530.1,STDRD", "V1.8.0")) {
+            var releasedBeforeComplete = false
+            val (controller, io) = normal(version = version, command = 3, withoutKeys = true,
+                prepareForSetup = true, onState = { state, owner ->
+                    if (state.stage == OttaiFirmwareStage.COMPLETE) releasedBeforeComplete = owner.closedSuccessfully
+                }) {
+                // Active credential recovery does not need factory coefficients/calibration.
+                it.fresh = materials.copy(deviceVersion = version, coefficient = "")
+            }
+            finishFreshCloudAuth(io)
+            assertEquals(listOf(version), io.refreshVersions)
+            assertFalse(io.pendingPreparation)
+            assertFalse(controller.state.canPrepareParameters)
+            repeat(2) { io.tick(); io.acknowledge() } // Prove the recovered keys locally.
+            assertEquals(OttaiFirmwareStage.COMPLETE, controller.state.stage)
+            assertTrue(releasedBeforeComplete)
+            assertEquals(0, io.offerRequests)
+            assertFalse(io.saved)
+            assertEquals(4, io.writes.size)
+            assertTrue(io.writes.all { it.first in setOf(OttaiConstants.CHAR_AUTH_APP_PARAM, OttaiConstants.CHAR_AUTH_SIGN) })
+        }
+    }
+
+    @Test fun activeCredentialRecoveryFailureCannotCompleteOrPrepareTheSensor() {
+        val (controller, io) = normal(command = 3, withoutKeys = true, prepareForSetup = true)
+        finishFreshCloudAuth(io)
+        assertNotNull(io.refresh)
+        io.refresh!!(Result.failure(IllegalStateException("ota_request_AuthFailed_TokenInvalid")))
+        assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+        assertTrue(controller.state.errorCode.contains("TokenInvalid"))
+        assertFalse(io.pendingPreparation)
+        assertEquals(2, io.writes.size)
+    }
+
+    @Test fun activeCredentialRecoveryRequiresMatchingUsableKeysAndLocalSensorProof() {
+        for (fresh in listOf(materials.copy(deviceVersion = "V1.8.0"), materials.copy(keyAHex = ""),
+            materials.copy(keyAHex = "11".repeat(96)))) {
+            val (controller, io) = normal(command = 3, withoutKeys = true, prepareForSetup = true) { it.fresh = fresh }
+            finishFreshCloudAuth(io)
+            assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+            assertFalse(io.closedSuccessfully)
+            assertFalse(io.pendingPreparation)
+            assertEquals(2, io.writes.size)
+        }
+    }
+
+    @Test fun activeCredentialRecoveryRechecksStatusWithoutFallingBackToFreshPreparation() {
+        for (status in listOf(0, 4)) {
+            val (controller, io) = normal(command = 3, withoutKeys = true, prepareForSetup = true) { it.fresh = materials }
+            finishFreshCloudAuth(io)
+            io.commandStatus = status
+            repeat(2) { io.tick(); io.acknowledge() }
+            assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+            assertFalse(io.pendingPreparation)
+            assertEquals(4, io.writes.size)
+            assertTrue(io.writes.none { it.first == OttaiConstants.CHAR_DESTRUCTIVE || it.first == OttaiConstants.CHAR_COMMAND })
+        }
+    }
+
+    @Test fun closedActiveCredentialRecoveryIgnoresLateMaterials() {
+        val (controller, io) = normal(command = 3, withoutKeys = true, prepareForSetup = true)
+        finishFreshCloudAuth(io)
+        val late = requireNotNull(io.refresh)
+        controller.close()
+        late(Result.success(materials))
+        assertEquals(OttaiFirmwareStage.CLOSED, controller.state.stage)
+        assertEquals(2, io.writes.size)
+        assertFalse(io.closedSuccessfully)
+    }
+
+    @Test fun activeSetupCredentialRecoveryCannotBypassEndedStatusOrSavedTransfer() {
+        for ((status, journal) in listOf(4 to null, 3 to image)) {
+            val (controller, io) = normal(command = status, withoutKeys = true, prepareForSetup = true) { it.journal = journal }
+            finishFreshCloudAuth(io)
+            assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+            assertNull(io.refresh)
+            assertEquals(0, io.offerRequests)
+            assertEquals(2, io.writes.size)
+            assertSame(journal, io.journal)
+        }
+    }
+
     @Test fun anExistingUnknownProfileCanFetchCredentialsWithoutGuessingFactoryPackets() {
         val (controller, io) = normal(version = "V2.0", target = "V2.1", withoutKeys = true, prepareForSetup = true) {
             it.noOffer = true

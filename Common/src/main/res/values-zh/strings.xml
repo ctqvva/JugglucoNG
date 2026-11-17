@@ -613,6 +613,11 @@
     <string name="status_bluetooth_off">蓝牙关闭</string>
     <string name="status_connection_failed">连接失败</string>
     <string name="status_connected">已连接</string>
+    <string name="sensor_error">传感器错误</string>
+    <string name="sensor_replace">更换传感器</string>
+    <string name="sensor_ended">传感器已结束</string>
+    <string name="sensor_warming_up">预热中</string>
+    <string name="sensor_error_code">传感器错误代码</string>
     <string name="status_disconnected">已断开</string>
     <string name="select_sensor_type">选择传感器类型</string>
     <string name="choose_theme">选择主题</string>
@@ -1733,6 +1738,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">临时基础率</string>
     <string name="journal_dashboard_types_title">在主屏幕上显示</string>
     <string name="journal_dashboard_types_desc">隐藏的记录只会从主图表和读数列表中消失，仍会计入 IOB、COB、预测和剂量提示。</string>
+    <string name="journal_entry_types_order_desc">+ 菜单和图表的添加菜单按此顺序列出。拖动手柄即可移动。</string>
     <string name="journal_import_health_activity_desc">将锻炼和步数添加到日志</string>
     <string name="journal_section_main_screen">主屏幕</string>
     <string name="journal_section_dosing">剂量</string>
@@ -2235,6 +2241,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">血糖颜色</string>
     <string name="notification_show_delta_desc">箭头旁边测量的增量间隔变化</string>
     <string name="notification_show_delta_title">显示增量 (Δ)</string>
+    <string name="display_show_delta_title">显示增量 (Δ)</string>
+    <string name="widget_show_delta_title">小部件增量 (Δ)</string>
     <string name="rising_fast_explanation">当连续 %1$d 个 %2$d 分钟区间均上升至少 %3$s（约持续上升 %4$d 分钟），且数值等于或高于 %5$s 时发出警告。不做预测，只依据原始趋势。</string>
     <string name="sensor_expiry_warnings_desc">每个选定的时间每个传感器都会发出一次警告</string>
     <string name="sensor_expiry_warnings_title">到期前警告</string>
@@ -3399,4 +3407,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_status_identity_rejected">传感器未接受应用身份</string>
     <string name="libre3_managed_receiver_save_failed">无法保存接收器 ID。请检查设备存储空间并重试。在 ID 保存成功前，NFC 配对将被阻止。</string>
     <string name="scan_sensor_qr">扫描传感器二维码</string>
+    <string name="spanish">西班牙语</string>
 </resources>

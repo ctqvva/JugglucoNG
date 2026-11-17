@@ -162,13 +162,13 @@ class RemoteGlucose {
       }
    }
 
-   final RemoteViews widgetRemote(CurrentDisplaySource.Snapshot snapshot) {
+   final RemoteViews widgetRemote(CurrentDisplaySource.Snapshot snapshot, String deltaText) {
       RemoteViews remoteViews = new RemoteViews(Applic.app.getPackageName(), R.layout.arrowandvalue);
       if (snapshot == null) {
          return remoteViews;
       }
 
-      final boolean isMmol = Applic.unit == 1;
+      final boolean isMmol = snapshot.isMmol();
       // Keep the legacy widget on its fixed legacy foreground instead of
       // following notification/system light-dark theme flips.
       final int glucoseColor = baseForegroundColor;
@@ -199,7 +199,11 @@ class RemoteGlucose {
          }
       }
 
-      String timestr = minhourstr(snapshot.getTimeMillis());
+      // Do not share Notify.timef with notification threads while rendering on the widget worker.
+      String timestr = Applic.systemtimeformat()
+            ? DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(snapshot.getTimeMillis()))
+            : minhourstr(snapshot.getTimeMillis());
+      final String deltaLabel = deltaText.isEmpty() ? "" : "Δ " + deltaText;
       glucosePaint.setTextSize(reducedTimeSize);
       Rect timeBounds = new Rect();
       glucosePaint.getTextBounds(timestr, 0, timestr.length(), timeBounds);
@@ -209,6 +213,28 @@ class RemoteGlucose {
       float arrowHeight = arrowBitmap != null ? arrowBitmap.getHeight() : 0f;
       float clusterWidth = Math.max(arrowWidth, timeWidth);
       float clusterCenterX = canvasWidth - rightInset - clusterWidth / 2f;
+      final float clusterGap = reducedTimeSize * 0.65f;
+      final Paint.FontMetrics timeMetrics = glucosePaint.getFontMetrics();
+      final float timeTextHeight = timeMetrics.descent - timeMetrics.ascent;
+      final float deltaGap = reducedTimeSize * 0.35f;
+      float deltaTextSize = reducedTimeSize;
+      float deltaTextHeight = 0f;
+      if (!deltaLabel.isEmpty()) {
+         // A separate line must fit the existing cluster, never take width from glucose.
+         final float naturalWidth = glucosePaint.measureText(deltaLabel);
+         if (naturalWidth > clusterWidth && naturalWidth > 0f)
+            deltaTextSize *= clusterWidth / naturalWidth;
+         glucosePaint.setTextSize(deltaTextSize);
+         final Paint.FontMetrics deltaMetrics = glucosePaint.getFontMetrics();
+         deltaTextHeight = deltaMetrics.descent - deltaMetrics.ascent;
+         final float availableArrowHeight = Math.max(0f,
+               canvasHeight * 0.95f - clusterGap - timeTextHeight - deltaGap - deltaTextHeight);
+         if (arrowHeight > availableArrowHeight && arrowHeight > 0f) {
+            final float scale = availableArrowHeight / arrowHeight;
+            arrowWidth *= scale;
+            arrowHeight *= scale;
+         }
+      }
 
       // Value text — left-anchored at a small inset (the original notglucosex
       // offset reserved space for a left-side arrow that no longer exists).
@@ -236,22 +262,30 @@ class RemoteGlucose {
       // arrow's vertical center aligned to the value's vertical center so the
       // pair reads as a single unit beside the value.
       float valueCenterY = gety + (valueMetrics.ascent + valueMetrics.descent) / 2f;
-      float clusterGap = reducedTimeSize * 0.65f;
-      float clusterHeight = arrowHeight + clusterGap + reducedTimeSize;
+      float clusterHeight = arrowHeight + clusterGap + (deltaLabel.isEmpty() ? reducedTimeSize
+            : timeTextHeight + deltaGap + deltaTextHeight);
       float clusterTop = valueCenterY - clusterHeight / 2f;
 
-      if (arrowBitmap != null) {
+      if (arrowBitmap != null && arrowHeight > 0f) {
          float arrowLeft = clusterCenterX - arrowWidth / 2f;
-         canvas.drawBitmap(arrowBitmap, arrowLeft, clusterTop, null);
-      } else if (!isNaN(rate)) {
+         canvas.drawBitmap(arrowBitmap, null,
+               new android.graphics.RectF(arrowLeft, clusterTop, arrowLeft + arrowWidth, clusterTop + arrowHeight), null);
+      } else if (arrowBitmap == null && !isNaN(rate)) {
          drawarrow(canvas, glucosePaint, usedensity, rate, clusterCenterX, clusterTop + arrowHeight / 2f);
       }
 
       glucosePaint.setTextSize(reducedTimeSize);
       glucosePaint.setTextAlign(Paint.Align.CENTER);
       glucosePaint.setAlpha(200);
-      float timeBaseline = clusterTop + arrowHeight + clusterGap + reducedTimeSize * 0.65f;
+      float timeBaseline = clusterTop + arrowHeight + clusterGap +
+            (deltaLabel.isEmpty() ? reducedTimeSize * 0.65f : -timeMetrics.ascent);
       canvas.drawText(timestr, clusterCenterX, timeBaseline, glucosePaint);
+      if (!deltaLabel.isEmpty()) {
+         glucosePaint.setTextSize(deltaTextSize);
+         final Paint.FontMetrics deltaMetrics = glucosePaint.getFontMetrics();
+         canvas.drawText(deltaLabel, clusterCenterX,
+               timeBaseline + timeMetrics.descent + deltaGap - deltaMetrics.ascent, glucosePaint);
+      }
       glucosePaint.setAlpha(255);
       glucosePaint.setTextAlign(Paint.Align.LEFT);
 

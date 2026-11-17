@@ -696,6 +696,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="status_bluetooth_off">Bluetooth uit</string>
     <string name="status_connection_failed">Verbinding mislukt</string>
     <string name="status_connected">Verbonden</string>
+    <string name="sensor_error">Sensorfout</string>
+    <string name="sensor_replace">Sensor vervangen</string>
+    <string name="sensor_ended">Sensor beëindigd</string>
+    <string name="sensor_warming_up">Opwarmen</string>
+    <string name="sensor_error_code">Sensorfoutcode</string>
     <string name="status_disconnected">Verbroken</string>
     <string name="select_sensor_type">Selecteer sensortype</string>
     <string name="choose_theme">Thema kiezen</string>
@@ -1760,6 +1765,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_type_temp_basal">Tijdelijke basaal</string>
     <string name="journal_dashboard_types_title">Tonen op het hoofdscherm</string>
     <string name="journal_dashboard_types_desc">Verborgen items verdwijnen alleen uit de hoofdgrafiek en de lijst met metingen. Ze tellen nog steeds mee voor IOB, COB, de voorspelling en de dosishints.</string>
+    <string name="journal_entry_types_order_desc">Het +-menu en het toevoegmenu van de grafiek tonen ze in deze volgorde. Sleep aan een greep om er een te verplaatsen.</string>
     <string name="journal_import_health_activity_desc">Voeg trainingen en stappen toe aan het dagboek</string>
     <string name="journal_section_main_screen">Hoofdscherm</string>
     <string name="journal_section_dosing">Dosering</string>
@@ -2262,6 +2268,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="glucose_palette_title">Glucosekleuren</string>
     <string name="notification_show_delta_desc">Gemeten verandering over het delta-interval, naast de pijl</string>
     <string name="notification_show_delta_title">Toon delta (Δ)</string>
+    <string name="display_show_delta_title">Toon delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta in widgets (Δ)</string>
     <string name="rising_fast_explanation">Waarschuwt na %1$d opeenvolgende intervallen van %2$d-minuten die elk stijgen met ten minste %3$s (≈ %4$d min. aanhoudende stijging) terwijl de waarde op of boven %5$s ligt. Geen voorspelling, alleen de ruwe trend.</string>
     <string name="sensor_expiry_warnings_desc">Elke geselecteerde tijd waarschuwt één keer per sensor</string>
     <string name="sensor_expiry_warnings_title">Waarschuw vóór de vervaldatum</string>
@@ -3436,4 +3444,5 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="libre3_status_identity_rejected">Sensor heeft de app-identiteit geweigerd</string>
     <string name="libre3_managed_receiver_save_failed">De ontvanger-ID kon niet worden opgeslagen. Controleer de apparaatopslag en probeer opnieuw. NFC-koppeling blijft geblokkeerd totdat de ID is opgeslagen.</string>
     <string name="scan_sensor_qr">QR-code van de sensor scannen</string>
+    <string name="spanish">Spaans</string>
 </resources>

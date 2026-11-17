@@ -40,6 +40,23 @@ class OttaiCloudSessionTests {
     }
 
     @Test
+    fun globalEmailUsesThirdLoginAndAUsernameUsesVariousLoginType3() {
+        val (emailRoute, emailBody) = OttaiCloudClient.globalLoginRequest("a@b.c", "enc", "api", "sig")
+        assertEquals(OttaiConstants.EP_THIRD_LOGIN_BY_PASSWORD, emailRoute)
+        assertFalse(emailBody.has("type"))
+        assertFalse(emailBody.has("username"))
+        assertEquals(5, emailBody.getInt("source"))
+
+        val (nameRoute, nameBody) = OttaiCloudClient.globalLoginRequest("user1234", "enc", "api", "sig")
+        assertEquals(OttaiConstants.EP_VARIOUS_LOGIN, nameRoute)
+        assertEquals(3, nameBody.getInt("type"))
+        assertEquals(3, nameBody.getInt("loginType"))
+        assertEquals("user1234", nameBody.getString("username"))
+        for (key in listOf("encryptInfo", "apiToken", "signature", "uuid")) assertTrue(key, nameBody.has(key))
+        assertEquals(5, nameBody.getInt("source"))
+    }
+
+    @Test
     fun globalLoginStopsOnACredentialVerdictAndFallsBackOnlyWithoutAnAnswer() {
         val session = OttaiCloudClient.LoginResult("42", "mobile-token", "sensor-root")
         val answer = OttaiCloudClient::globalLoginAnswer

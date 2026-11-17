@@ -613,6 +613,11 @@
     <string name="status_bluetooth_off">Bluetooth вимк.</string>
     <string name="status_connection_failed">Помилка з\'єднання</string>
     <string name="status_connected">Підключено</string>
+    <string name="sensor_error">Помилка датчика</string>
+    <string name="sensor_replace">Замініть датчик</string>
+    <string name="sensor_ended">Датчик завершив роботу</string>
+    <string name="sensor_warming_up">Йде прогрів</string>
+    <string name="sensor_error_code">Код помилки датчика</string>
     <string name="status_disconnected">Відключено</string>
     <string name="select_sensor_type">Виберіть тип сенсора</string>
     <string name="choose_theme">Виберіть тему</string>
@@ -1791,6 +1796,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">Тимчасовий базал</string>
     <string name="journal_dashboard_types_title">Показувати на головній</string>
     <string name="journal_dashboard_types_desc">Приховані записи зникають лише з графіка та списку показів на головній. В IOB, COB, прогнозі та підказках дози вони й далі враховуються.</string>
+    <string name="journal_entry_types_order_desc">Меню + і меню додавання на графіку показують їх у цьому порядку. Перетягніть маркер, щоб перемістити.</string>
     <string name="journal_import_health_activity_desc">Додавати тренування та кроки до журналу</string>
     <string name="journal_section_main_screen">Головний екран</string>
     <string name="journal_section_dosing">Дозування</string>
@@ -2289,6 +2295,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">Кольори глюкози</string>
     <string name="notification_show_delta_desc">Виміряна зміна в дельта-інтервалі, поруч із стрілкою</string>
     <string name="notification_show_delta_title">Показати дельту (Δ)</string>
+    <string name="display_show_delta_title">Показати дельту (Δ)</string>
+    <string name="widget_show_delta_title">Дельта у віджетах (Δ)</string>
     <string name="rising_fast_explanation">Попереджає після %1$d послідовних %2$d-хвилинних інтервалів, кожен з яких зростає принаймні на %3$s (≈ %4$d хв. тривалого зростання), коли значення дорівнює або перевищує %5$s. Жодного прогнозу, лише необроблена тенденція.</string>
     <string name="sensor_expiry_warnings_desc">Кожен вибраний час попереджає один раз на датчик</string>
     <string name="sensor_expiry_warnings_title">Попередити перед закінченням терміну придатності</string>
@@ -3487,4 +3495,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_status_identity_missing">Ключі застосунку Libre 3 не імпортовані</string>
     <string name="libre3_status_identity_rejected">Сенсор не прийняв ключі застосунку</string>
     <string name="libre3_managed_receiver_save_failed">Не вдалося зберегти ID приймача. Перевірте пам’ять пристрою й повторіть спробу. Сполучення через NFC заблоковано до збереження ID.</string>
+    <string name="spanish">Іспанська</string>
 </resources>

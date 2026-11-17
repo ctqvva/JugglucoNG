@@ -710,6 +710,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="scan_sensor_qr">Sensor-QR-Code scannen</string>
     <string name="scan_sensor_qr_desc">Den Data-Matrix-Code auf der Sensorverpackung scannen</string>
     <string name="status_connected">Verbunden</string>
+    <string name="sensor_error">Sensorfehler</string>
+    <string name="sensor_replace">Sensor ersetzen</string>
+    <string name="sensor_ended">Sensor beendet</string>
+    <string name="sensor_warming_up">Aufwärmen</string>
+    <string name="sensor_error_code">Sensor-Fehlercode</string>
     <string name="status_disconnected">Getrennt</string>
     <string name="select_sensor_type">Sensortyp wählen</string>
     <string name="choose_theme">Design wählen</string>
@@ -1848,6 +1853,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_type_temp_basal">Temporäre Basalrate</string>
     <string name="journal_dashboard_types_title">Auf dem Hauptbildschirm zeigen</string>
     <string name="journal_dashboard_types_desc">Ausgeblendete Einträge verschwinden nur aus dem Hauptdiagramm und der Werteliste. Sie zählen weiter für IOB, COB, die Prognose und die Dosishinweise.</string>
+    <string name="journal_entry_types_order_desc">Das +-Menü und das Hinzufügen-Menü im Diagramm zeigen sie in dieser Reihenfolge. Zum Verschieben am Griff ziehen.</string>
     <string name="journal_import_health_activity_desc">Trainings und Schritte ins Journal eintragen</string>
     <string name="journal_section_main_screen">Hauptbildschirm</string>
     <string name="journal_section_dosing">Dosierung</string>
@@ -1879,6 +1885,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="notification_show_cob_title">Aktive Kohlenhydrate</string>
     <string name="notification_show_cob_desc">Journal-COB in der Statuszeile anzeigen</string>
     <string name="notification_show_delta_title">Delta (Δ) anzeigen</string>
+    <string name="display_show_delta_title">Delta (Δ) anzeigen</string>
+    <string name="widget_show_delta_title">Widget-Delta (Δ)</string>
     <string name="notification_show_delta_desc">Gemessene Änderung über das Delta-Intervall, neben dem Pfeil</string>
     <string name="dashboard_show_delta_title">Delta (Δ) auf der Startseite</string>
     <string name="dashboard_show_delta_desc">Gemessene Änderung über das Delta-Intervall, unter dem Trendpfeil</string>
@@ -3505,4 +3513,5 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="libre3_status_identity_missing">Keine Libre-3-App-Identität importiert</string>
     <string name="libre3_status_identity_rejected">Sensor hat die App-Identität nicht akzeptiert</string>
     <string name="libre3_managed_receiver_save_failed">Empfänger-ID konnte nicht gespeichert werden. Gerätespeicher prüfen und erneut versuchen. NFC-Kopplung bleibt bis zum Speichern der ID gesperrt.</string>
+    <string name="spanish">Spanisch</string>
 </resources>

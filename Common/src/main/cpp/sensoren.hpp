@@ -2073,6 +2073,13 @@ public:
       const sensor *sen = getsensor(i);
       if (!memcmp(sen->name, "E0", 2))
         continue;
+      // A record the user removed no longer owns its transmitter. It keeps the
+      // name and address it was bound to, and counting it here made a sensor
+      // that was removed and then entered again by pairing code (which makes a
+      // new record) skip its own advertisement forever: only a reset of all
+      // app data let it connect again.
+      if (sen->wasRemovedByUser())
+        continue;
       if (const SensorGlucoseData *sens = getSensorData(i)) {
         if (!sens->isDexcom())
           continue;

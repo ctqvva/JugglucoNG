@@ -501,6 +501,11 @@
     <string name="status_bluetooth_off">Bluetooth desl.</string>
     <string name="status_connection_failed">Falha na conexão</string>
     <string name="status_connected">Conectado</string>
+    <string name="sensor_error">Erro do sensor</string>
+    <string name="sensor_replace">Substituir o sensor</string>
+    <string name="sensor_ended">Sensor terminado</string>
+    <string name="sensor_warming_up">Aquecendo</string>
+    <string name="sensor_error_code">Código de erro do sensor</string>
     <string name="status_disconnected">Desconectado</string>
     <string name="select_sensor_type">Selec. tipo de sensor</string>
     <string name="choose_theme">Escolher tema</string>
@@ -1718,6 +1723,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">Basal temporária</string>
     <string name="journal_dashboard_types_title">Mostrar na tela principal</string>
     <string name="journal_dashboard_types_desc">As entradas ocultas saem apenas do gráfico principal e da lista de leituras. Continuam a contar para IOB, COB, a previsão e as sugestões de dose.</string>
+    <string name="journal_entry_types_order_desc">O menu + e o menu de adicionar do gráfico mostram-nos por esta ordem. Arraste uma pega para mover.</string>
     <string name="journal_import_health_activity_desc">Adicionar treinos e passos ao diário</string>
     <string name="journal_section_main_screen">Tela principal</string>
     <string name="journal_section_dosing">Dosagem</string>
@@ -2221,6 +2227,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">Cores da glicose</string>
     <string name="notification_show_delta_desc">Mudança medida ao longo do intervalo delta, próximo à seta</string>
     <string name="notification_show_delta_title">Mostrar delta (Δ)</string>
+    <string name="display_show_delta_title">Mostrar delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta nos widgets (Δ)</string>
     <string name="rising_fast_explanation">Avisa após %1$d intervalos consecutivos de %2$d minutos, cada um aumentando em pelo menos %3$s (≈ %4$d min de aumento sustentado) enquanto o valor estiver igual ou superior a %5$s. Nenhuma previsão, apenas a tendência bruta.</string>
     <string name="sensor_expiry_warnings_desc">Cada horário selecionado avisa uma vez por sensor</string>
     <string name="sensor_expiry_warnings_title">Avisar antes de expirar</string>
@@ -3395,4 +3403,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_status_identity_rejected">O sensor não aceitou a identidade da aplicação</string>
     <string name="libre3_managed_receiver_save_failed">Não foi possível guardar o ID do recetor. Verifique o armazenamento e tente novamente. O emparelhamento NFC fica bloqueado até guardar o ID.</string>
     <string name="scan_sensor_qr">Digitalizar o código QR do sensor</string>
+    <string name="spanish">Espanhol</string>
 </resources>

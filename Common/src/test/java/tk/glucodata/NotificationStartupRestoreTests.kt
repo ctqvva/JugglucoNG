@@ -790,6 +790,8 @@ class NotificationStartupRestoreTests {
                 import java.util.*;
                 public class NotifyStartupHarness {
                     public static boolean isWearable = false;
+                    public static volatile boolean signalLossActive = false;
+                    public static volatile boolean glucoseStatusDisabled = false;
                     public boolean doLog = false;
                     public static String LOG_ID = "test";
                     public static java.util.Locale usedlocale = java.util.Locale.ROOT;
@@ -981,6 +983,7 @@ class NotificationStartupRestoreTests {
                             return n;
                         }
                         void updateStatus(Object app, int id) { owner.updateCalls++; }
+                        boolean updateStatusText(Object app, int id, String text) { owner.updateCalls++; return true; }
                     }
                     static class keeprunning {
                         static Service theservice = null;

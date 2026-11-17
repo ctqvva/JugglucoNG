@@ -85,6 +85,8 @@ fun FloatingGlucoseOverlay(
     val fontSource by repository.fontSource.collectAsState(initial = "APP")
     val fontSize by repository.fontSize.collectAsState(initial = FloatingSettingsRepository.DEFAULT_FONT_SIZE)
     val fontWeightSetting by repository.fontWeight.collectAsState(initial = "REGULAR")
+    val showDelta by repository.showDelta.collectAsState(initial = false)
+    val deltaIntervalMinutes by repository.deltaIntervalMinutes.collectAsState(initial = tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES)
     val showArrow by repository.showArrow.collectAsState(initial = true)
     val cornerRadius by repository.cornerRadius.collectAsState(initial = 28f)
     val opacity by repository.backgroundOpacity.collectAsState(initial = FloatingSettingsRepository.DEFAULT_BACKGROUND_OPACITY)
@@ -106,7 +108,7 @@ fun FloatingGlucoseOverlay(
     val requestedSensorId = SensorIdentity.resolveMainSensor()
     val selectionRevision by MultiSensorSelection.revision.collectAsState()
     val readings by rememberOverlayReadings(
-        requestedSensorId, showSecondary, Triple(refreshRevision, selectionRevision, history),
+        requestedSensorId, showSecondary, listOf(refreshRevision, selectionRevision, history, showDelta, deltaIntervalMinutes),
     ) { sensorId, includePeer ->
         withContext(Dispatchers.IO) {
             val snapshot = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout, sensorId)
@@ -114,7 +116,8 @@ fun FloatingGlucoseOverlay(
             val peers = if (includePeer && snapshot?.secondaryStr.isNullOrBlank()) {
                 SecondarySensorDisplay.resolvePeers(SecondarySensorDisplay.selectedPeers(resolvedSensorId))
             } else emptyList()
-            OverlayReadings(resolvedSensorId, snapshot, peers)
+            val deltaText = tk.glucodata.DisplayDeltaSource.resolve(showDelta, snapshot, deltaIntervalMinutes)
+            OverlayReadings(resolvedSensorId, snapshot, peers, deltaText, deltaIntervalMinutes)
         }
     }
     // Retain the previous complete frame until the next main/peer pair is resolved.
@@ -132,11 +135,11 @@ fun FloatingGlucoseOverlay(
     // ever notice the last one aging out. Re-read the clock until it crosses the
     // same timeout the widget and dashboard use, then show the no-data state.
     val latestReadingMillis = maxOf(currentSnapshot?.timeMillis ?: 0L, glucosePoint?.timestamp ?: 0L)
-    val freshnessNow by produceState(System.currentTimeMillis(), latestReadingMillis, peerReadings) {
+    val freshnessNow by produceState(System.currentTimeMillis(), latestReadingMillis, currentSnapshot?.timeMillis, peerReadings) {
         while (true) {
             value = System.currentTimeMillis()
             // A peer can expire before the main reading, without another sensor update.
-            val wait = (listOf(latestReadingMillis) + peerReadings.map { it.timeMillis })
+            val wait = (listOf(latestReadingMillis, currentSnapshot?.timeMillis ?: 0L) + peerReadings.map { it.timeMillis })
                 .mapNotNull { nextOverlayFreshnessCheckDelay(it, value) }.minOrNull() ?: break
             delay(wait)
         }
@@ -311,11 +314,68 @@ fun FloatingGlucoseOverlay(
                 dvs, currentSensorId, peerReadings, freshnessNow
             )?.primaryStr
 
-            if (isDynamicIsland && isVerticalIsland) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (isDynamicIsland && isVerticalIsland) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        FloatingStyledText(
+                            text = dvs.primaryStr,
+                            fontSize = fontSize,
+                            fontFamily = fontFamily,
+                            fontWeight = fontWeight,
+                            textColor = finalTextColor,
+                            outlineColor = textOutlineColor,
+                            shadow = textShadow,
+                            useOutline = useSubtleOutline,
+                            textAlign = TextAlign.Center
+                        )
+                        if (showSecondary && !secondaryText.isNullOrEmpty()) {
+                            Spacer(Modifier.height(sideSecondarySpacing))
+                            FloatingStyledText(
+                                text = secondaryText,
+                                fontSize = sideSecondaryFontSize,
+                                fontFamily = fontFamily,
+                                fontWeight = fontWeight,
+                                textColor = finalTextColor.copy(alpha = 0.7f),
+                                outlineColor = textOutlineColor,
+                                shadow = textShadow,
+                                useOutline = useSubtleOutline,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FloatingStyledText(
+                            text = dvs.primaryStr,
+                            fontSize = fontSize,
+                            fontFamily = fontFamily,
+                            fontWeight = fontWeight,
+                            textColor = finalTextColor,
+                            outlineColor = textOutlineColor,
+                            shadow = textShadow,
+                            useOutline = useSubtleOutline,
+                            textAlign = TextAlign.End
+                        )
+                        if (showSecondary && !secondaryText.isNullOrEmpty()) {
+                            Spacer(Modifier.width(inlineSpacing))
+                            FloatingStyledText(
+                                text = secondaryText,
+                                fontSize = fontSize * 0.7f,
+                                fontFamily = fontFamily,
+                                fontWeight = fontWeight,
+                                textColor = finalTextColor.copy(alpha = 0.7f),
+                                outlineColor = textOutlineColor,
+                                shadow = textShadow,
+                                useOutline = useSubtleOutline
+                            )
+                        }
+                    }
+                }
+                val deltaText = overlayDeltaText(readings, showDelta, requestedSensorId, deltaIntervalMinutes, freshnessNow)
+                if (deltaText.isNotEmpty()) {
                     FloatingStyledText(
-                        text = dvs.primaryStr,
-                        fontSize = fontSize,
+                        text = "Δ " + deltaText,
+                        fontSize = fontSize * 0.65f,
                         fontFamily = fontFamily,
                         fontWeight = fontWeight,
                         textColor = finalTextColor,
@@ -324,47 +384,6 @@ fun FloatingGlucoseOverlay(
                         useOutline = useSubtleOutline,
                         textAlign = TextAlign.Center
                     )
-                    if (showSecondary && !secondaryText.isNullOrEmpty()) {
-                        Spacer(Modifier.height(sideSecondarySpacing))
-                        FloatingStyledText(
-                            text = secondaryText,
-                            fontSize = sideSecondaryFontSize,
-                            fontFamily = fontFamily,
-                            fontWeight = fontWeight,
-                            textColor = finalTextColor.copy(alpha = 0.7f),
-                            outlineColor = textOutlineColor,
-                            shadow = textShadow,
-                            useOutline = useSubtleOutline,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    FloatingStyledText(
-                        text = dvs.primaryStr,
-                        fontSize = fontSize,
-                        fontFamily = fontFamily,
-                        fontWeight = fontWeight,
-                        textColor = finalTextColor,
-                        outlineColor = textOutlineColor,
-                        shadow = textShadow,
-                        useOutline = useSubtleOutline,
-                        textAlign = TextAlign.End
-                    )
-                    if (showSecondary && !secondaryText.isNullOrEmpty()) {
-                        Spacer(Modifier.width(inlineSpacing))
-                        FloatingStyledText(
-                            text = secondaryText,
-                            fontSize = fontSize * 0.7f,
-                            fontFamily = fontFamily,
-                            fontWeight = fontWeight,
-                            textColor = finalTextColor.copy(alpha = 0.7f),
-                            outlineColor = textOutlineColor,
-                            shadow = textShadow,
-                            useOutline = useSubtleOutline
-                        )
-                    }
                 }
             }
         } else {

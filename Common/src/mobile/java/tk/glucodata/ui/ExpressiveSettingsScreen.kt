@@ -1639,6 +1639,7 @@ private fun LanguagePickerDialog(onDismiss: () -> Unit) {
         "Russian" to "ru",
         "Swedish" to "sv",
         "Somali" to "so",
+        stringResource(R.string.spanish) to "es",
         "Turkish" to "tr",
         "Ukrainian" to "uk",
         "Mongolian" to "mn",

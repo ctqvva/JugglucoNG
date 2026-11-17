@@ -947,6 +947,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="status_bluetooth_off">Bluetooth kikapcsolva</string>
     <string name="status_connection_failed">Sikertelen kapcsolódás</string>
     <string name="status_connected">Csatlakoztatva</string>
+    <string name="sensor_error">Szenzorhiba</string>
+    <string name="sensor_replace">Cserélje a szenzort</string>
+    <string name="sensor_ended">A szenzor lejárt</string>
+    <string name="sensor_warming_up">Bemelegedés</string>
+    <string name="sensor_error_code">Szenzor hibakód</string>
     <string name="status_disconnected">Leválasztva</string>
     <string name="status_waiting_for_data">Csatlakoztatva, várakozás az adatokra...</string>
     <string name="status_raw_values_received">Csatlakoztatva, nyers értékek fogadva</string>
@@ -2085,6 +2090,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_type_temp_basal">Ideiglenes bázis</string>
     <string name="journal_dashboard_types_title">Megjelenítés a főképernyőn</string>
     <string name="journal_dashboard_types_desc">A rejtett bejegyzések csak a fő grafikonról és az értéklistáról tűnnek el. Az IOB, a COB, az előrejelzés és az adagjavaslatok továbbra is számolnak velük.</string>
+    <string name="journal_entry_types_order_desc">A + menü és a diagram hozzáadás menüje ebben a sorrendben mutatja őket. Áthelyezéshez húzza a fogantyút.</string>
     <string name="journal_import_health_activity_desc">Edzések és lépések hozzáadása a naplóhoz</string>
     <string name="journal_section_main_screen">Főképernyő</string>
     <string name="journal_section_dosing">Adagolás</string>
@@ -2116,6 +2122,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="notification_show_cob_title">Felszívódó szénhidrát</string>
     <string name="notification_show_cob_desc">A napló COB értékének megjelenítése az állapotsorban</string>
     <string name="notification_show_delta_title">Változás a nyíl mellett</string>
+    <string name="display_show_delta_title">Delta (Δ) megjelenítése</string>
+    <string name="widget_show_delta_title">Modulok deltája (Δ)</string>
     <string name="notification_show_delta_desc">Mért változás megjelenítése a trendnyíl mellett</string>
     <string name="notification_show_delta_minutes_desc">%1$d perces változás megjelenítése a trendnyíl mellett</string>
     <string name="dashboard_show_delta_title">Változás az áttekintőn</string>
@@ -3461,4 +3469,5 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="libre3_status_identity_missing">Nincs importált Libre 3 alkalmazásazonosság</string>
     <string name="libre3_status_identity_rejected">A szenzor nem fogadta el az alkalmazásazonosságot</string>
     <string name="libre3_managed_receiver_save_failed">Nem sikerült menteni a vevőazonosítót. Ellenőrizze az eszköz tárhelyét, majd próbálja újra. Az NFC-párosítás az azonosító mentéséig le van tiltva.</string>
+    <string name="spanish">Spanyol</string>
 </resources>

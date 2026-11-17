@@ -1002,6 +1002,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="status_bluetooth_off">Bluetooth dansan</string>
     <string name="status_connection_failed">Xidhiidhku wuu fashilmay</string>
     <string name="status_connected">Ku xidhan</string>
+    <string name="sensor_error">Khalad sensor</string>
+    <string name="sensor_replace">Beddel sensor</string>
+    <string name="sensor_ended">Sensor-ku wuu dhamaaday</string>
+    <string name="sensor_warming_up">Diirimaad</string>
+    <string name="sensor_error_code">Lambarka khaladka sensor-ka</string>
     <string name="status_disconnected">Go\'ay</string>
     <string name="status_waiting_for_data">Ku xidhan, sugitaanka xogta…</string>
     <string name="status_raw_values_received">Ku xidhan, qiyam cayriin ayaa la helay</string>
@@ -1949,6 +1954,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_type_temp_basal">Basal ku meel gaar ah</string>
     <string name="journal_dashboard_types_title">Ku muuji shaashadda hore</string>
     <string name="journal_dashboard_types_desc">Gelinnada la qariyay waxay ka baxaan oo keliya shaxda weyn iyo liiska akhrisyada. Weli waa lagu xisaabiyaa IOB, COB, saadaasha iyo talooyinka qiyaasta.</string>
+    <string name="journal_entry_types_order_desc">Liiska + iyo liiska ku darista jaantuska waxay u muujiyaan sidan. Jiid gacanta si aad mid u guuriso.</string>
     <string name="journal_import_health_activity_desc">Ku dar jimicsiga iyo tallaabooyinka joornaalka</string>
     <string name="journal_section_main_screen">Shaashadda hore</string>
     <string name="journal_section_dosing">Qiyaasta</string>
@@ -2428,6 +2434,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="glucose_palette_title">Midabada gulukooska</string>
     <string name="notification_show_delta_desc">Isbeddel lagu qiyaasay inta u dhexaysa delta, ee ku xigta falaarta</string>
     <string name="notification_show_delta_title">Muuji delta (Δ)</string>
+    <string name="display_show_delta_title">Muuji delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta ee widget-yada (Δ)</string>
     <string name="rising_fast_explanation">Ka digaya ka dib %1$d isku xigta ee %2$d-daqiiqo mid walba wuxuu kor u kacayaa ugu yaraan %3$s (≈ %4$d daqiqo koror joogta ah) halka qiimuhu uu joogo ama ka sarreeyo %5$s. Ma jirto saadaal, kaliya isbeddelka cayriin.</string>
     <string name="sensor_expiry_warnings_desc">Waqti kasta oo la doortay wuxuu ka digayaa hal mar dareeme kasta</string>
     <string name="sensor_expiry_warnings_title">Ka dig inta aanu dhicin</string>
@@ -3577,4 +3585,5 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="libre3_status_identity_missing">Aqoonsiga abka Libre 3 lama soo gelin</string>
     <string name="libre3_status_identity_rejected">Dareemuhu ma aqbalin aqoonsiga abka</string>
     <string name="libre3_managed_receiver_save_failed">Aqoonsiga qaataha lama kaydin karin. Hubi kaydka qalabka oo mar kale isku day. Isku xirka NFC waa xanniban yahay ilaa aqoonsiga la kaydiyo.</string>
+    <string name="spanish">Isbaanish</string>
 </resources>

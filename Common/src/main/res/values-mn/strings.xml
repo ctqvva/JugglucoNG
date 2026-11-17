@@ -926,6 +926,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="status_bluetooth_off">Bluetooth унтраалттай</string>
     <string name="status_connection_failed">Холболт амжилтгүй</string>
     <string name="status_connected">Холбогдсон</string>
+    <string name="sensor_error">Мэдрэгчийн алдаа</string>
+    <string name="sensor_replace">Мэдрэгчийг солих</string>
+    <string name="sensor_ended">Мэдрэгч дууссан</string>
+    <string name="sensor_warming_up">Халааж байна</string>
+    <string name="sensor_error_code">Мэдрэгчийн алдааны код</string>
     <string name="status_disconnected">Салсан</string>
     <string name="status_waiting_for_data">Холбогдсон, өгөгдөл хүлээж байна…</string>
     <string name="status_raw_values_received">Холбогдсон, түүхий утгууд хүлээн авлаа</string>
@@ -1726,6 +1731,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_type_temp_basal">Түр зуурын базал</string>
     <string name="journal_dashboard_types_title">Үндсэн дэлгэц дээр харуулах</string>
     <string name="journal_dashboard_types_desc">Нуусан бичлэгүүд зөвхөн үндсэн график болон хэмжилтийн жагсаалтаас алга болно. IOB, COB, таамаглал, тунгийн зөвлөмжид тооцогдсоор байна.</string>
+    <string name="journal_entry_types_order_desc">+ цэс болон графикийн нэмэх цэс эдгээрийг энэ дарааллаар харуулна. Зөөхийн тулд бариулаас чирнэ үү.</string>
     <string name="journal_import_health_activity_desc">Дасгал болон алхмыг журналд нэмэх</string>
     <string name="journal_section_main_screen">Үндсэн дэлгэц</string>
     <string name="journal_section_dosing">Тун</string>
@@ -2341,6 +2347,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucose_palette_title">Глюкозын өнгө</string>
     <string name="notification_show_delta_desc">Сумны хажууд байрлах гурвалжин интервал дээрх хэмжсэн өөрчлөлт</string>
     <string name="notification_show_delta_title">Дельта (Δ) харуулах</string>
+    <string name="display_show_delta_title">Дельта (Δ) харуулах</string>
+    <string name="widget_show_delta_title">Вижетийн дельта (Δ)</string>
     <string name="rising_fast_explanation">%1$d дараалсан %2$d-минутын интервал бүр дор хаяж %3$s (≈ %4$d мин тасралтгүй өсөлт) %5$s буюу түүнээс дээш байх үед анхааруулдаг. Урьдчилан таамаглаагүй, зүгээр л түүхий чиг хандлага.</string>
     <string name="sensor_expiry_warnings_desc">Сонгосон цаг бүр мэдрэгч бүрт нэг удаа анхааруулдаг</string>
     <string name="sensor_expiry_warnings_title">Хугацаа дуусахаас өмнө анхааруул</string>
@@ -3493,4 +3501,5 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="libre3_status_identity_missing">Libre 3 аппын таних мэдээлэл импортлоогүй</string>
     <string name="libre3_status_identity_rejected">Мэдрэгч аппын таних мэдээллийг зөвшөөрсөнгүй</string>
     <string name="libre3_managed_receiver_save_failed">Хүлээн авагчийн ID-г хадгалж чадсангүй. Төхөөрөмжийн санах ойг шалгаад дахин оролдоно уу. ID хадгалагдах хүртэл NFC холболт хаалттай байна.</string>
+    <string name="spanish">Испани</string>
 </resources>

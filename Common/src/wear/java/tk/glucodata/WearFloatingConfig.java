@@ -175,6 +175,13 @@ static public int    getcolor() {
    backgroundview.setIncludeFontPadding(false);
 
 
+    final var deltaPrefs = act.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE);
+    var deltaShow = getcheckbox(act, R.string.display_show_delta_title,
+            deltaPrefs.getBoolean(DisplayDeltaSource.FLOATING_ENABLED, false));
+    deltaShow.setOnCheckedChangeListener((buttonView, isChecked) -> {
+        deltaPrefs.edit().putBoolean(DisplayDeltaSource.FLOATING_ENABLED, isChecked).apply();
+        rewritefloating(act);
+    });
     var timeshow=getcheckbox(act,R.string.time,Floating.showtime);
     timeshow.setOnCheckedChangeListener( (buttonView,  isChecked) -> {
         Floating.showtime=isChecked;
@@ -205,7 +212,7 @@ static public int    getcolor() {
 //    getMargins(hide).rightMargin=(int)(GlucoseCurve.getwidth()*0.08f);
    if(!useCloseButton())
       close.setVisibility(GONE);
-    Layout layout=new Layout(act,(l,w,h)-> { return new int[] {w,h}; },new View[]{touchable},new View[]{sizelabel},new View[]{ fontsizeview}, new View[]{foreground,backgroundview},new View[]{timeshow,hide},new View[]{transparentview},new View[]{close});
+    Layout layout=new Layout(act,(l,w,h)-> { return new int[] {w,h}; },new View[]{touchable},new View[]{sizelabel},new View[]{ fontsizeview}, new View[]{foreground,backgroundview},new View[]{timeshow,hide},new View[]{deltaShow},new View[]{transparentview},new View[]{close});
    int pad3=(int)(tk.glucodata.GlucoseCurve.metrics.density*5.0);
     layout.setPadding(pad3,pad3,pad3,pad3*2);
     transparentview.setOnCheckedChangeListener( (buttonView,  isChecked) -> {
