@@ -191,11 +191,16 @@ extern int saveScanTrend(const nfcdata *nfcptr,time_t nutime,int nuid, SensorGlu
 Abbott::scanresult_t Abbott::ProcessOne(scandata *data) {
     // A known sensor rebuilds a missing or unusable state from NFC and the saved start time.
     // A first scan initializes below.
-    if(state&&!state->good()) {
+    const bool hadState=state&&state->good();
+    if(!hadState) {
         delete state;
         state=nullptr;
         }
-    if(hist&&hist->getstarttime()>basesecs)return callAbbottAlg(data);
+    if(hist&&hist->getstarttime()>basesecs) {
+        const auto res=callAbbottAlg(data);
+        stateRebuilt=!hadState&&state&&state->good();
+        return res;
+        }
     if(!state||!state->good()) {
         delete state;
         state=initnewsensor( data) ;
@@ -236,13 +241,8 @@ scanstate *Abbott::initnewsensor( scandata *data) {
         }
     else {
         const char *infodata=(const char *)data->info->data();
-        uint32_t bluestart;
-        scanstate astate;
-        if(getStreamingPayload(&astate,uid, data->info, start)) {
-                bluestart=0;
-                }
-            else
-                bluestart=SensorGlucoseData:: bluestartunknown;
+        // Gen2 has no first-generation enable payload, so ask the backend directly.
+        const uint32_t bluestart=libre2_imp::bluetooth_supported(data->info)?0:SensorGlucoseData:: bluestartunknown;
         SensorGlucoseData::mkdatabase(sensordir,start,(const char *)uid->data(),infodata,&times,3,bluestart,nullptr) ;
         int ind=sensors->addsensor(serial.data());
 
@@ -574,15 +574,23 @@ extern "C" JNIEXPORT void JNICALL   fromjava(enabledStreaming)(JNIEnv *envin, jc
         sendstreaming(hist);
         }
     }
-extern "C" JNIEXPORT void JNICALL   fromjava(USenabledStreaming)(JNIEnv *envin, jclass cl,jbyteArray sensorident,jbyteArray jauth,jbyteArray address) {
+// Saves the Gen2 BLE address and provisioning record. The family, and with it the serial, comes
+// from the patch info as in the scan, so the record lands on the scanned sensor.
+extern "C" JNIEXPORT jboolean JNICALL   fromjava(USenabledStreaming)(JNIEnv *envin, jclass cl,jbyteArray sensorident,jbyteArray patchinfo,jbyteArray jauth,jbyteArray address) {
     const char uslog[]="USenabledStreaming";
     setthreadname(uslog );
     LOGGERN(uslog,sizeof(uslog)-1);
-    const int fam=3;
+    if(!sensorident||envin->GetArrayLength(sensorident)!=8||!patchinfo||envin->GetArrayLength(patchinfo)!=6)
+        return JNI_FALSE;
+    const int fam=libre2_imp::family(envin, cl, parsertype, patchinfo,nullptr);
+    if(!fam)
+        return JNI_FALSE;
     const data_t *uid=fromjbyteArray(envin,sensorident);
     destruct _dest([uid] {data_t::deleteex(uid);});
     string serial=getserial(fam,reinterpret_cast<const unsigned char *>(uid->data()));
     if(SensorGlucoseData *hist=sensors->getSensorData(serial.data())) {
+        if(!hist->hasbluetooth())
+            hist->getinfo()->bluestart=0;
         hist->setbluetoothOn( 1); 
         setDeviceAddressB(envin,hist,address);
         hist->setsensorgen();
@@ -595,6 +603,9 @@ extern "C" JNIEXPORT void JNICALL   fromjava(USenabledStreaming)(JNIEnv *envin, 
             }
         setbluetoothon=false;
         sendstreaming(hist);
+        return JNI_TRUE;
         }
+    LOGGER("USenabledStreaming: no sensor %s\n",serial.data());
+    return JNI_FALSE;
     }
 

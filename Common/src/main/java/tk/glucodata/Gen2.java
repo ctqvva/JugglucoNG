@@ -59,12 +59,12 @@ static boolean activate(final Tag tag) {
 	return false;
 	}
 
-static boolean gen2enablestreaming(final Tag tag) {
+static boolean gen2enablestreaming(final Tag tag, final byte[] info) {
 	try {
 		byte[] uid=tag.getId();
 		final NfcV nfc = NfcV.get(tag);
 		nfc.connect();
-		boolean res=Libre2ManagedDriver.gen2EnableStreaming(nfc, uid);
+		boolean res=Libre2ManagedDriver.gen2EnableStreaming(nfc, uid, info);
 		nfc.close();
 		return res;
 		}

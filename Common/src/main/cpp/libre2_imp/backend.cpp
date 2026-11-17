@@ -85,9 +85,11 @@ AlgorithmResults *results(const ar::PersistentState&state,ResultKind kind=Result
         if(pending)h->push_back(new GlucoseValue{r.history[count-1].minute+15,0x8000,0});
     }
     GlucoseValue value{initial?0:r.minute,initial?0x8000:r.quality,initial?0:r.glucose};
-    // The public native result uses hundredths, with zero for a missing rate.
-    const float rate=initial||r.rate_quality?0.f:float(r.rate_hundredths)/100.f;
-    return new AlgorithmResults{.hist=h,.glu=new GlucoseNow(&value,initial?0:r.trend,rate),
+    // The public native result uses hundredths. JugglucoNG: an unreliable rate is unknown (NaN,
+    // trend 0), not a steady 0 with a STABLE arrow.
+    const bool rate_known=!initial&&!r.rate_quality;
+    const float rate=rate_known?float(r.rate_hundredths)/100.f:NAN;
+    return new AlgorithmResults{.hist=h,.glu=new GlucoseNow(&value,rate_known?r.trend:0,rate),
         .alarm=initial?0:int(r.range_category),.isActionable=JNI_FALSE,.esaMinutesToWait=0,.lsaDetected=JNI_FALSE,.inserted=true,.removed=false};
 }
 }

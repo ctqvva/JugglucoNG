@@ -709,7 +709,8 @@ public class Natives {
 
         public static native int getLibreVersion(long dataptr);
 
-        public static native void USenabledStreaming(byte[] sensorident, byte[] jauth, byte[] address);
+        /** Saves the Gen2 BLE address and provisioning record; false when no scanned sensor matches. */
+        public static native boolean USenabledStreaming(byte[] sensorident, byte[] patchinfo, byte[] jauth, byte[] address);
 
         public static native strGlucose lastglucose();
         /** Latest valid stream reading for this sensor only; never falls back to a peer. */

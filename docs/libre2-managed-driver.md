@@ -31,14 +31,20 @@ touches either Libre 3 path.
 - The open backend reads the algorithm state the vendor library saved, when its layout and
   wear length match. Streaming continues without a scan.
 - A state it cannot use is rebuilt at the next NFC scan from the sensor memory and the saved
-  start time. BLE frames wait for that scan.
+  start time. BLE frames wait for that scan. When the state was missing altogether no BLE
+  stream existed, so that scan also restarts Bluetooth with the saved login record.
+- A saved state whose offsets point outside the file is treated as missing.
 - The open backend marks each state it saves (flag slot = 2, `libre2_imp::open_backend_state`),
   so a copy on a watch or mirror carries its owner. Update the phone and the watch together:
   a build older than this change would hand that state to the vendor library.
 - The vendor library's end-of-wear workaround is gone: no artificial restart in the last hour,
   and the stream no longer moves the start time by a day near the end of wear.
 
-The glucose values of the open backend can differ from the vendor library's.
+The glucose values of the open backend can differ from the vendor library's. When it marks the
+rate of change unreliable, the rate is reported as unknown and no trend arrow is shown.
+
+An NFC scan the backend cannot process asks for activation only when the data shows a verified,
+not yet started sensor (phase, checksums, ring pointers and age 0).
 
 ## Evidence
 

@@ -54,6 +54,7 @@ sighandler_t bsd_signal(int signum, sighandler_t handler);
 #include "fromjava.h"
 #include "inout.hpp"
 #include "libre2.hpp"
+#include "libre2_imp/backend.hpp"
 #include "logs.hpp"
 #include "serial.hpp"
 #include "streamdata.hpp"
@@ -320,6 +321,12 @@ extern "C" JNIEXPORT jint JNICALL fromjava(nfcdata)(JNIEnv *env, jclass thiz,
             backup->resensordata(ab.sensorindex);
             return 8 << 16 | gluval;
           }
+          if (ab.stateRebuilt) {
+            // Without a usable state no BLE stream was created for this sensor; restart it
+            // with the saved provisioning now that the scan rebuilt the state.
+            LOGAR("state rebuilt, reset BLE");
+            return 9 << 16 | gluval;
+          }
           return gluval;
         }
         const int min = datptr->getSensorAgeInMinutes();
@@ -373,7 +380,9 @@ extern "C" JNIEXPORT jint JNICALL fromjava(nfcdata)(JNIEnv *env, jclass thiz,
       ret = 4 << 16;
     } else {
       LOGAR("alg==null");
-      if (datptr->getSensorAgeInMinutes() == 0)
+      // Only a verified, not yet started sensor (phase, checksums, ring pointers, age 0) is
+      // activated; a zero age in unreadable data is not enough.
+      if (libre2_imp::needs_activation(datptr->data))
         ret = 3 << 16;
     }
   }

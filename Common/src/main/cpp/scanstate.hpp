@@ -70,10 +70,13 @@ class multimmap {
             return nullptr;
         if(!map.data())
             return nullptr;
-        int pos=datpos(datnr);
-//        if(pos<datastart()) return nullptr;
+        // The offsets come from a file; never follow one outside the mapping.
+        const size_t size=map.count();
+        const int pos=datpos(datnr);
+        if(pos<datastart()||size_t(pos)+sizeof(data_t)>size)
+            return nullptr;
         data_t *dat=reinterpret_cast<data_t*>(map.data()+pos);
-        if(dat->len>0)
+        if(dat->len>0&&size_t(dat->len)<=size-size_t(pos)-sizeof(data_t))
             return dat;    
         return nullptr;
         }

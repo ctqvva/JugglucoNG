@@ -79,6 +79,8 @@ struct scanresult_t {
 	const ScanData *scan;
     } ;
 string serial;
+// Set when a scan rebuilt a missing or unusable saved state of a known sensor.
+bool stateRebuilt=false;
 int sensorindex=sensors->sensorindex(serial.data());
 SensorGlucoseData *hist=sensorindex<0?nullptr:sensors->getSensorData(sensorindex);
 
