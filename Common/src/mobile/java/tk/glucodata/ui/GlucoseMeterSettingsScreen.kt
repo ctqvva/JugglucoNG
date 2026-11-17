@@ -14,30 +14,34 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -45,6 +49,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +58,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -61,6 +67,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -78,7 +85,7 @@ import tk.glucodata.glucosemeter.MeterNames
 import tk.glucodata.glucosemeter.MeterSyncPacing
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
-import tk.glucodata.ui.components.IconButtonTooltip
+import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsChoice
 import tk.glucodata.ui.components.SettingsControlsCard
@@ -111,6 +118,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
     var pendingSatellite by remember { mutableStateOf<NearbyGlucoseMeter?>(null) }
     var pendingForget by remember { mutableStateOf<GlucoseMeterSnapshot?>(null) }
     var editingIndex by remember { mutableStateOf<Int?>(null) }
+    var nowMinute by remember { mutableStateOf(System.currentTimeMillis() / 60_000L) }
     val editing = meters.firstOrNull { it.index == editingIndex }
     // Whether a search has run to its end, so "nothing found" is not said before one.
     var scanned by remember { mutableStateOf(false) }
@@ -129,6 +137,9 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
                 meters = GlucoseMeterManager.configuredMeters()
+                // The meters rarely change between polls, so the "3 minutes ago" on their
+                // rows needs a clock of its own to move; a minute is all it shows.
+                nowMinute = System.currentTimeMillis() / 60_000L
                 delay(2_000L)
             }
         }
@@ -272,8 +283,10 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
         MeterDetailSheet(
             meter = meter,
             onDismiss = { editingIndex = null },
-            onRename = { name ->
+            satelliteCode = GlucoseMeterManager.satelliteCode().takeIf { meter.needsSatelliteCode },
+            onSave = { name, code ->
                 GlucoseMeterManager.rename(meter, name)
+                if (code != null) GlucoseMeterManager.updateSatelliteCode(code)
                 meters = GlucoseMeterManager.configuredMeters()
                 editingIndex = null
             },
@@ -310,6 +323,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
     ) { padding ->
         GlucoseMeterSettingsContent(
             meters = meters,
+            nowMillis = nowMinute * 60_000L,
             nearbyMeters = nearbyMeters,
             otherDevices = otherDevices,
             scanning = scanning,
@@ -347,6 +361,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
 @Composable
 internal fun GlucoseMeterSettingsContent(
     meters: List<GlucoseMeterSnapshot>,
+    nowMillis: Long,
     nearbyMeters: List<NearbyGlucoseMeter>,
     otherDevices: List<NearbyGlucoseMeter>,
     scanning: Boolean,
@@ -391,7 +406,7 @@ internal fun GlucoseMeterSettingsContent(
             itemsIndexed(meters, key = { _, meter -> meter.index }) { index, meter ->
                 SettingsNavSwitchItem(
                     title = meter.name,
-                    subtitle = meterRowSubtitle(meter),
+                    subtitle = meterRowSubtitle(meter, nowMillis),
                     checked = meter.active,
                     onCheckedChange = { enabled -> onMeterEnabled(meter, enabled) },
                     onClick = { onMeterClick(meter) },
@@ -520,9 +535,9 @@ internal fun GlucoseMeterSettingsContent(
  * need no words: the switch already says them.
  */
 @Composable
-private fun meterRowSubtitle(meter: GlucoseMeterSnapshot): String {
+private fun meterRowSubtitle(meter: GlucoseMeterSnapshot, nowMillis: Long): String {
     val lastReading = if (meter.lastReadingAt > 0L) {
-        stringResource(R.string.glucose_meter_last_reading, readingTimeText(meter.lastReadingAt))
+        stringResource(R.string.glucose_meter_last_reading, readingTimeText(meter.lastReadingAt, nowMillis))
     } else {
         stringResource(R.string.glucose_meter_no_readings)
     }
@@ -534,9 +549,10 @@ private fun meterRowSubtitle(meter: GlucoseMeterSnapshot): String {
 }
 
 /** "3 hours ago" within the week, a date after it. */
-private fun readingTimeText(timeMillis: Long): String = DateUtils.getRelativeTimeSpanString(
+private fun readingTimeText(timeMillis: Long, nowMillis: Long): String = DateUtils.getRelativeTimeSpanString(
     timeMillis,
-    System.currentTimeMillis(),
+    // The clock ticks in whole minutes, so a reading from this minute is not "in the future".
+    maxOf(nowMillis, timeMillis),
     DateUtils.MINUTE_IN_MILLIS,
     DateUtils.FORMAT_ABBREV_MONTH,
 ).toString()
@@ -551,7 +567,7 @@ private fun MeterCaption(text: String, top: Dp = 8.dp) {
     )
 }
 
-/** A device the scan found: what it is, and the one thing to do with it. */
+/** A device the scan found. The whole row connects it, as every row on this screen acts. */
 @Composable
 private fun NearbyDeviceRow(
     candidate: NearbyGlucoseMeter,
@@ -568,84 +584,140 @@ private fun NearbyDeviceRow(
         iconTint = iconTint,
         position = position,
         modifier = modifier,
+        onClick = onPair,
         trailingContent = {
-            // An icon, not a label: beside a labelled button a name like SatelliteOnline2738
-            // breaks in two on a phone.
-            val connect = stringResource(R.string.mirror_connect_action)
-            IconButtonTooltip(connect) {
-                FilledTonalIconButton(onClick = onPair, shapes = IconButtonDefaults.shapes()) {
-                    Icon(Icons.Filled.Add, contentDescription = connect)
-                }
-            }
+            Icon(
+                Icons.Filled.Add,
+                contentDescription = stringResource(R.string.mirror_connect_action),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         },
     )
 }
 
 /**
- * A meter has a name to give it and a way out when it is no longer used, so its row opens a
- * sheet, the way a pen's does.
+ * A meter's own sheet, built as the app's other editors are (food, insulin preset): the name
+ * as the title with the way out beside it, the fields, then Save. A Satellite also keeps its
+ * code here, so a wrong one can be corrected without pairing the meter again.
  */
 @Composable
 private fun MeterDetailSheet(
     meter: GlucoseMeterSnapshot,
+    satelliteCode: String?,
     onDismiss: () -> Unit,
-    onRename: (String) -> Unit,
+    onSave: (name: String, satelliteCode: String?) -> Unit,
     onForget: () -> Unit,
 ) {
-    val stored = if (meter.name == meter.deviceName) "" else meter.name
-    var name by remember(meter.index) { mutableStateOf(stored) }
-    val changed = MeterNames.clean(name) != stored
-    StableModalBottomSheet(onDismissRequest = onDismiss, adaptiveHeight = true) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
-            Text(meter.name, style = MaterialTheme.typography.titleLargeEmphasized)
-            Spacer(Modifier.size(4.dp))
-            Text(
-                listOfNotNull(meter.deviceName.takeIf { it != meter.name }, meter.address)
-                    .joinToString(" \u00b7 ")
-                    .ifEmpty { meterRowSubtitle(meter) },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    StableModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { CompactSheetDragHandle() },
+    ) {
+        MeterDetailForm(meter, satelliteCode, onDismiss, onSave, onForget, Modifier.imePadding())
+    }
+}
 
-            Spacer(Modifier.size(16.dp))
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it.replace('\n', ' ').take(MeterNames.MAX_LENGTH) },
-                label = { Text(stringResource(R.string.glucose_meter_name)) },
-                placeholder = { Text(meter.deviceName) },
-                supportingText = { Text(stringResource(R.string.glucose_meter_name_hint)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Words,
-                    imeAction = ImeAction.Done,
-                ),
-                keyboardActions = KeyboardActions(onDone = { if (changed) onRename(name) else onDismiss() }),
-                modifier = Modifier.fillMaxWidth(),
-            )
+/** The sheet's content, apart from the sheet it is shown in. */
+@Composable
+internal fun MeterDetailForm(
+    meter: GlucoseMeterSnapshot,
+    satelliteCode: String?,
+    onDismiss: () -> Unit,
+    onSave: (name: String, satelliteCode: String?) -> Unit,
+    onForget: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val storedName = if (meter.name == meter.deviceName) "" else meter.name
+    var name by remember(meter.index) { mutableStateOf(storedName) }
+    var code by remember(meter.index) { mutableStateOf(satelliteCode.orEmpty()) }
+    val codeChanged = satelliteCode != null && code != satelliteCode
+    val codeValid = !codeChanged || GlucoseMeterManager.isSatelliteCodeValid(code)
+    val canSave = (MeterNames.clean(name) != storedName || codeChanged) && codeValid
+    val save = { onSave(name, code.takeIf { codeChanged }) }
 
-            Spacer(Modifier.size(16.dp))
-            Button(
-                onClick = { onRename(name) },
-                enabled = changed,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.ContentPadding,
-            ) {
-                Text(stringResource(R.string.save))
-            }
-
-            Spacer(Modifier.size(8.dp))
-            TextButton(
-                onClick = onForget,
-                modifier = Modifier.fillMaxWidth(),
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.TextButtonContentPadding,
-            ) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 24.dp, top = 4.dp, end = 24.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    stringResource(R.string.glucose_meter_forget_title),
-                    color = MaterialTheme.colorScheme.error,
+                    meter.name,
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                val identity = listOfNotNull(meter.deviceName.takeIf { it != meter.name }, meter.address)
+                if (identity.isNotEmpty()) {
+                    Text(
+                        identity.joinToString(" \u00b7 "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
+            Spacer(Modifier.width(12.dp))
+            FilledTonalButton(
+                onClick = onForget,
+                modifier = Modifier.heightIn(min = 40.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
+                shapes = ButtonDefaults.shapes(),
+            ) {
+                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.glucose_meter_forget))
+            }
+        }
+
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it.replace('\n', ' ').take(MeterNames.MAX_LENGTH) },
+            label = { Text(stringResource(R.string.glucose_meter_name)) },
+            placeholder = { Text(meter.deviceName) },
+            supportingText = { Text(stringResource(R.string.glucose_meter_name_hint)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = if (satelliteCode != null) ImeAction.Next else ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { if (canSave) save() else onDismiss() }),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        if (satelliteCode != null) {
+            OutlinedTextField(
+                value = code,
+                onValueChange = { value ->
+                    code = value.filter(Char::isLetterOrDigit).take(32).uppercase(Locale.US)
+                },
+                label = { Text(stringResource(R.string.satellite_meter_code_label)) },
+                singleLine = true,
+                isError = code.isNotEmpty() && !GlucoseMeterManager.isSatelliteCodeValid(code),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (canSave) save() else onDismiss() }),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        Button(
+            onClick = save,
+            enabled = canSave,
+            modifier = Modifier.fillMaxWidth(),
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.ContentPadding,
+        ) {
+            Text(stringResource(R.string.save))
         }
     }
 }

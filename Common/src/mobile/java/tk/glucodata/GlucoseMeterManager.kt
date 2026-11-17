@@ -27,6 +27,8 @@ data class GlucoseMeterSnapshot(
     val lastReadingAt: Long,
     /** Never sleeps, so the recheck interval applies to it (the Satellite). */
     val staysOn: Boolean,
+    /** A Satellite, which is read with the code printed on it. */
+    val needsSatelliteCode: Boolean = false,
 )
 
 /** Compose-facing facade over the legacy, protocol-capable glucose meter runtime. */
@@ -134,6 +136,7 @@ object GlucoseMeterManager {
             lastReadingAt = Natives.GlucoseMeterGetLastTime(index),
             // The name before the first link; what the link found after it.
             staysOn = name.startsWith("Satellite", ignoreCase = true) || gatt?.staysOn() == true,
+            needsSatelliteCode = name.startsWith("Satellite", ignoreCase = true) || gatt?.staysOn() == true,
         )
     }
 }
