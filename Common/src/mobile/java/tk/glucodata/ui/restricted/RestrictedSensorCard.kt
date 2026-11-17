@@ -2,15 +2,20 @@
 
 package tk.glucodata.ui.restricted
 
+import android.content.Context
+import android.icu.text.MeasureFormat
+import android.icu.util.Measure
+import android.icu.util.MeasureUnit
 import android.text.format.DateUtils
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -38,15 +43,29 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import java.util.Locale
 import tk.glucodata.R
 import tk.glucodata.SensorVendor
 import tk.glucodata.drivers.ManagedSensorStatusPolicy
@@ -78,9 +97,17 @@ internal class SensorLife(
     val overrun: Boolean,
 )
 
+/** WCAG contrast ratio between two opaque colours. */
+private fun contrastRatio(a: Color, b: Color): Float {
+    val (light, dark) = a.luminance().let { la -> b.luminance().let { lb -> if (la > lb) la to lb else lb to la } }
+    return (light + 0.05f) / (dark + 0.05f)
+}
+
 /** Null when the start is unset or bogus: nothing about the wear is known then. */
 @Composable
 internal fun sensorLife(sensor: SensorInfo): SensorLife? {
+    // Before the ticker: a card with nothing to show about the wear has no reason to wake.
+    if (sensor.startMs <= PLAUSIBLE_START_MS) return null
     // Ticks each minute, so the fill, the day and the time left move on without a reading.
     val now by produceState(System.currentTimeMillis()) {
         while (true) {
@@ -88,7 +115,6 @@ internal fun sensorLife(sensor: SensorInfo): SensorLife? {
             value = System.currentTimeMillis()
         }
     }
-    if (sensor.startMs <= PLAUSIBLE_START_MS) return null
     val endMs = sensor.lifetimeEndMs()
     // The dashboard's rule: an Anytime CT5's expected end is advisory, and it keeps running.
     val allowOverrun = sensor.isAnytime && sensor.expectedEndMs > 0L && !sensor.isSensorExpired
@@ -101,14 +127,23 @@ internal fun sensorLife(sensor: SensorInfo): SensorLife? {
     )
     val scheme = MaterialTheme.colorScheme
     val isExpiring = lifecycle.progress > 0.90f
+    val container = if (isExpiring) {
+        scheme.tertiaryContainer
+    } else {
+        scheme.primaryContainer.copy(alpha = 0.4f).compositeOver(scheme.background)
+    }
+    // The 40% tone is no longer primaryContainer, so its "on" colour is not guaranteed to read
+    // on it: a vivid dynamic scheme leaves it mid-toned with a dark onPrimaryContainer. Take
+    // whichever of that and onSurface stands out more from the tone actually drawn.
+    val content = if (isExpiring) {
+        scheme.onTertiaryContainer
+    } else {
+        listOf(scheme.onPrimaryContainer, scheme.onSurface).maxBy { contrastRatio(it, container) }
+    }
     return SensorLife(
         progress = lifecycle.progress,
-        containerColor = if (isExpiring) {
-            scheme.tertiaryContainer
-        } else {
-            scheme.primaryContainer.copy(alpha = 0.4f).compositeOver(scheme.background)
-        },
-        contentColor = if (isExpiring) scheme.onTertiaryContainer else scheme.onPrimaryContainer,
+        containerColor = container,
+        contentColor = content,
         fillColor = when {
             lifecycle.progress > 0.95f -> scheme.error
             lifecycle.progress > 0.80f -> scheme.tertiary
@@ -133,25 +168,25 @@ internal fun Modifier.sensorLifeFill(life: SensorLife): Modifier = drawBehind {
 
 /** "8 / 28" with the calendar, or the hours left with the hourglass in the last day. */
 @Composable
-internal fun SensorLifeDays(life: SensorLife) {
+internal fun SensorLifeDays(life: SensorLife, color: Color = life.contentColor) {
     val hoursLeft = life.hoursLeft
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = hoursLeft?.let { "${it}h" } ?: life.daysText,
             style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-            color = life.contentColor,
+            color = color,
             maxLines = 1,
         )
         Spacer(Modifier.width(8.dp))
         if (hoursLeft != null) {
             AnimatedHourglassIcon(
-                color = life.contentColor.copy(alpha = 0.8f),
+                color = color,
                 modifier = Modifier.size(16.dp),
                 cycleDuration = (500 + (1500 * (hoursLeft / 24f))).toInt().coerceAtLeast(500),
             )
         } else {
             CustomCalendarIcon(
-                color = life.contentColor.copy(alpha = 0.7f),
+                color = color,
                 modifier = Modifier.size(16.dp),
                 currentDay = life.currentDay,
             )
@@ -159,9 +194,122 @@ internal fun SensorLifeDays(life: SensorLife) {
     }
 }
 
-/** Started and Ends side by side, one tile each: the date first, the time under it. */
+/**
+ * "17 days 4 hours" or "17d 4h" (a "5h", a "12m") in the locale's own units and plurals. The two
+ * are set side by side, not joined by the locale's list pattern, which puts a comma between
+ * them in some languages and not in others.
+ */
+private fun sensorSpanText(locale: Locale, spanMs: Long, width: MeasureFormat.FormatWidth): String {
+    val format = MeasureFormat.getInstance(locale, width)
+    val days = spanMs / DAY_MS
+    val hours = (spanMs % DAY_MS) / HOUR_MS
+    return when {
+        days > 0L -> format.format(Measure(days, MeasureUnit.DAY)) + " " + format.format(Measure(hours, MeasureUnit.HOUR))
+        hours > 0L -> format.format(Measure(hours, MeasureUnit.HOUR))
+        else -> format.format(Measure((spanMs / 60_000L).coerceAtLeast(0L), MeasureUnit.MINUTE))
+    }
+}
+
+/**
+ * The full card's wear block, a stack of three tiles: the wear bar over the start and the end,
+ * each of those under its label. The time left is the end date's label, in whole days until
+ * the last one.
+ */
 @Composable
-private fun SensorDates(life: SensorLife) {
+internal fun SensorWear(life: SensorLife, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        SensorLifeBar(life)
+        Spacer(Modifier.height(SensorDatesGap))
+        SensorDates(life, topCorner = SensorStackCorner, bottomCorner = SensorStackCorner, labelBelow = true)
+    }
+}
+
+/** The radius of the corners inside the wear stack, where one tile meets another. */
+private val SensorStackCorner = 4.dp
+
+/**
+ * The top of the wear stack: the dashboard's lifetime fill across the width, the sensor's age
+ * at the start, and at the end the dashboard's calendar with the days the sensor is rated for
+ * ("28 days"), so the fill is read against that span. The age's units are spelled out where there is the
+ * room and abbreviated where not.
+ */
+@Composable
+private fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
+    val locale = LocalConfiguration.current.locales[0]
+    val ageMs = (life.nowMs - life.startMs).coerceAtLeast(0L)
+    val ratedDays = ((life.endMs - life.startMs + DAY_MS / 2) / DAY_MS).coerceAtLeast(1L)
+    val textStyle = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum")
+    val sensorAgeLabel = stringResource(R.string.sensor_age)
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(
+            topStart = 12.dp,
+            topEnd = 12.dp,
+            bottomStart = SensorStackCorner,
+            bottomEnd = SensorStackCorner,
+        ),
+        color = life.containerColor,
+        contentColor = life.contentColor,
+    ) {
+        // The dates' own side padding, so the bar's two ends sit over the two dates.
+        Row(
+            modifier = Modifier
+                .sensorLifeFill(life)
+                .heightIn(min = 40.dp)
+                .padding(horizontal = SensorDatesPadding, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val wideText = sensorSpanText(locale, ageMs, MeasureFormat.FormatWidth.WIDE)
+            // Abbreviated once the spelled-out age has been seen not to fit.
+            var abbreviated by remember(wideText.length, textStyle) { mutableStateOf(false) }
+            val unitWidth = if (abbreviated) MeasureFormat.FormatWidth.NARROW else MeasureFormat.FormatWidth.WIDE
+            val ageText = if (abbreviated) sensorSpanText(locale, ageMs, unitWidth) else wideText
+            val ratedText = remember(locale, ratedDays, unitWidth) {
+                MeasureFormat.getInstance(locale, unitWidth).format(Measure(ratedDays, MeasureUnit.DAY))
+            }
+            Text(
+                text = ageText,
+                style = textStyle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { if (it.hasVisualOverflow) abbreviated = true },
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { contentDescription = "$sensorAgeLabel $ageText" },
+            )
+            Spacer(Modifier.width(16.dp))
+            // The dashboard's sensor card draws the calendar at this size and strength.
+            CustomCalendarIcon(
+                color = life.contentColor.copy(alpha = 0.6f),
+                modifier = Modifier.size(14.dp),
+                currentDay = life.currentDay,
+            )
+            Spacer(Modifier.width(8.dp))
+            // Text at the edge, so it ends where the end date's time ends below it.
+            Text(
+                text = ratedText,
+                style = textStyle,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
+    }
+}
+
+/**
+ * Start and end side by side, one labelled tile each, the start date at one edge and the end
+ * date at the other: the date with its time beside it, or under it where the two do not fit
+ * on a line. The end's label is the time left, or what the end is when it is not ahead. The
+ * full card puts the two under its wear bar, squares the corners that touch it, and sets each
+ * label under its date ([labelBelow]) so the dates sit right under the bar.
+ */
+@Composable
+internal fun SensorDates(
+    life: SensorLife,
+    topCorner: Dp = 12.dp,
+    bottomCorner: Dp = 12.dp,
+    labelBelow: Boolean = false,
+) {
     val leftMs = life.endMs - life.nowMs
     val ended = leftMs <= 0L && !life.overrun
     val endLabel = when {
@@ -176,70 +324,159 @@ private fun SensorDates(life: SensorLife) {
             pluralStringResource(R.plurals.restricted_sensor_ends_in_days, it, it)
         }
     }
-    // Same height when one tile's label wraps and the other's does not.
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        SensorDateTile(
-            label = stringResource(R.string.sensor_started),
-            timeMs = life.startMs,
-            shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp, topEnd = 4.dp, bottomEnd = 4.dp),
-        )
-        SensorDateTile(
-            label = endLabel,
-            labelColor = if (ended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            timeMs = life.endMs,
-            shape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = 12.dp, bottomEnd = 12.dp),
-        )
+    val startLabel = stringResource(R.string.sensor_started)
+    val context = LocalContext.current
+    // A language change is handled in place, and the dates are worded in the language.
+    val configuration = LocalConfiguration.current
+    val dateStyle = MaterialTheme.typography.titleMediumEmphasized
+    val timeStyle = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum")
+    val timeColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val start = remember(context, configuration, life.startMs, timeStyle, timeColor) {
+        sensorDateTexts(context, life.startMs, timeStyle, timeColor)
+    }
+    val end = remember(context, configuration, life.endMs, timeStyle, timeColor) {
+        sensorDateTexts(context, life.endMs, timeStyle, timeColor)
+    }
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        // The time sits beside the date when both dates have the room, and under it in
+        // both when either does not, so the two always read the same way.
+        val sideWidth = with(LocalDensity.current) {
+            (maxWidth / 2 - SensorDatesPadding * 2).roundToPx()
+        }
+        // The measurer is a new one after a font-size change, which redoes the fit.
+        val timeBeside = remember(start, end, dateStyle, sideWidth, measurer) {
+            listOf(start, end).all {
+                measurer.measure(it.oneLine, dateStyle, softWrap = false).size.width <= sideWidth
+            }
+        }
+        val tileColor = MaterialTheme.colorScheme.surfaceContainer
+        // Two halves, as tall as the taller needs.
+        Layout(
+            content = {
+                Surface(
+                    shape = RoundedCornerShape(topStart = topCorner, bottomStart = bottomCorner, topEnd = SensorStackCorner, bottomEnd = SensorStackCorner),
+                    color = tileColor,
+                ) {
+                    SensorDate(
+                        label = startLabel,
+                        texts = start,
+                        timeBeside = timeBeside,
+                        labelBelow = labelBelow,
+                        alignment = Alignment.Start,
+                        modifier = Modifier.padding(SensorDatesPadding),
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(topStart = SensorStackCorner, bottomStart = SensorStackCorner, topEnd = topCorner, bottomEnd = bottomCorner),
+                    color = tileColor,
+                ) {
+                    SensorDate(
+                        label = endLabel,
+                        labelColor = if (ended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        texts = end,
+                        timeBeside = timeBeside,
+                        labelBelow = labelBelow,
+                        alignment = Alignment.End,
+                        modifier = Modifier.padding(SensorDatesPadding),
+                    )
+                }
+            },
+        ) { measurables, constraints ->
+            val width = constraints.maxWidth
+            val tileWidth = ((width - SensorDatesGap.roundToPx()) / 2).coerceAtLeast(0)
+            val height = measurables.maxOfOrNull { it.minIntrinsicHeight(tileWidth) } ?: 0
+            val placeables = measurables.map { it.measure(Constraints.fixed(tileWidth, height)) }
+            layout(width, height) {
+                placeables[0].placeRelative(0, 0)
+                placeables[1].placeRelative(width - tileWidth, 0)
+            }
+        }
     }
 }
 
-@Composable
-private fun RowScope.SensorDateTile(
-    label: String,
+private val SensorDatesPadding = 12.dp
+private val SensorDatesGap = 2.dp
+
+/** A date and its time, apart and as the one line that carries both. */
+private class SensorDateTexts(val date: String, val time: String, val oneLine: AnnotatedString)
+
+private fun sensorDateTexts(
+    context: Context,
     timeMs: Long,
-    shape: Shape,
+    timeStyle: TextStyle,
+    timeColor: Color,
+): SensorDateTexts {
+    val date = DateUtils.formatDateTime(
+        context,
+        timeMs,
+        DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY or
+            DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+    )
+    val time = DateUtils.formatDateTime(context, timeMs, DateUtils.FORMAT_SHOW_TIME)
+    val oneLine = buildAnnotatedString {
+        append(date)
+        append("  ")
+        withStyle(timeStyle.toSpanStyle().copy(color = timeColor)) { append(time) }
+    }
+    return SensorDateTexts(date, time, oneLine)
+}
+
+@Composable
+private fun SensorDate(
+    label: String?,
+    texts: SensorDateTexts,
+    timeBeside: Boolean,
+    labelBelow: Boolean,
+    alignment: Alignment.Horizontal,
+    modifier: Modifier = Modifier,
     labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
-    val context = LocalContext.current
-    Surface(
-        modifier = Modifier
-            .weight(1f)
-            .fillMaxHeight(),
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        // From the bottom, so the two dates stay level when one label takes two lines.
-        Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.Bottom,
-        ) {
+    val textAlign = if (alignment == Alignment.End) TextAlign.End else TextAlign.Start
+    val labelText: @Composable () -> Unit = {
+        if (label != null) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = labelColor,
+                textAlign = textAlign,
             )
+        }
+    }
+    // From the edge the dates are on, so the two dates stay level when one label takes two lines.
+    Column(
+        modifier = Modifier.fillMaxSize().then(modifier),
+        verticalArrangement = if (labelBelow) Arrangement.Top else Arrangement.Bottom,
+        horizontalAlignment = alignment,
+    ) {
+        if (label != null && !labelBelow) {
+            labelText()
             Spacer(Modifier.height(4.dp))
+        }
+        if (timeBeside) {
             Text(
-                text = DateUtils.formatDateTime(
-                    context,
-                    timeMs,
-                    DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY or
-                        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
-                ),
+                text = texts.oneLine,
                 style = MaterialTheme.typography.titleMediumEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false,
+            )
+        } else {
+            Text(
+                text = texts.date,
+                style = MaterialTheme.typography.titleMediumEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = textAlign,
             )
             Text(
-                text = DateUtils.formatDateTime(context, timeMs, DateUtils.FORMAT_SHOW_TIME),
+                text = texts.time,
                 style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        if (label != null && labelBelow) {
+            Spacer(Modifier.height(4.dp))
+            labelText()
         }
     }
 }

@@ -1983,6 +1983,22 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     }
 
     /**
+     * Asks the phone's own controller for this link's signal level; the answer lands in
+     * {@link #readrssi}. The sensor takes no part in it, so it costs the sensor nothing and says
+     * nothing about whether it still answers. The Sensors screen calls this while it is open.
+     * A driver that reads the level on its own schedule overrides this with nothing.
+     */
+    public void requestRssi() {
+        final BluetoothGatt gatt = mBluetoothGatt;
+        if (gatt == null || stop) return;
+        try {
+            gatt.readRemoteRssi();
+        } catch (Throwable ignored) {
+            // No BLUETOOTH_CONNECT or a dead binder: there is simply no figure to show.
+        }
+    }
+
+    /**
      * Relay for {@link BluetoothGatt#readRemoteRssi()}. Five drivers declared their own copy of
      * this callback and the base class had none, so a driver that did not was simply unable to see
      * a signal level: the whole 2026-08-01 jamming storm was logged without a single RSSI value in

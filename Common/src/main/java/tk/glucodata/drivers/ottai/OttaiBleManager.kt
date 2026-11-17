@@ -4978,6 +4978,9 @@ class OttaiBleManager(
         handler.postDelayed(rssiPollRunnable, delayMs)
     }
 
+    /** [rssiPollRunnable] already reads the level on its own schedule. */
+    override fun requestRssi() = Unit
+
     override fun onReadRemoteRssi(gatt: BluetoothGatt, rssi: Int, status: Int) {
         super.onReadRemoteRssi(gatt, rssi, status)
         if (stop || gatt !== mBluetoothGatt) return
