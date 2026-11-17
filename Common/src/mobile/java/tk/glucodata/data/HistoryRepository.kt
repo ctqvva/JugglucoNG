@@ -2242,34 +2242,77 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         removed
     }
 
-    suspend fun deleteReading(timestamp: Long, sensorSerial: String): Int {
-        if (timestamp <= 0L || sensorSerial.isBlank()) return 0
+    /** What [deleteReading] removed, for [restoreDeletedReading] to put back exactly. */
+    class DeletedReading internal constructor(
+        val timestamp: Long,
+        internal val rows: List<HistoryReading>,
+        /** Tombstones this delete added; ones already there before it stay on undo. */
+        internal val addedTombstoneSerials: List<String>,
+    ) {
+        val removedCount: Int get() = rows.size
+    }
+
+    suspend fun deleteReading(timestamp: Long, sensorSerial: String): DeletedReading? {
+        if (timestamp <= 0L || sensorSerial.isBlank()) return null
         val serials = resolveQuerySensorSerials(sensorSerial).ifEmpty { listOf(sensorSerial) }
-        if (serials.isEmpty()) return 0
+        if (serials.isEmpty()) return null
 
         return withContext(Dispatchers.IO) {
             try {
-                val deletedAt = System.currentTimeMillis()
-                var removedCount = 0
-                database.withTransaction {
-                    dao.insertDeletedReadings(
-                        serials.map { serial ->
-                            DeletedHistoryReading(
-                                timestamp = timestamp,
-                                sensorSerial = serial,
-                                deletedAt = deletedAt
-                            )
-                        }
-                    )
-                    removedCount = dao.deleteReadingsAtTimestamp(serials, timestamp)
-                }
+                val deleted = deleteReadingRows(serials, timestamp)
                 UiRefreshBus.requestDataRefresh()
-                Log.d(TAG, "Deleted reading at $timestamp for serials=$serials removed=$removedCount")
-                removedCount
+                Log.d(TAG, "Deleted reading at $timestamp for serials=$serials removed=${deleted.removedCount}")
+                deleted
             } catch (e: Exception) {
                 Log.e(TAG, "Error deleting reading at $timestamp for $sensorSerial", e)
-                0
+                null
             }
+        }
+    }
+
+    /** Undoes one [deleteReading]: its rows come back and its tombstones go. */
+    suspend fun restoreDeletedReading(deleted: DeletedReading) {
+        withContext(Dispatchers.IO) {
+            try {
+                restoreReadingRows(deleted)
+                UiRefreshBus.requestDataRefresh()
+                Log.d(TAG, "Restored reading at ${deleted.timestamp} rows=${deleted.removedCount}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error restoring reading at ${deleted.timestamp}", e)
+            }
+        }
+    }
+
+    /** The store half of [deleteReading]: tombstone and remove, remembering what went. */
+    internal suspend fun deleteReadingRows(serials: List<String>, timestamp: Long): DeletedReading =
+        database.withTransaction {
+            val rows = dao.getReadingsAtTimestamp(serials, timestamp)
+            val alreadyTombstoned = dao.getDeletedSerialsAtTimestamp(serials, timestamp).toSet()
+            val deletedAt = System.currentTimeMillis()
+            dao.insertDeletedReadings(
+                serials.map { serial ->
+                    DeletedHistoryReading(
+                        timestamp = timestamp,
+                        sensorSerial = serial,
+                        deletedAt = deletedAt
+                    )
+                }
+            )
+            dao.deleteReadingsAtTimestamp(serials, timestamp)
+            DeletedReading(
+                timestamp = timestamp,
+                rows = rows,
+                addedTombstoneSerials = serials.filterNot { it in alreadyTombstoned },
+            )
+        }
+
+    /** The store half of [restoreDeletedReading]. */
+    internal suspend fun restoreReadingRows(deleted: DeletedReading) {
+        database.withTransaction {
+            if (deleted.addedTombstoneSerials.isNotEmpty()) {
+                dao.deleteTombstonesAtTimestamp(deleted.addedTombstoneSerials, deleted.timestamp)
+            }
+            if (deleted.rows.isNotEmpty()) dao.insertAll(deleted.rows)
         }
     }
 

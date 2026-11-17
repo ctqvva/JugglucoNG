@@ -986,7 +986,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="import_history_sub">Soo celi akhrinta gulukooska dhoofinta JugglucoNG ama faylka CSV</string>
     
     <string name="delete_reading_title">Ma tirtirtaa Akhriska?</string>
-    <string name="delete_reading_confirmation">Ka saar akhriska gulukoosta taariikhda deegaanka. Tallaabadan lama noqon karo.</string>
+    <string name="delete_reading_confirmation">Ka saar akhriska gulukoosta taariikhda deegaanka.</string>
     
     
     
@@ -1350,6 +1350,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="calibrate_sensor_timing_note">Iska ilaali in aad isku hagaajiso 2 saacadood gudahood cuntada ama insulinta ka dib.</string>
     <string name="calibrate_sensor_title">Calibrate Sensor</string>
     <string name="calibration_deleted">Qalabaynta waa la tirtiray</string>
+    <string name="reading_deleted">Akhriska waa la tirtiray</string>
     <string name="calibration_profile_exported">profile calibration waa la dhoofiyay</string>
     <string name="calibration_with_mode">Qalabaynta (%1$s)</string>
     <string name="calibration_model_table_action">Fur xogta sixitaanka</string>

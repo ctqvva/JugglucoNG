@@ -1054,12 +1054,9 @@ fun DashboardScreen(
         )
     }
 
-    // Snackbar state for undo actions
-    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
-
+    // Undo snackbars are shown from the app root (UndoSnackbar), above the navigation bar.
     Scaffold(
-        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top),
-        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) }
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
         // FAB removed - empty state now has inline cards
     ) { padding ->
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -2303,8 +2300,7 @@ fun DashboardScreen(
                             onEditCalibration = { cal ->
                                 triggerCalibrationIfEnabled(CalibrationSheetState.Edit(cal))
                             },
-                            onViewHistory = onNavigateToCalibrations,
-                            snackbarHostState = snackbarHostState
+                            onViewHistory = onNavigateToCalibrations
                         )
                     }
                 }

@@ -213,23 +213,6 @@ private fun directionalRadius(weight: Float, min: Dp, max: Dp): Dp = lerp(min, m
 
 private const val CalibrationDeleteSwipeThresholdFraction = 0.4f
 
-private suspend fun androidx.compose.material3.SnackbarHostState?.showCalibrationUndoSnackbar(
-    message: String,
-    actionLabel: String
-): androidx.compose.material3.SnackbarResult? {
-    val hostState = this ?: return null
-    hostState.currentSnackbarData?.dismiss()
-    val result = hostState.showSnackbar(
-        message = message,
-        actionLabel = actionLabel,
-        duration = androidx.compose.material3.SnackbarDuration.Short
-    )
-    if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-        hostState.currentSnackbarData?.dismiss()
-    }
-    return result
-}
-
 @Composable
 fun DashboardCombinedHeader(
 
@@ -1931,6 +1914,9 @@ private fun SwipeableDeleteRow(
     val view = LocalView.current
     var deleteArmHapticSent by remember(isDisabled) { mutableStateOf(false) }
     var rowWidthPx by remember(isDisabled) { mutableStateOf(0) }
+    // confirmValueChange is asked again while the swiped row settles, so one swipe used to
+    // delete (and announce it) several times. A row is deleted once.
+    var deleteSent by remember { mutableStateOf(false) }
 
     // Key on isDisabled so state resets when toggled
     val dismissState = key(isDisabled) {
@@ -1940,7 +1926,10 @@ private fun SwipeableDeleteRow(
             confirmValueChange = { dismissValue ->
                 when (dismissValue) {
                     androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> {
-                        onDelete()
+                        if (!deleteSent) {
+                            deleteSent = true
+                            onDelete()
+                        }
                         true
                     }
                     androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> {
@@ -2029,8 +2018,7 @@ fun CalibrationsCard(
     showEmptyAction: Boolean = true,
     onAddCalibration: () -> Unit,
     onEditCalibration: (tk.glucodata.data.calibration.CalibrationEntity) -> Unit,
-    onViewHistory: () -> Unit,
-    snackbarHostState: androidx.compose.material3.SnackbarHostState? = null
+    onViewHistory: () -> Unit
 ) {
     val isRawMode = viewMode == 1 || viewMode == 3
     
@@ -2183,26 +2171,21 @@ fun CalibrationsCard(
                             // Gmail-style swipeable row
                             SwipeableDeleteRow(
                                  onDelete = {
-                                     // Trigger animation first
-                                     animatingOutIds.add(cal.id)
-                                     
-                                     scope.launch {
-                                         delay(300) // Wait for animation
-                                         tk.glucodata.data.calibration.CalibrationManager.deleteCalibration(cal)
-                                         animatingOutIds.removeAll { it == cal.id } // Cleanup
-                                         
-                                         // Show Undo Snackbar
-                                         val result = snackbarHostState.showCalibrationUndoSnackbar(
-                                             message = Applic.app.getString(R.string.calibration_deleted),
-                                             actionLabel = Applic.app.getString(R.string.undo)
-                                         )
-                                         
-                                         // Handle Undo
-                                         if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                                             animatingInIds.add(cal.id)
-                                             tk.glucodata.data.calibration.CalibrationManager.restoreCalibration(cal)
-                                             delay(300)
-                                             animatingInIds.removeAll { it == cal.id }
+                                     if (cal.id !in animatingOutIds) {
+                                         // Trigger animation first
+                                         animatingOutIds.add(cal.id)
+
+                                         scope.launch {
+                                             delay(300) // Wait for animation
+                                             tk.glucodata.data.calibration.CalibrationManager.deleteCalibration(cal)
+                                             animatingOutIds.removeAll { it == cal.id } // Cleanup
+
+                                             UndoSnackbar.show(Applic.app.getString(R.string.calibration_deleted)) {
+                                                 animatingInIds.add(cal.id)
+                                                 tk.glucodata.data.calibration.CalibrationManager.restoreCalibration(cal)
+                                                 delay(300)
+                                                 animatingInIds.removeAll { it == cal.id }
+                                             }
                                          }
                                      }
                                  },
@@ -2271,11 +2254,7 @@ fun CalibrationsCard(
                 scope.launch {
                     val disabled = calibrations.filter { !it.isEnabled }
                     disabled.forEach { tk.glucodata.data.calibration.CalibrationManager.deleteCalibration(it) }
-                    snackbarHostState?.currentSnackbarData?.dismiss()
-                    snackbarHostState?.showSnackbar(
-                        message = Applic.app.getString(R.string.disabled_calibrations_cleared, disabled.size),
-                        duration = androidx.compose.material3.SnackbarDuration.Short
-                    )
+                    UndoSnackbar.notice(Applic.app.getString(R.string.disabled_calibrations_cleared, disabled.size))
                 }
                 showClearConfirmation = false
             },
@@ -2283,13 +2262,7 @@ fun CalibrationsCard(
                 scope.launch {
                     val backup = calibrations
                     tk.glucodata.data.calibration.CalibrationManager.clearAll()
-                    
-                    val result = snackbarHostState.showCalibrationUndoSnackbar(
-                        message = Applic.app.getString(R.string.all_calibrations_cleared),
-                        actionLabel = Applic.app.getString(R.string.undo)
-                    )
-                    
-                    if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                    UndoSnackbar.show(Applic.app.getString(R.string.all_calibrations_cleared)) {
                         tk.glucodata.data.calibration.CalibrationManager.restoreAll(backup)
                     }
                 }

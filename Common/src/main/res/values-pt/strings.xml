@@ -368,7 +368,7 @@
     <string name="import_no_glucose">Este arquivo não contém dados de glicose</string>
     <string name="import_unsupported_file">Arquivo não compatível. Selecione uma exportação do JugglucoNG ou um CSV de histórico de glicose.</string>
     <string name="delete_reading_title">Excluir leitura?</string>
-    <string name="delete_reading_confirmation">Remova esta leitura de glicose do histórico local. Esta ação não pode ser desfeita.</string>
+    <string name="delete_reading_confirmation">Remova esta leitura de glicose do histórico local.</string>
     <string name="alert_sound">Som de Alerta</string>
     <string name="vibrate_only">Apenas Vibrar</string>
     <string name="sound_vibrate">Som e Vibração</string>
@@ -1197,6 +1197,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_noisy_status">Calibração indisponível; o ruído do sinal é muito alto</string>
     <string name="calibrate_sensor_title">Calibrar sensor</string>
     <string name="calibration_deleted">Calibração excluída</string>
+    <string name="reading_deleted">Leitura excluída</string>
     <string name="calibration_profile_exported">Perfil de calibração exportado</string>
     <string name="calibrationhelp">Ajuda de calibração</string>
     <string name="calibrationslist">Lista de calibrações</string>

@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -988,8 +992,23 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     // (configChanges), so the composition survives it; two NavHosts — one beside a rail, one
     // above a bar — meant every rotation disposed the open screen and rebuilt it from scratch.
     // The rail or the bar comes and goes around it; the NavHost keeps its slot.
+    // Every deletion's Undo snackbar, from any screen or sheet (see UndoSnackbar).
+    val undoSnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+    UndoSnackbarEffect(undoSnackbarHostState)
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0), // Child screens apply their own insets.
+        snackbarHost = {
+            androidx.compose.material3.SnackbarHost(
+                hostState = undoSnackbarHostState,
+                // Portrait: the bar below already clears the gesture area. Landscape has no bar.
+                modifier = if (isLandscape) {
+                    Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                } else {
+                    Modifier
+                }
+            )
+        },
         bottomBar = {
             if (!isLandscape) {
                 Box {
