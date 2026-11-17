@@ -414,6 +414,60 @@ private enum class SensorLinkState { UP, WAITING, DOWN }
  * Waiting (searching, warming up): the sign with its waves unlit. Down: the struck-through
  * sign on the error container. It is a chip the size of the reading chip at the line's other end.
  */
+/**
+ * The status line beside the reading. One line while it fits; when it does not, a trailing
+ * "(qualifier)" drops to a supporting line under the state ("Connected" over "Broadcast
+ * fallback"), and a status without one wraps to a second line instead of losing its end.
+ */
+@Composable
+private fun SensorStatusText(status: String, color: Color, modifier: Modifier = Modifier) {
+    var stacked by remember(status) { mutableStateOf(false) }
+    val open = status.lastIndexOf(" (")
+    val split = if (open > 0 && status.endsWith(")")) {
+        status.substring(0, open) to status.substring(open + 2, status.length - 1)
+            .replaceFirstChar { it.titlecase() }
+    } else {
+        null
+    }
+    if (!stacked) {
+        Text(
+            text = status,
+            style = MaterialTheme.typography.titleSmall,
+            color = color,
+            maxLines = 1,
+            softWrap = false,
+            onTextLayout = { if (it.hasVisualOverflow) stacked = true },
+            modifier = modifier,
+        )
+    } else if (split != null) {
+        Column(modifier = modifier) {
+            Text(
+                text = split.first,
+                style = MaterialTheme.typography.titleSmall,
+                color = color,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            Text(
+                text = split.second,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+        }
+    } else {
+        Text(
+            text = status,
+            style = MaterialTheme.typography.titleSmall,
+            color = color,
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = modifier,
+        )
+    }
+}
+
 @Composable
 private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifier = Modifier) {
     val down = state == SensorLinkState.DOWN
@@ -2279,9 +2333,8 @@ fun SensorCard(
                                 )
                             }
                             sensorStatusText?.let { status ->
-                                Text(
-                                    text = status,
-                                    style = MaterialTheme.typography.titleSmall,
+                                SensorStatusText(
+                                    status = status,
                                     color = if (sensor.isCloneSource && !cloneHasRecentData) {
                                         MaterialTheme.colorScheme.error
                                     } else if (isStreaming) {
@@ -2296,8 +2349,6 @@ fun SensorCard(
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
                                 )
                             } ?: Spacer(modifier = Modifier.weight(1f))
