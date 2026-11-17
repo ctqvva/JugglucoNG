@@ -17,6 +17,9 @@ object Libre3IdentityAdapter : ManagedSensorIdentityAdapter {
     /** The legacy native record name for the same physical sensor (Sensoren::namelibre3). */
     fun legacyNativeName(serial: String): String = "E07A-XX$serial"
 
+    /** The 11-character name native hands the legacy callback (getSensorName): "XX<serial>". */
+    fun legacyShortName(serial: String): String = legacyNativeName(serial).takeLast(11)
+
     fun sameSensor(a: String?, b: String?): Boolean {
         val x = a?.trim().takeIf { !it.isNullOrEmpty() } ?: return false
         val y = b?.trim().takeIf { !it.isNullOrEmpty() } ?: return false

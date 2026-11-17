@@ -261,6 +261,9 @@ public class ScanNfcV {
                                 ;
                             }
                             ;
+                            // The Kotlin driver may still own this sensor from an earlier scan; a
+                            // successful legacy scan takes it over, so retire that driver first.
+                            tk.glucodata.drivers.libre3.Libre3Registry.retireManagedForLegacyScan(main, name);
                             if (SensorBluetooth.resetDeviceOrFree(streamptr, name))
                                 askpermission = true;
                             ret = 0xFC;

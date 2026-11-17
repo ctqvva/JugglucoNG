@@ -145,6 +145,10 @@ class Libre3BleManager(sensorId: String) :
     /** Committed history life count the queued historic request asked up to. */
     private var requestedHistoricCommitted = 0
 
+    /** Room timestamps written as five-minute fill-ins, which a later minute reading may replace. */
+    private val historyFillers: MutableSet<Long> =
+        Applic.app?.let { Libre3Persistence.getHistoryFillers(it, sensorId) } ?: HashSet()
+
     private val minuteBackfill = ArrayList<VirtualGlucoseSensorBridge.Reading>()
     private val historicBackfill = ArrayList<VirtualGlucoseSensorBridge.Reading>()
 
@@ -977,9 +981,38 @@ class Libre3BleManager(sensorId: String) :
                     minutes.map { it.timestampMs }).sorted()
                 history.filter { h -> known.none { kotlin.math.abs(it - h.timestampMs) <= HISTORY_DUPLICATE_WINDOW_MS } }
             }
+            var minuteRows = minutes
+            var regularMinutes = minutes
             if (minutes.isNotEmpty()) {
+                val plan = Libre3BackfillMerge.plan(
+                    minutes,
+                    HistorySyncAccess.getHistoryTimestampsForSensorOrNull(
+                        sensorId,
+                        (minutes.minOf { it.timestampMs } - MINUTE_DUPLICATE_WINDOW_MS).coerceAtLeast(1L),
+                        minutes.maxOf { it.timestampMs } + MINUTE_DUPLICATE_WINDOW_MS,
+                    ) ?: return false,
+                    historyFillers,
+                    MINUTE_DUPLICATE_WINDOW_MS,
+                )
+                if (plan.replacing.isNotEmpty()) {
+                    // Same timestamp as the fill-in, so Room's minute bucket replaces it.
+                    val ok = HistorySyncAccess.storeSensorHistoryBatchWithSourceBlocking(
+                        sensorId,
+                        LongArray(plan.replacing.size) { plan.replacing[it].timestampMs },
+                        FloatArray(plan.replacing.size) { plan.replacing[it].storageGlucoseMgdl },
+                        FloatArray(plan.replacing.size) { Float.NaN },
+                        tk.glucodata.GlucoseReadingSource.SENSOR,
+                    )
+                    if (!ok) return false
+                    historyFillers.removeAll(plan.consumedFillers)
+                    Applic.app?.let { Libre3Persistence.setHistoryFillers(it, sensorId, historyFillers) }
+                }
+                minuteRows = plan.replacing + plan.regular
+                regularMinutes = plan.regular
+            }
+            if (regularMinutes.isNotEmpty()) {
                 VirtualGlucoseSensorBridge.importHistory(
-                    sensorId, minutes, "$LOG_LABEL clinical",
+                    sensorId, regularMinutes, "$LOG_LABEL clinical",
                     backfill = true,
                     nearDuplicateWindowMs = MINUTE_DUPLICATE_WINDOW_MS,
                     mirrorToNative = false,
@@ -987,8 +1020,9 @@ class Libre3BleManager(sensorId: String) :
                     nativeFamily = ManagedSensorUiFamily.LIBRE3,
                 )
             }
-            if (minutes.isNotEmpty()) {
-                VirtualGlucoseSensorBridge.mirrorToNative(sensorId, minutes, "$LOG_LABEL clinical", ManagedSensorUiFamily.LIBRE3)
+            if (minuteRows.isNotEmpty()) {
+                // The same timestamps Room got, so a replaced fill-in's slot carries the minute value.
+                VirtualGlucoseSensorBridge.mirrorToNative(sensorId, minuteRows, "$LOG_LABEL clinical", ManagedSensorUiFamily.LIBRE3)
             }
             if (history.isNotEmpty()) {
                 // Only the previously identified holes may be mirrored with smoothed values.
@@ -1002,6 +1036,8 @@ class Libre3BleManager(sensorId: String) :
                 )
                 if (gapFillers.isNotEmpty()) {
                     VirtualGlucoseSensorBridge.mirrorToNative(sensorId, gapFillers, "$LOG_LABEL history", ManagedSensorUiFamily.LIBRE3)
+                    historyFillers.addAll(gapFillers.map { it.timestampMs })
+                    Applic.app?.let { Libre3Persistence.setHistoryFillers(it, sensorId, historyFillers) }
                 }
             }
             // Backfill can arrive after the live export cursor has passed these slots.
