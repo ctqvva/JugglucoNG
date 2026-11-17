@@ -15,10 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,6 +64,7 @@ import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SensorVendor
 import tk.glucodata.ui.viewmodel.SensorInfo
+import tk.glucodata.ui.symbols.Symbols
 
 private const val TRACE_TAIL_BYTES = 256L * 1024L
 private const val TRACE_LINE_LIMIT = 200
@@ -397,9 +394,9 @@ private fun TraceLogActions(onCopy: () -> Unit, onShare: () -> Unit, onSave: () 
         modifier = Modifier.fillMaxWidth().offset(x = 4.dp),
         horizontalArrangement = Arrangement.End,
     ) {
-        TraceLogAction(Icons.Default.ContentCopy, R.string.copy, onCopy)
-        TraceLogAction(Icons.Default.Share, R.string.share, onShare)
-        TraceLogAction(Icons.Default.Save, R.string.save, onSave)
+        TraceLogAction(Symbols.ContentCopyFilled, R.string.copy, onCopy)
+        TraceLogAction(Symbols.ShareFilled, R.string.share, onShare)
+        TraceLogAction(Symbols.SaveFilled, R.string.save, onSave)
     }
 }
 

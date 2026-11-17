@@ -23,9 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
@@ -78,6 +75,7 @@ import tk.glucodata.ui.components.SettingsSwitchItem
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun InsulinPenSettingsScreen(navController: NavController) {
@@ -122,7 +120,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                         subtitle = stringResource(R.string.insulin_pens_enable_desc),
                         checked = enabled,
                         onCheckedChange = InsulinPenManager::setEnabled,
-                        icon = Icons.Default.Vaccines,
+                        icon = Symbols.VaccinesFilled,
                     )
                     // Doses become journal entries, so with the journal switched off a scan
                     // would land somewhere the reader never looks. Say so rather than
@@ -150,7 +148,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                         subtitle = stringResource(R.string.insulin_pen_background_desc),
                         checked = backgroundImportEnabled,
                         onCheckedChange = { InsulinPenManager.setBackgroundImportEnabled(context, it) },
-                        icon = Icons.Default.Nfc,
+                        icon = Symbols.NfcFilled,
                         iconTint = MaterialTheme.colorScheme.primary,
                         position = CardPosition.TOP,
                         enabled = enabled,
@@ -214,7 +212,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                     SettingsItem(
                         title = stringResource(R.string.insulin_pens_none),
                         subtitle = stringResource(R.string.insulin_pens_none_desc),
-                        icon = Icons.Default.Vaccines,
+                        icon = Symbols.VaccinesFilled,
                         iconTint = MaterialTheme.colorScheme.secondary,
                     )
                 }
@@ -223,7 +221,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                     SettingsItem(
                         title = stringResource(R.string.insulin_pen_name, pen.serial),
                         subtitle = penRowSubtitle(pen),
-                        icon = Icons.Default.Vaccines,
+                        icon = Symbols.VaccinesFilled,
                         iconTint = MaterialTheme.colorScheme.primary,
                         position = cardPositionFor(index, pens.size),
                         onClick = { editingSerial = pen.serial },
@@ -378,7 +376,7 @@ private fun HowToScanCard() {
                 shape = RoundedCornerShape(16.dp),
             ) {
                 Icon(
-                    Icons.Default.Nfc,
+                    Symbols.NfcFilled,
                     contentDescription = null,
                     modifier = Modifier.padding(16.dp).size(28.dp),
                 )

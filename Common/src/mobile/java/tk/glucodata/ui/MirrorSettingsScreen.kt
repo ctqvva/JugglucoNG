@@ -26,11 +26,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.QrCode
-import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -76,6 +71,7 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import tk.glucodata.ui.symbols.Symbols
 
 private const val UNIFIED_EXTRA_SCAN_TEXT = "tk.glucodata.extra.scan_text"
 private const val UNIFIED_EXTRA_SCAN_CONTEXT = "tk.glucodata.extra.scan_context"
@@ -606,7 +602,7 @@ fun MirrorSettingsScreen(navController: NavController) {
     if (scannedQrPayload != null) {
         AlertDialog(
             onDismissRequest = { scannedQrPayload = null },
-            icon = { Icon(Icons.Filled.Link, contentDescription = null) },
+            icon = { Icon(Symbols.LinkFilled, contentDescription = null) },
             title = { Text(stringResource(R.string.mirror_connect_device_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -644,7 +640,7 @@ fun MirrorSettingsScreen(navController: NavController) {
         val device = pendingNearby!!
         AlertDialog(
             onDismissRequest = { pendingNearby = null },
-            icon = { Icon(Icons.Filled.Wifi, contentDescription = null) },
+            icon = { Icon(Symbols.WifiFilled, contentDescription = null) },
             title = { Text(stringResource(R.string.mirror_connect_nearby_title, device.name)) },
             text = { Text(stringResource(R.string.mirror_connect_qr_turn_message)) },
             confirmButton = {
@@ -838,7 +834,7 @@ fun MirrorConnectionCard(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            icon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            icon = { Icon(Symbols.DeleteFilled, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text(stringResource(R.string.mirror_delete_connection_title)) },
             text = { Text(stringResource(R.string.mirror_delete_connection_message, displayLabel ?: mirror.names?.firstOrNull() ?: stringResource(R.string.connection_label))) },
             confirmButton = {
@@ -896,7 +892,7 @@ fun MirrorConnectionCard(
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Filled.History, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Symbols.HistoryFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.clone_history_recovery), maxLines = 1)
                     }
@@ -904,7 +900,7 @@ fun MirrorConnectionCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CloneCardAction(
                         label = stringResource(R.string.qr_code),
-                        icon = Icons.Outlined.QrCode,
+                        icon = Symbols.QrCode,
                         selected = qrContent != null,
                         onClick = { qrContent = if (qrContent == null) Natives.getbackJson(mirror.index) else null },
                     )
@@ -913,9 +909,9 @@ fun MirrorConnectionCard(
                         CloneCardAction(
                             label = stringResource(R.string.test),
                             icon = when (cardTestState) {
-                                ConnTestState.SUCCESS -> Icons.Filled.CheckCircle
-                                ConnTestState.FAILURE -> Icons.Filled.ErrorOutline
-                                else -> Icons.Filled.NetworkCheck
+                                ConnTestState.SUCCESS -> Symbols.CheckCircleFilled
+                                ConnTestState.FAILURE -> Symbols.Error
+                                else -> Symbols.NetworkCheckFilled
                             },
                             busy = cardTestState == ConnTestState.TESTING,
                             enabled = cardTestState != ConnTestState.TESTING,
@@ -936,19 +932,19 @@ fun MirrorConnectionCard(
                     }
                     CloneCardAction(
                         label = stringResource(R.string.edit),
-                        icon = Icons.Filled.Edit,
+                        icon = Symbols.EditFilled,
                         enabled = controlsEnabled,
                         onClick = onEdit,
                     )
                     CloneCardAction(
                         label = stringResource(if (mirror.isDeactivated) R.string.enable else R.string.disable),
-                        icon = if (mirror.isDeactivated) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                        icon = if (mirror.isDeactivated) Symbols.PlayArrowFilled else Symbols.PauseFilled,
                         enabled = controlsEnabled,
                         onClick = onToggle,
                     )
                     CloneCardAction(
                         label = stringResource(R.string.delete),
-                        icon = Icons.Filled.Delete,
+                        icon = Symbols.DeleteFilled,
                         enabled = controlsEnabled,
                         color = MaterialTheme.colorScheme.error,
                         onClick = { showDeleteConfirm = true },
@@ -1326,7 +1322,7 @@ fun MirrorEditSheet(pos: Int, status: MirrorItemData?, sheetState: SheetState, o
                                 subtitle = stringResource(R.string.mirror_auto_detect_ip_desc),
                                 checked = autoDetect,
                                 onCheckedChange = { autoDetect = it },
-                                icon = Icons.Filled.Wifi,
+                                icon = Symbols.WifiFilled,
                                 iconTint = MaterialTheme.colorScheme.tertiary,
                                 position = CardPosition.SINGLE
                             )
@@ -1407,13 +1403,13 @@ fun MirrorEditSheet(pos: Int, status: MirrorItemData?, sheetState: SheetState, o
                 SettingsSwitchItem(
                     title = stringResource(R.string.mirror_receive_data), subtitle = stringResource(R.string.mirror_receive_data_desc),
                     checked = isReceiving, onCheckedChange = { isReceiving = it },
-                    icon = Icons.Filled.Download, iconTint = MaterialTheme.colorScheme.tertiary,
+                    icon = Symbols.DownloadFilled, iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.TOP
                 )
                 SettingsSwitchItem(
                     title = stringResource(R.string.mirror_send_data), subtitle = stringResource(R.string.mirror_send_data_desc),
                     checked = isSending, onCheckedChange = { isSending = it },
-                    icon = Icons.Filled.Upload, iconTint = MaterialTheme.colorScheme.tertiary,
+                    icon = Symbols.UploadFilled, iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.BOTTOM
                 )
             }
@@ -1429,7 +1425,7 @@ fun MirrorEditSheet(pos: Int, status: MirrorItemData?, sheetState: SheetState, o
                 trailingIcon = {
                     IconButtonTooltip(if (passwordVisible) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
                         IconButton(onClick = { passwordVisible = !passwordVisible }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, contentDescription = if (passwordVisible) stringResource(R.string.hide_password) else stringResource(R.string.show_password))
+                            Icon(if (passwordVisible) Symbols.VisibilityFilled else Symbols.VisibilityOffFilled, contentDescription = if (passwordVisible) stringResource(R.string.hide_password) else stringResource(R.string.show_password))
                         }
                     }
                 }
@@ -1477,7 +1473,7 @@ fun MirrorEditSheet(pos: Int, status: MirrorItemData?, sheetState: SheetState, o
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(Icons.Filled.CheckCircle, contentDescription = null,
+                            Icon(Symbols.CheckCircleFilled, contentDescription = null,
                                 tint = StatusPalette.success(), modifier = Modifier.size(24.dp))
                             Text(stringResource(R.string.status_connected),
                                 color = StatusPalette.success(),
@@ -1487,7 +1483,7 @@ fun MirrorEditSheet(pos: Int, status: MirrorItemData?, sheetState: SheetState, o
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(Icons.Filled.Error, contentDescription = null,
+                            Icon(Symbols.ErrorFilled, contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
                             Text(stringResource(R.string.status_connection_failed),
                                 color = MaterialTheme.colorScheme.error,

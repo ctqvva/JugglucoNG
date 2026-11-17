@@ -1,15 +1,12 @@
 package tk.glucodata.ui
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.TrendingDown
-import androidx.compose.material.icons.rounded.TrendingFlat
-import androidx.compose.material.icons.rounded.TrendingUp
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import tk.glucodata.R
 import kotlin.math.abs
+import tk.glucodata.ui.symbols.Symbols
 
 // Helper to format timestamps or date strings into "Mon 20.05.2024 14:30"
 fun formatSensorTime(rawTime: String): String {
@@ -69,9 +66,9 @@ fun formatSensorTime(rawTime: String): String {
 
 fun getTrendIcon(rate: Float, modifier: Modifier = Modifier): ImageVector =
     when {
-        rate > 0.5f -> Icons.Rounded.TrendingUp
-        rate < -0.5f -> Icons.Rounded.TrendingDown
-        else -> Icons.Rounded.TrendingFlat
+        rate > 0.5f -> Symbols.TrendingUpFilled
+        rate < -0.5f -> Symbols.TrendingDownFilled
+        else -> Symbols.TrendingFlatFilled
     }
 
 @Composable

@@ -22,11 +22,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,6 +57,7 @@ import tk.glucodata.sms.SmsWatchdog
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Editor for an SMS destination.
@@ -231,7 +227,7 @@ private fun SmsContactsSection(policy: SmsPolicy, onChange: (SmsPolicy) -> Unit)
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
-                Icon(Icons.Filled.PersonAdd, contentDescription = null)
+                Icon(Symbols.PersonAddFilled, contentDescription = null)
                 Text(
                     text = stringResource(R.string.sms_add_contact),
                     modifier = Modifier.padding(start = 12.dp)
@@ -304,7 +300,7 @@ private fun SmsContactCard(
                 IconButtonTooltip(stringResource(R.string.sms_remove_contact)) {
                     IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
                         Icon(
-                            Icons.Filled.Delete,
+                            Symbols.DeleteFilled,
                             contentDescription = stringResource(R.string.sms_remove_contact)
                         )
                     }
@@ -312,7 +308,7 @@ private fun SmsContactCard(
                 IconButtonTooltip(if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)) {
                     IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
                         Icon(
-                            if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            if (expanded) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled,
                             contentDescription = if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)
                         )
                     }

@@ -26,14 +26,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.material3.TextButton
 import tk.glucodata.ui.components.AdaptiveTrailingRow
-import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ColumnScope
@@ -49,13 +47,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.BluetoothDisabled
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.LinkOff
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -104,6 +95,7 @@ import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.findActivity
 import tk.glucodata.ui.util.rememberBleScanner
 import java.util.UUID
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Setup opens on SEARCH: the account (sign-in form or who is signed in) on top, then the nearby
@@ -931,7 +923,7 @@ fun OttaiSetupWizard(
             onDismissRequest = { if (!busy) pendingCloudUnbind = null },
             icon = {
                 Icon(
-                    Icons.Default.LinkOff,
+                    Symbols.LinkOffFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
                 )
@@ -1009,7 +1001,7 @@ fun OttaiSetupWizard(
             onDismissRequest = { pendingDelete = null },
             icon = {
                 Icon(
-                    Icons.Default.Delete,
+                    Symbols.DeleteFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
                 )
@@ -1576,7 +1568,7 @@ fun OttaiSetupWizard(
                                 SettingsItem(
                                     title = stringResource(R.string.ottai_saved_sensors_title),
                                     subtitle = ottaiSavedSensorsSummary(savedSensors.size),
-                                    icon = Icons.Default.Key,
+                                    icon = Symbols.KeyFilled,
                                     iconTint = MaterialTheme.colorScheme.secondary,
                                     position = CardPosition.SINGLE,
                                     onClick = if (!busy) ({ step = OttaiSetupStep.SAVED_SENSORS }) else null,
@@ -1883,7 +1875,7 @@ private fun OttaiSearchStep(
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.TextButtonContentPadding,
                 ) {
-                    Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Symbols.QrCodeScannerFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.scan_qr_button))
                 }
@@ -1953,7 +1945,7 @@ private fun OttaiSearchStep(
             ListItem(
                 headlineContent = { Text(device.displayName.ifBlank { stringResource(R.string.unknown) }) },
                 supportingContent = { Text(supporting) },
-                leadingContent = { Icon(Icons.Default.Bluetooth, null) },
+                leadingContent = { Icon(Symbols.BluetoothFilled, null) },
                 modifier = Modifier.clickable(enabled = enabled) { onAddressSelected(device.address) },
             )
             HorizontalDivider()

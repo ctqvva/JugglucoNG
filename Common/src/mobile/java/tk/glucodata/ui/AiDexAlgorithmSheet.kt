@@ -14,9 +14,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.Science
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -42,6 +39,7 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.StableModalBottomSheet
+import tk.glucodata.ui.symbols.Symbols
 
 /** Separate AiDex sheet: no changes to Sibionics model choices or behavior. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -92,14 +90,14 @@ internal fun AiDexAlgorithmSheet(serial: String, selection: Int, onSelect: (Int)
                         onCheckedChange = { enabled ->
                             mode = if (enabled) 9 else 8
                             onSelect(mode)
-                        }, icon = Icons.Default.Science, iconTint = MaterialTheme.colorScheme.primary,
+                        }, icon = Symbols.ScienceFilled, iconTint = MaterialTheme.colorScheme.primary,
                         position = CardPosition.TOP)
                     Spacer(Modifier.height(4.dp))
                     SettingsSwitchItem(title = stringResource(R.string.sibionics_uncertainty_ribbon),
                         subtitle = stringResource(R.string.sibionics_uncertainty_ribbon_desc),
                         subtitleStyle = MaterialTheme.typography.bodySmall, checked = ribbon,
                         onCheckedChange = { ribbon = it; GlucoseUncertaintyDisplay.setRibbonEnabled(context, it) },
-                        icon = Icons.Default.Insights, iconTint = MaterialTheme.colorScheme.tertiary,
+                        icon = Symbols.InsightsFilled, iconTint = MaterialTheme.colorScheme.tertiary,
                         position = CardPosition.BOTTOM)
                 }
             }

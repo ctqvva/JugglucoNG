@@ -16,13 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.BluetoothSearching
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.StyledSwitch
@@ -57,6 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.drivers.sibionics.SibionicsConstants
 import tk.glucodata.drivers.sibionics.SibionicsRegistry
+import tk.glucodata.ui.symbols.Symbols
 
 enum class SibionicsType(val displayNameRes: Int, val subtype: Int, val setupVisible: Boolean = true) {
     EU(R.string.eusibionics, 0),
@@ -723,7 +717,7 @@ fun ScanSensorStep(
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.scanning_devices))
                     } else {
-                        Icon(Icons.Default.BluetoothSearching, contentDescription = null)
+                        Icon(Symbols.BluetoothSearchingFilled, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.search_bluetooth))
                     }
@@ -746,11 +740,11 @@ fun ScanSensorStep(
                         supportingContent = {
                             Text(text = "${item.address} • RSSI ${item.rssi}", maxLines = 1)
                         },
-                        leadingContent = { Icon(Icons.Default.Bluetooth, contentDescription = null) },
+                        leadingContent = { Icon(Symbols.BluetoothFilled, contentDescription = null) },
                         trailingContent = {
                             if (selected) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
+                                    imageVector = Symbols.CheckFilled,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
@@ -781,7 +775,7 @@ fun ScanSensorStep(
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
-                        Icon(Icons.Default.Bluetooth, contentDescription = null)
+                        Icon(Symbols.BluetoothFilled, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = "${stringResource(R.string.use_bluetooth)} · ${selectedBleDevice.name}",
@@ -806,7 +800,7 @@ fun ScanSensorStep(
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
-                Icon(Icons.Default.Image, contentDescription = null)
+                Icon(Symbols.ImageFilled, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.select_gallery_button))
             }
@@ -927,7 +921,7 @@ fun SelectTypeStep(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
+                                    imageVector = Symbols.CheckFilled,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary.copy(alpha = checkAlpha),
                                     modifier = Modifier.size(if (compact) 20.dp else 24.dp)
@@ -1056,7 +1050,7 @@ fun ScanTransmitterStep(
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.scanning_devices))
                 } else {
-                    Icon(Icons.Default.BluetoothSearching, contentDescription = null)
+                    Icon(Symbols.BluetoothSearchingFilled, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.search_bluetooth))
                 }
@@ -1077,7 +1071,7 @@ fun ScanTransmitterStep(
             items(foundDevices.toList()) { device ->
                 ListItem(
                     headlineContent = { Text(device) },
-                    leadingContent = { Icon(Icons.Default.Bluetooth, null) },
+                    leadingContent = { Icon(Symbols.BluetoothFilled, null) },
                     modifier = Modifier
                         .clickable { onDeviceFound(device) }
                         .clip(RoundedCornerShape(8.dp))
@@ -1144,7 +1138,7 @@ fun ScanTransmitterStep(
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
-                Icon(Icons.Default.QrCodeScanner, contentDescription = null)
+                Icon(Symbols.QrCodeScannerFilled, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.scan_transmitter_button))
             }
@@ -1162,7 +1156,7 @@ fun ScanTransmitterStep(
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
-                Icon(Icons.Default.Image, contentDescription = null)
+                Icon(Symbols.ImageFilled, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.select_gallery_button))
             }

@@ -72,15 +72,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.ui.theme.displayLargeExpressive
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DateRange
-import androidx.compose.material.icons.rounded.HourglassEmpty
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DoNotDisturbOn
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -88,9 +79,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material.icons.filled.History
 import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.animateContentSize
@@ -136,6 +124,7 @@ import tk.glucodata.logic.TrendEngine
 import tk.glucodata.ui.util.AdaptiveContentWidthClass
 import tk.glucodata.ui.util.adaptiveContentWidthClass
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
+import tk.glucodata.ui.symbols.Symbols
 
 private data class TrendCornerWeights(
     val topStart: Float,
@@ -1841,7 +1830,7 @@ internal fun AnimatedHourglassIcon(
     )
 
     Icon(
-        imageVector = Icons.Rounded.HourglassEmpty,
+        imageVector = Symbols.HourglassEmptyFilled,
         contentDescription = null,
         tint = color,
         modifier = modifier.modifierRotate(rotation)
@@ -1896,7 +1885,7 @@ fun RecentReadingsCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.MoreHoriz,
+                            imageVector = Symbols.MoreHorizFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -1988,9 +1977,9 @@ private fun SwipeableDeleteRow(
                 else -> Alignment.Center
             }
             val icon = when (direction) {
-                androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> Icons.Filled.Delete
-                androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> if (isDisabled) Icons.Filled.Check else Icons.Filled.Close
-                else -> Icons.Filled.Delete
+                androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> Symbols.DeleteFilled
+                androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> if (isDisabled) Symbols.CheckFilled else Symbols.CloseFilled
+                else -> Symbols.DeleteFilled
             }
             
             Box(
@@ -2077,7 +2066,7 @@ fun CalibrationsCard(
 //            elevation = androidx.compose.material3.ButtonDefaults.filledTonalButtonElevation(defaultElevation = 2.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.WaterDrop,
+                imageVector = Symbols.WaterDropFilled,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
@@ -2141,7 +2130,7 @@ fun CalibrationsCard(
                     thumbContent = if (isCalibrationEnabled) {
                         {
                             Icon(
-                                imageVector = Icons.Filled.Check,
+                                imageVector = Symbols.CheckFilled,
                                 contentDescription = null,
                                 modifier = Modifier.size(androidx.compose.material3.SwitchDefaults.IconSize),
                             )
@@ -2252,7 +2241,7 @@ fun CalibrationsCard(
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.History,
+                            imageVector = Symbols.HistoryFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -2369,7 +2358,7 @@ fun SignalQualityIndicator(
     ) {
         // Animated Icon
         Icon(
-            imageVector = Icons.Filled.GraphicEq,
+            imageVector = Symbols.GraphicEqFilled,
             contentDescription = null,
             tint = color,
             modifier = Modifier
@@ -2536,7 +2525,7 @@ private fun DashboardClearOptionsBottomSheet(
             if (disabledCount > 0) {
                 androidx.compose.material3.Surface(onClick = onClearDisabled, shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Close, null, tint = MaterialTheme.colorScheme.secondary)
+                        Icon(Symbols.CloseFilled, null, tint = MaterialTheme.colorScheme.secondary)
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.clear_disabled_only), style = MaterialTheme.typography.titleMedium)
@@ -2549,7 +2538,7 @@ private fun DashboardClearOptionsBottomSheet(
             
             androidx.compose.material3.Surface(onClick = onClearAll, shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f), modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error)
+                    Icon(Symbols.DeleteFilled, null, tint = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.clear), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
@@ -2584,7 +2573,7 @@ private fun QuietWindowHeaderChip(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Filled.DoNotDisturbOn,
+            imageVector = Symbols.DoNotDisturbOnFilled,
             contentDescription = stringResource(R.string.quiet_window_title),
             tint = MaterialTheme.colorScheme.onTertiaryContainer,
             modifier = Modifier.size(16.dp)

@@ -34,14 +34,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bloodtype
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults
@@ -112,6 +104,7 @@ import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.ui.ChartActionAnchor
 import tk.glucodata.ui.components.CatchNavigationTaps
 import kotlin.math.roundToInt
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun JournalEntryType.journalActionLabel(): String = when (this) {
@@ -124,12 +117,12 @@ fun JournalEntryType.journalActionLabel(): String = when (this) {
 }
 
 fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
-    JournalEntryType.INSULIN -> Icons.Default.Vaccines
-    JournalEntryType.CARBS -> Icons.Default.Restaurant
-    JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
-    JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
-    JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
-    JournalEntryType.TEMP_BASAL -> Icons.Default.Vaccines
+    JournalEntryType.INSULIN -> Symbols.VaccinesFilled
+    JournalEntryType.CARBS -> Symbols.RestaurantFilled
+    JournalEntryType.FINGERSTICK -> Symbols.BloodtypeFilled
+    JournalEntryType.ACTIVITY -> Symbols.DirectionsRunFilled
+    JournalEntryType.NOTE -> Symbols.LabelFilled
+    JournalEntryType.TEMP_BASAL -> Symbols.VaccinesFilled
 }
 
 /**
@@ -571,7 +564,7 @@ fun BoxScope.JournalExpandableFab(
                     }
             ) {
                 val icon by remember {
-                    derivedStateOf { if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add }
+                    derivedStateOf { if (checkedProgress > 0.5f) Symbols.CloseFilled else Symbols.AddFilled }
                 }
                 Icon(
                     imageVector = icon,

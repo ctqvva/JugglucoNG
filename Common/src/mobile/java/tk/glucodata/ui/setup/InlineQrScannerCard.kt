@@ -31,10 +31,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FlashOff
-import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +70,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 private fun Context.hasCameraPermission(): Boolean {
     return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -457,7 +454,7 @@ fun InlineQrScannerCard(
                             shapes = IconButtonDefaults.shapes()
                         ) {
                             Icon(
-                                imageVector = if (torchEnabled) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                                imageVector = if (torchEnabled) Symbols.FlashOnFilled else Symbols.FlashOffFilled,
                                 contentDescription = stringResource(R.string.flash),
                                 tint = Color.White
                             )
@@ -488,7 +485,7 @@ fun InlineQrScannerCard(
                         },
                         shapes = IconButtonDefaults.shapes()) {
                             Icon(
-                                imageVector = Icons.Filled.OpenInFull,
+                                imageVector = Symbols.OpenInFullFilled,
                                 contentDescription = stringResource(R.string.scan_qr_button),
                                 tint = Color.White
                             )

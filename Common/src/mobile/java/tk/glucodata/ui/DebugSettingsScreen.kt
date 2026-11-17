@@ -24,14 +24,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -63,6 +55,7 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import tk.glucodata.ui.symbols.Symbols
 
 enum class LogType {
     TRACE, LOGCAT, BLE_ERRORS
@@ -336,7 +329,7 @@ fun DebugSettingsScreen(navController: NavController) {
                     IconButtonTooltip(stringResource(R.string.debug_howto_title)) {
                         IconButton(onClick = { showHowTo = !showHowTo }, shapes = IconButtonDefaults.shapes()) {
                             Icon(
-                                Icons.AutoMirrored.Filled.HelpOutline,
+                                Symbols.Help,
                                 contentDescription = stringResource(R.string.debug_howto_title)
                             )
                         }
@@ -351,7 +344,7 @@ fun DebugSettingsScreen(navController: NavController) {
                             snapshot = LogSnapshot()
                         },
                         shapes = IconButtonDefaults.shapes()) {
-                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.clear))
+                            Icon(Symbols.DeleteFilled, contentDescription = stringResource(R.string.clear))
                         }
                     }
                 },
@@ -381,7 +374,7 @@ fun DebugSettingsScreen(navController: NavController) {
                         if (isRecording) R.string.debug_record_on else R.string.debug_record_off
                     ),
                     checked = isRecording,
-                    icon = Icons.Default.BugReport,
+                    icon = Symbols.BugReportFilled,
                     onCheckedChange = { enabled ->
                         isRecording = enabled
                         if (logType == LogType.TRACE) {
@@ -447,12 +440,12 @@ fun DebugSettingsScreen(navController: NavController) {
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
-                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Symbols.ShareFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.debug_share_log))
                 }
                 OutlinedButton(onClick = { saveLauncher.launch(logType.exportName()) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
-                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Symbols.SaveFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.save))
                 }
@@ -481,7 +474,7 @@ private fun HowToReportCard(onDismiss: () -> Unit) {
                 IconButtonTooltip(stringResource(R.string.debug_dismiss_howto)) {
                     IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp), shapes = IconButtonDefaults.shapes()) {
                         Icon(
-                            Icons.Default.Close,
+                            Symbols.CloseFilled,
                             contentDescription = stringResource(R.string.debug_dismiss_howto),
                             modifier = Modifier.size(18.dp)
                         )
@@ -648,7 +641,7 @@ private fun LogConsole(
                 containerColor = MaterialTheme.colorScheme.secondaryContainer
             ) {
                 Icon(
-                    Icons.Default.ArrowDownward,
+                    Symbols.ArrowDownwardFilled,
                     contentDescription = stringResource(R.string.debug_jump_to_latest)
                 )
             }

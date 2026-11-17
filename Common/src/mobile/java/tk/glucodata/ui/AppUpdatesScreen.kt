@@ -20,18 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.DeveloperMode
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.NewReleases
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Smartphone
-import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -72,6 +60,7 @@ import tk.glucodata.update.UpdateEligibility
 import tk.glucodata.update.UpdateError
 import tk.glucodata.update.UpdateSource
 import tk.glucodata.update.UpdateStage
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * "App updates" — the detail screen behind the Data management entry.
@@ -127,7 +116,7 @@ fun AppUpdatesScreen(navController: NavController) {
                         Formatter.formatShortFileSize(context, update.artifact.sizeBytes)
                     )
                 } ?: stringResource(R.string.app_updates_latest_none),
-                icon = Icons.Filled.NewReleases,
+                icon = Symbols.NewReleasesFilled,
                 iconTint = MaterialTheme.colorScheme.secondary,
                 position = CardPosition.BOTTOM
             )
@@ -180,7 +169,7 @@ fun AppUpdatesScreen(navController: NavController) {
                 searchAnchor = SettingsSearchAnchors.forRow(R.string.app_updates_auto_title),
                 subtitle = stringResource(R.string.app_updates_auto_desc),
                 checked = state.autoCheckEnabled,
-                icon = Icons.Filled.NotificationsActive,
+                icon = Symbols.NotificationsActiveFilled,
                 iconTint = MaterialTheme.colorScheme.secondary,
                 position = CardPosition.TOP,
                 onCheckedChange = { AppUpdateController.setAutoCheckEnabled(context, it) }
@@ -189,7 +178,7 @@ fun AppUpdatesScreen(navController: NavController) {
                 title = stringResource(R.string.app_updates_source_title),
                 searchAnchor = SettingsSearchAnchors.forRow(R.string.app_updates_source_title),
                 subtitle = state.updateSource,
-                icon = Icons.Filled.Link,
+                icon = Symbols.LinkFilled,
                 iconTint = MaterialTheme.colorScheme.secondary,
                 position = CardPosition.BOTTOM,
                 onClick = { showSourceDialog = true }
@@ -248,7 +237,7 @@ private fun CheckForUpdatesButton(
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.app_updates_state_checking))
         } else {
-            Icon(Icons.Filled.Refresh, contentDescription = null)
+            Icon(Symbols.RefreshFilled, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.app_updates_action_check))
         }
@@ -272,7 +261,7 @@ private fun UnsupportedCard(state: AppUpdateUiState) {
                 accent = MaterialTheme.colorScheme.secondary,
                 title = stringResource(R.string.app_updates_unsupported_store_title),
                 body = stringResource(R.string.app_updates_unsupported_store_body, installer),
-                icon = Icons.Filled.Storefront
+                icon = Symbols.StorefrontFilled
             )
         }
 
@@ -280,7 +269,7 @@ private fun UnsupportedCard(state: AppUpdateUiState) {
             accent = MaterialTheme.colorScheme.secondary,
             title = stringResource(R.string.app_updates_unsupported_debug_title),
             body = stringResource(R.string.app_updates_unsupported_debug_body),
-            icon = Icons.Filled.DeveloperMode
+            icon = Symbols.DeveloperModeFilled
         )
     }
 }
@@ -294,7 +283,7 @@ private fun InstalledVersionRow(position: CardPosition) {
             BuildConfig.BASE_VERSION_NAME,
             BuildConfig.VERSION_CODE
         ),
-        icon = Icons.Filled.Smartphone,
+        icon = Symbols.SmartphoneFilled,
         iconTint = MaterialTheme.colorScheme.secondary,
         position = position
     )

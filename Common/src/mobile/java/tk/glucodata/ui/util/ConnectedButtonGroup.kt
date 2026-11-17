@@ -6,8 +6,6 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -47,6 +45,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.rememberTextMeasurer
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * M3 Expressive connected button group: material3's [ToggleButton]s with the
@@ -205,7 +204,7 @@ fun <T> ConnectedButtonGroup(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
+                                    imageVector = Symbols.CheckFilled,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                     tint = contentColor

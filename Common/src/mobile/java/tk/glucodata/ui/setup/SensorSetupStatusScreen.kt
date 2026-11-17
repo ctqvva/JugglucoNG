@@ -25,9 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -48,6 +45,7 @@ import tk.glucodata.ui.components.SensorArt
 import tk.glucodata.ui.components.SensorType
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 internal const val SENSOR_SETUP_SUCCESS_AUTO_ADVANCE_MS = 1400L
 
@@ -173,8 +171,8 @@ private fun SensorSetupStatusScreen(
     val heroSize = if (ui.compact) 120.dp else 148.dp
     val haloSize = if (ui.compact) 172.dp else 208.dp
     val icon = when (tone) {
-        SensorSetupStatusTone.Connecting -> Icons.Default.Bluetooth
-        SensorSetupStatusTone.Success -> Icons.Default.CheckCircle
+        SensorSetupStatusTone.Connecting -> Symbols.BluetoothFilled
+        SensorSetupStatusTone.Success -> Symbols.CheckCircleFilled
     }
 
     Column(
@@ -256,7 +254,7 @@ private fun SensorSetupStatusScreen(
                 }
                 val badgeScale = badge.value
                 Icon(
-                    imageVector = Icons.Default.CheckCircle,
+                    imageVector = Symbols.CheckCircleFilled,
                     contentDescription = null,
                     tint = accentColor,
                     modifier = Modifier

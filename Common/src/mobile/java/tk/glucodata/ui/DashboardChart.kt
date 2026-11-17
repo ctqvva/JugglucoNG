@@ -71,17 +71,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.filled.FirstPage
-import androidx.compose.material.icons.automirrored.filled.LastPage
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Bloodtype
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Vaccines
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -203,6 +192,7 @@ import java.text.NumberFormat
 import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.roundToInt
+import tk.glucodata.ui.symbols.Symbols
 
 private const val PREVIEW_WINDOW_MODE_EXPANDED_ONLY = 0
 private const val PREVIEW_WINDOW_MODE_ALWAYS = 1
@@ -4578,7 +4568,7 @@ fun InteractiveGlucoseChart(
                         ) {
                             // ui-guardrails: allow-end
                             Icon(
-                                imageVector = Icons.Default.AccessTime,
+                                imageVector = Symbols.AccessTimeFilled,
                                 contentDescription = null,
                                 modifier = Modifier.size(12.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -4783,7 +4773,7 @@ fun InteractiveGlucoseChart(
                         } else if (remainingLabel != null && !isActiveInsulinExpanded) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.AccessTime,
+                                    imageVector = Symbols.AccessTimeFilled,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(14.dp)
@@ -5277,7 +5267,7 @@ fun InteractiveGlucoseChart(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.WaterDrop,
+                            imageVector = Symbols.WaterDropFilled,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
                             tint = MaterialTheme.colorScheme.primary
@@ -5429,7 +5419,7 @@ fun InteractiveGlucoseChart(
                         shapes = IconButtonDefaults.shapes()
                     ) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.LastPage,
+                            imageVector = Symbols.LastPageFilled,
                             contentDescription = stringResource(R.string.chart_back_to_now)
                         )
                     }
@@ -5605,7 +5595,7 @@ fun InteractiveGlucoseChart(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Filled.DateRange,
+                        imageVector = Symbols.DateRangeFilled,
                         contentDescription = stringResource(R.string.chart_jump_to_date),
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.requiredSize(scaled(baseOuterIconSize))
@@ -5701,7 +5691,7 @@ fun InteractiveGlucoseChart(
                         ) {
                             if (isSel) {
                                 Icon(
-                                    imageVector = Icons.Default.AccessTime,
+                                    imageVector = Symbols.AccessTimeFilled,
                                     contentDescription = null,
                                     tint = contentColor,
                                     modifier = Modifier
@@ -5761,7 +5751,7 @@ fun InteractiveGlucoseChart(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = if (isScrolledRight) Icons.Filled.FirstPage else Icons.AutoMirrored.Filled.LastPage,
+                                imageVector = if (isScrolledRight) Symbols.FirstPageFilled else Symbols.LastPageFilled,
                                 contentDescription = stringResource(R.string.chart_back_to_now),
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.requiredSize(scaled(baseBackIconSize))
@@ -5916,12 +5906,12 @@ internal fun JournalMarkerChip(
             ) {
                 Icon(
                     imageVector = when (marker.type) {
-                        JournalEntryType.INSULIN -> Icons.Default.Vaccines
-                        JournalEntryType.CARBS -> Icons.Default.Restaurant
-                        JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
-                        JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
-                        JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
-                        JournalEntryType.TEMP_BASAL -> Icons.Default.Vaccines
+                        JournalEntryType.INSULIN -> Symbols.VaccinesFilled
+                        JournalEntryType.CARBS -> Symbols.RestaurantFilled
+                        JournalEntryType.FINGERSTICK -> Symbols.BloodtypeFilled
+                        JournalEntryType.ACTIVITY -> Symbols.DirectionsRunFilled
+                        JournalEntryType.NOTE -> Symbols.LabelFilled
+                        JournalEntryType.TEMP_BASAL -> Symbols.VaccinesFilled
                     },
                     contentDescription = null,
                     tint = tint,
