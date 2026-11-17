@@ -3642,4 +3642,43 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="food_move_up">Mover arriba</string>
      <string name="food_move_down">Mover abajo</string>
     <string name="spanish">Español</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Subir lecturas a tu cuenta de Dexcom Clarity</string>
+    <string name="clarity_active_desc">Sube las lecturas del sensor para que tu clínica las vea en Clarity</string>
+    <string name="clarity_send_enabled">Enviar a Clarity</string>
+    <string name="clarity_section_upload">Subida</string>
+    <string name="clarity_section_account">Cuenta de Dexcom</string>
+    <string name="clarity_change_start">Cambiar fecha de inicio</string>
+    <string name="clarity_start_date">Inicio: %1$s</string>
+    <string name="clarity_change_start_title">¿Cambiar la fecha de inicio de Clarity?</string>
+    <string name="clarity_change_start_confirm">¿Usar el %1$s? Una fecha anterior envía datos antiguos que aún no se han confirmado. Una fecha posterior omite datos antiguos sin enviar. Los datos confirmados y los lotes pendientes se conservan; el historial de Clarity no se borra ni se restablece.</string>
+    <string name="clarity_use_history">Usar el historial de Libre 3</string>
+    <string name="clarity_use_history_desc">Enviar el historial de Libre 3 en lugar de los valores por minuto</string>
+    <string name="clarity_not_signed_in">Sin iniciar sesión</string>
+    <string name="clarity_signed_in_as">Sesión iniciada (cuenta %1$s)</string>
+    <string name="clarity_login_country">Código de país (2 letras)</string>
+    <string name="clarity_sign_in">Iniciar sesión en Dexcom</string>
+    <string name="clarity_change_account_hint">Desactiva «Enviar a Clarity» para iniciar sesión con otra cuenta.</string>
+    <string name="clarity_login_pending_hint">Un inicio de sesión se interrumpió después de que Dexcom lo aceptara. Termínalo para conservarlo, o vuelve a iniciar sesión.</string>
+    <string name="clarity_login_finish_pending">Terminar inicio de sesión pendiente</string>
+    <string name="clarity_try_again">Reintentar</string>
+    <string name="clarity_login_tls_error">No se pudo verificar la conexión segura con Dexcom.</string>
+    <string name="clarity_login_load_error">No se pudo cargar la página de inicio de sesión de Dexcom.</string>
+    <string name="clarity_login_http_error">La página de inicio de sesión de Dexcom devolvió HTTP %1$d.</string>
+    <string name="clarity_login_destination_error">La página de inicio de sesión pidió un destino no compatible.</string>
+    <string name="clarity_login_start_error">No se puede iniciar sesión en Dexcom.</string>
+    <string name="clarity_login_in_progress">Todavía se está completando un inicio de sesión. Espera y luego prueba «Terminar inicio de sesión pendiente».</string>
+    <string name="clarity_login_completing">Completando el inicio de sesión en Dexcom…</string>
+    <string name="clarity_login_complete_error">No se puede completar el inicio de sesión en Dexcom.</string>
+    <string name="clarity_login_retry_error">%1$s\nSi Dexcom aceptó tu inicio de sesión, prueba «Terminar inicio de sesión pendiente»; si no, vuelve a iniciar sesión.</string>
+    <string name="clarity_last_ack">Última confirmación: %1$s</string>
+    <string name="clarity_ack_count">Lecturas del sensor confirmadas: %1$d</string>
+    <string name="clarity_ack_latest">Última lectura confirmada: %1$s</string>
+    <string name="clarity_pending_glucose">Lecturas pendientes: %1$d, de %2$s a %3$s</string>
+    <string name="clarity_read_settings_error">No se pueden leer los ajustes de Clarity</string>
+    <string name="clarity_save_settings_error">No se pueden guardar los ajustes de Clarity</string>
+    <string name="clarity_unavailable">La subida a Clarity no está disponible en esta versión</string>
+    <string name="clarity_warning">No oficial: JugglucoNG inicia sesión y sube datos igual que la propia app de Dexcom. Dexcom puede cambiarlo o bloquearlo en cualquier momento.</string>
 </resources>

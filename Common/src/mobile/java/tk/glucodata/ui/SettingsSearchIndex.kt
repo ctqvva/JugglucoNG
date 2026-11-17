@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.DoNotDisturbOn
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Language
@@ -356,6 +357,7 @@ internal object SettingsSearchIndex {
     private val SHARING = listOf(R.string.settings_section_sharing)
     private val PHONE_APPS = SHARING + R.string.settings_phone_apps_title
     private val NIGHTSCOUT = SHARING + R.string.nightscout_settings_title
+    private val CLARITY = SHARING + R.string.clarity_title
     private val LIBREVIEW = SHARING + R.string.libreview_config
     private val MIRROR = SHARING + R.string.mirror
     private val CLONE_NETWORK = MIRROR + R.string.clone_network_title
@@ -695,6 +697,12 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.clarity_title, SHARING, Icons.Default.CloudUpload, T, route("settings/clarity"),
             keywords = listOf(R.string.clarity_desc, R.string.clarity_send_enabled), terms = listOf("Clarity", "Dexcom", "clinic"),
             condition = SettingsSearchCondition.CLARITY),
+        SettingsSearchEntry(R.string.clarity_change_start, CLARITY, Icons.Default.CalendarMonth, T, route("settings/clarity"),
+            keywords = listOf(R.string.clarity_change_start_title), condition = SettingsSearchCondition.CLARITY,
+            anchor = row(R.string.clarity_change_start)),
+        SettingsSearchEntry(R.string.clarity_use_history, CLARITY, Icons.Default.History, T, route("settings/clarity"),
+            keywords = listOf(R.string.clarity_use_history_desc), terms = listOf("Libre 3"),
+            condition = SettingsSearchCondition.CLARITY, anchor = row(R.string.clarity_use_history)),
         SettingsSearchEntry(R.string.mq_account_title, SHARING, Icons.Default.AccountCircle, T, route("settings/mq-account"),
             keywords = listOf(R.string.settings_mq_account_desc), terms = listOf("Glutec"),
             condition = SettingsSearchCondition.MQ_ACCOUNT),

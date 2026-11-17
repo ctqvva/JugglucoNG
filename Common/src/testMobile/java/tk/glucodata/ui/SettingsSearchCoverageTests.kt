@@ -40,7 +40,7 @@ class SettingsSearchCoverageTests {
             "the screen's on/off card: searching its name finds the screen, which opens on it",
             "active", "debug_record_title", "dexcom_share_active", "enable_overlay", "enable_overlay_service",
             "insulin_pens_enable_title", "libreview_active", "mirror_clone_master", "mq_sync_title",
-            "mq_follower_title",
+            "mq_follower_title", "clarity_send_enabled",
         )
         because(
             "a status line or a list entry, not a setting",
@@ -51,7 +51,7 @@ class SettingsSearchCoverageTests {
         because(
             "an action or a way into a sub-list, found through the screen that holds it",
             "add_connection", "api_source_settings_title", "lumiflex_manage_followers",
-            "mq_follower_settings_title", "sensor_handover_old_action_title",
+            "mq_follower_settings_title", "sensor_handover_old_action_title", "sendnow",
         )
         because(
             "slider controls are reached through their parent display screen",
