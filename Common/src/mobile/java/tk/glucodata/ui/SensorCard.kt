@@ -439,7 +439,7 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
     }
     // The reading chip's own shape, height and padding: the line's two ends are a pair.
     Surface(
-        modifier = modifier.semantics { contentDescription = figure ?: "" },
+        modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         color = if (down) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainer,
         contentColor = color,
@@ -447,6 +447,8 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
     ) {
         Row(
             modifier = Modifier
+                // Named where it is tapped, so the button is not announced without a label.
+                .semantics { contentDescription = figure ?: "" }
                 .then(tap)
                 .heightIn(min = 32.dp)
                 .padding(horizontal = 12.dp),
@@ -502,7 +504,6 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
     }
 }
 
-private const val SENSOR_DETAILS_EXPANDED_PREF = "sensor_card_details_expanded"
 
 @Composable
 private fun SensorCurrentValueChip(
@@ -2304,14 +2305,16 @@ fun SensorCard(
                             // level, down, or neither yet. Only for a sensor this phone's own
                             // radio reads and has not been told to leave alone.
                             if (!restricted && !sensor.isCloneSource && !isHandedOff && isLocallyEnabled) {
-                                val linkDown = !isStreaming && sensorStatusText != null && (
+                                // The driver's own word wins: an enabled sensor counts as
+                                // streaming even while its link is down.
+                                val linkDown = sensorStatusText != null && (
                                     sensorStatusText.equals(stringResource(R.string.status_disconnected), ignoreCase = true) ||
                                         sensorStatusText.equals(stringResource(R.string.lossofsignal), ignoreCase = true)
                                     )
                                 SensorLinkMark(
                                     state = when {
-                                        isStreaming -> SensorLinkState.UP
                                         linkDown -> SensorLinkState.DOWN
+                                        isStreaming -> SensorLinkState.UP
                                         else -> SensorLinkState.WAITING
                                     },
                                     rssi = sensor.rssi.takeIf { it in -120..-1 },
@@ -2333,16 +2336,8 @@ fun SensorCard(
                 Spacer(modifier = Modifier.height(16.dp))
             }
             // Open stays open: the choice is kept across sensors and restarts.
-            val detailsPrefs = remember(context) {
-                context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
-            }
-            var detailsExpanded by remember {
-                mutableStateOf(detailsPrefs.getBoolean(SENSOR_DETAILS_EXPANDED_PREF, false))
-            }
-            val setDetailsExpanded = { expanded: Boolean ->
-                detailsExpanded = expanded
-                detailsPrefs.edit().putBoolean(SENSOR_DETAILS_EXPANDED_PREF, expanded).apply()
-            }
+            val detailsExpanded = SensorCardDetails.expanded(context)
+            val setDetailsExpanded = { expanded: Boolean -> SensorCardDetails.setExpanded(context, expanded) }
             // Open, the rows sit a step back from the line they came out of.
             val detailsColor by animateColorAsState(
                 targetValue = if (detailsExpanded) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainer,

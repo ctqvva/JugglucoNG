@@ -106,6 +106,8 @@ private fun contrastRatio(a: Color, b: Color): Float {
 /** Null when the start is unset or bogus: nothing about the wear is known then. */
 @Composable
 internal fun sensorLife(sensor: SensorInfo): SensorLife? {
+    // Before the ticker: a card with nothing to show about the wear has no reason to wake.
+    if (sensor.startMs <= PLAUSIBLE_START_MS) return null
     // Ticks each minute, so the fill, the day and the time left move on without a reading.
     val now by produceState(System.currentTimeMillis()) {
         while (true) {
@@ -113,7 +115,6 @@ internal fun sensorLife(sensor: SensorInfo): SensorLife? {
             value = System.currentTimeMillis()
         }
     }
-    if (sensor.startMs <= PLAUSIBLE_START_MS) return null
     val endMs = sensor.lifetimeEndMs()
     // The dashboard's rule: an Anytime CT5's expected end is advisory, and it keeps running.
     val allowOverrun = sensor.isAnytime && sensor.expectedEndMs > 0L && !sensor.isSensorExpired
@@ -325,13 +326,15 @@ internal fun SensorDates(
     }
     val startLabel = stringResource(R.string.sensor_started)
     val context = LocalContext.current
+    // A language change is handled in place, and the dates are worded in the language.
+    val configuration = LocalConfiguration.current
     val dateStyle = MaterialTheme.typography.titleMediumEmphasized
     val timeStyle = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum")
     val timeColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val start = remember(context, life.startMs, timeStyle, timeColor) {
+    val start = remember(context, configuration, life.startMs, timeStyle, timeColor) {
         sensorDateTexts(context, life.startMs, timeStyle, timeColor)
     }
-    val end = remember(context, life.endMs, timeStyle, timeColor) {
+    val end = remember(context, configuration, life.endMs, timeStyle, timeColor) {
         sensorDateTexts(context, life.endMs, timeStyle, timeColor)
     }
     val measurer = rememberTextMeasurer()
