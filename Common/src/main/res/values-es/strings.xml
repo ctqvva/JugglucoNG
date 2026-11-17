@@ -2203,6 +2203,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="journal_show_tab_desc">Añadir Diario a la navegación inferior</string>
      <string name="journal_dashboard_types_title">Mostrar en la pantalla principal</string>
      <string name="journal_dashboard_types_desc">Las entradas ocultas dejan solo el gráfico principal y la lista de lecturas. Siguen contando para IOB, COB, la predicción y las sugerencias de dosis.</string>
+     <string name="journal_entry_types_order_desc">El menú \'+\' y el menú para añadir del gráfico muestran estos elementos en este orden. Arrastra un tirador para moverlo.</string>
      <string name="journal_import_health_activity_desc">Añadir entrenamientos y pasos al diario</string>
      <string name="journal_section_main_screen">Pantalla principal</string>
      <string name="journal_section_dosing">Dosificación</string>
