@@ -3336,8 +3336,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
         <item quantity="one">%d geplanter Journaleintrag einbezogen</item>
         <item quantity="other">%d geplante Journaleinträge einbezogen</item>
     </plurals>
-    <string name="nightscout_upload_sensor_start">Sensorstart senden</string>
-    <string name="nightscout_upload_sensor_start_desc">Für jeden Sensor ein Sensor-Start-Ereignis senden (Alter, Typ und Seriennummer)</string>
     <string name="ican_calibration_marker">Kalibrierung (F6)</string>
 
     <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->

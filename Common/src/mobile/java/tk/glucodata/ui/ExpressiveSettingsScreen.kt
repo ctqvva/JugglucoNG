@@ -250,6 +250,13 @@ fun ExpressiveSettingsScreen(
                 SettingsSearchCondition.APP_TREND -> showAppTrend
                 SettingsSearchCondition.NIGHTSCOUT_UPLOAD -> nightscoutUploadMode
                 SettingsSearchCondition.NIGHTSCOUT_FOLLOW -> !nightscoutUploadMode
+                SettingsSearchCondition.JOURNAL -> journalEnabled
+                SettingsSearchCondition.NIGHTSCOUT_UPLOAD_JOURNAL -> journalEnabled && nightscoutUploadMode
+                SettingsSearchCondition.NIGHTSCOUT_LONG_INSULIN -> journalEnabled && if (nightscoutUploadMode) {
+                    hiddenRows.nightscoutUploadSendsTreatments
+                } else {
+                    hiddenRows.nightscoutFollowSendsTreatments
+                }
                 SettingsSearchCondition.JOURNAL_QUICK_ADD -> journalEnabled && journalQuickAddButton
                 SettingsSearchCondition.LUMIFLEX -> showLumiflex
                 SettingsSearchCondition.NOTIFICATION_CHART -> notificationChartEnabled || notificationRows.collapsedChart

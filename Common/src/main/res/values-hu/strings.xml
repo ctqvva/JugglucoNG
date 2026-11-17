@@ -3292,8 +3292,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
         <item quantity="one">%d tervezett naplóbejegyzés beszámítva</item>
         <item quantity="other">%d tervezett naplóbejegyzés beszámítva</item>
     </plurals>
-    <string name="nightscout_upload_sensor_start">Szenzorindítás küldése</string>
-    <string name="nightscout_upload_sensor_start_desc">Sensor Start esemény küldése szenzoronként (életkor, típus és sorozatszám)</string>
     <string name="ican_calibration_marker">Kalibráció (F6)</string>
 
     <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->

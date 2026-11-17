@@ -3214,8 +3214,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">Inclusa %d voce di diario pianificata</item>
         <item quantity="other">Incluse %d voci di diario pianificate</item>
     </plurals>
-    <string name="nightscout_upload_sensor_start">Invia avvio sensore</string>
-    <string name="nightscout_upload_sensor_start_desc">Invia un evento Sensor Start per ogni sensore (età, tipo e numero di serie)</string>
     <string name="ican_calibration_marker">Calibrazione (F6)</string>
 
     <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->

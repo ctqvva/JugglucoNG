@@ -3277,8 +3277,6 @@
         <item quantity="many">Uwzględniono %d zaplanowanych wpisów dziennika</item>
         <item quantity="other">Uwzględniono %d zaplanowanego wpisu dziennika</item>
     </plurals>
-    <string name="nightscout_upload_sensor_start">Wysyłaj rozpoczęcie sensora</string>
-    <string name="nightscout_upload_sensor_start_desc">Wysyłaj zdarzenie Sensor Start dla każdego sensora (wiek, typ i numer seryjny)</string>
     <string name="ican_calibration_marker">Kalibracja (F6)</string>
 
     <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->

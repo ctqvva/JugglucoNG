@@ -3266,8 +3266,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
         <item quantity="one">%d geplande logboekregel meegenomen</item>
         <item quantity="other">%d geplande logboekregels meegenomen</item>
     </plurals>
-    <string name="nightscout_upload_sensor_start">Sensorstart verzenden</string>
-    <string name="nightscout_upload_sensor_start_desc">Verzend per sensor een Sensor Start-gebeurtenis (leeftijd, type en serienummer)</string>
     <string name="ican_calibration_marker">Kalibratie (F6)</string>
 
     <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->

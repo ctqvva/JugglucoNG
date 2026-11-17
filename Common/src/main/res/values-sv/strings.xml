@@ -3223,8 +3223,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">%d planerad journalpost togs med</item>
         <item quantity="other">%d planerade journalposter togs med</item>
     </plurals>
-    <string name="nightscout_upload_sensor_start">Skicka sensorstart</string>
-    <string name="nightscout_upload_sensor_start_desc">Skicka en Sensor Start-händelse per sensor (ålder, typ och serienummer)</string>
     <string name="ican_calibration_marker">Kalibrering (F6)</string>
 
     <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->

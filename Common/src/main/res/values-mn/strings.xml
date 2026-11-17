@@ -3324,8 +3324,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
         <item quantity="one">Төлөвлөсөн %d тэмдэглэл тооцсон</item>
         <item quantity="other">Төлөвлөсөн %d тэмдэглэл тооцсон</item>
     </plurals>
-    <string name="nightscout_upload_sensor_start">Мэдрэгч эхэлснийг илгээх</string>
-    <string name="nightscout_upload_sensor_start_desc">Мэдрэгч бүрийн Sensor Start үйл явдлыг илгээх (нас, төрөл, серийн дугаар)</string>
     <string name="ican_calibration_marker">Каллибраци (F6)</string>
 
     <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->

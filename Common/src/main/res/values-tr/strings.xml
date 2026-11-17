@@ -3251,8 +3251,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
         <item quantity="one">%d planlanmış günlük kaydı dahil edildi</item>
         <item quantity="other">%d planlanmış günlük kaydı dahil edildi</item>
     </plurals>
-    <string name="nightscout_upload_sensor_start">Sensör başlangıcını gönder</string>
-    <string name="nightscout_upload_sensor_start_desc">Her sensör için Sensor Start olayı gönder (yaş, tür ve seri numarası)</string>
     <string name="ican_calibration_marker">Kalibrasyon (F6)</string>
 
     <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->

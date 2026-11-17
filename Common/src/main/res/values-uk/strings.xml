@@ -3312,8 +3312,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="many">Враховано %d запланованих записів журналу</item>
         <item quantity="other">Враховано %d запланованого запису журналу</item>
     </plurals>
-    <string name="nightscout_upload_sensor_start">Надсилати запуск сенсора</string>
-    <string name="nightscout_upload_sensor_start_desc">Надсилати подію Sensor Start для кожного сенсора (вік, тип і серійний номер)</string>
     <string name="ican_calibration_marker">Калібрування (F6)</string>
 
     <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->

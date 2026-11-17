@@ -529,7 +529,6 @@ static public int batteryPercent() {
 
 private static final String PREFS_NAME="tk.glucodata_preferences";
 private static final String PREF_UPLOAD_IOB="nightscout_upload_iob";
-private static final String PREF_UPLOAD_SENSOR_START="nightscout_upload_sensor_start";
 private static long iobStatusUploadTime=0L;
 private static float iobStatusLastIob=Float.NaN;
 private static float iobStatusLastEiob=Float.NaN;
@@ -557,30 +556,6 @@ static public void setUploadIob(boolean enabled) {
     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(PREF_UPLOAD_IOB, enabled)
-            .apply();
-    }
-
-/**
- * Default on: posts "Sensor Start" treatments so that Nightscout's
- * sage plugin shows sensor age.
- */
-@Keep
-static public boolean getUploadSensorStart() {
-    final Context context = Applic.getContext();
-    if(context == null)
-        return false;
-    return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(PREF_UPLOAD_SENSOR_START, true);
-    }
-
-@Keep
-static public void setUploadSensorStart(boolean enabled) {
-    final Context context = Applic.getContext();
-    if(context == null)
-        return;
-    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(PREF_UPLOAD_SENSOR_START, enabled)
             .apply();
     }
 
@@ -613,7 +588,7 @@ static public long getSensorStartTime(String sensorId, long nativeStartTime, int
 @Keep
 static public boolean maybeUploadIobDeviceStatus(String httpurl,String secret) {
     try {
-        if(!getUploadIob())
+        if(!getUploadIob() || !JournalEnabled.isOn(Applic.getContext()))
             return true;
         final long now=System.currentTimeMillis();
         if(!NightscoutIobDeviceStatus.fastIntervalElapsed(now, iobStatusUploadTime))
@@ -967,8 +942,6 @@ public static void  config(MainActivity act, View settingsview) {
     wake.setOnClickListener(v-> Natives.wakeuploader());
     Button help;
     CheckBox treatments=getcheckbox(act,R.string.sendamounts,Natives.getpostTreatments());
-    CheckBox sensorStart=getcheckbox(act,R.string.nightscout_upload_sensor_start,getUploadSensorStart());
-    sensorStart.setOnCheckedChangeListener((buttonView,isChecked)->setUploadSensorStart(isChecked));
     if(!isWearable) {
         help=getbutton(act,R.string.helpname);
         help.setOnClickListener(v-> help(R.string.NightPost,act));
@@ -1001,7 +974,7 @@ public static void  config(MainActivity act, View settingsview) {
    if(isWearable) {
       var space1=new Space(act);
       var space2=new Space(act);
-       layout=new Layout(act, (lay, w, h) -> { return new int[] {w,h};}, new View[]{secretlabel},new View[]{visible},new View[]{editsecret},new View[]{urllabel},new View[]{url},new View[]{statusview},new View[]{treatments,sensorStart},new View[]{clear},new View[]{wake},new View[]{space1,activebox,cancel,space2},new View[]{save});
+       layout=new Layout(act, (lay, w, h) -> { return new int[] {w,h};}, new View[]{secretlabel},new View[]{visible},new View[]{editsecret},new View[]{urllabel},new View[]{url},new View[]{statusview},new View[]{treatments},new View[]{clear},new View[]{wake},new View[]{space1,activebox,cancel,space2},new View[]{save});
    }
       else {
     layout=new Layout(act, (lay, w, h) -> {
@@ -1015,7 +988,7 @@ public static void  config(MainActivity act, View settingsview) {
                                 };
 
             lay.setY(MainActivity.systembarTop);
-                        return new int[] {w,h};}, new View[]{urllabel,url},new View[]{secretlabel,editsecret,visible},new View[]{statusview},new View[]{activebox,v3box,clear,wake},new View[]{treatments,sensorStart,help,cancel,save});
+                        return new int[] {w,h};}, new View[]{urllabel,url},new View[]{secretlabel,editsecret,visible},new View[]{statusview},new View[]{activebox,v3box,clear,wake},new View[]{treatments,help,cancel,save});
 
       }
         int laypar;

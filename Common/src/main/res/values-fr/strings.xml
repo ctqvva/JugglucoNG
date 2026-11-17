@@ -3230,8 +3230,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">%d entrée de journal prévue incluse</item>
         <item quantity="other">%d entrées de journal prévues incluses</item>
     </plurals>
-    <string name="nightscout_upload_sensor_start">Envoyer le démarrage du capteur</string>
-    <string name="nightscout_upload_sensor_start_desc">Envoyer un événement Sensor Start par capteur (âge, type et numéro de série)</string>
     <string name="ican_calibration_marker">Étalonnage (F6)</string>
 
     <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
