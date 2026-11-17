@@ -2,11 +2,17 @@
 
 package tk.glucodata.drivers.ottai
 
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
@@ -21,6 +27,16 @@ import java.util.UUID
 import java.util.concurrent.Executors
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.logi
+
+/** How long the session looks for an unseen sensor's advertisement before connecting directly. */
+private const val ADVERTISEMENT_SCAN_MS = 20_000L
+
+/**
+ * Android only knows an LE device's address type after it has seen it advertise. Until then
+ * ([BluetoothDevice.DEVICE_TYPE_UNKNOWN]) a direct connect to the bare address can never link.
+ */
+internal fun ottaiFirmwareNeedsAdvertisement(deviceType: Int): Boolean =
+    deviceType == BluetoothDevice.DEVICE_TYPE_UNKNOWN
 
 /**
  * One dialog owns one serial BLE client. It is never registered as a managed sensor and cannot
@@ -60,6 +76,8 @@ internal class OttaiFirmwareSession private constructor(
     private var operationTimeout: Runnable? = null
     private var discoveryStarted = false
     private var discoveryGate: OttaiFirmwareDiscovery? = null
+    private var advertisementScanner: BluetoothLeScanner? = null
+    private var advertisementScan: ScanCallback? = null
     private val recovery = AtomicFile(File(context.filesDir, "ottai-ota/$sensorId.bin"))
     private val controller = OttaiFirmwareController(sensorId, materials, this, mode, prepareForSetup) { state ->
         main.post { publish(state) }
@@ -209,13 +227,73 @@ internal class OttaiFirmwareSession private constructor(
         log("connect address=$address")
         val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
         if (adapter?.isEnabled != true) { controller.fail("bluetooth_off"); return }
+        val known = runCatching { adapter.getRemoteDevice(address) }.getOrNull()
+            ?: run { controller.fail("connect_start"); return }
+        if (!ottaiFirmwareNeedsAdvertisement(known.type)) { connectGatt(known); return }
+        // A QR-scanned or typed ID gives an address Android has never seen advertising. A direct
+        // connect then guesses the LE address type and waits out the stack's timeout, while the
+        // same sensor picked from the nearby list connects at once. Find the advertisement first
+        // and connect from it, as the list does.
+        val scanner = adapter.bluetoothLeScanner ?: run { connectGatt(known); return }
+        val token = generation
+        lateinit var scan: ScanCallback
+        val finish: (BluetoothDevice) -> Unit = { device ->
+            if (advertisementScan === scan) {
+                stopAdvertisementScan()
+                if (token == generation && !closed) connectGatt(device)
+            }
+        }
+        scan = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                if (!result.device.address.equals(address, ignoreCase = true)) return
+                handler.post {
+                    log("advertisement_seen rssi=${result.rssi}")
+                    finish(result.device)
+                }
+            }
+
+            override fun onScanFailed(errorCode: Int) {
+                handler.post {
+                    log("advertisement_scan_failed code=$errorCode")
+                    finish(known)
+                }
+            }
+        }
+        val started = runCatching {
+            scanner.startScan(
+                listOf(ScanFilter.Builder().setDeviceAddress(address).build()),
+                ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
+                scan,
+            )
+        }.isSuccess
+        if (!started) { connectGatt(known); return }
+        advertisementScanner = scanner
+        advertisementScan = scan
+        log("advertisement_scan address=$address")
+        // A sensor that never shows up still gets the direct connect it had before this scan;
+        // an Android scan quota can also drop every result without reporting a failure.
+        handler.postDelayed({
+            if (advertisementScan === scan) log("advertisement_not_seen")
+            finish(known)
+        }, ADVERTISEMENT_SCAN_MS)
+    }
+
+    private fun connectGatt(device: BluetoothDevice) {
+        log("connect_gatt type=${device.type}")
         runCatching {
             // This callback handler also serializes callbacks on pre-API-33 devices.
-            gatt = adapter.getRemoteDevice(address).connectGatt(context, false, callbacks,
-                android.bluetooth.BluetoothDevice.TRANSPORT_LE, android.bluetooth.BluetoothDevice.PHY_LE_1M_MASK, handler)
+            gatt = device.connectGatt(context, false, callbacks,
+                BluetoothDevice.TRANSPORT_LE, BluetoothDevice.PHY_LE_1M_MASK, handler)
             require(gatt != null) { "connect_start" }
             armTimeout("connect_timeout", 60_000L)
         }.onFailure { controller.fail("connect_start") }
+    }
+
+    private fun stopAdvertisementScan() {
+        val scan = advertisementScan ?: return
+        advertisementScan = null
+        runCatching { advertisementScanner?.stopScan(scan) }
+        advertisementScanner = null
     }
 
     override fun rediscover(done: (Result<OttaiFirmwareGatt>) -> Unit) {
@@ -518,6 +596,7 @@ internal class OttaiFirmwareSession private constructor(
 
     override fun disconnect() {
         generation++
+        stopAdvertisementScan()
         discoveryGate?.close()
         discoveryGate = null
         cancelTimeout()
