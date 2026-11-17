@@ -2346,7 +2346,9 @@ fun CalibrationsCard(
 @Composable
 fun SignalQualityIndicator(
     noiseLevel: Float, // Error Variance from Poly Fit
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    iconSize: Dp = SensorPanelIconSize,
+    iconGap: Dp = SensorPanelIconGap
 ) {
     // Color thresholds (Standard xDrip 0-200+ scale)
     // <10: Clean (Green), 10-25: Light (Lt Green), 25-60: Medium (Amber), >60: Heavy (Red)
@@ -2409,7 +2411,7 @@ fun SignalQualityIndicator(
             contentDescription = null,
             tint = color,
             modifier = Modifier
-                .size(14.dp)
+                .size(iconSize)
                 .graphicsLayer {
                     val scale = pulseScale?.value ?: 1f
                     scaleX = scale
@@ -2418,7 +2420,7 @@ fun SignalQualityIndicator(
                 }
         )
         
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(iconGap))
         
         // Raw noise value (xDrip-style, 1 decimal)
         Text(
@@ -2466,7 +2468,7 @@ internal fun SignalQualityAndReadingAgeRow(
         maxOf(
             textMeasurer.measure(widestSeconds, style = counterStyle, maxLines = 1).size.width,
             textMeasurer.measure(widestMinutes, style = counterStyle, maxLines = 1).size.width
-        ) + with(density) { SIGNAL_AGE_ICON_SIZE.roundToPx() + SIGNAL_AGE_ICON_GAP.roundToPx() }
+        ) + with(density) { SensorPanelIconSize.roundToPx() + SensorPanelIconGap.roundToPx() }
     }
     val hasNoise = noiseLevel > 0f
     val hasCounter = readingMillis != null
@@ -2553,7 +2555,8 @@ internal fun SignalQualityAndReadingAgeRow(
                     readingMillis = readingMillis,
                     iconTint = contentColor.copy(alpha = 0.55f),
                     textColor = contentColor.copy(alpha = 0.75f),
-                    iconSize = SIGNAL_AGE_ICON_SIZE
+                    iconSize = SensorPanelIconSize,
+                    iconGap = SensorPanelIconGap
                 )
             }
         }
@@ -2566,9 +2569,6 @@ private const val SIGNAL_SHAKE_SWING_MS = 80
 private const val SIGNAL_SHAKE_SWINGS = 5
 private const val SIGNAL_SHAKE_REST_MS = 4_000L
 
-private val SIGNAL_AGE_ICON_SIZE = 12.dp
-/** The clock-to-text gap inside [tk.glucodata.ui.util.SensorReadingAgeLabel]. */
-private val SIGNAL_AGE_ICON_GAP = 4.dp
 /** Breathing room the indicator wants before the counter; less than this counts as a collision. */
 private val SIGNAL_AGE_GAP = 8.dp
 /** How long the indicator's tail takes to dissolve under the counter. */

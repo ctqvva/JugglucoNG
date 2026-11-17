@@ -331,13 +331,15 @@ internal fun DashboardSensorPanel(
                                 val duration = (500 + (1500 * (hoursRemaining / 24f))).toInt().coerceAtLeast(500)
                                 AnimatedHourglassIcon(
                                     color = contentColor.copy(alpha = 0.8f),
-                                    modifier = Modifier.size(SensorLifetimeIconSize),
+                                    modifier = Modifier.size(SensorPanelIconSize),
                                     cycleDuration = duration
                                 )
                             } else {
                                 CustomCalendarIcon(
                                     color = contentColor.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(SensorLifetimeIconSize),
+                                    modifier = Modifier
+                                        .size(SensorPanelIconSize)
+                                        .padding(SensorPanelDrawnIconInset),
                                     currentDay = currentDay
                                 )
                             }
@@ -350,8 +352,17 @@ internal fun DashboardSensorPanel(
 }
 
 private val SensorPanelPadding = 16.dp
-private val SensorLifetimeIconSize = 14.dp
-private val SensorLifetimeIconGap = 8.dp
+/**
+ * Every line of the panel that leads with an icon uses this slot and this gap, so the
+ * icons share one column and the text after them one left edge.
+ */
+internal val SensorPanelIconSize = 14.dp
+internal val SensorPanelIconGap = 8.dp
+/**
+ * The calendar is drawn edge to edge while the font glyphs beside it keep the usual
+ * margin inside their box; inset, it reads as the same size as they do.
+ */
+private val SensorPanelDrawnIconInset = 1.dp
 
 /** The sensor's name, or where a clone's readings come from, then a dot per shown sensor. */
 @Composable
@@ -440,7 +451,7 @@ private fun SensorLifetimeLine(
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val iconMeasurable = measurables[0]
         val textMeasurable = measurables[1]
-        val gap = SensorLifetimeIconGap.roundToPx()
+        val gap = SensorPanelIconGap.roundToPx()
         val iconWidth = iconMeasurable.maxIntrinsicWidth(loose.maxHeight)
         val showIcon = !iconIsDecorative || !constraints.hasBoundedWidth ||
             iconWidth + gap + textMeasurable.maxIntrinsicWidth(loose.maxHeight) <= constraints.maxWidth
