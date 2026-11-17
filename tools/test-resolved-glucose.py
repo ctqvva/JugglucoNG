@@ -269,6 +269,10 @@ void setstreaming(SensorGlucoseData *) { ++streamings; }
     code += "template <class Getvalue>\n" + extract("net/watchserver/uploader.cpp", "static int smoothPollWindow(")
     code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadMgdl(", args.smoothing_ref)
     code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadRaw(")
+    code += extract("net/watchserver/uploader.cpp", "static int uploadTrendMgdl(")
+    code += extract("net/watchserver/uploader.cpp", "static float uploadChange(")
+    code += "\nstatic int uploadIntervalSeconds=0;\n"
+    code += extract("net/watchserver/uploader.cpp", "static bool isThinnedOutUpload(")
     code += "\ntemplate <class T, size_t N>\n" + extract("net/watchserver/common.hpp", "inline static constexpr void addar(")
     for signature in ["inline double getdelta(", "inline std::string_view fixedsensorview(",
                       "inline void addjsonuint(", "inline void addjsonint(",
@@ -576,6 +580,51 @@ int main() {
         writeNightscoutV3UploadEntry(payload, &uploadSource, uploadSource.shortsensorname(), &uploadSource.polls[1], uploadData, 1);
         assert(serializedV3.getmgdL() == 125);
     }
+    // Discussion #843: a noisy 1-minute stream rising 1 mg/dL a minute. The rate derived from two
+    // unsmoothed readings four minutes apart points down, while the smoothed values it is sent
+    // with keep rising. With smoothing on, the rate follows the smoothed values.
+    SensorGlucoseData noisy{"SIBI:noisy"};
+    for (int i = 0; i < 12; ++i)
+        noisy.polls[i] = {start + uint32_t(i)*60, i, 140 + i + array{0, 5, -5}[i % 3], 0, NAN};
+    auto noisyData = span<const ScanData>(noisy.polls, 12);
+    assert(effectivechange(noisyData, 11, noisy.polls[11]) < -1.0f);
+    assert(uploadChange(noisyData, 11, noisy.polls[11]) > 0.5f);
+    storage.DoCalibrate = false;
+    size = mkuploaditem(&noisy, payload, noisy.shortsensorname(), noisy.polls[11], noisyData, 11, false);
+    assert(string(payload, size).find("Down") == string::npos);
+    writeNightscoutV3UploadEntry(payload, &noisy, noisy.shortsensorname(), &noisy.polls[11], noisyData, 11);
+    assert(serializedV3.getchange() > 0.5f);
+    // A driver rate is replaced too: it is no more the smoothed series' rate than a derived one.
+    noisy.polls[11].ch = -2.75f;
+    assert(uploadChange(noisyData, 11, noisy.polls[11]) > 0.5f);
+    // Smoothing off for sent readings: the stored rate goes out as before.
+    uploadSmoothingSeconds = 0;
+    assert(uploadChange(noisyData, 11, noisy.polls[11]) == -2.75f);
+    noisy.polls[11].ch = NAN;
+    assert(uploadChange(noisyData, 11, noisy.polls[11]) == effectivechange(noisyData, 11, noisy.polls[11]));
+    uploadSmoothingSeconds = 600;
+
+    // "Fewer readings" for sent readings: the first reading of each 5-minute interval, on the
+    // reading's own clock, exactly as ExchangeUpdateGate thins every other output.
+    for (int i = 0; i < 12; ++i) assert(!isThinnedOutUpload(noisyData, i));
+    uploadIntervalSeconds = 300;
+    int sent = 0;
+    for (int i = 0; i < 12; ++i) {
+        const bool firstOfInterval = i == 0 || noisy.polls[i].t / 300 != noisy.polls[i - 1].t / 300;
+        assert(isThinnedOutUpload(noisyData, i) == !firstOfInterval);
+        sent += !isThinnedOutUpload(noisyData, i);
+    }
+    assert(sent == 3);
+    // An empty slot does not count as a reading sent in its interval.
+    const auto firstKept = noisy.polls[2];
+    assert(noisy.polls[2].t / 300 == noisy.polls[3].t / 300 && isThinnedOutUpload(noisyData, 3));
+    noisy.polls[2].g = 0;
+    assert(!isThinnedOutUpload(noisyData, 3));
+    noisy.polls[2].t = 0;
+    assert(!isThinnedOutUpload(noisyData, 3));
+    noisy.polls[2] = firstKept;
+    uploadIntervalSeconds = 0;
+
     remove(filename);
     puts("Owner backfill, persisted mirror, representation-safe trend, final V1/V3 export and calibration checks passed");
 }
