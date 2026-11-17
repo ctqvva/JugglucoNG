@@ -77,6 +77,12 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                 timestampIndexTracker ?: HistoryTimestampIndexTracker(dao).also { timestampIndexTracker = it }
             }
 
+        /** Drops the shared index, so the next [timestampIndex] call binds to a test's database. */
+        @androidx.annotation.VisibleForTesting
+        internal fun resetTimestampIndexForTests() {
+            synchronized(this) { timestampIndexTracker = null }
+        }
+
         /**
          * Every serial a sensor's rows may be stored under: the id the caller
          * holds, the ids Room queries resolve it to, and the native names the
@@ -2314,6 +2320,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             }
             if (deleted.rows.isNotEmpty()) dao.insertAll(deleted.rows)
         }
+        // The rows return under their old ids, below the index's max id, so its delta never
+        // sees them; paired with another delete, count and extents can even match its own. Only
+        // a rebuild is sure to have them.
+        timestampIndex.invalidate()
     }
 
     suspend fun deleteReadingsForSensorAfter(sensorSerial: String, timestampExclusive: Long): Int {

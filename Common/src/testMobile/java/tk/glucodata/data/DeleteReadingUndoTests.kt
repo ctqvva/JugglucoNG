@@ -5,6 +5,8 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,11 +42,13 @@ class DeleteReadingUndoTests {
         database = Room.inMemoryDatabaseBuilder(Applic.app, HistoryDatabase::class.java)
             .allowMainThreadQueries().build()
         repository = HistoryRepository(database)
+        HistoryRepository.resetTimestampIndexForTests()
     }
 
     @After
     fun tearDown() {
         if (::database.isInitialized) database.close()
+        HistoryRepository.resetTimestampIndexForTests()
         Applic.app = previousApp
         SensorIdentity.invalidateCaches()
     }
@@ -92,5 +96,33 @@ class DeleteReadingUndoTests {
 
         assertEquals(1, dao.getCount())
         assertEquals(1, dao.isReadingDeleted(serial, target.timestamp))
+    }
+
+    /**
+     * Undo brings rows back under their old ids, which the index's id delta never sees. Restore A
+     * and delete B between two refreshes and count, extents and max id all match what the index
+     * already holds, so without an invalidate it kept A missing and B present.
+     */
+    @Test
+    fun indexSeesTheRestoredReadingAndNotTheNextDeletedOne() = runBlocking {
+        val dao = database.historyDao()
+        dao.insertAll((0 until 5).map(::reading))
+        val index = HistoryRepository.timestampIndex(dao)
+        val a = reading(1)
+        val b = reading(3)
+        val minuteOf = { ts: Long -> ts / 60_000L }
+        val covered = { ts: Long ->
+            runBlocking { index.withIndex { it.hasReadingInMinute(listOf(serial), minuteOf(ts)) } }
+        }
+
+        assertTrue(covered(a.timestamp))
+        val deletedA = repository.deleteReadingRows(listOf(serial), a.timestamp)
+        assertFalse(covered(a.timestamp))
+
+        repository.restoreReadingRows(deletedA)
+        repository.deleteReadingRows(listOf(serial), b.timestamp)
+
+        assertTrue(covered(a.timestamp))
+        assertFalse(covered(b.timestamp))
     }
 }
