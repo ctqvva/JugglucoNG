@@ -2265,9 +2265,10 @@ fun SensorCard(
                                             viewModel.reconnectSensor(sensor.serial, false)
                                         }
                                     },
-                                    // As wide as the link pill under it, as tall as the name control beside it.
-                                    modifier = Modifier.size(width = 48.dp, height = SensorHeaderControlSize),
-                                    shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(20.dp)),
+                                    // As wide as the link pill under it, as tall as the vendor badge; the 48dp touch
+                                    // target comes from the button's own minimum interactive size.
+                                    modifier = Modifier.size(width = 48.dp, height = 40.dp),
+                                    shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = if (isLocallyEnabled) {
                                             MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
