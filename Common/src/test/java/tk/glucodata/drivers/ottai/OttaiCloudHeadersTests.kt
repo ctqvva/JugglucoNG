@@ -379,7 +379,8 @@ class OttaiCloudHeadersTests {
         assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE, phone))
         assertFalse(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE, watch))
         assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE_SYAI, watch))
-        assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE_GLOBAL, watch))
+        assertFalse(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE_GLOBAL, watch))
+        assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE_GLOBAL, OttaiRegistry.SessionProfile.GLOBAL_PHONE))
         assertFalse(OttaiCloudClient.supportsActiveAuth("https://example.invalid", watch))
     }
 
@@ -389,7 +390,8 @@ class OttaiCloudHeadersTests {
         val retired = OttaiCloudClient.CloudFailure("http=404 biz=", "", 404)
         val watch = OttaiRegistry.SessionProfile.WATCH
         assertTrue(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_SYAI, watch, retired))
-        assertTrue(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_GLOBAL, watch, retired))
+        assertFalse(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_GLOBAL, watch, retired))
+        assertTrue(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_GLOBAL, OttaiRegistry.SessionProfile.GLOBAL_PHONE, retired))
     }
 
     @Test

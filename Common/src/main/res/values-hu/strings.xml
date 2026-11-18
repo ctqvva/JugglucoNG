@@ -992,6 +992,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_login_request_suffix">\nreq=...%1$s</string>
     <string name="ottai_already_signed_in">Bejelentkezve</string>
     <string name="ottai_session_invalid">A felhős munkamenet már nem érvényes — ismételt bejelentkezés szükséges</string>
+    <string name="ottai_global_sign_in_again">A szenzor beállításához vagy a firmware ellenőrzéséhez jelentkezzen be újra az Ottai Global-fiókjába. A mentett szenzorok és az előzmények megmaradnak.</string>
+    <string name="ottai_ota_check_failed">A firmware ellenőrzése sikertelen.</string>
+    <string name="ottai_ota_disconnect_first">A firmware ellenőrzéséhez válassza le a szenzort.</string>
     <string name="ottai_sensor_mac_hint">Eszközazonosító, sorozatszám vagy QR</string>
     <string name="ottai_connect_saved">Csatlakozás</string>
     <string name="ottai_login_fail">Sikertelen bejelentkezés — ellenőrizze a telefonszámot/kódot</string>
@@ -1075,7 +1078,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_server_unreachable">Nem érhető el az Ottai szerver. Próbálja újra.</string>
     <string name="ottai_connect_failed">Nem sikerült elindítani a kapcsolatot. Próbálja újra.</string>
     <string name="ottai_already_binding_hint">A fiókjához még egy másik szenzor van kötve. Oldja fel a kötését a Mentett szenzorok alatt, majd próbálja újra.</string>
-    <string name="ottai_ota_upgrade_required">Az Ottai szolgáltatás firmware-frissítést kért a szenzor hozzárendelésekor. Próbálja újra a firmware beállítását, vagy importálja a mentett hitelesítő adatokat. A hivatalos Ottai alkalmazást is kipróbálhatja.</string>
+    <string name="ottai_ota_upgrade_required">Az Ottai firmware-frissítést kért.</string>
     <string name="ottai_retry">Újrapróbálás</string>
     <string name="ottai_setup_failed">A beállítás leállt. Próbálja újra, vagy zárja be, és importálja a mentett hitelesítő adatokat.</string>
     <string name="ottai_region_cn_full">Ottai Kína</string>
@@ -3207,7 +3210,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_ota_installing">Firmware telepítése…</string>
     <string name="ottai_ota_reconnecting">Újracsatlakozás és a telepített verzió ellenőrzése…</string>
     <string name="ottai_ota_preparing">Hitelesítő adatok frissítése és gyári paraméterek írása…</string>
-    <string name="ottai_ota_complete">Az előkészítés kész. Zárja be az ablakot, majd csatlakozzon a szokásos módon az aktiváláshoz.</string>
+    <string name="ottai_ota_complete">A gyári előkészítés kész</string>
     <string name="ottai_ota_failed">A beállítás leállt. Próbálja újra, vagy ellenőrizze a nyomkövetési naplót. A befejezetlen beállítás blokkolja az aktiválást.</string>
     <string name="ottai_ota_version">Érzékelő: %1$s · Frissítés: %2$s</string>
     <string name="ottai_ota_package">%1$d bájt · SHA-256: %2$s</string>
@@ -3236,7 +3239,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
 
     <string name="ottai_ota_discard">Befejezetlen beállítás elvetése</string>
     <string name="ottai_ota_discard_confirm">Törli a mentett frissítési és előkészítési állapotot a csatlakozás engedélyezéséhez? Ez nem állítja vissza a firmware-t vagy a beállításokat. A megszakított frissítés még helyreállítást igényelhet.</string>
-    <string name="ottai_ota_pending">A szenzor beállítása nem fejeződött be. Csatlakozzon újra, vagy nyissa meg a helyreállítást a befejezéshez vagy elvetéshez.</string>
+    <string name="ottai_ota_pending">A szenzor beállítása befejezetlen</string>
     <string name="ottai_ota_finish_preparation">A firmware ellenőrizve. A beállítás befejezéséhez erősítse meg a gyári paraméterek írását.</string>
     <string name="ottai_ota_discard_failed">A firmware-teszt nem vethető el. Próbálja újra.</string>
     <string name="prediction_analysis_section">Előrejelzés-elemzés</string>

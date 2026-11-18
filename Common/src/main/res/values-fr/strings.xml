@@ -2145,6 +2145,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Connecté</string>
     <string name="ottai_session_invalid">Votre session cloud n’est plus valide – reconnectez-vous</string>
+    <string name="ottai_global_sign_in_again">Reconnectez-vous à Ottai Global pour configurer un capteur ou vérifier son micrologiciel. Vos capteurs enregistrés et votre historique seront conservés.</string>
+    <string name="ottai_ota_check_failed">Échec de la vérification du micrologiciel.</string>
+    <string name="ottai_ota_disconnect_first">Déconnectez le capteur pour vérifier son micrologiciel.</string>
     <string name="ottai_sensor_mac_hint">ID, numéro de série ou QR</string>
     <string name="ottai_connect_saved">Connecter</string>
     <string name="ottai_login_fail">Connexion échouée - vérifiez le téléphone/code</string>
@@ -2492,7 +2495,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_server_unreachable">Impossible de joindre le serveur Ottai. Réessayez.</string>
     <string name="ottai_connect_failed">Impossible de démarrer la connexion. Réessayez.</string>
     <string name="ottai_already_binding_hint">Votre compte a encore un autre capteur lié. Déliez-le sous Capteurs enregistrés, puis réessayez.</string>
-    <string name="ottai_ota_upgrade_required">Le service Ottai a demandé une mise à jour du micrologiciel lors de la liaison du capteur. Réessayez la configuration ou importez les identifiants enregistrés. Vous pouvez aussi essayer l’application officielle Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai a demandé une mise à jour du micrologiciel.</string>
     <string name="ottai_retry">Réessayer</string>
     <string name="ottai_setup_failed">Configuration arrêtée. Réessayez ou fermez cette fenêtre et importez les identifiants enregistrés.</string>
     <string name="ottai_region_cn_full">Ottai Chine</string>
@@ -3145,7 +3148,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_installing">Installation du micrologiciel…</string>
     <string name="ottai_ota_reconnecting">Reconnexion et vérification de la version installée…</string>
     <string name="ottai_ota_preparing">Actualisation des identifiants et écriture des paramètres d’usine…</string>
-    <string name="ottai_ota_complete">Préparation terminée. Fermez cette fenêtre, puis connectez-vous normalement pour activer le capteur.</string>
+    <string name="ottai_ota_complete">Préparation d’usine terminée</string>
     <string name="ottai_ota_failed">Configuration arrêtée. Réessayez ou consultez le journal de trace. Une configuration inachevée bloque l’activation.</string>
     <string name="ottai_ota_version">Capteur : %1$s · Mise à jour : %2$s</string>
     <string name="ottai_ota_package">%1$d octets · SHA-256 : %2$s</string>
@@ -3174,7 +3177,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="ottai_ota_discard">Abandonner la configuration inachevée</string>
     <string name="ottai_ota_discard_confirm">Supprimer l’état enregistré de mise à jour et de préparation pour autoriser la connexion ? Cela ne restaure ni le micrologiciel ni les réglages. Une mise à jour interrompue peut encore nécessiter une récupération.</string>
-    <string name="ottai_ota_pending">La configuration du capteur est inachevée. Reconnectez-vous ou ouvrez la récupération pour la terminer ou l’abandonner.</string>
+    <string name="ottai_ota_pending">Configuration du capteur inachevée</string>
     <string name="ottai_ota_finish_preparation">Micrologiciel vérifié. Confirmez les paramètres usine pour terminer la configuration.</string>
     <string name="ottai_ota_discard_failed">Impossible d’abandonner le test. Réessayez.</string>
     <string name="prediction_analysis_section">Analyse des prévisions</string>

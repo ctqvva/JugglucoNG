@@ -2,7 +2,10 @@ package tk.glucodata.ui.setup
 
 import android.app.Application
 import android.graphics.Bitmap
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -36,6 +39,87 @@ import tk.glucodata.ui.theme.AppTypography
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class OttaiSetupLayoutTests {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun connectProgressAndFailureStayOnTheSensorCard() {
+        var connecting by mutableStateOf(false)
+        var failed by mutableStateOf(false)
+        var attempts = 0
+        val context = org.robolectric.RuntimeEnvironment.getApplication()
+        val connect = context.getString(R.string.ottai_connect_saved)
+        val failure = context.getString(R.string.status_connection_failed)
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                Box(Modifier.width(320.dp).testTag("card")) {
+                    OttaiSensorCard(
+                        sensorId = "AABBCCDDEEFF",
+                        state = OttaiMaterialState.MISSING,
+                        loading = false,
+                        signedIn = true,
+                        deviceVersion = "",
+                        bindingState = OttaiCloudBindingUiState.HIDDEN,
+                        busy = connecting,
+                        connecting = connecting,
+                        canConnect = true,
+                        connectLabel = connect,
+                        message = if (failed) failure else "",
+                        messageIsError = failed,
+                        onConnect = { attempts++; connecting = true; failed = false },
+                        onImport = {}, onSignIn = {},
+                    )
+                }
+            }
+        }
+        compose.onNodeWithText(connect).performClick()
+        compose.onNodeWithText(context.getString(R.string.connecting)).assertIsNotEnabled()
+        compose.onAllNodes(isDialog()).assertCountEquals(0)
+        capture("connect-inline")
+        compose.runOnIdle { connecting = false; failed = true }
+        compose.onNodeWithText(failure).assertIsDisplayed()
+        compose.onAllNodes(isDialog()).assertCountEquals(0)
+        compose.onNodeWithText(connect).assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(2, attempts) }
+    }
+
+    @Test
+    fun firmwareActionOpensADialogWithoutAddingControlsToConnect() {
+        var open by mutableStateOf(false)
+        val context = org.robolectric.RuntimeEnvironment.getApplication()
+        val connect = context.getString(R.string.ottai_connect_saved)
+        val firmware = context.getString(R.string.ottai_ota_check)
+        val mode = context.getString(R.string.ottai_ota_fresh_mode)
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                Column(Modifier.width(400.dp).background(MaterialTheme.colorScheme.background).padding(16.dp).testTag("card"),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OttaiSensorCard(
+                        sensorId = "AABBCCDDEEFF", state = OttaiMaterialState.EXPIRED, loading = false,
+                        signedIn = true, deviceVersion = "E1.1.4(V1.7.S2530.1)",
+                        bindingState = OttaiCloudBindingUiState.HIDDEN,
+                        busy = false, canConnect = true, connectLabel = connect, message = "",
+                        messageIsError = false, onConnect = {}, onImport = {}, onSignIn = {},
+                        onExport = {}, onSensorIdChange = {},
+                    )
+                    OttaiFirmwareAction(enabled = true, onClick = { open = true })
+                }
+                if (open) OttaiFirmwareDialogContent(onDiscard = {}, onLeave = { open = false })
+            }
+        }
+        compose.onAllNodes(isDialog()).assertCountEquals(0)
+        compose.onNodeWithText(mode).assertDoesNotExist()
+        compose.onNodeWithText(connect).assertIsEnabled()
+        compose.onNodeWithText(context.getString(R.string.export)).assertIsEnabled()
+        val export = compose.onNodeWithText(context.getString(R.string.export)).fetchSemanticsNode().boundsInRoot
+        val action = compose.onNodeWithText(firmware).fetchSemanticsNode().boundsInRoot
+        assertTrue(action.top > export.bottom)
+        capture("firmware-action")
+        compose.onNodeWithText(firmware).performClick()
+        compose.onNodeWithText(mode).assertIsDisplayed()
+        compose.onAllNodes(isDialog()).assertCountEquals(1)
+        compose.onNodeWithText(context.getString(R.string.close)).performClick()
+        compose.onAllNodes(isDialog()).assertCountEquals(0)
+        compose.onNodeWithText(connect).assertIsEnabled()
+    }
 
     private fun capture(name: String) {
         val output = File("build/outputs/layout-regressions/ottai-$name.png")
@@ -304,14 +388,16 @@ class OttaiSetupLayoutTests {
             label = LocalContext.current.getString(R.string.ottai_ota_check)
             CompositionLocalProvider(LocalDensity provides Density(1f, 2f)) {
                 MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
-                    Box(Modifier.width(320.dp).testTag("card")) {
+                    Column(Modifier.width(320.dp).testTag("card")) {
                         OttaiSensorCard(sensorId = "AABBCCDDEEFF", state = OttaiMaterialState.MISSING,
                             loading = false, signedIn = true, deviceVersion = "",
                             bindingState = OttaiCloudBindingUiState.NOT_BOUND, busy = false,
                             canConnect = true, connectLabel = "Connect", message = "", messageIsError = false,
                             onConnect = { error("Checking firmware must not connect/bind") },
-                            onImport = {}, onSignIn = {}, onExport = null,
-                            onFirmware = if (ottaiFirmwareEntryAvailable(true, true, true, false)) ({ checked = true }) else null)
+                            onImport = {}, onSignIn = {}, onExport = null)
+                        if (ottaiFirmwareEntryAvailable(true, true, true, false)) {
+                            OttaiFirmwareAction(enabled = true, onClick = { checked = true })
+                        }
                     }
                 }
             }

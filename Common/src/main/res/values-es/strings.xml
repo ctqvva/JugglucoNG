@@ -1115,6 +1115,9 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
      <string name="ottai_already_signed_in">Sesión iniciada</string>
      <string name="ottai_session_invalid">Tu sesión en la nube ya no es válida — inicia sesión de nuevo</string>
+     <string name="ottai_global_sign_in_again">Vuelve a iniciar sesión en Ottai Global para configurar un sensor o comprobar su firmware. Se conservarán los sensores guardados y el historial.</string>
+     <string name="ottai_ota_check_failed">No se pudo comprobar el firmware.</string>
+     <string name="ottai_ota_disconnect_first">Desconecta el sensor para comprobar el firmware.</string>
      <string name="ottai_sensor_mac_hint">ID de dispositivo, número de serie o QR</string>
      <string name="ottai_connect_saved">Conectar</string>
      <string name="ottai_login_fail">Error al iniciar sesión — comprueba teléfono/código</string>
@@ -1199,7 +1202,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="ottai_server_unreachable">No se pudo contactar con el servidor de Ottai. Inténtalo de nuevo.</string>
      <string name="ottai_connect_failed">No se pudo iniciar la conexión. Inténtalo de nuevo.</string>
      <string name="ottai_already_binding_hint">Tu cuenta aún tiene otro sensor vinculado. Desvincúlalo en Sensores guardados e inténtalo de nuevo.</string>
-     <string name="ottai_ota_upgrade_required">El servicio de Ottai solicitó una actualización de firmware al vincular este sensor. Reintenta la configuración de firmware o importa credenciales guardadas. También puedes probar la app oficial de Ottai.</string>
+     <string name="ottai_ota_upgrade_required">Ottai ha solicitado una actualización de firmware.</string>
      <string name="ottai_retry">Intentar de nuevo</string>
      <string name="ottai_setup_failed">Configuración detenida. Inténtalo de nuevo o cierra e importa credenciales guardadas.</string>
      <string name="ottai_region_cn_full">Ottai China</string>
@@ -3350,7 +3353,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="ottai_ota_installing">Instalando firmware…</string>
      <string name="ottai_ota_reconnecting">Reconectando y comprobando la versión instalada…</string>
      <string name="ottai_ota_preparing">Actualizando credenciales y escribiendo parámetros de fábrica…</string>
-     <string name="ottai_ota_complete">Preparación completa. Cierra este diálogo y luego conecta normalmente para activar el sensor.</string>
+     <string name="ottai_ota_complete">Preparación de fábrica completada</string>
      <string name="ottai_ota_failed">Configuración detenida. Inténtalo de nuevo o revisa el registro de trazas. Una configuración sin terminar bloquea la activación.</string>
      <string name="ottai_ota_version">Sensor: %1$s · Actualización: %2$s</string>
      <string name="ottai_ota_package">%1$d bytes · SHA-256: %2$s</string>
@@ -3379,7 +3382,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
 
      <string name="ottai_ota_discard">Descartar configuración sin terminar</string>
      <string name="ottai_ota_discard_confirm">¿Descartar la actualización guardada y el estado de preparación para desbloquear la conexión? Esto no restaura el firmware ni los ajustes. Un flasheo interrumpido puede aún necesitar recuperación.</string>
-     <string name="ottai_ota_pending">La configuración del sensor no ha terminado. Conecta de nuevo o abre la recuperación para terminarla o descartarla.</string>
+     <string name="ottai_ota_pending">Configuración del sensor sin terminar</string>
      <string name="ottai_ota_finish_preparation">Firmware verificado. Confirma la preparación de fábrica para terminar la configuración.</string>
      <string name="ottai_ota_discard_failed">No se pudo descartar la prueba de firmware. Inténtalo de nuevo.</string>
      <string name="prediction_analysis_section">Análisis de predicción</string>
