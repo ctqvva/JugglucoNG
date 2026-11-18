@@ -2179,10 +2179,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_already_signed_in">Aangemeld</string>
     <string name="ottai_session_invalid">Uw cloudsessie is niet meer geldig – meld u opnieuw aan</string>
     <string name="ottai_global_sign_in_again">Meld je opnieuw aan bij Ottai Global om een sensor in te stellen of de firmware te controleren. Je opgeslagen sensoren en geschiedenis blijven behouden.</string>
-    <string name="ottai_secure_exchange_failed">Er kon geen beveiligde verbinding met Ottai worden gemaakt. Controleer je internetverbinding en probeer het opnieuw.</string>
     <string name="ottai_ota_check_failed">De firmware kon niet worden gecontroleerd of gedownload. Probeer het opnieuw.</string>
     <string name="ottai_ota_disconnect_first">Verbreek de verbinding met deze sensor op het scherm Sensoren voordat je de firmware controleert. Bewaar de opgeslagen toegangsgegevens.</string>
-    <string name="ottai_setup_link_timeout">Bluetooth kon geen verbinding maken met de sensor. Houd de telefoon dicht bij de sensor en probeer het opnieuw. Als dit blijft gebeuren, zet Bluetooth dan uit en weer aan.</string>
     <string name="ottai_sensor_mac_hint">Apparaat-ID, serienummer of QR</string>
     <string name="ottai_connect_saved">Verbinden</string>
     <string name="ottai_login_fail">Aanmelden mislukt - controleer telefoon/code</string>
@@ -2530,7 +2528,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_server_unreachable">Kan de Ottai-server niet bereiken. Probeer het opnieuw.</string>
     <string name="ottai_connect_failed">Kon de verbinding niet starten. Probeer het opnieuw.</string>
     <string name="ottai_already_binding_hint">Je account heeft nog een andere sensor gekoppeld. Ontkoppel die onder Opgeslagen sensoren en probeer het opnieuw.</string>
-    <string name="ottai_ota_upgrade_required">De Ottai-dienst vroeg om een firmware-update bij het koppelen van deze sensor. Probeer de firmware-instelling opnieuw of importeer opgeslagen inloggegevens. Je kunt ook de officiële Ottai-app proberen.</string>
+    <string name="ottai_ota_upgrade_required">Ottai heeft om een firmware-update gevraagd.</string>
     <string name="ottai_retry">Opnieuw proberen</string>
     <string name="ottai_setup_failed">Instellen gestopt. Probeer opnieuw of sluit dit venster en importeer opgeslagen inloggegevens.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
@@ -3177,7 +3175,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_ota_installing">Firmware installeren…</string>
     <string name="ottai_ota_reconnecting">Opnieuw verbinden en de geïnstalleerde versie controleren…</string>
     <string name="ottai_ota_preparing">Inloggegevens vernieuwen en fabrieksparameters schrijven…</string>
-    <string name="ottai_ota_complete">Voorbereiding voltooid. Sluit dit venster en verbind normaal om de sensor te activeren.</string>
+    <string name="ottai_ota_complete">Fabrieksvoorbereiding voltooid</string>
     <string name="ottai_ota_failed">Instellen gestopt. Probeer opnieuw of bekijk het tracelogboek. Een onvoltooide instelling blokkeert activering.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
     <string name="ottai_ota_package">%1$d bytes · SHA-256: %2$s</string>
@@ -3206,7 +3204,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 
     <string name="ottai_ota_discard">Onvoltooide instelling wissen</string>
     <string name="ottai_ota_discard_confirm">Opgeslagen update- en voorbereidingsstatus wissen om verbinding toe te staan? Firmware en instellingen worden niet hersteld. Een onderbroken firmware-update kan nog herstel vereisen.</string>
-    <string name="ottai_ota_pending">De sensorinstelling is niet voltooid. Verbind opnieuw of open herstel om deze te voltooien of te wissen.</string>
+    <string name="ottai_ota_pending">Sensorinstelling niet voltooid</string>
     <string name="ottai_ota_finish_preparation">Firmware gecontroleerd. Bevestig de fabrieksparameters om de installatie af te ronden.</string>
     <string name="ottai_ota_discard_failed">Firmwaretest kon niet worden verwijderd. Probeer opnieuw.</string>
     <string name="prediction_analysis_section">Voorspellingsanalyse</string>

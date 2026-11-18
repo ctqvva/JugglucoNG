@@ -55,10 +55,6 @@ class OttaiSetupFlowTests {
                 signedIn = true,
             ),
         )
-        assertEquals(
-            false,
-            ottaiSetupPublishesManagedSensor(OttaiSetupConnectRoute.V3_CREDENTIAL_BOOTSTRAP),
-        )
     }
 
     @Test

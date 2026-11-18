@@ -2332,10 +2332,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_already_signed_in">Angemeldet</string>
     <string name="ottai_session_invalid">Ihre Cloud-Sitzung ist nicht mehr gültig – bitte erneut anmelden</string>
     <string name="ottai_global_sign_in_again">Melde dich erneut bei Ottai Global an, um einen Sensor einzurichten oder seine Firmware zu prüfen. Gespeicherte Sensoren und der Verlauf bleiben erhalten.</string>
-    <string name="ottai_secure_exchange_failed">Es konnte keine sichere Verbindung zu Ottai hergestellt werden. Prüfe die Internetverbindung und versuche es erneut.</string>
     <string name="ottai_ota_check_failed">Die Firmware konnte nicht geprüft oder heruntergeladen werden. Versuche es erneut.</string>
     <string name="ottai_ota_disconnect_first">Trenne diesen Sensor auf dem Bildschirm „Sensoren“, bevor du seine Firmware prüfst. Behalte seine gespeicherten Zugangsdaten.</string>
-    <string name="ottai_setup_link_timeout">Die Bluetooth-Verbindung zum Sensor ist fehlgeschlagen. Halte das Telefon in seine Nähe und versuche es erneut. Wenn das Problem anhält, schalte Bluetooth aus und wieder ein.</string>
     <string name="ottai_sensor_mac_hint">Geräte-ID, Seriennummer oder QR</string>
     <string name="ottai_connect_saved">Verbinden</string>
     <string name="ottai_login_fail">Anmeldung fehlgeschlagen - Telefon/Code prüfen</string>
@@ -2597,7 +2595,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_server_unreachable">Ottai-Server nicht erreichbar. Bitte erneut versuchen.</string>
     <string name="ottai_connect_failed">Die Verbindung konnte nicht gestartet werden. Versuche es erneut.</string>
     <string name="ottai_already_binding_hint">Dein Konto hat noch einen anderen Sensor gebunden. Löse ihn unter „Gespeicherte Sensoren“ und versuche es dann erneut.</string>
-    <string name="ottai_ota_upgrade_required">Der Ottai-Dienst hat beim Verknüpfen dieses Sensors ein Firmwareupdate angefordert. Wiederhole die Firmwareeinrichtung oder importiere gespeicherte Zugangsdaten. Du kannst auch die offizielle Ottai-App versuchen.</string>
+    <string name="ottai_ota_upgrade_required">Ottai hat ein Firmware-Update angefordert.</string>
     <string name="ottai_retry">Erneut versuchen</string>
     <string name="ottai_setup_failed">Einrichtung angehalten. Versuche es erneut oder schließe das Fenster und importiere gespeicherte Zugangsdaten.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
@@ -3247,7 +3245,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_ota_installing">Firmware wird installiert…</string>
     <string name="ottai_ota_reconnecting">Erneute Verbindung und Prüfung der installierten Version…</string>
     <string name="ottai_ota_preparing">Zugangsdaten werden aktualisiert und Werksparameter geschrieben…</string>
-    <string name="ottai_ota_complete">Vorbereitung abgeschlossen. Diesen Dialog schließen und den Sensor zur Aktivierung normal verbinden.</string>
+    <string name="ottai_ota_complete">Werkseinstellungen vorbereitet</string>
     <string name="ottai_ota_failed">Einrichtung angehalten. Versuche es erneut oder prüfe das Trace-Protokoll. Eine unfertige Einrichtung blockiert die Aktivierung.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
     <string name="ottai_ota_package">%1$d Bytes · SHA-256: %2$s</string>
@@ -3276,7 +3274,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 
     <string name="ottai_ota_discard">Unfertige Einrichtung verwerfen</string>
     <string name="ottai_ota_discard_confirm">Gespeicherten Update- und Vorbereitungsstand löschen, um die Verbindung freizugeben? Firmware und Einstellungen werden nicht wiederhergestellt. Ein abgebrochenes Flashen kann weiterhin eine Wiederherstellung erfordern.</string>
-    <string name="ottai_ota_pending">Die Sensoreinrichtung ist nicht abgeschlossen. Verbinde erneut oder öffne die Wiederherstellung, um sie abzuschließen oder zu verwerfen.</string>
+    <string name="ottai_ota_pending">Sensoreinrichtung nicht abgeschlossen</string>
     <string name="ottai_ota_finish_preparation">Firmware geprüft. Werksparameter bestätigen, um die Einrichtung abzuschließen.</string>
     <string name="ottai_ota_discard_failed">Firmwaretest konnte nicht verworfen werden. Erneut versuchen.</string>
     <string name="prediction_analysis_section">Prognoseanalyse</string>

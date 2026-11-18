@@ -2126,10 +2126,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Accesso effettuato</string>
     <string name="ottai_session_invalid">La sessione cloud non è più valida: accedi di nuovo</string>
     <string name="ottai_global_sign_in_again">Accedi di nuovo a Ottai Global per configurare un sensore o controllarne il firmware. I sensori salvati e la cronologia saranno conservati.</string>
-    <string name="ottai_secure_exchange_failed">Impossibile stabilire una connessione sicura con Ottai. Controlla la connessione a Internet e riprova.</string>
     <string name="ottai_ota_check_failed">Impossibile verificare la disponibilità del firmware o scaricarlo. Riprova.</string>
     <string name="ottai_ota_disconnect_first">Disconnetti questo sensore dalla schermata Sensori prima di controllarne il firmware. Conserva le sue credenziali salvate.</string>
-    <string name="ottai_setup_link_timeout">Impossibile connettersi al sensore via Bluetooth. Avvicina il telefono al sensore e riprova. Se il problema persiste, disattiva e riattiva il Bluetooth.</string>
     <string name="ottai_sensor_mac_hint">ID dispositivo, numero di serie o QR</string>
     <string name="ottai_connect_saved">Connetti</string>
     <string name="ottai_login_fail">Accesso non riuscito - controlla telefono/codice</string>
@@ -2477,7 +2475,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_server_unreachable">Impossibile raggiungere il server Ottai. Riprova.</string>
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
-    <string name="ottai_ota_upgrade_required">Il servizio Ottai ha richiesto un aggiornamento del firmware durante l’associazione del sensore. Riprova la configurazione o importa le credenziali salvate. Puoi anche provare l’app ufficiale Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai ha richiesto un aggiornamento del firmware.</string>
     <string name="ottai_retry">Riprova</string>
     <string name="ottai_setup_failed">Configurazione interrotta. Riprova oppure chiudi e importa le credenziali salvate.</string>
     <string name="ottai_region_cn_full">Ottai Cina</string>
@@ -3125,7 +3123,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_installing">Installazione del firmware…</string>
     <string name="ottai_ota_reconnecting">Riconnessione e verifica della versione installata…</string>
     <string name="ottai_ota_preparing">Aggiornamento delle credenziali e scrittura dei parametri di fabbrica…</string>
-    <string name="ottai_ota_complete">Preparazione completata. Chiudi questa finestra e connettiti normalmente per attivare il sensore.</string>
+    <string name="ottai_ota_complete">Preparazione di fabbrica completata</string>
     <string name="ottai_ota_failed">Configurazione interrotta. Riprova o controlla il registro di traccia. La configurazione incompleta blocca l’attivazione.</string>
     <string name="ottai_ota_version">Sensore: %1$s · Aggiornamento: %2$s</string>
     <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
@@ -3154,7 +3152,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="ottai_ota_discard">Annulla configurazione incompleta</string>
     <string name="ottai_ota_discard_confirm">Eliminare lo stato salvato di aggiornamento e preparazione per consentire la connessione? Firmware e impostazioni non verranno ripristinati. Un aggiornamento interrotto potrebbe richiedere il recupero.</string>
-    <string name="ottai_ota_pending">La configurazione del sensore è incompleta. Connetti di nuovo o apri il recupero per completarla o annullarla.</string>
+    <string name="ottai_ota_pending">Configurazione del sensore incompleta</string>
     <string name="ottai_ota_finish_preparation">Firmware verificato. Conferma i parametri di fabbrica per completare la configurazione.</string>
     <string name="ottai_ota_discard_failed">Impossibile abbandonare il test firmware. Riprova.</string>
     <string name="prediction_analysis_section">Analisi delle previsioni</string>

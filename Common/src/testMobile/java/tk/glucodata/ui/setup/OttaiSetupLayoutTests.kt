@@ -37,6 +37,79 @@ import tk.glucodata.ui.theme.AppTypography
 class OttaiSetupLayoutTests {
     @get:Rule val compose = createComposeRule()
 
+    @Test
+    fun connectProgressAndFailureStayOnTheSensorCard() {
+        var connecting by mutableStateOf(false)
+        var failed by mutableStateOf(false)
+        var attempts = 0
+        val context = org.robolectric.RuntimeEnvironment.getApplication()
+        val connect = context.getString(R.string.ottai_connect_saved)
+        val failure = context.getString(R.string.status_connection_failed)
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                Box(Modifier.width(320.dp).testTag("card")) {
+                    OttaiSensorCard(
+                        sensorId = "AABBCCDDEEFF",
+                        state = OttaiMaterialState.MISSING,
+                        loading = false,
+                        signedIn = true,
+                        deviceVersion = "",
+                        bindingState = OttaiCloudBindingUiState.HIDDEN,
+                        busy = connecting,
+                        connecting = connecting,
+                        canConnect = true,
+                        connectLabel = connect,
+                        message = if (failed) failure else "",
+                        messageIsError = failed,
+                        onConnect = { attempts++; connecting = true; failed = false },
+                        onImport = {}, onSignIn = {}, onFirmware = {},
+                    )
+                }
+            }
+        }
+        compose.onNodeWithText(connect).performClick()
+        compose.onNodeWithText(context.getString(R.string.connecting)).assertIsNotEnabled()
+        compose.onAllNodes(isDialog()).assertCountEquals(0)
+        capture("connect-inline")
+        compose.runOnIdle { connecting = false; failed = true }
+        compose.onNodeWithText(failure).assertIsDisplayed()
+        compose.onAllNodes(isDialog()).assertCountEquals(0)
+        compose.onNodeWithText(connect).assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(2, attempts) }
+    }
+
+    @Test
+    fun firmwareOptionsExpandAndCloseInsideTheExistingSensorCard() {
+        var expanded by mutableStateOf(false)
+        val context = org.robolectric.RuntimeEnvironment.getApplication()
+        val sensorId = "AABBCCDDEEFF"
+        val connect = context.getString(R.string.ottai_connect_saved)
+        val firmware = context.getString(R.string.ottai_ota_check)
+        val mode = context.getString(R.string.ottai_ota_fresh_mode)
+        compose.setContent {
+            MaterialTheme {
+                OttaiSensorCard(
+                    sensorId = sensorId, state = OttaiMaterialState.MISSING, loading = false,
+                    signedIn = true, deviceVersion = "", bindingState = OttaiCloudBindingUiState.HIDDEN,
+                    busy = expanded, canConnect = true, connectLabel = connect, message = "",
+                    messageIsError = false, onConnect = {}, onImport = {}, onSignIn = {},
+                    onFirmware = { expanded = !expanded },
+                    firmwarePanel = if (expanded) ({
+                        OttaiFirmwareModePicker(false, onMode = {}, onDiscard = {}, onDiscarded = {})
+                    }) else null,
+                )
+            }
+        }
+        compose.onNodeWithText(firmware).performClick()
+        compose.onNodeWithText(sensorId).assertIsDisplayed()
+        compose.onNodeWithText(connect).assertIsNotEnabled()
+        compose.onNodeWithText(mode).assertIsDisplayed()
+        compose.onAllNodes(isDialog()).assertCountEquals(0)
+        compose.onNodeWithText(context.getString(R.string.close)).performClick()
+        compose.onNodeWithText(mode).assertDoesNotExist()
+        compose.onNodeWithText(connect).assertIsEnabled()
+    }
+
     private fun capture(name: String) {
         val output = File("build/outputs/layout-regressions/ottai-$name.png")
         output.parentFile?.mkdirs()

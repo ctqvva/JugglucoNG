@@ -2157,10 +2157,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_already_signed_in">Нэвтэрсэн</string>
     <string name="ottai_session_invalid">Таны клауд сесс хүчингүй болсон – дахин нэвтэрнэ үү</string>
     <string name="ottai_global_sign_in_again">Мэдрэгч тохируулах эсвэл программыг нь шалгахын тулд Ottai Global-д дахин нэвтэрнэ үү. Хадгалсан мэдрэгч болон түүх хэвээр үлдэнэ.</string>
-    <string name="ottai_secure_exchange_failed">Ottai-тай аюулгүй холболт үүсгэж чадсангүй. Интернэт холболтоо шалгаад дахин оролдоно уу.</string>
     <string name="ottai_ota_check_failed">Мэдрэгчийн программыг шалгах эсвэл татаж авах боломжгүй байлаа. Дахин оролдоно уу.</string>
     <string name="ottai_ota_disconnect_first">Мэдрэгчийн программыг шалгахын өмнө Мэдрэгч дэлгэцээс уг мэдрэгчийг салгана уу. Хадгалсан баталгаажуулах мэдээллийг нь устгахгүй үлдээнэ үү.</string>
-    <string name="ottai_setup_link_timeout">Bluetooth-ээр мэдрэгчтэй холбогдож чадсангүй. Утсаа мэдрэгчид ойртуулаад дахин оролдоно уу. Асуудал давтагдвал Bluetooth-ийг унтраагаад дахин асаана уу.</string>
     <string name="ottai_sensor_mac_hint">Төхөөрөмжийн ID, серийн дугаар эсвэл QR</string>
     <string name="ottai_connect_saved">Холбох</string>
     <string name="ottai_login_fail">Нэвтрэх амжилтгүй - утас/кодоо шалгана уу</string>
@@ -2594,7 +2592,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_server_unreachable">Ottai серверт холбогдож чадсангүй. Дахин оролдоно уу.</string>
     <string name="ottai_connect_failed">Холболтыг эхлүүлж чадсангүй. Дахин оролдоно уу.</string>
     <string name="ottai_already_binding_hint">Таны бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. «Хадгалсан мэдрэгчүүд» хэсэгт салгаад дахин оролдоно уу.</string>
-    <string name="ottai_ota_upgrade_required">Ottai үйлчилгээ энэ мэдрэгчийг холбох үед програм хангамж шинэчлэхийг хүссэн. Тохиргоог дахин оролдох эсвэл хадгалсан нэвтрэх мэдээллийг импортлоно уу. Албан ёсны Ottai аппыг мөн туршиж болно.</string>
+    <string name="ottai_ota_upgrade_required">Ottai мэдрэгчийн программыг шинэчлэхийг хүссэн.</string>
     <string name="ottai_retry">Дахин оролдох</string>
     <string name="ottai_setup_failed">Тохиргоо зогслоо. Дахин оролдох эсвэл цонхыг хааж хадгалсан нэвтрэх мэдээллийг импортлоно уу.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
@@ -3235,7 +3233,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_ota_installing">Програм хангамж суулгаж байна…</string>
     <string name="ottai_ota_reconnecting">Дахин холбогдож суулгасан хувилбарыг шалгаж байна…</string>
     <string name="ottai_ota_preparing">Нэвтрэх мэдээлэл шинэчилж, үйлдвэрийн параметр бичиж байна…</string>
-    <string name="ottai_ota_complete">Бэлтгэл дууслаа. Энэ цонхыг хааж, мэдрэгчийг идэвхжүүлэхийн тулд ердийн байдлаар холбоно уу.</string>
+    <string name="ottai_ota_complete">Үйлдвэрийн тохиргоо дууссан</string>
     <string name="ottai_ota_failed">Тохиргоо зогслоо. Дахин оролдох эсвэл мөрдөх бүртгэлийг шалгана уу. Дуусаагүй тохиргоо идэвхжүүлэлтийг хориглоно.</string>
     <string name="ottai_ota_version">Мэдрэгч: %1$s · Шинэчлэлт: %2$s</string>
     <string name="ottai_ota_package">%1$d байт · SHA-256: %2$s</string>
@@ -3264,7 +3262,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
 
     <string name="ottai_ota_discard">Дуусаагүй тохиргоог цуцлах</string>
     <string name="ottai_ota_discard_confirm">Холболтыг зөвшөөрөхийн тулд хадгалсан шинэчлэлт болон бэлтгэлийн төлөвийг устгах уу? Энэ нь програм хангамж эсвэл тохиргоог сэргээхгүй. Тасалдсан шинэчлэлтэд сэргээх үйлдэл хэрэгтэй байж болно.</string>
-    <string name="ottai_ota_pending">Мэдрэгчийн тохиргоо дуусаагүй байна. Дуусгах эсвэл цуцлахын тулд дахин холбогдох эсвэл сэргээх хэсгийг нээнэ үү.</string>
+    <string name="ottai_ota_pending">Мэдрэгчийн тохиргоо дуусаагүй</string>
     <string name="ottai_ota_finish_preparation">Программыг шалгалаа. Тохиргоог дуусгахын тулд үйлдвэрийн параметр бичихийг баталгаажуулна уу.</string>
     <string name="ottai_ota_discard_failed">Программын туршилтыг цуцалж чадсангүй. Дахин оролдоно уу.</string>
     <string name="prediction_analysis_section">Таамаглалын шинжилгээ</string>

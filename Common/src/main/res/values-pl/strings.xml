@@ -2171,10 +2171,8 @@
     <string name="ottai_already_signed_in">Zalogowano</string>
     <string name="ottai_session_invalid">Sesja w chmurze wygasła – zaloguj się ponownie</string>
     <string name="ottai_global_sign_in_again">Zaloguj się ponownie do Ottai Global, aby skonfigurować czujnik lub sprawdzić jego oprogramowanie. Zapisane czujniki i historia zostaną zachowane.</string>
-    <string name="ottai_secure_exchange_failed">Nie udało się nawiązać bezpiecznego połączenia z Ottai. Sprawdź połączenie z internetem i spróbuj ponownie.</string>
     <string name="ottai_ota_check_failed">Nie udało się sprawdzić dostępności oprogramowania czujnika lub go pobrać. Spróbuj ponownie.</string>
     <string name="ottai_ota_disconnect_first">Przed sprawdzeniem oprogramowania odłącz ten czujnik na ekranie Czujniki. Zachowaj jego zapisane dane uwierzytelniające.</string>
-    <string name="ottai_setup_link_timeout">Nie udało się połączyć z czujnikiem przez Bluetooth. Zbliż telefon do czujnika i spróbuj ponownie. Jeśli problem się powtarza, wyłącz i ponownie włącz Bluetooth.</string>
     <string name="ottai_sensor_mac_hint">ID urządzenia, numer seryjny lub QR</string>
     <string name="ottai_connect_saved">Połącz</string>
     <string name="ottai_login_fail">Logowanie nieudane - sprawdź telefon/kod</string>
@@ -2521,7 +2519,7 @@
     <string name="ottai_server_unreachable">Nie można połączyć się z serwerem Ottai. Spróbuj ponownie.</string>
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
-    <string name="ottai_ota_upgrade_required">Podczas wiązania sensora usługa Ottai zażądała aktualizacji firmware. Ponów konfigurację firmware lub zaimportuj zapisane dane uwierzytelniające. Możesz też spróbować oficjalnej aplikacji Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai zażądał aktualizacji oprogramowania czujnika.</string>
     <string name="ottai_retry">Spróbuj ponownie</string>
     <string name="ottai_setup_failed">Konfiguracja zatrzymana. Spróbuj ponownie lub zamknij okno i zaimportuj zapisane dane uwierzytelniające.</string>
     <string name="ottai_region_cn_full">Ottai Chiny</string>
@@ -3180,7 +3178,7 @@
     <string name="ottai_ota_installing">Instalowanie oprogramowania…</string>
     <string name="ottai_ota_reconnecting">Ponowne łączenie i sprawdzanie zainstalowanej wersji…</string>
     <string name="ottai_ota_preparing">Odświeżanie danych dostępu i zapis parametrów fabrycznych…</string>
-    <string name="ottai_ota_complete">Przygotowanie zakończone. Zamknij okno, a następnie połącz się normalnie, aby aktywować sensor.</string>
+    <string name="ottai_ota_complete">Przygotowanie fabryczne zakończone</string>
     <string name="ottai_ota_failed">Konfiguracja zatrzymana. Spróbuj ponownie lub sprawdź dziennik śledzenia. Niedokończona konfiguracja blokuje aktywację.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Aktualizacja: %2$s</string>
     <string name="ottai_ota_package">%1$d bajtów · SHA-256: %2$s</string>
@@ -3209,7 +3207,7 @@
 
     <string name="ottai_ota_discard">Porzuć niedokończoną konfigurację</string>
     <string name="ottai_ota_discard_confirm">Usunąć zapisany stan aktualizacji i przygotowania, aby odblokować połączenie? Nie przywróci to firmware ani ustawień. Przerwana aktualizacja może nadal wymagać odzyskiwania.</string>
-    <string name="ottai_ota_pending">Konfiguracja sensora jest niedokończona. Połącz ponownie lub otwórz odzyskiwanie, aby ją zakończyć lub porzucić.</string>
+    <string name="ottai_ota_pending">Konfiguracja czujnika nieukończona</string>
     <string name="ottai_ota_finish_preparation">Oprogramowanie zweryfikowane. Potwierdź parametry fabryczne, aby zakończyć konfigurację.</string>
     <string name="ottai_ota_discard_failed">Nie udało się porzucić testu. Spróbuj ponownie.</string>
     <string name="prediction_analysis_section">Analiza prognoz</string>

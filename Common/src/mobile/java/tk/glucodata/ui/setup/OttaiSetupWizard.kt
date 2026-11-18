@@ -80,12 +80,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import tk.glucodata.Log
 import tk.glucodata.R
@@ -94,7 +96,10 @@ import tk.glucodata.SensorBluetooth
 import tk.glucodata.drivers.ottai.OttaiBleManager
 import tk.glucodata.drivers.ottai.OttaiCloudClient
 import tk.glucodata.drivers.ottai.OttaiConstants
+import tk.glucodata.drivers.ottai.OttaiFirmwareMode
 import tk.glucodata.drivers.ottai.OttaiFirmwareSession
+import tk.glucodata.drivers.ottai.OttaiFirmwareStage
+import tk.glucodata.drivers.ottai.OttaiFirmwareState
 import tk.glucodata.drivers.ottai.OttaiNfc
 import tk.glucodata.drivers.ottai.OttaiRegistry
 import tk.glucodata.ui.components.AppTopBar
@@ -104,6 +109,7 @@ import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.findActivity
 import tk.glucodata.ui.util.rememberBleScanner
 import java.util.UUID
+import kotlin.coroutines.resume
 
 /**
  * Setup opens on SEARCH: the account (sign-in form or who is signed in) on top, then the nearby
@@ -230,8 +236,7 @@ private fun ottaiMaterialFailureMessage(
     if (effective?.code.equals(OttaiCloudClient.BIZ_ALREADY_BINDING, ignoreCase = true)) {
         return context.getString(R.string.ottai_already_binding_hint)
     }
-    val detail = effective?.text.orEmpty().takeIf { it.isNotBlank() }?.let { "\n$it" }.orEmpty()
-    return context.getString(R.string.ottai_fetch_failed) + detail
+    return context.getString(R.string.ottai_fetch_failed)
 }
 
 /**
@@ -244,7 +249,7 @@ internal fun ottaiFirmwareEntryAvailable(signedIn: Boolean, sessionReady: Boolea
 
 internal fun ottaiConnectFailureMessage(context: Context, sensorId: String): String = context.getString(
     if (OttaiFirmwareSession.hasPendingSetup(context, sensorId)) R.string.ottai_ota_pending
-    else R.string.ottai_connect_failed,
+    else R.string.status_connection_failed,
 )
 
 /** Preserve a selected/saved BLE address when the inline card has lost its transient value. */
@@ -279,42 +284,43 @@ private fun ottaiResolvedSetupBleAddress(context: Context, sensorId: String, sel
         canonical)
 }
 
+/** The setup coroutine owns BLE until preparation finishes or the wizard leaves. */
+private suspend fun awaitOttaiPreparation(context: Context, id: String, address: String): OttaiFirmwareState? =
+    suspendCancellableCoroutine { continuation ->
+        val session = OttaiFirmwareSession.start(context, id, address, OttaiFirmwareMode.PREACTIVATION,
+            prepareForSetup = true) { state ->
+            if (continuation.isActive && state.stage in setOf(OttaiFirmwareStage.COMPLETE, OttaiFirmwareStage.FAILED)) {
+                continuation.resume(state)
+            }
+        }
+        if (session == null) continuation.resume(null)
+        else continuation.invokeOnCancellation { session.dispose() }
+    }
+
 private fun connectOttaiSensor(
     context: Context,
     mac: String,
     bleAddress: String? = null,
     activate: Boolean,
     alreadyActive: Boolean,
-    route: OttaiSetupConnectRoute,
 ): Boolean {
     val canonical = OttaiConstants.canonicalSensorId(mac).ifEmpty { return false }
     if (OttaiFirmwareSession.hasPendingSetup(context, canonical)) return false
     val ble = ottaiResolvedSetupBleAddress(context, canonical, bleAddress)
         ?: OttaiConstants.macWithColons(canonical)
-    if (!ottaiSetupPublishesManagedSensor(route)) return false
-    return when (route) {
-        OttaiSetupConnectRoute.STORED_MATERIALS -> {
-            if (OttaiRegistry.loadMaterials(context, canonical).authKeys == null) return false
-            // The panel scanner shares Android's five startScan calls per 30s with the managed
-            // scan. Leaving it running makes scanStarter skip, and the connect screen stays on
-            // "Looking for nearby transmitters" with no advertisement reaching the new callback.
-            OttaiSetupScanHold.stopPanelScans()
-            OttaiRegistry.addSensorForUserConnect(
-                context,
-                canonical,
-                ble,
-                OttaiConstants.DEFAULT_DISPLAY_NAME,
-                activate = activate,
-                // Cloud activeTime is not authoritative. The explicit setup action may safely
-                // arm activation and let the authenticated command byte decide: <3 activates,
-                // 3 streams, and >=4 remains ended without a lifetime write.
-                activateIfNeeded = !alreadyActive,
-                alreadyActive = alreadyActive,
-            ) != null
-        }
-        OttaiSetupConnectRoute.V3_CREDENTIAL_BOOTSTRAP -> false
-        OttaiSetupConnectRoute.BLOCKED -> false
-    }
+    if (OttaiRegistry.loadMaterials(context, canonical).authKeys == null) return false
+    // Yield Android's scan slot before the managed connection starts.
+    OttaiSetupScanHold.stopPanelScans()
+    return OttaiRegistry.addSensorForUserConnect(
+        context,
+        canonical,
+        ble,
+        OttaiConstants.DEFAULT_DISPLAY_NAME,
+        activate = activate,
+        // The managed connection checks the authenticated command status before it activates.
+        activateIfNeeded = !alreadyActive,
+        alreadyActive = alreadyActive,
+    ) != null
 }
 
 private data class OttaiScanCandidate(
@@ -375,9 +381,6 @@ internal fun ottaiSetupConnectRoute(
     requiresV3Bootstrap && signedIn -> OttaiSetupConnectRoute.V3_CREDENTIAL_BOOTSTRAP
     else -> OttaiSetupConnectRoute.BLOCKED
 }
-
-internal fun ottaiSetupPublishesManagedSensor(route: OttaiSetupConnectRoute): Boolean =
-    route == OttaiSetupConnectRoute.STORED_MATERIALS
 
 /** Exact active cloud binding for the selected account sensor; never resolves by suffix/alias. */
 internal fun ottaiActiveCloudUnbindTarget(
@@ -533,13 +536,13 @@ fun OttaiSetupWizard(
     var selectedAccountDevice by remember { mutableStateOf<OttaiCloudClient.DeviceSummary?>(null) }
     var bleAddress by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    var connecting by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var statusIsError by remember { mutableStateOf(false) }
     var currentMaterials by remember { mutableStateOf<OttaiRegistry.DeviceMaterials?>(null) }
     var materialLoading by remember { mutableStateOf(false) }
-    var showFirmwareTest by remember { mutableStateOf(false) }
-    var setupAfterFirmware by remember { mutableStateOf(false) }
-    var firmwareLaunchId by remember { mutableStateOf(0) }
+    var preparingSensor by remember { mutableStateOf(false) }
+    var showFirmware by remember { mutableStateOf(false) }
     var lastSerialLookup by remember { mutableStateOf("") }
     var materialRefresh by remember { mutableStateOf(0) }
     // The account's sensors (current + past); null = not loaded yet, empty = none.
@@ -738,8 +741,8 @@ fun OttaiSetupWizard(
     // leaves that at WOKE and would not re-run this.
     // Once nothing here needs a wake (signed in to Ottai Global, or Global picked), setup must
     // let go of NFC: a held capture swallows the next Libre or pen tap.
-    LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey, showFirmwareTest) {
-        if (!nfcWakeListening || showFirmwareTest) {
+    LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey, preparingSensor, showFirmware) {
+        if (!nfcWakeListening || preparingSensor || showFirmware) {
             OttaiNfc.disarmSetup()
         } else if (step == OttaiSetupStep.SEARCH) {
             OttaiNfc.armForSetup()
@@ -979,32 +982,36 @@ fun OttaiSetupWizard(
         openSignIn()
     }
 
-    fun openFirmware(address: String, forSetup: Boolean) {
+    fun openFirmware(address: String) {
         if (address.isNotBlank() && OttaiConstants.looksLikeMac(cloudId)) {
             OttaiRegistry.saveDraftRecord(context, cloudId, address, OttaiConstants.DEFAULT_DISPLAY_NAME)
         }
         bleAddress = address
-        setupAfterFirmware = forSetup
-        firmwareLaunchId++
         OttaiSetupScanHold.stopPanelScans()
-        showFirmwareTest = true
+        showFirmware = true
     }
 
-    fun startConnect(mac: String, selectedBleAddress: String?, alreadyActive: Boolean = false) {
-        if (busy || materialLoading) return
+    fun closeFirmware() {
+        showFirmware = false
+        savedRefresh += 1
+        materialRefresh += 1
+        showStatus("")
+        openSensor()
+    }
+
+    fun startConnect(mac: String, selectedBleAddress: String?) {
+        if (busy || materialLoading || showFirmware) return
         val canonical = OttaiConstants.canonicalSensorId(mac)
         if (!OttaiConstants.looksLikeMac(canonical)) return
         cloudId = canonical
         val setupAddress = ottaiResolvedSetupBleAddress(context, canonical, selectedBleAddress)
         val hasLocalKeys = OttaiRegistry.loadMaterials(context, canonical).authKeys != null
-        if (!hasLocalKeys && OttaiCloudClient.requiresGlobalSignIn(context)) {
-            requestGlobalSignIn()
+        if (OttaiFirmwareSession.hasPendingTransfer(context, canonical)) {
+            showStatus(context.getString(R.string.ottai_ota_pending), error = true)
             return
         }
-        if (OttaiFirmwareSession.hasPendingSetup(context, canonical)) {
-            if (setupAddress != null && (hasLocalKeys || OttaiCloudClient.loadOtaSession(context))) {
-                openFirmware(setupAddress, forSetup = true)
-            } else showStatus(ottaiConnectFailureMessage(context, canonical), error = true)
+        if (!hasLocalKeys && OttaiCloudClient.requiresGlobalSignIn(context)) {
+            requestGlobalSignIn()
             return
         }
         val selected = selectedAccountDevice?.takeIf {
@@ -1012,54 +1019,76 @@ fun OttaiSetupWizard(
         }
         val version = selected?.deviceVersion ?: selectedDeviceVersion
         busy = true
+        connecting = true
         showStatus("")
         scope.launch {
             try {
-                val fetched = withContext(Dispatchers.IO) {
+                val pendingPreparation = OttaiFirmwareSession.hasPendingPreparation(context, canonical)
+                val fetched = if (pendingPreparation) OttaiMaterialFetch(null) else withContext(Dispatchers.IO) {
                     runCatching { fetchOttaiMaterials(context, canonical, version, selected?.bindTime ?: 0L) }
                         .getOrElse {
                             Log.w(tag, "Could not read or save Ottai credentials: ${it.javaClass.simpleName}")
                             OttaiMaterialFetch(null)
                         }
                 }
-                val materials = fetched.materials
                 val route = ottaiSetupConnectRoute(
-                    hasAuthKeys = materials?.authKeys != null,
+                    hasAuthKeys = fetched.materials?.authKeys != null,
                     requiresV3Bootstrap = fetched.requiresV3Bootstrap,
                     signedIn = OttaiCloudClient.loadOtaSession(context),
                 )
-                when (route) {
-                    OttaiSetupConnectRoute.V3_CREDENTIAL_BOOTSTRAP -> {
-                        selectedDeviceVersion = fetched.validatedDeviceVersion
-                        if (setupAddress != null) openFirmware(setupAddress, forSetup = true)
-                        else showStatus(ottaiConnectFailureMessage(context, canonical), error = true)
+                val needsPreparation = pendingPreparation || route == OttaiSetupConnectRoute.V3_CREDENTIAL_BOOTSTRAP
+                val alreadyActive: Boolean
+                val materials: OttaiRegistry.DeviceMaterials?
+                if (needsPreparation) {
+                    if (setupAddress == null) {
+                        showStatus(context.getString(R.string.status_connection_failed), error = true)
+                        return@launch
                     }
-                    OttaiSetupConnectRoute.STORED_MATERIALS -> {
-                        checkNotNull(materials)
-                        val connected = withContext(Dispatchers.IO) {
-                            val state = ottaiMaterialState(materials,
-                                OttaiRegistry.loadProvisionalActiveTime(context, canonical),
-                                OttaiRegistry.loadAcceptedMaxActive(context, canonical))
-                            connectOttaiSensor(context, canonical, setupAddress,
-                                activate = !alreadyActive && state == OttaiMaterialState.READY_TO_ACTIVATE,
-                                alreadyActive = alreadyActive, route = route)
-                        }
-                        if (connected) {
-                            currentMaterials = materials
-                            if (materials.deviceVersion.isNotBlank()) selectedDeviceVersion = materials.deviceVersion
-                            savedRefresh += 1
-                            step = OttaiSetupStep.CONNECTING
-                        } else {
-                            showStatus(ottaiConnectFailureMessage(context, canonical), error = true)
-                            nfcScanRestartKey += 1
-                        }
+                    if (fetched.validatedDeviceVersion.isNotBlank()) selectedDeviceVersion = fetched.validatedDeviceVersion
+                    OttaiRegistry.saveDraftRecord(context, canonical, setupAddress, OttaiConstants.DEFAULT_DISPLAY_NAME)
+                    preparingSensor = true
+                    OttaiSetupScanHold.stopPanelScans()
+                    val prepared = awaitOttaiPreparation(context, canonical, setupAddress)
+                    if (prepared?.stage != OttaiFirmwareStage.COMPLETE) {
+                        val error = prepared?.errorCode.orEmpty()
+                        if (error.contains(OttaiCloudClient.BIZ_TOKEN_INVALID, true)) invalidateSession()
+                        else showStatus(context.getString(
+                            if (error.contains(OttaiCloudClient.BIZ_OTA_UPGRADE_REQUIRED, true))
+                                R.string.ottai_ota_upgrade_required else R.string.status_connection_failed
+                        ), error = true)
+                        return@launch
                     }
-                    OttaiSetupConnectRoute.BLOCKED -> {
-                        showStatus(ottaiMaterialFailureMessage(context, fetched.failure), error = true)
-                        if (fetched.failure?.isTokenInvalid == true) invalidateSession()
-                    }
+                    alreadyActive = prepared.setupSensorAlreadyActive
+                    materials = withContext(Dispatchers.IO) { OttaiRegistry.loadMaterials(context, canonical) }
+                } else {
+                    alreadyActive = false
+                    materials = fetched.materials
+                }
+                if (materials?.authKeys == null) {
+                    showStatus(ottaiMaterialFailureMessage(context, fetched.failure), error = true)
+                    if (fetched.failure?.isTokenInvalid == true) invalidateSession()
+                    return@launch
+                }
+                val connected = withContext(Dispatchers.IO) {
+                    val state = ottaiMaterialState(materials,
+                        OttaiRegistry.loadProvisionalActiveTime(context, canonical),
+                        OttaiRegistry.loadAcceptedMaxActive(context, canonical))
+                    connectOttaiSensor(context, canonical, setupAddress,
+                        activate = !alreadyActive && state == OttaiMaterialState.READY_TO_ACTIVATE,
+                        alreadyActive = alreadyActive)
+                }
+                if (connected) {
+                    currentMaterials = materials
+                    if (materials.deviceVersion.isNotBlank()) selectedDeviceVersion = materials.deviceVersion
+                    savedRefresh += 1
+                    step = OttaiSetupStep.CONNECTING
+                } else {
+                    showStatus(ottaiConnectFailureMessage(context, canonical), error = true)
+                    nfcScanRestartKey += 1
                 }
             } finally {
+                preparingSensor = false
+                connecting = false
                 busy = false
             }
         }
@@ -1116,46 +1145,18 @@ fun OttaiSetupWizard(
     val atRoot = step == OttaiSetupStep.SEARCH
     val goBack: () -> Unit = {
         when (step) {
-            OttaiSetupStep.SEARCH -> onDismiss()
+            OttaiSetupStep.SEARCH -> if (showFirmware) closeFirmware() else onDismiss()
             OttaiSetupStep.CONNECTING, OttaiSetupStep.SUCCESS -> openSensor()
             OttaiSetupStep.QR, OttaiSetupStep.SAVED_SENSORS, OttaiSetupStep.REGISTER -> step = OttaiSetupStep.SEARCH
         }
     }
-    if (showFirmwareTest) {
-        androidx.compose.runtime.key(firmwareLaunchId) {
-            // The manual firmware entry needs full mode; on relock it closes as soon as no
-            // transfer is running. Preparing a new sensor during setup carries on.
-            OttaiFirmwareTestDialog(cloudId, bleAddress, prepareForSetup = setupAfterFirmware,
-                closeWhenIdle = restrictedLocked && !setupAfterFirmware,
-                onPrepared = { alreadyActive ->
-                    showFirmwareTest = false
-                    setupAfterFirmware = false
-                    savedRefresh += 1
-                    materialRefresh += 1
-                    startConnect(cloudId, bleAddress, alreadyActive)
-                },
-                onRetrySetup = {
-                    showFirmwareTest = false
-                    setupAfterFirmware = false
-                    lastSerialLookup = ""
-                    startConnect(cloudId, bleAddress)
-                },
-                onSignIn = {
-                    showFirmwareTest = false
-                    setupAfterFirmware = false
-                    region = accountRegion
-                    invalidateSession()
-                    openSignIn()
-                },
-                onDismiss = {
-                    showFirmwareTest = false
-                    setupAfterFirmware = false
-                    savedRefresh += 1
-                    materialRefresh += 1
-                })
-        }
+    BackHandler(onBack = goBack)
+    val view = LocalView.current
+    DisposableEffect(view, preparingSensor) {
+        val previous = view.keepScreenOn
+        if (preparingSensor) view.keepScreenOn = true
+        onDispose { if (preparingSensor) view.keepScreenOn = previous }
     }
-    BackHandler(enabled = !showFirmwareTest, onBack = goBack)
 
     val onSignedIn: (String) -> Unit = {
         accountMessage = ""
@@ -1170,6 +1171,17 @@ fun OttaiSetupWizard(
         }
         signInReturn = null
     }
+
+    val firmwarePanel = if (showFirmware) rememberOttaiFirmwarePanel(
+        cloudId, bleAddress, closeWhenIdle = restrictedLocked,
+        onSignIn = {
+            showFirmware = false
+            region = accountRegion
+            invalidateSession()
+            openSignIn()
+        },
+        onLeave = ::closeFirmware,
+    ) else null
 
     val selectedSensor: @Composable () -> Unit = {
         // A start we recovered over BLE on a previous session (persisted, and carried in
@@ -1229,7 +1241,8 @@ fun OttaiSetupWizard(
             deviceVersion = currentMaterials?.deviceVersion?.takeIf { it.isNotBlank() }
                 ?: selectedDeviceVersion,
             bindingState = cloudBindingState,
-            busy = busy,
+            busy = busy || showFirmware,
+            connecting = connecting,
             canConnect = canConnect,
             connectLabel = stringResource(connectTitleRes),
             message = status.ifBlank {
@@ -1248,14 +1261,16 @@ fun OttaiSetupWizard(
                 }
             },
             onImport = launchImport,
-            onFirmware = if (!busy && !materialLoading && ottaiFirmwareEntryAvailable(signedIn,
+            firmwarePanel = firmwarePanel,
+            onFirmware = if (showFirmware) ::closeFirmware
+            else if (!materialLoading && ottaiFirmwareEntryAvailable(signedIn,
                 OttaiCloudClient.loadOtaSession(context) || needsGlobalSignIn,
                 ottaiResolvedSetupBleAddress(context, cloudId, bleAddress) != null,
                 OttaiFirmwareSession.hasPendingSetup(context, cloudId))) ({
                 fullModeGuard {
                     if (needsGlobalSignIn && !(hasMaterials && OttaiFirmwareSession.hasPendingSetup(context, cloudId))) {
                         requestGlobalSignIn()
-                    } else openFirmware(ottaiResolvedSetupBleAddress(context, cloudId, bleAddress).orEmpty(), forSetup = false)
+                    } else openFirmware(ottaiResolvedSetupBleAddress(context, cloudId, bleAddress).orEmpty())
                 }
             }) else null,
             onSignIn = { openSignIn() },
@@ -1342,8 +1357,8 @@ fun OttaiSetupWizard(
                     OttaiSearchStep(
                         ui = ui,
                         restartKey = nfcScanRestartKey,
-                        enabled = !busy && !materialLoading && !showFirmwareTest,
-                        scanPaused = showFirmwareTest,
+                        enabled = !busy && !materialLoading && !showFirmware,
+                        scanPaused = preparingSensor || showFirmware,
                         selectedSensor = selectedSensor,
                         scrollRequest = searchScrollRequest,
                         focusSelectedSensor = focusSelectedSensor,
@@ -1359,8 +1374,9 @@ fun OttaiSetupWizard(
                                 message = accountMessage,
                                 form = signInForm,
                                 onSignedIn = { onSignedIn(it) },
+                                signOutEnabled = !busy && !showFirmware,
                                 onSignOut = {
-                                    scope.launch {
+                                    if (!busy && !showFirmware) scope.launch {
                                         withContext(Dispatchers.IO) { OttaiCloudClient.logout(context) }
                                         signedIn = false
                                         devices = null
@@ -1379,7 +1395,7 @@ fun OttaiSetupWizard(
                             unusedBindings.forEach { binding ->
                                 OttaiUnusedBindingCard(
                                     sensorId = OttaiConstants.canonicalSensorId(binding.mac),
-                                    enabled = !busy && !devicesLoading,
+                                    enabled = !busy && !devicesLoading && !showFirmware,
                                     onUnbind = { pendingCloudUnbind = binding },
                                     modifier = Modifier.padding(
                                         start = ui.horizontalPadding,
@@ -1412,7 +1428,7 @@ fun OttaiSetupWizard(
                                     icon = Icons.Default.Key,
                                     iconTint = MaterialTheme.colorScheme.secondary,
                                     position = CardPosition.SINGLE,
-                                    onClick = if (!busy) ({ step = OttaiSetupStep.SAVED_SENSORS }) else null,
+                                    onClick = if (!busy && !showFirmware) ({ step = OttaiSetupStep.SAVED_SENSORS }) else null,
                                 )
                             }
                         },

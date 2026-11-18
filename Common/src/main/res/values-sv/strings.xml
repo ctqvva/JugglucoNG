@@ -2136,10 +2136,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Inloggad</string>
     <string name="ottai_session_invalid">Din molnsession är inte längre giltig – logga in igen</string>
     <string name="ottai_global_sign_in_again">Logga in på Ottai Global igen för att konfigurera en sensor eller kontrollera dess firmware. Sparade sensorer och historik behålls.</string>
-    <string name="ottai_secure_exchange_failed">Det gick inte att upprätta en säker anslutning till Ottai. Kontrollera internetanslutningen och försök igen.</string>
     <string name="ottai_ota_check_failed">Det gick inte att kontrollera eller hämta firmware. Försök igen.</string>
     <string name="ottai_ota_disconnect_first">Koppla från sensorn på skärmen Sensorer innan du kontrollerar dess firmware. Behåll de sparade autentiseringsuppgifterna.</string>
-    <string name="ottai_setup_link_timeout">Det gick inte att ansluta till sensorn via Bluetooth. Håll telefonen nära sensorn och försök igen. Om problemet återkommer, stäng av Bluetooth och slå på det igen.</string>
     <string name="ottai_sensor_mac_hint">Enhets-ID, serienummer eller QR</string>
     <string name="ottai_connect_saved">Anslut</string>
     <string name="ottai_login_fail">Inloggning misslyckades - kontrollera telefon/kod</string>
@@ -2487,7 +2485,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_server_unreachable">Det gick inte att nå Ottai-servern. Försök igen.</string>
     <string name="ottai_connect_failed">Kunde inte starta anslutningen. Försök igen.</string>
     <string name="ottai_already_binding_hint">Ditt konto har fortfarande en annan sensor kopplad. Koppla från den under Sparade sensorer och försök igen.</string>
-    <string name="ottai_ota_upgrade_required">Ottai-tjänsten begärde en firmwareuppdatering när sensorn skulle kopplas. Försök med firmwareinställningen igen eller importera sparade inloggningsuppgifter. Du kan också prova den officiella Ottai-appen.</string>
+    <string name="ottai_ota_upgrade_required">Ottai begärde en firmwareuppdatering.</string>
     <string name="ottai_retry">Försök igen</string>
     <string name="ottai_setup_failed">Inställningen stoppades. Försök igen eller stäng och importera sparade inloggningsuppgifter.</string>
     <string name="ottai_region_cn_full">Ottai Kina</string>
@@ -3134,7 +3132,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_installing">Installerar firmware…</string>
     <string name="ottai_ota_reconnecting">Återansluter och kontrollerar installerad version…</string>
     <string name="ottai_ota_preparing">Uppdaterar inloggningsuppgifter och skriver fabriksparametrar…</string>
-    <string name="ottai_ota_complete">Förberedelsen är klar. Stäng dialogrutan och anslut normalt för att aktivera sensorn.</string>
+    <string name="ottai_ota_complete">Fabriksförberedelsen är klar</string>
     <string name="ottai_ota_failed">Inställningen stoppades. Försök igen eller kontrollera spårloggen. Ofullständig inställning blockerar aktivering.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Uppdatering: %2$s</string>
     <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
@@ -3163,7 +3161,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="ottai_ota_discard">Kasta ofullständig inställning</string>
     <string name="ottai_ota_discard_confirm">Radera sparat uppdaterings- och förberedelseläge för att tillåta anslutning? Firmware och inställningar återställs inte. En avbruten uppdatering kan fortfarande kräva återställning.</string>
-    <string name="ottai_ota_pending">Sensorinställningen är ofullständig. Anslut igen eller öppna återställning för att slutföra eller kasta den.</string>
+    <string name="ottai_ota_pending">Sensorinstallationen är inte slutförd</string>
     <string name="ottai_ota_finish_preparation">Firmware verifierad. Bekräfta fabriksparametrarna för att slutföra inställningen.</string>
     <string name="ottai_ota_discard_failed">Firmwaretestet kunde inte kastas. Försök igen.</string>
     <string name="prediction_analysis_section">Prognosanalys</string>

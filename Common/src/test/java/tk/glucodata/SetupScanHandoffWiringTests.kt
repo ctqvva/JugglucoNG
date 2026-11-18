@@ -72,14 +72,13 @@ class SetupScanHandoffWiringTests {
             "DisposableEffect(scanPermissionGranted, bluetoothEnabled, scanRetryKey, restartKey, scanPaused)",
             "val knownAddresses = remember(",
         )
-        // The OTA dialog retains the search page. Its pause must stop scanning before
-        // the scan-start branch, including when an NFC/retry key changes while it is open.
+        // Inline preparation holds the radio even when an NFC/retry key changes.
         val pause = scanEffect.indexOf("if (scanPaused || !scanPermissionGranted || !bluetoothEnabled) {")
         val stopPaused = scanEffect.indexOf("scanner.stopScan()", pause)
         val returnPaused = scanEffect.indexOf("return@DisposableEffect onDispose { scanner.stopScan() }", stopPaused)
         val start = scanEffect.indexOf("scanner.startScan(")
         assertTrue(pause >= 0 && stopPaused > pause && returnPaused > stopPaused && start > returnPaused)
-        assertTrue(wizard.contains("scanPaused = showFirmwareTest"))
+        assertTrue(wizard.contains("scanPaused = preparingSensor || showFirmware"))
         // Connect arms the managed scan before the panel leaves. Only leaving hands the radio back.
         assertFalse(scanEffect.substring(scanEffect.lastIndexOf("onDispose {")).contains("scanStarter"))
         assertTrue(wizard.contains(
@@ -88,6 +87,19 @@ class SetupScanHandoffWiringTests {
                 "if (SensorBluetooth.gattcallbacks.isNotEmpty() && !SensorBluetooth.scanActiveOrPending()) { " +
                 "SensorBluetooth.blueone?.scanStarter(0L) } } }",
         ))
+    }
+
+    @Test
+    fun ottaiConnectPreparesInlineAndFirmwareExpandsTheExistingCard() {
+        val wizard = read("Common/src/mobile/java/tk/glucodata/ui/setup/OttaiSetupWizard.kt")
+        val connect = section(wizard, "fun startConnect(", "val selectCode:")
+        assertTrue(connect.contains("awaitOttaiPreparation(context, canonical, setupAddress)"))
+        assertTrue(connect.contains("OttaiFirmwareSession.hasPendingTransfer(context, canonical)"))
+        assertFalse(connect.contains("openFirmware("))
+        assertFalse(connect.contains("AlertDialog("))
+        assertFalse(wizard.contains("OttaiSetupStep.FIRMWARE"))
+        assertTrue(wizard.contains("firmwarePanel = firmwarePanel"))
+        assertTrue(wizard.contains("invokeOnCancellation { session.dispose() }"))
     }
 
     @Test

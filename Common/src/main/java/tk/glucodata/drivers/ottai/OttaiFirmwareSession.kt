@@ -33,7 +33,7 @@ private const val ADVERTISEMENT_SCAN_MS = 20_000L
 private const val RETRY_ADVERTISEMENT_SCAN_MS = 10_000L
 // Android's GATT_CONNECTION_TIMEOUT (0x93), delivered before STATE_CONNECTED in the field trace.
 private const val GATT_CONNECTION_TIMEOUT = 0x93
-internal const val OTTAI_SETUP_LINK_TIMEOUT = "setup_connect_timeout_status=147"
+private const val OTTAI_SETUP_LINK_TIMEOUT = "setup_connect_timeout_status=147"
 
 /**
  * Android only knows an LE device's address type after it has seen it advertise. Until then
@@ -202,6 +202,7 @@ internal class OttaiFirmwareSession private constructor(
             val id = OttaiConstants.canonicalSensorId(sensorId)
             val ble = OttaiConstants.normalizeBleAddress(address) ?: return null
             if (!OttaiConstants.looksLikeMac(id)) return null
+            if (prepareForSetup && (mode != OttaiFirmwareMode.PREACTIVATION || hasPendingTransfer(context, id))) return null
             val materials = OttaiRegistry.loadMaterials(context, id)
             // A validated saved package and local keys can recover without an available account.
             // New experiments still require the signed-in regional session.

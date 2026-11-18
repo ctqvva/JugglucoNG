@@ -51,15 +51,12 @@ are blocked until it finishes. A verified already-active sensor can return to st
 parameter/activation writes. The checkpoint retains the original BLE address and has the same
 explicit discard path as transfer recovery, preserving credentials and other sensors.
 
-Failures expose **Try again** and **Close**, plus confirmed discard when a journal exists. An
-expired cloud session offers **Sign in**. A failed OTA lookup or download has its own state and
-can retry on the authenticated link. **No firmware update offered** is reserved for a successful
-judge result with neither update flag set. A normal setup retry re-runs credential lookup unless
-a pending setup record already identifies the recovery path.
-Import and account/NFC actions remain available after closing. A journal remains scoped to its
-original package, address and mode; retries cannot silently replace it. A genuine server refusal
-with no usable credentials/package still needs account/vendor recovery or imported credentials;
-the app cannot promise to manufacture an activation credential or compatible firmware image.
+Normal Connect shows progress and failures on the selected sensor card. A new Connect attempt
+reuses a preparation checkpoint when one exists. An unfinished firmware transfer opens only
+through **Check firmware (experimental)** and uses the saved package, address and mode. Firmware
+check errors and retry appear in that part of the sensor card. **No firmware update offered** is reserved for a
+successful judge result with neither update flag set. Installation, manual factory writes and
+discarding a saved recovery require confirmation.
 
 The supplied `juggluco-trace-20261102-144020.log` confirms Global activation through the manual
 preparation path on unchanged `E1.2.6(V1.7.SH2616.1),STDRD`. Normal binding with cloud metadata
@@ -89,7 +86,7 @@ confirmed status 3. The managed driver also recovered a subsequent status-8 drop
 There was no firmware offer or transfer in this run. The trace establishes the sequence
 around the adapter restart without identifying the controller-level cause of the timeouts.
 After an initial 147, setup now closes that GATT and tries once from a fresh connectable
-advertisement of the exact address. An exhausted retry gives Bluetooth-specific guidance.
+advertisement of the exact address. An exhausted retry returns a connection failure on the card.
 
 CN mobile secure transport from merged PR #755 is now on main and included in this branch.
 Ordinary CN account/device lookup, validation and credential bootstrap use the encrypted
@@ -104,9 +101,9 @@ missing keys and uses V3 server authentication; Started mode still requires save
 An existing unfinished journal remains accessible without account
 credentials, so its recovery record can always be discarded. Reopening preselects the saved
 Fresh/Started mode. An unreadable journal or a different BLE address exposes only discard
-and close, without offering a new experiment. Recovery uses the validated saved package;
+and back navigation, without offering a new experiment. Recovery uses the validated saved package;
 it never replaces it with a new cloud offer. Discard finishes even if BLE disconnects while
-confirmation is queued. The wizard pauses its scanner and NFC capture while the dialog owns BLE.
+confirmation is queued. The wizard pauses its scanner and NFC capture while preparation or the firmware check owns BLE.
 A failed API call or `AppDevice_Upgrade_Version` response is not itself a firmware offer:
 that code can indicate an app/API compatibility mismatch. Installation requires a successfully
 authenticated offer with an actual downloadable package.
@@ -132,9 +129,8 @@ firmware experiment and its additional confirmations.
 1. Enable Android Bluetooth HCI snoop logging if available. This records **our own** traffic;
    it is diagnostic evidence, not an independent official-protocol reference.
 2. Open Sensors → add Ottai. Sign in to the matching CN, Ottai Global or Syai account, enter/scan the sensor code, and
-   select its actual Bluetooth advertisement. NFC wake may be needed. Selection can validate
-   or read existing credentials, but cannot bootstrap or bind a sensor. Do not fetch credentials
-   through the normal Connect action first: binding can close the pre-bind OTA window.
+   select its actual Bluetooth advertisement. NFC wake may be needed. Use the firmware action
+   before normal Connect for a fresh-sensor test, because binding can close the pre-bind OTA window.
 3. **Do not press the normal Connect/activate button yet.** Choose **Check firmware
    (experimental)** below it, then **Fresh sensor**. This stops the setup scanner and opens a separate BLE client,
    outside the managed-sensor list. It reads software revision `2a28`. With saved keys it
@@ -159,14 +155,14 @@ firmware experiment and its additional confirmations.
      Newly fetched keys establish a local ECDH session before encrypted calibration writes.
      Reopening at the saved target also waits for this action;
      it does not write factory parameters or re-send a success report automatically.
-6. On **Preparation complete**, close the dialog and use the normal Connect action to
+6. On **Factory preparation complete**, close the firmware controls and use Connect to
    activate. The existing `maxActive` negotiation still runs there. No firmware-test path
    writes RTC, `maxActive`, retain duration or `ACTIVATE_CMD`.
 7. Export the trace log, particularly `OttaiOTA`, `Ottai` and `AUTHWIRE` entries. Record the
    displayed revisions, result, and any diagnostic code. After activation, retain the normal
    activation/status/lifetime-readback logs and first readings for comparison.
 
-Keep the dialog open and the phone near the sensor during installation. It keeps the screen
+Keep the phone near the sensor during installation. It keeps the screen
 awake. It is a foreground field test, not a background updater. Android can still stop the
 process, so an unfinished attempt is persisted before the first OTA write.
 
@@ -177,7 +173,7 @@ falls back after 2.5 seconds; a refused MTU request uses a 300 ms fallback. `Ott
 20-second timeout. On the initial connection, a stall before discovery precedes authentication
 and OTA.
 
-If the check stops with `firmware_profile`, the dialog displays the reported software revision
+If the check stops with `firmware_profile`, the firmware controls display the reported software revision
 (up to 64 printable characters). The trace records `software_revision` with the original byte
 length and first 64 bytes in hex, including padding. This diagnoses unexpected revision formats;
 empty, non-ASCII and control-containing values still stop the check. Software revisions are
@@ -201,7 +197,7 @@ It cannot isolate the effect of firmware from factory provisioning on early read
 ## Test an already-started sensor
 
 If the ordinary check says no update is offered, choose **Recheck with V3 cloud
-authentication** in the same dialog. This comparison is available in release builds too:
+authentication** in the firmware controls. This comparison is available in release builds too:
 it sends a fresh sensor challenge to `/cgmAuth/verify` using the captured account, writes
 the authenticated server response back over BLE, waits the normal V3 settling interval,
 and requests an offer before replacing that server-authenticated BLE session. It then
@@ -213,7 +209,7 @@ The trace contains `cloud_auth_recheck=begin`, `writeback_complete`, `judge`, an
 `local_auth_restored`, plus the usual offer flags. This tests whether fresh server-mediated
 authentication changes eligibility; it does not assume the backend requires that proof or
 that it will offer firmware. Challenges, signatures and server authentication values are
-not logged. A failure or closing the dialog retires outstanding callbacks.
+not logged. A failure or closing the firmware controls retires outstanding callbacks.
 
 Field result from `juggluco-trace-20261028-224815.log.txt`: the started Global sensor
 on `E1.2.6(V1.7.SH2616.1),STDRD` reached `writeback_complete` and `judge` three times.
@@ -266,7 +262,7 @@ per-sensor. Our install path has still not flashed a sensor.
    or bypass of a cloud refusal.
 5. After reboot the target firmware must match `2a28` and the sensor must reauthenticate.
    Post-update command states **0–2 (unactivated/reset), 3 (active), and 4 (ended)** are all
-   accepted test outcomes. The dialog and `OttaiOTA` trace show before/after observations.
+   accepted test outcomes. The firmware controls and `OttaiOTA` trace show before/after observations.
    A reset, erased readings, changed lifetime or ended state does not fail the experiment.
 6. Export the trace before reconnecting monitoring. This mode performs **no automatic
    reactivation, factory-parameter writes, cloud material rebind, local-history rewrite or
@@ -303,7 +299,7 @@ its separate provisioning flow.
   missing recovery package require investigation, rather than speculative writes.
 - An unfinished journal blocks normal connection and activation with a specific recovery
   message. It is cleared after successful Fresh preparation, verified Started completion,
-  or an explicit **Discard firmware test** confirmation. Discard first cancels the dialog's
+  or an explicit **Discard firmware test** confirmation. Discard first cancels the firmware session’s
   BLE/worker callbacks, then deletes only that sensor's local package/journal. It is disabled
   during transfer or factory writes. It keeps credentials, readings and other sensors intact.
   It does not restore previous firmware/settings or repair a sensor stuck in the bootloader.

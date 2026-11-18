@@ -343,6 +343,8 @@ internal fun OttaiSensorCard(
     onExport: (() -> Unit)? = null,
     onFirmware: (() -> Unit)? = null,
     onSensorIdChange: ((String) -> Unit)? = null,
+    connecting: Boolean = false,
+    firmwarePanel: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // Keep only status text that explains what the user needs to do.
@@ -357,7 +359,7 @@ internal fun OttaiSensorCard(
     // A sensor not yet on the account is the normal case before Connect, and a failed account
     // check does not stop Connect, so neither earns a line here; Connect reports real failures.
     val bindingText = when (bindingState) {
-        OttaiCloudBindingUiState.CHECKING -> stringResource(R.string.ottai_cloud_binding_checking)
+        OttaiCloudBindingUiState.CHECKING -> if (connecting) null else stringResource(R.string.ottai_cloud_binding_checking)
         OttaiCloudBindingUiState.BOUND -> stringResource(R.string.ottai_cloud_binding_bound)
         else -> null
     }
@@ -422,14 +424,20 @@ internal fun OttaiSensorCard(
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) {
-                    if (busy) {
+                    if (connecting) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.connecting), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         Text(connectLabel)
                     }
                 }
             }
-            if (!loading && onFirmware != null) {
+            if (firmwarePanel != null && onFirmware != null) {
+                firmwarePanel()
+                TextButton(onClick = onFirmware, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.close)) }
+            } else if (!loading && onFirmware != null) {
                 OutlinedButton(
                     onClick = onFirmware,
                     enabled = !busy,
@@ -568,6 +576,7 @@ internal fun OttaiAccountCard(
     // The wizard's scope, not this card's: leaving mid-request must not cancel the coroutine
     // after the cloud call has already stored a session, or onSignedIn never runs.
     scope: CoroutineScope,
+    signOutEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     if (signedIn) {
@@ -580,6 +589,7 @@ internal fun OttaiAccountCard(
                 trailingContent = {
                     OutlinedButton(
                         onClick = onSignOut,
+                        enabled = signOutEnabled,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) { Text(stringResource(R.string.ottai_sign_out)) }

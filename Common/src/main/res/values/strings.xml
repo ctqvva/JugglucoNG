@@ -1112,10 +1112,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Signed in</string>
     <string name="ottai_session_invalid">Your cloud session is no longer valid — sign in again</string>
     <string name="ottai_global_sign_in_again">Sign in to Ottai Global again to set up a sensor or check its firmware. Your saved sensors and history are kept.</string>
-    <string name="ottai_secure_exchange_failed">Could not establish a secure connection to Ottai. Try again with a working internet connection.</string>
     <string name="ottai_ota_check_failed">Could not check for or download firmware. Try again.</string>
     <string name="ottai_ota_disconnect_first">Disconnect this sensor from the Sensors screen before checking its firmware. Keep its saved credentials.</string>
-    <string name="ottai_setup_link_timeout">Bluetooth could not connect to the sensor. Keep the phone near it and try again. If this keeps happening, turn Bluetooth off and back on.</string>
     <string name="ottai_sensor_mac_hint">Device ID, serial number or QR</string>
     <string name="ottai_connect_saved">Connect</string>
     <string name="ottai_login_fail">Sign-in failed — check phone/code</string>
@@ -1200,7 +1198,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_server_unreachable">Couldn\'t reach the Ottai server. Try again.</string>
     <string name="ottai_connect_failed">Couldn\'t start the connection. Try again.</string>
     <string name="ottai_already_binding_hint">Your account still has another sensor bound. Unbind it under Saved sensors, then try again.</string>
-    <string name="ottai_ota_upgrade_required">The Ottai service requested a firmware update while linking this sensor. Retry firmware setup, or import saved credentials. You can also try the official Ottai app.</string>
+    <string name="ottai_ota_upgrade_required">Ottai requested a firmware update.</string>
     <string name="ottai_retry">Try again</string>
     <string name="ottai_setup_failed">Setup stopped. Try again, or close and import saved credentials.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
@@ -3403,7 +3401,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_installing">Installing firmware…</string>
     <string name="ottai_ota_reconnecting">Reconnecting and checking the installed version…</string>
     <string name="ottai_ota_preparing">Refreshing credentials and writing factory parameters…</string>
-    <string name="ottai_ota_complete">Preparation complete. Close this dialog, then connect normally to activate the sensor.</string>
+    <string name="ottai_ota_complete">Factory preparation complete</string>
     <string name="ottai_ota_failed">Setup stopped. Try again or check the trace log. Unfinished setup blocks activation.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
     <string name="ottai_ota_package">%1$d bytes · SHA-256: %2$s</string>
@@ -3432,7 +3430,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="ottai_ota_discard">Discard unfinished setup</string>
     <string name="ottai_ota_discard_confirm">Discard saved update and preparation state to unblock connection? This does not restore firmware or settings. An interrupted flash may still need recovery.</string>
-    <string name="ottai_ota_pending">Sensor setup is unfinished. Connect again or open recovery to finish or discard it.</string>
+    <string name="ottai_ota_pending">Sensor setup unfinished</string>
     <string name="ottai_ota_finish_preparation">Firmware verified. Confirm factory preparation to finish setup.</string>
     <string name="ottai_ota_discard_failed">Could not discard the firmware test. Try again.</string>
     <string name="prediction_analysis_section">Prediction analysis</string>

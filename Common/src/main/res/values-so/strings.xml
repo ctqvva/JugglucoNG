@@ -1025,10 +1025,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_already_signed_in">Saxiixday</string>
     <string name="ottai_session_invalid">Fadhigii daruurta hadda shaqayn maayo – mar kale gal</string>
     <string name="ottai_global_sign_in_again">Mar kale gal Ottai Global si aad u dejiso dareeme ama u hubiso barnaamijkiisa gudaha. Dareemayaasha kaydsan iyo taariikhdooda waa la hayn doonaa.</string>
-    <string name="ottai_secure_exchange_failed">Xiriir ammaan ah lama samayn karin Ottai. Hubi xiriirka internetka oo mar kale isku day.</string>
     <string name="ottai_ota_check_failed">Barnaamijka gudaha ee dareemaha lama hubin ama lama soo dejin karin. Mar kale isku day.</string>
     <string name="ottai_ota_disconnect_first">Ka gooy dareemahan shaashadda Dareemayaasha ka hor intaadan hubin barnaamijkiisa gudaha. Hayso furayaashiisa kaydsan.</string>
-    <string name="ottai_setup_link_timeout">Bluetooth kuma xirmi karin dareemaha. Taleefanka u dhowee dareemaha oo mar kale isku day. Haddii ay tani soo noqnoqoto, dami Bluetooth dabadeed dib u shid.</string>
     <string name="ottai_sensor_mac_hint">Aqoonsiga aaladda, lambarka taxanaha ama QR</string>
     <string name="ottai_connect_saved">Ku xidhnow</string>
     <string name="ottai_login_fail">Gelitaanku wuu guuldarraystay - hubi taleefanka/koodka</string>
@@ -2678,7 +2676,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_server_unreachable">Lama gaari karo server-ka Ottai. Isku day mar kale.</string>
     <string name="ottai_connect_failed">Lama bilaabi karo xiriirka. Isku day mar kale.</string>
     <string name="ottai_already_binding_hint">Akoonkaagu weli wuxuu ku xiran yahay dareeme kale. Ka fur Dareemayaal la keydiyey, kadibna isku day mar kale.</string>
-    <string name="ottai_ota_upgrade_required">Adeegga Ottai wuxuu codsaday cusboonaysiinta firmware-ka markii la xirayay dareemahan. Mar kale isku day dejinta firmware-ka ama soo geli xogta aqoonsiga ee kaydsan. Waxa kale oo aad tijaabin kartaa app-ka rasmiga ah ee Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai waxay codsatay in la cusboonaysiiyo barnaamijka gudaha.</string>
     <string name="ottai_retry">Mar kale isku day</string>
     <string name="ottai_setup_failed">Dejintii way joogsatay. Mar kale isku day, ama xir oo soo geli xogta aqoonsiga ee kaydsan.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
@@ -3319,7 +3317,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_ota_installing">Rakibidda firmware-ka…</string>
     <string name="ottai_ota_reconnecting">Dib u xidhid iyo hubinta nooca la rakibay…</string>
     <string name="ottai_ota_preparing">Cusboonaysiinta aqoonsiyada iyo qorista dejimaha warshadda…</string>
-    <string name="ottai_ota_complete">Diyaarintu way dhammaatay. Xidh daaqaddan, dabadeed si caadi ah ugu xidh si aad dareemaha u hawlgeliso.</string>
+    <string name="ottai_ota_complete">Diyaarinta warshadda way dhammaatay</string>
     <string name="ottai_ota_failed">Dejintii way joogsatay. Mar kale isku day ama eeg diiwaanka raadraaca. Dejinta aan dhammaan waxay xannibtaa hawlgelinta.</string>
     <string name="ottai_ota_version">Dareeme: %1$s · Cusboonaysiin: %2$s</string>
     <string name="ottai_ota_package">%1$d bayt · SHA-256: %2$s</string>
@@ -3348,7 +3346,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
 
     <string name="ottai_ota_discard">Tirtir dejinta aan dhammaan</string>
     <string name="ottai_ota_discard_confirm">Ma tirtirtaa xaaladda cusboonaysiinta iyo diyaarinta ee kaydsan si xiriirka loo furo? Tani ma soo celinayso firmware-ka ama dejimaha. Cusboonaysiin go’day waxay weli u baahan kartaa soo-kabasho.</string>
-    <string name="ottai_ota_pending">Dejinta dareemaha ma dhammaan. Mar kale ku xir ama fur soo-kabashada si aad u dhammaystirto ama u tirtirto.</string>
+    <string name="ottai_ota_pending">Dejinta dareemaha weli ma dhammaan</string>
     <string name="ottai_ota_finish_preparation">Firmware waa la hubiyey. Xaqiiji dejinta warshadda si loo dhammaystiro habaynta.</string>
     <string name="ottai_ota_discard_failed">Lama joojin karin tijaabada firmware. Mar kale isku day.</string>
     <string name="prediction_analysis_section">Falanqaynta saadaasha</string>

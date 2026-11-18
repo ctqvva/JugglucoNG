@@ -142,7 +142,7 @@ class OttaiFirmwareConnectTests {
         session.awaitRetirement()
         assertTrue(scanCallbacks().isEmpty())
         assertNull(session.gatt())
-        assertEquals(OTTAI_SETUP_LINK_TIMEOUT, states.single().errorCode)
+        assertEquals("setup_connect_timeout_status=147", states.single().errorCode)
     }
 
     @Test fun timeoutAfterLinkEstablishmentDoesNotRestartSetup() {
