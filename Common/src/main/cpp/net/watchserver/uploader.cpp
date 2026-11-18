@@ -329,14 +329,16 @@ static bool isThinnedOutUpload(std::span<const ScanData> gdata,const int pos) {
     return false;
     }
 
-//The reading sent ahead of position `iter`, as far back as a few invalid ones allow. A reading sent
+//The reading ahead of position `iter`, as far back as a few invalid ones allow. A reading sent
 //ahead of the cursor only extends the range kept for the sensor when it directly follows the
-//range's end, so a guess here would claim a reading was sent that never was.
+//range's end, so a guess here would claim a reading was sent that never was. A reading "Fewer
+//readings" held back is returned as well: it was not sent, so the range must not span it, or it
+//would count as sent once the setting is turned off.
 static uint32_t previousUploadTime(std::span<const ScanData> gdata,const int iter,const uint32_t mintime) {
     constexpr int lookback=64;
     for(int pos=iter-1;pos>=0&&pos>=iter-lookback;--pos) {
         const ScanData &el=gdata[pos];
-        if(el.valid(pos)&&el.gettime()>mintime&&!isThinnedOutUpload(gdata,pos))
+        if(el.valid(pos)&&el.gettime()>mintime)
             return el.gettime();
         }
     return 0;
@@ -797,10 +799,23 @@ static int smoothedUploadRaw(const SensorGlucoseData *sens,std::span<const ScanD
         });
     }
 
-//The value smoothedUploadMgdl sends for pos, before calibration.
-static int uploadTrendMgdl(std::span<const ScanData> gdata,const int pos) {
-    const int avg=smoothedUploadMgdl(gdata,pos);
-    return avg>0?avg:gdata[pos].getmgdL();
+//Raw-primary view modes upload the raw lane (NightscoutCalibration), so the trend follows it too.
+static bool uploadsRawLane(SensorGlucoseData *sens) {
+    const auto *info=sens?sens->getinfo():nullptr;
+    const int viewMode=info?info->viewMode:0;
+    return viewMode==1||viewMode==3;
+    }
+
+//The smoothed value of the uploaded lane at pos in mg/dL, before calibration; 0 when it has none.
+//Raw polls are stored as mmol/L x10.
+static int uploadTrendMgdl(SensorGlucoseData *sens,std::span<const ScanData> gdata,const int pos,const bool rawLane) {
+    if(!rawLane) {
+        const int avg=smoothedUploadMgdl(gdata,pos);
+        return avg>0?avg:gdata[pos].getmgdL();
+        }
+    const int smoothed=smoothedUploadRaw(sens,gdata,pos);
+    const int raw=smoothed>0?smoothed:(int)sens->getRawForPoll(&gdata[pos]);
+    return raw>0?(int)lround(raw*18.0182/10.0):0;
     }
 
 //Delta and direction for the reading at pos. With smoothing on for sent readings the value is
@@ -808,11 +823,12 @@ static int uploadTrendMgdl(std::span<const ScanData> gdata,const int pos) {
 //readings four minutes apart. On a noisy 1-minute stream that rate swings up and down while the
 //values it goes out with rise steadily. Every other exchange output takes its arrow from the
 //smoothed series (CurrentDisplaySource.resolveArrowRate), so the rate is derived here from the
-//smoothed values, over the same span derivechangeforsample uses. Final values supplied by
+//smoothed values of the uploaded lane, over the same span derivechangeforsample uses. Final values supplied by
 //another app are never smoothed, so they keep their stored rate.
-static float uploadChange(std::span<const ScanData> gdata,const int pos,const ScanData &item) {
+static float uploadChange(SensorGlucoseData *sens,std::span<const ScanData> gdata,const int pos,const ScanData &item) {
     if(uploadSmoothingSeconds<=0||item.hasResolvedGlucose()||pos<=0||pos>=(int)gdata.size())
         return effectivechange(gdata,pos,item);
+    const bool rawLane=uploadsRawLane(sens);
     const uint32_t tim=item.gettime();
     for(int i=pos-1;i>=0;--i) {
         const ScanData &prev=gdata[i];
@@ -824,7 +840,8 @@ static float uploadChange(std::span<const ScanData> gdata,const int pos,const Sc
             break;
         if(tim-prevtime<minderivegapsecs||prev.hasResolvedGlucose())
             continue;
-        const float rate=deriveChangeMgdlPerMinute(uploadTrendMgdl(gdata,i),prevtime,uploadTrendMgdl(gdata,pos),tim);
+        const float rate=deriveChangeMgdlPerMinute(uploadTrendMgdl(sens,gdata,i,rawLane),prevtime,
+                                                   uploadTrendMgdl(sens,gdata,pos,rawLane),tim);
         if(!std::isnan(rate))
             return rate;
         }
@@ -851,7 +868,7 @@ template <class T> int mkuploaditem(SensorGlucoseData *sens,char *buf,const sens
     int mgdL=getNightscoutCalibrationOverrideForItem(sens,sensornameStr,autoMgdl,rawCurrent,tim*1000LL,item.hasResolvedGlucose());
     if(mgdL<=0)
         mgdL=autoMgdl;
-    const float change=uploadChange(gdata,pos,item);
+    const float change=uploadChange(sens,gdata,pos,item);
     const std::string_view directionlabel=getdeltaname(change);
     double delta=getdelta(change);
     char *out=buf;
@@ -988,7 +1005,7 @@ extern char * writev3entry(char *outin,const ScanData *val, const sensorname_t *
         outel.setmgdL(overrideValue);
     else
         outel.setmgdL(autoMgdl);
-    outel.ch=uploadChange(gdata,pos,*el);
+    outel.ch=uploadChange(sens,gdata,pos,*el);
     return writev3entry(buf,&outel,sensorname,false,sens->sensid());
     }
 

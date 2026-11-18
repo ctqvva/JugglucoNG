@@ -141,7 +141,8 @@ SensorIndex *sensors = &sensorIndex;
         code += extract("net/watchserver/uploader.cpp", "static int getNightscoutCalibrationOverrideForItem(", args.consumer_ref)
         code += "template <class Getvalue>\n" + extract("net/watchserver/uploader.cpp", "static int smoothPollWindow(")
         for signature in ["static int smoothedUploadMgdl(", "static int smoothedUploadRaw(",
-                          "static int uploadTrendMgdl(", "static float uploadChange("]:
+                          "static bool uploadsRawLane(", "static int uploadTrendMgdl(",
+                          "static float uploadChange("]:
             code += extract("net/watchserver/uploader.cpp", signature)
         code += "template <class T>\n" + extract("net/watchserver/uploader.cpp", "int mkuploaditem(")
         code += extract("net/watchserver/uploader.cpp", "static const char *writeNightscoutV3UploadEntry(")

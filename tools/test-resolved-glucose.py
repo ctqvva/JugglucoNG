@@ -130,7 +130,10 @@ struct SensorGlucoseData {
     bool isDexcom() const { return dex; }
     int dexSlotFor(uint32_t) const { noteRead(); return dexSlot; }
     bool hasStreamID(int i) const { noteRead(); return polls[i].getmgdL() > 0; }
-    int getRawForPoll(const ScanData *) const { return 0; }
+    int getRawForPoll(const ScanData *poll) const {
+        const auto index = poll - polls;
+        return index >= 0 && index < (ptrdiff_t)size(polls) ? rawpolls[index].raw : 0;
+    }
     size_t pollStorageCapacity() const { return capacity; }
     int pollcount() const { noteRead(); return info.pollcount; }
     void backstream(int) {}
@@ -269,6 +272,7 @@ void setstreaming(SensorGlucoseData *) { ++streamings; }
     code += "template <class Getvalue>\n" + extract("net/watchserver/uploader.cpp", "static int smoothPollWindow(")
     code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadMgdl(", args.smoothing_ref)
     code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadRaw(")
+    code += extract("net/watchserver/uploader.cpp", "static bool uploadsRawLane(")
     code += extract("net/watchserver/uploader.cpp", "static int uploadTrendMgdl(")
     code += extract("net/watchserver/uploader.cpp", "static float uploadChange(")
     code += "\nstatic int uploadIntervalSeconds=0;\n"
@@ -588,7 +592,7 @@ int main() {
         noisy.polls[i] = {start + uint32_t(i)*60, i, 140 + i + array{0, 5, -5}[i % 3], 0, NAN};
     auto noisyData = span<const ScanData>(noisy.polls, 12);
     assert(effectivechange(noisyData, 11, noisy.polls[11]) < -1.0f);
-    assert(uploadChange(noisyData, 11, noisy.polls[11]) > 0.5f);
+    assert(uploadChange(&noisy, noisyData, 11, noisy.polls[11]) > 0.5f);
     storage.DoCalibrate = false;
     size = mkuploaditem(&noisy, payload, noisy.shortsensorname(), noisy.polls[11], noisyData, 11, false);
     assert(string(payload, size).find("Down") == string::npos);
@@ -596,13 +600,26 @@ int main() {
     assert(serializedV3.getchange() > 0.5f);
     // A driver rate is replaced too: it is no more the smoothed series' rate than a derived one.
     noisy.polls[11].ch = -2.75f;
-    assert(uploadChange(noisyData, 11, noisy.polls[11]) > 0.5f);
+    assert(uploadChange(&noisy, noisyData, 11, noisy.polls[11]) > 0.5f);
     // Smoothing off for sent readings: the stored rate goes out as before.
     uploadSmoothingSeconds = 0;
-    assert(uploadChange(noisyData, 11, noisy.polls[11]) == -2.75f);
+    assert(uploadChange(&noisy, noisyData, 11, noisy.polls[11]) == -2.75f);
     noisy.polls[11].ch = NAN;
-    assert(uploadChange(noisyData, 11, noisy.polls[11]) == effectivechange(noisyData, 11, noisy.polls[11]));
+    assert(uploadChange(&noisy, noisyData, 11, noisy.polls[11]) == effectivechange(noisyData, 11, noisy.polls[11]));
     uploadSmoothingSeconds = 600;
+    // Raw-primary view modes upload the raw lane, so the arrow follows it: flat Auto, rising Raw.
+    for (int i = 0; i < 12; ++i) {
+        noisy.polls[i].g = 140;
+        noisy.rawpolls[i].raw = 78 + i; // mmol/L x10: 7.8 rising 0.1 (1.8 mg/dL) a minute
+    }
+    assert(fabs(uploadChange(&noisy, noisyData, 11, noisy.polls[11])) < 0.01f);
+    noisy.info.viewMode = 1;
+    assert(uploadChange(&noisy, noisyData, 11, noisy.polls[11]) > 1.5f);
+    noisy.info.viewMode = 0;
+    for (int i = 0; i < 12; ++i) {
+        noisy.polls[i].g = 140 + i + array{0, 5, -5}[i % 3];
+        noisy.rawpolls[i].raw = 0;
+    }
 
     // "Fewer readings" for sent readings: the first reading of each 5-minute interval, on the
     // reading's own clock, exactly as ExchangeUpdateGate thins every other output.
