@@ -98,7 +98,7 @@ class SetupScanHandoffWiringTests {
         assertFalse(connect.contains("openFirmware("))
         assertFalse(connect.contains("AlertDialog("))
         assertFalse(wizard.contains("OttaiSetupStep.FIRMWARE"))
-        assertTrue(wizard.contains("OttaiFirmwareDisclosure("))
+        assertTrue(wizard.contains("if (showFirmware) OttaiFirmwareDialog("))
         val released = connect.indexOf("firmware?.closeAndAwaitRelease()")
         val normalPreparation = connect.indexOf("awaitOttaiPreparation(")
         assertTrue(released >= 0 && normalPreparation > released)

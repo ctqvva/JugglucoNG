@@ -54,10 +54,11 @@ explicit discard path as transfer recovery, preserving credentials and other sen
 Normal Connect shows progress and failures on the selected sensor card. A new Connect attempt
 reuses a preparation checkpoint when one exists. An unfinished firmware transfer opens only
 through **Check firmware (experimental)** and uses the saved package, address and mode. The
-firmware row below the sensor card expands without claiming Bluetooth. Choosing a mode starts
-the check. Connect can close a read-only check and waits for its Bluetooth connection to close.
+firmware action below the sensor card opens a dialog. Choosing a mode or retrying recovery starts
+the check. After the dialog closes, Connect waits for its Bluetooth connection to close.
 **No firmware update offered** is reserved for a successful judge result with neither update
-flag set. Installation, manual factory writes and discarding a saved recovery require confirmation.
+flag set. Installation, manual factory writes and discarding a saved recovery require confirmation
+in the same dialog.
 
 The supplied `juggluco-trace-20261102-144020.log` confirms Global activation through the manual
 preparation path on unchanged `E1.2.6(V1.7.SH2616.1),STDRD`. Normal binding with cloud metadata

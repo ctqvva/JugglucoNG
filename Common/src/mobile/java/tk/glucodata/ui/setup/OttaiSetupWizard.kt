@@ -1174,7 +1174,7 @@ fun OttaiSetupWizard(
         signInReturn = null
     }
 
-    val firmwarePanel = if (showFirmware) rememberOttaiFirmwarePanel(
+    if (showFirmware) OttaiFirmwareDialog(
         cloudId, bleAddress, closeWhenIdle = restrictedLocked,
         beforeSession = { OttaiSetupScanHold.stopPanelScans() },
         onSessionStarted = {
@@ -1196,7 +1196,7 @@ fun OttaiSetupWizard(
             openSignIn()
         },
         onLeave = ::closeFirmware,
-    ) else null
+    )
 
     val selectedSensor: @Composable () -> Unit = {
         // A start we recovered over BLE on a previous session (persisted, and carried in
@@ -1295,20 +1295,18 @@ fun OttaiSetupWizard(
         OttaiCloudClient.loadOtaSession(context) || OttaiCloudClient.requiresGlobalSignIn(context),
         ottaiResolvedSetupBleAddress(context, cloudId, bleAddress) != null,
         OttaiFirmwareSession.hasPendingSetup(context, cloudId))) ({
-        OttaiFirmwareDisclosure(
-            expanded = showFirmware,
-            onExpandedChange = { expanded ->
-                if (!expanded) closeFirmware()
-                else fullModeGuard {
+        OttaiFirmwareAction(
+            onClick = {
+                fullModeGuard {
                     val pendingWithKeys = OttaiFirmwareSession.hasPendingSetup(context, cloudId) &&
                         OttaiRegistry.loadMaterials(context, cloudId).authKeys != null
                     if (OttaiCloudClient.requiresGlobalSignIn(context) && !pendingWithKeys) requestGlobalSignIn()
                     else openFirmware(ottaiResolvedSetupBleAddress(context, cloudId, bleAddress).orEmpty())
                 }
             },
-            enabled = !busy && !materialLoading && (showFirmware || firmwareSession == null),
+            enabled = !busy && !materialLoading && firmwareSession == null,
             modifier = Modifier.padding(horizontal = ui.horizontalPadding),
-        ) { firmwarePanel?.invoke() }
+        )
     }) else null
 
     Scaffold(

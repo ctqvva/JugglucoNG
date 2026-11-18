@@ -82,53 +82,43 @@ class OttaiSetupLayoutTests {
     }
 
     @Test
-    fun firmwareDisclosureKeepsConnectionAndCredentialsAvailableAndUsesTheSameRowToCollapse() {
-        var expanded by mutableStateOf(false)
-        var managed by mutableStateOf(false)
-        var connections = 0
+    fun firmwareActionOpensADialogWithoutAddingControlsToConnect() {
+        var open by mutableStateOf(false)
         val context = org.robolectric.RuntimeEnvironment.getApplication()
-        val sensorId = "AABBCCDDEEFF"
         val connect = context.getString(R.string.ottai_connect_saved)
         val firmware = context.getString(R.string.ottai_ota_check)
         val mode = context.getString(R.string.ottai_ota_fresh_mode)
         compose.setContent {
             MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
                 Column(Modifier.width(400.dp).background(MaterialTheme.colorScheme.background).padding(16.dp).testTag("card"),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OttaiSensorCard(
-                        sensorId = sensorId, state = OttaiMaterialState.EXPIRED, loading = false,
+                        sensorId = "AABBCCDDEEFF", state = OttaiMaterialState.EXPIRED, loading = false,
                         signedIn = true, deviceVersion = "E1.1.4(V1.7.S2530.1)",
                         bindingState = OttaiCloudBindingUiState.HIDDEN,
                         busy = false, canConnect = true, connectLabel = connect, message = "",
-                        messageIsError = false, onConnect = { connections++; expanded = false },
-                        onImport = {}, onSignIn = {}, onExport = {}, onSensorIdChange = {},
+                        messageIsError = false, onConnect = {}, onImport = {}, onSignIn = {},
+                        onExport = {}, onSensorIdChange = {},
                     )
-                    OttaiFirmwareDisclosure(expanded, onExpandedChange = { expanded = it }, enabled = true) {
-                        if (managed) androidx.compose.material3.Text(context.getString(R.string.ottai_ota_disconnect_first))
-                        else OttaiFirmwareModePicker(false, onMode = {}, onDiscard = {}, onDiscarded = {})
-                    }
+                    OttaiFirmwareAction(enabled = true, onClick = { open = true })
                 }
+                if (open) OttaiFirmwareDialogContent(onDiscard = {}, onLeave = { open = false })
             }
         }
-        compose.onNodeWithText(firmware).performClick()
-        compose.onNodeWithText(sensorId).assertIsDisplayed()
+        compose.onAllNodes(isDialog()).assertCountEquals(0)
+        compose.onNodeWithText(mode).assertDoesNotExist()
         compose.onNodeWithText(connect).assertIsEnabled()
         compose.onNodeWithText(context.getString(R.string.export)).assertIsEnabled()
-        compose.onNodeWithText(mode).assertIsDisplayed()
-        compose.onAllNodes(isDialog()).assertCountEquals(0)
-        compose.onNodeWithText(context.getString(R.string.close)).assertDoesNotExist()
         val export = compose.onNodeWithText(context.getString(R.string.export)).fetchSemanticsNode().boundsInRoot
-        val row = compose.onNodeWithText(firmware).fetchSemanticsNode().boundsInRoot
-        assertTrue(row.top > export.bottom)
-        capture("firmware-disclosed")
-        compose.runOnIdle { managed = true }
-        compose.onNodeWithText(context.getString(R.string.ottai_ota_disconnect_first)).assertIsDisplayed()
-        capture("firmware-managed")
+        val action = compose.onNodeWithText(firmware).fetchSemanticsNode().boundsInRoot
+        assertTrue(action.top > export.bottom)
+        capture("firmware-action")
         compose.onNodeWithText(firmware).performClick()
-        compose.onNodeWithText(context.getString(R.string.ottai_ota_disconnect_first)).assertDoesNotExist()
-        compose.onNodeWithText(firmware).performClick()
-        compose.onNodeWithText(connect).performClick()
-        compose.runOnIdle { assertEquals(1, connections); assertFalse(expanded) }
+        compose.onNodeWithText(mode).assertIsDisplayed()
+        compose.onAllNodes(isDialog()).assertCountEquals(1)
+        compose.onNodeWithText(context.getString(R.string.close)).performClick()
+        compose.onAllNodes(isDialog()).assertCountEquals(0)
+        compose.onNodeWithText(connect).assertIsEnabled()
     }
 
     private fun capture(name: String) {
@@ -406,7 +396,7 @@ class OttaiSetupLayoutTests {
                             onConnect = { error("Checking firmware must not connect/bind") },
                             onImport = {}, onSignIn = {}, onExport = null)
                         if (ottaiFirmwareEntryAvailable(true, true, true, false)) {
-                            OttaiFirmwareDisclosure(false, onExpandedChange = { checked = it }, enabled = true) {}
+                            OttaiFirmwareAction(enabled = true, onClick = { checked = true })
                         }
                     }
                 }
