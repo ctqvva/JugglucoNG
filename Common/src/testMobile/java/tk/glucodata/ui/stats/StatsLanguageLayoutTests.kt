@@ -196,10 +196,10 @@ class StatsLanguageLayoutTests {
         for (w in listOf(240, 288, 328, 400, 600)) for (d in listOf(1f, 2f)) for (s in listOf(1f, 1.3f, 2f)) {
             compose.runOnIdle { width = w; density = d; scale = s }
             val card = compose.onNodeWithTag("overview").fetchSemanticsNode().boundsInRoot
-            val button = compose.onNodeWithText("00–24").fetchSemanticsNode().boundsInRoot
+            val button = compose.onNodeWithText("All day").fetchSemanticsNode().boundsInRoot
             assertTrue(button.left >= card.left && button.right <= card.right)
             assertTrue("picker too small at $w/$d/$s", button.width >= 48f * d - 1f && button.height >= 48f * d - 1f)
-            compose.onNodeWithText("00–24", useUnmergedTree = true).assertFits()
+            compose.onNodeWithText("All day", useUnmergedTree = true).assertFits()
         }
     }
 }

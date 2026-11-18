@@ -1,5 +1,6 @@
 package tk.glucodata.ui.stats
 
+import androidx.compose.ui.geometry.Offset
 import android.app.Application
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.*
@@ -89,31 +90,57 @@ class StatsPortraitLayoutTests {
 
     @Test fun selectingALocalTimeBlockChangesTheDistributionAndReturningToAllRestoresIt() {
         val summary = StatsSummary(
-            readingCount = 32,
+            readingCount = 96,
             tir = TimeInRangeBreakdown(inRangePercent = 75f, highPercent = 25f),
             parts = object : StatsSummaryParts by StatsSummaryParts.Empty {
                 override val dayParts = listOf(
-                    DayPartStats(DayPart.NIGHT, 100f, TimeInRangeBreakdown(inRangePercent = 50f, lowPercent = 50f), 8)
+                    DayPartStats(DayPart.NIGHT, 100f, TimeInRangeBreakdown(inRangePercent = 50f, lowPercent = 50f), 24)
                 )
-                override val comparison = comparison(10f)
+                override val comparison = comparison(10f).copy(previous = PeriodScalars(dayParts = listOf(
+                    DayPartStats(DayPart.NIGHT, 100f, TimeInRangeBreakdown(inRangePercent = 75f), 24)
+                )))
             }
         )
         compose.setContent {
             MaterialTheme(typography = AppTypography) {
-                Box(Modifier.width(288.dp)) { GlycemicOverviewCard(summary, StatsTargets(), GlucoseUnit.MGDL) }
+                Box(Modifier.width(288.dp).testTag("card")) { GlycemicOverviewCard(summary, StatsTargets(), GlucoseUnit.MGDL) }
             }
         }
-        compose.onNodeWithText("75.0%").assertExists()
+        val all = compose.onNode(hasText("All day") and hasText("Time in range"))
+        val high = compose.onNodeWithText("High")
+        high.assertHeightIsAtLeast(48.dp).performTouchInput { click() }
+        high.assertIsSelected()
+        compose.onNodeWithText("High · ≈ 6 h / 24 h").assertExists()
+        high.performClick().assertIsNotSelected()
+
+        // The proportional bar uses the same selection as the full-height legend rows.
+        val top = compose.onNodeWithText("Very high").fetchSemanticsNode().boundsInRoot.top
+        val bottom = compose.onNodeWithText("Very low").fetchSemanticsNode().boundsInRoot.bottom
+        val card = compose.onNodeWithTag("card")
+        val origin = card.fetchSemanticsNode().boundsInRoot.topLeft
+        val highPoint = Offset(origin.x + 32f, top + (bottom - top) * 0.12f) - origin
+        val middle = Offset(highPoint.x, (top + bottom) / 2f - origin.y)
+        card.performTouchInput { click(highPoint) }
+        high.assertIsSelected()
+        card.performTouchInput { swipe(highPoint, middle) }
+        compose.onNodeWithText("In range").assertIsSelected().performClick()
         compose.onNodeWithText("≈ 18 h / 24 h").assertExists()
-        compose.onNodeWithText("00–24").performClick()
+        compose.onNodeWithContentDescription("+10.0 percentage points", substring = true).assertExists()
+
+        // Keep the original pointer down across expansion, then release over Night.
+        val start = all.fetchSemanticsNode().boundsInRoot.center
+        all.performTouchInput { down(center); moveBy(Offset(0f, 32.dp.toPx())) }
+        compose.waitForIdle()
         compose.onNodeWithText("Morning").assertIsNotEnabled()
-        compose.onNodeWithText("Night").performClick()
+        val night = compose.onNodeWithText("Night").fetchSemanticsNode().boundsInRoot.center
+        all.performTouchInput { moveTo(center + night - start); up() }
         compose.onNodeWithText("≈ 3 h / 6 h").assertExists()
-        compose.onNodeWithText("percentage points", substring = true).assertDoesNotExist()
-        compose.onNodeWithText("00–06").performClick()
+        compose.onNodeWithContentDescription("-25.0 percentage points", substring = true).assertExists()
+        compose.onNodeWithContentDescription("+10.0 percentage points", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Night").performClick()
         compose.onNodeWithText("All day").performClick()
         compose.onNodeWithText("75.0%").assertExists()
-        compose.onNodeWithText("+10.0 percentage points", substring = true).assertExists()
+        compose.onNodeWithContentDescription("+10.0 percentage points", substring = true).assertExists()
     }
 
     @Test fun patternsHeadingStaysWholeAndPortraitOverviewRendersWithoutCrowding() {

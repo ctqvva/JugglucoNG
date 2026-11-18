@@ -976,14 +976,16 @@ class StatsViewModel : ViewModel() {
         val rawPrevious = filterHistoryForRange(history, previousRange)
         if (rawPrevious.size < currentReadingCount * MIN_COMPARISON_COVERAGE) return null
 
-        val values = resolveStatsDisplayHistory(
+        val previous = resolveStatsDisplayHistory(
             history = rawPrevious,
             viewMode = viewMode,
             unit = unit,
             useCache = false
-        ).mapNotNull { point -> point.value.takeIf { isStatsValueValid(it) } }
-        if (values.size < currentReadingCount * MIN_COMPARISON_COVERAGE) return null
-        return StatsAnalytics.periodScalars(values, targets)
+        ).filter { isStatsValueValid(it.value) }
+        if (previous.size < currentReadingCount * MIN_COMPARISON_COVERAGE) return null
+        return StatsAnalytics.periodScalars(previous.map { it.value }, targets).copy(
+            dayParts = StatsAnalytics.dayPartStats(previous, targets)
+        )
     }
 
     private fun filterHistoryForRange(
@@ -1961,10 +1963,10 @@ class StatsViewModel : ViewModel() {
         private const val COMPARISON_MAX_RANGE_DAYS = 30
 
         /** Below this, a period-over-period delta is noise dressed up as a trend. */
-        private const val MIN_COMPARISON_READINGS = 24
+        internal const val MIN_COMPARISON_READINGS = 24
 
         /** The previous window needs this share of the current window's readings to count. */
-        private const val MIN_COMPARISON_COVERAGE = 0.6f
+        internal const val MIN_COMPARISON_COVERAGE = 0.6f
 
         private val DEFAULT_STATS_RANGE = StatsTimeRange.DAY_14
         @Volatile private var lastRenderedState: CachedRenderedState? = null

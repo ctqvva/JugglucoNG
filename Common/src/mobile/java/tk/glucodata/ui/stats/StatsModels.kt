@@ -250,7 +250,8 @@ data class PeriodScalars(
     val averageMgDl: Float = 0f,
     val inRangePercent: Float = 0f,
     val cvPercent: Float = 0f,
-    val griValue: Float = 0f
+    val griValue: Float = 0f,
+    val dayParts: List<DayPartStats> = emptyList()
 )
 
 data class StatsComparison(
