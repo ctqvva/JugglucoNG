@@ -328,7 +328,6 @@ fun StatsScreen(
             }
 
             item(key = "range") {
-                Spacer(modifier = Modifier.height(4.dp))
                 StatsRangeSelectorControl(
                     selectedRange = uiState.selectedRange,
                     activeRange = uiState.activeRange,

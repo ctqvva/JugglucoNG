@@ -54,6 +54,10 @@ class SettingsSearchCoverageTests {
             "mq_follower_settings_title", "sensor_handover_old_action_title",
         )
         because(
+            "a Statistics filter, not a setting: the overview card's custom time-of-day window",
+            "start", "end",
+        )
+        because(
             "slider controls are reached through their parent display screen",
             "arrow_size_label", "background_opacity_label",
             "chart_size_label", "corner_radius_label",

@@ -152,7 +152,7 @@ private const val AllHours = (1 shl 24) - 1
 
 /** The strip's wash of each block's band mix, resting and chosen. */
 private const val StripWashAlpha = 0.14f
-private const val StripWashCheckedAlpha = 0.32f
+private const val StripWashCheckedAlpha = 0.40f
 
 private data class TirBandRow(
     val band: TirBand,
@@ -356,6 +356,7 @@ private fun DayPartStrip(
 ) {
     val inRangeWord = stringResource(R.string.in_range)
     val labelStyle = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+    val labelStyleChecked = MaterialTheme.typography.labelLargeEmphasized.copy(fontFeatureSettings = "tnum")
     // 32dp, the extra-small button height, unless a larger font needs more for its line.
     val stripHeight = maxOf(32.dp, with(LocalDensity.current) { labelStyle.lineHeight.toDp() } + 12.dp)
     Row(
@@ -376,6 +377,16 @@ private fun DayPartStrip(
                 label = "stripWash"
             )
             val content = if (checked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            // A chosen block lifts its container a step and brings its number towards the
+            // text colour, so the choice reads at a glance over the wash.
+            val resting = MaterialTheme.colorScheme.surfaceContainerHighest
+            val container = if (checked) lerp(resting, MaterialTheme.colorScheme.onSurface, 0.10f) else resting
+            val heat = if (hasData) tirHeatColor(tir.inRangePercent) else Color.Unspecified
+            val valueColor = when {
+                !hasData -> Color.Unspecified
+                checked -> lerp(heat, MaterialTheme.colorScheme.onSurface, 0.30f)
+                else -> heat.copy(alpha = 0.85f)
+            }
             ToggleButton(
                 checked = checked,
                 onCheckedChange = { onToggle(part) },
@@ -388,9 +399,9 @@ private fun DayPartStrip(
                     else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                 },
                 colors = ToggleButtonDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    containerColor = container,
                     contentColor = content,
-                    checkedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    checkedContainerColor = container,
                     checkedContentColor = content,
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -411,8 +422,8 @@ private fun DayPartStrip(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = value,
-                        style = labelStyle,
-                        color = if (hasData) tirHeatColor(tir.inRangePercent) else Color.Unspecified,
+                        style = if (checked) labelStyleChecked else labelStyle,
+                        color = valueColor,
                         maxLines = 1,
                         softWrap = false
                     )
