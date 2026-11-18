@@ -799,36 +799,39 @@ static int smoothedUploadRaw(const SensorGlucoseData *sens,std::span<const ScanD
         });
     }
 
-//Raw-primary view modes upload the raw lane (NightscoutCalibration), so the trend follows it too.
-static bool uploadsRawLane(SensorGlucoseData *sens) {
-    const auto *info=sens?sens->getinfo():nullptr;
-    const int viewMode=info?info->viewMode:0;
-    return viewMode==1||viewMode==3;
+//The mg/dL the reading at pos is uploaded with, by both entry formats: the stored value smoothed
+//and calibrated, then resolved by NightscoutCalibration to the lane and calibration the sensor's
+//view mode selects.
+//Average before calibrating, not after: calibrateONE is affine in the value, so this yields the
+//same series the app's own smoothed display and broadcasts carry. getRawForPoll indexes by pointer
+//offset from the polls base, so it is handed the stored reading, never the patched copy.
+static int uploadValueMgdl(SensorGlucoseData *sens,const char *sensornameStr,std::span<const ScanData> gdata,const int pos) {
+    const ScanData &item=gdata[pos];
+    const int rawSmoothed=smoothedUploadRaw(sens,gdata,pos);
+    const int rawCurrent=rawSmoothed>0?rawSmoothed:sens->getRawForPoll(&item);
+    ScanData smoothed=item;
+    if(const int avg=smoothedUploadMgdl(gdata,pos);avg>0)
+        smoothed.setmgdL(avg);
+    int autoMgdl=smoothed.getmgdL();
+    if(double calibrated=calibrateONEtest(sens,smoothed);!isnan(calibrated))
+        autoMgdl=(int)round(calibrated);
+    const int mgdL=getNightscoutCalibrationOverrideForItem(sens,sensornameStr,autoMgdl,rawCurrent,
+        item.gettime()*1000LL,item.hasResolvedGlucose());
+    return mgdL>0?mgdL:autoMgdl;
     }
 
-//The smoothed value of the uploaded lane at pos in mg/dL, before calibration; 0 when it has none.
-//Raw polls are stored as mmol/L x10.
-static int uploadTrendMgdl(SensorGlucoseData *sens,std::span<const ScanData> gdata,const int pos,const bool rawLane) {
-    if(!rawLane) {
-        const int avg=smoothedUploadMgdl(gdata,pos);
-        return avg>0?avg:gdata[pos].getmgdL();
-        }
-    const int smoothed=smoothedUploadRaw(sens,gdata,pos);
-    const int raw=smoothed>0?smoothed:(int)sens->getRawForPoll(&gdata[pos]);
-    return raw>0?(int)lround(raw*18.0182/10.0):0;
-    }
-
-//Delta and direction for the reading at pos. With smoothing on for sent readings the value is
-//smoothed, but the stored rate is the sensor's own or one derived at ingest from two unsmoothed
-//readings four minutes apart. On a noisy 1-minute stream that rate swings up and down while the
-//values it goes out with rise steadily. Every other exchange output takes its arrow from the
-//smoothed series (CurrentDisplaySource.resolveArrowRate), so the rate is derived here from the
-//smoothed values of the uploaded lane, over the same span derivechangeforsample uses. Final values supplied by
-//another app are never smoothed, so they keep their stored rate.
-static float uploadChange(SensorGlucoseData *sens,std::span<const ScanData> gdata,const int pos,const ScanData &item) {
-    if(uploadSmoothingSeconds<=0||item.hasResolvedGlucose()||pos<=0||pos>=(int)gdata.size())
+//Delta and direction for the reading at pos, uploaded with value `mgdL`. With smoothing on for sent
+//readings the value is smoothed, but the stored rate is the sensor's own or one derived at ingest
+//from two unsmoothed readings four minutes apart. On a noisy 1-minute stream that rate swings up
+//and down while the values it goes out with rise steadily. Every other exchange output takes its
+//arrow from the smoothed series (CurrentDisplaySource.resolveArrowRate), so the rate is derived
+//here from the values actually uploaded, over the span derivechangeforsample uses: the same lane
+//and calibration as the sgv, whichever the view mode selects. Final values supplied by another
+//app are never smoothed, so they keep their stored rate.
+static float uploadChange(SensorGlucoseData *sens,const char *sensornameStr,std::span<const ScanData> gdata,const int pos,const int mgdL) {
+    const ScanData &item=gdata[pos];
+    if(uploadSmoothingSeconds<=0||item.hasResolvedGlucose()||pos<=0||mgdL<=0)
         return effectivechange(gdata,pos,item);
-    const bool rawLane=uploadsRawLane(sens);
     const uint32_t tim=item.gettime();
     for(int i=pos-1;i>=0;--i) {
         const ScanData &prev=gdata[i];
@@ -840,8 +843,7 @@ static float uploadChange(SensorGlucoseData *sens,std::span<const ScanData> gdat
             break;
         if(tim-prevtime<minderivegapsecs||prev.hasResolvedGlucose())
             continue;
-        const float rate=deriveChangeMgdlPerMinute(uploadTrendMgdl(sens,gdata,i,rawLane),prevtime,
-                                                   uploadTrendMgdl(sens,gdata,pos,rawLane),tim);
+        const float rate=deriveChangeMgdlPerMinute(uploadValueMgdl(sens,sensornameStr,gdata,i),prevtime,mgdL,tim);
         if(!std::isnan(rate))
             return rate;
         }
@@ -855,20 +857,8 @@ template <class T> int mkuploaditem(SensorGlucoseData *sens,char *buf,const sens
     const std::string_view sensornameView=fixedsensorview(sensorname);
     char sensornameStr[64];
     copyfixedsensorname(sensornameStr,sizeof(sensornameStr),sensorname);
-    const int rawSmoothed=smoothedUploadRaw(sens,gdata,pos);
-    const int rawCurrent=rawSmoothed>0?rawSmoothed:sens->getRawForPoll(&item);
-    //Average before calibrating, not after: calibrateONE is affine in the value, so
-    //this yields the same series the app's own smoothed display and broadcasts carry.
-    ScanData smoothed=item;
-    if(const int avg=smoothedUploadMgdl(gdata,pos);avg>0)
-        smoothed.setmgdL(avg);
-    int autoMgdl=smoothed.getmgdL();
-    if(double calibrated=calibrateONEtest(sens,smoothed);!isnan(calibrated))
-        autoMgdl=(int)round(calibrated);
-    int mgdL=getNightscoutCalibrationOverrideForItem(sens,sensornameStr,autoMgdl,rawCurrent,tim*1000LL,item.hasResolvedGlucose());
-    if(mgdL<=0)
-        mgdL=autoMgdl;
-    const float change=uploadChange(sens,gdata,pos,item);
+    const int mgdL=uploadValueMgdl(sens,sensornameStr,gdata,pos);
+    const float change=uploadChange(sens,sensornameStr,gdata,pos,mgdL);
     const std::string_view directionlabel=getdeltaname(change);
     double delta=getdelta(change);
     char *out=buf;
@@ -981,31 +971,10 @@ extern char * writev3entry(char *outin,const ScanData *val, const sensorname_t *
 	const std::string_view &uploadid={});
     char sensornameStr[64];
     copyfixedsensorname(sensornameStr,sizeof(sensornameStr),sensorname);
-    //Average before calibrating, not after: calibrateONE is affine in the value, so
-    //this yields the same series the app's own smoothed display and broadcasts carry.
-    ScanData smoothed=*el;
-    if(const int avg=smoothedUploadMgdl(gdata,pos);avg>0)
-        smoothed.setmgdL(avg);
-    int autoMgdl=smoothed.getmgdL();
-    if(double calibrated=calibrateONEtest(sens,smoothed);!isnan(calibrated))
-        autoMgdl=(int)round(calibrated);
-    //getRawForPoll indexes by pointer offset from the polls base, so it must see the original el,
-    //never the patched copy above or below.
-    const int rawSmoothed=smoothedUploadRaw(sens,gdata,pos);
-    const int overrideValue=getNightscoutCalibrationOverrideForItem(
-        sens,
-        sensornameStr,
-        autoMgdl,
-        rawSmoothed>0?rawSmoothed:sens->getRawForPoll(el),
-        el->gettime()*1000LL,
-        el->hasResolvedGlucose()
-    );
+    const int mgdL=uploadValueMgdl(sens,sensornameStr,gdata,pos);
     ScanData outel=*el;
-    if(overrideValue>0)
-        outel.setmgdL(overrideValue);
-    else
-        outel.setmgdL(autoMgdl);
-    outel.ch=uploadChange(sens,gdata,pos,*el);
+    outel.setmgdL(mgdL);
+    outel.ch=uploadChange(sens,sensornameStr,gdata,pos,mgdL);
     return writev3entry(buf,&outel,sensorname,false,sens->sensid());
     }
 

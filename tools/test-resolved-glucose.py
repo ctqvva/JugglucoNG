@@ -156,6 +156,7 @@ double calibrateValue(const CaliPara &, uint32_t, double value) {
 struct JNIEnv {
     int javaCalls = 0;
     int javaOffset = 15;
+    float javaScale = 1;
     bool ExceptionCheck() { return false; }
     void ExceptionClear() {}
     jmethodID GetStaticMethodID(jclass, const char *, const char *) { return (void*)1; }
@@ -168,9 +169,12 @@ struct JNIEnv {
     float *GetFloatArrayElements(jfloatArray array, void *) { return array->data(); }
     void ReleaseLongArrayElements(jlongArray, jlong *, int) {}
     void ReleaseFloatArrayElements(jfloatArray, float *, int) {}
-    int CallStaticIntMethod(jclass, jmethodID, jstring, int, int value, int, jlong) {
+    // NightscoutCalibration: raw-primary view modes export the raw lane (mmol/L x10), then the
+    // lane's calibration applies.
+    int CallStaticIntMethod(jclass, jmethodID, jstring, int viewMode, int value, int raw, jlong) {
         ++javaCalls;
-        return value + javaOffset;
+        const int selected = (viewMode == 1 || viewMode == 3) && raw > 0 ? (int)lround(raw * 1.80182) : value;
+        return (int)lround(selected * javaScale) + javaOffset;
     }
 } env;
 JNIEnv *getenv() { return &env; }
@@ -272,8 +276,7 @@ void setstreaming(SensorGlucoseData *) { ++streamings; }
     code += "template <class Getvalue>\n" + extract("net/watchserver/uploader.cpp", "static int smoothPollWindow(")
     code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadMgdl(", args.smoothing_ref)
     code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadRaw(")
-    code += extract("net/watchserver/uploader.cpp", "static bool uploadsRawLane(")
-    code += extract("net/watchserver/uploader.cpp", "static int uploadTrendMgdl(")
+    code += extract("net/watchserver/uploader.cpp", "static int uploadValueMgdl(")
     code += extract("net/watchserver/uploader.cpp", "static float uploadChange(")
     code += "\nstatic int uploadIntervalSeconds=0;\n"
     code += extract("net/watchserver/uploader.cpp", "static bool isThinnedOutUpload(")
@@ -591,8 +594,12 @@ int main() {
     for (int i = 0; i < 12; ++i)
         noisy.polls[i] = {start + uint32_t(i)*60, i, 140 + i + array{0, 5, -5}[i % 3], 0, NAN};
     auto noisyData = span<const ScanData>(noisy.polls, 12);
+    // The rate as uploaded: from the same values as the sgv.
+    const auto noisyChange = [&] {
+        return uploadChange(&noisy, "noisy", noisyData, 11, uploadValueMgdl(&noisy, "noisy", noisyData, 11));
+    };
     assert(effectivechange(noisyData, 11, noisy.polls[11]) < -1.0f);
-    assert(uploadChange(&noisy, noisyData, 11, noisy.polls[11]) > 0.5f);
+    assert(noisyChange() > 0.5f);
     storage.DoCalibrate = false;
     size = mkuploaditem(&noisy, payload, noisy.shortsensorname(), noisy.polls[11], noisyData, 11, false);
     assert(string(payload, size).find("Down") == string::npos);
@@ -600,21 +607,28 @@ int main() {
     assert(serializedV3.getchange() > 0.5f);
     // A driver rate is replaced too: it is no more the smoothed series' rate than a derived one.
     noisy.polls[11].ch = -2.75f;
-    assert(uploadChange(&noisy, noisyData, 11, noisy.polls[11]) > 0.5f);
+    assert(noisyChange() > 0.5f);
     // Smoothing off for sent readings: the stored rate goes out as before.
     uploadSmoothingSeconds = 0;
-    assert(uploadChange(&noisy, noisyData, 11, noisy.polls[11]) == -2.75f);
+    assert(noisyChange() == -2.75f);
     noisy.polls[11].ch = NAN;
-    assert(uploadChange(&noisy, noisyData, 11, noisy.polls[11]) == effectivechange(noisyData, 11, noisy.polls[11]));
+    assert(noisyChange() == effectivechange(noisyData, 11, noisy.polls[11]));
     uploadSmoothingSeconds = 600;
     // Raw-primary view modes upload the raw lane, so the arrow follows it: flat Auto, rising Raw.
     for (int i = 0; i < 12; ++i) {
         noisy.polls[i].g = 140;
         noisy.rawpolls[i].raw = 78 + i; // mmol/L x10: 7.8 rising 0.1 (1.8 mg/dL) a minute
     }
-    assert(fabs(uploadChange(&noisy, noisyData, 11, noisy.polls[11])) < 0.01f);
+    assert(fabs(noisyChange()) < 0.01f);
     noisy.info.viewMode = 1;
-    assert(uploadChange(&noisy, noisyData, 11, noisy.polls[11]) > 1.5f);
+    const float rawRate = noisyChange();
+    assert(rawRate > 1.5f);
+    size = mkuploaditem(&noisy, payload, noisy.shortsensorname(), noisy.polls[11], noisyData, 11, false);
+    assert(string(payload, size).find("\"direction\":\"Flat\"") == string::npos);
+    // The rate is the calibrated sgv's: a lane calibration steeper by half steepens it by half.
+    env.javaScale = 1.5f;
+    assert(fabs(noisyChange() - 1.5f * rawRate) < 0.3f);
+    env.javaScale = 1;
     noisy.info.viewMode = 0;
     for (int i = 0; i < 12; ++i) {
         noisy.polls[i].g = 140 + i + array{0, 5, -5}[i % 3];
