@@ -133,15 +133,20 @@ class StatsPortraitLayoutTests {
         compose.runOnIdle { assertNull(selected) }
     }
 
-    @Test fun aDayPartRepoursTheCardForThatBlockAndDropsTheWholeWindowChange() {
+    @Test fun dayPartsCombineIntoOneWindowWithItsOwnTimesAndClearBackToTheWholeDay() {
+        // Evening is 40% in range, the rest 95%; the night block has no readings at all.
+        val hourly = (0..23).map { hour ->
+            when (hour / 6) {
+                0 -> HourlyGlucoseStats(hour)
+                3 -> HourlyGlucoseStats(hour, TimeInRangeBreakdown(inRangePercent = 40f, highPercent = 60f), 100f, 10)
+                else -> HourlyGlucoseStats(hour, TimeInRangeBreakdown(inRangePercent = 95f, highPercent = 5f), 100f, 10)
+            }
+        }
         val summary = StatsSummary(
             tir = TimeInRangeBreakdown(inRangePercent = 90f, highPercent = 10f),
             parts = object : StatsSummaryParts by StatsSummaryParts.Empty {
                 override val comparison = comparison(23f)
-                override val dayParts = DayPart.entries.map { part ->
-                    val inRange = if (part == DayPart.EVENING) 40f else 95f
-                    DayPartStats(part, 100f, TimeInRangeBreakdown(inRangePercent = inRange, highPercent = 100f - inRange), 100)
-                }
+                override val hourlyStats = hourly
             }
         )
         compose.setContent {
@@ -153,16 +158,25 @@ class StatsPortraitLayoutTests {
         }
         compose.onNodeWithText("90.0%", useUnmergedTree = true).assertExists()
         compose.onNodeWithContentDescription("+23 vs the period before", useUnmergedTree = true).assertExists()
-        // Each block shows its own time in range before any tap.
-        compose.onNodeWithContentDescription("Evening, 18–24, 40% In range", useUnmergedTree = true).assertExists()
+        // Each block shows its own time in range before any tap; one with no readings is off.
+        compose.onNodeWithContentDescription("Evening, 18:00–24:00, 40% In range", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("Night", substring = true).assertIsNotEnabled()
+
         compose.onNodeWithContentDescription("Evening", substring = true, useUnmergedTree = true).performClick()
         compose.onNodeWithText("40.0%", useUnmergedTree = true).assertExists()
         // A six-hour block: 60% high is 3 h 36 min of it, not of the day.
         compose.onNodeWithText("3 h 36 min", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("18:00–24:00", useUnmergedTree = true).assertExists()
         compose.onNodeWithContentDescription("+23 vs the period before", useUnmergedTree = true).assertDoesNotExist()
-        // A second tap on the chosen block returns to the whole day.
-        compose.onNodeWithContentDescription("Evening", substring = true, useUnmergedTree = true).performClick()
+
+        // A second block joins the first: (95 + 40) / 2 over twelve hours.
+        compose.onNodeWithContentDescription("Afternoon", substring = true, useUnmergedTree = true).performClick()
+        compose.onNodeWithText("67.5%", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("12:00–24:00", useUnmergedTree = true).assertExists()
+
+        compose.onNodeWithContentDescription("Clear", useUnmergedTree = true).performClick()
         compose.onNodeWithText("90.0%", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("12:00–24:00", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test fun theCountTakesTwoLinesBeforeTheDateChipLeavesItsSide() {

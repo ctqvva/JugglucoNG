@@ -1,12 +1,19 @@
 package tk.glucodata.ui.stats
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,13 +22,20 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -44,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -54,6 +69,7 @@ import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -72,7 +88,8 @@ import kotlin.math.roundToInt
 import tk.glucodata.R
 import tk.glucodata.ui.isAppInDarkTheme
 import tk.glucodata.ui.symbols.Symbols
-import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.components.IconButtonTooltip
+import tk.glucodata.ui.components.SettingsSlider
 import tk.glucodata.ui.util.ExpressiveMotion
 
 /*
@@ -94,7 +111,9 @@ import tk.glucodata.ui.util.ExpressiveMotion
  * Rows run high to low, the way glucose reads on every chart in the app, and in range sits
  * in the middle as the larger row carrying the headline percentage and its change, so the
  * card needs no separate title or ring. A strip of the day's four six-hour blocks closes
- * the card: each shows its own time in range, and a tap re-pours the card for that block.
+ * the card: each shows its own time in range over a faint wash of its own band mix. Any
+ * blocks can be combined, or a window of any hours set below the strip, and the card
+ * re-pours for those hours.
  *
  * It replaces a ring: a circle had to share a row with the band list, which left it either
  * too small to read or stranded on its own line, and its sweep gave a 2% band a sliver
@@ -127,7 +146,13 @@ private const val SmudgeAlpha = 0.16f
 private const val EmptyPercent = 0.05f
 
 private const val MinutesPerDay = 24 * 60
-private const val MinutesPerDayPart = 6 * 60
+
+/** Hours of the day as bits, bit 0 for 00:00–01:00. Zero means the whole day. */
+private const val AllHours = (1 shl 24) - 1
+
+/** The strip's wash of each block's band mix, resting and chosen. */
+private const val StripWashAlpha = 0.14f
+private const val StripWashCheckedAlpha = 0.32f
 
 private data class TirBandRow(
     val band: TirBand,
@@ -152,11 +177,14 @@ internal fun GlycemicOverviewCard(
     onBandSelected: (TirBand?) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedPart by rememberSaveable { mutableStateOf<DayPart?>(null) }
-    val dayParts = summary.dayParts
-    val partsAvailable = dayParts.size == DayPart.entries.size && dayParts.any { it.readingCount > 0 }
-    val part = selectedPart?.takeIf { partsAvailable }?.let { chosen -> dayParts.firstOrNull { it.part == chosen } }
-    val tir = part?.tir ?: summary.tir
+    var hourMask by rememberSaveable { mutableStateOf(0) }
+    var editingWindow by rememberSaveable { mutableStateOf(false) }
+    val hourly = summary.hourlyStats
+    val hoursAvailable = hourly.size == 24 && hourly.any { it.sampleCount > 0 }
+    val filtered = hoursAvailable && hourMask != 0 && hourMask != AllHours
+    val window = if (filtered) windowTir(hourly, hourMask) else null
+    val noData = window != null && window.second == 0
+    val tir = window?.first ?: summary.tir
 
     val rows = listOf(
         TirBandRow(
@@ -215,21 +243,37 @@ internal fun GlycemicOverviewCard(
             RangeFlow(
                 rows = rows,
                 // The comparison is for the whole window, so it only stands beside the whole.
-                inRangeDelta = if (part == null) summary.comparison?.inRangeDelta else null,
-                minutesPerDay = if (part == null) MinutesPerDay else MinutesPerDayPart,
+                inRangeDelta = if (window == null) summary.comparison?.inRangeDelta else null,
+                minutesPerDay = if (window == null) MinutesPerDay else Integer.bitCount(hourMask) * 60,
+                noData = noData,
                 selectedBand = selectedBand,
                 onBandSelected = onBandSelected,
                 modifier = Modifier.fillMaxWidth()
             )
-            if (partsAvailable) {
+            if (hoursAvailable) {
                 Spacer(modifier = Modifier.height(16.dp))
                 DayPartStrip(
-                    parts = dayParts,
-                    selected = part?.part,
-                    // Tapping the chosen block again goes back to the whole day, so the
-                    // strip needs no fifth "all" choice.
-                    onSelected = { chosen -> selectedPart = if (chosen == selectedPart) null else chosen }
+                    hourly = hourly,
+                    mask = hourMask,
+                    onToggle = { part ->
+                        val block = part.hourMask
+                        val next = if (hourMask and block == block) hourMask and block.inv() else hourMask or block
+                        hourMask = if (next == AllHours) 0 else next
+                    }
                 )
+                if (filtered || editingWindow) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TimeWindowControl(
+                        mask = hourMask,
+                        editing = editingWindow,
+                        onEditingChange = { editingWindow = it },
+                        onWindowChange = { start, end -> hourMask = windowMask(start, end) },
+                        onClear = {
+                            hourMask = 0
+                            editingWindow = false
+                        }
+                    )
+                }
             }
         }
     }
@@ -243,59 +287,232 @@ private val DayPart.symbol: ImageVector
         DayPart.EVENING -> Symbols.RoutineFilled
     }
 
+private val DayPart.hourMask: Int get() = ((1 shl 6) - 1) shl startHour
+
+/** Every hour from [start] up to [end], going past midnight when [end] is not after it. */
+private fun windowMask(start: Int, end: Int): Int {
+    val length = ((end - start) % 24 + 24) % 24
+    var mask = 0
+    repeat(if (length == 0) 24 else length) { mask = mask or (1 shl ((start + it) % 24)) }
+    return mask
+}
+
+/** The chosen hours as runs (start, end), in the order they come round from a free hour. */
+private fun hourRuns(mask: Int): List<Pair<Int, Int>> {
+    if (mask == 0 || mask == AllHours) return listOf(0 to 24)
+    val free = (0 until 24).first { mask and (1 shl it) == 0 }
+    val runs = ArrayList<Pair<Int, Int>>()
+    var start = -1
+    for (step in 1..24) {
+        val hour = (free + step) % 24
+        val on = mask and (1 shl hour) != 0
+        if (on && start < 0) start = hour
+        if (!on && start >= 0) {
+            runs += start to hour
+            start = -1
+        }
+    }
+    return runs
+}
+
+/** Time in range over the chosen hours, weighted by readings, and how many readings. */
+private fun windowTir(hourly: List<HourlyGlucoseStats>, mask: Int): Pair<TimeInRangeBreakdown, Int> {
+    var count = 0
+    var veryLow = 0f
+    var low = 0f
+    var inRange = 0f
+    var high = 0f
+    var veryHigh = 0f
+    hourly.forEach { hour ->
+        if (mask and (1 shl hour.hour) == 0 || hour.sampleCount == 0) return@forEach
+        val n = hour.sampleCount
+        count += n
+        veryLow += hour.tir.veryLowPercent * n
+        low += hour.tir.lowPercent * n
+        inRange += hour.tir.inRangePercent * n
+        high += hour.tir.highPercent * n
+        veryHigh += hour.tir.veryHighPercent * n
+    }
+    if (count == 0) return TimeInRangeBreakdown() to 0
+    return TimeInRangeBreakdown(veryLow / count, low / count, inRange / count, high / count, veryHigh / count) to count
+}
+
+private fun formatWindow(mask: Int): String =
+    hourRuns(mask).joinToString(", ") { (start, end) -> "${formatHour(start)}–${formatHour(if (end == 0) 24 else end)}" }
+
 /**
  * The day's four six-hour blocks, each with its own time in range, coloured on the same
- * scale as the headline. They compare at a glance without a tap; a tap re-pours the whole
- * card for that block, and a second tap returns to the whole day.
+ * scale as the headline, over a faint wash of its own band mix. They compare at a glance
+ * without a tap. Any of them can be chosen at once, and the card re-pours for those hours.
  *
  * Smaller than the range buttons above the card (32 against 40dp) so the two never read
  * as one control, and at the foot of the card, since it refines what is above it.
  */
 @Composable
 private fun DayPartStrip(
-    parts: List<DayPartStats>,
-    selected: DayPart?,
-    onSelected: (DayPart) -> Unit
+    hourly: List<HourlyGlucoseStats>,
+    mask: Int,
+    onToggle: (DayPart) -> Unit
 ) {
-    val names = DayPart.entries.associateWith { stringResource(it.labelResId) }
     val inRangeWord = stringResource(R.string.in_range)
-    ConnectedButtonGroup(
-        options = DayPart.entries,
-        selectedOption = selected,
-        onOptionSelected = onSelected,
-        label = { option ->
-            val stats = parts.firstOrNull { it.part == option }
-            val hasData = stats != null && stats.readingCount > 0
-            val percent = stats?.tir?.inRangePercent ?: 0f
-            val value = if (hasData) String.format(Locale.getDefault(), "%.0f%%", percent) else "–"
-            val hours = String.format(Locale.getDefault(), "%02d–%02d", option.startHour, option.startHour + 6)
-            val description = "${names[option]}, $hours, $value $inRangeWord"
-            Row(
-                modifier = Modifier.clearAndSetSemantics { contentDescription = description },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+    val labelStyle = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+    // 32dp, the extra-small button height, unless a larger font needs more for its line.
+    val stripHeight = maxOf(32.dp, with(LocalDensity.current) { labelStyle.lineHeight.toDp() } + 12.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth().height(stripHeight),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+    ) {
+        DayPart.entries.forEachIndexed { index, part ->
+            val block = part.hourMask
+            val (tir, count) = windowTir(hourly, block)
+            val hasData = count > 0
+            val checked = mask != 0 && mask and block == block
+            val value = if (hasData) String.format(Locale.getDefault(), "%.0f%%", tir.inRangePercent) else "–"
+            val name = stringResource(part.labelResId)
+            val description = "$name, ${formatWindow(block)}, $value $inRangeWord"
+            val wash by animateFloatAsState(
+                targetValue = if (checked) StripWashCheckedAlpha else StripWashAlpha,
+                animationSpec = ExpressiveMotion.defaultEffects(),
+                label = "stripWash"
+            )
+            val content = if (checked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            ToggleButton(
+                checked = checked,
+                onCheckedChange = { onToggle(part) },
+                // A block with no readings has nothing to show.
+                enabled = hasData,
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                shapes = when (index) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    DayPart.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                colors = ToggleButtonDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = content,
+                    checkedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    checkedContentColor = content,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                ),
+                contentPadding = PaddingValues(0.dp)
             ) {
-                Icon(
-                    imageVector = option.symbol,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        // The block's own band mix, low to high, as a faint wash.
+                        .drawBehind { if (hasData) drawBandWash(tir, wash) }
+                        .clearAndSetSemantics { contentDescription = description },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(imageVector = part.symbol, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = value,
+                        style = labelStyle,
+                        color = if (hasData) tirHeatColor(tir.inRangePercent) else Color.Unspecified,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawBandWash(tir: TimeInRangeBreakdown, alpha: Float) {
+    val parts = listOf(
+        tir.veryLowPercent to TirVeryLowColor,
+        tir.lowPercent to TirLowColor,
+        tir.inRangePercent to TirInRangeColor,
+        tir.highPercent to TirHighColor,
+        tir.veryHighPercent to TirVeryHighColor
+    )
+    val total = parts.sumOf { it.first.toDouble() }.toFloat()
+    if (total <= 0f) return
+    var x = 0f
+    parts.forEach { (percent, color) ->
+        val width = size.width * percent / total
+        if (width > 0f) drawRect(color.copy(alpha = alpha), topLeft = Offset(x, 0f), size = Size(width, size.height))
+        x += width
+    }
+}
+
+/**
+ * The chosen hours as a button that opens a window of any hours, and a way back to the
+ * whole day. Picking blocks above and setting the window here edit the same hours.
+ */
+@Composable
+private fun TimeWindowControl(
+    mask: Int,
+    editing: Boolean,
+    onEditingChange: (Boolean) -> Unit,
+    onWindowChange: (start: Int, end: Int) -> Unit,
+    onClear: () -> Unit
+) {
+    val runs = hourRuns(mask)
+    // The sliders set one window; several runs open as the window that covers them all.
+    val start = runs.first().first
+    val end = runs.last().second
+    val clearLabel = stringResource(R.string.clear)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            FilledTonalButton(
+                onClick = { onEditingChange(!editing) },
+                shapes = ButtonDefaults.shapes(),
+                modifier = Modifier.heightIn(min = 32.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp)
+            ) {
+                Icon(imageVector = Symbols.ScheduleFilled, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = value,
-                    style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
-                    color = if (hasData) tirHeatColor(percent) else LocalTextStyle.current.color,
-                    maxLines = 1,
-                    softWrap = false
+                    text = formatWindow(mask),
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = if (editing) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
                 )
             }
-        },
-        itemHeight = 32.dp,
-        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-        selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth()
-    )
+            Spacer(modifier = Modifier.weight(1f))
+            IconButtonTooltip(clearLabel) {
+                IconButton(onClick = onClear, shapes = IconButtonDefaults.shapes()) {
+                    Icon(imageVector = Symbols.CloseFilled, contentDescription = clearLabel)
+                }
+            }
+        }
+        AnimatedVisibility(
+            visible = editing,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier.padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SettingsSlider(
+                    title = stringResource(R.string.start),
+                    valueText = formatHour(start),
+                    value = start.toFloat(),
+                    onValueChange = { onWindowChange(it.roundToInt(), end) },
+                    range = 0f..23f,
+                    steps = 22
+                )
+                SettingsSlider(
+                    title = stringResource(R.string.end),
+                    valueText = formatHour(if (end == 0) 24 else end),
+                    value = (if (end == 0) 24 else end).toFloat(),
+                    onValueChange = { onWindowChange(start, it.roundToInt()) },
+                    range = 1f..24f,
+                    steps = 22
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -303,6 +520,7 @@ private fun RangeFlow(
     rows: List<TirBandRow>,
     inRangeDelta: Float?,
     minutesPerDay: Int,
+    noData: Boolean,
     selectedBand: TirBand?,
     onBandSelected: (TirBand?) -> Unit,
     modifier: Modifier = Modifier
@@ -313,6 +531,15 @@ private fun RangeFlow(
             targetValue = if (row.empty) 0f else row.percent.coerceIn(0f, 100f),
             animationSpec = ExpressiveMotion.slowEffects(),
             label = "flowShare"
+        )
+    }
+    // Whether a band has a segment at all. Animated on its own, so a band arriving from 0%
+    // grows into its minimum height while a tiny share keeps the full minimum once there.
+    val presences = rows.map { row ->
+        animateFloatAsState(
+            targetValue = if (row.empty) 0f else 1f,
+            animationSpec = ExpressiveMotion.slowEffects(),
+            label = "flowPresence"
         )
     }
     val interactions = rows.map { remember { MutableInteractionSource() } }
@@ -339,7 +566,7 @@ private fun RangeFlow(
 
     Layout(
         modifier = modifier.drawBehind {
-            geometry.value?.let { drawFlow(it, shares, tints, colors) }
+            geometry.value?.let { drawFlow(it, shares, presences, tints, colors) }
         },
         content = {
             rows.forEachIndexed { index, row ->
@@ -348,6 +575,7 @@ private fun RangeFlow(
                     hero = row.band == TirBand.IN_RANGE,
                     inRangeDelta = inRangeDelta,
                     minutesPerDay = minutesPerDay,
+                    noData = noData,
                     selected = selectedBand == row.band,
                     interactionSource = interactions[index],
                     onClick = { onBandSelected(if (selectedBand == row.band) null else row.band) }
@@ -381,21 +609,25 @@ private fun RangeFlow(
 }
 
 /** Each band's segment on the bar, top to bottom, or null for a band with no time. */
-private fun Density.segmentSpans(shares: List<State<Float>>, height: Float): List<Pair<Float, Float>?> {
+private fun Density.segmentSpans(
+    shares: List<State<Float>>,
+    presences: List<State<Float>>,
+    height: Float
+): List<Pair<Float, Float>?> {
     val values = shares.map { it.value.coerceAtLeast(0f) }
-    val present = values.count { it > 0f }
+    val presence = presences.map { it.value.coerceIn(0f, 1f) }
+    val shown = values.indices.map { values[it] > 0f || presence[it] > 0f }
+    val present = shown.count { it }
     if (present == 0) return values.map { null }
     val gap = FlowSegmentGap.toPx()
     val minSegment = FlowMinSegment.toPx()
-    // The floor ramps in over the first tenth of a percent, so a band arriving from 0%
-    // grows into view instead of popping in at full height.
-    val floors = values.map { minSegment * (it / 0.1f).coerceIn(0f, 1f) }
+    val floors = presence.map { minSegment * it }
     val usable = (height - gap * (present - 1)).coerceAtLeast(0f)
     val spare = (usable - floors.sum()).coerceAtLeast(0f)
-    val total = values.sum()
+    val total = values.sum().coerceAtLeast(0.0001f)
     var top = 0f
     return values.indices.map { i ->
-        if (values[i] <= 0f) {
+        if (!shown[i]) {
             null
         } else {
             val bottom = top + floors[i] + values[i] / total * spare
@@ -439,12 +671,13 @@ private fun bandOutline(
 private fun DrawScope.drawFlow(
     geometry: FlowGeometry,
     shares: List<State<Float>>,
+    presences: List<State<Float>>,
     tints: List<State<Float>>,
     colors: List<Color>
 ) {
     val barRight = FlowBarWidth.toPx()
     val rowLeft = barRight + FlowRibbonWidth.toPx()
-    val spans = segmentSpans(shares, size.height)
+    val spans = segmentSpans(shares, presences, size.height)
     val present = spans.indices.filter { spans[it] != null }
     if (present.isEmpty()) return
     val outerCorner = barRight / 2f
@@ -522,44 +755,28 @@ private fun BandRow(
     hero: Boolean,
     inRangeDelta: Float?,
     minutesPerDay: Int,
+    noData: Boolean,
     selected: Boolean,
     interactionSource: MutableInteractionSource,
     onClick: () -> Unit
 ) {
-    val percentText = String.format(Locale.getDefault(), "%.1f%%", row.percent)
+    // Hours with no readings have no split to show, rather than a row of zeroes.
+    val percentText = if (noData) "–" else String.format(Locale.getDefault(), "%.1f%%", row.percent)
     val minutes = (row.percent.coerceIn(0f, 100f) / 100f * minutesPerDay).roundToInt()
     val time = if (row.empty) null else durationText(minutes)
-    val textColor = if (row.empty) {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    // An empty band steps right back: it has nothing to say beyond its threshold.
+    val quiet = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    val textColor = if (row.empty) quiet else MaterialTheme.colorScheme.onSurface
     // The band's full colour, which the tint no longer carries at a low share. Pulled
     // towards the text colour on a light surface, where yellow alone is unreadable.
     val dark = isAppInDarkTheme()
     val onSurface = MaterialTheme.colorScheme.onSurface
     val rangeColor = remember(row.color, dark, onSurface, row.empty) {
         val base = if (dark) row.color else lerp(row.color, onSurface, 0.35f)
-        if (row.empty) base.copy(alpha = 0.6f) else base
+        if (row.empty) base.copy(alpha = 0.45f) else base
     }
 
-    val rowModifier = Modifier
-        .fillMaxWidth()
-        .clip(RowSurface)
-        // A band with no time has nothing to highlight, so it is not a target.
-        .then(
-            if (row.empty) {
-                Modifier
-            } else {
-                Modifier.selectable(
-                    selected = selected,
-                    interactionSource = interactionSource,
-                    indication = ripple(),
-                    role = Role.RadioButton,
-                    onClick = onClick
-                )
-            }
-        )
+    val padding = Modifier
         .heightIn(min = if (hero) 72.dp else 48.dp)
         .padding(
             start = FlowRibbonWidth + 12.dp,
@@ -573,49 +790,81 @@ private fun BandRow(
             second = time,
             style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
             firstColor = rangeColor,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (row.empty) quiet else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 
-    if (hero) {
-        HeroRowLayout(
-            modifier = rowModifier,
-            title = {
-                Text(
-                    text = row.label,
-                    style = MaterialTheme.typography.titleLargeEmphasized,
-                    color = textColor
-                )
-            },
-            detail = detail,
-            headline = {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = percentText,
-                        style = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum"),
-                        color = tirHeatColor(row.percent),
-                        maxLines = 1,
-                        softWrap = false
+    // The whole row, ribbon included, is the touch target; only the ripple is kept to the
+    // row itself, while the canvas brightens the ribbon with the rest of the band.
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                // A band with no time has nothing to highlight, so it is not a target.
+                if (row.empty) {
+                    Modifier
+                } else {
+                    Modifier.selectable(
+                        selected = selected,
+                        interactionSource = interactionSource,
+                        indication = null,
+                        role = Role.RadioButton,
+                        onClick = onClick
                     )
-                    inRangeDelta?.takeIf { abs(it) >= 1f }?.let { InRangeDelta(it) }
                 }
-            }
-        )
-    } else {
-        Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = row.label, style = MaterialTheme.typography.bodyMedium, color = textColor)
-                detail()
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = percentText,
-                style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
-                color = textColor,
-                maxLines = 1,
-                softWrap = false,
-                textAlign = TextAlign.End
             )
+    ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(RowSurface)
+                .indication(interactionSource, ripple())
+        )
+        if (hero) {
+            HeroRowLayout(
+                modifier = Modifier.fillMaxWidth().then(padding),
+                title = {
+                    Text(
+                        text = row.label,
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                        color = textColor
+                    )
+                },
+                detail = detail,
+                headline = {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = percentText,
+                            style = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum"),
+                            color = if (noData) quiet else tirHeatColor(row.percent),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                        inRangeDelta?.takeIf { abs(it) >= 1f }?.let { InRangeDelta(it) }
+                    }
+                }
+            )
+        } else {
+            // Label and share in the same weight, so neither shouts over the other.
+            val bandStyle = MaterialTheme.typography.titleSmall
+            Row(
+                modifier = Modifier.fillMaxWidth().then(padding),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = row.label, style = bandStyle, color = textColor)
+                    detail()
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = percentText,
+                    style = bandStyle.copy(fontFeatureSettings = "tnum"),
+                    color = textColor,
+                    maxLines = 1,
+                    softWrap = false,
+                    textAlign = TextAlign.End
+                )
+            }
         }
     }
 }

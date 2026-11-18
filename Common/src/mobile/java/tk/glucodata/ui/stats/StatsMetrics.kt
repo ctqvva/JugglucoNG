@@ -128,7 +128,9 @@ internal fun ScoreTile(
     // Keep the line even when this tile has nothing for it, so a tile that does have
     // one does not end up taller than its neighbour.
     reserveStatus: Boolean = false,
-    reserveMeta: Boolean = false
+    reserveMeta: Boolean = false,
+    // Set by the row, so both tiles step their value down together.
+    valueStyleOverride: TextStyle? = null
 ) {
     val expandable = !infoText.isNullOrBlank()
     val hasStatus = status.isNotBlank() || reserveStatus
@@ -138,7 +140,7 @@ internal fun ScoreTile(
         .compositeOver(MaterialTheme.colorScheme.surfaceContainerHigh)
     val titleStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 22.sp)
     val statusStyle = MaterialTheme.typography.titleSmall.copy(lineHeight = 20.sp)
-    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
+    val valueStyle = valueStyleOverride ?: scoreTileValueStyle()
     Box(
         modifier = modifier
             .animateContentSize()
@@ -393,6 +395,16 @@ private fun TileTitle(
     }
 }
 
+/** A tile's number at full size. */
+@Composable
+internal fun scoreTileValueStyle(): TextStyle =
+    MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
+
+/** One step down, for a number that only just misses its label's line. */
+@Composable
+private fun scoreTileCompactValueStyle(): TextStyle =
+    MaterialTheme.typography.headlineSmallEmphasized.copy(fontFeatureSettings = "tnum")
+
 /** True when the label and the value cannot share a line. */
 private fun titleOverflows(
     title: String,
@@ -428,12 +440,12 @@ internal fun rememberScoreTileTitleNeedsOwnRow(
     contentWidth: Dp,
     title: String,
     value: String,
-    expandable: Boolean
+    expandable: Boolean,
+    valueStyle: TextStyle = scoreTileValueStyle()
 ): Boolean {
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val titleStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 22.sp)
-    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
     return remember(contentWidth, title, value, expandable, density, textMeasurer, titleStyle, valueStyle) {
         titleOverflows(
             title = title,
@@ -456,13 +468,13 @@ internal fun rememberScoreTileTitleNeedsOwnRow(
 internal fun rememberScoreTileNeedsOwnRow(
     contentWidth: Dp,
     value: String,
-    status: String
+    status: String,
+    valueStyle: TextStyle = scoreTileValueStyle()
 ): Boolean {
     if (status.isBlank()) return false
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val statusStyle = MaterialTheme.typography.titleSmall.copy(lineHeight = 20.sp)
-    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
     return remember(contentWidth, value, status, density, textMeasurer, statusStyle, valueStyle) {
         val widthPx = with(density) { maxOf(contentWidth, 0.dp).roundToPx() }
         val titleGapPx = with(density) { 12.dp.roundToPx() }
@@ -912,17 +924,27 @@ private fun MetricRow(
         } else {
             ((maxWidth - spacing) / 2f) - ScoreTileHorizontalPadding * 2
         }
+        // A number that only just misses its label's line steps down one size first, both
+        // tiles of the row together; only when even that fails does it take a line of its
+        // own. Dropping it for a few pixels left an empty corner beside the label.
+        val fullStyle = scoreTileValueStyle()
+        val compactStyle = scoreTileCompactValueStyle()
+        val fullOverflow = rememberScoreTileTitleNeedsOwnRow(
+            tileContentWidth, leftSpec.title, leftSpec.value, leftSpec.infoText != null, fullStyle
+        ) or (rightSpec != null && rememberScoreTileTitleNeedsOwnRow(
+            tileContentWidth, rightSpec.title, rightSpec.value, rightSpec.infoText != null, fullStyle
+        ))
+        val compactOverflow = rememberScoreTileTitleNeedsOwnRow(
+            tileContentWidth, leftSpec.title, leftSpec.value, leftSpec.infoText != null, compactStyle
+        ) or (rightSpec != null && rememberScoreTileTitleNeedsOwnRow(
+            tileContentWidth, rightSpec.title, rightSpec.value, rightSpec.infoText != null, compactStyle
+        ))
+        val valueStyle = if (fullOverflow && !compactOverflow) compactStyle else fullStyle
+        val useOwnTitleRow = fullOverflow && compactOverflow
         val useOwnStatusRow =
-            rememberScoreTileNeedsOwnRow(tileContentWidth, leftSpec.value, leftSpec.status) ||
+            rememberScoreTileNeedsOwnRow(tileContentWidth, leftSpec.value, leftSpec.status, valueStyle) or
                 (rightSpec != null &&
-                    rememberScoreTileNeedsOwnRow(tileContentWidth, rightSpec.value, rightSpec.status))
-        val useOwnTitleRow = rememberScoreTileTitleNeedsOwnRow(
-            tileContentWidth, leftSpec.title, leftSpec.value, leftSpec.infoText != null
-        ) || (
-            rightSpec != null && rememberScoreTileTitleNeedsOwnRow(
-                tileContentWidth, rightSpec.title, rightSpec.value, rightSpec.infoText != null
-            )
-        )
+                    rememberScoreTileNeedsOwnRow(tileContentWidth, rightSpec.value, rightSpec.status, valueStyle))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(spacing)
@@ -940,6 +962,7 @@ private fun MetricRow(
                 forceTitleOwnRow = useOwnTitleRow,
                 reserveStatus = reserveStatus,
                 reserveMeta = reserveMeta,
+                valueStyleOverride = valueStyle,
                 modifier = Modifier
                     .weight(1f)
                     .metricDrag(leftSpec.metric, dragState)
@@ -958,6 +981,7 @@ private fun MetricRow(
                     forceTitleOwnRow = useOwnTitleRow,
                     reserveStatus = reserveStatus,
                     reserveMeta = reserveMeta,
+                    valueStyleOverride = valueStyle,
                     modifier = Modifier
                         .weight(1f)
                         .metricDrag(rightSpec.metric, dragState)
