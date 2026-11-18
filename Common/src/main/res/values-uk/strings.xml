@@ -2996,6 +2996,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_sharing_readings">Надсилає показники</string>
     <string name="clone_network_summary">Сервери та локальний пошук</string>
     <string name="clone_background_desc">Збільшує витрату батареї</string>
+    <string name="clone_other_phone">Інший телефон</string>
+    <string name="clone_this_phone">Цей телефон</string>
+    <string name="clone_connected_since">Підключено з</string>
+    <string name="clone_phase">Фаза</string>
+    <string name="clone_ice_state">Стан ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d запис</item>

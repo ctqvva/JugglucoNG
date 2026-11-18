@@ -3032,6 +3032,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_sharing_readings">Sendet Werte</string>
     <string name="clone_network_summary">Server und lokale Suche</string>
     <string name="clone_background_desc">Erhöht den Akkuverbrauch</string>
+    <string name="clone_other_phone">Anderes Telefon</string>
+    <string name="clone_this_phone">Dieses Telefon</string>
+    <string name="clone_connected_since">Verbunden seit</string>
+    <string name="clone_phase">Phase</string>
+    <string name="clone_ice_state">ICE-Status</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d Eintrag</item>

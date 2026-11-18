@@ -3213,6 +3213,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_sharing_readings">Sending readings</string>
     <string name="clone_network_summary">Servers and local discovery</string>
     <string name="clone_background_desc">Uses more battery</string>
+    <string name="clone_other_phone">Other phone</string>
+    <string name="clone_this_phone">This phone</string>
+    <string name="clone_connected_since">Connected since</string>
+    <string name="clone_phase">Phase</string>
+    <string name="clone_ice_state">ICE state</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d entry</item>

@@ -3020,6 +3020,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clone_sharing_readings">Заалт илгээж байна</string>
     <string name="clone_network_summary">Серверүүд ба дотоод хайлт</string>
     <string name="clone_background_desc">Батарейн зарцуулалт нэмэгдэнэ</string>
+    <string name="clone_other_phone">Нөгөө утас</string>
+    <string name="clone_this_phone">Энэ утас</string>
+    <string name="clone_connected_since">Холбогдсон цаг</string>
+    <string name="clone_phase">Үе шат</string>
+    <string name="clone_ice_state">ICE төлөв</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d бичлэг</item>

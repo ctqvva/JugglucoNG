@@ -2993,6 +2993,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_sharing_readings">Отправляет показания</string>
     <string name="clone_network_summary">Серверы и локальный поиск</string>
     <string name="clone_background_desc">Повышает расход батареи</string>
+    <string name="clone_other_phone">Другой телефон</string>
+    <string name="clone_this_phone">Этот телефон</string>
+    <string name="clone_connected_since">Подключено с</string>
+    <string name="clone_phase">Фаза</string>
+    <string name="clone_ice_state">Состояние ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d запись</item>

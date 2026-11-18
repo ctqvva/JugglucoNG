@@ -2947,6 +2947,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_sharing_readings">Değer gönderiyor</string>
     <string name="clone_network_summary">Sunucular ve yerel keşif</string>
     <string name="clone_background_desc">Pil tüketimini artırır</string>
+    <string name="clone_other_phone">Diğer telefon</string>
+    <string name="clone_this_phone">Bu telefon</string>
+    <string name="clone_connected_since">Bağlantı zamanı</string>
+    <string name="clone_phase">Aşama</string>
+    <string name="clone_ice_state">ICE durumu</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d kayıt</item>

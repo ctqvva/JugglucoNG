@@ -2993,6 +2993,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clone_sharing_readings">Értékeket küld</string>
     <string name="clone_network_summary">Kiszolgálók és helyi felderítés</string>
     <string name="clone_background_desc">Nagyobb akkumulátorfogyasztás</string>
+    <string name="clone_other_phone">Másik telefon</string>
+    <string name="clone_this_phone">Ez a telefon</string>
+    <string name="clone_connected_since">Kapcsolódás ideje</string>
+    <string name="clone_phase">Fázis</string>
+    <string name="clone_ice_state">ICE-állapot</string>
     <string name="watch_transport_section">Átvitel</string>
     <string name="watch_wearos_enable_desc">Wear OS-üzenetátvitel engedélyezése</string>
     <string name="watch_gms_unavailable">A Google Play-szolgáltatások nem érhetők el</string>

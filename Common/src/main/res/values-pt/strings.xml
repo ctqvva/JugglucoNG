@@ -2920,6 +2920,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_sharing_readings">A enviar leituras</string>
     <string name="clone_network_summary">Servidores e pesquisa local</string>
     <string name="clone_background_desc">Consome mais bateria</string>
+    <string name="clone_other_phone">Outro telefone</string>
+    <string name="clone_this_phone">Este telefone</string>
+    <string name="clone_connected_since">Conectado desde</string>
+    <string name="clone_phase">Fase</string>
+    <string name="clone_ice_state">Estado ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d entrada</item>

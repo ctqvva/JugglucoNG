@@ -2961,6 +2961,11 @@
     <string name="clone_sharing_readings">Wysyła odczyty</string>
     <string name="clone_network_summary">Serwery i wyszukiwanie lokalne</string>
     <string name="clone_background_desc">Zwiększa zużycie baterii</string>
+    <string name="clone_other_phone">Drugi telefon</string>
+    <string name="clone_this_phone">Ten telefon</string>
+    <string name="clone_connected_since">Połączono od</string>
+    <string name="clone_phase">Faza</string>
+    <string name="clone_ice_state">Stan ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d wpis</item>

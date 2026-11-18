@@ -2925,6 +2925,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_sharing_readings">Envoie des valeurs</string>
     <string name="clone_network_summary">Serveurs et recherche locale</string>
     <string name="clone_background_desc">Consomme plus de batterie</string>
+    <string name="clone_other_phone">Autre téléphone</string>
+    <string name="clone_this_phone">Ce téléphone</string>
+    <string name="clone_connected_since">Connecté depuis</string>
+    <string name="clone_phase">Phase</string>
+    <string name="clone_ice_state">État ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d entrée</item>

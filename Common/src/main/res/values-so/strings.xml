@@ -3104,6 +3104,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clone_sharing_readings">Wuxuu dirayaa akhrisyo</string>
     <string name="clone_network_summary">Adeegayaal iyo raadinta gudaha</string>
     <string name="clone_background_desc">Waxay isticmaashaa batari badan</string>
+    <string name="clone_other_phone">Taleefanka kale</string>
+    <string name="clone_this_phone">Taleefankan</string>
+    <string name="clone_connected_since">Ku xiran tan iyo</string>
+    <string name="clone_phase">Wejiga</string>
+    <string name="clone_ice_state">Xaaladda ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d qoraal</item>

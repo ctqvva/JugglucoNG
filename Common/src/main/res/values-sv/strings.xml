@@ -2919,6 +2919,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_sharing_readings">Skickar värden</string>
     <string name="clone_network_summary">Servrar och lokal sökning</string>
     <string name="clone_background_desc">Ökar batteriförbrukningen</string>
+    <string name="clone_other_phone">Annan telefon</string>
+    <string name="clone_this_phone">Den här telefonen</string>
+    <string name="clone_connected_since">Ansluten sedan</string>
+    <string name="clone_phase">Fas</string>
+    <string name="clone_ice_state">ICE-status</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d post</item>
