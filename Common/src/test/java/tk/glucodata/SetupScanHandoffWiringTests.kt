@@ -78,7 +78,12 @@ class SetupScanHandoffWiringTests {
         val returnPaused = scanEffect.indexOf("return@DisposableEffect onDispose { scanner.stopScan() }", stopPaused)
         val start = scanEffect.indexOf("scanner.startScan(")
         assertTrue(pause >= 0 && stopPaused > pause && returnPaused > stopPaused && start > returnPaused)
-        assertTrue(wizard.contains("scanPaused = preparingSensor || firmwareSession != null"))
+        assertTrue(wizard.contains("val discoveryPaused = showFirmware || preparingSensor || firmwareSession != null"))
+        assertTrue(wizard.contains("scanPaused = discoveryPaused"))
+        assertTrue(wizard.contains(
+            "LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey, discoveryPaused) { " +
+                "if (!nfcWakeListening || discoveryPaused) { OttaiNfc.disarmSetup()",
+        ))
         // Connect arms the managed scan before the panel leaves. Only leaving hands the radio back.
         assertFalse(scanEffect.substring(scanEffect.lastIndexOf("onDispose {")).contains("scanStarter"))
         assertTrue(wizard.contains(
@@ -94,8 +99,10 @@ class SetupScanHandoffWiringTests {
         val wizard = read("Common/src/mobile/java/tk/glucodata/ui/setup/OttaiSetupWizard.kt")
         val connect = section(wizard, "fun startConnect(", "val selectCode:")
         assertTrue(connect.contains("awaitOttaiPreparation(context, canonical, setupAddress)"))
-        assertTrue(connect.contains("OttaiFirmwareSession.hasPendingTransfer(context, canonical)"))
-        assertFalse(connect.contains("openFirmware("))
+        val pending = section(connect, "if (OttaiFirmwareSession.hasPendingTransfer(context, canonical))", "val hasLocalKeys")
+        assertTrue(pending.contains("fullModeGuard { openFirmware(setupAddress.orEmpty()) }"))
+        assertTrue(pending.endsWith("return } "))
+        assertFalse(connect.substring(connect.indexOf("val hasLocalKeys")).contains("openFirmware("))
         assertFalse(connect.contains("AlertDialog("))
         assertFalse(wizard.contains("OttaiSetupStep.FIRMWARE"))
         assertTrue(wizard.contains("if (showFirmware) OttaiFirmwareDialog("))

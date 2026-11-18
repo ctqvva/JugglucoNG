@@ -536,6 +536,7 @@ fun OttaiSetupWizard(
     var preparingSensor by remember { mutableStateOf(false) }
     var showFirmware by remember { mutableStateOf(false) }
     var firmwareSession by remember { mutableStateOf<OttaiFirmwareSession?>(null) }
+    val discoveryPaused = showFirmware || preparingSensor || firmwareSession != null
     var lastSerialLookup by remember { mutableStateOf("") }
     var materialRefresh by remember { mutableStateOf(0) }
     // The account's sensors (current + past); null = not loaded yet, empty = none.
@@ -734,8 +735,8 @@ fun OttaiSetupWizard(
     // leaves that at WOKE and would not re-run this.
     // Once nothing here needs a wake (signed in to Ottai Global, or Global picked), setup must
     // let go of NFC: a held capture swallows the next Libre or pen tap.
-    LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey, preparingSensor, firmwareSession != null) {
-        if (!nfcWakeListening || preparingSensor || firmwareSession != null) {
+    LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey, discoveryPaused) {
+        if (!nfcWakeListening || discoveryPaused) {
             OttaiNfc.disarmSetup()
         } else if (step == OttaiSetupStep.SEARCH) {
             OttaiNfc.armForSetup()
@@ -990,16 +991,26 @@ fun OttaiSetupWizard(
     }
 
     fun startConnect(mac: String, selectedBleAddress: String?) {
-        if (busy || materialLoading) return
+        if (busy || materialLoading || showFirmware) return
         val canonical = OttaiConstants.canonicalSensorId(mac)
         if (!OttaiConstants.looksLikeMac(canonical)) return
         cloudId = canonical
         val setupAddress = ottaiResolvedSetupBleAddress(context, canonical, selectedBleAddress)
-        val hasLocalKeys = OttaiRegistry.loadMaterials(context, canonical).authKeys != null
         if (OttaiFirmwareSession.hasPendingTransfer(context, canonical)) {
-            showStatus(context.getString(R.string.ottai_ota_pending), error = true)
+            val firmware = firmwareSession
+            if (firmware == null) {
+                fullModeGuard { openFirmware(setupAddress.orEmpty()) }
+            } else {
+                scope.launch {
+                    firmware.closeAndAwaitRelease()
+                    if (cloudId == canonical && !showFirmware) {
+                        fullModeGuard { openFirmware(setupAddress.orEmpty()) }
+                    }
+                }
+            }
             return
         }
+        val hasLocalKeys = OttaiRegistry.loadMaterials(context, canonical).authKeys != null
         if (!hasLocalKeys && OttaiCloudClient.requiresGlobalSignIn(context)) {
             requestGlobalSignIn()
             return
@@ -1009,7 +1020,6 @@ fun OttaiSetupWizard(
         }
         val version = selected?.deviceVersion ?: selectedDeviceVersion
         val firmware = firmwareSession
-        if (showFirmware) closeFirmware()
         busy = true
         connecting = true
         showStatus("")
@@ -1205,7 +1215,8 @@ fun OttaiSetupWizard(
         // A box serial is looked up on the account; Connect retries the lookup.
         val needsSerialLookup = OttaiConstants.isBoxSerial(cloudId)
         val hasMaterials = currentMaterials?.authKeys != null
-        val canConnect = (hasSensorCode && (signedIn || hasMaterials)) || (needsSerialLookup && signedIn)
+        val pendingTransfer = hasSensorCode && OttaiFirmwareSession.hasPendingTransfer(context, cloudId)
+        val canConnect = (hasSensorCode && (signedIn || hasMaterials || pendingTransfer)) || (needsSerialLookup && signedIn)
         val cloudBindingState = ottaiCloudBindingUiState(
             signedIn = signedIn,
             selectedSensorId = cloudId,
@@ -1216,6 +1227,7 @@ fun OttaiSetupWizard(
         )
         val needsGlobalSignIn = signedIn && OttaiCloudClient.requiresGlobalSignIn(context)
         val connectTitleRes = when {
+            pendingTransfer -> R.string.ottai_connect_saved
             needsGlobalSignIn && !hasMaterials -> R.string.ottai_login_button
             needsSerialLookup -> R.string.search
             else -> R.string.ottai_connect_saved
@@ -1373,7 +1385,7 @@ fun OttaiSetupWizard(
                         ui = ui,
                         restartKey = nfcScanRestartKey,
                         enabled = !busy && !materialLoading && firmwareSession == null,
-                        scanPaused = preparingSensor || firmwareSession != null,
+                        scanPaused = discoveryPaused,
                         selectedSensor = selectedSensor,
                         scrollRequest = searchScrollRequest,
                         focusSelectedSensor = focusSelectedSensor,

@@ -225,6 +225,8 @@ class OttaiFirmwareControllerTests {
         val scheduled = ArrayDeque<() -> Unit>()
         val logs = mutableListOf<String>()
         var connected: ((Result<OttaiFirmwareGatt>) -> Unit)? = null
+        var verificationConnections = 0
+        var finishResult = OttaiOtaFinish.ACKNOWLEDGED
         var ack: ((Result<Unit>) -> Unit)? = null
         var saved = false
         var closed = false
@@ -256,6 +258,10 @@ class OttaiFirmwareControllerTests {
         var offerRequests = 0
         val offerVersions = mutableListOf<String>()
         override fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit) { connected = done }
+        override fun connectAfterUpdate(done: (Result<OttaiFirmwareGatt>) -> Unit) {
+            verificationConnections++
+            connected = done
+        }
         override fun rediscover(done: (Result<OttaiFirmwareGatt>) -> Unit) {
             done(Result.success(OttaiFirmwareGatt(247, bootloaderOnly = false, hasOta = true)))
         }
@@ -271,6 +277,11 @@ class OttaiFirmwareControllerTests {
             writes += characteristic to value.copyOf()
             onWrite(characteristic, value)
             ack = done
+        }
+        override fun finishUpdate(done: (Result<OttaiOtaFinish>) -> Unit) {
+            write(OttaiConstants.SERVICE_OTA, OttaiConstants.CHAR_OTA_CONTROL, byteArrayOf(OttaiOtaProtocol.FINISH)) {
+                done(it.map { finishResult })
+            }
         }
         fun acknowledge(result: Result<Unit> = Result.success(Unit)) {
             val callback = requireNotNull(ack)
@@ -1350,6 +1361,43 @@ class OttaiFirmwareControllerTests {
         assertEquals(listOf(9.toByte(), 11.toByte()), factory.map { it.second[0] })
         assertFalse(io.writes.any { it.first in setOf(OttaiConstants.CHAR_COMMAND,
             OttaiConstants.CHAR_CURRENT_TIME, OttaiConstants.CHAR_MAX_ACTIVE_TIME) })
+    }
+
+    @Test fun disconnectBeforeFinishAckVerifiesTheTargetWithoutReplayingTheTransfer() {
+        val (controller, io) = normal()
+        io.finishResult = OttaiOtaFinish.DISCONNECTED
+        controller.install()
+        while (controller.state.stage == OttaiFirmwareStage.INSTALLING) { io.tick(); io.acknowledge() }
+        assertEquals(OttaiFirmwareStage.RECONNECTING, controller.state.stage)
+        assertFalse(io.reported)
+        val otaWriteCount = io.writes.count { it.first in setOf(OttaiConstants.CHAR_OTA_CONTROL, OttaiConstants.CHAR_OTA_DATA) }
+        val answer = requireNotNull(io.readAnswer)
+        io.readAnswer = { ch -> if (ch == OttaiConstants.CHAR_SOFTWARE_VERSION) "V1.8.1".toByteArray() else answer(ch) }
+        io.tick()
+        assertEquals(1, io.verificationConnections)
+        io.connected!!(Result.success(OttaiFirmwareGatt(247, bootloaderOnly = false, hasOta = true)))
+        assertFalse(io.reported)
+        repeat(2) { io.tick(); io.acknowledge() }
+        assertTrue(io.reported)
+        assertEquals(OttaiFirmwareStage.PREPARATION_READY, controller.state.stage)
+        assertEquals(otaWriteCount, io.writes.count { it.first in setOf(OttaiConstants.CHAR_OTA_CONTROL, OttaiConstants.CHAR_OTA_DATA) })
+    }
+
+    @Test fun explicitFinishWriteFailureKeepsTheJournalAndStops() {
+        val (controller, io) = recovery()
+        controller.install()
+        while (true) {
+            io.tick()
+            val (characteristic, value) = io.writes.last()
+            if (characteristic == OttaiConstants.CHAR_OTA_CONTROL && value.contentEquals(byteArrayOf(OttaiOtaProtocol.FINISH))) break
+            io.acknowledge()
+        }
+        io.acknowledge(Result.failure(IllegalStateException("write_status=128")))
+        assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+        assertEquals("write_status=128", controller.state.errorCode)
+        assertNotNull(io.journal)
+        assertTrue(io.scheduled.isEmpty())
+        assertFalse(io.reported)
     }
 
     @Test fun duplicateAckDoesNotQueueTwoChunks() {

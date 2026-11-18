@@ -2,6 +2,8 @@ package tk.glucodata.drivers.ottai
 
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
@@ -9,6 +11,7 @@ import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
@@ -171,5 +174,75 @@ class OttaiFirmwareConnectTests {
 
         assertTrue(scanCallbacks().isEmpty())
         assertEquals("disconnected_status=147", states.single().errorCode)
+    }
+
+    @Test fun postUpdateWaitsForSameConnectableAdvertAndRescansOnceAfterLinkFailure() {
+        val states = mutableListOf<OttaiFirmwareState>()
+        val sensor = adapter.getRemoteDevice(address)
+        shadowOf(sensor).setType(BluetoothDevice.DEVICE_TYPE_LE)
+        val session = newSession { states += it }
+        session.onHandler { session.connectAfterUpdate { fail("GATT discovery did not succeed") } }
+        assertNull(session.gatt())
+        val scan = scanCallbacks().single()
+        fun result(device: BluetoothDevice, connectable: Boolean = true) = ScanResult(
+            device, if (connectable) 1 else 0, 1, 0, 0, 127, -60, 0, null, 0L,
+        )
+        scan.onScanResult(0, result(adapter.getRemoteDevice("AA:BB:CC:DD:EE:01")))
+        scan.onScanResult(0, result(sensor, connectable = false))
+        session.onHandler {}
+        assertNull(session.gatt())
+
+        scan.onScanResult(0, result(sensor))
+        session.onHandler {}
+        val first = requireNotNull(session.gatt())
+        shadowOf(first).gattCallback.onConnectionStateChange(first, 147, BluetoothProfile.STATE_DISCONNECTED)
+        session.onHandler {}
+        assertTrue(shadowOf(first).isClosed)
+        assertNull(session.gatt())
+        assertTrue(scanCallbacks().isEmpty())
+        shadowOf(session.handler().looper).idleFor(Duration.ofMillis(1_500))
+
+        val retryScan = scanCallbacks().single()
+        assertNotSame(scan, retryScan)
+        scan.onScanResult(0, result(sensor))
+        session.onHandler {}
+        assertNull(session.gatt())
+        retryScan.onScanResult(0, result(sensor))
+        session.onHandler {}
+        val retry = requireNotNull(session.gatt())
+        assertNotSame(first, retry)
+        shadowOf(retry).gattCallback.onConnectionStateChange(retry, 147, BluetoothProfile.STATE_DISCONNECTED)
+        session.awaitRetirement()
+        assertTrue(scanCallbacks().isEmpty())
+        assertEquals("disconnected_status=147", states.single().errorCode)
+    }
+
+    @Test fun acceptedFinishWithDisconnectQueuedBeforeAckCompletesOnce() {
+        val sensor = adapter.getRemoteDevice(address)
+        shadowOf(sensor).setType(BluetoothDevice.DEVICE_TYPE_LE)
+        val session = newSession()
+        session.onHandler { session.connect {} }
+        val gatt = requireNotNull(session.gatt())
+        val service = BluetoothGattService(OttaiConstants.SERVICE_OTA, BluetoothGattService.SERVICE_TYPE_PRIMARY)
+        for (uuid in listOf(OttaiConstants.CHAR_OTA_CONTROL, OttaiConstants.CHAR_OTA_DATA)) {
+            service.addCharacteristic(BluetoothGattCharacteristic(uuid,
+                BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE))
+        }
+        shadowOf(gatt).addDiscoverableService(service)
+        val callback = shadowOf(gatt).gattCallback
+        callback.onConnectionStateChange(gatt, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED)
+        session.onHandler {}
+        shadowOf(session.handler().looper).idleFor(Duration.ofMillis(2_500))
+        session.onHandler {}
+        val outcomes = mutableListOf<OttaiOtaFinish>()
+        session.onHandler {
+            // The shadow ACKs writes immediately. Queue the reboot callback first so the
+            // session processes it after submitWrite returns but before processing the ACK.
+            callback.onConnectionStateChange(gatt, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_DISCONNECTED)
+            session.finishUpdate { outcomes += it.getOrThrow() }
+        }
+        session.onHandler {}
+        assertArrayEquals(byteArrayOf(OttaiOtaProtocol.FINISH), shadowOf(gatt).latestWrittenBytes)
+        assertEquals(listOf(OttaiOtaFinish.DISCONNECTED), outcomes)
     }
 }

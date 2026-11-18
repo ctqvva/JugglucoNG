@@ -52,10 +52,10 @@ parameter/activation writes. The checkpoint retains the original BLE address and
 explicit discard path as transfer recovery, preserving credentials and other sensors.
 
 Normal Connect shows progress and failures on the selected sensor card. A new Connect attempt
-reuses a preparation checkpoint when one exists. An unfinished firmware transfer opens only
-through **Check firmware (experimental)** and uses the saved package, address and mode. The
-firmware action below the sensor card opens a dialog. Choosing a mode or retrying recovery starts
-the check. After the dialog closes, Connect waits for its Bluetooth connection to close.
+reuses a preparation checkpoint when one exists. If a firmware transfer is pending, Connect opens
+the same recovery dialog as **Check firmware (experimental)** before looking up credentials.
+The dialog pauses setup scanning and NFC wake listening until it closes. Choosing a mode or
+retrying recovery starts the check. Connect waits for the firmware session to release Bluetooth.
 **No firmware update offered** is reserved for a successful judge result with neither update
 flag set. Installation, manual factory writes and discarding a saved recovery require confirmation
 in the same dialog.
@@ -149,9 +149,11 @@ firmware experiment and its additional confirmations.
 5. Choose one explicit experiment:
    - **Write factory parameters only** refreshes cloud materials for the read revision,
      writes supported factory parameters, and leaves the firmware as it was.
-   - **Install firmware** transfers the offered image. After a successful finish ACK it
-     reconnects to the same Bluetooth address, requires the target revision from `2a28`,
-     reauthenticates and confirms the sensor is still unactivated. It then waits at
+   - **Install firmware** transfers the offered image. If Android acknowledges the finish write
+     or the sensor disconnects after Android accepts it, the app waits up to 60 seconds for a
+     connectable advertisement from the same address. A failed reconnect can trigger one more scan
+     within that window. The app reads the target revision from `2a28`, reauthenticates and
+     confirms the sensor is still unactivated before reporting success. It then waits at
      **Firmware verified**. Choose **Write factory parameters only** and confirm to refresh
      materials and write parameters. This is the first binding operation for a fresh test.
      Newly fetched keys establish a local ECDH session before encrypted calibration writes.
@@ -248,6 +250,11 @@ from a variant-less composite target only by its variant. A target that names a 
 match it exactly. A MAC unknown to the cloud answers `AppDevice_NotExist`, so the judge is
 per-sensor. Our install path has still not flashed a sensor.
 
+The production GBL parser accepted the downloaded `E1.2.7_V1.7.SH2640.3.gbl` (173,332 bytes,
+SHA-256 `7b24460e1f89e319ac2e57f1ff24bd23345168a0b5ae4f4cd40a802b14a16f2a`) offline and
+rejected a copy with a corrupted CRC. Physical transfer and reboot verification remain untested
+in JugglucoNG.
+
 1. Export its credentials and any history you want to keep. Disconnect it from monitoring
    while retaining local credentials/history. Stop other apps from reconnecting to it. A
    managed record or callback in this test app still prevents the separate BLE session;
@@ -294,12 +301,12 @@ its separate provisioning flow.
 - The exact validated package, original/target revisions, sensor ID, Bluetooth address and
   digest are stored atomically under the app's private `files/ottai-ota/` before transfer.
   No download URL or account credentials are placed in this journal.
-- Reopen **Check firmware** after an interruption. A bootloader-only GATT can offer
+- Use **Connect** or **Check firmware** to open recovery after an interruption. A bootloader-only GATT can offer
   an explicit restart of that saved package **only on the recorded address**. It never
   scans neighbouring devices or picks a different image. Address changes and a corrupt or
   missing recovery package require investigation, rather than speculative writes.
-- An unfinished journal blocks normal connection and activation with a specific recovery
-  message. It is cleared after successful Fresh preparation, verified Started completion,
+- An unfinished journal blocks normal connection and activation until recovery. It is cleared
+  after successful Fresh preparation, verified Started completion,
   or an explicit **Discard firmware test** confirmation. Discard first cancels the firmware session’s
   BLE/worker callbacks, then deletes only that sensor's local package/journal. It is disabled
   during transfer or factory writes. It keeps credentials, readings and other sensors intact.

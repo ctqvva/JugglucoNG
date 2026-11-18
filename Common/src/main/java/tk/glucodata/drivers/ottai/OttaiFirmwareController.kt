@@ -47,14 +47,17 @@ internal data class OttaiFirmwareImage(
     val before: OttaiFirmwareObservation? = null,
 )
 internal data class OttaiFirmwareGatt(val mtu: Int, val bootloaderOnly: Boolean, val hasOta: Boolean)
+internal enum class OttaiOtaFinish { ACKNOWLEDGED, DISCONNECTED }
 
 /** All calls and completions belong to one serial owner (the session Handler). */
 internal interface OttaiFirmwareIo {
     fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit)
+    fun connectAfterUpdate(done: (Result<OttaiFirmwareGatt>) -> Unit)
     fun rediscover(done: (Result<OttaiFirmwareGatt>) -> Unit)
     fun read(service: UUID, characteristic: UUID, done: (Result<ByteArray>) -> Unit)
     fun readOptional(service: UUID, characteristic: UUID, done: (Result<ByteArray>) -> Unit) = read(service, characteristic, done)
     fun write(service: UUID, characteristic: UUID, value: ByteArray, done: (Result<Unit>) -> Unit)
+    fun finishUpdate(done: (Result<OttaiOtaFinish>) -> Unit)
     fun after(delayMs: Long, action: () -> Unit)
     fun prepareImage(version: String, done: (Result<OttaiFirmwareImage?>) -> Unit)
     fun verifyCloudAuth(param: ByteArray, signature: ByteArray, done: (Result<OttaiCloudClient.V3AuthMaterial>) -> Unit)
@@ -467,11 +470,14 @@ internal class OttaiFirmwareController(
 
     private fun sendNext(transfer: OttaiOtaTransfer) {
         if (transfer.complete) {
-            write(OttaiConstants.SERVICE_OTA, OttaiConstants.CHAR_OTA_CONTROL, byteArrayOf(OttaiOtaProtocol.FINISH)) {
-                update(OttaiFirmwareStage.RECONNECTING)
-                io.disconnect()
-                // A successful finish write is not proof that the image booted.
-                later(3_000L) { io.connect(completion { connected(it, afterInstall = true) }) }
+            later(OttaiOtaProtocol.WRITE_DELAY_MS) {
+                io.finishUpdate(completion { result ->
+                    io.log("ota_finish=$result")
+                    update(OttaiFirmwareStage.RECONNECTING)
+                    io.disconnect()
+                    // Either finish outcome needs authenticated readback before reporting success.
+                    later(3_000L) { io.connectAfterUpdate(completion { connected(it, afterInstall = true) }) }
+                })
             }
         } else {
             val chunk = transfer.nextChunk()
