@@ -206,6 +206,25 @@ class OttaiNetSecurityTests {
         }
     }
 
+    @Test fun exchangeTimeoutRetriesWithAFreshKeyAndStillNeverReplaysTheBusinessRequest() {
+        val keys = mutableListOf<String>()
+        var business = 0
+        val client = OttaiNetSecurity(fixture.getString("deviceId"), exchange = { request ->
+            keys += request.getString("clientPubKeyX")
+            if (keys.size == 1) throw java.net.SocketTimeoutException("synthetic timeout")
+            OttaiNetSecurity.Reply(200, fixture.getJSONObject("exchangeResponse"))
+        }, send = { _, _, _, _, _ ->
+            business++
+            throw java.net.SocketTimeoutException("synthetic business timeout")
+        }, clock = { fixture.getLong("now") },
+            keyPair = { if (keys.isEmpty()) OttaiBleAuth.generateKeyPair() else fixedKey() }, pause = {})
+        assertThrows(java.net.SocketTimeoutException::class.java) {
+            client.request("POST", "/deviceBind/composite/bindV3", body = "{}")
+        }
+        assertEquals(2, keys.distinct().size)
+        assertEquals(1, business)
+    }
+
     @Test fun definiteExchangeRefusalsAreNotRetried() {
         for (reply in listOf(OttaiNetSecurity.Reply(403, JSONObject().put("code", "Error")),
             OttaiNetSecurity.Reply(401, null),

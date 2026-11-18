@@ -51,8 +51,11 @@ are blocked until it finishes. A verified already-active sensor can return to st
 parameter/activation writes. The checkpoint retains the original BLE address and has the same
 explicit discard path as transfer recovery, preserving credentials and other sensors.
 
-Failures expose **Try again** and **Close**, plus confirmed discard when a journal exists. A normal
-setup retry re-runs credential lookup, so keys issued by an interrupted bind can be recovered.
+Failures expose **Try again** and **Close**, plus confirmed discard when a journal exists. An
+expired cloud session offers **Sign in**. A failed OTA lookup or download has its own state and
+can retry on the authenticated link. **No firmware update offered** is reserved for a successful
+judge result with neither update flag set. A normal setup retry re-runs credential lookup unless
+a pending setup record already identifies the recovery path.
 Import and account/NFC actions remain available after closing. A journal remains scoped to its
 original package, address and mode; retries cannot silently replace it. A genuine server refusal
 with no usable credentials/package still needs account/vendor recovery or imported credentials;
@@ -66,6 +69,15 @@ activation changed command status 2 to 3 and accepted 2,592,000 seconds. Glucose
 followed warmup. The changed version field is established, but its causal role in the server's
 decision is not isolated. This is physical preparation/activation evidence, not firmware-transfer
 evidence.
+
+The PR #931 field recordings show two failures on Ottai Global. Connect displays HTTP 500
+`NET_SECURITY_SYSTEM_ERROR`. A later attempt reads `E1.2.3(V1.7.SH2542.1),STDRD` over BLE
+and reaches HTTP 200 `Error` during secure cloud exchange. This exchange happens before
+the server can process the request, so it gives no firmware verdict. The post-reinstall
+sensor screen shows warmup on the same revision. A pre-#931 Global watch session is a
+possible cause of the setup failure. New setup and firmware checks now ask those sessions
+to sign in again within the app, preserving local credentials and history. The generic
+exchange response alone cannot identify which session the phone used or why the exchange failed.
 
 CN mobile secure transport from merged PR #755 is now on main and included in this branch.
 Ordinary CN account/device lookup, validation and credential bootstrap use the encrypted

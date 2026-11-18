@@ -42,7 +42,8 @@ import tk.glucodata.drivers.ottai.OttaiCloudClient
 
 @Composable
 internal fun OttaiFirmwareTestDialog(sensorId: String, address: String, prepareForSetup: Boolean = false,
-    onPrepared: () -> Unit = {}, onRetrySetup: () -> Unit = {},
+    onPrepared: (alreadyActive: Boolean) -> Unit = {}, onRetrySetup: () -> Unit = {},
+    onSignIn: () -> Unit,
     /** Close as soon as no transfer is running (restricted mode relocked); never mid-transfer. */
     closeWhenIdle: Boolean = false,
     onDismiss: () -> Unit) {
@@ -58,7 +59,7 @@ internal fun OttaiFirmwareTestDialog(sensorId: String, address: String, prepareF
     if (loading) return
     val selected = mode
     if (selected != null) {
-        OttaiFirmwareSessionDialog(sensorId, address, selected, prepareForSetup, onPrepared, onRetrySetup,
+        OttaiFirmwareSessionDialog(sensorId, address, selected, prepareForSetup, onPrepared, onRetrySetup, onSignIn,
             closeWhenIdle, onDismiss)
     } else {
         LaunchedEffect(closeWhenIdle) { if (closeWhenIdle) onDismiss() }
@@ -76,7 +77,7 @@ internal fun OttaiFirmwareModeDialog(pending: Boolean, onMode: (OttaiFirmwareMod
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.ottai_ota_title)) },
-        text = { Text(stringResource(if (pending) R.string.ottai_ota_failed else R.string.ottai_ota_mode_hint)) },
+        text = { Text(stringResource(if (pending) R.string.ottai_ota_pending else R.string.ottai_ota_mode_hint)) },
         confirmButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!pending) {
@@ -99,7 +100,7 @@ internal fun OttaiFirmwareModeDialog(pending: Boolean, onMode: (OttaiFirmwareMod
 
 @Composable
 private fun OttaiFirmwareSessionDialog(sensorId: String, address: String, mode: OttaiFirmwareMode,
-    prepareForSetup: Boolean, onPrepared: () -> Unit, onRetrySetup: () -> Unit, closeWhenIdle: Boolean,
+    prepareForSetup: Boolean, onPrepared: (Boolean) -> Unit, onRetrySetup: () -> Unit, onSignIn: () -> Unit, closeWhenIdle: Boolean,
     onDismiss: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -113,7 +114,10 @@ private fun OttaiFirmwareSessionDialog(sensorId: String, address: String, mode: 
         state = OttaiFirmwareState(mode = mode)
         val owned = OttaiFirmwareSession.start(context, sensorId, address, mode, prepareForSetup) { if (!disposed) state = it }
         session = owned
-        if (owned == null) state = state.copy(stage = OttaiFirmwareStage.FAILED, errorCode = "session_unavailable")
+        if (owned == null) {
+            val reason = if (OttaiFirmwareSession.hasManagedOwner(context, sensorId)) "sensor_managed" else "session_unavailable"
+            state = state.copy(stage = OttaiFirmwareStage.FAILED, errorCode = reason)
+        }
         onDispose {
             disposed = true
             owned?.dispose()
@@ -123,7 +127,10 @@ private fun OttaiFirmwareSessionDialog(sensorId: String, address: String, mode: 
     LaunchedEffect(state.stage) {
         // COMPLETE is published only after the session releases BLE, before the managed
         // connection starts. Retry failures through setup again so newly-bound keys are found.
-        if (prepareForSetup && state.stage == OttaiFirmwareStage.COMPLETE) onPrepared()
+        if (prepareForSetup && state.stage == OttaiFirmwareStage.COMPLETE) {
+            if (mode == OttaiFirmwareMode.PREACTIVATION) onPrepared(state.setupSensorAlreadyActive)
+            else if (state.after?.commandStatus == 3) onPrepared(true)
+        }
     }
     val scope = rememberCoroutineScope()
     LaunchedEffect(closeWhenIdle, state.transferring) {
@@ -139,20 +146,30 @@ private fun OttaiFirmwareSessionDialog(sensorId: String, address: String, mode: 
                 done(withContext(Dispatchers.IO) { runCatching { OttaiFirmwareSession.discardPendingTransfer(context, sensorId) } })
             }
         }, onDismiss = onDismiss, prepareForSetup = prepareForSetup,
-        onRetry = { if (prepareForSetup) onRetrySetup() else attempt++ })
+        onRetry = {
+            when {
+                state.stage == OttaiFirmwareStage.CHECK_FAILED -> session?.retryOffer()
+                prepareForSetup -> onRetrySetup()
+                else -> attempt++
+            }
+        },
+        onSignIn = onSignIn,
+        transferPending = OttaiFirmwareSession.hasPendingTransfer(context, sensorId))
 }
 
 @Composable
 internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boolean,
     onInstall: () -> Unit, onPrepare: () -> Unit,
     onDiscard: ((Result<Unit>) -> Unit) -> Unit, onDismiss: () -> Unit, onCloudRecheck: () -> Unit = {},
-    prepareForSetup: Boolean = false, onRetry: (() -> Unit)? = null) {
+    prepareForSetup: Boolean = false, onRetry: (() -> Unit)? = null, onSignIn: (() -> Unit)? = null,
+    transferPending: Boolean = pending) {
     val mode = state.mode
     // Setup without local keys already checked the offer through V3 cloud authentication, so
     // the diagnostic recheck would only repeat that request. Keep it to the explicit test.
     val showCloudRecheck = state.canRecheckWithCloudAuth && !pending && !prepareForSetup
     var confirmInstall by remember { mutableStateOf(false) }
     var confirmParameters by remember { mutableStateOf(false) }
+    val sessionExpired = state.errorCode.contains(OttaiCloudClient.BIZ_TOKEN_INVALID, true)
     val stageText = when (state.stage) {
         OttaiFirmwareStage.CONNECTING -> R.string.ottai_ota_connecting
         OttaiFirmwareStage.AUTHENTICATING -> R.string.ottai_ota_authenticating
@@ -163,8 +180,8 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
             mode == OttaiFirmwareMode.STARTED_SENSOR -> R.string.ottai_ota_started_ready
             else -> R.string.ottai_ota_ready
         }
-        OttaiFirmwareStage.NO_UPDATE -> if (state.canPrepareParameters && state.errorCode.isNotEmpty())
-            R.string.ottai_ota_parameters else R.string.ottai_ota_no_update
+        OttaiFirmwareStage.NO_UPDATE -> R.string.ottai_ota_no_update
+        OttaiFirmwareStage.CHECK_FAILED -> R.string.ottai_ota_check_failed
         OttaiFirmwareStage.INSTALLING -> R.string.ottai_ota_installing
         OttaiFirmwareStage.RECONNECTING -> R.string.ottai_ota_reconnecting
         OttaiFirmwareStage.PREPARATION_READY -> R.string.ottai_ota_finish_preparation
@@ -176,9 +193,12 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
             else -> R.string.ottai_ota_result_reset
         }
         OttaiFirmwareStage.FAILED -> when {
-            state.errorCode.contains(OttaiCloudClient.BIZ_TOKEN_INVALID, true) -> R.string.ottai_session_invalid
+            sessionExpired -> R.string.ottai_session_invalid
+            state.errorCode == "sensor_managed" -> R.string.ottai_ota_disconnect_first
             state.errorCode.contains(OttaiCloudClient.BIZ_OTA_UPGRADE_REQUIRED, true) -> R.string.ottai_ota_upgrade_required
+            state.errorCode.startsWith("ota_exchange") -> R.string.ottai_secure_exchange_failed
             pending -> R.string.ottai_ota_failed
+            !prepareForSetup -> R.string.ottai_ota_check_failed
             else -> R.string.ottai_setup_failed
         }
         OttaiFirmwareStage.CLOSED -> R.string.cancel
@@ -189,7 +209,7 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
         title = { Text(stringResource(if (prepareForSetup) R.string.ottai_setup_title else R.string.ottai_ota_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (!prepareForSetup || pending || state.totalBytes > 0) Text(stringResource(R.string.ottai_ota_warning))
+                if (transferPending || state.totalBytes > 0) Text(stringResource(R.string.ottai_ota_warning))
                 if (!prepareForSetup) Text(stringResource(if (mode == OttaiFirmwareMode.STARTED_SENSOR) R.string.ottai_ota_started_mode else R.string.ottai_ota_fresh_mode))
                 if (mode == OttaiFirmwareMode.STARTED_SENSOR) Text(stringResource(R.string.ottai_ota_mode_hint))
                 Text(stringResource(stageText))
@@ -212,7 +232,11 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
         },
         confirmButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (state.stage == OttaiFirmwareStage.FAILED && onRetry != null) {
+                if (sessionExpired && onSignIn != null) {
+                    Button(onClick = onSignIn, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_login_button)) }
+                } else if (state.errorCode != "sensor_managed" &&
+                    state.stage in setOf(OttaiFirmwareStage.FAILED, OttaiFirmwareStage.CHECK_FAILED) && onRetry != null) {
                     Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_retry)) }
                 }
@@ -224,8 +248,7 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
                     OutlinedButton(onClick = onCloudRecheck, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_ota_cloud_recheck)) }
                 }
-                if (state.canPrepareParameters &&
-                    state.stage in setOf(OttaiFirmwareStage.READY, OttaiFirmwareStage.NO_UPDATE, OttaiFirmwareStage.PREPARATION_READY)) {
+                if (state.canPrepareNow) {
                     OutlinedButton(onClick = { confirmParameters = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_ota_parameters)) }
                 }

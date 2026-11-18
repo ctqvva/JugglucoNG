@@ -18,14 +18,17 @@ internal class OttaiRegionalTransport(
         "versionCode" to "10000000",
         "webDeviceId" to identity,
     ) + if (route.web) mapOf("deviceId" to headers.getValue("deviceFingerprinting")) else emptyMap()
+    // The firmware worker reuses this transport serially across endpoints. Per-request
+    // metadata must still match each signed business body.
+    private var requestMetadata = emptyMap<String, String>()
     private val codec = OttaiNetSecurity(
         identity,
         exchange = { body -> send("POST", route.exchangeUrl, body.toString(),
-            common + ("Content-Type" to "application/json;charset=UTF-8")) },
-        send = { method, path, cipherHeaders, query, body ->
+            common + requestMetadata + ("Content-Type" to "application/json;charset=UTF-8")) },
+        send = { method, target, cipherHeaders, query, body ->
             val qs = query.entries.joinToString("&") { "${enc(it.key)}=${enc(it.value)}" }
-            send(method, route.secureBase + path + if (qs.isEmpty()) "" else "?$qs", body,
-                common + cipherHeaders + if (body == null) emptyMap() else
+            send(method, route.secureBase + target + if (qs.isEmpty()) "" else "?$qs", body,
+                common + requestMetadata + cipherHeaders + if (body == null) emptyMap() else
                     mapOf("Content-Type" to "application/json;charset=UTF-8"))
         },
         identityHeader = if (route.cn) "cipherUserId" else "webDeviceId",
@@ -35,8 +38,12 @@ internal class OttaiRegionalTransport(
     fun request(method: String, body: String?): OttaiNetSecurity.Reply =
         codec.requestReply(method, route.path, route.query, body)
 
-    fun requestChecked(method: String, body: String?): org.json.JSONObject =
-        codec.request(method, route.path, route.query, body)
+    fun requestChecked(method: String, request: Route, body: String?, timestamp: Long): org.json.JSONObject {
+        require(request.secureBase == route.secureBase && request.exchangeUrl == route.exchangeUrl)
+        requestMetadata = mapOf("timestamp" to timestamp.toString(), "traceId" to UUID.randomUUID().toString())
+        return try { codec.request(method, request.path, request.query, body) }
+        finally { requestMetadata = emptyMap() }
+    }
 
     fun close() = codec.close()
 

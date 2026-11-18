@@ -85,6 +85,7 @@ internal class OttaiFirmwareSession private constructor(
 
     fun install() { handler.post { controller.install() } }
     fun prepareOnly() { handler.post { controller.prepareOnly() } }
+    fun retryOffer() { handler.post { controller.retryOffer() } }
     fun recheckWithCloudAuth() { handler.post { controller.recheckWithCloudAuth() } }
     fun dispose() { handler.post { controller.close() } }
 
@@ -148,8 +149,7 @@ internal class OttaiFirmwareSession private constructor(
 
         internal fun savePreparedMaterials(context: Context, sensorId: String,
             fresh: OttaiRegistry.DeviceMaterials): OttaiRegistry.DeviceMaterials {
-            // bindV3 echoes its request timestamp even for a sensor confirmed unactivated.
-            // Preparation cannot start warmup; only the subsequent activation can supply that.
+            // bindV3 can echo its request timestamp. The managed owner derives the start from BLE.
             val prepared = fresh.copy(activeTimeMs = 0L)
             require(OttaiRegistry.saveMaterials(context, sensorId, prepared)) { "materials_save" }
             return prepared
@@ -184,6 +184,11 @@ internal class OttaiFirmwareSession private constructor(
             require(!hasPendingTransfer(context, id)) { "recovery_discard" }
         }
 
+        fun hasManagedOwner(context: Context, sensorId: String): Boolean =
+            OttaiRegistry.findRecord(context, sensorId) != null || SensorBluetooth.mygatts().any { callback ->
+                callback is OttaiDriver && callback.matchesManagedSensorId(sensorId)
+            }
+
         fun start(context: Context, sensorId: String, address: String,
             mode: OttaiFirmwareMode = OttaiFirmwareMode.PREACTIVATION,
             prepareForSetup: Boolean = false,
@@ -199,9 +204,7 @@ internal class OttaiFirmwareSession private constructor(
             if (hasPendingPreparation(context, id) && !hasPendingTransfer(context, id) &&
                 pendingMode(context, id, ble) == null) return null
             // A managed owner could reconnect and consume activation intent in parallel.
-            if (OttaiRegistry.findRecord(context, id) != null || SensorBluetooth.mygatts().any { callback ->
-                    callback is OttaiDriver && callback.matchesManagedSensorId(id)
-                }) return null
+            if (hasManagedOwner(context, id)) return null
             // Setup no longer starts the wizard-owned legacy bootstrap, so this flag has no live
             // owner: it survives only from an older build killed mid-bootstrap. Nothing else can
             // clear it before keys exist, so refusing here would block this sensor indefinitely.
@@ -542,12 +545,12 @@ internal class OttaiFirmwareSession private constructor(
                     OttaiOtaProtocol.materialsVersionMatches(version, resp.deviceVersion)) { "materials_identity" }
                 OttaiCloudClient.toMaterials(context, sensorId, resp)?.takeIf { it.authKeys != null } ?: error("materials_decrypt")
             }
-        }) { result ->
-            done(result.mapCatching { fresh ->
-                // Commit only on the still-current session's serial owner, never in a late worker.
-                savePreparedMaterials(context, sensorId, fresh)
-            })
-        }
+        }, done)
+    }
+
+    override fun persistMaterials(materials: OttaiRegistry.DeviceMaterials) {
+        // Runs on the current session's owner after the controller validates the result.
+        savePreparedMaterials(context, sensorId, materials)
     }
 
     override fun savedImage(): OttaiFirmwareImage? {
