@@ -2451,7 +2451,7 @@ fun SensorCard(
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = detailSummary,
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -2740,7 +2740,7 @@ fun SensorCard(
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = stringResource(R.string.sensor_connection_log),
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f),
                         )
                         Icon(
