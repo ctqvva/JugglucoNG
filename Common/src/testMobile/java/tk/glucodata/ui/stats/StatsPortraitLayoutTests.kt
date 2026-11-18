@@ -128,9 +128,8 @@ class StatsPortraitLayoutTests {
         compose.runOnIdle { assertEquals(TirBand.HIGH, selected) }
         compose.onNodeWithText("High", useUnmergedTree = true).performClick()
         compose.runOnIdle { assertNull(selected) }
-        // A band with no time has nothing to highlight, so it is not a target.
-        compose.onNodeWithText("Very high", useUnmergedTree = true).performClick()
-        compose.runOnIdle { assertNull(selected) }
+        // A band with no time is left out rather than shown empty.
+        compose.onNodeWithText("Very high", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test fun dayPartsCombineIntoOneWindowWithItsOwnTimesAndClearBackToTheWholeDay() {

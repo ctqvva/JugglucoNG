@@ -1,6 +1,7 @@
 package tk.glucodata.ui.stats
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -38,6 +39,8 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -239,16 +242,23 @@ internal fun GlycemicOverviewCard(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     ) {
+        // A band with no time is left out: an empty row beside the bar's top segment read as
+        // that segment's band. In range always stays, and carries "–" when there is no data.
+        val shown = rows.filter { !it.empty || it.band == TirBand.IN_RANGE }
+        val visibleBands = shown.map { it.band }
+        LaunchedEffect(visibleBands, selectedBand) {
+            if (selectedBand != null && selectedBand !in visibleBands) onBandSelected(null)
+        }
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             RangeFlow(
-                rows = rows,
+                rows = shown,
                 // The comparison is for the whole window, so it only stands beside the whole.
                 inRangeDelta = if (window == null) summary.comparison?.inRangeDelta else null,
                 minutesPerDay = if (window == null) MinutesPerDay else Integer.bitCount(hourMask) * 60,
                 noData = noData,
                 selectedBand = selectedBand,
                 onBandSelected = onBandSelected,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().animateContentSize()
             )
             if (hoursAvailable) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -464,23 +474,33 @@ private fun TimeWindowControl(
     onClear: () -> Unit
 ) {
     val runs = hourRuns(mask)
-    // The sliders set one window; several runs open as the window that covers them all.
-    val start = runs.first().first
-    val end = runs.last().second
+    // The sliders keep their own ends while the mask is still theirs, so Start meeting End
+    // (a whole day) doesn't snap them to 00:00–24:00 mid-drag. Otherwise several runs open
+    // as the window that covers them all.
+    var ends by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    val (start, end) = ends?.takeIf { windowMask(it.first, it.second) == mask }
+        ?: (runs.first().first to runs.last().second)
+    val setWindow = { s: Int, e: Int -> ends = s to e; onWindowChange(s, e) }
     val clearLabel = stringResource(R.string.clear)
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             FilledTonalButton(
                 onClick = { onEditingChange(!editing) },
                 shapes = ButtonDefaults.shapes(),
-                modifier = Modifier.heightIn(min = 32.dp),
+                // Shrinks and wraps before it can push Clear off the line.
+                modifier = Modifier.weight(1f, fill = false).heightIn(min = 32.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp)
             ) {
                 Icon(imageVector = Symbols.ScheduleFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = formatWindow(mask),
-                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                    modifier = Modifier.weight(1f, fill = false)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
@@ -489,7 +509,7 @@ private fun TimeWindowControl(
                     modifier = Modifier.size(18.dp)
                 )
             }
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.width(8.dp))
             IconButtonTooltip(clearLabel) {
                 IconButton(onClick = onClear, shapes = IconButtonDefaults.shapes()) {
                     Icon(imageVector = Symbols.CloseFilled, contentDescription = clearLabel)
@@ -509,7 +529,7 @@ private fun TimeWindowControl(
                     title = stringResource(R.string.start),
                     valueText = formatHour(start),
                     value = start.toFloat(),
-                    onValueChange = { onWindowChange(it.roundToInt(), end) },
+                    onValueChange = { setWindow(it.roundToInt(), end) },
                     range = 0f..23f,
                     steps = 22
                 )
@@ -517,7 +537,7 @@ private fun TimeWindowControl(
                     title = stringResource(R.string.end),
                     valueText = formatHour(if (end == 0) 24 else end),
                     value = (if (end == 0) 24 else end).toFloat(),
-                    onValueChange = { onWindowChange(start, it.roundToInt()) },
+                    onValueChange = { setWindow(start, it.roundToInt()) },
                     range = 1f..24f,
                     steps = 22
                 )
@@ -537,24 +557,24 @@ private fun RangeFlow(
     modifier: Modifier = Modifier
 ) {
     // Read in the draw phase only: a range change re-pours the bar without recomposing.
-    val shares = rows.map { row ->
+    val shares = rows.map { row -> key(row.band) {
         animateFloatAsState(
             targetValue = if (row.empty) 0f else row.percent.coerceIn(0f, 100f),
             animationSpec = ExpressiveMotion.slowEffects(),
             label = "flowShare"
         )
-    }
+    } }
     // Whether a band has a segment at all. Animated on its own, so a band arriving from 0%
     // grows into its minimum height while a tiny share keeps the full minimum once there.
-    val presences = rows.map { row ->
+    val presences = rows.map { row -> key(row.band) {
         animateFloatAsState(
             targetValue = if (row.empty) 0f else 1f,
             animationSpec = ExpressiveMotion.slowEffects(),
             label = "flowPresence"
         )
-    }
-    val interactions = rows.map { remember { MutableInteractionSource() } }
-    val tints = rows.mapIndexed { index, row ->
+    } }
+    val interactions = rows.map { row -> key(row.band) { remember { MutableInteractionSource() } } }
+    val tints = rows.mapIndexed { index, row -> key(row.band) {
         val pressed by interactions[index].collectIsPressedAsState()
         // Squared, so the gap between a good and a poor share is plain at a glance: 95% in
         // range keeps nearly the full tint, 47% gets about a quarter of it.
@@ -571,7 +591,7 @@ private fun RangeFlow(
             animationSpec = ExpressiveMotion.fastEffects(),
             label = "flowTint"
         )
-    }
+    } }
     val colors = rows.map { it.color }
     val geometry = remember { mutableStateOf<FlowGeometry?>(null) }
 
@@ -580,7 +600,7 @@ private fun RangeFlow(
             geometry.value?.let { drawFlow(it, shares, presences, tints, colors) }
         },
         content = {
-            rows.forEachIndexed { index, row ->
+            rows.forEachIndexed { index, row -> key(row.band) {
                 BandRow(
                     row = row,
                     hero = row.band == TirBand.IN_RANGE,
@@ -591,7 +611,7 @@ private fun RangeFlow(
                     interactionSource = interactions[index],
                     onClick = { onBandSelected(if (selectedBand == row.band) null else row.band) }
                 )
-            }
+            } }
         }
     ) { measurables, constraints ->
         // Rows start at the bar's edge, so the ribbon is part of each row's touch target.
