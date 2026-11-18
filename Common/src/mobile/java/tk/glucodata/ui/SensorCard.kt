@@ -470,9 +470,10 @@ private fun SensorStatusText(status: String, color: Color, modifier: Modifier = 
 }
 
 @Composable
-private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifier = Modifier) {
+private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, accent: Color, modifier: Modifier = Modifier) {
     val down = state == SensorLinkState.DOWN
-    val color = if (down) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    // The sensor's own colour, as on its name: down keeps the error colours.
+    val color = if (down) MaterialTheme.colorScheme.onErrorContainer else accent
     val waves = when {
         state != SensorLinkState.UP || rssi == null -> 0
         rssi >= -65 -> 3
@@ -2370,6 +2371,7 @@ fun SensorCard(
                                         else -> SensorLinkState.WAITING
                                     },
                                     rssi = sensor.rssi.takeIf { it in -120..-1 },
+                                    accent = sensorTint,
                                 )
                             }
                         }
