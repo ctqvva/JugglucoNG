@@ -309,8 +309,39 @@ public:
   // startthread installing a condition, a worker checking that the slot is
   // still its own, and the end of a worker closing and clearing it. Pause and
   // resume reach startthread without change_host_mutex, so this is its own
-  // lock. Order: change_host_mutex, then slot_mutex.
+  // lock.
   std::mutex slot_mutex;
+  // Held by every wake for as long as it uses a condition, so the condition
+  // can't be deleted under it. Only ever wraps a wake (a backupmutex), never
+  // a connection: closing an ICE sender goes through libjuice, whose own
+  // threads wake senders while holding its lock.
+  // Changing con_vars takes slot_mutex and then wake_mutex; reading it takes
+  // either. Order: change_host_mutex, slot_mutex, wake_mutex, a backupmutex.
+  std::mutex wake_mutex;
+  // Runs f on sender i's condition, if it has one, while it can't be deleted.
+  template <typename F> bool withsender(int i, F &&f) {
+    const std::lock_guard<std::mutex> wakeLock(wake_mutex);
+    if (i < 0 || static_cast<size_t>(i) >= con_vars.size())
+      return false;
+    if (condvar_t *el = con_vars[i]) {
+      f(el);
+      return true;
+    }
+    return false;
+  }
+  bool hassender(int i) {
+    return withsender(i, [](condvar_t *) {});
+  }
+  size_t senderslots() {
+    const std::lock_guard<std::mutex> wakeLock(wake_mutex);
+    return con_vars.size();
+  }
+  bool wakesender(int i, uintptr_t kind) {
+    return withsender(i, [kind](condvar_t *el) { el->wakebackup(kind); });
+  }
+  bool stopsender(int i, uintptr_t kind) {
+    return withsender(i, [kind](condvar_t *el) { el->wakebackuponly(kind); });
+  }
   struct updatedata *getupdatedata() {
     return reinterpret_cast<struct updatedata *>(mapdata.data());
   }
@@ -480,10 +511,9 @@ public:
       if (!host.deactivated) {
         int sin = host.index;
         if (sin >= sendindex) {
-          if (con_vars[sin]) {
+          if (stopsender(sin, Backup::wakestop)) {
             const int sock = getupdatedata()->tosend[sin].getsock();
-            LOGGER("call wakestop %p\n", con_vars[sin]);
-            con_vars[sin]->wakebackuponly(Backup::wakestop);
+            LOGGER("called wakestop %d\n", sin);
             LOGGER(" shutdown %d\n", sock);
             ::shutdown(sock, SHUT_RDWR);
           }
@@ -501,9 +531,7 @@ public:
       crypts[getupdatedata()->sendnr] = nullptr;
       LOGGER("crypts[%d]=nullptr\n", getupdatedata()->sendnr);
     }
-    if (con_vars[getupdatedata()->sendnr])
-      con_vars[getupdatedata()->sendnr]->wakebackuponly(Backup::wakestop |
-                                                        Backup::wakeend);
+    stopsender(getupdatedata()->sendnr, Backup::wakestop | Backup::wakeend);
   }
   void deleteend(int sendindex) {
     for (int i = 0; i < backup->getupdatedata()->hostnr; i++) {
@@ -653,11 +681,11 @@ public:
       getupdatedata()->sendnr++;
       {
         const std::lock_guard<std::mutex> slotLock(slot_mutex);
+        const std::lock_guard<std::mutex> wakeLock(wake_mutex);
         con_vars.resize(getupdatedata()->sendnr);
       }
     } else {
-      if (con_vars[index])
-        con_vars[index]->wakebackuponly(Backup::wakestop);
+      stopsender(index, Backup::wakestop);
     }
     updateone &host = getupdatedata()->tosend[index];
     host.setindex(index, allindex);
@@ -1116,8 +1144,7 @@ public:
       if (sin >= 0) {
         const int sock = getupdatedata()->tosend[sin].getsock();
         LOGGER(" shutdown %d\n", sock);
-        if (con_vars[sin])
-          con_vars[sin]->wakebackuponly(Backup::wakestop | Backup::wakeend);
+        stopsender(sin, Backup::wakestop | Backup::wakeend);
         ::shutdown(sock, SHUT_RDWR);
       }
 
@@ -1235,8 +1262,8 @@ sendindex); extern bool doend(int sendindex); */
 #ifndef NOLOG
     auto &host = getupdatedata()->tosend[sendindex];
 #endif
-    LOGGER("%d backupthread, wearos=%d con_vars=%p sock=%i %p\n", allindex,
-           getupdatedata()->allhosts[allindex].wearos, con_vars[sendindex],
+    LOGGER("%d backupthread, wearos=%d own=%p sock=%i %p\n", allindex,
+           getupdatedata()->allhosts[allindex].wearos, own,
            host.getsock(), host.getcrypt());
     //    const int sendindex=getupdatedata()->allhosts[allindex].index;
     const bool passive = getupdatedata()->allhosts[allindex].sendpassive;
@@ -1352,7 +1379,7 @@ sendindex); extern bool doend(int sendindex); */
 
   void endbackupthread(int h, condvar_t *own) {
     const int sendnr = getupdatedata()->sendnr;
-    LOGGER("%d:sendnr=%d end backupthread  %p own=%p\n", h, sendnr, con_vars[h], own);
+    LOGGER("%d:sendnr=%d end backupthread own=%p\n", h, sendnr, own);
 #ifndef TESTMENU
     const std::lock_guard<std::mutex> lock(change_host_mutex);
 #endif
@@ -1373,6 +1400,7 @@ sendindex); extern bool doend(int sendindex); */
       LOGGER("endbackupthread h(%d)>sendnr(%d)\n", h, sendnr);
     }
     if (h < con_vars.size()) {
+      const std::lock_guard<std::mutex> wakeLock(wake_mutex);
       delete con_vars[h];
       con_vars[h] = nullptr;
     } else {
@@ -1429,6 +1457,7 @@ sendindex); extern bool doend(int sendindex); */
 
   void wakebackuponly(myuintptr_t kind = wakeall) {
     LOGGER("start wakebackuponly %lx\n", kind);
+    const std::lock_guard<std::mutex> wakeLock(wake_mutex);
     int nr;
     if (getupdatedata()->sendnr > con_vars.size()) {
       nr = con_vars.size();
@@ -1449,6 +1478,7 @@ sendindex); extern bool doend(int sendindex); */
   }
   // kindfor(i): what to wake sender i with.
   template <typename KindFor> void wakeeach(KindFor kindfor) {
+    const std::lock_guard<std::mutex> wakeLock(wake_mutex);
     int nr;
     if (getupdatedata()->sendnr > con_vars.size()) {
       nr = con_vars.size();
@@ -1488,6 +1518,7 @@ sendindex); extern bool doend(int sendindex); */
     auto *own = new condvar_t;
     {
       const std::lock_guard<std::mutex> slotLock(backup->slot_mutex);
+      const std::lock_guard<std::mutex> wakeLock(backup->wake_mutex);
       backup->con_vars[sendindex] = own;
     }
     std::thread back(&Backup::backupthread, backup, allindex, sendindex, own);
