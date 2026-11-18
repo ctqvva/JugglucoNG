@@ -2332,8 +2332,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_already_signed_in">Angemeldet</string>
     <string name="ottai_session_invalid">Ihre Cloud-Sitzung ist nicht mehr gültig – bitte erneut anmelden</string>
     <string name="ottai_global_sign_in_again">Melde dich erneut bei Ottai Global an, um einen Sensor einzurichten oder seine Firmware zu prüfen. Gespeicherte Sensoren und der Verlauf bleiben erhalten.</string>
-    <string name="ottai_ota_check_failed">Die Firmware konnte nicht geprüft oder heruntergeladen werden. Versuche es erneut.</string>
-    <string name="ottai_ota_disconnect_first">Trenne diesen Sensor auf dem Bildschirm „Sensoren“, bevor du seine Firmware prüfst. Behalte seine gespeicherten Zugangsdaten.</string>
+    <string name="ottai_ota_check_failed">Firmwareprüfung fehlgeschlagen.</string>
+    <string name="ottai_ota_disconnect_first">Trenne den Sensor, um die Firmware zu prüfen.</string>
     <string name="ottai_sensor_mac_hint">Geräte-ID, Seriennummer oder QR</string>
     <string name="ottai_connect_saved">Verbinden</string>
     <string name="ottai_login_fail">Anmeldung fehlgeschlagen - Telefon/Code prüfen</string>

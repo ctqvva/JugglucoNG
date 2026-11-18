@@ -2201,8 +2201,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Уваход выкананы</string>
     <string name="ottai_session_invalid">Ваша воблачная сесія больш не дзейнічае – увайдзіце зноў</string>
     <string name="ottai_global_sign_in_again">Увайдзіце ў Ottai Global паўторна, каб наладзіць датчык або праверыць яго прашыўку. Захаваныя датчыкі і гісторыя застануцца на тэлефоне.</string>
-    <string name="ottai_ota_check_failed">Не ўдалося праверыць наяўнасць прашыўкі або спампаваць яе. Паўтарыце спробу.</string>
-    <string name="ottai_ota_disconnect_first">Перад праверкай прашыўкі адключыце гэты датчык на экране «Датчыкі». Захавайце яго ключы.</string>
+    <string name="ottai_ota_check_failed">Не ўдалося праверыць прашыўку.</string>
+    <string name="ottai_ota_disconnect_first">Адключыце датчык, каб праверыць прашыўку.</string>
     <string name="ottai_sensor_mac_hint">ID прылады, серыйны нумар або QR</string>
     <string name="ottai_connect_saved">Падключыць</string>
     <string name="ottai_login_fail">Уваход не ўдаўся - праверце тэлефон/код</string>

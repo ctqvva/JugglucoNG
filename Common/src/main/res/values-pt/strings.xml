@@ -2137,8 +2137,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Conectado</string>
     <string name="ottai_session_invalid">A sessão na nuvem já não é válida – inicie sessão novamente</string>
     <string name="ottai_global_sign_in_again">Inicie sessão novamente no Ottai Global para configurar um sensor ou verificar o firmware. Os sensores guardados e o histórico serão mantidos.</string>
-    <string name="ottai_ota_check_failed">Não foi possível verificar se há firmware disponível ou descarregá-lo. Tente novamente.</string>
-    <string name="ottai_ota_disconnect_first">Desligue este sensor no ecrã Sensores antes de verificar o firmware. Mantenha as credenciais guardadas.</string>
+    <string name="ottai_ota_check_failed">A verificação do firmware falhou.</string>
+    <string name="ottai_ota_disconnect_first">Desligue o sensor para verificar o firmware.</string>
     <string name="ottai_sensor_mac_hint">ID do dispositivo, número de série ou QR</string>
     <string name="ottai_connect_saved">Conectar</string>
     <string name="ottai_login_fail">Falha ao entrar - verifique telefone/código</string>

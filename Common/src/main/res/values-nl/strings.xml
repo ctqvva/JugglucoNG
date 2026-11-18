@@ -2179,8 +2179,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_already_signed_in">Aangemeld</string>
     <string name="ottai_session_invalid">Uw cloudsessie is niet meer geldig – meld u opnieuw aan</string>
     <string name="ottai_global_sign_in_again">Meld je opnieuw aan bij Ottai Global om een sensor in te stellen of de firmware te controleren. Je opgeslagen sensoren en geschiedenis blijven behouden.</string>
-    <string name="ottai_ota_check_failed">De firmware kon niet worden gecontroleerd of gedownload. Probeer het opnieuw.</string>
-    <string name="ottai_ota_disconnect_first">Verbreek de verbinding met deze sensor op het scherm Sensoren voordat je de firmware controleert. Bewaar de opgeslagen toegangsgegevens.</string>
+    <string name="ottai_ota_check_failed">Firmwarecontrole mislukt.</string>
+    <string name="ottai_ota_disconnect_first">Verbreek de sensorverbinding om de firmware te controleren.</string>
     <string name="ottai_sensor_mac_hint">Apparaat-ID, serienummer of QR</string>
     <string name="ottai_connect_saved">Verbinden</string>
     <string name="ottai_login_fail">Aanmelden mislukt - controleer telefoon/code</string>

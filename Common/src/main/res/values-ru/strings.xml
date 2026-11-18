@@ -2203,8 +2203,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Вход выполнен</string>
     <string name="ottai_session_invalid">Облачная сессия больше не действительна – войдите снова</string>
     <string name="ottai_global_sign_in_again">Войдите в Ottai Global снова, чтобы настроить датчик или проверить прошивку. Сохранённые датчики и история останутся на телефоне.</string>
-    <string name="ottai_ota_check_failed">Не удалось проверить наличие прошивки или скачать её. Повторите попытку.</string>
-    <string name="ottai_ota_disconnect_first">Перед проверкой прошивки отключите этот датчик на экране «Датчики». Сохраните его ключи.</string>
+    <string name="ottai_ota_check_failed">Не удалось проверить прошивку.</string>
+    <string name="ottai_ota_disconnect_first">Отключите датчик, чтобы проверить прошивку.</string>
     <string name="ottai_sensor_mac_hint">ID устройства, серийный номер или QR</string>
     <string name="ottai_connect_saved">Подключить</string>
     <string name="ottai_login_fail">Вход не выполнен - проверьте телефон/код</string>

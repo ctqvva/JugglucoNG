@@ -148,7 +148,7 @@ class OttaiFirmwareRecoveryUiTests {
         capture("cloud-recheck-$scale")
         compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).performClick()
         compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertDoesNotExist()
-        compose.onNodeWithText(text(R.string.ottai_ota_cloud_authenticating)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_ota_authenticating)).performScrollTo().assertIsDisplayed()
         compose.runOnIdle { assertEquals(1, checked) }
     }
 

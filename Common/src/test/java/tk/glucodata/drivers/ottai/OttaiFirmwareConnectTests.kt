@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
@@ -98,6 +99,18 @@ class OttaiFirmwareConnectTests {
         session.onHandler { session.connect {} }
         assertNotNull(session.gatt())
         assertTrue(scanCallbacks().isEmpty())
+    }
+
+    @Test fun releasingForOrdinaryConnectClosesTheGattBeforeReturning() {
+        shadowOf(adapter.getRemoteDevice(address)).setType(BluetoothDevice.DEVICE_TYPE_LE)
+        val session = newSession()
+        session.onHandler { session.connect {} }
+        val gatt = requireNotNull(session.gatt())
+
+        runBlocking { session.closeAndAwaitRelease() }
+
+        assertTrue(shadowOf(gatt).isClosed)
+        assertNull(session.gatt())
     }
 
     @Test fun closingDuringTheSearchStopsTheScan() {

@@ -25,6 +25,8 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.util.UUID
 import java.util.concurrent.Executors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.logi
 
@@ -94,6 +96,11 @@ internal class OttaiFirmwareSession private constructor(
     fun retryOffer() { handler.post { controller.retryOffer() } }
     fun recheckWithCloudAuth() { handler.post { controller.recheckWithCloudAuth() } }
     fun dispose() { handler.post { controller.close() } }
+
+    suspend fun closeAndAwaitRelease() {
+        dispose()
+        withContext(Dispatchers.IO) { thread.join() }
+    }
 
     fun discardRecovery(done: (Result<Unit>) -> Unit) {
         synchronized(discardLock) {

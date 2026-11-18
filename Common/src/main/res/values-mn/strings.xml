@@ -2157,8 +2157,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_already_signed_in">Нэвтэрсэн</string>
     <string name="ottai_session_invalid">Таны клауд сесс хүчингүй болсон – дахин нэвтэрнэ үү</string>
     <string name="ottai_global_sign_in_again">Мэдрэгч тохируулах эсвэл программыг нь шалгахын тулд Ottai Global-д дахин нэвтэрнэ үү. Хадгалсан мэдрэгч болон түүх хэвээр үлдэнэ.</string>
-    <string name="ottai_ota_check_failed">Мэдрэгчийн программыг шалгах эсвэл татаж авах боломжгүй байлаа. Дахин оролдоно уу.</string>
-    <string name="ottai_ota_disconnect_first">Мэдрэгчийн программыг шалгахын өмнө Мэдрэгч дэлгэцээс уг мэдрэгчийг салгана уу. Хадгалсан баталгаажуулах мэдээллийг нь устгахгүй үлдээнэ үү.</string>
+    <string name="ottai_ota_check_failed">Мэдрэгчийн программыг шалгаж чадсангүй.</string>
+    <string name="ottai_ota_disconnect_first">Программыг шалгахын тулд мэдрэгчийг салгана уу.</string>
     <string name="ottai_sensor_mac_hint">Төхөөрөмжийн ID, серийн дугаар эсвэл QR</string>
     <string name="ottai_connect_saved">Холбох</string>
     <string name="ottai_login_fail">Нэвтрэх амжилтгүй - утас/кодоо шалгана уу</string>

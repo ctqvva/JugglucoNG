@@ -1112,8 +1112,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Signed in</string>
     <string name="ottai_session_invalid">Your cloud session is no longer valid — sign in again</string>
     <string name="ottai_global_sign_in_again">Sign in to Ottai Global again to set up a sensor or check its firmware. Your saved sensors and history are kept.</string>
-    <string name="ottai_ota_check_failed">Could not check for or download firmware. Try again.</string>
-    <string name="ottai_ota_disconnect_first">Disconnect this sensor from the Sensors screen before checking its firmware. Keep its saved credentials.</string>
+    <string name="ottai_ota_check_failed">Firmware check failed.</string>
+    <string name="ottai_ota_disconnect_first">Disconnect the sensor to check firmware.</string>
     <string name="ottai_sensor_mac_hint">Device ID, serial number or QR</string>
     <string name="ottai_connect_saved">Connect</string>
     <string name="ottai_login_fail">Sign-in failed — check phone/code</string>

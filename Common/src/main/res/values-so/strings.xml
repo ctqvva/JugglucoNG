@@ -1025,8 +1025,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_already_signed_in">Saxiixday</string>
     <string name="ottai_session_invalid">Fadhigii daruurta hadda shaqayn maayo – mar kale gal</string>
     <string name="ottai_global_sign_in_again">Mar kale gal Ottai Global si aad u dejiso dareeme ama u hubiso barnaamijkiisa gudaha. Dareemayaasha kaydsan iyo taariikhdooda waa la hayn doonaa.</string>
-    <string name="ottai_ota_check_failed">Barnaamijka gudaha ee dareemaha lama hubin ama lama soo dejin karin. Mar kale isku day.</string>
-    <string name="ottai_ota_disconnect_first">Ka gooy dareemahan shaashadda Dareemayaasha ka hor intaadan hubin barnaamijkiisa gudaha. Hayso furayaashiisa kaydsan.</string>
+    <string name="ottai_ota_check_failed">Hubinta barnaamijka gudaha way fashilantay.</string>
+    <string name="ottai_ota_disconnect_first">Ka gooy dareemaha si aad u hubiso barnaamijkiisa gudaha.</string>
     <string name="ottai_sensor_mac_hint">Aqoonsiga aaladda, lambarka taxanaha ama QR</string>
     <string name="ottai_connect_saved">Ku xidhnow</string>
     <string name="ottai_login_fail">Gelitaanku wuu guuldarraystay - hubi taleefanka/koodka</string>

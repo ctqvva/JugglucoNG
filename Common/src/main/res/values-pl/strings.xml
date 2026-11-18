@@ -2171,8 +2171,8 @@
     <string name="ottai_already_signed_in">Zalogowano</string>
     <string name="ottai_session_invalid">Sesja w chmurze wygasła – zaloguj się ponownie</string>
     <string name="ottai_global_sign_in_again">Zaloguj się ponownie do Ottai Global, aby skonfigurować czujnik lub sprawdzić jego oprogramowanie. Zapisane czujniki i historia zostaną zachowane.</string>
-    <string name="ottai_ota_check_failed">Nie udało się sprawdzić dostępności oprogramowania czujnika lub go pobrać. Spróbuj ponownie.</string>
-    <string name="ottai_ota_disconnect_first">Przed sprawdzeniem oprogramowania odłącz ten czujnik na ekranie Czujniki. Zachowaj jego zapisane dane uwierzytelniające.</string>
+    <string name="ottai_ota_check_failed">Sprawdzenie oprogramowania czujnika nie powiodło się.</string>
+    <string name="ottai_ota_disconnect_first">Odłącz czujnik, aby sprawdzić jego oprogramowanie.</string>
     <string name="ottai_sensor_mac_hint">ID urządzenia, numer seryjny lub QR</string>
     <string name="ottai_connect_saved">Połącz</string>
     <string name="ottai_login_fail">Logowanie nieudane - sprawdź telefon/kod</string>

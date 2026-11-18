@@ -53,10 +53,11 @@ explicit discard path as transfer recovery, preserving credentials and other sen
 
 Normal Connect shows progress and failures on the selected sensor card. A new Connect attempt
 reuses a preparation checkpoint when one exists. An unfinished firmware transfer opens only
-through **Check firmware (experimental)** and uses the saved package, address and mode. Firmware
-check errors and retry appear in that part of the sensor card. **No firmware update offered** is reserved for a
-successful judge result with neither update flag set. Installation, manual factory writes and
-discarding a saved recovery require confirmation.
+through **Check firmware (experimental)** and uses the saved package, address and mode. The
+firmware row below the sensor card expands without claiming Bluetooth. Choosing a mode starts
+the check. Connect can close a read-only check and waits for its Bluetooth connection to close.
+**No firmware update offered** is reserved for a successful judge result with neither update
+flag set. Installation, manual factory writes and discarding a saved recovery require confirmation.
 
 The supplied `juggluco-trace-20261102-144020.log` confirms Global activation through the manual
 preparation path on unchanged `E1.2.6(V1.7.SH2616.1),STDRD`. Normal binding with cloud metadata
@@ -159,7 +160,7 @@ firmware experiment and its additional confirmations.
    activate. The existing `maxActive` negotiation still runs there. No firmware-test path
    writes RTC, `maxActive`, retain duration or `ACTIVATE_CMD`.
 7. Export the trace log, particularly `OttaiOTA`, `Ottai` and `AUTHWIRE` entries. Record the
-   displayed revisions, result, and any diagnostic code. After activation, retain the normal
+   displayed revisions and result. The trace contains diagnostic codes. After activation, retain the normal
    activation/status/lifetime-readback logs and first readings for comparison.
 
 Keep the phone near the sensor during installation. It keeps the screen
@@ -173,9 +174,8 @@ falls back after 2.5 seconds; a refused MTU request uses a 300 ms fallback. `Ott
 20-second timeout. On the initial connection, a stall before discovery precedes authentication
 and OTA.
 
-If the check stops with `firmware_profile`, the firmware controls display the reported software revision
-(up to 64 printable characters). The trace records `software_revision` with the original byte
-length and first 64 bytes in hex, including padding. This diagnoses unexpected revision formats;
+If the check stops with `firmware_profile`, the trace records `software_revision` with the original
+byte length and first 64 bytes in hex, including padding. This diagnoses unexpected revision formats;
 empty, non-ASCII and control-containing values still stop the check. Software revisions are
 vendor strings, not semantic versions: the exact field response
 `E1.1.4(V1.7.S2530.1),STDRD` is retained for the account API, display and recovery journal, with only
@@ -262,7 +262,7 @@ per-sensor. Our install path has still not flashed a sensor.
    or bypass of a cloud refusal.
 5. After reboot the target firmware must match `2a28` and the sensor must reauthenticate.
    Post-update command states **0–2 (unactivated/reset), 3 (active), and 4 (ended)** are all
-   accepted test outcomes. The firmware controls and `OttaiOTA` trace show before/after observations.
+   accepted test outcomes. The `OttaiOTA` trace records before/after observations.
    A reset, erased readings, changed lifetime or ended state does not fail the experiment.
 6. Export the trace before reconnecting monitoring. This mode performs **no automatic
    reactivation, factory-parameter writes, cloud material rebind, local-history rewrite or

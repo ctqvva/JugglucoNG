@@ -341,10 +341,9 @@ internal fun OttaiSensorCard(
     onImport: () -> Unit,
     onSignIn: () -> Unit,
     onExport: (() -> Unit)? = null,
-    onFirmware: (() -> Unit)? = null,
     onSensorIdChange: ((String) -> Unit)? = null,
     connecting: Boolean = false,
-    firmwarePanel: (@Composable () -> Unit)? = null,
+    canEditSensor: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     // Keep only status text that explains what the user needs to do.
@@ -380,7 +379,7 @@ internal fun OttaiSensorCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (onSensorIdChange != null) {
-                OttaiSensorIdEntry(value = sensorId, onValueChange = onSensorIdChange, enabled = !busy)
+                OttaiSensorIdEntry(value = sensorId, onValueChange = onSensorIdChange, enabled = !busy && canEditSensor)
             }
             if (meta.isNotEmpty()) {
                 Text(
@@ -433,25 +432,6 @@ internal fun OttaiSensorCard(
                     }
                 }
             }
-            if (firmwarePanel != null && onFirmware != null) {
-                firmwarePanel()
-                TextButton(onClick = onFirmware, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.close)) }
-            } else if (!loading && onFirmware != null) {
-                OutlinedButton(
-                    onClick = onFirmware,
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) {
-                    Text(
-                        stringResource(R.string.ottai_ota_check),
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            }
             AdaptiveButtonRow(modifier = Modifier.fillMaxWidth()) {
                 if (!loading && onExport != null) {
                     Button(
@@ -466,7 +446,7 @@ internal fun OttaiSensorCard(
                     }
                     OutlinedButton(
                         onClick = onImport,
-                        enabled = !busy,
+                        enabled = !busy && canEditSensor,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
@@ -477,7 +457,7 @@ internal fun OttaiSensorCard(
                 } else {
                     OttaiImportButton(
                         onClick = onImport,
-                        enabled = !busy,
+                        enabled = !busy && canEditSensor,
                         label = stringResource(R.string.ottai_credentials_import),
                     )
                 }

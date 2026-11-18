@@ -51,6 +51,7 @@ fun ExpandableSettingsCard(
     position: CardPosition,
     iconTint: Color? = null,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val tint = iconTint ?: MaterialTheme.colorScheme.primary
@@ -68,7 +69,7 @@ fun ExpandableSettingsCard(
             AdaptiveTrailingRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onExpandedChange(!expanded) }
+                    .clickable(enabled = enabled) { onExpandedChange(!expanded) }
                     .heightIn(min = 72.dp)
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 trailingContent = {

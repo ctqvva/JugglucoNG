@@ -2152,8 +2152,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">已登录</string>
     <string name="ottai_session_invalid">云端会话已失效，请重新登录</string>
     <string name="ottai_global_sign_in_again">请重新登录 Ottai Global，以设置传感器或检查其固件。已保存的传感器和历史记录会保留。</string>
-    <string name="ottai_ota_check_failed">无法检查是否有可用固件或下载固件。请重试。</string>
-    <string name="ottai_ota_disconnect_first">检查固件前，请先在“传感器”页面断开此传感器的连接。请保留已保存的凭据。</string>
+    <string name="ottai_ota_check_failed">固件检查失败。</string>
+    <string name="ottai_ota_disconnect_first">请断开传感器连接以检查固件。</string>
     <string name="ottai_sensor_mac_hint">设备 ID、序列号或二维码</string>
     <string name="ottai_connect_saved">连接</string>
     <string name="ottai_login_fail">登录失败 - 请检查手机号/验证码</string>

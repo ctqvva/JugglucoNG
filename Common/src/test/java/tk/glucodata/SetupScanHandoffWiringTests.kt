@@ -78,7 +78,7 @@ class SetupScanHandoffWiringTests {
         val returnPaused = scanEffect.indexOf("return@DisposableEffect onDispose { scanner.stopScan() }", stopPaused)
         val start = scanEffect.indexOf("scanner.startScan(")
         assertTrue(pause >= 0 && stopPaused > pause && returnPaused > stopPaused && start > returnPaused)
-        assertTrue(wizard.contains("scanPaused = preparingSensor || showFirmware"))
+        assertTrue(wizard.contains("scanPaused = preparingSensor || firmwareSession != null"))
         // Connect arms the managed scan before the panel leaves. Only leaving hands the radio back.
         assertFalse(scanEffect.substring(scanEffect.lastIndexOf("onDispose {")).contains("scanStarter"))
         assertTrue(wizard.contains(
@@ -90,7 +90,7 @@ class SetupScanHandoffWiringTests {
     }
 
     @Test
-    fun ottaiConnectPreparesInlineAndFirmwareExpandsTheExistingCard() {
+    fun ottaiConnectPreparesInlineAndYieldsTheFirmwareLinkFirst() {
         val wizard = read("Common/src/mobile/java/tk/glucodata/ui/setup/OttaiSetupWizard.kt")
         val connect = section(wizard, "fun startConnect(", "val selectCode:")
         assertTrue(connect.contains("awaitOttaiPreparation(context, canonical, setupAddress)"))
@@ -98,7 +98,10 @@ class SetupScanHandoffWiringTests {
         assertFalse(connect.contains("openFirmware("))
         assertFalse(connect.contains("AlertDialog("))
         assertFalse(wizard.contains("OttaiSetupStep.FIRMWARE"))
-        assertTrue(wizard.contains("firmwarePanel = firmwarePanel"))
+        assertTrue(wizard.contains("OttaiFirmwareDisclosure("))
+        val released = connect.indexOf("firmware?.closeAndAwaitRelease()")
+        val normalPreparation = connect.indexOf("awaitOttaiPreparation(")
+        assertTrue(released >= 0 && normalPreparation > released)
         assertTrue(wizard.contains("invokeOnCancellation { session.dispose() }"))
     }
 

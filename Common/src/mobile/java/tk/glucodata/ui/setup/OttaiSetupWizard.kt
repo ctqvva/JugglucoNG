@@ -543,6 +543,7 @@ fun OttaiSetupWizard(
     var materialLoading by remember { mutableStateOf(false) }
     var preparingSensor by remember { mutableStateOf(false) }
     var showFirmware by remember { mutableStateOf(false) }
+    var firmwareSession by remember { mutableStateOf<OttaiFirmwareSession?>(null) }
     var lastSerialLookup by remember { mutableStateOf("") }
     var materialRefresh by remember { mutableStateOf(0) }
     // The account's sensors (current + past); null = not loaded yet, empty = none.
@@ -741,8 +742,8 @@ fun OttaiSetupWizard(
     // leaves that at WOKE and would not re-run this.
     // Once nothing here needs a wake (signed in to Ottai Global, or Global picked), setup must
     // let go of NFC: a held capture swallows the next Libre or pen tap.
-    LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey, preparingSensor, showFirmware) {
-        if (!nfcWakeListening || preparingSensor || showFirmware) {
+    LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey, preparingSensor, firmwareSession != null) {
+        if (!nfcWakeListening || preparingSensor || firmwareSession != null) {
             OttaiNfc.disarmSetup()
         } else if (step == OttaiSetupStep.SEARCH) {
             OttaiNfc.armForSetup()
@@ -987,7 +988,6 @@ fun OttaiSetupWizard(
             OttaiRegistry.saveDraftRecord(context, cloudId, address, OttaiConstants.DEFAULT_DISPLAY_NAME)
         }
         bleAddress = address
-        OttaiSetupScanHold.stopPanelScans()
         showFirmware = true
     }
 
@@ -995,12 +995,10 @@ fun OttaiSetupWizard(
         showFirmware = false
         savedRefresh += 1
         materialRefresh += 1
-        showStatus("")
-        openSensor()
     }
 
     fun startConnect(mac: String, selectedBleAddress: String?) {
-        if (busy || materialLoading || showFirmware) return
+        if (busy || materialLoading) return
         val canonical = OttaiConstants.canonicalSensorId(mac)
         if (!OttaiConstants.looksLikeMac(canonical)) return
         cloudId = canonical
@@ -1018,11 +1016,14 @@ fun OttaiSetupWizard(
             OttaiConstants.matchesCanonicalOrKnownNativeAlias(it.mac, canonical)
         }
         val version = selected?.deviceVersion ?: selectedDeviceVersion
+        val firmware = firmwareSession
+        if (showFirmware) closeFirmware()
         busy = true
         connecting = true
         showStatus("")
         scope.launch {
             try {
+                firmware?.closeAndAwaitRelease()
                 val pendingPreparation = OttaiFirmwareSession.hasPendingPreparation(context, canonical)
                 val fetched = if (pendingPreparation) OttaiMaterialFetch(null) else withContext(Dispatchers.IO) {
                     runCatching { fetchOttaiMaterials(context, canonical, version, selected?.bindTime ?: 0L) }
@@ -1096,6 +1097,7 @@ fun OttaiSetupWizard(
 
     // Selecting a nearby device or scanning its label updates the same form.
     val selectCode: (String) -> Unit = { id ->
+        if (showFirmware) closeFirmware()
         cloudId = id
         selectedDeviceVersion = ""
         selectedAccountDevice = null
@@ -1174,6 +1176,19 @@ fun OttaiSetupWizard(
 
     val firmwarePanel = if (showFirmware) rememberOttaiFirmwarePanel(
         cloudId, bleAddress, closeWhenIdle = restrictedLocked,
+        beforeSession = { OttaiSetupScanHold.stopPanelScans() },
+        onSessionStarted = {
+            if (it == null) nfcScanRestartKey += 1 else firmwareSession = it
+        },
+        onSessionFinished = { finished ->
+            if (firmwareSession === finished) firmwareSession = null
+        },
+        onSessionDisposed = { disposed ->
+            scope.launch {
+                disposed.closeAndAwaitRelease()
+                if (firmwareSession === disposed) firmwareSession = null
+            }
+        },
         onSignIn = {
             showFirmware = false
             region = accountRegion
@@ -1221,6 +1236,7 @@ fun OttaiSetupWizard(
                 val code = OttaiConstants.extractSetupCode(entered)
                     ?.takeIf { OttaiConstants.looksLikeMac(it) || OttaiConstants.isBoxSerial(it) } ?: entered
                 if (code != cloudId) {
+                    if (showFirmware) closeFirmware()
                     cloudId = code
                     sensorEditPending = true
                     bleAddress = ""
@@ -1241,7 +1257,8 @@ fun OttaiSetupWizard(
             deviceVersion = currentMaterials?.deviceVersion?.takeIf { it.isNotBlank() }
                 ?: selectedDeviceVersion,
             bindingState = cloudBindingState,
-            busy = busy || showFirmware,
+            busy = busy,
+            canEditSensor = firmwareSession == null,
             connecting = connecting,
             canConnect = canConnect,
             connectLabel = stringResource(connectTitleRes),
@@ -1261,18 +1278,6 @@ fun OttaiSetupWizard(
                 }
             },
             onImport = launchImport,
-            firmwarePanel = firmwarePanel,
-            onFirmware = if (showFirmware) ::closeFirmware
-            else if (!materialLoading && ottaiFirmwareEntryAvailable(signedIn,
-                OttaiCloudClient.loadOtaSession(context) || needsGlobalSignIn,
-                ottaiResolvedSetupBleAddress(context, cloudId, bleAddress) != null,
-                OttaiFirmwareSession.hasPendingSetup(context, cloudId))) ({
-                fullModeGuard {
-                    if (needsGlobalSignIn && !(hasMaterials && OttaiFirmwareSession.hasPendingSetup(context, cloudId))) {
-                        requestGlobalSignIn()
-                    } else openFirmware(ottaiResolvedSetupBleAddress(context, cloudId, bleAddress).orEmpty())
-                }
-            }) else null,
             onSignIn = { openSignIn() },
             onExport = if (hasMaterials && hasSensorCode) {
                 {
@@ -1285,6 +1290,26 @@ fun OttaiSetupWizard(
             } else null,
         )
     }
+
+    val firmwareOptions: (@Composable () -> Unit)? = if (ottaiFirmwareEntryAvailable(signedIn,
+        OttaiCloudClient.loadOtaSession(context) || OttaiCloudClient.requiresGlobalSignIn(context),
+        ottaiResolvedSetupBleAddress(context, cloudId, bleAddress) != null,
+        OttaiFirmwareSession.hasPendingSetup(context, cloudId))) ({
+        OttaiFirmwareDisclosure(
+            expanded = showFirmware,
+            onExpandedChange = { expanded ->
+                if (!expanded) closeFirmware()
+                else fullModeGuard {
+                    val pendingWithKeys = OttaiFirmwareSession.hasPendingSetup(context, cloudId) &&
+                        OttaiRegistry.loadMaterials(context, cloudId).authKeys != null
+                    if (OttaiCloudClient.requiresGlobalSignIn(context) && !pendingWithKeys) requestGlobalSignIn()
+                    else openFirmware(ottaiResolvedSetupBleAddress(context, cloudId, bleAddress).orEmpty())
+                }
+            },
+            enabled = !busy && !materialLoading && (showFirmware || firmwareSession == null),
+            modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+        ) { firmwarePanel?.invoke() }
+    }) else null
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -1357,13 +1382,16 @@ fun OttaiSetupWizard(
                     OttaiSearchStep(
                         ui = ui,
                         restartKey = nfcScanRestartKey,
-                        enabled = !busy && !materialLoading && !showFirmware,
-                        scanPaused = preparingSensor || showFirmware,
+                        enabled = !busy && !materialLoading && firmwareSession == null,
+                        scanPaused = preparingSensor || firmwareSession != null,
                         selectedSensor = selectedSensor,
                         scrollRequest = searchScrollRequest,
                         focusSelectedSensor = focusSelectedSensor,
                         onAddressSelected = selectNearby,
-                        onScanQr = { step = OttaiSetupStep.QR },
+                        onScanQr = {
+                            if (showFirmware) closeFirmware()
+                            step = OttaiSetupStep.QR
+                        },
                         header = {
                             OttaiAccountCard(
                                 signedIn = signedIn,
@@ -1374,9 +1402,10 @@ fun OttaiSetupWizard(
                                 message = accountMessage,
                                 form = signInForm,
                                 onSignedIn = { onSignedIn(it) },
-                                signOutEnabled = !busy && !showFirmware,
+                                signOutEnabled = !busy && firmwareSession == null,
                                 onSignOut = {
-                                    if (!busy && !showFirmware) scope.launch {
+                                    if (!busy && firmwareSession == null) scope.launch {
+                                        if (showFirmware) closeFirmware()
                                         withContext(Dispatchers.IO) { OttaiCloudClient.logout(context) }
                                         signedIn = false
                                         devices = null
@@ -1395,7 +1424,7 @@ fun OttaiSetupWizard(
                             unusedBindings.forEach { binding ->
                                 OttaiUnusedBindingCard(
                                     sensorId = OttaiConstants.canonicalSensorId(binding.mac),
-                                    enabled = !busy && !devicesLoading && !showFirmware,
+                                    enabled = !busy && !devicesLoading && firmwareSession == null,
                                     onUnbind = { pendingCloudUnbind = binding },
                                     modifier = Modifier.padding(
                                         start = ui.horizontalPadding,
@@ -1414,6 +1443,7 @@ fun OttaiSetupWizard(
                             }
                         } else null,
                         footer = {
+                            firmwareOptions?.invoke()
                             Column(
                                 modifier = Modifier.padding(
                                     start = ui.horizontalPadding,
@@ -1428,7 +1458,10 @@ fun OttaiSetupWizard(
                                     icon = Icons.Default.Key,
                                     iconTint = MaterialTheme.colorScheme.secondary,
                                     position = CardPosition.SINGLE,
-                                    onClick = if (!busy && !showFirmware) ({ step = OttaiSetupStep.SAVED_SENSORS }) else null,
+                                    onClick = if (!busy && firmwareSession == null) ({
+                                        if (showFirmware) closeFirmware()
+                                        step = OttaiSetupStep.SAVED_SENSORS
+                                    }) else null,
                                 )
                             }
                         },
@@ -1720,28 +1753,30 @@ private fun OttaiSearchStep(
         Spacer(Modifier.height(ui.spacerMedium))
         // The wave belongs to the search, so it runs right above it, under the account card.
         if (scanActive) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-        // QR is the other way to find the sensor, so it sits with the search.
-        AdaptiveTrailingRow(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = ui.horizontalPadding),
-            // The text button's own padding is the gap.
-            spacing = 0.dp,
-            trailingContent = {
-                TextButton(
-                    onClick = onScanQr,
-                    enabled = enabled,
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.TextButtonContentPadding,
-                ) {
-                    Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.scan_qr_button))
-                }
-            },
-        ) {
-            Text(stringResource(R.string.ottai_searching_sensors), style = MaterialTheme.typography.titleMedium)
+        if (!scanPaused) {
+            // QR is the other way to find the sensor, so it sits with the search.
+            AdaptiveTrailingRow(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = ui.horizontalPadding),
+                // The text button's own padding is the gap.
+                spacing = 0.dp,
+                trailingContent = {
+                    TextButton(
+                        onClick = onScanQr,
+                        enabled = enabled,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding,
+                    ) {
+                        Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.scan_qr_button))
+                    }
+                },
+            ) {
+                Text(stringResource(R.string.ottai_searching_sensors), style = MaterialTheme.typography.titleMedium)
+            }
+            nfcHint?.invoke()
         }
-        nfcHint?.invoke()
-        if (scanBlocked) {
+        if (!scanPaused && scanBlocked) {
             Spacer(Modifier.height(ui.spacerMedium))
             Card(
                 modifier = Modifier

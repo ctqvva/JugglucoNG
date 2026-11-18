@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -34,53 +37,95 @@ import kotlinx.coroutines.withContext
 import tk.glucodata.R
 import tk.glucodata.drivers.ottai.OttaiCloudClient
 import tk.glucodata.drivers.ottai.OttaiFirmwareMode
-import tk.glucodata.drivers.ottai.OttaiFirmwareObservation
 import tk.glucodata.drivers.ottai.OttaiFirmwareSession
 import tk.glucodata.drivers.ottai.OttaiFirmwareStage
 import tk.glucodata.drivers.ottai.OttaiFirmwareState
+import tk.glucodata.drivers.ottai.OttaiRegistry
+import tk.glucodata.ui.components.AdaptiveButtonRow
+import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.ExpandableSettingsCard
 
 @Composable
+internal fun OttaiFirmwareDisclosure(expanded: Boolean, onExpandedChange: (Boolean) -> Unit,
+    enabled: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    ExpandableSettingsCard(
+        title = stringResource(R.string.ottai_ota_check),
+        summary = "",
+        icon = Icons.Default.SystemUpdate,
+        expanded = expanded,
+        onExpandedChange = onExpandedChange,
+        position = CardPosition.SINGLE,
+        iconTint = MaterialTheme.colorScheme.tertiary,
+        enabled = enabled,
+        modifier = modifier,
+        content = content,
+    )
+}
+
+/** Keep BLE ownership above the lazy list so scrolling the disclosure offscreen is harmless. */
+@Composable
 internal fun rememberOttaiFirmwarePanel(sensorId: String, address: String, closeWhenIdle: Boolean,
+    beforeSession: () -> Unit, onSessionStarted: (OttaiFirmwareSession?) -> Unit,
+    onSessionFinished: (OttaiFirmwareSession) -> Unit, onSessionDisposed: (OttaiFirmwareSession) -> Unit,
     onSignIn: () -> Unit, onLeave: () -> Unit): @Composable () -> Unit {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var mode by remember(sensorId, address) { mutableStateOf<OttaiFirmwareMode?>(null) }
+    var recoveryMode by remember(sensorId, address) { mutableStateOf<OttaiFirmwareMode?>(null) }
     var loading by remember(sensorId, address) { mutableStateOf(true) }
     LaunchedEffect(sensorId, address) {
-        mode = withContext(Dispatchers.IO) { OttaiFirmwareSession.pendingMode(context, sensorId, address) }
+        recoveryMode = withContext(Dispatchers.IO) { OttaiFirmwareSession.pendingMode(context, sensorId, address) }
         loading = false
     }
     val selected = mode
     if (selected != null) {
-        return rememberOttaiFirmwareSession(sensorId, address, selected, closeWhenIdle, onSignIn, onLeave)
+        return rememberOttaiFirmwareSession(sensorId, address, selected, closeWhenIdle,
+            beforeSession, onSessionStarted, onSessionFinished, onSessionDisposed, onSignIn, onLeave)
     }
+    val managed = OttaiFirmwareSession.hasManagedOwner(context, sensorId)
+    val hasKeys = OttaiRegistry.loadMaterials(context, sensorId).authKeys != null
+    val pending = OttaiFirmwareSession.hasPendingSetup(context, sensorId)
     LaunchedEffect(closeWhenIdle) { if (closeWhenIdle) onLeave() }
     return {
-        if (loading) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-        else OttaiFirmwareModePicker(OttaiFirmwareSession.hasPendingSetup(context, sensorId),
-            onMode = { mode = it },
-            onDiscard = { done -> scope.launch {
-                done(withContext(Dispatchers.IO) { runCatching { OttaiFirmwareSession.discardPendingTransfer(context, sensorId) } })
-            } },
-            onDiscarded = onLeave)
+        when {
+            managed && !pending -> Text(stringResource(R.string.ottai_ota_disconnect_first), style = MaterialTheme.typography.bodyMedium)
+            loading -> LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+            else -> OttaiFirmwareModePicker(pending,
+                recoveryMode = recoveryMode.takeUnless { managed },
+                allowStarted = hasKeys,
+                onMode = { mode = it },
+                onDiscard = { done -> scope.launch {
+                    done(withContext(Dispatchers.IO) { runCatching { OttaiFirmwareSession.discardPendingTransfer(context, sensorId) } })
+                } },
+                onDiscarded = onLeave)
+        }
     }
 }
 
 @Composable
 internal fun OttaiFirmwareModePicker(pending: Boolean, onMode: (OttaiFirmwareMode) -> Unit,
-    onDiscard: ((Result<Unit>) -> Unit) -> Unit, onDiscarded: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    onDiscard: ((Result<Unit>) -> Unit) -> Unit, onDiscarded: () -> Unit,
+    recoveryMode: OttaiFirmwareMode? = null, allowStarted: Boolean = true, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (pending) {
             Text(stringResource(R.string.ottai_ota_pending), style = MaterialTheme.typography.bodyMedium)
+            if (recoveryMode != null) {
+                FilledTonalButton(onClick = { onMode(recoveryMode) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shapes = ButtonDefaults.shapes()) {
+                    Text(stringResource(R.string.ottai_retry))
+                }
+            }
             FirmwareDiscardAction(enabled = true, onDiscard, onDiscarded)
         } else {
-            Button(onClick = { onMode(OttaiFirmwareMode.PREACTIVATION) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(R.string.ottai_ota_fresh_mode))
-            }
-            OutlinedButton(onClick = { onMode(OttaiFirmwareMode.STARTED_SENSOR) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(R.string.ottai_ota_started_mode))
+            AdaptiveButtonRow {
+                FilledTonalButton(onClick = { onMode(OttaiFirmwareMode.PREACTIVATION) },
+                    modifier = Modifier.heightIn(min = 48.dp), shapes = ButtonDefaults.shapes()) {
+                    Text(stringResource(R.string.ottai_ota_fresh_mode))
+                }
+                if (allowStarted) FilledTonalButton(onClick = { onMode(OttaiFirmwareMode.STARTED_SENSOR) },
+                    modifier = Modifier.heightIn(min = 48.dp), shapes = ButtonDefaults.shapes()) {
+                    Text(stringResource(R.string.ottai_ota_started_mode))
+                }
             }
         }
     }
@@ -88,7 +133,9 @@ internal fun OttaiFirmwareModePicker(pending: Boolean, onMode: (OttaiFirmwareMod
 
 @Composable
 private fun rememberOttaiFirmwareSession(sensorId: String, address: String, mode: OttaiFirmwareMode,
-    closeWhenIdle: Boolean, onSignIn: () -> Unit, onLeave: () -> Unit): @Composable () -> Unit {
+    closeWhenIdle: Boolean, beforeSession: () -> Unit, onSessionStarted: (OttaiFirmwareSession?) -> Unit,
+    onSessionFinished: (OttaiFirmwareSession) -> Unit, onSessionDisposed: (OttaiFirmwareSession) -> Unit,
+    onSignIn: () -> Unit, onLeave: () -> Unit): @Composable () -> Unit {
     val context = LocalContext.current
     val view = LocalView.current
     var state by remember(sensorId, address, mode) { mutableStateOf(OttaiFirmwareState(mode = mode)) }
@@ -99,15 +146,29 @@ private fun rememberOttaiFirmwareSession(sensorId: String, address: String, mode
         val keepScreenOn = view.keepScreenOn
         view.keepScreenOn = true
         state = OttaiFirmwareState(mode = mode)
-        val owned = OttaiFirmwareSession.start(context, sensorId, address, mode) { if (!disposed) state = it }
+        beforeSession()
+        var owner: OttaiFirmwareSession? = null
+        owner = OttaiFirmwareSession.start(context, sensorId, address, mode) { next ->
+            if (!disposed) {
+                state = next
+                if (next.stage in setOf(OttaiFirmwareStage.COMPLETE, OttaiFirmwareStage.FAILED, OttaiFirmwareStage.CLOSED)) {
+                    owner?.let(onSessionFinished)
+                }
+            }
+        }
+        val owned = owner
         session = owned
+        onSessionStarted(owned)
         if (owned == null) {
             val reason = if (OttaiFirmwareSession.hasManagedOwner(context, sensorId)) "sensor_managed" else "session_unavailable"
             state = state.copy(stage = OttaiFirmwareStage.FAILED, errorCode = reason)
         }
         onDispose {
             disposed = true
-            owned?.dispose()
+            if (owned != null) {
+                owned.dispose()
+                onSessionDisposed(owned)
+            }
             view.keepScreenOn = keepScreenOn
         }
     }
@@ -159,14 +220,9 @@ internal fun rememberOttaiFirmwareContent(state: OttaiFirmwareState, pending: Bo
 
     val stageText = when (state.stage) {
         OttaiFirmwareStage.CONNECTING -> R.string.ottai_ota_connecting
-        OttaiFirmwareStage.AUTHENTICATING -> R.string.ottai_ota_authenticating
-        OttaiFirmwareStage.CLOUD_AUTHENTICATING -> R.string.ottai_ota_cloud_authenticating
+        OttaiFirmwareStage.AUTHENTICATING, OttaiFirmwareStage.CLOUD_AUTHENTICATING -> R.string.ottai_ota_authenticating
         OttaiFirmwareStage.CHECKING -> R.string.ottai_ota_checking
-        OttaiFirmwareStage.READY -> when {
-            state.recovery -> R.string.ottai_ota_recovery
-            mode == OttaiFirmwareMode.STARTED_SENSOR -> R.string.ottai_ota_started_ready
-            else -> R.string.ottai_ota_ready
-        }
+        OttaiFirmwareStage.READY -> R.string.firmware
         OttaiFirmwareStage.NO_UPDATE -> R.string.ottai_ota_no_update
         OttaiFirmwareStage.CHECK_FAILED -> R.string.ottai_ota_check_failed
         OttaiFirmwareStage.INSTALLING -> R.string.ottai_ota_installing
@@ -226,12 +282,14 @@ internal fun rememberOttaiFirmwareContent(state: OttaiFirmwareState, pending: Bo
     }
     return {
         Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(stageText), style = MaterialTheme.typography.titleMedium)
-            if (state.firmware.isNotEmpty()) Text(stringResource(R.string.ottai_ota_version, state.firmware, state.target.ifEmpty { "—" }))
-            if (state.totalBytes > 0) Text(stringResource(R.string.ottai_ota_package, state.totalBytes, state.sha256))
-            state.before?.let { ObservationText(R.string.ottai_ota_before, it) }
-            state.after?.let { ObservationText(R.string.ottai_ota_after, it) }
-            if (state.errorCode.isNotEmpty()) Text(stringResource(R.string.ottai_ota_error_code, state.errorCode))
+            val status = if (installReady && state.target.isNotBlank())
+                stringResource(R.string.ottai_ota_version, state.firmware, state.target)
+            else stringResource(stageText)
+            Text(status, style = MaterialTheme.typography.bodyMedium)
+            if (state.stage in setOf(OttaiFirmwareStage.CONNECTING, OttaiFirmwareStage.AUTHENTICATING,
+                    OttaiFirmwareStage.CLOUD_AUTHENTICATING, OttaiFirmwareStage.CHECKING)) {
+                LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
             if (sessionExpired && onSignIn != null) {
                 Button(onClick = onSignIn, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_login_button)) }
@@ -254,14 +312,6 @@ internal fun rememberOttaiFirmwareContent(state: OttaiFirmwareState, pending: Bo
             if (pending) FirmwareDiscardAction(!writing, onDiscard, onLeave)
         }
     }
-}
-
-@Composable
-private fun ObservationText(label: Int, observation: OttaiFirmwareObservation) {
-    val numbers = java.text.NumberFormat.getIntegerInstance()
-    fun number(value: Long?): String = value?.let(numbers::format) ?: "—"
-    Text(stringResource(R.string.ottai_ota_observation, stringResource(label), observation.commandStatus,
-        number(observation.maxActiveSeconds), number(observation.latestDataNo?.toLong()), number(observation.rtcSeconds)))
 }
 
 @Composable
