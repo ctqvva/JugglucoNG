@@ -505,8 +505,7 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
                 .semantics { contentDescription = figure ?: "" }
                 .then(tap)
                 .heightIn(min = 32.dp)
-                // 10 + 12 + 12 + 10 = SensorHeaderControlSize: the pill lines up under the Pause button.
-                .padding(horizontal = 10.dp),
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AnimatedVisibility(
@@ -2266,8 +2265,9 @@ fun SensorCard(
                                             viewModel.reconnectSensor(sensor.serial, false)
                                         }
                                     },
-                                    modifier = Modifier.size(SensorHeaderControlSize),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    // As wide as the link pill under it, as tall as the name control beside it.
+                                    modifier = Modifier.size(width = 48.dp, height = SensorHeaderControlSize),
+                                    shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(20.dp)),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = if (isLocallyEnabled) {
                                             MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
