@@ -2542,15 +2542,20 @@ internal fun SignalQualityAndReadingAgeRow(
             if (readingMillis != null) {
                 tk.glucodata.ui.util.SensorReadingAgeLabel(
                     readingMillis = readingMillis,
-                    iconTint = contentColor.copy(alpha = 0.55f),
+                    // Same weight as the lifetime calendar; the smaller glyph stays centred
+                    // in the shared icon slot so the text keeps the panel's text edge.
+                    iconTint = contentColor.copy(alpha = 0.6f),
                     textColor = contentColor.copy(alpha = 0.75f),
-                    iconSize = SensorPanelIconSize,
-                    iconGap = SensorPanelIconGap
+                    iconSize = SIGNAL_AGE_CLOCK_SIZE,
+                    iconGap = SensorPanelIconGap + (SensorPanelIconSize - SIGNAL_AGE_CLOCK_SIZE),
+                    icon = tk.glucodata.ui.symbols.Symbols.Schedule
                 )
             }
         }
     )
 }
+
+private val SIGNAL_AGE_CLOCK_SIZE = 12.dp
 
 private const val SIGNAL_SHAKE_DEGREES = 8f
 private const val SIGNAL_SHAKE_SWING_MS = 80
