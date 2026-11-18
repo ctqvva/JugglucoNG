@@ -447,7 +447,8 @@ internal fun GlucoseMeterSettingsContent(
                 LinearWavyProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
             }
         }
-        if (scanned && !scanning && nearbyMeters.isEmpty()) {
+        // With other devices found, their row already says the meter may be among them.
+        if (scanned && !scanning && nearbyMeters.isEmpty() && otherDevices.isEmpty()) {
             item("scan_empty") {
                 MeterCaption(stringResource(R.string.glucose_meters_none_found), top = 12.dp)
             }

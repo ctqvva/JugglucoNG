@@ -92,6 +92,8 @@ object GlucoseMeterManager {
             }.onFailure { Log.stack(TAG, "removeBond", it) }.getOrDefault(false)
         }
         Natives.GlucoseMeterSetDeviceAddress(index, null)
+        // The name was this meter's; a replacement of the same model starts from its own.
+        Natives.GlucoseMeterDeviceName(index)?.takeIf(String::isNotBlank)?.let { MeterNames.set(it, null) }
         // lastTime is deliberately kept: it is what stops the native store from
         // taking the same readings a second time if this meter is paired again.
         return unbound
