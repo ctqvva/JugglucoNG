@@ -1033,7 +1033,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="import_history_sub">Restore glucose readings from a JugglucoNG export or CSV file</string>
     
     <string name="delete_reading_title">Delete Reading?</string>
-    <string name="delete_reading_confirmation">Remove this glucose reading from local history. This action cannot be undone.</string>
+    <string name="delete_reading_confirmation">Remove this glucose reading from local history.</string>
     
     
     
@@ -1506,6 +1506,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrate_sensor_timing_note">Avoid calibrating within 2 hours after meals or insulin.</string>
     <string name="calibrate_sensor_title">Calibrate sensor</string>
     <string name="calibration_deleted">Calibration deleted</string>
+    <string name="reading_deleted">Reading deleted</string>
     <string name="calibration_profile_exported">Calibration profile exported</string>
     <string name="calibration_with_mode">Calibration (%1$s)</string>
     <string name="calibration_model_table_action">Open calibration data</string>

@@ -560,7 +560,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="import_unsupported_file">Niet-ondersteund bestand. Kies een JugglucoNG-export of een CSV-bestand met glucosegeschiedenis.</string>
     
     <string name="delete_reading_title">Meting verwijderen?</string>
-    <string name="delete_reading_confirmation">Verwijder deze glucosemeting uit de lokale geschiedenis. Deze actie kan niet ongedaan worden gemaakt.</string>
+    <string name="delete_reading_confirmation">Verwijder deze glucosemeting uit de lokale geschiedenis.</string>
     
     
     
@@ -1239,6 +1239,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="anytime_calibration_noisy_status">Kalibratie niet beschikbaar; signaalruis is te hoog</string>
     <string name="calibrate_sensor_title">Kalibreer sensor</string>
     <string name="calibration_deleted">Kalibratie verwijderd</string>
+    <string name="reading_deleted">Meting verwijderd</string>
     <string name="calibration_profile_exported">Kalibratieprofiel geëxporteerd</string>
     <string name="calibrationhelp">Kalibratiehulp</string>
     <string name="calibrationslist">Kalibratielijst</string>

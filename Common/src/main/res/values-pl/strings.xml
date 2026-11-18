@@ -543,7 +543,7 @@
     <string name="import_no_glucose">Ten plik nie zawiera danych glukozy</string>
     <string name="import_unsupported_file">Nieobsługiwany plik. Wybierz eksport JugglucoNG lub plik CSV z historią glukozy.</string>
     <string name="delete_reading_title">Usunąć odczyt?</string>
-    <string name="delete_reading_confirmation">Usuń ten odczyt glukozy z lokalnej historii. Tej operacji nie można cofnąć.</string>
+    <string name="delete_reading_confirmation">Usuń ten odczyt glukozy z lokalnej historii.</string>
     <string name="alert_sound">Dźwięk Alarmu</string>
     <string name="vibrate_only">Tylko Wibracja</string>
     <string name="sound_vibrate">Dźwięk i Wibracja</string>
@@ -1231,6 +1231,7 @@
     <string name="anytime_calibration_noisy_status">Kalibracja niedostępna; szum sygnału jest zbyt wysoki</string>
     <string name="calibrate_sensor_title">Kalibracja czujnika</string>
     <string name="calibration_deleted">Kalibracja usunięta</string>
+    <string name="reading_deleted">Odczyt usunięty</string>
     <string name="calibration_profile_exported">Wyeksportowano profil kalibracji</string>
     <string name="calibrationhelp">Pomoc dotycząca kalibracji</string>
     <string name="calibrationslist">Lista kalibracji</string>

@@ -58,6 +58,7 @@ import tk.glucodata.ui.components.IconTile
 import tk.glucodata.ui.components.IconTileDefaults
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.R
+import tk.glucodata.ui.UndoSnackbar
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.HistoryRepository
 import tk.glucodata.data.calibration.CalibrationEntity
@@ -75,21 +76,6 @@ private const val CalibrationUiPrefsName = "tk.glucodata_preferences"
 // Bump the key so the previous broken one-shot behavior does not consume the discoverability pass.
 private const val CalibrationMasterCardSeenPref = "manual_calibration_master_card_seen_v2"
 
-private suspend fun SnackbarHostState.showCalibrationUndoSnackbar(
-    message: String,
-    actionLabel: String
-): SnackbarResult {
-    currentSnackbarData?.dismiss()
-    val result = showSnackbar(
-        message = message,
-        actionLabel = actionLabel,
-        duration = SnackbarDuration.Short
-    )
-    if (result == SnackbarResult.ActionPerformed) {
-        currentSnackbarData?.dismiss()
-    }
-    return result
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -400,18 +386,11 @@ fun CalibrationListScreen(
                                 selectedIds = setOf(cal.id)
                             }
                         },
-                        onDelete = { 
+                        onDelete = {
                             scope.launch {
-                                val backup = cal
                                 CalibrationManager.deleteCalibration(cal)
-                                
-                                val result = snackbarHostState.showCalibrationUndoSnackbar(
-                                    message = context.getString(R.string.calibration_deleted),
-                                    actionLabel = context.getString(R.string.undo)
-                                )
-                                
-                                if (result == SnackbarResult.ActionPerformed) {
-                                    CalibrationManager.restoreCalibration(backup)
+                                UndoSnackbar.show(context.getString(R.string.calibration_deleted)) {
+                                    CalibrationManager.restoreCalibration(cal)
                                 }
                             }
                         },
@@ -504,17 +483,11 @@ fun CalibrationListScreen(
                                 showBulkDeleteConfirmation = false
                                 scope.launch {
                                     val toDelete = calibrations.filter { selectedIds.contains(it.id) }
-                                    toDelete.forEach { CalibrationManager.deleteCalibration(it) }
-                                    
-                                    val result = snackbarHostState.showCalibrationUndoSnackbar(
-                                        message = context.getString(R.string.calibrations_deleted_count, toDelete.size),
-                                        actionLabel = context.getString(R.string.undo)
-                                    )
-                                    
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        CalibrationManager.restoreAll(toDelete)
-                                    }
-                                    
+                                    CalibrationManager.deleteCalibrations(toDelete)
+                                    UndoSnackbar.show(
+                                        context.getString(R.string.calibrations_deleted_count, toDelete.size)
+                                    ) { CalibrationManager.restoreAll(toDelete) }
+
                                     isSelectionMode = false
                                     selectedIds = emptySet()
                                 }
@@ -538,25 +511,16 @@ fun CalibrationListScreen(
             onClearDisabled = {
                 scope.launch {
                     val disabled = calibrations.filter { !it.isEnabled }
-                    disabled.forEach { CalibrationManager.deleteCalibration(it) }
-                    snackbarHostState.showSnackbar(
-                        message = context.getString(R.string.disabled_calibrations_cleared, disabled.size),
-                        duration = SnackbarDuration.Short
-                    )
+                    CalibrationManager.deleteCalibrations(disabled)
+                    UndoSnackbar.notice(context.getString(R.string.disabled_calibrations_cleared, disabled.size))
                 }
                 showClearConfirmation = false
             },
             onClearAll = {
                 scope.launch {
                     val backup = calibrations
-                    CalibrationManager.clearAll()
-                    
-                    val result = snackbarHostState.showCalibrationUndoSnackbar(
-                        message = context.getString(R.string.all_calibrations_cleared),
-                        actionLabel = context.getString(R.string.undo)
-                    )
-                    
-                    if (result == SnackbarResult.ActionPerformed) {
+                    CalibrationManager.deleteCalibrations(backup)
+                    UndoSnackbar.show(context.getString(R.string.all_calibrations_cleared)) {
                         CalibrationManager.restoreAll(backup)
                     }
                 }
@@ -1134,6 +1098,8 @@ private fun SwipeableCalibrationRow(
     val view = LocalView.current
     var deleteArmHapticSent by remember(cal.id, cal.isEnabled) { mutableStateOf(false) }
     var rowWidthPx by remember(cal.id, cal.isEnabled) { mutableStateOf(0) }
+    // confirmValueChange is asked again while the swiped row settles; a row is deleted once.
+    var deleteSent by remember(cal.id) { mutableStateOf(false) }
     
     // In selection mode, just show the card without swipe
     if (isSelectionMode) {
@@ -1170,7 +1136,10 @@ private fun SwipeableCalibrationRow(
                 when (dismissValue) {
                     SwipeToDismissBoxValue.EndToStart -> {
                         // Swipe left = Delete
-                        onDelete()
+                        if (!deleteSent) {
+                            deleteSent = true
+                            onDelete()
+                        }
                         true
                     }
                     SwipeToDismissBoxValue.StartToEnd -> {

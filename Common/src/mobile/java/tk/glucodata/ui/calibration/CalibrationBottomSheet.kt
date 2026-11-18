@@ -293,9 +293,13 @@ fun CalibrationBottomSheet(
                         IconButtonTooltip(stringResource(R.string.delete)) {
                             IconButton(
                                 onClick = {
+                                    val deleted = editingEntity!!
                                     scope.launch {
-                                         val deletedTimestamp = editingEntity!!.timestamp
-                                         CalibrationManager.deleteCalibration(editingEntity!!)
+                                         CalibrationManager.deleteCalibration(deleted)
+                                         // Shown from the app root, so it outlives the sheet.
+                                         tk.glucodata.ui.UndoSnackbar.show(
+                                             context.getString(R.string.calibration_deleted)
+                                         ) { CalibrationManager.restoreCalibration(deleted) }
                                          selectedTimestamp = System.currentTimeMillis()
                                          onDismiss()
                                     }

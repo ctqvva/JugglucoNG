@@ -566,7 +566,7 @@
     <string name="import_history_title">Импорт истории</string>
     <string name="import_history_sub">Восстановить показания глюкозы из экспорта JugglucoNG или CSV-файла</string>
     <string name="delete_reading_title">Удалить показание?</string>
-    <string name="delete_reading_confirmation">Удалить это показание глюкозы из локальной истории. Это действие необратимо.</string>
+    <string name="delete_reading_confirmation">Удалить это показание глюкозы из локальной истории.</string>
     <string name="alert_sound">Звук тревоги</string>
     <string name="vibrate_only">Только вибрация</string>
     <string name="sound_vibrate">Звук и вибрация</string>
@@ -1236,6 +1236,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_noisy_status">Калибровка недоступна: слишком высокий шум сигнала</string>
     <string name="calibrate_sensor_title">Калибровка датчика</string>
     <string name="calibration_deleted">Калибровка удалена</string>
+    <string name="reading_deleted">Показание удалено</string>
     <string name="calibration_profile_exported">Калибровочный профиль экспортирован.</string>
     <string name="calibrationhelp">Помощь по калибровке</string>
     <string name="calibrationslist">Список калибровок</string>

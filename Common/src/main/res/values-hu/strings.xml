@@ -928,7 +928,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="import_history_title">Mérési előzmények importálása</string>
     <string name="import_history_sub">Glükózértékek visszaállítása JugglucoNG-exportból vagy CSV-fájlból</string>
     <string name="delete_reading_title">Mérés törlése?</string>
-    <string name="delete_reading_confirmation">A glükózérték eltávolítása a helyi előzményekből. A művelet nem vonható vissza.</string>
+    <string name="delete_reading_confirmation">A glükózérték eltávolítása a helyi előzményekből.</string>
     <string name="alert_sound">Riasztási hang</string>
     <string name="about_text">GPL-3.0 • Juggluco-változat</string>
     <string name="refreshing">Frissítés...</string>
@@ -1348,6 +1348,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="calibrate_sensor_timing_note">Étkezés vagy inzulin beadása után 2 órán belül kerülje a kalibrálást.</string>
     <string name="calibrate_sensor_title">Szenzor kalibrálása</string>
     <string name="calibration_deleted">Kalibráció törölve</string>
+    <string name="reading_deleted">Érték törölve</string>
     <string name="calibration_profile_exported">Kalibrációs profil exportálva</string>
     <string name="calibration_with_mode">Kalibráció (%1$s)</string>
     <string name="calibration_model_table_action">Kalibrációs adatok megnyitása</string>

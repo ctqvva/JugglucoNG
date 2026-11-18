@@ -480,7 +480,7 @@
     <string name="import_no_glucose">У цьому файлі немає даних глюкози</string>
     <string name="import_unsupported_file">Непідтримуваний файл. Виберіть експорт JugglucoNG або CSV-файл історії глюкози.</string>
     <string name="delete_reading_title">Видалити показання?</string>
-    <string name="delete_reading_confirmation">Видалити це показання глюкози з локальної історії. Цю дію не можна скасувати.</string>
+    <string name="delete_reading_confirmation">Видалити це показання глюкози з локальної історії.</string>
     <string name="alert_sound">Звук Тривоги</string>
     <string name="vibrate_only">Тільки Вібрація</string>
     <string name="sound_vibrate">Звук і Вібрація</string>
@@ -1210,6 +1210,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_noisy_status">Калібрування недоступне: надто високий шум сигналу</string>
     <string name="calibrate_sensor_title">Відкалібрувати датчик</string>
     <string name="calibration_deleted">Калібрування видалено</string>
+    <string name="reading_deleted">Показання видалено</string>
     <string name="calibration_profile_exported">Профіль калібрування експортовано</string>
     <string name="calibrationhelp">Довідка з калібрування</string>
     <string name="calibrationslist">Список калібрувань</string>
