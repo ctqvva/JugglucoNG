@@ -80,15 +80,26 @@ object NotificationMultiSensorSource {
             if (history.size < 2) {
                 null
             } else {
+                val viewMode = peer.snapshot?.viewMode ?: resolveViewMode(peer.sensorId)
                 NotificationChartDrawer.PeerSeries(
                     peer.sensorId,
-                    peer.snapshot?.viewMode ?: resolveViewMode(peer.sensorId),
+                    viewMode,
                     peer.colorArgb,
-                    history
+                    history,
+                    peerHasCalibration(peer.sensorId, viewMode)
                 )
             }
         }
     }
+
+    /**
+     * The peer's calibration state for its own primary lane — the same question the
+     * main sensor's chart asks ([NightscoutCalibration.hasCalibrationForViewMode]),
+     * asked once per peer so its line, forecast and axis cannot disagree.
+     */
+    @JvmStatic
+    fun peerHasCalibration(sensorId: String, viewMode: Int): Boolean =
+        CalibrationAccess.hasActiveCalibration(viewMode == 1 || viewMode == 3, sensorId)
 
     @JvmStatic
     fun resolveViewMode(sensorId: String?): Int =

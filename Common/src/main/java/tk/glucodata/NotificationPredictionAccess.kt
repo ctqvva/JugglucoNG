@@ -24,6 +24,11 @@ object NotificationPredictionAccess {
         this.bridge = bridge
     }
 
+    /** Tests only: drop a bridge installed with [register]. */
+    internal fun unregisterForTests() {
+        bridge = null
+    }
+
     /** Registration-completeness check (plan §6 Q1). */
     @JvmStatic
     fun isRegistered(): Boolean = bridge != null
