@@ -130,7 +130,10 @@ struct SensorGlucoseData {
     bool isDexcom() const { return dex; }
     int dexSlotFor(uint32_t) const { noteRead(); return dexSlot; }
     bool hasStreamID(int i) const { noteRead(); return polls[i].getmgdL() > 0; }
-    int getRawForPoll(const ScanData *) const { return 0; }
+    int getRawForPoll(const ScanData *poll) const {
+        const auto index = poll - polls;
+        return index >= 0 && index < (ptrdiff_t)size(polls) ? rawpolls[index].raw : 0;
+    }
     size_t pollStorageCapacity() const { return capacity; }
     int pollcount() const { noteRead(); return info.pollcount; }
     void backstream(int) {}
@@ -153,6 +156,7 @@ double calibrateValue(const CaliPara &, uint32_t, double value) {
 struct JNIEnv {
     int javaCalls = 0;
     int javaOffset = 15;
+    float javaScale = 1;
     bool ExceptionCheck() { return false; }
     void ExceptionClear() {}
     jmethodID GetStaticMethodID(jclass, const char *, const char *) { return (void*)1; }
@@ -165,9 +169,12 @@ struct JNIEnv {
     float *GetFloatArrayElements(jfloatArray array, void *) { return array->data(); }
     void ReleaseLongArrayElements(jlongArray, jlong *, int) {}
     void ReleaseFloatArrayElements(jfloatArray, float *, int) {}
-    int CallStaticIntMethod(jclass, jmethodID, jstring, int, int value, int, jlong) {
+    // NightscoutCalibration: raw-primary view modes export the raw lane (mmol/L x10), then the
+    // lane's calibration applies.
+    int CallStaticIntMethod(jclass, jmethodID, jstring, int viewMode, int value, int raw, jlong) {
         ++javaCalls;
-        return value + javaOffset;
+        const int selected = (viewMode == 1 || viewMode == 3) && raw > 0 ? (int)lround(raw * 1.80182) : value;
+        return (int)lround(selected * javaScale) + javaOffset;
     }
 } env;
 JNIEnv *getenv() { return &env; }
@@ -269,6 +276,10 @@ void setstreaming(SensorGlucoseData *) { ++streamings; }
     code += "template <class Getvalue>\n" + extract("net/watchserver/uploader.cpp", "static int smoothPollWindow(")
     code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadMgdl(", args.smoothing_ref)
     code += extract("net/watchserver/uploader.cpp", "static int smoothedUploadRaw(")
+    code += extract("net/watchserver/uploader.cpp", "static int uploadValueMgdl(")
+    code += extract("net/watchserver/uploader.cpp", "static float uploadChange(")
+    code += "\nstatic int uploadIntervalSeconds=0;\n"
+    code += extract("net/watchserver/uploader.cpp", "static bool isThinnedOutUpload(")
     code += "\ntemplate <class T, size_t N>\n" + extract("net/watchserver/common.hpp", "inline static constexpr void addar(")
     for signature in ["inline double getdelta(", "inline std::string_view fixedsensorview(",
                       "inline void addjsonuint(", "inline void addjsonint(",
@@ -576,6 +587,75 @@ int main() {
         writeNightscoutV3UploadEntry(payload, &uploadSource, uploadSource.shortsensorname(), &uploadSource.polls[1], uploadData, 1);
         assert(serializedV3.getmgdL() == 125);
     }
+    // Discussion #843: a noisy 1-minute stream rising 1 mg/dL a minute. The rate derived from two
+    // unsmoothed readings four minutes apart points down, while the smoothed values it is sent
+    // with keep rising. With smoothing on, the rate follows the smoothed values.
+    SensorGlucoseData noisy{"SIBI:noisy"};
+    for (int i = 0; i < 12; ++i)
+        noisy.polls[i] = {start + uint32_t(i)*60, i, 140 + i + array{0, 5, -5}[i % 3], 0, NAN};
+    auto noisyData = span<const ScanData>(noisy.polls, 12);
+    // The rate as uploaded: from the same values as the sgv.
+    const auto noisyChange = [&] {
+        return uploadChange(&noisy, "noisy", noisyData, 11, uploadValueMgdl(&noisy, "noisy", noisyData, 11));
+    };
+    assert(effectivechange(noisyData, 11, noisy.polls[11]) < -1.0f);
+    assert(noisyChange() > 0.5f);
+    storage.DoCalibrate = false;
+    size = mkuploaditem(&noisy, payload, noisy.shortsensorname(), noisy.polls[11], noisyData, 11, false);
+    assert(string(payload, size).find("Down") == string::npos);
+    writeNightscoutV3UploadEntry(payload, &noisy, noisy.shortsensorname(), &noisy.polls[11], noisyData, 11);
+    assert(serializedV3.getchange() > 0.5f);
+    // A driver rate is replaced too: it is no more the smoothed series' rate than a derived one.
+    noisy.polls[11].ch = -2.75f;
+    assert(noisyChange() > 0.5f);
+    // Smoothing off for sent readings: the stored rate goes out as before.
+    uploadSmoothingSeconds = 0;
+    assert(noisyChange() == -2.75f);
+    noisy.polls[11].ch = NAN;
+    assert(noisyChange() == effectivechange(noisyData, 11, noisy.polls[11]));
+    uploadSmoothingSeconds = 600;
+    // Raw-primary view modes upload the raw lane, so the arrow follows it: flat Auto, rising Raw.
+    for (int i = 0; i < 12; ++i) {
+        noisy.polls[i].g = 140;
+        noisy.rawpolls[i].raw = 78 + i; // mmol/L x10: 7.8 rising 0.1 (1.8 mg/dL) a minute
+    }
+    assert(fabs(noisyChange()) < 0.01f);
+    noisy.info.viewMode = 1;
+    const float rawRate = noisyChange();
+    assert(rawRate > 1.5f);
+    size = mkuploaditem(&noisy, payload, noisy.shortsensorname(), noisy.polls[11], noisyData, 11, false);
+    assert(string(payload, size).find("\"direction\":\"Flat\"") == string::npos);
+    // The rate is the calibrated sgv's: a lane calibration steeper by half steepens it by half.
+    env.javaScale = 1.5f;
+    assert(fabs(noisyChange() - 1.5f * rawRate) < 0.3f);
+    env.javaScale = 1;
+    noisy.info.viewMode = 0;
+    for (int i = 0; i < 12; ++i) {
+        noisy.polls[i].g = 140 + i + array{0, 5, -5}[i % 3];
+        noisy.rawpolls[i].raw = 0;
+    }
+
+    // "Fewer readings" for sent readings: the first reading of each 5-minute interval, on the
+    // reading's own clock, exactly as ExchangeUpdateGate thins every other output.
+    for (int i = 0; i < 12; ++i) assert(!isThinnedOutUpload(noisyData, i));
+    uploadIntervalSeconds = 300;
+    int sent = 0;
+    for (int i = 0; i < 12; ++i) {
+        const bool firstOfInterval = i == 0 || noisy.polls[i].t / 300 != noisy.polls[i - 1].t / 300;
+        assert(isThinnedOutUpload(noisyData, i) == !firstOfInterval);
+        sent += !isThinnedOutUpload(noisyData, i);
+    }
+    assert(sent == 3);
+    // An empty slot does not count as a reading sent in its interval.
+    const auto firstKept = noisy.polls[2];
+    assert(noisy.polls[2].t / 300 == noisy.polls[3].t / 300 && isThinnedOutUpload(noisyData, 3));
+    noisy.polls[2].g = 0;
+    assert(!isThinnedOutUpload(noisyData, 3));
+    noisy.polls[2].t = 0;
+    assert(!isThinnedOutUpload(noisyData, 3));
+    noisy.polls[2] = firstKept;
+    uploadIntervalSeconds = 0;
+
     remove(filename);
     puts("Owner backfill, persisted mirror, representation-safe trend, final V1/V3 export and calibration checks passed");
 }
