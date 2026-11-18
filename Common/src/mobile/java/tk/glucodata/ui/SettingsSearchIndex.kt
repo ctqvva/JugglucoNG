@@ -270,7 +270,7 @@ internal object SettingsSearchIndex {
     private val NIGHTSCOUT = SHARING + R.string.nightscout_settings_title
     private val LIBREVIEW = SHARING + R.string.libreview_config
     private val MIRROR = SHARING + R.string.mirror
-    private val CLONE_NETWORK = MIRROR + R.string.clone_network_title
+    private val CLONE_NETWORK = MIRROR + R.string.clone_network_settings
     private val WEB_SERVER = SHARING + R.string.webserver
     private val DEVICES = listOf(R.string.settings_section_devices)
     private val WATCH = DEVICES + R.string.watches
@@ -615,7 +615,7 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.mirror_background_liveness, MIRROR, Symbols.BatterySaverFilled, T,
             route("settings/mirror"), condition = SettingsSearchCondition.MIRROR_CONNECTIONS,
             anchor = row(R.string.mirror_background_liveness)),
-        SettingsSearchEntry(R.string.clone_network_title, MIRROR, Symbols.HubFilled, T, route("settings/turnserver"),
+        SettingsSearchEntry(R.string.clone_network_settings, MIRROR, Symbols.HubFilled, T, route("settings/turnserver"),
             keywords = listOf(R.string.clone_network_summary), terms = listOf("TURN", "STUN", "ICE")),
         SettingsSearchEntry(R.string.clone_allow_fallback_servers, CLONE_NETWORK, Symbols.AltRouteFilled, T,
             route("settings/turnserver"), condition = SettingsSearchCondition.CLONE_CUSTOM_SERVER,

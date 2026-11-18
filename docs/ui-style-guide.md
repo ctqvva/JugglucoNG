@@ -157,6 +157,7 @@ Reach for these before building a surface by hand.
 | A setting with its own inline controls (slider, button group) | Control card, composed locally; see below | `DataSmoothingSettingsScreen.kt` |
 | The label and value over a slider | `SliderHeader` + `SliderHeaderStyle`; `SettingsSlider` in a `SettingsControlsCard`; see Sliders | `components/SliderHeader.kt` |
 | A destructive row | `DangerItem` | same |
+| A thing the app is connected to (Clone link, meter) | `DeviceCard` + `DevicePauseButton`; see Device cards | `components/DeviceCard.kt` |
 | Group label | `SectionLabel` (24 above, 8 below) | same |
 | Leading icon of a row/card | `IconTile` | `components/IconTile.kt` |
 | A sensor family, shown as itself | `SensorArtTile` in a list, `SensorWizardHero` at the top of every wizard's main step; see Sensor art and wizard heroes | `components/SensorArt.kt`, `components/SensorHeroDrawings.kt`, `components/SensorArtTile.kt` |
@@ -281,6 +282,25 @@ A sensor family is shown as the device itself, never as a logo or a generic icon
   than in the list, and the phone stands further off.
 - A pair trading places clicks once as they pass.
 
+### Device cards
+
+Everything the app is connected to (a Clone link, a meter) is one card (`DeviceCard`), never a
+settings row with a sheet behind it:
+
+- **Header:** the name, its state in words under it, and Pause / Play at the far edge
+  (`DevicePauseButton`; the way back to running is the filled one).
+- **Facts:** one quiet panel. What is checked most, and only this device has, is always in it
+  (a connected Hybrid link's route, the other phone's address and since when; a TCP link's
+  address); a tap on the panel adds the rest to the same table, and a
+  second tap folds it. The chevron sits centred under the facts, never in a column beside them.
+- **Controls:** ordinary buttons in one row, 8dp apart: [QR code] [Edit] [Delete], Delete last
+  and outlined in the error colour. Equal widths while the labels fit; icons give way before a
+  label is cut; only when bare labels can't share a line does each take its own.
+- **Under the row:** what a control opens inline (a QR code), then a task only this device
+  offers (History recovery), full width.
+- The 20dp status-card corner on the settings surface; paused, `surfaceContainerLow`. Cards stand
+  8dp apart.
+
 ### Row, card, dialog or sheet
 
 - **Row** — a persistent setting or a destination. Its subtitle carries the current value.
@@ -368,6 +388,12 @@ what the rows around a slider already use.
   `OutlinedButton` for the rest, `TextButton` in dialogs. A screen-level action spans the
   width at 56dp.
 - Destructive actions confirm first, and say what they destroy.
+- A pair of actions that each open an inline panel (Clone's Send readings | Get readings)
+  stays the connected group, with the group's own shapes, colours and label size. Only at
+  rest is the icon larger (24dp) and over the label; opening one moves the icon back beside
+  the label on an arc, and the group returns to 56dp. Opening never scrolls the screen
+  (`ClonePairButtons`).
+- State is said in words with a plain glyph (linked, linking, off), never a coloured dot.
 
 ### Icons
 
