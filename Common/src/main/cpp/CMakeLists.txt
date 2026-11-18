@@ -94,6 +94,10 @@ add_subdirectory(libjuice)
 target_link_libraries( g PRIVATE c++_static c ${log-lib} ${OPENGL_LIB} android EGL m atomic z dl $<BUILD_INTERFACE:juice>)
 export(TARGETS g ANDROID_MK Android.mk)
 
+# Dexcom Clarity uploader (ported from upstream Juggluco). The JNI surface is in
+# every flavour; the uploader itself only in ARM phone builds with -DCLARITY=ON.
+include("${CMAKE_CURRENT_SOURCE_DIR}/net/clarity/integration.cmake")
+
 
 add_executable(libnative.so    abbotttest.cpp )
 target_include_directories( libnative.so PRIVATE  ${INCLUDESELF} ${INCLUDESELF}/share  LibAscon/inc)

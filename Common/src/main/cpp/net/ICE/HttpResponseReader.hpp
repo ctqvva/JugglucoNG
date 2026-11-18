@@ -20,6 +20,7 @@ class HttpResponseReader {
     size_t remaining=0,headerBytes=0;
     int code=-1;
     std::vector<char> body;
+    std::string locationValue;
 
     static std::string_view trim(std::string_view text) {
         while(!text.empty()&&(text.front()==' '||text.front()=='\t')) text.remove_prefix(1);
@@ -42,6 +43,7 @@ class HttpResponseReader {
         if(parsed.ec!=std::errc{}||parsed.ptr!=status.data()+12||code<100||code>599) return fail();
         bool lengthPresent=false,chunked=false;
         size_t length=0;
+        locationValue.clear();
         size_t offset=lineEnd==text.npos?text.size():lineEnd+2;
         while(offset<text.size()) {
             size_t end=text.find("\r\n",offset);
@@ -55,6 +57,8 @@ class HttpResponseReader {
                 if(lengthPresent||value.empty()||number.ec!=std::errc{}||
                    number.ptr!=value.data()+value.size()||length>maxBodyBytes) return fail();
                 lengthPresent=true;
+            } else if(equal(name,"Location")) {
+                locationValue.assign(value.data(),value.size());
             } else if(equal(name,"Transfer-Encoding")) {
                 if(chunked||!equal(value,"chunked")) return fail();
                 chunked=true;
@@ -143,4 +147,5 @@ public:
     bool complete() const { return state==State::Done; }
     int status() const { return code; }
     std::vector<char> takeBody() { return std::move(body); }
+    std::string takeLocation() { return std::move(locationValue); }
 };

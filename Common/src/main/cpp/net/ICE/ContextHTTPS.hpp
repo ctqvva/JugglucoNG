@@ -24,6 +24,7 @@
 #include <vector>
 #include <string_view>
 #include <span>
+#include <string>
 #include <openssl/ssl.h>
 
 using namespace std::literals;
@@ -38,6 +39,18 @@ struct HTTPSRequestOptions {
     // attempt lost to another server while the negotiation itself goes on.
     std::shared_ptr<const std::atomic_bool> superseded;
     bool verifyCertificate = true;
+    // Optional: receives the Location header of the final response. Redirects
+    // are never followed here; that is the caller's decision.
+    std::string *location = nullptr;
+    // Optional TLS client identity, installed on this one connection only.
+    const struct HttpsClientIdentity *client = nullptr;
+};
+
+// Borrowed only for one connection. Never installed on the shared SSL_CTX.
+struct HttpsClientIdentity {
+    X509 *certificate;
+    EVP_PKEY *privateKey;
+    X509 *issuer;
 };
 
 class ContextHTTPS {
