@@ -153,12 +153,15 @@ class StatsPortraitLayoutTests {
         }
         compose.onNodeWithText("90.0%", useUnmergedTree = true).assertExists()
         compose.onNodeWithContentDescription("+23 vs the period before", useUnmergedTree = true).assertExists()
-        compose.onNodeWithText("18–24", useUnmergedTree = true).performClick()
+        // Each block shows its own time in range before any tap.
+        compose.onNodeWithContentDescription("Evening, 18–24, 40% In range", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("Evening", substring = true, useUnmergedTree = true).performClick()
         compose.onNodeWithText("40.0%", useUnmergedTree = true).assertExists()
         // A six-hour block: 60% high is 3 h 36 min of it, not of the day.
         compose.onNodeWithText("3 h 36 min", useUnmergedTree = true).assertExists()
         compose.onNodeWithContentDescription("+23 vs the period before", useUnmergedTree = true).assertDoesNotExist()
-        compose.onNodeWithText("24 h", useUnmergedTree = true).performClick()
+        // A second tap on the chosen block returns to the whole day.
+        compose.onNodeWithContentDescription("Evening", substring = true, useUnmergedTree = true).performClick()
         compose.onNodeWithText("90.0%", useUnmergedTree = true).assertExists()
     }
 

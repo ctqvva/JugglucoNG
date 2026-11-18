@@ -3,6 +3,7 @@ package tk.glucodata.ui.stats
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.State
@@ -31,6 +33,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
@@ -40,21 +43,20 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.IntrinsicMeasurable
 import androidx.compose.ui.layout.IntrinsicMeasureScope
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.LayoutModifier
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -78,17 +80,21 @@ import tk.glucodata.ui.util.ExpressiveMotion
  *
  * A stacked bar on the left is the honest picture: each band's segment is as tall as its
  * share of the time, so 88% in range dwarfs a 2% low the way it should. Five rows on the
- * right make every band readable, however small: each segment pours into its own row
- * through a ribbon that starts in the segment's colour and settles into the row's tint, so
- * bar, ribbon and row read as one shape per band. A 2% sliver fans out into a full row and
- * the in-range mass narrows into the headline.
+ * right make every band readable, however small: each segment flows into its own row
+ * through a ribbon in the row's tint, so a 2% sliver fans out into a full row and the
+ * in-range mass narrows into the headline.
+ *
+ * The bar keeps its own pill shape. The ribbon starts behind it, so there is no gap at the
+ * segment's rounded corners, and a faint smudge in the band's colour right at the join
+ * keeps the hand-off from bar to ribbon from reading as a hard edge.
  *
  * A row's tint follows its share of the time, so 97% in range glows and 47% does not even
  * at a glance; the band's full colour lives on in its range numbers.
  *
  * Rows run high to low, the way glucose reads on every chart in the app, and in range sits
  * in the middle as the larger row carrying the headline percentage and its change, so the
- * card needs no separate title or ring.
+ * card needs no separate title or ring. A strip of the day's four six-hour blocks closes
+ * the card: each shows its own time in range, and a tap re-pours the card for that block.
  *
  * It replaces a ring: a circle had to share a row with the band list, which left it either
  * too small to read or stranded on its own line, and its sweep gave a 2% band a sliver
@@ -104,12 +110,18 @@ private val FlowSegmentGap = 2.dp
 private val FlowMinSegment = 4.dp
 private val FlowRowCorner = 12.dp
 private val FlowSegmentInnerCorner = 2.dp
+/** How far the smudge at the bar's edge reaches into the ribbon. */
+private val FlowSmudgeWidth = 8.dp
 
 /** The tint a band gets at 100% of the time; everything below scales down from it. */
 private const val TintMaxAlpha = 0.14f
 /** Just enough that a 1% row still shows which band it is. */
 private const val TintMinAlpha = 0.03f
 private const val TintSelectedAlpha = 0.28f
+/** What a press adds to a band's tint, ribbon included, while the ripple runs in the row. */
+private const val TintPressedBoost = 0.08f
+/** The smudge's strength at the bar's edge, fading to nothing over [FlowSmudgeWidth]. */
+private const val SmudgeAlpha = 0.16f
 
 /** Below this a band reads "0.0%": no segment, no ribbon, no touch target. */
 private const val EmptyPercent = 0.05f
@@ -200,15 +212,6 @@ internal fun GlycemicOverviewCard(
         )
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            if (partsAvailable) {
-                DayPartSelector(
-                    whole = summary.tir,
-                    parts = dayParts,
-                    selected = selectedPart,
-                    onSelected = { selectedPart = it }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
             RangeFlow(
                 rows = rows,
                 // The comparison is for the whole window, so it only stands beside the whole.
@@ -218,58 +221,79 @@ internal fun GlycemicOverviewCard(
                 onBandSelected = onBandSelected,
                 modifier = Modifier.fillMaxWidth()
             )
+            if (partsAvailable) {
+                Spacer(modifier = Modifier.height(16.dp))
+                DayPartStrip(
+                    parts = dayParts,
+                    selected = part?.part,
+                    // Tapping the chosen block again goes back to the whole day, so the
+                    // strip needs no fifth "all" choice.
+                    onSelected = { chosen -> selectedPart = if (chosen == selectedPart) null else chosen }
+                )
+            }
         }
     }
 }
 
+private val DayPart.symbol: ImageVector
+    get() = when (this) {
+        DayPart.NIGHT -> Symbols.BedtimeFilled
+        DayPart.MORNING -> Symbols.WbTwilightFilled
+        DayPart.AFTERNOON -> Symbols.LightModeFilled
+        DayPart.EVENING -> Symbols.RoutineFilled
+    }
+
 /**
- * Whole day or one six-hour block. Each choice carries its own little band bar, so the
- * blocks compare against each other before any of them is tapped; the tap then re-pours
- * the card for that block.
+ * The day's four six-hour blocks, each with its own time in range, coloured on the same
+ * scale as the headline. They compare at a glance without a tap; a tap re-pours the whole
+ * card for that block, and a second tap returns to the whole day.
+ *
+ * Smaller than the range buttons above the card (32 against 40dp) so the two never read
+ * as one control, and at the foot of the card, since it refines what is above it.
  */
 @Composable
-private fun DayPartSelector(
-    whole: TimeInRangeBreakdown,
+private fun DayPartStrip(
     parts: List<DayPartStats>,
     selected: DayPart?,
-    onSelected: (DayPart?) -> Unit
+    onSelected: (DayPart) -> Unit
 ) {
-    val options: List<DayPart?> = listOf(null) + DayPart.entries
-    val wholeLabel = stringResource(R.string.stats_duration_hours, 24)
-    val partNames = DayPart.entries.associateWith { stringResource(it.labelResId) }
+    val names = DayPart.entries.associateWith { stringResource(it.labelResId) }
+    val inRangeWord = stringResource(R.string.in_range)
     ConnectedButtonGroup(
-        options = options,
+        options = DayPart.entries,
         selectedOption = selected,
         onOptionSelected = onSelected,
         label = { option ->
-            val tir = option?.let { chosen -> parts.firstOrNull { it.part == chosen }?.tir } ?: whole
-            val text = option?.let {
-                String.format(Locale.getDefault(), "%02d–%02d", it.startHour, it.startHour + 6)
-            } ?: wholeLabel
-            val description = option?.let { partNames[it] } ?: wholeLabel
-            Column(
-                modifier = Modifier.semantics { contentDescription = description },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            val stats = parts.firstOrNull { it.part == option }
+            val hasData = stats != null && stats.readingCount > 0
+            val percent = stats?.tir?.inRangePercent ?: 0f
+            val value = if (hasData) String.format(Locale.getDefault(), "%.0f%%", percent) else "–"
+            val hours = String.format(Locale.getDefault(), "%02d–%02d", option.startHour, option.startHour + 6)
+            val description = "${names[option]}, $hours, $value $inRangeWord"
+            Row(
+                modifier = Modifier.clearAndSetSemantics { contentDescription = description },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                Icon(
+                    imageVector = option.symbol,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
                 Text(
-                    text = text,
+                    text = value,
                     style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
+                    color = if (hasData) tirHeatColor(percent) else LocalTextStyle.current.color,
                     maxLines = 1,
                     softWrap = false
                 )
-                TirStackedBar(
-                    tir = tir,
-                    modifier = Modifier.width(32.dp),
-                    height = 4.dp,
-                    cornerRadius = 2.dp
-                )
             }
         },
-        itemHeight = 48.dp,
-        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-        selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        itemHeight = 32.dp,
+        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+        selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.fillMaxWidth()
     )
 }
@@ -291,19 +315,22 @@ private fun RangeFlow(
             label = "flowShare"
         )
     }
-    val tints = rows.map { row ->
+    val interactions = rows.map { remember { MutableInteractionSource() } }
+    val tints = rows.mapIndexed { index, row ->
+        val pressed by interactions[index].collectIsPressedAsState()
         // Squared, so the gap between a good and a poor share is plain at a glance: 95% in
         // range keeps nearly the full tint, 47% gets about a quarter of it.
         val fraction = row.percent.coerceIn(0f, 100f) / 100f
         val share = TintMinAlpha + (TintMaxAlpha - TintMinAlpha) * fraction * fraction
+        val resting = when {
+            row.empty -> 0f
+            selectedBand == null -> share
+            selectedBand == row.band -> TintSelectedAlpha
+            else -> share / 2f
+        }
         animateFloatAsState(
-            targetValue = when {
-                row.empty -> 0f
-                selectedBand == null -> share
-                selectedBand == row.band -> TintSelectedAlpha
-                else -> share / 2f
-            },
-            animationSpec = ExpressiveMotion.defaultEffects(),
+            targetValue = if (pressed && !row.empty) resting + TintPressedBoost else resting,
+            animationSpec = ExpressiveMotion.fastEffects(),
             label = "flowTint"
         )
     }
@@ -322,10 +349,7 @@ private fun RangeFlow(
                     inRangeDelta = inRangeDelta,
                     minutesPerDay = minutesPerDay,
                     selected = selectedBand == row.band,
-                    // The press follows the band's own outline, ribbon included.
-                    outline = { size, density ->
-                        bandShapeFor(index, size, density, geometry.value, shares)
-                    },
+                    interactionSource = interactions[index],
                     onClick = { onBandSelected(if (selectedBand == row.band) null else row.band) }
                 )
             }
@@ -381,15 +405,15 @@ private fun Density.segmentSpans(shares: List<State<Float>>, height: Float): Lis
 }
 
 /**
- * One band as a single outline: out of its segment at [barRight], along the row, back in.
- * The ribbon's ends meet the segment's square right edge and the row's square left edge,
- * so nothing shows through where they join.
+ * One band's ribbon and row as a single outline. It starts at [start], behind the
+ * segment, so the segment's rounded corners sit on the ribbon instead of on a gap.
  */
 private fun bandOutline(
     segmentTop: Float,
     segmentBottom: Float,
     rowTop: Float,
     rowBottom: Float,
+    start: Float,
     barRight: Float,
     rowLeft: Float,
     right: Float,
@@ -398,7 +422,8 @@ private fun bandOutline(
     val bend = (rowLeft - barRight) * 0.55f
     val radius = corner.coerceAtMost((rowBottom - rowTop) / 2f)
     return Path().apply {
-        moveTo(barRight, segmentTop)
+        moveTo(start, segmentTop)
+        lineTo(barRight, segmentTop)
         cubicTo(barRight + bend, segmentTop, rowLeft - bend, rowTop, rowLeft, rowTop)
         lineTo(right - radius, rowTop)
         arcTo(Rect(right - 2 * radius, rowTop, right, rowTop + 2 * radius), -90f, 90f, false)
@@ -406,36 +431,8 @@ private fun bandOutline(
         arcTo(Rect(right - 2 * radius, rowBottom - 2 * radius, right, rowBottom), 0f, 90f, false)
         lineTo(rowLeft, rowBottom)
         cubicTo(rowLeft - bend, rowBottom, barRight + bend, segmentBottom, barRight, segmentBottom)
+        lineTo(start, segmentBottom)
         close()
-    }
-}
-
-/** The band outline in a row's own coordinates, which start at the bar's right edge. */
-private fun bandShapeFor(
-    index: Int,
-    size: Size,
-    density: Density,
-    geometry: FlowGeometry?,
-    shares: List<State<Float>>
-): Shape {
-    val rowTop = geometry?.rowTops?.getOrNull(index) ?: return RectangleShape
-    val totalHeight = geometry.rowBottoms.last()
-    val span = with(density) { segmentSpans(shares, totalHeight) }.getOrNull(index) ?: return RectangleShape
-    val ribbon = with(density) { FlowRibbonWidth.toPx() }
-    val corner = with(density) { FlowRowCorner.toPx() }
-    val path = bandOutline(
-        segmentTop = span.first - rowTop,
-        segmentBottom = span.second - rowTop,
-        rowTop = 0f,
-        rowBottom = size.height,
-        barRight = 0f,
-        rowLeft = ribbon,
-        right = size.width,
-        corner = corner
-    )
-    return object : Shape {
-        override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density) =
-            Outline.Generic(path)
     }
 }
 
@@ -453,34 +450,29 @@ private fun DrawScope.drawFlow(
     val outerCorner = barRight / 2f
     val innerCorner = FlowSegmentInnerCorner.toPx()
     val rowCorner = FlowRowCorner.toPx()
+    val smudgeEnd = barRight + FlowSmudgeWidth.toPx()
 
     for (i in present) {
         val (segmentTop, segmentBottom) = spans[i]!!
         val rowTop = geometry.rowTops.getOrNull(i) ?: continue
         val rowBottom = geometry.rowBottoms[i]
         val color = colors[i]
-
-        // The ribbon leaves the segment in the segment's own colour and settles into the
-        // row's tint, so the bar and its row are one continuous thing.
-        val alpha = tints[i].value
+        val outline = bandOutline(
+            segmentTop, segmentBottom, rowTop, rowBottom,
+            start = barRight - outerCorner, barRight = barRight, rowLeft = rowLeft,
+            right = size.width, corner = rowCorner
+        )
+        drawPath(outline, color.copy(alpha = tints[i].value))
+        // A faint smudge in the band's colour at the join, gone within a few dp.
         drawPath(
-            path = bandOutline(
-                // A pixel under the segment, so antialiasing leaves no seam at the join.
-                segmentTop, segmentBottom, rowTop, rowBottom,
-                barRight - 1f, rowLeft, size.width, rowCorner
-            ),
-            // Most of the fade happens close to the bar, so the ribbon reads as the
-            // segment's glow rather than a smear across the whole gap.
-            brush = Brush.horizontalGradient(
-                0f to color,
-                0.4f to color.copy(alpha = alpha + (1f - alpha) * 0.18f),
-                1f to color.copy(alpha = alpha),
+            outline,
+            Brush.horizontalGradient(
+                colors = listOf(color.copy(alpha = SmudgeAlpha), color.copy(alpha = 0f)),
                 startX = barRight,
-                endX = rowLeft
+                endX = smudgeEnd
             )
         )
 
-        // Rounded on the outside only: the right edge is where the ribbon is attached.
         val height = segmentBottom - segmentTop
         val top = (if (i == present.first()) outerCorner else innerCorner).coerceAtMost(height / 2f)
         val bottom = (if (i == present.last()) outerCorner else innerCorner).coerceAtMost(height / 2f)
@@ -490,8 +482,8 @@ private fun DrawScope.drawFlow(
                     RoundRect(
                         rect = Rect(0f, segmentTop, barRight, segmentBottom),
                         topLeft = CornerRadius(top),
-                        topRight = CornerRadius.Zero,
-                        bottomRight = CornerRadius.Zero,
+                        topRight = CornerRadius(top),
+                        bottomRight = CornerRadius(bottom),
                         bottomLeft = CornerRadius(bottom)
                     )
                 )
@@ -501,6 +493,29 @@ private fun DrawScope.drawFlow(
     }
 }
 
+/**
+ * Where a row's ripple runs: the row itself, past the ribbon. The ribbon answers a press
+ * by brightening with the rest of the band, which the canvas draws, so nothing is cut off
+ * where the ribbon flares beyond the row.
+ */
+private class RowSurfaceShape(private val inset: Dp, private val corner: Dp) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val left = with(density) { inset.toPx() }
+        val radius = with(density) { corner.toPx() }.coerceAtMost(size.height / 2f)
+        return Outline.Rounded(
+            RoundRect(
+                rect = Rect(left, 0f, size.width, size.height),
+                topLeft = CornerRadius.Zero,
+                topRight = CornerRadius(radius),
+                bottomRight = CornerRadius(radius),
+                bottomLeft = CornerRadius.Zero
+            )
+        )
+    }
+}
+
+private val RowSurface = RowSurfaceShape(FlowRibbonWidth, FlowRowCorner)
+
 @Composable
 private fun BandRow(
     row: TirBandRow,
@@ -508,7 +523,7 @@ private fun BandRow(
     inRangeDelta: Float?,
     minutesPerDay: Int,
     selected: Boolean,
-    outline: (Size, Density) -> Shape,
+    interactionSource: MutableInteractionSource,
     onClick: () -> Unit
 ) {
     val percentText = String.format(Locale.getDefault(), "%.1f%%", row.percent)
@@ -530,16 +545,19 @@ private fun BandRow(
 
     val rowModifier = Modifier
         .fillMaxWidth()
-        .graphicsLayer {
-            shape = outline(size, this)
-            clip = true
-        }
+        .clip(RowSurface)
         // A band with no time has nothing to highlight, so it is not a target.
         .then(
             if (row.empty) {
                 Modifier
             } else {
-                Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+                Modifier.selectable(
+                    selected = selected,
+                    interactionSource = interactionSource,
+                    indication = ripple(),
+                    role = Role.RadioButton,
+                    onClick = onClick
+                )
             }
         )
         .heightIn(min = if (hero) 72.dp else 48.dp)
@@ -549,46 +567,46 @@ private fun BandRow(
             top = if (hero) 12.dp else 4.dp,
             bottom = if (hero) 12.dp else 4.dp
         )
-    val labelBlock: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(if (hero) 4.dp else 0.dp)) {
-            Text(
-                text = row.label,
-                style = if (hero) {
-                    MaterialTheme.typography.titleLargeEmphasized
-                } else {
-                    MaterialTheme.typography.bodyMedium
-                },
-                color = textColor,
-                // The headline label keeps one line beside its percentage; when it can't,
-                // the percentage moves below instead of the label wrapping.
-                modifier = if (hero) Modifier.then(PreferOneLine) else Modifier
-            )
-            JoinedOrStackedText(
-                first = row.rangeLabel,
-                second = time,
-                style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                firstColor = rangeColor,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+    val detail: @Composable () -> Unit = {
+        JoinedOrStackedText(
+            first = row.rangeLabel,
+            second = time,
+            style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+            firstColor = rangeColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 
     if (hero) {
-        BesideOrBelow(modifier = rowModifier, leading = labelBlock) {
-            Column(horizontalAlignment = Alignment.End) {
+        HeroRowLayout(
+            modifier = rowModifier,
+            title = {
                 Text(
-                    text = percentText,
-                    style = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum"),
-                    color = tirHeatColor(row.percent),
-                    maxLines = 1,
-                    softWrap = false
+                    text = row.label,
+                    style = MaterialTheme.typography.titleLargeEmphasized,
+                    color = textColor
                 )
-                inRangeDelta?.takeIf { abs(it) >= 1f }?.let { InRangeDelta(it) }
+            },
+            detail = detail,
+            headline = {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = percentText,
+                        style = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum"),
+                        color = tirHeatColor(row.percent),
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                    inRangeDelta?.takeIf { abs(it) >= 1f }?.let { InRangeDelta(it) }
+                }
             }
-        }
+        )
     } else {
         Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.weight(1f)) { labelBlock() }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = row.label, style = MaterialTheme.typography.bodyMedium, color = textColor)
+                detail()
+            }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = percentText,
@@ -598,6 +616,79 @@ private fun BandRow(
                 softWrap = false,
                 textAlign = TextAlign.End
             )
+        }
+    }
+}
+
+/**
+ * The in-range row. The headline stays on the right for as long as anything can make room
+ * for it, in this order:
+ * 1. title and detail beside it, the detail stacking its two parts if it has to;
+ * 2. the title on a line of its own, the detail and headline sharing the line below;
+ * 3. only then the headline below everything, end-aligned.
+ */
+@Composable
+private fun HeroRowLayout(
+    modifier: Modifier,
+    title: @Composable () -> Unit,
+    detail: @Composable () -> Unit,
+    headline: @Composable () -> Unit
+) {
+    Layout(
+        modifier = modifier,
+        content = {
+            Box { title() }
+            Box { detail() }
+            Box { headline() }
+        }
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val gap = 12.dp.roundToPx()
+        val titleGap = 4.dp.roundToPx()
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val (titleM, detailM, headlineM) = measurables
+        val end = headlineM.measure(loose)
+        val room = (width - gap - end.width).coerceAtLeast(0)
+        val titleWidth = titleM.maxIntrinsicWidth(Constraints.Infinity)
+        val detailNarrowest = detailM.minIntrinsicWidth(Constraints.Infinity)
+
+        fun finish(contentHeight: Int, arrange: androidx.compose.ui.layout.Placeable.PlacementScope.(Int) -> Unit): MeasureResult {
+            val height = contentHeight.coerceIn(constraints.minHeight, constraints.maxHeight)
+            return layout(width, height) { arrange((height - contentHeight) / 2) }
+        }
+
+        when {
+            titleWidth <= room && detailNarrowest <= room -> {
+                val t = titleM.measure(loose.copy(maxWidth = room))
+                val d = detailM.measure(loose.copy(maxWidth = room))
+                val left = t.height + titleGap + d.height
+                finish(maxOf(left, end.height)) { top ->
+                    val leftTop = top + (maxOf(left, end.height) - left) / 2
+                    t.placeRelative(0, leftTop)
+                    d.placeRelative(0, leftTop + t.height + titleGap)
+                    end.placeRelative(width - end.width, top + (maxOf(left, end.height) - end.height) / 2)
+                }
+            }
+            detailNarrowest <= room -> {
+                val t = titleM.measure(loose.copy(maxWidth = width))
+                val d = detailM.measure(loose.copy(maxWidth = room))
+                val lower = maxOf(d.height, end.height)
+                finish(t.height + titleGap + lower) { top ->
+                    t.placeRelative(0, top)
+                    val lowerTop = top + t.height + titleGap
+                    d.placeRelative(0, lowerTop + (lower - d.height) / 2)
+                    end.placeRelative(width - end.width, lowerTop + (lower - end.height) / 2)
+                }
+            }
+            else -> {
+                val t = titleM.measure(loose.copy(maxWidth = width))
+                val d = detailM.measure(loose.copy(maxWidth = width))
+                finish(t.height + titleGap + d.height + end.height) { top ->
+                    t.placeRelative(0, top)
+                    d.placeRelative(0, top + t.height + titleGap)
+                    end.placeRelative(width - end.width, top + t.height + titleGap + d.height)
+                }
+            }
         }
     }
 }
@@ -718,20 +809,6 @@ private object JoinedOrStackedPolicy : MeasurePolicy {
         val joined = measurables.sumOf { it.maxIntrinsicWidth(first) }
         return if (joined <= width) first else first + measurables[2].maxIntrinsicHeight(width)
     }
-}
-
-/**
- * Reports a text's one-line width as its narrowest, so [BesideOrBelow] keeps it on one
- * line; measured normally, so it can still wrap once it has a line to itself.
- */
-private object PreferOneLine : LayoutModifier {
-    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
-        val placeable = measurable.measure(constraints)
-        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-    }
-
-    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
-        measurable.maxIntrinsicWidth(height)
 }
 
 /** Change in time in range against the window before, in percentage points. */
