@@ -3155,6 +3155,11 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="clone_sharing_readings">Enviando lecturas</string>
      <string name="clone_network_summary">Servidores y descubrimiento local</string>
      <string name="clone_background_desc">Consume más batería</string>
+     <string name="clone_other_phone">Otro teléfono</string>
+     <string name="clone_this_phone">Este teléfono</string>
+     <string name="clone_connected_since">Conectado desde</string>
+     <string name="clone_phase">Fase</string>
+     <string name="clone_ice_state">Estado ICE</string>
      <string name="journal_chart_marker_count">×%1$d</string>
      <plurals name="journal_chart_marker_count_description">
          <item quantity="one">%d entrada</item>

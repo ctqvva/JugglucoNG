@@ -66,6 +66,9 @@ data class DeviceAction(
     val enabled: Boolean = true,
 )
 
+/** Between two device cards in a list. */
+val DeviceCardGap = 8.dp
+
 /**
  * A thing the app is connected to (a Clone link, a glucose meter). It sits among settings rows,
  * so it keeps their surface and the guide's 20dp status-card corner, and its text starts on the

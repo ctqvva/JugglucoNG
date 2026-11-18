@@ -458,8 +458,9 @@ fun MirrorSettingsScreen(navController: NavController) {
     var discoveredMirrors by remember { mutableStateOf(emptyList<DiscoveredMirror>()) }
 
     // Pending states
-    // Counts connections made from Get readings, so the screen brings the new card into view.
-    var revealConnections by remember { mutableIntStateOf(0) }
+    // The connections there were before Get readings added one, so its card can be found and
+    // brought into view.
+    var revealAfter by remember { mutableStateOf<Set<Int>?>(null) }
     var scannedQrPayload by remember { mutableStateOf<String?>(null) }
     var pendingNearby by remember { mutableStateOf<DiscoveredMirror?>(null) }
 
@@ -629,7 +630,7 @@ fun MirrorSettingsScreen(navController: NavController) {
                 Button(onClick = {
                     if (injectMirrorJson(scannedQrPayload!!, context)) {
                         triggerRefresh++
-                        revealConnections++
+                        revealAfter = mirrors.map { it.index }.toSet()
                     }
                     scannedQrPayload = null
                 },
@@ -644,7 +645,7 @@ fun MirrorSettingsScreen(navController: NavController) {
         if (injectMirrorJson(device.mirrorJson, context)) {
             discoveredMirrors = discoveredMirrors.filterNot { it.name == device.name }
             triggerRefresh++
-            revealConnections++
+            revealAfter = mirrors.map { it.index }.toSet()
         }
     }
 
@@ -670,6 +671,17 @@ fun MirrorSettingsScreen(navController: NavController) {
     // ── Content ──────────────────────────────────────────────────────────
 
     val cloneConnections = mirrors.filterNot { it.isWearOs }
+    // Its place among the connection items: the section label, then one card per connection.
+    val revealConnection = revealAfter?.let { before ->
+        mirrors.indexOfFirst { it.index !in before }.takeIf { it >= 0 }?.plus(1)
+    }
+    // A Get that only updated a connection it already had adds no card; stop looking.
+    LaunchedEffect(revealAfter) {
+        if (revealAfter != null) {
+            delay(10_000)
+            revealAfter = null
+        }
+    }
     // Hide a sharing phone this one already follows.
     val followedIceLabels = mirrors.mapNotNull { it.iceLabel }.toSet()
     CloneSettingsContent(
@@ -681,7 +693,8 @@ fun MirrorSettingsScreen(navController: NavController) {
         pairMode = pairMode,
         send = pairing?.let { CloneSendState(it.kind, it.json, it.announced, pairingConnected) },
         deviceName = deviceName,
-        revealConnections = revealConnections,
+        revealConnection = revealConnection,
+        onConnectionRevealed = { revealAfter = null },
         nearbyDevices = discoveredMirrors.filter { device ->
             device.mirrorJson.isNotEmpty() && mirrorJsonIceLabel(device.mirrorJson) !in followedIceLabels
         },
@@ -747,58 +760,55 @@ fun MirrorSettingsScreen(navController: NavController) {
         // ── Connections ──────────────────────────────────────────
         if (mirrors.isNotEmpty()) {
             item(key = "connections_section") { SectionLabel(stringResource(R.string.mirror_connections)) }
-            // One item: cards stand 8dp apart, while the list's own 2dp joins grouped rows.
-            item(key = "connection_cards") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    mirrors.forEach { mirror ->
-                        key(mirror.index) {
-                            MirrorConnectionCard(
-                                mirror = mirror,
-                                controlsEnabled = !CloneHostTransitionRunner.isRunning(),
-                                onEdit = { editSheetPos = mirror.index },
-                                onToggle = toggle@{
-                                    val enabledAfterToggle = mirror.isDeactivated || cloneConnections.any {
-                                        it.index != mirror.index && !it.isDeactivated
-                                    }
-                                    val started = CloneHostTransitionRunner.start(
-                                        connectionIndices = { listOf(mirror.index) },
-                                        deactivated = !mirror.isDeactivated,
-                                        cloneEnabledAfterTransition = enabledAfterToggle,
-                                        beforeNative = {
-                                            tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabledAfterToggle)
-                                        },
-                                        afterNative = {
-                                            if (!enabledAfterToggle) finishCloneReceptionDisable()
-                                        },
-                                        onFinished = {
-                                            refreshMirrorNetworking(context)
-                                            cloneTransitionDesired = null
-                                            triggerRefresh++
-                                        },
-                                    )
-                                    if (started) {
-                                        cloneTransitionDesired = enabledAfterToggle
-                                    }
-                                },
-                                onShowQR = { mirror.index },
-                                onSendHistory = { historyRecoveryMirror = mirror },
-                                onDelete = delete@{
-                                    if (CloneHostTransitionRunner.isRunning()) return@delete
-                                    val enabledAfterDelete = cloneConnections.any {
-                                        it.index != mirror.index && !it.isDeactivated
-                                    }
-                                    tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabledAfterDelete)
-                                    Natives.deletebackuphost(mirror.index)
-                                    if (!enabledAfterDelete) {
-                                        finishCloneReceptionDisable()
-                                    }
-                                    refreshMirrorNetworking(context)
-                                    triggerRefresh++
-                                }
-                            )
+            items(mirrors, key = { "connection_${it.index}" }) { mirror ->
+                MirrorConnectionCard(
+                    mirror = mirror,
+                    // Cards stand apart; the list's own gap joins grouped rows.
+                    modifier = Modifier.padding(
+                        top = if (mirror === mirrors.first()) 0.dp else DeviceCardGap - CloneListGap
+                    ),
+                    controlsEnabled = !CloneHostTransitionRunner.isRunning(),
+                    onEdit = { editSheetPos = mirror.index },
+                    onToggle = toggle@{
+                        val enabledAfterToggle = mirror.isDeactivated || cloneConnections.any {
+                            it.index != mirror.index && !it.isDeactivated
                         }
+                        val started = CloneHostTransitionRunner.start(
+                            connectionIndices = { listOf(mirror.index) },
+                            deactivated = !mirror.isDeactivated,
+                            cloneEnabledAfterTransition = enabledAfterToggle,
+                            beforeNative = {
+                                tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabledAfterToggle)
+                            },
+                            afterNative = {
+                                if (!enabledAfterToggle) finishCloneReceptionDisable()
+                            },
+                            onFinished = {
+                                refreshMirrorNetworking(context)
+                                cloneTransitionDesired = null
+                                triggerRefresh++
+                            },
+                        )
+                        if (started) {
+                            cloneTransitionDesired = enabledAfterToggle
+                        }
+                    },
+                    onShowQR = { mirror.index },
+                    onSendHistory = { historyRecoveryMirror = mirror },
+                    onDelete = delete@{
+                        if (CloneHostTransitionRunner.isRunning()) return@delete
+                        val enabledAfterDelete = cloneConnections.any {
+                            it.index != mirror.index && !it.isDeactivated
+                        }
+                        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabledAfterDelete)
+                        Natives.deletebackuphost(mirror.index)
+                        if (!enabledAfterDelete) {
+                            finishCloneReceptionDisable()
+                        }
+                        refreshMirrorNetworking(context)
+                        triggerRefresh++
                     }
-                }
+                )
             }
         }
     }
@@ -842,7 +852,8 @@ fun MirrorConnectionCard(
     onToggle: () -> Unit,
     onShowQR: () -> Unit,
     onSendHistory: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -928,6 +939,7 @@ fun MirrorConnectionCard(
 
     DeviceCard(
         title = title,
+        modifier = modifier,
         active = active,
         status = status,
         statusIcon = when {

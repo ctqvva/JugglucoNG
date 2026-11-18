@@ -62,6 +62,9 @@ import tk.glucodata.ui.util.ConnectedButtonGroup
 
 internal enum class ClonePairMode { SEND, GET }
 
+/** The list's own gap, which joins grouped rows; anything spaced wider adds the rest. */
+internal val CloneListGap = 2.dp
+
 /** What this phone is offering while "Send readings" is open. */
 internal data class CloneSendState(
     val kind: QuickPairKind,
@@ -81,7 +84,9 @@ internal fun CloneSettingsContent(
     send: CloneSendState?,
     deviceName: String,
     nearbyDevices: List<DiscoveredMirror>,
-    revealConnections: Int = 0,
+    /** An item of [connections] to scroll to, counted from its first item. */
+    revealConnection: Int? = null,
+    onConnectionRevealed: () -> Unit = {},
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onMasterChanged: (Boolean) -> Unit,
@@ -119,18 +124,18 @@ internal fun CloneSettingsContent(
         )
         // A connection made from Get readings is added above where the list is anchored, which
         // left it half under the top bar. Bring its card into view, as Send's own card already is.
-        val currentHasConnections by rememberUpdatedState(hasConnections)
-        val currentListsConnections by rememberUpdatedState(listsConnections)
-        LaunchedEffect(revealConnections) {
-            if (revealConnections == 0) return@LaunchedEffect
-            snapshotFlow { currentListsConnections }.first { it }
-            listState.animateScrollToItem(if (currentHasConnections) 1 else 0)
+        val currentOnRevealed by rememberUpdatedState(onConnectionRevealed)
+        LaunchedEffect(revealConnection) {
+            val item = revealConnection ?: return@LaunchedEffect
+            // The master switch is the one item above the connections.
+            listState.animateScrollToItem((if (hasConnections) 1 else 0) + item)
+            currentOnRevealed()
         }
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(CloneListGap),
         ) {
             // The master switch only means something once there is a connection to turn off.
             if (hasConnections) {
@@ -211,7 +216,7 @@ internal fun CloneSettingsContent(
             item(key = "add_manually") {
                 OutlinedButton(
                     onClick = onAddManually,
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp).heightIn(min = 48.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp - CloneListGap).heightIn(min = 48.dp),
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
