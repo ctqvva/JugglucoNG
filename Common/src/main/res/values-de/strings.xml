@@ -427,8 +427,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 <string name="glucose_meters_none_found">Kein Messgerät gefunden. Messgerät einschalten und erneut suchen</string>
 <string name="glucose_meters_other">Andere Bluetooth-Geräte</string>
 <string name="glucose_meters_other_desc">Falls das Messgerät oben fehlt</string>
-<string name="glucose_meter_last_reading">Letzter Messwert: %1$s</string>
-<string name="glucose_meter_no_readings">Noch keine Messwerte importiert</string>
+<string name="glucose_meter_last_reading">Letzter Messwert</string>
+<string name="glucose_meter_no_readings">Noch keine</string>
+<string name="glucose_meter_device_name">Bluetooth-Name</string>
 <string name="satellite_meter_code_missing">Satellite-Messgerät: Legen Sie zuerst den Messgerätecode in den Einstellungen für Blutzuckermessgeräte fest</string>
 <string name="glucose_meter_forget">Vergessen</string>
 <string name="glucose_meter_forget_title">Messgerät vergessen</string>

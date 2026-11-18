@@ -809,8 +809,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_meters_none_found">Nenhum medidor encontrado. Ligue o medidor e procure novamente</string>
     <string name="glucose_meters_other">Outros dispositivos Bluetooth</string>
     <string name="glucose_meters_other_desc">Se o medidor não estiver na lista acima</string>
-    <string name="glucose_meter_last_reading">Última medição: %1$s</string>
-    <string name="glucose_meter_no_readings">Ainda não foram importadas medições</string>
+    <string name="glucose_meter_last_reading">Última medição</string>
+    <string name="glucose_meter_no_readings">Ainda nenhuma</string>
+    <string name="glucose_meter_device_name">Nome Bluetooth</string>
     <string name="satellite_meter_code_missing">Medidor Satellite: defina primeiro o código do medidor nas definições de medidores de glicose</string>
     <string name="glucose_meter_forget">Esquecer</string>
     <string name="glucose_meter_forget_title">Esquecer medidor</string>

@@ -1,4 +1,7 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
+)
 
 package tk.glucodata.ui
 
@@ -26,21 +29,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bloodtype
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -49,7 +42,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -85,16 +77,26 @@ import tk.glucodata.glucosemeter.MeterNames
 import tk.glucodata.glucosemeter.MeterSyncPacing
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
-import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsChoice
-import tk.glucodata.ui.components.SettingsControlsCard
 import tk.glucodata.ui.components.SettingsItem
-import tk.glucodata.ui.components.SettingsNavSwitchItem
-import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
 import java.util.Locale
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import tk.glucodata.ui.components.DeviceAction
+import tk.glucodata.ui.components.DeviceActionTone
+import tk.glucodata.ui.components.DeviceCard
+import tk.glucodata.ui.components.DeviceCardGap
+import tk.glucodata.ui.components.DeviceDetail
+import tk.glucodata.ui.components.DevicePauseButton
+import tk.glucodata.ui.symbols.Symbols
 
 internal data class NearbyGlucoseMeter(
     val device: BluetoothDevice,
@@ -117,9 +119,9 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
     var satelliteCode by remember { mutableStateOf(GlucoseMeterManager.satelliteCode()) }
     var pendingSatellite by remember { mutableStateOf<NearbyGlucoseMeter?>(null) }
     var pendingForget by remember { mutableStateOf<GlucoseMeterSnapshot?>(null) }
-    var editingIndex by remember { mutableStateOf<Int?>(null) }
+    // What a configured Satellite is read with; [satelliteCode] is the pairing dialog's draft.
+    var storedSatelliteCode by remember { mutableStateOf(GlucoseMeterManager.satelliteCode()) }
     var nowMinute by remember { mutableStateOf(System.currentTimeMillis() / 60_000L) }
-    val editing = meters.firstOrNull { it.index == editingIndex }
     // Whether a search has run to its end, so "nothing found" is not said before one.
     var scanned by remember { mutableStateOf(false) }
     var recheckMinutes by remember { mutableStateOf(GlucoseMeterManager.recheckMinutes()) }
@@ -261,6 +263,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                 TextButton(
                     onClick = {
                         GlucoseMeterManager.updateSatelliteCode(satelliteCode)
+                        storedSatelliteCode = GlucoseMeterManager.satelliteCode()
                         addMeter(candidate)
                         pendingSatellite = null
                     },
@@ -275,24 +278,6 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                 TextButton(onClick = { pendingSatellite = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
-            },
-        )
-    }
-
-    editing?.let { meter ->
-        MeterDetailSheet(
-            meter = meter,
-            onDismiss = { editingIndex = null },
-            satelliteCode = GlucoseMeterManager.satelliteCode().takeIf { meter.needsSatelliteCode },
-            onSave = { name, code ->
-                GlucoseMeterManager.rename(meter, name)
-                if (code != null) GlucoseMeterManager.updateSatelliteCode(code)
-                meters = GlucoseMeterManager.configuredMeters()
-                editingIndex = null
-            },
-            onForget = {
-                editingIndex = null
-                pendingForget = meter
             },
         )
     }
@@ -333,7 +318,16 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                 GlucoseMeterManager.setEnabled(meter.index, enabled)
                 meters = GlucoseMeterManager.configuredMeters()
             },
-            onMeterClick = { meter -> editingIndex = meter.index },
+            satelliteCode = storedSatelliteCode,
+            onMeterSave = { meter, name, code ->
+                GlucoseMeterManager.rename(meter, name)
+                if (code != null) {
+                    GlucoseMeterManager.updateSatelliteCode(code)
+                    storedSatelliteCode = GlucoseMeterManager.satelliteCode()
+                }
+                meters = GlucoseMeterManager.configuredMeters()
+            },
+            onMeterForget = { meter -> pendingForget = meter },
             onRecheckMinutes = { minutes ->
                 recheckMinutes = minutes
                 GlucoseMeterManager.setRecheckMinutes(minutes)
@@ -352,7 +346,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                 scanned = true
             },
             onPair = pairCandidate,
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding).imePadding(),
         )
     }
 }
@@ -367,8 +361,10 @@ internal fun GlucoseMeterSettingsContent(
     scanning: Boolean,
     scanned: Boolean,
     recheckMinutes: Int,
+    satelliteCode: String,
     onMeterEnabled: (GlucoseMeterSnapshot, Boolean) -> Unit,
-    onMeterClick: (GlucoseMeterSnapshot) -> Unit,
+    onMeterSave: (GlucoseMeterSnapshot, name: String, satelliteCode: String?) -> Unit,
+    onMeterForget: (GlucoseMeterSnapshot) -> Unit,
     onRecheckMinutes: (Int) -> Unit,
     onStartScan: () -> Unit,
     onStopScan: () -> Unit,
@@ -399,37 +395,20 @@ internal fun GlucoseMeterSettingsContent(
             item("configured_label") {
                 SectionLabel(stringResource(R.string.glucose_meters_configured))
             }
-            // Only a meter that never sleeps waits between checks, so the choice shows
-            // with one, as the last card of the meters it belongs to.
-            val showRecheck = meters.any { it.staysOn }
-            val groupSize = meters.size + if (showRecheck) 1 else 0
             itemsIndexed(meters, key = { _, meter -> meter.index }) { index, meter ->
-                SettingsNavSwitchItem(
-                    title = meter.name,
-                    subtitle = meterRowSubtitle(meter, nowMillis),
-                    checked = meter.active,
-                    onCheckedChange = { enabled -> onMeterEnabled(meter, enabled) },
-                    onClick = { onMeterClick(meter) },
-                    icon = Icons.Filled.Bloodtype,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    position = cardPositionFor(index, groupSize),
+                MeterCard(
+                    meter = meter,
+                    nowMillis = nowMillis,
+                    satelliteCode = satelliteCode.takeIf { meter.needsSatelliteCode },
+                    recheckMinutes = recheckMinutes,
+                    recheckLabels = MeterSyncPacing.CHOICES_MINUTES.map(recheckLabel),
+                    onRecheckMinutes = onRecheckMinutes,
+                    onEnabled = { enabled -> onMeterEnabled(meter, enabled) },
+                    onSave = { name, code -> onMeterSave(meter, name, code) },
+                    onForget = { onMeterForget(meter) },
+                    // The list's own gap is the 2dp of a grouped stack; cards stand apart.
+                    modifier = Modifier.padding(top = if (index == 0) 0.dp else DeviceCardGap - 2.dp),
                 )
-            }
-            if (showRecheck) {
-                item("recheck") {
-                  Column {
-                    SettingsControlsCard(position = cardPositionFor(meters.size, groupSize)) {
-                        SettingsChoice(
-                            title = stringResource(R.string.glucose_meter_recheck),
-                            options = MeterSyncPacing.CHOICES_MINUTES,
-                            labels = MeterSyncPacing.CHOICES_MINUTES.map(recheckLabel),
-                            selectedOption = recheckMinutes,
-                            onOptionSelected = onRecheckMinutes,
-                        )
-                    }
-                    MeterCaption(stringResource(R.string.glucose_meter_recheck_hint))
-                  }
-                }
             }
         }
 
@@ -454,7 +433,7 @@ internal fun GlucoseMeterSettingsContent(
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) {
                     Icon(
-                        Icons.AutoMirrored.Filled.BluetoothSearching,
+                        Symbols.BluetoothSearchingFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
@@ -476,7 +455,7 @@ internal fun GlucoseMeterSettingsContent(
         itemsIndexed(nearbyMeters, key = { _, candidate -> candidate.address }) { index, candidate ->
             NearbyDeviceRow(
                 candidate = candidate,
-                icon = Icons.Filled.Bloodtype,
+                icon = Symbols.BloodtypeFilled,
                 iconTint = MaterialTheme.colorScheme.primary,
                 position = cardPositionFor(index, nearbyMeters.size),
                 onPair = { onPair(candidate) },
@@ -492,7 +471,7 @@ internal fun GlucoseMeterSettingsContent(
                 SettingsItem(
                     title = stringResource(R.string.glucose_meters_other),
                     subtitle = stringResource(R.string.glucose_meters_other_desc),
-                    icon = Icons.Filled.Bluetooth,
+                    icon = Symbols.BluetoothFilled,
                     onClick = { showOtherDevices = !showOtherDevices },
                     position = if (showOtherDevices) CardPosition.TOP else CardPosition.SINGLE,
                     animatePosition = true,
@@ -505,7 +484,7 @@ internal fun GlucoseMeterSettingsContent(
                         )
                         Spacer(Modifier.width(8.dp))
                         Icon(
-                            Icons.Filled.ExpandMore,
+                            Symbols.ExpandMoreFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.graphicsLayer { rotationZ = chevronRotation },
@@ -517,7 +496,7 @@ internal fun GlucoseMeterSettingsContent(
                 itemsIndexed(otherDevices, key = { _, candidate -> candidate.address }) { index, candidate ->
                     NearbyDeviceRow(
                         candidate = candidate,
-                        icon = Icons.Filled.Bluetooth,
+                        icon = Symbols.BluetoothFilled,
                         iconTint = null,
                         // The header row above is the top of this stack.
                         position = if (index == otherDevices.lastIndex) CardPosition.BOTTOM else CardPosition.MIDDLE,
@@ -527,24 +506,6 @@ internal fun GlucoseMeterSettingsContent(
                 }
             }
         }
-    }
-}
-
-/**
- * Whether the meter is linked right now, then when it last gave a reading. Off and waiting
- * need no words: the switch already says them.
- */
-@Composable
-private fun meterRowSubtitle(meter: GlucoseMeterSnapshot, nowMillis: Long): String {
-    val lastReading = if (meter.lastReadingAt > 0L) {
-        stringResource(R.string.glucose_meter_last_reading, readingTimeText(meter.lastReadingAt, nowMillis))
-    } else {
-        stringResource(R.string.glucose_meter_no_readings)
-    }
-    return if (meter.connected) {
-        "${stringResource(R.string.status_connected)} \u00b7 $lastReading"
-    } else {
-        lastReading
     }
 }
 
@@ -587,7 +548,7 @@ private fun NearbyDeviceRow(
         onClick = onPair,
         trailingContent = {
             Icon(
-                Icons.Filled.Add,
+                Symbols.AddFilled,
                 contentDescription = stringResource(R.string.mirror_connect_action),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -596,90 +557,145 @@ private fun NearbyDeviceRow(
 }
 
 /**
- * A meter's own sheet, built as the app's other editors are (food, insulin preset): the name
- * as the title with the way out beside it, the fields, then Save. A Satellite also keeps its
- * code here, so a wrong one can be corrected without pairing the meter again.
+ * A configured meter, as the Mirror screen shows a link ([DeviceCard]): its name and state, when
+ * it last gave a reading (the rest on a tap), then [Edit] [Forget]. Edit opens the name, and a
+ * Satellite's code, in the card itself, so a wrong code is corrected where it shows.
  */
 @Composable
-private fun MeterDetailSheet(
+private fun MeterCard(
     meter: GlucoseMeterSnapshot,
+    nowMillis: Long,
     satelliteCode: String?,
-    onDismiss: () -> Unit,
-    onSave: (name: String, satelliteCode: String?) -> Unit,
-    onForget: () -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    StableModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = { CompactSheetDragHandle() },
-    ) {
-        MeterDetailForm(meter, satelliteCode, onDismiss, onSave, onForget, Modifier.imePadding())
-    }
-}
-
-/** The sheet's content, apart from the sheet it is shown in. */
-@Composable
-internal fun MeterDetailForm(
-    meter: GlucoseMeterSnapshot,
-    satelliteCode: String?,
-    onDismiss: () -> Unit,
+    recheckMinutes: Int,
+    recheckLabels: List<String>,
+    onRecheckMinutes: (Int) -> Unit,
+    onEnabled: (Boolean) -> Unit,
     onSave: (name: String, satelliteCode: String?) -> Unit,
     onForget: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val storedName = if (meter.name == meter.deviceName) "" else meter.name
-    var name by remember(meter.index) { mutableStateOf(storedName) }
-    var code by remember(meter.index) { mutableStateOf(satelliteCode.orEmpty()) }
-    val codeChanged = satelliteCode != null && code != satelliteCode
-    val codeValid = !codeChanged || GlucoseMeterManager.isSatelliteCodeValid(code)
-    val canSave = (MeterNames.clean(name) != storedName || codeChanged) && codeValid
-    val save = { onSave(name, code.takeIf { codeChanged }) }
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(start = 24.dp, top = 4.dp, end = 24.dp, bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    meter.name,
-                    style = MaterialTheme.typography.headlineSmallEmphasized,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+    var editing by rememberSaveable(meter.index) { mutableStateOf(false) }
+    var detailsOpen by rememberSaveable(meter.index) { mutableStateOf(false) }
+    val lastReading = if (meter.lastReadingAt > 0L) {
+        readingTimeText(meter.lastReadingAt, nowMillis)
+    } else {
+        stringResource(R.string.glucose_meter_no_readings)
+    }
+    DeviceCard(
+        title = meter.name,
+        modifier = modifier,
+        active = meter.active,
+        status = stringResource(
+            when {
+                !meter.active -> R.string.deactivated
+                meter.connected -> R.string.status_connected
+                // A meter is asleep between measurements; it links again when it wakes.
+                else -> R.string.status_waiting_for_connection
+            }
+        ),
+        statusIcon = when {
+            !meter.active -> Symbols.BluetoothDisabledFilled
+            meter.connected -> Symbols.BluetoothConnectedFilled
+            else -> Symbols.BluetoothFilled
+        },
+        glance = listOf(DeviceDetail(stringResource(R.string.glucose_meter_last_reading), lastReading)),
+        details = listOfNotNull(
+            // Once renamed, the name the meter itself gives is what tells it apart.
+            meter.deviceName.takeIf { it != meter.name }
+                ?.let { DeviceDetail(stringResource(R.string.glucose_meter_device_name), it) },
+            meter.address?.let { DeviceDetail(stringResource(R.string.sensor_address), it) },
+            satelliteCode?.takeIf { it.isNotEmpty() }
+                ?.let { DeviceDetail(stringResource(R.string.satellite_meter_code_label), it) },
+        ),
+        detailsOpen = detailsOpen,
+        onDetailsOpenChange = { detailsOpen = it },
+        headerAction = {
+            DevicePauseButton(
+                paused = !meter.active,
+                pauseLabel = stringResource(R.string.disable),
+                resumeLabel = stringResource(R.string.enable),
+                onClick = { onEnabled(!meter.active) },
+            )
+        },
+        actions = listOf(
+            DeviceAction(
+                label = stringResource(R.string.edit),
+                icon = Symbols.EditFilled,
+                tone = if (editing) DeviceActionTone.Selected else DeviceActionTone.Neutral,
+                onClick = { editing = !editing },
+            ),
+            DeviceAction(
+                label = stringResource(R.string.glucose_meter_forget),
+                icon = Symbols.DeleteFilled,
+                tone = DeviceActionTone.Destructive,
+                onClick = onForget,
+            ),
+        ),
+        extra = {
+            AnimatedVisibility(visible = editing) {
+                MeterEditor(
+                    meter = meter,
+                    satelliteCode = satelliteCode,
+                    onSave = { name, code ->
+                        onSave(name, code)
+                        editing = false
+                    },
+                    onClose = { editing = false },
+                    modifier = Modifier.padding(top = 16.dp),
                 )
-                val identity = listOfNotNull(meter.deviceName.takeIf { it != meter.name }, meter.address)
-                if (identity.isNotEmpty()) {
+            }
+            // Only a meter that never sleeps waits between checks, so its card holds the wait.
+            if (meter.staysOn) {
+                Column(Modifier.padding(top = 16.dp)) {
+                    SettingsChoice(
+                        title = stringResource(R.string.glucose_meter_recheck),
+                        options = MeterSyncPacing.CHOICES_MINUTES,
+                        labels = recheckLabels,
+                        selectedOption = recheckMinutes,
+                        onOptionSelected = onRecheckMinutes,
+                    )
                     Text(
-                        identity.joinToString(" \u00b7 "),
-                        style = MaterialTheme.typography.bodyMedium,
+                        stringResource(R.string.glucose_meter_recheck_hint),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            Spacer(Modifier.width(12.dp))
-            FilledTonalButton(
-                onClick = onForget,
-                modifier = Modifier.heightIn(min = 40.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                ),
-                shapes = ButtonDefaults.shapes(),
-            ) {
-                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.glucose_meter_forget))
-            }
-        }
+        },
+    )
+}
 
+/**
+ * The name, and a Satellite's code, opened inside the meter's card under its buttons. The name
+ * field takes the focus, and Save stays in view above the keyboard.
+ */
+@Composable
+private fun MeterEditor(
+    meter: GlucoseMeterSnapshot,
+    satelliteCode: String?,
+    onSave: (name: String, satelliteCode: String?) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val storedName = if (meter.name == meter.deviceName) "" else meter.name
+    var name by rememberSaveable(meter.index) { mutableStateOf(storedName) }
+    var code by rememberSaveable(meter.index) { mutableStateOf(satelliteCode.orEmpty()) }
+    val codeChanged = satelliteCode != null && code != satelliteCode
+    val codeValid = !codeChanged || GlucoseMeterManager.isSatelliteCodeValid(code)
+    val canSave = (MeterNames.clean(name) != storedName || codeChanged) && codeValid
+    val save = { onSave(name, code.takeIf { codeChanged }) }
+    val done = { if (canSave) save() else onClose() }
+
+    val focus = remember { FocusRequester() }
+    val saveInView = remember { BringIntoViewRequester() }
+    val keyboardUp = WindowInsets.isImeVisible
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    LaunchedEffect(keyboardUp) { if (keyboardUp) saveInView.bringIntoView() }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         OutlinedTextField(
             value = name,
             onValueChange = { name = it.replace('\n', ' ').take(MeterNames.MAX_LENGTH) },
@@ -691,10 +707,9 @@ internal fun MeterDetailForm(
                 capitalization = KeyboardCapitalization.Words,
                 imeAction = if (satelliteCode != null) ImeAction.Next else ImeAction.Done,
             ),
-            keyboardActions = KeyboardActions(onDone = { if (canSave) save() else onDismiss() }),
-            modifier = Modifier.fillMaxWidth(),
+            keyboardActions = KeyboardActions(onDone = { done() }),
+            modifier = Modifier.fillMaxWidth().focusRequester(focus),
         )
-
         if (satelliteCode != null) {
             OutlinedTextField(
                 value = code,
@@ -704,16 +719,18 @@ internal fun MeterDetailForm(
                 label = { Text(stringResource(R.string.satellite_meter_code_label)) },
                 singleLine = true,
                 isError = code.isNotEmpty() && !GlucoseMeterManager.isSatelliteCodeValid(code),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { if (canSave) save() else onDismiss() }),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Characters,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(onDone = { done() }),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-
         Button(
             onClick = save,
             enabled = canSave,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().bringIntoViewRequester(saveInView),
             shapes = ButtonDefaults.shapes(),
             contentPadding = ButtonDefaults.ContentPadding,
         ) {

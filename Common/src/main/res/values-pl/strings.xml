@@ -922,8 +922,9 @@
     <string name="glucose_meters_none_found">Nie znaleziono glukometru. Włącz glukometr i wyszukaj ponownie</string>
     <string name="glucose_meters_other">Inne urządzenia Bluetooth</string>
     <string name="glucose_meters_other_desc">Jeśli glukometru nie ma na liście powyżej</string>
-    <string name="glucose_meter_last_reading">Ostatni pomiar: %1$s</string>
-    <string name="glucose_meter_no_readings">Nie zaimportowano jeszcze pomiarów</string>
+    <string name="glucose_meter_last_reading">Ostatni pomiar</string>
+    <string name="glucose_meter_no_readings">Jeszcze brak</string>
+    <string name="glucose_meter_device_name">Nazwa Bluetooth</string>
     <string name="satellite_meter_code_missing">Glukometr Satellite: najpierw ustaw kod glukometru w ustawieniach glukometrów</string>
     <string name="glucose_meter_forget">Zapomnij</string>
     <string name="glucose_meter_forget_title">Zapomnij glukometr</string>

@@ -469,8 +469,9 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
   <string name="glucose_meter_recheck">Volver a comprobar un medidor después de</string>
   <string name="glucose_meter_recheck_now">Ahora mismo</string>
   <string name="glucose_meter_recheck_hint">Para medidores que permanecen encendidos, como Satellite. Una nueva lectura puede llegar más tarde</string>
-  <string name="glucose_meter_last_reading">Última lectura: %1$s</string>
-  <string name="glucose_meter_no_readings">Aún no se importaron lecturas</string>
+  <string name="glucose_meter_last_reading">Última lectura</string>
+  <string name="glucose_meter_no_readings">Todavía ninguna</string>
+  <string name="glucose_meter_device_name">Nombre Bluetooth</string>
   <string name="glucose_meter_forget">Olvidar</string>
   <string name="glucose_meter_forget_title">Olvidar medidor</string>
   <string name="glucose_meter_forget_desc">¿Dejar de usar %1$s y desvincularlo de este teléfono? Las lecturas ya importadas al diario se conservan.</string>

@@ -839,8 +839,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_meters_none_found">Aucun lecteur trouvé. Allumez le lecteur et relancez la recherche</string>
     <string name="glucose_meters_other">Autres appareils Bluetooth</string>
     <string name="glucose_meters_other_desc">Si votre lecteur n\'apparaît pas ci-dessus</string>
-    <string name="glucose_meter_last_reading">Dernière mesure : %1$s</string>
-    <string name="glucose_meter_no_readings">Aucune mesure importée</string>
+    <string name="glucose_meter_last_reading">Dernière mesure</string>
+    <string name="glucose_meter_no_readings">Aucune pour le moment</string>
+    <string name="glucose_meter_device_name">Nom Bluetooth</string>
     <string name="satellite_meter_code_missing">Lecteur Satellite : définissez d\'abord le code du lecteur dans les réglages des lecteurs de glycémie</string>
     <string name="glucose_meter_forget">Oublier</string>
     <string name="glucose_meter_forget_title">Oublier le lecteur</string>

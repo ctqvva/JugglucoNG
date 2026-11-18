@@ -881,8 +881,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_meters_none_found">未找到血糖仪。请打开血糖仪后重新搜索</string>
     <string name="glucose_meters_other">其他蓝牙设备</string>
     <string name="glucose_meters_other_desc">如果上方没有列出您的血糖仪</string>
-    <string name="glucose_meter_last_reading">最近读数：%1$s</string>
-    <string name="glucose_meter_no_readings">尚未导入读数</string>
+    <string name="glucose_meter_last_reading">最近读数</string>
+    <string name="glucose_meter_no_readings">暂无</string>
+    <string name="glucose_meter_device_name">蓝牙名称</string>
     <string name="satellite_meter_code_missing">Satellite 血糖仪：请先在血糖仪设置中填写血糖仪代码</string>
     <string name="glucose_meter_forget">忘记</string>
     <string name="glucose_meter_forget_title">忘记血糖仪</string>
