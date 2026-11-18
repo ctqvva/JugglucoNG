@@ -93,8 +93,12 @@ enum class StatsMetric(@param:StringRes val titleResId: Int) {
             STREAK
         )
 
-        /** Rows shown before the rest fold away behind the disclosure. */
-        const val DEFAULT_VISIBLE_ROWS = 4
+        /**
+         * Rows shown before the rest fold away behind the disclosure. Three since the
+         * overview became a band-by-band list: with it, a fourth row pushed the fold below
+         * the first screen on an ordinary phone.
+         */
+        const val DEFAULT_VISIBLE_ROWS = 3
 
         /**
          * Pinned to the dashboard out of the box.

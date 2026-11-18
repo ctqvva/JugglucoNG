@@ -29,6 +29,7 @@ badge fill
 bar_chart fill
 bar_chart outline
 battery_saver fill
+bedtime fill
 block fill
 bloodtype fill
 bluetooth fill
@@ -155,6 +156,7 @@ remove fill
 restart_alt fill
 restaurant fill
 restore fill
+routine fill
 save fill
 schedule fill
 schedule outline
@@ -210,6 +212,7 @@ warning fill
 warning_amber fill
 watch fill
 water_drop fill
+wb_twilight fill
 webhook fill
 width_full fill
 width_normal fill

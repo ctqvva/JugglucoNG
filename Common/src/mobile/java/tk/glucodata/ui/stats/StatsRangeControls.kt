@@ -3,7 +3,6 @@
 package tk.glucodata.ui.stats
 
 import tk.glucodata.ui.components.AdaptiveButtonRow
-import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -184,9 +183,12 @@ fun StatsRangeSelectorControl(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        AdaptiveTrailingRow(
+        // The count and coverage take two lines before the date chip gives up its place
+        // beside them: a chip pushed onto a line of its own left a gap under the count.
+        BesideOrBelow(
             modifier = Modifier.fillMaxWidth(),
-            trailingContent = {
+            stackGap = 12.dp,
+            trailing = {
                 Surface(
                     modifier = Modifier.heightIn(min = 36.dp),
                     onClick = onCustomRangeClick,
@@ -229,20 +231,22 @@ fun StatsRangeSelectorControl(
                         }
                     }
                 }
+            },
+            leading = {
+                if (hasData && readingCount > 0) {
+                    val countText = "${java.text.NumberFormat.getIntegerInstance(locale).format(readingCount)} ${stringResource(countLabelResId)}"
+                    JoinedOrStackedText(
+                        first = countText,
+                        second = coveragePercent?.let {
+                            stringResource(R.string.stats_coverage_active, it.roundToInt()).replace(' ', '\u00A0')
+                        },
+                        style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
+                }
             }
-        ) {
-            if (hasData && readingCount > 0) {
-                val countText = "${java.text.NumberFormat.getIntegerInstance(locale).format(readingCount)} ${stringResource(countLabelResId)}"
-                Text(
-                    text = coveragePercent
-                        ?.let { "$countText · ${stringResource(R.string.stats_coverage_active, it.roundToInt()).replace(' ', '\u00A0')}" }
-                        ?: countText,
-                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 16.dp)
-                )
-            }
-        }
+        )
 
         val context = LocalContext.current
         val measurer = rememberTextMeasurer()

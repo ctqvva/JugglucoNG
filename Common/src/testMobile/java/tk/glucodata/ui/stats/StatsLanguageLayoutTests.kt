@@ -126,11 +126,9 @@ class StatsLanguageLayoutTests {
                 compose.onNodeWithTag("screen").captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)
             }
             val overview = compose.onNodeWithTag("overview").fetchSemanticsNode().boundsInRoot
-            val ring = compose.onNodeWithContentDescription("${String.format(Locale.getDefault(), "%.0f%%", 75f)} ${context.getString(R.string.tir)}", useUnmergedTree = true)
-                .fetchSemanticsNode().boundsInRoot
-            assertTrue("oversized ring in $tag $scale $u", ring.width <= 160.5f)
-            assertTrue("stacked normal-phone overview in $tag $scale $u", ring.right < overview.right - 96f)
-            assertTrue("overview too tall in $tag $scale $u: ${overview.height}", overview.height <= 360f)
+            // Five 48dp rows and a 72dp headline at 1x (longer translations wrap a per-day time);
+            // at 1.3x most per-day times take their own line.
+            assertTrue("overview too tall in $tag $scale $u: ${overview.height}", overview.height <= if (scale > 1f) 520f else 380f)
             var right: Float? = null
             for (p in percentages) {
                 val node = compose.onNode(hasText(String.format(Locale.getDefault(), "%.1f%%", p)) and hasAnyAncestor(hasTestTag("overview")), useUnmergedTree = true)
@@ -149,10 +147,10 @@ class StatsLanguageLayoutTests {
                     compose.onNode(hasText(formatMgDl(summary.avgMgDl, u)) and inMetrics, useUnmergedTree = true).layout().layoutInput.style.fontSize)
                 assertEquals(AppTypography.titleMedium.fontSize,
                     compose.onNode(hasText(context.getString(R.string.average_glucose)) and inMetrics, useUnmergedTree = true).layout().layoutInput.style.fontSize)
-                assertEquals(AppTypography.headlineLarge.fontSize,
-                    compose.onNodeWithText("75%", useUnmergedTree = true).layout().layoutInput.style.fontSize)
-                assertEquals(AppTypography.titleMedium.fontSize,
-                    compose.onNodeWithText(context.getString(R.string.tir), useUnmergedTree = true).layout().layoutInput.style.fontSize)
+                assertEquals(AppTypography.headlineMediumEmphasized.fontSize,
+                    compose.onNodeWithText(String.format(Locale.getDefault(), "%.1f%%", 75.2f), useUnmergedTree = true).layout().layoutInput.style.fontSize)
+                assertEquals(AppTypography.titleLargeEmphasized.fontSize,
+                    compose.onNode(hasText(context.getString(R.string.in_range)) and hasAnyAncestor(hasTestTag("overview")), useUnmergedTree = true).layout().layoutInput.style.fontSize)
                 assertEquals(AppTypography.bodyMedium.fontSize,
                     compose.onNode(hasText(context.getString(R.string.very_high)) and hasAnyAncestor(hasTestTag("overview")), useUnmergedTree = true).layout().layoutInput.style.fontSize)
             }
@@ -167,7 +165,7 @@ class StatsLanguageLayoutTests {
         }
     }
 
-    @Test fun ringAndNumbersStayInsideTheirBoundsAcrossWindowsAndDensities() {
+    @Test fun bandRowsAndNumbersStayInsideTheCardAcrossWindowsAndDensities() {
         var width by mutableIntStateOf(328)
         var density by mutableFloatStateOf(1f)
         var scale by mutableFloatStateOf(1.3f)
@@ -187,16 +185,12 @@ class StatsLanguageLayoutTests {
         for (w in listOf(240, 288, 328, 400, 600)) for (d in listOf(1f, 2f)) for (s in listOf(1f, 1.3f, 2f)) {
             compose.runOnIdle { width = w; density = d; scale = s }
             val card = compose.onNodeWithTag("overview").fetchSemanticsNode().boundsInRoot
-            val ring = compose.onNodeWithContentDescription("75% TIR", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-            assertTrue(ring.left >= card.left && ring.right <= card.right && ring.top >= card.top && ring.bottom <= card.bottom)
-            val innerRadius = ring.width / 2f - 16f * d
-            for (text in listOf("75%", "TIR")) {
-                val node = compose.onNodeWithText(text, useUnmergedTree = true)
-                node.assertFits()
-                val bounds = node.fetchSemanticsNode().boundsInRoot
-                for (corner in listOf(bounds.topLeft, bounds.topRight, bounds.bottomLeft, bounds.bottomRight)) {
-                    assertTrue("$text crosses ring at $w/$d/$s", (corner - ring.center).getDistance() < innerRadius)
-                }
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            for (id in labels) {
+                val row = compose.onNodeWithText(context.getString(id), useUnmergedTree = true)
+                row.assertFits()
+                val bounds = row.fetchSemanticsNode().boundsInRoot
+                assertTrue("row outside the card at $w/$d/$s", bounds.left >= card.left && bounds.right <= card.right && bounds.bottom <= card.bottom)
             }
             for (p in percentages) compose.onNodeWithText(String.format(Locale.getDefault(), "%.1f%%", p), useUnmergedTree = true).assertFits()
         }
