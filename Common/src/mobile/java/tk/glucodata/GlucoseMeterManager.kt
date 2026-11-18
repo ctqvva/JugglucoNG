@@ -11,18 +11,24 @@ import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntrySource
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalRepository
+import tk.glucodata.glucosemeter.MeterNames
 import tk.glucodata.glucosemeter.MeterSyncPacing
 import tk.glucodata.glucosemeter.SatelliteMeterCredentials
 
 data class GlucoseMeterSnapshot(
     val index: Int,
+    /** What the screen and the journal call it: the user's name, or [deviceName]. */
     val name: String,
+    /** The name the meter advertises, which is also its identity in the native table. */
+    val deviceName: String,
     val address: String?,
     val active: Boolean,
     val connected: Boolean,
     val lastReadingAt: Long,
     /** Never sleeps, so the recheck interval applies to it (the Satellite). */
     val staysOn: Boolean,
+    /** A Satellite, which is read with the code printed on it. */
+    val needsSatelliteCode: Boolean = false,
 )
 
 /** Compose-facing facade over the legacy, protocol-capable glucose meter runtime. */
@@ -49,6 +55,11 @@ object GlucoseMeterManager {
 
     fun configuredMeters(): List<GlucoseMeterSnapshot> =
         (0 until Natives.GlucoseMeterCount()).mapNotNull(::snapshot)
+
+    /** Names the meter for the screen and for the journal notes of its next readings. */
+    fun rename(meter: GlucoseMeterSnapshot, name: String) {
+        MeterNames.set(meter.deviceName, name)
+    }
 
     fun setEnabled(index: Int, enabled: Boolean) {
         if (enabled) {
@@ -81,6 +92,8 @@ object GlucoseMeterManager {
             }.onFailure { Log.stack(TAG, "removeBond", it) }.getOrDefault(false)
         }
         Natives.GlucoseMeterSetDeviceAddress(index, null)
+        // The name was this meter's; a replacement of the same model starts from its own.
+        Natives.GlucoseMeterDeviceName(index)?.takeIf(String::isNotBlank)?.let { MeterNames.set(it, null) }
         // lastTime is deliberately kept: it is what stops the native store from
         // taking the same readings a second time if this meter is paired again.
         return unbound
@@ -117,13 +130,15 @@ object GlucoseMeterManager {
         val gatt = BluetoothGlucoseMeter.getExistingGatt(index)
         return GlucoseMeterSnapshot(
             index = index,
-            name = name,
+            name = MeterNames.display(name),
+            deviceName = name,
             address = address,
             active = Natives.GlucoseMeterGetActive(index),
             connected = gatt?.connected == true,
             lastReadingAt = Natives.GlucoseMeterGetLastTime(index),
             // The name before the first link; what the link found after it.
             staysOn = name.startsWith("Satellite", ignoreCase = true) || gatt?.staysOn() == true,
+            needsSatelliteCode = name.startsWith("Satellite", ignoreCase = true) || gatt?.staysOn() == true,
         )
     }
 }
@@ -143,6 +158,7 @@ object GlucoseMeterJournalBridge {
             return
         }
         val meterName = Natives.GlucoseMeterDeviceName(meterIndex)?.takeIf(String::isNotBlank)
+            ?.let(MeterNames::display)
         scope.launch {
             runCatching {
                 JournalRepository().upsertEntry(

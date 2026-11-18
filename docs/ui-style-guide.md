@@ -296,8 +296,8 @@ settings row with a sheet behind it:
 - **Controls:** ordinary buttons in one row, 8dp apart: [QR code] [Edit] [Delete], Delete last
   and outlined in the error colour. Equal widths while the labels fit; icons give way before a
   label is cut; only when bare labels can't share a line does each take its own.
-- **Under the row:** what a control opens inline (a QR code), then a task only this device
-  offers (History recovery), full width.
+- **Under the row:** what a control opens inline (a QR code; a meter's name and code), then a task or setting only this device
+  has (History recovery; a Satellite's recheck wait), full width.
 - The 20dp status-card corner on the settings surface; paused, `surfaceContainerLow`. Cards stand
   8dp apart.
 
