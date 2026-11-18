@@ -42,12 +42,21 @@ public class NotificationChartDrawer {
         public final int viewMode;
         public final int color;
         public final List<GlucosePoint> points;
+        /**
+         * Whether this peer's own lane carries an active calibration. Decided once,
+         * where the series is resolved, so the line (the chart model), its forecast
+         * and the y-range all agree about it. A calibrated peer's line is its
+         * calibrated value, and so is the forecast that continues it.
+         */
+        public final boolean hasCalibration;
 
-        public PeerSeries(String sensorId, int viewMode, int color, List<GlucosePoint> points) {
+        public PeerSeries(String sensorId, int viewMode, int color, List<GlucosePoint> points,
+                boolean hasCalibration) {
             this.sensorId = sensorId;
             this.viewMode = viewMode;
             this.color = color;
             this.points = points != null ? points : Collections.emptyList();
+            this.hasCalibration = hasCalibration;
         }
     }
 
@@ -1165,6 +1174,25 @@ public class NotificationChartDrawer {
         return CalibrationAccess.getCalibratedValue(baseVal, p.timestamp, isRawMode, false, calibrationSensorId);
     }
 
+    /**
+     * Whether a peer's line is still running, and so has a forecast to extend it.
+     * A series whose newest point is further behind than the chart would bridge is
+     * not producing readings; extrapolating it would project a curve out of the
+     * middle of the chart. The dashboard applies the same test to its peers.
+     */
+    static boolean peerPredictionEligible(PeerSeries series, long nowMs) {
+        if (series == null || series.points == null || series.points.size() < 2) {
+            return false;
+        }
+        long newest = 0L;
+        for (GlucosePoint point : series.points) {
+            if (point != null && point.timestamp > newest) {
+                newest = point.timestamp;
+            }
+        }
+        return newest > 0L && nowMs - newest <= GlucoseChartGap.THRESHOLD_MS;
+    }
+
     private static List<NotificationPredictionSeries> resolvePredictionOverlay(
             Context context, List<GlucosePoint> data, boolean isMmol, int viewMode,
             boolean hasCalibration, String calibrationSensorId, float targetLow, float targetHigh,
@@ -1833,8 +1861,9 @@ public class NotificationChartDrawer {
      * Draws from a resolved model. The primary line and every peer come from
      * {@code model} — values already decided, main/secondary look already
      * decided per minute — and this painter paints what it is handed. The raw
-     * {@code data} and {@code peerSeries} are still used for the axis, the
-     * source lanes behind a calibration, and the prediction overlay.
+     * {@code data} and {@code peerSeries} still feed the prediction overlay
+     * (each peer with its own calibration state); the axis is bounded by what
+     * is drawn, so a calibrated series' uncalibrated source never sizes it.
      */
     public static Bitmap drawChartWithPrediction(Context context, List<GlucosePoint> data, int widthHint, int heightHint,
             boolean isMmol, int viewMode, boolean showTargetRange, boolean hasCalibration, boolean compactMode,
@@ -1972,7 +2001,8 @@ public class NotificationChartDrawer {
                             series.sensorId,
                             series.viewMode,
                             series.color,
-                            visiblePeerPoints));
+                            visiblePeerPoints,
+                            series.hasCalibration));
                 }
             }
         }
@@ -2058,16 +2088,20 @@ public class NotificationChartDrawer {
                 : Collections.emptyList();
         // Peer prediction overlays — one per peer series, so the simulation
         // extends every drawn line (matching the dashboard), not just the primary.
+        // Each peer is forecast with its own calibration state: a calibrated peer
+        // is drawn at its calibrated value, and the forecast that continues that
+        // line is the CALIBRATED one. Passing a blanket "uncalibrated" here threw
+        // that forecast away, so a calibrated secondary sensor had no prediction.
         java.util.List<List<NotificationPredictionSeries>> peerPredictionSeries = new ArrayList<>();
         if (showPredictionOverlay && peerSeries != null) {
             for (PeerSeries ps : peerSeries) {
-                if (ps == null || ps.points == null || ps.points.size() < 2) {
+                if (!peerPredictionEligible(ps, now)) {
                     peerPredictionSeries.add(Collections.emptyList());
                     continue;
                 }
                 peerPredictionSeries.add(resolvePredictionOverlay(
-                        context, ps.points, isMmol, ps.viewMode, false, ps.sensorId, targetLow, targetHigh,
-                        predictionBatch));
+                        context, ps.points, isMmol, ps.viewMode, ps.hasCalibration, ps.sensorId,
+                        targetLow, targetHigh, predictionBatch));
             }
         }
 
@@ -2157,7 +2191,11 @@ public class NotificationChartDrawer {
                 maxY = Math.max(maxY, p.rawValue);
             }
         }
-        for (PeerSeries series : visiblePeerSeries) {
+        // The stored peer values only bound the chart when they are what gets drawn.
+        // With a model the peer lines are the model's (below), and a calibrated
+        // peer's stored value is its uncalibrated source — counting it stretched the
+        // axis to a level no line reaches.
+        if (!modelDrivesPeers) for (PeerSeries series : visiblePeerSeries) {
             boolean peerAuto = showsAuto(series.viewMode);
             boolean peerRaw = showsRaw(series.viewMode);
             for (GlucosePoint p : series.points) {
@@ -2168,6 +2206,19 @@ public class NotificationChartDrawer {
                 if (peerRaw && p.rawValue > 0) {
                     minY = Math.min(minY, p.rawValue);
                     maxY = Math.max(maxY, p.rawValue);
+                }
+            }
+        }
+        // Peer forecasts are drawn as plain lines (no band), so their values bound
+        // the chart the way the dashboard's do.
+        for (List<NotificationPredictionSeries> peerList : peerPredictionSeries) {
+            for (NotificationPredictionSeries series : peerList) {
+                if (series == null || series.points == null) continue;
+                for (NotificationPredictionPoint point : series.points) {
+                    if (point == null || point.timestamp < startTime || point.timestamp > chartEndTime) continue;
+                    if (!Float.isFinite(point.value) || point.value <= 0.1f) continue;
+                    minY = Math.min(minY, point.value);
+                    maxY = Math.max(maxY, point.value);
                 }
             }
         }
@@ -2738,7 +2789,7 @@ public class NotificationChartDrawer {
                         series,
                         isMmol,
                         peerSeries.get(peerIdx).viewMode,
-                        false,
+                        peerSeries.get(peerIdx).hasCalibration,
                         peerColor,
                         peerColor,
                         peerColor,
