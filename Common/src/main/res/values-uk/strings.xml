@@ -2463,6 +2463,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_finding_on_target">У цілі</string>
     <string name="stats_finding_on_target_desc">%1$d%% у діапазоні за CV %2$d%%. Більше нічого не вирізняється.</string>
     <string name="stats_card_overview">Час у діапазоні</string>
+    <string name="stats_tir_change">%1$s в. п. порівняно з попереднім періодом</string>
     <string name="stats_card_metrics">Показники</string>
     <string name="stats_card_coverage">Покриття</string>
     <string name="stats_card_coverage_description">Частка періоду, за яку сенсор справді передавав дані. Усі відсотки на цьому екрані описують лише цей час.</string>

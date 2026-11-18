@@ -2523,6 +2523,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_finding_on_target">В цели</string>
     <string name="stats_finding_on_target_desc">%1$d%% в диапазоне при CV %2$d%%. Больше ничего не выделяется.</string>
     <string name="stats_card_overview">Время в диапазоне</string>
+    <string name="stats_tir_change">%1$s п. п. к предыдущему периоду</string>
     <string name="stats_card_metrics">Показатели</string>
     <string name="stats_card_coverage">Покрытие</string>
     <string name="stats_card_coverage_description">Доля периода, за которую сенсор действительно передавал данные. Все проценты на этом экране описывают только это время.</string>

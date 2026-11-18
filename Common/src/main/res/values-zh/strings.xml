@@ -2410,6 +2410,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_finding_on_target">达标</string>
     <string name="stats_finding_on_target_desc">目标范围内 %1$d%%，CV %2$d%%。没有其他值得注意的地方。</string>
     <string name="stats_card_overview">目标范围内时间</string>
+    <string name="stats_tir_change">比上一时段变化 %1$s 个百分点</string>
     <string name="stats_card_metrics">指标</string>
     <string name="stats_card_coverage">覆盖</string>
     <string name="stats_card_coverage_description">传感器实际上报的时间占比。本屏所有百分比都只描述这段时间。</string>

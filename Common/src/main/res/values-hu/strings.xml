@@ -1833,6 +1833,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="stats_day_highest">Legmagasabb</string>
     <string name="stats_day_coverage">CGM aktív: %1$d%% · %2$d mérés</string>
     <string name="stats_card_overview">Céltartományban töltött idő</string>
+    <string name="stats_tir_change">%1$s százalékpont az előző időszakhoz képest</string>
     <string name="stats_card_metrics">Mutatók</string>
     <string name="stats_card_coverage">Lefedettség</string>
     <string name="stats_card_coverage_description">Az időszak azon része, amelyben a szenzor ténylegesen adatot küldött. A képernyő minden százalékos értéke csak erre az időre vonatkozik.</string>

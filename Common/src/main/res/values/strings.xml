@@ -2002,6 +2002,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_day_coverage">CGM active %1$d%% · %2$d readings</string>
     <!-- Statistics: layout, periods, arrange mode -->
     <string name="stats_card_overview">Time in range</string>
+    <string name="stats_tir_change">%1$s percentage points vs previous period</string>
     <string name="stats_card_metrics">Metrics</string>
     <string name="stats_card_coverage">Coverage</string>
     <string name="stats_card_coverage_description">Share of the period the sensor actually reported. Every percentage on this screen describes only that time.</string>

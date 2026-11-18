@@ -2507,6 +2507,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="stats_finding_on_target">Im Ziel</string>
     <string name="stats_finding_on_target_desc">%1$d%% im Zielbereich bei VK %2$d%%. Sonst nichts Auffälliges.</string>
     <string name="stats_card_overview">Zeit im Zielbereich</string>
+    <string name="stats_tir_change">%1$s Prozentpunkte zum Vorzeitraum</string>
     <string name="stats_card_metrics">Kennzahlen</string>
     <string name="stats_card_coverage">Abdeckung</string>
     <string name="stats_card_coverage_description">Anteil des Zeitraums, in dem der Sensor tatsächlich gemessen hat. Alle Prozentwerte auf diesem Bildschirm beschreiben nur diese Zeit.</string>

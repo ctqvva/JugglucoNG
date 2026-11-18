@@ -1945,6 +1945,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="stats_day_coverage">CGM activo %1$d%% · %2$d lecturas</string>
      <!-- Statistics: layout, periods, arrange mode -->
      <string name="stats_card_overview">Tiempo en rango</string>
+     <string name="stats_tir_change">%1$s puntos porcentuales respecto al período anterior</string>
      <string name="stats_card_metrics">Métricas</string>
      <string name="stats_card_coverage">Cobertura</string>
      <string name="stats_card_coverage_description">Parte del periodo en que el sensor informó realmente. Cada porcentaje en esta pantalla describe solo ese tiempo.</string>
