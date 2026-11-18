@@ -430,7 +430,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
     // The lines above report the native entries uploader only, so they can read HTTP 200 while
     // the JVM-side treatment path has been rejected for days (issue #191).
     val treatmentSummary: String? = when {
-        !isActive || mode != NightscoutModePreference.Mode.UPLOAD || !sendTreatments -> null
+        // Off with the journal: nothing is sent then, so an old failure would stay up for good.
+        !isActive || mode != NightscoutModePreference.Mode.UPLOAD || !journalEnabled || !sendTreatments -> null
         treatmentSync.failure == JournalSyncFailure.UPLOAD -> context.getString(
             R.string.nightscout_status_treatments_upload_failing,
             formatStatusMillis(treatmentSync.failingSince),
@@ -453,7 +454,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
     // The lines above report the native entries uploader only; the devicestatus channel
     // (IOB) fails on its own, and a "no token" skip must not read like a server rejection.
     val deviceStatusSummary: String? = when {
-        !isActive || mode != NightscoutModePreference.Mode.UPLOAD || !uploadIob -> null
+        !isActive || mode != NightscoutModePreference.Mode.UPLOAD || !journalEnabled || !uploadIob -> null
         deviceStatusOutcome == NightPost.DEVICE_STATUS_NO_TOKEN ->
             context.getString(R.string.nightscout_status_iob_no_token)
         deviceStatusOutcome == NightPost.DEVICE_STATUS_REJECTED -> context.getString(

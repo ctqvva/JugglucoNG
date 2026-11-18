@@ -1785,6 +1785,9 @@ class DashboardViewModel(
         _journalEnabled.value = enabled
         if (enabled) {
             ensureJournalEntriesObserved()
+            // Nightscout passes that ran while the journal was off sent nothing and cleared
+            // their retry; ask for one now, or entries wait for the next journal edit.
+            tk.glucodata.NightscoutUploadWake.afterJournalChange()
         } else {
             stopJournalEntriesObservation()
         }
