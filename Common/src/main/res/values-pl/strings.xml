@@ -294,7 +294,7 @@
  <string name="settings">Ustawienia</string>
  <string name="aboutname">Informacje</string>
  <string name="export">Eksport</string>
- <string name="mirror">Klonowanie</string>
+ <string name="mirror">Kopia lustrzana</string>
  <string name="new_amount">Nowa wartość</string>
  <string name="list">Lista</string>
  <string name="statistics">Statystyka</string>
@@ -1939,10 +1939,8 @@
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">Relay TURN dla połączeń zdalnych</string>
     <string name="mirror_connections">Połączenia</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Klon lokalny</string>
     <string name="mirror_default_hybrid_label">Klon hybrydowy</string>
-    <string name="mirror_clone_master_desc">Włącz wszystkie zapisane połączenia Clone</string>
     <string name="clone_history_recovery">Odzyskiwanie historii</string>
     <string name="clone_history_direction_send">Wyślij</string>
     <string name="clone_history_direction_pull">Odzyskaj</string>
@@ -2931,8 +2929,9 @@
     <string name="mirror_connection_setup">Konfiguracja połączenia</string>
     <string name="turn_help_how_body">Serwer rendezvous jedynie przedstawia sobie dwa urządzenia: każde zostawia tam swoje możliwe adresy i odbiera adresy drugiego. Dane glukozy nigdy przez niego nie przechodzą. Preferowana jest trasa bezpośrednia; TURN przekazuje ruch tylko wtedy, gdy żadna bezpośrednia nie działa, a to, co przekazuje, pozostaje zaszyfrowane.\n\nGdy oba przełączniki są wyłączone, używane są rendezvous i przekaźnik aplikacji. Włącz jeden, a tylko ta część stanie się twoja; włącz oba, a twoje serwery opuszcza już tylko zapytanie o adres publiczny, chyba że „TURN do STUN” wyśle je również do twojego przekaźnika.\n\nW jednej sieci „Znajdź sparowane urządzenia w pobliżu” łączy je bezpośrednio, pomijając rendezvous.</string>
     <string name="turn_credentials_too_long">Nazwa użytkownika lub hasło są zbyt długie dla tej konfiguracji TURN.</string>
-    <string name="clone_sync_title">Synchronizacja</string>
     <string name="clone_network_title">Sieć Clone</string>
+    <string name="clone_network_settings">Ustawienia sieci Clone</string>
+    <string name="clone_add_custom_connection">Dodaj własne połączenie</string>
     <string name="clone_servers">Serwery</string>
     <string name="clone_server_default">Serwer aplikacji</string>
     <string name="clone_connection_options">Połączenie</string>
@@ -2954,7 +2953,6 @@
     <string name="clone_pairing_waiting">Czekam na drugi telefon…</string>
     <string name="clone_pairing_announced">Widoczny też w tej sieci Wi-Fi jako %1$s</string>
     <string name="clone_pairing_connected">Połączono</string>
-    <string name="clone_add_manually_desc">Wpisz adres i opcje samodzielnie</string>
     <string name="clone_send_readings">Wysyłaj odczyty</string>
     <string name="clone_on_this_wifi">W tej sieci Wi-Fi</string>
     <string name="clone_nearby_empty">Tu pojawią się telefony wysyłające odczyty w tej sieci Wi-Fi</string>

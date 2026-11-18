@@ -1905,10 +1905,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">Relay TURN para conexões remotas</string>
     <string name="mirror_connections">Conexões</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Clone local</string>
     <string name="mirror_default_hybrid_label">Clone híbrido</string>
-    <string name="mirror_clone_master_desc">Ativar todas as conexões Clone guardadas</string>
     <string name="clone_history_recovery">Recuperação do histórico</string>
     <string name="clone_history_direction_send">Enviar</string>
     <string name="clone_history_direction_pull">Recuperar</string>
@@ -2890,8 +2888,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_setup">Configuração da ligação</string>
     <string name="turn_help_how_body">O servidor de rendezvous limita-se a apresentar dois dispositivos: cada um deixa lá os seus endereços possíveis e recolhe os do outro. Os dados de glicose nunca passam por ele. Prefere-se uma rota direta; o TURN só retransmite o tráfego quando nenhuma rota direta funciona, e o que retransmite permanece cifrado.\n\nCom ambos os interruptores desligados, usam-se o rendezvous e o retransmissor da aplicação. Ligue um e só essa parte passa a ser sua; ligue ambos e apenas a consulta do endereço público sai ainda dos seus servidores, a não ser que «TURN para STUN» a envie também para o seu retransmissor.\n\nNa mesma rede, «Encontrar dispositivos associados por perto» liga-os diretamente e dispensa o rendezvous.</string>
     <string name="turn_credentials_too_long">O nome de utilizador ou a palavra-passe é demasiado longo para esta configuração TURN.</string>
-    <string name="clone_sync_title">Sincronização</string>
     <string name="clone_network_title">Rede Clone</string>
+    <string name="clone_network_settings">Definições da rede Clone</string>
+    <string name="clone_add_custom_connection">Adicionar conexão personalizada</string>
     <string name="clone_servers">Servidores</string>
     <string name="clone_server_default">Servidor da aplicação</string>
     <string name="clone_connection_options">Ligação</string>
@@ -2913,7 +2912,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_waiting">À espera do outro telemóvel…</string>
     <string name="clone_pairing_announced">Também visível nesta rede Wi-Fi como %1$s</string>
     <string name="clone_pairing_connected">Ligado</string>
-    <string name="clone_add_manually_desc">Introduza o endereço e as opções manualmente</string>
     <string name="clone_send_readings">Enviar leituras</string>
     <string name="clone_on_this_wifi">Nesta rede Wi-Fi</string>
     <string name="clone_nearby_empty">Os telemóveis que enviam leituras nesta rede Wi-Fi aparecem aqui</string>

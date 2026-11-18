@@ -151,7 +151,7 @@
     <string name="minimum">Минимум</string>
     <string name="minuteddeactivated">Минуты отключены:</string>
     <string name="minutes">Минуты</string>
-    <string name="mirror">Зеркало (клон)</string>
+    <string name="mirror">Зеркало</string>
 	<string name="modify">Изменить</string>
     <string name="multiply">Умножьте на:</string>
     <string name="name">Имя:</string>
@@ -1951,10 +1951,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Ретранслятор</string>
     <string name="mirror_turn_server_desc">TURN-ретранслятор для удаленных подключений</string>
     <string name="mirror_connections">Соединения</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Локальный клон</string>
     <string name="mirror_default_hybrid_label">Гибридный клон</string>
-    <string name="mirror_clone_master_desc">Включить все сохранённые подключения Clone</string>
     <string name="clone_history_recovery">Восстановление истории</string>
     <string name="clone_history_direction_send">Отправить</string>
     <string name="clone_history_direction_pull">Восстановить</string>
@@ -2963,8 +2961,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_setup">Настройка подключения</string>
     <string name="turn_help_how_body">Сервер рандеву только знакомит два устройства: каждое оставляет там свои возможные адреса и забирает адреса другого. Данные глюкозы через него не идут. Предпочитается прямой маршрут; TURN передаёт трафик только когда прямой не работает, и передаваемое остаётся зашифрованным.\n\nЕсли оба переключателя выключены, используются рандеву и ретранслятор приложения. Включите один — своим станет только он; включите оба — ваши серверы будет покидать лишь запрос публичного адреса, если только «TURN для STUN» не направит и его на ваш ретранслятор.\n\nВ одной сети «Искать привязанные устройства рядом» соединяет их напрямую, минуя рандеву.</string>
     <string name="turn_credentials_too_long">Имя пользователя или пароль слишком длинные для этой конфигурации TURN.</string>
-    <string name="clone_sync_title">Синхронизация</string>
     <string name="clone_network_title">Сеть Clone</string>
+    <string name="clone_network_settings">Настройки сети Clone</string>
+    <string name="clone_add_custom_connection">Добавить своё соединение</string>
     <string name="clone_servers">Серверы</string>
     <string name="clone_server_default">Сервер приложения</string>
     <string name="clone_connection_options">Подключение</string>
@@ -2986,7 +2985,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_waiting">Ожидание другого телефона…</string>
     <string name="clone_pairing_announced">Также виден в этой сети Wi-Fi как %1$s</string>
     <string name="clone_pairing_connected">Подключено</string>
-    <string name="clone_add_manually_desc">Ввести адрес и параметры вручную</string>
     <string name="clone_send_readings">Отправлять показания</string>
     <string name="clone_on_this_wifi">В этой сети Wi-Fi</string>
     <string name="clone_nearby_empty">Здесь появятся телефоны, отправляющие показания в этой сети Wi-Fi</string>

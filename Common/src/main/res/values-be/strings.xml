@@ -293,7 +293,7 @@
 <string name="settings">Налады</string>
 <string name="aboutname">Аб Juggluco</string>
 <string name="export">Экспарт</string>
-<string name="mirror">Клон</string>
+<string name="mirror">Люстэрка</string>
 <string name="new_amount">Новая сума</string>
 <string name="list">Спіс</string>
 <string name="statistics">Статыстыка</string>
@@ -1975,10 +1975,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Рэтранслятар</string>
     <string name="mirror_turn_server_desc">TURN-рэтранслятар для аддаленых падключэнняў</string>
     <string name="mirror_connections">Падключэнні</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Лакальны клон</string>
     <string name="mirror_default_hybrid_label">Гібрыдны клон</string>
-    <string name="mirror_clone_master_desc">Уключыць усе захаваныя падключэнні Clone</string>
     <string name="clone_history_recovery">Аднаўленне гісторыі</string>
     <string name="clone_history_direction_send">Адправіць</string>
     <string name="clone_history_direction_pull">Аднавіць</string>
@@ -2961,8 +2959,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_setup">Наладжванне злучэння</string>
     <string name="turn_help_how_body">Сервер рандэву толькі знаёміць дзве прылады: кожная пакідае там свае магчымыя адрасы і забірае адрасы іншай. Даныя глюкозы праз яго не ідуць. Перавага аддаецца праму маршруту; TURN перадае трафік толькі калі прамы не працуе, і тое, што ён перадае, застаецца зашыфраваным.\n\nКалі абодва пераключальнікі выключаны, выкарыстоўваюцца рандэву і рэтранслятар праграмы. Уключыце адзін — сваім стане толькі ён; уключыце абодва — вашы серверы будзе пакідаць толькі запыт публічнага адраса, калі «TURN для STUN» не накіруе і яго на ваш рэтранслятар.\n\nУ адной сетцы «Шукаць звязаныя прылады побач» злучае іх напрамую, мінаючы рандэву.</string>
     <string name="turn_credentials_too_long">Імя карыстальніка або пароль занадта доўгія для гэтай канфігурацыі TURN.</string>
-    <string name="clone_sync_title">Сінхранізацыя</string>
     <string name="clone_network_title">Сетка Clone</string>
+    <string name="clone_network_settings">Налады сеткі Clone</string>
+    <string name="clone_add_custom_connection">Дадаць уласнае падключэнне</string>
     <string name="clone_servers">Серверы</string>
     <string name="clone_server_default">Сервер праграмы</string>
     <string name="clone_connection_options">Злучэнне</string>
@@ -2984,7 +2983,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_waiting">Чаканне іншага тэлефона…</string>
     <string name="clone_pairing_announced">Таксама бачны ў гэтай сетцы Wi-Fi як %1$s</string>
     <string name="clone_pairing_connected">Падключана</string>
-    <string name="clone_add_manually_desc">Увесці адрас і параметры ўручную</string>
     <string name="clone_send_readings">Адпраўляць паказанні</string>
     <string name="clone_on_this_wifi">У гэтай сетцы Wi-Fi</string>
     <string name="clone_nearby_empty">Тут з’явяцца тэлефоны, якія адпраўляюць паказанні ў гэтай сетцы Wi-Fi</string>

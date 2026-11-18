@@ -2177,10 +2177,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="mirror_relay">Gudbinta</string>
     <string name="mirror_turn_server_desc">U rog gudbinta isku xirka fog</string>
     <string name="mirror_connections">Xiriirinta</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Nuqul maxalli ah</string>
     <string name="mirror_default_hybrid_label">Nuqul isku-dhafan</string>
-    <string name="mirror_clone_master_desc">Daar dhammaan xiriirrada Clone ee la kaydiyay</string>
     <string name="clone_history_recovery">Soo celinta taariikhda</string>
     <string name="clone_history_direction_send">Dir</string>
     <string name="clone_history_direction_pull">Soo celi</string>
@@ -3074,8 +3072,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="mirror_connection_setup">Habaynta xidhiidhka</string>
     <string name="turn_help_how_body">Serverka rendezvous wuxuu kaliya is baraa laba qalab: mid kastaa wuxuu halkaas kaga tagaa cinwaannadiisa suurtagalka ah, kana soo qaataa kuwa kan kale. Xogta gulukoosta marnaba kama gudubto. Waddo toos ah ayaa la doorbidayaa; TURN wuxuu gudbiyaa xogta oo keliya marka aan waddo toos ahi shaqeyn, waxa uu gudbiyona wuu sirran yahay.\n\nMarka labada furayaal la damiyo, waxaa la isticmaalaa rendezvous-ka iyo gudbiyaha abka. Mid hadaad shido, qaybtaas oo keliya ayaa kaaga noqonaysa; labadaba hadaad shido, waxa kaliya ee ka baxaya server-radaada waa raadinta cinwaanka guud, haddii aan «TURN loogu talagalay STUN» taasna u dirin gudbiyahaaga.\n\nIsku shabakad, «Ka hel qalabka la xidhiidhiyay ee kuu dhow» ayaa si toos ah u xidha, rendezvous-kana wuu ka boodaa.</string>
     <string name="turn_credentials_too_long">Magaca isticmaalaha ama erayga sirta ah aad ayuu ugu dheer yahay dejintan TURN.</string>
-    <string name="clone_sync_title">Iswaafajin</string>
     <string name="clone_network_title">Shabakadda Clone</string>
+    <string name="clone_network_settings">Dejinta shabakadda Clone</string>
+    <string name="clone_add_custom_connection">Kudar xiriir gaar ah</string>
     <string name="clone_servers">Adeegayaal</string>
     <string name="clone_server_default">Adeegaha abka</string>
     <string name="clone_connection_options">Xiriirka</string>
@@ -3097,7 +3096,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clone_pairing_waiting">Waxaa la sugayaa taleefanka kale…</string>
     <string name="clone_pairing_announced">Sidoo kale waxaa lagu arkaa Wi-Fi-gan sida %1$s</string>
     <string name="clone_pairing_connected">Waa la xiray</string>
-    <string name="clone_add_manually_desc">Adiga geli cinwaanka iyo xulashooyinka</string>
     <string name="clone_send_readings">Dir akhrisyada</string>
     <string name="clone_on_this_wifi">Wi-Fi-gan</string>
     <string name="clone_nearby_empty">Taleefannada akhrisyada ku diraya Wi-Fi-gan halkan ayay ka muuqdaan</string>

@@ -98,7 +98,7 @@ internal fun CloneSettingsContent(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
-                title = stringResource(R.string.clone_sync_title),
+                title = stringResource(R.string.mirror),
                 onNavigateBack = onBack,
                 actions = {
                     IconButtonTooltip(stringResource(R.string.mirror_reconnect_all)) {
@@ -136,7 +136,7 @@ internal fun CloneSettingsContent(
             if (hasConnections) {
                 item(key = "clone_master") {
                     MasterSwitchCard(
-                        title = stringResource(R.string.mirror_clone_master),
+                        title = stringResource(R.string.clone_network_title),
                         subtitle = stringResource(if (cloneEnabled) R.string.enabled_status else R.string.disabled_status),
                         checked = cloneEnabled,
                         enabled = controlsEnabled,
@@ -197,24 +197,28 @@ internal fun CloneSettingsContent(
             }
             item(key = "turn") {
                 SettingsItem(
-                    title = stringResource(R.string.clone_network_title),
+                    title = stringResource(R.string.clone_network_settings),
                     subtitle = stringResource(R.string.clone_network_summary),
                     icon = Symbols.HubFilled,
                     iconTint = MaterialTheme.colorScheme.secondary,
-                    position = if (hasConnections) CardPosition.MIDDLE else CardPosition.TOP,
+                    position = if (hasConnections) CardPosition.BOTTOM else CardPosition.SINGLE,
                     animatePosition = true,
                     onClick = onNetworkSettings,
                 )
             }
+            // A way to connect for those who know the address; Send and Get are the way for
+            // everyone else, so this one stays quiet at the end of the screen.
             item(key = "add_manually") {
-                SettingsItem(
-                    title = stringResource(R.string.add_connection),
-                    subtitle = stringResource(R.string.clone_add_manually_desc),
-                    icon = Symbols.AddFilled,
-                    iconTint = MaterialTheme.colorScheme.secondary,
-                    position = CardPosition.BOTTOM,
+                OutlinedButton(
                     onClick = onAddManually,
-                )
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp).heightIn(min = 48.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                ) {
+                    Icon(Symbols.AddFilled, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    Text(stringResource(R.string.clone_add_custom_connection))
+                }
             }
         }
     }
@@ -378,7 +382,7 @@ private fun CloneSendPanel(
             Text(
                 stringResource(
                     R.string.clone_qr_instruction,
-                    stringResource(R.string.clone_sync_title),
+                    stringResource(R.string.mirror),
                     stringResource(R.string.clone_get_readings),
                 ),
                 style = MaterialTheme.typography.bodyMedium,

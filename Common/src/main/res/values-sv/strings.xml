@@ -1904,10 +1904,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">TURN-relay för fjärranslutningar</string>
     <string name="mirror_connections">Anslutningar</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Lokal klon</string>
     <string name="mirror_default_hybrid_label">Hybridklon</string>
-    <string name="mirror_clone_master_desc">Aktivera alla sparade Clone-anslutningar</string>
     <string name="clone_history_recovery">Återställ historik</string>
     <string name="clone_history_direction_send">Skicka</string>
     <string name="clone_history_direction_pull">Återställ</string>
@@ -2889,8 +2887,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_setup">Anslutningsinställningar</string>
     <string name="turn_help_how_body">Rendezvousservern gör bara två enheter bekanta: var och en lämnar sina möjliga adresser där och hämtar den andras. Glukosdata går aldrig genom den. En direkt väg föredras; TURN vidarebefordrar trafiken bara när ingen direkt väg fungerar, och det som vidarebefordras förblir krypterat.\n\nMed båda reglagen av används appens eget rendezvous och relä. Slå på ett och bara den delen blir din; slå på båda och bara uppslagningen av den publika adressen lämnar fortfarande dina servrar, om inte ”TURN för STUN” skickar även den till ditt relä.\n\nPå samma nätverk kopplar ”Hitta parkopplade enheter i närheten” ihop dem direkt och hoppar över rendezvous.</string>
     <string name="turn_credentials_too_long">Användarnamnet eller lösenordet är för långt för den här TURN-konfigurationen.</string>
-    <string name="clone_sync_title">Synkronisering</string>
     <string name="clone_network_title">Clone-nätverk</string>
+    <string name="clone_network_settings">Inställningar för Clone-nätverk</string>
+    <string name="clone_add_custom_connection">Lägg till egen anslutning</string>
     <string name="clone_servers">Servrar</string>
     <string name="clone_server_default">Appens server</string>
     <string name="clone_connection_options">Anslutning</string>
@@ -2912,7 +2911,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_waiting">Väntar på den andra telefonen…</string>
     <string name="clone_pairing_announced">Syns även på det här wifi-nätverket som %1$s</string>
     <string name="clone_pairing_connected">Ansluten</string>
-    <string name="clone_add_manually_desc">Ange adress och alternativ själv</string>
     <string name="clone_send_readings">Skicka värden</string>
     <string name="clone_on_this_wifi">På det här wifi-nätverket</string>
     <string name="clone_nearby_empty">Telefoner som skickar värden på det här wifi-nätverket visas här</string>

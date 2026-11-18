@@ -282,7 +282,7 @@
 <string name="settings">Instellingen</string>
 <string name="aboutname">About</string>
 <string name="export">Export</string>
-<string name="mirror">Kloon</string>
+<string name="mirror">Spiegelen</string>
 <string name="new_amount">Hoeveelheid</string>
 <string name="list">Lijst</string>
 <string name="statistics">Statistiek</string>
@@ -378,7 +378,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
  <string name="valuenotification">Waarde aanwezig</string>
 <string name="scantranstitle">TRANSMITTER datamatrix scannen</string>
 <string name="scantransmessage">Sibionics 2 sensor datamatrix succesvol gescand. \nScan nu de transmitter datamatrix."</string>
- <string name="mirrorscansucces">Verbinding toevoegt aan linker midden menu → Kloon</string>
+ <string name="mirrorscansucces">Verbinding toevoegt aan linker midden menu → Spiegelen</string>
  <string name="calibration">Kalibratie</string>
 <string name="exclude">Sluit uit</string>
 <string name="calibratepast">Toepassen op verleden</string>
@@ -1947,10 +1947,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">TURN-relay voor externe verbindingen</string>
     <string name="mirror_connections">Verbindingen</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Lokale kloon</string>
     <string name="mirror_default_hybrid_label">Hybride kloon</string>
-    <string name="mirror_clone_master_desc">Alle opgeslagen Clone-verbindingen inschakelen</string>
     <string name="clone_history_recovery">Geschiedenis herstellen</string>
     <string name="clone_history_direction_send">Versturen</string>
     <string name="clone_history_direction_pull">Herstellen</string>
@@ -2932,8 +2930,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_connection_setup">Verbindingsinstellingen</string>
     <string name="turn_help_how_body">De rendezvousserver stelt alleen twee apparaten aan elkaar voor: elk laat er zijn mogelijke adressen achter en haalt die van het andere op. Er gaan nooit glucosegegevens overheen. Een directe route heeft voorrang; TURN geeft het verkeer alleen door als geen directe route werkt, en wat het doorgeeft blijft versleuteld.\n\nStaan beide schakelaars uit, dan worden de rendezvous en relay van de app gebruikt. Zet er één aan en alleen dat deel wordt van jou; zet ze beide aan en alleen de opvraging van het publieke adres verlaat nog je servers, tenzij ‘TURN voor STUN’ die ook naar je relay stuurt.\n\nOp één netwerk verbindt ‘Gekoppelde apparaten in de buurt zoeken’ ze rechtstreeks en slaat het rendezvous over.</string>
     <string name="turn_credentials_too_long">De gebruikersnaam of het wachtwoord is te lang voor deze TURN-configuratie.</string>
-    <string name="clone_sync_title">Synchronisatie</string>
     <string name="clone_network_title">Clone-netwerk</string>
+    <string name="clone_network_settings">Clone-netwerkinstellingen</string>
+    <string name="clone_add_custom_connection">Eigen verbinding toevoegen</string>
     <string name="clone_servers">Servers</string>
     <string name="clone_server_default">App-standaard</string>
     <string name="clone_connection_options">Verbinding</string>
@@ -2955,7 +2954,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clone_pairing_waiting">Wachten op de andere telefoon…</string>
     <string name="clone_pairing_announced">Ook zichtbaar op deze wifi als %1$s</string>
     <string name="clone_pairing_connected">Verbonden</string>
-    <string name="clone_add_manually_desc">Voer zelf het adres en de opties in</string>
     <string name="clone_send_readings">Waarden sturen</string>
     <string name="clone_on_this_wifi">Op deze wifi</string>
     <string name="clone_nearby_empty">Telefoons die op deze wifi waarden sturen, verschijnen hier</string>

@@ -2353,10 +2353,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="mirror_relay">Közvetítő</string>
     <string name="mirror_turn_server_desc">TURN-közvetítő távoli kapcsolatokhoz</string>
     <string name="mirror_connections">Kapcsolatok</string>
-    <string name="mirror_clone_master">Klónozás</string>
     <string name="mirror_default_local_label">Helyi klón</string>
     <string name="mirror_default_hybrid_label">Hibrid klón</string>
-    <string name="mirror_clone_master_desc">Összes mentett klónkapcsolat engedélyezése</string>
     <string name="clone_history_recovery">Előzmények helyreállítása</string>
     <string name="clone_history_direction_send">Küldés</string>
     <string name="clone_history_direction_pull">Helyreállítás</string>
@@ -2963,8 +2961,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clone_source_local_ice_description">Clone közvetlen kapcsolaton keresztül</string>
     <string name="turn_help_how_body">A kapcsolatfelépítő kiszolgáló csak összeismerteti a két eszközt: mindegyik megadja a lehetséges címeit, és lekéri a másikét. Glükózadatokat soha nem továbbít. A közvetlen útvonal az előnyben részesített; a TURN csak akkor közvetíti a forgalmat, ha nincs működő közvetlen útvonal, és a továbbított adatok titkosítva maradnak.\n\nHa mindkét kapcsoló ki van kapcsolva, az alkalmazás saját kapcsolatfelépítő kiszolgálója és közvetítője működik. Egy kapcsoló bekapcsolásával csak az adott rész kerül a saját kiszolgálójára; mindkettő bekapcsolásakor már csak a nyilvános cím lekérdezése történik a saját kiszolgálókon kívül, kivéve, ha a TURN használata STUN-hoz ezt is a saját közvetítőre irányítja.\n\nAzonos hálózaton a Párosított eszközök keresése a közelben közvetlenül összekapcsolja a két eszközt, kihagyva a kapcsolatfelépítő kiszolgálót.</string>
     <string name="turn_credentials_too_long">A felhasználónév vagy a jelszó túl hosszú ehhez a TURN-konfigurációhoz.</string>
-    <string name="clone_sync_title">Szinkronizálás</string>
     <string name="clone_network_title">Clone-hálózat</string>
+    <string name="clone_network_settings">Clone-hálózat beállításai</string>
+    <string name="clone_add_custom_connection">Egyéni kapcsolat hozzáadása</string>
     <string name="clone_servers">Kiszolgálók</string>
     <string name="clone_server_default">Alkalmazás alapértelmezése</string>
     <string name="clone_connection_options">Kapcsolódási beállítások</string>
@@ -2986,7 +2985,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clone_pairing_waiting">Várakozás a másik telefonra…</string>
     <string name="clone_pairing_announced">Ezen a Wi-Fi-n is látható mint %1$s</string>
     <string name="clone_pairing_connected">Csatlakoztatva</string>
-    <string name="clone_add_manually_desc">Adja meg saját maga a címet és a beállításokat</string>
     <string name="clone_send_readings">Értékek küldése</string>
     <string name="clone_on_this_wifi">Ezen a Wi-Fi-n</string>
     <string name="clone_nearby_empty">Itt jelennek meg az ezen a Wi-Fi-n értékeket küldő telefonok</string>

@@ -1920,10 +1920,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">中继</string>
     <string name="mirror_turn_server_desc">用于远程连接的 TURN 中继</string>
     <string name="mirror_connections">连接</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">本地克隆</string>
     <string name="mirror_default_hybrid_label">混合克隆</string>
-    <string name="mirror_clone_master_desc">启用所有已保存的 Clone 连接</string>
     <string name="clone_history_recovery">历史记录恢复</string>
     <string name="clone_history_direction_send">发送</string>
     <string name="clone_history_direction_pull">恢复</string>
@@ -2903,8 +2901,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_setup">连接设置</string>
     <string name="turn_help_how_body">交会服务器只负责让两台设备互相认识：各自把可能的地址留在那里，并取走对方的地址。血糖数据从不经过它。系统优先选择直连；只有在直连都不通时 TURN 才转发流量，且转发的内容始终保持加密。\n\n两个开关都关闭时，使用应用自带的交会服务器和中继。打开其中一个，就只有那一部分归你所有；两个都打开后，离开你服务器的就只剩公网地址查询了——除非“将 TURN 用于 STUN”把它也发往你的中继。\n\n在同一网络中，“查找附近已配对的设备”会让两者直接相连，跳过交会服务器。</string>
     <string name="turn_credentials_too_long">用户名或密码过长，无法用于此 TURN 配置。</string>
-    <string name="clone_sync_title">同步</string>
     <string name="clone_network_title">Clone 网络</string>
+    <string name="clone_network_settings">Clone 网络设置</string>
+    <string name="clone_add_custom_connection">添加自定义连接</string>
     <string name="clone_servers">服务器</string>
     <string name="clone_server_default">应用默认服务器</string>
     <string name="clone_connection_options">连接选项</string>
@@ -2926,7 +2925,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_waiting">正在等待另一部手机…</string>
     <string name="clone_pairing_announced">在此 Wi-Fi 上也显示为 %1$s</string>
     <string name="clone_pairing_connected">已连接</string>
-    <string name="clone_add_manually_desc">自行输入地址和选项</string>
     <string name="clone_send_readings">发送读数</string>
     <string name="clone_on_this_wifi">此 Wi-Fi 上</string>
     <string name="clone_nearby_empty">在此 Wi-Fi 上发送读数的手机会显示在这里</string>

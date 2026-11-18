@@ -147,7 +147,7 @@ internal fun HybridSettingsContent(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
-                title = stringResource(R.string.clone_network_title),
+                title = stringResource(R.string.clone_network_settings),
                 onNavigateBack = onBack,
                 actions = {
                     IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {

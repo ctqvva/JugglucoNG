@@ -295,7 +295,7 @@
  <string name="settings">Ayarlar</string>
  <string name="aboutname">Hakkında</string>
  <string name="export">Dışa Aktar</string>
- <string name="mirror">Klon</string>
+ <string name="mirror">Ayna</string>
  <string name="new_amount">Yeni Miktar</string>
  <string name="list">Liste</string>
  <string name="statistics">İstatistikler</string>
@@ -1932,10 +1932,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">Uzak bağlantılar için TURN relay</string>
     <string name="mirror_connections">Bağlantılar</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Yerel klon</string>
     <string name="mirror_default_hybrid_label">Hibrit klon</string>
-    <string name="mirror_clone_master_desc">Kayıtlı tüm Clone bağlantılarını etkinleştir</string>
     <string name="clone_history_recovery">Geçmişi kurtar</string>
     <string name="clone_history_direction_send">Gönder</string>
     <string name="clone_history_direction_pull">Kurtar</string>
@@ -2917,8 +2915,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mirror_connection_setup">Bağlantı kurulumu</string>
     <string name="turn_help_how_body">Rendezvous sunucusu yalnızca iki cihazı tanıştırır: her biri olası adreslerini oraya bırakır ve diğerininkileri alır. Glikoz verisi oradan hiç geçmez. Doğrudan bir yol tercih edilir; TURN trafiği yalnızca doğrudan bir yol çalışmadığında aktarır ve aktardığı şey şifreli kalır.\n\nHer iki anahtar da kapalıyken uygulamanın kendi rendezvous ve aktarma sunucusu kullanılır. Birini açarsanız yalnızca o kısım sizin olur; ikisini de açarsanız sunucularınızdan yalnızca genel adres sorgusu çıkar, «STUN için TURN» onu da aktarma sunucunuza göndermiyorsa.\n\nAynı ağda «Eşleşmiş cihazları yakında bul» ikisini doğrudan bağlar ve rendezvous adımını atlar.</string>
     <string name="turn_credentials_too_long">Kullanıcı adı veya parola bu TURN yapılandırması için çok uzun.</string>
-    <string name="clone_sync_title">Senkronizasyon</string>
     <string name="clone_network_title">Clone ağı</string>
+    <string name="clone_network_settings">Clone ağı ayarları</string>
+    <string name="clone_add_custom_connection">Özel bağlantı ekle</string>
     <string name="clone_servers">Sunucular</string>
     <string name="clone_server_default">Uygulama sunucusu</string>
     <string name="clone_connection_options">Bağlantı</string>
@@ -2940,7 +2939,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_pairing_waiting">Diğer telefon bekleniyor…</string>
     <string name="clone_pairing_announced">Bu Wi-Fi ağında %1$s olarak da görünür</string>
     <string name="clone_pairing_connected">Bağlandı</string>
-    <string name="clone_add_manually_desc">Adresi ve seçenekleri kendiniz girin</string>
     <string name="clone_send_readings">Değerleri gönder</string>
     <string name="clone_on_this_wifi">Bu Wi-Fi ağında</string>
     <string name="clone_nearby_empty">Bu Wi-Fi ağında değer gönderen telefonlar burada görünür</string>
