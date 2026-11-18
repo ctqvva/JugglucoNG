@@ -89,7 +89,8 @@ fun SensorReadingAgeLabel(
     textColor: Color,
     modifier: Modifier = Modifier,
     textStyle: TextStyle = MaterialTheme.typography.labelSmall,
-    iconSize: Dp = 12.dp
+    iconSize: Dp = 12.dp,
+    iconGap: Dp = 4.dp
 ) {
     val ageText = rememberSensorReadingAgeText(readingMillis)
     Row(
@@ -102,7 +103,7 @@ fun SensorReadingAgeLabel(
             tint = iconTint,
             modifier = Modifier.size(iconSize)
         )
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(iconGap))
         Text(
             text = ageText,
             style = textStyle.copy(fontFeatureSettings = "tnum"),
