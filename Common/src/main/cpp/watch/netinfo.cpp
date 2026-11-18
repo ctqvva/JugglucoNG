@@ -435,7 +435,7 @@ static int getmynetinfo(const char *id,jboolean create,jint watchHasSensor,jbool
            }
         if(usedversion&&setnums) {
             if(wearhost->index>=0) {
-                backup->con_vars[wearhost->index]->wakebackuponly(Backup::wakestop);
+                backup->stopsender(wearhost->index,Backup::wakestop);
                 auto &sendhost= getsendto(index);
                 bool sendnums=setnums<0;
                 sendhost.sendnums=sendnums;
