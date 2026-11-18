@@ -125,4 +125,50 @@ class DeleteReadingUndoTests {
         assertTrue(covered(a.timestamp))
         assertFalse(covered(b.timestamp))
     }
+
+    /** Reads pages from the real table, then runs [afterPage] once: a write landing mid-rebuild. */
+    private class MidRebuildDao(private val real: HistoryDao) : HistoryDao by real {
+        var afterPage: (suspend () -> Unit)? = null
+
+        override suspend fun getTimestampsForSensorPage(serial: String, afterTimestamp: Long, limit: Int): List<Long> {
+            val page = real.getTimestampsForSensorPage(serial, afterTimestamp, limit)
+            afterPage?.let { hook ->
+                afterPage = null
+                hook()
+            }
+            return page
+        }
+    }
+
+    /**
+     * The undo's invalidate can arrive while a rebuild is reading pages it already read before
+     * the restore. Clearing a stale flag at the end of that rebuild swallowed it, and the index
+     * kept A missing and B present until some unrelated write forced another rebuild.
+     */
+    @Test
+    fun anInvalidateDuringARebuildIsNotLost() = runBlocking {
+        val dao = database.historyDao()
+        dao.insertAll((0 until 5).map(::reading))
+        val hooked = MidRebuildDao(dao)
+        val index = HistoryTimestampIndexTracker(hooked)
+        val a = reading(1)
+        val b = reading(3)
+        val covered = { ts: Long ->
+            runBlocking { index.withIndex { it.hasReadingInMinute(listOf(serial), ts / 60_000L) } }
+        }
+
+        assertTrue(covered(a.timestamp))
+        val deletedA = repository.deleteReadingRows(listOf(serial), a.timestamp)
+        hooked.afterPage = {
+            repository.restoreReadingRows(deletedA)
+            repository.deleteReadingRows(listOf(serial), b.timestamp)
+            index.invalidate()
+        }
+        // This refresh rebuilds (one row fewer) and, mid-read, the undo and the next delete land.
+        assertFalse(covered(a.timestamp))
+        assertTrue(hooked.afterPage == null)
+
+        assertTrue(covered(a.timestamp))
+        assertFalse(covered(b.timestamp))
+    }
 }

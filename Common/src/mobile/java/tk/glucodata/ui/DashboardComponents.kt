@@ -2253,7 +2253,7 @@ fun CalibrationsCard(
             onClearDisabled = {
                 scope.launch {
                     val disabled = calibrations.filter { !it.isEnabled }
-                    disabled.forEach { tk.glucodata.data.calibration.CalibrationManager.deleteCalibration(it) }
+                    tk.glucodata.data.calibration.CalibrationManager.deleteCalibrations(disabled)
                     UndoSnackbar.notice(Applic.app.getString(R.string.disabled_calibrations_cleared, disabled.size))
                 }
                 showClearConfirmation = false
@@ -2261,7 +2261,7 @@ fun CalibrationsCard(
             onClearAll = {
                 scope.launch {
                     val backup = calibrations
-                    tk.glucodata.data.calibration.CalibrationManager.clearAll()
+                    tk.glucodata.data.calibration.CalibrationManager.deleteCalibrations(backup)
                     UndoSnackbar.show(Applic.app.getString(R.string.all_calibrations_cleared)) {
                         tk.glucodata.data.calibration.CalibrationManager.restoreAll(backup)
                     }

@@ -496,7 +496,7 @@ fun CalibrationListScreen(
                                 showBulkDeleteConfirmation = false
                                 scope.launch {
                                     val toDelete = calibrations.filter { selectedIds.contains(it.id) }
-                                    toDelete.forEach { CalibrationManager.deleteCalibration(it) }
+                                    CalibrationManager.deleteCalibrations(toDelete)
                                     UndoSnackbar.show(
                                         context.getString(R.string.calibrations_deleted_count, toDelete.size)
                                     ) { CalibrationManager.restoreAll(toDelete) }
@@ -524,7 +524,7 @@ fun CalibrationListScreen(
             onClearDisabled = {
                 scope.launch {
                     val disabled = calibrations.filter { !it.isEnabled }
-                    disabled.forEach { CalibrationManager.deleteCalibration(it) }
+                    CalibrationManager.deleteCalibrations(disabled)
                     UndoSnackbar.notice(context.getString(R.string.disabled_calibrations_cleared, disabled.size))
                 }
                 showClearConfirmation = false
@@ -532,7 +532,7 @@ fun CalibrationListScreen(
             onClearAll = {
                 scope.launch {
                     val backup = calibrations
-                    CalibrationManager.clearAll()
+                    CalibrationManager.deleteCalibrations(backup)
                     UndoSnackbar.show(context.getString(R.string.all_calibrations_cleared)) {
                         CalibrationManager.restoreAll(backup)
                     }
