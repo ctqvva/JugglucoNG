@@ -520,7 +520,7 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, accent: Color, mo
                 Text(
                     text = figure.orEmpty(),
                     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = color,
+                    color = if (down) color else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     modifier = Modifier.padding(end = 8.dp),
                 )
