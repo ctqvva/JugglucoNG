@@ -2205,6 +2205,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Вхід виконано</string>
     <string name="ottai_session_invalid">Хмарна сесія більше не дійсна – увійдіть знову</string>
+    <string name="ottai_global_sign_in_again">Увійдіть в Ottai Global повторно, щоб налаштувати датчик або перевірити його прошивку. Збережені датчики й історія залишаться на телефоні.</string>
+    <string name="ottai_secure_exchange_failed">Не вдалося встановити захищене з’єднання з Ottai. Перевірте підключення до інтернету та спробуйте ще раз.</string>
+    <string name="ottai_ota_check_failed">Не вдалося перевірити наявність прошивки або завантажити її. Спробуйте ще раз.</string>
+    <string name="ottai_ota_disconnect_first">Перш ніж перевіряти прошивку, від’єднайте цей датчик на екрані «Датчики». Збережіть його ключі.</string>
+    <string name="ottai_setup_link_timeout">Не вдалося підключитися до датчика через Bluetooth. Піднесіть телефон до датчика та спробуйте ще раз. Якщо проблема повторюється, вимкніть і знову ввімкніть Bluetooth.</string>
     <string name="ottai_sensor_mac_hint">ID пристрою, серійний номер або QR</string>
     <string name="ottai_connect_saved">Підключити</string>
     <string name="ottai_login_fail">Не вдалося увійти - перевірте телефон/код</string>

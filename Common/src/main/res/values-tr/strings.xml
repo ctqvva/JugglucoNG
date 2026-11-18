@@ -2163,6 +2163,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Oturum açık</string>
     <string name="ottai_session_invalid">Bulut oturumunuz artık geçerli değil – yeniden oturum açın</string>
+    <string name="ottai_global_sign_in_again">Bir sensör kurmak veya ürün yazılımını kontrol etmek için Ottai Global hesabınıza yeniden giriş yapın. Kayıtlı sensörleriniz ve geçmişiniz korunur.</string>
+    <string name="ottai_secure_exchange_failed">Ottai ile güvenli bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.</string>
+    <string name="ottai_ota_check_failed">Ürün yazılımı kontrol edilemedi veya indirilemedi. Tekrar deneyin.</string>
+    <string name="ottai_ota_disconnect_first">Ürün yazılımını kontrol etmeden önce Sensörler ekranından bu sensörün bağlantısını kesin. Kayıtlı kimlik bilgilerini saklayın.</string>
+    <string name="ottai_setup_link_timeout">Bluetooth ile sensöre bağlanılamadı. Telefonu sensöre yaklaştırıp tekrar deneyin. Sorun tekrarlanırsa Bluetooth’u kapatıp yeniden açın.</string>
     <string name="ottai_sensor_mac_hint">Cihaz kimliği, seri numarası veya QR</string>
     <string name="ottai_connect_saved">Bağlan</string>
     <string name="ottai_login_fail">Oturum açılamadı - telefonu/kodu kontrol edin</string>

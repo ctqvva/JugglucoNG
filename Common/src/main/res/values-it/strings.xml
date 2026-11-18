@@ -2125,6 +2125,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Accesso effettuato</string>
     <string name="ottai_session_invalid">La sessione cloud non è più valida: accedi di nuovo</string>
+    <string name="ottai_global_sign_in_again">Accedi di nuovo a Ottai Global per configurare un sensore o controllarne il firmware. I sensori salvati e la cronologia saranno conservati.</string>
+    <string name="ottai_secure_exchange_failed">Impossibile stabilire una connessione sicura con Ottai. Controlla la connessione a Internet e riprova.</string>
+    <string name="ottai_ota_check_failed">Impossibile verificare la disponibilità del firmware o scaricarlo. Riprova.</string>
+    <string name="ottai_ota_disconnect_first">Disconnetti questo sensore dalla schermata Sensori prima di controllarne il firmware. Conserva le sue credenziali salvate.</string>
+    <string name="ottai_setup_link_timeout">Impossibile connettersi al sensore via Bluetooth. Avvicina il telefono al sensore e riprova. Se il problema persiste, disattiva e riattiva il Bluetooth.</string>
     <string name="ottai_sensor_mac_hint">ID dispositivo, numero di serie o QR</string>
     <string name="ottai_connect_saved">Connetti</string>
     <string name="ottai_login_fail">Accesso non riuscito - controlla telefono/codice</string>

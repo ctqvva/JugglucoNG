@@ -2206,6 +2206,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_secure_exchange_failed">Не удалось установить защищённое соединение с Ottai. Проверьте подключение к интернету и повторите попытку.</string>
     <string name="ottai_ota_check_failed">Не удалось проверить наличие прошивки или скачать её. Повторите попытку.</string>
     <string name="ottai_ota_disconnect_first">Перед проверкой прошивки отключите этот датчик на экране «Датчики». Сохраните его ключи.</string>
+    <string name="ottai_setup_link_timeout">Не удалось подключиться к датчику по Bluetooth. Поднесите телефон к датчику и повторите попытку. Если ошибка повторяется, выключите и снова включите Bluetooth.</string>
     <string name="ottai_sensor_mac_hint">ID устройства, серийный номер или QR</string>
     <string name="ottai_connect_saved">Подключить</string>
     <string name="ottai_login_fail">Вход не выполнен - проверьте телефон/код</string>

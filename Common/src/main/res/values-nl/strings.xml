@@ -2178,6 +2178,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Aangemeld</string>
     <string name="ottai_session_invalid">Uw cloudsessie is niet meer geldig – meld u opnieuw aan</string>
+    <string name="ottai_global_sign_in_again">Meld je opnieuw aan bij Ottai Global om een sensor in te stellen of de firmware te controleren. Je opgeslagen sensoren en geschiedenis blijven behouden.</string>
+    <string name="ottai_secure_exchange_failed">Er kon geen beveiligde verbinding met Ottai worden gemaakt. Controleer je internetverbinding en probeer het opnieuw.</string>
+    <string name="ottai_ota_check_failed">De firmware kon niet worden gecontroleerd of gedownload. Probeer het opnieuw.</string>
+    <string name="ottai_ota_disconnect_first">Verbreek de verbinding met deze sensor op het scherm Sensoren voordat je de firmware controleert. Bewaar de opgeslagen toegangsgegevens.</string>
+    <string name="ottai_setup_link_timeout">Bluetooth kon geen verbinding maken met de sensor. Houd de telefoon dicht bij de sensor en probeer het opnieuw. Als dit blijft gebeuren, zet Bluetooth dan uit en weer aan.</string>
     <string name="ottai_sensor_mac_hint">Apparaat-ID, serienummer of QR</string>
     <string name="ottai_connect_saved">Verbinden</string>
     <string name="ottai_login_fail">Aanmelden mislukt - controleer telefoon/code</string>

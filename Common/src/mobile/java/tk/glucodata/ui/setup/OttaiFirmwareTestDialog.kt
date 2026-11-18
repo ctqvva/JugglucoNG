@@ -39,6 +39,7 @@ import tk.glucodata.drivers.ottai.OttaiFirmwareObservation
 import tk.glucodata.drivers.ottai.OttaiFirmwareStage
 import tk.glucodata.drivers.ottai.OttaiFirmwareState
 import tk.glucodata.drivers.ottai.OttaiCloudClient
+import tk.glucodata.drivers.ottai.OTTAI_SETUP_LINK_TIMEOUT
 
 @Composable
 internal fun OttaiFirmwareTestDialog(sensorId: String, address: String, prepareForSetup: Boolean = false,
@@ -195,6 +196,7 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
         OttaiFirmwareStage.FAILED -> when {
             sessionExpired -> R.string.ottai_session_invalid
             state.errorCode == "sensor_managed" -> R.string.ottai_ota_disconnect_first
+            state.errorCode == OTTAI_SETUP_LINK_TIMEOUT -> R.string.ottai_setup_link_timeout
             state.errorCode.contains(OttaiCloudClient.BIZ_OTA_UPGRADE_REQUIRED, true) -> R.string.ottai_ota_upgrade_required
             state.errorCode.startsWith("ota_exchange") -> R.string.ottai_secure_exchange_failed
             pending -> R.string.ottai_ota_failed

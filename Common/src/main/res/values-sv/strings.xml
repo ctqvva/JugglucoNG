@@ -2135,6 +2135,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Inloggad</string>
     <string name="ottai_session_invalid">Din molnsession är inte längre giltig – logga in igen</string>
+    <string name="ottai_global_sign_in_again">Logga in på Ottai Global igen för att konfigurera en sensor eller kontrollera dess firmware. Sparade sensorer och historik behålls.</string>
+    <string name="ottai_secure_exchange_failed">Det gick inte att upprätta en säker anslutning till Ottai. Kontrollera internetanslutningen och försök igen.</string>
+    <string name="ottai_ota_check_failed">Det gick inte att kontrollera eller hämta firmware. Försök igen.</string>
+    <string name="ottai_ota_disconnect_first">Koppla från sensorn på skärmen Sensorer innan du kontrollerar dess firmware. Behåll de sparade autentiseringsuppgifterna.</string>
+    <string name="ottai_setup_link_timeout">Det gick inte att ansluta till sensorn via Bluetooth. Håll telefonen nära sensorn och försök igen. Om problemet återkommer, stäng av Bluetooth och slå på det igen.</string>
     <string name="ottai_sensor_mac_hint">Enhets-ID, serienummer eller QR</string>
     <string name="ottai_connect_saved">Anslut</string>
     <string name="ottai_login_fail">Inloggning misslyckades - kontrollera telefon/kod</string>

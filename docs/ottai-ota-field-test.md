@@ -79,6 +79,18 @@ possible cause of the setup failure. New setup and firmware checks now ask those
 to sign in again within the app, preserving local credentials and history. The generic
 exchange response alone cannot identify which session the phone used or why the exchange failed.
 
+A second Global field trace on the initial #955 build records successful V3 validation followed
+by two 30-second direct BLE attempts ending in Android status 147 before MTU or service
+discovery. Android already classified the target as LE and saw it advertising about a
+second before each failed attempt, at −63 and −61 dBm. After an adapter off/on cycle, the
+next logged attempt connected in four seconds, read `E1.2.6(V1.7.SH2616.1),STDRD`, completed
+cloud and local authentication, and prepared the installed firmware. Managed activation
+confirmed status 3. The managed driver also recovered a subsequent status-8 drop.
+There was no firmware offer or transfer in this run. The trace establishes the sequence
+around the adapter restart without identifying the controller-level cause of the timeouts.
+After an initial 147, setup now closes that GATT and tries once from a fresh connectable
+advertisement of the exact address. An exhausted retry gives Bluetooth-specific guidance.
+
 CN mobile secure transport from merged PR #755 is now on main and included in this branch.
 Ordinary CN account/device lookup, validation and credential bootstrap use the encrypted
 channel. Fresh OTA can run before binding. The supplied `juggluco-trace-20261029-020202.log`

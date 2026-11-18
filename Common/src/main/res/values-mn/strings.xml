@@ -2156,6 +2156,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Нэвтэрсэн</string>
     <string name="ottai_session_invalid">Таны клауд сесс хүчингүй болсон – дахин нэвтэрнэ үү</string>
+    <string name="ottai_global_sign_in_again">Мэдрэгч тохируулах эсвэл программыг нь шалгахын тулд Ottai Global-д дахин нэвтэрнэ үү. Хадгалсан мэдрэгч болон түүх хэвээр үлдэнэ.</string>
+    <string name="ottai_secure_exchange_failed">Ottai-тай аюулгүй холболт үүсгэж чадсангүй. Интернэт холболтоо шалгаад дахин оролдоно уу.</string>
+    <string name="ottai_ota_check_failed">Мэдрэгчийн программыг шалгах эсвэл татаж авах боломжгүй байлаа. Дахин оролдоно уу.</string>
+    <string name="ottai_ota_disconnect_first">Мэдрэгчийн программыг шалгахын өмнө Мэдрэгч дэлгэцээс уг мэдрэгчийг салгана уу. Хадгалсан баталгаажуулах мэдээллийг нь устгахгүй үлдээнэ үү.</string>
+    <string name="ottai_setup_link_timeout">Bluetooth-ээр мэдрэгчтэй холбогдож чадсангүй. Утсаа мэдрэгчид ойртуулаад дахин оролдоно уу. Асуудал давтагдвал Bluetooth-ийг унтраагаад дахин асаана уу.</string>
     <string name="ottai_sensor_mac_hint">Төхөөрөмжийн ID, серийн дугаар эсвэл QR</string>
     <string name="ottai_connect_saved">Холбох</string>
     <string name="ottai_login_fail">Нэвтрэх амжилтгүй - утас/кодоо шалгана уу</string>

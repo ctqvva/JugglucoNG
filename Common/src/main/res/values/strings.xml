@@ -1115,6 +1115,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_secure_exchange_failed">Could not establish a secure connection to Ottai. Try again with a working internet connection.</string>
     <string name="ottai_ota_check_failed">Could not check for or download firmware. Try again.</string>
     <string name="ottai_ota_disconnect_first">Disconnect this sensor from the Sensors screen before checking its firmware. Keep its saved credentials.</string>
+    <string name="ottai_setup_link_timeout">Bluetooth could not connect to the sensor. Keep the phone near it and try again. If this keeps happening, turn Bluetooth off and back on.</string>
     <string name="ottai_sensor_mac_hint">Device ID, serial number or QR</string>
     <string name="ottai_connect_saved">Connect</string>
     <string name="ottai_login_fail">Sign-in failed — check phone/code</string>

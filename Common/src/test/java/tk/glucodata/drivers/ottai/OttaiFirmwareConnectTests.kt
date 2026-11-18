@@ -3,10 +3,12 @@ package tk.glucodata.drivers.ottai
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.os.Handler
+import android.os.Looper
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.junit.After
@@ -34,7 +36,7 @@ class OttaiFirmwareConnectTests {
         session?.close(false)
     }
 
-    private fun newSession(): OttaiFirmwareSession {
+    private fun newSession(publish: (OttaiFirmwareState) -> Unit = {}): OttaiFirmwareSession {
         shadowOf(adapter).setEnabled(true)
         val constructor = OttaiFirmwareSession::class.java.getDeclaredConstructor(
             Context::class.java, String::class.java, String::class.java,
@@ -42,18 +44,25 @@ class OttaiFirmwareConnectTests {
             Boolean::class.javaPrimitiveType,
             kotlin.jvm.functions.Function1::class.java,
         ).apply { isAccessible = true }
-        val publish: (OttaiFirmwareState) -> Unit = {}
         return (constructor.newInstance(context, "AABBCCDDEEFF", address,
             OttaiRegistry.DeviceMaterials("00".repeat(96), "V0", "1,2", 0, "V1.7.0", 1),
             OttaiFirmwareMode.PREACTIVATION, true, publish) as OttaiFirmwareSession).also { session = it }
     }
 
+    private fun OttaiFirmwareSession.handler(): Handler =
+        OttaiFirmwareSession::class.java.getDeclaredField("handler").apply { isAccessible = true }.get(this) as Handler
+
     private fun OttaiFirmwareSession.onHandler(action: () -> Unit) {
-        val handler = OttaiFirmwareSession::class.java.getDeclaredField("handler")
-            .apply { isAccessible = true }.get(this) as Handler
         val done = CountDownLatch(1)
-        handler.post { action(); done.countDown() }
+        handler().post { action(); done.countDown() }
         assertTrue(done.await(5, TimeUnit.SECONDS))
+    }
+
+    private fun OttaiFirmwareSession.awaitRetirement() {
+        val owner = handler().looper.thread
+        owner.join(5_000L)
+        assertFalse("retirement stops the session handler", owner.isAlive)
+        shadowOf(Looper.getMainLooper()).idle()
     }
 
     private fun OttaiFirmwareSession.gatt(): BluetoothGatt? =
@@ -98,5 +107,56 @@ class OttaiFirmwareConnectTests {
         session.onHandler { session.disconnect() }
         assertTrue(scanCallbacks().isEmpty())
         assertNull(session.gatt())
+    }
+
+    @Test fun aTimeoutClosesTheFirstGattAndRetriesOnlyFromTheSameConnectableAdvertisement() {
+        val states = mutableListOf<OttaiFirmwareState>()
+        val sensor = adapter.getRemoteDevice(address)
+        shadowOf(sensor).setType(BluetoothDevice.DEVICE_TYPE_LE)
+        val session = newSession { states += it }
+        session.onHandler { session.connect {} }
+        val first = requireNotNull(session.gatt())
+        shadowOf(first).gattCallback.onConnectionStateChange(first, 147, BluetoothProfile.STATE_DISCONNECTED)
+        session.onHandler {}
+        assertTrue(shadowOf(first).isClosed)
+        assertNull(session.gatt())
+        val scan = scanCallbacks().single()
+        fun result(device: BluetoothDevice, connectable: Boolean) = ScanResult(
+            device, if (connectable) 1 else 0, 1, 0, 0, 127, -60, 0, null, 0L,
+        )
+        scan.onScanResult(0, result(adapter.getRemoteDevice("AA:BB:CC:DD:EE:01"), true))
+        scan.onScanResult(0, result(sensor, false))
+        session.onHandler {}
+        assertNull(session.gatt())
+
+        scan.onScanResult(0, result(sensor, true))
+        session.onHandler {}
+        val retry = requireNotNull(session.gatt())
+        assertNotSame(first, retry)
+        assertTrue(scanCallbacks().isEmpty())
+
+        shadowOf(first).gattCallback.onConnectionStateChange(first, 147, BluetoothProfile.STATE_DISCONNECTED)
+        session.onHandler {}
+        assertSame(retry, session.gatt())
+        shadowOf(retry).gattCallback.onConnectionStateChange(retry, 147, BluetoothProfile.STATE_DISCONNECTED)
+        session.awaitRetirement()
+        assertTrue(scanCallbacks().isEmpty())
+        assertNull(session.gatt())
+        assertEquals(OTTAI_SETUP_LINK_TIMEOUT, states.single().errorCode)
+    }
+
+    @Test fun timeoutAfterLinkEstablishmentDoesNotRestartSetup() {
+        val states = mutableListOf<OttaiFirmwareState>()
+        shadowOf(adapter.getRemoteDevice(address)).setType(BluetoothDevice.DEVICE_TYPE_LE)
+        val session = newSession { states += it }
+        session.onHandler { session.connect {} }
+        val gatt = requireNotNull(session.gatt())
+        val callback = shadowOf(gatt).gattCallback
+        callback.onConnectionStateChange(gatt, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED)
+        callback.onConnectionStateChange(gatt, 147, BluetoothProfile.STATE_DISCONNECTED)
+        session.awaitRetirement()
+
+        assertTrue(scanCallbacks().isEmpty())
+        assertEquals("disconnected_status=147", states.single().errorCode)
     }
 }

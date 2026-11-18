@@ -30,6 +30,10 @@ import tk.glucodata.logi
 
 /** How long the session looks for an unseen sensor's advertisement before connecting directly. */
 private const val ADVERTISEMENT_SCAN_MS = 20_000L
+private const val RETRY_ADVERTISEMENT_SCAN_MS = 10_000L
+// Android's GATT_CONNECTION_TIMEOUT (0x93), delivered before STATE_CONNECTED in the field trace.
+private const val GATT_CONNECTION_TIMEOUT = 0x93
+internal const val OTTAI_SETUP_LINK_TIMEOUT = "setup_connect_timeout_status=147"
 
 /**
  * Android only knows an LE device's address type after it has seen it advertise. Until then
@@ -75,6 +79,8 @@ internal class OttaiFirmwareSession private constructor(
     private var expectedService: UUID? = null
     private var operationTimeout: Runnable? = null
     private var discoveryStarted = false
+    private var linkEstablished = false
+    private var retriedInitialConnect = false
     private var discoveryGate: OttaiFirmwareDiscovery? = null
     private var advertisementScanner: BluetoothLeScanner? = null
     private var advertisementScan: ScanCallback? = null
@@ -221,34 +227,43 @@ internal class OttaiFirmwareSession private constructor(
         }
     }
 
-    override fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit) {
+    override fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit) = connect(done, afterTimeout = false)
+
+    private fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit, afterTimeout: Boolean) {
         if (closed) return
         disconnect()
         connectCompletion = done
         mtu = 23
         discoveryStarted = false
+        linkEstablished = false
         log("connect address=$address")
         val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
         if (adapter?.isEnabled != true) { controller.fail("bluetooth_off"); return }
         val known = runCatching { adapter.getRemoteDevice(address) }.getOrNull()
             ?: run { controller.fail("connect_start"); return }
-        if (!ottaiFirmwareNeedsAdvertisement(known.type)) { connectGatt(known); return }
+        if (!afterTimeout && !ottaiFirmwareNeedsAdvertisement(known.type)) { connectGatt(known); return }
         // A QR-scanned or typed ID gives an address Android has never seen advertising. A direct
         // connect then guesses the LE address type and waits out the stack's timeout, while the
         // same sensor picked from the nearby list connects at once. Find the advertisement first
         // and connect from it, as the list does.
-        val scanner = adapter.bluetoothLeScanner ?: run { connectGatt(known); return }
+        fun scanUnavailable() {
+            if (afterTimeout) controller.fail(OTTAI_SETUP_LINK_TIMEOUT)
+            else connectGatt(known)
+        }
+        val scanner = adapter.bluetoothLeScanner ?: run { scanUnavailable(); return }
         val token = generation
         lateinit var scan: ScanCallback
-        val finish: (BluetoothDevice) -> Unit = { device ->
+        val finish: (BluetoothDevice?) -> Unit = { device ->
             if (advertisementScan === scan) {
                 stopAdvertisementScan()
-                if (token == generation && !closed) connectGatt(device)
+                if (token == generation && !closed) {
+                    if (device == null) scanUnavailable() else connectGatt(device, afterTimeout)
+                }
             }
         }
         scan = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                if (!result.device.address.equals(address, ignoreCase = true)) return
+                if (!result.device.address.equals(address, ignoreCase = true) || (afterTimeout && !result.isConnectable)) return
                 handler.post {
                     log("advertisement_seen rssi=${result.rssi}")
                     finish(result.device)
@@ -258,7 +273,7 @@ internal class OttaiFirmwareSession private constructor(
             override fun onScanFailed(errorCode: Int) {
                 handler.post {
                     log("advertisement_scan_failed code=$errorCode")
-                    finish(known)
+                    finish(null)
                 }
             }
         }
@@ -269,26 +284,27 @@ internal class OttaiFirmwareSession private constructor(
                 scan,
             )
         }.isSuccess
-        if (!started) { connectGatt(known); return }
+        if (!started) { scanUnavailable(); return }
         advertisementScanner = scanner
         advertisementScan = scan
         log("advertisement_scan address=$address")
-        // A sensor that never shows up still gets the direct connect it had before this scan;
-        // an Android scan quota can also drop every result without reporting a failure.
+        // The initial QR scan can fall back to a direct connect. A timeout recovery only
+        // tries a fresh connectable advertisement, even if Android still remembers the device.
         handler.postDelayed({
             if (advertisementScan === scan) log("advertisement_not_seen")
-            finish(known)
-        }, ADVERTISEMENT_SCAN_MS)
+            finish(null)
+        }, if (afterTimeout) RETRY_ADVERTISEMENT_SCAN_MS else ADVERTISEMENT_SCAN_MS)
     }
 
-    private fun connectGatt(device: BluetoothDevice) {
+    private fun connectGatt(device: BluetoothDevice, afterTimeout: Boolean = false) {
         log("connect_gatt type=${device.type}")
         runCatching {
             // This callback handler also serializes callbacks on pre-API-33 devices.
             gatt = device.connectGatt(context, false, callbacks,
                 BluetoothDevice.TRANSPORT_LE, BluetoothDevice.PHY_LE_1M_MASK, handler)
             require(gatt != null) { "connect_start" }
-            armTimeout("connect_timeout", 60_000L)
+            if (afterTimeout) armTimeout(OTTAI_SETUP_LINK_TIMEOUT, 20_000L)
+            else armTimeout("connect_timeout", 60_000L)
         }.onFailure { controller.fail("connect_start") }
     }
 
@@ -322,8 +338,18 @@ internal class OttaiFirmwareSession private constructor(
         override fun onConnectionStateChange(current: BluetoothGatt, status: Int, newState: Int) = dispatch(current) {
             log("connection status=$status state=$newState")
             if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED) {
-                controller.fail("disconnected_status=$status")
+                val done = connectCompletion
+                val initialTimeout = status == GATT_CONNECTION_TIMEOUT && !linkEstablished &&
+                    controller.state.stage == OttaiFirmwareStage.CONNECTING
+                if (initialTimeout && !retriedInitialConnect && done != null) {
+                    retriedInitialConnect = true
+                    log("connection_timeout_retry=wait_for_advertisement")
+                    connect(done, afterTimeout = true)
+                } else {
+                    controller.fail(if (initialTimeout) OTTAI_SETUP_LINK_TIMEOUT else "disconnected_status=$status")
+                }
             } else if (newState == BluetoothProfile.STATE_CONNECTED) {
+                linkEstablished = true
                 current.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
                 // Like the normal driver, defer discovery until the last MTU callback settles.
                 // Starting on the first of two callbacks can lose service discovery on Mi9T.

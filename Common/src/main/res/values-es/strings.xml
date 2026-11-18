@@ -1110,6 +1110,11 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
      <string name="ottai_already_signed_in">Sesión iniciada</string>
      <string name="ottai_session_invalid">Tu sesión en la nube ya no es válida — inicia sesión de nuevo</string>
+     <string name="ottai_global_sign_in_again">Vuelve a iniciar sesión en Ottai Global para configurar un sensor o comprobar su firmware. Se conservarán los sensores guardados y el historial.</string>
+     <string name="ottai_secure_exchange_failed">No se pudo establecer una conexión segura con Ottai. Comprueba la conexión a Internet y vuelve a intentarlo.</string>
+     <string name="ottai_ota_check_failed">No se pudo comprobar si hay firmware disponible o descargarlo. Vuelve a intentarlo.</string>
+     <string name="ottai_ota_disconnect_first">Desconecta este sensor desde la pantalla Sensores antes de comprobar su firmware. Conserva sus credenciales guardadas.</string>
+     <string name="ottai_setup_link_timeout">Bluetooth no pudo conectarse al sensor. Acerca el teléfono al sensor y vuelve a intentarlo. Si el problema persiste, desactiva y vuelve a activar Bluetooth.</string>
      <string name="ottai_sensor_mac_hint">ID de dispositivo, número de serie o QR</string>
      <string name="ottai_connect_saved">Conectar</string>
      <string name="ottai_login_fail">Error al iniciar sesión — comprueba teléfono/código</string>
