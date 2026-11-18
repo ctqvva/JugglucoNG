@@ -66,6 +66,42 @@ class OttaiFirmwareRecoveryUiTests {
         compose.runOnIdle { assertEquals(1, discarded); assertEquals(1, dismissed) }
     }
 
+    @Test fun sensorThatNeverLinkedAsksForAWakeAndRetryWithoutACode() {
+        var retried = 0
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.FAILED,
+                    errorCode = OttaiFirmwareSession.SENSOR_NOT_FOUND), false,
+                    onInstall = {}, onPrepare = {}, onDiscard = {}, onDismiss = {}, onRetry = { retried++ })
+            }
+        }
+        compose.onNodeWithText(text(R.string.ottai_nfc_hint)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_setup_failed)).assertDoesNotExist()
+        compose.onNodeWithText(OttaiFirmwareSession.SENSOR_NOT_FOUND, substring = true).assertDoesNotExist()
+        capture("sensor-not-found")
+        compose.onNodeWithText(text(R.string.ottai_retry)).performClick()
+        compose.runOnIdle { assertEquals(1, retried) }
+    }
+
+    @Test fun closedLinkKeepsTheOfferButOnlyOffersTryAgain() {
+        var retried = 0
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.READY,
+                    firmware = "E1.2.3(V1.7.SH2542.1),STDRD", target = "E1.2.7(V1.7.SH2640.3)", linkClosed = true), false,
+                    onInstall = { error("No install without a link") }, onPrepare = {}, onDiscard = {}, onDismiss = {},
+                    onRetry = { retried++ })
+            }
+        }
+        compose.onNodeWithText(text(R.string.ottai_ota_ready)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_ota_link_closed)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_ota_install)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertDoesNotExist()
+        capture("link-closed")
+        compose.onNodeWithText(text(R.string.ottai_retry)).performClick()
+        compose.runOnIdle { assertEquals(1, retried) }
+    }
+
     @Test fun verifiedFreshFirmwareWaitsForASeparatePreparationConfirmation() {
         var prepared = 0
         compose.setContent {

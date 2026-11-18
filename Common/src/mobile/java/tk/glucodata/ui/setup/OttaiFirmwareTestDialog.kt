@@ -153,6 +153,9 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
     val showCloudRecheck = state.canRecheckWithCloudAuth && !pending && !prepareForSetup
     var confirmInstall by remember { mutableStateOf(false) }
     var confirmParameters by remember { mutableStateOf(false) }
+    // Nothing was sent to the sensor: say how to reach it, without a diagnostic code.
+    val sensorNotFound = state.stage == OttaiFirmwareStage.FAILED &&
+        state.errorCode == OttaiFirmwareSession.SENSOR_NOT_FOUND
     val stageText = when (state.stage) {
         OttaiFirmwareStage.CONNECTING -> R.string.ottai_ota_connecting
         OttaiFirmwareStage.AUTHENTICATING -> R.string.ottai_ota_authenticating
@@ -179,6 +182,7 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
             state.errorCode.contains(OttaiCloudClient.BIZ_TOKEN_INVALID, true) -> R.string.ottai_session_invalid
             state.errorCode.contains(OttaiCloudClient.BIZ_OTA_UPGRADE_REQUIRED, true) -> R.string.ottai_ota_upgrade_required
             pending -> R.string.ottai_ota_failed
+            sensorNotFound -> R.string.ottai_nfc_hint
             else -> R.string.ottai_setup_failed
         }
         OttaiFirmwareStage.CLOSED -> R.string.cancel
@@ -193,6 +197,7 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
                 if (!prepareForSetup) Text(stringResource(if (mode == OttaiFirmwareMode.STARTED_SENSOR) R.string.ottai_ota_started_mode else R.string.ottai_ota_fresh_mode))
                 if (mode == OttaiFirmwareMode.STARTED_SENSOR) Text(stringResource(R.string.ottai_ota_mode_hint))
                 Text(stringResource(stageText))
+                if (state.linkClosed) Text(stringResource(R.string.ottai_ota_link_closed))
                 if (showCloudRecheck) Text(stringResource(R.string.ottai_ota_cloud_recheck_hint))
                 state.before?.let { ObservationText(R.string.ottai_ota_before, it) }
                 state.after?.let { ObservationText(R.string.ottai_ota_after, it) }
@@ -207,16 +212,16 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
                         )
                     }
                 }
-                if (state.errorCode.isNotEmpty()) Text(stringResource(R.string.ottai_ota_error_code, state.errorCode))
+                if (state.errorCode.isNotEmpty() && !(sensorNotFound && !pending)) Text(stringResource(R.string.ottai_ota_error_code, state.errorCode))
             }
         },
         confirmButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (state.stage == OttaiFirmwareStage.FAILED && onRetry != null) {
+                if ((state.stage == OttaiFirmwareStage.FAILED || state.linkClosed) && onRetry != null) {
                     Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_retry)) }
                 }
-                if (state.stage == OttaiFirmwareStage.READY) {
+                if (state.stage == OttaiFirmwareStage.READY && !state.linkClosed) {
                     Button(onClick = { confirmInstall = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_ota_install)) }
                 }
