@@ -157,6 +157,7 @@ restaurant fill
 restore fill
 save fill
 schedule fill
+schedule outline
 science fill
 screen_lock_portrait fill
 search fill

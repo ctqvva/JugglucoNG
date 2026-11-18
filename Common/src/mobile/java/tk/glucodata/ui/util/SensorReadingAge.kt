@@ -89,7 +89,8 @@ fun SensorReadingAgeLabel(
     modifier: Modifier = Modifier,
     textStyle: TextStyle = MaterialTheme.typography.labelSmall,
     iconSize: Dp = 12.dp,
-    iconGap: Dp = 4.dp
+    iconGap: Dp = 4.dp,
+    icon: androidx.compose.ui.graphics.vector.ImageVector = Symbols.AccessTimeFilled
 ) {
     val ageText = rememberSensorReadingAgeText(readingMillis)
     Row(
@@ -97,7 +98,7 @@ fun SensorReadingAgeLabel(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Symbols.AccessTimeFilled,
+            imageVector = icon,
             contentDescription = null,
             tint = iconTint,
             modifier = Modifier.size(iconSize)
