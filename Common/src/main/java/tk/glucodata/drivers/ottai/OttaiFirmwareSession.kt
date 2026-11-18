@@ -437,7 +437,7 @@ internal class OttaiFirmwareSession private constructor(
                 characteristic(OttaiConstants.SERVICE_OTA, OttaiConstants.CHAR_OTA_DATA) != null
             val normal = characteristic(OttaiConstants.SERVICE_DEVICE_INFO, OttaiConstants.CHAR_SOFTWARE_VERSION) != null &&
                 current.getService(OttaiConstants.SERVICE_AUTH) != null && current.getService(OttaiConstants.SERVICE_CGM) != null
-            if (!normal && !hasOta) { failConnection("services_missing"); return@dispatch }
+            if (!normal && !hasOta) { controller.fail("services_missing"); return@dispatch }
             if (!normal && rebootVerification != null) { failConnection("still_in_bootloader"); return@dispatch }
             cancelTimeout()
             rebootVerification = null

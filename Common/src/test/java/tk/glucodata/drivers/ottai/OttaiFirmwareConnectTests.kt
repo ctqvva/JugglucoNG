@@ -23,6 +23,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowSystemClock
 
 /**
  * A QR-scanned or typed sensor ID reaches the setup connect as a bare address Android has never
@@ -215,6 +216,33 @@ class OttaiFirmwareConnectTests {
         session.awaitRetirement()
         assertTrue(scanCallbacks().isEmpty())
         assertEquals("disconnected_status=147", states.single().errorCode)
+    }
+
+    @Test fun postUpdateRejectsUnrecognizedServicesWithoutRescanning() {
+        val states = mutableListOf<OttaiFirmwareState>()
+        val sensor = adapter.getRemoteDevice(address)
+        val session = newSession { states += it }
+        session.onHandler { session.connectAfterUpdate { fail("unexpected GATT profile was accepted") } }
+        val result = ScanResult(sensor, 1, 1, 0, 0, 127, -60, 0, null, 0L)
+        scanCallbacks().single().onScanResult(0, result)
+        session.onHandler {}
+
+        val gatt = requireNotNull(session.gatt())
+        val shadowGatt = shadowOf(gatt)
+        // Device Information exists, but there is no Ottai revision characteristic or OTA profile.
+        shadowGatt.addDiscoverableService(
+            BluetoothGattService(OttaiConstants.SERVICE_DEVICE_INFO, BluetoothGattService.SERVICE_TYPE_PRIMARY),
+        )
+        shadowGatt.gattCallback.onConnectionStateChange(gatt, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED)
+        session.onHandler {}
+        session.onHandler {} // Drain the MTU callback posted during connection.
+        // Discovery retires the owner. Advance time without asking its looper to run afterward.
+        ShadowSystemClock.advanceBy(Duration.ofMillis(2_500))
+        session.awaitRetirement()
+
+        assertTrue(shadowGatt.isClosed)
+        assertTrue(scanCallbacks().isEmpty())
+        assertEquals("services_missing", states.single().errorCode)
     }
 
     @Test fun acceptedFinishWithDisconnectQueuedBeforeAckCompletesOnce() {
