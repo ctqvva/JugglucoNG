@@ -2365,6 +2365,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d 分钟</string>
     <string name="stats_duration_hours">%1$d 小时</string>
     <string name="stats_duration_hours_minutes">%1$d 小时 %2$d 分钟</string>
+    <string name="stats_time_a_day">每天 %1$s</string>
     <string name="stats_tab_days">按天</string>
     <string name="stats_tab_hours">按小时</string>
     <string name="stats_tab_weekdays">按星期</string>

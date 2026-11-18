@@ -2377,6 +2377,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="stats_duration_minutes">%1$d dk</string>
     <string name="stats_duration_hours">%1$d sa</string>
     <string name="stats_duration_hours_minutes">%1$d sa %2$d dk</string>
+    <string name="stats_time_a_day">günde %1$s</string>
     <string name="stats_tab_days">Günler</string>
     <string name="stats_tab_hours">Saatler</string>
     <string name="stats_tab_weekdays">Hafta günleri</string>

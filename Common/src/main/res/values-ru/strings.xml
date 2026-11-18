@@ -2478,6 +2478,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d мин</string>
     <string name="stats_duration_hours">%1$d ч</string>
     <string name="stats_duration_hours_minutes">%1$d ч %2$d мин</string>
+    <string name="stats_time_a_day">%1$s в день</string>
     <string name="stats_tab_days">Дни</string>
     <string name="stats_tab_hours">Часы</string>
     <string name="stats_tab_weekdays">Дни недели</string>

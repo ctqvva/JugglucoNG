@@ -2540,6 +2540,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="stats_duration_minutes">%1$d daq</string>
     <string name="stats_duration_hours">%1$d saac</string>
     <string name="stats_duration_hours_minutes">%1$d saac %2$d daq</string>
+    <string name="stats_time_a_day">%1$s maalintii</string>
     <string name="stats_tab_days">Maalmo</string>
     <string name="stats_tab_hours">Saacado</string>
     <string name="stats_tab_weekdays">Maalmaha toddobaadka</string>

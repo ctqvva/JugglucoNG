@@ -2349,6 +2349,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="stats_time_a_day">%1$s per dag</string>
     <string name="stats_tab_days">Dagar</string>
     <string name="stats_tab_hours">Timmar</string>
     <string name="stats_tab_weekdays">Veckodagar</string>
