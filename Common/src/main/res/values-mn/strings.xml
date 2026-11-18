@@ -2456,7 +2456,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="stats_duration_minutes">%1$d мин</string>
     <string name="stats_duration_hours">%1$d ц</string>
     <string name="stats_duration_hours_minutes">%1$d ц %2$d мин</string>
-    <string name="stats_time_a_day">өдөрт %1$s</string>
     <string name="stats_tab_days">Өдөр</string>
     <string name="stats_tab_hours">Цаг</string>
     <string name="stats_tab_weekdays">Гараг</string>

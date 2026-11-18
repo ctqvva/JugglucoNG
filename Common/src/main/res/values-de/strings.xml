@@ -2462,7 +2462,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="stats_duration_minutes">%1$d Min.</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d Min.</string>
-    <string name="stats_time_a_day">%1$s pro Tag</string>
     <string name="stats_tab_days">Tage</string>
     <string name="stats_tab_hours">Stunden</string>
     <string name="stats_tab_weekdays">Wochentage</string>

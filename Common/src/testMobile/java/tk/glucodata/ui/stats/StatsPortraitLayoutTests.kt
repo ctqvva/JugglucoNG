@@ -123,10 +123,63 @@ class StatsPortraitLayoutTests {
                 }
             }
         }
+        compose.runOnIdle { scale = 1f; percent = 62f; delta = 23f }
         compose.onNodeWithText("High", useUnmergedTree = true).performClick()
         compose.runOnIdle { assertEquals(TirBand.HIGH, selected) }
         compose.onNodeWithText("High", useUnmergedTree = true).performClick()
         compose.runOnIdle { assertNull(selected) }
+        // A band with no time has nothing to highlight, so it is not a target.
+        compose.onNodeWithText("Very high", useUnmergedTree = true).performClick()
+        compose.runOnIdle { assertNull(selected) }
+    }
+
+    @Test fun aDayPartRepoursTheCardForThatBlockAndDropsTheWholeWindowChange() {
+        val summary = StatsSummary(
+            tir = TimeInRangeBreakdown(inRangePercent = 90f, highPercent = 10f),
+            parts = object : StatsSummaryParts by StatsSummaryParts.Empty {
+                override val comparison = comparison(23f)
+                override val dayParts = DayPart.entries.map { part ->
+                    val inRange = if (part == DayPart.EVENING) 40f else 95f
+                    DayPartStats(part, 100f, TimeInRangeBreakdown(inRangePercent = inRange, highPercent = 100f - inRange), 100)
+                }
+            }
+        )
+        compose.setContent {
+            MaterialTheme(typography = AppTypography) {
+                Box(Modifier.width(328.dp)) {
+                    GlycemicOverviewCard(summary, StatsTargets(), GlucoseUnit.MMOL, StatsTimeRange.DAY_14, null, {})
+                }
+            }
+        }
+        compose.onNodeWithText("90.0%", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("+23 vs the period before", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("18–24", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("40.0%", useUnmergedTree = true).assertExists()
+        // A six-hour block: 60% high is 3 h 36 min of it, not of the day.
+        compose.onNodeWithText("3 h 36 min", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("+23 vs the period before", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("24 h", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("90.0%", useUnmergedTree = true).assertExists()
+    }
+
+    @Test fun theCountTakesTwoLinesBeforeTheDateChipLeavesItsSide() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1.3f)) {
+                MaterialTheme(typography = AppTypography) {
+                    Box(Modifier.width(328.dp)) {
+                        StatsRangeSelectorControl(
+                            StatsTimeRange.DAY_14, range, false, true, 4132,
+                            {}, {}, coveragePercent = 99f
+                        )
+                    }
+                }
+            }
+        }
+        val count = compose.onNodeWithText("4,132 Points", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val active = compose.onNode(hasText("Active\u00A099%"), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val chip = compose.onNodeWithText(formatStatsDateRange(range)!!, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue("coverage should wrap under the count", active.top >= count.bottom - 1f)
+        assertTrue("date chip should stay beside the count", chip.top < active.bottom && chip.left > count.right)
     }
 
     @Test fun patternsHeadingStaysWholeAndPortraitOverviewRendersWithoutCrowding() {

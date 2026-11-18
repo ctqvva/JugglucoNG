@@ -2383,7 +2383,6 @@
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d godz.</string>
     <string name="stats_duration_hours_minutes">%1$d godz. %2$d min</string>
-    <string name="stats_time_a_day">%1$s dziennie</string>
     <string name="stats_tab_days">Dni</string>
     <string name="stats_tab_hours">Godziny</string>
     <string name="stats_tab_weekdays">Dni tygodnia</string>

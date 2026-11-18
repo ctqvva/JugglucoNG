@@ -2413,7 +2413,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d хв</string>
     <string name="stats_duration_hours">%1$d гадз</string>
     <string name="stats_duration_hours_minutes">%1$d гадз %2$d хв</string>
-    <string name="stats_time_a_day">%1$s у дзень</string>
     <string name="stats_tab_days">Дні</string>
     <string name="stats_tab_hours">Гадзіны</string>
     <string name="stats_tab_weekdays">Дні тыдня</string>

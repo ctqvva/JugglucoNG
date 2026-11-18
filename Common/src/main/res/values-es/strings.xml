@@ -1921,7 +1921,6 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="stats_duration_minutes">%1$d min</string>
      <string name="stats_duration_hours">%1$d h</string>
      <string name="stats_duration_hours_minutes">%1$d h %2$d min</string>
-     <string name="stats_time_a_day">%1$s al día</string>
      <!-- Statistics: patterns and day-by-day -->
      <string name="stats_tab_days">Días</string>
      <string name="stats_tab_hours">Horas</string>

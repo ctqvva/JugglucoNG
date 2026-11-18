@@ -149,7 +149,7 @@ class StatsLanguageLayoutTests {
                     compose.onNode(hasText(context.getString(R.string.average_glucose)) and inMetrics, useUnmergedTree = true).layout().layoutInput.style.fontSize)
                 assertEquals(AppTypography.headlineMediumEmphasized.fontSize,
                     compose.onNodeWithText(String.format(Locale.getDefault(), "%.1f%%", 75.2f), useUnmergedTree = true).layout().layoutInput.style.fontSize)
-                assertEquals(AppTypography.titleMediumEmphasized.fontSize,
+                assertEquals(AppTypography.titleLargeEmphasized.fontSize,
                     compose.onNode(hasText(context.getString(R.string.in_range)) and hasAnyAncestor(hasTestTag("overview")), useUnmergedTree = true).layout().layoutInput.style.fontSize)
                 assertEquals(AppTypography.bodyMedium.fontSize,
                     compose.onNode(hasText(context.getString(R.string.very_high)) and hasAnyAncestor(hasTestTag("overview")), useUnmergedTree = true).layout().layoutInput.style.fontSize)

@@ -2392,7 +2392,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d u</string>
     <string name="stats_duration_hours_minutes">%1$d u %2$d min</string>
-    <string name="stats_time_a_day">%1$s per dag</string>
     <string name="stats_tab_days">Dagen</string>
     <string name="stats_tab_hours">Uren</string>
     <string name="stats_tab_weekdays">Weekdagen</string>
