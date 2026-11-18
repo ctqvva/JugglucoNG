@@ -682,9 +682,17 @@ private fun MeterEditor(
     var code by rememberSaveable(meter.index) { mutableStateOf(satelliteCode.orEmpty()) }
     val codeChanged = satelliteCode != null && code != satelliteCode
     val codeValid = !codeChanged || GlucoseMeterManager.isSatelliteCodeValid(code)
-    val canSave = (MeterNames.clean(name) != storedName || codeChanged) && codeValid
+    val changed = MeterNames.clean(name) != storedName || codeChanged
+    val canSave = changed && codeValid
     val save = { onSave(name, code.takeIf { codeChanged }) }
-    val done = { if (canSave) save() else onClose() }
+    // Done saves, or closes an editor with nothing in it to keep; an invalid code stays open
+    // to be corrected instead of taking the rest of the edit with it.
+    val done = {
+        when {
+            canSave -> save()
+            !changed -> onClose()
+        }
+    }
 
     val focus = remember { FocusRequester() }
     val saveInView = remember { BringIntoViewRequester() }
