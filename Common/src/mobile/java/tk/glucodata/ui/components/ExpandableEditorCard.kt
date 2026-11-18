@@ -3,10 +3,6 @@ package tk.glucodata.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,6 +15,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 /** The expandable editor used by API destinations and cloud followers. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,13 +57,13 @@ fun ExpandableEditorCard(
                     IconButton(onClick = onDelete, enabled = enabled, shapes = IconButtonDefaults.shapes(),
                         modifier = Modifier.semantics { contentDescription = deleteLabel }) {
                         if (deleting) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.Default.Delete, null)
+                        else Icon(Symbols.DeleteFilled, null)
                     }
                 }
                 val expandLabel = stringResource(if (expanded) R.string.show_less else R.string.show_more)
                 IconButtonTooltip(expandLabel) {
                     IconButton(onClick = onToggleExpanded, enabled = enabled, shapes = IconButtonDefaults.shapes()) {
-                        Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, expandLabel)
+                        Icon(if (expanded) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled, expandLabel)
                     }
                 }
             }

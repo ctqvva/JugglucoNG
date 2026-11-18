@@ -15,14 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.filled.ShowChart
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -78,6 +70,7 @@ import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 private const val RECOVERY_STATUS_POLL_MILLIS = 750L
 
@@ -178,7 +171,7 @@ internal fun CloneHistoryRecoverySheet(
     if (showFullHistoryConfirmation) {
         AlertDialog(
             onDismissRequest = { showFullHistoryConfirmation = false },
-            icon = { Icon(Icons.Filled.History, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            icon = { Icon(Symbols.HistoryFilled, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text(stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_confirm_title else R.string.clone_history_full_confirm_title)) },
             text = { Text(stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_confirm_message else R.string.clone_history_full_confirm_message)) },
             confirmButton = {
@@ -280,7 +273,7 @@ internal fun CloneHistoryRecoverySheet(
                             )
                         } else {
                             Icon(
-                                imageVector = if (selection.recoverFromReceiver) Icons.Filled.Download else Icons.Filled.Upload,
+                                imageVector = if (selection.recoverFromReceiver) Symbols.DownloadFilled else Symbols.UploadFilled,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                             )
@@ -377,7 +370,7 @@ private fun CloneHistoryRecoveryOptions(
             selected = selection.mode == CloneRecoveryMode.ONLY_MISSING,
             title = stringResource(R.string.clone_history_only_missing),
             subtitle = stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_missing_desc else R.string.clone_history_only_missing_desc),
-            icon = Icons.AutoMirrored.Filled.PlaylistAdd,
+            icon = Symbols.PlaylistAddFilled,
             position = CardPosition.TOP,
             enabled = enabled,
             onClick = { onSelectionChange(selection.copy(mode = CloneRecoveryMode.ONLY_MISSING)) },
@@ -386,7 +379,7 @@ private fun CloneHistoryRecoveryOptions(
             selected = selection.mode == CloneRecoveryMode.FULL_HISTORY,
             title = stringResource(R.string.clone_history_full),
             subtitle = stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_full_desc else R.string.clone_history_full_desc),
-            icon = Icons.Filled.Restore,
+            icon = Symbols.RestoreFilled,
             position = CardPosition.BOTTOM,
             enabled = enabled,
             onClick = { onSelectionChange(selection.copy(mode = CloneRecoveryMode.FULL_HISTORY)) },
@@ -399,7 +392,7 @@ private fun CloneHistoryRecoveryOptions(
             enabled = false,
             title = stringResource(R.string.clone_history_glucose),
             subtitle = stringResource(R.string.clone_history_glucose_required),
-            icon = Icons.AutoMirrored.Filled.ShowChart,
+            icon = Symbols.ShowChartFilled,
             position = CardPosition.TOP,
             onCheckedChange = {},
         )
@@ -411,7 +404,7 @@ private fun CloneHistoryRecoveryOptions(
                 if (journalSupported) R.string.clone_history_journal_optional
                 else R.string.clone_history_journal_unsupported
             ),
-            icon = Icons.Filled.EditNote,
+            icon = Symbols.EditNoteFilled,
             position = CardPosition.BOTTOM,
             onCheckedChange = { include ->
                 onSelectionChange(selection.copy(includeJournal = include))

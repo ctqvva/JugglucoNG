@@ -14,10 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -68,6 +64,7 @@ import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Dexcom Share is an unofficial, credential-carrying output, so the account, the password, the
@@ -163,7 +160,7 @@ fun DexcomShareSettingsScreen(navController: NavController) {
                     save()
                     testMessage = null
                 },
-                icon = Icons.Default.CloudUpload
+                icon = Symbols.CloudUploadFilled
             )
 
             DexcomShareStatusCard(status)
@@ -191,7 +188,7 @@ fun DexcomShareSettingsScreen(navController: NavController) {
                     PasswordVisualTransformation()
                 },
                 trailingIcon = {
-                    val image = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                    val image = if (showPassword) Symbols.VisibilityFilled else Symbols.VisibilityOffFilled
                     IconButtonTooltip(
                         if (showPassword) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
                     ) {

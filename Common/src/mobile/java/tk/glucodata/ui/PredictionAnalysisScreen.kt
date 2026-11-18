@@ -22,10 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -78,6 +74,7 @@ import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 import tk.glucodata.ui.viewmodel.PredictionAnalysisViewModel
 import kotlin.math.abs
+import tk.glucodata.ui.symbols.Symbols
 
 private val AnalysisCardShape = RoundedCornerShape(20.dp)
 private val TileShape = RoundedCornerShape(12.dp)
@@ -128,7 +125,7 @@ fun PredictionAnalysisScreen(navController: NavController, dashboardViewModel: D
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            icon = { Icon(Icons.Default.DeleteForever, null, tint = MaterialTheme.colorScheme.error) },
+            icon = { Icon(Symbols.DeleteForeverFilled, null, tint = MaterialTheme.colorScheme.error) },
             title = { Text(stringResource(R.string.prediction_analysis_clear_title)) },
             text = { Text(stringResource(R.string.prediction_analysis_clear_body)) },
             confirmButton = {
@@ -208,7 +205,7 @@ internal fun PredictionAnalysisContent(
                 title = stringResource(R.string.prediction_analysis_past_title),
                 subtitle = stringResource(R.string.prediction_analysis_past_summary),
                 onClick = onOpenPastForecasts,
-                icon = Icons.Default.Timeline,
+                icon = Symbols.TimelineFilled,
                 iconTint = MaterialTheme.colorScheme.secondary,
             )
         }
@@ -219,7 +216,7 @@ internal fun PredictionAnalysisContent(
                     DangerItem(
                         title = stringResource(R.string.prediction_analysis_clear),
                         subtitle = stringResource(R.string.prediction_analysis_clear_summary),
-                        icon = Icons.Default.DeleteForever,
+                        icon = Symbols.DeleteForeverFilled,
                         onClick = onClear,
                     )
                     Text(
@@ -253,7 +250,7 @@ private fun AnalysisCard(content: @Composable ColumnScope.() -> Unit) {
 private fun EmptyAnalysisCard(recording: Boolean, onTurnOn: () -> Unit) {
     AnalysisCard {
         Icon(
-            imageVector = Icons.Default.Insights,
+            imageVector = Symbols.InsightsFilled,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.size(24.dp),

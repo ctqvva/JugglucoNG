@@ -40,13 +40,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.UnfoldMore
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -96,6 +89,7 @@ import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 import java.text.NumberFormat
 import java.util.Locale
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * One metric, formatted for display. The same spec drives the statistics grid and the
@@ -390,7 +384,7 @@ private fun TileTitle(
         )
         if (expandable) {
             Icon(
-                imageVector = Icons.Default.Info,
+                imageVector = Symbols.InfoFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.74f),
                 modifier = Modifier.size(14.dp)
@@ -1531,7 +1525,7 @@ private fun PinnedMetricPickerSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = Symbols.CloseFilled,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(16.dp)
@@ -1558,7 +1552,7 @@ private fun PinnedMetricPickerSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Symbols.AddFilled,
                                 contentDescription = stringResource(R.string.stats_pinned_add),
                                 tint = if (canAdd) {
                                     MaterialTheme.colorScheme.onPrimaryContainer
@@ -1658,7 +1652,7 @@ private fun MetricSheetRow(
                 shapes = IconButtonDefaults.shapes()
             ) {
                 Icon(
-                    imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                    imageVector = if (pinned) Symbols.PushPinFilled else Symbols.PushPin,
                     contentDescription = stringResource(R.string.stats_arrange_pin),
                     tint = when {
                         pinned -> MaterialTheme.colorScheme.primary
@@ -1726,7 +1720,7 @@ private fun PinnedWindowPill(
             )
         }
         Icon(
-            imageVector = Icons.Default.UnfoldMore,
+            imageVector = Symbols.UnfoldMoreFilled,
             contentDescription = stringResource(R.string.stats_window_label),
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
             modifier = Modifier.size(14.dp * contentScale)

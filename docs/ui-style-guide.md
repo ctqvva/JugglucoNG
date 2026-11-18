@@ -371,6 +371,11 @@ what the rows around a slider already use.
 
 ### Icons
 
+- The icon set is **Material Symbols Rounded**, as `Symbols.<Name>` (outlined) and
+  `Symbols.<Name>Filled`, in `ui/symbols/Symbols.kt`. The file is generated: add the glyph's
+  name and style to `scripts/material-symbols.txt` (with `mirrored` for anything directional)
+  and run `python3 scripts/material-symbols.py`. Browse names at fonts.google.com/icons. The
+  frozen `material-icons` libraries are not a dependency any more (guardrail `material_icons`).
 - One glyph per meaning. Repeating a glyph for things of the same kind is right; two
   adjacent things that mean different things must not share one.
 - Glyph sizes: 24 (default, tiles), 20, 18 (in buttons), 16 or 14 (inline with label text).

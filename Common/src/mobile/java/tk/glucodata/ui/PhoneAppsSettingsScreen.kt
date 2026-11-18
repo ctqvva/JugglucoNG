@@ -8,14 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.HealthAndSafety
-import androidx.compose.material.icons.filled.Radio
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -37,6 +29,7 @@ import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.util.findActivity
 import tk.glucodata.ui.viewmodel.DashboardViewModel
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Everything that hands readings to another app on the same phone: the broadcast
@@ -100,7 +93,7 @@ fun PhoneAppsSettingsScreen(
                         title = stringResource(R.string.settings_patched_libre_title),
                         subtitle = stringResource(R.string.settings_patched_libre_desc),
                         checked = patchedLibreEnabled,
-                        icon = Icons.Default.Share,
+                        icon = Symbols.ShareFilled,
                         iconTint = appColor,
                         position = CardPosition.TOP,
                         searchAnchor = SettingsSearchAnchors.PATCHED_LIBRE,
@@ -110,7 +103,7 @@ fun PhoneAppsSettingsScreen(
                         title = stringResource(R.string.settings_xdrip_broadcast_title),
                         subtitle = stringResource(R.string.settings_xdrip_broadcast_desc),
                         checked = xdripEnabled,
-                        icon = Icons.Default.Radio,
+                        icon = Symbols.RadioFilled,
                         iconTint = appColor,
                         position = CardPosition.MIDDLE,
                         searchAnchor = SettingsSearchAnchors.XDRIP,
@@ -120,7 +113,7 @@ fun PhoneAppsSettingsScreen(
                         title = stringResource(R.string.xdrip_follower_title),
                         subtitle = stringResource(R.string.xdrip_follower_desc),
                         checked = xdripFollowerEnabled,
-                        icon = Icons.Default.Sync,
+                        icon = Symbols.SyncFilled,
                         iconTint = appColor,
                         position = CardPosition.MIDDLE,
                         searchAnchor = SettingsSearchAnchors.XDRIP_FOLLOWER,
@@ -130,7 +123,7 @@ fun PhoneAppsSettingsScreen(
                         title = stringResource(R.string.settings_glucodata_title),
                         subtitle = stringResource(R.string.settings_glucodata_desc),
                         checked = glucodataBroadcastEnabled,
-                        icon = Icons.AutoMirrored.Filled.Send,
+                        icon = Symbols.SendFilled,
                         iconTint = appColor,
                         position = if (healthConnectSupported) CardPosition.MIDDLE else CardPosition.BOTTOM,
                         searchAnchor = SettingsSearchAnchors.GLUCODATA,
@@ -141,7 +134,7 @@ fun PhoneAppsSettingsScreen(
                             title = stringResource(R.string.health_connect_title),
                             subtitle = stringResource(R.string.settings_health_connect_desc),
                             checked = healthConnectEnabled,
-                            icon = Icons.Default.HealthAndSafety,
+                            icon = Symbols.HealthAndSafetyFilled,
                             iconTint = appColor,
                             position = CardPosition.BOTTOM,
                             searchAnchor = SettingsSearchAnchors.HEALTH_CONNECT,
@@ -165,7 +158,7 @@ fun PhoneAppsSettingsScreen(
                                 title = stringResource(R.string.xdrip_report_as_libre2_title),
                                 subtitle = stringResource(R.string.xdrip_report_as_libre2_desc),
                                 checked = xdripReportAsLibre2,
-                                icon = Icons.Default.Badge,
+                                icon = Symbols.BadgeFilled,
                                 iconTint = appColor,
                                 position = if (showAppTrend) CardPosition.TOP else CardPosition.SINGLE,
                                 searchAnchor = SettingsSearchAnchors.LIBRE2_IDENTITY,
@@ -177,7 +170,7 @@ fun PhoneAppsSettingsScreen(
                                 title = stringResource(R.string.settings_app_trend_title),
                                 subtitle = stringResource(R.string.settings_app_trend_desc),
                                 checked = broadcastComputedTrend,
-                                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                                icon = Symbols.TrendingUpFilled,
                                 iconTint = appColor,
                                 position = if (showLibre2Identity) CardPosition.BOTTOM else CardPosition.SINGLE,
                                 searchAnchor = SettingsSearchAnchors.APP_TREND,

@@ -27,16 +27,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.BookmarkAdd
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.ImportExport
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -101,6 +91,7 @@ import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.viewmodel.DashboardViewModel
+import tk.glucodata.ui.symbols.Symbols
 
 /** What the library screen can do; the screen itself only shows. */
 internal class FoodLibraryActions(
@@ -281,7 +272,7 @@ internal fun FoodLibraryLayout(
         floatingActionButton = {
             if (!management.selecting && libraryEnabled) {
                 ExtendedFloatingActionButton(onClick = actions.onCreate) {
-                    Icon(Icons.Default.Add, contentDescription = null)
+                    Icon(Symbols.AddFilled, contentDescription = null)
                     Spacer(Modifier.width(12.dp))
                     Text(stringResource(R.string.journal_add_food))
                 }
@@ -298,7 +289,7 @@ internal fun FoodLibraryLayout(
                             onClick = { focusManager.clearFocus(); showTransfer = true },
                             shapes = IconButtonDefaults.shapes()
                         ) {
-                            Icon(Icons.Default.ImportExport, contentDescription = label)
+                            Icon(Symbols.ImportExportFilled, contentDescription = label)
                         }
                     }
                 }
@@ -346,7 +337,7 @@ internal fun FoodLibraryTransferSheet(
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Symbols.FileDownloadFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.food_import))
                 }
@@ -357,7 +348,7 @@ internal fun FoodLibraryTransferSheet(
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
-                    Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Symbols.FileUploadFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.export))
                 }
@@ -437,7 +428,7 @@ internal fun FoodLibraryContent(
                 subtitle = stringResource(R.string.journal_food_choose_desc),
                 checked = libraryEnabled,
                 onCheckedChange = actions.onLibraryEnabledChange,
-                icon = Icons.Default.Restaurant
+                icon = Symbols.RestaurantFilled
             )
         }
 
@@ -448,7 +439,7 @@ internal fun FoodLibraryContent(
                 subtitle = stringResource(R.string.food_online_desc),
                 checked = onlineEnabled,
                 onCheckedChange = actions.onOnlineEnabledChange,
-                icon = Icons.Default.Public,
+                icon = Symbols.PublicFilled,
                 iconTint = MaterialTheme.colorScheme.tertiary,
                 enabled = libraryEnabled,
                 position = CardPosition.SINGLE
@@ -598,7 +589,7 @@ private fun FoodOnlineButton(
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
-                Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Symbols.PublicFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(text = stringResource(R.string.food_search_online))
             }
@@ -665,7 +656,7 @@ private fun FoodBrowseRow(
             ) {
                 // No wash: the food is not the person's own yet.
                 IconTile(
-                    icon = Icons.Default.Restaurant,
+                    icon = Symbols.RestaurantFilled,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     containerColor = Color.Transparent
                 )
@@ -685,7 +676,7 @@ private fun FoodBrowseRow(
                 }
                 Spacer(Modifier.width(12.dp))
                 Icon(
-                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    imageVector = if (expanded) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -703,7 +694,7 @@ private fun FoodBrowseRow(
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
-                        Icon(Icons.Default.BookmarkAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Symbols.BookmarkAddFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(text = stringResource(R.string.journal_food_save_to_library))
                     }

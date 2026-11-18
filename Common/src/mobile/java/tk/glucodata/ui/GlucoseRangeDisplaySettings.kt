@@ -19,10 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ShowChart
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +56,7 @@ import tk.glucodata.ui.components.SettingsSearchReveal
 import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
@@ -140,7 +137,7 @@ fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
         ExpandableSettingsCard(
             title = stringResource(R.string.chart_limits_title),
             summary = chartSummary,
-            icon = Icons.AutoMirrored.Filled.ShowChart,
+            icon = Symbols.ShowChartFilled,
             expanded = chartExpanded,
             onExpandedChange = { chartExpanded = it },
             position = CardPosition.TOP
@@ -174,7 +171,7 @@ fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
         ExpandableSettingsCard(
             title = stringResource(R.string.glucose_range_title),
             summary = glucoseSummary,
-            icon = Icons.Default.TrackChanges,
+            icon = Symbols.TrackChangesFilled,
             expanded = glucoseExpanded,
             onExpandedChange = { glucoseExpanded = it },
             position = CardPosition.BOTTOM

@@ -11,10 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.QrCode
-import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,6 +25,7 @@ import tk.glucodata.util.DiscoveredMirror
 import tk.glucodata.ui.components.*
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 internal enum class ClonePairMode { SEND, GET }
 
@@ -72,7 +69,7 @@ internal fun CloneSettingsContent(
                 actions = {
                     IconButtonTooltip(stringResource(R.string.mirror_reconnect_all)) {
                         IconButton(onClick = onRefresh, shapes = IconButtonDefaults.shapes()) {
-                            Icon(Icons.Default.Refresh, stringResource(R.string.mirror_reconnect_all))
+                            Icon(Symbols.RefreshFilled, stringResource(R.string.mirror_reconnect_all))
                         }
                     }
                 },
@@ -100,7 +97,7 @@ internal fun CloneSettingsContent(
                         subtitle = stringResource(if (cloneEnabled) R.string.enabled_status else R.string.disabled_status),
                         checked = cloneEnabled,
                         enabled = controlsEnabled,
-                        icon = Icons.Default.SyncAlt,
+                        icon = Symbols.SyncAltFilled,
                         onCheckedChange = onMasterChanged,
                     )
                 }
@@ -123,7 +120,7 @@ internal fun CloneSettingsContent(
                     onOptionSelected = { mode -> onPairMode(if (mode == pairMode) null else mode) },
                     labelText = modeLabel,
                     label = { mode -> Text(modeLabel(mode)) },
-                    icon = { mode -> if (mode == ClonePairMode.SEND) Icons.Outlined.QrCode else Icons.Outlined.QrCodeScanner },
+                    icon = { mode -> if (mode == ClonePairMode.SEND) Symbols.QrCode else Symbols.QrCodeScanner },
                     itemHeight = 56.dp,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -158,7 +155,7 @@ internal fun CloneSettingsContent(
                         checked = backgroundLiveness,
                         enabled = controlsEnabled,
                         onCheckedChange = onBackgroundChanged,
-                        icon = Icons.Default.BatterySaver,
+                        icon = Symbols.BatterySaverFilled,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.TOP,
                     )
@@ -168,7 +165,7 @@ internal fun CloneSettingsContent(
                 SettingsItem(
                     title = stringResource(R.string.clone_network_title),
                     subtitle = stringResource(R.string.clone_network_summary),
-                    icon = Icons.Default.Hub,
+                    icon = Symbols.HubFilled,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = if (hasConnections) CardPosition.MIDDLE else CardPosition.TOP,
                     animatePosition = true,
@@ -179,7 +176,7 @@ internal fun CloneSettingsContent(
                 SettingsItem(
                     title = stringResource(R.string.add_connection),
                     subtitle = stringResource(R.string.clone_add_manually_desc),
-                    icon = Icons.Default.Add,
+                    icon = Symbols.AddFilled,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.BOTTOM,
                     onClick = onAddManually,
@@ -243,7 +240,7 @@ private fun CloneSendPanel(
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (send.connected) {
             Icon(
-                Icons.Filled.CheckCircle,
+                Symbols.CheckCircleFilled,
                 contentDescription = null,
                 tint = StatusPalette.success(),
                 modifier = Modifier.size(32.dp),
@@ -280,7 +277,7 @@ private fun CloneGetPanel(
         shapes = ButtonDefaults.shapes(),
         contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
     ) {
-        Icon(Icons.Outlined.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+        Icon(Symbols.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.clone_scan_code))
     }

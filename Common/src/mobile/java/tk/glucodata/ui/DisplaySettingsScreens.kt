@@ -27,12 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CropSquare
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.SettingsAccessibility
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -73,6 +67,7 @@ import tk.glucodata.ui.components.SettingsControlsCard
 import tk.glucodata.ui.components.SettingsSlider
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 import kotlin.math.roundToInt
+import tk.glucodata.ui.symbols.Symbols
 
 private val screenHorizontalPadding = 16.dp
 private val aodPositionOptions = listOf(
@@ -433,7 +428,7 @@ fun DisplayAndColorSettingsScreen(
             SettingsItem(
                 title = stringResource(R.string.preview_window_title),
                 subtitle = previewWindowLabel,
-                icon = Icons.Default.CropSquare,
+                icon = Symbols.CropSquareFilled,
                 iconTint = MaterialTheme.colorScheme.primary,
                 position = CardPosition.TOP,
                 searchAnchor = SettingsSearchAnchors.PREVIEW_WINDOW,
@@ -528,7 +523,7 @@ fun FloatingGlucoseSettingsScreen(
                     viewModel.toggleFloatingGlucose(enabled)
                 }
             },
-            icon = Icons.Default.Layers,
+            icon = Symbols.LayersFilled,
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
 
@@ -779,7 +774,7 @@ fun AodSettingsScreen(navController: NavController) {
             onCheckedChange = {
                 context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             },
-            icon = Icons.Default.SettingsAccessibility,
+            icon = Symbols.SettingsAccessibilityFilled,
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
 
@@ -796,7 +791,7 @@ fun AodSettingsScreen(navController: NavController) {
                 )
             },
             searchAnchor = SettingsSearchAnchors.AOD_LOCK_SCREEN,
-            icon = Icons.Default.Lock,
+            icon = Symbols.LockFilled,
             position = CardPosition.SINGLE,
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
@@ -981,7 +976,7 @@ private fun WarningPanel(text: String, modifier: Modifier = Modifier) {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
+            Icon(Symbols.WarningFilled, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
             Spacer(modifier = Modifier.width(12.dp))
             Text(text, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodyMedium)
         }

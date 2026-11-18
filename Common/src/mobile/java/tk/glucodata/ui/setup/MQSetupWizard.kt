@@ -31,9 +31,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -79,6 +76,7 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
+import tk.glucodata.ui.symbols.Symbols
 
 private const val MQ_QR_EXAMPLE = "ABC123"
 
@@ -420,7 +418,7 @@ private fun MQScanStep(
                 ListItem(
                     headlineContent = { Text(title) },
                     supportingContent = { Text(supporting) },
-                    leadingContent = { Icon(Icons.Default.Bluetooth, null) },
+                    leadingContent = { Icon(Symbols.BluetoothFilled, null) },
                     modifier = Modifier.clickable { onDeviceSelected(device) }
                 )
                 HorizontalDivider()
@@ -476,7 +474,7 @@ private fun MQScanStep(
                         SettingsItem(
                             title = stringResource(R.string.mq_account_title),
                             subtitle = accountSubtitle,
-                            icon = Icons.Default.Cloud,
+                            icon = Symbols.CloudFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.SINGLE,
                             onClick = onManageAccount,

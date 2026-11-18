@@ -25,10 +25,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -81,6 +77,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
+import tk.glucodata.ui.symbols.Symbols
 
 private data class JournalLedgerItem(
     val timestamp: Long,
@@ -453,7 +450,7 @@ private fun JournalHeader(
             IconButtonTooltip(stringResource(R.string.journal_food_library)) {
                 IconButton(onClick = onOpenFoodLibrary, modifier = Modifier.size(40.dp), shapes = IconButtonDefaults.shapes()) {
                     Icon(
-                        imageVector = Icons.Default.Restaurant,
+                        imageVector = Symbols.RestaurantFilled,
                         contentDescription = stringResource(R.string.journal_food_library),
                         tint = journalTypeColor(JournalEntryType.CARBS)
                     )
@@ -462,7 +459,7 @@ private fun JournalHeader(
             IconButtonTooltip(stringResource(R.string.journal_insulin_library)) {
                 IconButton(onClick = onOpenInsulinLibrary, modifier = Modifier.size(40.dp), shapes = IconButtonDefaults.shapes()) {
                     Icon(
-                        imageVector = Icons.Default.Vaccines,
+                        imageVector = Symbols.VaccinesFilled,
                         contentDescription = stringResource(R.string.journal_insulin_library),
                         tint = journalTypeColor(JournalEntryType.INSULIN)
                     )
@@ -554,7 +551,7 @@ private fun JournalMetricsPanel(
                 title = stringResource(R.string.journal_metric_iob),
                 value = stringResource(R.string.unit_insulin_value, formatJournalIob(iobUnits)),
                 detail = activeInsulinDetail,
-                icon = Icons.Default.Vaccines,
+                icon = Symbols.VaccinesFilled,
                 type = JournalEntryType.INSULIN,
                 modifier = Modifier.weight(1f),
                 onClick = if (activeInsulin != null) {
@@ -581,7 +578,7 @@ private fun JournalMetricsPanel(
                         todaysEntries.count { it.type == JournalEntryType.CARBS }
                     )
                 ).joinToString(" · "),
-                icon = Icons.Default.Restaurant,
+                icon = Symbols.RestaurantFilled,
                 type = JournalEntryType.CARBS,
                 modifier = Modifier.weight(1f)
             )
@@ -655,7 +652,7 @@ private fun JournalMetricsPanel(
                 title = stringResource(R.string.journal_metric_insulin_today),
                 value = stringResource(R.string.unit_insulin_value, formatJournalDose(insulinToday)),
                 detail = stringResource(R.string.journal_type_insulin),
-                icon = Icons.Default.Vaccines,
+                icon = Symbols.VaccinesFilled,
                 type = JournalEntryType.INSULIN,
                 modifier = Modifier.weight(1f)
             )
@@ -663,7 +660,7 @@ private fun JournalMetricsPanel(
                 title = stringResource(R.string.journal_metric_activity_today),
                 value = stringResource(R.string.minutes_short_format, activityMinutesToday),
                 detail = stringResource(R.string.journal_type_activity),
-                icon = Icons.Default.DirectionsRun,
+                icon = Symbols.DirectionsRunFilled,
                 type = JournalEntryType.ACTIVITY,
                 modifier = Modifier.weight(1f)
             )

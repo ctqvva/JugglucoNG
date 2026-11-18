@@ -27,11 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
-import androidx.compose.material.icons.filled.Bloodtype
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -79,6 +74,7 @@ import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import tk.glucodata.ui.symbols.Symbols
 
 private data class NearbyGlucoseMeter(
     val device: BluetoothDevice,
@@ -298,7 +294,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                             shape = RoundedCornerShape(16.dp),
                         ) {
                             Icon(
-                                Icons.Filled.Bloodtype,
+                                Symbols.BloodtypeFilled,
                                 contentDescription = null,
                                 modifier = Modifier.padding(16.dp).size(28.dp),
                             )
@@ -325,7 +321,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                     SettingsItem(
                         title = stringResource(R.string.glucose_meters_none),
                         subtitle = stringResource(R.string.glucose_meters_none_desc),
-                        icon = Icons.Filled.History,
+                        icon = Symbols.HistoryFilled,
                         iconTint = MaterialTheme.colorScheme.secondary,
                     )
                 }
@@ -350,7 +346,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                             title = meter.name,
                             subtitle = "$status · $lastReading",
                             checked = meter.active,
-                            icon = Icons.Filled.Bloodtype,
+                            icon = Symbols.BloodtypeFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             onCheckedChange = { enabled ->
                                 GlucoseMeterManager.setEnabled(meter.index, enabled)
@@ -361,7 +357,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                         IconButtonTooltip(stringResource(R.string.glucose_meter_forget)) {
                             IconButton(onClick = { pendingForget = meter }, shapes = IconButtonDefaults.shapes()) {
                                 Icon(
-                                    Icons.Filled.Delete,
+                                    Symbols.DeleteFilled,
                                     contentDescription = stringResource(R.string.glucose_meter_forget),
                                     tint = MaterialTheme.colorScheme.error,
                                 )
@@ -417,7 +413,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.BluetoothSearching, contentDescription = null)
+                    Icon(Symbols.BluetoothSearchingFilled, contentDescription = null)
                     Spacer(Modifier.size(8.dp))
                     Text(stringResource(if (scanning) R.string.scanning_devices else R.string.finddevices))
                 }
@@ -427,7 +423,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                 SettingsItem(
                     title = candidate.name,
                     subtitle = candidate.address,
-                    icon = Icons.AutoMirrored.Filled.BluetoothSearching,
+                    icon = Symbols.BluetoothSearchingFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.SINGLE,
                     onClick = {
