@@ -305,6 +305,12 @@ public:
   };
 
   std::vector<condvar_t *> con_vars;
+  // Guards handing a con_vars slot from one sender thread to the next:
+  // startthread installing a condition, a worker checking that the slot is
+  // still its own, and the end of a worker closing and clearing it. Pause and
+  // resume reach startthread without change_host_mutex, so this is its own
+  // lock. Order: change_host_mutex, then slot_mutex.
+  std::mutex slot_mutex;
   struct updatedata *getupdatedata() {
     return reinterpret_cast<struct updatedata *>(mapdata.data());
   }
@@ -645,7 +651,10 @@ public:
       crypts.resize(getupdatedata()->sendnr + 1, nullptr);
       clearhost(index);
       getupdatedata()->sendnr++;
-      con_vars.resize(getupdatedata()->sendnr);
+      {
+        const std::lock_guard<std::mutex> slotLock(slot_mutex);
+        con_vars.resize(getupdatedata()->sendnr);
+      }
     } else {
       if (con_vars[index])
         con_vars[index]->wakebackuponly(Backup::wakestop);
@@ -1222,7 +1231,7 @@ extern int updateproc(condvar_t *varsptr,uintptr_t cond,updateone &shost,int
 doupdates(const uintptr_t current,const int h) ; extern void lockwait(uintptr_t
 &current,int h) ; extern void        notpassive(uintptr_t current,int
 sendindex); extern bool doend(int sendindex); */
-  void backupthread(int allindex, int sendindex) {
+  void backupthread(int allindex, int sendindex, condvar_t *const own) {
 #ifndef NOLOG
     auto &host = getupdatedata()->tosend[sendindex];
 #endif
@@ -1249,12 +1258,11 @@ sendindex); extern bool doend(int sendindex); */
     // Counted per sender thread: a function static was shared, unlocked,
     // by every host's thread.
     int streamwakes = 0;
-    // This thread's own condition. The slot can be handed to a new thread
-    // (a host deleted and another added, or paused and resumed) before this
-    // one has seen its end flag; startthread then puts a new condition in
-    // con_vars[sendindex]. Reading the slot afresh would make this thread
-    // run on, or end by deleting, the new thread's condition.
-    condvar_t *const own = con_vars[sendindex];
+    // [own] is this thread's condition, made for it by startthread. The slot
+    // can be handed to a newer thread (a host deleted and another added, or
+    // paused and resumed) before this one has seen its end flag, even before
+    // this one has started; reading the slot instead would let two threads
+    // share, or end by deleting, the newer thread's condition.
     if (resumeCloneRecoveryForHost(allindex, sendindex) == 1) {
       own->wakebackup(wakerecovery);
     }
@@ -1296,7 +1304,11 @@ sendindex); extern bool doend(int sendindex); */
     }
   }
   bool doend(int sendindex, condvar_t *own) {
-    const condvar_t *var = con_vars[sendindex];
+    const condvar_t *var;
+    {
+      const std::lock_guard<std::mutex> slotLock(slot_mutex);
+      var = sendindex < con_vars.size() ? con_vars[sendindex] : nullptr;
+    }
     LOGGER("doend: con_vars=%p own=%p\n", var, own);
     if (var != own || (own->dobackup & wakeend)) {
       endbackupthread(sendindex, own);
@@ -1344,6 +1356,9 @@ sendindex); extern bool doend(int sendindex); */
 #ifndef TESTMENU
     const std::lock_guard<std::mutex> lock(change_host_mutex);
 #endif
+    // Held to the end: a resume must not install a new condition between this
+    // check and the slot being closed and cleared.
+    const std::lock_guard<std::mutex> slotLock(slot_mutex);
     if (h >= con_vars.size() || con_vars[h] != own) {
       // The slot already belongs to a newer thread: its connection and its
       // condition are that thread's. Only this thread's own condition goes.
@@ -1469,8 +1484,13 @@ sendindex); extern bool doend(int sendindex); */
   }
   static void startthread(int allindex, int sendindex) {
     LOGGER("in startthread %d %d\n", allindex, sendindex);
-    backup->con_vars[sendindex] = new condvar_t;
-    std::thread back(&Backup::backupthread, backup, allindex, sendindex);
+    // The new condition goes to its thread directly, not through the slot.
+    auto *own = new condvar_t;
+    {
+      const std::lock_guard<std::mutex> slotLock(backup->slot_mutex);
+      backup->con_vars[sendindex] = own;
+    }
+    std::thread back(&Backup::backupthread, backup, allindex, sendindex, own);
     back.detach();
   }
   static void startbackup(std::string_view globalbasedir) {
