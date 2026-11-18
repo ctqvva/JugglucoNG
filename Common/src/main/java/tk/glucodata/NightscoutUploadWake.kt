@@ -35,6 +35,28 @@ object NightscoutUploadWake {
     }
 
     /**
+     * The journal was switched back on. Passes that ran while it was off sent and imported
+     * nothing and cleared their retry, so ask for one now. Unlike [afterJournalChange] this
+     * also covers receive-only: it runs once per switch, so it cannot feed the receive loop.
+     */
+    @JvmStatic
+    fun afterJournalEnabled() {
+        if (followerSendsTreatments()) {
+            JournalTreatmentUploadAccess.sendAsFollower()
+            return
+        }
+        val wanted = runCatching {
+            Natives.getpostTreatments() || JournalTreatmentUploadAccess.getReceiveTreatments()
+        }.getOrDefault(false)
+        if (!wanted) return
+        runCatching {
+            Natives.waketreatments()
+        }.onFailure {
+            Log.stack(TAG, "journal enable wake failed", it)
+        }
+    }
+
+    /**
      * Follow mode with sending on. Not while the native uploader is also on (the legacy
      * screen can leave both set): that one already sends, and two senders would race.
      */
