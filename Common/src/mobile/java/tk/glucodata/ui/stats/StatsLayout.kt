@@ -76,7 +76,7 @@ enum class StatsMetric(@param:StringRes val titleResId: Int) {
 
         /**
          * Off by default because each of these already has a home elsewhere on the
-         * screen: time in range is the ring, the episode counts are the Episodes card,
+         * screen: time in range leads the overview, the episode counts are the Episodes card,
          * coverage is on the window line, and GRI/LBGI/HBGI are the risk card. They are
          * one tap away in Arrange for anyone who wants them in the grid as well.
          */
@@ -94,7 +94,7 @@ enum class StatsMetric(@param:StringRes val titleResId: Int) {
         )
 
         /** Rows shown before the rest fold away behind the disclosure. */
-        const val DEFAULT_VISIBLE_ROWS = 4
+        const val DEFAULT_VISIBLE_ROWS = 3
 
         /**
          * Pinned to the dashboard out of the box.

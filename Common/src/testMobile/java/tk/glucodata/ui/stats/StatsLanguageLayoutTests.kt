@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.test.core.app.ApplicationProvider
 import java.io.File
+import java.text.NumberFormat
 import java.time.Instant
 import java.util.Locale
 import org.junit.After
@@ -46,8 +47,8 @@ class StatsLanguageLayoutTests {
     private val originalLocale = Locale.getDefault()
     @After fun restoreLocale() { Locale.setDefault(originalLocale) }
 
-    private val tags = listOf("en", "be", "de", "fr", "hu", "it", "mn", "nl", "pl", "pt", "ru", "so", "sv", "tr", "uk", "zh")
-    private val percentages = listOf(0.7f, 1.9f, 75.2f, 8.2f, 14.6f)
+    private val tags = listOf("en", "be", "de", "es", "fr", "hu", "it", "mn", "nl", "pl", "pt", "ru", "so", "sv", "tr", "uk", "zh")
+    private val percentages = listOf(0.7f, 1.9f, 75.2f, 8.2f, 14f)
     private val labels = listOf(R.string.very_high, R.string.high_range, R.string.in_range, R.string.low_range, R.string.very_low)
     private val range = StatsDateRange(
         Instant.parse("2026-10-27T12:00:00Z").toEpochMilli(),
@@ -57,8 +58,12 @@ class StatsLanguageLayoutTests {
     private val summary = StatsSummary(
         readingCount = 19621, avgMgDl = 88f, medianMgDl = 83f, p25MgDl = 67f, p75MgDl = 104f,
         stdDevMgDl = 31f, cvPercent = 35.2f, gmiPercent = 5.4f,
-        tir = TimeInRangeBreakdown(14.6f, 8.2f, 75.2f, 1.9f, 0.7f),
+        tir = TimeInRangeBreakdown(14f, 8.2f, 75.2f, 1.9f, 0.7f),
         parts = object : StatsSummaryParts by StatsSummaryParts.Empty {
+            override val dayParts = DayPart.entries.mapIndexed { index, part ->
+                val inRange = listOf(92f, 73f, 81f, 55f)[index]
+                DayPartStats(part, 100f, TimeInRangeBreakdown(2f, 3f, inRange, 95f - inRange, 0f), 100)
+            }
             override val comparison = StatsComparison(23f, 0f, 0f, 0f, PeriodScalars())
         }
     )
@@ -100,8 +105,8 @@ class StatsLanguageLayoutTests {
                                 StatsRangeSelectorControl(StatsTimeRange.DAY_14, range, false, true, 19621,
                                     {}, {}, coveragePercent = 97f)
                                 GlycemicOverviewCard(summary, targets, unit,
-                                    StatsTimeRange.DAY_14, null, {}, Modifier.testTag("overview"))
-                                MetricsGrid(StatsLayoutState().visibleMetrics.take(8), emptySet(), summary,
+                                    Modifier.testTag("overview"))
+                                MetricsGrid(StatsLayoutState().visibleMetrics.take(6), emptySet(), summary,
                                     targets, unit, emptySet(), {}, null, Modifier.testTag("metrics"))
                                 PatternsHeader(context.getString(R.string.hourly_patterns),
                                     "12:00 · ${context.getString(R.string.median)} ${formatMgDl(128f, unit)}",
@@ -126,18 +131,27 @@ class StatsLanguageLayoutTests {
                 compose.onNodeWithTag("screen").captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)
             }
             val overview = compose.onNodeWithTag("overview").fetchSemanticsNode().boundsInRoot
-            val ring = compose.onNodeWithContentDescription("${String.format(Locale.getDefault(), "%.0f%%", 75f)} ${context.getString(R.string.tir)}", useUnmergedTree = true)
-                .fetchSemanticsNode().boundsInRoot
-            assertTrue("oversized ring in $tag $scale $u", ring.width <= 160.5f)
-            assertTrue("stacked normal-phone overview in $tag $scale $u", ring.right < overview.right - 96f)
-            assertTrue("overview too tall in $tag $scale $u: ${overview.height}", overview.height <= 360f)
+            val format = NumberFormat.getPercentInstance(Locale.forLanguageTag(tag)).apply {
+                minimumFractionDigits = 1
+                maximumFractionDigits = 1
+            }
+            assertTrue("overview too tall in $tag $scale $u: ${overview.height}", overview.height <= if (scale == 1f) 360f else 460f)
             var right: Float? = null
             for (p in percentages) {
-                val node = compose.onNode(hasText(String.format(Locale.getDefault(), "%.1f%%", p)) and hasAnyAncestor(hasTestTag("overview")), useUnmergedTree = true)
+                val node = compose.onNode(hasText(format.format(p / 100.0)) and hasAnyAncestor(hasTestTag("overview")), useUnmergedTree = true)
                 node.assertFits()
-                val end = node.fetchSemanticsNode().boundsInRoot.right
-                right?.let { assertEquals("percent column drift in $tag", it, end, 0.5f) }
-                right = end
+                if (p != summary.tir.inRangePercent) {
+                    val end = node.fetchSemanticsNode().boundsInRoot.right
+                    right?.let { assertEquals("percent column drift in $tag", it, end, 0.5f) }
+                    right = end
+                }
+            }
+            val targetText = "${formatMgDl(targets.lowMgDl, u)}–${formatMgDl(targets.highMgDl, u)}"
+            val inOverview = hasAnyAncestor(hasTestTag("overview"))
+            compose.onNode(hasText(targetText) and inOverview, useUnmergedTree = true).assertFits()
+            for (unitId in listOf(R.string.unit_mg, R.string.unit_mmol)) {
+                compose.onNode(hasText(context.getString(unitId), substring = true) and inOverview,
+                    useUnmergedTree = true).assertDoesNotExist()
             }
             for (id in labels) {
                 compose.onNode(hasText(context.getString(id)) and hasAnyAncestor(hasTestTag("overview")), useUnmergedTree = true).assertFits()
@@ -149,10 +163,6 @@ class StatsLanguageLayoutTests {
                     compose.onNode(hasText(formatMgDl(summary.avgMgDl, u)) and inMetrics, useUnmergedTree = true).layout().layoutInput.style.fontSize)
                 assertEquals(AppTypography.titleMedium.fontSize,
                     compose.onNode(hasText(context.getString(R.string.average_glucose)) and inMetrics, useUnmergedTree = true).layout().layoutInput.style.fontSize)
-                assertEquals(AppTypography.headlineLarge.fontSize,
-                    compose.onNodeWithText("75%", useUnmergedTree = true).layout().layoutInput.style.fontSize)
-                assertEquals(AppTypography.titleMedium.fontSize,
-                    compose.onNodeWithText(context.getString(R.string.tir), useUnmergedTree = true).layout().layoutInput.style.fontSize)
                 assertEquals(AppTypography.bodyMedium.fontSize,
                     compose.onNode(hasText(context.getString(R.string.very_high)) and hasAnyAncestor(hasTestTag("overview")), useUnmergedTree = true).layout().layoutInput.style.fontSize)
             }
@@ -167,18 +177,17 @@ class StatsLanguageLayoutTests {
         }
     }
 
-    @Test fun ringAndNumbersStayInsideTheirBoundsAcrossWindowsAndDensities() {
+    @Test fun timeBlockPickerKeepsItsTouchTargetAcrossWindowsAndDensities() {
         var width by mutableIntStateOf(328)
         var density by mutableFloatStateOf(1f)
         var scale by mutableFloatStateOf(1.3f)
-        var selected by mutableStateOf<TirBand?>(null)
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(density, scale)) {
                 FontScaleCap {
                     MaterialTheme(typography = AppTypography) {
                         Box(Modifier.width(width.dp)) {
                             GlycemicOverviewCard(summary, targets, GlucoseUnit.MMOL,
-                                StatsTimeRange.DAY_14, selected, { selected = it }, Modifier.testTag("overview"))
+                                Modifier.testTag("overview"))
                         }
                     }
                 }
@@ -187,20 +196,10 @@ class StatsLanguageLayoutTests {
         for (w in listOf(240, 288, 328, 400, 600)) for (d in listOf(1f, 2f)) for (s in listOf(1f, 1.3f, 2f)) {
             compose.runOnIdle { width = w; density = d; scale = s }
             val card = compose.onNodeWithTag("overview").fetchSemanticsNode().boundsInRoot
-            val ring = compose.onNodeWithContentDescription("75% TIR", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-            assertTrue(ring.left >= card.left && ring.right <= card.right && ring.top >= card.top && ring.bottom <= card.bottom)
-            val innerRadius = ring.width / 2f - 16f * d
-            for (text in listOf("75%", "TIR")) {
-                val node = compose.onNodeWithText(text, useUnmergedTree = true)
-                node.assertFits()
-                val bounds = node.fetchSemanticsNode().boundsInRoot
-                for (corner in listOf(bounds.topLeft, bounds.topRight, bounds.bottomLeft, bounds.bottomRight)) {
-                    assertTrue("$text crosses ring at $w/$d/$s", (corner - ring.center).getDistance() < innerRadius)
-                }
-            }
-            for (p in percentages) compose.onNodeWithText(String.format(Locale.getDefault(), "%.1f%%", p), useUnmergedTree = true).assertFits()
+            val button = compose.onNodeWithText("00–24").fetchSemanticsNode().boundsInRoot
+            assertTrue(button.left >= card.left && button.right <= card.right)
+            assertTrue("picker too small at $w/$d/$s", button.width >= 48f * d - 1f && button.height >= 48f * d - 1f)
+            compose.onNodeWithText("00–24", useUnmergedTree = true).assertFits()
         }
-        compose.onNodeWithText("High", useUnmergedTree = true).performClick()
-        compose.runOnIdle { assertEquals(TirBand.HIGH, selected) }
     }
 }

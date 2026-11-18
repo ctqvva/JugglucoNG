@@ -2422,6 +2422,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="stats_finding_on_target">Hedefte</string>
     <string name="stats_finding_on_target_desc">CV %%%2$d ile aralıkta %%%1$d. Başka dikkat çeken bir şey yok.</string>
     <string name="stats_card_overview">Aralıktaki süre</string>
+    <string name="stats_all_day">Tüm gün</string>
+    <string name="stats_tir_change">Önceki döneme göre %1$s yüzde puan</string>
     <string name="stats_card_metrics">Ölçütler</string>
     <string name="stats_card_coverage">Kapsam</string>
     <string name="stats_card_coverage_description">Sensörün gerçekten veri verdiği sürenin payı. Bu ekrandaki tüm yüzdeler yalnızca o süreyi anlatır.</string>

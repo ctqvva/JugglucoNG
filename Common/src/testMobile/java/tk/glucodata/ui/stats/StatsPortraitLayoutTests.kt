@@ -7,7 +7,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -52,7 +51,7 @@ class StatsPortraitLayoutTests {
         for (line in 0 until lineCount) {
             assertFalse("ellipsized: ${layoutInput.text}", isLineEllipsized(line))
             assertTrue(
-                "width clipped: ${layoutInput.text}",
+                "width clipped: ${layoutInput.text}, ${getLineLeft(line)}..${getLineRight(line)} in ${size.width}",
                 getLineLeft(line) >= -1f && getLineRight(line) <= size.width + 1f
             )
         }
@@ -88,47 +87,33 @@ class StatsPortraitLayoutTests {
         compose.runOnIdle { assertEquals(24, dateClicks) }
     }
 
-    @Test fun wholeTirLabelStaysInsideTheCircleWithAReadableComparisonBelow() {
-        var scale by mutableFloatStateOf(1f)
-        var percent by mutableFloatStateOf(62f)
-        var delta by mutableStateOf<Float?>(23f)
-        var selected by mutableStateOf<TirBand?>(null)
+    @Test fun selectingALocalTimeBlockChangesTheDistributionAndReturningToAllRestoresIt() {
+        val summary = StatsSummary(
+            readingCount = 32,
+            tir = TimeInRangeBreakdown(inRangePercent = 75f, highPercent = 25f),
+            parts = object : StatsSummaryParts by StatsSummaryParts.Empty {
+                override val dayParts = listOf(
+                    DayPartStats(DayPart.NIGHT, 100f, TimeInRangeBreakdown(inRangePercent = 50f, lowPercent = 50f), 8)
+                )
+                override val comparison = comparison(10f)
+            }
+        )
         compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, scale.coerceAtMost(1.3f))) {
-                MaterialTheme(typography = AppTypography) {
-                    val change = delta?.let(::comparison)
-                    OverviewRing(
-                        tir = TimeInRangeBreakdown(inRangePercent = percent, highPercent = 100f - percent),
-                        comparison = change,
-                        selectedBand = selected,
-                        onBandSelected = { selected = it },
-                        modifier = Modifier.width(128.dp).testTag("ring")
-                    )
-                }
+            MaterialTheme(typography = AppTypography) {
+                Box(Modifier.width(288.dp)) { GlycemicOverviewCard(summary, StatsTargets(), GlucoseUnit.MGDL) }
             }
         }
-        for (s in listOf(1f, 1.3f, 2f)) for (p in listOf(0f, 62f, 100f)) {
-            for (d in listOf(null, 23f, -100f)) {
-                compose.runOnIdle { scale = s; percent = p; delta = d }
-                val ring = compose.onNodeWithContentDescription("${p.toInt()}% TIR", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-                // A selected arc is 17dp thick, extending 1dp farther into the opening.
-                val innerRadius = ring.width / 2f - 16f
-                for (text in listOf("${p.toInt()}%", "TIR")) {
-                    val node = compose.onNodeWithText(text, useUnmergedTree = true)
-                    node.layout().assertFits()
-                    val b = node.fetchSemanticsNode().boundsInRoot
-                    for (corner in listOf(b.topLeft, b.topRight, b.bottomLeft, b.bottomRight)) {
-                        assertTrue("$text touches ring at scale $s", (corner - ring.center).getDistance() < innerRadius)
-                    }
-                }
-            }
-        }
-        // A band tap and a center tap retain the existing selection behavior.
-        compose.runOnIdle { percent = 100f; delta = 23f; selected = null }
-        compose.onNodeWithContentDescription("100% TIR", useUnmergedTree = true).performTouchInput { click(Offset(center.x, 4f)) }
-        compose.runOnIdle { assertEquals(TirBand.IN_RANGE, selected) }
-        compose.onNodeWithContentDescription("100% TIR", useUnmergedTree = true).performTouchInput { click(center) }
-        compose.runOnIdle { assertNull(selected) }
+        compose.onNodeWithText("75.0%").assertExists()
+        compose.onNodeWithText("≈ 18 h / 24 h").assertExists()
+        compose.onNodeWithText("00–24").performClick()
+        compose.onNodeWithText("Morning").assertIsNotEnabled()
+        compose.onNodeWithText("Night").performClick()
+        compose.onNodeWithText("≈ 3 h / 6 h").assertExists()
+        compose.onNodeWithText("percentage points", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("00–06").performClick()
+        compose.onNodeWithText("All day").performClick()
+        compose.onNodeWithText("75.0%").assertExists()
+        compose.onNodeWithText("+10.0 percentage points", substring = true).assertExists()
     }
 
     @Test fun patternsHeadingStaysWholeAndPortraitOverviewRendersWithoutCrowding() {
@@ -150,7 +135,7 @@ class StatsPortraitLayoutTests {
                                 {}, {}, coveragePercent = 98f
                             )
                             Spacer(Modifier.height(16.dp))
-                            GlycemicOverviewCard(summary, StatsTargets(), GlucoseUnit.MMOL, StatsTimeRange.DAY_1, null, {})
+                            GlycemicOverviewCard(summary, StatsTargets(), GlucoseUnit.MMOL)
                             PatternsHeader("Hourly patterns", "12:00 · Median 7.1", "IQR 5.2–8.8")
                         }
                     }
@@ -162,7 +147,7 @@ class StatsPortraitLayoutTests {
             val title = compose.onNodeWithText("Patterns", useUnmergedTree = true).layout()
             title.assertFits()
             assertEquals("heading broken at ${w}dp, ${s}x", 1, title.lineCount)
-            compose.onNodeWithText("62%", useUnmergedTree = true).layout().assertFits()
+            compose.onNodeWithText("61.7%", useUnmergedTree = true).layout().assertFits()
             val output = File("build/outputs/layout-regressions/statistics-$w-$s.png")
             output.parentFile?.mkdirs()
             output.outputStream().use {

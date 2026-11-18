@@ -2400,6 +2400,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_finding_on_target">Dans la cible</string>
     <string name="stats_finding_on_target_desc">%1$d%% dans la cible avec un CV de %2$d%%. Rien d\'autre ne ressort.</string>
     <string name="stats_card_overview">Temps dans la cible</string>
+    <string name="stats_all_day">Toute la journée</string>
+    <string name="stats_tir_change">%1$s points par rapport à la période précédente</string>
     <string name="stats_card_metrics">Mesures</string>
     <string name="stats_card_coverage">Couverture</string>
     <string name="stats_card_coverage_description">Part de la période réellement couverte par le capteur. Tous les pourcentages de cet écran ne décrivent que ce temps.</string>

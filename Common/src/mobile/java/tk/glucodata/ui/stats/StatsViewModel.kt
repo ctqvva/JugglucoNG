@@ -1684,6 +1684,11 @@ class StatsViewModel : ViewModel() {
          * straight back out and is never computed again until it is put back on screen.
          */
         fun warmDemanded() {
+            // The overview can be the first card composed on a fresh launch.
+            if (StatsCard.OVERVIEW !in StatsLayoutStore.state.value.hiddenCards) {
+                dayPartsValue.value
+                comparisonValue.value
+            }
             val toWarm = demanded.toSet()
             demanded.clear()
             toWarm.forEach { part ->

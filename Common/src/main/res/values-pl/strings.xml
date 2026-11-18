@@ -2428,6 +2428,8 @@
     <string name="stats_finding_on_target">W celu</string>
     <string name="stats_finding_on_target_desc">%1$d%% w zakresie przy CV %2$d%%. Nic więcej się nie wyróżnia.</string>
     <string name="stats_card_overview">Czas w zakresie</string>
+    <string name="stats_all_day">Cała doba</string>
+    <string name="stats_tir_change">%1$s p.p. względem poprzedniego okresu</string>
     <string name="stats_card_metrics">Wskaźniki</string>
     <string name="stats_card_coverage">Pokrycie</string>
     <string name="stats_card_coverage_description">Część okresu, w której czujnik faktycznie raportował. Wszystkie wartości procentowe na tym ekranie opisują wyłącznie ten czas.</string>

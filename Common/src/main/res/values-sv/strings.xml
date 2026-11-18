@@ -2394,6 +2394,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_finding_on_target">På mål</string>
     <string name="stats_finding_on_target_desc">%1$d%% i målområdet vid CV %2$d%%. Inget annat sticker ut.</string>
     <string name="stats_card_overview">Tid i målområdet</string>
+    <string name="stats_all_day">Hela dygnet</string>
+    <string name="stats_tir_change">%1$s procentenheter mot föregående period</string>
     <string name="stats_card_metrics">Mått</string>
     <string name="stats_card_coverage">Täckning</string>
     <string name="stats_card_coverage_description">Andel av perioden som sensorn faktiskt rapporterade. Alla procenttal på den här skärmen beskriver bara den tiden.</string>

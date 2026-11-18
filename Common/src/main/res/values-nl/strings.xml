@@ -2437,6 +2437,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="stats_finding_on_target">Op doel</string>
     <string name="stats_finding_on_target_desc">%1$d%% in bereik bij VC %2$d%%. Verder valt niets op.</string>
     <string name="stats_card_overview">Tijd in bereik</string>
+    <string name="stats_all_day">Hele dag</string>
+    <string name="stats_tir_change">%1$s procentpunt t.o.v. de vorige periode</string>
     <string name="stats_card_metrics">Maatstaven</string>
     <string name="stats_card_coverage">Dekking</string>
     <string name="stats_card_coverage_description">Aandeel van de periode waarin de sensor werkelijk meldde. Alle percentages op dit scherm beschrijven alleen die tijd.</string>

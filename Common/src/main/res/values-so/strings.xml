@@ -2585,6 +2585,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="stats_finding_on_target">Bartilmaameedka gaadhay</string>
     <string name="stats_finding_on_target_desc">%1$d%% heerka ku jira, CV %2$d%%. Wax kale oo la iska dhex arko ma jiro.</string>
     <string name="stats_card_overview">Wakhtiga heerka ku jira</string>
+    <string name="stats_all_day">Maalinta oo dhan</string>
+    <string name="stats_tir_change">%1$s dhibcood boqolkiiba marka loo eego muddadii hore</string>
     <string name="stats_card_metrics">Cabbiro</string>
     <string name="stats_card_coverage">Daboolid</string>
     <string name="stats_card_coverage_description">Qaybta muddada oo dareemuhu dhab ahaan soo sheegay. Dhammaan boqolleyda shaashaddan waxay qeexayaan oo keliya wakhtigaas.</string>

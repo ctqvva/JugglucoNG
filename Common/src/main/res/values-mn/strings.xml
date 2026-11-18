@@ -2501,6 +2501,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="stats_finding_on_target">Зорилтод нийцэж байна</string>
     <string name="stats_finding_on_target_desc">Мужид %1$d%%, CV %2$d%%. Өөр анхаарал татах зүйл алга.</string>
     <string name="stats_card_overview">Мужид байсан хугацаа</string>
+    <string name="stats_all_day">Бүтэн өдөр</string>
+    <string name="stats_tir_change">Өмнөх үетэй харьцуулахад %1$s нэгж хувь</string>
     <string name="stats_card_metrics">Үзүүлэлт</string>
     <string name="stats_card_coverage">Хамрах хүрээ</string>
     <string name="stats_card_coverage_description">Мэдрэгч бодитоор мэдээлсэн хугацааны эзлэх хувь. Энэ дэлгэцийн бүх хувь зөвхөн тэр хугацааг илэрхийлнэ.</string>
