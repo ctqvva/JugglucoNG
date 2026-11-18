@@ -19,10 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +50,7 @@ import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
 import java.util.UUID
+import tk.glucodata.ui.symbols.Symbols
 
 enum class AiDexSetupStep {
     SCAN,
@@ -440,7 +437,7 @@ internal fun AiDexScanStep(
                 SettingsItem(
                     title = stringResource(R.string.aidex_key_management_title),
                     subtitle = stringResource(R.string.aidex_key_management_entry_desc),
-                    icon = Icons.Default.Key,
+                    icon = Symbols.KeyFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.SINGLE,
                     onClick = onManageKeys,
@@ -478,7 +475,7 @@ internal fun AiDexScanStep(
                             }
                         )
                     },
-                    leadingContent = { Icon(Icons.Default.Bluetooth, null) },
+                    leadingContent = { Icon(Symbols.BluetoothFilled, null) },
                     modifier = Modifier.clickable(enabled = canSelect) {
                         onDeviceSelected(
                             device.selectionName,

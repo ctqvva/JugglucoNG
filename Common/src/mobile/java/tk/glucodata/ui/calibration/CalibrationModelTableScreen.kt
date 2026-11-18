@@ -26,8 +26,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +71,7 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
+import tk.glucodata.ui.symbols.Symbols
 
 private data class CalibrationChartPoint(
     val x: Float,
@@ -527,7 +526,7 @@ private fun CalibrationModelChart(
             if (!hasChartData) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Default.Analytics,
+                        imageVector = Symbols.AnalyticsFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(32.dp)

@@ -72,20 +72,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -176,6 +162,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import tk.glucodata.ui.theme.labelLargeExpressive
+import tk.glucodata.ui.symbols.Symbols
 
 // Band colours live in StatsVisualizations.kt so every stats surface reads the same
 // palette from one place.
@@ -848,7 +835,7 @@ private fun ArrangeSheet(
                 Spacer(modifier = Modifier.width(12.dp))
                 Button(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                     Icon(
-                        imageVector = Icons.Default.Check,
+                        imageVector = Symbols.CheckFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -979,7 +966,7 @@ private fun MetricsSection(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Icon(
-                    imageVector = if (showAll) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    imageVector = if (showAll) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
@@ -1007,7 +994,7 @@ private fun ReportExportConfirmation(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.CheckCircle,
+                imageVector = Symbols.CheckCircleFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.inversePrimary,
                 modifier = Modifier.size(24.dp)
@@ -1049,7 +1036,7 @@ private fun ReportExportConfirmation(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Share,
+                            imageVector = Symbols.ShareFilled,
                             contentDescription = stringResource(R.string.share),
                             modifier = Modifier.size(20.dp)
                         )
@@ -1204,7 +1191,7 @@ private fun HeaderBlock(
         IconButtonTooltip(stringResource(R.string.export)) {
             IconButton(onClick = onShareClick, shapes = IconButtonDefaults.shapes()) {
                 Icon(
-                    imageVector = Icons.Filled.Share,
+                    imageVector = Symbols.ShareFilled,
                     contentDescription = stringResource(R.string.export),
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -1235,7 +1222,7 @@ private fun LoadingCard() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Analytics,
+                imageVector = Symbols.AnalyticsFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = animatedAlpha),
                 modifier = Modifier.size(28.dp)
@@ -1267,7 +1254,7 @@ private fun RangeLoadingCard() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.DateRange,
+                    imageVector = Symbols.DateRangeFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
@@ -1302,7 +1289,7 @@ private fun EmptyStateCard(title: String, subtitle: String) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = Icons.Default.Info,
+                imageVector = Symbols.InfoFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp)
@@ -1635,7 +1622,7 @@ internal fun OverviewRing(
                 horizontalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 Icon(
-                    imageVector = if (rising) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    imageVector = if (rising) Symbols.ArrowDropUpFilled else Symbols.ArrowDropDownFilled,
                     contentDescription = null,
                     tint = if (rising) TirInRangeColor else TirHighColor,
                     modifier = Modifier.size(16.dp)
@@ -2986,9 +2973,9 @@ private fun InsightsCard(insights: List<StatsInsight>) {
 @Composable
 private fun InsightRow(insight: StatsInsight) {
     val (contentColor, icon) = when (insight.severity) {
-        InsightSeverity.POSITIVE -> TirInRangeColor to Icons.Default.Shield
-        InsightSeverity.ATTENTION -> TirHighColor to Icons.Default.WarningAmber
-        InsightSeverity.CAUTION -> TirVeryHighColor to Icons.Default.ErrorOutline
+        InsightSeverity.POSITIVE -> TirInRangeColor to Symbols.ShieldFilled
+        InsightSeverity.ATTENTION -> TirHighColor to Symbols.WarningAmberFilled
+        InsightSeverity.CAUTION -> TirVeryHighColor to Symbols.Error
     }
     val bgColor = contentColor.copy(alpha = 0.16f)
 

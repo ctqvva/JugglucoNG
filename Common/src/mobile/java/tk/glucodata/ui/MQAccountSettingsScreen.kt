@@ -22,12 +22,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.PeopleAlt
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -71,6 +65,7 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun MQAccountSettingsScreen(navController: NavController) {
@@ -299,7 +294,7 @@ fun MQAccountSettingsContent(
                     cloudSyncEnabled = enabled
                     MQRegistry.saveCloudSyncEnabled(context, enabled)
                 },
-                icon = Icons.Default.Cloud,
+                icon = Symbols.CloudFilled,
             )
 
             // ---- Followers (link to follower screen) ----
@@ -317,7 +312,7 @@ fun MQAccountSettingsContent(
             SettingsItem(
                 title = stringResource(R.string.mq_follower_settings_title),
                 subtitle = followerSubtitle,
-                icon = Icons.Default.PeopleAlt,
+                icon = Symbols.PeopleAltFilled,
                 iconTint = MaterialTheme.colorScheme.primary,
                 position = CardPosition.SINGLE,
                 onClick = onNavigateToFollower,
@@ -505,19 +500,19 @@ private fun AccountStatusCard(
 ) {
     val visuals = when {
         hasAuthToken -> StatusVisuals(
-            icon = Icons.Filled.CheckCircle,
+            icon = Symbols.CheckCircleFilled,
             summaryRes = R.string.mq_account_status_signed_in,
             container = MaterialTheme.colorScheme.primaryContainer,
             content = MaterialTheme.colorScheme.onPrimaryContainer,
         )
         hasCredentials -> StatusVisuals(
-            icon = Icons.Filled.Cloud,
+            icon = Symbols.CloudFilled,
             summaryRes = R.string.mq_account_status_saved,
             container = MaterialTheme.colorScheme.secondaryContainer,
             content = MaterialTheme.colorScheme.onSecondaryContainer,
         )
         else -> StatusVisuals(
-            icon = Icons.Filled.ErrorOutline,
+            icon = Symbols.Error,
             summaryRes = R.string.mq_account_status_missing,
             container = MaterialTheme.colorScheme.surfaceContainerHigh,
             content = MaterialTheme.colorScheme.onSurface,
@@ -643,7 +638,7 @@ private fun CollapsibleCard(
                 }
                 Box(modifier = Modifier.rotate(rotation)) {
                     Icon(
-                        imageVector = Icons.Filled.ExpandMore,
+                        imageVector = Symbols.ExpandMoreFilled,
                         contentDescription = if (expanded) {
                             stringResource(R.string.mq_sms_hide_action)
                         } else {

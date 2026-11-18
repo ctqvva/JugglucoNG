@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.DateRangePickerState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -61,6 +59,7 @@ import java.time.ZoneOffset
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
+import tk.glucodata.ui.symbols.Symbols
 
 fun formatStatsDateRange(range: StatsDateRange?, locale: Locale = Locale.getDefault()): String? {
     if (range == null) return null
@@ -212,7 +211,7 @@ fun StatsRangeSelectorControl(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.DateRange,
+                            imageVector = Symbols.DateRangeFilled,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )

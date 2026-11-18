@@ -35,13 +35,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -75,6 +68,7 @@ import tk.glucodata.update.AppUpdateUiState
 import tk.glucodata.update.UpdateEligibility
 import tk.glucodata.update.UpdateError
 import tk.glucodata.update.UpdateStage
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * True when [DashboardAppUpdateBanner] would draw something.
@@ -119,7 +113,7 @@ fun DashboardAppUpdateBanner(
             accent = MaterialTheme.colorScheme.primary,
             title = stringResource(R.string.app_updates_intro_title),
             body = stringResource(R.string.app_updates_intro_body),
-            icon = Icons.Filled.Update,
+            icon = Symbols.UpdateFilled,
             // The X means the same thing as "Not now": answered, don't ask again. Leaving it
             // unanswered would just bring the card back on the next launch.
             onDismiss = { AppUpdateController.answerIntro(context, false) }
@@ -183,7 +177,7 @@ fun AppUpdatesSettingsItem(
     SettingsItem(
         title = stringResource(R.string.app_updates_title),
         subtitle = subtitle,
-        icon = Icons.Filled.SystemUpdate,
+        icon = Symbols.SystemUpdateFilled,
         iconTint = iconTint,
         position = position,
         onClick = onOpen
@@ -234,7 +228,7 @@ internal fun AppUpdateStatusCard(
             accent = MaterialTheme.colorScheme.error,
             title = stringResource(R.string.app_updates_permission_title),
             body = stringResource(R.string.app_updates_permission_body),
-            icon = Icons.Filled.Security,
+            icon = Symbols.SecurityFilled,
             elevated = true
         ) {
             AppUpdateFilledAction(
@@ -256,7 +250,7 @@ internal fun AppUpdateStatusCard(
                 Formatter.formatShortFileSize(context, state.downloadedBytes),
                 Formatter.formatShortFileSize(context, state.totalBytes)
             ),
-            icon = Icons.Filled.Download,
+            icon = Symbols.DownloadFilled,
             content = {
                 LinearWavyProgressIndicator(
                     progress = { state.downloadFraction },
@@ -276,7 +270,7 @@ internal fun AppUpdateStatusCard(
             accent = MaterialTheme.colorScheme.primary,
             title = stringResource(R.string.app_updates_verifying_title),
             body = stringResource(R.string.app_updates_verifying_body),
-            icon = Icons.Filled.Security,
+            icon = Symbols.SecurityFilled,
             content = { LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth()) }
         )
 
@@ -288,7 +282,7 @@ internal fun AppUpdateStatusCard(
             title = stringResource(R.string.app_updates_ready_title, update?.versionName.orEmpty()),
             body = state.error?.let { updateErrorText(it) }
                 ?: stringResource(R.string.app_updates_ready_body),
-            icon = Icons.Filled.SystemUpdate,
+            icon = Symbols.SystemUpdateFilled,
             elevated = true
         ) {
             AppUpdateTextAction(
@@ -314,7 +308,7 @@ internal fun AppUpdateStatusCard(
                 accent = MaterialTheme.colorScheme.error,
                 title = stringResource(R.string.app_updates_error_title),
                 body = updateErrorText(state.error),
-                icon = Icons.Filled.ErrorOutline,
+                icon = Symbols.Error,
                 onDismiss = onDismiss,
                 elevated = true
             )
@@ -338,7 +332,7 @@ internal fun AppUpdateStatusCard(
                             Formatter.formatShortFileSize(context, update.artifact.sizeBytes)
                         )
                     },
-                    icon = Icons.Filled.Download,
+                    icon = Symbols.DownloadFilled,
                     onDismiss = onDismiss,
                     elevated = true
                 ) {
@@ -473,7 +467,7 @@ internal fun AppUpdateCard(
                         IconButtonTooltip(stringResource(R.string.cgm_readiness_dismiss_action)) {
                             IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp), shapes = IconButtonDefaults.shapes()) {
                                 Icon(
-                                    Icons.Filled.Close,
+                                    Symbols.CloseFilled,
                                     contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)

@@ -55,22 +55,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Bloodtype
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Vaccines
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -175,6 +159,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.symbols.Symbols
 
 data class JournalEntryDraft(
     val entryId: Long? = null,
@@ -669,7 +654,7 @@ fun JournalEntrySheet(
                         IconButtonTooltip(stringResource(R.string.delete)) {
                             IconButton(onClick = { onDelete?.invoke(entryId) }, shapes = IconButtonDefaults.shapes()) {
                                 Icon(
-                                    imageVector = Icons.Default.Delete,
+                                    imageVector = Symbols.DeleteFilled,
                                     contentDescription = stringResource(R.string.delete),
                                     tint = MaterialTheme.colorScheme.error
                                 )
@@ -1706,7 +1691,7 @@ private fun JournalDoseAssistCard(
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Icon(
-                    imageVector = if (draft.type == JournalEntryType.CARBS) Icons.Default.Vaccines else Icons.Default.Restaurant,
+                    imageVector = if (draft.type == JournalEntryType.CARBS) Symbols.VaccinesFilled else Symbols.RestaurantFilled,
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1924,12 +1909,12 @@ private fun JournalActionRow(
             ) {
                 Icon(
                     imageVector = when (action) {
-                        JournalTrayAction.CALIBRATE -> Icons.Default.Bloodtype
-                        JournalTrayAction.INSULIN -> Icons.Default.Vaccines
-                        JournalTrayAction.CARBS -> Icons.Default.Restaurant
-                        JournalTrayAction.FINGERSTICK -> Icons.Default.Bloodtype
-                        JournalTrayAction.ACTIVITY -> Icons.Default.DirectionsRun
-                        JournalTrayAction.NOTE -> Icons.AutoMirrored.Filled.Label
+                        JournalTrayAction.CALIBRATE -> Symbols.BloodtypeFilled
+                        JournalTrayAction.INSULIN -> Symbols.VaccinesFilled
+                        JournalTrayAction.CARBS -> Symbols.RestaurantFilled
+                        JournalTrayAction.FINGERSTICK -> Symbols.BloodtypeFilled
+                        JournalTrayAction.ACTIVITY -> Symbols.DirectionsRunFilled
+                        JournalTrayAction.NOTE -> Symbols.LabelFilled
                     },
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
@@ -2129,7 +2114,7 @@ private fun JournalPresetPill(
                     ) { isSelected ->
                         if (isSelected) {
                             Icon(
-                                imageVector = Icons.Default.Check,
+                                imageVector = Symbols.CheckFilled,
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(12.dp)
@@ -2475,7 +2460,7 @@ private fun JournalDateTimeCard(
         ) {
             JournalDateTimeSegment(
                 modifier = Modifier.weight(1f),
-                icon = Icons.Default.Event,
+                icon = Symbols.EventFilled,
                 contentDescription = stringResource(R.string.date),
                 value = date,
                 onClick = onDateClick
@@ -2488,7 +2473,7 @@ private fun JournalDateTimeCard(
             )
             JournalDateTimeSegment(
                 modifier = Modifier.weight(1f),
-                icon = Icons.Default.AccessTime,
+                icon = Symbols.AccessTimeFilled,
                 contentDescription = stringResource(R.string.time),
                 value = time,
                 onClick = onTimeClick,
@@ -2686,7 +2671,7 @@ private fun JournalInsulinWindowHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Default.Schedule,
+            imageVector = Symbols.ScheduleFilled,
             contentDescription = null,
             tint = accent,
             modifier = Modifier.size(20.dp)
@@ -2718,7 +2703,7 @@ private fun JournalInsulinWindowHeader(
         }
         Spacer(modifier = Modifier.width(8.dp))
         Icon(
-            imageVector = Icons.Default.Info,
+            imageVector = Symbols.InfoFilled,
             contentDescription = null,
             tint = infoTint,
             modifier = Modifier.size(16.dp)
@@ -2916,7 +2901,7 @@ internal fun JournalStepperField(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             JournalStepButton(
-                icon = Icons.Default.Remove,
+                icon = Symbols.RemoveFilled,
                 description = stringResource(R.string.outbound_api_decrease_value),
                 prominent = prominent,
                 onStep = { stepWithFeedback(-1) }
@@ -3055,7 +3040,7 @@ internal fun JournalStepperField(
                 }
             }
             JournalStepButton(
-                icon = Icons.Default.Add,
+                icon = Symbols.AddFilled,
                 description = stringResource(R.string.outbound_api_increase_value),
                 prominent = prominent,
                 onStep = { stepWithFeedback(1) }
@@ -3275,12 +3260,12 @@ private fun String.trimTrailingLabel(): String {
 
 private fun journalTypeIcon(type: JournalEntryType): ImageVector {
     return when (type) {
-        JournalEntryType.INSULIN -> Icons.Default.Vaccines
-        JournalEntryType.CARBS -> Icons.Default.Restaurant
-        JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
-        JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
-        JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
-        JournalEntryType.TEMP_BASAL -> Icons.Default.Vaccines
+        JournalEntryType.INSULIN -> Symbols.VaccinesFilled
+        JournalEntryType.CARBS -> Symbols.RestaurantFilled
+        JournalEntryType.FINGERSTICK -> Symbols.BloodtypeFilled
+        JournalEntryType.ACTIVITY -> Symbols.DirectionsRunFilled
+        JournalEntryType.NOTE -> Symbols.LabelFilled
+        JournalEntryType.TEMP_BASAL -> Symbols.VaccinesFilled
     }
 }
 

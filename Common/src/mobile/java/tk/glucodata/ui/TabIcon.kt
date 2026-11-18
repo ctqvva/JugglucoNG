@@ -44,8 +44,9 @@ import kotlinx.coroutines.launch
 /**
  * Which navigation glyph a [TabIcon] draws, and so which arrival it plays.
  *
- * The geometry below is the Material glyph's own, in its 24-unit viewport; the Filled and
- * Outlined variants of these four share one path, so the regions fit both.
+ * The geometry below is the Material Symbols Rounded glyph's own, in its 24-unit viewport;
+ * the filled and outlined variants share one outline, so the regions fit both. Measured from
+ * the generated paths: re-measure if a tab's symbol changes.
  */
 enum class TabGlyph { STATISTICS, JOURNAL, DASHBOARD, SENSORS, SETTINGS, OTHER }
 
@@ -211,7 +212,7 @@ private suspend fun playArrival(glyph: TabGlyph, parts: List<Animatable<Float, *
     }
 }
 
-// BarChart: three bars, x 4–8 / 10–14 / 16–20, standing on y = 20.
+// bar_chart: three bars, x 4–8 / 10–14 / 16–20, standing on y = 20.
 private val statisticsBars = floatArrayOf(4f, 8f, 10f, 14f, 16f, 20f)
 
 private fun DrawScope.drawStatistics(layer: GlyphLayer, u: Float, parts: List<Animatable<Float, *>>) {
@@ -228,7 +229,7 @@ private fun DrawScope.drawStatistics(layer: GlyphLayer, u: Float, parts: List<An
     }
 }
 
-// LegendToggle: a trend line in y 5–11 above two rules at y 13–15 and 17–19, all x 4–20.
+// legend_toggle: a trend line in y 5–11 above two rules at y 13–15 and 17–19, all x 4–20.
 private fun DrawScope.drawDashboard(layer: GlyphLayer, u: Float, parts: List<Animatable<Float, *>>) {
     val start = 4f * u
     val rules = floatArrayOf(12f, 16f, 16f, 20f)
@@ -249,7 +250,7 @@ private fun DrawScope.drawDashboard(layer: GlyphLayer, u: Float, parts: List<Ani
     }
 }
 
-// Sensors: a dot of radius 2 at the centre and two pairs of arcs, in rings 4–6 and 8–10.
+// sensors: a dot of radius 2 at the centre and two pairs of arcs, in rings 3–6 and 6–10.
 private val sensorRingRadii = floatArrayOf(0f, 3f, 3f, 7f, 7f, 12f)
 
 /** Clip shapes that depend only on the icon's size, built once per size. */
@@ -262,14 +263,13 @@ private class GlyphClips(glyph: TabGlyph, u: Float, width: Float, height: Float,
         }
     }
 
-    // EditNote's pen fits {x ≥ 11, y ≥ 12.5} ∪ {x ≥ 14.5, y ≥ 11}, clear of the lines.
+    // edit_note's pen lies in x 13–22, y 11–20: {x ≥ 12, y ≥ 10.5} holds it, clear of the
+    // lines, which end at y 10 (x ≤ 15) and at x 11 (y 12–14).
     val journalPen: Path? = if (glyph != TabGlyph.JOURNAL) null else Path().apply {
-        moveTo(14.5f * u, 11f * u)
-        lineTo(width, 11f * u)
+        moveTo(12f * u, 10.5f * u)
+        lineTo(width, 10.5f * u)
         lineTo(width, height)
-        lineTo(11f * u, height)
-        lineTo(11f * u, 12.5f * u)
-        lineTo(14.5f * u, 12.5f * u)
+        lineTo(12f * u, height)
         close()
     }
 }
@@ -307,15 +307,15 @@ private fun DrawScope.drawSettings(layer: GlyphLayer, parts: List<Animatable<Flo
     }
 }
 
-// EditNote: lines at y 6–8, 10–12 (x 3–14) and 14–16 (x 3–10); the pen lies from its tip at
-// (12, 21) up to its cap near (21, 12).
-private val journalLines = floatArrayOf(5.5f, 8.5f, 9.5f, 12.25f, 13.5f, 16.5f)
+// edit_note: lines at y 4–6, 8–10 (x 4–15) and 12–14 (x 4–11); the pen lies from its tip at
+// (13, 20) up to its cap near (22, 11).
+private val journalLines = floatArrayOf(3.5f, 6.5f, 7.5f, 10.5f, 11.5f, 14.5f)
 
 private fun DrawScope.drawJournal(layer: GlyphLayer, u: Float, parts: List<Animatable<Float, *>>, clips: GlyphClips) {
     val pen = clips.journalPen ?: return
     clipPath(pen, clipOp = ClipOp.Difference) {
         for (i in 0 until 3) {
-            val reveal = 3f * u + 11.5f * u * parts[i].value.coerceIn(0f, 1f)
+            val reveal = 4f * u + 11.5f * u * parts[i].value.coerceIn(0f, 1f)
             clipRect(left = 0f, top = journalLines[i * 2] * u, right = reveal, bottom = journalLines[i * 2 + 1] * u) {
                 with(layer) { drawGlyph() }
             }
@@ -324,7 +324,7 @@ private fun DrawScope.drawJournal(layer: GlyphLayer, u: Float, parts: List<Anima
     // The clip moves with the pen, so a swing never cuts it off against the lines.
     val scribble = 1f - parts[3].value
     translate(left = scribble * -2.5f * u, top = scribble * 1f * u) {
-        rotate(degrees = scribble * -24f, pivot = Offset(12f * u, 21f * u)) {
+        rotate(degrees = scribble * -24f, pivot = Offset(13f * u, 20f * u)) {
             clipPath(pen) {
                 with(layer) { drawGlyph() }
             }

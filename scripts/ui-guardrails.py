@@ -185,6 +185,8 @@ RULES = {
     "button_without_shapes": button_without_shapes,
     "fixed_text_control_height": fixed_text_control_height,
     "font_weight_override": pattern(r"fontWeight\s*=\s*FontWeight\.(?:Medium|SemiBold|Bold)\b", exclude=("theme/Type.kt",)),
+    # Icons are Material Symbols Rounded (ui/symbols/Symbols.kt); the frozen material-icons set is gone.
+    "material_icons": pattern(r"(?<![\w.])Icons\.(?:AutoMirrored\.)?(?:Filled|Outlined|Rounded|Default|Sharp|TwoTone)\."),
 }
 
 

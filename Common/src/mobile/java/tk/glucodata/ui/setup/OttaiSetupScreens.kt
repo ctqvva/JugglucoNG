@@ -50,21 +50,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.EventBusy
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.HourglassTop
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.LinkOff
-import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -129,6 +114,7 @@ import tk.glucodata.ui.components.IconTileDefaults
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 /** Status cards sit beside settings rows, so they take the 20dp radius the guide gives them. */
 private val OttaiCardShape = RoundedCornerShape(20.dp)
@@ -276,7 +262,7 @@ internal fun OttaiNfcHintRow(state: OttaiNfcWakeState, modifier: Modifier = Modi
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { nfcEnabled = adapter?.isEnabled == true }
     if (adapter == null) return
 
-    val icon = if (state == OttaiNfcWakeState.WOKE && nfcEnabled) Icons.Default.Check else Icons.Default.Nfc
+    val icon = if (state == OttaiNfcWakeState.WOKE && nfcEnabled) Symbols.CheckFilled else Symbols.NfcFilled
     val tint = when {
         !nfcEnabled -> StatusPalette.warning()
         state == OttaiNfcWakeState.WOKE -> StatusPalette.success()
@@ -452,7 +438,7 @@ internal fun OttaiSensorCard(
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
-                        Icon(Icons.Default.FileUpload, contentDescription = null)
+                        Icon(Symbols.FileUploadFilled, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.export))
                     }
@@ -462,7 +448,7 @@ internal fun OttaiSensorCard(
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
-                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                        Icon(Symbols.FileDownloadFilled, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.ottai_credentials_replace))
                     }
@@ -499,7 +485,7 @@ internal fun OttaiUnusedBindingCard(
         modifier = modifier,
         title = stringResource(R.string.ottai_unused_binding_title),
         body = stringResource(R.string.ottai_unused_binding_desc, sensorId),
-        icon = Icons.Default.LinkOff,
+        icon = Symbols.LinkOffFilled,
         iconColor = MaterialTheme.colorScheme.error,
         actions = {
             OttaiCardActions { OttaiUnbindButton(enabled = enabled, onClick = onUnbind) }
@@ -516,7 +502,7 @@ private fun OttaiUnbindButton(enabled: Boolean, onClick: () -> Unit) {
         shapes = ButtonDefaults.shapes(),
         contentPadding = ButtonDefaults.ContentPadding,
     ) {
-        Icon(Icons.Default.LinkOff, contentDescription = null, modifier = Modifier.size(18.dp))
+        Icon(Symbols.LinkOffFilled, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.unbind_sensor))
     }
@@ -1119,7 +1105,7 @@ internal fun OttaiImportButton(
         shapes = ButtonDefaults.shapes(),
         contentPadding = ButtonDefaults.ContentPadding,
     ) {
-        Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(20.dp))
+        Icon(Symbols.FileDownloadFilled, contentDescription = null, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(8.dp))
         Text(label)
     }
@@ -1371,7 +1357,7 @@ internal fun OttaiSavedSensorsStep(
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = ButtonDefaults.ContentPadding,
                         ) {
-                            Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Symbols.FileUploadFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.ottai_export))
                         }
@@ -1389,7 +1375,7 @@ internal fun OttaiSavedSensorsStep(
                                     shapes = IconButtonDefaults.shapes(),
                                 ) {
                                     Icon(
-                                        Icons.Default.Delete,
+                                        Symbols.DeleteFilled,
                                         contentDescription = deleteLabel,
                                         tint = if (enabled) MaterialTheme.colorScheme.error else LocalContentColor.current,
                                     )
@@ -1412,7 +1398,7 @@ internal fun OttaiSavedSensorsStep(
             SettingsItem(
                 title = stringResource(R.string.ottai_account_title),
                 subtitle = stringResource(R.string.ottai_saved_account_signed_out),
-                icon = Icons.Default.AccountCircle,
+                icon = Symbols.AccountCircleFilled,
                 iconTint = MaterialTheme.colorScheme.primary,
                 onClick = onSignIn,
             )
@@ -1485,7 +1471,7 @@ internal fun OttaiSavedSensorsStep(
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding,
             ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Symbols.RefreshFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.refresh))
             }

@@ -7,10 +7,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.R
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
+import tk.glucodata.ui.symbols.Symbols
 
 @OptIn(ExperimentalTextApi::class)
 private fun jugglucoBrandFamily(weight: Int, width: Float): FontFamily {
@@ -157,7 +154,7 @@ private fun SensorCard(
                 modifier = Modifier.size(arrowContainer)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    imageVector = Symbols.ArrowForwardFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
@@ -178,7 +175,7 @@ fun ImportHistoryCard(
     modifier: Modifier = Modifier
 ) {
     SetupAlternativeCard(
-        icon = Icons.Default.Download,
+        icon = Symbols.DownloadFilled,
         title = stringResource(R.string.import_history),
         description = stringResource(R.string.import_history_desc),
         onClick = onClick,
@@ -340,7 +337,7 @@ fun DashboardEmptyState(
             if (onImportHistory != null) Spacer(modifier = Modifier.height(8.dp))
 
             SetupAlternativeCard(
-                icon = Icons.Default.EditNote,
+                icon = Symbols.EditNoteFilled,
                 title = stringResource(R.string.continue_without_sensor),
                 description = stringResource(R.string.continue_without_sensor_desc),
                 onClick = onContinueWithoutSensor,

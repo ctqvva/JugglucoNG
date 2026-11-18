@@ -22,14 +22,8 @@ import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.automirrored.filled.ShowChart
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.WaterDrop
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material.icons.filled.Functions
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -63,6 +57,7 @@ import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.viewmodel.DashboardViewModel
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun DataSmoothingSettingsScreen(
@@ -158,7 +153,7 @@ internal fun DataSmoothingSettingsContent(
                 },
                 checked = isEnabled,
                 onCheckedChange = { onEnabledChange(it) },
-                icon = Icons.AutoMirrored.Filled.TrendingUp
+                icon = Symbols.TrendingUpFilled
             )
 
             Column(modifier = Modifier.alpha(contentAlpha)) {
@@ -283,7 +278,7 @@ internal fun DataSmoothingSettingsContent(
                     subtitle = stringResource(R.string.data_smoothing_causal_desc),
                     checked = causal,
                     onCheckedChange = { onCausalChange(it) },
-                    icon = Icons.Default.Functions,
+                    icon = Symbols.FunctionsFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.SINGLE,
                     enabled = isEnabled,
@@ -420,11 +415,11 @@ private enum class DataSmoothingPlace(
     val icon: ImageVector,
 ) {
     CHART(R.string.data_smoothing_target_chart_title, R.string.data_smoothing_target_chart_desc,
-        R.string.data_smoothing_target_chart_title, Icons.AutoMirrored.Filled.ShowChart),
+        R.string.data_smoothing_target_chart_title, Symbols.ShowChartFilled),
     CURRENT(R.string.data_smoothing_target_current_title, R.string.data_smoothing_target_current_desc,
-        R.string.data_smoothing_place_current_short, Icons.Default.WaterDrop),
+        R.string.data_smoothing_place_current_short, Symbols.WaterDropFilled),
     SENT(R.string.data_smoothing_target_sent_title, R.string.data_smoothing_target_sent_desc,
-        R.string.data_smoothing_place_sent_short, Icons.AutoMirrored.Filled.Send);
+        R.string.data_smoothing_place_sent_short, Symbols.SendFilled);
 
     val position: CardPosition
         get() = when (this) {

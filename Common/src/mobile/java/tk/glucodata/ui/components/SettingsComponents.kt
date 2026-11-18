@@ -15,10 +15,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * A settings row that opens its own content underneath, inside the same card:
@@ -73,7 +70,7 @@ fun ExpandableSettingsCard(
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 trailingContent = {
                     Icon(
-                        imageVector = Icons.Default.ExpandMore,
+                        imageVector = Symbols.ExpandMoreFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.graphicsLayer { rotationZ = chevronRotation }
@@ -370,7 +367,7 @@ fun SettingsNavSwitchItem(
         searchAnchor = searchAnchor,
         trailingContent = {
             Icon(
-                imageVector = Icons.Filled.ChevronRight,
+                imageVector = Symbols.ChevronRightFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )

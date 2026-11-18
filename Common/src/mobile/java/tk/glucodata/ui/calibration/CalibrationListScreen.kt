@@ -2,7 +2,6 @@ package tk.glucodata.ui.calibration
 
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.activity.compose.BackHandler
-import androidx.compose.material.icons.filled.Block
 import tk.glucodata.ui.components.IconButtonTooltip
 import android.content.Context
 import android.view.HapticFeedbackConstants
@@ -35,19 +34,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.ImportExport
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -82,6 +68,7 @@ import tk.glucodata.ui.components.StyledSwitch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import tk.glucodata.ui.symbols.Symbols
 
 private const val CalibrationDeleteSwipeThresholdFraction = 0.4f
 private const val CalibrationUiPrefsName = "tk.glucodata_preferences"
@@ -283,7 +270,7 @@ fun CalibrationListScreen(
                         IconButtonTooltip(stringResource(R.string.calibration_model_table_action)) {
                             IconButton(onClick = onOpenModelTable, shapes = IconButtonDefaults.shapes()) {
                                 Icon(
-                                    imageVector = Icons.Default.Analytics,
+                                    imageVector = Symbols.AnalyticsFilled,
                                     contentDescription = stringResource(R.string.calibration_model_table_action)
                                 )
                             }
@@ -291,7 +278,7 @@ fun CalibrationListScreen(
                         IconButtonTooltip(stringResource(R.string.calibration_import_export_action)) {
                             IconButton(onClick = { showImportExportSheet = true }, shapes = IconButtonDefaults.shapes()) {
                                 Icon(
-                                    imageVector = Icons.Default.ImportExport,
+                                    imageVector = Symbols.ImportExportFilled,
                                     contentDescription = stringResource(R.string.calibration_import_export_action)
                                 )
                             }
@@ -666,7 +653,7 @@ private fun MasterCalibrationCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconTile(
-                    icon = Icons.Default.WaterDrop,
+                    icon = Symbols.WaterDropFilled,
                     tint = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     containerColor = IconTileDefaults.toggleContainerColor(MaterialTheme.colorScheme.primary, isEnabled),
                 )
@@ -686,7 +673,7 @@ private fun MasterCalibrationCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.ExpandMore,
+                        imageVector = Symbols.ExpandMoreFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
@@ -868,7 +855,7 @@ private fun CalibrationAlgorithmCard(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Default.Tune,
+                            imageVector = Symbols.TuneFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
@@ -889,7 +876,7 @@ private fun CalibrationAlgorithmCard(
                 }
 
                 Icon(
-                    imageVector = Icons.Default.ExpandMore,
+                    imageVector = Symbols.ExpandMoreFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -1232,9 +1219,9 @@ private fun SwipeableCalibrationRow(
                 else -> Alignment.Center
             }
             val icon = when (direction) {
-                SwipeToDismissBoxValue.EndToStart -> Icons.Filled.Delete
-                SwipeToDismissBoxValue.StartToEnd -> if (cal.isEnabled) Icons.Filled.Close else Icons.Filled.Check
-                else -> Icons.Filled.Delete
+                SwipeToDismissBoxValue.EndToStart -> Symbols.DeleteFilled
+                SwipeToDismissBoxValue.StartToEnd -> if (cal.isEnabled) Symbols.CloseFilled else Symbols.CheckFilled
+                else -> Symbols.DeleteFilled
             }
             
             Box(
@@ -1423,7 +1410,7 @@ private fun FloatingActionToolbar(
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             ) {
-                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Symbols.DeleteFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.clear), style = MaterialTheme.typography.labelLarge)
             }
@@ -1445,7 +1432,7 @@ private fun FloatingActionToolbar(
             ),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
         ) {
-            Icon(Icons.Filled.WaterDrop, contentDescription = null, modifier = Modifier.size(20.dp))
+            Icon(Symbols.WaterDropFilled, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(stringResource(R.string.calibrate_action), style = MaterialTheme.typography.titleMedium)
         }
@@ -1474,12 +1461,12 @@ private fun SelectionModeToolbar(
     ) {
         IconButtonTooltip(stringResource(R.string.disable)) {
             IconButton(onClick = onDisable, shapes = IconButtonDefaults.shapes()) {
-                Icon(Icons.Default.Block, contentDescription = stringResource(R.string.disable))
+                Icon(Symbols.BlockFilled, contentDescription = stringResource(R.string.disable))
             }
         }
         IconButtonTooltip(stringResource(R.string.enable)) {
             IconButton(onClick = onEnable, shapes = IconButtonDefaults.shapes()) {
-                Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.enable))
+                Icon(Symbols.CheckCircleFilled, contentDescription = stringResource(R.string.enable))
             }
         }
         IconButtonTooltip(stringResource(R.string.delete)) {
@@ -1491,7 +1478,7 @@ private fun SelectionModeToolbar(
                     contentColor = MaterialTheme.colorScheme.onErrorContainer
                 )
             ) {
-                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
+                Icon(Symbols.DeleteFilled, contentDescription = stringResource(R.string.delete))
             }
         }
     }
@@ -1537,7 +1524,7 @@ private fun CalibrationImportExportBottomSheet(
             CalibrationTransferAction(
                 title = stringResource(R.string.export_profile),
                 subtitle = stringResource(R.string.calibration_export_profile_desc),
-                icon = Icons.Default.FileUpload,
+                icon = Symbols.FileUploadFilled,
                 onClick = onExport
             )
 
@@ -1546,7 +1533,7 @@ private fun CalibrationImportExportBottomSheet(
             CalibrationTransferAction(
                 title = stringResource(R.string.import_profile_merge),
                 subtitle = stringResource(R.string.calibration_import_merge_desc),
-                icon = Icons.Default.FileDownload,
+                icon = Symbols.FileDownloadFilled,
                 onClick = onImportMerge
             )
 
@@ -1555,7 +1542,7 @@ private fun CalibrationImportExportBottomSheet(
             CalibrationTransferAction(
                 title = stringResource(R.string.import_profile_replace),
                 subtitle = stringResource(R.string.calibration_import_replace_desc),
-                icon = Icons.Default.FileDownload,
+                icon = Symbols.FileDownloadFilled,
                 onClick = onImportReplace,
                 isDestructive = true
             )
@@ -1676,7 +1663,7 @@ private fun ClearOptionsBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.Close,
+                            Symbols.CloseFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.secondary
                         )
@@ -1709,7 +1696,7 @@ private fun ClearOptionsBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        Icons.Default.Delete,
+                        Symbols.DeleteFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error
                     )

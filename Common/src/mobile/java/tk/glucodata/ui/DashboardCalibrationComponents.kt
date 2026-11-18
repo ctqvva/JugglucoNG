@@ -3,9 +3,6 @@ package tk.glucodata.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -15,6 +12,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
 import tk.glucodata.ui.components.AdaptiveButtonRow
+import tk.glucodata.ui.symbols.Symbols
 
 /** Keep translated action labels whole; stack the buttons when either needs more width. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,7 +46,7 @@ internal fun DashboardCalibrationActions(
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             )
         ) {
-            Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(Symbols.DeleteFilled, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(stringResource(R.string.clear))
         }
@@ -76,7 +74,7 @@ internal fun DashboardCalibrationActions(
             ),
         ) {
             Icon(
-                imageVector = Icons.Filled.WaterDrop,
+                imageVector = Symbols.WaterDropFilled,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp)
             )

@@ -13,12 +13,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Deselect
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,13 +21,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 /** The round selection marker used by the calibration and food lists. */
 @Composable
 fun SelectionIndicator(visible: Boolean, selected: Boolean, gap: Dp = 12.dp) {
     AnimatedVisibility(visible = visible, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
         Row {
-            Icon(if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+            Icon(if (selected) Symbols.CheckCircleFilled else Symbols.RadioButtonUncheckedFilled,
                 contentDescription = null,
                 tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(24.dp))
@@ -58,7 +53,7 @@ fun SelectionToolbar(
         leadingContent = {
             IconButtonTooltip(stringResource(R.string.cancel)) {
                 IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                    Icon(Symbols.CloseFilled, contentDescription = stringResource(R.string.cancel))
                 }
             }
             Text(stringResource(R.string.selected_count, selectedCount),
@@ -69,7 +64,7 @@ fun SelectionToolbar(
         val label = stringResource(if (allSelected) R.string.deselect_all else R.string.select_all)
         IconButtonTooltip(label) {
             IconButton(onClick = onToggleSelectAll, shapes = IconButtonDefaults.shapes()) {
-                Icon(if (allSelected) Icons.Default.Deselect else Icons.Default.SelectAll, contentDescription = label)
+                Icon(if (allSelected) Symbols.DeselectFilled else Symbols.SelectAllFilled, contentDescription = label)
             }
         }
         actions()

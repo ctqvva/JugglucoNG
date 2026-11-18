@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,6 +22,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * "How long ago was the newest reading" — the live counter that started on the
@@ -98,7 +97,7 @@ fun SensorReadingAgeLabel(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Default.AccessTime,
+            imageVector = Symbols.AccessTimeFilled,
             contentDescription = null,
             tint = iconTint,
             modifier = Modifier.size(iconSize)

@@ -30,16 +30,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -88,6 +78,7 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
+import tk.glucodata.ui.symbols.Symbols
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -302,7 +293,7 @@ fun LibreSetupWizard(
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = ButtonDefaults.ContentPadding
                         ) {
-                            Icon(Icons.Default.Nfc, contentDescription = null)
+                            Icon(Symbols.NfcFilled, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(stringResource(R.string.scan_libre_sensor))
                         }
@@ -317,7 +308,7 @@ fun LibreSetupWizard(
                                 } else {
                                     stringResource(R.string.libreview_account_missing_desc)
                                 },
-                                icon = Icons.Default.Cloud,
+                                icon = Symbols.CloudFilled,
                                 iconTint = MaterialTheme.colorScheme.primary,
                                 position = CardPosition.SINGLE,
                                 onClick = { currentStep = 1 }
@@ -381,14 +372,14 @@ fun LibreSetupWizard(
                             subtitle = stringResource(R.string.libreview_active_desc),
                             checked = isActive,
                             onCheckedChange = { isActive = it },
-                            icon = Icons.Default.Cloud
+                            icon = Symbols.CloudFilled
                         )
 
                         SettingsSwitchItem(
                             title = stringResource(R.string.libreview_russia),
                             checked = isRussia,
                             onCheckedChange = { isRussia = it },
-                            icon = Icons.Default.Public,
+                            icon = Symbols.PublicFilled,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             position = CardPosition.SINGLE
                         )
@@ -407,7 +398,7 @@ fun LibreSetupWizard(
                                     clearManualAccountIdOverride()
                                 }
                             },
-                            icon = Icons.Default.Key,
+                            icon = Symbols.KeyFilled,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             position = CardPosition.SINGLE,
                             enabled = !isBusy
@@ -478,7 +469,7 @@ fun LibreSetupWizard(
                                 singleLine = true,
                                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
-                                    val image = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                                    val image = if (showPassword) Symbols.VisibilityFilled else Symbols.VisibilityOffFilled
                                     IconButtonTooltip(if (showPassword) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
                                         IconButton(onClick = { showPassword = !showPassword }, shapes = IconButtonDefaults.shapes()) {
                                             Icon(
@@ -531,7 +522,7 @@ fun LibreSetupWizard(
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                                 Spacer(modifier = Modifier.width(8.dp))
                             } else {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(Symbols.CheckFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
                             Text(stringResource(R.string.save))
@@ -620,7 +611,7 @@ fun LibreSetupWizard(
                             if (isFetchingAccountId) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             } else {
-                                Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(Symbols.KeyFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(stringResource(R.string.libreview_get_account_id))
@@ -665,7 +656,7 @@ private fun LibreSetupAdvancedSection(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconTile(icon = Icons.Default.Tune, tint = MaterialTheme.colorScheme.secondary)
+            IconTile(icon = Symbols.TuneFilled, tint = MaterialTheme.colorScheme.secondary)
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -684,7 +675,7 @@ private fun LibreSetupAdvancedSection(
                 )
             }
             Icon(
-                imageVector = Icons.Default.ExpandMore,
+                imageVector = Symbols.ExpandMoreFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.graphicsLayer { rotationZ = chevronRotation }

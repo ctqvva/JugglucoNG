@@ -3,7 +3,6 @@
 package tk.glucodata.ui.journal
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.runtime.key
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalView
@@ -52,24 +51,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AreaChart
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Vaccines
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.History
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -159,6 +140,7 @@ import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.symbols.Symbols
 
 private data class JournalPresetDraft(
     val id: Long? = null,
@@ -246,7 +228,7 @@ fun JournalSettingsScreen(
                     subtitle = stringResource(R.string.journal_gate_desc),
                     checked = journalEnabled,
                     onCheckedChange = { viewModel.setJournalEnabled(it) },
-                    icon = Icons.Default.Vaccines,
+                    icon = Symbols.VaccinesFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary
                 )
             }
@@ -263,7 +245,7 @@ fun JournalSettingsScreen(
                             keptFoods.size
                         ),
                         onClick = { navController.navigate("settings/journal/foods") },
-                        icon = Icons.Default.Restaurant,
+                        icon = Symbols.RestaurantFilled,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.TOP
                     )
@@ -271,7 +253,7 @@ fun JournalSettingsScreen(
                         title = stringResource(R.string.journal_insulin_library),
                         subtitle = stringResource(R.string.journal_insulin_library_count, activePresets.size, allPresets.size),
                         onClick = { navController.navigate("settings/journal/insulin") },
-                        icon = Icons.Default.Vaccines,
+                        icon = Symbols.VaccinesFilled,
                         iconTint = MaterialTheme.colorScheme.tertiary,
                         position = CardPosition.BOTTOM
                     )
@@ -298,7 +280,7 @@ fun JournalSettingsScreen(
                             subtitle = stringResource(R.string.journal_show_tab_desc),
                             checked = journalNavigationTabEnabled,
                             onCheckedChange = { viewModel.setJournalNavigationTabEnabled(it) },
-                            icon = Icons.Default.EditNote,
+                            icon = Symbols.EditNoteFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.TOP,
                             enabled = journalEnabled,
@@ -309,7 +291,7 @@ fun JournalSettingsScreen(
                             subtitle = stringResource(R.string.journal_dashboard_quickadd_desc),
                             checked = journalDashboardQuickAddButton,
                             onCheckedChange = { viewModel.setJournalDashboardQuickAddButton(it) },
-                            icon = Icons.Default.Add,
+                            icon = Symbols.AddFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.MIDDLE,
                             enabled = journalEnabled,
@@ -326,7 +308,7 @@ fun JournalSettingsScreen(
                                 subtitle = stringResource(R.string.journal_quickadd_always_now_desc),
                                 checked = journalQuickAddAlwaysNow,
                                 onCheckedChange = { viewModel.setJournalQuickAddAlwaysNow(it) },
-                                icon = Icons.Default.History,
+                                icon = Symbols.HistoryFilled,
                                 iconTint = MaterialTheme.colorScheme.secondary,
                                 position = CardPosition.MIDDLE,
                                 enabled = journalEnabled
@@ -340,7 +322,7 @@ fun JournalSettingsScreen(
                             } else {
                                 null
                             },
-                            icon = Icons.Default.Visibility,
+                            icon = Symbols.VisibilityFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.MIDDLE
                         )
@@ -348,7 +330,7 @@ fun JournalSettingsScreen(
                             title = stringResource(R.string.journal_insulin_chart_title),
                             subtitle = stringResource(insulinChartStyle.labelRes()),
                             onClick = { showInsulinChartStyleDialog = true },
-                            icon = Icons.Default.AreaChart,
+                            icon = Symbols.AreaChartFilled,
                             iconTint = MaterialTheme.colorScheme.tertiary,
                             position = CardPosition.BOTTOM,
                             searchAnchor = SettingsSearchAnchors.JOURNAL_INSULIN_CHART
@@ -366,7 +348,7 @@ fun JournalSettingsScreen(
                             subtitle = stringResource(R.string.journal_dose_calculator_desc),
                             checked = journalDoseCalculatorEnabled,
                             onCheckedChange = { viewModel.setJournalDoseCalculatorEnabled(it) },
-                            icon = Icons.Default.Calculate,
+                            icon = Symbols.CalculateFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.TOP,
                             enabled = journalEnabled,
@@ -382,7 +364,7 @@ fun JournalSettingsScreen(
                             } else {
                                 null
                             },
-                            icon = Icons.Default.Schedule,
+                            icon = Symbols.ScheduleFilled,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             position = CardPosition.BOTTOM
                         )
@@ -399,7 +381,7 @@ fun JournalSettingsScreen(
                             subtitle = stringResource(R.string.journal_import_health_activity_desc),
                             checked = journalHealthConnectActivityEnabled,
                             onCheckedChange = { viewModel.setJournalHealthConnectActivityEnabled(it) },
-                            icon = Icons.AutoMirrored.Filled.DirectionsRun,
+                            icon = Symbols.DirectionsRunFilled,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             position = CardPosition.TOP,
                             enabled = journalEnabled,
@@ -410,7 +392,7 @@ fun JournalSettingsScreen(
                             subtitle = stringResource(R.string.journal_aaps_import_desc),
                             checked = aapsJournalImportEnabled,
                             onCheckedChange = { viewModel.setAapsJournalImportEnabled(it) },
-                            icon = Icons.Default.Restore,
+                            icon = Symbols.RestoreFilled,
                             iconTint = MaterialTheme.colorScheme.tertiary,
                             position = CardPosition.BOTTOM,
                             enabled = journalEnabled,
@@ -602,7 +584,7 @@ private fun JournalEntryTypeOrderRow(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.DragHandle,
+                    imageVector = Symbols.DragHandleFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.38f)
                 )
@@ -680,7 +662,7 @@ private fun JournalHistoryButton(onClick: () -> Unit) {
         shapes = ButtonDefaults.shapes()
     ) {
         Icon(
-            imageVector = Icons.Default.History,
+            imageVector = Symbols.HistoryFilled,
             contentDescription = null,
             modifier = Modifier.size(20.dp)
         )
@@ -1004,7 +986,7 @@ private fun JournalInsulinPresetSheet(
                             shapes = ButtonDefaults.shapes()
                         ) {
                             Icon(
-                                imageVector = if (archived) Icons.Default.CheckCircle else Icons.Default.Block,
+                                imageVector = if (archived) Symbols.CheckCircleFilled else Symbols.BlockFilled,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -1223,7 +1205,7 @@ private fun JournalInsulinPresetSheet(
                                 shapes = ButtonDefaults.shapes()
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Restore,
+                                    imageVector = Symbols.RestoreFilled,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1344,7 +1326,7 @@ private fun JournalInsulinPresetSheet(
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Add,
+                            imageVector = Symbols.AddFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1517,7 +1499,7 @@ private fun SelectedCurvePointEditor(
                 IconButtonTooltip(stringResource(R.string.delete)) {
                     IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
+                            imageVector = Symbols.DeleteFilled,
                             contentDescription = stringResource(R.string.delete)
                         )
                     }

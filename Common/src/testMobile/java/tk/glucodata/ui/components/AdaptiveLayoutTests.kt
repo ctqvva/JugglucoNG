@@ -6,8 +6,6 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.LocaleList
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -49,6 +47,7 @@ import tk.glucodata.ui.setup.PinnedOrScrollingList
 import tk.glucodata.ui.setup.ScanFilterHeader
 import tk.glucodata.ui.theme.AppTypography
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33], application = Application::class, qualifiers = "ru-w1200dp-h1600dp-mdpi")
@@ -173,7 +172,7 @@ class AdaptiveLayoutTests {
                         SettingsItem(
                             title = "Настройки датчика",
                             subtitle = "Проверка подключения",
-                            icon = Icons.Default.Settings,
+                            icon = Symbols.SettingsFilled,
                             trailingContent = { Text("Подключено") },
                         )
                     }
@@ -303,13 +302,13 @@ class AdaptiveLayoutTests {
                                     "Проверка подключения",
                                     checked,
                                     { checked = it },
-                                    Icons.Default.Settings,
+                                    Symbols.SettingsFilled,
                                 )
                             1 ->
                                 DisclosingSwitchCard(
                                     "Настройки датчика",
                                     "Проверка подключения",
-                                    Icons.Default.Settings,
+                                    Symbols.SettingsFilled,
                                     checked,
                                     { checked = it },
                                     CardPosition.SINGLE,
@@ -320,13 +319,13 @@ class AdaptiveLayoutTests {
                                     "Проверка подключения",
                                     checked,
                                     { checked = it },
-                                    Icons.Default.Settings,
+                                    Symbols.SettingsFilled,
                                 )
                             3 ->
                                 ExpandableSettingsCard(
                                     "Настройки датчика",
                                     "Проверка подключения",
-                                    Icons.Default.Settings,
+                                    Symbols.SettingsFilled,
                                     checked,
                                     { checked = it },
                                     CardPosition.SINGLE,
@@ -338,13 +337,13 @@ class AdaptiveLayoutTests {
                                     checked = checked,
                                     onCheckedChange = { checked = it },
                                     onClick = { checked = true },
-                                    icon = Icons.Default.Settings,
+                                    icon = Symbols.SettingsFilled,
                                 )
                             5 ->
                                 SettingsItem(
                                     title = "Настройки датчика",
                                     onClick = { checked = true },
-                                    icon = Icons.Default.Settings,
+                                    icon = Symbols.SettingsFilled,
                                     trailingContent = {
                                         IconButtonTooltip("Настройки") {
                                             IconButton(
@@ -352,7 +351,7 @@ class AdaptiveLayoutTests {
                                                 shapes = IconButtonDefaults.shapes(),
                                             ) {
                                                 Icon(
-                                                    Icons.Default.Settings,
+                                                    Symbols.SettingsFilled,
                                                     contentDescription = "Настройки",
                                                 )
                                             }
