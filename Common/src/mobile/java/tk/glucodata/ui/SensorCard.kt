@@ -11,6 +11,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import tk.glucodata.ui.components.DeviceHeaderButtonDefaults
 import androidx.compose.material.icons.filled.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -128,7 +129,7 @@ private val SensorBadgeWidth = 50.dp
 private val SensorBadgeHeight = 40.dp
 
 /** The name pill and the button beside it are one height, so the header reads as one line. */
-private val SensorHeaderControlSize = 44.dp
+private val SensorHeaderControlSize = DeviceHeaderButtonDefaults.Height
 
 /**
  * One badge line, sized down until it fits the tile rather than being clipped or ellipsized.
@@ -2198,8 +2199,8 @@ fun SensorCard(
                                 // container itself takes the press shape.
                                 FilledIconButton(
                                     onClick = { viewModel.returnSensorToPhone(sensor.serial) },
-                                    modifier = Modifier.size(SensorHeaderControlSize),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2234,8 +2235,8 @@ fun SensorCard(
                                             viewModel.handBackCloneSensor(sensor.serial)
                                         }
                                     },
-                                    modifier = Modifier.size(SensorHeaderControlSize),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2265,10 +2266,8 @@ fun SensorCard(
                                             viewModel.reconnectSensor(sensor.serial, false)
                                         }
                                     },
-                                    // As wide as the link pill under it, as tall as the vendor badge; the 48dp touch
-                                    // target comes from the button's own minimum interactive size.
-                                    modifier = Modifier.size(width = 48.dp, height = 40.dp),
-                                    shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = if (isLocallyEnabled) {
                                             MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
