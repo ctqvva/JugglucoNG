@@ -795,6 +795,8 @@ public class Natives {
         /** Updates an existing native record without allocating a BLE stream pointer. */
         public static native boolean setSensorViewMode(String sensorId, int mode);
 
+        /** Actual mapped minute-slot capacity; 0 when the shell does not exist. */
+        public static native int getSensorStreamCapacity(String sensorId);
         public static native boolean hasSensorStreamCapacity(String sensorId, int minimumRecords);
 
         public static native void rebaseDirectStreamWindow(String sensorId, long startTimeSec);
@@ -884,13 +886,21 @@ public class Natives {
 
         public static native String getlibreDeviceID(boolean l3);
 
-        public static native void setlibreAccountID(String AccountID);
+        private static native void setlibreAccountIDNative(String accountID);
+        public static void setlibreAccountID(String accountID) {
+                setlibreAccountIDNative(accountID);
+                LibreViewAccountState.changed();
+        }
 
         public static native void askServerforAccountID();
 
         public static native long getlibreAccountIDnumber();
 
-        public static native void setlibreAccountIDnumber(long num);
+        private static native void setlibreAccountIDnumberNative(long num);
+        public static void setlibreAccountIDnumber(long num) {
+                setlibreAccountIDnumberNative(num);
+                LibreViewAccountState.changed();
+        }
 
         public static native String getlibreAccountID();
 
@@ -1268,6 +1278,9 @@ public class Natives {
 
         public static native long getSensorStartmsecFromSensorptr(long sensorptr);
 
+        /** Family of the retained native record, independent of managed pairing metadata. */
+        public static native int getSensorManagedFamilyFromSensorptr(long sensorptr);
+
         // public static native void setnightscoutV3(boolean val);
         public static native boolean getnightscoutV3();
 
@@ -1275,7 +1288,7 @@ public class Natives {
 
         public static native int healthConnectfromSensorptr(long sensorptr);
 
-        public static native void healthConnectWritten(long sensorptr, int pos);
+        public static native boolean healthConnectWritten(long sensorptr, int pos);
 
         public static native void sethealthConnect(boolean val);
 

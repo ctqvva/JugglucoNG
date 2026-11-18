@@ -1197,7 +1197,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         return Natives.getsensorptr(dataptr);
     }
 
-    private void exportToHealthConnect() {
+    protected final void exportToHealthConnect() {
         if (isWearable || !Natives.gethealthConnect() || Build.VERSION.SDK_INT < 28) {
             return;
         }
@@ -1209,6 +1209,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
         var health = HealthConnectAccess.get();
         if (health != null) health.writeAll(sensorptr, SerialNumber);
+    }
+
+    /** Export recovered records without claiming or changing live export ownership. */
+    protected final void exportHistoryToHealthConnect() {
+        if (isWearable || !Natives.gethealthConnect() || Build.VERSION.SDK_INT < 28) return;
+        final long sensorptr = nativeSensorPtr();
+        var health = HealthConnectAccess.get();
+        if (sensorptr != 0L && health != null) health.writeAll(sensorptr, SerialNumber);
     }
 
     /** Finish the accepted live path for a managed driver that publishes explicit lanes. */

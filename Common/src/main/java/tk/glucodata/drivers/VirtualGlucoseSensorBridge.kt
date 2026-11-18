@@ -31,6 +31,7 @@ object VirtualGlucoseSensorBridge {
     private val mirrorLock = Any()
 
     private val nativeMirror = VirtualSensorNativeMirror(
+        readCapacityMinutes = { serial -> Natives.getSensorStreamCapacity(serial) },
         readShellStartSeconds = { serial ->
             val sensorPtr = Natives.str2sensorptr(serial)
             if (sensorPtr == 0L) 0L else Natives.getSensorStartmsecFromSensorptr(sensorPtr) / 1000L
@@ -68,7 +69,9 @@ object VirtualGlucoseSensorBridge {
         nativeFamily: ManagedSensorUiFamily,
         primaryIsResolved: Boolean = true,
     ): Int = synchronized(mirrorLock) {
-        val stored = runCatching { nativeMirror.mirror(sensorSerial, readings, logLabel, primaryIsResolved) }
+        val stored = runCatching { nativeMirror.mirror(sensorSerial, readings, logLabel, primaryIsResolved,
+            windowMinutes = if (nativeFamily == ManagedSensorUiFamily.LIBRE3) 32 * 24 * 60 else VirtualSensorNativeMirror.WINDOW_MINUTES,
+            allowRebase = nativeFamily != ManagedSensorUiFamily.LIBRE3) }
             .onFailure { Log.stack(TAG, "mirrorIntoNative($sensorSerial)", it) }
             .getOrDefault(0)
         // Stamp only once a shell exists: the stamp call would otherwise create one.
@@ -125,6 +128,7 @@ object VirtualGlucoseSensorBridge {
         mirrorToNative: Boolean = false,
         source: String = GlucoseReadingSource.SENSOR,
         nativeFamily: ManagedSensorUiFamily = ManagedSensorUiFamily.GENERIC,
+        failOnStorageError: Boolean = false,
     ): Int {
         if (sensorSerial.isBlank() || readings.isEmpty()) return 0
         val nowMs = System.currentTimeMillis()
@@ -146,11 +150,11 @@ object VirtualGlucoseSensorBridge {
         val existingTimestamps = if (nearDuplicateWindowMs > 0L) {
             val minTimestamp = validReadings.minOf { it.timestampMs }
             val maxTimestamp = validReadings.maxOf { it.timestampMs }
-            HistorySyncAccess.getHistoryTimestampsForSensor(
+            (HistorySyncAccess.getHistoryTimestampsForSensorOrNull(
                 sensorSerial = sensorSerial,
                 startTime = (minTimestamp - nearDuplicateWindowMs).coerceAtLeast(1L),
                 endTime = maxTimestamp + nearDuplicateWindowMs,
-            ).sortedArray()
+            ) ?: if (failOnStorageError) error("History timestamp lookup failed") else LongArray(0)).sortedArray()
         } else {
             LongArray(0)
         }
@@ -189,6 +193,7 @@ object VirtualGlucoseSensorBridge {
                 source,
             )
         ) {
+            if (failOnStorageError) error("History batch storage failed")
             return 0
         }
         Log.i(

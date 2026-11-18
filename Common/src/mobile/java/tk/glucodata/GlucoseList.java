@@ -41,13 +41,19 @@ import java.util.ListIterator;
 
 public class GlucoseList implements List<BloodGlucoseRecord>   {
     Metadata metadata;
+    final String stablePrefix;
+    final long startSeconds;
+    final long exportVersion;
 
 
     private static final String LOG_ID="GlucoseList";
    long sensorptr;
    int start;
     int len;
-public    GlucoseList(Metadata meta,long sensorptr,int start,int len) {
+public GlucoseList(Metadata meta, long sensorptr, int start, int len, String stablePrefix, long startSeconds, long exportVersion) {
+        this.stablePrefix = stablePrefix;
+        this.startSeconds = startSeconds;
+        this.exportVersion = exportVersion;
         this.metadata=meta;
     this.sensorptr=sensorptr;
         this.start=start;

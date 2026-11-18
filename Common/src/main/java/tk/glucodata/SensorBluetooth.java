@@ -935,6 +935,40 @@ public class SensorBluetooth {
         rehomeCurrentSensorAfterRemoval(removedSerial, null);
     }
 
+    /**
+     * Retires exactly [callback], for a sensor handed from one driver to another (the legacy and
+     * the Kotlin Libre 3 drivers). Unlike removeDevice() it matches the object, never an equivalent
+     * id, so it cannot take the successor's callback with it, and it leaves every persisted record
+     * alone. The current-sensor role moves to [successorSerial] when the retired one held it.
+     */
+    public static void retireCallback(SuperGattCallback callback, String successorSerial) {
+        if (callback == null) return;
+        final SensorBluetooth blue = blueone;
+        if (blue != null) {
+            blue.retireCallbackLocked(callback, successorSerial);
+            return;
+        }
+        synchronized (SensorBluetooth.class) {
+            if (gattcallbacks.remove(callback)) {
+                callback.free();
+                Natives.setmaxsensors(gattcallbacks.size());
+            }
+        }
+    }
+
+    private synchronized void retireCallbackLocked(SuperGattCallback callback, String successorSerial) {
+        if (!gattcallbacks.remove(callback)) return;
+        final String removedSerial = callback.SerialNumber;
+        if (doLog) {
+            Log.i(LOG_ID, "retireCallback " + removedSerial + " -> " + successorSerial);
+        }
+        callback.free();
+        rehomeCurrentSensorAfterRemoval(removedSerial,
+                successorSerial == null ? null : java.util.Collections.singletonList(successorSerial));
+        Natives.setmaxsensors(gattcallbacks.size());
+        GlucoseUpdateBroadcaster.sendNow();
+    }
+
     private void rehomeCurrentSensorAfterRemoval(String removedSerial, Iterable<String> preferredCandidates) {
         if (removedSerial == null || removedSerial.isEmpty()) {
             return;

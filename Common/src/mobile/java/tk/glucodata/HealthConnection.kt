@@ -50,65 +50,48 @@ import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.Log.doLog
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.min
 
 class HealthConnection(private val client: HealthConnectClient) {
-	var active= AtomicBoolean(false)
     private val activityImportActive = AtomicBoolean(false)
 
 
-  private var scope = CoroutineScope(Dispatchers.IO+SupervisorJob())
-//TODO: test not already active
-@OptIn(ExperimentalStdlibApi::class)
-private  fun writeAllIns(sensorptr:Long, sensorName:String) {
-    // 0: the driver has no native record (yet), so there is nothing to export
-    if (sensorptr == 0L) {
-        if(doLog) {Log.i(LOG_ID, "writeAll $sensorName: no sensorptr");}
-        return
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val exportQueue = HealthConnectExportQueue(scope, ::exportSensor)
+
+    private fun writeAllIns(sensorptr: Long, sensorName: String) {
+        if (sensorptr == 0L) return
+        exportQueue.request(sensorptr, sensorName)
     }
-    if (active.getAndSet(true)) {
-        if(doLog) {Log.i(LOG_ID, "writeAll already active");}
-        return
-    }
-    scope.launch {
-        try {
-            Log.i(LOG_ID, "writeAll 0x${sensorptr.toHexString()} $sensorName")
+
+    private suspend fun exportSensor(request: HealthConnectExportQueue.Request): Boolean {
+        val sensorptr = request.sensorPtr
+        val sensorName = request.sensorName
+        return try {
             if (!hasPermission) {
                 checkPermissionsAndRun(MainActivity.thisone)
-                if (!hasPermission) {
-                    if(doLog) {Log.i(LOG_ID, "No permission");}
-                    return@launch
-                }
+                if (!hasPermission) return false
             }
-            val endstart = Natives.healthConnectfromSensorptr(sensorptr)
-
-            val end = endstart ushr 16
-            var start = endstart and 0xFFFF
-           if(start==end)
-               return@launch
-            Log.i(LOG_ID,"endstart=$endstart start=$start end=$end len=${end-start}")
-                  val meta=androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod(device=Device(TYPE_UNKNOWN,"Libre", sensorName)
-//                val meta = androidx.health.connect.client.records.metadata.Metadata( device=Device("Libre", sensorName)
-                )
-            while (start < end) {
-                val take = min(end - start, 500)
-                Log.i(LOG_ID,"start=$start take=$take")
-                val siz = client.insertRecords(GlucoseList(meta,sensorptr, start, take)).recordIdsList.size
-                if (siz == 0) {
-                    Log.e(LOG_ID, "insertRecors $siz==0")
-                    return@launch
-                  }
-                Log.i(LOG_ID,"siz=$siz")
-                start += take;
-                Natives.healthConnectWritten(sensorptr, start)
-            }
+            val startSeconds = Natives.getSensorStartmsecFromSensorptr(sensorptr) / 1000L
+            val stablePrefix = HealthConnectRecordMetadata.prefixForSensor(sensorptr, sensorName, startSeconds)
+            val meta = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod(
+                device = Device(TYPE_UNKNOWN, "Libre", sensorName),
+            )
+            runHealthConnectExportPass(
+                snapshot = {
+                    val range = Natives.healthConnectfromSensorptr(sensorptr)
+                    (range and 0xFFFF) to (range ushr 16)
+                },
+                insert = { start, count ->
+                    val batch = GlucoseList(meta, sensorptr, start, count, stablePrefix, startSeconds, System.currentTimeMillis())
+                    client.insertRecords(batch).recordIdsList.isNotEmpty()
+                },
+                acknowledge = { Natives.healthConnectWritten(sensorptr, it) },
+            )
         } catch (th: Throwable) {
-            Log.stack(LOG_ID, "writeAll", th);
-        } finally {
-            active.set(false)
+            Log.stack(LOG_ID, "writeAll", th)
+            false
         }
     }
-}
 
 private suspend fun checkPermissionsAndRun(act:MainActivity?) {
         Log.i(LOG_ID,"Before getGrantedPermissions()")

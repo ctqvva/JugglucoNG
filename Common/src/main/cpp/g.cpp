@@ -27,6 +27,7 @@
 // Created by jka on 27-11-20.
 //
 #include <algorithm>
+#include "healthconnectbackfill.hpp"
 #include <cmath>
 #include <cinttypes>
 #include <future>
@@ -507,11 +508,16 @@ static jint sensorKindForUi(const SensorGlucoseData *sens) {
   return 0;
 }
 
+static HealthConnectBackfillProgress healthConnectBackfillProgress;
+
 extern "C" JNIEXPORT void JNICALL fromjava(healthConnectReset)(JNIEnv *env,
                                                                jclass cl) {
   sensors->onallsensors([](SensorGlucoseData *sens) {
+    std::lock_guard<std::recursive_mutex> writing(SensorGlucoseData::pollWriteMutex());
     auto *info = sens->getinfo();
     info->healthconnectiter = info->pollstart;
+    if (info->managedFamilyCode() == 9u)
+      healthConnectBackfillProgress.rewind(sens, info->pollstart, info->healthconnectiter);
   });
 }
 extern "C" JNIEXPORT jint JNICALL
@@ -520,23 +526,32 @@ fromjava(healthConnectfromSensorptr)(JNIEnv *env, jclass cl, jlong sensorptr) {
   if (!sensorptr) {
     return 0;
   }
-  auto *info = reinterpret_cast<SensorGlucoseData *>(sensorptr)->getinfo();
+  std::lock_guard<std::recursive_mutex> writing(SensorGlucoseData::pollWriteMutex());
+  auto *hist = reinterpret_cast<SensorGlucoseData *>(sensorptr);
+  auto *info = hist->getinfo();
   int start = info->healthconnectiter;
   if (!start) {
     info->healthconnectiter = start = info->pollstart;
   }
+  if (info->managedFamilyCode() == 9u)
+    healthConnectBackfillProgress.begin(hist, start, info->pollcount);
   auto res = start | ((int)info->pollcount << 16);
   LOGGER("healthConnectfromSensorptr=%x\n", res);
   return res;
 }
-extern "C" JNIEXPORT void JNICALL fromjava(healthConnectWritten)(
+extern "C" JNIEXPORT jboolean JNICALL fromjava(healthConnectWritten)(
     JNIEnv *env, jclass cl, jlong sensorptr, jint pos) {
   if (!sensorptr) {
-    return;
+    return JNI_FALSE;
   }
-  reinterpret_cast<SensorGlucoseData *>(sensorptr)
-      ->getinfo()
-      ->healthconnectiter = pos;
+  std::lock_guard<std::recursive_mutex> writing(SensorGlucoseData::pollWriteMutex());
+  auto *hist = reinterpret_cast<SensorGlucoseData *>(sensorptr);
+  auto *info = hist->getinfo();
+  if (info->managedFamilyCode() == 9u)
+    return healthConnectBackfillProgress.acknowledge(hist, pos, info->healthconnectiter)
+               ? JNI_TRUE : JNI_FALSE;
+  info->healthconnectiter = pos;
+  return JNI_TRUE;
 }
 extern "C" JNIEXPORT jlong JNICALL fromjava(getSensorStartmsec)(JNIEnv *env,
                                                                 jclass cl,
@@ -558,6 +573,13 @@ fromjava(getSensorStartmsecFromSensorptr)(JNIEnv *env, jclass cl,
   if (!sens)
     return 0LL;
   return sens->getstarttime() * 1000LL;
+}
+extern "C" JNIEXPORT jint JNICALL
+fromjava(getSensorManagedFamilyFromSensorptr)(JNIEnv *env, jclass cl,
+                                             jlong sensorptr) {
+  const auto *sens = reinterpret_cast<const SensorGlucoseData *>(sensorptr);
+  const auto *info = sens ? sens->getinfo() : nullptr;
+  return info ? static_cast<jint>(info->managedFamilyCode()) : 0;
 }
 extern "C" JNIEXPORT void JNICALL fromjava(updateUsedSensors)(JNIEnv *env,
                                                               jclass cl) {
@@ -1623,6 +1645,8 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
                                               preservedTemp)
               : hist->savepollallIDs<60>(timestamp, lifeCount, storedGlucose, 0,
                                          change, preservedRaw, preservedTemp);
+  if (stored && fillsPollGap && info->managedFamilyCode() == 9u)
+    healthConnectBackfillProgress.rewind(hist, lifeCount, info->healthconnectiter);
   writing.unlock();
   if (!stored)
     return false;
@@ -2039,6 +2063,17 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getSensorManagedFamily)(
     return 0;
   const auto *info = hist->getinfo();
   return info ? static_cast<jint>(info->managedFamilyCode()) : 0;
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(getSensorStreamCapacity)(
+    JNIEnv *env, jclass cl, jstring sensorId) {
+  if (!sensors || !sensorId) return 0;
+  const char *str = env->GetStringUTFChars(sensorId, nullptr);
+  if (!str) return 0;
+  const int index = sensors->sensorindex(str);
+  env->ReleaseStringUTFChars(sensorId, str);
+  auto *hist = index >= 0 ? sensors->getSensorData(index) : nullptr;
+  return hist && !hist->error() ? static_cast<jint>(hist->pollStorageCapacity()) : 0;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(hasSensorStreamCapacity)(

@@ -152,7 +152,7 @@ object AutoSensorSwitch {
     private fun provisionNow(nodeId: String) {
         val context = Applic.app ?: return
         val main = SensorIdentity.resolveMainSensor()
-        val canTravel = main != null && (
+        val canTravel = main != null && ManagedSensorHandoff.supportsSensor(main) && (
             ManagedSensorIdentityRegistry.persistedSensorIds(context).any { SensorIdentity.matches(it, main) } ||
                 DexcomWatchSetup.canSendToWatch(main)
             )
