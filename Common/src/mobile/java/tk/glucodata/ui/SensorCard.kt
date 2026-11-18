@@ -505,7 +505,8 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
                 .semantics { contentDescription = figure ?: "" }
                 .then(tap)
                 .heightIn(min = 32.dp)
-                .padding(horizontal = 12.dp),
+                // 10 + 12 + 12 + 10 = SensorHeaderControlSize: the pill lines up under the Pause button.
+                .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AnimatedVisibility(
