@@ -329,12 +329,13 @@ private fun SensorNameText(
     modifier: Modifier = Modifier,
 ) {
     val measurer = rememberTextMeasurer()
-    val baseStyle = MaterialTheme.typography.titleLarge
+    // Theme roles only: the condensed title while it fits, then the emphasized 16sp one.
+    val typography = MaterialTheme.typography
+    val candidates = listOf(typography.titleLarge, typography.titleMediumEmphasized)
     val density = LocalDensity.current
     BoxWithConstraints(modifier = modifier) {
         val availablePx = with(density) { maxWidth.roundToPx() }
-        val style = remember(name, availablePx, baseStyle) {
-            val candidates = listOf(22.sp, 20.sp, 18.sp, 16.sp).map { baseStyle.copy(fontSize = it) }
+        val style = remember(name, availablePx, candidates) {
             candidates.firstOrNull { candidate ->
                 measurer.measure(name, candidate, softWrap = false).size.width <= availablePx
             } ?: candidates.last()
