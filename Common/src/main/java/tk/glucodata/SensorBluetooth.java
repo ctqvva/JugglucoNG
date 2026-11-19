@@ -312,7 +312,7 @@ public class SensorBluetooth {
 
     long scantimeouttime = 0L;
 
-    boolean mScanning = false;
+    volatile boolean mScanning = false;
 
     class Scanner21 implements Scanner {
         final private ScanSettings mScanSettings;
@@ -557,17 +557,19 @@ public class SensorBluetooth {
 
     Scanner scanner = Build.VERSION.SDK_INT >= 21 ? new Scanner21() : new ArchScanner();
 
-    final private Runnable mScanTimeoutRunnable = () -> {
-        {
+    private synchronized void scanTimedOut(long generation) {
+        if (generation != scanGeneration || !mScanning) {
             if (doLog) {
-                Log.i(LOG_ID, "Timeout scanning");
+                Log.i(LOG_ID, "Timeout scanning: superseded");
             }
-            ;
+            return;
         }
-        ;
+        if (doLog) {
+            Log.i(LOG_ID, "Timeout scanning");
+        }
         scantimeouttime = System.currentTimeMillis();
-        SensorBluetooth.this.stopScan(true);
-    };
+        stopScan(true);
+    }
 
     static boolean bluetoothIsEnabled() {
         if (mBluetoothAdapter != null) {
@@ -596,7 +598,12 @@ public class SensorBluetooth {
             blueone.removeDevice(str);
     }
 
-    private boolean scanstart = false;
+    // Scan state below is only changed under this object's monitor. scanstart covers the span
+    // from scheduling a scan until it has stopped; scanGeneration names the current scheduling,
+    // so a scan or timeout task that was cancelled or superseded finds a newer generation and
+    // returns instead of starting (or stopping) a scan nobody owns.
+    private volatile boolean scanstart = false;
+    private long scanGeneration = 0L;
 
     /**
      * Whether the managed scan is running or about to run, the same condition scanStarter()
@@ -611,52 +618,96 @@ public class SensorBluetooth {
     }
 
     long scantime = 0L;
-    final private Runnable scanRunnable = new Runnable() {
-        @Override
-        public void run() {
-            try {
-                if (doLog) {
-                    Log.i(LOG_ID, "scanRunnable ENTRY");
+
+    private synchronized void runScan(long generation) {
+        if (generation != scanGeneration || !scanstart || mScanning) {
+            if (doLog) {
+                Log.i(LOG_ID, "scanRunnable superseded");
+            }
+            return;
+        }
+        try {
+            if (doLog) {
+                Log.i(LOG_ID, "scanRunnable ENTRY");
+            }
+            scantime = System.currentTimeMillis();
+            if (bluetoothIsEnabled() && gattcallbacks.size() != 0) {
+                if (!scanner.init()) {
+                    Log.w(LOG_ID, "Scanner init failed, retrying in 2s...");
+                    scheduleScanLocked(2000);
+                    return;
                 }
-                scantime = System.currentTimeMillis();
-                if (bluetoothIsEnabled() && gattcallbacks.size() != 0) {
-                    if (!scanner.init()) {
-                        Log.w(LOG_ID, "Scanner init failed, retrying in 2s...");
-                        if (scanOnUI) {
-                            Applic.app.getHandler().postDelayed(scanRunnable, 2000);
-                        } else {
-                            scanFuture = Applic.scheduler.schedule(scanRunnable, 2000, TimeUnit.MILLISECONDS);
-                        }
-                        return;
-                    }
-                    if (scanner.start()) {
-                        mScanning = true;
-                        if (scanOnUI) {
-                            Applic.app.getHandler().postDelayed(mScanTimeoutRunnable, scantimeout);
-                        } else {
-                            timeoutFuture = Applic.scheduler.schedule(mScanTimeoutRunnable, scantimeout,
-                                    TimeUnit.MILLISECONDS);
-                        }
-                        Log.i(LOG_ID, "scanRunnable: Scanner STARTED");
+                if (scanner.start()) {
+                    mScanning = true;
+                    final Runnable timeout = () -> scanTimedOut(generation);
+                    if (scanOnUI) {
+                        pendingScanTimeout = timeout;
+                        Applic.app.getHandler().postDelayed(timeout, scantimeout);
                     } else {
-                        scanstart = false;
-                        Log.w(LOG_ID, "scanRunnable: Scanner START FAILED");
-                        return;
+                        timeoutFuture = Applic.scheduler.schedule(timeout, scantimeout,
+                                TimeUnit.MILLISECONDS);
                     }
+                    Log.i(LOG_ID, "scanRunnable: Scanner STARTED");
                 } else {
                     scanstart = false;
-                    Log.i(LOG_ID, "scanRunnable: nothing to scan (BT off or no callbacks)");
+                    Log.w(LOG_ID, "scanRunnable: Scanner START FAILED");
                 }
-            } catch (Exception e) {
+            } else {
                 scanstart = false;
-                Log.stack(LOG_ID, "scanRunnable EXCEPTION", e);
+                Log.i(LOG_ID, "scanRunnable: nothing to scan (BT off or no callbacks)");
             }
+        } catch (Exception e) {
+            scanstart = false;
+            Log.stack(LOG_ID, "scanRunnable EXCEPTION", e);
         }
-
-    };
+    }
 
     static private final boolean scanOnUI = false;
     ScheduledFuture<?> scanFuture = null, timeoutFuture = null;
+    private Runnable pendingScan = null, pendingScanTimeout = null;
+
+    /** Schedules a scan task for the current generation. Caller holds this object's monitor. */
+    private void scheduleScanLocked(long delayMillis) {
+        final long generation = scanGeneration;
+        final Runnable run = () -> runScan(generation);
+        if (scanOnUI) {
+            pendingScan = run;
+            if (delayMillis > 0)
+                Applic.app.getHandler().postDelayed(run, delayMillis);
+            else
+                Applic.app.getHandler().post(run);
+        } else {
+            scanFuture = Applic.scheduler.schedule(run, delayMillis, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * Retires every scan and timeout task scheduled so far. Caller holds this object's monitor.
+     * Not interrupting: a task already past its generation check has the monitor, so the caller
+     * only gets here after it finished, and the task that called this may be the one running.
+     */
+    private void cancelScheduledScanLocked() {
+        ++scanGeneration;
+        if (scanOnUI) {
+            if (pendingScan != null) {
+                Applic.app.getHandler().removeCallbacks(pendingScan);
+                pendingScan = null;
+            }
+            if (pendingScanTimeout != null) {
+                Applic.app.getHandler().removeCallbacks(pendingScanTimeout);
+                pendingScanTimeout = null;
+            }
+        } else {
+            if (scanFuture != null) {
+                scanFuture.cancel(false);
+                scanFuture = null;
+            }
+            if (timeoutFuture != null) {
+                timeoutFuture.cancel(false);
+                timeoutFuture = null;
+            }
+        }
+    }
 
     public synchronized boolean scanStarter(long delayMillis) {
         {
@@ -697,16 +748,9 @@ public class SensorBluetooth {
             }
         }
         Applic.updatescreen();
+        cancelScheduledScanLocked();
         scanstart = true;
-
-        if (scanOnUI) {
-            if (delayMillis > 0)
-                Applic.app.getHandler().postDelayed(scanRunnable, delayMillis);
-            else
-                Applic.app.getHandler().post(scanRunnable);
-        } else {
-            scanFuture = Applic.scheduler.schedule(scanRunnable, delayMillis, TimeUnit.MILLISECONDS);
-        }
+        scheduleScanLocked(delayMillis);
         return false;
     }
 
@@ -714,24 +758,15 @@ public class SensorBluetooth {
     private static final int startincreasedwait = 300000;
     private int increasedwait = startincreasedwait;
 
-    public void stopScan(boolean retry) {
+    public synchronized void stopScan(boolean retry) {
         if (doLog) {
             Log.d(LOG_ID, "Stop scanning " + (retry ? "retry" : "don't retry"));
         }
         ;
-        if (scanOnUI) {
-            Applic.app.getHandler().removeCallbacks(this.scanRunnable);
-            Applic.app.getHandler().removeCallbacks(this.mScanTimeoutRunnable);
-        } else {
-            if (scanFuture != null) {
-                scanFuture.cancel(true);
-                scanFuture = null;
-            }
-            if (timeoutFuture != null) {
-                timeoutFuture.cancel(true);
-                timeoutFuture = null;
-            }
-        }
+        // Retire the old scan before a retry is scheduled: the retry sets scanstart again,
+        // and that pending scan must stay guarded until it runs.
+        cancelScheduledScanLocked();
+        scanstart = false;
         if (this.mScanning) {
             stopscantime = System.currentTimeMillis();
             this.mScanning = false;
@@ -751,7 +786,6 @@ public class SensorBluetooth {
                 }
             }
         }
-        scanstart = false;
     }
 
     // Readers take snapshots without waiting for connection processing or teardown.
