@@ -476,6 +476,10 @@ fun BoxScope.JournalExpandableFab(
     var buttonCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     BackHandler(enabled = expanded) { onExpandedChange(false) }
     CatchNavigationTaps(active = expanded) { onExpandedChange(false) }
+    // The scrim fades the screen into its own surface, not into black: black over a light
+    // theme reads as a grey smear. Clear through the top 35% so the chart stays readable; the
+    // ends are the same colour at zero alpha, so the fade never passes through grey.
+    val scrimColor = MaterialTheme.colorScheme.surface
     AnimatedVisibility(
         visible = expanded,
         modifier = Modifier.matchParentSize(),
@@ -487,10 +491,10 @@ fun BoxScope.JournalExpandableFab(
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0.0f to Color.Transparent,
-                        0.35f to Color.Transparent,
-                        0.70f to Color.Black.copy(alpha = 0.55f),
-                        1.0f to Color.Black.copy(alpha = 0.78f)
+                        0.0f to scrimColor.copy(alpha = 0f),
+                        0.35f to scrimColor.copy(alpha = 0f),
+                        0.70f to scrimColor.copy(alpha = 0.80f),
+                        1.0f to scrimColor.copy(alpha = 0.92f)
                     )
                 )
                 .clickable(
@@ -514,7 +518,7 @@ fun BoxScope.JournalExpandableFab(
                 },
                 containerColor = ToggleFloatingActionButtonDefaults.containerColor(
                     initialColor = MaterialTheme.colorScheme.primaryContainer,
-                    finalColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    finalColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier
                     .onGloballyPositioned { buttonCoordinates = it }
@@ -573,7 +577,7 @@ fun BoxScope.JournalExpandableFab(
                         checkedProgress = { checkedProgress },
                         color = ToggleFloatingActionButtonDefaults.iconColor(
                             initialColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            finalColor = MaterialTheme.colorScheme.onSurface
+                            finalColor = MaterialTheme.colorScheme.onPrimary
                         )
                     )
                 )
