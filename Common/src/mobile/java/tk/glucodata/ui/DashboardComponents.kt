@@ -2430,7 +2430,7 @@ internal fun SignalQualityAndReadingAgeRow(
         maxOf(
             textMeasurer.measure(widestSeconds, style = counterStyle, maxLines = 1).size.width,
             textMeasurer.measure(widestMinutes, style = counterStyle, maxLines = 1).size.width
-        ) + with(density) { SensorPanelIconSize.roundToPx() + SensorPanelIconGap.roundToPx() }
+        ) + with(density) { SIGNAL_AGE_CLOCK_SIZE.roundToPx() + SIGNAL_AGE_CLOCK_GAP.roundToPx() }
     }
     val hasNoise = noiseLevel > 0f
     val hasCounter = readingMillis != null
@@ -2515,12 +2515,11 @@ internal fun SignalQualityAndReadingAgeRow(
             if (readingMillis != null) {
                 tk.glucodata.ui.util.SensorReadingAgeLabel(
                     readingMillis = readingMillis,
-                    // Same weight as the lifetime calendar; the smaller glyph stays centred
-                    // in the shared icon slot so the text keeps the panel's text edge.
+                    // Match the lifetime calendar's tint.
                     iconTint = contentColor.copy(alpha = 0.6f),
                     textColor = contentColor.copy(alpha = 0.75f),
                     iconSize = SIGNAL_AGE_CLOCK_SIZE,
-                    iconGap = SensorPanelIconGap + (SensorPanelIconSize - SIGNAL_AGE_CLOCK_SIZE),
+                    iconGap = SIGNAL_AGE_CLOCK_GAP,
                     icon = tk.glucodata.ui.symbols.Symbols.Schedule
                 )
             }
@@ -2529,6 +2528,7 @@ internal fun SignalQualityAndReadingAgeRow(
 }
 
 private val SIGNAL_AGE_CLOCK_SIZE = 12.dp
+private val SIGNAL_AGE_CLOCK_GAP = 4.dp
 
 private const val SIGNAL_SHAKE_DEGREES = 8f
 private const val SIGNAL_SHAKE_SWING_MS = 80
