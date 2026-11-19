@@ -11,6 +11,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import tk.glucodata.ui.components.DeviceHeaderButtonDefaults
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SplitButtonLayout
@@ -121,7 +122,7 @@ private val SensorBadgeWidth = 50.dp
 private val SensorBadgeHeight = 40.dp
 
 /** The name pill and the button beside it are one height, so the header reads as one line. */
-private val SensorHeaderControlSize = 44.dp
+private val SensorHeaderControlSize = DeviceHeaderButtonDefaults.Height
 
 /**
  * One badge line, sized down until it fits the tile rather than being clipped or ellipsized.
@@ -321,12 +322,13 @@ private fun SensorNameText(
     modifier: Modifier = Modifier,
 ) {
     val measurer = rememberTextMeasurer()
-    val baseStyle = MaterialTheme.typography.titleLarge
+    // Theme roles only: the condensed title while it fits, then the emphasized 16sp one.
+    val typography = MaterialTheme.typography
+    val candidates = listOf(typography.titleLarge, typography.titleMediumEmphasized)
     val density = LocalDensity.current
     BoxWithConstraints(modifier = modifier) {
         val availablePx = with(density) { maxWidth.roundToPx() }
-        val style = remember(name, availablePx, baseStyle) {
-            val candidates = listOf(22.sp, 20.sp, 18.sp, 16.sp).map { baseStyle.copy(fontSize = it) }
+        val style = remember(name, availablePx, candidates) {
             candidates.firstOrNull { candidate ->
                 measurer.measure(name, candidate, softWrap = false).size.width <= availablePx
             } ?: candidates.last()
@@ -462,9 +464,10 @@ private fun SensorStatusText(status: String, color: Color, modifier: Modifier = 
 }
 
 @Composable
-private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifier = Modifier) {
+private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, accent: Color, modifier: Modifier = Modifier) {
     val down = state == SensorLinkState.DOWN
-    val color = if (down) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    // The sensor's own colour, as on its name: down keeps the error colours.
+    val color = if (down) MaterialTheme.colorScheme.onErrorContainer else accent
     val waves = when {
         state != SensorLinkState.UP || rssi == null -> 0
         rssi >= -65 -> 3
@@ -511,7 +514,7 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
                 Text(
                     text = figure.orEmpty(),
                     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = color,
+                    color = if (down) color else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     modifier = Modifier.padding(end = 8.dp),
                 )
@@ -2191,8 +2194,8 @@ fun SensorCard(
                                 // container itself takes the press shape.
                                 FilledIconButton(
                                     onClick = { viewModel.returnSensorToPhone(sensor.serial) },
-                                    modifier = Modifier.size(SensorHeaderControlSize),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2227,8 +2230,8 @@ fun SensorCard(
                                             viewModel.handBackCloneSensor(sensor.serial)
                                         }
                                     },
-                                    modifier = Modifier.size(SensorHeaderControlSize),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2258,8 +2261,8 @@ fun SensorCard(
                                             viewModel.reconnectSensor(sensor.serial, false)
                                         }
                                     },
-                                    modifier = Modifier.size(SensorHeaderControlSize),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = if (isLocallyEnabled) {
                                             MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
@@ -2362,6 +2365,7 @@ fun SensorCard(
                                         else -> SensorLinkState.WAITING
                                     },
                                     rssi = sensor.rssi.takeIf { it in -120..-1 },
+                                    accent = sensorTint,
                                 )
                             }
                         }
@@ -2441,7 +2445,7 @@ fun SensorCard(
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = detailSummary,
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -2708,7 +2712,7 @@ fun SensorCard(
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = stringResource(R.string.sensor_connection_log),
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f),
                         )
                         Icon(
