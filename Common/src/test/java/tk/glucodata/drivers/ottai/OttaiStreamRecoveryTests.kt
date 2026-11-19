@@ -322,8 +322,11 @@ class OttaiStreamRecoveryTests {
 
     private fun enumValue(type: String, value: String): Any =
         OttaiBleManager::class.java.declaredClasses.single { it.simpleName == type }.enumConstants!!.single { it.toString() == value }
-    private fun invoke(name: String, vararg args: Any): Any? =
-        OttaiBleManager::class.java.declaredMethods.single { it.name == name }.apply { isAccessible = true }.invoke(manager, *args)
+    // Trailing parameters the caller leaves out (optional callbacks) are passed as null.
+    private fun invoke(name: String, vararg args: Any): Any? {
+        val method = OttaiBleManager::class.java.declaredMethods.single { it.name == name }.apply { isAccessible = true }
+        return method.invoke(manager, *args, *arrayOfNulls<Any>(method.parameterCount - args.size))
+    }
     private fun set(name: String, value: Any) = OttaiBleManager::class.java.getDeclaredField(name).apply { isAccessible = true }.set(manager, value)
     private fun get(name: String): Any? = OttaiBleManager::class.java.getDeclaredField(name).apply { isAccessible = true }.get(manager)
 }

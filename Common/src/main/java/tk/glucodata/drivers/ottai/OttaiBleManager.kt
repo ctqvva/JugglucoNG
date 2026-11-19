@@ -585,6 +585,91 @@ class OttaiBleManager(
             return ranges
         }
 
+        /**
+         * Splits a requested history window into the runs that are settled and the runs that
+         * are not. A record is settled when it was handed to storage or refused on its own
+         * merits (invalid, warm-up, filter rejects): asking again would return the same answer.
+         * A record that never arrived (a lost or undecryptable frame inside the window), or
+         * was skipped only because the driver could not judge it yet (no method, no time
+         * anchor), is not, and keeps its hole.
+         */
+        internal fun historyWindowRuns(start: Int, settled: BooleanArray): HistoryWindowRuns {
+            val done = ArrayList<MissingRange>()
+            val open = ArrayList<MissingRange>()
+            var index = 0
+            while (index < settled.size) {
+                val value = settled[index]
+                val runStart = index
+                while (index < settled.size && settled[index] == value) index++
+                (if (value) done else open) += MissingRange(start + runStart, start + index)
+            }
+            return HistoryWindowRuns(done, open)
+        }
+
+        /**
+         * Removes `[start, endExclusive)` from [holes]. Returns whether anything changed.
+         * Settling a window run by run can land strictly inside a hole; that hole is split
+         * unless the ledger is full, in which case it is kept whole: the run gets fetched again,
+         * which costs a request, where dropping a hole would lose its records.
+         */
+        internal fun trimHoleLedger(
+            holes: MutableList<HistoryHole>,
+            start: Int,
+            endExclusive: Int,
+            maxHoles: Int = MAX_HISTORY_HOLES,
+        ): Boolean {
+            if (endExclusive <= start) return false
+            var changed = false
+            val iterator = holes.listIterator()
+            while (iterator.hasNext()) {
+                val h = iterator.next()
+                when {
+                    h.start >= start && h.endExclusive <= endExclusive -> { iterator.remove(); changed = true }
+                    h.start in start until endExclusive -> { h.start = endExclusive; changed = true }
+                    h.endExclusive in (start + 1)..endExclusive -> { h.endExclusive = start; changed = true }
+                    h.start < start && h.endExclusive > endExclusive && holes.size < maxHoles -> {
+                        iterator.add(HistoryHole(endExclusive, h.endExclusive, h.attempts))
+                        h.endExclusive = start
+                        changed = true
+                    }
+                }
+            }
+            return changed
+        }
+
+        /**
+         * Counts one failed delivery against every hole that overlaps any of [ranges] (once per
+         * hole however many ranges touch it, so a window with several missing runs spends one
+         * attempt, not one per run), ledgers the ranges no hole covers, and drops the holes that
+         * reached [maxAttempts]. Returns the retired holes.
+         */
+        internal fun noteHoleLedgerFailures(
+            holes: MutableList<HistoryHole>,
+            ranges: List<MissingRange>,
+            maxAttempts: Int = HISTORY_HOLE_MAX_ATTEMPTS,
+        ): List<HistoryHole> {
+            val valid = ranges.filter { it.start >= 0 && it.endExclusive > it.start }
+            if (valid.isEmpty()) return emptyList()
+            val existing = holes.toList()
+            for (h in existing) {
+                if (valid.any { h.start < it.endExclusive && it.start < h.endExclusive }) h.attempts++
+            }
+            for (range in valid) {
+                if (existing.none { it.start < range.endExclusive && range.start < it.endExclusive }) {
+                    // Deliberately not capped at MAX_HISTORY_HOLES the way addHistoryHole is. That
+                    // cap drops the OLDEST window and loses its records; here every entry already
+                    // carries a failure and is retired by the attempt cap, so the ledger drains on
+                    // its own. Applying the size cap would discard a window that still has
+                    // retries left in favour of one that is already on its way out.
+                    holes += HistoryHole(range.start, range.endExclusive, 1)
+                }
+            }
+            holes.sortBy { it.start }
+            val retired = holes.filter { it.attempts >= maxAttempts }
+            holes.removeAll(retired)
+            return retired
+        }
+
         internal fun isLinkUnstable(dropTimesMs: List<Long>, nowMs: Long): Boolean =
             dropTimesMs.count { nowMs - it <= UNSTABLE_LINK_WINDOW_MS } >= UNSTABLE_LINK_MIN_DROPS
 
@@ -1028,6 +1113,11 @@ class OttaiBleManager(
     // heard from. Guards the retry budget against a chunk that keeps re-delivering its head
     // (see historyRetriesAfterFrame). Reset in issueHistoryRequest when the window changes.
     @Volatile private var historyChunkBestDataNo = -1
+    // Per record of the window in flight (index = dataNo - activeHistoryStart): true once the
+    // record is settled (see historyWindowRuns). Only settled runs leave the hole ledger; the
+    // highest dataNo seen says when the sensor finished answering, not that all of it arrived.
+    // Replaced together with historyChunkBestDataNo.
+    @Volatile private var historyWindowSettled = BooleanArray(0)
     // Persisted ledger of requested-but-undelivered history windows. A gap-driven request
     // records its window here at request time; only actually-arrived data (or the cross-
     // session attempt cap) removes it — so watchdog skips, chain teardown, disconnects and
@@ -1038,7 +1128,10 @@ class OttaiBleManager(
     // path reaches trimHistoryHoles/noteHoleFailure. The operations are compound (sort, remove
     // while iterating, read-modify-write of attempts), so a lock is required rather than a
     // concurrent collection.
-    private data class HistoryHole(var start: Int, var endExclusive: Int, var attempts: Int)
+    internal data class HistoryHole(var start: Int, var endExclusive: Int, var attempts: Int)
+
+    /** A history window split into settled and unsettled runs; see [historyWindowRuns]. */
+    internal data class HistoryWindowRuns(val settled: List<MissingRange>, val unsettled: List<MissingRange>)
 
     /** A `[start, endExclusive)` window of records the local store does not have. */
     internal data class MissingRange(val start: Int, val endExclusive: Int)
@@ -3197,7 +3290,7 @@ class OttaiBleManager(
         val missedEnd = activeHistoryEndExclusive
         cancelHistoryWatchdog()
         historyRetryCount = 0
-        noteHoleFailure(missedStart, missedEnd)
+        settleHistoryWindow(missedStart, missedEnd)
         advanceHistoryChunkChain()
     }
 
@@ -3276,17 +3369,28 @@ class OttaiBleManager(
         // dataNoCeiling poison state that is every live frame there will ever be.
         if (live && plausible.isNotEmpty()) lastLiveFrameAtMs = receivedAtMs
         val emittedReadings = ArrayList<EmittedReading>(plausible.size)
+        val settledDataNos = if (live) null else ArrayList<Int>(plausible.size)
         for ((index, r) in plausible.withIndex()) {
             if (!r.valid) {
                 Log.w(TAG, "$kind record rejected dataNo=${r.record.dataNo} runtime=${r.record.runtimeSec} raw=${r.record.rawCurrent}")
+                // Without a method every record decodes invalid: that says nothing about the record.
+                if (materials.method.isNotBlank()) settledDataNos?.add(r.record.dataNo)
                 continue
             }
             if (materials.method.isBlank()) {
                 Log.w(TAG, "no method — skipping emit (raw only) dataNo=${r.record.dataNo}")
                 continue
             }
-            emitReading(r, live, receivedAtMs, plausible, index, liveNotify = live && source == "notify")?.let(emittedReadings::add)
+            var refused = false
+            val emitted = emitReading(
+                r, live, receivedAtMs, plausible, index,
+                liveNotify = live && source == "notify",
+                onRefused = { refused = true },
+            )
+            if (emitted != null) emittedReadings += emitted
+            if (emitted != null || refused) settledDataNos?.add(r.record.dataNo)
         }
+        settledDataNos?.let(::markHistorySettled)
         if (emittedReadings.isNotEmpty()) {
             storeDecodedReadings(emittedReadings, live)
             emittedReadings.lastOrNull { it.publishCurrent }?.let(::publishCurrentReading)
@@ -3368,16 +3472,22 @@ class OttaiBleManager(
         batch: List<OttaiReading>,
         batchIndex: Int,
         liveNotify: Boolean = false,
+        onRefused: (() -> Unit)? = null,
     ): EmittedReading? {
+        // A refusal is a verdict on the record itself, unlike the anchor skip below.
+        fun refuse(mmol: Float, reason: String): EmittedReading? {
+            onRefused?.invoke()
+            return rejectReading(r, mmol, live, reason)
+        }
         // adjustGlucose is mmol/L; convert to mg/dL for Room storage.
         val mmol = r.adjustGlucose.toFloat()
         val mgdl = mmol * MGDL_PER_MMOLL
         OttaiOutputFilter.hardRejectReason(r.record, mmol)?.let { reason ->
-            return rejectReading(r, mmol, live, "hard-$reason")
+            return refuse(mmol, "hard-$reason")
         }
-        if (mgdl <= 1f) return rejectReading(r, mmol, live, "mgdl=$mgdl")
+        if (mgdl <= 1f) return refuse(mmol, "mgdl=$mgdl")
         recentRejectedSampleReason(r, mmol)?.let { reason ->
-            return rejectReading(r, mmol, live, reason)
+            return refuse(mmol, reason)
         }
         repairAheadLastDataNoIfNeeded(r.record.dataNo, live)
         val advancesDataNo = r.record.dataNo > lastDataNo
@@ -3392,11 +3502,11 @@ class OttaiBleManager(
         // the sample rather than on the clock so a later history replay of the same records
         // reaches the same verdict instead of re-admitting what the live path refused.
         if (OttaiConstants.isWithinWarmup(warmupAnchorMs(), sampleMs)) {
-            return rejectReading(r, mmol, live, "warmup")
+            return refuse(mmol, "warmup")
         }
         continuityRejectReason(r, mmol, sampleMs, live, batch, batchIndex)?.let { reason ->
             noteContinuityRejection(r.record.dataNo, sampleMs)
-            return rejectReading(r, mmol, live, reason)
+            return refuse(mmol, reason)
         }
         val notifyStartMs = arrivalBoundStartMs(r.record.dataNo, receivedAtMs)
         if (liveNotify && advancesDataNo && !streamNotifyPhaseKnown &&
@@ -4666,6 +4776,7 @@ class OttaiBleManager(
             // any other window is a fresh one and starts with nothing delivered.
             if (start != activeHistoryStart || start + count != activeHistoryEndExclusive) {
                 historyChunkBestDataNo = -1
+                historyWindowSettled = BooleanArray(count)
             }
             activeHistoryStart = start
             activeHistoryEndExclusive = start + count
@@ -4725,8 +4836,14 @@ class OttaiBleManager(
             armHistoryWatchdog()
             return true
         }
-        // Data actually arrived for the whole window — the only event that shrinks the ledger.
-        trimHistoryHoles(activeHistoryStart, activeEndExclusive)
+        // The sensor reached the end of the window. Only the records that actually arrived and
+        // settled leave the ledger; a lost frame in the middle, or records that could not be
+        // judged yet, stay on it and are charged one attempt, for the hole retry to fetch again.
+        val runs = settleHistoryWindow(activeHistoryStart, activeEndExclusive)
+        if (runs.unsettled.isNotEmpty()) {
+            Log.w(TAG, "history chunk [$activeHistoryStart,$activeEndExclusive) ended with unsettled " +
+                runs.unsettled.joinToString { "[${it.start},${it.endExclusive})" })
+        }
         cancelHistoryWatchdog()
         activeHistoryEndExclusive = -1
         activeHistoryStart = -1
@@ -4779,14 +4896,14 @@ class OttaiBleManager(
             Log.w(TAG, "history page watchdog: no progress for chunk [$start,$end) — retry $historyRetryCount/$HISTORY_MAX_RETRIES")
             // Re-issue the same window (issueHistoryRequest re-arms the watchdog on success).
             if (!issueHistoryRequest("watchdog-retry", start, end - start, bypassCooldown = true)) {
-                noteHoleFailure(start, end)
+                settleHistoryWindow(start, end)
                 advanceHistoryChunkChain()
             }
         } else {
             Log.e(TAG, "history page watchdog: chunk [$start,$end) failed after $historyRetryCount retries — " +
                 "recorded in the hole ledger for a later retry")
             historyRetryCount = 0
-            noteHoleFailure(start, end)
+            settleHistoryWindow(start, end)
             advanceHistoryChunkChain()
         }
     }
@@ -4800,6 +4917,7 @@ class OttaiBleManager(
         cancelHistoryWatchdog()
         historyRetryCount = 0
         historyChunkBestDataNo = -1
+        historyWindowSettled = BooleanArray(0)
         pendingHistoryReason = null
         pendingHistoryNextStart = 0
         pendingHistoryEndExclusive = 0
@@ -4843,54 +4961,48 @@ class OttaiBleManager(
         }
     }
 
-    /** Data for [start,endExclusive) actually arrived — the ONLY way a hole shrinks. */
-    private fun trimHistoryHoles(start: Int, endExclusive: Int) {
-        if (endExclusive <= start) return
-        synchronized(historyHolesLock) {
-            var changed = false
-            val iterator = historyHoles.listIterator()
-            while (iterator.hasNext()) {
-                val h = iterator.next()
-                when {
-                    h.start >= start && h.endExclusive <= endExclusive -> { iterator.remove(); changed = true }
-                    h.start in start until endExclusive -> { h.start = endExclusive; changed = true }
-                    h.endExclusive in (start + 1)..endExclusive -> { h.endExclusive = start; changed = true }
-                    // A mid-split (arrival strictly inside a hole) can't happen: requests are issued
-                    // from hole/gap boundaries. If a future caller violates that, the hole just stays
-                    // slightly larger than reality and self-corrects via refetch — data is never lost.
-                }
-            }
-            if (changed) persistHistoryHoles()
+    /** Marks history records of the window in flight as settled; see [historyWindowRuns]. */
+    private fun markHistorySettled(dataNos: List<Int>) {
+        val start = activeHistoryStart
+        val settled = historyWindowSettled
+        if (start < 0) return
+        for (dataNo in dataNos) {
+            val index = dataNo - start
+            if (index in settled.indices) settled[index] = true
         }
     }
 
-    /** A request covering [start,endExclusive) failed to deliver — ledger it and bump its counter. */
-    private fun noteHoleFailure(start: Int, endExclusive: Int) {
-        if (endExclusive <= start || start < 0) return
+    /**
+     * Closes the books on window `[start, endExclusive)`: settled runs leave the ledger, the
+     * rest are charged one failed attempt. Used when the window completes and when it is given
+     * up, so what did arrive before a stall is not fetched again.
+     */
+    private fun settleHistoryWindow(start: Int, endExclusive: Int): HistoryWindowRuns {
+        if (endExclusive <= start || start < 0) return HistoryWindowRuns(emptyList(), emptyList())
+        val settled = historyWindowSettled.takeIf { it.size == endExclusive - start && start == activeHistoryStart }
+            ?: BooleanArray(endExclusive - start)
+        val runs = historyWindowRuns(start, settled)
+        for (run in runs.settled) trimHistoryHoles(run.start, run.endExclusive)
+        noteHoleFailures(runs.unsettled)
+        return runs
+    }
+
+    /** Records in [start,endExclusive) settled — the ONLY way a hole shrinks. */
+    private fun trimHistoryHoles(start: Int, endExclusive: Int) {
         synchronized(historyHolesLock) {
-            // Bump every overlapping hole, not just an exact match: failures arrive per issued
+            if (trimHoleLedger(historyHoles, start, endExclusive)) persistHistoryHoles()
+        }
+    }
+
+    /** Requests covering [ranges] failed to deliver — ledger them and charge their holes. */
+    private fun noteHoleFailures(ranges: List<MissingRange>) {
+        if (ranges.isEmpty()) return
+        synchronized(historyHolesLock) {
+            // Charge every overlapping hole, not just an exact match: failures arrive per issued
             // CHUNK, so a multi-chunk hole must absorb its chunks' failures or the attempt cap
             // never retires it (a permanently-empty overshoot range would then retry forever).
-            var overlapped = false
-            for (h in historyHoles) {
-                if (h.start < endExclusive && start < h.endExclusive) {
-                    h.attempts++
-                    overlapped = true
-                }
-            }
-            if (!overlapped) {
-                // Deliberately not capped at MAX_HISTORY_HOLES the way addHistoryHole is. That
-                // cap drops the OLDEST window and loses its records; here every entry already
-                // carries a failure and is retired by HISTORY_HOLE_MAX_ATTEMPTS, so the ledger
-                // drains on its own. Applying the size cap would discard a window that still has
-                // retries left in favour of one that is already on its way out.
-                historyHoles += HistoryHole(start, endExclusive, 1)
-                historyHoles.sortBy { it.start }
-            }
-            historyHoles.removeAll { h ->
-                (h.attempts >= HISTORY_HOLE_MAX_ATTEMPTS).also {
-                    if (it) Log.e(TAG, "history range [${h.start},${h.endExclusive}) undelivered after ${h.attempts} attempts — giving up")
-                }
+            for (h in noteHoleLedgerFailures(historyHoles, ranges)) {
+                Log.e(TAG, "history range [${h.start},${h.endExclusive}) undelivered after ${h.attempts} attempts — giving up")
             }
             persistHistoryHoles()
         }
