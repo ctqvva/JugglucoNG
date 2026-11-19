@@ -216,6 +216,9 @@ void alarmhandler(int sig) {
 // s/setthreadname(\([^);
 extern void setstreaming(SensorGlucoseData *hist);
 extern void wakeaftermin(const int waitmin);
+// Added to a status without glucose (warm-up, reading error): the scan saved a rebuilt state,
+// and no BLE stream exists for the sensor yet, so restart Bluetooth. ScanNfcV strips it.
+constexpr const int restartBleFlag = 0x40 << 16;
 extern "C" JNIEXPORT jint JNICALL fromjava(nfcdata)(JNIEnv *env, jclass thiz,
                                                     jbyteArray uid,
                                                     jbyteArray info,
@@ -344,6 +347,8 @@ extern "C" JNIEXPORT jint JNICALL fromjava(nfcdata)(JNIEnv *env, jclass thiz,
           ret = 5 << 16 | (60 - min) << 24;
           if (enablestreaming)
             ret |= (0x80 << 16);
+          else if (ab.stateRebuilt)
+            ret |= restartBleFlag;
           return ret;
         } else {
           sensor *senso = sensors->getsensor(ab.sensorindex);
@@ -366,6 +371,8 @@ extern "C" JNIEXPORT jint JNICALL fromjava(nfcdata)(JNIEnv *env, jclass thiz,
 
           } else {
             ret = 6 << 16;
+            if (ab.stateRebuilt)
+              ret |= restartBleFlag;
           }
           if (senso->finished) {
             LOGSTRING("was finished\n");

@@ -32,7 +32,8 @@ touches either Libre 3 path.
   wear length match. Streaming continues without a scan.
 - A state it cannot use is rebuilt at the next NFC scan from the sensor memory and the saved
   start time. BLE frames wait for that scan. When the state was missing altogether no BLE
-  stream existed, so that scan also restarts Bluetooth with the saved login record.
+  stream existed, so the scan that saves the rebuilt state also restarts Bluetooth with the
+  saved login record, also when it shows no glucose (warm-up or a reading error).
 - A saved state whose offsets point outside the file is treated as missing.
 - The open backend marks each state it saves (flag slot = 2, `libre2_imp::open_backend_state`),
   so a copy on a watch or mirror carries its owner. Update the phone and the watch together:

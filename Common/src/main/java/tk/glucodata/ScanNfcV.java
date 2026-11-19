@@ -373,6 +373,16 @@ public class ScanNfcV {
                             Log.format("glucose=%.1f\n", (float) value / mgdLmult);
                             ret = uit >> 16;
                             String scannedSensorIdent = Natives.getserial(uid, info);
+                            if ((ret & RESTART_BLE_FLAG) != 0) {
+                                // The scan rebuilt the sensor's state without a glucose value;
+                                // BLE never started without that state.
+                                ret &= ~RESTART_BLE_FLAG;
+                                if (doLog) {
+                                    Log.d(LOG_ID, "State rebuilt, resetDevice " + scannedSensorIdent);
+                                }
+                                if (SensorBluetooth.resetDevice(scannedSensorIdent))
+                                    askpermission = true;
+                            }
                             if (shouldSyncDecodedHistory(ret, value)) {
                                 HistorySyncAccess.mergeFullSyncForSensor(scannedSensorIdent);
                             }
@@ -519,6 +529,9 @@ public class ScanNfcV {
                 main.finepermission();
         });
     }
+
+    /** Set by {@code Natives.nfcdata} (g.cpp {@code restartBleFlag}), after the shift by 16. */
+    static final int RESTART_BLE_FLAG = 0x40;
 
     static boolean shouldSyncDecodedHistory(int resultCode, int glucoseValue) {
         return glucoseValue > 0 || (resultCode & 0x7F) <= 9;
