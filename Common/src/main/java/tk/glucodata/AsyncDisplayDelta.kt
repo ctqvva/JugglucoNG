@@ -6,20 +6,22 @@ import java.util.concurrent.Executors
 /** A canvas only reads a completed result; Room/native history is loaded on the worker. */
 class AsyncDisplayDelta internal constructor(
     private val executor: Executor,
-    private val resolve: (CurrentDisplaySource.Snapshot, Int) -> String
+    private val clock: () -> Long = System::currentTimeMillis,
+    private val resolve: (CurrentDisplaySource.Snapshot, Int) -> DisplayDeltaSource.Result?
 ) {
-    constructor() : this(worker, { shown, interval -> DisplayDeltaSource.resolve(true, shown, interval) })
+    constructor() : this(worker, resolve = { shown, interval -> DisplayDeltaSource.resolveResult(shown, interval) })
 
-    private data class Request(
+    private data class Inputs(
         val shown: CurrentDisplaySource.Snapshot,
         val interval: Int,
-        val revision: Long,
         val calibrationRevision: Long
     )
 
+    private data class Request(val inputs: Inputs, val historyRevision: Long)
+
     private var request: Request? = null
     private var generation = 0L
-    private var text = ""
+    private var result: DisplayDeltaSource.Result? = null
 
     @Synchronized
     fun get(
@@ -33,35 +35,40 @@ class AsyncDisplayDelta internal constructor(
             clear()
             return ""
         }
-        val next = Request(shown, GlucoseDelta.sanitizeIntervalMinutes(intervalMinutes), revision, CalibrationAccess.getRevision())
-        if (request == next) return text
+        val inputs = Inputs(shown, GlucoseDelta.sanitizeIntervalMinutes(intervalMinutes), CalibrationAccess.getRevision())
+        val next = Request(inputs, revision)
+        if (request == next) return visibleText(shown.timeMillis)
+        // A history refresh can update the delta for the same reading while it stays visible.
+        if (request?.inputs != inputs) result = null
         request = next
-        text = ""
         val expectedGeneration = ++generation
         executor.execute {
             if (synchronized(this) { generation != expectedGeneration }) return@execute
             val loaded = try {
-                resolve(shown, next.interval)
+                resolve(shown, inputs.interval)
             } catch (error: Exception) {
                 Log.stack("AsyncDisplayDelta", "load failed", error)
-                ""
+                null
             }
             val accepted = synchronized(this) {
                 if (generation != expectedGeneration) false else {
-                    text = loaded
+                    result = loaded
                     true
                 }
             }
             if (accepted) onLoaded.run()
         }
-        return text
+        return visibleText(shown.timeMillis)
     }
+
+    private fun visibleText(shownAt: Long): String =
+        result?.takeIf { clock() in shownAt..it.validUntilMillis }?.text.orEmpty()
 
     @Synchronized
     fun clear() {
         generation++
         request = null
-        text = ""
+        result = null
     }
 
     private companion object {

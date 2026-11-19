@@ -126,21 +126,23 @@ class DisplayDeltaSourceTests {
         val measured = listOf(GlucosePoint(at - 5 * 60_000L, 100f), GlucosePoint(at, 110f))
         val chart = DisplayTrendSource.augmentHistory(measured, shown, "sensor", 0L)
         assertEquals(80f, chart.last().value, 0f)
-        assertEquals("+10", DisplayDeltaSource.resolve(true, shown, 5, { at }) { start, mmol, sensor ->
+        val result = DisplayDeltaSource.resolveResult(shown, 5, { at }) { start, mmol, sensor ->
             assertEquals(at - 21 * 60_000L, start)
             assertEquals(false, mmol)
             assertEquals("sensor", sensor)
             measured
-        })
+        }
+        assertEquals("+10", result?.text)
         assertEquals(110f, measured.last().value, 0f)
     }
 
     @Test fun aReadingThatExpiresDuringTheHistoryLoadCannotPublishADelta() {
         var clock = now
-        assertEquals("", DisplayDeltaSource.resolve(true, deltaSnapshot(at = now), 5, { clock }) { _, _, _ ->
+        val result = DisplayDeltaSource.resolveResult(deltaSnapshot(at = now), 5, { clock }) { _, _, _ ->
             clock = now + timeout + 1
             history
-        })
+        }
+        assertEquals(null, result)
     }
 
     @Test fun aMinuteAlignedMeasurementMatchesATwentyFiveSecondLiveOffset() {

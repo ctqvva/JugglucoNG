@@ -9,32 +9,25 @@ object DisplayDeltaSource {
     const val NOTIFICATION_ENABLED = "notification_show_delta"
     const val INTERVAL = "delta_interval_minutes"
 
+    internal data class Result(val text: String, val validUntilMillis: Long)
+
     @JvmStatic
     fun resolve(enabled: Boolean, shown: CurrentDisplaySource.Snapshot?, intervalMinutes: Int): String =
-        resolve(enabled, shown, intervalMinutes, System::currentTimeMillis, NotificationHistorySource::getDisplayHistory)
+        if (!enabled || shown == null) "" else resolveResult(shown, intervalMinutes)?.text.orEmpty()
 
-    internal fun resolve(
-        enabled: Boolean,
-        shown: CurrentDisplaySource.Snapshot?,
+    internal fun resolveResult(
+        shown: CurrentDisplaySource.Snapshot,
         intervalMinutes: Int,
-        clock: () -> Long,
-        loadMeasuredHistory: (Long, Boolean, String) -> List<GlucosePoint>
-    ): String {
-        if (!enabled || shown == null || shown.sensorId.isNullOrBlank()) return ""
-        if (!isFresh(shown.timeMillis, clock(), Notify.glucosetimeout)) return ""
-        val history = loadMeasuredHistory(shown.timeMillis - 21 * 60_000L, shown.isMmol, shown.sensorId)
-        return format(true, history, shown.sensorId, shown.timeMillis, shown.viewMode,
+        clock: () -> Long = System::currentTimeMillis,
+        loadMeasuredHistory: (Long, Boolean, String) -> List<GlucosePoint> = NotificationHistorySource::getDisplayHistory
+    ): Result? {
+        val sensorId = shown.sensorId?.takeIf { it.isNotBlank() } ?: return null
+        if (!isFresh(shown.timeMillis, clock(), Notify.glucosetimeout)) return null
+        val history = loadMeasuredHistory(shown.timeMillis - 21 * 60_000L, shown.isMmol, sensorId)
+        return formatResult(history, sensorId, shown.timeMillis, shown.viewMode,
             shown.isMmol, intervalMinutes, clock(), Notify.glucosetimeout)
     }
 
-    /**
-     * Uses one measured lane throughout, before smoothing, with its display calibration
-     * evaluated at each sample timestamp. Never mix a smoothed live tail with stored history.
-     * Prefer the exact measurement. Native history may floor a live timestamp to its
-     * minute; only that unambiguous minute-aligned row may match tolerantly. A nearby
-     * row from another minute must never supply a frozen/downsampled reading's delta.
-     * Native history has no per-point identity; its caller-supplied sensor scope is required.
-     */
     @JvmStatic
     fun format(
         enabled: Boolean,
@@ -47,7 +40,30 @@ object DisplayDeltaSource {
         now: Long,
         maxAgeMillis: Long
     ): String {
-        if (!enabled || sensorId.isNullOrBlank() || !isFresh(shownAt, now, maxAgeMillis)) return ""
+        if (!enabled || sensorId.isNullOrBlank()) return ""
+        return formatResult(history, sensorId, shownAt, viewMode, isMmol, intervalMinutes, now, maxAgeMillis)
+            ?.text.orEmpty()
+    }
+
+    /**
+     * Uses one measured lane throughout, before smoothing, with its display calibration
+     * evaluated at each sample timestamp. Never mix a smoothed live tail with stored history.
+     * Prefer the exact measurement. Native history may floor a live timestamp to its
+     * minute; only that unambiguous minute-aligned row may match tolerantly. A nearby
+     * row from another minute must never supply a frozen/downsampled reading's delta.
+     * Native history has no per-point identity; its caller-supplied sensor scope is required.
+     */
+    private fun formatResult(
+        history: List<GlucosePoint>,
+        sensorId: String,
+        shownAt: Long,
+        viewMode: Int,
+        isMmol: Boolean,
+        intervalMinutes: Int,
+        now: Long,
+        maxAgeMillis: Long
+    ): Result? {
+        if (!isFresh(shownAt, now, maxAgeMillis)) return null
         val useRaw = viewMode == 1 || viewMode == 3
         fun belongs(point: GlucosePoint): Boolean =
             point.sensorSerial == null || SensorIdentity.matches(point.sensorSerial, sensorId)
@@ -56,24 +72,25 @@ object DisplayDeltaSource {
         val scoped = history.filter { belongs(it) }
         val exact = scoped.lastOrNull { it.timestamp == shownAt }
         val anchor = if (exact != null) {
-            if (!valid(exact)) return ""
+            if (!valid(exact)) return null
             exact
         } else {
             val sameMinute = scoped.filter { it.timestamp / 60_000L == shownAt / 60_000L }
             // Multiple arrivals in this minute cannot be identified by flooring alone.
-            if (sameMinute.any { it.timestamp % 60_000L != 0L }) return ""
+            if (sameMinute.any { it.timestamp % 60_000L != 0L }) return null
             CurrentDisplaySource.findExactPoint(sameMinute.filter { valid(it) }, shownAt)
-        } ?: return ""
-        if (!isFresh(anchor.timestamp, now, maxAgeMillis)) return ""
+        } ?: return null
+        if (!isFresh(anchor.timestamp, now, maxAgeMillis)) return null
         val minGap = GlucoseDelta.minGapMillis(intervalMinutes)
         val previous = history.asSequence()
             .filter { it.timestamp > 0L && anchor.timestamp - it.timestamp >= minGap && belongs(it) && valid(it) }
-            .maxByOrNull { it.timestamp } ?: return ""
+            .maxByOrNull { it.timestamp } ?: return null
         fun corrected(point: GlucosePoint): Float =
             CurrentDisplaySource.resolveDisplayValuesForPoint(point, viewMode, isMmol, sensorId).primaryValue
-        return GlucoseDelta.format(
+        val text = GlucoseDelta.format(
             GlucoseDelta.delta(anchor.timestamp, corrected(anchor), previous.timestamp, corrected(previous), intervalMinutes), isMmol
         )
+        return text.takeIf { it.isNotEmpty() }?.let { Result(it, anchor.timestamp + maxAgeMillis) }
     }
 
     private fun isFresh(shownAt: Long, now: Long, maxAgeMillis: Long): Boolean =
