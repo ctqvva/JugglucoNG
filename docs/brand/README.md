@@ -36,7 +36,7 @@ The lockup is one file for both themes. GitHub's `<picture>` and `#gh-dark-mode-
 
 ## Second installation
 
-The second installation, "Glucy Dub" (`releasedub`), lets one phone follow two people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). Its icon is the main icon plus a grey copy of the trace (`dub-clone`), 29 units lower, running out of the bottom edge. The copy is also in its monochrome layer, so the two installations stay apart with Android's themed icons.
+The second installation, "Glucy Dub" (`releasedub`), lets one phone follow two people, typically a parent following two children ([#714](https://github.com/ctqvva/JugglucoNG/issues/714)). Its icon is the main mark plus a grey copy of the trace (`dub-clone`), 19 units lower. The copy shows its whole wave, or it reads as a different line, so the pair is raised 8 units to keep the copy's dips inside the launcher mask. The copy is also in its monochrome layer, so the two installations stay apart with Android's themed icons.
 
 ## Colours
 
