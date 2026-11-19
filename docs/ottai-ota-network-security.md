@@ -25,7 +25,8 @@ was needed. Obfuscated library URLs differ only by case; use a case-sensitive ou
 `OttaiRegionalTransport` with the experiment's captured backend/account headers. Its CN calls
 use the 1.63 identity/version and `cipherUserId`; global/Syai use main's regional compatibility
 version and `webDeviceId`. CN forwarded-IP headers are never added to global/Syai requests.
-Each operation clears its ephemeral keys. OTA check, the explicit V3-authenticated recheck,
+The serial firmware worker reuses the secure session until expiry and clears its ephemeral
+keys on shutdown. Each request retains its own trace ID and signed timestamp. OTA check, the explicit V3-authenticated recheck,
 report and user-confirmed preparation
 bind are scoped to this client.
 
@@ -78,9 +79,9 @@ All routes below are relative to `https://api.ottai.com/cgm/security/app/server`
    `ota_request_response_json_http=…` diagnostic. The earlier `ota_request_http=200` alone
    cannot identify why a V3 recheck failed.
 
-The client corrects an explicit `CLIENT_CLOCK_OFFSET` response once during exchange.
-Expired secrets require a fresh exchange. Application requests are not silently retried on
-network/security failure; reopen the check to retry. BLE transfer retry rules remain unchanged.
+The client corrects an explicit `CLIENT_CLOCK_OFFSET` response once during exchange. A transient
+exchange failure gets one paced retry with a fresh key pair. Expired secrets require a fresh
+exchange. Application requests are not silently retried on network or security failure.
 
 Static anchors in this APK: network prefix at pool offset `0xa7a0`; key exchange at
 `0x121ba7c`; exchange request/signature builder at `0x121d8a4`; server verification and

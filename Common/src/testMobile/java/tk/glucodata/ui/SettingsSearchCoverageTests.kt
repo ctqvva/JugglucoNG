@@ -39,19 +39,23 @@ class SettingsSearchCoverageTests {
         because(
             "the screen's on/off card: searching its name finds the screen, which opens on it",
             "active", "debug_record_title", "dexcom_share_active", "enable_overlay", "enable_overlay_service",
-            "insulin_pens_enable_title", "libreview_active", "mirror_clone_master", "mq_sync_title",
+            "insulin_pens_enable_title", "libreview_active", "clone_network_title", "mq_sync_title",
             "mq_follower_title",
         )
         because(
             "a status line or a list entry, not a setting",
             "app_updates_installed_title", "app_updates_latest_title", "config", "status", "watch_none_found",
             "garmin_sdk_ready", "garmin_registered", "garmin_last_send", "garmin_last_received",
-            "garmin_queued_messages", "glucose_meters_none", "insulin_pens_none", "insulin_pen_name",
+            "garmin_queued_messages", "glucose_meters_other", "insulin_pens_none", "insulin_pen_name",
         )
         because(
             "an action or a way into a sub-list, found through the screen that holds it",
-            "add_connection", "api_source_settings_title", "lumiflex_manage_followers",
+            "api_source_settings_title", "lumiflex_manage_followers",
             "mq_follower_settings_title", "sensor_handover_old_action_title",
+        )
+        because(
+            "a Statistics filter, not a setting: the overview card's custom time-of-day window",
+            "start", "end",
         )
         because(
             "slider controls are reached through their parent display screen",
@@ -72,6 +76,10 @@ class SettingsSearchCoverageTests {
             "inside the scheduled-backup dialog, which search opens as a whole",
             "scheduled_backup_enabled", "scheduled_backup_folder", "scheduled_backup_time",
             "scheduled_backup_retention",
+        )
+        because(
+            "shows only while a meter that never switches off is set up; found through Glucose meters",
+            "glucose_meter_recheck",
         )
         because(
             "on a mirror connection's own sheet, not a screen search can open",

@@ -7,7 +7,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -88,7 +87,7 @@ class StatsPortraitLayoutTests {
         compose.runOnIdle { assertEquals(24, dateClicks) }
     }
 
-    @Test fun wholeTirLabelStaysInsideTheCircleWithAReadableComparisonBelow() {
+    @Test fun inRangeHeadlineAndItsChangeStayWholeAndARowTapSelectsItsBand() {
         var scale by mutableFloatStateOf(1f)
         var percent by mutableFloatStateOf(62f)
         var delta by mutableStateOf<Float?>(23f)
@@ -97,38 +96,106 @@ class StatsPortraitLayoutTests {
             CompositionLocalProvider(LocalDensity provides Density(1f, scale.coerceAtMost(1.3f))) {
                 MaterialTheme(typography = AppTypography) {
                     val change = delta?.let(::comparison)
-                    OverviewRing(
+                    val summary = StatsSummary(
                         tir = TimeInRangeBreakdown(inRangePercent = percent, highPercent = 100f - percent),
-                        comparison = change,
-                        selectedBand = selected,
-                        onBandSelected = { selected = it },
-                        modifier = Modifier.width(128.dp).testTag("ring")
+                        parts = object : StatsSummaryParts by StatsSummaryParts.Empty {
+                            override val comparison = change
+                        }
                     )
-                }
-            }
-        }
-        for (s in listOf(1f, 1.3f, 2f)) for (p in listOf(0f, 62f, 100f)) {
-            for (d in listOf(null, 23f, -100f)) {
-                compose.runOnIdle { scale = s; percent = p; delta = d }
-                val ring = compose.onNodeWithContentDescription("${p.toInt()}% TIR", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-                // A selected arc is 17dp thick, extending 1dp farther into the opening.
-                val innerRadius = ring.width / 2f - 16f
-                for (text in listOf("${p.toInt()}%", "TIR")) {
-                    val node = compose.onNodeWithText(text, useUnmergedTree = true)
-                    node.layout().assertFits()
-                    val b = node.fetchSemanticsNode().boundsInRoot
-                    for (corner in listOf(b.topLeft, b.topRight, b.bottomLeft, b.bottomRight)) {
-                        assertTrue("$text touches ring at scale $s", (corner - ring.center).getDistance() < innerRadius)
+                    Box(Modifier.width(288.dp)) {
+                        GlycemicOverviewCard(summary, StatsTargets(), GlucoseUnit.MMOL,
+                            StatsTimeRange.DAY_14, selected, { selected = it }, Modifier.testTag("overview"))
                     }
                 }
             }
         }
-        // A band tap and a center tap retain the existing selection behavior.
-        compose.runOnIdle { percent = 100f; delta = 23f; selected = null }
-        compose.onNodeWithContentDescription("100% TIR", useUnmergedTree = true).performTouchInput { click(Offset(center.x, 4f)) }
-        compose.runOnIdle { assertEquals(TirBand.IN_RANGE, selected) }
-        compose.onNodeWithContentDescription("100% TIR", useUnmergedTree = true).performTouchInput { click(center) }
+        for (s in listOf(1f, 1.3f, 2f)) for (p in listOf(0.4f, 62f, 100f)) {
+            for (d in listOf(null, 23f, -100f)) {
+                compose.runOnIdle { scale = s; percent = p; delta = d }
+                val card = compose.onNodeWithTag("overview").fetchSemanticsNode().boundsInRoot
+                val headline = compose.onNodeWithText(String.format("%.1f%%", p), useUnmergedTree = true)
+                    .also { it.layout().assertFits() }
+                    .fetchSemanticsNode().boundsInRoot
+                assertTrue("headline outside the card at $s", headline.right <= card.right && headline.bottom <= card.bottom)
+                if (d != null) {
+                    compose.onNodeWithContentDescription("${formatSignedNumber(d)} vs the period before", useUnmergedTree = true)
+                        .assertExists()
+                }
+            }
+        }
+        compose.runOnIdle { scale = 1f; percent = 62f; delta = 23f }
+        compose.onNodeWithText("High", useUnmergedTree = true).performClick()
+        compose.runOnIdle { assertEquals(TirBand.HIGH, selected) }
+        compose.onNodeWithText("High", useUnmergedTree = true).performClick()
         compose.runOnIdle { assertNull(selected) }
+        // A band with no time is left out rather than shown empty.
+        compose.onNodeWithText("Very high", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test fun dayPartsCombineIntoOneWindowWithItsOwnTimesAndClearBackToTheWholeDay() {
+        // Evening is 40% in range, the rest 95%; the night block has no readings at all.
+        val hourly = (0..23).map { hour ->
+            when (hour / 6) {
+                0 -> HourlyGlucoseStats(hour)
+                3 -> HourlyGlucoseStats(hour, TimeInRangeBreakdown(inRangePercent = 40f, highPercent = 60f), 100f, 10)
+                else -> HourlyGlucoseStats(hour, TimeInRangeBreakdown(inRangePercent = 95f, highPercent = 5f), 100f, 10)
+            }
+        }
+        val summary = StatsSummary(
+            tir = TimeInRangeBreakdown(inRangePercent = 90f, highPercent = 10f),
+            parts = object : StatsSummaryParts by StatsSummaryParts.Empty {
+                override val comparison = comparison(23f)
+                override val hourlyStats = hourly
+            }
+        )
+        compose.setContent {
+            MaterialTheme(typography = AppTypography) {
+                Box(Modifier.width(328.dp)) {
+                    GlycemicOverviewCard(summary, StatsTargets(), GlucoseUnit.MMOL, StatsTimeRange.DAY_14, null, {})
+                }
+            }
+        }
+        compose.onNodeWithText("90.0%", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("+23 vs the period before", useUnmergedTree = true).assertExists()
+        // Each block shows its own time in range before any tap; one with no readings is off.
+        compose.onNodeWithContentDescription("Evening, 18:00–24:00, 40% In range", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("Night", substring = true).assertIsNotEnabled()
+
+        compose.onNodeWithContentDescription("Evening", substring = true, useUnmergedTree = true).performClick()
+        compose.onNodeWithText("40.0%", useUnmergedTree = true).assertExists()
+        // A six-hour block: 60% high is 3 h 36 min of it, not of the day.
+        compose.onNodeWithText("3 h 36 min", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("18:00–24:00", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("+23 vs the period before", useUnmergedTree = true).assertDoesNotExist()
+
+        // A second block joins the first: (95 + 40) / 2 over twelve hours.
+        compose.onNodeWithContentDescription("Afternoon", substring = true, useUnmergedTree = true).performClick()
+        compose.onNodeWithText("67.5%", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("12:00–24:00", useUnmergedTree = true).assertExists()
+
+        compose.onNodeWithContentDescription("Clear", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("90.0%", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("12:00–24:00", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test fun theCountTakesTwoLinesBeforeTheDateChipLeavesItsSide() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1.3f)) {
+                MaterialTheme(typography = AppTypography) {
+                    Box(Modifier.width(328.dp)) {
+                        StatsRangeSelectorControl(
+                            StatsTimeRange.DAY_14, range, false, true, 4132,
+                            {}, {}, coveragePercent = 99f
+                        )
+                    }
+                }
+            }
+        }
+        val count = compose.onNodeWithText("4,132 Points", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val active = compose.onNode(hasText("Active\u00A099%"), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val chip = compose.onNodeWithText(formatStatsDateRange(range)!!, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue("coverage should wrap under the count", active.top >= count.bottom - 1f)
+        assertTrue("date chip should stay beside the count", chip.top < active.bottom && chip.left > count.right)
     }
 
     @Test fun patternsHeadingStaysWholeAndPortraitOverviewRendersWithoutCrowding() {
@@ -162,7 +229,7 @@ class StatsPortraitLayoutTests {
             val title = compose.onNodeWithText("Patterns", useUnmergedTree = true).layout()
             title.assertFits()
             assertEquals("heading broken at ${w}dp, ${s}x", 1, title.lineCount)
-            compose.onNodeWithText("62%", useUnmergedTree = true).layout().assertFits()
+            compose.onNodeWithText("61.7%", useUnmergedTree = true).layout().assertFits()
             val output = File("build/outputs/layout-regressions/statistics-$w-$s.png")
             output.parentFile?.mkdirs()
             output.outputStream().use {

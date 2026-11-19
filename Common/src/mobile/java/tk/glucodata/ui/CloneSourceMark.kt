@@ -4,9 +4,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Hub
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +16,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import tk.glucodata.CloneTransport
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun CloneSourceMark(
@@ -41,7 +39,7 @@ fun CloneSourceMark(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = if (transport == CloneTransport.TURN) Icons.Default.Hub else Icons.Default.SwapHoriz,
+            imageVector = if (transport == CloneTransport.TURN) Symbols.HubFilled else Symbols.SwapHorizFilled,
             contentDescription = description,
             tint = tint,
             modifier = Modifier.size(iconSize),

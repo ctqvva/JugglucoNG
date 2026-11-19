@@ -5,9 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Empty state card shown when no sensor is connected.
@@ -61,7 +59,7 @@ fun NoSensorCard(
                     modifier = Modifier.size(80.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Sensors,
+                        imageVector = Symbols.SensorsFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
@@ -96,7 +94,7 @@ fun NoSensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Add,
+                        imageVector = Symbols.AddFilled,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )

@@ -18,8 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -56,6 +54,7 @@ import tk.glucodata.drivers.mq.MQRegistry
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun MQFollowerSettingsScreen(navController: NavController) {
@@ -270,7 +269,7 @@ fun MQFollowerSettingsContent(onBack: () -> Unit) {
                         runAction(followerLabel) { setFollowerEnabled(enabled) }
                     }
                 },
-                icon = Icons.Default.Cloud,
+                icon = Symbols.CloudFilled,
             )
 
             OutlinedTextField(

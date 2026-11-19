@@ -11,8 +11,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import tk.glucodata.ui.components.DeviceHeaderButtonDefaults
-import androidx.compose.material.icons.filled.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SplitButtonLayout
@@ -44,9 +44,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import tk.glucodata.ui.restricted.sensorLifeFill
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.inDisplayUnit
 import androidx.compose.foundation.layout.Box
@@ -82,7 +79,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.material.icons.outlined.Info
 
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.BLE_ERROR_CARD_WINDOW_MS
@@ -101,8 +97,6 @@ import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.anytime.AnytimeCalibrationPolicy
 import tk.glucodata.drivers.sibionics.SibionicsSensitivity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.Icon
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -116,11 +110,11 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import java.util.Locale
 
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import tk.glucodata.ui.symbols.Symbols
 
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
@@ -189,7 +183,7 @@ internal fun SensorModelBadge(
     ) {
         when {
             badge.brand.isEmpty() -> Icon(
-                imageVector = Icons.Default.Sensors,
+                imageVector = Symbols.SensorsFilled,
                 contentDescription = null,
                 tint = color,
                 modifier = Modifier.size(20.dp),
@@ -274,9 +268,9 @@ private fun SensorIdentityControl(
             if (selectable) {
                 Icon(
                     imageVector = if (selected) {
-                        Icons.Rounded.CheckCircle
+                        Symbols.CheckCircleFilled
                     } else {
-                        Icons.Rounded.RadioButtonUnchecked
+                        Symbols.RadioButtonUncheckedFilled
                     },
                     contentDescription = stringResource(
                         if (selected) R.string.sensor_display_selected else R.string.sensor_display_select
@@ -308,7 +302,7 @@ private fun SensorIdentityControl(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Default.ShowChart,
+                    imageVector = Symbols.ShowChartFilled,
                     contentDescription = stringResource(R.string.sensor_color_title),
                     tint = color,
                     modifier = Modifier.size(18.dp),
@@ -529,7 +523,7 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, accent: Color, mo
             val unlit = MaterialTheme.colorScheme.outlineVariant
             // The sign names what the waves measure, so it is the smaller of the two.
             Icon(
-                imageVector = if (down) Icons.Default.BluetoothDisabled else Icons.Default.Bluetooth,
+                imageVector = if (down) Symbols.BluetoothDisabledFilled else Symbols.BluetoothFilled,
                 contentDescription = null,
                 tint = color,
                 modifier = Modifier.size(if (down) 16.dp else 12.dp),
@@ -1316,7 +1310,7 @@ fun SensorCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Tune,
+                            imageVector = Symbols.TuneFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.tertiary
                         )
@@ -1371,7 +1365,7 @@ fun SensorCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.RestartAlt,
+                            imageVector = Symbols.RestartAltFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error
                         )
@@ -1606,7 +1600,7 @@ fun SensorCard(
                     subtitleStyle = MaterialTheme.typography.bodySmall,
                     checked = algorithmFeatures and 1 != 0,
                     onCheckedChange = ::setCalibration,
-                    icon = Icons.Default.Science,
+                    icon = Symbols.ScienceFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = if (showsUncertainty) CardPosition.TOP else CardPosition.SINGLE,
                     // Its bottom edge has to travel from a lone card to the head
@@ -1654,7 +1648,7 @@ fun SensorCard(
                                 // rebuild.
                                 GlucoseUncertaintyDisplay.setRibbonEnabled(context, enabled)
                             },
-                            icon = Icons.Default.Insights,
+                            icon = Symbols.InsightsFilled,
                             iconTint = MaterialTheme.colorScheme.tertiary,
                             position = CardPosition.BOTTOM,
                         )
@@ -1804,7 +1798,7 @@ fun SensorCard(
                 SettingsItem(
                     title = stringResource(R.string.mq_account_title),
                     subtitle = accountSubtitle,
-                    icon = Icons.Default.Cloud,
+                    icon = Symbols.CloudFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.SINGLE,
                     onClick = {
@@ -2209,7 +2203,7 @@ fun SensorCard(
                                     ),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.PhoneAndroid,
+                                        imageVector = Symbols.PhoneAndroidFilled,
                                         contentDescription = stringResource(R.string.return_sensor_to_phone),
                                         modifier = Modifier.size(24.dp),
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2245,7 +2239,7 @@ fun SensorCard(
                                     ),
                                 ) {
                                     Icon(
-                                        imageVector = if (sensor.isCloneSource) Icons.Default.Bluetooth else Icons.Default.SwapHoriz,
+                                        imageVector = if (sensor.isCloneSource) Symbols.BluetoothFilled else Symbols.SwapHorizFilled,
                                         contentDescription = label,
                                         modifier = Modifier.size(24.dp),
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2279,7 +2273,7 @@ fun SensorCard(
                                     ),
                                 ) {
                                     Icon(
-                                        imageVector = if (isLocallyEnabled) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        imageVector = if (isLocallyEnabled) Symbols.PauseFilled else Symbols.PlayArrowFilled,
                                         contentDescription = stringResource(
                                             if (isLocallyEnabled) R.string.sensor_pause_streaming
                                             else R.string.sensor_resume_streaming
@@ -2444,7 +2438,7 @@ fun SensorCard(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Info,
+                            imageVector = Symbols.Info,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp),
@@ -2459,7 +2453,7 @@ fun SensorCard(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Icon(
-                            imageVector = Icons.Default.ExpandMore,
+                            imageVector = Symbols.ExpandMoreFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp),
@@ -2573,28 +2567,6 @@ fun SensorCard(
                                 sensor.sensorErrorCode.toString(),
                             )
                         }
-                        // A mirrored sensor may never have resolved an address on this phone;
-                        // a row saying "Unknown" is a row saying nothing.
-                        if (!(sensor.isCloneSource && sensor.deviceAddress.equals("Unknown", ignoreCase = true))) {
-                            DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
-                        }
-                        if (sensor.dexcomPairingCode.isNotEmpty()) {
-                            DataRow(stringResource(R.string.dexcom_pairing_code), sensor.dexcomPairingCode)
-                        }
-                    
-                        // FIX: Use Long timestamp directly to avoid String Parsing Locale bugs in formatSensorTime
-                        // User reported "100% Fill / Red Color" bug in English Locale, likely due to startMs being 0 or parse fail.
-                        // We also ensure we only show valid dates.
-                        if (sensor.startMs > 1577836800000L) { // > Jan 1 2020
-                            DataRow(stringResource(R.string.sensor_started), formatSensorTime(sensor.startMs.toString()))
-                        }
-
-                        if (sensor.officialEndMs > 0) {
-                            DataRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEndMs.toString()))
-                        } else if (sensor.officialEnd.isNotEmpty()) {
-                            DataRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEnd))
-                        }
-
                         // The tiles above the block say when the sensor started and ends, how long is
                         // left and which day of wear this is. A row is kept only for an end date the
                         // tiles do not show; with no usable start there are no tiles, and the sensor's
@@ -2733,7 +2705,7 @@ fun SensorCard(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            imageVector = Icons.Default.History,
+                            imageVector = Symbols.HistoryFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp),
@@ -2745,7 +2717,7 @@ fun SensorCard(
                             modifier = Modifier.weight(1f),
                         )
                         Icon(
-                            imageVector = Icons.Default.ExpandMore,
+                            imageVector = Symbols.ExpandMoreFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
@@ -2852,7 +2824,7 @@ fun SensorCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Tune,
+                                imageVector = Symbols.TuneFilled,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -2870,7 +2842,7 @@ fun SensorCard(
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Icon(
-                                imageVector = Icons.Default.KeyboardArrowRight,
+                                imageVector = Symbols.KeyboardArrowRightFilled,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -2905,7 +2877,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Bloodtype,
+                        imageVector = Symbols.BloodtypeFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3020,7 +2992,7 @@ fun SensorCard(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Icon(
-                                        imageVector = if (calExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        imageVector = if (calExpanded) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
@@ -3063,7 +3035,7 @@ fun SensorCard(
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
-                            imageVector = Icons.Default.RestartAlt,
+                            imageVector = Symbols.RestartAltFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -3114,7 +3086,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.SettingsBackupRestore,
+                        imageVector = Symbols.SettingsBackupRestoreFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3183,7 +3155,7 @@ fun SensorCard(
                                                 shapes = IconButtonDefaults.shapes(),
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Default.Remove,
+                                                    imageVector = Symbols.RemoveFilled,
                                                     contentDescription = stringResource(R.string.outbound_api_decrease_value),
                                                     modifier = Modifier.size(18.dp),
                                                 )
@@ -3213,7 +3185,7 @@ fun SensorCard(
                                                 shapes = IconButtonDefaults.shapes(),
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Default.Add,
+                                                    imageVector = Symbols.AddFilled,
                                                     contentDescription = stringResource(R.string.outbound_api_increase_value),
                                                     modifier = Modifier.size(18.dp),
                                                 )
@@ -3245,7 +3217,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.SettingsBackupRestore,
+                        imageVector = Symbols.SettingsBackupRestoreFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3265,7 +3237,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Edit,
+                        imageVector = Symbols.EditFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3291,7 +3263,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Bloodtype,
+                        imageVector = Symbols.BloodtypeFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3327,7 +3299,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Bloodtype,
+                        imageVector = Symbols.BloodtypeFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3465,7 +3437,7 @@ fun SensorCard(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Icon(
-                                        imageVector = if (calExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        imageVector = if (calExpanded) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
@@ -3490,7 +3462,7 @@ fun SensorCard(
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
+                            imageVector = Symbols.DeleteFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -3527,7 +3499,7 @@ fun SensorCard(
                         shapes = ButtonDefaults.shapes(),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.RestartAlt,
+                            imageVector = Symbols.RestartAltFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
@@ -3552,7 +3524,7 @@ fun SensorCard(
                         shapes = ButtonDefaults.shapes(),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.History,
+                            imageVector = Symbols.HistoryFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
@@ -3577,7 +3549,7 @@ fun SensorCard(
                         shapes = ButtonDefaults.shapes(),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Key,
+                            imageVector = Symbols.KeyFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
@@ -3609,7 +3581,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.SettingsBackupRestore,
+                        imageVector = Symbols.SettingsBackupRestoreFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3636,7 +3608,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Bluetooth,
+                        imageVector = Symbols.BluetoothFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3676,7 +3648,7 @@ fun SensorCard(
                             )
                         ) {
                             Icon(
-                                imageVector = Icons.Default.BluetoothConnected,
+                                imageVector = Symbols.BluetoothConnectedFilled,
                                 contentDescription = reconnectLabel,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -3694,7 +3666,7 @@ fun SensorCard(
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.DeleteForever,
+                            imageVector = Symbols.DeleteForeverFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -3756,7 +3728,7 @@ private fun AiDexPairSplitButton(
                 ),
             ) {
                 Icon(
-                    imageVector = if (paired) Icons.Default.LinkOff else Icons.Default.Link,
+                    imageVector = if (paired) Symbols.LinkOffFilled else Symbols.LinkFilled,
                     contentDescription = null,
                     modifier = Modifier.size(SplitButtonDefaults.leadingButtonIconSizeFor(height)),
                 )
@@ -3774,7 +3746,7 @@ private fun AiDexPairSplitButton(
                 elevation = ButtonDefaults.filledTonalButtonElevation(),
             ) {
                 Icon(
-                    imageVector = if (keyHeld) Icons.Default.Key else Icons.Default.KeyOff,
+                    imageVector = if (keyHeld) Symbols.KeyFilled else Symbols.KeyOffFilled,
                     contentDescription = stringResource(
                         if (keyHeld) R.string.aidex_pairing_key_backup else R.string.aidex_restore_pairing_key
                     ),

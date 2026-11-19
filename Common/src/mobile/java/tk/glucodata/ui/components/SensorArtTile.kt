@@ -21,9 +21,6 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.animation.core.spring
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Bluetooth
-import androidx.compose.material.icons.rounded.Nfc
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import kotlinx.coroutines.flow.drop
@@ -89,6 +86,7 @@ import tk.glucodata.ui.rememberNavigationTick
 import tk.glucodata.ui.isAppInDarkTheme
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 import tk.glucodata.ui.util.ExpressiveMotion
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * The launch tile: a sensor on the same soft square every row uses, so the sensors' own outlines
@@ -432,8 +430,8 @@ internal fun SensorHeroArt(
     val screenAccent = scheme.primary
     val phoneRim = scheme.outline
     val blobColor = sensorBackdropColor()
-    val nfcMark = rememberVectorPainter(Icons.Rounded.Nfc)
-    val bluetoothMark = rememberVectorPainter(Icons.Rounded.Bluetooth)
+    val nfcMark = rememberVectorPainter(Symbols.NfcFilled)
+    val bluetoothMark = rememberVectorPainter(Symbols.BluetoothFilled)
     val tick = rememberNavigationTick()
     val interactionSource = remember { MutableInteractionSource() }
     var plays by remember { mutableIntStateOf(0) }

@@ -40,13 +40,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.UnfoldMore
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -96,6 +89,7 @@ import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 import java.text.NumberFormat
 import java.util.Locale
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * One metric, formatted for display. The same spec drives the statistics grid and the
@@ -134,7 +128,9 @@ internal fun ScoreTile(
     // Keep the line even when this tile has nothing for it, so a tile that does have
     // one does not end up taller than its neighbour.
     reserveStatus: Boolean = false,
-    reserveMeta: Boolean = false
+    reserveMeta: Boolean = false,
+    // Set by the row, so both tiles step their value down together.
+    valueStyleOverride: TextStyle? = null
 ) {
     val expandable = !infoText.isNullOrBlank()
     val hasStatus = status.isNotBlank() || reserveStatus
@@ -144,7 +140,7 @@ internal fun ScoreTile(
         .compositeOver(MaterialTheme.colorScheme.surfaceContainerHigh)
     val titleStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 22.sp)
     val statusStyle = MaterialTheme.typography.titleSmall.copy(lineHeight = 20.sp)
-    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
+    val valueStyle = valueStyleOverride ?: scoreTileValueStyle()
     Box(
         modifier = modifier
             .animateContentSize()
@@ -390,7 +386,7 @@ private fun TileTitle(
         )
         if (expandable) {
             Icon(
-                imageVector = Icons.Default.Info,
+                imageVector = Symbols.InfoFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.74f),
                 modifier = Modifier.size(14.dp)
@@ -398,6 +394,16 @@ private fun TileTitle(
         }
     }
 }
+
+/** A tile's number at full size. */
+@Composable
+internal fun scoreTileValueStyle(): TextStyle =
+    MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
+
+/** One step down, for a number that only just misses its label's line. */
+@Composable
+private fun scoreTileCompactValueStyle(): TextStyle =
+    MaterialTheme.typography.headlineSmallEmphasized.copy(fontFeatureSettings = "tnum")
 
 /** True when the label and the value cannot share a line. */
 private fun titleOverflows(
@@ -434,12 +440,12 @@ internal fun rememberScoreTileTitleNeedsOwnRow(
     contentWidth: Dp,
     title: String,
     value: String,
-    expandable: Boolean
+    expandable: Boolean,
+    valueStyle: TextStyle = scoreTileValueStyle()
 ): Boolean {
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val titleStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 22.sp)
-    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
     return remember(contentWidth, title, value, expandable, density, textMeasurer, titleStyle, valueStyle) {
         titleOverflows(
             title = title,
@@ -462,13 +468,13 @@ internal fun rememberScoreTileTitleNeedsOwnRow(
 internal fun rememberScoreTileNeedsOwnRow(
     contentWidth: Dp,
     value: String,
-    status: String
+    status: String,
+    valueStyle: TextStyle = scoreTileValueStyle()
 ): Boolean {
     if (status.isBlank()) return false
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val statusStyle = MaterialTheme.typography.titleSmall.copy(lineHeight = 20.sp)
-    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
     return remember(contentWidth, value, status, density, textMeasurer, statusStyle, valueStyle) {
         val widthPx = with(density) { maxOf(contentWidth, 0.dp).roundToPx() }
         val titleGapPx = with(density) { 12.dp.roundToPx() }
@@ -918,17 +924,27 @@ private fun MetricRow(
         } else {
             ((maxWidth - spacing) / 2f) - ScoreTileHorizontalPadding * 2
         }
+        // A number that only just misses its label's line steps down one size first, both
+        // tiles of the row together; only when even that fails does it take a line of its
+        // own. Dropping it for a few pixels left an empty corner beside the label.
+        val fullStyle = scoreTileValueStyle()
+        val compactStyle = scoreTileCompactValueStyle()
+        val fullOverflow = rememberScoreTileTitleNeedsOwnRow(
+            tileContentWidth, leftSpec.title, leftSpec.value, leftSpec.infoText != null, fullStyle
+        ) or (rightSpec != null && rememberScoreTileTitleNeedsOwnRow(
+            tileContentWidth, rightSpec.title, rightSpec.value, rightSpec.infoText != null, fullStyle
+        ))
+        val compactOverflow = rememberScoreTileTitleNeedsOwnRow(
+            tileContentWidth, leftSpec.title, leftSpec.value, leftSpec.infoText != null, compactStyle
+        ) or (rightSpec != null && rememberScoreTileTitleNeedsOwnRow(
+            tileContentWidth, rightSpec.title, rightSpec.value, rightSpec.infoText != null, compactStyle
+        ))
+        val valueStyle = if (fullOverflow && !compactOverflow) compactStyle else fullStyle
+        val useOwnTitleRow = fullOverflow && compactOverflow
         val useOwnStatusRow =
-            rememberScoreTileNeedsOwnRow(tileContentWidth, leftSpec.value, leftSpec.status) ||
+            rememberScoreTileNeedsOwnRow(tileContentWidth, leftSpec.value, leftSpec.status, valueStyle) or
                 (rightSpec != null &&
-                    rememberScoreTileNeedsOwnRow(tileContentWidth, rightSpec.value, rightSpec.status))
-        val useOwnTitleRow = rememberScoreTileTitleNeedsOwnRow(
-            tileContentWidth, leftSpec.title, leftSpec.value, leftSpec.infoText != null
-        ) || (
-            rightSpec != null && rememberScoreTileTitleNeedsOwnRow(
-                tileContentWidth, rightSpec.title, rightSpec.value, rightSpec.infoText != null
-            )
-        )
+                    rememberScoreTileNeedsOwnRow(tileContentWidth, rightSpec.value, rightSpec.status, valueStyle))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(spacing)
@@ -946,6 +962,7 @@ private fun MetricRow(
                 forceTitleOwnRow = useOwnTitleRow,
                 reserveStatus = reserveStatus,
                 reserveMeta = reserveMeta,
+                valueStyleOverride = valueStyle,
                 modifier = Modifier
                     .weight(1f)
                     .metricDrag(leftSpec.metric, dragState)
@@ -964,6 +981,7 @@ private fun MetricRow(
                     forceTitleOwnRow = useOwnTitleRow,
                     reserveStatus = reserveStatus,
                     reserveMeta = reserveMeta,
+                    valueStyleOverride = valueStyle,
                     modifier = Modifier
                         .weight(1f)
                         .metricDrag(rightSpec.metric, dragState)
@@ -1531,7 +1549,7 @@ private fun PinnedMetricPickerSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = Symbols.CloseFilled,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(16.dp)
@@ -1558,7 +1576,7 @@ private fun PinnedMetricPickerSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Symbols.AddFilled,
                                 contentDescription = stringResource(R.string.stats_pinned_add),
                                 tint = if (canAdd) {
                                     MaterialTheme.colorScheme.onPrimaryContainer
@@ -1658,7 +1676,7 @@ private fun MetricSheetRow(
                 shapes = IconButtonDefaults.shapes()
             ) {
                 Icon(
-                    imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                    imageVector = if (pinned) Symbols.PushPinFilled else Symbols.PushPin,
                     contentDescription = stringResource(R.string.stats_arrange_pin),
                     tint = when {
                         pinned -> MaterialTheme.colorScheme.primary
@@ -1726,7 +1744,7 @@ private fun PinnedWindowPill(
             )
         }
         Icon(
-            imageVector = Icons.Default.UnfoldMore,
+            imageVector = Symbols.UnfoldMoreFilled,
             contentDescription = stringResource(R.string.stats_window_label),
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
             modifier = Modifier.size(14.dp * contentScale)

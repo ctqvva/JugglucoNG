@@ -295,7 +295,7 @@
  <string name="settings">Ayarlar</string>
  <string name="aboutname">Hakkında</string>
  <string name="export">Dışa Aktar</string>
- <string name="mirror">Klon</string>
+ <string name="mirror">Ayna</string>
  <string name="new_amount">Yeni Miktar</string>
  <string name="list">Liste</string>
  <string name="statistics">İstatistikler</string>
@@ -520,7 +520,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="import_no_glucose">Bu dosyada glikoz verisi yok</string>
     <string name="import_unsupported_file">Desteklenmeyen dosya. Bir JugglucoNG dışa aktarımı veya glikoz geçmişi CSV dosyası seçin.</string>
     <string name="delete_reading_title">Okuma silinsin mi?</string>
-    <string name="delete_reading_confirmation">Bu glikoz okumasını yerel geçmişten kaldır. Bu işlem geri alınamaz.</string>
+    <string name="delete_reading_confirmation">Bu glikoz okumasını yerel geçmişten kaldır.</string>
     <string name="alert_sound">Uyarı Sesi</string>
     <string name="vibrate_only">Sadece Titreşim</string>
     <string name="sound_vibrate">Ses ve Titreşim</string>
@@ -889,19 +889,24 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="median">Medyan</string>
     <string name="meterlist">Glukometreler</string>
     <string name="glucose_meters_desc">Bluetooth glikoz ölçerleri bağlayın</string>
-    <string name="glucose_meters_journal_desc">Ölçümler günlükte kan şekeri kaydı olarak saklanır ve Nightscout\'a gönderilebilir.</string>
+    <string name="glucose_meters_journal_desc">Ölçümler günlükte kan şekeri kaydı olarak saklanır ve Nightscout\'a gönderilebilir</string>
     <string name="satellite_meter_title">Satellite (Сателлит+) ölçüm cihazı</string>
     <string name="satellite_meter_code_label">PIN veya etiket kodu</string>
     <string name="satellite_meter_code_desc">3 haneli PIN’i veya cihazdaki QR/DataMatrix etiketinin altında yazan uzun kodu girin. Her Bluetooth bağlantısında kullanılır.</string>
     <string name="glucose_meters_configured">Yapılandırılmış ölçerler</string>
-    <string name="glucose_meters_none">Yapılandırılmış ölçer yok</string>
-    <string name="glucose_meters_none_desc">Ölçümleri içe aktarmak için yakındaki bir ölçeri bulun.</string>
     <string name="glucose_meters_nearby">Yakındaki ölçerler</string>
     <string name="glucose_meter_recheck">Cihazı tekrar kontrol etme aralığı</string>
     <string name="glucose_meter_recheck_now">Hemen</string>
-    <string name="glucose_meter_recheck_hint">Satellite gibi açık kalan ölçüm cihazları için. Yeni bir ölçüm bu kadar geç gelebilir</string>
-    <string name="glucose_meter_last_reading">Son ölçüm: %1$s</string>
-    <string name="glucose_meter_no_readings">Henüz ölçüm içe aktarılmadı</string>
+    <string name="glucose_meter_recheck_hint">Satellite hiç kapanmaz. Daha uzun bekleme pil tasarrufu sağlar</string>
+    <string name="glucose_meter_name">Ad</string>
+    <string name="glucose_meter_name_hint">Burada ve yeni günlük kayıtlarında gösterilir</string>
+    <string name="glucose_meters_find">Ölçer ara</string>
+    <string name="glucose_meters_none_found">Ölçer bulunamadı. Ölçeri açıp yeniden arayın</string>
+    <string name="glucose_meters_other">Diğer Bluetooth cihazları</string>
+    <string name="glucose_meters_other_desc">Ölçer yukarıdaki listede yoksa</string>
+    <string name="glucose_meter_last_reading">Son ölçüm</string>
+    <string name="glucose_meter_no_readings">Henüz yok</string>
+    <string name="glucose_meter_device_name">Bluetooth adı</string>
     <string name="satellite_meter_code_missing">Satellite ölçer: önce ölçer kodunu glikoz ölçer ayarlarında girin</string>
     <string name="glucose_meter_forget">Unut</string>
     <string name="glucose_meter_forget_title">Ölçeri unut</string>
@@ -1224,6 +1229,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="anytime_calibration_noisy_status">Kalibrasyon kullanılamıyor; sinyal gürültüsü çok yüksek</string>
     <string name="calibrate_sensor_title">Sensörü Kalibre Et</string>
     <string name="calibration_deleted">Kalibrasyon silindi</string>
+    <string name="reading_deleted">Okuma silindi</string>
     <string name="calibration_profile_exported">Kalibrasyon profili dışa aktarıldı</string>
     <string name="calibrationhelp">Kalibrasyon Yardımı</string>
     <string name="calibrationslist">Kalibrasyon listesi</string>
@@ -1932,10 +1938,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">Uzak bağlantılar için TURN relay</string>
     <string name="mirror_connections">Bağlantılar</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Yerel klon</string>
     <string name="mirror_default_hybrid_label">Hibrit klon</string>
-    <string name="mirror_clone_master_desc">Kayıtlı tüm Clone bağlantılarını etkinleştir</string>
     <string name="clone_history_recovery">Geçmişi kurtar</string>
     <string name="clone_history_direction_send">Gönder</string>
     <string name="clone_history_direction_pull">Kurtar</string>
@@ -2163,6 +2167,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Oturum açık</string>
     <string name="ottai_session_invalid">Bulut oturumunuz artık geçerli değil – yeniden oturum açın</string>
+    <string name="ottai_global_sign_in_again">Bir sensör kurmak veya ürün yazılımını kontrol etmek için Ottai Global hesabınıza yeniden giriş yapın. Kayıtlı sensörleriniz ve geçmişiniz korunur.</string>
+    <string name="ottai_ota_check_failed">Ürün yazılımı kontrolü başarısız oldu.</string>
+    <string name="ottai_ota_disconnect_first">Ürün yazılımını kontrol etmek için sensörün bağlantısını kesin.</string>
     <string name="ottai_sensor_mac_hint">Cihaz kimliği, seri numarası veya QR</string>
     <string name="ottai_connect_saved">Bağlan</string>
     <string name="ottai_login_fail">Oturum açılamadı - telefonu/kodu kontrol edin</string>
@@ -2510,7 +2517,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_server_unreachable">Ottai sunucusuna ulaşılamadı. Tekrar deneyin.</string>
     <string name="ottai_connect_failed">Bağlantı başlatılamadı. Tekrar deneyin.</string>
     <string name="ottai_already_binding_hint">Hesabınıza hâlâ başka bir sensör bağlı. Kayıtlı sensörler altında bağını kaldırın, sonra tekrar deneyin.</string>
-    <string name="ottai_ota_upgrade_required">Ottai hizmeti bu sensörü bağlarken bellenim güncellemesi istedi. Bellenim kurulumunu yeniden deneyin veya kayıtlı kimlik bilgilerini içe aktarın. Resmî Ottai uygulamasını da deneyebilirsiniz.</string>
+    <string name="ottai_ota_upgrade_required">Ottai ürün yazılımı güncellemesi istedi.</string>
     <string name="ottai_retry">Yeniden dene</string>
     <string name="ottai_setup_failed">Kurulum durdu. Yeniden deneyin veya kapatıp kayıtlı kimlik bilgilerini içe aktarın.</string>
     <string name="ottai_region_cn_full">Ottai Çin</string>
@@ -2917,8 +2924,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mirror_connection_setup">Bağlantı kurulumu</string>
     <string name="turn_help_how_body">Rendezvous sunucusu yalnızca iki cihazı tanıştırır: her biri olası adreslerini oraya bırakır ve diğerininkileri alır. Glikoz verisi oradan hiç geçmez. Doğrudan bir yol tercih edilir; TURN trafiği yalnızca doğrudan bir yol çalışmadığında aktarır ve aktardığı şey şifreli kalır.\n\nHer iki anahtar da kapalıyken uygulamanın kendi rendezvous ve aktarma sunucusu kullanılır. Birini açarsanız yalnızca o kısım sizin olur; ikisini de açarsanız sunucularınızdan yalnızca genel adres sorgusu çıkar, «STUN için TURN» onu da aktarma sunucunuza göndermiyorsa.\n\nAynı ağda «Eşleşmiş cihazları yakında bul» ikisini doğrudan bağlar ve rendezvous adımını atlar.</string>
     <string name="turn_credentials_too_long">Kullanıcı adı veya parola bu TURN yapılandırması için çok uzun.</string>
-    <string name="clone_sync_title">Senkronizasyon</string>
     <string name="clone_network_title">Clone ağı</string>
+    <string name="clone_network_settings">Clone ağı ayarları</string>
+    <string name="clone_add_custom_connection">Özel bağlantı ekle</string>
     <string name="clone_servers">Sunucular</string>
     <string name="clone_server_default">Uygulama sunucusu</string>
     <string name="clone_connection_options">Bağlantı</string>
@@ -2940,13 +2948,17 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_pairing_waiting">Diğer telefon bekleniyor…</string>
     <string name="clone_pairing_announced">Bu Wi-Fi ağında %1$s olarak da görünür</string>
     <string name="clone_pairing_connected">Bağlandı</string>
-    <string name="clone_add_manually_desc">Adresi ve seçenekleri kendiniz girin</string>
     <string name="clone_send_readings">Değerleri gönder</string>
     <string name="clone_on_this_wifi">Bu Wi-Fi ağında</string>
     <string name="clone_nearby_empty">Bu Wi-Fi ağında değer gönderen telefonlar burada görünür</string>
     <string name="clone_sharing_readings">Değer gönderiyor</string>
     <string name="clone_network_summary">Sunucular ve yerel keşif</string>
     <string name="clone_background_desc">Pil tüketimini artırır</string>
+    <string name="clone_other_phone">Diğer telefon</string>
+    <string name="clone_this_phone">Bu telefon</string>
+    <string name="clone_connected_since">Bağlantı zamanı</string>
+    <string name="clone_phase">Aşama</string>
+    <string name="clone_ice_state">ICE durumu</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d kayıt</item>
@@ -3157,7 +3169,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_ota_installing">Ürün yazılımı yükleniyor…</string>
     <string name="ottai_ota_reconnecting">Yeniden bağlanılıyor ve yüklü sürüm denetleniyor…</string>
     <string name="ottai_ota_preparing">Kimlik bilgileri yenileniyor ve fabrika parametreleri yazılıyor…</string>
-    <string name="ottai_ota_complete">Hazırlık tamamlandı. Bu pencereyi kapatıp sensörü etkinleştirmek için normal şekilde bağlanın.</string>
+    <string name="ottai_ota_complete">Fabrika hazırlığı tamamlandı</string>
     <string name="ottai_ota_failed">Kurulum durdu. Yeniden deneyin veya izleme günlüğüne bakın. Tamamlanmamış kurulum etkinleştirmeyi engeller.</string>
     <string name="ottai_ota_version">Sensör: %1$s · Güncelleme: %2$s</string>
     <string name="ottai_ota_package">%1$d bayt · SHA-256: %2$s</string>
@@ -3186,7 +3198,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
 
     <string name="ottai_ota_discard">Tamamlanmamış kurulumu sil</string>
     <string name="ottai_ota_discard_confirm">Bağlantıyı açmak için kayıtlı güncelleme ve hazırlık durumu silinsin mi? Bu işlem bellenimi veya ayarları geri yüklemez. Yarıda kesilen güncelleme hâlâ kurtarma gerektirebilir.</string>
-    <string name="ottai_ota_pending">Sensör kurulumu tamamlanmadı. Tamamlamak veya silmek için yeniden bağlanın ya da kurtarmayı açın.</string>
+    <string name="ottai_ota_pending">Sensör kurulumu tamamlanmadı</string>
     <string name="ottai_ota_finish_preparation">Firmware doğrulandı. Kurulumu bitirmek için fabrika parametrelerini onaylayın.</string>
     <string name="ottai_ota_discard_failed">Firmware testi iptal edilemedi. Tekrar deneyin.</string>
     <string name="prediction_analysis_section">Tahmin analizi</string>

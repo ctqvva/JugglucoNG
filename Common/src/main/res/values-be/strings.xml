@@ -293,7 +293,7 @@
 <string name="settings">Налады</string>
 <string name="aboutname">Аб Juggluco</string>
 <string name="export">Экспарт</string>
-<string name="mirror">Клон</string>
+<string name="mirror">Люстэрка</string>
 <string name="new_amount">Новая сума</string>
 <string name="list">Спіс</string>
 <string name="statistics">Статыстыка</string>
@@ -411,7 +411,7 @@
     <string name="import_no_glucose">У гэтым файле няма даных глюкозы</string>
     <string name="import_unsupported_file">Файл не падтрымліваецца. Выберыце экспарт JugglucoNG або CSV-файл гісторыі глюкозы.</string>
     <string name="delete_reading_title">Выдаліць паказанне?</string>
-    <string name="delete_reading_confirmation">Выдаліць гэта паказанне глюкозы з лакальнай гісторыі. Гэта дзеянне незваротнае.</string>
+    <string name="delete_reading_confirmation">Выдаліць гэта паказанне глюкозы з лакальнай гісторыі.</string>
     <string name="alert_sound">Гук Трывогі</string>
     <string name="vibrate_only">Толькі Вібрацыя</string>
     <string name="sound_vibrate">Гук і Вібрацыя</string>
@@ -849,19 +849,24 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="median">Медыяна</string>
     <string name="meterlist">Глюкометры</string>
     <string name="glucose_meters_desc">Падключэнне Bluetooth-глюкометраў</string>
-    <string name="glucose_meters_journal_desc">Вынікі захоўваюцца як запісы глюкозы крыві ў дзённіку і могуць адпраўляцца ў Nightscout.</string>
+    <string name="glucose_meters_journal_desc">Вынікі захоўваюцца як запісы глюкозы крыві ў дзённіку і могуць адпраўляцца ў Nightscout</string>
     <string name="satellite_meter_title">Глюкометр «Сателлит+»</string>
     <string name="satellite_meter_code_label">PIN або код з этыкеткі</string>
     <string name="satellite_meter_code_desc">Увядзіце 3-значны PIN або даўжэйшы код, надрукаваны пад QR/DataMatrix на глюкометры. Ён выкарыстоўваецца пры кожным Bluetooth-падключэнні.</string>
     <string name="glucose_meters_configured">Наладжаныя глюкометры</string>
-    <string name="glucose_meters_none">Глюкометры не наладжаны</string>
-    <string name="glucose_meters_none_desc">Знайдзіце глюкометр паблізу, каб пачаць імпарт вынікаў.</string>
     <string name="glucose_meters_nearby">Глюкометры паблізу</string>
     <string name="glucose_meter_recheck">Паўторная праверка глюкометра праз</string>
     <string name="glucose_meter_recheck_now">Адразу</string>
-    <string name="glucose_meter_recheck_hint">Для глюкометраў, якія заўсёды ўключаны, як Satellite. Новае вымярэнне можа прыйсці з такой затрымкай</string>
-    <string name="glucose_meter_last_reading">Апошні вынік: %1$s</string>
-    <string name="glucose_meter_no_readings">Вынікі яшчэ не імпартаваны</string>
+    <string name="glucose_meter_recheck_hint">Satellite не выключаецца. Чым даўжэйшая паўза, тым меншы расход батарэі</string>
+    <string name="glucose_meter_name">Назва</string>
+    <string name="glucose_meter_name_hint">Паказваецца тут і ў новых запісах дзённіка</string>
+    <string name="glucose_meters_find">Знайсці глюкометры</string>
+    <string name="glucose_meters_none_found">Глюкометр не знойдзены. Уключыце яго і паўтарыце пошук</string>
+    <string name="glucose_meters_other">Іншыя прылады Bluetooth</string>
+    <string name="glucose_meters_other_desc">Калі глюкометра няма ў спісе вышэй</string>
+    <string name="glucose_meter_last_reading">Апошні вынік</string>
+    <string name="glucose_meter_no_readings">Пакуль няма</string>
+    <string name="glucose_meter_device_name">Назва Bluetooth</string>
     <string name="satellite_meter_code_missing">Глюкометр Satellite: спачатку задайце код глюкометра ў наладах глюкометраў</string>
     <string name="glucose_meter_forget">Забыць</string>
     <string name="glucose_meter_forget_title">Забыць глюкометр</string>
@@ -1195,6 +1200,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_noisy_status">Каліброўка недаступная: занадта высокі шум сігналу</string>
     <string name="calibrate_sensor_title">Адкалібраваць датчык</string>
     <string name="calibration_deleted">Каліброўка выдалена</string>
+    <string name="reading_deleted">Паказанне выдалена</string>
     <string name="calibration_profile_exported">Профіль каліброўкі экспартаваны</string>
     <string name="calibrationhelp">Даведка па каліброўцы</string>
     <string name="calibrationslist">Калібравальны спіс</string>
@@ -1975,10 +1981,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Рэтранслятар</string>
     <string name="mirror_turn_server_desc">TURN-рэтранслятар для аддаленых падключэнняў</string>
     <string name="mirror_connections">Падключэнні</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Лакальны клон</string>
     <string name="mirror_default_hybrid_label">Гібрыдны клон</string>
-    <string name="mirror_clone_master_desc">Уключыць усе захаваныя падключэнні Clone</string>
     <string name="clone_history_recovery">Аднаўленне гісторыі</string>
     <string name="clone_history_direction_send">Адправіць</string>
     <string name="clone_history_direction_pull">Аднавіць</string>
@@ -2200,6 +2204,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Уваход выкананы</string>
     <string name="ottai_session_invalid">Ваша воблачная сесія больш не дзейнічае – увайдзіце зноў</string>
+    <string name="ottai_global_sign_in_again">Увайдзіце ў Ottai Global паўторна, каб наладзіць датчык або праверыць яго прашыўку. Захаваныя датчыкі і гісторыя застануцца на тэлефоне.</string>
+    <string name="ottai_ota_check_failed">Не ўдалося праверыць прашыўку.</string>
+    <string name="ottai_ota_disconnect_first">Адключыце датчык, каб праверыць прашыўку.</string>
     <string name="ottai_sensor_mac_hint">ID прылады, серыйны нумар або QR</string>
     <string name="ottai_connect_saved">Падключыць</string>
     <string name="ottai_login_fail">Уваход не ўдаўся - праверце тэлефон/код</string>
@@ -2546,7 +2553,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_server_unreachable">Не ўдалося звязацца з серверам Ottai. Паспрабуйце яшчэ раз.</string>
     <string name="ottai_connect_failed">Не ўдалося пачаць падключэнне. Паспрабуйце зноў.</string>
     <string name="ottai_already_binding_hint">Да ўліковага запісу ўсё яшчэ прывязаны іншы датчык. Адвяжыце яго ў раздзеле «Захаваныя датчыкі» і паспрабуйце зноў.</string>
-    <string name="ottai_ota_upgrade_required">Пры прывязцы датчыка сэрвіс Ottai запытаў абнаўленне прашыўкі. Паўтарыце наладку прашыўкі або імпартуйце захаваныя ключы. Таксама можна паспрабаваць афіцыйную праграму Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai запытаў абнаўленне прашыўкі.</string>
     <string name="ottai_retry">Паўтарыць</string>
     <string name="ottai_setup_failed">Наладка спынена. Паўтарыце спробу або зачыніце акно і імпартуйце захаваныя ключы.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
@@ -2961,8 +2968,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_setup">Наладжванне злучэння</string>
     <string name="turn_help_how_body">Сервер рандэву толькі знаёміць дзве прылады: кожная пакідае там свае магчымыя адрасы і забірае адрасы іншай. Даныя глюкозы праз яго не ідуць. Перавага аддаецца праму маршруту; TURN перадае трафік толькі калі прамы не працуе, і тое, што ён перадае, застаецца зашыфраваным.\n\nКалі абодва пераключальнікі выключаны, выкарыстоўваюцца рандэву і рэтранслятар праграмы. Уключыце адзін — сваім стане толькі ён; уключыце абодва — вашы серверы будзе пакідаць толькі запыт публічнага адраса, калі «TURN для STUN» не накіруе і яго на ваш рэтранслятар.\n\nУ адной сетцы «Шукаць звязаныя прылады побач» злучае іх напрамую, мінаючы рандэву.</string>
     <string name="turn_credentials_too_long">Імя карыстальніка або пароль занадта доўгія для гэтай канфігурацыі TURN.</string>
-    <string name="clone_sync_title">Сінхранізацыя</string>
     <string name="clone_network_title">Сетка Clone</string>
+    <string name="clone_network_settings">Налады сеткі Clone</string>
+    <string name="clone_add_custom_connection">Дадаць уласнае падключэнне</string>
     <string name="clone_servers">Серверы</string>
     <string name="clone_server_default">Сервер праграмы</string>
     <string name="clone_connection_options">Злучэнне</string>
@@ -2984,13 +2992,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_waiting">Чаканне іншага тэлефона…</string>
     <string name="clone_pairing_announced">Таксама бачны ў гэтай сетцы Wi-Fi як %1$s</string>
     <string name="clone_pairing_connected">Падключана</string>
-    <string name="clone_add_manually_desc">Увесці адрас і параметры ўручную</string>
     <string name="clone_send_readings">Адпраўляць паказанні</string>
     <string name="clone_on_this_wifi">У гэтай сетцы Wi-Fi</string>
     <string name="clone_nearby_empty">Тут з’явяцца тэлефоны, якія адпраўляюць паказанні ў гэтай сетцы Wi-Fi</string>
     <string name="clone_sharing_readings">Адпраўляе паказанні</string>
     <string name="clone_network_summary">Серверы і лакальны пошук</string>
     <string name="clone_background_desc">Павялічвае расход батарэі</string>
+    <string name="clone_other_phone">Іншы тэлефон</string>
+    <string name="clone_this_phone">Гэты тэлефон</string>
+    <string name="clone_connected_since">Падключана з</string>
+    <string name="clone_phase">Фаза</string>
+    <string name="clone_ice_state">Стан ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d запіс</item>
@@ -3205,7 +3217,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_installing">Усталяванне прашыўкі…</string>
     <string name="ottai_ota_reconnecting">Паўторнае падключэнне і праверка ўсталяванай версіі…</string>
     <string name="ottai_ota_preparing">Абнаўленне ўліковых даных і запіс заводскіх параметраў…</string>
-    <string name="ottai_ota_complete">Падрыхтоўка завершана. Закрыйце акно і падключыцеся звычайным спосабам для актывацыі сенсара.</string>
+    <string name="ottai_ota_complete">Завадская налада завершана</string>
     <string name="ottai_ota_failed">Наладка спынена. Паўтарыце спробу або праверце журнал трасіроўкі. Незавершаная наладка блакуе актывацыю.</string>
     <string name="ottai_ota_version">Сенсар: %1$s · Абнаўленне: %2$s</string>
     <string name="ottai_ota_package">%1$d байтаў · SHA-256: %2$s</string>
@@ -3234,7 +3246,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="ottai_ota_discard">Скасаваць незавершаную наладку</string>
     <string name="ottai_ota_discard_confirm">Выдаліць захаваны стан абнаўлення і падрыхтоўкі, каб дазволіць падключэнне? Гэта не адновіць прашыўку або параметры. Пасля перарванага абнаўлення можа спатрэбіцца аднаўленне.</string>
-    <string name="ottai_ota_pending">Наладка датчыка не завершана. Падключыцеся зноў або адкрыйце аднаўленне, каб завяршыць ці скасаваць яе.</string>
+    <string name="ottai_ota_pending">Налада датчыка не завершана</string>
     <string name="ottai_ota_finish_preparation">Прашыўка праверана. Пацвердзіце запіс заводскіх параметраў для завяршэння наладкі.</string>
     <string name="ottai_ota_discard_failed">Не ўдалося адмяніць тэст прашыўкі. Паўтарыце спробу.</string>
     <string name="prediction_analysis_section">Аналіз прагнозаў</string>

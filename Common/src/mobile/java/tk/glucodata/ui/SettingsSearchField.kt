@@ -4,9 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +26,7 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * The search field under the Settings title. It filters in place: the tab's groups give way
@@ -56,12 +54,12 @@ internal fun SettingsSearchField(
             onExpandedChange = {},
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text(stringResource(R.string.settings_search_hint)) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            leadingIcon = { Icon(Symbols.SearchFilled, contentDescription = null) },
             trailingIcon = if (query.isNotEmpty()) {
                 {
                     IconButtonTooltip(clearLabel) {
                         IconButton(onClick = { onQueryChange("") }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(Icons.Default.Close, contentDescription = clearLabel)
+                            Icon(Symbols.CloseFilled, contentDescription = clearLabel)
                         }
                     }
                 }

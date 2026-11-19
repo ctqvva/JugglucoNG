@@ -31,22 +31,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Doorbell
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Message
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.RecordVoiceOver
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.SpaceDashboard
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -105,6 +89,7 @@ import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.components.SliderHeader
 import tk.glucodata.ui.components.SliderHeaderGap
 import tk.glucodata.ui.util.findActivity
+import tk.glucodata.ui.symbols.Symbols
 
 private const val TALKER_SLIDER_MAX = 50000f
 private const val TALKER_SLIDER_CENTER = 25000.0
@@ -269,7 +254,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     searchAnchor = SettingsSearchAnchors.forRow(R.string.speakglucose),
                     checked = uiState.speakGlucose,
                     onCheckedChange = { persist(uiState.copy(speakGlucose = it)) },
-                    icon = Icons.Default.VolumeUp,
+                    icon = Symbols.VolumeUpFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP
                 )
@@ -281,7 +266,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                         chimeBeforeGlucose = it
                         Talker.setChimeBeforeGlucose(activity, it)
                     },
-                    icon = Icons.Default.Doorbell,
+                    icon = Symbols.DoorbellFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.MIDDLE,
                     enabled = uiState.speakGlucose,
@@ -291,7 +276,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 //                    title = stringResource(R.string.talk_touch),
 //                    checked = uiState.talkTouch,
 //                    onCheckedChange = { persist(uiState.copy(talkTouch = it)) },
-//                    icon = Icons.Default.TouchApp,
+//                    icon = Symbols.TouchAppFilled,
 //                    iconTint = MaterialTheme.colorScheme.secondary,
 //                    position = CardPosition.MIDDLE
 //                )
@@ -299,7 +284,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 //                    title = stringResource(R.string.speakmessages),
 //                    checked = uiState.speakMessages,
 //                    onCheckedChange = { persist(uiState.copy(speakMessages = it)) },
-//                    icon = Icons.Default.Message,
+//                    icon = Symbols.MessageFilled,
 //                    iconTint = MaterialTheme.colorScheme.tertiary,
 //                    position = CardPosition.MIDDLE
 //                )
@@ -308,7 +293,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     searchAnchor = SettingsSearchAnchors.forRow(R.string.speakalarms),
                     checked = uiState.speakAlarms,
                     onCheckedChange = { persist(uiState.copy(speakAlarms = it)) },
-                    icon = Icons.Default.NotificationsActive,
+                    icon = Symbols.NotificationsActiveFilled,
                     iconTint = MaterialTheme.colorScheme.error,
                     position = CardPosition.BOTTOM
                 )
@@ -318,7 +303,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 //                DropdownSettingsCard(
 //                    title = stringResource(R.string.profile).trim(),
 //                    value = profileLabel,
-//                    icon = Icons.Default.Tune,
+//                    icon = Symbols.TuneFilled,
 //                    iconTint = MaterialTheme.colorScheme.primary,
 //                    position = CardPosition.TOP,
 //                    expanded = profileMenuExpanded,
@@ -340,7 +325,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                 DropdownSettingsCard(
                     title = stringResource(R.string.talker),
                     value = selectedVoiceLabel,
-                    icon = Icons.Default.RecordVoiceOver,
+                    icon = Symbols.RecordVoiceOverFilled,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.TOP,
                     enabled = voiceNames.isNotEmpty(),
@@ -366,7 +351,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                                     },
                                     shapes = IconButtonDefaults.shapes()) {
                                         Icon(
-                                            if (isPreviewing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            if (isPreviewing) Symbols.PauseFilled else Symbols.PlayArrowFilled,
                                             contentDescription = if (isPreviewing) stringResource(R.string.stop) else stringResource(R.string.preview)
                                         )
                                     }
@@ -385,7 +370,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     searchAnchor = SettingsSearchAnchors.forRow(R.string.talker_media_sound),
                     checked = uiState.mediaSound,
                     onCheckedChange = { persist(uiState.copy(mediaSound = it, overrideSilent = false)) },
-                    icon = Icons.Default.MusicNote,
+                    icon = Symbols.MusicNoteFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.MIDDLE
                 )
@@ -394,7 +379,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     subtitle = stringResource(R.string.override_silent_mode_desc),
                     checked = uiState.overrideSilent,
                     onCheckedChange = { persist(uiState.copy(overrideSilent = it, mediaSound = false)) },
-                    icon = Icons.Default.NotificationsActive,
+                    icon = Symbols.NotificationsActiveFilled,
                     iconTint = MaterialTheme.colorScheme.error,
                     position = CardPosition.BOTTOM,
                     searchAnchor = SettingsSearchAnchors.VOICE_OVERRIDE_SILENT
@@ -405,7 +390,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                 NumericInputCard(
                     title = stringResource(R.string.secondsbetween),
                     value = separationText,
-                    icon = Icons.Default.Schedule,
+                    icon = Symbols.ScheduleFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP,
                     onValueChange = { input ->
@@ -427,7 +412,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     title = stringResource(R.string.speed),
                     valueLabel = formatTalkerRatio(uiState.speed),
                     sliderValue = talkerRatioToSliderProgress(uiState.speed),
-                    icon = Icons.Default.GraphicEq,
+                    icon = Symbols.GraphicEqFilled,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.MIDDLE,
                     onValueChange = { uiState = uiState.copy(speed = talkerSliderProgressToRatio(it)) },
@@ -438,7 +423,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     title = stringResource(R.string.pitch),
                     valueLabel = formatTalkerRatio(uiState.pitch),
                     sliderValue = talkerRatioToSliderProgress(uiState.pitch),
-                    icon = Icons.Default.Tune,
+                    icon = Symbols.TuneFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.BOTTOM,
                     onValueChange = { uiState = uiState.copy(pitch = talkerSliderProgressToRatio(it)) },
@@ -455,7 +440,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 //                    onClick = { tk.glucodata.help.help(R.string.talkhelp, activity) },
 //                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
 //                ) {
-//                    Icon(Icons.Default.HelpOutline, contentDescription = null)
+//                    Icon(Symbols.Help, contentDescription = null)
 //                    Spacer(Modifier.size(8.dp))
 //                    Text(stringResource(R.string.helpname))
 //                }
@@ -466,7 +451,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 //                    },
 //                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
 //                ) {
-//                    Icon(Icons.Default.Schedule, contentDescription = null)
+//                    Icon(Symbols.ScheduleFilled, contentDescription = null)
 //                    Spacer(Modifier.size(8.dp))
 //                    Text(stringResource(R.string.schedules))
 //                }
@@ -481,7 +466,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                         scheduleEnabled = it
                         SpeakSchedule.setEnabled(activity, it)
                     },
-                    icon = Icons.Default.Schedule,
+                    icon = Symbols.ScheduleFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = if (scheduleEnabled) CardPosition.TOP else CardPosition.SINGLE,
                     searchAnchor = SettingsSearchAnchors.VOICE_SCHEDULE
@@ -490,7 +475,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     SettingsItem(
                         title = stringResource(R.string.voice_schedule_from),
                         subtitle = SpeakSchedule.formatMinutes(scheduleStart),
-                        icon = Icons.Default.Schedule,
+                        icon = Symbols.ScheduleFilled,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.MIDDLE,
                         onClick = { showStartPicker = true }
@@ -498,7 +483,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     SettingsItem(
                         title = stringResource(R.string.voice_schedule_until),
                         subtitle = SpeakSchedule.formatMinutes(scheduleEnd),
-                        icon = Icons.Default.Schedule,
+                        icon = Symbols.ScheduleFilled,
                         iconTint = MaterialTheme.colorScheme.tertiary,
                         position = CardPosition.BOTTOM,
                         onClick = { showEndPicker = true }
@@ -517,7 +502,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                         showOnDashboard = it
                         VoiceReadings.setShowOnDashboard(activity, it)
                     },
-                    icon = Icons.Default.SpaceDashboard,
+                    icon = Symbols.SpaceDashboardFilled,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.TOP
                 )
@@ -530,7 +515,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                         showInNotification = it
                         VoiceReadings.setShowInNotification(activity, it)
                     },
-                    icon = Icons.Default.Notifications,
+                    icon = Symbols.NotificationsFilled,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.BOTTOM
                 )
@@ -545,7 +530,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 shapes = ButtonDefaults.shapes()
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Icon(Symbols.PlayArrowFilled, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text(stringResource(R.string.test))
             }
@@ -585,7 +570,7 @@ private fun TalkerSummaryCard(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            Icons.Default.RecordVoiceOver,
+                            Symbols.RecordVoiceOverFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.secondary
                         )

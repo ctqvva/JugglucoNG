@@ -298,9 +298,42 @@ static bool isRecentNightUploadCovered(const int sensorid,const uint32_t tim) {
     return recentNightUploads.covered(sensorid,tim);
     }
 
+//"Fewer readings" for sent readings: seconds between readings sent to Nightscout, 0 for every
+//reading. Every other exchange output is thinned in Java (ExchangeOutputPolicy); without this the
+//uploader posted every reading of a 1-minute sensor. Uploader thread only, refreshed once per pass.
+static int uploadIntervalSeconds=0;
+
+//Whether "Fewer readings" holds the reading at pos back. The rule ExchangeUpdateGate applies to the
+//other outputs: the first reading of each interval, counted on the reading's own time, is sent and
+//the rest of that interval is not. It depends on the stored readings only, so the live upload, a
+//history pass, a resend and a conflict retry all pick the same readings.
+//Read-only: never calls ScanData::valid(), which patches a zero timestamp.
+static bool isThinnedOutUpload(std::span<const ScanData> gdata,const int pos) {
+    if(uploadIntervalSeconds<=0||pos<=0||pos>=(int)gdata.size())
+        return false;
+    const uint32_t tim=gdata[pos].gettime();
+    if(!tim)
+        return false;
+    const uint32_t intervalStart=tim-tim%(uint32_t)uploadIntervalSeconds;
+    constexpr int lookback=64;
+    for(int i=pos-1;i>=0&&i>=pos-lookback;--i) {
+        const ScanData &el=gdata[i];
+        const uint32_t eltime=el.gettime();
+        if(!eltime)
+            continue;
+        if(eltime<intervalStart)
+            return false;
+        if(const int g=el.getmgdL();g>0&&g<552)
+            return true;
+        }
+    return false;
+    }
+
 //The reading ahead of position `iter`, as far back as a few invalid ones allow. A reading sent
 //ahead of the cursor only extends the range kept for the sensor when it directly follows the
-//range's end, so a guess here would claim a reading was sent that never was.
+//range's end, so a guess here would claim a reading was sent that never was. A reading "Fewer
+//readings" held back is returned as well: it was not sent, so the range must not span it, or it
+//would count as sent once the setting is turned off.
 static uint32_t previousUploadTime(std::span<const ScanData> gdata,const int iter,const uint32_t mintime) {
     constexpr int lookback=64;
     for(int pos=iter-1;pos>=0&&pos>=iter-lookback;--pos) {
@@ -766,6 +799,57 @@ static int smoothedUploadRaw(const SensorGlucoseData *sens,std::span<const ScanD
         });
     }
 
+//The mg/dL the reading at pos is uploaded with, by both entry formats: the stored value smoothed
+//and calibrated, then resolved by NightscoutCalibration to the lane and calibration the sensor's
+//view mode selects.
+//Average before calibrating, not after: calibrateONE is affine in the value, so this yields the
+//same series the app's own smoothed display and broadcasts carry. getRawForPoll indexes by pointer
+//offset from the polls base, so it is handed the stored reading, never the patched copy.
+static int uploadValueMgdl(SensorGlucoseData *sens,const char *sensornameStr,std::span<const ScanData> gdata,const int pos) {
+    const ScanData &item=gdata[pos];
+    const int rawSmoothed=smoothedUploadRaw(sens,gdata,pos);
+    const int rawCurrent=rawSmoothed>0?rawSmoothed:sens->getRawForPoll(&item);
+    ScanData smoothed=item;
+    if(const int avg=smoothedUploadMgdl(gdata,pos);avg>0)
+        smoothed.setmgdL(avg);
+    int autoMgdl=smoothed.getmgdL();
+    if(double calibrated=calibrateONEtest(sens,smoothed);!isnan(calibrated))
+        autoMgdl=(int)round(calibrated);
+    const int mgdL=getNightscoutCalibrationOverrideForItem(sens,sensornameStr,autoMgdl,rawCurrent,
+        item.gettime()*1000LL,item.hasResolvedGlucose());
+    return mgdL>0?mgdL:autoMgdl;
+    }
+
+//Delta and direction for the reading at pos, uploaded with value `mgdL`. With smoothing on for sent
+//readings the value is smoothed, but the stored rate is the sensor's own or one derived at ingest
+//from two unsmoothed readings four minutes apart. On a noisy 1-minute stream that rate swings up
+//and down while the values it goes out with rise steadily. Every other exchange output takes its
+//arrow from the smoothed series (CurrentDisplaySource.resolveArrowRate), so the rate is derived
+//here from the values actually uploaded, over the span derivechangeforsample uses: the same lane
+//and calibration as the sgv, whichever the view mode selects. Final values supplied by another
+//app are never smoothed, so they keep their stored rate.
+static float uploadChange(SensorGlucoseData *sens,const char *sensornameStr,std::span<const ScanData> gdata,const int pos,const int mgdL) {
+    const ScanData &item=gdata[pos];
+    if(uploadSmoothingSeconds<=0||item.hasResolvedGlucose()||pos<=0||mgdL<=0)
+        return effectivechange(gdata,pos,item);
+    const uint32_t tim=item.gettime();
+    for(int i=pos-1;i>=0;--i) {
+        const ScanData &prev=gdata[i];
+        const uint32_t prevtime=prev.gettime();
+        const int prevmgdl=prev.getmgdL();
+        if(!prevtime||prevmgdl<=0||prevmgdl>=552||tim<=prevtime)
+            continue;
+        if(tim-prevtime>maxderivegapsecs)
+            break;
+        if(tim-prevtime<minderivegapsecs||prev.hasResolvedGlucose())
+            continue;
+        const float rate=deriveChangeMgdlPerMinute(uploadValueMgdl(sens,sensornameStr,gdata,i),prevtime,mgdL,tim);
+        if(!std::isnan(rate))
+            return rate;
+        }
+    return effectivechange(gdata,pos,item);
+    }
+
 //gdata/pos locate item inside the poll series so a rate can be derived when the driver reported
 //none (AiDex, Libre 3 backfill). Without it those sensors upload direction:"" and delta:0 forever.
 template <class T> int mkuploaditem(SensorGlucoseData *sens,char *buf,const sensorname_t *sensorname,const T &item,std::span<const ScanData> gdata,const int pos,const bool trailingComma=true) {
@@ -773,20 +857,8 @@ template <class T> int mkuploaditem(SensorGlucoseData *sens,char *buf,const sens
     const std::string_view sensornameView=fixedsensorview(sensorname);
     char sensornameStr[64];
     copyfixedsensorname(sensornameStr,sizeof(sensornameStr),sensorname);
-    const int rawSmoothed=smoothedUploadRaw(sens,gdata,pos);
-    const int rawCurrent=rawSmoothed>0?rawSmoothed:sens->getRawForPoll(&item);
-    //Average before calibrating, not after: calibrateONE is affine in the value, so
-    //this yields the same series the app's own smoothed display and broadcasts carry.
-    ScanData smoothed=item;
-    if(const int avg=smoothedUploadMgdl(gdata,pos);avg>0)
-        smoothed.setmgdL(avg);
-    int autoMgdl=smoothed.getmgdL();
-    if(double calibrated=calibrateONEtest(sens,smoothed);!isnan(calibrated))
-        autoMgdl=(int)round(calibrated);
-    int mgdL=getNightscoutCalibrationOverrideForItem(sens,sensornameStr,autoMgdl,rawCurrent,tim*1000LL,item.hasResolvedGlucose());
-    if(mgdL<=0)
-        mgdL=autoMgdl;
-    const float change=effectivechange(gdata,pos,item);
+    const int mgdL=uploadValueMgdl(sens,sensornameStr,gdata,pos);
+    const float change=uploadChange(sens,sensornameStr,gdata,pos,mgdL);
     const std::string_view directionlabel=getdeltaname(change);
     double delta=getdelta(change);
     char *out=buf;
@@ -840,7 +912,7 @@ const int nighttimeback=60*60*24*30;
 static bool uploadRecentV1(const int sensorid,SensorGlucoseData *sens,const sensorname_t *sensorname,std::span<const ScanData> gdata,const uint32_t mintime) {
     for(int iter=gdata.size()-1;iter>=0;--iter) {
         const ScanData &el=gdata[iter];
-        if(!el.valid(iter) || el.gettime()<=mintime)
+        if(!el.valid(iter) || el.gettime()<=mintime || isThinnedOutUpload(gdata,iter))
             continue;
         //Not pruned here: the newest reading is far ahead of the cursor, and a range is only
         //finished with once the cursor has passed it.
@@ -876,7 +948,7 @@ static nightscout_backlog::Turn uploadV1ChunkIndividually(const int sensorid,Sen
         [&]()->int {return loadNightiter(sens);},
         [&](const int iter)->Item {
             const ScanData &el=gdata[iter];
-            if(!el.valid(iter) || el.gettime()<=mintime)
+            if(!el.valid(iter) || el.gettime()<=mintime || isThinnedOutUpload(gdata,iter))
                 return Item::skip;
             pruneRecentNightUpload(sensorid,el.gettime());
             if(isRecentNightUploadCovered(sensorid,el.gettime()))
@@ -899,38 +971,17 @@ extern char * writev3entry(char *outin,const ScanData *val, const sensorname_t *
 	const std::string_view &uploadid={});
     char sensornameStr[64];
     copyfixedsensorname(sensornameStr,sizeof(sensornameStr),sensorname);
-    //Average before calibrating, not after: calibrateONE is affine in the value, so
-    //this yields the same series the app's own smoothed display and broadcasts carry.
-    ScanData smoothed=*el;
-    if(const int avg=smoothedUploadMgdl(gdata,pos);avg>0)
-        smoothed.setmgdL(avg);
-    int autoMgdl=smoothed.getmgdL();
-    if(double calibrated=calibrateONEtest(sens,smoothed);!isnan(calibrated))
-        autoMgdl=(int)round(calibrated);
-    //getRawForPoll indexes by pointer offset from the polls base, so it must see the original el,
-    //never the patched copy above or below.
-    const int rawSmoothed=smoothedUploadRaw(sens,gdata,pos);
-    const int overrideValue=getNightscoutCalibrationOverrideForItem(
-        sens,
-        sensornameStr,
-        autoMgdl,
-        rawSmoothed>0?rawSmoothed:sens->getRawForPoll(el),
-        el->gettime()*1000LL,
-        el->hasResolvedGlucose()
-    );
+    const int mgdL=uploadValueMgdl(sens,sensornameStr,gdata,pos);
     ScanData outel=*el;
-    if(overrideValue>0)
-        outel.setmgdL(overrideValue);
-    else
-        outel.setmgdL(autoMgdl);
-    outel.ch=effectivechange(gdata,pos,*el);
+    outel.setmgdL(mgdL);
+    outel.ch=uploadChange(sens,sensornameStr,gdata,pos,mgdL);
     return writev3entry(buf,&outel,sensorname,false,sens->sensid());
     }
 
 static bool uploadRecentV3(const int sensorid,SensorGlucoseData *sens,const sensorname_t *sensorname,std::span<const ScanData> gdata,const uint32_t mintime) {
     for(int iter=gdata.size()-1;iter>=0;--iter) {
         const ScanData &el=gdata[iter];
-        if(!el.valid(iter) || el.gettime()<=mintime)
+        if(!el.valid(iter) || el.gettime()<=mintime || isThinnedOutUpload(gdata,iter))
             continue;
         //Not pruned here: the newest reading is far ahead of the cursor, and a range is only
         //finished with once the cursor has passed it.
@@ -981,6 +1032,7 @@ static nightscout_backlog::Pass uploadCGM3(const bool prioritizeRecent=false) {
     using namespace nightscout_backlog;
     LOGSTRING("upload\n");
     uploadSmoothingSeconds=getExchangeSmoothingSeconds();
+    uploadIntervalSeconds=getExchangeOutputIntervalSeconds();
     int last=sensors->last();
     if(last<0) {
         LOGAR("No sensors");
@@ -1008,7 +1060,7 @@ static nightscout_backlog::Pass uploadCGM3(const bool prioritizeRecent=false) {
             [&]()->int {return loadNightiter(sens);},
             [&](const int pos)->Item { //Geen overlappende data?
                 const ScanData *el= &gdata[pos];
-                if(!(el->valid(pos)&&el->gettime()>mintime))
+                if(!(el->valid(pos)&&el->gettime()>mintime) || isThinnedOutUpload(gdata,pos))
                     return Item::skip;
                 pruneRecentNightUpload(sensorid,el->gettime());
                 if(isRecentNightUploadCovered(sensorid,el->gettime()))
@@ -1034,6 +1086,7 @@ static nightscout_backlog::Pass uploadCGM(const bool prioritizeRecent=false) {
     using namespace nightscout_backlog;
     LOGSTRING("upload\n");
     uploadSmoothingSeconds=getExchangeSmoothingSeconds();
+    uploadIntervalSeconds=getExchangeOutputIntervalSeconds();
     int last=sensors->last();
     if(last<0) {
         LOGAR("No sensors");
@@ -1075,7 +1128,7 @@ static nightscout_backlog::Pass uploadCGM(const bool prioritizeRecent=false) {
                     *ptr++='[';
                     for(int iter=pos;iter<chunkend;iter++) { //Geen overlappende data?
                         const ScanData &el= gdata[iter];
-                        if(el.valid(iter)&&el.gettime()>mintime) {
+                        if(el.valid(iter)&&el.gettime()>mintime&&!isThinnedOutUpload(gdata,iter)) {
                             pruneRecentNightUpload(sensorid,el.gettime());
                             if(isRecentNightUploadCovered(sensorid,el.gettime())) {
                                 continue;

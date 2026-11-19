@@ -923,16 +923,21 @@ object OttaiRegistry {
         displayName: String? = null,
         activate: Boolean,
         activateIfNeeded: Boolean,
+        alreadyActive: Boolean = false,
     ): String? {
         val canonical = OttaiConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
         val activationWasAttempted = loadActivationAttempted(context, canonical)
         val armActivation = activate || activateIfNeeded
-        if (armActivation) {
+        if (armActivation || alreadyActive) {
             // Authorize the managed record before publishing it. updateDevices() can run
             // immediately after callback creation; without this marker it removes the
             // fresh sensor and closes its GATT before the first connection callback.
             setActivationAttempted(context, canonical, true)
+        }
+        if (armActivation) {
             OttaiBleManager.activateRequestedFor = canonical
+        } else if (alreadyActive && OttaiBleManager.activateRequestedFor == canonical) {
+            OttaiBleManager.activateRequestedFor = null
         }
         val stableId = addSensor(
             context,
@@ -942,7 +947,7 @@ object OttaiRegistry {
             connectNow = false,
         )
         if (stableId == null) {
-            if (armActivation) setActivationAttempted(context, canonical, activationWasAttempted)
+            if (armActivation || alreadyActive) setActivationAttempted(context, canonical, activationWasAttempted)
             if (armActivation && OttaiBleManager.activateRequestedFor == canonical) {
                 OttaiBleManager.activateRequestedFor = null
             }

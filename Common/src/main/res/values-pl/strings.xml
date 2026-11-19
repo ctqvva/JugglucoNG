@@ -294,7 +294,7 @@
  <string name="settings">Ustawienia</string>
  <string name="aboutname">Informacje</string>
  <string name="export">Eksport</string>
- <string name="mirror">Klonowanie</string>
+ <string name="mirror">Kopia lustrzana</string>
  <string name="new_amount">Nowa wartość</string>
  <string name="list">Lista</string>
  <string name="statistics">Statystyka</string>
@@ -543,7 +543,7 @@
     <string name="import_no_glucose">Ten plik nie zawiera danych glukozy</string>
     <string name="import_unsupported_file">Nieobsługiwany plik. Wybierz eksport JugglucoNG lub plik CSV z historią glukozy.</string>
     <string name="delete_reading_title">Usunąć odczyt?</string>
-    <string name="delete_reading_confirmation">Usuń ten odczyt glukozy z lokalnej historii. Tej operacji nie można cofnąć.</string>
+    <string name="delete_reading_confirmation">Usuń ten odczyt glukozy z lokalnej historii.</string>
     <string name="alert_sound">Dźwięk Alarmu</string>
     <string name="vibrate_only">Tylko Wibracja</string>
     <string name="sound_vibrate">Dźwięk i Wibracja</string>
@@ -907,19 +907,24 @@
     <string name="median">Mediana</string>
     <string name="meterlist">"Glukometry"</string>
     <string name="glucose_meters_desc">Połącz glukometry Bluetooth</string>
-    <string name="glucose_meters_journal_desc">Pomiary są zapisywane jako wpisy glikemii w dzienniku i mogą być wysyłane do Nightscout.</string>
+    <string name="glucose_meters_journal_desc">Pomiary są zapisywane jako wpisy glikemii w dzienniku i mogą być wysyłane do Nightscout</string>
     <string name="satellite_meter_title">Glukometr Satellite (Сателлит+)</string>
     <string name="satellite_meter_code_label">PIN lub kod z etykiety</string>
     <string name="satellite_meter_code_desc">Wpisz 3-cyfrowy PIN lub dłuższy kod wydrukowany pod etykietą QR/DataMatrix na glukometrze. Jest używany przy każdym połączeniu Bluetooth.</string>
     <string name="glucose_meters_configured">Skonfigurowane glukometry</string>
-    <string name="glucose_meters_none">Brak skonfigurowanych glukometrów</string>
-    <string name="glucose_meters_none_desc">Znajdź pobliski glukometr, aby rozpocząć import pomiarów.</string>
     <string name="glucose_meters_nearby">Glukometry w pobliżu</string>
     <string name="glucose_meter_recheck">Ponowne sprawdzenie glukometru po</string>
     <string name="glucose_meter_recheck_now">Od razu</string>
-    <string name="glucose_meter_recheck_hint">Dla glukometrów, które pozostają włączone, jak Satellite. Nowy pomiar może dotrzeć z takim opóźnieniem</string>
-    <string name="glucose_meter_last_reading">Ostatni pomiar: %1$s</string>
-    <string name="glucose_meter_no_readings">Nie zaimportowano jeszcze pomiarów</string>
+    <string name="glucose_meter_recheck_hint">Satellite nigdy się nie wyłącza. Dłuższa przerwa oszczędza baterię</string>
+    <string name="glucose_meter_name">Nazwa</string>
+    <string name="glucose_meter_name_hint">Widoczna tutaj i w nowych wpisach dziennika</string>
+    <string name="glucose_meters_find">Szukaj glukometrów</string>
+    <string name="glucose_meters_none_found">Nie znaleziono glukometru. Włącz glukometr i wyszukaj ponownie</string>
+    <string name="glucose_meters_other">Inne urządzenia Bluetooth</string>
+    <string name="glucose_meters_other_desc">Jeśli glukometru nie ma na liście powyżej</string>
+    <string name="glucose_meter_last_reading">Ostatni pomiar</string>
+    <string name="glucose_meter_no_readings">Jeszcze brak</string>
+    <string name="glucose_meter_device_name">Nazwa Bluetooth</string>
     <string name="satellite_meter_code_missing">Glukometr Satellite: najpierw ustaw kod glukometru w ustawieniach glukometrów</string>
     <string name="glucose_meter_forget">Zapomnij</string>
     <string name="glucose_meter_forget_title">Zapomnij glukometr</string>
@@ -1231,6 +1236,7 @@
     <string name="anytime_calibration_noisy_status">Kalibracja niedostępna; szum sygnału jest zbyt wysoki</string>
     <string name="calibrate_sensor_title">Kalibracja czujnika</string>
     <string name="calibration_deleted">Kalibracja usunięta</string>
+    <string name="reading_deleted">Odczyt usunięty</string>
     <string name="calibration_profile_exported">Wyeksportowano profil kalibracji</string>
     <string name="calibrationhelp">Pomoc dotycząca kalibracji</string>
     <string name="calibrationslist">Lista kalibracji</string>
@@ -1939,10 +1945,8 @@
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">Relay TURN dla połączeń zdalnych</string>
     <string name="mirror_connections">Połączenia</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Klon lokalny</string>
     <string name="mirror_default_hybrid_label">Klon hybrydowy</string>
-    <string name="mirror_clone_master_desc">Włącz wszystkie zapisane połączenia Clone</string>
     <string name="clone_history_recovery">Odzyskiwanie historii</string>
     <string name="clone_history_direction_send">Wyślij</string>
     <string name="clone_history_direction_pull">Odzyskaj</string>
@@ -2170,6 +2174,9 @@
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Zalogowano</string>
     <string name="ottai_session_invalid">Sesja w chmurze wygasła – zaloguj się ponownie</string>
+    <string name="ottai_global_sign_in_again">Zaloguj się ponownie do Ottai Global, aby skonfigurować czujnik lub sprawdzić jego oprogramowanie. Zapisane czujniki i historia zostaną zachowane.</string>
+    <string name="ottai_ota_check_failed">Sprawdzenie oprogramowania czujnika nie powiodło się.</string>
+    <string name="ottai_ota_disconnect_first">Odłącz czujnik, aby sprawdzić jego oprogramowanie.</string>
     <string name="ottai_sensor_mac_hint">ID urządzenia, numer seryjny lub QR</string>
     <string name="ottai_connect_saved">Połącz</string>
     <string name="ottai_login_fail">Logowanie nieudane - sprawdź telefon/kod</string>
@@ -2516,7 +2523,7 @@
     <string name="ottai_server_unreachable">Nie można połączyć się z serwerem Ottai. Spróbuj ponownie.</string>
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
-    <string name="ottai_ota_upgrade_required">Podczas wiązania sensora usługa Ottai zażądała aktualizacji firmware. Ponów konfigurację firmware lub zaimportuj zapisane dane uwierzytelniające. Możesz też spróbować oficjalnej aplikacji Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai zażądał aktualizacji oprogramowania czujnika.</string>
     <string name="ottai_retry">Spróbuj ponownie</string>
     <string name="ottai_setup_failed">Konfiguracja zatrzymana. Spróbuj ponownie lub zamknij okno i zaimportuj zapisane dane uwierzytelniające.</string>
     <string name="ottai_region_cn_full">Ottai Chiny</string>
@@ -2931,8 +2938,9 @@
     <string name="mirror_connection_setup">Konfiguracja połączenia</string>
     <string name="turn_help_how_body">Serwer rendezvous jedynie przedstawia sobie dwa urządzenia: każde zostawia tam swoje możliwe adresy i odbiera adresy drugiego. Dane glukozy nigdy przez niego nie przechodzą. Preferowana jest trasa bezpośrednia; TURN przekazuje ruch tylko wtedy, gdy żadna bezpośrednia nie działa, a to, co przekazuje, pozostaje zaszyfrowane.\n\nGdy oba przełączniki są wyłączone, używane są rendezvous i przekaźnik aplikacji. Włącz jeden, a tylko ta część stanie się twoja; włącz oba, a twoje serwery opuszcza już tylko zapytanie o adres publiczny, chyba że „TURN do STUN” wyśle je również do twojego przekaźnika.\n\nW jednej sieci „Znajdź sparowane urządzenia w pobliżu” łączy je bezpośrednio, pomijając rendezvous.</string>
     <string name="turn_credentials_too_long">Nazwa użytkownika lub hasło są zbyt długie dla tej konfiguracji TURN.</string>
-    <string name="clone_sync_title">Synchronizacja</string>
     <string name="clone_network_title">Sieć Clone</string>
+    <string name="clone_network_settings">Ustawienia sieci Clone</string>
+    <string name="clone_add_custom_connection">Dodaj własne połączenie</string>
     <string name="clone_servers">Serwery</string>
     <string name="clone_server_default">Serwer aplikacji</string>
     <string name="clone_connection_options">Połączenie</string>
@@ -2954,13 +2962,17 @@
     <string name="clone_pairing_waiting">Czekam na drugi telefon…</string>
     <string name="clone_pairing_announced">Widoczny też w tej sieci Wi-Fi jako %1$s</string>
     <string name="clone_pairing_connected">Połączono</string>
-    <string name="clone_add_manually_desc">Wpisz adres i opcje samodzielnie</string>
     <string name="clone_send_readings">Wysyłaj odczyty</string>
     <string name="clone_on_this_wifi">W tej sieci Wi-Fi</string>
     <string name="clone_nearby_empty">Tu pojawią się telefony wysyłające odczyty w tej sieci Wi-Fi</string>
     <string name="clone_sharing_readings">Wysyła odczyty</string>
     <string name="clone_network_summary">Serwery i wyszukiwanie lokalne</string>
     <string name="clone_background_desc">Zwiększa zużycie baterii</string>
+    <string name="clone_other_phone">Drugi telefon</string>
+    <string name="clone_this_phone">Ten telefon</string>
+    <string name="clone_connected_since">Połączono od</string>
+    <string name="clone_phase">Faza</string>
+    <string name="clone_ice_state">Stan ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d wpis</item>
@@ -3175,7 +3187,7 @@
     <string name="ottai_ota_installing">Instalowanie oprogramowania…</string>
     <string name="ottai_ota_reconnecting">Ponowne łączenie i sprawdzanie zainstalowanej wersji…</string>
     <string name="ottai_ota_preparing">Odświeżanie danych dostępu i zapis parametrów fabrycznych…</string>
-    <string name="ottai_ota_complete">Przygotowanie zakończone. Zamknij okno, a następnie połącz się normalnie, aby aktywować sensor.</string>
+    <string name="ottai_ota_complete">Przygotowanie fabryczne zakończone</string>
     <string name="ottai_ota_failed">Konfiguracja zatrzymana. Spróbuj ponownie lub sprawdź dziennik śledzenia. Niedokończona konfiguracja blokuje aktywację.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Aktualizacja: %2$s</string>
     <string name="ottai_ota_package">%1$d bajtów · SHA-256: %2$s</string>
@@ -3204,7 +3216,7 @@
 
     <string name="ottai_ota_discard">Porzuć niedokończoną konfigurację</string>
     <string name="ottai_ota_discard_confirm">Usunąć zapisany stan aktualizacji i przygotowania, aby odblokować połączenie? Nie przywróci to firmware ani ustawień. Przerwana aktualizacja może nadal wymagać odzyskiwania.</string>
-    <string name="ottai_ota_pending">Konfiguracja sensora jest niedokończona. Połącz ponownie lub otwórz odzyskiwanie, aby ją zakończyć lub porzucić.</string>
+    <string name="ottai_ota_pending">Konfiguracja czujnika nieukończona</string>
     <string name="ottai_ota_finish_preparation">Oprogramowanie zweryfikowane. Potwierdź parametry fabryczne, aby zakończyć konfigurację.</string>
     <string name="ottai_ota_discard_failed">Nie udało się porzucić testu. Spróbuj ponownie.</string>
     <string name="prediction_analysis_section">Analiza prognoz</string>

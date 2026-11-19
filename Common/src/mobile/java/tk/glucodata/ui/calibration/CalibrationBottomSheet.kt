@@ -19,23 +19,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -74,6 +57,7 @@ import tk.glucodata.ui.theme.displayLargeExpressive
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
+import tk.glucodata.ui.symbols.Symbols
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -299,7 +283,7 @@ fun CalibrationBottomSheet(
                                 shapes = IconButtonDefaults.shapes()
                             ) {
                                 Icon(
-                                    if (editingEntity!!.isEnabled) Icons.Default.Close else Icons.Default.Check,
+                                    if (editingEntity!!.isEnabled) Symbols.CloseFilled else Symbols.CheckFilled,
                                     contentDescription = stringResource(if (editingEntity!!.isEnabled) R.string.disable else R.string.enable)
                                 )
                             }
@@ -309,9 +293,13 @@ fun CalibrationBottomSheet(
                         IconButtonTooltip(stringResource(R.string.delete)) {
                             IconButton(
                                 onClick = {
+                                    val deleted = editingEntity!!
                                     scope.launch {
-                                         val deletedTimestamp = editingEntity!!.timestamp
-                                         CalibrationManager.deleteCalibration(editingEntity!!)
+                                         CalibrationManager.deleteCalibration(deleted)
+                                         // Shown from the app root, so it outlives the sheet.
+                                         tk.glucodata.ui.UndoSnackbar.show(
+                                             context.getString(R.string.calibration_deleted)
+                                         ) { CalibrationManager.restoreCalibration(deleted) }
                                          selectedTimestamp = System.currentTimeMillis()
                                          onDismiss()
                                     }
@@ -320,7 +308,7 @@ fun CalibrationBottomSheet(
                                 modifier = Modifier.size(48.dp),
                                 shapes = IconButtonDefaults.shapes()
                             ) {
-                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
+                                Icon(Symbols.DeleteFilled, contentDescription = stringResource(R.string.delete))
                             }
                         }
                     }
@@ -348,7 +336,7 @@ fun CalibrationBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Symbols.AccessTimeFilled, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(timeIconSpacing))
                             Column {
 //                                Text("Time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -372,7 +360,7 @@ fun CalibrationBottomSheet(
                                 Spacer(modifier = Modifier.width(16.dp))
                             }
 
-                            Icon(if (isTimeExpanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight, contentDescription = null)
+                            Icon(if (isTimeExpanded) Symbols.ExpandMoreFilled else Symbols.ChevronRightFilled, contentDescription = null)
                         }
                     }
 
@@ -464,9 +452,9 @@ fun CalibrationBottomSheet(
                     modifier = Modifier.padding(horizontal = 12.dp)
                 ) {
                     val trendIcon = when {
-                        trendResult.velocity > 1.0 -> Icons.Default.ArrowUpward
-                        trendResult.velocity < -1.0 -> Icons.Default.ArrowDownward
-                        else -> Icons.Default.Check
+                        trendResult.velocity > 1.0 -> Symbols.ArrowUpwardFilled
+                        trendResult.velocity < -1.0 -> Symbols.ArrowDownwardFilled
+                        else -> Symbols.CheckFilled
                     }
                     Icon(trendIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
 
@@ -699,14 +687,14 @@ private fun CalibrationHistoryList(
 //                    if (isEditing) {
 //                        IconButton(onClick = { onToggleEnable(cal) }) {
 //                            Icon(
-//                                 if (cal.isEnabled) Icons.Default.Close else Icons.Default.Check,
+//                                 if (cal.isEnabled) Symbols.CloseFilled else Symbols.CheckFilled,
 //                                 contentDescription = if (cal.isEnabled) "Disable" else "Enable",
 //                                 tint = if (cal.isEnabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
 //                            )
 //                        }
 //                    } else {
 //                        IconButton(onClick = { onSelect(cal) }) {
-//                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.outline)
+//                            Icon(Symbols.EditFilled, contentDescription = "Edit", tint = MaterialTheme.colorScheme.outline)
 //                        }
 //                    }
 //                }
@@ -722,7 +710,7 @@ private fun CalibrationHistoryList(
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
-                Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Symbols.HistoryFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.previous_calibrations))
             }
@@ -813,7 +801,7 @@ private fun CalibrationHeroSection(
                     )
                 )
                 Icon(
-                    Icons.Default.ArrowDownward,
+                    Symbols.ArrowDownwardFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     modifier = Modifier.size(originalArrowSize).padding(vertical = 4.dp)
@@ -838,7 +826,7 @@ private fun CalibrationHeroSection(
                     modifier = Modifier.size(valueButtonSize),
                     shapes = IconButtonDefaults.shapes()
                 ) {
-                    Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.outbound_api_decrease_value), modifier = Modifier.size(valueIconSize))
+                    Icon(Symbols.RemoveFilled, contentDescription = stringResource(R.string.outbound_api_decrease_value), modifier = Modifier.size(valueIconSize))
                 }
             }
 
@@ -915,7 +903,7 @@ private fun CalibrationHeroSection(
                     modifier = Modifier.size(valueButtonSize),
                     shapes = IconButtonDefaults.shapes()
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.outbound_api_increase_value), modifier = Modifier.size(valueIconSize))
+                    Icon(Symbols.AddFilled, contentDescription = stringResource(R.string.outbound_api_increase_value), modifier = Modifier.size(valueIconSize))
                 }
             }
         }

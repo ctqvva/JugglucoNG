@@ -21,13 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CenterFocusStrong
-import androidx.compose.material.icons.filled.MonitorWeight
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.TipsAndUpdates
-import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +53,7 @@ import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 import kotlin.math.roundToInt
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Everything computed from the model profile: the profile itself (carb ratio, sensitivity,
@@ -132,7 +126,7 @@ fun JournalCalculationsSettingsScreen(
                         } else {
                             null
                         },
-                        icon = Icons.Default.Schedule,
+                        icon = Symbols.ScheduleFilled,
                         iconTint = MaterialTheme.colorScheme.primary,
                         position = CardPosition.TOP
                     )
@@ -155,7 +149,7 @@ fun JournalCalculationsSettingsScreen(
                         } else {
                             null
                         },
-                        icon = Icons.Default.MonitorWeight,
+                        icon = Symbols.MonitorWeightFilled,
                         iconTint = MaterialTheme.colorScheme.tertiary,
                         position = CardPosition.MIDDLE
                     )
@@ -165,7 +159,7 @@ fun JournalCalculationsSettingsScreen(
                         subtitle = stringResource(R.string.journal_food_macros_desc),
                         checked = journalFoodMacrosEnabled,
                         onCheckedChange = { viewModel.setJournalFoodMacrosEnabled(it) },
-                        icon = Icons.Default.Restaurant,
+                        icon = Symbols.RestaurantFilled,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.MIDDLE,
                         enabled = journalEnabled
@@ -176,7 +170,7 @@ fun JournalCalculationsSettingsScreen(
                         subtitle = stringResource(R.string.journal_eiob_display_desc),
                         checked = journalEiobDisplayEnabled,
                         onCheckedChange = { viewModel.setJournalEiobDisplayEnabled(it) },
-                        icon = Icons.Default.Vaccines,
+                        icon = Symbols.VaccinesFilled,
                         iconTint = MaterialTheme.colorScheme.tertiary,
                         position = CardPosition.BOTTOM,
                         enabled = journalEnabled
@@ -194,7 +188,7 @@ fun JournalCalculationsSettingsScreen(
                             subtitle = stringResource(R.string.state_dose_hint_desc),
                             checked = stateDoseHintEnabled,
                             onCheckedChange = { viewModel.setStateDoseHintEnabled(it) },
-                            icon = Icons.Default.TipsAndUpdates,
+                            icon = Symbols.TipsAndUpdatesFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.TOP,
                             enabled = journalEnabled
@@ -205,7 +199,7 @@ fun JournalCalculationsSettingsScreen(
                             subtitle = stringResource(R.string.state_dose_hint_in_range_desc),
                             checked = stateDoseHintCorrectInRange,
                             onCheckedChange = { viewModel.setStateDoseHintCorrectInRange(it) },
-                            icon = Icons.Default.CenterFocusStrong,
+                            icon = Symbols.CenterFocusStrongFilled,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             position = if (stateDoseHintEnabled) CardPosition.MIDDLE else CardPosition.BOTTOM,
                             enabled = journalEnabled && stateDoseHintEnabled

@@ -45,7 +45,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -72,20 +71,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -135,10 +120,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -146,11 +129,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import tk.glucodata.ui.components.AdaptiveTrailingRow
@@ -166,16 +146,14 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.text.NumberFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.atan2
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import tk.glucodata.ui.theme.labelLargeExpressive
+import tk.glucodata.ui.symbols.Symbols
 
 // Band colours live in StatsVisualizations.kt so every stats surface reads the same
 // palette from one place.
@@ -184,8 +162,6 @@ private const val PrefKeyReportPdfStyle = "stats_report_pdf_style"
 /** Below this a calendar grid is just a row of squares — the daily view already covers it. */
 private const val MIN_CALENDAR_DAYS = 3
 
-private val OverviewRingStroke = 15.dp
-
 internal enum class TirBand {
     VERY_LOW,
     LOW,
@@ -193,14 +169,6 @@ internal enum class TirBand {
     HIGH,
     VERY_HIGH
 }
-
-private data class TirRowDescriptor(
-    val band: TirBand,
-    val label: String,
-    val rangeLabel: String,
-    val percent: Float,
-    val color: Color
-)
 
 @Composable
 fun StatsScreen(
@@ -360,7 +328,6 @@ fun StatsScreen(
             }
 
             item(key = "range") {
-                Spacer(modifier = Modifier.height(4.dp))
                 StatsRangeSelectorControl(
                     selectedRange = uiState.selectedRange,
                     activeRange = uiState.activeRange,
@@ -848,7 +815,7 @@ private fun ArrangeSheet(
                 Spacer(modifier = Modifier.width(12.dp))
                 Button(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                     Icon(
-                        imageVector = Icons.Default.Check,
+                        imageVector = Symbols.CheckFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -979,7 +946,7 @@ private fun MetricsSection(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Icon(
-                    imageVector = if (showAll) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    imageVector = if (showAll) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
@@ -1007,7 +974,7 @@ private fun ReportExportConfirmation(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.CheckCircle,
+                imageVector = Symbols.CheckCircleFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.inversePrimary,
                 modifier = Modifier.size(24.dp)
@@ -1049,7 +1016,7 @@ private fun ReportExportConfirmation(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Share,
+                            imageVector = Symbols.ShareFilled,
                             contentDescription = stringResource(R.string.share),
                             modifier = Modifier.size(20.dp)
                         )
@@ -1194,7 +1161,7 @@ private fun PdfVisualStylePicker(
  * Every Statistics card: extra-large corners on the leading-top and trailing-bottom, large on
  * the other two. One shape, so the cards read as a set; they used four slightly different ones.
  */
-private val StatsCardShape = RoundedCornerShape(topStart = 28.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 28.dp)
+internal val StatsCardShape = RoundedCornerShape(topStart = 28.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 28.dp)
 
 @Composable
 private fun HeaderBlock(
@@ -1204,7 +1171,7 @@ private fun HeaderBlock(
         IconButtonTooltip(stringResource(R.string.export)) {
             IconButton(onClick = onShareClick, shapes = IconButtonDefaults.shapes()) {
                 Icon(
-                    imageVector = Icons.Filled.Share,
+                    imageVector = Symbols.ShareFilled,
                     contentDescription = stringResource(R.string.export),
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -1235,7 +1202,7 @@ private fun LoadingCard() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Analytics,
+                imageVector = Symbols.AnalyticsFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = animatedAlpha),
                 modifier = Modifier.size(28.dp)
@@ -1267,7 +1234,7 @@ private fun RangeLoadingCard() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.DateRange,
+                    imageVector = Symbols.DateRangeFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
@@ -1302,7 +1269,7 @@ private fun EmptyStateCard(title: String, subtitle: String) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = Icons.Default.Info,
+                imageVector = Symbols.InfoFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp)
@@ -1319,464 +1286,6 @@ private fun EmptyStateCard(title: String, subtitle: String) {
                 textAlign = TextAlign.Center
             )
         }
-    }
-}
-
-@Composable
-internal fun GlycemicOverviewCard(
-    summary: StatsSummary,
-    targets: StatsTargets,
-    unit: GlucoseUnit,
-    selectedRange: StatsTimeRange?,
-    selectedBand: TirBand?,
-    onBandSelected: (TirBand?) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val rows = listOf(
-        TirRowDescriptor(
-            band = TirBand.VERY_HIGH,
-            label = stringResource(R.string.very_high),
-            rangeLabel = "≥ ${formatMgDl(targets.veryHighMgDl, unit)}",
-            percent = summary.tir.veryHighPercent,
-            color = TirVeryHighColor
-        ),
-        TirRowDescriptor(
-            band = TirBand.HIGH,
-            label = stringResource(R.string.high_range),
-            rangeLabel = "${formatMgDl(targets.highMgDl, unit)}–${formatMgDl(targets.veryHighMgDl, unit)}",
-            percent = summary.tir.highPercent,
-            color = TirHighColor
-        ),
-        TirRowDescriptor(
-            band = TirBand.IN_RANGE,
-            label = stringResource(R.string.in_range),
-            rangeLabel = "${formatMgDl(targets.lowMgDl, unit)}–${formatMgDl(targets.highMgDl, unit)}",
-            percent = summary.tir.inRangePercent,
-            color = TirInRangeColor
-        ),
-        TirRowDescriptor(
-            band = TirBand.LOW,
-            label = stringResource(R.string.low_range),
-            rangeLabel = "${formatMgDl(targets.veryLowMgDl, unit)}–${formatMgDl(targets.lowMgDl, unit)}",
-            percent = summary.tir.lowPercent,
-            color = TirLowColor
-        ),
-        TirRowDescriptor(
-            band = TirBand.VERY_LOW,
-            label = stringResource(R.string.very_low),
-            rangeLabel = "< ${formatMgDl(targets.veryLowMgDl, unit)}",
-            percent = summary.tir.veryLowPercent,
-            color = TirVeryLowColor
-        )
-    )
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) {
-                onBandSelected(null)
-            },
-        shape = StatsCardShape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 12.dp, top = 16.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                // The band rows are what decide this, not a round number.
-                //
-                // A row needs its label, a 62 dp range column and a 50 dp percentage
-                // column; below about 180 dp it starts eliding the labels. So the ring
-                // keeps whatever is left over and the two only stop sharing a line when
-                // the ring would have to drop under 96 dp — a threshold of 340 dp put a
-                // 360 dp phone into the stacked layout with 150 dp of width to spare,
-                // which is the ring taking a whole row on someone else's device while it
-                // looked fine on a Pixel.
-                val compactText = maxWidth < 372.dp
-                val columns = rememberTirColumnWidths(rows.map { it.rangeLabel }, compactText)
-                // What the widest row actually needs at the current text size: label, range
-                // and percent columns, the two 8dp gaps and the row's 8dp start padding.
-                val widestLabel = rememberTirLabelWidth(rows.map { it.label }, compactText)
-                val fullRowsWidth = maxOf(180.dp, widestLabel + columns.range + columns.percent + 8.dp * 3)
-                val ringSpacing = 8.dp
-                val ringMin = 104.dp
-                val ringMax = 176.dp
-                val wrapLabels = maxWidth < ringMin + ringSpacing + fullRowsWidth
-                val minimumLabelWidth = rememberTirLabelWidth(
-                    rows.map { it.label }, compactText, twoLines = true
-                )
-                val minRowsWidth = if (wrapLabels) {
-                    maxOf(180.dp, minimumLabelWidth + columns.range + columns.percent + 8.dp * 3)
-                } else fullRowsWidth
-                val isCompact = maxWidth < ringMin + ringSpacing + minRowsWidth
-                val ringSize = if (isCompact) {
-                    (maxWidth * 0.34f).coerceIn(128.dp, 160.dp).coerceAtMost(maxWidth)
-                } else {
-                    (maxWidth * 0.34f)
-                        .coerceIn(ringMin, ringMax)
-                        // Never at the rows' expense.
-                        .coerceAtMost(maxWidth - ringSpacing - minRowsWidth)
-                }
-                val tirRows: @Composable () -> Unit = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        rows.forEach { row ->
-                            TirCompactRow(
-                                label = row.label,
-                                rangeLabel = row.rangeLabel,
-                                percent = row.percent,
-                                color = row.color,
-                                selected = selectedBand == row.band,
-                                compactText = compactText,
-                                columns = columns,
-                                wrapLabel = wrapLabels,
-                                onClick = {
-                                    onBandSelected(if (selectedBand == row.band) null else row.band)
-                                }
-                            )
-                        }
-                    }
-                }
-
-                if (isCompact) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        OverviewRing(
-                            tir = summary.tir,
-                            comparison = summary.comparison,
-                            selectedBand = selectedBand,
-                            onBandSelected = onBandSelected,
-                            modifier = Modifier.width(ringSize)
-                        )
-                        tirRows()
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OverviewRing(
-                            tir = summary.tir,
-                            comparison = summary.comparison,
-                            selectedBand = selectedBand,
-                            onBandSelected = onBandSelected,
-                            modifier = Modifier.width(ringSize)
-                        )
-                        Box(modifier = Modifier.weight(1f)) {
-                            tirRows()
-                        }
-                    }
-                }
-            }
-
-        }
-    }
-}
-
-/** Keep the original center typography unless this particular circle cannot contain it. */
-@Composable
-private fun ringTextStyles(diameter: Dp, value: String): Pair<TextStyle, TextStyle> {
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val label = stringResource(R.string.tir)
-    val values = listOf(MaterialTheme.typography.headlineLarge, MaterialTheme.typography.headlineMedium,
-        MaterialTheme.typography.headlineSmall, MaterialTheme.typography.titleLarge,
-        MaterialTheme.typography.titleMediumEmphasized)
-    val labels = listOf(MaterialTheme.typography.titleMedium, MaterialTheme.typography.labelLarge,
-        MaterialTheme.typography.labelMedium, MaterialTheme.typography.labelSmall)
-    val available = with(density) { (diameter - OverviewRingStroke * 2 - 4.dp).toPx() }
-    for (labelStyle in labels) for (valueStyle in values) {
-        val number = measurer.measure(value, valueStyle.copy(fontFeatureSettings = "tnum")).size
-        val caption = measurer.measure(label, labelStyle).size
-        val w = maxOf(number.width, caption.width).toFloat()
-        val h = (number.height + caption.height).toFloat()
-        if (kotlin.math.sqrt(w * w + h * h) <= available) return valueStyle to labelStyle
-    }
-    return values.last() to labels.last()
-}
-
-@Composable
-internal fun OverviewRing(
-    tir: TimeInRangeBreakdown,
-    comparison: StatsComparison?,
-    selectedBand: TirBand?,
-    onBandSelected: (TirBand?) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val veryLow by animateFloatAsState(tir.veryLowPercent.coerceIn(0f, 100f), label = "ringVeryLow")
-    val low by animateFloatAsState(tir.lowPercent.coerceIn(0f, 100f), label = "ringLow")
-    val inRange by animateFloatAsState(tir.inRangePercent.coerceIn(0f, 100f), label = "ringInRange")
-    val high by animateFloatAsState(tir.highPercent.coerceIn(0f, 100f), label = "ringHigh")
-    val veryHigh by animateFloatAsState(tir.veryHighPercent.coerceIn(0f, 100f), label = "ringVeryHigh")
-
-    val inRangeTone by animateColorAsState(
-        targetValue = when {
-            inRange >= 70f -> TirInRangeColor
-            inRange >= 55f -> TirHighColor
-            else -> TirVeryHighColor
-        },
-        label = "ringCenterTone"
-    )
-
-    val segments = listOf(
-        Triple(TirBand.VERY_LOW, veryLow, TirVeryLowColor),
-        Triple(TirBand.LOW, low, TirLowColor),
-        Triple(TirBand.IN_RANGE, inRange, TirInRangeColor),
-        Triple(TirBand.HIGH, high, TirHighColor),
-        Triple(TirBand.VERY_HIGH, veryHigh, TirVeryHighColor)
-    )
-
-    val label = stringResource(R.string.tir)
-    val formattedPercent = String.format(Locale.getDefault(), "%.0f%%", inRange)
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        BoxWithConstraints(
-            modifier = Modifier.aspectRatio(1f).semantics { contentDescription = "$formattedPercent $label" }.pointerInput(veryLow, low, inRange, high, veryHigh, selectedBand) {
-                detectTapGestures { tapOffset ->
-                    val center = Offset(size.width / 2f, size.height / 2f)
-                    val dx = tapOffset.x - center.x
-                    val dy = tapOffset.y - center.y
-                    val distance = kotlin.math.sqrt(dx * dx + dy * dy)
-                    val outerRadius = minOf(size.width, size.height) / 2f
-                    val strokePx = OverviewRingStroke.toPx()
-                    val innerRadius = (outerRadius - strokePx * 1.35f).coerceAtLeast(0f)
-                    if (distance < innerRadius || distance > outerRadius + strokePx * 0.35f) {
-                        onBandSelected(null)
-                        return@detectTapGestures
-                    }
-
-                    val angle = ((atan2(dy, dx) * 180f / PI.toFloat()) + 450f) % 360f
-                    var start = 0f
-                    for ((band, percent, _) in segments) {
-                        val sweep = 360f * (percent / 100f)
-                        if (sweep > 0f && angle >= start && angle < start + sweep) {
-                            onBandSelected(if (selectedBand == band) null else band)
-                            return@detectTapGestures
-                        }
-                        start += sweep
-                    }
-                    onBandSelected(null)
-                }
-            },
-            contentAlignment = Alignment.Center
-        ) {
-            val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val stroke = OverviewRingStroke.toPx()
-                val diameter = size.minDimension - stroke
-                drawCircle(
-                    color = trackColor,
-                    radius = diameter / 2f,
-                    center = center,
-                    style = Stroke(width = stroke)
-                )
-
-                var startAngle = -90f
-                segments.forEach { (band, percent, color) ->
-                    val sweepAngle = 360f * (percent / 100f)
-                    if (sweepAngle > 0.8f) {
-                        val gap = 1.2f
-                        val drawColor = if (selectedBand == null || selectedBand == band) {
-                            color
-                        } else {
-                            color.copy(alpha = 0.35f)
-                        }
-                        val drawStroke = if (selectedBand == band) stroke + 2.dp.toPx() else stroke
-                        drawArc(
-                            color = drawColor,
-                            startAngle = startAngle + (gap / 2f),
-                            sweepAngle = (sweepAngle - gap).coerceAtLeast(0.2f),
-                            useCenter = false,
-                            topLeft = Offset(center.x - diameter / 2f, center.y - diameter / 2f),
-                            size = Size(diameter, diameter),
-                            style = Stroke(width = drawStroke, cap = StrokeCap.Butt)
-                        )
-                    }
-                    startAngle += sweepAngle
-                }
-            }
-
-            val (valueStyle, labelStyle) = ringTextStyles(minOf(maxWidth, maxHeight), formattedPercent)
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = buildAnnotatedString {
-                        append(formattedPercent)
-                        val number = NumberFormat.getIntegerInstance().format(inRange.roundToInt())
-                        val start = formattedPercent.indexOf(number)
-                        if (start >= 0) addStyle(SpanStyle(color = inRangeTone, fontFeatureSettings = "tnum"), start, start + number.length)
-                    },
-                    style = valueStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-                Text(label, style = labelStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-            }
-        }
-        // The change remains next to the headline without competing for its circular opening.
-        comparison?.takeIf { abs(it.inRangeDelta) >= 1f }?.let { delta ->
-            val rising = delta.inRangeDelta >= 0f
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                Icon(
-                    imageVector = if (rising) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                    contentDescription = null,
-                    tint = if (rising) TirInRangeColor else TirHighColor,
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(
-                    text = NumberFormat.getIntegerInstance().format(abs(delta.inRangeDelta).roundToInt()),
-                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                    color = if (rising) TirInRangeColor else TirHighColor,
-                    maxLines = 1
-                )
-            }
-        }
-    }
-}
-internal data class TirColumnWidths(val range: Dp, val percent: Dp)
-
-@Composable
-private fun tirRangeStyle(compactText: Boolean) = (
-    if (compactText) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
-).copy(fontFeatureSettings = "tnum")
-
-@Composable
-private fun tirPercentStyle(compactText: Boolean) = (
-    if (compactText) MaterialTheme.typography.labelMediumEmphasized else MaterialTheme.typography.labelLargeEmphasized
-).copy(fontFeatureSettings = "tnum")
-
-/**
- * The band rows' range and percentage columns, sized to the widest label they will hold so
- * all five rows line up. They used to be fixed dp widths, which held at the default text
- * size and cut "9.0–11.0" to "9.0–1…" as soon as the text grew.
- */
-@Composable
-private fun tirLabelStyle(compactText: Boolean) =
-    if (compactText) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium
-
-@Composable
-private fun rememberTirLabelWidth(labels: List<String>, compactText: Boolean, twoLines: Boolean = false): Dp {
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val style = tirLabelStyle(compactText)
-    return remember(labels, density, style, twoLines) {
-        labels.maxOfOrNull { label ->
-            val full = measurer.measure(label, style, maxLines = 1, softWrap = false)
-            var width = full.size.width
-            if (twoLines) {
-                // Respect each script's word boundaries, and measure the width needed
-                // for two complete lines instead of making every translation one line.
-                var low = kotlin.math.ceil(full.multiParagraph.intrinsics.minIntrinsicWidth).toInt()
-                var high = width
-                while (low < high) {
-                    val mid = (low + high) / 2
-                    val layout = measurer.measure(label, style,
-                        constraints = androidx.compose.ui.unit.Constraints(maxWidth = mid),
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    if (layout.isLineEllipsized(layout.lineCount - 1)) low = mid + 1 else high = mid
-                }
-                width = low
-            }
-            with(density) { width.toDp() }
-        } ?: 0.dp
-    }
-}
-
-@Composable
-private fun rememberTirColumnWidths(rangeLabels: List<String>, compactText: Boolean): TirColumnWidths {
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val rangeStyle = tirRangeStyle(compactText)
-    val percentStyle = tirPercentStyle(compactText)
-    return remember(rangeLabels, compactText, density, rangeStyle, percentStyle) {
-        fun widthOf(text: String, style: TextStyle): Dp = with(density) {
-            measurer.measure(text, style, maxLines = 1, softWrap = false).size.width.toDp()
-        }
-        TirColumnWidths(
-            range = rangeLabels.maxOfOrNull { widthOf(it, rangeStyle) } ?: 0.dp,
-            percent = widthOf(String.format(Locale.getDefault(), "%.1f%%", 100f), percentStyle),
-        )
-    }
-}
-
-@Composable
-private fun TirCompactRow(
-    label: String,
-    rangeLabel: String,
-    percent: Float,
-    color: Color,
-    selected: Boolean,
-    compactText: Boolean,
-    columns: TirColumnWidths,
-    wrapLabel: Boolean,
-    onClick: () -> Unit
-) {
-    val rangeColumnWidth = columns.range
-    val percentColumnWidth = columns.percent
-    val labelStyle = tirLabelStyle(compactText)
-    val rangeStyle = tirRangeStyle(compactText)
-    val percentStyle = tirPercentStyle(compactText)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (selected) {
-                    MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f)
-                } else {
-                    Color.Transparent
-                }
-            )
-            .clickable(onClick = onClick)
-            .padding(start = 8.dp, end = 0.dp, top = if (compactText) 4.dp else 4.dp, bottom = if (compactText) 4.dp else 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = label,
-            style = labelStyle,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-            maxLines = if (wrapLabel) 2 else 1,
-            softWrap = wrapLabel,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = rangeLabel,
-            style = rangeStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            modifier = Modifier.width(rangeColumnWidth),
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.End
-        )
-        Text(
-            text = String.format(Locale.getDefault(), "%.1f%%", percent),
-            style = percentStyle,
-            color = color.copy(alpha = 0.82f),
-            modifier = Modifier.width(percentColumnWidth),
-            maxLines = 1,
-            softWrap = false,
-            textAlign = TextAlign.End
-        )
     }
 }
 
@@ -2986,9 +2495,9 @@ private fun InsightsCard(insights: List<StatsInsight>) {
 @Composable
 private fun InsightRow(insight: StatsInsight) {
     val (contentColor, icon) = when (insight.severity) {
-        InsightSeverity.POSITIVE -> TirInRangeColor to Icons.Default.Shield
-        InsightSeverity.ATTENTION -> TirHighColor to Icons.Default.WarningAmber
-        InsightSeverity.CAUTION -> TirVeryHighColor to Icons.Default.ErrorOutline
+        InsightSeverity.POSITIVE -> TirInRangeColor to Symbols.ShieldFilled
+        InsightSeverity.ATTENTION -> TirHighColor to Symbols.WarningAmberFilled
+        InsightSeverity.CAUTION -> TirVeryHighColor to Symbols.Error
     }
     val bgColor = contentColor.copy(alpha = 0.16f)
 

@@ -341,7 +341,7 @@
     <string name="import_no_glucose">Questo file non contiene dati del glucosio</string>
     <string name="import_unsupported_file">File non supportato. Seleziona un\'esportazione JugglucoNG o una cronologia del glucosio in CSV.</string>
     <string name="delete_reading_title">Eliminare lettura?</string>
-    <string name="delete_reading_confirmation">Rimuovere questa lettura del glucosio dalla cronologia locale. Questa azione non può essere annullata.</string>
+    <string name="delete_reading_confirmation">Rimuovere questa lettura del glucosio dalla cronologia locale.</string>
     <string name="alert_sound">Suono Avviso</string>
     <string name="vibrate_only">Solo Vibrazione</string>
     <string name="sound_vibrate">Suono &amp; Vibrazione</string>
@@ -774,19 +774,24 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="median">Mediano</string>
     <string name="meterlist">Glucometri</string>
     <string name="glucose_meters_desc">Collega glucometri Bluetooth</string>
-    <string name="glucose_meters_journal_desc">Le misurazioni vengono salvate come glicemie nel diario e possono essere inviate a Nightscout.</string>
+    <string name="glucose_meters_journal_desc">Le misurazioni vengono salvate come glicemie nel diario e possono essere inviate a Nightscout</string>
     <string name="satellite_meter_title">Glucometro Satellite (Сателлит+)</string>
     <string name="satellite_meter_code_label">PIN o codice etichetta</string>
     <string name="satellite_meter_code_desc">Inserisci il PIN di 3 cifre o il codice più lungo stampato sotto l’etichetta QR/DataMatrix del glucometro. Viene usato a ogni connessione Bluetooth.</string>
     <string name="glucose_meters_configured">Glucometri configurati</string>
-    <string name="glucose_meters_none">Nessun glucometro configurato</string>
-    <string name="glucose_meters_none_desc">Trova un glucometro nelle vicinanze per iniziare a importare le misurazioni.</string>
     <string name="glucose_meters_nearby">Glucometri nelle vicinanze</string>
     <string name="glucose_meter_recheck">Ricontrolla il glucometro dopo</string>
     <string name="glucose_meter_recheck_now">Subito</string>
-    <string name="glucose_meter_recheck_hint">Per i glucometri che restano accesi, come Satellite. Una nuova misura può arrivare con questo ritardo</string>
-    <string name="glucose_meter_last_reading">Ultima misurazione: %1$s</string>
-    <string name="glucose_meter_no_readings">Nessuna misurazione ancora importata</string>
+    <string name="glucose_meter_recheck_hint">Satellite non si spegne mai. Un\'attesa più lunga fa risparmiare batteria</string>
+    <string name="glucose_meter_name">Nome</string>
+    <string name="glucose_meter_name_hint">Mostrato qui e nelle nuove voci del diario</string>
+    <string name="glucose_meters_find">Cerca glucometri</string>
+    <string name="glucose_meters_none_found">Nessun glucometro trovato. Accendi il glucometro e cerca di nuovo</string>
+    <string name="glucose_meters_other">Altri dispositivi Bluetooth</string>
+    <string name="glucose_meters_other_desc">Se il glucometro non è nell\'elenco sopra</string>
+    <string name="glucose_meter_last_reading">Ultima misurazione</string>
+    <string name="glucose_meter_no_readings">Ancora nessuna</string>
+    <string name="glucose_meter_device_name">Nome Bluetooth</string>
     <string name="satellite_meter_code_missing">Glucometro Satellite: imposta prima il codice del glucometro nelle impostazioni dei glucometri</string>
     <string name="glucose_meter_forget">Dimentica</string>
     <string name="glucose_meter_forget_title">Dimentica glucometro</string>
@@ -1186,6 +1191,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_noisy_status">Calibrazione non disponibile; il rumore del segnale è troppo alto</string>
     <string name="calibrate_sensor_title">Calibrare il sensore</string>
     <string name="calibration_deleted">Calibrazione cancellata</string>
+    <string name="reading_deleted">Lettura eliminata</string>
     <string name="calibration_profile_exported">Profilo di calibrazione esportato</string>
     <string name="calibrationhelp">Aiuto per la calibrazione</string>
     <string name="calibrationslist">Elenco delle calibrazioni</string>
@@ -1894,10 +1900,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">Relay TURN per connessioni remote</string>
     <string name="mirror_connections">Connessioni</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Clone locale</string>
     <string name="mirror_default_hybrid_label">Clone ibrido</string>
-    <string name="mirror_clone_master_desc">Attiva tutte le connessioni Clone salvate</string>
     <string name="clone_history_recovery">Recupero della cronologia</string>
     <string name="clone_history_direction_send">Invia</string>
     <string name="clone_history_direction_pull">Recupera</string>
@@ -2125,6 +2129,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Accesso effettuato</string>
     <string name="ottai_session_invalid">La sessione cloud non è più valida: accedi di nuovo</string>
+    <string name="ottai_global_sign_in_again">Accedi di nuovo a Ottai Global per configurare un sensore o controllarne il firmware. I sensori salvati e la cronologia saranno conservati.</string>
+    <string name="ottai_ota_check_failed">Impossibile controllare il firmware.</string>
+    <string name="ottai_ota_disconnect_first">Disconnetti il sensore per controllare il firmware.</string>
     <string name="ottai_sensor_mac_hint">ID dispositivo, numero di serie o QR</string>
     <string name="ottai_connect_saved">Connetti</string>
     <string name="ottai_login_fail">Accesso non riuscito - controlla telefono/codice</string>
@@ -2472,7 +2479,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_server_unreachable">Impossibile raggiungere il server Ottai. Riprova.</string>
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
-    <string name="ottai_ota_upgrade_required">Il servizio Ottai ha richiesto un aggiornamento del firmware durante l’associazione del sensore. Riprova la configurazione o importa le credenziali salvate. Puoi anche provare l’app ufficiale Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai ha richiesto un aggiornamento del firmware.</string>
     <string name="ottai_retry">Riprova</string>
     <string name="ottai_setup_failed">Configurazione interrotta. Riprova oppure chiudi e importa le credenziali salvate.</string>
     <string name="ottai_region_cn_full">Ottai Cina</string>
@@ -2879,8 +2886,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_setup">Configurazione della connessione</string>
     <string name="turn_help_how_body">Il server di rendezvous si limita a presentare due dispositivi: ciascuno vi lascia i propri indirizzi possibili e ritira quelli dell’altro. I dati della glicemia non vi transitano mai. Si preferisce un percorso diretto; TURN inoltra il traffico solo quando nessun percorso diretto funziona, e ciò che inoltra resta cifrato.\n\nCon entrambi gli interruttori disattivati si usano il rendezvous e il relay dell’app. Attivandone uno, solo quella parte diventa tua; attivandoli entrambi, dai tuoi server esce solo la richiesta dell’indirizzo pubblico, a meno che «TURN per STUN» non invii anche quella al tuo relay.\n\nSulla stessa rete, «Trova dispositivi associati nelle vicinanze» li collega direttamente saltando il rendezvous.</string>
     <string name="turn_credentials_too_long">Il nome utente o la password è troppo lungo per questa configurazione TURN.</string>
-    <string name="clone_sync_title">Sincronizzazione</string>
     <string name="clone_network_title">Rete Clone</string>
+    <string name="clone_network_settings">Impostazioni rete Clone</string>
+    <string name="clone_add_custom_connection">Aggiungi connessione personalizzata</string>
     <string name="clone_servers">Server</string>
     <string name="clone_server_default">Server dell’app</string>
     <string name="clone_connection_options">Connessione</string>
@@ -2902,13 +2910,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_waiting">In attesa dell’altro telefono…</string>
     <string name="clone_pairing_announced">Visibile anche su questa rete Wi-Fi come %1$s</string>
     <string name="clone_pairing_connected">Connesso</string>
-    <string name="clone_add_manually_desc">Inserisci tu indirizzo e opzioni</string>
     <string name="clone_send_readings">Invia i valori</string>
     <string name="clone_on_this_wifi">Su questa rete Wi-Fi</string>
     <string name="clone_nearby_empty">Qui compaiono i telefoni che inviano valori su questa rete Wi-Fi</string>
     <string name="clone_sharing_readings">Invia valori</string>
     <string name="clone_network_summary">Server e ricerca locale</string>
     <string name="clone_background_desc">Consuma più batteria</string>
+    <string name="clone_other_phone">Altro telefono</string>
+    <string name="clone_this_phone">Questo telefono</string>
+    <string name="clone_connected_since">Connesso da</string>
+    <string name="clone_phase">Fase</string>
+    <string name="clone_ice_state">Stato ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d voce</item>
@@ -3120,7 +3132,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_installing">Installazione del firmware…</string>
     <string name="ottai_ota_reconnecting">Riconnessione e verifica della versione installata…</string>
     <string name="ottai_ota_preparing">Aggiornamento delle credenziali e scrittura dei parametri di fabbrica…</string>
-    <string name="ottai_ota_complete">Preparazione completata. Chiudi questa finestra e connettiti normalmente per attivare il sensore.</string>
+    <string name="ottai_ota_complete">Preparazione di fabbrica completata</string>
     <string name="ottai_ota_failed">Configurazione interrotta. Riprova o controlla il registro di traccia. La configurazione incompleta blocca l’attivazione.</string>
     <string name="ottai_ota_version">Sensore: %1$s · Aggiornamento: %2$s</string>
     <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
@@ -3149,7 +3161,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="ottai_ota_discard">Annulla configurazione incompleta</string>
     <string name="ottai_ota_discard_confirm">Eliminare lo stato salvato di aggiornamento e preparazione per consentire la connessione? Firmware e impostazioni non verranno ripristinati. Un aggiornamento interrotto potrebbe richiedere il recupero.</string>
-    <string name="ottai_ota_pending">La configurazione del sensore è incompleta. Connetti di nuovo o apri il recupero per completarla o annullarla.</string>
+    <string name="ottai_ota_pending">Configurazione del sensore incompleta</string>
     <string name="ottai_ota_finish_preparation">Firmware verificato. Conferma i parametri di fabbrica per completare la configurazione.</string>
     <string name="ottai_ota_discard_failed">Impossibile abbandonare il test firmware. Riprova.</string>
     <string name="prediction_analysis_section">Analisi delle previsioni</string>

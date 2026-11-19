@@ -13,6 +13,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,7 +54,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.mutableIntStateOf
@@ -72,15 +72,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.ui.theme.displayLargeExpressive
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DateRange
-import androidx.compose.material.icons.rounded.HourglassEmpty
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DoNotDisturbOn
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -88,9 +79,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material.icons.filled.History
 import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.animateContentSize
@@ -136,6 +124,7 @@ import tk.glucodata.logic.TrendEngine
 import tk.glucodata.ui.util.AdaptiveContentWidthClass
 import tk.glucodata.ui.util.adaptiveContentWidthClass
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
+import tk.glucodata.ui.symbols.Symbols
 
 private data class TrendCornerWeights(
     val topStart: Float,
@@ -212,23 +201,6 @@ private fun trendCornerWeightsFromVelocity(velocity: Float): TrendCornerWeights 
 private fun directionalRadius(weight: Float, min: Dp, max: Dp): Dp = lerp(min, max, weight.coerceIn(0f, 1f))
 
 private const val CalibrationDeleteSwipeThresholdFraction = 0.4f
-
-private suspend fun androidx.compose.material3.SnackbarHostState?.showCalibrationUndoSnackbar(
-    message: String,
-    actionLabel: String
-): androidx.compose.material3.SnackbarResult? {
-    val hostState = this ?: return null
-    hostState.currentSnackbarData?.dismiss()
-    val result = hostState.showSnackbar(
-        message = message,
-        actionLabel = actionLabel,
-        duration = androidx.compose.material3.SnackbarDuration.Short
-    )
-    if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-        hostState.currentSnackbarData?.dismiss()
-    }
-    return result
-}
 
 @Composable
 fun DashboardCombinedHeader(
@@ -559,657 +531,660 @@ fun DashboardCombinedHeader(
         label = "HeroRangeContainerColor"
     )
 
-    val heroCardContent: @Composable () -> Unit = {
-            var heroContentWidthPx by remember { mutableStateOf(0) }
-            val density = LocalDensity.current
+    val heroReading = HeroReading(
+        primaryText = primaryText,
+        secondaryText = secondaryText,
+        tertiaryText = tertiaryText,
+        deltaText = heroDeltaText,
+        rangeText = currentRangeText,
+        trend = trendResult,
+        valueColor = heroValueColor,
+        arrowColor = heroArrowColor,
+        contentColor = glucoseContentColor
+    )
+    val heroPeers = HeroPeers(
+        mainSensorId = sensorName,
+        paired = secondaryPeer,
+        others = remainingPeers,
+        selectedSensorIds = activeSensors,
+        uncertaintyEnabled = uncertaintyEnabled,
+        onPeerClick = onPeerReadingClick
+    )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .onSizeChanged { heroContentWidthPx = it.width }
-            ) {
-                val heroWidthDp = with(density) { heroContentWidthPx.toDp() }
-                val heroWidthClass = if (adaptiveMetrics.isCompact && !isLandscape) {
-                    // A low-density / large-font phone reports abundant dp width even though
-                    // the physical canvas is still a phone. Width alone would select the
-                    // largest display type and make the header dominate the viewport.
-                    AdaptiveContentWidthClass.Compact
-                } else if (heroContentWidthPx > 0) {
-                    adaptiveContentWidthClass(
-                        width = heroWidthDp,
-                        compactMax = 180.dp,
-                        mediumMax = 260.dp
-                    )
-                } else {
-                    AdaptiveContentWidthClass.Medium
-                }
-                val resolvedStartPadding = when {
-                    isLandscape -> 20.dp
-                    heroWidthClass == AdaptiveContentWidthClass.Compact -> 16.dp
-                    heroWidthClass == AdaptiveContentWidthClass.Medium -> 20.dp
-                    else -> 28.dp
-                }
-                val resolvedEndPadding = if (heroWidthClass == AdaptiveContentWidthClass.Compact) 12.dp else 16.dp
-                // Paired sensors fit their measured text to the available width.
-                // The hero CARD is pinned to the
-                // single-sensor content height (heroContentMinHeight below) so it
-                // never grows or shrinks — the scaled cluster just centers inside it.
-                val isMultiHero = secondaryPeer != null || remainingPeers.isNotEmpty()
-                val singleValue = !hasSecondary && !hasTertiary
-                val heroMultiSensorScale = if (secondaryPeer == null && isMultiHero) 0.74f else 1f
-                // Single-sensor padding defines the target card height. Multi mode
-                // uses a smaller inner padding so the scaled value + chip cluster
-                // fills the SAME pinned height (heroContentMinHeight) below.
-                val singleVerticalPadding = if (heroWidthClass == AdaptiveContentWidthClass.Compact) 8.dp else 12.dp
-                val resolvedVerticalPadding = if (isMultiHero) 4.dp else singleVerticalPadding
-                // Full (single-sensor) value style. The card height is pinned to
-                // the MEASURED height of this style (incl. font padding) + padding,
-                // so multi-sensor mode renders at the exact same card height — not
-                // the lineHeight estimate, which understated it and made multi smaller.
-                val fullPrimaryStyle = (
-                    if (heroWidthClass == AdaptiveContentWidthClass.Compact) MaterialTheme.typography.displayMedium
-                    else MaterialTheme.typography.displayLargeExpressive
-                ).copy(fontFeatureSettings = "tnum")
-                val heroTextMeasurer = rememberTextMeasurer()
-                val heroContentMinHeight = remember(fullPrimaryStyle, density, singleVerticalPadding) {
-                    with(density) {
-                        heroTextMeasurer.measure("0,0", style = fullPrimaryStyle, maxLines = 1)
-                            .size.height.toDp()
-                    } + singleVerticalPadding * 2
-                }
-                val resolvedTrendIconSize = (when (heroWidthClass) {
-                    AdaptiveContentWidthClass.Compact -> 30.dp
-                    AdaptiveContentWidthClass.Medium -> 38.dp
-                    AdaptiveContentWidthClass.Expanded -> 42.dp
-                } * heroMultiSensorScale)
-                val resolvedClusterGap = if (heroWidthClass == AdaptiveContentWidthClass.Compact) 8.dp else 12.dp
-                val primaryValueStyle = fullPrimaryStyle.scaleForHero(heroMultiSensorScale)
-                val singleDeltaFits = singleValue && heroDeltaText?.let { delta ->
-                    val primaryWidth = heroTextMeasurer.measure(primaryText, style = primaryValueStyle, maxLines = 1).size.width
-                    val deltaWidth = heroTextMeasurer.measure(delta, style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"), maxLines = 1).size.width
-                    val chromeWidth = with(density) {
-                        (resolvedStartPadding + resolvedEndPadding + resolvedClusterGap + resolvedTrendIconSize + 16.dp).roundToPx()
-                    }
-                    heroContentWidthPx > 0 && primaryWidth + deltaWidth + chromeWidth <= heroContentWidthPx
-                } == true
-                val secondaryInlineStyle = when (heroWidthClass) {
-                    AdaptiveContentWidthClass.Compact -> MaterialTheme.typography.headlineSmall
-                    AdaptiveContentWidthClass.Medium -> MaterialTheme.typography.headlineMedium
-                    AdaptiveContentWidthClass.Expanded -> MaterialTheme.typography.headlineLarge
-                }.copy(fontFeatureSettings = "tnum").scaleForHero(heroMultiSensorScale)
-                val secondaryThreeValueStyle = (
-                    when (heroWidthClass) {
-                        AdaptiveContentWidthClass.Compact -> MaterialTheme.typography.titleLarge.copy(
-                            letterSpacing = 0.18.sp,
-                            lineHeight = 24.sp
-                        )
-                        AdaptiveContentWidthClass.Medium -> MaterialTheme.typography.headlineMedium.copy(
-                            letterSpacing = 0.10.sp,
-                            lineHeight = 34.sp
-                        )
-                        AdaptiveContentWidthClass.Expanded -> MaterialTheme.typography.headlineLarge.copy(
-                            letterSpacing = 0.06.sp,
-                            lineHeight = 40.sp
-                        )
-                    }
-                ).copy(fontFeatureSettings = "tnum").scaleForHero(heroMultiSensorScale)
-                val tertiaryThreeValueStyle = (
-                    when (heroWidthClass) {
-                        AdaptiveContentWidthClass.Compact -> MaterialTheme.typography.titleSmall.copy(
-                            letterSpacing = 0.22.sp,
-                            lineHeight = 18.sp
-                        )
-                        AdaptiveContentWidthClass.Medium -> MaterialTheme.typography.titleMedium.copy(
-                            letterSpacing = 0.16.sp,
-                            lineHeight = 24.sp
-                        )
-                        AdaptiveContentWidthClass.Expanded -> MaterialTheme.typography.titleLarge.copy(
-                            letterSpacing = 0.10.sp,
-                            lineHeight = 30.sp
-                        )
-                    }
-                ).copy(fontFeatureSettings = "tnum").scaleForHero(heroMultiSensorScale)
-                // Only the single-value layout places delta beside the value.
-                // Two and three values keep it beneath the trend arrow.
-                val deltaByArrow = !singleDeltaFits
-                val statusTitleStyle = when (heroWidthClass) {
-                    AdaptiveContentWidthClass.Compact -> MaterialTheme.typography.titleMedium
-                    AdaptiveContentWidthClass.Medium -> MaterialTheme.typography.titleLarge
-                    AdaptiveContentWidthClass.Expanded -> MaterialTheme.typography.headlineSmall
-                }.copy(fontFeatureSettings = "tnum")
-
-                if (statusCopy?.isNoSensor == true) {
-                    // Beside the button only while the title still fits in its two lines: a long
-                    // translation at a large font size would otherwise be cut off mid-word.
-                    val addSensorLabel = stringResource(R.string.add_sensor)
-                    val buttonLabelStyle = MaterialTheme.typography.labelLarge
-                    val titleBesideButtonFits = !isLandscape && with(density) {
-                        val buttonWidth = heroTextMeasurer.measure(addSensorLabel, style = buttonLabelStyle, maxLines = 1)
-                            .size.width + ButtonDefaults.ContentPadding.calculateStartPadding(LayoutDirection.Ltr).roundToPx() * 2
-                        val chromeWidth = (resolvedStartPadding + resolvedEndPadding + 12.dp).roundToPx()
-                        val titleWidth = heroContentWidthPx - buttonWidth - chromeWidth
-                        heroContentWidthPx == 0 || (titleWidth > 0 && !heroTextMeasurer.measure(
-                            statusCopy.title,
-                            style = statusTitleStyle,
-                            maxLines = 2,
-                            constraints = Constraints(maxWidth = titleWidth)
-                        ).hasVisualOverflow)
-                    }
-                    NoSensorHeroContent(
-                        title = statusCopy.title,
-                        titleStyle = statusTitleStyle,
-                        contentColor = glucoseContentColor,
-                        stacked = !titleBesideButtonFits,
-                        onAddSensorClick = onAddSensorClick,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(
-                                start = resolvedStartPadding,
-                                end = resolvedEndPadding,
-                                top = resolvedVerticalPadding,
-                                bottom = resolvedVerticalPadding
-                            )
-                    )
-                } else if (statusCopy != null) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(
-                                start = resolvedStartPadding,
-                                end = resolvedEndPadding,
-                                top = resolvedVerticalPadding,
-                                bottom = resolvedVerticalPadding
-                            ),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = statusCopy.title,
-                            style = statusTitleStyle,
-                            color = glucoseContentColor,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.Start
-                        )
-
-                        Spacer(modifier = Modifier.width(resolvedClusterGap))
-
-                        DataStatusPulse(
-                            color = glucoseContentColor,
-                            subdued = statusCopy.isStale
-                        )
-                    }
-                } else if (secondaryPeer != null) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .height(heroContentMinHeight)
-                            .padding(
-                                start = resolvedStartPadding,
-                                end = resolvedEndPadding,
-                                top = resolvedVerticalPadding,
-                                bottom = resolvedVerticalPadding
-                            ),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        DashboardHeroSensorPair(
-                            primarySensorId = sensorName,
-                            uncertaintyEnabled = uncertaintyEnabled,
-                            contentHeight = heroContentMinHeight - resolvedVerticalPadding * 2,
-                            primaryText = primaryText,
-                            primaryStyle = primaryValueStyle,
-                            primarySecondaryText = listOfNotNull(secondaryText, tertiaryText).joinToString(" · ").ifEmpty { null },
-                            primarySecondaryStyle = secondaryInlineStyle,
-                            primaryColor = heroValueColor,
-                            primaryRangeText = currentRangeText,
-                            primaryTrend = trendResult,
-                            primaryArrowColor = heroArrowColor,
-                            primaryDeltaText = heroDeltaText,
-                            peer = secondaryPeer,
-                            peerStyle = secondaryInlineStyle,
-                            selectedSensorIds = activeSensors,
-                            contentColor = glucoseContentColor,
-                            onPeerClick = onPeerReadingClick
-                        )
-                        if (remainingPeers.isNotEmpty()) {
-                            DashboardHeroPeerStrip(
-                                peerReadings = remainingPeers,
-                                selectedSensorIds = activeSensors,
-                                contentColor = glucoseContentColor,
-                                onPeerClick = onPeerReadingClick,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-                } else if (isLandscape) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(
-                                start = resolvedStartPadding,
-                                end = resolvedEndPadding,
-                                top = resolvedVerticalPadding,
-                                bottom = resolvedVerticalPadding
-                            ),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.Start
-                            ) {
-                                if (singleValue || hasThreeValues) {
-                                    DashboardHeroPrimaryText(
-                                        value = primaryText,
-                                        style = primaryValueStyle,
-                                        color = heroValueColor,
-                                        deltaText = heroDeltaText.takeIf { singleDeltaFits },
-                                        deltaColor = glucoseContentColor
-                                    )
-                                } else {
-                                    DashboardHeroValueCluster(
-                                        primaryText = primaryText,
-                                        secondaryText = secondaryText,
-                                        tertiaryText = tertiaryText,
-                                        primaryStyle = primaryValueStyle,
-                                        secondaryInlineStyle = secondaryInlineStyle,
-                                        secondaryStackStyle = secondaryThreeValueStyle,
-                                        tertiaryStackStyle = tertiaryThreeValueStyle,
-                                        contentColor = glucoseContentColor,
-                                        primaryColor = heroValueColor
-                                    )
-                                }
-                                // Only when the estimator actually reports a
-                                // range, and deliberately quiet: low contrast,
-                                // label type, no label word. The number above
-                                // stays the thing you read.
-                                currentRangeText?.let { range ->
-                                    Text(
-                                        text = range,
-                                        style = MaterialTheme.typography.labelMedium
-                                            .copy(fontFeatureSettings = "tnum"),
-                                        color = heroValueColor.copy(alpha = 0.55f),
-                                        maxLines = 1,
-                                        softWrap = false,
-                                    )
-                                }
-                            }
-
-                            HeroTrendWithDelta(
-                                trendResult = trendResult,
-                                arrowColor = heroArrowColor,
-                                deltaText = heroDeltaText.takeIf { deltaByArrow },
-                                contentColor = glucoseContentColor,
-                                iconSize = resolvedTrendIconSize
-                            )
-                        }
-
-                        if (hasThreeValues) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = secondaryText ?: "",
-                                    style = secondaryThreeValueStyle,
-                                    color = glucoseContentColor.copy(alpha = 0.90f),
-                                    softWrap = false,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = "·",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                                    color = glucoseContentColor.copy(alpha = 0.40f),
-                                    modifier = Modifier.padding(horizontal = 4.dp)
-                                )
-                                Text(
-                                    text = tertiaryText ?: "",
-                                    style = tertiaryThreeValueStyle,
-                                    color = glucoseContentColor.copy(alpha = 0.66f),
-                                    softWrap = false,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-
-                        if (remainingPeers.isNotEmpty()) {
-                            DashboardHeroPeerStrip(
-                                peerReadings = remainingPeers,
-                                selectedSensorIds = activeSensors,
-                                contentColor = glucoseContentColor,
-                                onPeerClick = onPeerReadingClick,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .heightIn(min = heroContentMinHeight)
-                            .padding(
-                                start = resolvedStartPadding,
-                                end = resolvedEndPadding,
-                                top = resolvedVerticalPadding,
-                                bottom = resolvedVerticalPadding
-                            ),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            DashboardHeroValueCluster(
-                                modifier = Modifier.weight(1f),
-                                primaryText = primaryText,
-                                secondaryText = secondaryText,
-                                tertiaryText = tertiaryText,
-                                primaryStyle = primaryValueStyle,
-                                secondaryInlineStyle = secondaryInlineStyle,
-                                secondaryStackStyle = secondaryThreeValueStyle,
-                                tertiaryStackStyle = tertiaryThreeValueStyle,
-                                contentColor = glucoseContentColor,
-                                primaryColor = heroValueColor,
-                                deltaText = heroDeltaText.takeIf { singleDeltaFits }
-                            )
-
-                            Spacer(modifier = Modifier.width(resolvedClusterGap))
-
-                            HeroTrendWithDelta(
-                                trendResult = trendResult,
-                                arrowColor = heroArrowColor,
-                                deltaText = heroDeltaText.takeIf { deltaByArrow },
-                                contentColor = glucoseContentColor,
-                                iconSize = resolvedTrendIconSize
-                            )
-                        }
-
-                        if (remainingPeers.isNotEmpty()) {
-                            DashboardHeroPeerStrip(
-                                peerReadings = remainingPeers,
-                                selectedSensorIds = activeSensors,
-                                contentColor = glucoseContentColor,
-                                onPeerClick = onPeerReadingClick,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
-    }
-
-    val heroCard: @Composable (Modifier) -> Unit = { modifier ->
-        // Alone in the row, the card takes the sensor card's outer corners too.
-        val heroAlone = statusCopy?.isNoSensor == true
-        val heroShape = RoundedCornerShape(
-            topStart = heroTopStart,
-            topEnd = if (heroAlone) sensorTopEnd else heroTopEnd,
-            bottomEnd = if (heroAlone) sensorBottomEnd else heroBottomEnd,
-            bottomStart = heroBottomStart
-        )
-        val heroColors = CardDefaults.cardColors(
-            containerColor = glucoseContainerColor,
-            contentColor = glucoseContentColor
-        )
-        val stabilizedModifier = if (statusCopy != null) {
-            modifier.heightIn(min = 96.dp)
-        } else {
-            modifier
-        }
-        if (statusCopy == null) {
-            Card(
-                onClick = onHeroClick,
-                modifier = stabilizedModifier,
-                colors = heroColors,
-                shape = heroShape
-            ) {
-                heroCardContent()
-            }
-        } else {
-            Card(
-                modifier = stabilizedModifier,
-                colors = heroColors,
-                shape = heroShape
-            ) {
-                heroCardContent()
-            }
-        }
-    }
-
-    val sensorCard: @Composable (Modifier) -> Unit = { modifier ->
-        var sensorContentWidthPx by remember { mutableStateOf(0) }
-        val sensorDensity = LocalDensity.current
-        Card(
-            onClick = onSensorCardClick,
-            modifier = modifier,
-             colors = CardDefaults.cardColors(
-                containerColor = sensorContainerColor,
-                contentColor = sensorContentColor
-            ),
-            shape = RoundedCornerShape(
-                topStart = sensorTopStart,
-                topEnd = sensorTopEnd,
-                bottomEnd = sensorBottomEnd,
-                bottomStart = sensorBottomStart
-            )
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .onSizeChanged { sensorContentWidthPx = it.width }
-            ) {
-                val showRemainingHours = sensorHoursRemaining in 0L..24L
-                val lifecycleText = if (showRemainingHours) "$sensorHoursRemaining" + "h" else daysRemaining
-                val lifecycleStyle = MaterialTheme.typography.labelLarge
-                val lifecycleTextMeasurer = rememberTextMeasurer()
-                val lifecycleTextWidthPx = remember(lifecycleText, lifecycleStyle) {
-                    lifecycleTextMeasurer.measure(
-                        text = lifecycleText,
-                        style = lifecycleStyle,
-                        maxLines = 1
-                    ).size.width
-                }
-                val lifecycleCalendarChromePx = with(sensorDensity) {
-                    // Card padding on both sides, the text/icon gap and the icon itself.
-                    (16.dp * 2 + 8.dp + 14.dp).roundToPx()
-                }
-                // Hide decorative line art only when this exact text/icon composition cannot
-                // fit. Window density classes are intentionally irrelevant: they describe the
-                // whole screen, not the real space inside this card.
-                val showLifecycleCalendar = sensorContentWidthPx == 0 ||
-                    lifecycleTextWidthPx + lifecycleCalendarChromePx <= sensorContentWidthPx
-                // Dynamic Fill Layer
-                if (sensorProgress > 0f) {
-                    val fillColor = when {
-                        sensorProgress > 0.95f -> MaterialTheme.colorScheme.error
-                        sensorProgress > 0.80f -> MaterialTheme.colorScheme.tertiary
-                        else -> StatusPalette.sensorLifeFill
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(sensorProgress)
-                            .background(fillColor.copy(alpha = 0.25f)) // Slightly increased opacity for visibility
-                    )
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 12.dp), // Matched Vertical Padding (12dp)
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    // Quiet window: visible while it runs, so nobody forgets it.
-                    if (quietWindowUntilMs > 0L) {
-                        QuietWindowHeaderChip(
-                            untilMs = quietWindowUntilMs,
-                            onClick = onQuietWindowClick,
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
-                    }
-
-                    // 0. Signal quality (start) and how old the newest reading is (end).
-                    // The noise indicator shows as before; only the reading-age
-                    // counter is opt-in via Display → Dashboard readouts (off by
-                    // default). This row already existed with dead space to its
-                    // right, so the counter costs the card no height.
-                    if (trendResult.noiseLevel > 0f || (showReadingAge && primaryReadingMillis != null)) {
-                        SignalQualityAndReadingAgeRow(
-                            noiseLevel = trendResult.noiseLevel,
-                            readingMillis = if (showReadingAge) primaryReadingMillis else null,
-                            contentColor = sensorContentColor,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 4.dp)
-                        )
-                    }
-                    
-                    // 1. Sensor Name (Top Label)
-                    if (sensorDisplayName.isNotEmpty()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (isCloneSource) {
-                                CloneSourceMark(
-                                    transport = cloneTransport,
-                                    showLabel = true,
-                                    tint = sensorContentColor.copy(alpha = 0.7f),
-                                    textStyle = MaterialTheme.typography.labelMedium,
-                                )
-                            } else {
-                                Text(
-                                    text = sensorDisplayName,
-                                    style = MaterialTheme.typography.labelMedium, // M3 Standard
-                                    color = sensorContentColor.copy(alpha = 0.7f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false) // Allow shrinking for dots
-                                )
-                            }
-                            
-                            // Active Indicators (Dots) - Right of Name
-                            // Hidden if only 1 active sensor
-                            if (activeSensors.size > 1) {
-                                val selectedSensorColors = remember(activeSensors) {
-                                    tk.glucodata.SensorVisuals.distinctColorArgbMap(activeSensors)
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                activeSensors.forEach { serial ->
-                                     Box(
-                                         modifier = Modifier
-                                             .size(6.dp)
-                                             .background(
-                                                 Color(
-                                                     selectedSensorColors.entries.firstOrNull { (selected, _) ->
-                                                         tk.glucodata.SensorIdentity.matches(selected, serial)
-                                                     }?.value ?: tk.glucodata.SensorVisuals.colorArgb(serial)
-                                                 ),
-                                                 androidx.compose.foundation.shape.CircleShape
-                                             )
-                                     )
-                                     Spacer(modifier = Modifier.width(4.dp))
-                                }
-                            }
-                        }
-                    }
-
-
-                    // 2. Main Status / Days (Hero Value)
-                    // Priority: Status if critical, else Days "1 / 14"
-                    val heroOwnsAwaitingStatus = resolvedDataState.isAwaitingData &&
-                        statusCopy != null &&
-                        lifecycleText.isNotEmpty()
-                    val showingStatus = shouldShowDashboardSensorStatus(
-                        isCloneSource = isCloneSource,
-                        isFreshData = isFreshData,
-                        sensorStatus = sensorStatus,
-                        heroOwnsAwaitingStatus = heroOwnsAwaitingStatus,
-                    )
-                    val mainText = if (showingStatus) sensorStatus else lifecycleText
-                    if (mainText.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                             // Text First
-                             Text(
-                                text = mainText,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = sensorContentColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = if (!showingStatus &&
-                                    (showRemainingHours || showLifecycleCalendar)
-                                ) {
-                                    Modifier.weight(1f, fill = false)
-                                } else {
-                                    Modifier
-                                }
-                            )
-
-                             if (!showingStatus &&
-                                 (showRemainingHours || showLifecycleCalendar)
-                             ) {
-                                 Spacer(modifier = Modifier.width(8.dp))
-
-                                 if (showRemainingHours) {
-                                      // Urgent: Hourglass with Dynamic Speed
-                                      val duration = (500 + (1500 * (sensorHoursRemaining / 24f))).toInt().coerceAtLeast(500)
-                                      AnimatedHourglassIcon(
-                                          color = sensorContentColor.copy(alpha = 0.8f),
-                                          modifier = Modifier.size(14.dp),
-                                          cycleDuration = duration
-                                      )
-                                 } else if (showLifecycleCalendar) {
-                                      // Normal: Custom Calendar with Page Flip
-                                      CustomCalendarIcon(
-                                          color = sensorContentColor.copy(alpha = 0.6f),
-                                          modifier = Modifier.size(14.dp),
-                                          currentDay = currentDay
-                                      )
-                                 }
-                             }
-                         }
-                     }
-                }
-            }
-        }
-    }
-
-    // With no sensor there is no sensor card, so nothing can name or count down a removed one.
+    // With no sensor there is no sensor card, so nothing can name or count down a removed
+    // one, and the reading card takes the sensor card's outer corners too.
     val showSensorCard = statusCopy?.isNoSensor != true
-    if (isLandscape) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            heroCard(Modifier.fillMaxWidth())
-            if (showSensorCard) {
-                sensorCard(Modifier.fillMaxWidth())
+    val heroShape = RoundedCornerShape(
+        topStart = heroTopStart,
+        topEnd = if (showSensorCard) heroTopEnd else sensorTopEnd,
+        bottomEnd = if (showSensorCard) heroBottomEnd else sensorBottomEnd,
+        bottomStart = heroBottomStart
+    )
+    val sensorShape = RoundedCornerShape(
+        topStart = sensorTopStart,
+        topEnd = sensorTopEnd,
+        bottomEnd = sensorBottomEnd,
+        bottomStart = sensorBottomStart
+    )
+
+    // Priority: the status when it matters, else the lifetime ("1 / 14").
+    val lifecycleShown = sensorHoursRemaining in 0L..24L || daysRemaining.isNotEmpty()
+    val heroOwnsAwaitingStatus = resolvedDataState.isAwaitingData && statusCopy != null && lifecycleShown
+    val sensorPanelStatus = sensorStatus.takeIf {
+        shouldShowDashboardSensorStatus(
+            isCloneSource = isCloneSource,
+            isFreshData = isFreshData,
+            sensorStatus = sensorStatus,
+            heroOwnsAwaitingStatus = heroOwnsAwaitingStatus,
+        )
+    }
+
+    // The header knows its width before it composes: every size-dependent choice below is
+    // made for the width the cards really get, in the same pass, not a frame later.
+    var sensorPanelCrowded by remember { mutableStateOf(false) }
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val rowWidthPx = constraints.maxWidth
+        val stacked = isLandscape
+        val heroShareWidthPx = if (stacked || !showSensorCard) {
+            rowWidthPx
+        } else {
+            heroSensorBaseSplit(rowWidthPx - with(LocalDensity.current) { HeroSensorGap.roundToPx() }).first
+        }
+        val heroLayout = resolveHeroLayout(
+            widthPx = heroShareWidthPx,
+            isCompactWindow = adaptiveMetrics.isCompact,
+            isLandscape = isLandscape,
+            reading = heroReading,
+            peers = heroPeers,
+            hasStatus = statusCopy != null,
+            sensorPanelCrowded = sensorPanelCrowded
+        )
+
+        val heroCard: @Composable (Modifier) -> Unit = { modifier ->
+            DashboardHeroCard(
+                layout = heroLayout,
+                reading = heroReading,
+                peers = heroPeers,
+                statusCopy = statusCopy,
+                isLandscape = isLandscape,
+                widthPx = heroShareWidthPx,
+                containerColor = glucoseContainerColor,
+                shape = heroShape,
+                onClick = onHeroClick,
+                onAddSensorClick = onAddSensorClick,
+                modifier = modifier
+            )
+        }
+        val sensorPanel: @Composable (Modifier) -> Unit = { modifier ->
+            DashboardSensorPanel(
+                displayName = sensorDisplayName,
+                isCloneSource = isCloneSource,
+                cloneTransport = cloneTransport,
+                activeSensors = activeSensors,
+                statusText = sensorPanelStatus,
+                daysText = daysRemaining,
+                hoursRemaining = sensorHoursRemaining,
+                currentDay = currentDay,
+                progress = sensorProgress,
+                noiseLevel = trendResult.noiseLevel,
+                readingMillis = if (showReadingAge) primaryReadingMillis else null,
+                quietWindowUntilMs = quietWindowUntilMs,
+                containerColor = sensorContainerColor,
+                contentColor = sensorContentColor,
+                shape = sensorShape,
+                onClick = onSensorCardClick,
+                onQuietWindowClick = onQuietWindowClick,
+                modifier = modifier
+            )
+        }
+
+        if (stacked) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                heroCard(Modifier.fillMaxWidth())
+                if (showSensorCard) {
+                    sensorPanel(Modifier.fillMaxWidth())
+                }
+            }
+        } else {
+            HeroSensorSplit(
+                heroNeedPx = heroLayout.contentNeedPx,
+                heroRoomyNeedPx = heroLayout.roomyContentNeedPx,
+                onPanelCrowded = { sensorPanelCrowded = it },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                heroCard(Modifier)
+                if (showSensorCard) {
+                    sensorPanel(Modifier)
+                }
             }
         }
+    }
+}
+
+/** What the reading card says, resolved once by the header. */
+private class HeroReading(
+    val primaryText: String,
+    val secondaryText: String?,
+    val tertiaryText: String?,
+    val deltaText: String?,
+    val rangeText: String?,
+    val trend: TrendEngine.TrendResult,
+    val valueColor: Color,
+    val arrowColor: Color,
+    val contentColor: Color
+) {
+    val hasThreeValues: Boolean get() = secondaryText != null && tertiaryText != null
+    val isSingleValue: Boolean get() = secondaryText == null && tertiaryText == null
+}
+
+/** The other selected sensors' readings shown inside the reading card. */
+private class HeroPeers(
+    val mainSensorId: String,
+    /** The peer drawn beside the main reading at nearly its size. */
+    val paired: PeerCurrentReading?,
+    /** The rest, as a strip of chips under the reading. */
+    val others: List<PeerCurrentReading>,
+    val selectedSensorIds: List<String>,
+    val uncertaintyEnabled: Boolean,
+    val onPeerClick: (String) -> Unit
+) {
+    val any: Boolean get() = paired != null || others.isNotEmpty()
+}
+
+/**
+ * Every size the reading card's content uses, chosen for one card width: paddings, type
+ * styles, the arrow, where the delta goes — and [contentNeedPx], what all of it adds up to.
+ */
+private class HeroLayout(
+    val startPadding: Dp,
+    val endPadding: Dp,
+    val verticalPadding: Dp,
+    /** The single-reading card height, which every other arrangement is pinned to. */
+    val contentMinHeight: Dp,
+    val trendIconSize: Dp,
+    val clusterGap: Dp,
+    val primaryStyle: TextStyle,
+    val secondaryInlineStyle: TextStyle,
+    val secondaryStackStyle: TextStyle,
+    val tertiaryStackStyle: TextStyle,
+    val statusTitleStyle: TextStyle,
+    /**
+     * A lone value with room beside it carries the delta there; otherwise, or when the
+     * sensor panel needs that room, the delta sits under the arrow.
+     */
+    val deltaBesideValue: Boolean,
+    /**
+     * The card width its content takes at full size, or null when the card has no width
+     * to spare: a status line that wraps, peers that scale to fill, a value already
+     * shrunk to fit. See [sensorPanelWidth].
+     */
+    val contentNeedPx: Int?,
+    /** [contentNeedPx] with the delta beside the value, when the card would put it there. */
+    val roomyContentNeedPx: Int?
+) {
+    val contentPadding: PaddingValues
+        get() = PaddingValues(start = startPadding, top = verticalPadding, end = endPadding, bottom = verticalPadding)
+}
+
+@Composable
+private fun resolveHeroLayout(
+    widthPx: Int,
+    isCompactWindow: Boolean,
+    isLandscape: Boolean,
+    reading: HeroReading,
+    peers: HeroPeers,
+    hasStatus: Boolean,
+    sensorPanelCrowded: Boolean
+): HeroLayout {
+    val density = LocalDensity.current
+    val typography = MaterialTheme.typography
+    val textMeasurer = rememberTextMeasurer()
+    val widthClass = if (isCompactWindow && !isLandscape) {
+        // A low-density / large-font phone reports abundant dp width even though
+        // the physical canvas is still a phone. Width alone would select the
+        // largest display type and make the header dominate the viewport.
+        AdaptiveContentWidthClass.Compact
     } else {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(androidx.compose.foundation.layout.IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        adaptiveContentWidthClass(
+            width = with(density) { widthPx.toDp() },
+            compactMax = 180.dp,
+            mediumMax = 260.dp
+        )
+    }
+    val compact = widthClass == AdaptiveContentWidthClass.Compact
+    val startPadding = when {
+        isLandscape -> 20.dp
+        compact -> 16.dp
+        widthClass == AdaptiveContentWidthClass.Medium -> 20.dp
+        else -> 28.dp
+    }
+    val endPadding = if (compact) 12.dp else 16.dp
+    // Peers without a paired one shrink the main reading to leave the chip strip its row.
+    val peerScale = if (peers.paired == null && peers.any) 0.74f else 1f
+    // Single-sensor padding defines the card height. With peers the inner padding is
+    // smaller, so the scaled value + chip cluster fills the SAME pinned height.
+    val singleVerticalPadding = if (compact) 8.dp else 12.dp
+    val verticalPadding = if (peers.any) 4.dp else singleVerticalPadding
+    val fullPrimaryStyle = (if (compact) typography.displayMedium else typography.displayLargeExpressive)
+        .copy(fontFeatureSettings = "tnum")
+    // Pinned to the MEASURED height of the full style (incl. font padding) + padding, not
+    // the lineHeight estimate, which understated it and made the peer layout smaller.
+    val contentMinHeight = remember(fullPrimaryStyle, density, singleVerticalPadding) {
+        with(density) {
+            textMeasurer.measure("0,0", style = fullPrimaryStyle, maxLines = 1).size.height.toDp()
+        } + singleVerticalPadding * 2
+    }
+    val trendIconSize = when (widthClass) {
+        AdaptiveContentWidthClass.Compact -> 30.dp
+        AdaptiveContentWidthClass.Medium -> 38.dp
+        AdaptiveContentWidthClass.Expanded -> 42.dp
+    } * peerScale
+    val clusterGap = if (compact) 8.dp else 12.dp
+    val primaryStyle = fullPrimaryStyle.scaleForHero(peerScale)
+    val secondaryInlineStyle = when (widthClass) {
+        AdaptiveContentWidthClass.Compact -> typography.headlineSmall
+        AdaptiveContentWidthClass.Medium -> typography.headlineMedium
+        AdaptiveContentWidthClass.Expanded -> typography.headlineLarge
+    }.copy(fontFeatureSettings = "tnum").scaleForHero(peerScale)
+    val secondaryStackStyle = when (widthClass) {
+        AdaptiveContentWidthClass.Compact -> typography.titleLarge.copy(letterSpacing = 0.18.sp, lineHeight = 24.sp)
+        AdaptiveContentWidthClass.Medium -> typography.headlineMedium.copy(letterSpacing = 0.10.sp, lineHeight = 34.sp)
+        AdaptiveContentWidthClass.Expanded -> typography.headlineLarge.copy(letterSpacing = 0.06.sp, lineHeight = 40.sp)
+    }.copy(fontFeatureSettings = "tnum").scaleForHero(peerScale)
+    val tertiaryStackStyle = when (widthClass) {
+        AdaptiveContentWidthClass.Compact -> typography.titleSmall.copy(letterSpacing = 0.22.sp, lineHeight = 18.sp)
+        AdaptiveContentWidthClass.Medium -> typography.titleMedium.copy(letterSpacing = 0.16.sp, lineHeight = 24.sp)
+        AdaptiveContentWidthClass.Expanded -> typography.titleLarge.copy(letterSpacing = 0.10.sp, lineHeight = 30.sp)
+    }.copy(fontFeatureSettings = "tnum").scaleForHero(peerScale)
+    val statusTitleStyle = when (widthClass) {
+        AdaptiveContentWidthClass.Compact -> typography.titleMedium
+        AdaptiveContentWidthClass.Medium -> typography.titleLarge
+        AdaptiveContentWidthClass.Expanded -> typography.headlineSmall
+    }.copy(fontFeatureSettings = "tnum")
+
+    val besideValueDeltaStyle = typography.bodyLarge.copy(fontFeatureSettings = "tnum")
+    val underArrowDeltaStyle = typography.bodySmall.copy(fontFeatureSettings = "tnum")
+    // Only the single-value layout places the delta beside the value, and only when the
+    // whole line fits. Two and three values keep it beneath the trend arrow.
+    val deltaFitsBesideValue = reading.isSingleValue && reading.deltaText?.let { delta ->
+        val primaryWidth = textMeasurer.measure(reading.primaryText, style = primaryStyle, maxLines = 1).size.width
+        val deltaWidth = textMeasurer.measure(delta, style = besideValueDeltaStyle, maxLines = 1).size.width
+        val chromeWidth = with(density) {
+            (startPadding + endPadding + clusterGap + trendIconSize + HeroDeltaBesideValueGap).roundToPx()
+        }
+        primaryWidth + deltaWidth + chromeWidth <= widthPx
+    } == true
+
+    val pairDotGap = HeroSeparatorDot.gap(secondaryInlineStyle)
+    val pairDotDiameter = HeroSeparatorDot.diameter(secondaryInlineStyle)
+    val stackDotGap = HeroSeparatorDot.gap(secondaryStackStyle)
+    val stackDotDiameter = HeroSeparatorDot.diameter(secondaryStackStyle)
+    val givesWidth = !hasStatus && !isLandscape && !peers.any
+    fun contentNeedPx(deltaBeside: Boolean): Int? = with(density) {
+        val delta = reading.deltaText.takeUnless { it.isNullOrEmpty() }
+        val clusterWidth = heroValueClusterWidthPx(
+            textMeasurer = textMeasurer,
+            density = density,
+            primaryText = reading.primaryText,
+            secondaryText = reading.secondaryText,
+            tertiaryText = reading.tertiaryText,
+            primaryStyle = primaryStyle,
+            secondaryInlineStyle = secondaryInlineStyle,
+            secondaryStackStyle = secondaryStackStyle,
+            tertiaryStackStyle = tertiaryStackStyle,
+            pairDotGap = pairDotGap,
+            pairDotDiameter = pairDotDiameter,
+            stackDotGap = stackDotGap,
+            stackDotDiameter = stackDotDiameter,
+            deltaText = delta.takeIf { deltaBeside },
+            pairDeltaStyle = underArrowDeltaStyle,
+            loneDeltaStyle = besideValueDeltaStyle
+        )
+        val underArrowDeltaWidth = if (delta != null && !deltaBeside) {
+            textMeasurer.measure(delta, style = underArrowDeltaStyle, maxLines = 1).size.width
+        } else {
+            0
+        }
+        // One dp over the sum: the pieces round to whole pixels one by one.
+        val need = startPadding.roundToPx() + clusterWidth + clusterGap.roundToPx() +
+            maxOf(trendIconSize.roundToPx(), underArrowDeltaWidth) + endPadding.roundToPx() + 1.dp.roundToPx()
+        need.takeIf { it <= widthPx }
+    }
+    val deltaBesideValue = deltaFitsBesideValue && !(givesWidth && sensorPanelCrowded)
+
+    return HeroLayout(
+        startPadding = startPadding,
+        endPadding = endPadding,
+        verticalPadding = verticalPadding,
+        contentMinHeight = contentMinHeight,
+        trendIconSize = trendIconSize,
+        clusterGap = clusterGap,
+        primaryStyle = primaryStyle,
+        secondaryInlineStyle = secondaryInlineStyle,
+        secondaryStackStyle = secondaryStackStyle,
+        tertiaryStackStyle = tertiaryStackStyle,
+        statusTitleStyle = statusTitleStyle,
+        deltaBesideValue = deltaBesideValue,
+        contentNeedPx = if (givesWidth) contentNeedPx(deltaBesideValue) else null,
+        roomyContentNeedPx = if (givesWidth && deltaFitsBesideValue) contentNeedPx(deltaBeside = true) else null
+    )
+}
+
+/** Space between a lone value and the delta beside it. */
+private val HeroDeltaBesideValueGap = 16.dp
+
+/** The reading card: the value with its arrow, or the state there is no value for. */
+@Composable
+private fun DashboardHeroCard(
+    layout: HeroLayout,
+    reading: HeroReading,
+    peers: HeroPeers,
+    statusCopy: DashboardDataStatusText?,
+    isLandscape: Boolean,
+    widthPx: Int,
+    containerColor: Color,
+    shape: androidx.compose.ui.graphics.Shape,
+    onClick: () -> Unit,
+    onAddSensorClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = CardDefaults.cardColors(containerColor = containerColor, contentColor = reading.contentColor)
+    val contentModifier = Modifier.fillMaxSize()
+    when {
+        // A state is not a reading: nothing to calibrate, so the card is not a button.
+        statusCopy != null -> Card(
+            modifier = modifier.heightIn(min = 96.dp),
+            colors = colors,
+            shape = shape
         ) {
-            heroCard(
-                Modifier
-                    .weight(if (showSensorCard) 0.7f else 1f)
-                    .fillMaxHeight()
+            if (statusCopy.isNoSensor) {
+                HeroNoSensorContent(statusCopy.title, layout, reading.contentColor, isLandscape, widthPx, onAddSensorClick, contentModifier)
+            } else {
+                HeroStatusContent(statusCopy, layout, reading.contentColor, contentModifier)
+            }
+        }
+
+        else -> Card(onClick = onClick, modifier = modifier, colors = colors, shape = shape) {
+            when {
+                peers.paired != null -> HeroPairedContent(layout, reading, peers, peers.paired, contentModifier)
+                isLandscape -> HeroStackedReadingContent(layout, reading, peers, contentModifier)
+                else -> HeroReadingContent(layout, reading, peers, contentModifier)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroNoSensorContent(
+    title: String,
+    layout: HeroLayout,
+    contentColor: Color,
+    isLandscape: Boolean,
+    widthPx: Int,
+    onAddSensorClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    // Beside the button only while the title still fits in its two lines: a long
+    // translation at a large font size would otherwise be cut off mid-word.
+    val addSensorLabel = stringResource(R.string.add_sensor)
+    val buttonLabelStyle = MaterialTheme.typography.labelLarge
+    val titleBesideButtonFits = !isLandscape && with(density) {
+        val buttonWidth = textMeasurer.measure(addSensorLabel, style = buttonLabelStyle, maxLines = 1)
+            .size.width + ButtonDefaults.ContentPadding.calculateStartPadding(LayoutDirection.Ltr).roundToPx() * 2
+        val chromeWidth = (layout.startPadding + layout.endPadding + 12.dp).roundToPx()
+        val titleWidth = widthPx - buttonWidth - chromeWidth
+        titleWidth > 0 && !textMeasurer.measure(
+            title,
+            style = layout.statusTitleStyle,
+            maxLines = 2,
+            constraints = Constraints(maxWidth = titleWidth)
+        ).hasVisualOverflow
+    }
+    NoSensorHeroContent(
+        title = title,
+        titleStyle = layout.statusTitleStyle,
+        contentColor = contentColor,
+        stacked = !titleBesideButtonFits,
+        onAddSensorClick = onAddSensorClick,
+        modifier = modifier.padding(layout.contentPadding)
+    )
+}
+
+/** Stale or awaiting data: the state in words, and a pulse to say the app is still listening. */
+@Composable
+private fun HeroStatusContent(
+    statusCopy: DashboardDataStatusText,
+    layout: HeroLayout,
+    contentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.padding(layout.contentPadding),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = statusCopy.title,
+            style = layout.statusTitleStyle,
+            color = contentColor,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Start
+        )
+
+        Spacer(modifier = Modifier.width(layout.clusterGap))
+
+        DataStatusPulse(
+            color = contentColor,
+            subdued = statusCopy.isStale
+        )
+    }
+}
+
+/** Two sensors side by side, fitted into the single-reading card height. */
+@Composable
+private fun HeroPairedContent(
+    layout: HeroLayout,
+    reading: HeroReading,
+    peers: HeroPeers,
+    paired: PeerCurrentReading,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .height(layout.contentMinHeight)
+            .padding(layout.contentPadding),
+        verticalArrangement = Arrangement.Center
+    ) {
+        DashboardHeroSensorPair(
+            primarySensorId = peers.mainSensorId,
+            uncertaintyEnabled = peers.uncertaintyEnabled,
+            contentHeight = layout.contentMinHeight - layout.verticalPadding * 2,
+            primaryText = reading.primaryText,
+            primaryStyle = layout.primaryStyle,
+            primarySecondaryText = listOfNotNull(reading.secondaryText, reading.tertiaryText).joinToString(" · ").ifEmpty { null },
+            primarySecondaryStyle = layout.secondaryInlineStyle,
+            primaryColor = reading.valueColor,
+            primaryRangeText = reading.rangeText,
+            primaryTrend = reading.trend,
+            primaryArrowColor = reading.arrowColor,
+            primaryDeltaText = reading.deltaText,
+            peer = paired,
+            peerStyle = layout.secondaryInlineStyle,
+            selectedSensorIds = peers.selectedSensorIds,
+            contentColor = reading.contentColor,
+            onPeerClick = peers.onPeerClick
+        )
+        HeroOtherPeers(peers, reading.contentColor)
+    }
+}
+
+/** The reading in the narrow side pane: values on the first line, supporting ones below. */
+@Composable
+private fun HeroStackedReadingContent(
+    layout: HeroLayout,
+    reading: HeroReading,
+    peers: HeroPeers,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(layout.contentPadding),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.Start
+            ) {
+                if (reading.isSingleValue || reading.hasThreeValues) {
+                    DashboardHeroPrimaryText(
+                        value = reading.primaryText,
+                        style = layout.primaryStyle,
+                        color = reading.valueColor,
+                        deltaText = reading.deltaText.takeIf { layout.deltaBesideValue },
+                        deltaColor = reading.contentColor
+                    )
+                } else {
+                    HeroValueCluster(layout, reading, deltaText = null)
+                }
+                // Only when the estimator actually reports a range, and deliberately
+                // quiet: low contrast, label type, no label word. The number above
+                // stays the thing you read.
+                reading.rangeText?.let { range ->
+                    Text(
+                        text = range,
+                        style = MaterialTheme.typography.labelMedium
+                            .copy(fontFeatureSettings = "tnum"),
+                        color = reading.valueColor.copy(alpha = 0.55f),
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+            }
+
+            HeroTrendWithDelta(
+                trendResult = reading.trend,
+                arrowColor = reading.arrowColor,
+                deltaText = reading.deltaText.takeUnless { layout.deltaBesideValue },
+                contentColor = reading.contentColor,
+                iconSize = layout.trendIconSize
             )
-            if (showSensorCard) {
-                sensorCard(
-                    Modifier
-                        .weight(0.3f)
-                        .fillMaxHeight()
+        }
+
+        if (reading.hasThreeValues) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = reading.secondaryText ?: "",
+                    style = layout.secondaryStackStyle,
+                    color = reading.contentColor.copy(alpha = 0.90f),
+                    softWrap = false,
+                    maxLines = 1
+                )
+                Text(
+                    text = "·",
+                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                    color = reading.contentColor.copy(alpha = 0.40f),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+                Text(
+                    text = reading.tertiaryText ?: "",
+                    style = layout.tertiaryStackStyle,
+                    color = reading.contentColor.copy(alpha = 0.66f),
+                    softWrap = false,
+                    maxLines = 1
                 )
             }
         }
+
+        HeroOtherPeers(peers, reading.contentColor)
+    }
+}
+
+/** The reading beside the sensor panel: the value cluster, then the arrow. */
+@Composable
+private fun HeroReadingContent(
+    layout: HeroLayout,
+    reading: HeroReading,
+    peers: HeroPeers,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .heightIn(min = layout.contentMinHeight)
+            .padding(layout.contentPadding),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HeroValueCluster(
+                layout = layout,
+                reading = reading,
+                deltaText = reading.deltaText.takeIf { layout.deltaBesideValue },
+                modifier = Modifier.weight(1f)
+            )
+
+            Spacer(modifier = Modifier.width(layout.clusterGap))
+
+            HeroTrendWithDelta(
+                trendResult = reading.trend,
+                arrowColor = reading.arrowColor,
+                deltaText = reading.deltaText.takeUnless { layout.deltaBesideValue },
+                contentColor = reading.contentColor,
+                iconSize = layout.trendIconSize
+            )
+        }
+
+        HeroOtherPeers(peers, reading.contentColor)
+    }
+}
+
+@Composable
+private fun HeroValueCluster(
+    layout: HeroLayout,
+    reading: HeroReading,
+    deltaText: String?,
+    modifier: Modifier = Modifier
+) {
+    DashboardHeroValueCluster(
+        modifier = modifier,
+        primaryText = reading.primaryText,
+        secondaryText = reading.secondaryText,
+        tertiaryText = reading.tertiaryText,
+        primaryStyle = layout.primaryStyle,
+        secondaryInlineStyle = layout.secondaryInlineStyle,
+        secondaryStackStyle = layout.secondaryStackStyle,
+        tertiaryStackStyle = layout.tertiaryStackStyle,
+        contentColor = reading.contentColor,
+        primaryColor = reading.valueColor,
+        deltaText = deltaText
+    )
+}
+
+@Composable
+private fun HeroOtherPeers(peers: HeroPeers, contentColor: Color) {
+    if (peers.others.isNotEmpty()) {
+        DashboardHeroPeerStrip(
+            peerReadings = peers.others,
+            selectedSensorIds = peers.selectedSensorIds,
+            contentColor = contentColor,
+            onPeerClick = peers.onPeerClick,
+            modifier = Modifier.padding(top = 4.dp)
+        )
     }
 }
 
@@ -1540,6 +1515,53 @@ private fun fitHeroScale(availableWidthPx: Int, requiredWidthPx: Int, minScale: 
     return (availableWidthPx.toFloat() / requiredWidthPx.toFloat()).coerceIn(minScale, 1f)
 }
 
+/**
+ * The width the hero's values take on one line at full size: the lone value with the delta
+ * beside it, the value and its supporting one, or the value and the stacked pair. The
+ * cluster scales to fit against this, and the header counts the card's spare width from it.
+ */
+private fun heroValueClusterWidthPx(
+    textMeasurer: androidx.compose.ui.text.TextMeasurer,
+    density: androidx.compose.ui.unit.Density,
+    primaryText: String,
+    secondaryText: String?,
+    tertiaryText: String?,
+    primaryStyle: TextStyle,
+    secondaryInlineStyle: TextStyle,
+    secondaryStackStyle: TextStyle,
+    tertiaryStackStyle: TextStyle,
+    pairDotGap: Dp,
+    pairDotDiameter: Dp,
+    stackDotGap: Dp,
+    stackDotDiameter: Dp,
+    deltaText: String?,
+    pairDeltaStyle: TextStyle,
+    loneDeltaStyle: TextStyle
+): Int = with(density) {
+    fun width(text: String, style: TextStyle) = textMeasurer.measure(text, style = style, maxLines = 1).size.width
+    val primaryWidth = width(primaryText, primaryStyle)
+    val pairText = secondaryText ?: tertiaryText
+    val hasDelta = !deltaText.isNullOrEmpty()
+    when {
+        secondaryText != null && tertiaryText != null ->
+            primaryWidth + (stackDotGap + stackDotDiameter + stackDotGap).roundToPx() +
+                maxOf(width(secondaryText, secondaryStackStyle), width(tertiaryText, tertiaryStackStyle))
+
+        pairText != null -> {
+            // The dot gaps are independent of the delta inset; the two lines share
+            // width, not spacing.
+            val supportWidth = (pairDotDiameter + pairDotGap).roundToPx() + width(pairText, secondaryInlineStyle)
+            primaryWidth + maxOf(
+                supportWidth + pairDotGap.roundToPx(),
+                if (hasDelta) width(deltaText.orEmpty(), pairDeltaStyle) + 16.dp.roundToPx() else 0
+            )
+        }
+
+        hasDelta -> primaryWidth + HeroDeltaBesideValueGap.roundToPx() + width(deltaText.orEmpty(), loneDeltaStyle)
+        else -> primaryWidth
+    }
+}
+
 @Composable
 private fun DashboardHeroValueCluster(
     primaryText: String,
@@ -1569,62 +1591,48 @@ private fun DashboardHeroValueCluster(
     val stackDotDiameter = HeroSeparatorDot.diameter(secondaryStackStyle)
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
+    val pairDeltaStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum")
+    val loneDeltaStyle = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum")
     var availableWidthPx by remember { mutableStateOf(0) }
 
     Box(
         modifier = modifier.onSizeChanged { availableWidthPx = it.width },
         contentAlignment = Alignment.CenterStart
     ) {
-        val primaryWidthPx = textMeasurer.measure(
-            text = primaryText,
-            style = primaryStyle,
-            maxLines = 1
-        ).size.width
-        val inlinePairWidthPx = if (!hasThreeValues && pairText != null) {
-            // The dot gaps are independent of the delta inset; the two
-            // lines share width, not spacing.
-            val supportWidth = with(density) { (pairDotDiameter + pairDotGap).roundToPx() } +
-                textMeasurer.measure(pairText, style = secondaryInlineStyle, maxLines = 1).size.width
-            val deltaWidth = if (!deltaText.isNullOrEmpty()) {
-                textMeasurer.measure(
-                    deltaText,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                    maxLines = 1
-                ).size.width
-            } else 0
-            primaryWidthPx + maxOf(
-                supportWidth + with(density) { pairDotGap.roundToPx() },
-                if (deltaWidth > 0) deltaWidth + with(density) { 16.dp.roundToPx() } else 0
-            )
-        } else {
-            0
-        }
-        val inlineStackWidthPx = if (hasThreeValues) {
-            val secondaryWidth = textMeasurer.measure(
-                text = secondaryText.orEmpty(),
-                style = secondaryStackStyle,
-                maxLines = 1
-            ).size.width
-            val tertiaryWidth = textMeasurer.measure(
-                text = tertiaryText.orEmpty(),
-                style = tertiaryStackStyle,
-                maxLines = 1
-            ).size.width
-            primaryWidthPx +
-                with(density) { (stackDotGap + stackDotDiameter + stackDotGap).roundToPx() } +
-                maxOf(secondaryWidth, tertiaryWidth)
-        } else {
-            0
-        }
-        val pairScale = fitHeroScale(availableWidthPx, inlinePairWidthPx)
-        val stackScale = fitHeroScale(availableWidthPx, inlineStackWidthPx)
         val layoutMode = when {
-            hasThreeValues && inlineStackWidthPx <= availableWidthPx -> DashboardHeroValueLayoutMode.InlineStack
             hasThreeValues -> DashboardHeroValueLayoutMode.InlineStack
-            pairText != null && inlinePairWidthPx <= availableWidthPx -> DashboardHeroValueLayoutMode.InlinePair
             pairText != null -> DashboardHeroValueLayoutMode.InlinePair
             else -> DashboardHeroValueLayoutMode.PrimaryOnly
         }
+        // Two and three values shrink together to stay on the line; a lone value never
+        // shrinks, its delta moves under the arrow instead.
+        val fitScale = if (layoutMode == DashboardHeroValueLayoutMode.PrimaryOnly) {
+            1f
+        } else {
+            fitHeroScale(
+                availableWidthPx,
+                heroValueClusterWidthPx(
+                    textMeasurer = textMeasurer,
+                    density = density,
+                    primaryText = primaryText,
+                    secondaryText = secondaryText,
+                    tertiaryText = tertiaryText,
+                    primaryStyle = primaryStyle,
+                    secondaryInlineStyle = secondaryInlineStyle,
+                    secondaryStackStyle = secondaryStackStyle,
+                    tertiaryStackStyle = tertiaryStackStyle,
+                    pairDotGap = pairDotGap,
+                    pairDotDiameter = pairDotDiameter,
+                    stackDotGap = stackDotGap,
+                    stackDotDiameter = stackDotDiameter,
+                    deltaText = deltaText,
+                    pairDeltaStyle = pairDeltaStyle,
+                    loneDeltaStyle = loneDeltaStyle
+                )
+            )
+        }
+        val pairScale = fitScale
+        val stackScale = fitScale
 
         when (layoutMode) {
             DashboardHeroValueLayoutMode.PrimaryOnly -> {
@@ -1712,7 +1720,7 @@ internal fun CustomCalendarIcon(
 ) {
     // 1. Subtle Idle "Breathing" Flip (0 -> -6 -> 0)
     val infiniteTransition = rememberInfiniteTransition(label = "CalendarFlip")
-    val subtleFlip by infiniteTransition.animateFloat(
+    val subtleFlip = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 0f,
         animationSpec = infiniteRepeatable(
@@ -1744,9 +1752,9 @@ internal fun CustomCalendarIcon(
         }
     }
 
-    val totalRotation = subtleFlip + prominentFlip.value
-
     androidx.compose.foundation.Canvas(modifier = modifier) {
+        // Read while drawing: a flip redraws the glyph and recomposes nothing.
+        val totalRotation = subtleFlip.value + prominentFlip.value
         val w = size.width
         val h = size.height
         // Refine stroke: 1.5dp might be too thick for 13dp size. Let's try 1.25dp visual weight equivalence.
@@ -1841,7 +1849,7 @@ internal fun AnimatedHourglassIcon(
     )
 
     Icon(
-        imageVector = Icons.Rounded.HourglassEmpty,
+        imageVector = Symbols.HourglassEmptyFilled,
         contentDescription = null,
         tint = color,
         modifier = modifier.modifierRotate(rotation)
@@ -1896,7 +1904,7 @@ fun RecentReadingsCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.MoreHoriz,
+                            imageVector = Symbols.MoreHorizFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -1931,6 +1939,9 @@ private fun SwipeableDeleteRow(
     val view = LocalView.current
     var deleteArmHapticSent by remember(isDisabled) { mutableStateOf(false) }
     var rowWidthPx by remember(isDisabled) { mutableStateOf(0) }
+    // confirmValueChange is asked again while the swiped row settles, so one swipe used to
+    // delete (and announce it) several times. A row is deleted once.
+    var deleteSent by remember { mutableStateOf(false) }
 
     // Key on isDisabled so state resets when toggled
     val dismissState = key(isDisabled) {
@@ -1940,7 +1951,10 @@ private fun SwipeableDeleteRow(
             confirmValueChange = { dismissValue ->
                 when (dismissValue) {
                     androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> {
-                        onDelete()
+                        if (!deleteSent) {
+                            deleteSent = true
+                            onDelete()
+                        }
                         true
                     }
                     androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> {
@@ -1988,9 +2002,9 @@ private fun SwipeableDeleteRow(
                 else -> Alignment.Center
             }
             val icon = when (direction) {
-                androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> Icons.Filled.Delete
-                androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> if (isDisabled) Icons.Filled.Check else Icons.Filled.Close
-                else -> Icons.Filled.Delete
+                androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> Symbols.DeleteFilled
+                androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> if (isDisabled) Symbols.CheckFilled else Symbols.CloseFilled
+                else -> Symbols.DeleteFilled
             }
             
             Box(
@@ -2029,8 +2043,7 @@ fun CalibrationsCard(
     showEmptyAction: Boolean = true,
     onAddCalibration: () -> Unit,
     onEditCalibration: (tk.glucodata.data.calibration.CalibrationEntity) -> Unit,
-    onViewHistory: () -> Unit,
-    snackbarHostState: androidx.compose.material3.SnackbarHostState? = null
+    onViewHistory: () -> Unit
 ) {
     val isRawMode = viewMode == 1 || viewMode == 3
     
@@ -2077,7 +2090,7 @@ fun CalibrationsCard(
 //            elevation = androidx.compose.material3.ButtonDefaults.filledTonalButtonElevation(defaultElevation = 2.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.WaterDrop,
+                imageVector = Symbols.WaterDropFilled,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
@@ -2141,7 +2154,7 @@ fun CalibrationsCard(
                     thumbContent = if (isCalibrationEnabled) {
                         {
                             Icon(
-                                imageVector = Icons.Filled.Check,
+                                imageVector = Symbols.CheckFilled,
                                 contentDescription = null,
                                 modifier = Modifier.size(androidx.compose.material3.SwitchDefaults.IconSize),
                             )
@@ -2183,26 +2196,21 @@ fun CalibrationsCard(
                             // Gmail-style swipeable row
                             SwipeableDeleteRow(
                                  onDelete = {
-                                     // Trigger animation first
-                                     animatingOutIds.add(cal.id)
-                                     
-                                     scope.launch {
-                                         delay(300) // Wait for animation
-                                         tk.glucodata.data.calibration.CalibrationManager.deleteCalibration(cal)
-                                         animatingOutIds.removeAll { it == cal.id } // Cleanup
-                                         
-                                         // Show Undo Snackbar
-                                         val result = snackbarHostState.showCalibrationUndoSnackbar(
-                                             message = Applic.app.getString(R.string.calibration_deleted),
-                                             actionLabel = Applic.app.getString(R.string.undo)
-                                         )
-                                         
-                                         // Handle Undo
-                                         if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                                             animatingInIds.add(cal.id)
-                                             tk.glucodata.data.calibration.CalibrationManager.restoreCalibration(cal)
-                                             delay(300)
-                                             animatingInIds.removeAll { it == cal.id }
+                                     if (cal.id !in animatingOutIds) {
+                                         // Trigger animation first
+                                         animatingOutIds.add(cal.id)
+
+                                         scope.launch {
+                                             delay(300) // Wait for animation
+                                             tk.glucodata.data.calibration.CalibrationManager.deleteCalibration(cal)
+                                             animatingOutIds.removeAll { it == cal.id } // Cleanup
+
+                                             UndoSnackbar.show(Applic.app.getString(R.string.calibration_deleted)) {
+                                                 animatingInIds.add(cal.id)
+                                                 tk.glucodata.data.calibration.CalibrationManager.restoreCalibration(cal)
+                                                 delay(300)
+                                                 animatingInIds.removeAll { it == cal.id }
+                                             }
                                          }
                                      }
                                  },
@@ -2252,7 +2260,7 @@ fun CalibrationsCard(
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.History,
+                            imageVector = Symbols.HistoryFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -2270,26 +2278,16 @@ fun CalibrationsCard(
             onClearDisabled = {
                 scope.launch {
                     val disabled = calibrations.filter { !it.isEnabled }
-                    disabled.forEach { tk.glucodata.data.calibration.CalibrationManager.deleteCalibration(it) }
-                    snackbarHostState?.currentSnackbarData?.dismiss()
-                    snackbarHostState?.showSnackbar(
-                        message = Applic.app.getString(R.string.disabled_calibrations_cleared, disabled.size),
-                        duration = androidx.compose.material3.SnackbarDuration.Short
-                    )
+                    tk.glucodata.data.calibration.CalibrationManager.deleteCalibrations(disabled)
+                    UndoSnackbar.notice(Applic.app.getString(R.string.disabled_calibrations_cleared, disabled.size))
                 }
                 showClearConfirmation = false
             },
             onClearAll = {
                 scope.launch {
                     val backup = calibrations
-                    tk.glucodata.data.calibration.CalibrationManager.clearAll()
-                    
-                    val result = snackbarHostState.showCalibrationUndoSnackbar(
-                        message = Applic.app.getString(R.string.all_calibrations_cleared),
-                        actionLabel = Applic.app.getString(R.string.undo)
-                    )
-                    
-                    if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                    tk.glucodata.data.calibration.CalibrationManager.deleteCalibrations(backup)
+                    UndoSnackbar.show(Applic.app.getString(R.string.all_calibrations_cleared)) {
                         tk.glucodata.data.calibration.CalibrationManager.restoreAll(backup)
                     }
                 }
@@ -2310,7 +2308,9 @@ fun CalibrationsCard(
 @Composable
 fun SignalQualityIndicator(
     noiseLevel: Float, // Error Variance from Poly Fit
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    iconSize: Dp = SensorPanelIconSize,
+    iconGap: Dp = SensorPanelIconGap
 ) {
     // Color thresholds (Standard xDrip 0-200+ scale)
     // <10: Clean (Green), 10-25: Light (Lt Green), 25-60: Medium (Amber), >60: Heavy (Red)
@@ -2369,11 +2369,11 @@ fun SignalQualityIndicator(
     ) {
         // Animated Icon
         Icon(
-            imageVector = Icons.Filled.GraphicEq,
+            imageVector = Symbols.GraphicEqFilled,
             contentDescription = null,
             tint = color,
             modifier = Modifier
-                .size(14.dp)
+                .size(iconSize)
                 .graphicsLayer {
                     val scale = pulseScale?.value ?: 1f
                     scaleX = scale
@@ -2382,7 +2382,7 @@ fun SignalQualityIndicator(
                 }
         )
         
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(iconGap))
         
         // Raw noise value (xDrip-style, 1 decimal)
         Text(
@@ -2406,7 +2406,7 @@ fun SignalQualityIndicator(
  * [SIGNAL_AGE_FADE_WIDTH] before the counter starts. When both fit, nothing is drawn extra.
  */
 @Composable
-private fun SignalQualityAndReadingAgeRow(
+internal fun SignalQualityAndReadingAgeRow(
     noiseLevel: Float,
     readingMillis: Long?,
     contentColor: Color,
@@ -2420,14 +2420,74 @@ private fun SignalQualityAndReadingAgeRow(
     // costs a redraw and never a recomposition.
     var overlapPx by remember { mutableIntStateOf(0) }
 
+    // The counter's widest everyday form, so the row asks its card for the same width at
+    // "9s", "10s" and "1m" and the card's edge does not follow the clock.
+    val counterStyle = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum")
+    val textMeasurer = rememberTextMeasurer()
+    val widestSeconds = stringResource(R.string.sensor_reading_age_seconds, 88)
+    val widestMinutes = stringResource(R.string.sensor_reading_age_minutes, 88)
+    val reservedCounterPx = remember(counterStyle, widestSeconds, widestMinutes, density) {
+        maxOf(
+            textMeasurer.measure(widestSeconds, style = counterStyle, maxLines = 1).size.width,
+            textMeasurer.measure(widestMinutes, style = counterStyle, maxLines = 1).size.width
+        ) + with(density) { SensorPanelIconSize.roundToPx() + SensorPanelIconGap.roundToPx() }
+    }
+    val hasNoise = noiseLevel > 0f
+    val hasCounter = readingMillis != null
+    val policy = remember(gapPx, reservedCounterPx, hasNoise, hasCounter) {
+        object : androidx.compose.ui.layout.MeasurePolicy {
+            override fun androidx.compose.ui.layout.MeasureScope.measure(
+                measurables: List<androidx.compose.ui.layout.Measurable>,
+                constraints: Constraints
+            ): androidx.compose.ui.layout.MeasureResult {
+                val loose = constraints.copy(minWidth = 0, minHeight = 0)
+                val counter = if (hasCounter) measurables.last().measure(loose) else null
+                // Unbounded: the indicator keeps its natural width and overflows under the
+                // counter rather than wrapping its text.
+                val noise = if (hasNoise) measurables.first().measure(loose.copy(maxWidth = Constraints.Infinity)) else null
+                val counterWidth = counter?.width ?: 0
+                val noiseWidth = noise?.width ?: 0
+                val width = if (constraints.hasBoundedWidth) {
+                    constraints.maxWidth
+                } else {
+                    (noiseWidth + gapPx + counterWidth).coerceAtLeast(constraints.minWidth)
+                }
+                val height = maxOf(noise?.height ?: 0, counter?.height ?: 0, constraints.minHeight)
+                val counterX = width - counterWidth
+                overlapPx = if (noise != null && counter != null) {
+                    (noiseWidth + gapPx - counterX).coerceAtLeast(0)
+                } else {
+                    0
+                }
+                return layout(width, height) {
+                    noise?.placeRelative(0, (height - noise.height) / 2)
+                    counter?.placeRelative(counterX, (height - counter.height) / 2, zIndex = 1f)
+                }
+            }
+
+            override fun androidx.compose.ui.layout.IntrinsicMeasureScope.maxIntrinsicWidth(
+                measurables: List<androidx.compose.ui.layout.IntrinsicMeasurable>,
+                height: Int
+            ): Int {
+                val noiseWidth = if (hasNoise) measurables.first().maxIntrinsicWidth(height) else 0
+                val counterWidth = if (hasCounter) {
+                    maxOf(measurables.last().maxIntrinsicWidth(height), reservedCounterPx)
+                } else {
+                    0
+                }
+                return noiseWidth + counterWidth + if (hasNoise && hasCounter) gapPx else 0
+            }
+        }
+    }
+
     Layout(
         modifier = modifier,
+        measurePolicy = policy,
         content = {
             if (noiseLevel > 0f) {
                 SignalQualityIndicator(
                     noiseLevel = noiseLevel,
                     modifier = Modifier
-                        .layoutId(SIGNAL_AGE_NOISE_ID)
                         .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                         .drawWithContent {
                             drawContent()
@@ -2455,39 +2515,20 @@ private fun SignalQualityAndReadingAgeRow(
             if (readingMillis != null) {
                 tk.glucodata.ui.util.SensorReadingAgeLabel(
                     readingMillis = readingMillis,
-                    iconTint = contentColor.copy(alpha = 0.55f),
+                    // Same weight as the lifetime calendar; the smaller glyph stays centred
+                    // in the shared icon slot so the text keeps the panel's text edge.
+                    iconTint = contentColor.copy(alpha = 0.6f),
                     textColor = contentColor.copy(alpha = 0.75f),
-                    modifier = Modifier.layoutId(SIGNAL_AGE_COUNTER_ID)
+                    iconSize = SIGNAL_AGE_CLOCK_SIZE,
+                    iconGap = SensorPanelIconGap + (SensorPanelIconSize - SIGNAL_AGE_CLOCK_SIZE),
+                    icon = tk.glucodata.ui.symbols.Symbols.Schedule
                 )
             }
         }
-    ) { measurables, constraints ->
-        val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val counter = measurables.firstOrNull { it.layoutId == SIGNAL_AGE_COUNTER_ID }?.measure(loose)
-        // Unbounded: the indicator keeps its natural width and overflows under the counter
-        // rather than wrapping its text.
-        val noise = measurables.firstOrNull { it.layoutId == SIGNAL_AGE_NOISE_ID }
-            ?.measure(loose.copy(maxWidth = Constraints.Infinity))
-        val counterWidth = counter?.width ?: 0
-        val noiseWidth = noise?.width ?: 0
-        val width = if (constraints.hasBoundedWidth) {
-            constraints.maxWidth
-        } else {
-            (noiseWidth + gapPx + counterWidth).coerceAtLeast(constraints.minWidth)
-        }
-        val height = maxOf(noise?.height ?: 0, counter?.height ?: 0, constraints.minHeight)
-        val counterX = width - counterWidth
-        overlapPx = if (noise != null && counter != null) {
-            (noiseWidth + gapPx - counterX).coerceAtLeast(0)
-        } else {
-            0
-        }
-        layout(width, height) {
-            noise?.placeRelative(0, (height - noise.height) / 2)
-            counter?.placeRelative(counterX, (height - counter.height) / 2, zIndex = 1f)
-        }
-    }
+    )
 }
+
+private val SIGNAL_AGE_CLOCK_SIZE = 12.dp
 
 private const val SIGNAL_SHAKE_DEGREES = 8f
 private const val SIGNAL_SHAKE_SWING_MS = 80
@@ -2495,8 +2536,6 @@ private const val SIGNAL_SHAKE_SWING_MS = 80
 private const val SIGNAL_SHAKE_SWINGS = 5
 private const val SIGNAL_SHAKE_REST_MS = 4_000L
 
-private const val SIGNAL_AGE_NOISE_ID = "signalQuality"
-private const val SIGNAL_AGE_COUNTER_ID = "readingAge"
 /** Breathing room the indicator wants before the counter; less than this counts as a collision. */
 private val SIGNAL_AGE_GAP = 8.dp
 /** How long the indicator's tail takes to dissolve under the counter. */
@@ -2536,7 +2575,7 @@ private fun DashboardClearOptionsBottomSheet(
             if (disabledCount > 0) {
                 androidx.compose.material3.Surface(onClick = onClearDisabled, shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Close, null, tint = MaterialTheme.colorScheme.secondary)
+                        Icon(Symbols.CloseFilled, null, tint = MaterialTheme.colorScheme.secondary)
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.clear_disabled_only), style = MaterialTheme.typography.titleMedium)
@@ -2549,7 +2588,7 @@ private fun DashboardClearOptionsBottomSheet(
             
             androidx.compose.material3.Surface(onClick = onClearAll, shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f), modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error)
+                    Icon(Symbols.DeleteFilled, null, tint = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.clear), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
@@ -2569,7 +2608,7 @@ private fun DashboardClearOptionsBottomSheet(
  * pill, drawn only while a window runs. One tap opens the quiet-window screen.
  */
 @Composable
-private fun QuietWindowHeaderChip(
+internal fun QuietWindowHeaderChip(
     untilMs: Long,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -2584,7 +2623,7 @@ private fun QuietWindowHeaderChip(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Filled.DoNotDisturbOn,
+            imageVector = Symbols.DoNotDisturbOnFilled,
             contentDescription = stringResource(R.string.quiet_window_title),
             tint = MaterialTheme.colorScheme.onTertiaryContainer,
             modifier = Modifier.size(16.dp)

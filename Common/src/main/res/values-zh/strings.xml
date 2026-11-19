@@ -475,7 +475,7 @@
     <string name="import_no_glucose">此文件中没有血糖数据</string>
     <string name="import_unsupported_file">不支持此文件。请选择 JugglucoNG 导出文件或血糖历史 CSV 文件。</string>
     <string name="delete_reading_title">删除读数？</string>
-    <string name="delete_reading_confirmation">从本地历史记录中删除这条血糖读数。此操作无法撤销。</string>
+    <string name="delete_reading_confirmation">从本地历史记录中删除这条血糖读数。</string>
     <string name="alert_sound">警报声音</string>
     <string name="vibrate_only">仅振动</string>
     <string name="sound_vibrate">声音和振动</string>
@@ -866,19 +866,24 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="median">中位数</string>
     <string name="meterlist">血糖仪</string>
     <string name="glucose_meters_desc">连接蓝牙血糖仪</string>
-    <string name="glucose_meters_journal_desc">读数会作为血糖记录保存到日志中，并可发送到 Nightscout。</string>
+    <string name="glucose_meters_journal_desc">读数会作为血糖记录保存到日志中，并可发送到 Nightscout</string>
     <string name="satellite_meter_title">Satellite（Сателлит+）血糖仪</string>
     <string name="satellite_meter_code_label">PIN 或标签代码</string>
     <string name="satellite_meter_code_desc">输入 3 位 PIN，或血糖仪 QR/DataMatrix 标签下方印刷的较长代码。每次蓝牙连接时都会使用该代码。</string>
     <string name="glucose_meters_configured">已配置的血糖仪</string>
-    <string name="glucose_meters_none">尚未配置血糖仪</string>
-    <string name="glucose_meters_none_desc">查找附近的血糖仪以开始导入读数。</string>
     <string name="glucose_meters_nearby">附近的血糖仪</string>
     <string name="glucose_meter_recheck">再次检查血糖仪的间隔</string>
     <string name="glucose_meter_recheck_now">立即</string>
-    <string name="glucose_meter_recheck_hint">适用于一直开着的血糖仪，例如 Satellite。新的测量结果最多会晚这么久到达</string>
-    <string name="glucose_meter_last_reading">最近读数：%1$s</string>
-    <string name="glucose_meter_no_readings">尚未导入读数</string>
+    <string name="glucose_meter_recheck_hint">Satellite 从不关机。等待越久越省电</string>
+    <string name="glucose_meter_name">名称</string>
+    <string name="glucose_meter_name_hint">显示在此处和新的日志记录中</string>
+    <string name="glucose_meters_find">查找血糖仪</string>
+    <string name="glucose_meters_none_found">未找到血糖仪。请打开血糖仪后重新搜索</string>
+    <string name="glucose_meters_other">其他蓝牙设备</string>
+    <string name="glucose_meters_other_desc">如果上方没有列出您的血糖仪</string>
+    <string name="glucose_meter_last_reading">最近读数</string>
+    <string name="glucose_meter_no_readings">暂无</string>
+    <string name="glucose_meter_device_name">蓝牙名称</string>
     <string name="satellite_meter_code_missing">Satellite 血糖仪：请先在血糖仪设置中填写血糖仪代码</string>
     <string name="glucose_meter_forget">忘记</string>
     <string name="glucose_meter_forget_title">忘记血糖仪</string>
@@ -1212,6 +1217,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_noisy_status">校准不可用；信号噪声过高</string>
     <string name="calibrate_sensor_title">校准传感器</string>
     <string name="calibration_deleted">校准已删除</string>
+    <string name="reading_deleted">读数已删除</string>
     <string name="calibration_profile_exported">导出校准配置文件</string>
     <string name="calibrationhelp">校准帮助</string>
     <string name="calibrationslist">校准列表</string>
@@ -1920,10 +1926,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">中继</string>
     <string name="mirror_turn_server_desc">用于远程连接的 TURN 中继</string>
     <string name="mirror_connections">连接</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">本地克隆</string>
     <string name="mirror_default_hybrid_label">混合克隆</string>
-    <string name="mirror_clone_master_desc">启用所有已保存的 Clone 连接</string>
     <string name="clone_history_recovery">历史记录恢复</string>
     <string name="clone_history_direction_send">发送</string>
     <string name="clone_history_direction_pull">恢复</string>
@@ -2151,6 +2155,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">已登录</string>
     <string name="ottai_session_invalid">云端会话已失效，请重新登录</string>
+    <string name="ottai_global_sign_in_again">请重新登录 Ottai Global，以设置传感器或检查其固件。已保存的传感器和历史记录会保留。</string>
+    <string name="ottai_ota_check_failed">固件检查失败。</string>
+    <string name="ottai_ota_disconnect_first">请断开传感器连接以检查固件。</string>
     <string name="ottai_sensor_mac_hint">设备 ID、序列号或二维码</string>
     <string name="ottai_connect_saved">连接</string>
     <string name="ottai_login_fail">登录失败 - 请检查手机号/验证码</string>
@@ -2498,7 +2505,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_server_unreachable">无法连接 Ottai 服务器，请重试。</string>
     <string name="ottai_connect_failed">无法开始连接，请重试。</string>
     <string name="ottai_already_binding_hint">您的账号仍绑定着另一个传感器。请在“已保存的传感器”中解绑后重试。</string>
-    <string name="ottai_ota_upgrade_required">Ottai 服务在绑定此传感器时要求更新固件。请重试固件设置，或导入已保存的凭据。也可以尝试使用 Ottai 官方应用。</string>
+    <string name="ottai_ota_upgrade_required">Ottai 请求更新固件。</string>
     <string name="ottai_retry">重试</string>
     <string name="ottai_setup_failed">设置已停止。请重试，或关闭此窗口并导入已保存的凭据。</string>
     <string name="ottai_region_cn_full">Ottai 国内版</string>
@@ -2903,8 +2910,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_setup">连接设置</string>
     <string name="turn_help_how_body">交会服务器只负责让两台设备互相认识：各自把可能的地址留在那里，并取走对方的地址。血糖数据从不经过它。系统优先选择直连；只有在直连都不通时 TURN 才转发流量，且转发的内容始终保持加密。\n\n两个开关都关闭时，使用应用自带的交会服务器和中继。打开其中一个，就只有那一部分归你所有；两个都打开后，离开你服务器的就只剩公网地址查询了——除非“将 TURN 用于 STUN”把它也发往你的中继。\n\n在同一网络中，“查找附近已配对的设备”会让两者直接相连，跳过交会服务器。</string>
     <string name="turn_credentials_too_long">用户名或密码过长，无法用于此 TURN 配置。</string>
-    <string name="clone_sync_title">同步</string>
     <string name="clone_network_title">Clone 网络</string>
+    <string name="clone_network_settings">Clone 网络设置</string>
+    <string name="clone_add_custom_connection">添加自定义连接</string>
     <string name="clone_servers">服务器</string>
     <string name="clone_server_default">应用默认服务器</string>
     <string name="clone_connection_options">连接选项</string>
@@ -2926,13 +2934,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_waiting">正在等待另一部手机…</string>
     <string name="clone_pairing_announced">在此 Wi-Fi 上也显示为 %1$s</string>
     <string name="clone_pairing_connected">已连接</string>
-    <string name="clone_add_manually_desc">自行输入地址和选项</string>
     <string name="clone_send_readings">发送读数</string>
     <string name="clone_on_this_wifi">此 Wi-Fi 上</string>
     <string name="clone_nearby_empty">在此 Wi-Fi 上发送读数的手机会显示在这里</string>
     <string name="clone_sharing_readings">正在发送读数</string>
     <string name="clone_network_summary">服务器与本地发现</string>
     <string name="clone_background_desc">会增加耗电量</string>
+    <string name="clone_other_phone">另一部手机</string>
+    <string name="clone_this_phone">本机</string>
+    <string name="clone_connected_since">连接时间</string>
+    <string name="clone_phase">阶段</string>
+    <string name="clone_ice_state">ICE 状态</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d 条记录</item>
@@ -3142,7 +3154,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_installing">正在安装固件…</string>
     <string name="ottai_ota_reconnecting">正在重新连接并检查已安装的版本…</string>
     <string name="ottai_ota_preparing">正在刷新凭据并写入出厂参数…</string>
-    <string name="ottai_ota_complete">准备完成。请关闭此对话框，然后正常连接以激活传感器。</string>
+    <string name="ottai_ota_complete">出厂参数准备完成</string>
     <string name="ottai_ota_failed">设置已停止。请重试或检查跟踪日志。未完成的设置会阻止激活。</string>
     <string name="ottai_ota_version">传感器：%1$s · 更新：%2$s</string>
     <string name="ottai_ota_package">%1$d 字节 · SHA-256：%2$s</string>
@@ -3171,7 +3183,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="ottai_ota_discard">放弃未完成的设置</string>
     <string name="ottai_ota_discard_confirm">删除已保存的更新和准备状态以解除连接限制？这不会恢复固件或设置。中断的固件更新可能仍需要恢复。</string>
-    <string name="ottai_ota_pending">传感器设置尚未完成。请再次连接，或打开恢复功能以完成或放弃设置。</string>
+    <string name="ottai_ota_pending">传感器设置未完成</string>
     <string name="ottai_ota_finish_preparation">固件已验证。请确认写入出厂参数以完成设置。</string>
     <string name="ottai_ota_discard_failed">无法放弃固件测试。请重试。</string>
     <string name="prediction_analysis_section">预测分析</string>

@@ -18,10 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -55,6 +51,7 @@ import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
+import tk.glucodata.ui.symbols.Symbols
 
 private data class ProfileTimePickerRequest(
     val existingStartMinute: Int?,
@@ -166,7 +163,7 @@ fun PredictionModelProfileScreen(
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                        Icon(imageVector = Symbols.AddFilled, contentDescription = null)
                         Text(
                             text = stringResource(R.string.predictive_add_time_period),
                             modifier = Modifier.padding(start = 8.dp)
@@ -314,7 +311,7 @@ private fun PredictionModelBlockCard(
                     IconButtonTooltip(stringResource(R.string.predictive_edit_period_start)) {
                         IconButton(onClick = onEditStart, shapes = IconButtonDefaults.shapes()) {
                             Icon(
-                                imageVector = Icons.Default.Edit,
+                                imageVector = Symbols.EditFilled,
                                 contentDescription = stringResource(R.string.predictive_edit_period_start)
                             )
                         }
@@ -324,7 +321,7 @@ private fun PredictionModelBlockCard(
                     IconButtonTooltip(stringResource(R.string.delete)) {
                         IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
                             Icon(
-                                imageVector = Icons.Default.Delete,
+                                imageVector = Symbols.DeleteFilled,
                                 contentDescription = stringResource(R.string.delete),
                                 tint = MaterialTheme.colorScheme.error
                             )

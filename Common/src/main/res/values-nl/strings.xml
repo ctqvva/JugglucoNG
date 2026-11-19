@@ -282,7 +282,7 @@
 <string name="settings">Instellingen</string>
 <string name="aboutname">About</string>
 <string name="export">Export</string>
-<string name="mirror">Kloon</string>
+<string name="mirror">Spiegelen</string>
 <string name="new_amount">Hoeveelheid</string>
 <string name="list">Lijst</string>
 <string name="statistics">Statistiek</string>
@@ -378,7 +378,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
  <string name="valuenotification">Waarde aanwezig</string>
 <string name="scantranstitle">TRANSMITTER datamatrix scannen</string>
 <string name="scantransmessage">Sibionics 2 sensor datamatrix succesvol gescand. \nScan nu de transmitter datamatrix."</string>
- <string name="mirrorscansucces">Verbinding toevoegt aan linker midden menu → Kloon</string>
+ <string name="mirrorscansucces">Verbinding toevoegt aan linker midden menu → Spiegelen</string>
  <string name="calibration">Kalibratie</string>
 <string name="exclude">Sluit uit</string>
 <string name="calibratepast">Toepassen op verleden</string>
@@ -398,19 +398,24 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 <string name="specifyblood">"Selecteer eerst het bloedglucose label"</string>
 <string name="meterlist">"Glucosemeters"</string>
 <string name="glucose_meters_desc">Bluetooth-glucosemeters verbinden</string>
-<string name="glucose_meters_journal_desc">Metingen worden als bloedglucose in het dagboek opgeslagen en kunnen naar Nightscout worden verzonden.</string>
+<string name="glucose_meters_journal_desc">Metingen worden als bloedglucose in het dagboek opgeslagen en kunnen naar Nightscout worden verzonden</string>
 <string name="satellite_meter_title">Satellite-meter (Сателлит+)</string>
 <string name="satellite_meter_code_label">Pincode of labelcode</string>
 <string name="satellite_meter_code_desc">Voer de 3-cijferige pincode in of de langere code onder het QR-/DataMatrix-label op de meter. Deze wordt bij elke Bluetooth-verbinding gebruikt.</string>
 <string name="glucose_meters_configured">Ingestelde meters</string>
-<string name="glucose_meters_none">Geen meters ingesteld</string>
-<string name="glucose_meters_none_desc">Zoek een meter in de buurt om metingen te importeren.</string>
 <string name="glucose_meters_nearby">Meters in de buurt</string>
 <string name="glucose_meter_recheck">Meter opnieuw controleren na</string>
 <string name="glucose_meter_recheck_now">Direct</string>
-<string name="glucose_meter_recheck_hint">Voor meters die aan blijven, zoals Satellite. Een nieuwe meting kan zoveel later binnenkomen</string>
-<string name="glucose_meter_last_reading">Laatste meting: %1$s</string>
-<string name="glucose_meter_no_readings">Nog geen metingen geïmporteerd</string>
+<string name="glucose_meter_recheck_hint">Satellite gaat nooit uit. Langer wachten spaart de batterij</string>
+<string name="glucose_meter_name">Naam</string>
+<string name="glucose_meter_name_hint">Hier en bij nieuwe dagboekitems getoond</string>
+<string name="glucose_meters_find">Meters zoeken</string>
+<string name="glucose_meters_none_found">Geen meter gevonden. Zet de meter aan en zoek opnieuw</string>
+<string name="glucose_meters_other">Andere Bluetooth-apparaten</string>
+<string name="glucose_meters_other_desc">Als de meter hierboven ontbreekt</string>
+<string name="glucose_meter_last_reading">Laatste meting</string>
+<string name="glucose_meter_no_readings">Nog geen</string>
+<string name="glucose_meter_device_name">Bluetooth-naam</string>
 <string name="satellite_meter_code_missing">Satellite-meter: stel eerst de metercode in bij de instellingen voor glucosemeters</string>
 <string name="glucose_meter_forget">Vergeten</string>
 <string name="glucose_meter_forget_title">Meter vergeten</string>
@@ -560,7 +565,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="import_unsupported_file">Niet-ondersteund bestand. Kies een JugglucoNG-export of een CSV-bestand met glucosegeschiedenis.</string>
     
     <string name="delete_reading_title">Meting verwijderen?</string>
-    <string name="delete_reading_confirmation">Verwijder deze glucosemeting uit de lokale geschiedenis. Deze actie kan niet ongedaan worden gemaakt.</string>
+    <string name="delete_reading_confirmation">Verwijder deze glucosemeting uit de lokale geschiedenis.</string>
     
     
     
@@ -1239,6 +1244,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="anytime_calibration_noisy_status">Kalibratie niet beschikbaar; signaalruis is te hoog</string>
     <string name="calibrate_sensor_title">Kalibreer sensor</string>
     <string name="calibration_deleted">Kalibratie verwijderd</string>
+    <string name="reading_deleted">Meting verwijderd</string>
     <string name="calibration_profile_exported">Kalibratieprofiel geëxporteerd</string>
     <string name="calibrationhelp">Kalibratiehulp</string>
     <string name="calibrationslist">Kalibratielijst</string>
@@ -1947,10 +1953,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">TURN-relay voor externe verbindingen</string>
     <string name="mirror_connections">Verbindingen</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Lokale kloon</string>
     <string name="mirror_default_hybrid_label">Hybride kloon</string>
-    <string name="mirror_clone_master_desc">Alle opgeslagen Clone-verbindingen inschakelen</string>
     <string name="clone_history_recovery">Geschiedenis herstellen</string>
     <string name="clone_history_direction_send">Versturen</string>
     <string name="clone_history_direction_pull">Herstellen</string>
@@ -2178,6 +2182,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Aangemeld</string>
     <string name="ottai_session_invalid">Uw cloudsessie is niet meer geldig – meld u opnieuw aan</string>
+    <string name="ottai_global_sign_in_again">Meld je opnieuw aan bij Ottai Global om een sensor in te stellen of de firmware te controleren. Je opgeslagen sensoren en geschiedenis blijven behouden.</string>
+    <string name="ottai_ota_check_failed">Firmwarecontrole mislukt.</string>
+    <string name="ottai_ota_disconnect_first">Verbreek de sensorverbinding om de firmware te controleren.</string>
     <string name="ottai_sensor_mac_hint">Apparaat-ID, serienummer of QR</string>
     <string name="ottai_connect_saved">Verbinden</string>
     <string name="ottai_login_fail">Aanmelden mislukt - controleer telefoon/code</string>
@@ -2525,7 +2532,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_server_unreachable">Kan de Ottai-server niet bereiken. Probeer het opnieuw.</string>
     <string name="ottai_connect_failed">Kon de verbinding niet starten. Probeer het opnieuw.</string>
     <string name="ottai_already_binding_hint">Je account heeft nog een andere sensor gekoppeld. Ontkoppel die onder Opgeslagen sensoren en probeer het opnieuw.</string>
-    <string name="ottai_ota_upgrade_required">De Ottai-dienst vroeg om een firmware-update bij het koppelen van deze sensor. Probeer de firmware-instelling opnieuw of importeer opgeslagen inloggegevens. Je kunt ook de officiële Ottai-app proberen.</string>
+    <string name="ottai_ota_upgrade_required">Ottai heeft om een firmware-update gevraagd.</string>
     <string name="ottai_retry">Opnieuw proberen</string>
     <string name="ottai_setup_failed">Instellen gestopt. Probeer opnieuw of sluit dit venster en importeer opgeslagen inloggegevens.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
@@ -2932,8 +2939,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_connection_setup">Verbindingsinstellingen</string>
     <string name="turn_help_how_body">De rendezvousserver stelt alleen twee apparaten aan elkaar voor: elk laat er zijn mogelijke adressen achter en haalt die van het andere op. Er gaan nooit glucosegegevens overheen. Een directe route heeft voorrang; TURN geeft het verkeer alleen door als geen directe route werkt, en wat het doorgeeft blijft versleuteld.\n\nStaan beide schakelaars uit, dan worden de rendezvous en relay van de app gebruikt. Zet er één aan en alleen dat deel wordt van jou; zet ze beide aan en alleen de opvraging van het publieke adres verlaat nog je servers, tenzij ‘TURN voor STUN’ die ook naar je relay stuurt.\n\nOp één netwerk verbindt ‘Gekoppelde apparaten in de buurt zoeken’ ze rechtstreeks en slaat het rendezvous over.</string>
     <string name="turn_credentials_too_long">De gebruikersnaam of het wachtwoord is te lang voor deze TURN-configuratie.</string>
-    <string name="clone_sync_title">Synchronisatie</string>
     <string name="clone_network_title">Clone-netwerk</string>
+    <string name="clone_network_settings">Clone-netwerkinstellingen</string>
+    <string name="clone_add_custom_connection">Eigen verbinding toevoegen</string>
     <string name="clone_servers">Servers</string>
     <string name="clone_server_default">App-standaard</string>
     <string name="clone_connection_options">Verbinding</string>
@@ -2955,13 +2963,17 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clone_pairing_waiting">Wachten op de andere telefoon…</string>
     <string name="clone_pairing_announced">Ook zichtbaar op deze wifi als %1$s</string>
     <string name="clone_pairing_connected">Verbonden</string>
-    <string name="clone_add_manually_desc">Voer zelf het adres en de opties in</string>
     <string name="clone_send_readings">Waarden sturen</string>
     <string name="clone_on_this_wifi">Op deze wifi</string>
     <string name="clone_nearby_empty">Telefoons die op deze wifi waarden sturen, verschijnen hier</string>
     <string name="clone_sharing_readings">Stuurt waarden</string>
     <string name="clone_network_summary">Servers en lokaal zoeken</string>
     <string name="clone_background_desc">Verbruikt meer batterij</string>
+    <string name="clone_other_phone">Andere telefoon</string>
+    <string name="clone_this_phone">Deze telefoon</string>
+    <string name="clone_connected_since">Verbonden sinds</string>
+    <string name="clone_phase">Fase</string>
+    <string name="clone_ice_state">ICE-status</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d item</item>
@@ -3172,7 +3184,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_ota_installing">Firmware installeren…</string>
     <string name="ottai_ota_reconnecting">Opnieuw verbinden en de geïnstalleerde versie controleren…</string>
     <string name="ottai_ota_preparing">Inloggegevens vernieuwen en fabrieksparameters schrijven…</string>
-    <string name="ottai_ota_complete">Voorbereiding voltooid. Sluit dit venster en verbind normaal om de sensor te activeren.</string>
+    <string name="ottai_ota_complete">Fabrieksvoorbereiding voltooid</string>
     <string name="ottai_ota_failed">Instellen gestopt. Probeer opnieuw of bekijk het tracelogboek. Een onvoltooide instelling blokkeert activering.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
     <string name="ottai_ota_package">%1$d bytes · SHA-256: %2$s</string>
@@ -3201,7 +3213,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 
     <string name="ottai_ota_discard">Onvoltooide instelling wissen</string>
     <string name="ottai_ota_discard_confirm">Opgeslagen update- en voorbereidingsstatus wissen om verbinding toe te staan? Firmware en instellingen worden niet hersteld. Een onderbroken firmware-update kan nog herstel vereisen.</string>
-    <string name="ottai_ota_pending">De sensorinstelling is niet voltooid. Verbind opnieuw of open herstel om deze te voltooien of te wissen.</string>
+    <string name="ottai_ota_pending">Sensorinstelling niet voltooid</string>
     <string name="ottai_ota_finish_preparation">Firmware gecontroleerd. Bevestig de fabrieksparameters om de installatie af te ronden.</string>
     <string name="ottai_ota_discard_failed">Firmwaretest kon niet worden verwijderd. Probeer opnieuw.</string>
     <string name="prediction_analysis_section">Voorspellingsanalyse</string>

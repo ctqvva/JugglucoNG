@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -44,6 +42,7 @@ import tk.glucodata.R
 import tk.glucodata.ui.components.SliderHeader
 import tk.glucodata.ui.components.SliderHeaderGap
 import tk.glucodata.ui.components.ColorSwatchButton
+import tk.glucodata.ui.symbols.Symbols
 
 private val BASE_PRESETS =
     listOf(Palette.MUTED, Palette.VIBRANT, Palette.AURORA, Palette.GDH_LIKE)
@@ -279,7 +278,7 @@ fun ExpressiveColorPickerDialog(
                     isError = parsedColor == null,
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Default.Palette,
+                            imageVector = Symbols.PaletteFilled,
                             contentDescription = null
                         )
                     },

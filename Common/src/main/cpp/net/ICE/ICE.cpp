@@ -796,13 +796,11 @@ static void reportConnectedRoute(ICEConnect *connection,juice_agent *agent) {
 }
 
 static void wakeCloneSender(const passhost_t &host,uintptr_t reason) {
-    if(!backup||host.index<0||
-       static_cast<size_t>(host.index)>=backup->con_vars.size())
+    if(!backup)
         return;
-    if(auto *sender=backup->con_vars[host.index]) {
-        LOGGERICE("wake Clone sender index=%d reason=%lx\n",host.index,
+    if(backup->wakesender(host.index,reason)) {
+        LOGGERICE("woke Clone sender index=%d reason=%lx\n",host.index,
                   static_cast<unsigned long>(reason));
-        sender->wakebackup(reason);
         }
 }
 

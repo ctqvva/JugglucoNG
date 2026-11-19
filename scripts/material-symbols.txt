@@ -1,0 +1,219 @@
+# Material Symbols Rounded glyphs the app uses, one per line:
+#   <symbol_name> <fill|outline> [mirrored]
+# `mirrored` flips the glyph in right-to-left layouts (arrows, trends, lists).
+# Regenerate Common/src/main/java/tk/glucodata/ui/symbols/Symbols.kt with
+#   python3 scripts/material-symbols.py
+access_time fill
+account_circle fill
+add fill
+add_alert fill
+add_circle outline
+alarm fill
+alarm_off fill
+alt_route fill
+analytics fill
+api fill
+area_chart fill
+arrow_back fill mirrored
+arrow_downward fill
+arrow_drop_down fill
+arrow_drop_up fill
+arrow_forward fill mirrored
+arrow_right_alt fill mirrored
+arrow_upward fill
+auto_awesome fill
+autorenew fill
+backspace fill mirrored
+backup fill
+badge fill
+bar_chart fill
+bar_chart outline
+battery_saver fill
+bedtime fill
+block fill
+bloodtype fill
+bluetooth fill
+bluetooth_connected fill
+bluetooth_disabled fill
+bluetooth_searching fill mirrored
+bookmark_add fill
+bug_report fill
+calculate fill
+center_focus_strong fill
+check fill
+check_circle fill
+chevron_right fill
+child_care fill
+clear_all fill
+close fill
+cloud fill
+cloud_download fill
+cloud_queue fill
+cloud_upload fill
+content_copy fill
+crop_square fill
+dark_mode fill
+data_saver_off fill
+date_range fill
+delete fill
+delete_forever fill
+delete_sweep fill
+deselect fill
+developer_mode fill
+devices fill
+directions_run fill mirrored
+dns fill
+do_not_disturb_on fill
+done_all fill
+doorbell fill
+download fill
+drag_handle fill
+edit fill
+edit_note fill
+edit_note outline
+error fill
+error outline
+event fill
+event_busy fill
+expand_less fill
+expand_more fill
+fact_check fill
+file_download fill
+file_upload fill
+fingerprint fill
+first_page fill
+flash_off fill
+flash_on fill
+folder_open fill
+fullscreen fill
+functions fill
+graphic_eq fill
+group fill
+health_and_safety fill
+help outline mirrored
+history fill
+hourglass_empty fill
+hub fill
+image fill
+import_export fill
+info fill
+info outline
+insights fill
+key fill
+key_off fill
+keyboard_arrow_left fill mirrored
+keyboard_arrow_right fill mirrored
+label fill mirrored
+lan fill
+language fill
+last_page fill mirrored
+layers fill
+legend_toggle fill
+legend_toggle outline
+light_mode fill
+link fill
+link_off fill
+list fill mirrored
+location_on fill
+lock fill
+medical_services fill
+medication fill
+message fill
+mobile_arrow_down fill
+mobile_arrow_up_right fill
+monitor_weight fill
+more_horiz fill
+music_note fill
+network_check fill
+new_releases fill
+nfc fill
+notifications fill
+notifications_active fill
+notifications_paused fill
+open_in_full fill
+open_in_new fill mirrored
+palette fill
+password fill
+pause fill
+people_alt fill
+person fill
+person_add fill
+phone_android fill
+picture_in_picture fill
+play_arrow fill
+playlist_add fill mirrored
+public fill
+push_pin fill
+push_pin outline
+qr_code outline
+qr_code_scanner fill
+qr_code_scanner outline
+radio fill
+radio_button_unchecked fill
+record_voice_over fill
+refresh fill
+remove fill
+restart_alt fill
+restaurant fill
+restore fill
+routine fill
+save fill
+schedule fill
+schedule outline
+science fill
+screen_lock_portrait fill
+search fill
+security fill
+select_all fill
+send fill mirrored
+sensors fill
+sensors outline
+settings fill
+settings outline
+settings_accessibility fill
+settings_backup_restore fill
+settings_ethernet fill
+share fill
+shield fill
+show_chart fill mirrored
+signal_wifi_off fill
+smartphone fill
+sms fill
+snooze fill
+space_dashboard fill
+speed fill
+stop fill
+storefront fill
+straighten fill
+swap_horiz fill
+sync fill
+sync_alt fill
+system_update fill
+timeline fill
+timer fill
+tips_and_updates fill
+touch_app fill
+track_changes fill
+trending_down fill mirrored
+trending_flat fill
+trending_up fill mirrored
+tune fill
+unfold_more fill
+update fill
+upload fill
+vaccines fill
+verified_user fill
+vibration fill
+visibility fill
+visibility_off fill
+volume_off fill mirrored
+volume_up fill mirrored
+warning fill
+warning_amber fill
+watch fill
+water_drop fill
+wb_twilight fill
+webhook fill
+width_full fill
+width_normal fill
+wifi fill

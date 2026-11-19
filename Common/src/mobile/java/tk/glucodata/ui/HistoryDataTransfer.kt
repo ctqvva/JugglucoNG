@@ -20,18 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.FactCheck
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -95,6 +83,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import tk.glucodata.ui.symbols.Symbols
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -222,7 +211,7 @@ fun HistoryExportSheet(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     androidx.compose.material3.Icon(
-                        imageVector = Icons.AutoMirrored.Filled.List,
+                        imageVector = Symbols.ListFilled,
                         contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp)
                     )
@@ -239,7 +228,7 @@ fun HistoryExportSheet(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     androidx.compose.material3.Icon(
-                        imageVector = Icons.Default.Info,
+                        imageVector = Symbols.InfoFilled,
                         contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp)
                     )
@@ -567,7 +556,7 @@ fun ExportDataSettingsSheet(
             ExportContentRow(
                 title = stringResource(R.string.settings),
                 subtitle = stringResource(R.string.export_settings_desc),
-                icon = Icons.Default.Settings,
+                icon = Symbols.SettingsFilled,
                 checked = includeSettings,
                 position = CardPosition.TOP,
                 onCheckedChange = { includeSettings = it }
@@ -575,7 +564,7 @@ fun ExportDataSettingsSheet(
             ExportContentRow(
                 title = stringResource(R.string.export_data),
                 subtitle = stringResource(R.string.export_history_data_desc),
-                icon = Icons.Default.History,
+                icon = Symbols.HistoryFilled,
                 checked = includeHistory,
                 position = CardPosition.MIDDLE,
                 onCheckedChange = { includeHistory = it }
@@ -583,7 +572,7 @@ fun ExportDataSettingsSheet(
             ExportContentRow(
                 title = stringResource(R.string.calibrations),
                 subtitle = stringResource(R.string.export_calibrations_desc),
-                icon = Icons.Default.TrackChanges,
+                icon = Symbols.TrackChangesFilled,
                 checked = includeCalibrations,
                 position = CardPosition.BOTTOM,
                 onCheckedChange = { includeCalibrations = it }
@@ -612,7 +601,7 @@ fun ExportDataSettingsSheet(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.List,
+                        imageVector = Symbols.ListFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -628,7 +617,7 @@ fun ExportDataSettingsSheet(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Info,
+                        imageVector = Symbols.InfoFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -669,7 +658,7 @@ fun ExportDataSettingsSheet(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.FolderOpen,
+                        imageVector = Symbols.FolderOpenFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -684,7 +673,7 @@ fun ExportDataSettingsSheet(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Share,
+                        imageVector = Symbols.ShareFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -850,7 +839,7 @@ fun ScheduledBackupSettingsSheet(
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
                 ) {
                     Row(modifier = Modifier.padding(16.dp)) {
-                        Icon(Icons.Default.Warning, contentDescription = null)
+                        Icon(Symbols.WarningFilled, contentDescription = null)
                         Spacer(Modifier.width(12.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
@@ -884,7 +873,7 @@ fun ScheduledBackupSettingsSheet(
             SettingsSwitchItem(
                 title = stringResource(R.string.scheduled_backup_enabled),
                 subtitle = stringResource(R.string.scheduled_backup_enabled_desc),
-                icon = Icons.Default.Backup,
+                icon = Symbols.BackupFilled,
                 iconTint = MaterialTheme.colorScheme.primary,
                 checked = config.enabled,
                 position = CardPosition.TOP,
@@ -901,7 +890,7 @@ fun ScheduledBackupSettingsSheet(
                 title = stringResource(R.string.scheduled_backup_folder),
                 subtitle = config.destination?.let(::backupFolderLabel)
                     ?: stringResource(R.string.scheduled_backup_folder_none),
-                icon = Icons.Default.FolderOpen,
+                icon = Symbols.FolderOpenFilled,
                 iconTint = MaterialTheme.colorScheme.primary,
                 position = CardPosition.MIDDLE,
                 onClick = { folderLauncher.launch(config.destination) }
@@ -909,7 +898,7 @@ fun ScheduledBackupSettingsSheet(
             SettingsItem(
                 title = stringResource(R.string.scheduled_backup_time),
                 subtitle = formatBackupTime(context, config.hour, config.minute),
-                icon = Icons.Default.Schedule,
+                icon = Symbols.ScheduleFilled,
                 iconTint = MaterialTheme.colorScheme.primary,
                 position = CardPosition.MIDDLE,
                 onClick = { showTimePicker = true }
@@ -922,7 +911,7 @@ fun ScheduledBackupSettingsSheet(
                     config.weeklyRetention,
                     config.monthlyRetention
                 ),
-                icon = Icons.Default.History,
+                icon = Symbols.HistoryFilled,
                 expanded = retentionExpanded,
                 onExpandedChange = { retentionExpanded = it },
                 position = CardPosition.BOTTOM
@@ -995,7 +984,7 @@ fun ScheduledBackupSettingsSheet(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Icon(Icons.Default.Backup, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Symbols.BackupFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.scheduled_backup_run_now))
@@ -1018,7 +1007,7 @@ fun ScheduledBackupSettingsSheet(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Symbols.FactCheckFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.scheduled_backup_test))
@@ -1062,7 +1051,7 @@ fun ScheduledBackupSettingsSheet(
             },
             icon = {
                 Icon(
-                    if (success) Icons.Default.Backup else Icons.Default.Warning,
+                    if (success) Symbols.BackupFilled else Symbols.WarningFilled,
                     contentDescription = null
                 )
             },

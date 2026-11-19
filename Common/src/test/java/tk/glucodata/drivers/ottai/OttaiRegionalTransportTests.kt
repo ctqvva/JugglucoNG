@@ -330,9 +330,11 @@ class OttaiRegionalTransportTests {
 
                 server.business = JSONObject("""{"code":"OK","data":null}""")
                 client.reportOtaSuccess("001122334455", source, "V1.8.0")
-                assertEquals(4, server.calls.size)
+                assertEquals(3, server.calls.size)
                 assertEquals("$base/cgm/security/app/server/device/ota/upgrade", server.calls.last().url)
                 assertEquals("POST", server.calls.last().method)
+                assertEquals(listOf("1", "2"), server.calls.drop(1).map { it.headers["cipherSeq"] })
+                assertEquals(2, server.calls.drop(1).map { it.headers["traceId"] }.distinct().size)
                 val report = server.clearBodies.single()
                 assertEquals(source, report.getString("sourceVersion"))
                 assertEquals("V1.8.0", report.getString("targetVersion"))
@@ -347,7 +349,7 @@ class OttaiRegionalTransportTests {
             assertEquals("cancelled", assertThrows(OttaiOtaCloudException::class.java) {
                 client.judgeOta("001122334455", "V1.7")
             }.diagnostic)
-            assertEquals(4, server.calls.size)
+            assertEquals(3, server.calls.size)
         }
     }
 
@@ -392,7 +394,7 @@ class OttaiRegionalTransportTests {
             val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection, userId = "synthetic-user")
             try {
                 assertEquals("001122334455", client.bindMaterials("001122334455", version).mac)
-                assertEquals(listOf("POST", "POST", "POST", "GET"), server.calls.map { it.method })
+                assertEquals(listOf("POST", "POST", "GET"), server.calls.map { it.method })
                 assertTrue(server.calls.last().url.endsWith("/deviceBind/getBindDevice"))
                 assertEquals(version, server.clearBodies.single().getString("deviceVersion"))
                 assertEquals(1, server.calls.count { it.url.endsWith("/bindV3") })
@@ -426,7 +428,7 @@ class OttaiRegionalTransportTests {
                 assertEquals("OTA_UPGRADE_REQUIRED", assertThrows(OttaiOtaCloudException::class.java) {
                     client.bindMaterials("001122334455", "V1.7")
                 }.businessCode)
-                assertEquals(4, server.calls.size)
+                assertEquals(3, server.calls.size)
             } finally { client.close() }
         }
     }
@@ -446,8 +448,17 @@ class OttaiRegionalTransportTests {
     @Test fun explicitCloudProofUsesTheCapturedRegionalIdentityAndExactlyTheSignedTimestamp() {
         for (base in listOf(OttaiConstants.API_BASE, OttaiConstants.API_BASE_GLOBAL, OttaiConstants.API_BASE_SYAI)) {
             val server = Server(base)
-            val cn = base == OttaiConstants.API_BASE
-            val common = if (cn) OttaiCloudClient.cnPhoneHeaders("n:synthetic-cn", "synthetic-token", 0L, "synthetic") else headers
+            val profile = when (base) {
+                OttaiConstants.API_BASE -> OttaiRegistry.SessionProfile.CN_PHONE
+                OttaiConstants.API_BASE_GLOBAL -> OttaiRegistry.SessionProfile.GLOBAL_PHONE
+                else -> OttaiRegistry.SessionProfile.WATCH
+            }
+            val common = when (profile) {
+                OttaiRegistry.SessionProfile.CN_PHONE -> OttaiCloudClient.cnPhoneHeaders("n:synthetic-cn", "synthetic-token", 0L, "synthetic")
+                OttaiRegistry.SessionProfile.GLOBAL_PHONE -> headers + mapOf("appName" to "ottai",
+                    "packageName" to "com.ottai.seas", "deviceId" to "ottai:a:synthetic-global")
+                else -> headers
+            }
             val param = ByteArray(68) { it.toByte() }
             val signature = ByteArray(32) { (it + 128).toByte() }
             server.business = JSONObject().put("code", "OK").put("data", JSONObject()
@@ -464,7 +475,7 @@ class OttaiRegionalTransportTests {
                 assertEquals(OttaiCrypto.bytesToHex(signature).uppercase(), body.getString("shaInfo"))
                 val app = common.getValue("appName")
                 val expected = OttaiCloudClient.cgmAuthVerifySign(
-                    if (cn) OttaiRegistry.SessionProfile.CN_PHONE else OttaiRegistry.SessionProfile.WATCH,
+                    profile,
                     common.getValue("deviceId").removePrefix("$app:a:"), timestamp,
                     "001122334455", body.getString("paramStr"), body.getString("shaInfo"))
                 assertEquals(expected, body.getString("sign"))
