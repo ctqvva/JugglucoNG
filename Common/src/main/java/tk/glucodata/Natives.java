@@ -346,7 +346,6 @@ public class Natives {
 
         public static native void lastpage();
 
-        public static native String getLibraryName();
         // s/^extern.*JNIEXPORT[ ]*j*\([a-zA-Z]*\)[ ]*JNICALL[
         // ]*fromjava(\([^)]*\))(JNIEnv[^,]*,[^,)]*[,)]\([^){]*\)[^a-zA-Z0-9]*$/public
         // static native \1 \2(\3);/g
@@ -702,14 +701,6 @@ public class Natives {
 
         // public static native void startwatchserver( );
         // public static native void stopwatchserver( );
-        public static native int V1(int i, int i2, byte[] ar1, byte[] ar2);
-
-        public static native byte[] V2(int i, int i2, byte[] ar1, byte[] ar2);
-
-        public static native boolean abbottinit();
-
-        public static native boolean abbottreinit();
-
         public static native byte[] getstreamingAuthenticationData(long dataptr);
 
         public static native byte[] getsensorident(long dataptr);
@@ -719,8 +710,6 @@ public class Natives {
         public static native int getLibreVersion(long dataptr);
 
         public static native void USenabledStreaming(byte[] sensorident, byte[] jauth, byte[] address);
-
-        public static native void closedynlib();
 
         public static native strGlucose lastglucose();
         /** Latest valid stream reading for this sensor only; never falls back to a peer. */
@@ -861,8 +850,6 @@ public class Natives {
         // \2(\3);/g
         // public static native int getlastGen( );
         // public static native void setlastGen(int val);
-        public static native boolean switchgen2();
-
         // public static native void logBluetoothGattCharacteristic(String jmess,
         // BluetoothGattCharacteristic bluetoothGattCharacteristic);
 

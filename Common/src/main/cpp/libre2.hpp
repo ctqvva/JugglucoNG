@@ -129,18 +129,11 @@ void removestate() {
 //extern "C" JNIEXPORT jint JNICALL Java_tk_glucodata_Glucose_init(JNIEnv *env, jclass thiz,jstring dir) ;
 
 //extern scanstate *initnewsensor( scandata *data, ByteArray *uid) ;
-//int  abbottinit(std::string_view filesdir,JNIEnv *env=nullptr,jobject thiz=nullptr);
-extern int  abbottinit(bool doch=false);
-
-bool linklib(const char *filename) ;
-
 typedef int8_t* Bytes_t;
 #include "timevalues.h"
 
 extern timevalues     patchtimevalues(const data_t *info) ;
 extern jbyte  getactivationcommand(const data_t *info) ;
-//extern data_t  * getactivationpayload(const data_t * patchid, const data_t * info, jbyte person) ;
-data_t  * getactivationpayload(scanstate *state,const data_t * patchid, const data_t * info, jbyte person) ;
 
 extern const ScanData *lastscan;
 
@@ -157,7 +150,7 @@ struct libre2stream:streamdata {
 	int blueuit;
 	#endif
 public:
-	libre2stream(int sensindex,SensorGlucoseData *sens):streamdata(2, sensindex,sens),startsincebase((((hist->officialendtime()-time(nullptr))<=60*60)?daysecs:0)+hist->getstarttime()-basesecs),state(locknew<scanstate>(hist->mutex,hist->getsensordir())) {
+	libre2stream(int sensindex,SensorGlucoseData *sens):streamdata(2, sensindex,sens),startsincebase(hist->getstarttime()-basesecs),state(locknew<scanstate>(hist->mutex,hist->getsensordir())) {
 #ifndef NORAWSTREAM
 		pathconcat uit(hist->getsensordir(),rawstream);
 		blueuit=open(uit.data(),O_APPEND|O_CREAT|O_WRONLY, S_IRUSR |S_IWUSR);
@@ -201,35 +194,4 @@ inline  static  const AlgorithmResults  __attribute__((unused)) *Initialized=rei
 
 
 data_t *fromjbyteArray(JNIEnv *env,jbyteArray jar,jint len=-1);
-class MemoryRegion;
 
-#ifdef NFCMEM
-struct NfcMemory {
-static constexpr const int len=344;
-data_t *uid;
-data_t *info;
-data_t *results=data_t::newex(len);
-MemoryRegion *prevspan=nullptr;
-int iter;
-NfcMemory(JNIEnv *env,jbyteArray juid, jbyteArray jinfo): uid(fromjbyteArray(env,juid)), info(fromjbyteArray(env,jinfo)),iter(0) {
-	};
-int nextspan();
-void add(data_t *dat) ;
-
-~NfcMemory() {
- 	data_t::deleteex(uid);
- 	data_t::deleteex(info);
- 	data_t::deleteex(results);
-	};
-};
-#endif
-
-#define WAS_JNIEXPORT 
-typedef WAS_JNIEXPORT jobject JNICALL   (*oldprocessStream_t)(JNIEnv *envin, jobject obj, 
-jint parsertype, jobject alarmconf, jobject nonaction, jobject glrange, jobject attenuatinconfig, jbyteArray sensorident, 
-jbyte person, jbyteArray bluetoothdata, 
-jint startsincebase,jint nusincebase,jint warmup,jint wear,
-jbyteArray compostate, jbyteArray attenustate, jbyteArray measurestate,
-jobject outstarttime, jobject endtime, jobject confinsert, jobject removed, 
-jobject compo, jobject attenu, jobject messstate, 
- jobject algorithresults);

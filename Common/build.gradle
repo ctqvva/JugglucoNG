@@ -315,8 +315,6 @@ android {
             vendorInputs.files.each { input ->
                 doNotStrip "**/${new File(input.path).name}"
             }
-            doNotStrip '**/libcalibrate.so'
-            doNotStrip '**/libcalibrat2.so'
             doNotStrip '**/libinit.so'
             doNotStrip '**/lib[A-Za-mo-z]?*.so'
         }

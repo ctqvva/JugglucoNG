@@ -48,7 +48,6 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static tk.glucodata.Applic.isWearable;
 import static tk.glucodata.Applic.mgdLmult;
 import static tk.glucodata.BuildConfig.libreVersion;
-import static tk.glucodata.Gen2.getversion;
 import static tk.glucodata.Libre3.libre3NFC;
 import static tk.glucodata.Log.doLog;
 import static tk.glucodata.Log.showbytes;
@@ -300,10 +299,6 @@ public class ScanNfcV {
             if (!Natives.gethaslibrary()) {
                 vibrator.cancel();
                 failure(vibrator);
-                if (main.openfile != null)
-                    Applic.RunOnUiThread(() -> {
-                        main.openfile.showchoice(main, true);
-                    });
                 return;
             }
             int value = 0;
@@ -491,14 +486,6 @@ public class ScanNfcV {
                                 ;
                             }
                             ;
-                            if (getversion(info) == 2 && !Natives.switchgen2()) {
-                                Openfile.reinstall = true;
-                                Natives.closedynlib();
-                                Applic.RunOnUiThread(() -> {
-                                    getlibrary.openlibrary(main);
-                                });
-                            }
-
                         }
                     }
                 }

@@ -191,7 +191,7 @@ java += r'''
     static UUID mCharacteristicUUID_CompositeRawData=BluetoothGattCharacteristic.RAW, mCharacteristicUUID_BLELogin=UUID.randomUUID();
     boolean m2831x(){logins++;conphase=1;return true;}
     void writeBLELogin(){logins++;conphase=2;}
-    void phase2(byte[] value){logins++;} void phase3(byte[] value){logins++;}
+    void phase2(byte[] value){logins++;} void phase3(byte[] value){logins++;} void closeManagedGen2(){}
     void oldonCharacteristicChanged(byte[] value){frames++;streamPacketReceived();}
     static void showCharacter(String s,BluetoothGattCharacteristic c){}
 '''

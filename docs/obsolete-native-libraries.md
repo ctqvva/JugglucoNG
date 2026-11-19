@@ -7,7 +7,25 @@ Both `arm64-v8a` and `armeabi-v7a` were inspected with NDK 29
 `llvm-readelf -d`, `llvm-nm -D --defined-only`, and `llvm-strings`.
 The load-path audit was rechecked after rebasing onto `609a6b680`.
 
-## Per-library decisions
+## Libre 1/2 vendor library (PR #937)
+
+Libre 1 and 2 no longer use a vendor library. Gen2 NFC/BLE authentication and
+decryption run in Kotlin (`drivers/libre2`); payloads, patch metadata and glucose
+come from the open `libre2_imp` backend in `libg.so`. See
+[libre2-managed-driver.md](libre2-managed-driver.md).
+
+| Library | Decision | Evidence |
+| --- | --- | --- |
+| `libcalibrate.so` (ARM32) | Remove | Only loaded by the deleted `dlopen` path in `libre2.cpp` (`packagepath`/`nativelibpath`) and the deleted library import screen (`getlibrary`, `Openfile`). |
+| `libcalibrat2.so` | Remove, both ABIs | Gen2 variant of the same library (`nativelibpath.make2()`); same deleted loader. Its `DT_NEEDED` on `libg.so` was the only consumer of the `libg` hooks that wrote its package path into pipes; that write is gone. |
+| Generated `libnative.so` | Remove, both ABIs | Built from `abbotttest.cpp` to test an imported vendor library before use (`rightlib`). With no library to import, the executable, its CMake target and the Java caller are deleted. |
+
+The inventory was regenerated with `scripts/update-build-inputs.sh --apk` against the
+unchanged pinned 1.2.3-Alpha APK: 10 active inputs, 24 retired paths, and the pinned
+APK still supplies every active input. Libre 3 (`liblibre3extension.so`, `libcrl_dp.so`,
+`libinit.so`) and CareSens (`libCALCULATION.so`) inputs are unchanged.
+
+## Per-library decisions (first audit)
 
 | Library | Decision | Evidence |
 | --- | --- | --- |
@@ -22,7 +40,7 @@ The load-path audit was rechecked after rebasing onto `609a6b680`.
 | `libmarsxlog.so` | Remove, both ABIs | Exports target `com.tencent.mars.xlog.Xlog`; no Mars/Xlog code or dependency. Its dependency on `libc++_shared.so` is outgoing, not a reason to remove the shared C++ runtime. |
 | `libmmkv.so` | Remove, both ABIs | Dynamic JNI registration; MMKV class/method strings identify the owner. No MMKV consumer, loader or dependency. |
 | `libgetuiext3.so` | Remove, ARM32 only | Separately inspected: exports `Java_com_igexin_dms_core_NativeCaller_doDaemon` and `JNI_OnLoad`, with registration owner `com/igexin/push/extension/mod/SecurityUtils`. No Igexin/Getui Java package, manifest service, loader or dependency. No retained vendor library needs or names it. No ARM64 counterpart exists in the inventory. |
-| Generated `libnative.so` | Retain, actively used, both ABIs | CMake builds `abbotttest.cpp` as an executable linked against `g`. `rightlib.rightlib()` executes it, and `testrightlib()` deletes a candidate Libre library if it fails. Although startup bypasses import with `Applic.includeLib = true`, `ScanNfcV` can still call `getlibrary.openlibrary()` after a failed `switchgen2()`, leading through `Openfile.getlib()` to this executable. The user explicitly confirmed retention after reviewing this path. Its CMake target and the production `g` target stay unchanged. |
+| Generated `libnative.so` | Retained in the first audit; removed with the Libre 2 library (above) | CMake builds `abbotttest.cpp` as an executable linked against `g`. `rightlib.rightlib()` executes it, and `testrightlib()` deletes a candidate Libre library if it fails. Although startup bypasses import with `Applic.includeLib = true`, `ScanNfcV` can still call `getlibrary.openlibrary()` after a failed `switchgen2()`, leading through `Openfile.getlib()` to this executable. The user explicitly confirmed retention after reviewing this path. Its CMake target and the production `g` target stay unchanged. |
 
 ## Load-path and dependency audit
 
