@@ -371,6 +371,47 @@ private fun chartRangePalette(
     veryHigh = Color(GlucoseRangeColors.veryHigh(isDark))
 )
 
+// The main trace's five band colours once its sensor's colour is applied.
+// A picked colour is applied the way a peer trace is: the identity colour toned
+// toward the neutral token, re-tinted at each band so a low still reads as a
+// low, blended less than a peer because this is the main trace. Without one, the
+// band palette is nudged toward the hash-assigned identity colour by
+// [identityTintFraction] (zero for a lone sensor).
+private fun primaryTracePalette(
+    bandPalette: ChartRangePalette,
+    isDark: Boolean,
+    pickedColor: Color?,
+    identityColor: Color,
+    identityTintFraction: Float,
+    neutralBase: Color,
+    lowTintBase: Color,
+    highTintBase: Color
+): ChartRangePalette {
+    if (pickedColor != null) {
+        val base = androidx.compose.ui.graphics.lerp(
+            pickedColor,
+            neutralBase,
+            tk.glucodata.SensorVisuals.PRIMARY_TEXT_BLEND,
+        )
+        return ChartRangePalette(
+            veryLow = androidx.compose.ui.graphics.lerp(base, Color(GlucoseRangeColors.veryLow(isDark)), 0.58f),
+            low = androidx.compose.ui.graphics.lerp(base, lowTintBase, 0.48f),
+            inRange = base,
+            high = androidx.compose.ui.graphics.lerp(base, highTintBase, 0.48f),
+            veryHigh = androidx.compose.ui.graphics.lerp(base, Color(GlucoseRangeColors.veryHigh(isDark)), 0.58f),
+        )
+    }
+    if (identityTintFraction <= 0f) return bandPalette
+    fun tinted(color: Color): Color = androidx.compose.ui.graphics.lerp(color, identityColor, identityTintFraction)
+    return ChartRangePalette(
+        veryLow = tinted(bandPalette.veryLow),
+        low = tinted(bandPalette.low),
+        inRange = tinted(bandPalette.inRange),
+        high = tinted(bandPalette.high),
+        veryHigh = tinted(bandPalette.veryHigh),
+    )
+}
+
 internal fun coerceChartYToDrawableRange(
     value: Float,
     chartHeight: Float,
@@ -1217,6 +1258,34 @@ fun InteractiveGlucoseChart(
     val primarySerial = renderedInputs.primarySerial
     val primaryIdentityColor = Color(renderedInputs.primaryColorArgb)
     val primaryPickedColor = tk.glucodata.SensorVisuals.colorOverrideArgb(primarySerial)?.let { Color(it) }
+    // The five colours the main trace is stroked with, after its sensor's colour
+    // is applied. Resolved once so the preview strip under the chart paints the
+    // same trace: it used to take the untinted band palette, so a picked colour
+    // (or the multi-sensor identity tint) showed on the chart but not in the strip.
+    val primaryTracePalette = remember(
+        chartBandPalette,
+        peerChartSeries.isNotEmpty(),
+        primaryIdentityColor,
+        primaryPickedColor,
+        peerNeutralBase,
+        lowOutOfRangeTintBase,
+        highOutOfRangeTintBase,
+        isDark,
+        glucosePaletteRevision
+    ) {
+        primaryTracePalette(
+            bandPalette = chartBandPalette,
+            isDark = isDark,
+            pickedColor = primaryPickedColor,
+            identityColor = primaryIdentityColor,
+            // Multi-sensor: the primary trace carries a subtle identity tint so
+            // it pairs with its (tinted) values, like the peer traces do.
+            identityTintFraction = if (peerChartSeries.isNotEmpty()) 0.22f else 0f,
+            neutralBase = peerNeutralBase,
+            lowTintBase = lowOutOfRangeTintBase,
+            highTintBase = highOutOfRangeTintBase
+        )
+    }
     val hasCalibration = renderedInputs.hasCalibration
     val renderViewMode = renderedInputs.viewMode
     // Whether a calibration applies to each peer's own lane: the tooltip leads
@@ -2606,80 +2675,25 @@ fun InteractiveGlucoseChart(
             val limitYLow = thresholdY(rangeThresholds.low)
             val limitYVeryLow = thresholdY(rangeThresholds.veryLow)
 
-            // Multi-sensor: the primary trace carries a subtle identity tint so
-            // it pairs with its (tinted) values, like the peer traces do.
-            val primaryLineTintFraction = if (peerChartSeries.isNotEmpty()) 0.22f else 0f
-            val appRangeDark = tk.glucodata.ui.isAppInDarkTheme()
             val gradientBrush = remember(
                 limitYVeryHigh,
                 limitYHigh,
                 limitYLow,
                 limitYVeryLow,
                 chartHeightPx,
-                chartBandPalette,
-                primaryLineTintFraction,
-                primaryIdentityColor,
-                appChartRangeColors,
-                appRangeDark,
-                primaryPickedColor,
-                peerNeutralBase,
-                glucosePaletteRevision
+                primaryTracePalette,
             ) {
                 if (chartHeightPx <= 0f) {
                     Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
-                } else if (primaryPickedColor != null) {
-                    // A picked colour is applied the way a peer trace is: the identity colour
-                    // toned toward the neutral token, re-tinted at each band so a low still
-                    // reads as a low. Blended less than a peer because this is the main trace.
-                    val base = androidx.compose.ui.graphics.lerp(
-                        primaryPickedColor,
-                        peerNeutralBase,
-                        tk.glucodata.SensorVisuals.PRIMARY_TEXT_BLEND,
-                    )
-                    val stops = GlucoseChartBands.verticalStops(
-                        veryHigh = androidx.compose.ui.graphics.lerp(
-                            base, Color(GlucoseRangeColors.veryHigh(appRangeDark)), 0.58f,
-                        ),
-                        high = androidx.compose.ui.graphics.lerp(base, highOutOfRangeTintBase, 0.48f),
-                        inRange = base,
-                        low = androidx.compose.ui.graphics.lerp(base, lowOutOfRangeTintBase, 0.48f),
-                        veryLow = androidx.compose.ui.graphics.lerp(
-                            base, Color(GlucoseRangeColors.veryLow(appRangeDark)), 0.58f,
-                        ),
-                        yVeryHigh = limitYVeryHigh,
-                        yHigh = limitYHigh,
-                        yLow = limitYLow,
-                        yVeryLow = limitYVeryLow,
-                        chartHeightPx = chartHeightPx,
-                    )
-                    Brush.verticalGradient(
-                        *stops.toTypedArray(),
-                        startY = 0f,
-                        endY = chartHeightPx,
-                    )
                 } else {
-                    fun identityTinted(color: Color): Color =
-                        if (primaryLineTintFraction > 0f) {
-                            androidx.compose.ui.graphics.lerp(color, primaryIdentityColor, primaryLineTintFraction)
-                        } else {
-                            color
-                        }
-
-                    // Range-color mode uses the same five effective colors shown
-                    // in settings, including every per-band override.
-                    val veryHighTint = identityTinted(chartBandPalette.veryHigh)
-                    val highTint = identityTinted(chartBandPalette.high)
-                    val lowTint = identityTinted(chartBandPalette.low)
-                    val veryLowTint = identityTinted(chartBandPalette.veryLow)
-                    val inRangeTint = identityTinted(chartBandPalette.inRange)
                     // Stop geometry lives in GlucoseChartBands so the watch's
                     // curve bands on the same lines this one does.
                     val stops = GlucoseChartBands.verticalStops(
-                        veryHigh = veryHighTint,
-                        high = highTint,
-                        inRange = inRangeTint,
-                        low = lowTint,
-                        veryLow = veryLowTint,
+                        veryHigh = primaryTracePalette.veryHigh,
+                        high = primaryTracePalette.high,
+                        inRange = primaryTracePalette.inRange,
+                        low = primaryTracePalette.low,
+                        veryLow = primaryTracePalette.veryLow,
                         yVeryHigh = limitYVeryHigh,
                         yHigh = limitYHigh,
                         yLow = limitYLow,
@@ -5449,7 +5463,7 @@ fun InteractiveGlucoseChart(
                     previewCenterTime = previewCenterTime,
                     viewMode = renderViewMode,
                     rangeThresholds = rangeThresholds,
-                    rangePalette = chartBandPalette,
+                    rangePalette = primaryTracePalette,
                     isMmol = isMmol,
                     currentCenterTime = centerTime,
                     currentVisibleDuration = visibleDuration
