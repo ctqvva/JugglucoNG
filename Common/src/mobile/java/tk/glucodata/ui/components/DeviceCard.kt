@@ -176,8 +176,8 @@ fun DevicePauseButton(
         FilledIconButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier.size(48.dp),
-            shapes = IconButtonDefaults.shapes(),
+            modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+            shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
             colors = IconButtonDefaults.filledIconButtonColors(
                 containerColor = if (paused) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surfaceContainerHighest,
