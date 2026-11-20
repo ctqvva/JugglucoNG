@@ -55,6 +55,7 @@ import androidx.annotation.NonNull;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import tk.glucodata.glucosemeter.MeterClockSync;
 import tk.glucodata.glucosemeter.MeterLinkOutcome;
 import tk.glucodata.glucosemeter.MeterLinkPacer;
 import tk.glucodata.glucosemeter.MeterSyncPacing;
@@ -203,6 +204,11 @@ private boolean discover(BluetoothGatt bluetoothGatt) {
     VerioWriteChar=null;
     VerioNotifyChar=null;
     verioSession.reset();
+    // Clock characteristics decide the sync path, so never carry them over from an
+    // earlier discovery.
+    TimeChar=null;
+    DateTimeChar=null;
+    IsensTimeChar=null;
     for(var ser:services) {
         if(doLog) Log.i(LOG_ID,"service: "+ser.getUuid().toString());
         final boolean satelliteService=ser.getUuid().equals(SatelliteMeterProtocol.SERVICE_UUID);
@@ -455,23 +461,40 @@ private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
             Log.i(LOG_ID,"handleManufactory "+ manufacturer);
         if(manufacturer.startsWith("Roche")) {
                 allRecordsOnly=true;
-                if(doLog)
-                        Log.i(LOG_ID,"read DateTime");
-                tryer(()->gatt.readCharacteristic(DateTimeChar));
-                return;
                 }
         if(manufacturer.startsWith("TaiDoc")) {
                 firstRecordonly=true;
                 tryer(()->enableNotification(gatt, GlucoseChar));
                 return;
                 }
-        if(manufacturer.startsWith("i-SENS")) {
-               // newerRecords=true;
+        // Only touch clock characteristics the meter exposes: some i-SENS meters
+        // (CareSens, discussion #787) have no FFF1, and enabling notifications on the
+        // missing characteristic threw on every retry so no record was ever requested.
+        switch(MeterClockSync.step(manufacturer,DateTimeChar!=null,IsensTimeChar!=null,TimeChar!=null)) {
+            case READ_DATE_TIME:
+                if(doLog) Log.i(LOG_ID,"read DateTime");
+                tryer(()->gatt.readCharacteristic(DateTimeChar));
+                break;
+            case WRITE_ISENS_TIME:
                 tryer(()->enableNotification(gatt, IsensTimeChar));
-                return;
-                }
-        tryer(()->gatt.readCharacteristic(TimeChar));
+                break;
+            case READ_CURRENT_TIME:
+                tryer(()->gatt.readCharacteristic(TimeChar));
+                break;
+            default:
+                Log.i(LOG_ID,"no usable clock characteristic, records without clock");
+                enableRecordNotifications(gatt);
+                break;
+            }
        }
+private void enableRecordNotifications(BluetoothGatt gatt) {
+        if(ContextChar!=null) {
+            tryer(()->enableNotification(gatt, ContextChar));
+            }
+        else {
+            tryer(()->enableNotification(gatt, GlucoseChar));
+            }
+        }
     @Override
     public void onCharacteristicRead(@NonNull BluetoothGatt bluetoothGatt,@NonNull  BluetoothGattCharacteristic bluetoothGattCharacteristic, int status) {
         final var value=bluetoothGattCharacteristic.getValue();
@@ -496,12 +519,7 @@ private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
             case DateTimeCharUUID: 
             case TimeCharUUID: 
                 Natives.GlucoseMeterSaveTime(meterIndex,value);
-                if(ContextChar!=null) {
-                    tryer(()->enableNotification(bluetoothGatt, ContextChar));
-                    }
-                else {
-                    tryer(()->enableNotification(bluetoothGatt, GlucoseChar));break;
-                    }
+                enableRecordNotifications(bluetoothGatt);
                 break;
                  
             default: Log.e(LOG_ID,"onCharacteristicRead: Unknown UUID "+uuid);break;
