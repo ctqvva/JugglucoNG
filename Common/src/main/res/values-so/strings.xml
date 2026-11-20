@@ -3580,6 +3580,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="libre3_managed_identity_imported">%1$d aqoonsi abka ayaa la soo geliyey</string>
     <string name="libre3_managed_identity_import_failed">Xogta isku xirka lama soo gelin karin: %1$s</string>
     <string name="libre3_managed_identity_missing">Xogta isku xirka lama heli karo. Fur Dejimaha → Darawalka Kotlin Libre 3, hubi internetka oo mar kale soo deji. Dareemaha lama beddelin.</string>
+    <string name="libre3_lingo_identity_missing">Ka hor intaadan iskaanka ka qaadin dareemahan, aqoonsiga abka Lingo ka soo geli dejimaha darawalka Kotlin Libre 3.</string>
+    <string name="libre3_lingo_version_unsupported">Dareemahan Lingo wuxuu adeegsadaa nooc borotokool amni oo aan la taageerin.</string>
     <string name="libre3_status_device_rejected">Qalabku ma aha Libre 3 (adeegyo ayaa maqan); dareemaha mar kale iskaan garee</string>
     <string name="libre3_status_certificate_rejected">Shahaadada dareemaha lama aqoonsan; mar kale iskaan garee</string>
     <string name="libre3_status_identity_missing">Aqoonsiga abka Libre 3 lama soo gelin</string>

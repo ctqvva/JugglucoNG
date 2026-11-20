@@ -3464,6 +3464,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="libre3_managed_identity_imported">Importált azonosságok: %1$d</string>
     <string name="libre3_managed_identity_import_failed">Nem sikerült betölteni a kapcsolati adatokat: %1$s</string>
     <string name="libre3_managed_identity_missing">A kapcsolati adatok nem érhetők el. Nyissa meg a Beállítások → Kotlin Libre 3 illesztőprogram oldalt, ellenőrizze az internetet, és próbálja újra a letöltést. A szenzor nem változott.</string>
+    <string name="libre3_lingo_identity_missing">A szenzor beolvasása előtt importálja a Lingo alkalmazásazonosságát a Kotlin Libre 3 illesztőprogram beállításaiban.</string>
+    <string name="libre3_lingo_version_unsupported">Ez a Lingo szenzor a biztonsági protokoll nem támogatott verzióját használja.</string>
     <string name="libre3_status_device_rejected">Az eszköz nem Libre 3 (hiányzó szolgáltatások); olvassa be újra a szenzort</string>
     <string name="libre3_status_certificate_rejected">A szenzor tanúsítványa nem ismerhető fel; olvassa be újra</string>
     <string name="libre3_status_identity_missing">Nincs importált Libre 3 alkalmazásazonosság</string>

@@ -3496,6 +3496,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="libre3_managed_identity_imported">%1$d таних мэдээлэл импортоллоо</string>
     <string name="libre3_managed_identity_import_failed">Холболтын мэдээллийг ачаалж чадсангүй: %1$s</string>
     <string name="libre3_managed_identity_missing">Холболтын мэдээлэл алга. Тохиргоо → Kotlin Libre 3 драйверыг нээж, интернетээ шалгаад дахин татна уу. Мэдрэгч өөрчлөгдөөгүй.</string>
+    <string name="libre3_lingo_identity_missing">Энэ мэдрэгчийг уншуулахаас өмнө Kotlin Libre 3 драйверын тохиргоонд Lingo аппын таних мэдээллийг импортолно уу.</string>
+    <string name="libre3_lingo_version_unsupported">Энэ Lingo мэдрэгчийн ашиглаж буй аюулгүй байдлын протоколын хувилбарыг дэмжихгүй.</string>
     <string name="libre3_status_device_rejected">Төхөөрөмж Libre 3 биш (үйлчилгээ дутуу); мэдрэгчийг дахин уншуулна уу</string>
     <string name="libre3_status_certificate_rejected">Мэдрэгчийн гэрчилгээ танигдсангүй; дахин уншуулна уу</string>
     <string name="libre3_status_identity_missing">Libre 3 аппын таних мэдээлэл импортлоогүй</string>
