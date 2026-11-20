@@ -125,27 +125,80 @@ def unavailable_inputs(data, archive):
     return missing
 
 
-def restore(apk=None):
+def supplement_sources(supplements):
+    """Validate controller-pinned supplementary source APKs (see pr-build.py)."""
+    checked, paths = [], set()
+    for source in supplements:
+        url, sha, files = source.get('url'), source.get('sha256'), source.get('files')
+        if (not isinstance(url, str) or not url.startswith('https://') or not isinstance(sha, str)
+                or not re.fullmatch(r'[0-9a-f]{64}', sha) or not isinstance(files, dict) or not files):
+            raise ValueError('Invalid supplementary input source')
+        for path, spec in files.items():
+            input_entry(path)
+            if (path in paths or not isinstance(spec, dict) or set(spec) != {'size', 'sha256'}
+                    or type(spec['size']) is not int or spec['size'] <= 0
+                    or not re.fullmatch(r'[0-9a-f]{64}', spec['sha256'])):
+                raise ValueError(f'Invalid supplementary input: {path}')
+            paths.add(path)
+        checked.append(source)
+    return checked
+
+
+def restore(apk=None, supplements=(), supplement_apks=None):
+    """Restore the inventory's JNI inputs from its pinned source APK.
+
+    `supplements` is only ever passed by the trusted PR-build controller. It
+    lets an inventory in bootstrap state (new libraries no published release
+    contains yet) take exactly those libraries from other pinned APKs. Every
+    other caller, and every inventory not in bootstrap state, is unaffected.
+    """
     data = inventory()
-    if data.get('bootstrapRequired', False):
+    supplements = supplement_sources(supplements)
+    bootstrap = data.get('bootstrapRequired', False)
+    if bootstrap and not supplements:
         raise ValueError('Vendor inputs await their first published baseline. Build locally with '
                          'scripts/build-dist.sh all, then use scripts/release-local.sh; '
                          'run scripts/update-build-inputs.sh --baseline <published-tag> afterwards.')
+    payloads = {}
     with source_archive(data, apk) as z:
-        payloads = []
+        missing = set(unavailable_inputs(data, z)) if bootstrap else set()
         for spec in data['files']:
+            if spec['path'] in missing:
+                continue
             content = z.read(input_entry(spec['path']))
             if len(content) != spec['size'] or digest(content) != spec['sha256']:
                 raise ValueError(f"Input checksum mismatch: {spec['path']}")
-            dest = ROOT / spec['path']
-            if not dest.resolve().is_relative_to(ROOT.resolve()):
-                raise ValueError(f"Input path escapes checkout: {spec['path']}")
-            if dest.exists() and digest(dest.read_bytes()) != spec['sha256']:
-                raise ValueError(f"Refusing to overwrite different local input: {spec['path']}")
-            payloads.append((dest, content))
-        for dest, content in payloads:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(content)
+            payloads[spec['path']] = content
+    if missing:
+        wanted = {spec['path']: spec for spec in data['files'] if spec['path'] in missing}
+        for index, source in enumerate(supplements):
+            # An approved file must match the inventory exactly: path, size and hash.
+            take = {path for path, spec in source['files'].items()
+                    if path in wanted and spec == {'size': wanted[path]['size'], 'sha256': wanted[path]['sha256']}}
+            if not take:
+                continue
+            local = (supplement_apks or {}).get(index)
+            with source_archive({'source': {'url': source['url'], 'sha256': source['sha256']}}, local) as z:
+                for path in sorted(take):
+                    content = z.read(input_entry(path))
+                    if len(content) != wanted[path]['size'] or digest(content) != wanted[path]['sha256']:
+                        raise ValueError(f'Supplementary input checksum mismatch: {path}')
+                    payloads[path] = content
+                    print(f'Restored {path} from approved supplementary source {source["url"]}', file=sys.stderr)
+        unresolved = sorted(missing - set(payloads))
+        if unresolved:
+            raise ValueError('Bootstrap inputs that no approved source supplies: ' + ', '.join(unresolved))
+    writes = []
+    for spec in data['files']:
+        dest = ROOT / spec['path']
+        if not dest.resolve().is_relative_to(ROOT.resolve()):
+            raise ValueError(f"Input path escapes checkout: {spec['path']}")
+        if dest.exists() and digest(dest.read_bytes()) != spec['sha256']:
+            raise ValueError(f"Refusing to overwrite different local input: {spec['path']}")
+        writes.append((dest, payloads[spec['path']]))
+    for dest, content in writes:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(content)
     inputs_check()
 
 

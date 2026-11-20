@@ -18,6 +18,30 @@ OWNER_ID = 3178592
 REVIEW_ENVIRONMENT = 'production-pr-review'
 CONTROLLER_ROOT = dist.ROOT
 
+# Owner-approved, checksum-pinned sources for JNI inputs that no published
+# JugglucoNG release contains yet. Only owner-approved PR test builds use these,
+# and only for an inventory in bootstrap state: each file must match that
+# inventory's path, size and SHA-256 exactly, or the restore fails. Releases,
+# nightlies and main dev builds never read this. A PR cannot change it: this is
+# the trusted main controller's copy. Remove an entry once a published release
+# supplies its files (scripts/update-build-inputs.sh --baseline).
+SUPPLEMENTARY_SOURCES = [
+    {
+        # Upstream Juggluco 11.5.6 (juggluco.nl/Juggluco/download.html). Its Clarity
+        # provider library, for testing Dexcom Clarity upload in PR #833.
+        'url': 'https://downloads.sourceforge.net/project/juggluco/Juggluco-11.5.6.apk',
+        'sha256': '454bf168e74514f388d83234c3b65f9e3d0baf08924fe698d9c629c7489af4a0',
+        'files': {
+            'Common/src/main/jniLibs/arm64-v8a/liblibre_receiver_skb.so': {
+                'size': 4468408,
+                'sha256': '7b946a3012ad278a74c9cccfc7da615582a494ae963439e8c9f0b6931b7fa038'},
+            'Common/src/main/jniLibs/armeabi-v7a/liblibre_receiver_skb.so': {
+                'size': 4819728,
+                'sha256': 'b8b2fad33c68e46762a11b6e08fa0e2e38a3f60d5acdae165af0097109877492'},
+        },
+    },
+]
+
 
 def api(path):
     return json.loads(subprocess.check_output(['gh', 'api', f'repos/{REPOSITORY}/{path}'], text=True))
@@ -118,7 +142,7 @@ def main():
     check_checkout(source, expected['source_sha'])
     if args.command == 'restore':
         dist.ROOT = source
-        dist.restore()
+        dist.restore(supplements=SUPPLEMENTARY_SOURCES)
     else:
         target = os.environ['TARGET']
         if target not in dist.TARGETS:

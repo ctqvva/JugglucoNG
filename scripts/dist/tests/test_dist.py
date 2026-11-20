@@ -170,6 +170,99 @@ class InputRestore(unittest.TestCase):
             dist.inputs_check()
 
 
+class SupplementaryRestore(unittest.TestCase):
+    """A bootstrap inventory may take its new inputs only from controller-pinned sources."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.old = b'baseline native input'
+        self.new = b'new provider library'
+        self.old_spec = {'path': 'Common/src/main/jniLibs/arm64-v8a/libexample.so',
+                         'size': len(self.old), 'sha256': dist.digest(self.old)}
+        self.new_spec = {'path': 'Common/src/main/jniLibs/arm64-v8a/libprovider.so',
+                         'size': len(self.new), 'sha256': dist.digest(self.new)}
+        self.baseline = self.root / 'baseline.apk'
+        with zipfile.ZipFile(self.baseline, 'w') as z:
+            z.writestr('lib/arm64-v8a/libexample.so', self.old)
+        self.upstream = self.root / 'upstream.apk'
+        with zipfile.ZipFile(self.upstream, 'w') as z:
+            z.writestr('lib/arm64-v8a/libprovider.so', self.new)
+            z.writestr('lib/arm64-v8a/libunrelated.so', b'never extracted')
+        self.data = {'source': {'sha256': dist.digest(self.baseline.read_bytes())},
+                     'files': [self.old_spec, self.new_spec], 'bootstrapRequired': True}
+        self.supplements = [{'url': 'https://example.invalid/upstream.apk',
+                             'sha256': dist.digest(self.upstream.read_bytes()),
+                             'files': {self.new_spec['path']: {'size': self.new_spec['size'],
+                                                               'sha256': self.new_spec['sha256']}}}]
+        for p in [patch.object(dist, 'ROOT', self.root), patch.object(dist, 'inventory', return_value=self.data),
+                  patch.object(dist, 'abis', return_value=['arm64-v8a'])]:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def restore(self):
+        dist.restore(self.baseline, supplements=self.supplements, supplement_apks={0: self.upstream})
+
+    def assert_nothing_written(self):
+        self.assertFalse((self.root / 'Common').exists())
+
+    def test_bootstrap_inputs_come_from_baseline_and_the_approved_source(self):
+        self.restore()
+        self.assertEqual((self.root / self.old_spec['path']).read_bytes(), self.old)
+        self.assertEqual((self.root / self.new_spec['path']).read_bytes(), self.new)
+        self.assertEqual(sorted(p.name for p in self.root.rglob('*.so')), ['libexample.so', 'libprovider.so'])
+
+    def test_plain_restore_still_refuses_bootstrap(self):
+        with self.assertRaisesRegex(ValueError, 'first published baseline'):
+            dist.restore(self.baseline)
+        self.assert_nothing_written()
+
+    def test_unapproved_new_input_fails_closed(self):
+        self.supplements[0]['files'] = {}
+        with self.assertRaisesRegex(ValueError, 'Invalid supplementary input source'):
+            self.restore()
+        self.supplements[0]['files'] = {'Common/src/main/jniLibs/arm64-v8a/libother.so':
+                                        {'size': 1, 'sha256': '1' * 64}}
+        with self.assertRaisesRegex(ValueError, 'no approved source supplies'):
+            self.restore()
+        self.assert_nothing_written()
+
+    def test_inventory_hash_differing_from_approval_is_not_supplied(self):
+        # A PR cannot point an approved name at different bytes.
+        self.new_spec['sha256'] = dist.digest(b'other bytes')
+        with self.assertRaisesRegex(ValueError, 'no approved source supplies'):
+            self.restore()
+        self.assert_nothing_written()
+
+    def test_tampered_supplementary_apk_or_entry_fails_before_writes(self):
+        self.upstream.write_bytes(self.upstream.read_bytes() + b'changed')
+        with self.assertRaisesRegex(ValueError, 'source APK checksum'):
+            self.restore()
+        with zipfile.ZipFile(self.upstream, 'w') as z:
+            z.writestr('lib/arm64-v8a/libprovider.so', b'tampered library')
+        self.supplements[0]['sha256'] = dist.digest(self.upstream.read_bytes())
+        with self.assertRaisesRegex(ValueError, 'Supplementary input checksum'):
+            self.restore()
+        self.assert_nothing_written()
+
+    def test_malformed_approvals_rejected(self):
+        bad = [dict(self.supplements[0], url='http://example.invalid/x.apk'),
+               dict(self.supplements[0], sha256='zz'),
+               dict(self.supplements[0], files={'../escape.so': {'size': 1, 'sha256': '1' * 64}}),
+               dict(self.supplements[0], files={self.new_spec['path']: {'size': 1, 'sha256': '1' * 64, 'x': 1}})]
+        for source in bad:
+            with self.subTest(source=source), self.assertRaisesRegex(ValueError, 'Invalid (supplementary|vendor input path)'):
+                dist.restore(self.baseline, supplements=[source], supplement_apks={0: self.upstream})
+        self.assert_nothing_written()
+
+    def test_supplements_do_not_change_a_published_baseline_restore(self):
+        self.data['files'] = [self.old_spec]
+        del self.data['bootstrapRequired']
+        self.restore()
+        self.assertEqual([p.name for p in self.root.rglob('*.so')], ['libexample.so'])
+
+
 class ApkVerification(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
