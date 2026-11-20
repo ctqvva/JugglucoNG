@@ -3440,6 +3440,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_import_failed">Impossible de charger les données de connexion : %1$s</string>
     <string name="libre3_managed_identity_missing">Données de connexion indisponibles. Ouvrez Réglages → Libre 3, vérifiez Internet et réessayez le téléchargement. Le capteur n’a pas été modifié.</string>
     <string name="libre3_status_services_missing">Services du capteur absents ; nouvelle tentative</string>
+    <string name="libre3_lingo_identity_missing">Importez une identité d’application Lingo dans les réglages du pilote Libre 3 en Kotlin avant de scanner ce capteur.</string>
+    <string name="libre3_lingo_version_unsupported">Ce capteur Lingo utilise une version du protocole de sécurité qui n’est pas prise en charge.</string>
     <string name="libre3_status_certificate_rejected">Certificat du capteur non reconnu ; scannez à nouveau le capteur</string>
     <string name="libre3_status_identity_missing">Aucune identité d’application Libre 3 importée</string>
     <string name="libre3_status_identity_rejected">Le capteur a refusé l’identité de l’application</string>

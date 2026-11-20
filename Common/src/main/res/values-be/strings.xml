@@ -3524,6 +3524,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_import_failed">Не ўдалося спампаваць даныя для падключэння: %1$s</string>
     <string name="libre3_managed_identity_missing">Няма даных для падключэння. Адкрыйце Налады → Libre 3, праверце інтэрнэт і паўтарыце спампоўку. Сенсар не зменены.</string>
     <string name="libre3_status_services_missing">Няма сэрвісаў сенсара; паўтараем спробу</string>
+    <string name="libre3_lingo_identity_missing">Перад сканаваннем гэтага сенсара імпартуйце ключы праграмы Lingo ў наладах драйвера Libre 3 на Kotlin.</string>
+    <string name="libre3_lingo_version_unsupported">Гэты сенсар Lingo выкарыстоўвае версію пратакола бяспекі, якая не падтрымліваецца.</string>
     <string name="libre3_status_certificate_rejected">Сертыфікат сенсара не распазнаны; адскануйце сенсар зноў</string>
     <string name="libre3_status_identity_missing">Ключы праграмы Libre 3 не імпартаваны</string>
     <string name="libre3_status_identity_rejected">Сенсар не прыняў ключы праграмы</string>
