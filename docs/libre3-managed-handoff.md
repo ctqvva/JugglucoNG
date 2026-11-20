@@ -162,6 +162,7 @@ services used are the generic managed-sensor mirror and lifecycle services.
   the certificate fingerprint in `Libre3Lingo.kt`. The app keeps the identity and
   cached authorization in the device-local store. The regular Libre 3 identity
   download does not supply it. First pairing uses upstream's receiver ID 1001.
+  Live readings prefer the sensor's uncapped glucose, as upstream Juggluco does.
   The source port and decoder tests do not establish fresh activation, takeover from
   Abbott's Lingo app, cached reconnect, or live and historical delivery on hardware.
 
