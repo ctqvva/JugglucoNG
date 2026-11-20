@@ -444,6 +444,10 @@ protected  final boolean enableIndication(BluetoothGatt bluetoothGatt1, Bluetoot
         return  enableIndicationnote(""+meterIndex, bluetoothGatt1, bluetoothGattCharacteristic) ;
         }
 private void tryer(Supplier<Boolean> worked) {
+        tryer(worked,null);
+        }
+// gaveUp runs when every attempt was refused while still connected.
+private void tryer(Supplier<Boolean> worked,Runnable gaveUp) {
         if(worked.get())
             return;
         Applic.scheduler.schedule(() -> { 
@@ -454,7 +458,10 @@ private void tryer(Supplier<Boolean> worked) {
                       }
                   if(worked.get()) return; 
                   sleep(20) ;
-                 } }, 20, TimeUnit.MILLISECONDS);
+                 }
+             if(gaveUp!=null && connected)
+                 gaveUp.run();
+             }, 20, TimeUnit.MILLISECONDS);
        } 
 private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
         if(doLog)
@@ -473,13 +480,13 @@ private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
         switch(MeterClockSync.step(manufacturer,DateTimeChar!=null,IsensTimeChar!=null,TimeChar!=null)) {
             case READ_DATE_TIME:
                 if(doLog) Log.i(LOG_ID,"read DateTime");
-                tryer(()->gatt.readCharacteristic(DateTimeChar));
+                readClock(gatt,DateTimeChar);
                 break;
             case WRITE_ISENS_TIME:
                 tryer(()->enableNotification(gatt, IsensTimeChar));
                 break;
             case READ_CURRENT_TIME:
-                tryer(()->gatt.readCharacteristic(TimeChar));
+                readClock(gatt,TimeChar);
                 break;
             default:
                 Log.i(LOG_ID,"no usable clock characteristic, records without clock");
@@ -487,6 +494,14 @@ private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
                 break;
             }
        }
+// The clock only corrects record times, so a read Android will not queue still
+// leads on to the records.
+private void readClock(BluetoothGatt gatt,BluetoothGattCharacteristic clock) {
+        tryer(()->gatt.readCharacteristic(clock),()->{
+            Log.i(LOG_ID,"clock read not queued, records without clock");
+            enableRecordNotifications(gatt);
+            });
+        }
 private void enableRecordNotifications(BluetoothGatt gatt) {
         if(ContextChar!=null) {
             tryer(()->enableNotification(gatt, ContextChar));
@@ -502,6 +517,14 @@ private void enableRecordNotifications(BluetoothGatt gatt) {
         if(doLog) {Log.d(LOG_ID, bluetoothGatt.getDevice().getAddress() + " onCharacteristicRead, status:" + status + " UUID:" + uuid);};;
 
       if(status!=GATT_SUCCESS) {
+            final boolean clock=uuid.equals(TimeCharUUID)||uuid.equals(DateTimeCharUUID);
+            final boolean bonded=bluetoothGatt.getDevice().getBondState()==BOND_BONDED;
+            if(clock && (bonded || status != GATT_INSUFFICIENT_AUTHENTICATION)) {
+                // Optional step: a meter that refuses its clock still hands over records.
+                Log.i(LOG_ID,"clock read failed status="+status+", records without clock");
+                enableRecordNotifications(bluetoothGatt);
+                return;
+                }
             if(status == GATT_INSUFFICIENT_AUTHENTICATION) { 
                 if(doLog)
                     Log.i(LOG_ID,"onCharacteristicRead GATT_INSUFFICIENT_AUTHENTICATION");

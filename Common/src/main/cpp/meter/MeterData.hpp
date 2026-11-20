@@ -33,6 +33,11 @@ float inmgdL(shortfloat in) const {
      return in.getvalue()*100000.0f;
     }
 public:
+    // Flags, sequence number and base time; every other field is announced by a flag.
+    static constexpr const int baseLength=10;
+    int expectedLength() const {
+        return baseLength+(timeOffsetPresent?2:0)+(typeAndLocationPresent?3:0)+(sensorStatusAnnunciationPresent?2:0);
+        }
     int16_t getTimeoffset() const {
         if(timeOffsetPresent)
             return offset;
