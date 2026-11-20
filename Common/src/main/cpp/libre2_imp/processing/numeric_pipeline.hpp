@@ -128,7 +128,7 @@ inline NumericResult evaluate_numeric(std::span<const std::uint16_t,80>trend,
     // aggregation skips it; source faults carrying other bits still propagate.
     for(unsigned i=0;i<3;++i)if(quality.rate_status[i]!=0x8000)r.rate_quality|=quality.rate_status[i];
     if(eligible.last>eligible.first)r.rate_quality|=quality.rate_status[3];
-    if(r.quality)r.rate_quality=0x8000;
+    if(r.quality||quality.context_status)r.rate_quality=0x8000;
     if(r.rate_quality){r.current.filtered_rate=0.f;r.current.reported_rate=0.f;}
     if(r.quality)r.current.filtered_glucose=0.f;
     r.reported_glucose=r.quality?0.f:scan_curve(r.current.filtered_glucose);

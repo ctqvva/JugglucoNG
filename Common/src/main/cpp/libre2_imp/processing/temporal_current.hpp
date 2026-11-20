@@ -58,7 +58,10 @@ inline unsigned projected_range_category(float glucose,float rate,std::uint16_t 
 struct CurrentQuality {
     std::array<float,4>rate{};
     std::array<std::uint16_t,4>rate_status{};
-    std::uint16_t glucose_status{},rate_disagreement{};
+    // JugglucoNG: glucose_status holds only what makes the glucose itself wrong; context_status
+    // holds what the native code also used to drop it: no usable slope estimate, or flagged
+    // history records around now. Missing context leaves the rate unknown, not the glucose.
+    std::uint16_t glucose_status{},rate_disagreement{},context_status{};
 };
 inline CurrentQuality current_quality(const float*trend,const std::uint16_t*tflags,
         const TemporalSample*history,unsigned age,int ti,int hi,bool require_history_quality=true){
@@ -89,7 +92,8 @@ inline CurrentQuality current_quality(const float*trend,const std::uint16_t*tfla
     }
     const float spread=hi_rate-lo;
     q.rate_disagreement=any&&spread>3.f?0x8000:0;
-    q.glucose_status=(!any||spread>6.f?0x8000:0)|(require_history_quality?q.rate_status[3]:0);
+    q.glucose_status=any&&spread>6.f?0x8000:0;
+    q.context_status=(!any?0x8000:0)|(require_history_quality?q.rate_status[3]:0);
     return q;
 }
 struct CurrentEstimates {

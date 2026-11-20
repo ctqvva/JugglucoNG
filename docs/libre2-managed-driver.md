@@ -44,6 +44,24 @@ touches either Libre 3 path.
 The glucose values of the open backend can differ from the vendor library's. When it marks the
 rate of change unreliable, the rate is reported as unknown and no trend arrow is shown.
 
+## When a reading has no value
+
+A reading is dropped only when the glucose itself is wrong:
+
+- the newest one-minute measurement is missing or carries a sensor status (spike, noise, a
+  sensor error code);
+- the slope estimates disagree by more than 6 mg/dL per minute;
+- the result is not positive, the sensor's history changed under us, or the sensor is warming
+  up.
+
+The native code also dropped the glucose when it lacked context: no usable slope estimate (gaps
+in the last 15 minutes) or flagged history records around now. Those now keep the glucose and
+only leave the rate unknown.
+
+A BLE frame without a current value still keeps the history it carries and the state it
+advances. "Sensor error" shows once three frames in a row (two minutes) had no value, not on a
+single gap; "Replace sensor?" still follows after ten minutes.
+
 An NFC scan the backend cannot process asks for activation only when the data shows a verified,
 not yet started sensor (phase, checksums, ring pointers and age 0).
 
@@ -74,7 +92,7 @@ whether that recurs.
   scan.
 - The first frame after the login had no current measurement (status `0x20` on the newest
   one-minute record, quality `0x8020`) and showed "Sensor error" until the next frame a minute
-  later. The next 21 frames, 3.8 to 5.7 mmol/L, had no errors.
+  later. Such a frame now keeps its history and no longer shows the error. The next 21 frames, 3.8 to 5.7 mmol/L, had no errors.
 - After a link timeout the sensor did not answer for 70 s. The next connection lost the login:
   the challenge arrived before Android confirmed our request, the login write was refused as
   busy, and the sensor ended the link before the 100 ms retry. The next login, two minutes

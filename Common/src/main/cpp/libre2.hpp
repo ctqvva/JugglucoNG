@@ -192,6 +192,8 @@ const AlgorithmResults *  processTooth(data_t * bluedata, scanstate *newstate,ui
 extern pathconcat sensorbasedir;
 inline  static  const AlgorithmResults  __attribute__((unused)) *Initialized=reinterpret_cast<const AlgorithmResults *>(1ul);
 #define ALGDUP_VALUE Initialized
+// An accepted frame whose newest minute has no glucose: its history and state are kept.
+inline  static  const AlgorithmResults  __attribute__((unused)) *ALGNO_VALUE=reinterpret_cast<const AlgorithmResults *>(2ul);
 //constexpr static  const AlgorithmResults * Initialized=(const AlgorithmResults *)(1ul);
 
 

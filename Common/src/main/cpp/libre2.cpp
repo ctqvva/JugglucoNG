@@ -433,10 +433,14 @@ if(alg) {
                 }
             }
         else {
+            // The frame decrypted and passed its checksum; only its newest minute has no value.
+            // Keep the history it carries and the state it advanced.
+            if(streamHistory())
+                addStreamHistory(alg->history(), nutime,gid, *hist) ;
             delete alg;
-            LOGSTRING("bad quality\n");
-            LOGGER("bad quality quality=%d value=%d\n", qual, gluc);
+            LOGGER("no current value: quality=%d value=%d\n", qual, gluc);
             hist->setSensorError(nutime, qual);
+            return ALGNO_VALUE;
             }
         }
 return nullptr;

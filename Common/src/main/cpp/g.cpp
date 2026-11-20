@@ -2559,6 +2559,12 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
     delete newstate;
     return 1LL;
   }
+  if (algres == ALGNO_VALUE) {
+    // Accepted frame without a current value: processTooth saved its history and the error.
+    sdata->setstate(newstate);
+    backup->wakebackup(Backup::wakestream);
+    return 0LL;
+  }
   if (algres) {
     destruct _algdes([algres] { delete algres; });
     constexpr unsigned waittime = 60 * 60;
