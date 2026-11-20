@@ -53,62 +53,88 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
 
 class HealthConnection(private val client: HealthConnectClient) {
-	var active= AtomicBoolean(false)
+    private val exportLock = Any()
+    private val pendingExports = LinkedHashMap<Long, String>()
+    private var exportWorkerActive = false
     private val activityImportActive = AtomicBoolean(false)
 
+    private var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-  private var scope = CoroutineScope(Dispatchers.IO+SupervisorJob())
-//TODO: test not already active
-@OptIn(ExperimentalStdlibApi::class)
-private  fun writeAllIns(sensorptr:Long, sensorName:String) {
-    // 0: the driver has no native record (yet), so there is nothing to export
-    if (sensorptr == 0L) {
-        if(doLog) {Log.i(LOG_ID, "writeAll $sensorName: no sensorptr");}
-        return
-    }
-    if (active.getAndSet(true)) {
-        if(doLog) {Log.i(LOG_ID, "writeAll already active");}
-        return
-    }
-    scope.launch {
-        try {
-            Log.i(LOG_ID, "writeAll 0x${sensorptr.toHexString()} $sensorName")
-            if (!hasPermission) {
-                checkPermissionsAndRun(MainActivity.thisone)
-                if (!hasPermission) {
-                    if(doLog) {Log.i(LOG_ID, "No permission");}
-                    return@launch
+    private fun writeAllIns(sensorptr: Long, sensorName: String) {
+        if (sensorptr == 0L) {
+            if (doLog) Log.i(LOG_ID, "writeAll $sensorName: no sensorptr")
+            return
+        }
+        val startWorker = synchronized(exportLock) {
+            // Coalesce repeated triggers for the same native sensor. If a write
+            // lands while an export is running, one follow-up pass remains queued.
+            pendingExports[sensorptr] = sensorName
+            if (exportWorkerActive) {
+                false
+            } else {
+                exportWorkerActive = true
+                true
+            }
+        }
+        if (!startWorker) return
+
+        scope.launch {
+            while (true) {
+                val request = synchronized(exportLock) {
+                    val next = pendingExports.entries.firstOrNull()
+                    if (next == null) {
+                        exportWorkerActive = false
+                        null
+                    } else {
+                        pendingExports.remove(next.key)
+                        next.key to next.value
+                    }
+                } ?: return@launch
+                try {
+                    exportOneSensor(request.first, request.second)
+                } catch (th: Throwable) {
+                    // One sensor failing must not strand a later trigger in the
+                    // queue. The cursor only advances after successful inserts.
+                    Log.stack(LOG_ID, "writeAll", th)
                 }
             }
-            val endstart = Natives.healthConnectfromSensorptr(sensorptr)
-
-            val end = endstart ushr 16
-            var start = endstart and 0xFFFF
-           if(start==end)
-               return@launch
-            Log.i(LOG_ID,"endstart=$endstart start=$start end=$end len=${end-start}")
-                  val meta=androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod(device=Device(TYPE_UNKNOWN,"Libre", sensorName)
-//                val meta = androidx.health.connect.client.records.metadata.Metadata( device=Device("Libre", sensorName)
-                )
-            while (start < end) {
-                val take = min(end - start, 500)
-                Log.i(LOG_ID,"start=$start take=$take")
-                val siz = client.insertRecords(GlucoseList(meta,sensorptr, start, take)).recordIdsList.size
-                if (siz == 0) {
-                    Log.e(LOG_ID, "insertRecors $siz==0")
-                    return@launch
-                  }
-                Log.i(LOG_ID,"siz=$siz")
-                start += take;
-                Natives.healthConnectWritten(sensorptr, start)
-            }
-        } catch (th: Throwable) {
-            Log.stack(LOG_ID, "writeAll", th);
-        } finally {
-            active.set(false)
         }
     }
-}
+
+    @OptIn(ExperimentalStdlibApi::class)
+    private suspend fun exportOneSensor(sensorptr: Long, sensorName: String) {
+        Log.i(LOG_ID, "writeAll 0x${sensorptr.toHexString()} $sensorName")
+        if (!hasPermission) {
+            checkPermissionsAndRun(MainActivity.thisone)
+            if (!hasPermission) {
+                if (doLog) Log.i(LOG_ID, "No permission")
+                return
+            }
+        }
+
+        val meta = androidx.health.connect.client.records.metadata.Metadata.unknownRecordingMethod(
+            device = Device(TYPE_UNKNOWN, "Libre", sensorName)
+        )
+        while (true) {
+            val snapshot = Natives.healthConnectfromSensorptr(sensorptr)
+            val end = ((snapshot ushr 16) and 0xFFFF).toInt()
+            val start = (snapshot and 0xFFFF).toInt()
+            if (start >= end) return
+            val take = min(end - start, 500)
+            // Materialize a bounded list before the suspending insert. Native
+            // indices include empty minute slots, not just valid records.
+            val records = GlucoseList(meta, sensorptr, start, take, sensorName)
+            if (records.isNotEmpty()) {
+                client.insertRecords(records)
+            }
+            // A concurrent backfill (including one inside this chunk) invalidates
+            // the snapshot. Re-read from the preserved cursor; stable record IDs
+            // make replay safe. Failed inserts never reach this acknowledgement.
+            if (!Natives.healthConnectWritten(sensorptr, snapshot, start + take)) {
+                if (doLog) Log.i(LOG_ID, "Native history changed during Health Connect insert; replaying")
+            }
+        }
+    }
 
 private suspend fun checkPermissionsAndRun(act:MainActivity?) {
         Log.i(LOG_ID,"Before getGrantedPermissions()")
