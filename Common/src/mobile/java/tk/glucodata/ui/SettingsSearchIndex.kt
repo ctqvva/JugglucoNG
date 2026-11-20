@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.vector.ImageVector
 import tk.glucodata.CloneIceNetworkConfigStore
 import tk.glucodata.Natives
+import tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry
 import tk.glucodata.NotificationForwardingSettings
 import tk.glucodata.R
 import tk.glucodata.ui.restricted.RestrictedBiometrics
@@ -97,6 +98,15 @@ internal enum class SettingsSearchCondition {
 
     /** Nightscout's Follow options, the other way round. */
     NIGHTSCOUT_FOLLOW,
+
+    /** A journal option on some other screen: gone while the journal is off. */
+    JOURNAL,
+
+    /** Nightscout's journal options that only Upload has. */
+    NIGHTSCOUT_UPLOAD_JOURNAL,
+
+    /** "Include long-acting insulin", shown while the current mode sends insulin and carbs. */
+    NIGHTSCOUT_LONG_INSULIN,
 
     /** "Use the current time" only shows while the dashboard + button does. */
     JOURNAL_QUICK_ADD,
@@ -206,6 +216,9 @@ internal object SettingsSearchIndex {
         val customRendezvous: Boolean,
         val restrictedBiometrics: Boolean,
         val appUpdatesSupported: Boolean,
+        /** Whether each Nightscout mode sends insulin and carbs (Upload, then Follow). */
+        val nightscoutUploadSendsTreatments: Boolean,
+        val nightscoutFollowSendsTreatments: Boolean,
     )
 
     fun hiddenRows(context: Context): HiddenRows {
@@ -220,6 +233,8 @@ internal object SettingsSearchIndex {
             customRendezvous = customRendezvous,
             restrictedBiometrics = RestrictedBiometrics.isAvailable(context),
             appUpdatesSupported = UpdateEligibility.blocker(context) == null,
+            nightscoutUploadSendsTreatments = Natives.getpostTreatments(),
+            nightscoutFollowSendsTreatments = NightscoutFollowerRegistry.loadSendTreatments(context),
         )
     }
 
@@ -565,24 +580,23 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.nightscout_settings_title, SHARING, Symbols.CloudUploadFilled, T, route("settings/nightscout"),
             keywords = listOf(R.string.nightscout_desc)),
         SettingsSearchEntry(R.string.nightscout_send_treatments, NIGHTSCOUT, Symbols.MedicationFilled, T,
-            route("settings/nightscout"), terms = listOf("treatments"), anchor = SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS),
+            route("settings/nightscout"), terms = listOf("treatments"), condition = SettingsSearchCondition.JOURNAL,
+            anchor = SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS),
         SettingsSearchEntry(R.string.nightscout_send_long_insulin, NIGHTSCOUT, Symbols.MedicationFilled, T,
-            route("settings/nightscout"), terms = listOf("basal"), anchor = row(R.string.nightscout_send_long_insulin)),
+            route("settings/nightscout"), terms = listOf("basal"), condition = SettingsSearchCondition.NIGHTSCOUT_LONG_INSULIN,
+            anchor = row(R.string.nightscout_send_long_insulin)),
         SettingsSearchEntry(R.string.nightscout_follow_interval_title, NIGHTSCOUT, Symbols.TimerFilled, T,
             route("settings/nightscout"), condition = SettingsSearchCondition.NIGHTSCOUT_FOLLOW,
             anchor = row(R.string.nightscout_follow_interval_title)),
-        SettingsSearchEntry(R.string.nightscout_follow_use_v3_api, NIGHTSCOUT, Symbols.ScienceFilled, T,
+        SettingsSearchEntry(R.string.nightscout_follow_use_v3_api, NIGHTSCOUT, Symbols.ApiFilled, T,
             route("settings/nightscout"), terms = listOf("API", "JWT"), condition = SettingsSearchCondition.NIGHTSCOUT_FOLLOW,
             anchor = row(R.string.nightscout_follow_use_v3_api)),
-        SettingsSearchEntry(R.string.nightscout_receive_amounts, NIGHTSCOUT, Symbols.LinkFilled, T,
-            route("settings/nightscout"), terms = listOf("treatments"), condition = SettingsSearchCondition.NIGHTSCOUT_UPLOAD,
+        SettingsSearchEntry(R.string.nightscout_receive_amounts, NIGHTSCOUT, Symbols.CloudDownloadFilled, T,
+            route("settings/nightscout"), terms = listOf("treatments"), condition = SettingsSearchCondition.NIGHTSCOUT_UPLOAD_JOURNAL,
             anchor = SettingsSearchAnchors.NIGHTSCOUT_RECEIVE_TREATMENTS),
         SettingsSearchEntry(R.string.nightscout_upload_iob, NIGHTSCOUT, Symbols.CloudUploadFilled, T,
-            route("settings/nightscout"), terms = listOf("IOB"), condition = SettingsSearchCondition.NIGHTSCOUT_UPLOAD,
+            route("settings/nightscout"), terms = listOf("IOB"), condition = SettingsSearchCondition.NIGHTSCOUT_UPLOAD_JOURNAL,
             anchor = SettingsSearchAnchors.NIGHTSCOUT_UPLOAD_IOB),
-        SettingsSearchEntry(R.string.nightscout_upload_sensor_start, NIGHTSCOUT, Symbols.CloudUploadFilled, T,
-            route("settings/nightscout"), condition = SettingsSearchCondition.NIGHTSCOUT_UPLOAD,
-            anchor = row(R.string.nightscout_upload_sensor_start)),
         SettingsSearchEntry(R.string.nightscout_use_v3_api, NIGHTSCOUT, Symbols.ApiFilled, T,
             route("settings/nightscout"), terms = listOf("API", "JWT"), condition = SettingsSearchCondition.NIGHTSCOUT_UPLOAD,
             anchor = SettingsSearchAnchors.NIGHTSCOUT_V3),
@@ -704,7 +718,8 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.restricted_allow_sensor_change, RESTRICTED, Symbols.SensorsFilled, N,
             route("settings/restricted-mode"), anchor = row(R.string.restricted_allow_sensor_change)),
         SettingsSearchEntry(R.string.restricted_allow_journal, RESTRICTED, Symbols.EditNoteFilled, N,
-            route("settings/restricted-mode"), anchor = row(R.string.restricted_allow_journal)),
+            route("settings/restricted-mode"), condition = SettingsSearchCondition.JOURNAL,
+            anchor = row(R.string.restricted_allow_journal)),
         SettingsSearchEntry(R.string.restricted_allow_alarm_stop, RESTRICTED, Symbols.AlarmOffFilled, N,
             route("settings/restricted-mode"), anchor = row(R.string.restricted_allow_alarm_stop)),
 

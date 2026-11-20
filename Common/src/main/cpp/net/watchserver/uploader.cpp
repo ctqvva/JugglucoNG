@@ -587,21 +587,13 @@ static void uploadSensorStarts(const bool useV3) {
     auto env=getenv();
     if(env==nullptr)
         return;
-    const static jmethodID enabledmid=env->GetStaticMethodID(nightpostclass,"getUploadSensorStart","()Z");
     const static jmethodID labelmid=env->GetStaticMethodID(nightpostclass,"getSensorStartLabel","(Ljava/lang/String;)Ljava/lang/String;");
     const static jmethodID starttimemid=env->GetStaticMethodID(nightpostclass,"getSensorStartTime","(Ljava/lang/String;JI)J");
-    if(enabledmid==nullptr || labelmid==nullptr || starttimemid==nullptr) {
+    if(labelmid==nullptr || starttimemid==nullptr) {
         if(env->ExceptionCheck())
             env->ExceptionClear();
         return;
         }
-    const jboolean enabled=env->CallStaticBooleanMethod(nightpostclass,enabledmid);
-    if(env->ExceptionCheck()) {
-        env->ExceptionClear();
-        return;
-        }
-    if(!enabled)
-        return;
     const uint32_t oldest=nu-30*24*60*60;
     const int last=sensors->last();
     if(last<0) return;
