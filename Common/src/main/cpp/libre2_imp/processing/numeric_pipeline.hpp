@@ -89,10 +89,9 @@ inline NumericResult evaluate_numeric(std::span<const std::uint16_t,80>trend,
     for(int i=0;i<16;++i)tq[i]=r.trend_raw[5*i+4];
     for(int i=0;i<32;++i)hq[i]=r.history_source_status[i]=r.history_raw[5*i+4];
     const unsigned latest=p.history_last_valid_index>=p.history_first_index?p.history_last_valid_index-p.history_first_index:0;
-    if(reject_history_changes(r.history_glucose.data(),hq.data(),latest)){
-        r.input_rejected=true;r.quality=0x400;r.rate_quality=0x8000;r.history_count=0;
-        r.state.minute=p.age;r.state.rate_quality=r.rate_quality;return r;
-    }
+    // The native code rejected the whole result, history included, when the history moved more
+    // than 10 mg/dL/min on average over the last hour (reject_history_changes). JugglucoNG keeps
+    // it.
     const unsigned new_first=p.new_history_first_index?p.new_history_first_index:p.history_first_index;
     r.reference=refresh_reference_anchors(r.history_glucose.data(),hq.data(),new_first,p.history_source_offset,p.reference);
     const float reference=reference_glucose(r.reference);const bool early=(p.feature_bits&4)!=0,late=(p.feature_bits&8)!=0;
@@ -120,7 +119,7 @@ inline NumericResult evaluate_numeric(std::span<const std::uint16_t,80>trend,
         p.elapsed_minutes==0xffffffffu?p.age:p.elapsed_minutes,p.wear_minutes);
     const auto quality=current_quality(r.trend_glucose.data(),tq.data(),r.filtered_history.data(),
         p.age,p.current_trend_index,p.current_history_index,eligible.last>eligible.first);
-    r.quality=quality.glucose_status;
+    r.quality=0;
     if(!(r.current.filtered_glucose>0.f))r.quality|=0x8000;
     r.quality|=tq[p.current_trend_index];
     r.rate_quality=quality.rate_disagreement;

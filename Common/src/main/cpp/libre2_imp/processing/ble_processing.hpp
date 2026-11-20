@@ -26,7 +26,9 @@
 namespace libre2_processing {
 inline std::array<std::uint16_t,5> unpack_ble_record(std::uint32_t bits,std::uint16_t thermistor){
     const auto adc=std::uint16_t(bits&0x3fff),temperature=std::uint16_t((bits>>14)&0xfff);
-    if(!adc)return {0,0,0,0,temperature?temperature:std::uint16_t(0x8000)};
+    // JugglucoNG: a minute without ADC keeps 0x8000 next to the sensor's code, so no later mask
+    // (smooth_temperature_records keeps 0x87ff) can turn the missing measurement into a value.
+    if(!adc)return {0,0,0,0,std::uint16_t(0x8000|temperature)};
     const int delta=int((bits>>26)&31);
     return {adc,temperature,0,std::uint16_t(int(thermistor)+((bits>>31)?-delta:delta)),0};
 }

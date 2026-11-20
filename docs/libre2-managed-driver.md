@@ -46,28 +46,29 @@ rate of change unreliable, the rate is reported as unknown and no trend arrow is
 
 ## When a reading has no value
 
-A reading is dropped only when there is no usable measurement for the newest minute:
+A reading is dropped only when there is no measurement to show:
 
 - the sensor sent none: over BLE such a minute has no ADC value, only an error code; in a scan
   the sensor marks the record with its own error bits;
-- the ADC value is at or below the sensor's baseline, or the thermistor reading is invalid
-  (outside 0-50 °C) for every record in the smoothing window;
-- the signal jumps by more than 608 ADC units between minutes, or moves more than 208 units per
-  minute on average over five minutes;
-- the slope estimates disagree by more than 6 mg/dL per minute;
-- the result is not positive, the sensor's history changed under us, or the sensor is warming
-  up.
+- the ADC value is at or below the sensor's baseline;
+- the result is not positive, or the sensor is warming up.
 
-The native code dropped more. These now keep the glucose and leave the rate unknown:
+The native rules dropped much more. JugglucoNG keeps the glucose in each of these cases and
+leaves only the rate unknown where the rate is affected:
 
-- no usable slope estimate (gaps in the last 15 minutes) or flagged history records around now;
-- a sensor error bit (0x01, 0x04 or 0x40) on any one record in the last 16 minutes, which
-  invalidated the whole trend window, current minute included; now only that record is
-  flagged.
+- the signal jumped by more than 608 ADC units between minutes, or moved more than 208 units
+  per minute on average over five minutes (spike and noise flags);
+- the slope estimates disagreed by more than 6 mg/dL per minute, or none was usable;
+- the history moved more than 10 mg/dL per minute on average over the last hour (this also
+  threw away the history);
+- flagged history records around now, or a sensor error bit (0x01, 0x04, 0x40) on any one
+  record in the last 16 minutes, which invalidated the whole trend window;
+- skin temperature outside 20-40 °C ("too cold", "too hot"): compensation uses the measured
+  temperature; with no valid temperature in the window it uses 32.5 °C, where compensation is
+  neutral.
 
-The native code also flagged skin temperatures outside 20-40 °C and dropped every reading
-once the smoothed temperature stayed out of range ("too cold" or "too hot"). The measured
-temperature is now used for compensation.
+The algorithm still averages the raw signal over five minutes and blends each result with the
+previous one; further smoothing is the app's.
 
 A BLE frame without a current value still keeps the history it carries and the state it
 advances. "Sensor error" shows once three frames in a row (two minutes) had no value, not on a

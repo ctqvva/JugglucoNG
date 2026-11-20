@@ -160,9 +160,11 @@ inline void smooth_temperature_records(unsigned count,unsigned radius,float *out
         for(unsigned j=i;j<=i+2*radius;++j)if(!flags[j]){sum+=temperatures[j];++valid;}
         output[i*5+3]=valid?sum/float(valid):0.f;
     }
+    // The native code dropped records without a valid temperature in the window. JugglucoNG
+    // uses the nominal 32.5 degrees, where compensation is neutral, and keeps the glucose.
     for(unsigned i=0;i<count;++i){
-        auto status=input[i*5+4];
-        input[i*5+4]=!(output[i*5+3]>0.f)?std::uint16_t((status&0x6fff)|0x8000):std::uint16_t(status&0x87ff);
+        if(!(output[i*5+3]>0.f))output[i*5+3]=32.5f;
+        input[i*5+4]=std::uint16_t(input[i*5+4]&0x87ff);
     }
 }
 // Entry 0x24b934: record words 1 and 3 are signed ADC operands; word 4 is
@@ -193,28 +195,25 @@ struct CalibrationParameters {
     std::uint8_t signal_average_delta=13,signal_peak_delta=38;
 };
 // The trend preprocessor at 0x23428c, ending before its normalization calls.
+// The native code also flagged a window whose samples jumped by more than
+// peak_delta*16 ADC units between minutes (8) or moved more than average_delta*16
+// on average (16), which dropped the reading. JugglucoNG keeps the mean; jumpy
+// slopes already leave the rate unknown, and smoothing is the app's choice.
 inline void prepare_trend_signals(float *output,std::uint16_t *raw,
-        std::uint8_t average_delta,std::uint8_t peak_delta) {
+        std::uint8_t /*average_delta*/,std::uint8_t /*peak_delta*/) {
     std::array<std::int16_t,20> samples{};
     std::array<std::uint16_t,20> flags;flags.fill(0x8000);
     for(unsigned i=0;i<16;++i){samples[i+2]=std::int16_t(raw[i*5]);flags[i+2]=raw[i*5+4];}
     for(unsigned i=0;i<16;++i){
-        unsigned count=0,last=0,pairs=0;float sum=0.f,delta_sum=0.f;std::uint16_t status=0;
+        unsigned count=0;float sum=0.f;std::uint16_t status=0;
         for(unsigned j=i;j<i+5;++j){
             status|=flags[j];
             if(flags[j])continue;
             sum+=float(samples[j]);
-            if(count&&last+1==j){
-                const float delta=std::fabs(float(int(samples[j])-int(samples[last])));
-                if(delta>float(unsigned(peak_delta)*16u))status|=8;
-                delta_sum+=delta;
-                ++pairs;
-            }
-            last=j;++count;
+            ++count;
         }
         const float mean=count?sum/float(count):0.f;
-        if(pairs&&delta_sum/float(pairs)>float(unsigned(average_delta)*16u))status|=16;
-        if(!(status&24)&&mean!=0.f)status=0;
+        if(mean!=0.f)status=0;
         output[i*5]=status?0.f:mean;raw[i*5+4]=status;
     }
 }
