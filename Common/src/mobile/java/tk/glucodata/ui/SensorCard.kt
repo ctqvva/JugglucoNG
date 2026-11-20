@@ -2516,6 +2516,9 @@ fun SensorCard(
                         val valueStyle = MaterialTheme.typography.bodyMedium.copy(
                             color = MaterialTheme.colorScheme.onSurface,
                             textAlign = if (table) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start,
+                            // Balanced: a wrapped value splits into lines of about even length
+                            // instead of a full line and a stray word.
+                            lineBreak = androidx.compose.ui.text.style.LineBreak.Heading,
                         )
                         var batteryRefreshAnimation by remember(sensor.serial) { mutableIntStateOf(0) }
 
