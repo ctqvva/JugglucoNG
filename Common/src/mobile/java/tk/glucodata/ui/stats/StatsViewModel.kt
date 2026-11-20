@@ -1055,7 +1055,7 @@ class StatsViewModel : ViewModel() {
 
     /**
      * Runs on the history collector (main). The cache check is cheap and stays here; the
-     * read itself decodes up to thousands of serialized samples from SharedPreferences, so
+     * read itself decodes up to thousands of serialized samples from the driver prefs, so
      * it runs on IO and the cache fields are only written back on the collector.
      */
     private suspend fun maybeRefreshTemperaturePoints(serial: String, history: List<GlucosePoint>): List<TemperaturePoint> {
