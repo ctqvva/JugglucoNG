@@ -75,7 +75,9 @@ data class Libre3SensorRecord(
     val receiverId: Long,
     val firmware: String,
     val securityVersion: Int,
+    val productType: Int = 4,
 ) {
+    val isLingo: Boolean get() = productType == Libre3Lingo.PRODUCT_TYPE
     val expectedEndMs: Long get() = if (startTimeMs > 0L && wearMinutes > 0) startTimeMs + wearMinutes * 60_000L else 0L
 
     override fun equals(other: Any?): Boolean =
@@ -167,11 +169,12 @@ object Libre3Persistence {
         prefs(context).getBoolean(KEY_PROVISION_BLOCKED, credentialRevision(context) > 0L)
 
     /** Called before NFC can change the sensor. Removal is respected until an explicit retry. */
-    fun ensureIdentities(context: Context): Boolean {
-        if (loadIdentities(context).isNotEmpty()) return true
-        if (autoProvisionBlocked(context)) return false
+    fun ensureIdentities(context: Context, sensorId: String, isLingo: Boolean): Boolean {
+        if (loadPairingIdentities(context, sensorId, isLingo).isNotEmpty()) return true
+        // The default Libre 3 bundle contains no Lingo identity.
+        if (isLingo || autoProvisionBlocked(context)) return false
         val source = effectiveIdentitySource(context) ?: return false
-        return provisionIdentities(context, source).isNotEmpty()
+        return provisionIdentities(context, source).any { !Libre3Lingo.matchesIdentity(it) }
     }
 
     private const val KEY_CREDENTIAL_REVISION = "credential_revision"
@@ -307,11 +310,20 @@ object Libre3Persistence {
     fun loadIdentities(context: Context): List<Libre3AppIdentity> =
         selectedIdentityVersion(context)?.let { loadIdentityVersion(context, it) }.orEmpty()
 
-    /** The set this sensor paired with first, then the selected one. */
-    fun loadIdentitiesForSensor(context: Context, sensorId: String): List<Libre3AppIdentity> {
+    fun loadIdentitiesForSensor(context: Context, sensorId: String): List<Libre3AppIdentity> =
+        loadPairingIdentities(context, sensorId, loadSensor(context, sensorId)?.isLingo == true)
+
+    /** Prefer the paired and selected sets. A Lingo-only import must not displace Libre 3 credentials. */
+    private fun loadPairingIdentities(context: Context, sensorId: String, isLingo: Boolean): List<Libre3AppIdentity> {
         val pinned = pairedIdentityLabel(context, sensorId)?.substringBefore('/', "")?.takeIf { it.isNotEmpty() }
-        val first = pinned?.let { loadIdentityVersion(context, it) }.orEmpty()
-        return (first + loadIdentities(context)).distinctBy { it.label }
+        val selected = selectedIdentityVersion(context)
+        val preferred = listOfNotNull(pinned, selected).distinct().flatMap { loadIdentityVersion(context, it) }
+        val matching = preferred.filter { Libre3Lingo.matchesIdentity(it) == isLingo }
+        if (matching.isNotEmpty() || (preferred.isEmpty() && !isLingo)) return matching
+        return identityVersions(context).asReversed().asSequence()
+            .filter { it.id != pinned && it.id != selected }
+            .map { version -> loadIdentityVersion(context, version.id).filter { Libre3Lingo.matchesIdentity(it) == isLingo } }
+            .firstOrNull { it.isNotEmpty() }.orEmpty()
     }
 
     private fun relabel(version: String, identities: List<Libre3AppIdentity>): List<Libre3AppIdentity> =
@@ -351,12 +363,13 @@ object Libre3Persistence {
             .putLong("$k.receiver", record.receiverId)
             .putString("$k.firmware", record.firmware)
             .putInt("$k.secver", record.securityVersion)
+            .putInt("$k.product", record.productType)
             .putBoolean("$k.ended", false)
         // Every A0/A8 starts a new pairing on the sensor's side, so the cached kAuth goes (the
         // legacy native record clears haskAuth on each scan for the same reason). Backfill marks
         // survive a rescan of the same activation and are reset only for a different one.
         edit.remove("$k.kauth")
-        if (previous == null || previous.startTimeMs != record.startTimeMs) {
+        if (previous == null || previous.startTimeMs != record.startTimeMs || previous.productType != record.productType) {
             edit.remove("$k.lastLife").remove("$k.lastHist").remove("$k.identity").remove("$k.anchor")
         }
         edit.apply()
@@ -377,6 +390,7 @@ object Libre3Persistence {
             receiverId = p.getLong("$k.receiver", 0L),
             firmware = p.getString("$k.firmware", "") ?: "",
             securityVersion = p.getInt("$k.secver", 0),
+            productType = p.getInt("$k.product", 4),
         )
     }
 

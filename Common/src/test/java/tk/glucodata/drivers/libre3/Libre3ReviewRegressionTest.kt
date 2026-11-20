@@ -280,7 +280,38 @@ class Libre3ReviewRegressionTest {
         assertFalse(Libre3Persistence.autoProvisionBlocked(context))
         Libre3Persistence.clearIdentities(context)
         assertTrue(Libre3Persistence.autoProvisionBlocked(context))
-        assertFalse(Libre3Persistence.ensureIdentities(context))
+        assertFalse(Libre3Persistence.ensureIdentities(context, "0D1234ABC", isLingo = false))
+    }
+
+    @Test fun lingoScanWithoutMatchingCredentialsOnlyReadsPatchInfo() {
+        val patch = Libre3Bytes.parseHex("00A500030001000000C04E1E0D0101090C043036385A4D524631382F97")!!
+        fun scan(): Libre3ManagedNfc.Outcome {
+            var commands = 0
+            val outcome = Libre3ManagedNfc.scan(context) { command ->
+                assertArrayEquals(Libre3Nfc.patchInfoCommand(), command)
+                commands++
+                patch
+            }
+            assertEquals(1, commands)
+            assertTrue(Libre3Persistence.sensorIds(context).isEmpty())
+            return outcome
+        }
+        assertEquals(Libre3ManagedNfc.Outcome.MissingLingoIdentity, scan())
+        patch[3] = 2
+        assertEquals(Libre3ManagedNfc.Outcome.UnsupportedLingoVersion, scan())
+    }
+
+    @Test fun storedProductSelectsLingoAndOldRecordsStillSelectLibre3() {
+        val record = Libre3SensorRecord(
+            sensorId = sensor, bleAddress = "AA:BB:CC:DD:EE:FF", blePin = ByteArray(4),
+            startTimeMs = now, warmupMinutes = 60, wearMinutes = 20160, receiverId = 1001L,
+            firmware = "1", securityVersion = 3, productType = Libre3Lingo.PRODUCT_TYPE,
+        )
+        Libre3Persistence.saveSensor(context, record)
+        assertTrue(Libre3Persistence.loadSensor(context, sensor)!!.isLingo)
+        context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().remove("$sensor.product").commit()
+        assertFalse(Libre3Persistence.loadSensor(context, sensor)!!.isLingo)
     }
 
     @Test fun removalClearsAllCachedKeysAndRejectsWorkStartedBeforeRemoval() {
