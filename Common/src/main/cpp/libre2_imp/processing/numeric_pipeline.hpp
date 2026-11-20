@@ -83,7 +83,11 @@ inline NumericResult evaluate_numeric(std::span<const std::uint16_t,80>trend,
     NumericResult r{};r.reference=p.reference;std::copy(trend.begin(),trend.end(),r.trend_raw.begin());
     // The trend preprocessor fills a flagged record from its neighbours' mean. The newest record
     // keeps its own flags: a minute without a usable measurement is not shown.
-    const std::uint16_t current_record_status=trend[5*p.current_trend_index+4];
+    // Its ADC must also lie above the baseline on its own; the baseline check below runs on the
+    // smoothed signal, which neighbours can lift.
+    std::uint16_t current_record_status=trend[5*p.current_trend_index+4];
+    if(!(float(std::int16_t(trend[5*p.current_trend_index]))>float(p.calibration.adc_lower)))
+        current_record_status|=0x8000;
     r.history_count=std::uint16_t(std::min(31u,p.history_last_valid_index>1?unsigned(p.history_last_valid_index-1):0u));
     std::copy(history.begin(),history.end(),r.history_raw.begin());
     calibrate_raw_records(16,3,r.trend_temperature.data(),r.trend_raw.data(),r.trend_glucose.data(),p.calibration);
@@ -125,6 +129,9 @@ inline NumericResult evaluate_numeric(std::span<const std::uint16_t,80>trend,
     r.quality=0;
     if(!(r.current.filtered_glucose>0.f))r.quality|=0x8000;
     r.quality|=tq[p.current_trend_index]|current_record_status;
+    // The glucose curve can turn a small positive input negative; that is no reading either,
+    // not a clipped low.
+    if(!r.quality&&!(scan_curve(r.current.filtered_glucose)>0.f))r.quality|=0x8000;
     r.rate_quality=quality.rate_disagreement;
     // Exactly 8000 means this optional trend estimate is unavailable. Native
     // aggregation skips it; source faults carrying other bits still propagate.

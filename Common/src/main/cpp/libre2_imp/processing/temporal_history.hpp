@@ -66,6 +66,9 @@ inline std::array<PersistedHistory,31> merge_reported_history(
         // Native output slots are positional, including the quarter-hour
         // boundary where the raw and completed-history timestamp bases differ.
         const auto&r=projected[i];
+        // JugglucoNG: project_reported_history raises a negative result to 0, which would be
+        // stored as a clipped low; it is no reading.
+        if(!r.status&&!(r.glucose>0.f)){out[i].quality=0x8000;continue;}
         if(limits.enabled&&elapsed<limits.plausible_until&&!r.status&&
                 (r.glucose<float(minimum)||r.glucose>float(maximum))){out[i].quality=0x8000;continue;}
         out[i].quality=r.status;out[i].filtered_glucose=r.glucose;

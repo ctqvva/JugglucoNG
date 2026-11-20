@@ -439,7 +439,10 @@ if(alg) {
                 addStreamHistory(alg->history(), nutime,gid, *hist) ;
             delete alg;
             LOGGER("no current value: quality=%d value=%d\n", qual, gluc);
-            hist->setSensorError(nutime, qual);
+            // Gaps during the warm-up are expected and must not count toward "Sensor error" or
+            // "Replace sensor?".
+            if(nutime>=hist->getstarttime()+uint32_t(hist->getWarmupSEC()))
+                hist->setSensorError(nutime, qual);
             return ALGNO_VALUE;
             }
         }

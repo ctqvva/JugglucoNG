@@ -50,8 +50,10 @@ A reading is dropped only when there is no measurement to show:
 
 - the sensor sent none: over BLE such a minute has no ADC value, only an error code; in a scan
   the sensor marks the record with its own error bits;
-- the ADC value is at or below the sensor's baseline;
-- the result is not positive;
+- the ADC value of the newest minute is at or below the sensor's baseline (checked on the
+  minute itself, not only on the five-minute average);
+- the result is not positive after the glucose curve, for the current reading and for each
+  history point (it is not stored as a clipped low);
 - the sensor has run for less than 10 minutes, or, until the end of the warm-up (60 minutes),
   the value before clipping is outside the display range (40-500 mg/dL); history points are
   checked the same way at their own minute.
@@ -82,7 +84,8 @@ previous one; further smoothing is the app's.
 
 A BLE frame without a current value still keeps the history it carries and the state it
 advances. "Sensor error" shows once three frames in a row (two minutes) had no value, not on a
-single gap; "Replace sensor?" still follows after ten minutes.
+single gap; "Replace sensor?" still follows after ten minutes. Frames during the warm-up never
+count toward either.
 
 An NFC scan the backend cannot process asks for activation only when the data shows a verified,
 not yet started sensor (phase, checksums, ring pointers and age 0).
