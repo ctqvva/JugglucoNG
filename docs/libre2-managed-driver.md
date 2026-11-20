@@ -46,17 +46,28 @@ rate of change unreliable, the rate is reported as unknown and no trend arrow is
 
 ## When a reading has no value
 
-A reading is dropped only when the glucose itself is wrong:
+A reading is dropped only when there is no usable measurement for the newest minute:
 
-- the newest one-minute measurement is missing or carries a sensor status (spike, noise, a
-  sensor error code);
+- the sensor sent none: over BLE such a minute has no ADC value, only an error code; in a scan
+  the sensor marks the record with its own error bits;
+- the ADC value is at or below the sensor's baseline, or the thermistor reading is invalid
+  (outside 0-50 °C) for every record in the smoothing window;
+- the signal jumps by more than 608 ADC units between minutes, or moves more than 208 units per
+  minute on average over five minutes;
 - the slope estimates disagree by more than 6 mg/dL per minute;
 - the result is not positive, the sensor's history changed under us, or the sensor is warming
   up.
 
-The native code also dropped the glucose when it lacked context: no usable slope estimate (gaps
-in the last 15 minutes) or flagged history records around now. Those now keep the glucose and
-only leave the rate unknown.
+The native code dropped more. These now keep the glucose and leave the rate unknown:
+
+- no usable slope estimate (gaps in the last 15 minutes) or flagged history records around now;
+- a sensor error bit (0x01, 0x04 or 0x40) on any one record in the last 16 minutes, which
+  invalidated the whole trend window, current minute included; now only that record is
+  flagged.
+
+The native code also flagged skin temperatures outside 20-40 °C and dropped every reading
+once the smoothed temperature stayed out of range ("too cold" or "too hot"). The measured
+temperature is now used for compensation.
 
 A BLE frame without a current value still keeps the history it carries and the state it
 advances. "Sensor error" shows once three frames in a row (two minutes) had no value, not on a

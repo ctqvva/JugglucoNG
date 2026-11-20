@@ -140,11 +140,12 @@ inline CalibratedSignal apply_factory_calibration(float signal,float offset,
     return {scaled+offset,status};
 }
 // Entry 0x24d73c: prepare the temperature fields consumed by compensation.
-// Existing errors suppress the temperature; the accepted interval is [20,40].
+// Existing errors suppress the temperature. The native code also flagged skin temperatures
+// outside [20,40] (0x2000 hot, 0x4000 cold), which dropped every reading once the smoothed
+// temperature stayed out of range. JugglucoNG compensates with the measured temperature
+// instead; convert_raw_temperature still rejects a thermistor reading outside 0-50.
 inline RawTemperature classify_temperature(float temperature,std::uint16_t status){
     if(status)return {0.f,status};
-    if(temperature>40.f)status|=0x2000;
-    else if(temperature<20.f)status|=0x4000;
     return {temperature,status};
 }
 // Entry 0x24e465. Input/output records have five floats and five uint16 words.

@@ -48,18 +48,17 @@ inline InputWindow eligible_input_window(bool history,unsigned latest_index,
     if(first>index||last<0||first>last)return {latest_index+1,0};
     return {unsigned(first),unsigned(last)};
 }
-// Native 0x259174. Input records have five uint16 words. Trend status bits 0,
-// 2 or 6 anywhere in the available window invalidate the entire trend window.
-// Outside the eligible interval status is replaced with 8000, not OR-ed.
+// Native 0x259174. Input records have five uint16 words. Outside the eligible
+// interval status is replaced with 8000, not OR-ed. The native code also let
+// trend status bits 0, 2 or 6 on any one record invalidate the whole 16-minute
+// trend window, current minute included. JugglucoNG keeps that flag on its own
+// record: slope estimates that use it fail and leave the rate unknown.
 inline void qualify_input_window(bool history,unsigned latest_index,unsigned maximum_index,
         std::uint16_t* records,std::uint16_t sensor_minute,std::uint32_t elapsed_minute,std::uint16_t wear_minutes){
     const auto window=eligible_input_window(history,latest_index,sensor_minute,elapsed_minute,wear_minutes);
-    bool invalidate=false;
-    if(!history)for(unsigned i=0;i<=latest_index;++i)invalidate|=(records[i*5+4]&0x45u)!=0;
     for(unsigned i=0;i<=maximum_index;++i){
         auto& status=records[i*5+4];
         if(i>latest_index||!window.contains(i))status=0x8000;
-        else if(invalidate)status|=0x8000;
     }
 }
 inline std::uint16_t completed_history_index(std::uint16_t minute){return minute<2?0:std::uint16_t((minute-2)/15);}
