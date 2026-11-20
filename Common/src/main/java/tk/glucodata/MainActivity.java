@@ -215,8 +215,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         systembarBottom = insets.bottom;
 
                         requestRender();
-                        if (getlibrary.showintro) {
-                            getlibrary.showintro = false;
+                        if (showintro) {
+                            showintro = false;
                             MainActivity act = this;
                             act.lightBars(false);
                             help.help(R.string.introhelp, act,
@@ -243,7 +243,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         // } catch (Throwable error) {
         // Log.e(LOG_ID, "Orientation error", error);
         // }
-        getlibrary.getlibrary(this);// after setfilesdir for settings
+        if (!isWearable && !Natives.getShownintro())
+            showintro = true;
         handleIntent(getIntent());
         var langstring = getString(R.string.language);
         var lang = util.getlocale().getLanguage();
@@ -911,9 +912,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         if (curve != null) {
             Natives.setpaused(curve);
             curve.onResume();
-        }
-        if (openfile != null) {
-            openfile.showchoice(this, true);
         }
         if (Natives.gethidefloatinJuggluco())
             Floating.removeFloating();
@@ -1624,7 +1622,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     public static final int REQUEST_EXPORT = 0x70;
     // public static final int REQUEST_EXPORT=0x54e806d0;
     public static final int REQUEST_RINGTONE = 0x60;
-    public static final int REQUEST_LIB = 0x200;
     public static final int REQUEST_MASK = 0xFFFFFF00;
     public static final int IGNORE_BATTERY_OPTIMIZATION_SETTINGS = 0x100;
     static final int OVERLAY_PERMISSION_REQUEST_CODE = 0x40;
@@ -1632,7 +1629,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     public static final int REQUEST_SAVE_LOGCAT = 0x301;
     // static final private int REQUEST_CHECK_SETTINGS=0x20;
     // public static final int REQUEST_IGNORE_BATTERY_OPTIMIZATIONS=0x300;
-    Openfile openfile = null;
+    static boolean showintro = false;
 
     private void savekey(FileInputStream input, String outkeystr) {
         File outkey = new File(getFilesDir(), outkeystr);
@@ -1718,12 +1715,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 if (!isWearable) {
                     Battery.batteryscreen(this, null);
                 }
-            }
-                ;
-                return;
-            case REQUEST_LIB: {
-                if (resultCode == Activity.RESULT_OK && openfile != null)
-                    openfile.getlib(data, this);
             }
                 ;
                 return;

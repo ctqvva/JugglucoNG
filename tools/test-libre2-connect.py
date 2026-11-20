@@ -54,7 +54,7 @@ libre_methods = '\n'.join(method(libre, signature) for signature in [
     'public synchronized void onServicesDiscovered(', 'public synchronized void onDescriptorWrite(',
     'public synchronized void onCharacteristicWrite(', 'public synchronized void onCharacteristicChanged(',
     'public synchronized void onReadRemoteRssi(', 'public synchronized void close()',
-    'private Runnable forCurrentGatt(', 'private void endBLEHandler(',
+    'private Runnable forCurrentGatt(', 'private void runPendingBleStep(', 'private void endBLEHandler(',
     'private void streamPacketReceived(', 'private synchronized void streamSilent(',
     'private void logLinkEnd(',
 ])
@@ -191,7 +191,7 @@ java += r'''
     static UUID mCharacteristicUUID_CompositeRawData=BluetoothGattCharacteristic.RAW, mCharacteristicUUID_BLELogin=UUID.randomUUID();
     boolean m2831x(){logins++;conphase=1;return true;}
     void writeBLELogin(){logins++;conphase=2;}
-    void phase2(byte[] value){logins++;} void phase3(byte[] value){logins++;}
+    void phase2(byte[] value){logins++;} void phase3(byte[] value){logins++;} void closeManagedGen2(){}
     void oldonCharacteristicChanged(byte[] value){frames++;streamPacketReceived();}
     static void showCharacter(String s,BluetoothGattCharacteristic c){}
 '''
@@ -318,6 +318,24 @@ java += r'''
         cb.sensorgen=2;cb.onServicesDiscovered(current,0);cb.onServicesDiscovered(current,133);
         check(current.disconnected==1,"active handshake hid a service-discovery failure");
 
+        // 2026-11-20 trace: the challenge arrived before Android confirmed the challenge
+        // request, so the login write was refused as busy. It must go out on that confirmation,
+        // not 100 ms later, and a confirmation without a refused step sends nothing.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        cb.sensorgen=2;cb.onServicesDiscovered(current,0);cb.onDescriptorWrite(current,null,0);
+        final Libre2GattCallback busy=cb;final int[] sent={0};
+        busy.mBLELoginHandler=busy.forCurrentGatt(()->{sent[0]++;busy.BLELoginposted=0;busy.mBLELoginHandler=null;});
+        busy.BLELoginposted=1;Runnable dispatched=busy.mBLELoginHandler;
+        busy.onCharacteristicWrite(current,new BluetoothGattCharacteristic(),0);
+        check(sent[0]==1,"refused login write waited for its timed retry");
+        // A timed retry already dispatched before removeCallbacks() must not send it again.
+        dispatched.run();
+        check(sent[0]==1,"dispatched retry repeated a completed login step");
+        busy.onCharacteristicWrite(current,new BluetoothGattCharacteristic(),0);
+        busy.mBLELoginHandler=busy.forCurrentGatt(()->sent[0]++);busy.BLELoginposted=0;
+        busy.onDescriptorWrite(current,null,0);
+        check(sent[0]==1,"write confirmation sent a step that was never refused");
+
         // A drop of an established link is a real outage and stays in history; a failed
         // connect attempt above is only live status.
         cb=fresh();BleErrorHistory.events.clear();current=cb.mBluetoothGatt;
@@ -435,16 +453,17 @@ java += r'''
         check(old.closed==1&&cb.mActiveBluetoothDevice.calls==1,"disconnect after pause failed to retire transport");
 
         // Handler retries already dispatched before cancellation are tied to their original GATT.
-        cb=fresh();old=cb.mBluetoothGatt;int[] retries={0};Runnable login=cb.forCurrentGatt(()->retries[0]++);
+        // Production code stores each step in mBLELoginHandler, as these tests do.
+        cb=fresh();old=cb.mBluetoothGatt;int[] retries={0};Runnable login=cb.mBLELoginHandler=cb.forCurrentGatt(()->retries[0]++);
         login.run();check(retries[0]==1,"current login retry rejected");
         cb.disconnect();login.run();check(retries[0]==1,"login ran while disconnecting");
         cb.onConnectionStateChange(old,0,0);Applic.scheduler.advance(0);login.run();
         check(retries[0]==1,"retired login retry acted on fresh transport");
         cb.onConnectionStateChange(cb.mBluetoothGatt,0,2);cb.disconnect();Applic.scheduler.advance(2_000);
         check(WearSensorClaim.releases==1,"local connection claim survived retirement");
-        cb=fresh();login=cb.forCurrentGatt(()->retries[0]++);cb.setPause(true);cb.setPause(false);login.run();
+        cb=fresh();login=cb.mBLELoginHandler=cb.forCurrentGatt(()->retries[0]++);cb.setPause(true);cb.setPause(false);login.run();
         check(retries[0]==1,"cancelled login ran after pause/resume on the same GATT");
-        login=cb.forCurrentGatt(()->retries[0]++);Runnable replacement=cb.forCurrentGatt(()->retries[0]++);
+        login=cb.forCurrentGatt(()->retries[0]++);Runnable replacement=cb.mBLELoginHandler=cb.forCurrentGatt(()->retries[0]++);
         login.run();check(retries[0]==1,"superseded login ran on the same GATT");
         replacement.run();check(retries[0]==2,"replacement login rejected");
         System.out.println("PASS: Libre 2 fresh-GATT recovery, healthy-alarm guard, duplicate callbacks, stream watchdog, callback isolation, deadlines, cancellation, ownership and login retries");

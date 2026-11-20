@@ -3372,9 +3372,14 @@ public:
     replacesensor = false;
   }
 
+  // A lone frame without a value is a gap, not a sensor error: the error shows once three frames
+  // in a row (two minutes) had none.
+  static constexpr uint32_t sensorErrorShowSecs = 100;
   bool hasSensorError(uint32_t nu) const {
     if (!sensorerror) return false;
     if (persistentSensorError) {
+      if (sensorErrorTime < sensorErrorStart + sensorErrorShowSecs)
+        return false;
       // Keep the error until a valid reading, but do not mask a link that stopped
       // delivering frames: after ten minutes without a packet, no connection is the
       // truthful state.
