@@ -281,8 +281,11 @@ static void showCharacter(String label, BluetoothGattCharacteristic characterist
             return;
          }
          
-		if (sensorgen == 2 && conphase == 1) {
-			writeBLELogin();
+		if (sensorgen == 2) {
+			if (conphase == 1)
+				writeBLELogin();
+			else
+				runPendingBleStep();
 		}
 	}
 private boolean connected=false;
@@ -509,8 +512,10 @@ private   boolean failedbefore=false;
 					+ " (" + gattStatusText(status) + ")"
 					+ (bluetoothGattCharacteristic == null ? "" : " UUID:" + bluetoothGattCharacteristic.getUuid()));
 		}
-		if (sensorgen == 2)
+		if (sensorgen == 2) {
+			runPendingBleStep();
 			return;
+		}
 		try {
 			var sensorbluetooth=SensorBluetooth.blueone;
 			if(sensorbluetooth==null) {
@@ -871,6 +876,17 @@ private Runnable forCurrentGatt(Runnable task) {
             if (generation == bleLoginGeneration && acceptGattCallback(gatt)) task.run();
         }
     };
+}
+
+// Android runs one GATT operation at a time. The sensor can answer before Android confirms our
+// previous write; the next login step is then refused as busy and waits for its 100 ms retry,
+// long enough for the sensor to drop the link. Send it as soon as the confirmation arrives.
+private void runPendingBleStep() {
+    final Runnable pending = mBLELoginHandler;
+    if (pending == null || BLELoginposted == 0)
+        return;
+    Applic.app.getHandler().removeCallbacks(pending);
+    pending.run();
 }
 
 private void endBLEHandler() {

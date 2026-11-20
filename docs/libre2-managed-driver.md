@@ -65,6 +65,22 @@ reconnects, restarts, root slot 2, Libre 1 and first-generation Libre 2 are unte
 GATT callback took 27 s on the open path against 0.4 s on the vendor path; repeat to see
 whether that recurs.
 
+**Second run (2026-11-20).** Same sensor, Samsung SM-S938B, Android 17, build
+`1.3.3-Alpha-phoneDUB`, no other app connected. 28 minutes, all on the open path:
+
+- The first scan read 3.8 mmol/L and enabled streaming. The connection came up at once, but the
+  sensor ended it (status 19) before the login and then did not answer for a minute (status 147
+  every 10 s). The tester removed the sensor and scanned again; BLE logged in 15 s after that
+  scan.
+- The first frame after the login had no current measurement (status `0x20` on the newest
+  one-minute record, quality `0x8020`) and showed "Sensor error" until the next frame a minute
+  later. The next 21 frames, 3.8 to 5.7 mmol/L, had no errors.
+- After a link timeout the sensor did not answer for 70 s. The next connection lost the login:
+  the challenge arrived before Android confirmed our request, the login write was refused as
+  busy, and the sensor ended the link before the 100 ms retry. The next login, two minutes
+  later, worked, and the frame history filled the gap. The login step now goes out as soon as
+  Android confirms the previous write.
+
 Tests:
 
 - Gen2 Speck/KDF/CTR/CRC, the BLE login request and the NFC enable request reproduce the

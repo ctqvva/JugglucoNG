@@ -54,7 +54,7 @@ libre_methods = '\n'.join(method(libre, signature) for signature in [
     'public synchronized void onServicesDiscovered(', 'public synchronized void onDescriptorWrite(',
     'public synchronized void onCharacteristicWrite(', 'public synchronized void onCharacteristicChanged(',
     'public synchronized void onReadRemoteRssi(', 'public synchronized void close()',
-    'private Runnable forCurrentGatt(', 'private void endBLEHandler(',
+    'private Runnable forCurrentGatt(', 'private void runPendingBleStep(', 'private void endBLEHandler(',
     'private void streamPacketReceived(', 'private synchronized void streamSilent(',
     'private void logLinkEnd(',
 ])
@@ -317,6 +317,21 @@ java += r'''
         cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
         cb.sensorgen=2;cb.onServicesDiscovered(current,0);cb.onServicesDiscovered(current,133);
         check(current.disconnected==1,"active handshake hid a service-discovery failure");
+
+        // 2026-11-20 trace: the challenge arrived before Android confirmed the challenge
+        // request, so the login write was refused as busy. It must go out on that confirmation,
+        // not 100 ms later, and a confirmation without a refused step sends nothing.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        cb.sensorgen=2;cb.onServicesDiscovered(current,0);cb.onDescriptorWrite(current,null,0);
+        final Libre2GattCallback busy=cb;final int[] sent={0};
+        busy.mBLELoginHandler=busy.forCurrentGatt(()->{sent[0]++;busy.BLELoginposted=0;busy.mBLELoginHandler=null;});
+        busy.BLELoginposted=1;
+        busy.onCharacteristicWrite(current,new BluetoothGattCharacteristic(),0);
+        check(sent[0]==1,"refused login write waited for its timed retry");
+        busy.onCharacteristicWrite(current,new BluetoothGattCharacteristic(),0);
+        busy.mBLELoginHandler=busy.forCurrentGatt(()->sent[0]++);busy.BLELoginposted=0;
+        busy.onDescriptorWrite(current,null,0);
+        check(sent[0]==1,"write confirmation sent a step that was never refused");
 
         // A drop of an established link is a real outage and stays in history; a failed
         // connect attempt above is only live status.
