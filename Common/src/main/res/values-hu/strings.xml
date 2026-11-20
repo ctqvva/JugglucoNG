@@ -3455,4 +3455,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="food_move_up">Mozgatás fel</string>
     <string name="food_move_down">Mozgatás le</string>
     <string name="spanish">Spanyol</string>
+    <string name="floating_layout_reading">Mérés</string>
+    <string name="floating_layout_secondary">Másodlagos érték</string>
+    <string name="floating_layout_arrow">Trendnyíl</string>
+    <string name="floating_layout_camera">Kamerakivágás</string>
+    <string name="floating_layout_camera_desc">A fölötte lévő elemek a kamera elé, a többi mögé kerül</string>
+    <string name="floating_layout_hidden">Rejtett</string>
+    <string name="floating_layout_order_desc">Húzzon egy fogantyút az elem áthelyezéséhez</string>
 </resources>

@@ -3393,4 +3393,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_move_down">下移</string>
     <string name="scan_sensor_qr">扫描传感器二维码</string>
     <string name="spanish">西班牙语</string>
+    <string name="floating_layout_reading">读数</string>
+    <string name="floating_layout_secondary">次要数值</string>
+    <string name="floating_layout_arrow">趋势箭头</string>
+    <string name="floating_layout_camera">摄像头开孔</string>
+    <string name="floating_layout_camera_desc">上方的项目位于摄像头之前，其余位于之后</string>
+    <string name="floating_layout_hidden">已隐藏</string>
+    <string name="floating_layout_order_desc">拖动手柄以移动项目</string>
 </resources>

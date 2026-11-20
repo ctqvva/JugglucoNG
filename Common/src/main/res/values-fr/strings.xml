@@ -3394,4 +3394,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_move_down">Descendre</string>
     <string name="scan_sensor_qr">Scanner le code QR du capteur</string>
     <string name="spanish">Espagnol</string>
+    <string name="floating_layout_reading">Mesure</string>
+    <string name="floating_layout_secondary">Valeur secondaire</string>
+    <string name="floating_layout_arrow">Flèche de tendance</string>
+    <string name="floating_layout_camera">Encoche de la caméra</string>
+    <string name="floating_layout_camera_desc">Les éléments au-dessus se placent avant la caméra, les autres après</string>
+    <string name="floating_layout_hidden">Masqué</string>
+    <string name="floating_layout_order_desc">Faites glisser une poignée pour déplacer un élément</string>
 </resources>

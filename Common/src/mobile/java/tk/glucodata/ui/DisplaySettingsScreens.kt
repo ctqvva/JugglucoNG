@@ -56,6 +56,8 @@ import androidx.navigation.NavController
 import tk.glucodata.R
 import tk.glucodata.accessibility.AODOverlayService
 import tk.glucodata.data.settings.FloatingSettingsRepository
+import tk.glucodata.ui.overlay.FloatingLayoutOrder
+import tk.glucodata.ui.overlay.rememberFloatingOverlayStyle
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
@@ -496,6 +498,8 @@ fun FloatingGlucoseSettingsScreen(
     val verticalOffset by repository.islandVerticalOffset.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_ISLAND_VERTICAL_OFFSET)
     val manualGap by repository.islandGap.collectAsStateWithLifecycle(initialValue = 0f)
     val useSubtleOutline by repository.useSubtleOutline.collectAsStateWithLifecycle(initialValue = false)
+    val layoutOrder by repository.layoutOrder.collectAsStateWithLifecycle(initialValue = FloatingLayoutOrder.DEFAULT)
+    val unit by viewModel.unit.collectAsStateWithLifecycle()
     var hasPermission by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -639,6 +643,28 @@ fun FloatingGlucoseSettingsScreen(
                 )
             }
         }
+
+        FloatingLayoutEditor(
+            order = layoutOrder,
+            island = isDynamicIsland,
+            gap = manualGap,
+            showSecondary = showSecondary,
+            showArrow = showArrow,
+            showDelta = showDelta,
+            style = rememberFloatingOverlayStyle(
+                isTransparent = isTransparent,
+                darkBackdrop = isAppInDarkTheme(),
+                fontSource = fontSource,
+                fontSize = fontSize,
+                fontWeightSetting = fontWeight,
+                cornerRadius = cornerRadius,
+                opacity = opacity,
+                useSubtleOutline = useSubtleOutline,
+            ),
+            mmol = unit == "mmol/L",
+            onOrderChange = repository::setLayoutOrder,
+            modifier = Modifier.padding(start = screenHorizontalPadding, end = screenHorizontalPadding, top = 16.dp)
+        )
 
         SectionLabel(
             stringResource(R.string.metrics),

@@ -74,6 +74,7 @@ internal object SettingsSearchAnchors {
     const val SMOOTHING_CAUSAL = "smoothing/causal"
     const val FLOATING_ISLAND = "floating/island"
     const val FLOATING_SECONDARY = "floating/secondary"
+    const val FLOATING_LAYOUT = "floating/layout"
     const val AOD_LOCK_SCREEN = "aod/lock-screen"
     const val NIGHTSCOUT_SEND_TREATMENTS = "nightscout/send-treatments"
     const val NIGHTSCOUT_RECEIVE_TREATMENTS = "nightscout/receive-treatments"
@@ -513,6 +514,10 @@ internal object SettingsSearchIndex {
             anchor = SettingsSearchAnchors.FLOATING_ISLAND),
         SettingsSearchEntry(R.string.display_secondary_values, DISPLAY + R.string.floatglucose, Symbols.PictureInPictureFilled, S,
             route("settings/floating-display"), anchor = SettingsSearchAnchors.FLOATING_SECONDARY),
+        SettingsSearchEntry(R.string.floating_layout_reading, FLOATING + R.string.position_layout, Symbols.PictureInPictureFilled, S,
+            route("settings/floating-display"), keywords = listOf(R.string.floating_layout_order_desc, R.string.floating_layout_camera),
+            terms = listOf("order", "arrange", "swap", "invert", "left", "right", "layout"),
+            anchor = SettingsSearchAnchors.FLOATING_LAYOUT),
         SettingsSearchEntry(R.string.background, FLOATING, Symbols.PictureInPictureFilled, S,
             route("settings/floating-display"), terms = listOf("opacity", "corner"), anchor = row(R.string.background)),
         SettingsSearchEntry(R.string.use_subtle_outline, FLOATING, Symbols.PictureInPictureFilled, S,
