@@ -191,6 +191,8 @@ class NightscoutFollowerManager(
             vendorModel = localizedString(R.string.nightscout_follow_title, "Nightscout follower"),
         )
 
+    override fun usesBluetoothDiscovery(): Boolean = false
+
     override fun connectDevice(delayMillis: Long): Boolean {
         stop = false
         scheduleRefresh(delayMillis.coerceAtLeast(0L))

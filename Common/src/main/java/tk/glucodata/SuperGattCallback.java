@@ -1935,6 +1935,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         return null;
     }
 
+    /**
+     * False for sources that never use a Bluetooth device, such as network followers. The
+     * shared scan neither filters for them nor waits for them to be found.
+     */
+    public boolean usesBluetoothDiscovery() {
+        return true;
+    }
+
     public void bonded() {
     }
 
