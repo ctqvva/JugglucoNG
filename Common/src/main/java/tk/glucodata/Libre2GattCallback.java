@@ -867,15 +867,19 @@ private int BLELoginposted=0;
 private Runnable		mBLELoginHandler=null; 
 private long bleLoginGeneration;
 
-// A Handler retry may already be dispatched when removeCallbacks() runs.
+// A Handler retry may already be dispatched when removeCallbacks() runs. It runs only while it
+// is still the pending step: a step that succeeded meanwhile (runPendingBleStep) cleared it.
 private Runnable forCurrentGatt(Runnable task) {
     final BluetoothGatt gatt = mBluetoothGatt;
     final long generation = ++bleLoginGeneration;
-    return () -> {
+    final Runnable[] self = new Runnable[1];
+    self[0] = () -> {
         synchronized (this) {
-            if (generation == bleLoginGeneration && acceptGattCallback(gatt)) task.run();
+            if (generation == bleLoginGeneration && mBLELoginHandler == self[0]
+                    && acceptGattCallback(gatt)) task.run();
         }
     };
+    return self[0];
 }
 
 // Android runs one GATT operation at a time. The sensor can answer before Android confirms our

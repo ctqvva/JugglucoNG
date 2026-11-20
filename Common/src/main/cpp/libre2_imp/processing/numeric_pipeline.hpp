@@ -81,6 +81,9 @@ struct NumericResult {
 inline NumericResult evaluate_numeric(std::span<const std::uint16_t,80>trend,
         std::span<const std::uint16_t,160>history,const NumericParameters&p,const NumericState&previous){
     NumericResult r{};r.reference=p.reference;std::copy(trend.begin(),trend.end(),r.trend_raw.begin());
+    // The trend preprocessor fills a flagged record from its neighbours' mean. The newest record
+    // keeps its own flags: a minute without a usable measurement is not shown.
+    const std::uint16_t current_record_status=trend[5*p.current_trend_index+4];
     r.history_count=std::uint16_t(std::min(31u,p.history_last_valid_index>1?unsigned(p.history_last_valid_index-1):0u));
     std::copy(history.begin(),history.end(),r.history_raw.begin());
     calibrate_raw_records(16,3,r.trend_temperature.data(),r.trend_raw.data(),r.trend_glucose.data(),p.calibration);
@@ -121,7 +124,7 @@ inline NumericResult evaluate_numeric(std::span<const std::uint16_t,80>trend,
         p.age,p.current_trend_index,p.current_history_index,eligible.last>eligible.first);
     r.quality=0;
     if(!(r.current.filtered_glucose>0.f))r.quality|=0x8000;
-    r.quality|=tq[p.current_trend_index];
+    r.quality|=tq[p.current_trend_index]|current_record_status;
     r.rate_quality=quality.rate_disagreement;
     // Exactly 8000 means this optional trend estimate is unavailable. Native
     // aggregation skips it; source faults carrying other bits still propagate.
@@ -158,7 +161,7 @@ inline NumericResult evaluate_numeric(std::span<const std::uint16_t,80>trend,
         (p.age<p.history_output_delay_minutes?0u:(p.age-p.history_output_delay_minutes)/15u);
     const unsigned first=reported_index>31?reported_index-31:1;
     const auto clock=p.elapsed_minutes==0xffffffffu?p.age:p.elapsed_minutes;
-    const HistoryReportLimits limits{true,std::int64_t(clock)-p.age+15*first,std::uint16_t(settle_minutes),p.wear_minutes};
+    const HistoryReportLimits limits{true,std::int64_t(clock)-p.age+15*first,std::uint16_t(settle_minutes),p.wear_minutes,p.warmup_minutes};
     if(r.history_count)r.state.history=merge_reported_history(previous.history,r.filtered_history.data(),r.history_correction.data(),p.history_first_index,first,p.maximum,p.minimum,p.is_scan,r.history_count,limits);
     return r;
 }

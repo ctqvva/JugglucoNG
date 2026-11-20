@@ -53,7 +53,8 @@ A reading is dropped only when there is no measurement to show:
 - the ADC value is at or below the sensor's baseline;
 - the result is not positive;
 - the sensor has run for less than 10 minutes, or, until the end of the warm-up (60 minutes),
-  the value before clipping is outside the display range (40-500 mg/dL).
+  the value before clipping is outside the display range (40-500 mg/dL); history points are
+  checked the same way at their own minute.
 
 The native rules used no data before minute 45 and showed nothing before minute 60. From
 minute 10 a reading that looks like glucose now shows, and history from then on is kept.
@@ -70,7 +71,8 @@ leaves only the rate unknown where the rate is affected:
 - the history moved more than 10 mg/dL per minute on average over the last hour (this also
   threw away the history);
 - flagged history records around now, or a sensor error bit (0x01, 0x04, 0x40) on any one
-  record in the last 16 minutes, which invalidated the whole trend window;
+  record in the last 16 minutes, which invalidated the whole trend window (the newest record
+  keeps its own flags, so its minute still drops);
 - skin temperature outside 20-40 °C ("too cold", "too hot"): compensation uses the measured
   temperature; with no valid temperature in the window it uses 32.5 °C, where compensation is
   neutral.

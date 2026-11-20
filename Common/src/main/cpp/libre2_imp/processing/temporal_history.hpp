@@ -42,7 +42,9 @@ inline std::array<TemporalSample,31> project_reported_history(const TemporalSamp
 // Cached entries are reused by timestamp, including nonzero quality codes.
 // ffff is missing: scans may fill every slot, streams only the newest.
 // The 32-point raw window can move before completed timestamps advance.
-struct HistoryReportLimits {bool enabled{};std::int64_t first_elapsed{};std::uint16_t warmup{},wear=65535;};
+// JugglucoNG: until plausible_until (the end of the warm-up) a point counts only when its value
+// before clipping lies in [minimum,maximum], as for the current reading.
+struct HistoryReportLimits {bool enabled{};std::int64_t first_elapsed{};std::uint16_t warmup{},wear=65535,plausible_until{};};
 inline std::array<PersistedHistory,31> merge_reported_history(
         const std::array<PersistedHistory,31>&previous,const TemporalSample*history,
         const float*correction,unsigned raw_first_index,unsigned output_first_index,
@@ -63,7 +65,10 @@ inline std::array<PersistedHistory,31> merge_reported_history(
         if(limits.enabled&&(elapsed<limits.warmup||elapsed>limits.wear)){out[i].quality=projected[i].status|0x8000;continue;}
         // Native output slots are positional, including the quarter-hour
         // boundary where the raw and completed-history timestamp bases differ.
-        const auto&r=projected[i];out[i].quality=r.status;out[i].filtered_glucose=r.glucose;
+        const auto&r=projected[i];
+        if(limits.enabled&&elapsed<limits.plausible_until&&!r.status&&
+                (r.glucose<float(minimum)||r.glucose>float(maximum))){out[i].quality=0x8000;continue;}
+        out[i].quality=r.status;out[i].filtered_glucose=r.glucose;
         if(!r.status)out[i].glucose=round_reported_glucose(r.glucose,maximum,minimum);
     }
     return out;
