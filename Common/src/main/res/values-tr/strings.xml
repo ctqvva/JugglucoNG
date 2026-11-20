@@ -3423,6 +3423,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="libre3_managed_identity_imported">%1$d uygulama kimliği içe aktarıldı</string>
     <string name="libre3_managed_identity_import_failed">Bağlantı bilgileri yüklenemedi: %1$s</string>
     <string name="libre3_managed_identity_missing">Bağlantı bilgileri kullanılamıyor. Ayarlar → Kotlin Libre 3 sürücüsünü açın, interneti kontrol edip indirmeyi yeniden deneyin. Sensör değiştirilmedi.</string>
+    <string name="libre3_lingo_identity_missing">Bu sensörü taramadan önce Kotlin Libre 3 sürücüsü ayarlarında bir Lingo uygulama kimliğini içe aktarın.</string>
+    <string name="libre3_lingo_version_unsupported">Bu Lingo sensörü desteklenmeyen bir güvenlik sürümü kullanıyor.</string>
     <string name="libre3_status_device_rejected">Cihaz Libre 3 değil (hizmetler eksik); sensörü yeniden tarayın</string>
     <string name="libre3_status_certificate_rejected">Sensör sertifikası tanınmadı; sensörü yeniden tarayın</string>
     <string name="libre3_status_identity_missing">Libre 3 uygulama kimliği içe aktarılmadı</string>

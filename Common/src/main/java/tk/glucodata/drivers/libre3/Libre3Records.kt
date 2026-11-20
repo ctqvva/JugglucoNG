@@ -129,8 +129,8 @@ data class Libre3PatchStatus(
         const val SIZE = 12
         const val STATE_ACTIVE = 4
 
-        fun parse(p: ByteArray): Libre3PatchStatus? {
-            if (p.size != SIZE) return null
+        fun parse(p: ByteArray, isLingo: Boolean = false): Libre3PatchStatus? {
+            if (p.size != SIZE && !(isLingo && p.size == SIZE + 2)) return null
             return Libre3PatchStatus(
                 lifeCount = u16le(p, 0),
                 errorData = u16le(p, 2),
@@ -205,8 +205,11 @@ object Libre3EventLog {
 
 /** 7-byte patchControl plaintexts. */
 object Libre3ControlCommand {
-    fun historicalFrom(lifeCount: Int): ByteArray = range(0x00, lifeCount)
-    fun clinicalFrom(lifeCount: Int): ByteArray = range(0x01, lifeCount)
+    fun historicalFrom(lifeCount: Int, isLingo: Boolean = false): ByteArray =
+        range(if (isLingo) Libre3Lingo.HISTORICAL_STREAM else 0x00, lifeCount)
+
+    fun clinicalFrom(lifeCount: Int, isLingo: Boolean = false): ByteArray =
+        range(if (isLingo) Libre3Lingo.CLINICAL_STREAM else 0x01, lifeCount)
 
     fun eventLogFrom(index: Int): ByteArray = byteArrayOf(0x04, index.toByte(), 0, 0, 0, 0, 0)
 
