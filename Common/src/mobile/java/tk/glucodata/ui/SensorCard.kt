@@ -426,6 +426,10 @@ private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable
     }
 }
 
+/** The container of the card's quiet buttons (Pause, the link pill), apart from its labels. */
+@Composable
+private fun sensorQuietButtonContainer(): Color = MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+
 private enum class SensorLinkState { UP, WAITING, DOWN }
 
 /**
@@ -536,11 +540,17 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, accent: Color, mo
     } else {
         Modifier
     }
-    // The reading chip's own shape, height and padding: the line's two ends are a pair.
+    // The reading chip's own shape, height and padding: the line's two ends are a pair. When a
+    // tap shows the figure it is a button, so it wears the Pause button's container above it
+    // rather than the reading chip's, which is only a label.
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = if (down) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainer,
+        color = when {
+            down -> MaterialTheme.colorScheme.errorContainer
+            figure != null -> sensorQuietButtonContainer()
+            else -> MaterialTheme.colorScheme.surfaceContainer
+        },
         contentColor = color,
         tonalElevation = 1.dp,
     ) {
@@ -2314,7 +2324,7 @@ fun SensorCard(
                                     shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = if (isLocallyEnabled) {
-                                            MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+                                            sensorQuietButtonContainer()
                                         } else {
                                             MaterialTheme.colorScheme.primaryContainer
                                         },
