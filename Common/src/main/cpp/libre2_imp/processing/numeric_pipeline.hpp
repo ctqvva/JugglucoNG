@@ -142,7 +142,12 @@ inline NumericResult evaluate_numeric(std::span<const std::uint16_t,80>trend,
     const float temperature=r.trend_temperature[p.current_trend_index*5+1];
     if(!r.quality&&temperature>0.f&&temperature<50.f)r.temperature_tenths=std::uint16_t(std::lround(static_cast<double>(temperature*10.f)));
     r.rate_hundredths=static_cast<std::int16_t>(std::lround(static_cast<double>(r.reported_rate*100.f)));
-    if((p.elapsed_minutes==0xffffffffu?p.age:p.elapsed_minutes)<p.warmup_minutes){
+    // Nothing before the sensor settles; during the rest of the warm-up only a reading inside the
+    // display range, before clipping, counts as glucose.
+    const auto warm=p.elapsed_minutes==0xffffffffu?p.age:p.elapsed_minutes;
+    const bool implausible_warmup=warm<p.warmup_minutes&&
+        (r.reported_glucose<float(p.minimum)||r.reported_glucose>float(p.maximum));
+    if(warm<settle_minutes||implausible_warmup){
         r.quality|=0x8000;r.rate_quality=0x8000;r.glucose=r.secondary_glucose=0;r.rate_hundredths=0;
         r.arrow=r.range_category=0;r.temperature_tenths=999;r.display_range_valid=false;
         r.current.filtered_glucose=r.current.filtered_rate=0.f;
@@ -153,7 +158,7 @@ inline NumericResult evaluate_numeric(std::span<const std::uint16_t,80>trend,
         (p.age<p.history_output_delay_minutes?0u:(p.age-p.history_output_delay_minutes)/15u);
     const unsigned first=reported_index>31?reported_index-31:1;
     const auto clock=p.elapsed_minutes==0xffffffffu?p.age:p.elapsed_minutes;
-    const HistoryReportLimits limits{true,std::int64_t(clock)-p.age+15*first,p.warmup_minutes,p.wear_minutes};
+    const HistoryReportLimits limits{true,std::int64_t(clock)-p.age+15*first,std::uint16_t(settle_minutes),p.wear_minutes};
     if(r.history_count)r.state.history=merge_reported_history(previous.history,r.filtered_history.data(),r.history_correction.data(),p.history_first_index,first,p.maximum,p.minimum,p.is_scan,r.history_count,limits);
     return r;
 }

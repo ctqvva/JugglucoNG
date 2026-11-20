@@ -28,8 +28,12 @@ inline constexpr std::uint16_t wear_grace_minutes=12*60;
 inline constexpr std::uint16_t processing_wear_minutes(std::uint16_t nominal,unsigned grace=wear_grace_minutes){
     return std::uint16_t(std::min(nominal+grace,0xffffu));
 }
+// JugglucoNG: the native code used nothing before elapsed minute 45 and showed nothing before
+// the 60-minute warm-up. Ten minutes settle the sensor's currents; from then on a reading that
+// looks like glucose is shown (numeric_pipeline.hpp checks it during the warm-up).
+inline constexpr unsigned settle_minutes=10;
 struct InputWindow {unsigned first{},last{};bool contains(unsigned i)const{return first<=last&&i>=first&&i<=last;}};
-// Native 0x252500. Calibration starts at elapsed minute 45. The configured
+// Native 0x252500. Calibration starts at elapsed minute settle_minutes (native 45). The configured
 // display warmup is separate. Historical alignment includes the two-minute
 // delivery delay and uses the sensor clock's quarter-hour phase.
 inline InputWindow eligible_input_window(bool history,unsigned latest_index,
@@ -38,11 +42,11 @@ inline InputWindow eligible_input_window(bool history,unsigned latest_index,
     if(history){
         const I aligned=I(elapsed_minute)-I((unsigned(sensor_minute)+13u)%15u);
         auto floor15=[](I n){return n>=0?n/15:-((-n+14)/15);};
-        first=std::max(I(0),index-floor15(aligned-45));
+        first=std::max(I(0),index-floor15(aligned-I(settle_minutes)));
         const I excess=aligned-I(wear_minutes);
         last=index-std::max(I(0),excess>0?(excess+14)/15:I(0));
     }else{
-        first=std::max(I(0),index+45-I(elapsed_minute));
+        first=std::max(I(0),index+I(settle_minutes)-I(elapsed_minute));
         last=std::min(index,index+I(wear_minutes)-I(elapsed_minute));
     }
     if(first>index||last<0||first>last)return {latest_index+1,0};

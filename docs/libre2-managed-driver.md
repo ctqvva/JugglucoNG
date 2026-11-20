@@ -51,7 +51,15 @@ A reading is dropped only when there is no measurement to show:
 - the sensor sent none: over BLE such a minute has no ADC value, only an error code; in a scan
   the sensor marks the record with its own error bits;
 - the ADC value is at or below the sensor's baseline;
-- the result is not positive, or the sensor is warming up.
+- the result is not positive;
+- the sensor has run for less than 10 minutes, or, until the end of the warm-up (60 minutes),
+  the value before clipping is outside the display range (40-500 mg/dL).
+
+The native rules used no data before minute 45 and showed nothing before minute 60. From
+minute 10 a reading that looks like glucose now shows, and history from then on is kept.
+
+Records the sensor marks with its own error bits in a scan stay dropped: their raw value comes
+with flags whose meaning is not decoded.
 
 The native rules dropped much more. JugglucoNG keeps the glucose in each of these cases and
 leaves only the rate unknown where the rate is affected:
