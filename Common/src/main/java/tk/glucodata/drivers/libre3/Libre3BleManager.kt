@@ -168,7 +168,8 @@ class Libre3BleManager(sensorId: String) :
     private var handshake: Libre3Handshake? = null
     private var handshakeIdentity: Libre3AppIdentity? = null
     private var session: Libre3DataPlaneSession? = null
-    private val glucoseAssembler = Libre3Framing.GlucoseAssembler()
+    private var glucoseAssembler = Libre3Framing.GlucoseAssembler()
+    private var linkIsLingo = false
 
     private enum class ControlKind { CLINICAL, HISTORIC }
     private val controlQueue = ArrayDeque<Pair<ControlKind, ByteArray>>()
@@ -702,16 +703,18 @@ class Libre3BleManager(sensorId: String) :
     private fun startHandshake() {
         val ctx = Applic.app ?: return dropLink("no context")
         val rec = record ?: return failSetup("Scan the sensor with NFC first", stopUntilUser = true)
+        linkIsLingo = rec.isLingo
         val auth = Libre3Persistence.authorizationSnapshot(ctx, sensorId)
         credentialRevision = auth.revision
-        val cached = auth.cached
         val identities = auth.identities
+        val cached = auth.cached?.takeIf { entry -> !linkIsLingo || identities.any { it.label == entry.second } }
         val hs = if (cached != null) {
             handshakeIdentity = identities.firstOrNull { it.label == cached.second }
             Libre3Handshake(Libre3Handshake.Mode.CACHED, rec.blePin, handshakeIdentity, cached.first)
         } else {
             if (identities.isEmpty()) {
                 missingIdentity = true
+                if (linkIsLingo) return failSetup(text(tk.glucodata.R.string.libre3_lingo_identity_missing), stopUntilUser = true)
                 // Reconnects once the download lands; until then this waits instead of retrying.
                 Libre3Registry.requestCredentials()
                 return failSetup(text(tk.glucodata.R.string.libre3_status_identity_missing), stopUntilUser = true)
@@ -719,7 +722,10 @@ class Libre3BleManager(sensorId: String) :
             val identity = pickIdentity(ctx, identities)
             handshakeIdentity = identity
             Log.i(TAG, "$sensorId: full authorization with identity '${identity.label}'")
-            Libre3Handshake(Libre3Handshake.Mode.FULL, rec.blePin, identity, null, signingKeys = patchSigningKeys)
+            Libre3Handshake(
+                Libre3Handshake.Mode.FULL, rec.blePin, identity, null,
+                signingKeys = if (linkIsLingo) Libre3Lingo.patchSigningKeys else patchSigningKeys,
+            )
         }
         handshake = hs
         phase = Phase.AUTHENTICATING
@@ -761,7 +767,8 @@ class Libre3BleManager(sensorId: String) :
             return
         }
         session = Libre3DataPlaneSession(done.session.kEnc, done.session.ivEnc)
-        glucoseAssembler.reset()
+        val frameSize = if (linkIsLingo) Libre3Lingo.LIVE_WIRE_SIZE else Libre3Framing.GlucoseAssembler.FRAME_SIZE
+        glucoseAssembler = Libre3Framing.GlucoseAssembler(frameSize)
         identityRejections = 0
         identityRejected = false
         val ctx = Applic.app
@@ -823,12 +830,15 @@ class Libre3BleManager(sensorId: String) :
         }
         val p = decrypted.plaintext
         when (channel) {
-            Libre3Channel.GLUCOSE_DATA -> Libre3RealtimeReading.parse(p)?.let { onRealtime(it) }
+            Libre3Channel.GLUCOSE_DATA -> (if (linkIsLingo) Libre3Lingo.parseRealtime(p) else Libre3RealtimeReading.parse(p))
+                ?.let { onRealtime(it) }
                 ?: Log.w(TAG, "$sensorId: glucose plaintext ${p.size} B")
-            Libre3Channel.PATCH_STATUS -> Libre3PatchStatus.parse(p)?.let { onPatchStatus(it) }
+            Libre3Channel.PATCH_STATUS -> Libre3PatchStatus.parse(p, linkIsLingo)?.let { onPatchStatus(it) }
                 ?: Log.w(TAG, "$sensorId: status plaintext ${p.size} B")
-            Libre3Channel.CLINICAL_DATA -> Libre3ClinicalRecord.parse(p)?.let { onClinical(it) }
-            Libre3Channel.HISTORIC_DATA -> Libre3HistoricalPage.parse(p)?.let { onHistoricPage(it) }
+            Libre3Channel.CLINICAL_DATA -> (if (linkIsLingo) Libre3Lingo.parseClinical(p) else Libre3ClinicalRecord.parse(p))
+                ?.let { onClinical(it) }
+            Libre3Channel.HISTORIC_DATA -> (if (linkIsLingo) Libre3Lingo.parseHistory(p) else Libre3HistoricalPage.parse(p))
+                ?.let { onHistoricPage(it) }
             Libre3Channel.PATCH_CONTROL -> onControlResponse()
             Libre3Channel.EVENT_LOG -> Log.i(TAG, "$sensorId: event log up to index ${Libre3EventLog.lastIndex(p)}")
             Libre3Channel.FACTORY_DATA -> Log.d(TAG, "$sensorId: factory data ${p.size} B")
@@ -1037,7 +1047,7 @@ class Libre3BleManager(sensorId: String) :
         if (currentLifeCount <= 0) return
         if (lastLifeCount < currentLifeCount - 1) {
             val from = if (lastLifeCount <= 0) maxOf(1, currentLifeCount - INITIAL_CLINICAL_WINDOW_MINUTES) else lastLifeCount
-            controlQueue.addLast(ControlKind.CLINICAL to Libre3ControlCommand.clinicalFrom(from))
+            controlQueue.addLast(ControlKind.CLINICAL to Libre3ControlCommand.clinicalFrom(from, linkIsLingo))
             Log.i(TAG, "$sensorId: clinical backfill from life $from (current $currentLifeCount)")
         }
         // Same bound as the legacy driver: history commits about 16-17 minutes behind current.
@@ -1045,7 +1055,7 @@ class Libre3BleManager(sensorId: String) :
         if (lastHistoricLifeCount < committed) {
             val from = maxOf(lastHistoricLifeCount, 5)
             requestedHistoricCommitted = committed
-            controlQueue.addLast(ControlKind.HISTORIC to Libre3ControlCommand.historicalFrom(from))
+            controlQueue.addLast(ControlKind.HISTORIC to Libre3ControlCommand.historicalFrom(from, linkIsLingo))
             Log.i(TAG, "$sensorId: history backfill from life $from (committed $committed)")
         }
         sendNextControl()
