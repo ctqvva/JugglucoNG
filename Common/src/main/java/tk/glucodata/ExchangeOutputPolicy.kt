@@ -21,7 +21,8 @@ class ExchangeOutputPolicy {
         val sendGadgetbridge: Boolean,
         val sendLoopFeed: Boolean,
         val sendDexcomShare: Boolean,
-        val sendXdripFollower: Boolean
+        val sendXdripFollower: Boolean,
+        val sendICanHealth: Boolean
     )
 
     private enum class Destination {
@@ -31,7 +32,8 @@ class ExchangeOutputPolicy {
         GADGETBRIDGE,
         LOOP_FEED,
         DEXCOM_SHARE,
-        XDRIP_FOLLOWER
+        XDRIP_FOLLOWER,
+        ICAN_HEALTH
     }
 
     private val gates = Destination.values().associateWith { ExchangeUpdateGate() }
@@ -47,7 +49,8 @@ class ExchangeOutputPolicy {
         gadgetbridgeEnabled: Boolean,
         loopFeedEnabled: Boolean,
         dexcomShareEnabled: Boolean = false,
-        xdripFollowerEnabled: Boolean = false
+        xdripFollowerEnabled: Boolean = false,
+        icanHealthEnabled: Boolean = false
     ): Decision = Decision(
         sendJuggluco = shouldEmit(
             Destination.JUGGLUCO, jugglucoEnabled, true, sensorId, payloadTimeMs, intervalMinutes
@@ -75,6 +78,9 @@ class ExchangeOutputPolicy {
         sendXdripFollower = shouldEmit(
             Destination.XDRIP_FOLLOWER, xdripFollowerEnabled, shouldBroadcastMinuteUpdate,
             sensorId, payloadTimeMs, intervalMinutes
+        ),
+        sendICanHealth = shouldEmit(
+            Destination.ICAN_HEALTH, icanHealthEnabled, true, sensorId, payloadTimeMs, intervalMinutes
         )
     )
 

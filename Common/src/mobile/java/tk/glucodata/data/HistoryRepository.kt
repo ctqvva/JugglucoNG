@@ -1,5 +1,6 @@
 package tk.glucodata.data
 
+import tk.glucodata.ExchangeTrend
 import tk.glucodata.ui.util.toSharedGlucosePoint
 import android.content.Context
 import android.util.Log
@@ -26,6 +27,8 @@ import tk.glucodata.XdripBackfill
 import tk.glucodata.share.DexcomShareBackfillTrend
 import tk.glucodata.share.DexcomShareSettings
 import tk.glucodata.share.DexcomShareUploader
+import tk.glucodata.share.ican.ICanHealthCloudSettings
+import tk.glucodata.share.ican.ICanHealthCloudUploader
 import tk.glucodata.share.lumiflex.LumiflexCloudSettings
 import tk.glucodata.share.lumiflex.LumiflexCloudUploader
 import tk.glucodata.data.calibration.CalibrationManager
@@ -744,6 +747,12 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                     dexcomRows(backfillRows, XdripBackfill.displayedRows(serial, backfillRows)),
                 )
             }
+            if (app != null && ICanHealthCloudSettings.isEnabled(app)) {
+                ICanHealthCloudUploader.onHistoryStored(
+                    serial,
+                    icnRows(serial, backfillRows, XdripBackfill.displayedRows(serial, backfillRows)),
+                )
+            }
             if (app != null && LumiflexCloudSettings.isEnabled(app)) {
                 LumiflexCloudUploader.onHistoryStored(
                     serial,
@@ -762,6 +771,18 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         return DexcomShareBackfillTrend.rows(
             displayed.map { DexcomShareBackfillTrend.Source(it.timeMs, it.mgdl, rateByTime[it.timeMs]) },
         )
+    }
+
+    /** The rows iCan Health cloud should hear about. */
+    private fun icnRows(
+        serial: String,
+        rows: List<XdripBackfill.Row>,
+        displayed: List<XdripBackfill.DisplayedRow>,
+    ): List<ICanHealthCloudUploader.Row> {
+        val rateByTime = rows.associate { it.timeMs to it.rate }
+        return displayed.map { r ->
+            ICanHealthCloudUploader.Row(serial, r.timeMs, r.mgdl, icanBackfillTrendIndex(rateByTime[r.timeMs]))
+        }
     }
 
     /** The rows the Lumiflex cloud should hear about. */
@@ -2591,3 +2612,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         return result
     }
 }
+
+/** Backfill sends the categorical trend index the live path uses, never a truncated rate. */
+internal fun icanBackfillTrendIndex(rate: Float?): Int =
+    when (rate) {
+        null -> ExchangeTrend.UNKNOWN
+        else -> ExchangeTrend.fromRate(rate).index
+    }

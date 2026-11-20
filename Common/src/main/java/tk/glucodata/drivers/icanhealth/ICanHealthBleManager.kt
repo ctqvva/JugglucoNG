@@ -173,6 +173,7 @@ class ICanHealthBleManager(
     }
 
     private val gattQueue = ArrayDeque<GattOp>()
+    private val gattQueueLock = Any()
     @Volatile private var gattOpActive = false
     @Volatile private var gattOpInFlight: GattOp? = null
 
@@ -3078,10 +3079,12 @@ class ICanHealthBleManager(
         // An aborted chain must not leave its queued (not yet sent) chunk in the GATT
         // queue — it would go on air later with nobody listening for the ack.
         correctCodePendingChunk?.let { pending ->
-            gattQueue.removeAll {
-                it is GattOp.Write &&
-                    it.charUuid == ICanHealthConstants.CGM_SPECIFIC_OPS &&
-                    it.data.contentEquals(pending)
+            synchronized(gattQueueLock) {
+                gattQueue.removeAll {
+                    it is GattOp.Write &&
+                        it.charUuid == ICanHealthConstants.CGM_SPECIFIC_OPS &&
+                        it.data.contentEquals(pending)
+                }
             }
         }
         correctCodePendingChunk = null
@@ -4809,19 +4812,25 @@ class ICanHealthBleManager(
     }
 
     private fun enqueueOp(op: GattOp) {
-        gattQueue.add(op)
+        synchronized(gattQueueLock) { gattQueue.add(op) }
     }
 
     private fun drainGattQueue() {
-        if (gattOpActive || gattQueue.isEmpty()) return
         val gatt = mBluetoothGatt ?: return
-        val op = gattQueue.poll() ?: return
-        gattOpInFlight = op
+
+    val op = synchronized(gattQueueLock) {
+        if (gattOpActive || gattQueue.isEmpty()) return
+        val next = gattQueue.poll() ?: return
+        gattOpInFlight = next
         gattOpActive = true
-        gattOpTimeoutRunnable?.let { handler.removeCallbacks(it) }
-        val timeout = Runnable { handleGattOperationTimeout(gatt, op) }
-        gattOpTimeoutRunnable = timeout
-        handler.postDelayed(timeout, GATT_OP_TIMEOUT_MS)
+        next
+    }
+
+    gattOpTimeoutRunnable?.let { handler.removeCallbacks(it) }
+    val timeout = Runnable { handleGattOperationTimeout(gatt, op) }
+    gattOpTimeoutRunnable = timeout
+    handler.postDelayed(timeout, GATT_OP_TIMEOUT_MS)
+
 
         when (op) {
             is GattOp.EnableNotify -> {
@@ -5044,7 +5053,7 @@ class ICanHealthBleManager(
     ) {
         lastSensorInfoMarker = null
         resetCorrectCodeState()
-        gattQueue.clear()
+        synchronized(gattQueueLock) { gattQueue.clear() }
         gattOpActive = false
         gattOpInFlight = null
         gattWriteInFlight = null
@@ -5132,7 +5141,7 @@ class ICanHealthBleManager(
     }
 
     private fun maybeHandleQueueDrained() {
-        if (gattOpActive || gattQueue.isNotEmpty()) {
+        if (gattOpActive || synchronized(gattQueueLock) { gattQueue.isNotEmpty() }) {
             return
         }
         if (rejectUnverifiedBindingCandidate("setup queue drained without a verified serial")) return

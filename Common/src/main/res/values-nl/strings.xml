@@ -3288,6 +3288,37 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="tts_trend_decreasing">dalend</string>
     <string name="tts_trend_rising_quickly">snel stijgend</string>
     <string name="tts_trend_falling_quickly">snel dalend</string>
+    <string name="ican_health_title">iCan Health Cloud</string>
+    <string name="ican_health_desc">Metingen uploaden naar SinoCare iCan Health</string>
+    <string name="ican_health_settings_title">iCan Health Cloud</string>
+    <string name="ican_health_active">Uploaden naar iCan Health</string>
+    <string name="ican_health_active_desc">Live metingen van deze telefoon naar SinoCare iCan Health sturen</string>
+    <string name="ican_health_section_account">Account</string>
+    <string name="ican_health_account">Account (e-mail)</string>
+    <string name="ican_health_password">Wachtwoord</string>
+    <string name="ican_health_sign_in">Inloggen</string>
+    <string name="ican_health_signing_in">Inloggen…</string>
+    <string name="ican_health_logged_in">Ingelogd</string>
+    <string name="ican_health_login_failed">Inloggen mislukt: %1$s</string>
+    <string name="ican_health_credentials_required">Voer account en wachtwoord in</string>
+    <string name="ican_health_last_sync">Laatste synchronisatie: %1$s</string>
+    <string name="ican_health_never">nooit</string>
+    <string name="ican_health_manage_followers">Volgers beheren</string>
+    <string name="ican_health_followers_title">iCan Health-volgers</string>
+    <string name="ican_health_invite_follower">Volger uitnodigen</string>
+    <string name="ican_health_follower_email">E-mail</string>
+    <string name="ican_health_follower_phone">Telefoon</string>
+    <string name="ican_health_follower_name">Naam</string>
+    <string name="ican_health_send_invite">Uitnodiging versturen</string>
+    <string name="ican_health_followers">Volgers</string>
+    <string name="ican_health_invited">Uitgenodigd</string>
+    <string name="ican_health_invite_failed">Uitnodiging mislukt: %1$s</string>
+    <string name="ican_health_follower_load_failed">Volgers konden niet worden geladen: %1$s</string>
+    <string name="ican_health_remove">Verwijderen</string>
+    <string name="ican_health_follower_status">Status: %1$s</string>
+    <string name="ican_health_show_password">Wachtwoord tonen</string>
+    <string name="ican_health_hide_password">Wachtwoord verbergen</string>
+    <string name="ican_health_secure_storage_failed">Kan de iCan Health-sessie niet veilig opslaan</string>
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Beperkte modus</string>

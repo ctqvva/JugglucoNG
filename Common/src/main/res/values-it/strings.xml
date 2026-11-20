@@ -3236,6 +3236,37 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">in diminuzione</string>
     <string name="tts_trend_rising_quickly">in rapido aumento</string>
     <string name="tts_trend_falling_quickly">in rapida diminuzione</string>
+    <string name="ican_health_title">Cloud iCan Health</string>
+    <string name="ican_health_desc">Caricamento delle rilevazioni su SinoCare iCan Health</string>
+    <string name="ican_health_settings_title">Cloud iCan Health</string>
+    <string name="ican_health_active">Carica su iCan Health</string>
+    <string name="ican_health_active_desc">Invia le rilevazioni in tempo reale da questo telefono a SinoCare iCan Health</string>
+    <string name="ican_health_section_account">Account</string>
+    <string name="ican_health_account">Account (email)</string>
+    <string name="ican_health_password">Password</string>
+    <string name="ican_health_sign_in">Accedi</string>
+    <string name="ican_health_signing_in">Accesso…</string>
+    <string name="ican_health_logged_in">Accesso effettuato</string>
+    <string name="ican_health_login_failed">Accesso non riuscito: %1$s</string>
+    <string name="ican_health_credentials_required">Inserisci account e password</string>
+    <string name="ican_health_last_sync">Ultima sincronizzazione: %1$s</string>
+    <string name="ican_health_never">mai</string>
+    <string name="ican_health_manage_followers">Gestisci follower</string>
+    <string name="ican_health_followers_title">Follower iCan Health</string>
+    <string name="ican_health_invite_follower">Invita un follower</string>
+    <string name="ican_health_follower_email">Email</string>
+    <string name="ican_health_follower_phone">Telefono</string>
+    <string name="ican_health_follower_name">Nome</string>
+    <string name="ican_health_send_invite">Invia invito</string>
+    <string name="ican_health_followers">Follower</string>
+    <string name="ican_health_invited">Invitato</string>
+    <string name="ican_health_invite_failed">Invito non riuscito: %1$s</string>
+    <string name="ican_health_follower_load_failed">Impossibile caricare i follower: %1$s</string>
+    <string name="ican_health_remove">Rimuovi</string>
+    <string name="ican_health_follower_status">Stato: %1$s</string>
+    <string name="ican_health_show_password">Mostra password</string>
+    <string name="ican_health_hide_password">Nascondi password</string>
+    <string name="ican_health_secure_storage_failed">Impossibile salvare in modo sicuro la sessione iCan Health</string>
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Modalità limitata</string>

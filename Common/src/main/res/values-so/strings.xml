@@ -3430,6 +3430,37 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="tts_trend_decreasing">hoos u dhacaya</string>
     <string name="tts_trend_rising_quickly">si degdeg ah kor ugu kacaya</string>
     <string name="tts_trend_falling_quickly">si degdeg ah hoos ugu dhacaya</string>
+    <string name="ican_health_title">Qummanda iCan Health</string>
+    <string name="ican_health_desc">Gelinta akhriska SinoCare iCan Health</string>
+    <string name="ican_health_settings_title">Qummanda iCan Health</string>
+    <string name="ican_health_active">Ku deji iCan Health</string>
+    <string name="ican_health_active_desc">Dir akhriska tooska ah ee telefoonkan SinoCare iCan Health</string>
+    <string name="ican_health_section_account">Akoon</string>
+    <string name="ican_health_account">Akoon (imeel)</string>
+    <string name="ican_health_password">Furaha sirta ah</string>
+    <string name="ican_health_sign_in">Gal</string>
+    <string name="ican_health_signing_in">Galaya…</string>
+    <string name="ican_health_logged_in">Waad galay</string>
+    <string name="ican_health_login_failed">Galitaanku wuu fashilmay: %1$s</string>
+    <string name="ican_health_credentials_required">Geli akoonka iyo furaha sirta ah</string>
+    <string name="ican_health_last_sync">Isku-dhafka ugu dambeeyay: %1$s</string>
+    <string name="ican_health_never">marna</string>
+    <string name="ican_health_manage_followers">Maamul raacsatayaasha</string>
+    <string name="ican_health_followers_title">Raacsatayaasha iCan Health</string>
+    <string name="ican_health_invite_follower">Casri raacsade</string>
+    <string name="ican_health_follower_email">Imeel</string>
+    <string name="ican_health_follower_phone">Taleefan</string>
+    <string name="ican_health_follower_name">Magac</string>
+    <string name="ican_health_send_invite">Dir martid</string>
+    <string name="ican_health_followers">Raacsatayaal</string>
+    <string name="ican_health_invited">La casriyay</string>
+    <string name="ican_health_invite_failed">Martidu way fashilantay: %1$s</string>
+    <string name="ican_health_follower_load_failed">Raacsatayaasha lama soo dejin karin: %1$s</string>
+    <string name="ican_health_remove">Ka saar</string>
+    <string name="ican_health_follower_status">Xaalad: %1$s</string>
+    <string name="ican_health_show_password">Muuji furaha sirta ah</string>
+    <string name="ican_health_hide_password">Qari furaha sirta ah</string>
+<string name="ican_health_secure_storage_failed">Lama kaydin karo si ammaan ah kalfadhiga iCan Health</string>
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Habka xaddidan</string>

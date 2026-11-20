@@ -3346,6 +3346,37 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="tts_trend_decreasing">буурч байна</string>
     <string name="tts_trend_rising_quickly">хурдан өсөж байна</string>
     <string name="tts_trend_falling_quickly">хурдан буурч байна</string>
+    <string name="ican_health_title">iCan Health үүл</string>
+    <string name="ican_health_desc">Уншлагыг SinoCare iCan Health руу байршуулах</string>
+    <string name="ican_health_settings_title">iCan Health үүл</string>
+    <string name="ican_health_active">iCan Health руу байршуулах</string>
+    <string name="ican_health_active_desc">Энэ утаснаас амьд уншлагыг SinoCare iCan Health руу илгээх</string>
+    <string name="ican_health_section_account">Данс</string>
+    <string name="ican_health_account">Данс (имэйл)</string>
+    <string name="ican_health_password">Нууц үг</string>
+    <string name="ican_health_sign_in">Нэвтрэх</string>
+    <string name="ican_health_signing_in">Нэвтэрч байна…</string>
+    <string name="ican_health_logged_in">Нэвтэрсэн</string>
+    <string name="ican_health_login_failed">Нэвтрэхэд алдаа гарлаа: %1$s</string>
+    <string name="ican_health_credentials_required">Данс болон нууц үгээ оруулна уу</string>
+    <string name="ican_health_last_sync">Сүүлчийн синхрончлол: %1$s</string>
+    <string name="ican_health_never">хэзээ ч</string>
+    <string name="ican_health_manage_followers">Дагагчдыг удирдах</string>
+    <string name="ican_health_followers_title">iCan Health дагагчид</string>
+    <string name="ican_health_invite_follower">Дагагч урих</string>
+    <string name="ican_health_follower_email">Имэйл</string>
+    <string name="ican_health_follower_phone">Утас</string>
+    <string name="ican_health_follower_name">Нэр</string>
+    <string name="ican_health_send_invite">Урилга илгээх</string>
+    <string name="ican_health_followers">Дагагчид</string>
+    <string name="ican_health_invited">Урьсан</string>
+    <string name="ican_health_invite_failed">Урилга амжилтгүй: %1$s</string>
+    <string name="ican_health_follower_load_failed">Дагагчдыг ачаалж чадсангүй: %1$s</string>
+    <string name="ican_health_remove">Хасах</string>
+    <string name="ican_health_follower_status">Байдал: %1$s</string>
+    <string name="ican_health_show_password">Нууц үгийг харуулах</string>
+    <string name="ican_health_hide_password">Нууц үгийг далдлах</string>
+    <string name="ican_health_secure_storage_failed">iCan Health сешнийг аюулгүй хадгалж чадсангүй</string>
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Хязгаарлагдмал горим</string>

@@ -73,6 +73,7 @@ import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorSourceResolver
 import tk.glucodata.share.DexcomShareSettings
+import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.share.lumiflex.LumiflexCloudSettings
 import tk.glucodata.alerts.SensorHandoverRuntime
 import tk.glucodata.data.calibration.CalibrationManager
@@ -126,9 +127,15 @@ fun ExpressiveSettingsScreen(
         runCatching { DexcomShareSettings.isSetUp(context) }.getOrDefault(false) ||
             hasActiveDexcomSensor()
     }
+    val showICanHealth = remember {
+        runCatching { ICanHealthCloudSettings.isSetUp(context) }.getOrDefault(false) ||
+            hasActiveICanSensor()
+    }
+
     val isRussianLanguage = LocalConfiguration.current.locales[0]?.language == "ru"
     // A cloud follower has no local AiDex sensor to make this entry visible.
     val showLumiflex = isRussianLanguage
+
     val showOttaiSettings = remember {
         SensorBluetooth.mygatts().any { callback ->
             (callback as? tk.glucodata.drivers.ottai.OttaiDriver)?.isUiEnabled() == true
@@ -653,6 +660,16 @@ fun ExpressiveSettingsScreen(
                         iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
                         onClick = { navController.navigate("settings/dexcom-share") }
+                    )
+                }
+                if (showICanHealth) {
+                    SettingsItem(
+                        title = stringResource(R.string.ican_health_title),
+                        subtitle = stringResource(R.string.ican_health_desc),
+                        icon = Icons.Default.CloudUpload,
+                        iconTint = sharingColor,
+                        position = CardPosition.MIDDLE,
+                        onClick = { navController.navigate("settings/ican-health") }
                     )
                 }
                 if (showLumiflex) {
@@ -1732,6 +1749,13 @@ private fun hasActiveDexcomSensor(): Boolean = runCatching {
     Natives.activeSensors()?.filterNotNull().orEmpty().any { sensorId ->
         SensorSourceResolver.resolveSensorKind(sensorId, SensorSourceResolver.SENSOR_KIND_UNKNOWN) ==
             SensorSourceResolver.SENSOR_KIND_DEXCOM
+    }
+}.getOrDefault(false)
+
+private fun hasActiveICanSensor(): Boolean = runCatching {
+    Natives.activeSensors()?.filterNotNull().orEmpty().any { sensorId ->
+        SensorSourceResolver.resolveSensorKind(sensorId, SensorSourceResolver.SENSOR_KIND_UNKNOWN) ==
+            SensorSourceResolver.SENSOR_KIND_ICAN
     }
 }.getOrDefault(false)
 
