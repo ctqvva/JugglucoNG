@@ -361,41 +361,66 @@ internal fun bleErrorValue(status: String, relativeAge: CharSequence?): String {
 }
 
 /**
- * The card's label and value pairs, laid out one way for the whole list: as a table, label at
- * the start and value at the end of one line, when every pair fits on a line; otherwise every
- * value goes under its label. Mixing the two in one list is what made it look broken at large
- * font sizes. Children come in pairs: a label, then its value.
+ * The card's label and value pairs as one table: label at the start, value at the end. A value
+ * too long for its line wraps inside the value column, its lines kept to the end edge, so one
+ * long figure no longer turns the whole list into a column. Only when a label and the longest
+ * word of its value cannot share a line (large font sizes) does every value go under its label;
+ * the two are never mixed in one list. Children come in pairs: a label, then its value. The
+ * content is told which of the two it is in, so values can align to match.
  */
 @Composable
-private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    androidx.compose.ui.layout.Layout(content = content, modifier = modifier) { measurables, constraints ->
+private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable (table: Boolean) -> Unit) {
+    var table by remember { mutableStateOf(true) }
+    androidx.compose.ui.layout.Layout(content = { content(table) }, modifier = modifier) { measurables, constraints ->
         val width = constraints.maxWidth
         val gap = 12.dp.roundToPx()
         val pairs = measurables.chunked(2).filter { it.size == 2 }
-        val table = pairs.all { (label, value) ->
-            label.maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity) + gap +
-                value.maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity) <= width
+        val labelWidths = pairs.map { (label, _) -> label.maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity) }
+        val fits = pairs.indices.all { i ->
+            labelWidths[i] <= width / 2 &&
+                labelWidths[i] + gap + pairs[i][1].minIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity) <= width
         }
+        if (fits != table) table = fits
         val loose = androidx.compose.ui.unit.Constraints(maxWidth = width)
-        val placed = pairs.map { (label, value) -> label.measure(loose) to value.measure(loose) }
-        val rowGap = (if (table) 8.dp else 12.dp).roundToPx()
+        val placed = pairs.mapIndexed { i, (label, value) ->
+            val labelPlaceable = label.measure(loose)
+            val valueConstraints = if (fits) {
+                androidx.compose.ui.unit.Constraints(maxWidth = (width - labelWidths[i] - gap).coerceAtLeast(0))
+            } else {
+                loose
+            }
+            labelPlaceable to value.measure(valueConstraints)
+        }
+        val rowGap = (if (fits) 8.dp else 12.dp).roundToPx()
         val stackGap = 2.dp.roundToPx()
         val heights = placed.map { (label, value) ->
-            if (table) maxOf(label.height, value.height) else label.height + stackGap + value.height
+            if (fits) maxOf(label.height, value.height) else label.height + stackGap + value.height
         }
         val height = heights.sum() + rowGap * (heights.size - 1).coerceAtLeast(0)
         layout(width, height) {
             var y = 0
-            placed.forEachIndexed { index, (label, value) ->
-                if (table) {
-                    // Both on the value's baseline row: the label is the smaller text.
-                    label.placeRelative(0, y + (heights[index] - label.height) / 2)
-                    value.placeRelative(width - value.width, y)
+            placed.forEach { (label, value) ->
+                if (fits) {
+                    // The label sits on the value's first line: on its baseline when both
+                    // report one, else centred on a single-line value.
+                    val labelBase = label[androidx.compose.ui.layout.FirstBaseline]
+                    val valueBase = value[androidx.compose.ui.layout.FirstBaseline]
+                    val labelY = if (labelBase != androidx.compose.ui.layout.AlignmentLine.Unspecified &&
+                        valueBase != androidx.compose.ui.layout.AlignmentLine.Unspecified
+                    ) {
+                        valueBase - labelBase
+                    } else {
+                        (value.height - label.height) / 2
+                    }
+                    val top = minOf(0, labelY)
+                    label.placeRelative(0, y + labelY - top)
+                    value.placeRelative(width - value.width, y - top)
                 } else {
                     label.placeRelative(0, y)
                     value.placeRelative(0, y + label.height + stackGap)
                 }
-                y += heights[index] + rowGap
+                y += if (fits) maxOf(label.height, value.height) else label.height + stackGap + value.height
+                y += rowGap
             }
         }
     }
@@ -2412,6 +2437,12 @@ fun SensorCard(
                             if (it.isEmpty() || it.startsWith("v", ignoreCase = true)) it else "v$it"
                         },
                     ).filter { it.isNotEmpty() }.joinToString(" · ").ifEmpty { sensor.deviceAddress }
+                    // The one figure worth seeing without opening: how much battery is left.
+                    val batterySummary = when {
+                        sensor.batteryPercent >= 0 -> "${sensor.batteryPercent}%"
+                        sensor.batteryMillivolts > 0 -> String.format(java.util.Locale.getDefault(), "%.2f V", sensor.batteryMillivolts / 1000.0)
+                        else -> null
+                    }
                     val detailsFadeIn = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                     val detailsFadeOut = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
                     val detailsResize = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.unit.IntSize>()
@@ -2450,6 +2481,21 @@ fun SensorCard(
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
                         )
+                        if (batterySummary != null) {
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(R.string.sensor_battery_voltage),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = batterySummary,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                                maxLines = 1,
+                            )
+                        }
                         Spacer(modifier = Modifier.width(12.dp))
                         Icon(
                             imageVector = Symbols.ExpandMoreFilled,
@@ -2464,10 +2510,13 @@ fun SensorCard(
                             .fillMaxWidth()
                             .clickable(role = Role.Button) { setDetailsExpanded(false) }
                             .padding(horizontal = 12.dp, vertical = 12.dp),
-                    ) {
-                        // Clean Label-Value rows
+                    ) { table ->
+                        // Clean Label-Value rows. In the table a wrapped value keeps to the end edge.
                         val labelStyle = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        val valueStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)
+                        val valueStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = if (table) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start,
+                        )
                         var batteryRefreshAnimation by remember(sensor.serial) { mutableIntStateOf(0) }
 
                         @Composable
