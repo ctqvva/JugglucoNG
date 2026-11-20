@@ -1235,16 +1235,31 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     @UiThread
     @SuppressWarnings("deprecation")
-    void setSystemUI(boolean val) {
+    void setSystemUI(boolean visible) {
         try {
-            View decorView = getWindow().getDecorView();
+            var window = getWindow();
+            View decorView = window.getDecorView();
+            if (!isWearable) {
+                // Returning to the activity can request visibility without recomposing the theme.
+                // Keep the icon appearance set by the current theme.
+                var controller = WindowCompat.getInsetsController(window, decorView);
+                int bars = WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars();
+                if (visible) {
+                    controller.show(bars);
+                } else {
+                    controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                    controller.hide(bars);
+                }
+                return;
+            }
+
             final int hideuiflags = View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                     | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_FULLSCREEN;
-            decorView.setSystemUiVisibility(val ? 0 : hideuiflags);
+            decorView.setSystemUiVisibility(visible ? 0 : hideuiflags);
 
         } catch (Throwable e) {
             Log.stack(LOG_ID, "setSystemUI", e);
@@ -1279,13 +1294,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             setSystemUI(false);
     }
 
-    // int: Bitwise-or of flags SYSTEM_UI_FLAG_LOW_PROFILE,
-    // SYSTEM_UI_FLAG_HIDE_NAVIGATION, SYSTEM_UI_FLAG_FULLSCREEN,
-    // SYSTEM_UI_FLAG_LAYOUT_STABLE, SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION,
-    // SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN, SYSTEM_UI_FLAG_IMMERSIVE, and
-    // SYSTEM_UI_FLAG_IMMERSIVE_STICKY.
-    // Shows the system bars by removing all the flags
-    // except for the ones that make the content appear under the system bars.
     public void showSystemUI() {
         setSystemUI(true);
     }
