@@ -10,9 +10,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,6 +41,7 @@ import tk.glucodata.drivers.libre3.Libre3Persistence
 import tk.glucodata.drivers.libre3.Libre3ReceiverId
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsSwitchItem
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Settings for the Kotlin-managed Libre 3 driver: whether Libre 3 NFC scans use it, where the
@@ -149,7 +147,7 @@ fun Libre3ManagedDriverSection() {
                 Libre3Persistence.setEnabled(context, it)
                 provisionAfterLoad = it
             },
-            icon = Icons.Default.Nfc,
+            icon = Symbols.NfcFilled,
             iconTint = MaterialTheme.colorScheme.secondary,
             position = CardPosition.TOP,
         )
@@ -166,7 +164,7 @@ fun Libre3ManagedDriverSection() {
                     if (it) Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT else Libre3Persistence.RECEIVER_OWN,
                 )
             },
-            icon = Icons.Default.Key,
+            icon = Symbols.KeyFilled,
             iconTint = MaterialTheme.colorScheme.secondary,
             position = CardPosition.BOTTOM,
         )

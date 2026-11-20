@@ -106,4 +106,38 @@ class Libre3FirstSetupTests {
         assertEquals(0x55667788L, tk.glucodata.drivers.libre3.Libre3ManagedNfc.receiverId(app))
     }
 
+    @Test fun failedSettingsMigrationStillAllowsSetupToOpenAndRetry() {
+        val legacy = app.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+        legacy.edit().putBoolean("enabled", false).putInt("receiver_source", Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT).commit()
+        var failWrites = true
+        lateinit var context: Context
+        compose.setContent {
+            val activityContext = LocalContext.current
+            context = remember {
+                object : ContextWrapper(activityContext) {
+                    override fun getSharedPreferences(name: String, mode: Int): SharedPreferences {
+                        val original = super.getSharedPreferences(name, mode)
+                        if (name != Libre3Persistence.SETTINGS_PREFS_NAME) return original
+                        return object : SharedPreferences by original {
+                            override fun edit(): SharedPreferences.Editor {
+                                val delegate = original.edit()
+                                return object : SharedPreferences.Editor by delegate {
+                                    override fun commit(): Boolean { val saved = delegate.commit(); return saved && !failWrites }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            CompositionLocalProvider(LocalContext provides context) {
+                JugglucoTheme(ThemeMode.DARK) { Libre3ManagedDriverSection() }
+            }
+        }
+        compose.onNodeWithText(app.getString(R.string.libre3_managed_enable)).assertExists()
+        assertTrue(legacy.contains("enabled"))
+        failWrites = false
+        Libre3Persistence.migrateSettingsForExport(context)
+        assertFalse(legacy.contains("enabled"))
+    }
+
 }

@@ -103,7 +103,7 @@ object Libre3Persistence {
 
     /** Exportable choices; credentials and the stable receiver ID remain device-local. */
     @Synchronized
-    private fun settings(context: Context): SharedPreferences {
+    private fun settings(context: Context, requireDurableMigration: Boolean = false): SharedPreferences {
         val target = context.getSharedPreferences(SETTINGS_PREFS_NAME, Context.MODE_PRIVATE)
         val old = prefs(context)
         val keys = listOf(KEY_ENABLED, KEY_RECEIVER_SOURCE, KEY_CUSTOM_SOURCE).filter { old.contains(it) }
@@ -116,13 +116,23 @@ object Libre3Persistence {
                     is String -> out.putString(key, value)
                 }
             }
-            check(out.commit()) { "could not migrate Libre 3 settings" }
-            check(old.edit().apply { keys.forEach { remove(it) } }.commit()) { "could not finish Libre 3 settings migration" }
+            // SharedPreferences updates memory even when its disk write fails. Keep those
+            // choices usable in setup, retaining the old durable copy until a retry succeeds.
+            if (!out.commit()) {
+                check(!requireDurableMigration) { "could not migrate Libre 3 settings" }
+                Log.w("Libre3Persistence", "Settings migration write failed; keeping legacy settings for retry")
+                return target
+            }
+            if (!old.edit().apply { keys.forEach { remove(it) } }.commit()) {
+                // The destination is already durable. Stale source keys can be cleaned on
+                // reopening; existing destination choices take precedence on the next pass.
+                Log.w("Libre3Persistence", "Settings migration cleanup failed; destination settings retained")
+            }
         }
         return target
     }
 
-    fun migrateSettingsForExport(context: Context) { settings(context) }
+    fun migrateSettingsForExport(context: Context) { settings(context, requireDurableMigration = true) }
 
     // ---- install-wide settings ----
 

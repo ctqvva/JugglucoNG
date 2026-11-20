@@ -330,6 +330,22 @@ int main() {
         // Replaying an occupied slot does not cause an endless export rewind.
         assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 12, 0, 0, false, false, true, nullptr));
         assert(libre3.info.healthconnectiter == 101);
+        // A clinical minute can replace a gap filler already exported to Health Connect.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 14, 0, 0, false, false, true, nullptr));
+        assert(libre3.info.healthconnectiter == 50);
+        assert(libre3.getPollsData()[50].getmgdL() == 140);
+        assert((healthConnectfromSensorptr(&env, nullptr, ptr) & 0xffff) == 50);
+        // Identical replay must not invalidate an in-flight correction export.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 14, 0, 0, false, false, true, nullptr));
+        assert(healthConnectWritten(&env, nullptr, ptr, 101));
+        // A second correction arriving during an export invalidates its old snapshot.
+        libre3.info.healthconnectiter = 50;
+        healthConnectfromSensorptr(&env, nullptr, ptr);
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 15, 0, 0, false, false, true, nullptr));
+        assert(!healthConnectWritten(&env, nullptr, ptr, 101));
+        assert(libre3.info.healthconnectiter == 50);
+        healthConnectfromSensorptr(&env, nullptr, ptr);
+        assert(healthConnectWritten(&env, nullptr, ptr, 101));
         // The gap may be ahead of the cursor but already skipped by serialization.
         libre3.info.healthconnectiter = 20;
         healthConnectfromSensorptr(&env, nullptr, ptr);

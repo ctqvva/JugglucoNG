@@ -1616,8 +1616,10 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
 
   int preservedRaw = 0;
   uint16_t preservedTemp = 0;
+  const int storedGlucose = mgVal | (primaryIsResolved ? ScanData::resolvedGlucoseFlag : 0);
   const ScanData *pollsbuf = hist->getPollsData();
   const bool fillsPollGap = pollsbuf && pollsbuf[lifeCount].g <= 0;
+  const bool changesPollGlucose = pollsbuf && pollsbuf[lifeCount].g != storedGlucose;
   // Check and write under the same lock as the live driver. Filtering a chunk
   // in Kotlin first would still let a live write be overwritten between them.
   if (onlyIfMissing && !fillsPollGap)
@@ -1645,7 +1647,6 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
     LOGGER("cannot persist local Wear history provenance for %s\n", sensorId);
     return false;
   }
-  const int storedGlucose = mgVal | (primaryIsResolved ? ScanData::resolvedGlucoseFlag : 0);
   const bool stored =
       dexslots ? (quiet ? hist->savepollallIDsQuiet<300>(
                               timestamp, lifeCount, storedGlucose, 0, change,
@@ -1658,7 +1659,7 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
                                               preservedTemp)
               : hist->savepollallIDs<60>(timestamp, lifeCount, storedGlucose, 0,
                                          change, preservedRaw, preservedTemp);
-  if (stored && fillsPollGap && info->managedFamilyCode() == 9u)
+  if (stored && changesPollGlucose && info->managedFamilyCode() == 9u)
     healthConnectBackfillProgress.rewind(hist, lifeCount, info->healthconnectiter);
   writing.unlock();
   if (!stored)

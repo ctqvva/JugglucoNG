@@ -283,6 +283,60 @@ class Libre3ReviewRegressionTest {
         assertFalse(Libre3Persistence.ensureIdentities(context))
     }
 
+    private fun failedPreferenceWrites(file: String, shouldFail: () -> Boolean): Context = object : ContextWrapper(context) {
+        override fun getSharedPreferences(name: String, mode: Int): SharedPreferences {
+            val original = super.getSharedPreferences(name, mode)
+            if (name != file) return original
+            return object : SharedPreferences by original {
+                override fun edit(): SharedPreferences.Editor {
+                    val delegate = original.edit()
+                    return object : SharedPreferences.Editor by delegate {
+                        override fun commit(): Boolean {
+                            // Android updates in-memory preferences before reporting disk failure.
+                            val saved = delegate.commit()
+                            return saved && !shouldFail()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test fun failedMigrationKeepsChoicesUsableAndRetriesBeforeExport() {
+        val local = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+        val source = Libre3IdentitySource.custom("https://example.test/keys", "a".repeat(64))!!
+        local.edit().putBoolean("enabled", true).putInt("receiver_source", Libre3Persistence.RECEIVER_OWN)
+            .putString("identity_custom_source", source.toSpec()).putLong("receiver_id", 123L).commit()
+        var failWrites = true
+        val failing = failedPreferenceWrites(Libre3Persistence.SETTINGS_PREFS_NAME) { failWrites }
+        assertTrue(Libre3Persistence.isEnabled(failing))
+        assertEquals(Libre3Persistence.RECEIVER_OWN, Libre3Persistence.getReceiverSource(failing))
+        assertEquals(source, Libre3Persistence.effectiveIdentitySource(failing))
+        assertTrue(local.getBoolean("enabled", false))
+        assertTrue(runCatching { Libre3Persistence.migrateSettingsForExport(failing) }.isFailure)
+        // Edits made while migration is pending must win over stale legacy values.
+        Libre3Persistence.setEnabled(failing, false)
+        assertFalse(Libre3Persistence.isEnabled(failing))
+        failWrites = false
+        Libre3Persistence.migrateSettingsForExport(failing)
+        assertFalse(Libre3Persistence.isEnabled(context))
+        assertFalse(local.contains("enabled"))
+        assertEquals(123L, local.getLong("receiver_id", 0L))
+    }
+
+    @Test fun failedMigrationCleanupDoesNotCrashOrOverwriteDestinationChoices() {
+        val local = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+        local.edit().putBoolean("enabled", true).putLong("receiver_id", 123L).commit()
+        val failing = failedPreferenceWrites(Libre3Persistence.PREFS_NAME) { true }
+        assertTrue(Libre3Persistence.isEnabled(failing))
+        Libre3Persistence.setEnabled(failing, false)
+        // Simulate legacy keys returning from disk when a failed cleanup is reopened.
+        local.edit().putBoolean("enabled", true).commit()
+        assertFalse(Libre3Persistence.isEnabled(context))
+        assertFalse(local.contains("enabled"))
+        assertEquals(123L, local.getLong("receiver_id", 0L))
+    }
+
     @Test fun removalClearsAllCachedKeysAndRejectsWorkStartedBeforeRemoval() {
         val revision = Libre3Persistence.credentialRevision(context)
         context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit()

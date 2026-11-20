@@ -43,10 +43,12 @@ excluded from settings import and export; Android application backup is disabled
 | Timeout during recovery | Interrupt Bluetooth during backfill, then reconnect. | Fresh authenticated link retries from stored progress. Late replies cannot settle a later request on the abandoned link. |
 | Calibration and exports | Apply a recognizable calibration and compare live vs recovered times in the chart and enabled exports. | Stock values are calibrated once; replay does not change the native calibration flag or apply calibration twice. |
 | Health Connect live before backfill | Enable Health Connect export, reconnect after an outage so live arrives first. | Earlier recovered minutes are exported too; later keyed retries update the same records. |
+| Health Connect corrected gap filler | Let a five-minute gap filler export before its finer clinical minute arrives. | The corrected value updates the existing Health Connect record; identical replays do not repeatedly rewind export progress. |
 | Health Connect during repeated backfill | Keep exports enabled while several recovered batches arrive, including near the end of an export. | Requests made during an export run afterward; repeated cursor rewinds continue automatically. Current-sensor export remains enabled when old-sensor history arrives. |
 | Remove a sensor with Health Connect work queued | While another sensor exports, remove the old sensor whose recovered history is waiting. | Retained native readings keep their client IDs; replay updates existing Health Connect records instead of duplicating them. |
 | Account lookup while settings is open | Leave the receiver-ID page open while LibreView account lookup completes; also change the account number manually. | The displayed receiver ID refreshes to the value NFC will use. |
 | Receiver-ID storage failure | If saving the phone-owned ID fails, check the settings page and retry after restoring storage. | An error is shown with Try again; NFC remains blocked until a durable ID write succeeds. |
+| Settings migration storage failure | Upgrade an earlier preview when storage cannot save the migrated settings, then reopen setup and retry after restoring storage. | Setup remains usable with the existing choices; legacy settings remain until the new copy is saved. Settings export refuses an incomplete migration. |
 | Remove identities | Remove the identity set; then request reconnect. | All cached kAuth is cleared. Driver stops authorizing until an identity is imported and an explicit retry or NFC scan occurs. |
 | Identity loading | Reopen settings with an installed set and enable immediately. | Existing set is retained; it is not replaced by a configured download before loading finishes. |
 | Two sensors / replacement | Pair two distinct test sensors and switch the current one. | Separate addresses, keys, history, status and retry state. Removing one leaves the other intact. |
@@ -86,6 +88,8 @@ services used are the generic managed-sensor mirror and lifecycle services.
   another pass after the rewind limit. History export does not change which live
   callback owns Health Connect. Client-ID selection reads the retained native
   family's tag, so deleting pairing metadata does not make replay unkeyed.
+  Replacing an occupied Libre 3 slot with a corrected glucose value also rewinds
+  export progress; an identical value does not invalidate the export batch.
 - Successful live native writes wake the Nightscout uploader and run the shared
   managed-reading completion step, including enabled Health Connect export.
 - Minute values and gap-filling five-minute values use the stock native mirror
