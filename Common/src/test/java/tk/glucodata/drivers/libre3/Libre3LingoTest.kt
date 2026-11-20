@@ -26,7 +26,10 @@ class Libre3LingoTest {
         val plain = session.decrypt(Libre3Channel.GLUCOSE_DATA, assembled)!!.plaintext
         val reading = Libre3Lingo.parseRealtime(plain)!!
         assertEquals(63, reading.lifeCount)
-        assertEquals(201, reading.currentMgdl)
+        // Lingo shows 201 mg/dL for this capture; upstream Juggluco uses its uncapped 208 mg/dL.
+        assertEquals(208, reading.currentMgdl)
+        val cappedOnly = plain.copyOf().apply { Libre3Bytes.putU16le(this, 30, 0) }
+        assertEquals(201, Libre3Lingo.parseRealtime(cappedOnly)!!.currentMgdl)
         assertEquals(45, reading.historicalLifeCount)
         assertNull(reading.historicalMgdl)
         assertTrue(reading.rateMgdlPerMinute.isNaN())

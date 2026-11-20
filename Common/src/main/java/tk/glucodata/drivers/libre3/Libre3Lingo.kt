@@ -58,6 +58,7 @@ internal object Libre3Lingo {
     }
 
     private fun liveGlucoseWord(plain: ByteArray, cappedOffset: Int, uncappedOffset: Int): Int {
+        // Match upstream's uncapped mode when available, without promoting a flagged reading.
         val capped = glucoseWord(u16le(plain, cappedOffset))
         if (capped and INVALID_READING != 0) return capped
         val uncapped = glucoseWord(u16le(plain, uncappedOffset))
