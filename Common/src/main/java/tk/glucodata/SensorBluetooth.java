@@ -271,22 +271,8 @@ public class SensorBluetooth {
                     ;
                 }
 
-                boolean ret = true;
                 cb.setDevice(device);
-                for (SuperGattCallback one : gattcallbacks) {
-                    if (one.mActiveBluetoothDevice == null) {
-                        {
-                            if (doLog) {
-                                Log.i(LOG_ID, one.SerialNumber + " not found");
-                            }
-                            ;
-                        }
-                        ;
-
-                        ret = false;
-                        break;
-                    }
-                }
+                final boolean ret = everyScanTargetFound(gattcallbacks);
                 if (ret)
                     SensorBluetooth.this.stopScan(false);
                 if (newdev) {
@@ -447,6 +433,10 @@ public class SensorBluetooth {
                         Log.d(LOG_ID, "SCAN: preparing filters for " + gattcallbacks.size() + " devices");
                     }
                     for (var cb : gattcallbacks) {
+                        // A network follower has no service and is never advertised: letting its
+                        // null drop every filter would only make the scan unfiltered.
+                        if (!cb.usesBluetoothDiscovery())
+                            continue;
                         final var service = cb.getService();
                         if (service == null) {
                             if (doLog) {
@@ -631,7 +621,7 @@ public class SensorBluetooth {
                 Log.i(LOG_ID, "scanRunnable ENTRY");
             }
             scantime = System.currentTimeMillis();
-            if (bluetoothIsEnabled() && gattcallbacks.size() != 0) {
+            if (bluetoothIsEnabled() && hasScanTargets(gattcallbacks)) {
                 if (!scanner.init()) {
                     Log.w(LOG_ID, "Scanner init failed, retrying in 2s...");
                     scheduleScanLocked(2000);
@@ -654,7 +644,7 @@ public class SensorBluetooth {
                 }
             } else {
                 scanstart = false;
-                Log.i(LOG_ID, "scanRunnable: nothing to scan (BT off or no callbacks)");
+                Log.i(LOG_ID, "scanRunnable: nothing to scan (BT off or no Bluetooth sensors)");
             }
         } catch (Exception e) {
             scanstart = false;
@@ -665,11 +655,40 @@ public class SensorBluetooth {
     static private final boolean scanOnUI = false;
     ScheduledFuture<?> scanFuture = null, timeoutFuture = null;
     private Runnable pendingScan = null, pendingScanTimeout = null;
+    // When the pending scan task is due, on System.nanoTime(), the executor's clock.
+    private long pendingScanAtNanos = 0L;
+
+    /** Whether the roster holds anything the shared scan can find. */
+    static boolean hasScanTargets(Iterable<SuperGattCallback> callbacks) {
+        for (SuperGattCallback cb : callbacks) {
+            if (cb.usesBluetoothDiscovery())
+                return true;
+        }
+        return false;
+    }
+
+    /**
+     * Whether every callback the shared scan looks for has its device. Network followers share
+     * the roster but never get one; counting them kept every scan running to its timeout, and a
+     * timeout schedules the next scan, so a mixed roster scanned forever.
+     */
+    static boolean everyScanTargetFound(Iterable<SuperGattCallback> callbacks) {
+        for (SuperGattCallback one : callbacks) {
+            if (one.usesBluetoothDiscovery() && one.mActiveBluetoothDevice == null) {
+                if (doLog) {
+                    Log.i(LOG_ID, one.SerialNumber + " not found");
+                }
+                return false;
+            }
+        }
+        return true;
+    }
 
     /** Schedules a scan task for the current generation. Caller holds this object's monitor. */
     private void scheduleScanLocked(long delayMillis) {
         final long generation = scanGeneration;
         final Runnable run = () -> runScan(generation);
+        pendingScanAtNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(Math.max(0L, delayMillis));
         if (scanOnUI) {
             pendingScan = run;
             if (delayMillis > 0)
@@ -729,11 +748,27 @@ public class SensorBluetooth {
             Applic.Toaster(R.string.bluetooth_is_turned_off);
             return false;
         }
-        if (mScanning || scanstart) {
+        if (mScanning) {
             if (doLog) {
-                Log.i(LOG_ID, "scanStarter skipped, scan already active/pending");
+                Log.i(LOG_ID, "scanStarter skipped, scan already active");
             }
             return false;
+        }
+        if (scanstart) {
+            // One scan stays scheduled. A request due sooner than it (Forget in the Bluetooth
+            // diagnostics, a reconnect, after a timeout retry waiting out its backoff) moves it
+            // earlier; a later one leaves it be.
+            final long requestedAtNanos =
+                    System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(Math.max(0L, delayMillis));
+            if (requestedAtNanos - pendingScanAtNanos >= 0L) {
+                if (doLog) {
+                    Log.i(LOG_ID, "scanStarter skipped, scan already pending sooner");
+                }
+                return false;
+            }
+            if (doLog) {
+                Log.i(LOG_ID, "scanStarter: moving the pending scan earlier");
+            }
         }
         for (SuperGattCallback cb : gattcallbacks) {
             if (cb.mBluetoothGatt == null) {

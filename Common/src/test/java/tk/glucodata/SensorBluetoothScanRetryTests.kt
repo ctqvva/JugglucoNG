@@ -7,6 +7,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -19,6 +20,11 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.ConscryptMode
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
+import java.util.concurrent.TimeUnit
+import tk.glucodata.drivers.api.ApiGlucoseSourceManager
+import tk.glucodata.drivers.mq.MQFollowerManager
+import tk.glucodata.drivers.nightscout.NightscoutFollowerManager
+import tk.glucodata.share.lumiflex.LumiflexFollowerManager
 
 /**
  * The managed scan's timeout stops the scan and schedules a retry. That retry has to stay
@@ -95,7 +101,7 @@ class SensorBluetoothScanRetryTests {
         val retry = blue.scanFuture
         assertNotNull(retry)
 
-        blue.scanStarter(0L)
+        blue.scanStarter(2 * 60_000L) // due after the retry
         assertSame("no second scan scheduled beside the retry", retry, blue.scanFuture)
         assertFalse(retry!!.isCancelled)
     }
@@ -109,6 +115,51 @@ class SensorBluetoothScanRetryTests {
         blue.stopScan(false)
         assertTrue(retry.isCancelled)
         assertFalse(SensorBluetooth.scanActiveOrPending())
+    }
+
+    @Test
+    fun anEarlierRequestMovesThePendingRetryForward() {
+        blue.mScanning = true
+        timeout(generation()) // retry pending a minute out
+        val retry = blue.scanFuture!!
+
+        blue.scanStarter(0L) // Forget in the Bluetooth diagnostics
+        val sooner = blue.scanFuture!!
+        assertNotSame(retry, sooner)
+        assertTrue("the old retry is retired, not left to start a second scan", retry.isCancelled)
+        assertTrue(sooner.getDelay(TimeUnit.MILLISECONDS) <= 1_000L)
+        assertTrue(SensorBluetooth.scanActiveOrPending())
+    }
+
+    private fun roster(serial: String, bluetooth: Boolean) = object : SuperGattCallback(serial, 0L, 0) {
+        override fun usesBluetoothDiscovery() = bluetooth
+    }
+
+    @Test
+    fun aFollowerDoesNotKeepTheScanLookingForIt() {
+        val sensor = roster("SENSOR1", bluetooth = true)
+        val follower = roster("FOLLOW1", bluetooth = false)
+        val roster = listOf<SuperGattCallback>(sensor, follower)
+        assertFalse(SensorBluetooth.everyScanTargetFound(roster))
+
+        val manager = RuntimeEnvironment.getApplication().getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        sensor.mActiveBluetoothDevice = manager.adapter.getRemoteDevice("00:11:22:33:44:55")
+        assertTrue("the only Bluetooth sensor is found", SensorBluetooth.everyScanTargetFound(roster))
+
+        assertTrue(SensorBluetooth.hasScanTargets(roster))
+        assertFalse("followers alone give the scan nothing to find", SensorBluetooth.hasScanTargets(listOf(follower)))
+    }
+
+    @Test
+    fun networkFollowersOptOutOfDiscovery() {
+        for (type in listOf(
+            NightscoutFollowerManager::class.java,
+            MQFollowerManager::class.java,
+            LumiflexFollowerManager::class.java,
+            ApiGlucoseSourceManager::class.java,
+        )) {
+            assertSame(type.simpleName, type, type.getMethod("usesBluetoothDiscovery").declaringClass)
+        }
     }
 
     @Test

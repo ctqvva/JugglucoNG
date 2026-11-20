@@ -58,6 +58,8 @@ class LumiflexFollowerManager(private val context: Context, private val provider
         settings.providerId == provider && SerialNumber == LumiflexFollowerRegistry.sensorId(context, provider) &&
         LumiflexFollowerRegistry.isRegistered(this)
 
+    override fun usesBluetoothDiscovery(): Boolean = false
+
     override fun connectDevice(delayMillis: Long): Boolean {
         stop = false
         if (delayMillis > 0) schedule(delayMillis) else refresh()
