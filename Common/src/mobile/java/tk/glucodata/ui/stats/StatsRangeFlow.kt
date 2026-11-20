@@ -126,10 +126,10 @@ import tk.glucodata.ui.util.ExpressiveMotion
 /** As wide as the card's own padding, so the bar sits in a margin of its own width. */
 private val FlowBarWidth = 16.dp
 private val FlowRibbonWidth = 28.dp
-private val FlowRowGap = 4.dp
-private val FlowSegmentGap = 2.dp
+private val FlowRowGap = 2.dp
+private val FlowSegmentGap = 1.5.dp
 /** A non-zero band never disappears from the bar. */
-private val FlowMinSegment = 4.dp
+private val FlowMinSegment = 2.dp
 private val FlowRowCorner = 12.dp
 private val FlowSegmentInnerCorner = 2.dp
 /** How far the smudge at the bar's edge reaches into the ribbon. */
@@ -188,6 +188,7 @@ internal fun GlycemicOverviewCard(
     val window = if (filtered) windowTir(hourly, hourMask) else null
     val noData = window != null && window.second == 0
     val tir = window?.first ?: summary.tir
+    val multiDay = summary.coverage.windowDays > 1.5f
 
     val rows = listOf(
         TirBandRow(
@@ -254,14 +255,21 @@ internal fun GlycemicOverviewCard(
                 rows = shown,
                 // The comparison is for the whole window, so it only stands beside the whole.
                 inRangeDelta = if (window == null) summary.comparison?.inRangeDelta else null,
-                minutesPerDay = if (window == null) MinutesPerDay else Integer.bitCount(hourMask) * 60,
+                // One day: the time a typical day spends in each band. Over several days the
+                // out-of-range bands add up instead, the time actually measured there, and In
+                // range drops its hours, which only restate its percentage.
+                spanMinutes = if (multiDay) {
+                    val cadence = summary.coverage.cadenceMillis / 60_000f
+                    ((window?.second ?: summary.coverage.readingCount) * cadence).roundToInt()
+                } else if (window == null) MinutesPerDay else Integer.bitCount(hourMask) * 60,
+                multiDay = multiDay,
                 noData = noData,
                 selectedBand = selectedBand,
                 onBandSelected = onBandSelected,
                 modifier = Modifier.fillMaxWidth().animateContentSize()
             )
             if (hoursAvailable) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 DayPartStrip(
                     hourly = hourly,
                     mask = hourMask,
@@ -550,7 +558,8 @@ private fun TimeWindowControl(
 private fun RangeFlow(
     rows: List<TirBandRow>,
     inRangeDelta: Float?,
-    minutesPerDay: Int,
+    spanMinutes: Int,
+    multiDay: Boolean,
     noData: Boolean,
     selectedBand: TirBand?,
     onBandSelected: (TirBand?) -> Unit,
@@ -605,7 +614,8 @@ private fun RangeFlow(
                     row = row,
                     hero = row.band == TirBand.IN_RANGE,
                     inRangeDelta = inRangeDelta,
-                    minutesPerDay = minutesPerDay,
+                    spanMinutes = spanMinutes,
+                    multiDay = multiDay,
                     noData = noData,
                     selected = selectedBand == row.band,
                     interactionSource = interactions[index],
@@ -785,7 +795,8 @@ private fun BandRow(
     row: TirBandRow,
     hero: Boolean,
     inRangeDelta: Float?,
-    minutesPerDay: Int,
+    spanMinutes: Int,
+    multiDay: Boolean,
     noData: Boolean,
     selected: Boolean,
     interactionSource: MutableInteractionSource,
@@ -793,8 +804,8 @@ private fun BandRow(
 ) {
     // Hours with no readings have no split to show, rather than a row of zeroes.
     val percentText = if (noData) "–" else String.format(Locale.getDefault(), "%.1f%%", row.percent)
-    val minutes = (row.percent.coerceIn(0f, 100f) / 100f * minutesPerDay).roundToInt()
-    val time = if (row.empty) null else durationText(minutes)
+    val minutes = (row.percent.coerceIn(0f, 100f) / 100f * spanMinutes).roundToInt()
+    val time = if (row.empty || (multiDay && hero)) null else durationText(minutes)
     // An empty band steps right back: it has nothing to say beyond its threshold.
     val quiet = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
     val textColor = if (row.empty) quiet else MaterialTheme.colorScheme.onSurface
