@@ -24,6 +24,7 @@ import androidx.compose.material3.ripple
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,6 +41,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Shape
 import tk.glucodata.service.FloatingGlucoseService.CutoutData
 import tk.glucodata.service.FloatingGlucoseService.CutoutEdge
 import androidx.compose.ui.text.style.TextAlign
@@ -67,7 +70,6 @@ import tk.glucodata.MultiSensorSelection
 import tk.glucodata.ui.PeerCurrentReading
 import tk.glucodata.ui.SecondarySensorDisplay
 
-@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
 @Composable
 fun FloatingGlucoseOverlay(
     repository: FloatingSettingsRepository,
@@ -93,6 +95,7 @@ fun FloatingGlucoseOverlay(
     val verticalOffset by repository.islandVerticalOffset.collectAsState(initial = FloatingSettingsRepository.DEFAULT_ISLAND_VERTICAL_OFFSET)
     val manualGap by repository.islandGap.collectAsState(initial = 0f)
     val useSubtleOutline by repository.useSubtleOutline.collectAsState(initial = false)
+    val layoutOrder by repository.layoutOrder.collectAsState(initial = FloatingLayoutOrder.DEFAULT)
 
     // Metrics State (from Service WindowInsets)
     val cutoutData by cutoutDataFlow.collectAsState(initial = CutoutData(0.dp, CutoutEdge.NONE))
@@ -187,32 +190,16 @@ fun FloatingGlucoseOverlay(
     } else {
         70.dp
     }
-    // Styles
-    val isDarkTheme = isSystemInDarkTheme()
-    val finalBgColor = if (isTransparent) Color.Transparent else Color.Black.copy(alpha = opacity)
-    val finalShape = RoundedCornerShape(cornerRadius.dp)
-    val finalTextColor = if (isTransparent && !isDarkTheme) {
-        // ui-guardrails: allow hex_color - drawn straight onto other apps, outside the app theme
-        Color(0xFF27231F)
-    } else {
-        Color.White
-    }
-    val textOutlineColor = when {
-        isTransparent && !isDarkTheme -> Color.White.copy(alpha = 0.88f)
-        isTransparent -> Color.Black.copy(alpha = 0.58f)
-        else -> Color.Black.copy(alpha = 0.28f)
-    }
-    val textShadow = Shadow(
-        color = when {
-            isTransparent && !isDarkTheme -> Color.White.copy(alpha = 1.0f)
-            isTransparent -> Color.Black.copy(alpha = 0.62f)
-            else -> Color.Black.copy(alpha = 0.42f)
-        },
-        offset = Offset(0f, if (isTransparent && !isDarkTheme) 0f else if (isTransparent) 1.2f else 1.5f),
-        blurRadius = if (isTransparent && !isDarkTheme) 7f else if (isTransparent) 4.5f else 5f
+    val style = rememberFloatingOverlayStyle(
+        isTransparent = isTransparent,
+        darkBackdrop = isSystemInDarkTheme(),
+        fontSource = fontSource,
+        fontSize = fontSize,
+        fontWeightSetting = fontWeightSetting,
+        cornerRadius = cornerRadius,
+        opacity = opacity,
+        useSubtleOutline = useSubtleOutline,
     )
-    val arrowOutlineColor = if (isTransparent && useSubtleOutline) textOutlineColor else null
-    val arrowShadowColor = if (isTransparent && !useSubtleOutline) textShadow.color else null
     val overlayInteractionSource = remember { MutableInteractionSource() }
     val overlayIndication = ripple(
         bounded = true,
@@ -252,13 +239,131 @@ fun FloatingGlucoseOverlay(
         }
     }
 
-    // Font Logic
+    val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+    }
+
+    val content = if (displayPoint != null) {
+        val point = displayPoint
+        val unit = if (unitInt == 1) "mmol/L" else "mg/dL"
+        val dvs = currentSnapshot?.displayValues ?: run {
+            val isRawModeForCal = viewMode == 1 || viewMode == 3
+            val hasCalibration = !CalibrationManager.shouldOverwriteSensorValues() &&
+                CalibrationManager.hasActiveCalibration(isRawModeForCal)
+            val calibratedValue = if (hasCalibration) {
+                val baseValue = if (isRawModeForCal) point.rawValue else point.value
+                if (baseValue.isFinite() && baseValue > 0.1f) {
+                    CalibrationManager.getCalibratedValue(baseValue, point.timestamp, isRawModeForCal)
+                } else {
+                    null
+                }
+            } else null
+            getDisplayValues(point, viewMode, unit, calibratedValue)
+        }
+        val secondaryText = dvs.secondaryStr ?: SecondarySensorDisplay.fallback(
+            dvs, currentSensorId, peerReadings, freshnessNow
+        )?.primaryStr
+        FloatingOverlayContent(
+            primary = dvs.primaryStr,
+            secondary = secondaryText?.takeIf { showSecondary && it.isNotEmpty() },
+            delta = overlayDeltaText(readings, showDelta, requestedSensorId, deltaIntervalMinutes, freshnessNow)
+                .takeIf { it.isNotEmpty() },
+            trend = trendResult.takeIf { showArrow },
+        )
+    } else {
+        FloatingOverlayContent(primary = "---", secondary = null, delta = null, trend = null)
+    }
+
+    // Clip and click the pill itself, never a wrapper around it: the island's offset
+    // wrapper is taller by the offset spacer, so its corner radius clamps differently
+    // from the pill's own Surface and its arc cut into the bottom corners.
+    val pillModifier = Modifier
+        .clip(style.shape)
+        .clickable(
+            interactionSource = overlayInteractionSource,
+            indication = overlayIndication
+        ) { launchIntent?.let { context.startActivity(it) } }
+
+    if (isDynamicIsland) {
+        CutoutOffsetLayout(
+            edge = cutoutEdge,
+            offset = verticalOffset.dp,
+            modifier = Modifier
+                .wrapContentSize()
+                .then(dragModifier)
+        ) {
+            FloatingOverlayBody(
+                order = layoutOrder,
+                mode = if (isVerticalIsland) FloatingOverlayMode.ISLAND_COLUMN else FloatingOverlayMode.ISLAND_ROW,
+                gap = finalGap,
+                style = style,
+                content = content,
+                modifier = pillModifier,
+            )
+        }
+    } else {
+        FloatingOverlayBody(
+            order = layoutOrder,
+            mode = FloatingOverlayMode.PILL,
+            gap = 0.dp,
+            style = style,
+            content = content,
+            modifier = Modifier
+                .wrapContentSize()
+                .then(dragModifier)
+                .then(pillModifier),
+        )
+    }
+}
+
+/** How the overlay sits: a free pill, or split around a camera above it or beside it. */
+internal enum class FloatingOverlayMode { PILL, ISLAND_ROW, ISLAND_COLUMN }
+
+/** What the overlay draws, resolved; null for a part that is not shown right now. */
+internal data class FloatingOverlayContent(
+    val primary: String,
+    val secondary: String?,
+    val delta: String?,
+    val trend: TrendEngine.TrendResult?,
+)
+
+/** The overlay's look, from its appearance and typography settings. */
+@Immutable
+internal data class FloatingOverlayStyle(
+    val fontSize: Float,
+    val fontFamily: FontFamily,
+    val fontWeight: FontWeight,
+    val textColor: Color,
+    val outlineColor: Color,
+    val shadow: Shadow,
+    val useOutline: Boolean,
+    val arrowOutlineColor: Color?,
+    val arrowShadowColor: Color?,
+    val background: Color,
+    val shape: Shape,
+)
+
+/**
+ * [darkBackdrop] is what the overlay is drawn over: the system theme on screen, the app
+ * theme in the settings preview, so a transparent overlay keeps readable text in both.
+ */
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+@Composable
+internal fun rememberFloatingOverlayStyle(
+    isTransparent: Boolean,
+    darkBackdrop: Boolean,
+    fontSource: String,
+    fontSize: Float,
+    fontWeightSetting: String,
+    cornerRadius: Float,
+    opacity: Float,
+    useSubtleOutline: Boolean,
+): FloatingOverlayStyle {
     val weightVal = when (fontWeightSetting) {
         "LIGHT" -> 300
         "MEDIUM" -> 500
         else -> 400
     }
-    
     val fontFamily = remember(fontSource, weightVal) {
         if (fontSource == "APP") {
             try {
@@ -274,264 +379,222 @@ fun FloatingGlucoseOverlay(
             catch (e: Exception) { FontFamily.SansSerif }
         }
     }
-    val fontWeight = FontWeight(weightVal)
+    return remember(isTransparent, darkBackdrop, fontFamily, weightVal, fontSize, cornerRadius, opacity, useSubtleOutline) {
+        val textColor = if (isTransparent && !darkBackdrop) {
+            // ui-guardrails: allow hex_color - drawn straight onto other apps, outside the app theme
+            Color(0xFF27231F)
+        } else {
+            Color.White
+        }
+        val outlineColor = when {
+            isTransparent && !darkBackdrop -> Color.White.copy(alpha = 0.88f)
+            isTransparent -> Color.Black.copy(alpha = 0.58f)
+            else -> Color.Black.copy(alpha = 0.28f)
+        }
+        val shadow = Shadow(
+            color = when {
+                isTransparent && !darkBackdrop -> Color.White.copy(alpha = 1.0f)
+                isTransparent -> Color.Black.copy(alpha = 0.62f)
+                else -> Color.Black.copy(alpha = 0.42f)
+            },
+            offset = Offset(0f, if (isTransparent && !darkBackdrop) 0f else if (isTransparent) 1.2f else 1.5f),
+            blurRadius = if (isTransparent && !darkBackdrop) 7f else if (isTransparent) 4.5f else 5f
+        )
+        FloatingOverlayStyle(
+            fontSize = fontSize,
+            fontFamily = fontFamily,
+            fontWeight = FontWeight(weightVal),
+            textColor = textColor,
+            outlineColor = outlineColor,
+            shadow = shadow,
+            useOutline = useSubtleOutline,
+            arrowOutlineColor = if (isTransparent && useSubtleOutline) outlineColor else null,
+            arrowShadowColor = if (isTransparent && !useSubtleOutline) shadow.color else null,
+            background = if (isTransparent) Color.Transparent else Color.Black.copy(alpha = opacity),
+            shape = RoundedCornerShape(cornerRadius.dp),
+        )
+    }
+}
+
+/**
+ * The overlay itself, laid out in [order] (#981): one pill, or the items before the camera
+ * on one side of a [gap] the camera's width and the rest on the other. The settings preview
+ * draws this same body, so what it shows is what floats.
+ */
+@Composable
+internal fun FloatingOverlayBody(
+    order: List<FloatingLayoutItem>,
+    mode: FloatingOverlayMode,
+    gap: Dp,
+    style: FloatingOverlayStyle,
+    content: FloatingOverlayContent,
+    modifier: Modifier = Modifier,
+) {
+    val fontSize = style.fontSize
     val inlineSpacing = (fontSize * 0.35f).coerceIn(4f, 10f).dp
     val pillHorizontalPadding = (fontSize * 0.85f).coerceIn(10f, 24f).dp
     val pillVerticalPadding = (fontSize * 0.45f).coerceIn(4f, 12f).dp
-    val splitPadding = (fontSize * 0.28f).coerceIn(3f, 8f).dp
-    val arrowSize = (fontSize * 0.9f).coerceIn(12f, 42f).dp
     val sideIslandHorizontalPadding = (fontSize * 0.55f).coerceIn(6f, 16f).dp
     val sideIslandVerticalPadding = (fontSize * 0.32f).coerceIn(3f, 8f).dp
     val sideIslandSplitPadding = (fontSize * 0.18f).coerceIn(2f, 6f).dp
-    val sideIslandArrowSize = (fontSize * 0.78f).coerceIn(10f, 34f).dp
-    val sideSecondarySpacing = (fontSize * 0.08f).coerceIn(1f, 4f).dp
-    val sideSecondaryFontSize = fontSize * 0.58f
 
-    val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-    }
+    fun blocks(items: List<FloatingLayoutItem>) = floatingLayoutBlocks(
+        items,
+        showSecondary = content.secondary != null,
+        showArrow = content.trend != null,
+    )
 
-    val valueContent: @Composable () -> Unit = {
-        if (displayPoint != null) {
-            val point = displayPoint
-            val unit = if (unitInt == 1) "mmol/L" else "mg/dL"
-            val dvs = currentSnapshot?.displayValues ?: run {
-                val isRawModeForCal = viewMode == 1 || viewMode == 3
-                val hasCalibration = !CalibrationManager.shouldOverwriteSensorValues() &&
-                    CalibrationManager.hasActiveCalibration(isRawModeForCal)
-                val calibratedValue = if (hasCalibration) {
-                    val baseValue = if (isRawModeForCal) point.rawValue else point.value
-                    if (baseValue.isFinite() && baseValue > 0.1f) {
-                        CalibrationManager.getCalibratedValue(baseValue, point.timestamp, isRawModeForCal)
-                    } else {
-                        null
-                    }
-                } else null
-                getDisplayValues(point, viewMode, unit, calibratedValue)
-            }
-            val secondaryText = dvs.secondaryStr ?: SecondarySensorDisplay.fallback(
-                dvs, currentSensorId, peerReadings, freshnessNow
-            )?.primaryStr
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (isDynamicIsland && isVerticalIsland) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FloatingStyledText(
-                            text = dvs.primaryStr,
-                            fontSize = fontSize,
-                            fontFamily = fontFamily,
-                            fontWeight = fontWeight,
-                            textColor = finalTextColor,
-                            outlineColor = textOutlineColor,
-                            shadow = textShadow,
-                            useOutline = useSubtleOutline,
-                            textAlign = TextAlign.Center
-                        )
-                        if (showSecondary && !secondaryText.isNullOrEmpty()) {
-                            Spacer(Modifier.height(sideSecondarySpacing))
-                            FloatingStyledText(
-                                text = secondaryText,
-                                fontSize = sideSecondaryFontSize,
-                                fontFamily = fontFamily,
-                                fontWeight = fontWeight,
-                                textColor = finalTextColor.copy(alpha = 0.7f),
-                                outlineColor = textOutlineColor,
-                                shadow = textShadow,
-                                useOutline = useSubtleOutline,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        FloatingStyledText(
-                            text = dvs.primaryStr,
-                            fontSize = fontSize,
-                            fontFamily = fontFamily,
-                            fontWeight = fontWeight,
-                            textColor = finalTextColor,
-                            outlineColor = textOutlineColor,
-                            shadow = textShadow,
-                            useOutline = useSubtleOutline,
-                            textAlign = TextAlign.End
-                        )
-                        if (showSecondary && !secondaryText.isNullOrEmpty()) {
-                            Spacer(Modifier.width(inlineSpacing))
-                            FloatingStyledText(
-                                text = secondaryText,
-                                fontSize = fontSize * 0.7f,
-                                fontFamily = fontFamily,
-                                fontWeight = fontWeight,
-                                textColor = finalTextColor.copy(alpha = 0.7f),
-                                outlineColor = textOutlineColor,
-                                shadow = textShadow,
-                                useOutline = useSubtleOutline
-                            )
-                        }
-                    }
-                }
-                val deltaText = overlayDeltaText(readings, showDelta, requestedSensorId, deltaIntervalMinutes, freshnessNow)
-                if (deltaText.isNotEmpty()) {
-                    FloatingStyledText(
-                        text = "Δ " + deltaText,
-                        fontSize = fontSize * 0.65f,
-                        fontFamily = fontFamily,
-                        fontWeight = fontWeight,
-                        textColor = finalTextColor,
-                        outlineColor = textOutlineColor,
-                        shadow = textShadow,
-                        useOutline = useSubtleOutline,
-                        textAlign = TextAlign.Center
-                    )
-                }
+    val stacked = mode == FloatingOverlayMode.ISLAND_COLUMN
+    val side: @Composable (List<FloatingLayoutItem>) -> Unit = { items ->
+        if (stacked) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(sideIslandSplitPadding)
+            ) {
+                blocks(items).forEach { FloatingLayoutBlockContent(it, stacked = true, style, content) }
             }
         } else {
-            FloatingStyledText(
-                text = "---",
-                fontSize = fontSize,
-                fontFamily = fontFamily,
-                fontWeight = fontWeight,
-                textColor = finalTextColor,
-                outlineColor = textOutlineColor,
-                shadow = textShadow,
-                useOutline = useSubtleOutline
-            )
-        }
-    }
-
-    val arrowContent: @Composable () -> Unit = {
-        if (showArrow && displayPoint != null) {
-            TrendIndicator(
-                trendResult = trendResult,
-                modifier = Modifier.size(if (isDynamicIsland && isVerticalIsland) sideIslandArrowSize else arrowSize),
-                color = finalTextColor,
-                outlineColor = arrowOutlineColor,
-                shadowColor = arrowShadowColor
-            )
-        } else {
-            Spacer(Modifier.size(1.dp))
-        }
-    }
-    
-    // ROOT LAYOUT CHANGE: Use Column just for Vertical Offset Spacer if Island
-    // We don't use 'Surface' as root for Island anymore, because we want split layout.
-    
-    // ROOT LAYOUT: Column for vertical offset spacer
-    if (isDynamicIsland) {
-        // Clip and click the pill itself, not the offset wrapper: the wrapper is
-        // taller by the offset spacer, so its corner radius clamps differently
-        // from the pill's own Surface and its arc cut into the bottom corners.
-        val pillModifier = Modifier
-            .clip(finalShape)
-            .clickable(
-                interactionSource = overlayInteractionSource,
-                indication = overlayIndication
-            ) { launchIntent?.let { context.startActivity(it) } }
-        CutoutOffsetLayout(
-            edge = cutoutEdge,
-            offset = verticalOffset.dp,
-            modifier = Modifier
-                .wrapContentSize()
-                .then(dragModifier)
-        ) {
-            if (isVerticalIsland) {
-                AsymmetricCenteringColumn(
-                    modifier = pillModifier,
-                    gap = finalGap,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    backgroundContent = {
-                        Surface(
-                            color = finalBgColor,
-                            shape = finalShape,
-                            modifier = Modifier.fillMaxSize()
-                        ) {}
-                    }
-                ) {
-                    Box(
-                        modifier = Modifier.padding(
-                            start = sideIslandHorizontalPadding,
-                            end = sideIslandHorizontalPadding,
-                            top = sideIslandVerticalPadding + sideIslandSplitPadding,
-                            bottom = sideIslandSplitPadding
-                        )
-                    ) {
-                        valueContent()
-                    }
-                    Box(
-                        modifier = Modifier.padding(
-                            start = sideIslandHorizontalPadding,
-                            end = sideIslandHorizontalPadding,
-                            top = sideIslandSplitPadding,
-                            bottom = sideIslandVerticalPadding + sideIslandSplitPadding
-                        )
-                    ) {
-                        arrowContent()
-                    }
-                }
-            } else {
-                AsymmetricCenteringRow(
-                    modifier = pillModifier,
-                    gap = finalGap,
-                    verticalAlignment = Alignment.CenterVertically,
-                    backgroundContent = {
-                        Surface(
-                            color = finalBgColor,
-                            shape = finalShape,
-                            modifier = Modifier.fillMaxSize()
-                        ) {}
-                    }
-                ) {
-                    Box(
-                        modifier = Modifier.padding(
-                            start = pillHorizontalPadding,
-                            top = pillVerticalPadding,
-                            bottom = pillVerticalPadding
-                        )
-                    ) {
-                        valueContent()
-                    }
-                    Box(
-                        modifier = Modifier.padding(
-                            end = pillHorizontalPadding,
-                            top = pillVerticalPadding,
-                            bottom = pillVerticalPadding
-                        )
-                    ) {
-                        arrowContent()
-                    }
-                }
-            }
-        }
-    } else {
-        // ORIGINAL FLOATING LAYOUT (Unified Pill)
-        Surface(
-            color = finalBgColor,
-            shape = finalShape,
-            modifier = Modifier
-                .wrapContentSize()
-                .then(dragModifier)
-                .clip(finalShape)
-                .clickable(
-                    interactionSource = overlayInteractionSource,
-                    indication = overlayIndication
-                ) { launchIntent?.let { context.startActivity(it) } }
-        ) {
             Row(
-                modifier = Modifier.padding(horizontal = pillHorizontalPadding, vertical = pillVerticalPadding),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(inlineSpacing)
             ) {
-                valueContent()
-                if (showArrow && displayPoint != null) {
-                    TrendIndicator(
-                        trendResult,
-                        Modifier.size(arrowSize),
-                        finalTextColor,
-                        outlineColor = arrowOutlineColor,
-                        shadowColor = arrowShadowColor
-                    )
+                blocks(items).forEach { FloatingLayoutBlockContent(it, stacked = false, style, content) }
+            }
+        }
+    }
+    val background: @Composable () -> Unit = {
+        Surface(color = style.background, shape = style.shape, modifier = Modifier.fillMaxSize()) {}
+    }
+
+    when (mode) {
+        FloatingOverlayMode.PILL -> Surface(
+            color = style.background,
+            shape = style.shape,
+            modifier = modifier
+        ) {
+            Box(Modifier.padding(horizontal = pillHorizontalPadding, vertical = pillVerticalPadding)) {
+                side(order)
+            }
+        }
+        FloatingOverlayMode.ISLAND_ROW -> {
+            val sides = FloatingLayoutOrder.sides(order)
+            AsymmetricCenteringRow(
+                modifier = modifier,
+                gap = gap,
+                verticalAlignment = Alignment.CenterVertically,
+                backgroundContent = background
+            ) {
+                Box(Modifier.padding(start = pillHorizontalPadding, top = pillVerticalPadding, bottom = pillVerticalPadding)) {
+                    side(sides.before)
+                }
+                Box(Modifier.padding(end = pillHorizontalPadding, top = pillVerticalPadding, bottom = pillVerticalPadding)) {
+                    side(sides.after)
                 }
             }
+        }
+        FloatingOverlayMode.ISLAND_COLUMN -> {
+            val sides = FloatingLayoutOrder.sides(order)
+            AsymmetricCenteringColumn(
+                modifier = modifier,
+                gap = gap,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                backgroundContent = background
+            ) {
+                Box(
+                    modifier = Modifier.padding(
+                        start = sideIslandHorizontalPadding,
+                        end = sideIslandHorizontalPadding,
+                        top = sideIslandVerticalPadding + sideIslandSplitPadding,
+                        bottom = sideIslandSplitPadding
+                    )
+                ) {
+                    side(sides.before)
+                }
+                Box(
+                    modifier = Modifier.padding(
+                        start = sideIslandHorizontalPadding,
+                        end = sideIslandHorizontalPadding,
+                        top = sideIslandSplitPadding,
+                        bottom = sideIslandVerticalPadding + sideIslandSplitPadding
+                    )
+                ) {
+                    side(sides.after)
+                }
+            }
+        }
+    }
+}
+
+/** One block: [stacked] beside a side cutout, where the pieces sit under each other. */
+@Composable
+private fun FloatingLayoutBlockContent(
+    block: FloatingLayoutBlock,
+    stacked: Boolean,
+    style: FloatingOverlayStyle,
+    content: FloatingOverlayContent,
+) {
+    val fontSize = style.fontSize
+    val secondaryFontSize = if (stacked) fontSize * 0.58f else fontSize * 0.7f
+    val text: @Composable (String, Float, Color, TextAlign) -> Unit = { value, size, color, align ->
+        FloatingStyledText(
+            text = value,
+            fontSize = size,
+            fontFamily = style.fontFamily,
+            fontWeight = style.fontWeight,
+            textColor = color,
+            outlineColor = style.outlineColor,
+            shadow = style.shadow,
+            useOutline = style.useOutline,
+            textAlign = align
+        )
+    }
+    val secondaryColor = style.textColor.copy(alpha = 0.7f)
+    when (block) {
+        is FloatingLayoutBlock.Reading -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            val secondary = content.secondary.takeIf { block.withSecondary }
+            if (stacked) {
+                val spacing = (fontSize * 0.08f).coerceIn(1f, 4f).dp
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (secondary != null && block.secondaryFirst) {
+                        text(secondary, secondaryFontSize, secondaryColor, TextAlign.Center)
+                        Spacer(Modifier.height(spacing))
+                    }
+                    text(content.primary, fontSize, style.textColor, TextAlign.Center)
+                    if (secondary != null && !block.secondaryFirst) {
+                        Spacer(Modifier.height(spacing))
+                        text(secondary, secondaryFontSize, secondaryColor, TextAlign.Center)
+                    }
+                }
+            } else {
+                val spacing = (fontSize * 0.35f).coerceIn(4f, 10f).dp
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (secondary != null && block.secondaryFirst) {
+                        text(secondary, secondaryFontSize, secondaryColor, TextAlign.Start)
+                        Spacer(Modifier.width(spacing))
+                    }
+                    text(content.primary, fontSize, style.textColor, TextAlign.End)
+                    if (secondary != null && !block.secondaryFirst) {
+                        Spacer(Modifier.width(spacing))
+                        text(secondary, secondaryFontSize, secondaryColor, TextAlign.Start)
+                    }
+                }
+            }
+            content.delta?.let { delta ->
+                text("Δ $delta", fontSize * 0.65f, style.textColor, TextAlign.Center)
+            }
+        }
+        FloatingLayoutBlock.Secondary -> content.secondary?.let { secondary ->
+            text(secondary, secondaryFontSize, secondaryColor, if (stacked) TextAlign.Center else TextAlign.Start)
+        }
+        FloatingLayoutBlock.Arrow -> content.trend?.let { trend ->
+            val arrowSize = if (stacked) (fontSize * 0.78f).coerceIn(10f, 34f) else (fontSize * 0.9f).coerceIn(12f, 42f)
+            TrendIndicator(
+                trendResult = trend,
+                modifier = Modifier.size(arrowSize.dp),
+                color = style.textColor,
+                outlineColor = style.arrowOutlineColor,
+                shadowColor = style.arrowShadowColor
+            )
         }
     }
 }

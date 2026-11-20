@@ -5,6 +5,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
+import tk.glucodata.ui.overlay.FloatingLayoutItem
+import tk.glucodata.ui.overlay.FloatingLayoutOrder
 import tk.glucodata.ui.overlay.OverlayPosition
 
 // Using SharedPreferences for simplicity as I don't want to introduce DataStore dependency if not already prevalent/configured for this specific prefs file
@@ -33,6 +35,7 @@ class FloatingSettingsRepository(context: Context) {
         const val KEY_ISLAND_GAP = "floating_island_gap"
         const val KEY_NOTIFICATION_DOT = "floating_notification_dot"
         const val KEY_SUBTLE_OUTLINE = "floating_subtle_outline"
+        const val KEY_LAYOUT_ORDER = "floating_layout_order" // see FloatingLayoutOrder
 
         const val DEFAULT_FONT_SIZE = 14f
         const val DEFAULT_BACKGROUND_OPACITY = 1.0f
@@ -64,6 +67,8 @@ class FloatingSettingsRepository(context: Context) {
     val islandGap: Flow<Float> = prefFlow(KEY_ISLAND_GAP, 0f) // 0 implies auto/default
     val showNotificationDot: Flow<Boolean> = prefFlow(KEY_NOTIFICATION_DOT, true)
     val useSubtleOutline: Flow<Boolean> = prefFlow(KEY_SUBTLE_OUTLINE, false)
+    val layoutOrder: Flow<List<FloatingLayoutItem>> =
+        prefFlow(KEY_LAYOUT_ORDER, FloatingLayoutOrder.serialize(FloatingLayoutOrder.DEFAULT)).map(FloatingLayoutOrder::parse)
 
 
 
@@ -82,6 +87,8 @@ class FloatingSettingsRepository(context: Context) {
     fun setShowArrow(show: Boolean) = prefs.edit().putBoolean(KEY_SHOW_ARROW, show).apply()
     fun setCornerRadius(radius: Float) = prefs.edit().putFloat(KEY_CORNER_RADIUS, radius).apply()
     fun setBackgroundOpacity(opacity: Float) = prefs.edit().putFloat(KEY_OPACITY, opacity).apply()
+    fun setLayoutOrder(order: List<FloatingLayoutItem>) =
+        prefs.edit().putString(KEY_LAYOUT_ORDER, FloatingLayoutOrder.serialize(order)).apply()
     
     fun savePosition(position: OverlayPosition) {
         prefs.edit()

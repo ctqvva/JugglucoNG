@@ -3711,4 +3711,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_move_up">Move up</string>
     <string name="food_move_down">Move down</string>
     <string name="spanish">Spanish</string>
+    <string name="floating_layout_reading">Reading</string>
+    <string name="floating_layout_secondary">Secondary value</string>
+    <string name="floating_layout_arrow">Trend arrow</string>
+    <string name="floating_layout_camera">Camera cutout</string>
+    <string name="floating_layout_camera_desc">Items above it sit before the camera, the rest after it</string>
+    <string name="floating_layout_hidden">Hidden</string>
+    <string name="floating_layout_order_desc">Drag a handle to move an item</string>
 </resources>
