@@ -437,7 +437,8 @@ private enum class SensorLinkState { UP, WAITING, DOWN }
 /**
  * The status line beside the reading. One line while it fits; when it does not, a trailing
  * "(qualifier)" drops to a supporting line under the state ("Connected" over "Broadcast
- * fallback"), and a status without one wraps to a second line instead of losing its end.
+ * fallback"), a status without one wraps between its words, and a single word shrinks on its
+ * line rather than break inside itself.
  */
 @Composable
 private fun SensorStatusText(status: String, color: Color, modifier: Modifier = Modifier) {
@@ -476,10 +477,33 @@ private fun SensorStatusText(status: String, color: Color, modifier: Modifier = 
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             )
         }
-    } else {
+    } else if (status.none { it.isWhitespace() }) {
+        // One word ("Подключено") has nowhere to wrap but mid-word: it steps down a size on
+        // its one line instead, and only past the smallest size loses its end.
+        val maxSize = MaterialTheme.typography.titleSmall.fontSize
+        val minSize = MaterialTheme.typography.labelMedium.fontSize
+        val autoSize = remember(minSize, maxSize) {
+            androidx.compose.foundation.text.TextAutoSize.StepBased(
+                minFontSize = minSize,
+                maxFontSize = maxSize,
+                stepSize = 1.sp,
+            )
+        }
         Text(
             text = status,
             style = MaterialTheme.typography.titleSmall,
+            color = color,
+            autoSize = autoSize,
+            maxLines = 1,
+            softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = modifier,
+        )
+    } else {
+        // Several words wrap between them, into two lines of about even length.
+        Text(
+            text = status,
+            style = MaterialTheme.typography.titleSmall.copy(lineBreak = androidx.compose.ui.text.style.LineBreak.Heading),
             color = color,
             maxLines = 2,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
