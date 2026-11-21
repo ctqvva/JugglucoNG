@@ -159,7 +159,22 @@ int main() {
         "record off the calendar stored or moved lastTime");
   auto r7 = record(7, localAt(now - 100), false, 0, 160);
   check(saveGlucoseMeter(&env, index, &r7).stored, "record after an off-calendar one dropped");
-  puts("PASS: clock validation, 13-byte records, carried Time Offset, truncated/valueless/undated records");
+
+  // A skipped record (no value, or off the calendar) that announces a new offset still
+  // sets it for the records that omit it.
+  auto skippedOffset = record(8, localAt(now - 90), true, -15, 150);
+  skippedOffset.bytes[0] = 1; skippedOffset.bytes.resize(12);  // offset, no concentration
+  check(!saveGlucoseMeter(&env, index, &skippedOffset).stored && meter->nextIndex == 9, "valueless record with offset");
+  auto r9 = record(9, localAt(now - 80 + 900), false, 0, 150);
+  auto s9 = saveGlucoseMeter(&env, index, &r9);
+  check(s9.stored && s9.timestamp == now - 80, "offset from a valueless record not carried");
+  auto undatedOffset = record(10, localAt(now - 70), true, 10, 150);
+  undatedOffset.bytes[5] = 0;  // month unknown
+  check(!saveGlucoseMeter(&env, index, &undatedOffset).stored && meter->nextIndex == 11, "undated record with offset");
+  auto r11 = record(11, localAt(now - 60 - 600), false, 0, 150);
+  auto s11 = saveGlucoseMeter(&env, index, &r11);
+  check(s11.stored && s11.timestamp == now - 60, "offset from an undated record not carried");
+  puts("PASS: clock validation, 13-byte records, carried Time Offset, truncated/valueless/undated records, offsets from skipped records");
 }
 '''
 

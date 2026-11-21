@@ -137,6 +137,14 @@ static MeterSaveResult saveGlucoseMeter(JNIEnv *env, jint meterIndex,
     LOGGER("GlucoseMeterSave length (%d) <%d\n", arlen, glu->expectedLength());
     return {};
   }
+  // Even a record skipped below may announce the offset the following ones omit.
+  int16_t timeoffset = glu->getTimeoffset();
+  if (meterIndex >= 0 && meterIndex < maxglucosemeters) {
+    if (glu->timeOffsetPresent)
+      reportedTimeOffset[meterIndex] = timeoffset;
+    else
+      timeoffset = reportedTimeOffset[meterIndex];
+  }
   GlucoseMeter *meter = settings->data()->getGlucoseMeter(meterIndex);
   if (!meter) {
     LOGGER("GlucoseMeterSave no meter at %d\n", meterIndex);
@@ -148,13 +156,6 @@ static MeterSaveResult saveGlucoseMeter(JNIEnv *env, jint meterIndex,
            glu->index, !glu->typeAndLocationPresent, !glu->time.valid());
     meter->nextIndex = glu->index + 1;
     return {};
-  }
-  int16_t timeoffset = glu->getTimeoffset();
-  if (meterIndex >= 0 && meterIndex < maxglucosemeters) {
-    if (glu->timeOffsetPresent)
-      reportedTimeOffset[meterIndex] = timeoffset;
-    else
-      timeoffset = reportedTimeOffset[meterIndex];
   }
   const uint32_t timeorig = glu->time.getLocaltime();
   const uint32_t timcorrected = timeorig + meter->timeoffset + timeoffset * 60;
