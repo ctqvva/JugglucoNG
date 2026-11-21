@@ -43,9 +43,10 @@ object AlertActions {
         if (customId != null || kind < 0 || Notify.isPresentedStandardAlert(kind)) {
             Notify.stopalarm()
             Notify.cancelAlertNotification()
+            // Watchdrip clients (e.g. Gadgetbridge ringing a watch) stop too — but only
+            // with the alarm this action is for, never a newer unrelated one.
+            tk.glucodata.WearInt.cancelAlarm()
         }
-        // Watchdrip clients (e.g. Gadgetbridge ringing a watch) stop too.
-        tk.glucodata.WearInt.cancelAlarm()
     }
 
     /** The snooze a plain "Snooze" uses: the alert's configured default, 15 minutes otherwise. */
@@ -64,9 +65,9 @@ object AlertActions {
         if (Notify.isCurrentStandardAlert(action.kind)) {
             Notify.stopalarmnotsend(false)
             Notify.cancelAlertNotification()
+            tk.glucodata.WearInt.cancelAlarm()
         }
         AlarmActivityAccess.acknowledge(action.kind)
-        tk.glucodata.WearInt.cancelAlarm()
     }
 
     private fun applyState(action: WearAlertAcknowledgement) {
