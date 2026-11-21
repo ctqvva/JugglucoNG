@@ -44,7 +44,7 @@ methods = '\n'.join(method(s) for s in [
     else 'private void releaselock(',
     'private void authenticate(', 'static private boolean equalpart(',
     'static boolean    createBond(', 'private void resetCerts(', 'private void resetconnect(',
-    'private    void getdata(', 'private boolean isWarmupReading(', 'private static String hexBytes(',
+    'private    void getdata(', 'private long warmupMsec(', 'private boolean isWarmupReading(', 'private static String hexBytes(',
     'private void docmd0(', 'private void requestAuth(', 'public int getAuthSlot(',
     'public synchronized boolean changeAuthSlot(',
 ])
@@ -143,6 +143,8 @@ class Natives {
     static long sampleAge, result=100;static boolean saveName;
     static boolean dexcomProcessData(long ptr,byte[] value,long[] timeres){timeres[0]-=sampleAge;timeres[1]=result;return saveName;}
     static long getSensorStartmsec(long ptr){return 0;}
+    static int warmupMinutes=30;
+    static int getSensorWarmupMinutes(long ptr){return warmupMinutes;}
     static void dexEndBackfill(long ptr){}
     static String getDeviceAddress(long p,boolean fresh){return fresh?null:stored;}
     static long lastglucosetime(){return lastGlucose<0?System.currentTimeMillis():lastGlucose;}
@@ -224,6 +226,7 @@ public class DexGattCallback extends SuperGattCallback {
         defaultAuto=false;alarmClock=false;isWearable=false;CloneSensorRegistry.clone=false;SensorOwnershipRuntime.blocked=false;
         Natives.lastGlucose=-1;Natives.aesSuccess=true;Natives.resets=0;Natives.authenticated=true;
         Natives.sampleAge=0;Natives.result=100;Natives.saveName=false;System.now=1_760_000_000_000L;
+        Natives.warmupMinutes=30;
         DexGattCallback cb=new DexGattCallback("sensor-A",1);PowerManager.owner=cb;cb.connectDevice(0);return cb;
     }
     static void publicationAndTeardownFinish(boolean remove) throws Exception {
@@ -401,6 +404,13 @@ public class DexGattCallback extends SuperGattCallback {
             cb.onCharacteristicChanged(gatt,cb.charact[0],new byte[]{0x4e});
             cb.onConnectionStateChange(gatt,19,0);
             check(Applic.alarms.at==cb.sensorstartmsec+1800000+15000,"warmup timing was replaced with quiet delay");
+            // A 15-day G7 warms up for 62 minutes; a reading past the old 30-minute
+            // window is still warm-up and must not be scheduled as the next slot.
+            cb=fresh();gatt=cb.mBluetoothGatt;
+            Natives.result=0;Natives.warmupMinutes=62;cb.sensorstartmsec=System.now-40*60000;
+            cb.onCharacteristicChanged(gatt,cb.charact[0],new byte[]{0x4e});
+            cb.onConnectionStateChange(gatt,19,0);
+            check(Applic.alarms.at==cb.sensorstartmsec+62*60000+15000,"15-day warmup window ignored");
         }
     }
     static byte requestedSlot(DexGattCallback cb){

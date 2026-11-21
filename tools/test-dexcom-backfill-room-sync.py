@@ -72,6 +72,7 @@ class DexGattCallback extends Base {
     boolean write(int nr,byte[] data){writes.add(data);return true;}
     boolean enableNotification(Object gatt,Object c){return true;}
     boolean isWarmupReading(long t,long res){return false;}
+    long warmupMsec(){return DEXCOM_WARMUP_MSEC;}
     void handleGlucoseResult(long res,long t){}
     void saveDeviceName(){}
     void releaselock(){}

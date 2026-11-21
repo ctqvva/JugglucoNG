@@ -267,6 +267,15 @@ jbyteArray backfillPacket(initializer_list<array<int,4>> records){
     }
     return packet;
 }
+jbyteArray backfillPacketFlags(initializer_list<array<int,5>> records){
+    auto packet=make_shared<Cmd>();
+    for(auto [seconds,glucose,type,flags,trend]:records){
+        for(int byte=0;byte<4;++byte)packet->bytes.push_back(uint32_t(seconds)>>(8*byte));
+        packet->bytes.push_back(glucose);packet->bytes.push_back(glucose>>8);
+        packet->bytes.push_back(type);packet->bytes.push_back(flags);packet->bytes.push_back(trend);
+    }
+    return packet;
+}
 void batchedBackfill(){
     JNIEnv env;
     SensorGlucoseData d;payload(d.metadata,manual());
@@ -302,8 +311,63 @@ void batchedBackfill(){
     assert(!dexbackfillInput(&env,0,ptr,nullptr));
     transport.hist=nullptr;assert(!dexbackfillInput(&env,0,ptr,single));
 }
+// A G7/ONE+ 0x4E packet carries the sensor's algorithm state (byte 14) and a
+// flags byte (18) whose 0x10 bit marks a value that repeats a fingerstick after
+// a calibration. Only a measured value may reach the history.
+void livePublicationFilters(){
+    JNIEnv env;
+    for(int days:{10,15}){
+        registry=Sensoren{};
+        auto scan=dexcom::parseScan(barcode(days==15?"4581":"0071"));
+        assert(scan&&scan->days==days);
+        auto [id,d]=registry.makeDexComSensorindex(*scan,1700000001);
+        assert(d);
+        // Documented 0x52 values: 62 minutes for a 15-day G7, 27 for a 10-day
+        // one; every 10-day record keeps the 30 minutes it has always carried.
+        assert(d->getWarmupSEC()==(days==15?62:30)*60);
+        auto attempt=[&](int seconds,int state,int flags){
+            glucoseinput value{};
+            value.secsSinceStart=seconds;value.age=0;value.mgdL=100;value.predictedmgdL=110;
+            value.state=state;value.info=flags;
+            jlong timeres[]{(jlong(d->getstarttime())+seconds)*1000,0};
+            const int before=d->saved;
+            d->sensorerror=false;
+            value.actual(d,timeres,0);
+            return std::tuple<bool,bool,long long>{d->saved>before,d->sensorerror,timeres[1]};
+        };
+        const int afterWarmup=d->getWarmupSEC()+300;
+        // Measured states are published; every other state is not.
+        for(int state:{0x00,0x06,0x07,0x0e}){
+            auto [saved,error,res]=attempt(afterWarmup,state,0);
+            assert(saved&&!error&&res!=0);
+        }
+        for(int state:{0x01,0x02,0x03,0x04,0x05,0x08,0x0b,0x0f,0x18,0x19,0x1a}){
+            auto [saved,error,res]=attempt(afterWarmup,state,0);
+            assert(!saved&&error&&res==0);
+        }
+        // The time window still guards a sensor that never says it has finished.
+        auto [early,earlyError,earlyRes]=attempt(31*60,0x06,0);
+        assert(early==(days==10));
+        assert(earlyError==!early);
+        assert((earlyRes!=0)==early);
+        // A display-only repeat is not a measurement and not a sensor error.
+        auto [echo,echoError,echoRes]=attempt(afterWarmup,0x06,0x10);
+        assert(!echo&&!echoError&&echoRes==0);
+        // Other flag bits say nothing about the value.
+        auto [dots,dotError,dotRes]=attempt(afterWarmup,0x06,0x03);
+        assert(dots&&!dotError&&dotRes!=0);
+    }
+    // Backfill byte 7 is the same flags byte and marks the same repeats.
+    registry=Sensoren{};
+    SensorGlucoseData b;payload(b.metadata,manual());
+    dexcomstream transport{&b};const auto ptr=reinterpret_cast<jlong>(&transport);
+    assert(dexbackfillInput(&env,0,ptr,backfillPacketFlags({{300,100,6,0x00,0}}))&&b.saved==1);
+    assert(!dexbackfillInput(&env,0,ptr,backfillPacketFlags({{600,101,6,0x10,0}}))&&b.saved==1);
+    assert(dexbackfillInput(&env,0,ptr,backfillPacketFlags({{900,102,6,0x01,0}}))&&b.saved==2);
+    assert(b.readings[1].first==100&&b.readings[3].first==102);
+}
 int main(){
-    flexDiscovery();batchedBackfill();
+    flexDiscovery();batchedBackfill();livePublicationFilters();
     for(auto model:{"4574","4581","0071"}){
         auto scan=dexcom::parseScan(barcode(model));assert(scan);
         assert(scan->days==(string_view(model)=="0071"?10:15));
@@ -376,6 +440,9 @@ int main(){
 
     for(int days:{10,15}){
         SensorGlucoseData d;payload(d.metadata,manual(days));
+        // The record mkdatabaseDex creates for this model, not the fixture default.
+        d.metadata.warmup=dexcom::warmupMinutes(days);
+        const int warmup=d.getWarmupSEC();
         assert(d.initialHistoryBytes()==17*24*12*12);
         assert(d.pollStorageSize()==17*24*12);
         assert(d.getDexWearMinutes()==days*1440);
@@ -392,7 +459,7 @@ int main(){
         assert((d.saved==1)==(days==15));
         live(d,d.getDexMaxSecs());assert(!d.sensorerror&&d.lastSaved==d.getmaxdexcount());
         int saved=d.saved;live(d,d.getDexMaxSecs()+1);assert(d.sensorerror&&d.saved==saved);
-        live(d,1799);assert(d.sensorerror&&d.saved==saved);live(d,1800);assert(!d.sensorerror);
+        live(d,warmup-1);assert(d.sensorerror&&d.saved==saved);live(d,warmup);assert(!d.sensorerror);
         // Backfill stores beyond day ten use the 15-day map, without altering five-minute indexing.
         dexbackfill back{};back.secsSinceStart=15*86400;back.mgdL=100;back.type=6;
         saved=d.saved;back.backfill(&d);assert((d.saved==saved+1)==(days==15));

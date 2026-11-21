@@ -834,6 +834,16 @@ private long datatime=0L;
 private long sampletime=0L;
 private boolean lastDataInvalidDuringWarmup=false;
 private long lastWarmupRetryAt=0L;
+/**
+ * Warm-up length of this sensor: 62 minutes for a 15-day G7, and 30 minutes for
+ * a 10-day one (the value every 10-day record has carried). The native record
+ * stores it per sensor, so the retry follows that window instead of one
+ * constant; when native reports 0 the 30-minute fallback applies.
+ */
+private long warmupMsec() {
+    final int minutes = dataptr == 0L ? 0 : Natives.getSensorWarmupMinutes(dataptr);
+    return minutes > 0 ? minutes * 60_000L : DEXCOM_WARMUP_MSEC;
+}
 private boolean isWarmupReading(long readingTimeMsec, long res) {
         if (res != 0L) {
             return false;
@@ -842,7 +852,7 @@ private boolean isWarmupReading(long readingTimeMsec, long res) {
         if (refreshedStart > 0L) {
             sensorstartmsec = refreshedStart;
         }
-        return sensorstartmsec > 0L && readingTimeMsec > 0L && (readingTimeMsec - sensorstartmsec) < DEXCOM_WARMUP_MSEC;
+        return sensorstartmsec > 0L && readingTimeMsec > 0L && (readingTimeMsec - sensorstartmsec) < warmupMsec();
     }
 private    void getdata(byte[] value) {
         final long timmsec = System.currentTimeMillis();
@@ -859,7 +869,7 @@ private    void getdata(byte[] value) {
                     }
                 lastDataInvalidDuringWarmup = isWarmupReading(newtime, res);
                 if (lastDataInvalidDuringWarmup) {
-                    lastWarmupRetryAt = sensorstartmsec + DEXCOM_WARMUP_MSEC + DEXCOM_WARMUP_RETRY_SLACK_MSEC;
+                    lastWarmupRetryAt = sensorstartmsec + warmupMsec() + DEXCOM_WARMUP_RETRY_SLACK_MSEC;
                     if(doLog) {
                         Log.i(LOG_ID, "Dexcom reading is still in warmup window; next retry at=" + lastWarmupRetryAt);
                     }

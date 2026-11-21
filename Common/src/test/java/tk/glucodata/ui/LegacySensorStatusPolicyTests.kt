@@ -32,8 +32,18 @@ class LegacySensorStatusPolicyTests {
         assertNull(libre3WarmupMinutes(0x40, start, start, 60, ""))
     }
 
-    @Test fun nativeErrorLiteralsMapToCardStatuses() {
-        assertEquals(LegacySensorStatusText.SensorError, classifyLegacySensorStatus("Sensor Error"))
+    @Test fun dexcomCountdownUsesTheSensorsWarmupLength() {
+        assertEquals(30, dexcomWarmupRemainingMinutes(0x40, start, start, 0))
+        assertEquals(62, dexcomWarmupRemainingMinutes(0x40, start, start, 62))
+        assertEquals(32, dexcomWarmupRemainingMinutes(0x40, start, start + 30 * 60_000L, 62))
+        assertEquals(1, dexcomWarmupRemainingMinutes(0x40, start, start + 61 * 60_000L + 1, 62))
+        assertNull(dexcomWarmupRemainingMinutes(0x40, start, start + 62 * 60_000L, 62))
+        assertNull(dexcomWarmupRemainingMinutes(0x40, start, start - 1, 62))
+        assertNull(dexcomWarmupRemainingMinutes(0x40, 0, start, 62))
+        assertNull(dexcomWarmupRemainingMinutes(3, start, start, 62))
+    }
+
+    @Test fun nativeErrorLiteralsMapToCardStatuses() {        assertEquals(LegacySensorStatusText.SensorError, classifyLegacySensorStatus("Sensor Error"))
         assertEquals(LegacySensorStatusText.ReplaceSensor, classifyLegacySensorStatus("Replace Sensor?"))
         assertEquals(LegacySensorStatusText.SensorEnded, classifyLegacySensorStatus("Sensor Ended"))
         assertEquals(LegacySensorStatusText.WarmingUp, classifyLegacySensorStatus("Warming Up"))

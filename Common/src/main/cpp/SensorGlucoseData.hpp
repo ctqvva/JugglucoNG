@@ -1650,7 +1650,7 @@ bool libreviewable() const {
              .dupl = 3,
              .dexcom = true,
              .days = static_cast<uint8_t>(wearDays + 2),
-             .warmup = 30,
+             .warmup = static_cast<uint16_t>(dexcom::warmupMinutes(wearDays)),
              .wearduration = static_cast<uint16_t>(dexcom::wearMinutes(wearDays)),
              .lastLifeCountReceived = 1,
              .pollcount = 0};

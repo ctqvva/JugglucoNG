@@ -108,6 +108,24 @@ struct glucoseinput {
     return trend == DEXNOTREND ? NAN : (float)trend / 10.0f;
   }
 
+  // Byte 14 of the 0x4E packet is the sensor's own algorithm state (xDrip
+  // `CalibrationState`, Loop `AlgorithmState`). Only a measured value may reach
+  // the history: OK 0x06, needs-calibration 0x07 and outlier-calibration-request
+  // 0x0E — the set the backfill path already accepts. Stopped 0x01, warm-up
+  // 0x02, excess noise 0x03, calibration requests 0x04/0x05 and every state from
+  // 0x08 up except 0x0E are dropped whatever the value says. 0 means unknown
+  // rather than failed, so it stays usable: a sender that omits the field must
+  // not be silenced.
+  [[nodiscard]] bool usableState() const {
+    return state == 0x00 || state == 0x06 || state == 0x07 || state == 0x0E;
+  }
+
+  // Byte 18 bit 0x10 marks a value the sensor repeats for display only, right
+  // after a calibration; it is not a measurement. xDrip reads this from the top
+  // bits of the glucose field, which is the G6 layout; those bits are zero on a
+  // G7, so the repeat went unrecognised.
+  [[nodiscard]] bool displayOnly() const { return (info & 0x10) != 0; }
+
   void save(SensorGlucoseData *sens, uint32_t wastime, int index) const {
     const auto rate = getRateofChange();
     sens->savepollallIDs<DEXSECONDS>(wastime, index, mgdL,
@@ -138,9 +156,13 @@ struct glucoseinput {
     const auto wastime = nowsec - age;
 
     const int dexmaxtime = sens->getDexMaxSecs();
-    if (secsSinceStart <= dexmaxtime && mgdL >= 39 && mgdL <= 501 &&
-        secsSinceStart >= sens->getWarmupSEC() &&
-        index < sens->maxstreampos()) {
+    if (displayOnly()) {
+      // The sensor repeats a fingerstick; this is neither a reading nor an error.
+      LOGAR("display only value, not a measurement");
+      timeres[1] = 0LL;
+    } else if (secsSinceStart <= dexmaxtime && mgdL >= 39 && mgdL <= 501 &&
+               secsSinceStart >= sens->getWarmupSEC() && usableState() &&
+               index < sens->maxstreampos()) {
       LOGAR("use value");
       save(sens, wastime, index);
       sens->saveDexFuture(index, wastime, getpredictedmgdL());
@@ -338,8 +360,9 @@ fromjava(dexBackfillState)(JNIEnv *envin, jclass _cl, jlong dataptr) {
 
 struct dexbackfill {
   int32_t secsSinceStart;
-  // Glucose in the low 12 bits, flags in the top 4, 0xFFFF when there is none,
-  // as in the live reading's mgdL:12/donly:4.
+  // The 16-bit field holds the glucose in its low 12 bits and is 0xFFFF when
+  // there is none; the live reading splits the same bits into mgdL:12/donly:4.
+  // Byte 6 is the algorithm state, byte 7 the flags.
   uint16_t mgdL;
   uint8_t type;
   uint8_t extra;
@@ -349,9 +372,10 @@ struct dexbackfill {
   [[nodiscard]] int getindex() const { return secsSinceStart / DEXSECONDS; }
   [[nodiscard]] int glucose() const { return mgdL & 0x0FFF; }
   [[nodiscard]] bool usable() const {
-    // Same value range the live reading must pass in actual().
+    // Same value range the live reading must pass in actual(), and the same
+    // display-only repeat flag (byte 7 bit 0x10) the live path rejects.
     return (type == 0x6 || type == 0x7 || type == 0xe) && mgdL != 0xFFFF &&
-           glucose() >= 39 && glucose() <= 501;
+           (extra & 0x10) == 0 && glucose() >= 39 && glucose() <= 501;
   }
   [[nodiscard]] uint32_t gettime(const uint32_t sensorstarttime) const {
     return sensorstarttime + secsSinceStart;
