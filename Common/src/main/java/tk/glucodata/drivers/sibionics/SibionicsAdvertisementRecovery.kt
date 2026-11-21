@@ -9,10 +9,13 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Handler
+import android.os.ParcelUuid
 
 internal data class SibionicsAdvertisement(
     val device: BluetoothDevice,
     val name: String?,
+    /** GS3 protocol identity carried by the advertisement, when it has one. */
+    val identityMac: ByteArray? = null,
 )
 
 /**
@@ -49,9 +52,16 @@ internal class SibionicsAdvertisementRecovery(
         scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 if (!result.device.address.equals(address, ignoreCase = true)) return
+                val scanRecord = result.scanRecord
                 val advertisement = SibionicsAdvertisement(
                     device = result.device,
-                    name = result.scanRecord?.deviceName ?: result.device.name,
+                    name = scanRecord?.deviceName ?: result.device.name,
+                    identityMac = scanRecord?.let {
+                        SibionicsGs3Identity.macFromAdvertisement(
+                            manufacturerData = it.getManufacturerSpecificData(SibionicsGs3Identity.MANUFACTURER_ID),
+                            serviceData = it.getServiceData(ParcelUuid(SibionicsGs3Identity.SERVICE_DATA_UUID)),
+                        )
+                    },
                 )
                 handler.post { complete(scanCallback, advertisement) }
             }

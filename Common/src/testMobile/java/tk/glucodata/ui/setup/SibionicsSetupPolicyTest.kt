@@ -4,6 +4,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tk.glucodata.drivers.sibionics.SibionicsConstants
 
 class SibionicsSetupPolicyTest {
     @Test
@@ -89,6 +90,28 @@ class SibionicsSetupPolicyTest {
     fun `gs3 stays out of public setup choices`() {
         assertFalse(SibionicsType.GS3.setupVisible)
         assertTrue(SibionicsType.entries.filter { it.setupVisible }.none { it == SibionicsType.GS3 })
+    }
+
+    @Test
+    fun `gs3 cn is offered and binds from the bluetooth list only`() {
+        val eu = "\u001D0106972831641803112412191725121810LT4F241247J\u001D21241247YEZ1450HAJ02"
+        val v120P = "\u001D0106972831641476112507301726072910LT46250683C\u001D21P2250683013AQT98"
+        assertTrue(SibionicsType.GS3_CN.setupVisible)
+        assertFalse(SibionicsType.GS3_CN.codeSetup)
+        assertEquals(SibionicsConstants.Variant.GS3_CN, SibionicsType.GS3_CN.toManagedVariant())
+        assertFalse(SibionicsType.GS3_CN.acceptsSetupQr(eu))
+        assertFalse(SibionicsType.GS3_CN.acceptsSetupQr(v120P))
+        assertTrue(SibionicsType.GS3_CN.acceptsBleSetupDevice("LT260346HU"))
+        assertFalse(SibionicsType.GS3_CN.acceptsBleSetupDevice("P225043JMV"))
+        assertFalse(SibionicsType.GS3_CN.acceptsBleSetupDevice(null))
+    }
+
+    @Test
+    fun `every other type keeps its legacy subtype mapping`() {
+        SibionicsType.entries.filter { it != SibionicsType.GS3_CN }.forEach { type ->
+            assertEquals(type.name, type.subtype, type.toManagedVariant().legacySubtype)
+            assertTrue(type.name, type.codeSetup)
+        }
     }
 
     @Test
