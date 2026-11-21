@@ -363,13 +363,17 @@ const data_t *info,
 #endif
 scanstate *state,
 scanstate *newstate,uint32_t startsincebase,uint32_t nutime,int warmup,int wear) {
-    return libre2_imp::stream(ident,
+    const char *why="unknown";
+    AlgorithmResults *alg=libre2_imp::stream(ident,
 #ifdef HASP1
         info,
 #else
         nullptr,
 #endif
-        bluedata,state,newstate,unsigned(nutime-basesecs),startsincebase);
+        bluedata,state,newstate,unsigned(nutime-basesecs),startsincebase,false,&why);
+    if(!alg)
+        LOGGER("BLE frame refused: %s\n",why);
+    return alg;
     }
 
 
@@ -388,6 +392,8 @@ const data_t *info=getinfo();
 if(!state||!state->good()||!libre2_imp::usable_state(state,info)) {
     scanstate *fresh=locknew<scanstate>(hist->mutex,hist->getsensordir());
     if(!fresh||!fresh->good()||!libre2_imp::usable_state(fresh,info)) {
+        LOGGER("BLE frame refused: no usable saved state (%s), waiting for an NFC scan\n",
+            !fresh||!fresh->good()?"missing":"does not fit this sensor");
         delete fresh;
         return nullptr;
         }

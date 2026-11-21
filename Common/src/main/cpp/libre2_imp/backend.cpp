@@ -165,13 +165,14 @@ AlgorithmResults *scan(const data_t *uid,const data_t *info,data_t *data, scanst
     return results(processed.state);
 }
 AlgorithmResults *stream(const data_t *uid,const data_t *info,const data_t *packet,
-        scanstate *previous,scanstate *next,unsigned now,unsigned known_start,bool plaintext){
-    if(!identity(uid,info)||!bluetooth_supported(info)||bytes(packet).size()!=46||!previous||!next)return nullptr;
+        scanstate *previous,scanstate *next,unsigned now,unsigned known_start,bool plaintext,const char **why){
+    const auto refuse=[why](const char *reason)->AlgorithmResults*{if(why)*why=reason;return nullptr;};
+    if(!identity(uid,info)||!bluetooth_supported(info)||bytes(packet).size()!=46||!previous||!next)return refuse("sensor identity or frame size");
     const auto patch=bytes(info).first<6>();
-    auto old=bytes(previous->get(MESS));if(!compatible_state(old,ar::patch_metadata(patch).wear_minutes))return nullptr;
+    auto old=bytes(previous->get(MESS));if(!compatible_state(old,ar::patch_metadata(patch).wear_minutes))return refuse("saved state does not fit this sensor");
     std::unique_ptr<ar::PersistentState> migrated;
     if(previous->datpos(FAKE)==1){
-        if(!known_start)return nullptr;
+        if(!known_start)return refuse("start time missing for the saved state");
         migrated=std::make_unique_for_overwrite<ar::PersistentState>();
         restore_activation_start(old,*migrated,known_start);
         old=*migrated;
@@ -184,7 +185,11 @@ AlgorithmResults *stream(const data_t *uid,const data_t *info,const data_t *pack
     const auto processed=!plaintext&&classic?
         ar::process_active_ble_eu(bytes(uid).first<8>(),patch,frame,state,now):
         ar::process_active_ble_plain(frame,state,now);
-    if(!processed.accepted)return nullptr;
+    if(!processed.accepted){
+        if(!plaintext&&classic)return refuse("frame failed decryption, checksum or time check");
+        return refuse(ar::state_crc(frame.subspan<2,42>())!=ar::read_state_u16(frame.data()+44)?
+            "frame checksum":"frame time or wear check");
+    }
     save(next,processed.state);
     return results(processed.state,ResultKind::stream);
 }
