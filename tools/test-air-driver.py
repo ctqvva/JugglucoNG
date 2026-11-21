@@ -32,13 +32,19 @@ def run(command):
 
 def library(directory):
     source = (ROOT / 'Common/src/main/cpp/air/java.cpp').read_text()
+    stream = (ROOT / 'Common/src/main/cpp/streamdata.hpp').read_text()
+    layout = stream[stream.index('struct LegacyAirCalculation {'):
+                    stream.index('\n#endif', stream.index('struct airstream :'))]
+    batch = method(source, 'bool airstream::setNumberNew(')
     loader = source[source.index('typedef unsigned char (*air1_opcal4_algorithm_t)'):
                     source.index('bool airstream::setNumberNew(')]
     process = method(source, 'static jlong airProcessData(', source.index('// Returns 0:'))
     fixture = r'''
 #include <cassert>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <string_view>
 #include <thread>
@@ -59,19 +65,26 @@ struct SensorGlucoseData {
   int getLastAir() const { return cursor; }
   void setLastAir(int n) { cursor = n; }
   const ScanData *lastpoll() const { return nullptr; }
+  const char *showsensorname() const { return ""; }
+  std::string_view getsensordir() const { return ""; }
 };
-template<class T> struct Memory { T value{}; T *data() { return &value; } };
-struct airstream {
+constexpr int careSensAirKind = 0x60;
+constexpr char sensorInfoStr[] = "sensorInfo", generatedStr[] = "generated";
+static std::atomic<int> mappings{0};
+template<class T> struct Mmap {
+  T value{};
+  Mmap(std::string_view, std::string_view, int) { ++mappings; }
+  T *data() { return &value; }
+};
+template<class T> Mmap<T> mmapWithDefaults(std::string_view dir, std::string_view name) {
+  return Mmap<T>(dir,name,1);
+}
+struct streamdata {
   SensorGlucoseData *hist;
-  int tmpiter = 0, tmptot = 1;
-  Memory<DeviceInfo3Obj> sensorInfo;
-  Memory<air1_opcal4_arguments_t> generated;
-  air_input input;
-  air1_opcal4_output_t output;
-  air1_opcal4_debug_t debug;
-  explicit airstream(SensorGlucoseData *s) : hist(s) {}
-  void setNumberNew(int n) { tmpiter = 0; tmptot = n; }
+  streamdata(int, int, SensorGlucoseData *s) : hist(s) {}
 };
+// PRODUCTION_LAYOUT
+// PRODUCTION_BATCH
 static int opens = 0, closes = 0;
 unsigned char algorithm(air1_opcal4_device_info_t *, air1_opcal4_cgm_input_t *in,
     air1_opcal4_cal_list_t *, air1_opcal4_arguments_t *, air1_opcal4_output_t *out,
@@ -105,15 +118,19 @@ jlong sample(airstream &stream, int sequence) {
 }
 int main() {
   SensorGlucoseData sensor;
-  airstream stream(&sensor);
+  airstream stream(0, &sensor);
+  assert(mappings == 0);
+  assert(stream.setNumberNew(1) && mappings == 0);
   assert(sample(stream, 7) == 0 && sensor.cursor == 0 && sensor.sensorerror);
   assert(sample(stream, 7) == 0 && sensor.cursor == 0 && closes == 1);
+  assert(mappings == 0);
   assert(sample(stream, 7) == 1250 && sensor.cursor == 7 && opens == 3);
   assert(sample(stream, 8) == 1250 && sensor.cursor == 8 && opens == 3);
+  assert(mappings == 2);
   std::vector<std::thread> workers;
   for (int i = 0; i < 8; ++i) workers.emplace_back([] {
     SensorGlucoseData other;
-    airstream otherStream(&other);
+    airstream otherStream(0, &other);
     assert(sample(otherStream, 9) == 1250 && other.cursor == 9);
   });
   for (auto &worker : workers) worker.join();
@@ -121,12 +138,13 @@ int main() {
 }
 '''
     cpp = directory / 'library.cpp'
-    cpp.write_text(fixture.replace('// PRODUCTION_LOADER', loader).replace('// PRODUCTION_PROCESS', process))
+    cpp.write_text(fixture.replace('// PRODUCTION_LAYOUT', layout).replace('// PRODUCTION_BATCH', batch)
+                   .replace('// PRODUCTION_LOADER', loader).replace('// PRODUCTION_PROCESS', process))
     binary = directory / 'library'
     run([os.environ.get('CXX', 'c++'), '-std=c++17', '-pthread',
          '-I', str(ROOT / 'Common/src/main/cpp/air'), str(cpp), '-o', str(binary)])
     run([str(binary)])
-    print('Air library: failed dlopen/dlsym retry, cursor preservation, cached success, concurrent sensors passed')
+    print('Air library: lazy legacy mapping, loader retry, cursor preservation and concurrent sensors passed')
 
 
 def gatt(directory):

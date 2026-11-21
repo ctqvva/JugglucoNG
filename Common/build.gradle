@@ -8,6 +8,10 @@ plugins {
 // must never package it, even if the local developer has kept the property set.
 def careSensAirEnginePath = providers.gradleProperty('careSensAirEngineJar').getOrElse('')
 def careSensAirManaged = providers.gradleProperty('careSensAirManaged').getOrElse('false') == 'true'
+def careSensAirStandalone = providers.gradleProperty('careSensAirStandalone').getOrElse('false') == 'true'
+if (careSensAirStandalone && !careSensAirManaged) {
+    throw new GradleException('careSensAirStandalone requires careSensAirManaged')
+}
 if (careSensAirManaged && careSensAirEnginePath.isEmpty()) {
     throw new GradleException('careSensAirManaged requires a local careSensAirEngineJar')
 }
@@ -103,6 +107,7 @@ android {
 
     defaultConfig {
         buildConfigField 'boolean', 'CARESENS_AIR_MANAGED', 'false'
+        buildConfigField 'boolean', 'CARESENS_AIR_STANDALONE', 'false'
         buildConfigField 'String', 'CARESENS_AIR_ENGINE_ID', '""'
         bloodControlInputs.each { name, value ->
             buildConfigField 'String', name, groovy.json.JsonOutput.toJson(value)
@@ -271,12 +276,13 @@ android {
         debug {
             manifestPlaceholders["requireWatch"] = "false"
             manifestPlaceholders["debuggable"] = "true"
-            applicationIdSuffix = ".debug"
+            applicationIdSuffix = careSensAirStandalone ? ".debug.caresens" : ".debug"
             versionNameSuffix = 'DEBUG'
 
             buildConfigField 'int', 'isReleaseID', '0'
             buildConfigField 'int', 'doLog', '1'
             buildConfigField 'boolean', 'CARESENS_AIR_MANAGED', careSensAirManaged.toString()
+            buildConfigField 'boolean', 'CARESENS_AIR_STANDALONE', careSensAirStandalone.toString()
             buildConfigField 'String', 'CARESENS_AIR_ENGINE_ID', '"' + careSensAirEngineId + '"'
 
             jniDebuggable = true
@@ -406,6 +412,9 @@ android {
         debug {
             assets.srcDirs += files("$projectDir/schemas")
         }
+        ['release', 'releasedub', 'releasedub2'].each { name ->
+            getByName(name).kotlin.srcDir('src/nonDebug/kotlin')
+        }
     }
 }
 
@@ -416,6 +425,10 @@ androidComponents {
     onVariants(selector().all()) { variant ->
         def buildTypeTag = [release: '', releasedub: 'dub', releasedub2: 'dub2', debug: 'debug']
                 .get(variant.buildType, variant.buildType)
+        if (variant.buildType == 'debug' && careSensAirStandalone) {
+            variant.packaging.jniLibs.excludes.add('**/libCALCULATION.so')
+            buildTypeTag = 'caresens-standalone'
+        }
         def isWear = variant.productFlavors.any { flavor -> flavor.second == 'wear' }
         def parts = [isWear ? 'wear' : '', buildTypeTag].findAll { it }
         def suffix = parts ? '-' + parts.join('-') : ''

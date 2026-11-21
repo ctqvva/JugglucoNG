@@ -37,6 +37,7 @@ struct accustream : streamdata {
 };
 
 #include "air/air.hpp"
+#include <memory>
 #include <sys/stat.h>
 // Maps one T from dir/name. A missing or short file is a sensor seen for the
 // first time; it starts from T's member defaults rather than zeros.
@@ -50,23 +51,33 @@ inline Mmap<T> mmapWithDefaults(std::string_view dir, std::string_view name) {
     *map.data() = T{};
   return map;
 }
-struct airstream : streamdata {
+struct LegacyAirCalculation {
   Mmap<DeviceInfo3Obj> sensorInfo;
   Mmap<air1_opcal4_arguments_t> generated;
-  int tmpiter = 0;
-  int tmptot = 0;
-  int ininfo = 0;
-  int errors = 0;
   // Too large for the JNI thread's stack.
   air_input input;
   air1_opcal4_output_t output;
   air1_opcal4_debug_t debug;
+  explicit LegacyAirCalculation(std::string_view directory)
+      : sensorInfo(mmapWithDefaults<DeviceInfo3Obj>(directory, sensorInfoStr)),
+        generated(directory, generatedStr, 1) {}
+};
+struct airstream : streamdata {
+  int tmpiter = 0;
+  int tmptot = 0;
+  int ininfo = 0;
   airstream(int sensindex, SensorGlucoseData *sens)
-      : streamdata(careSensAirKind, sensindex, sens),
-        sensorInfo(mmapWithDefaults<DeviceInfo3Obj>(hist->getsensordir(),
-                                                    sensorInfoStr)),
-        generated(hist->getsensordir(), generatedStr, 1) {}
+      : streamdata(careSensAirKind, sensindex, sens) {}
+  // Only the legacy JNI operations call this, under AirGattCallback's nativeLock.
+  LegacyAirCalculation &legacy() {
+    if (!calculation)
+      calculation = std::make_unique<LegacyAirCalculation>(hist->getsensordir());
+    return *calculation;
+  }
   bool setNumberNew(int nr);
+
+private:
+  std::unique_ptr<LegacyAirCalculation> calculation;
 };
 #endif
 struct aidexstream : streamdata {

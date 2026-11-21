@@ -268,22 +268,23 @@ static jlong airProcessData(airstream *sdata, const jbyte *indata, int arlen,
         mtime = nowsec;
     }
     const int idnow = air->sequenceNumber;
-    air_input &input = sdata->input;
+    auto &calculation = sdata->legacy();
+    air_input &input = calculation.input;
     input = {.data = {.sequence_number = static_cast<uint16_t>(idnow),
                       .measurement_time = mtime,
                       .glucose_array = air->glucose_array,
                       .temperature = air->temperature / 100.0}};
-    air1_opcal4_output_t &output = sdata->output;
+    air1_opcal4_output_t &output = calculation.output;
     output = {};
-    air1_opcal4_debug_t &debug = sdata->debug;
+    air1_opcal4_debug_t &debug = calculation.debug;
     debug = {};
     showm(&input.data);
 
-    DeviceInfo3Obj *deviceInfo = sdata->sensorInfo.data();
+    DeviceInfo3Obj *deviceInfo = calculation.sensorInfo.data();
 
     const unsigned char res = air1_opcal4_algorithm(
         reinterpret_cast<air1_opcal4_device_info_t *>(deviceInfo),
-        &input.cgm_input, &input.empty, sdata->generated.data(), &output,
+        &input.cgm_input, &input.empty, calculation.generated.data(), &output,
         &debug);
     const double mgdLdouble = output.result_glucose;
 
@@ -390,7 +391,7 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(airSaveSensorInfo)(
   }
   LOGGER("airSaveSensorInfo lot %.10s minGlucose=%f maxGlucose=%f\n", air->lot,
          (double)air->minGlucose, (double)air->maxGlucose);
-  auto *sensorinfo = sdata->sensorInfo.data();
+  auto *sensorinfo = sdata->legacy().sensorInfo.data();
   memcpy(sensorinfo, bluedata.data() + 2, sizeof(SensorInfo) - 2);
   sensorinfo->stabilizationInterval = 1800;
   sdata->ininfo = 72;
@@ -419,7 +420,7 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(airSaveSensorInfo2)(
     LOGGER("airSaveSensorInfo2 second byte %d not 2\n", data[1]);
     return false;
   }
-  auto *sensorinfo = sdata->sensorInfo.data();
+  auto *sensorinfo = sdata->legacy().sensorInfo.data();
   const int ininfo = sdata->ininfo;
   int cplen;
   if (sensorinfo->cLibraryVersion >= 2) {
@@ -451,7 +452,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(airSaveStartSensor)(
     LOGAR("airSaveStartSensor SensorGlucoseData==null");
     return;
   }
-  DeviceInfo3Obj *sensorinfo = sdata->sensorInfo.data();
+  DeviceInfo3Obj *sensorinfo = sdata->legacy().sensorInfo.data();
   const uint32_t sensorstart = time(nullptr) - elapsedSecs;
   sensorinfo->sensor_start_time = sensorstart;
   const uint32_t wasstart = sens->getinfo()->starttime;
@@ -473,8 +474,8 @@ extern "C" JNIEXPORT void JNICALL fromjava(airSaveStartSensor)(
 extern "C" JNIEXPORT jbyteArray JNICALL fromjava(airGetPin)(JNIEnv *env,
                                                            jclass cl,
                                                            jlong dataptr) {
-  airstream *sdata = reinterpret_cast<airstream *>(dataptr);
-  SensorGlucoseData *sens = sdata->hist;
+  auto *stream = reinterpret_cast<streamdata *>(dataptr);
+  auto *sens = stream && stream->libreversion == careSensAirKind ? stream->hist : nullptr;
   if (!sens) {
     LOGAR("airGetPin SensorGlucoseData==null");
     return nullptr;
@@ -490,17 +491,20 @@ extern "C" JNIEXPORT jbyteArray JNICALL fromjava(airGetPin)(JNIEnv *env,
 
 // The Kotlin collector owns calibration and its raw cursor. These entry points
 // only use the existing native CareSens identity, clock and poll storage.
+static SensorGlucoseData *managedAirSensor(jlong dataptr) {
+  auto *stream = reinterpret_cast<streamdata *>(dataptr);
+  return stream && stream->libreversion == careSensAirKind ? stream->hist : nullptr;
+}
+
 extern "C" JNIEXPORT jboolean JNICALL fromjava(airCanStartManaged)(
     JNIEnv *, jclass, jlong dataptr) {
-  auto *stream = reinterpret_cast<airstream *>(dataptr);
-  const auto *sensor = stream ? stream->hist : nullptr;
+  const auto *sensor = managedAirSensor(dataptr);
   return sensor && sensor->getLastAir() == 0 && sensor->pollcount() == 0;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(airManagedSetStart)(
     JNIEnv *, jclass, jlong dataptr, jlong start) {
-  auto *stream = reinterpret_cast<airstream *>(dataptr);
-  auto *sensor = stream ? stream->hist : nullptr;
+  auto *sensor = managedAirSensor(dataptr);
   if (!sensor || start <= 0 || start > UINT32_MAX)
     return false;
   const auto sensorStart = static_cast<uint32_t>(start);
@@ -518,8 +522,7 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(airManagedSetStart)(
 extern "C" JNIEXPORT jlong JNICALL fromjava(airManagedPublish)(
     JNIEnv *, jclass, jlong dataptr, jint sequence, jlong timestamp,
     jint glucose, jfloat rate, jboolean live) {
-  auto *stream = reinterpret_cast<airstream *>(dataptr);
-  auto *sensor = stream ? stream->hist : nullptr;
+  auto *sensor = managedAirSensor(dataptr);
   if (!sensor || sequence <= 0 || sequence > maxdaysAir * 288 ||
       timestamp < sensor->getinfo()->starttime || timestamp > UINT32_MAX ||
       glucose < 35 || glucose > 505)

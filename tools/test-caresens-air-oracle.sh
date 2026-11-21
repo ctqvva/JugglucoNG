@@ -22,6 +22,7 @@ int main() {
 CPP
 "$care_sens_scratch/factory" > "$care_sens_scratch/factory.bin"
 care_sens_sources=Common/src/main/java/tk/glucodata/drivers/caresens
-kotlinc "$care_sens_sources"/*.kt tools/caresens-air-oracle.kt -include-runtime -d "$care_sens_scratch/oracle.jar"
+care_sens_debug=Common/src/debug/kotlin/tk/glucodata/drivers/caresens
+kotlinc "$care_sens_sources"/*.kt "$care_sens_debug"/*.kt tools/caresens-air-oracle.kt -include-runtime -d "$care_sens_scratch/oracle.jar"
 care_sens_main=tk.glucodata.drivers.caresens.Caresens_air_oracleKt
 java -cp "$care_sens_scratch/oracle.jar:$care_sens_engine" "$care_sens_main" "$care_sens_oracle" "$care_sens_scratch/factory.bin"

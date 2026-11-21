@@ -21,11 +21,11 @@ import kotlin.math.roundToInt
 import tk.glucodata.drivers.caresens.CareSensAirFactoryConfig
 import tk.glucodata.drivers.caresens.CareSensAirEngine
 import tk.glucodata.drivers.caresens.CareSensAirInfoAssembler
-import tk.glucodata.drivers.caresens.CareSensAirJavaEngine
 import tk.glucodata.drivers.caresens.CareSensAirJournal
 import tk.glucodata.drivers.caresens.CareSensAirProtocol
 import tk.glucodata.drivers.caresens.CareSensAirSession
 import tk.glucodata.drivers.caresens.CareSensAirVersion
+import tk.glucodata.drivers.caresens.careSensAirEngineFactory
 import tk.glucodata.drivers.caresens.hasHeader
 
 /**
@@ -39,6 +39,7 @@ internal class CareSensAirGattCallback(
     private val directory: File,
     private val openEngine: ((ByteArray) -> CareSensAirEngine)?,
     private val worker: ScheduledExecutorService = sharedWorker,
+    unavailableMessage: String = "CareSens Air private engine unavailable",
 ) : SuperGattCallback(serial, pointer, SensorSourceResolver.SENSOR_KIND_CARESENS_AIR) {
     private enum class Stage {
         MTU, DISCOVERY, SERIAL, SOFTWARE, REGISTER_SUBSCRIBE, REGISTER_REPLY, BOND,
@@ -77,7 +78,7 @@ internal class CareSensAirGattCallback(
     init {
         showtime = 6 * 60 * 1000L
         mActiveDeviceAddress = Natives.getDeviceAddress(dataptr, false)
-        if (blocked) handshake = "CareSens Air private engine unavailable"
+        if (blocked) handshake = unavailableMessage
     }
 
     // A parked experimental identity is still owned here when the private JAR is absent.
@@ -594,20 +595,26 @@ internal class CareSensAirGattCallback(
 
         @JvmStatic
         fun createIfSelected(serial: String, pointer: Long): CareSensAirGattCallback? {
-            if (!BuildConfig.DEBUG || serial.length != 16 || pointer == 0L) return null
+            if (!BuildConfig.DEBUG || pointer == 0L) return null
             val key = MessageDigest.getInstance("SHA-256").digest(serial.toByteArray(Charsets.UTF_8))
                 .joinToString("") { "%02x".format(it.toInt() and 0xff) }
             val directory = File(Applic.app.noBackupFilesDir, "caresens-air/$key")
             if (!directory.isDirectory && !BuildConfig.CARESENS_AIR_MANAGED) return null
-            val engine = CareSensAirJavaEngine.available
-            if (!directory.isDirectory) {
-                if (!BuildConfig.CARESENS_AIR_MANAGED || engine == null ||
-                    !Natives.airCanStartManaged(pointer) || Natives.getDeviceAddress(pointer, false) != null) return null
-                // The directory pins this sensor to its experimental journal, including across
-                // restarts and later installations of the default debug build.
-                if (!directory.mkdirs() && !directory.isDirectory) return null
+            val engine = careSensAirEngineFactory()
+            if (serial.length != 16 || !directory.isDirectory) {
+                val eligible = serial.length == 16 && BuildConfig.CARESENS_AIR_MANAGED && engine != null &&
+                    Natives.airCanStartManaged(pointer) && Natives.getDeviceAddress(pointer, false) == null
+                // The directory pins the sensor to its journal across restarts and same-package updates.
+                if (!eligible || (!directory.mkdirs() && !directory.isDirectory)) {
+                    if (!BuildConfig.CARESENS_AIR_STANDALONE) return null
+                    return CareSensAirGattCallback(
+                        serial, pointer, directory, openEngine = null,
+                        unavailableMessage = if (engine == null) "CareSens Air private engine unavailable"
+                        else "CareSens Air standalone build requires a new sensor",
+                    )
+                }
             }
-            return CareSensAirGattCallback(serial, pointer, directory, engine?.let { it::open })
+            return CareSensAirGattCallback(serial, pointer, directory, engine)
         }
 
         private fun uuid(prefix: String) = UUID.fromString("$prefix-5a9d-11e9-8647-d663bd873d93")
