@@ -32,9 +32,10 @@ fun resolveDashboardSensorStatus(
     nativeStatus: String
 ): String {
     // The native record carries the sensor's own warm-up (62 min for a 15-day
-    // G7); 0 when the serial has no record, which keeps the 30-minute default.
+    // G7). Look it up by name: str2sensorptr would also clear sensor-error
+    // flags, which this status refresh must not do.
     val warmupMinutes = runCatching {
-        Natives.getSensorWarmupMinutes(Natives.str2sensorptr(serial))
+        Natives.getSensorWarmupMinutesByName(serial)
     }.getOrDefault(0)
     val warmupStatus = getLegacyWarmupStatus(
         Applic.app,

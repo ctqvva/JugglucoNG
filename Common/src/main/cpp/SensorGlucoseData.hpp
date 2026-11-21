@@ -921,7 +921,13 @@ public:
     auto *info = getinfo();
     if (!info)
       return 60;
-    const int warmup = (isLibre2() || isAccuChek() || isDexcom() || isAir())
+    if (isDexcom()) {
+      // A record saved before the 15-day window was known still stores 30;
+      // derive the model's warm-up from the stored wear duration.
+      const int stored = info->warmup ? info->warmup : 60;
+      return dexcom::upgradedWarmupMinutes(stored, getDexWearMinutes());
+    }
+    const int warmup = (isLibre2() || isAccuChek() || isAir())
                            ? info->warmup
                            : info->warmup2;
     if (warmup)

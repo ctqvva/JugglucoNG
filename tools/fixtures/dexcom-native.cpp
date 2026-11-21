@@ -33,6 +33,7 @@ struct Info {
     bool dexcom=true;
     uint8_t days=12;
     uint16_t warmup=30,wearduration=14400,lastLifeCountReceived=1;
+    uint16_t warmup2=60;
     int pollcount=0;
     bool sibionics=false,notchinese=false;
     uint16_t wearduration2=0;
@@ -100,7 +101,6 @@ struct SensorGlucoseData {
     int perhour()const{return 12;}int streamperhour()const{return 12;}
     array<char,11> dummyName{};
     const array<char,11>* shortsensorname()const{return &dummyName;}
-    int getWarmupSEC()const{return metadata.warmup*60;}
     uint32_t getstarttime()const{return metadata.starttime;}
     int pollcount()const{return metadata.pollcount;}
     Stream* getstream(int index){assert(index>=0&&index<int(stream.size()));return &stream[index];}
@@ -438,14 +438,24 @@ int main(){
     assert(legacy->metadata.sharedKey[0]==42&&legacy->metadata.pollcount==100);
     assert(legacy->stream[99].timestamp==1700029701&&legacy->sensordir==oldPath);
 
+    // A legacy 30 is upgraded only for a 15-day record; reported values are kept.
+    assert(dexcom::upgradedWarmupMinutes(30,dexcom::wearMinutes(15))==62);
+    assert(dexcom::upgradedWarmupMinutes(30,dexcom::wearMinutes(10))==30);
+    assert(dexcom::upgradedWarmupMinutes(62,dexcom::wearMinutes(15))==62);
+    assert(dexcom::upgradedWarmupMinutes(27,dexcom::wearMinutes(10))==27);
+
     for(int days:{10,15}){
         SensorGlucoseData d;payload(d.metadata,manual(days));
-        // The record mkdatabaseDex creates for this model, not the fixture default.
-        d.metadata.warmup=dexcom::warmupMinutes(days);
-        const int warmup=d.getWarmupSEC();
         assert(d.initialHistoryBytes()==17*24*12*12);
         assert(d.pollStorageSize()==17*24*12);
         assert(d.getDexWearMinutes()==days*1440);
+        // The record mkdatabaseDex creates for this model.
+        d.metadata.warmup=dexcom::warmupMinutes(days);
+        const int warmup=d.getWarmupSEC();
+        // A record saved before the 15-day window was known still stores 30.
+        d.metadata.warmup=30;
+        assert(d.getWarmupSEC()==(days==15?62:30)*60);
+        d.metadata.warmup=dexcom::warmupMinutes(days);
         assert(d.getmaxdexcount()==(days==10?3025:4465));
         assert(d.getDexMaxSecs()==(days==10?907500:1339500));
         assert(d.officialendtime()==d.getstarttime()+days*86400);
