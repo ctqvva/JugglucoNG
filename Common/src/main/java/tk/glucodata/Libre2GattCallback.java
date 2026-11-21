@@ -81,6 +81,13 @@ public class Libre2GattCallback extends SuperGattCallback {
 			}, this::streamSilent);
 	private long linkConnectedAt = -1L, lastPacketAt = -1L;
 	private int linkPackets;
+	// After this app hangs up a link that was up, Android can keep the radio link alive for a
+	// moment. A connectGatt in that window lands on the old link within milliseconds, and the
+	// sensor, which never saw a disconnect, ignores the new login: in a tester trace 69 of 69
+	// such reconnects got no answer to the challenge request, until the link finally timed out.
+	// Waiting lets the link drop so the sensor starts a fresh session.
+	private static final long RELINK_DELAY_MILLIS = 5_000L;
+	private boolean linkWasUp;
 
 	private void streamPacketReceived() {
 		lastPacketAt = SystemClock.elapsedRealtime();
@@ -117,6 +124,11 @@ public class Libre2GattCallback extends SuperGattCallback {
 		return 120_000L;
 	}
 
+	private boolean streaming() {
+		return connected && disconnectingGatt == null && lastPacketAt >= 0L
+				&& SystemClock.elapsedRealtime() - lastPacketAt < STREAM_SILENCE_MILLIS;
+	}
+
 	private boolean acceptGattCallback(BluetoothGatt gatt) {
 		return gatt != null && gatt == mBluetoothGatt && disconnectingGatt == null && !stop;
 	}
@@ -131,6 +143,7 @@ public class Libre2GattCallback extends SuperGattCallback {
 		endBLEHandler();
 		streamDeadline.cancel();
 		connected = false;
+		linkWasUp = false;
 		conphase = 0;
 		pack1 = pack2 = false;
 		BLELogincharacteristic = null;
@@ -140,7 +153,8 @@ public class Libre2GattCallback extends SuperGattCallback {
 
 	private synchronized void retryAfterDisconnect(BluetoothGatt gatt) {
 		if (gatt != mBluetoothGatt) return;
-		final long delay = reconnectDelayMillis;
+		final boolean droppedOwnLink = disconnectingGatt == gatt && linkWasUp;
+		final long delay = droppedOwnLink ? Math.max(reconnectDelayMillis, RELINK_DELAY_MILLIS) : reconnectDelayMillis;
 		cancelDisconnectDeadline();
 		resetConnectionState();
 		logLinkEnd("closed");
@@ -178,6 +192,12 @@ public class Libre2GattCallback extends SuperGattCallback {
 		if (stop || dataptr == 0L || CloneSensorRegistry.isCloneSensor(SerialNumber)
 				|| SensorOwnershipRuntime.blocksLocalConnection(SerialNumber)) return false;
 		if (mBluetoothGatt != null) {
+			// "Connect" from app start or from adding another sensor must not restart a link
+			// that is streaming: the restart is what left the sensor unable to log in again.
+			if (streaming()) {
+				if (doLog) Log.i(LOG_ID, SerialNumber + " connectDevice: keeping the streaming link");
+				return true;
+			}
 			requestDisconnect(mBluetoothGatt, delayMillis);
 			return true;
 		}
@@ -326,6 +346,7 @@ private boolean connected=false;
 			}
 			if (!attemptFailed) {
 				connected = true;
+				linkWasUp = true;
 				// A refused connect attempt earlier in this recovery run is over now; keeping
 				// its "Status=N" on the diagnostic status makes a working sensor look broken.
 				setConStatus(GATT_SUCCESS);
