@@ -129,12 +129,11 @@ object Libre3ManagedNfc {
         val response = AlgNfcV.wholenfccmd(tag, Libre3Nfc.activationCommand(command, nowSeconds, receiver))
         return when (val result = Libre3Nfc.parseActivationResponse(response, nowSeconds)) {
             is Libre3Nfc.ActivationResult.Success -> {
-                // A sensor that reported no activation time keeps the start we already know, so a
-                // rescan does not look like a new activation (which would reset backfill marks).
                 val known = Libre3Persistence.loadSensor(ctx, info.serial)
-                val startMs = if (result.reportedActivationTime || known == null || known.startTimeMs <= 0L) {
-                    result.activationTimeSeconds * 1000L
-                } else known.startTimeMs
+                val startMs = pairingStartTimeMs(command, result, known?.startTimeMs) {
+                    val legacyPtr = Natives.str2sensorptr(Libre3IdentityAdapter.legacyNativeName(info.serial))
+                    if (legacyPtr != 0L) Natives.getSensorStartmsecFromSensorptr(legacyPtr) else 0L
+                }
                 val record = Libre3SensorRecord(
                     sensorId = info.serial,
                     bleAddress = result.bleAddress,
@@ -155,6 +154,20 @@ object Libre3ManagedNfc {
             is Libre3Nfc.ActivationResult.Malformed ->
                 if (response == null) Outcome.NoResponse else Outcome.Failed("malformed response (${result.length} B)")
         }
+    }
+
+    internal fun pairingStartTimeMs(
+        command: Byte,
+        result: Libre3Nfc.ActivationResult.Success,
+        knownStartMs: Long?,
+        legacyStartMs: () -> Long,
+    ): Long = when {
+        result.reportedActivationTime -> result.activationTimeSeconds * 1000L
+        knownStartMs != null && knownStartMs > 0L -> knownStartMs
+        command == Libre3Nfc.CMD_ACTIVATE -> result.activationTimeSeconds * 1000L
+        // A8 can move a sensor that has already run for days. Scan time is
+        // not its activation time. If unknown, wait for the first life count.
+        else -> runCatching(legacyStartMs).getOrDefault(0L)
     }
 }
 

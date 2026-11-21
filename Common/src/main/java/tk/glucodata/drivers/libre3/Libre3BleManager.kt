@@ -65,7 +65,9 @@ class Libre3BleManager(sensorId: String) :
         /** First clinical request on a sensor with no minute history here: the sensor buffers far less. */
         private const val INITIAL_CLINICAL_WINDOW_MINUTES = 6 * 60
         /** Room points already within this distance of a backfilled minute are the same reading. */
-        private const val MINUTE_DUPLICATE_WINDOW_MS = 50_000L
+        // Some preview builds stored live readings at receipt time. Look only as far
+        // as the midpoint between sensor minutes when matching those older rows.
+        private const val MINUTE_DUPLICATE_WINDOW_MS = 29_999L
         /** A 5-minute history point only fills a hole: skip it when any reading is this close. */
         private const val HISTORY_DUPLICATE_WINDOW_MS = 150_000L
         /** After this many complete rounds of every identity being refused, stop until the user acts. */
@@ -119,8 +121,8 @@ class Libre3BleManager(sensorId: String) :
     private var highestClinicalSeen = 0
     private var highestHistoricSeen = 0
 
-    /** Phone time of life count 0, learned from realtime frames; NFC activation time until then. */
-    private var anchorStartMs: Long = 0L
+    /** Fixed time of life count 0. Preserve the saved grid of an earlier preview. */
+    @Volatile private var anchorStartMs: Long = 0L
 
     // ---- per-link state (handler thread) ----
 
@@ -179,9 +181,9 @@ class Libre3BleManager(sensorId: String) :
     init {
         mActiveDeviceAddress = record?.bleAddress
         mActiveBluetoothDevice = knownDevice()
-        sensorstartmsec = record?.startTimeMs ?: 0L
         anchorStartMs = Applic.app?.let { Libre3Persistence.getAnchor(it, sensorId) }?.takeIf { it > 0L }
             ?: record?.startTimeMs ?: 0L
+        sensorstartmsec = activationTimeMs()
         if (ended) phase = Phase.ENDED
     }
 
@@ -236,8 +238,8 @@ class Libre3BleManager(sensorId: String) :
     override fun getManagedUiSnapshot(activeSensorId: String?): ManagedSensorUiSnapshot? {
         val rec = record ?: Applic.app?.let { Libre3Persistence.loadSensor(it, sensorId) } ?: return null
         val now = System.currentTimeMillis()
-        val start = rec.startTimeMs
-        val end = rec.expectedEndMs
+        val start = activationTimeMs()
+        val end = if (start > 0L && rec.wearMinutes > 0) start + rec.wearMinutes * 60_000L else 0L
         val status = lastStatus
         val attention = status?.attention ?: Libre3PatchStatus.Attention.NONE
         val subtitle = when {
@@ -256,6 +258,7 @@ class Libre3BleManager(sensorId: String) :
             startTimeMs = start,
             officialEndMs = end,
             expectedEndMs = end,
+            isUiEnabled = !pauseRequested(),
             isActive = activeSensorId?.let { Libre3IdentityAdapter.sameSensor(it, sensorId) } ?: false,
             rssi = readrssi,
             viewMode = viewMode,
@@ -316,7 +319,12 @@ class Libre3BleManager(sensorId: String) :
     /** NFC refreshed this sensor's address/PIN/start: adopt it and start over with a clean link. */
     fun onNfcRecordUpdated() {
         val ctx = Applic.app ?: return
-        record = Libre3Persistence.loadSensor(ctx, sensorId)
+        val previousStart = record?.startTimeMs
+        val updated = Libre3Persistence.loadSensor(ctx, sensorId)
+        if (updated?.startTimeMs != previousStart) {
+            anchorStartMs = updated?.startTimeMs ?: 0L
+        }
+        record = updated
         ended = false
         identityRejected = false
         identityRejections = 0
@@ -324,7 +332,7 @@ class Libre3BleManager(sensorId: String) :
         deviceRejected = false
         mActiveDeviceAddress = record?.bleAddress
         mActiveBluetoothDevice = knownDevice()
-        sensorstartmsec = record?.startTimeMs ?: 0L
+        sensorstartmsec = activationTimeMs()
         softReconnect()
     }
 
@@ -698,6 +706,8 @@ class Libre3BleManager(sensorId: String) :
         return if (base > 0L) base + lifeCount * 60_000L else 0L
     }
 
+    private fun activationTimeMs(): Long = record?.startTimeMs?.takeIf { it > 0L } ?: anchorStartMs
+
     private fun inWarmup(lifeCount: Int): Boolean = lifeCount < (record?.warmupMinutes ?: 60)
 
     private fun pastWear(lifeCount: Int): Boolean {
@@ -708,11 +718,13 @@ class Libre3BleManager(sensorId: String) :
     private fun onRealtime(r: Libre3RealtimeReading) {
         val now = System.currentTimeMillis()
         armWatchdog()
-        // The earliest arrival is closest to the sensor's own minute boundary.
-        val anchor = now - r.lifeCount * 60_000L
-        if (anchorStartMs <= 0L || anchor < anchorStartMs || anchor - anchorStartMs > 120_000L) {
-            anchorStartMs = anchor
-            Applic.app?.let { Libre3Persistence.setAnchor(it, sensorId, anchor) }
+        val learnedAnchor = anchorStartMs <= 0L && record != null
+        if (learnedAnchor) {
+            // A takeover with no known activation time can only estimate it.
+            // Capture a single origin; receipt jitter cannot move later minutes.
+            anchorStartMs = now - r.lifeCount * 60_000L
+            sensorstartmsec = activationTimeMs()
+            Applic.app?.let { Libre3Persistence.setAnchor(it, sensorId, anchorStartMs) }
         }
         r.historicalMgdl?.let { hist ->
             if (r.historicalLifeCount > 0) addHistoric(r.historicalLifeCount, hist)
@@ -720,14 +732,15 @@ class Libre3BleManager(sensorId: String) :
                 lastHistoricLifeCount = r.historicalLifeCount
             }
         }
-        markMinuteReceived(r.lifeCount)
         val mgdl = r.currentMgdl
         when {
             inWarmup(r.lifeCount) -> {
+                markMinuteReceived(r.lifeCount)
                 lastNote = "Warming up (${(record?.warmupMinutes ?: 60) - r.lifeCount} min left)"
                 noteLiveFrameWithoutReading(now)
             }
             mgdl == null -> {
+                markMinuteReceived(r.lifeCount)
                 lastNote = when {
                     r.dataQualityError -> "No reading (data quality)"
                     r.sensorCondition != 0 -> "No reading (sensor condition ${r.sensorCondition})"
@@ -742,14 +755,16 @@ class Libre3BleManager(sensorId: String) :
                 // No wear-duration cut-off: like the legacy native driver, a value the sensor still
                 // marks valid after its nominal wear time is published; the sensor decides when it stops.
                 lastNote = if (pastWear(r.lifeCount)) "Past nominal wear time" else ""
-                publishCurrent(now, mgdl.toFloat(), r.rateMgdlPerMinute)
+                val sampleTime = lifeCountTimeMs(r.lifeCount)
+                if (sampleTime > 0L) publishCurrent(sampleTime, mgdl.toFloat(), r.rateMgdlPerMinute, r.lifeCount)
             }
         }
+        if (learnedAnchor) planBackfill(r.lifeCount)
         scheduleBackfillFlush()
         UiRefreshBus.requestStatusRefresh()
     }
 
-    private fun publishCurrent(timeMs: Long, mgdl: Float, rate: Float) {
+    private fun publishCurrent(timeMs: Long, mgdl: Float, rate: Float, lifeCount: Int) {
         synchronized(readingLock) {
             if (stop) return
             lastReadingMs = timeMs
@@ -760,6 +775,7 @@ class Libre3BleManager(sensorId: String) :
             val safeRate = rate.takeIf { it.isFinite() } ?: 0f
             // Include live minutes in the blocking flush before its progress can be persisted.
             minuteBackfill += VirtualGlucoseSensorBridge.Reading(timestampMs = timeMs, glucoseMgdl = mgdl, rate = rate)
+            markMinuteReceived(lifeCount)
             val mirrored = VirtualGlucoseSensorBridge.mirrorToNative(
                 sensorId,
                 listOf(VirtualGlucoseSensorBridge.Reading(timestampMs = timeMs, glucoseMgdl = mgdl, rate = rate)),
@@ -775,7 +791,7 @@ class Libre3BleManager(sensorId: String) :
                 safeRate,
                 timeMs,
                 SENSOR_GEN,
-                record?.startTimeMs ?: 0L,
+                activationTimeMs(),
             )
             completeManagedLiveReading(timeMs)
         }
@@ -807,11 +823,12 @@ class Libre3BleManager(sensorId: String) :
     private fun ensureNativeWindow() {
         if (nativeWindowChecked) return
         val rec = record ?: return
-        if (rec.startTimeMs <= 0L) return
+        val start = activationTimeMs()
+        if (start <= 0L) return
         runCatching {
             if (Natives.str2sensorptr(sensorId) == 0L) {
                 val nowSec = System.currentTimeMillis() / 1000L
-                val startSec = maxOf(rec.startTimeMs / 1000L - 60L, nowSec - NATIVE_WINDOW_SECONDS + 60L)
+                val startSec = maxOf(start / 1000L - 60L, nowSec - NATIVE_WINDOW_SECONDS + 60L)
                 val ptr = Natives.ensureSensorShellWithCapacity(sensorId, startSec, NATIVE_WINDOW_MINUTES)
                 if (ptr == 0L && Natives.ensureSensorShell(sensorId, startSec) == 0L) return
             }
@@ -832,6 +849,7 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun onClinical(rec: Libre3ClinicalRecord) {
+        if (anchorStartMs <= 0L) return
         highestClinicalSeen = maxOf(highestClinicalSeen, rec.lifeCount)
         markMinuteReceived(rec.lifeCount)
         val time = lifeCountTimeMs(rec.lifeCount)
@@ -845,6 +863,7 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun onHistoricPage(page: Libre3HistoricalPage) {
+        if (anchorStartMs <= 0L) return
         highestHistoricSeen = maxOf(highestHistoricSeen, page.lastLifeCount)
         page.samples().forEach { (life, mgdl) -> addHistoric(life, mgdl) }
         scheduleBackfillFlush()
@@ -867,6 +886,7 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun planBackfill(currentLifeCount: Int) {
+        if (anchorStartMs <= 0L) return
         if (session == null || controlInFlight != null || controlQueue.isNotEmpty()) return
         if (currentLifeCount <= 0) return
         if (lastLifeCount < currentLifeCount - 1) {
@@ -943,6 +963,9 @@ class Libre3BleManager(sensorId: String) :
     /** Runs on the driver thread: the Room import blocks. */
     private fun flushBackfill() {
         handler.removeCallbacks(flushRunnable)
+        // The resume path flushes again. Keep the readings and their uncommitted
+        // progress together while this callback is paused.
+        if (stop) return
         if (minuteBackfill.isEmpty() && historicBackfill.isEmpty()) {
             persistMarks()
             return
@@ -956,10 +979,10 @@ class Libre3BleManager(sensorId: String) :
             .getOrDefault(false)
         if (stored) {
             persistMarks()
-        } else if (!stop) {
+        } else {
             minuteBackfill.addAll(0, minutes)
             historicBackfill.addAll(0, history)
-            scheduleBackfillFlush()
+            if (!stop) scheduleBackfillFlush()
         }
         UiRefreshBus.requestDataRefresh()
     }
@@ -983,6 +1006,7 @@ class Libre3BleManager(sensorId: String) :
             }
             var minuteRows = minutes
             var regularMinutes = minutes
+            var nightscoutWakeAt = 0L
             if (minutes.isNotEmpty()) {
                 val plan = Libre3BackfillMerge.plan(
                     minutes,
@@ -1022,7 +1046,14 @@ class Libre3BleManager(sensorId: String) :
             }
             if (minuteRows.isNotEmpty()) {
                 // The same timestamps Room got, so a replaced fill-in's slot carries the minute value.
-                VirtualGlucoseSensorBridge.mirrorToNative(sensorId, minuteRows, "$LOG_LABEL clinical", ManagedSensorUiFamily.LIBRE3)
+                val stored = VirtualGlucoseSensorBridge.mirrorToNative(
+                    sensorId, minuteRows, "$LOG_LABEL clinical", ManagedSensorUiFamily.LIBRE3,
+                )
+                if (stored > 0) {
+                    // A live-only flush has already woken the uploader when it published.
+                    nightscoutWakeAt = minuteRows.filter { it.timestampMs != lastReadingMs }
+                        .maxOfOrNull { it.timestampMs } ?: 0L
+                }
             }
             if (history.isNotEmpty()) {
                 // Only the previously identified holes may be mirrored with smoothed values.
@@ -1035,13 +1066,17 @@ class Libre3BleManager(sensorId: String) :
                     nativeFamily = ManagedSensorUiFamily.LIBRE3,
                 )
                 if (gapFillers.isNotEmpty()) {
-                    VirtualGlucoseSensorBridge.mirrorToNative(sensorId, gapFillers, "$LOG_LABEL history", ManagedSensorUiFamily.LIBRE3)
+                    val stored = VirtualGlucoseSensorBridge.mirrorToNative(
+                        sensorId, gapFillers, "$LOG_LABEL history", ManagedSensorUiFamily.LIBRE3,
+                    )
+                    if (stored > 0) nightscoutWakeAt = maxOf(nightscoutWakeAt, gapFillers.maxOf { it.timestampMs })
                     historyFillers.addAll(gapFillers.map { it.timestampMs })
                     Applic.app?.let { Libre3Persistence.setHistoryFillers(it, sensorId, historyFillers) }
                 }
             }
             // Backfill can arrive after the live export cursor has passed these slots.
             if (minutes.isNotEmpty() || history.isNotEmpty()) exportHistoryToHealthConnect()
+            if (nightscoutWakeAt > 0L) tk.glucodata.NightscoutUploadWake.afterHistoryNativeWrite(LOG_LABEL, nightscoutWakeAt)
         }
         return true
     }

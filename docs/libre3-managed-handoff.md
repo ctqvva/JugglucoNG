@@ -41,10 +41,13 @@ excluded from settings import and export; Android application backup is disabled
 | Bluetooth toggle | Turn Bluetooth off for two minutes and on again. | Driver recovers; missing minutes backfill without a cursor jump or an endless setup loop. |
 | Process death / reboot | After receiving readings, force-stop and reopen; repeat with reboot. | Sensor record survives, cached authorization reconnects, stored history remains. |
 | Long outage | Leave disconnected for at least 30 minutes; reconnect. | Clinical minutes and five-minute gap fillers arrive; finer minute readings remain preferred. Compare Room chart with web-server/Nightscout history if enabled. |
+| Delayed live frame followed by replay | Let a live frame arrive late, then recover the next sensor minute after a disconnect. | Both minutes appear in history on the same sensor-time grid. |
+| Pause with pending backfill | Pause from Sensors while history is arriving, then use Resume. | The button changes to Resume. Queued rows are stored on resume before their progress is saved. |
 | Timeout during recovery | Interrupt Bluetooth during backfill, then reconnect. | Fresh authenticated link retries from stored progress. Late replies cannot settle a later request on the abandoned link. |
 | Calibration and exports | Apply a recognizable calibration and compare live vs recovered times in the chart and enabled exports. | Stock values are calibrated once; replay does not change the native calibration flag or apply calibration twice. |
 | Health Connect live before backfill | Enable Health Connect export, reconnect after an outage so live arrives first. | Earlier recovered minutes are exported too; later keyed retries update the same records. |
 | Health Connect corrected gap filler | Let a five-minute gap filler export before its finer clinical minute arrives. | The corrected value updates the existing Health Connect record; identical replays do not repeatedly rewind export progress. |
+| Nightscout corrected gap filler | With Nightscout upload enabled, let a five-minute gap filler upload before its clinical minute arrives. | A new upload carries the corrected value with the same date and identifier. Test both configured API versions. |
 | Health Connect during repeated backfill | Keep exports enabled while several recovered batches arrive, including near the end of an export. | Requests made during an export run afterward; repeated cursor rewinds continue automatically. Current-sensor export remains enabled when old-sensor history arrives. |
 | Remove a sensor with Health Connect work queued | While another sensor exports, remove the old sensor whose recovered history is waiting. | Retained native readings keep their client IDs; replay updates existing Health Connect records instead of duplicating them. |
 | Account lookup while settings is open | Leave the receiver-ID page open while LibreView account lookup completes; also change the account number manually. | The displayed receiver ID refreshes to the value NFC will use. |
@@ -82,6 +85,10 @@ services used are the generic managed-sensor mirror and lifecycle services.
 - Backfill timeout closes the link. Room success is required before durable
   progress advances; failed writes and failed timestamp queries retain batches.
   Live minutes join the blocking flush so progress cannot precede their storage.
+  Live and recovered timestamps use the same fixed activation grid. If NFC
+  takeover has no known activation time, the first live frame fixes an estimate
+  before history recovery starts. Pause retains pending batches until Resume can
+  flush them.
 - Libre 3 gap fills rewind the Health Connect cursor under the poll-write lock.
   An export acknowledgement cannot overwrite a concurrent rewind; invalidated
   batches retry with stable per-minute client IDs. One worker coalesces pending

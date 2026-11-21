@@ -52,6 +52,7 @@ inline int getpagesize(void) {
 
 #include "inout.hpp"
 #include "wearhistoryorigin.hpp"
+#include "nightscouthistoryprogress.hpp"
 
 #include "net/backup.hpp"
 #include "net/passhost.hpp"
@@ -676,6 +677,7 @@ public:
   bool resetdevice = false;
 
   std::mutex mutex;
+  NightscoutHistoryProgress nightscoutHistoryProgress;
   // Serializes every write to the poll arrays and their count with the Dexcom
   // slot repair, which rewrites slots and cuts the count from a snapshot: a
   // sample stored meanwhile would be hidden or overwritten. Shared by all

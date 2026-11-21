@@ -1620,6 +1620,9 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
   const ScanData *pollsbuf = hist->getPollsData();
   const bool fillsPollGap = pollsbuf && pollsbuf[lifeCount].g <= 0;
   const bool changesPollGlucose = pollsbuf && pollsbuf[lifeCount].g != storedGlucose;
+  const bool managedLibre3 = info->managedFamilyCode() == 9u;
+  const bool changesEarlierLibre3Slot =
+      managedLibre3 && changesPollGlucose && lifeCount < hist->pollcount();
   // Check and write under the same lock as the live driver. Filtering a chunk
   // in Kotlin first would still let a live write be overwritten between them.
   if (onlyIfMissing && !fillsPollGap)
@@ -1628,6 +1631,10 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
   // slot it missed.
   if (dexslots && lifeCount < hist->pollcount() && !fillsPollGap)
     return false;
+  // Nightscout keys uploads by timestamp. Keep the original identity when a
+  // newer clinical value replaces a Libre 3 reading in the same minute slot.
+  if (managedLibre3 && pollsbuf && !fillsPollGap && pollsbuf[lifeCount].gettime())
+    timestamp = pollsbuf[lifeCount].gettime();
   if (hist->hasStreamID(lifeCount)) {
     const RawData *rawbuf = hist->getRawPollsData();
     if (rawbuf)
@@ -1659,19 +1666,18 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
                                               preservedTemp)
               : hist->savepollallIDs<60>(timestamp, lifeCount, storedGlucose, 0,
                                          change, preservedRaw, preservedTemp);
-  if (stored && changesPollGlucose && info->managedFamilyCode() == 9u)
+  if (stored && changesPollGlucose && managedLibre3)
     healthConnectBackfillProgress.rewind(hist, lifeCount, info->healthconnectiter);
+  if (stored && lifeCount <= UINT16_MAX) {
+    if (changesEarlierLibre3Slot)
+      hist->nightscoutHistoryProgress.rewind(static_cast<uint16_t>(lifeCount), info->nightiter);
+    else if (fillsPollGap)
+      NightscoutHistoryProgress::lowerCursor(static_cast<uint16_t>(lifeCount), info->nightiter);
+  }
   writing.unlock();
   if (!stored)
     return false;
 
-  if (fillsPollGap && lifeCount <= UINT16_MAX && info->nightiter > lifeCount) {
-    if (!quiet) {
-      LOGGER("%s: poll %d backfilled behind Nightscout cursor %u; rewinding\n",
-             sensorId, lifeCount, (unsigned)info->nightiter);
-    }
-    __atomic_store_n(&info->nightiter, (uint16_t)lifeCount, __ATOMIC_RELAXED);
-  }
   if (backup) {
     if (rewindFrom) {
       *rewindFrom = *rewindFrom < 0 ? lifeCount : std::min(*rewindFrom, lifeCount);

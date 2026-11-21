@@ -27,6 +27,16 @@ class Libre3HandoverTest {
         assertFalse(Libre3Registry.isLegacyCallbackName(serial, serial, noResolve))
     }
 
+    @Test fun zeroTimeTakeoverUsesAnExistingActivationOrWaitsForTheFirstLifeCount() {
+        val noReportedTime = Libre3Nfc.ActivationResult.Success("AA:BB:CC:DD:EE:FF", ByteArray(4), 1_800_000_000, false)
+        val a8 = Libre3Nfc.CMD_SWITCH_RECEIVER
+        val a0 = Libre3Nfc.CMD_ACTIVATE
+        assertEquals(1_799_000_000_000L, Libre3ManagedNfc.pairingStartTimeMs(a8, noReportedTime, 1_799_000_000_000L) { error("already known") })
+        assertEquals(1_799_000_000_000L, Libre3ManagedNfc.pairingStartTimeMs(a8, noReportedTime, null) { 1_799_000_000_000L })
+        assertEquals(0L, Libre3ManagedNfc.pairingStartTimeMs(a8, noReportedTime, null) { 0L })
+        assertEquals(1_800_000_000_000L, Libre3ManagedNfc.pairingStartTimeMs(a0, noReportedTime, null) { error("new activation") })
+    }
+
     @Test fun takeoverRetiresTheExactLegacyCallbackAfterAddingTheSuccessor() {
         val nfc = src("Common/src/main/java/tk/glucodata/drivers/libre3/Libre3ManagedNfc.kt")
         val add = nfc.substringAfter("fun addSensor(").substringBefore("internal fun isLegacyCallbackName")

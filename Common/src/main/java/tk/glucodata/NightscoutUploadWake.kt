@@ -1,11 +1,7 @@
 package tk.glucodata
 
 /**
- * Bridges managed-driver live writes to the native Nightscout uploader.
- *
- * Call this only after the matching point has been written to native poll storage. History
- * backfills deliberately do not wake the uploader; the next live point or explicit full sync
- * handles them without producing one network wake per historical row.
+ * Bridges managed-driver native poll writes to the Nightscout uploader.
  */
 object NightscoutUploadWake {
     private const val TAG = "NightscoutWake"
@@ -68,7 +64,12 @@ object NightscoutUploadWake {
         }.getOrDefault(false)
 
     @JvmStatic
-    fun afterLiveNativeWrite(source: String, timestampMillis: Long) {
+    fun afterLiveNativeWrite(source: String, timestampMillis: Long) = wakeGlucose(source, timestampMillis)
+
+    /** Wake once after writing a recovered or corrected batch, even if no live frame follows. */
+    fun afterHistoryNativeWrite(source: String, timestampMillis: Long) = wakeGlucose("$source backfill", timestampMillis)
+
+    private fun wakeGlucose(source: String, timestampMillis: Long) {
         if (timestampMillis <= 0L || !Natives.getuseuploader()) return
         runCatching {
             Natives.wakeNightscoutForLiveReading(source, timestampMillis)

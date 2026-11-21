@@ -439,7 +439,7 @@ object Libre3Persistence {
         prefs(context).edit().putString("$sensorId.fillers", Libre3BackfillMerge.encode(fillers)).apply()
     }
 
-    /** Phone time of the sensor's life count 0, learned from realtime frames. */
+    /** A fixed estimate when activation time was unavailable, or an earlier preview grid. */
     fun getAnchor(context: Context, sensorId: String): Long = prefs(context).getLong("$sensorId.anchor", 0L)
 
     fun setAnchor(context: Context, sensorId: String, anchorMs: Long) {

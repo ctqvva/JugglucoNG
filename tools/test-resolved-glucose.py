@@ -68,6 +68,7 @@ def main():
 #include <vector>
 using namespace std;
 /* WEAR_HISTORY_ORIGIN */
+/* NIGHTSCOUT_HISTORY */
 #define LOGGER(...) ((void)0)
 #define JNIEXPORT
 #define JNICALL
@@ -102,6 +103,7 @@ struct SensorGlucoseData {
     }
     string id;
     WearHistoryOrigin wearHistoryOrigin;
+    NightscoutHistoryProgress nightscoutHistoryProgress;
     string_view getsensordir() const { return id; }
     Info info;
     // While watching, every read of the poll state counts as made with or without the lock.
@@ -185,6 +187,10 @@ void copyfixedsensorname(char *out, size_t size, const sensorname_t *name) {
 }
 '''
     code = code.replace("/* SCANDATA */", extract("SensorGlucoseData.hpp", "struct ScanData"))
+    code = code.replace("/* NIGHTSCOUT_HISTORY */", "\n".join(
+        (CPP / name).read_text().replace("#pragma once", "")
+        for name in ("nightscouthistoryprogress.hpp", "net/watchserver/nightscoutbacklog.hpp")
+    ))
     code = code.replace("/* WRITERS */", "\n".join(
         "template <int secs>\n" + extract("SensorGlucoseData.hpp", signature)
         for signature in ["int savepollallIDsonlyQuiet(", "bool savepollallIDsQuiet("]
@@ -255,6 +261,10 @@ void setstreaming(SensorGlucoseData *) { ++streamings; }
     code += extract("g.cpp", "static bool storeGlucoseStreamSample(")
     code += "\njint " + extract("g.cpp", "fromjava(healthConnectfromSensorptr)(")
     code += extract("g.cpp", 'extern "C" JNIEXPORT jboolean JNICALL fromjava(healthConnectWritten)(')
+    code += "\nstatic nightscout_backlog::RecentUploads<2> recentNightUploads;\n"
+    for signature in ("static NightscoutHistoryProgress::Batch beginNightHistory(",
+                      "static bool nightHistoryChanged(", "static void advanceNightiter("):
+        code += extract("net/watchserver/uploader.cpp", signature)
     code += "\njint " + extract("g.cpp", "fromjava(getSensorManagedFamilyFromSensorptr)(")
     code = code.replace("/* WEAR_HISTORY_ORIGIN */", (CPP / "wearhistoryorigin.hpp").read_text().replace('#pragma once', ''))
     code += "\n#define WEAROS\n"
@@ -331,13 +341,30 @@ int main() {
         assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 12, 0, 0, false, false, true, nullptr));
         assert(libre3.info.healthconnectiter == 101);
         // A clinical minute can replace a gap filler already exported to Health Connect.
-        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 14, 0, 0, false, false, true, nullptr));
+        libre3.info.nightiter = 101;
+        const auto inFlight = beginNightHistory(&libre3, 0);
+        NightscoutHistoryProgress::takeWindowRevisit();
+        recentNightUploads.remember(0, start+50*60, 0);
+        recentNightUploads.remember(1, start+50*60, 0);
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60+12, 14, 0, 0, false, false, true, nullptr));
         assert(libre3.info.healthconnectiter == 50);
         assert(libre3.getPollsData()[50].getmgdL() == 140);
+        assert(libre3.getPollsData()[50].gettime() == start+50*60);
+        assert(nightHistoryChanged(&libre3, inFlight));
+        assert(NightscoutHistoryProgress::takeWindowRevisit());
+        advanceNightiter(&libre3, inFlight, 101);
+        assert(libre3.info.nightiter == 50);
+        const auto replay = beginNightHistory(&libre3, 0);
+        assert(replay.start == 50 && replay.clearRecent);
+        assert(!recentNightUploads.covered(0, start+50*60));
+        assert(recentNightUploads.covered(1, start+50*60));
         assert((healthConnectfromSensorptr(&env, nullptr, ptr) & 0xffff) == 50);
         // Identical replay must not invalidate an in-flight correction export.
         assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 14, 0, 0, false, false, true, nullptr));
         assert(healthConnectWritten(&env, nullptr, ptr, 101));
+        assert(!nightHistoryChanged(&libre3, replay));
+        advanceNightiter(&libre3, replay, 101);
+        assert(libre3.info.nightiter == 101);
         // A second correction arriving during an export invalidates its old snapshot.
         libre3.info.healthconnectiter = 50;
         healthConnectfromSensorptr(&env, nullptr, ptr);

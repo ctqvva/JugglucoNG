@@ -4,8 +4,12 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.SharedPreferences
 import android.bluetooth.BluetoothGatt
+import android.os.Handler
+import java.time.Duration
 import org.robolectric.shadow.api.Shadow
 import java.lang.reflect.Proxy
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -16,6 +20,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
+import org.robolectric.shadows.ShadowSystemClock
 import tk.glucodata.*
 import tk.glucodata.drivers.VirtualGlucoseSensorBridge
 
@@ -30,6 +35,7 @@ class Libre3ReviewRegressionTest {
     private val healthWrites = mutableListOf<Pair<Long, String>>()
     private var timestamps: LongArray? = longArrayOf()
     private var storeSucceeds = true
+    private val roomWrites = mutableListOf<Long>()
     private val sensor = "0D1234ABC"
     private val now = 1_793_000_000_000L
     private fun field(name: String) = Libre3BleManager::class.java.getDeclaredField(name).apply { isAccessible = true }
@@ -58,9 +64,11 @@ class Libre3ReviewRegressionTest {
         oldBridge = HistoryRepositoryAccess::class.java.getDeclaredField("bridge").apply { isAccessible = true }.get(HistoryRepositoryAccess)
         HistoryRepositoryAccess.register(Proxy.newProxyInstance(
             HistoryRepositoryBridge::class.java.classLoader, arrayOf(HistoryRepositoryBridge::class.java),
-        ) { _, method, _ -> when (method.name) {
+        ) { _, method, args -> when (method.name) {
             "getHistoryTimestampsForSensorBlocking" -> timestamps
-            "storeHistoryBatchWithSourceBlocking" -> storeSucceeds
+            "storeHistoryBatchWithSourceBlocking" -> storeSucceeds.also { ok ->
+                if (ok) roomWrites.addAll((args!![1] as LongArray).toList())
+            }
             "getHistoryForNotificationForSensor" -> emptyList<GlucosePoint>()
             else -> null
         } } as HistoryRepositoryBridge)
@@ -101,6 +109,87 @@ class Libre3ReviewRegressionTest {
         invoke("flushBackfill")
         assertEquals(101, Libre3Persistence.getLastLifeCount(context, sensor))
         assertTrue(minutes().isEmpty())
+    }
+
+    @Test fun lateLiveFrameAndNextRecoveredMinuteUseTheSameGrid() {
+        val lifeCount = 100
+        // The live frame is 20 seconds late. The recovered minute is only 40
+        // seconds after receipt, but a full minute after the sensor's live sample.
+        val liveAt = System.currentTimeMillis() - 20_000L
+        val anchor = liveAt - lifeCount * 60_000L
+        set("anchorStartMs", anchor)
+        set("lastLifeCount", lifeCount - 1)
+        invoke("onRealtime", Libre3RealtimeReading(lifeCount, 123, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        invoke("flushBackfill")
+        assertEquals(listOf(liveAt), roomWrites)
+        assertEquals(liveAt, manager.getManagedCurrentSnapshot(0)!!.timeMillis)
+        timestamps = roomWrites.toLongArray()
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(2))
+        invoke("onClinical", Libre3ClinicalRecord(lifeCount + 1, 124, 0))
+        invoke("flushBackfill")
+        assertEquals(listOf(liveAt, liveAt + 60_000L), roomWrites)
+        assertEquals(lifeCount + 1, Libre3Persistence.getLastLifeCount(context, sensor))
+    }
+
+    @Test fun aPreviewReceiptTimestampDoesNotHideTheAdjacentRecoveredMinute() {
+        val nextMinute = System.currentTimeMillis() - 30_000L
+        set("anchorStartMs", nextMinute - 101 * 60_000L)
+        timestamps = longArrayOf(nextMinute - 40_000L)
+        invoke("onClinical", Libre3ClinicalRecord(101, 124, 0))
+        invoke("flushBackfill")
+        assertEquals(listOf(nextMinute), roomWrites)
+    }
+
+    @Test fun takeoverWithoutActivationTimeLearnsItsGridOnlyOnce() {
+        Libre3Persistence.saveSensor(context, pairing().copy(startTimeMs = 0))
+        set("record", Libre3Persistence.loadSensor(context, sensor))
+        invoke("onClinical", Libre3ClinicalRecord(101, 124, 0))
+        assertTrue(minutes().isEmpty())
+        invoke("onRealtime", Libre3RealtimeReading(100, 123, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        val learned = Libre3Persistence.getAnchor(context, sensor)
+        val first = manager.getManagedCurrentSnapshot(0)!!.timeMillis
+        assertEquals(first - 100 * 60_000L, learned)
+        assertEquals(learned, manager.getManagedUiSnapshot(sensor)!!.startTimeMs)
+        invoke("flushBackfill")
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(80))
+        invoke("onRealtime", Libre3RealtimeReading(101, 124, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        invoke("flushBackfill")
+        assertEquals(listOf(first, first + 60_000L), roomWrites)
+        assertEquals(learned, Libre3Persistence.getAnchor(context, sensor))
+    }
+
+    private fun awaitDriverHandler() {
+        val delivered = CountDownLatch(1)
+        (get("liveHandler") as Handler).post { delivered.countDown() }
+        assertTrue("driver did not process the posted lifecycle change", delivered.await(5, TimeUnit.SECONDS))
+    }
+
+    @Test fun pauseAndResumeKeepBackfillAndCommitProgressOnlyAfterWriting() {
+        set("record", pairing())
+        val minute = reading()
+        val filler = reading(minute.timestampMs - 300_000L)
+        minutes().add(minute)
+        history().add(filler)
+        set("lastLifeCount", 101)
+        set("lastHistoricLifeCount", 100)
+        assertTrue(manager.getManagedUiSnapshot(sensor)!!.isUiEnabled)
+        manager.softDisconnect()
+        awaitDriverHandler()
+        assertFalse(manager.getManagedUiSnapshot(sensor)!!.isUiEnabled)
+        assertEquals(listOf(minute), minutes())
+        assertEquals(listOf(filler), history())
+        assertTrue(roomWrites.isEmpty())
+        assertEquals(0, Libre3Persistence.getLastLifeCount(context, sensor))
+        assertEquals(0, Libre3Persistence.getLastHistoricLifeCount(context, sensor))
+
+        manager.softReconnect()
+        awaitDriverHandler()
+        assertTrue(manager.getManagedUiSnapshot(sensor)!!.isUiEnabled)
+        assertEquals(listOf(minute.timestampMs, filler.timestampMs), roomWrites)
+        assertEquals(101, Libre3Persistence.getLastLifeCount(context, sensor))
+        assertEquals(100, Libre3Persistence.getLastHistoricLifeCount(context, sensor))
+        assertTrue(minutes().isEmpty() && history().isEmpty())
+        assertEquals(listOf(minute.timestampMs), Libre3ReviewNatives.wakes)
     }
 
     @Test fun failedTimestampLookupDoesNotOverwriteNativeMinuteSlots() {
@@ -164,7 +253,7 @@ class Libre3ReviewRegressionTest {
 
     @Test fun liveMirrorWakesNightscoutAndCompletesHealthExport() {
         val at = System.currentTimeMillis()
-        invoke("publishCurrent", at, 123f, 0f)
+        invoke("publishCurrent", at, 123f, 0f, 101)
         assertEquals(1, Libre3ReviewNatives.stockWrites)
         assertEquals(listOf(at), Libre3ReviewNatives.wakes)
         if (!Applic.isWearable) assertEquals(listOf(1L to sensor), healthWrites)
