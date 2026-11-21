@@ -1,5 +1,6 @@
 package tk.glucodata;
 
+import android.Manifest;
 import android.app.Application;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -16,6 +17,9 @@ import androidx.core.content.ContextCompat;
  * adb shell am broadcast -a tk.glucodata.DEBUG_GADGETBRIDGE_TEST --ef glucose 6.2 --ef rate -1.2
  * </pre>
  * {@code glucose} is in the app's display unit (mmol/L or mg/dL); {@code rate} is mg/dL per minute.
+ * <p>
+ * The sender must hold {@link Manifest.permission#DUMP}: {@code adb shell} has it, ordinary apps
+ * cannot be granted it, so other installed apps cannot inject fake readings.
  */
 final class DebugGadgetbridgeTest {
     static final String ACTION = "tk.glucodata.DEBUG_GADGETBRIDGE_TEST";
@@ -38,6 +42,6 @@ final class DebugGadgetbridgeTest {
                 Log.i(LOG_ID, "sending test glucose " + glucose + " rate " + rate + " to Gadgetbridge");
                 Gadgetbridge.sendglucose("" + glucose, mgdl, glucose, rate, System.currentTimeMillis());
             }
-        }, new IntentFilter(ACTION), ContextCompat.RECEIVER_EXPORTED);
+        }, new IntentFilter(ACTION), Manifest.permission.DUMP, null, ContextCompat.RECEIVER_EXPORTED);
     }
 }
