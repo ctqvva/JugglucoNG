@@ -15,6 +15,7 @@ internal class CareSensAirJournal(private val directory: File, engineId: String,
     private val sessionBinding = sha256("$engineId\n$sensorId".toByteArray(Charsets.UTF_8))
     private val configFile = File(directory, "factory.v1")
     private val records = File(directory, "records.v1")
+    private val livePublication = File(directory, "live.v1")
 
     class Config(val packed: ByteArray, val wire: ByteArray, val chunkSizes: IntArray) {
         val startSeconds: Long get() = packed.littleEndian().u32(CareSensAirFactoryConfig.START_OFFSET)
@@ -56,13 +57,34 @@ internal class CareSensAirJournal(private val directory: File, engineId: String,
             .put(config.packed).putInt(config.wire.size).put(config.wire).putInt(config.chunkSizes.size)
         config.chunkSizes.forEach { bytes.putInt(it) }
         val payload = bytes.array()
-        val temporary = File(directory, "factory.tmp")
+        writeAtomic(configFile, payload + sha256(payload))
+    }
+
+    fun lastLivePublished(config: Config): Int {
+        if (!livePublication.exists()) return 0
+        // Experimental journals written before this watermark was added also start at zero.
+        if (livePublication.length() != (Int.SIZE_BYTES + HASH_BYTES).toLong()) return 0
+        val bytes = ByteBuffer.wrap(livePublication.readBytes())
+        val sequence = bytes.int
+        return sequence.takeIf {
+            it.toLong() in 1..CareSensAirFactoryConfig.MAX_SEQUENCE &&
+                readBytes(bytes, HASH_BYTES).contentEquals(publicationBinding(config, it))
+        } ?: 0
+    }
+
+    fun markLivePublished(config: Config, sequence: Int) {
+        val bytes = ByteBuffer.allocate(Int.SIZE_BYTES + HASH_BYTES).putInt(sequence)
+            .put(publicationBinding(config, sequence)).array()
+        writeAtomic(livePublication, bytes)
+    }
+
+    private fun writeAtomic(file: File, bytes: ByteArray) {
+        val temporary = File(directory, "${file.name}.tmp")
         FileOutputStream(temporary).use {
-            it.write(payload)
-            it.write(sha256(payload))
+            it.write(bytes)
             it.fd.sync()
         }
-        Files.move(temporary.toPath(), configFile.toPath(), StandardCopyOption.ATOMIC_MOVE)
+        Files.move(temporary.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
     }
 
     fun replay(config: Config, consume: (Entry) -> Unit): Int {
@@ -117,6 +139,9 @@ internal class CareSensAirJournal(private val directory: File, engineId: String,
     }
 
     private fun configBinding(config: Config): ByteArray = sha256(sessionBinding + config.packed)
+
+    private fun publicationBinding(config: Config, sequence: Int): ByteArray =
+        sha256(configBinding(config) + ByteBuffer.allocate(Int.SIZE_BYTES).putInt(sequence).array())
 
     private companion object {
         const val CONFIG_MAGIC = 0x43534631 // CSF1

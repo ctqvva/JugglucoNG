@@ -42,6 +42,8 @@ extern void *openlib(std::string_view libname);
 
 extern jlong mkres(SensorGlucoseData *sens, uint32_t timsec, uint32_t eventTime,
                    int min, int mgdL, int abbotttrend, float change);
+extern jlong publishStoredGlucose(SensorGlucoseData *sens, uint32_t eventTime,
+                                 int mgdL, float change);
 extern int rate2changeindex(float rate);
 typedef unsigned char (*air1_opcal4_algorithm_t)(
     air1_opcal4_device_info_t *, air1_opcal4_cgm_input_t *,
@@ -528,13 +530,22 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(airManagedPublish)(
       glucose < 35 || glucose > 505)
     return 0;
   const int id = sequence * 5;
-  const auto *last = sensor->lastpoll();
-  if (last && last->id >= id)
-    return 1;
   const auto now = static_cast<uint32_t>(time(nullptr));
   const auto sample = static_cast<uint32_t>(timestamp);
+  const bool fresh = live && sample <= now && now - sample < maxbluetoothage;
+  if (const auto *last = sensor->lastpoll(); last && last->getid() >= id) {
+    // A crash can leave the stream row on disk before the Java live handler
+    // and its journal watermark. Retry only the exact, still-fresh tail.
+    if (fresh && last->getid() == id && last->gettime() == sample &&
+        last->getmgdL() == glucose) {
+      const auto result = publishStoredGlucose(sensor, sample, glucose, last->getchange());
+      backup->wakebackup(Backup::wakestream);
+      return result;
+    }
+    return 1;
+  }
   const int trend = rate2changeindex(rate);
-  if (live && sample <= now && now - sample < maxbluetoothage)
+  if (fresh)
     return mkres(sensor, now, sample, id, glucose, trend, rate);
   if (!sensor->savestreamonly(sample, id, glucose, trend, rate))
     return 0;

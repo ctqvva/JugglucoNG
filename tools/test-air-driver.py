@@ -39,11 +39,13 @@ def library(directory):
     loader = source[source.index('typedef unsigned char (*air1_opcal4_algorithm_t)'):
                     source.index('bool airstream::setNumberNew(')]
     process = method(source, 'static jlong airProcessData(', source.index('// Returns 0:'))
+    managed_publish = method(source, 'extern "C" JNIEXPORT jlong JNICALL fromjava(airManagedPublish)(')
     fixture = r'''
 #include <cassert>
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <ctime>
 #include <memory>
 #include <mutex>
 #include <string_view>
@@ -55,16 +57,40 @@ def library(directory):
 #define LOGAR(...) ((void)0)
 using jbyte = signed char;
 using jlong = int64_t;
-struct ScanData { int getid() const { return 0; } uint32_t gettime() const { return 0; } };
+using jint = int;
+using jfloat = float;
+using jboolean = bool;
+using JNIEnv = void;
+using jclass = void *;
+#define JNIEXPORT
+#define JNICALL
+#define fromjava(name) name
+constexpr int maxdaysAir = 16, maxbluetoothage = 330;
+struct ScanData {
+  int id = 0, glucose = 0;
+  uint32_t time = 0;
+  float rate = 0;
+  int getid() const { return id; }
+  uint32_t gettime() const { return time; }
+  int getmgdL() const { return glucose; }
+  float getchange() const { return rate; }
+};
 struct SensorGlucoseData {
-  struct Info { int askEarlier = 0; } info;
+  struct Info { int askEarlier = 0; uint32_t starttime = 1; } info;
   int cursor = 0;
   bool sensorerror = false;
-  uint32_t sensorErrorTime = 0;
+  uint32_t sensorErrorTime = 0, receivehistory = 0;
+  ScanData last;
   Info *getinfo() { return &info; }
   int getLastAir() const { return cursor; }
   void setLastAir(int n) { cursor = n; }
-  const ScanData *lastpoll() const { return nullptr; }
+  const ScanData *lastpoll() const { return last.id ? &last : nullptr; }
+  bool savestreamonly(uint32_t stamp, int id, int glucose, int, float rate) {
+    if (last.id >= id)
+      return false;
+    last = {id, glucose, stamp, rate};
+    return true;
+  }
   const char *showsensorname() const { return ""; }
   std::string_view getsensordir() const { return ""; }
 };
@@ -103,12 +129,25 @@ int dlclose(void *) { ++closes; return 0; }
 void *dlsym(void *, const char *) {
   return opens == 2 ? nullptr : reinterpret_cast<void *>(&algorithm);
 }
-jlong mkres(SensorGlucoseData *, uint32_t, uint32_t, int, int, int, float) { return 1250; }
+static std::atomic<int> livePublications{0};
+jlong publishStoredGlucose(SensorGlucoseData *, uint32_t, int, float) {
+  ++livePublications;
+  return 1250;
+}
+jlong mkres(SensorGlucoseData *sensor, uint32_t, uint32_t stamp, int id, int glucose, int trend, float change) {
+  return sensor->savestreamonly(stamp, id, glucose, trend, change)
+      ? publishStoredGlucose(sensor, stamp, glucose, change) : 0;
+}
+struct Backup { enum { wakestream }; void wakebackup(int) {} };
+static Backup backupInstance;
+static Backup *backup = &backupInstance;
+static SensorGlucoseData *managedAirSensor(jlong ptr) { return reinterpret_cast<SensorGlucoseData *>(ptr); }
 int rate2changeindex(float) { return 3; }
 void airsavehistory(SensorGlucoseData *, const air1_opcal4_output_t &) {}
 void showm(const m *) {}
 // PRODUCTION_LOADER
 // PRODUCTION_PROCESS
+// PRODUCTION_MANAGED_PUBLICATION
 jlong sample(airstream &stream, int sequence) {
   AirData data{};
   data.reg0 = 0xC5; data.reg1 = 1; data.sequenceNumber = sequence;
@@ -135,16 +174,31 @@ int main() {
   });
   for (auto &worker : workers) worker.join();
   assert(opens == 3 && closes == 1);
+
+  SensorGlucoseData recovering;
+  const auto ptr = reinterpret_cast<jlong>(&recovering);
+  const auto now = time(nullptr) - 10;
+  const auto previouslyPublished = livePublications.load();
+  assert(airManagedPublish(nullptr, nullptr, ptr, 1, now, 125, 0, false) == 1);
+  assert(airManagedPublish(nullptr, nullptr, ptr, 1, now + 1, 125, 0, true) == 1);
+  assert(airManagedPublish(nullptr, nullptr, ptr, 1, now, 126, 0, true) == 1);
+  assert(livePublications == previouslyPublished);
+  assert(airManagedPublish(nullptr, nullptr, ptr, 1, now, 125, 0, true) == 1250);
+  assert(livePublications == previouslyPublished + 1 && recovering.last.getid() == 5);
+  assert(airManagedPublish(nullptr, nullptr, ptr, 2, now - 700, 122, 0, true) == 1);
+  assert(airManagedPublish(nullptr, nullptr, ptr, 2, now - 700, 122, 0, true) == 1);
+  assert(livePublications == previouslyPublished + 1);
 }
 '''
     cpp = directory / 'library.cpp'
     cpp.write_text(fixture.replace('// PRODUCTION_LAYOUT', layout).replace('// PRODUCTION_BATCH', batch)
-                   .replace('// PRODUCTION_LOADER', loader).replace('// PRODUCTION_PROCESS', process))
+                   .replace('// PRODUCTION_LOADER', loader).replace('// PRODUCTION_PROCESS', process)
+                   .replace('// PRODUCTION_MANAGED_PUBLICATION', managed_publish))
     binary = directory / 'library'
     run([os.environ.get('CXX', 'c++'), '-std=c++17', '-pthread',
          '-I', str(ROOT / 'Common/src/main/cpp/air'), str(cpp), '-o', str(binary)])
     run([str(binary)])
-    print('Air library: lazy legacy mapping, loader retry, cursor preservation and concurrent sensors passed')
+    print('Air library: legacy loader, cursor preservation, concurrent sensors and fresh live recovery passed')
 
 
 def gatt(directory):

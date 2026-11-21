@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -40,7 +41,11 @@ import tk.glucodata.drivers.caresens.littleEndian
 import tk.glucodata.drivers.caresens.wireBytes
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], application = CareSensTestApplication::class, shadows = [CareSensNativeShadow::class, CareSensGattShadow::class])
+@Config(
+    sdk = [34],
+    application = CareSensTestApplication::class,
+    shadows = [CareSensNativeShadow::class, CareSensGattShadow::class, CareSensLiveShadow::class],
+)
 class CareSensAirGattTests {
     @get:Rule val folder = TemporaryFolder()
     private val worker = ScheduledThreadPoolExecutor(1)
@@ -55,6 +60,7 @@ class CareSensAirGattTests {
         CareSensNativeShadow.address = null
         CareSensNativeShadow.start = 0L
         CareSensNativeShadow.writes.clear()
+        CareSensLiveShadow.deliveries.clear()
         directory = folder.newFolder()
         driver = newDriver()
         peer = Peer()
@@ -83,14 +89,7 @@ class CareSensAirGattTests {
         Shadows.shadowOf(peer.device).setBondState(BluetoothDevice.BOND_BONDED)
         driver.bonded()
 
-        peer.authenticate()
-        peer.expectWrite(wireBytes("c00200000000"))
-        val start = wireBytes("c002") + ByteArray(12)
-        start.littleEndian().putFloat(2, 0.10067f).putFloat(6, 1.49594f).putInt(10, 1800)
-        peer.notify("c4de9ee4", start)
-        peer.expectWrite(wireBytes("c201"))
-        peer.factory()
-        peer.expectWrite(wireBytes("c40100000000"))
+        peer.startSensor()
         peer.notify("c4de9b74", wireBytes("c4010100"))
         peer.expectWrite(wireBytes("c501"))
         peer.reading(1)
@@ -120,6 +119,53 @@ class CareSensAirGattTests {
     }
 
     @Test
+    fun restartDeliversOnlyTheNewestPendingFreshReadingOnce() {
+        peer = Peer(bonded = true)
+        peer.register(unused = true)
+        peer.startSensor()
+        peer.notify("c4de9b74", wireBytes("c4010300"))
+        peer.expectWrite(wireBytes("c501"))
+        peer.reading(1, timestamp = System.currentTimeMillis() / 1_000 - 900)
+        peer.reading(2)
+        drain()
+        assertEquals(listOf(Triple(1, 101, false)), CareSensNativeShadow.writes.toList())
+        assertTrue(CareSensLiveShadow.deliveries.isEmpty())
+
+        restartAtCursor(2)
+        assertEquals(listOf(1_020L), CareSensLiveShadow.deliveries.toList())
+        assertEquals(Triple(2, 102, true), CareSensNativeShadow.writes.last())
+
+        restartAtCursor(2)
+        assertEquals(listOf(1_020L), CareSensLiveShadow.deliveries.toList())
+        assertEquals(Triple(2, 102, false), CareSensNativeShadow.writes.last())
+    }
+
+    @Test
+    fun anExpiredPendingReadingRestoresAsHistory() {
+        peer = Peer(bonded = true)
+        peer.register(unused = true)
+        peer.startSensor()
+        peer.notify("c4de9b74", wireBytes("c4010200"))
+        peer.expectWrite(wireBytes("c501"))
+        peer.reading(1, timestamp = System.currentTimeMillis() / 1_000 - 900)
+        drain()
+        assertTrue(CareSensNativeShadow.writes.isEmpty())
+
+        restartAtCursor(1)
+        assertEquals(listOf(Triple(1, 101, false)), CareSensNativeShadow.writes.toList())
+        assertTrue(CareSensLiveShadow.deliveries.isEmpty())
+    }
+
+    private fun restartAtCursor(cursor: Int) {
+        driver.free()
+        driver = newDriver()
+        peer = Peer(bonded = true)
+        peer.register(unused = false)
+        peer.authenticate()
+        peer.expectWrite(CareSensAirProtocol.requestRecords(cursor.toLong()))
+    }
+
+    @Test
     fun aSuffixMatchWithTheWrongSerialCannotBindOrPair() {
         peer.connect()
         assertTrue(driver.matchDeviceName("CSAir C123", ADDRESS))
@@ -127,7 +173,51 @@ class CareSensAirGattTests {
         peer.expectEvent("close")
         assertNull(CareSensNativeShadow.address)
         assertNull(driver.mActiveBluetoothDevice)
+        assertFalse(driver.matchDeviceName("CSAir C123", ADDRESS))
         assertEquals(false, driver.pairingRequest())
+    }
+
+    @Test
+    fun excludesAllIncompatibleCandidatesWhileDiscoveringAnotherAddress() {
+        CareSensNativeShadow.address = ADDRESS
+        peer = Peer(missing = "c4de9ee4")
+        peer.connect(expected = "close")
+        assertNull(CareSensNativeShadow.address)
+        assertNull(driver.mActiveDeviceAddress)
+        assertFalse(driver.matchDeviceName("CSAir C123", ADDRESS))
+        driver.foundtime = 1L // A scan matched the cached address before the rejection.
+        driver.setDevice(peer.device)
+        assertNull(driver.mActiveBluetoothDevice)
+        assertEquals(0L, driver.foundtime)
+
+        val second = "AA:BB:CC:DD:EE:81"
+        peer = Peer(address = second, service = "c4dea000")
+        peer.connect(expected = "close")
+        assertFalse(driver.matchDeviceName("CSAir C123", second))
+        assertFalse(driver.matchDeviceName("CSAir C123", ADDRESS))
+
+        val good = "AA:BB:CC:DD:EE:82"
+        assertTrue(driver.matchDeviceName("CSAir C123", good))
+        peer = Peer(address = good)
+        peer.connect()
+        peer.verify("SYNTHETIC123")
+        drain()
+        assertEquals(good, CareSensNativeShadow.address)
+    }
+
+    @Test
+    fun modernSensorWithoutRegistrationIsRejectedButDiscoveryFailureCanRetry() {
+        peer = Peer(missing = "c4dec61c")
+        peer.connect(expected = "close", discoveryStatus = BluetoothGatt.GATT_FAILURE)
+        assertTrue(driver.matchDeviceName("CSAir C123", ADDRESS))
+
+        peer = Peer(missing = "c4dec61c")
+        peer.connect()
+        peer.verify("SYNTHETIC123")
+        peer.software()
+        peer.expectEvent("close")
+        assertFalse(driver.matchDeviceName("CSAir C123", ADDRESS))
+        assertNull(CareSensNativeShadow.address)
     }
 
     private fun newDriver() = CareSensAirGattCallback("2912SYNTHETIC123", 1L, directory, {
@@ -139,33 +229,59 @@ class CareSensAirGattTests {
 
     private fun drain() = worker.submit {}.get(5, TimeUnit.SECONDS)
 
-    private inner class Peer(bonded: Boolean = false) {
-        val device = ShadowBluetoothDevice.newInstance(ADDRESS)
+    private inner class Peer(
+        bonded: Boolean = false,
+        address: String = ADDRESS,
+        missing: String? = null,
+        service: String = "c4de9a20",
+    ) {
+        val device = ShadowBluetoothDevice.newInstance(address)
         private val gatt = ShadowBluetoothGatt.newInstance(device)
         private val radio = Shadow.extract<CareSensGattShadow>(gatt)
-        private val characteristics = listOf("c4de8544", "c4de89ae", "c4dec61c", "c4de9b74", "c4de9ee4").associateWith { name ->
-            BluetoothGattCharacteristic(uuid(name), BluetoothGattCharacteristic.PROPERTY_NOTIFY, 0).also {
-                it.addDescriptor(BluetoothGattDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"), 0))
+        private val characteristics = listOf("c4de8544", "c4de89ae", "c4dec61c", "c4de9b74", "c4de9ee4")
+            .filterNot { it == missing }.associateWith { name ->
+                BluetoothGattCharacteristic(uuid(name), BluetoothGattCharacteristic.PROPERTY_NOTIFY, 0).also {
+                    it.addDescriptor(BluetoothGattDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"), 0))
+                }
             }
-        }
 
         init {
             radio.peer = device
-            val service = BluetoothGattService(uuid("c4de9a20"), BluetoothGattService.SERVICE_TYPE_PRIMARY)
-            characteristics.values.forEach { service.addCharacteristic(it) }
-            radio.discovered = listOf(service)
+            val primary = BluetoothGattService(uuid(service), BluetoothGattService.SERVICE_TYPE_PRIMARY)
+            characteristics.values.forEach { primary.addCharacteristic(it) }
+            radio.discovered = listOf(primary)
             Shadows.shadowOf(device).setBondState(if (bonded) BluetoothDevice.BOND_BONDED else BluetoothDevice.BOND_NONE)
         }
 
-        fun connect() {
+        fun connect(expected: String = "read:c4de8544", discoveryStatus: Int = BluetoothGatt.GATT_SUCCESS) {
             driver.setDevice(device)
             SuperGattCallback::class.java.getDeclaredField("mBluetoothGatt").apply { isAccessible = true }.set(driver, gatt)
             driver.onConnectionStateChange(gatt, 0, BluetoothProfile.STATE_CONNECTED)
             expectEvent("mtu")
             driver.onMtuChanged(gatt, 512, 0)
             expectEvent("discover")
-            driver.onServicesDiscovered(gatt, 0)
-            expectEvent("read:c4de8544")
+            driver.onServicesDiscovered(gatt, discoveryStatus)
+            expectEvent(expected)
+        }
+
+        fun register(unused: Boolean) {
+            connect()
+            verify("SYNTHETIC123")
+            software()
+            subscribe("c4dec61c")
+            expectWrite(CareSensAirProtocol.registerApp(unused))
+            notify("c4dec61c", CareSensAirProtocol.registerApp(false))
+        }
+
+        fun startSensor() {
+            authenticate()
+            expectWrite(wireBytes("c00200000000"))
+            val start = wireBytes("c002") + ByteArray(12)
+            start.littleEndian().putFloat(2, 0.10067f).putFloat(6, 1.49594f).putInt(10, 1800)
+            notify("c4de9ee4", start)
+            expectWrite(wireBytes("c201"))
+            factory()
+            expectWrite(wireBytes("c40100000000"))
         }
 
         fun verify(serial: String) = read("c4de8544", serial)
@@ -206,10 +322,10 @@ class CareSensAirGattTests {
             notify("c4de9ee4", wireBytes("c203") + byteArrayOf((crc ushr 8).toByte(), crc.toByte()))
         }
 
-        fun reading(sequence: Int) {
+        fun reading(sequence: Int, timestamp: Long = System.currentTimeMillis() / 1_000) {
             val raw = ByteArray(84)
             raw.littleEndian().put(0, 0xC5.toByte()).put(1, 1)
-                .putInt(12, sequence).putInt(16, (CareSensNativeShadow.start + sequence * 300).toInt())
+                .putInt(12, sequence).putInt(16, timestamp.toInt())
                 .putShort(22, 3_700)
             notify("c4de9b74", raw)
         }
@@ -238,6 +354,18 @@ class CareSensAirGattTests {
 
 class CareSensTestApplication : Applic() {
     override fun onCreate() {}
+}
+
+@Implements(SuperGattCallback::class)
+class CareSensLiveShadow {
+    @Implementation
+    fun handleGlucoseResult(response: Long, timestampMillis: Long) {
+        deliveries.add(response)
+    }
+
+    companion object {
+        val deliveries = LinkedBlockingQueue<Long>()
+    }
 }
 
 @Implements(value = BluetoothGatt::class, callThroughByDefault = false)
@@ -282,7 +410,7 @@ class CareSensNativeShadow {
         @JvmStatic @Implementation
         fun airManagedPublish(pointer: Long, sequence: Int, time: Long, glucose: Int, rate: Float, live: Boolean): Long {
             writes.add(Triple(sequence, glucose, live))
-            return 1L
+            return if (live) glucose * 10L else 1L
         }
     }
 }

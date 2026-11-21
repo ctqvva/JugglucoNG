@@ -84,19 +84,24 @@ float makearrow(const SensorGlucoseData *sens,float mgdL,uint32_t was)  {
     } */
 extern jlong glucoseback(uint32_t nu,uint32_t glval,float drate,SensorGlucoseData *hist);
 
+jlong publishStoredGlucose(SensorGlucoseData *sens, uint32_t eventTime, int mgdL, float change) {
+    sens->sensorerror = false;
+    const int sensorindex = sens->sensorIndex;
+    sensor *device = sensors->getsensor(sensorindex);
+    if (device->finished && device->reactivateFromData()) {
+        LOGGER("publishStoredGlucose %s finished becomes 0\n", sens->showsensorname().data());
+        backup->resensordata(sensorindex);
+    }
+    const auto result = glucoseback(eventTime, mgdL, change, sens);
+    wakewithcurrent();
+    return result;
+}
+
 jlong mkres(SensorGlucoseData *sens,uint32_t timsec,uint32_t eventTime, int min,int mgdL, int abbotttrend, float change){
     if(sens->savestreamonly(eventTime,min,mgdL,abbotttrend, change)) {
         jlong res;
         if((timsec-eventTime)<maxbluetoothage) {
-             sens->sensorerror=false;
-             const int sensorindex=sens->sensorIndex;
-             sensor *sensor=sensors->getsensor(sensorindex);
-             if(sensor->finished && sensor->reactivateFromData()) {
-                    LOGGER("mkres %s finished becomes 0\n", sens->showsensorname().data());
-                    backup->resensordata(sensorindex);
-                    }
-             res=glucoseback(eventTime,mgdL,change,sens);
-             wakewithcurrent();
+             res=publishStoredGlucose(sens,eventTime,mgdL,change);
              }
           else {
             sens->receivehistory=timsec;

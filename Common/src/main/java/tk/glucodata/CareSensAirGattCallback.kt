@@ -12,6 +12,7 @@ import android.os.Build
 import java.io.File
 import java.security.MessageDigest
 import java.util.UUID
+import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
@@ -69,11 +70,11 @@ internal class CareSensAirGattCallback(
     private var session: CareSensAirSession? = null
     @Volatile private var link: Link? = null
     @Volatile private var pairingGatt: BluetoothGatt? = null
-    @Volatile private var rejectedAddress: String? = null
-    @Volatile private var rejectAddressUntil = 0L
+    private val rejectedAddresses = CopyOnWriteArraySet<String>()
     @Volatile private var blocked = openEngine == null
     private var failures = 0
     private var lastPublishedMillis = 0L
+    private var lastLivePublishedSequence = 0
 
     init {
         showtime = 6 * 60 * 1000L
@@ -83,7 +84,12 @@ internal class CareSensAirGattCallback(
 
     // A parked experimental identity is still owned here when the private JAR is absent.
     // Report it as handled to avoid starting a scan repeatedly.
-    override fun connectDevice(delayMillis: Long): Boolean = blocked || super.connectDevice(delayMillis)
+    @Synchronized
+    override fun connectDevice(delayMillis: Long): Boolean {
+        if (blocked) return true
+        if (mActiveDeviceAddress in rejectedAddresses) clearCandidate()
+        return super.connectDevice(delayMillis)
+    }
 
     override fun connectionAttemptTimeoutMillis(): Long = 45_000
 
@@ -91,9 +97,15 @@ internal class CareSensAirGattCallback(
 
     override fun matchDeviceName(nameDevice: String?, address: String?): Boolean =
         !blocked && nameDevice?.startsWith("CSAir " + expectedSerial.takeLast(4)) == true &&
-            (address != rejectedAddress || System.currentTimeMillis() >= rejectAddressUntil)
+            address !in rejectedAddresses
 
+    @Synchronized
     override fun setDevice(device: BluetoothDevice?) {
+        if (device?.address in rejectedAddresses) {
+            // A scan that matched the old binding before rejection may have set foundtime.
+            if (mActiveBluetoothDevice == null) foundtime = 0L
+            return
+        }
         mActiveBluetoothDevice = device
         mActiveDeviceAddress = device?.address
         // Scan results are candidates. The verified serial read commits the address.
@@ -103,8 +115,14 @@ internal class CareSensAirGattCallback(
     @Synchronized
     override fun resetdataptr(): Long {
         val pointer = super.resetdataptr()
-        mActiveDeviceAddress = Natives.getDeviceAddress(pointer, false)
+        mActiveDeviceAddress = Natives.getDeviceAddress(pointer, false)?.takeUnless { it in rejectedAddresses }
         return pointer
+    }
+
+    private fun clearCandidate() {
+        mActiveDeviceAddress = null
+        mActiveBluetoothDevice = null
+        foundtime = 0L
     }
 
     @Synchronized
@@ -174,8 +192,12 @@ internal class CareSensAirGattCallback(
     override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) = event(gatt) {
         if (stage != Stage.DISCOVERY) return@event
         require(status == BluetoothGatt.GATT_SUCCESS)
-        characteristics = gatt.services.flatMap { it.characteristics }.associateBy { it.uuid }
-        require(listOf(SERIAL, SOFTWARE, DATA, CONTROL).all(characteristics::containsKey))
+        val services = gatt.services
+        characteristics = services.flatMap { it.characteristics }.associateBy { it.uuid }
+        if (services.none { it.uuid == SERVICE } || !REQUIRED_CHARACTERISTICS.all(characteristics::containsKey)) {
+            rejectCandidate("CareSens Air required GATT service or characteristic missing")
+            return@event
+        }
         read(SERIAL, Stage.SERIAL)
     }
 
@@ -192,19 +214,7 @@ internal class CareSensAirGattCallback(
         if (stage == Stage.SERIAL && uuid == SERIAL) {
             require(status == BluetoothGatt.GATT_SUCCESS)
             if (ascii(value) != expectedSerial) {
-                rejectedAddress = gatt.device.address
-                rejectAddressUntil = System.currentTimeMillis() + 60_000
-                synchronized(this@CareSensAirGattCallback) {
-                    if (current(gatt) && dataptr != 0L) {
-                        if (Natives.getDeviceAddress(dataptr, false) == rejectedAddress) {
-                            super@CareSensAirGattCallback.setDeviceAddress(null)
-                        }
-                        mActiveDeviceAddress = null
-                        mActiveBluetoothDevice = null
-                        foundtime = 0L
-                    }
-                }
-                fail("CareSens Air transmitter serial mismatch")
+                rejectCandidate("CareSens Air transmitter serial mismatch")
                 return@event
             }
             synchronized(this@CareSensAirGattCallback) {
@@ -216,6 +226,10 @@ internal class CareSensAirGattCallback(
         } else if (stage == Stage.SOFTWARE && uuid == SOFTWARE) {
             require(status == BluetoothGatt.GATT_SUCCESS)
             software = requireNotNull(CareSensAirVersion.parse(ascii(value)))
+            if (software >= CareSensAirVersion.V1_5 && REGISTRATION !in characteristics) {
+                rejectCandidate("CareSens Air registration characteristic missing")
+                return@event
+            }
             if (!restore()) return@event
             if (software >= CareSensAirVersion.V1_5) subscribe(REGISTRATION, Stage.REGISTER_SUBSCRIBE)
             else bondOrSubscribe()
@@ -383,16 +397,15 @@ internal class CareSensAirGattCallback(
 
     private fun Link.restore(): Boolean {
         if (session != null) return true
-        return try {
+        val history = try {
             val config = journal.loadConfig() ?: return true
             val restored = CareSensAirSession(journal, config, checkNotNull(openEngine)(config.packed))
             val history = restored.recover()
             if (!isActive()) return false
+            lastLivePublishedSequence = maxOf(lastLivePublishedSequence, journal.lastLivePublished(config))
             setNativeStart(config)
-            for (computed in history) publish(computed, live = false)
-            importRecentHistory()
             session = restored
-            true
+            history
         } catch (error: Exception) {
             if (!isActive()) return false
             // State that cannot be replayed must not reset the engine and start again at an
@@ -400,8 +413,16 @@ internal class CareSensAirGattCallback(
             Log.e(TAG, "Private session restore failed: ${error.javaClass.simpleName}")
             blocked = true
             fail("CareSens Air saved session could not be restored")
-            false
+            return false
         }
+        val now = nowSeconds()
+        val pending = history.lastOrNull {
+            it.hasSensorTime && it.output.sequence > lastLivePublishedSequence &&
+                now - it.output.timestampSeconds in 0 until LIVE_REPLAY_WINDOW_SECONDS
+        }
+        for (computed in history) publish(computed, live = computed === pending)
+        importRecentHistory()
+        return true
     }
 
     private fun Link.setNativeStart(config: CareSensAirJournal.Config) {
@@ -425,14 +446,16 @@ internal class CareSensAirGattCallback(
             check(current(gatt) && dataptr != 0L)
             Natives.airManagedPublish(
                 dataptr, output.sequence, output.timestampSeconds, output.glucoseMgdl.roundToInt(),
-                rate, live && value.hasSensorTime,
+                rate, live && value.hasSensorTime && output.sequence > lastLivePublishedSequence,
             )
         }
         check(response != 0L) { "CareSens Air native history write failed" }
         historyStartSeconds = minOf(historyStartSeconds, output.timestampSeconds)
         if (response != 1L && current(gatt)) {
-            lastPublishedMillis = timeMillis
             handleGlucoseResult(response, timeMillis)
+            lastPublishedMillis = timeMillis
+            lastLivePublishedSequence = output.sequence
+            journal.markLivePublished(checkNotNull(session).config, output.sequence)
         }
     }
 
@@ -480,8 +503,13 @@ internal class CareSensAirGattCallback(
     }
 
     private fun Link.subscribe(uuid: UUID, next: Stage) {
+        val characteristic = characteristics.getValue(uuid)
+        if (characteristic.getDescriptor(mCharacteristicConfigDescriptor) == null) {
+            rejectCandidate("CareSens Air notification descriptor missing")
+            return
+        }
         arm(next)
-        check(enableNotification(gatt, characteristics.getValue(uuid)))
+        check(enableNotification(gatt, characteristic))
     }
 
     @Suppress("DEPRECATION")
@@ -518,7 +546,20 @@ internal class CareSensAirGattCallback(
         )
     }
 
-    private fun Link.fail(message: String) {
+    private fun Link.rejectCandidate(message: String) {
+        val address = gatt.device.address
+        synchronized(this@CareSensAirGattCallback) {
+            if (!current(gatt) || dataptr == 0L) return
+            rejectedAddresses.add(address)
+            if (Natives.getDeviceAddress(dataptr, false) == address) {
+                Natives.setDeviceAddress(dataptr, null)
+            }
+            if (mActiveDeviceAddress == address) clearCandidate()
+        }
+        fail(message, candidateRejected = true)
+    }
+
+    private fun Link.fail(message: String, candidateRejected: Boolean = false) {
         handshake = message
         wrotepass[1] = System.currentTimeMillis()
         Log.w(TAG, message)
@@ -526,7 +567,7 @@ internal class CareSensAirGattCallback(
         // succeeded immediately before an algorithm or native publication failure.
         session = null
         retire()
-        reconnectAfterFailure()
+        if (candidateRejected) reconnect(5_000L) else reconnectAfterFailure()
     }
 
     private fun Link.retire() {
@@ -542,9 +583,7 @@ internal class CareSensAirGattCallback(
     private fun reconnectAfterFailure() {
         failures = (failures + 1).coerceAtMost(5)
         if (failures == 3 && mBluetoothGatt == null) {
-            mActiveBluetoothDevice = null
-            mActiveDeviceAddress = null
-            foundtime = 0L
+            clearCandidate()
         }
         reconnect(5_000L shl (failures - 1))
     }
@@ -583,6 +622,7 @@ internal class CareSensAirGattCallback(
 
     companion object {
         private const val TAG = "CareSensAirManaged"
+        private const val LIVE_REPLAY_WINDOW_SECONDS = 330L // maxbluetoothage in native settings.hpp
         private val sharedWorker = ScheduledThreadPoolExecutor(1) { task ->
             Thread(task, TAG).apply { isDaemon = true }
         }.apply { removeOnCancelPolicy = true }
@@ -592,6 +632,7 @@ internal class CareSensAirGattCallback(
         private val DATA = uuid("c4de9b74")
         private val CONTROL = uuid("c4de9ee4")
         private val REGISTRATION = uuid("c4dec61c")
+        private val REQUIRED_CHARACTERISTICS = listOf(SERIAL, SOFTWARE, DATA, CONTROL)
 
         @JvmStatic
         fun createIfSelected(serial: String, pointer: Long): CareSensAirGattCallback? {
