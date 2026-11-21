@@ -2,6 +2,7 @@
 #include "jniclass.hpp"
 #include "settings/settings.hpp"
 #include "share/hexstr.hpp"
+#include <atomic>
 #include <cmath>
 #include <jni.h>
 #include <stdint.h>
@@ -118,21 +119,44 @@ static MeterSaveResult storeDecodedGlucoseMeter(GlucoseMeter *meter,
   return result;
 }
 
+// GLS 3.1.1.4/3.4.3.4: the first record of a report carries the Time Offset, later
+// ones only when it changes. Keep the last one reported so records that omit it
+// still get it.
+static std::atomic<int16_t> reportedTimeOffset[maxglucosemeters]{};
+
 static MeterSaveResult saveGlucoseMeter(JNIEnv *env, jint meterIndex,
                                         jbyteArray value) {
   const auto arlen = env->GetArrayLength(value);
-  if (arlen < 14) {
-    LOGGER("GlucoseMeterSave length (%d) <14\n", arlen);
+  if (arlen < MeterData::baseLength) {
+    LOGGER("GlucoseMeterSave length (%d) <%d\n", arlen, MeterData::baseLength);
     return {};
   }
   const CritAr bluedata(env, value);
   const MeterData *glu = reinterpret_cast<const MeterData *>(bluedata.data());
+  if (arlen < glu->expectedLength()) {
+    LOGGER("GlucoseMeterSave length (%d) <%d\n", arlen, glu->expectedLength());
+    return {};
+  }
+  // Even a record skipped below may announce the offset the following ones omit.
+  int16_t timeoffset = glu->getTimeoffset();
+  if (meterIndex >= 0 && meterIndex < maxglucosemeters) {
+    if (glu->timeOffsetPresent)
+      reportedTimeOffset[meterIndex] = timeoffset;
+    else
+      timeoffset = reportedTimeOffset[meterIndex];
+  }
   GlucoseMeter *meter = settings->data()->getGlucoseMeter(meterIndex);
   if (!meter) {
     LOGGER("GlucoseMeterSave no meter at %d\n", meterIndex);
     return {};
   }
-  const auto timeoffset = glu->getTimeoffset();
+  if (!glu->typeAndLocationPresent || !glu->time.valid()) {
+    // Nothing to store, and asking again would bring the same record back.
+    LOGGER("GlucoseMeterSave index=%d no concentration=%d invalid time=%d\n",
+           glu->index, !glu->typeAndLocationPresent, !glu->time.valid());
+    meter->nextIndex = glu->index + 1;
+    return {};
+  }
   const uint32_t timeorig = glu->time.getLocaltime();
   const uint32_t timcorrected = timeorig + meter->timeoffset + timeoffset * 60;
   auto mgdL = glu->getmgdL();
@@ -232,8 +256,13 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(GlucoseMeterSaveTime)(
     return false;
   }
   const CritAr bluedata(env, value);
-  const time_t metertime =
-      reinterpret_cast<const MeterTime *>(bluedata.data())->getLocaltime();
+  const MeterTime *clock = reinterpret_cast<const MeterTime *>(bluedata.data());
+  if (!clock->valid()) {
+    // Keep the previous correction rather than one computed from an unknown date.
+    LOGAR("GlucoseMeterSaveTime clock date unknown or invalid");
+    return false;
+  }
+  const time_t metertime = clock->getLocaltime();
   const time_t now = time(nullptr);
   int offset = now - metertime;
   meter->timeoffset = offset;
