@@ -316,12 +316,74 @@ class Libre3ReviewRegressionTest {
         assertTrue(runCatching { Libre3Persistence.migrateSettingsForExport(failing) }.isFailure)
         // Edits made while migration is pending must win over stale legacy values.
         Libre3Persistence.setEnabled(failing, false)
+        Libre3Persistence.setCustomIdentitySource(failing, null)
         assertFalse(Libre3Persistence.isEnabled(failing))
+        assertNull(Libre3Persistence.customIdentitySource(failing))
         failWrites = false
         Libre3Persistence.migrateSettingsForExport(failing)
         assertFalse(Libre3Persistence.isEnabled(context))
+        assertNull(Libre3Persistence.customIdentitySource(context))
         assertFalse(local.contains("enabled"))
         assertEquals(123L, local.getLong("receiver_id", 0L))
+    }
+
+    private fun withHandoverRoster(run: (SuperGattCallback, String) -> Unit) {
+        val savedCallbacks = SensorBluetooth.gattcallbacks.toList()
+        val savedBlue = SensorBluetooth.blueone
+        val savedManaged = ManagedCurrentSensor.get()
+        val legacyName = Libre3IdentityAdapter.legacyShortName(sensor)
+        val legacy = object : SuperGattCallback(legacyName, 0L, 3) {}
+        try {
+            SensorBluetooth.blueone = SensorBluetooth()
+            SensorBluetooth.gattcallbacks.clear()
+            ManagedCurrentSensor.clear()
+            SensorIdentity.invalidateCaches()
+            Libre3ReviewNatives.activeNames = arrayOf("OTHER", legacyName)
+            run(legacy, legacyName)
+        } finally {
+            SensorBluetooth.gattcallbacks.clear()
+            SensorBluetooth.gattcallbacks.addAll(savedCallbacks)
+            SensorBluetooth.blueone = savedBlue
+            ManagedCurrentSensor.set(savedManaged)
+            SensorIdentity.invalidateCaches()
+        }
+    }
+
+    private fun pairing() = Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now, 60, 21_600, 123, "test", 1)
+
+    @Test fun selectedLegacyTakeoverTransfersToKotlinEvenWithAnotherSensorActive() = withHandoverRoster { legacy, legacyName ->
+        Libre3ReviewNatives.selectedName = legacyName
+        SensorBluetooth.gattcallbacks.add(legacy)
+        // An existing successor takes the refresh path, avoiding any real Bluetooth connection.
+        SensorBluetooth.gattcallbacks.add(manager)
+        assertEquals(legacyName, SensorIdentity.resolveMainSensor())
+        Libre3Registry.addSensor(context, pairing())
+        assertFalse(SensorBluetooth.gattcallbacks.contains(legacy))
+        assertEquals(sensor, ManagedCurrentSensor.get())
+        assertEquals(sensor, SensorIdentity.resolveMainSensor())
+    }
+
+    @Test fun unrelatedSelectionSurvivesLegacyTakeover() = withHandoverRoster { legacy, _ ->
+        Libre3ReviewNatives.selectedName = "OTHER"
+        SensorBluetooth.gattcallbacks.add(legacy)
+        SensorBluetooth.gattcallbacks.add(manager)
+        Libre3Registry.addSensor(context, pairing())
+        assertFalse(SensorBluetooth.gattcallbacks.contains(legacy))
+        assertNull(ManagedCurrentSensor.get())
+        assertEquals("OTHER", SensorIdentity.resolveMainSensor())
+    }
+
+    @Test fun selectedKotlinSensorTransfersBackToLegacyAfterItsPairingIsRemoved() = withHandoverRoster { _, legacyName ->
+        Libre3Persistence.saveSensor(context, pairing())
+        ManagedCurrentSensor.set(sensor)
+        Libre3ReviewNatives.selectedName = "OTHER"
+        SensorBluetooth.gattcallbacks.add(manager)
+        assertEquals(sensor, SensorIdentity.resolveMainSensor())
+        Libre3Registry.retireManagedForLegacyScan(context, legacyName)
+        assertFalse(SensorBluetooth.gattcallbacks.contains(manager))
+        assertFalse(Libre3Persistence.hasSensor(context, sensor))
+        assertNull(ManagedCurrentSensor.get())
+        assertEquals(legacyName, SensorIdentity.resolveMainSensor())
     }
 
     @Test fun failedMigrationCleanupDoesNotCrashOrOverwriteDestinationChoices() {
@@ -363,7 +425,13 @@ class Libre3ReviewNatives {
         var wearDays = 0
         var stockWrites = 0
         var resolvedWrites = 0
-        fun reset() { stockWrites = 0; resolvedWrites = 0; wearDays = 0; wakes.clear(); accountNumber = 0L }
+        var activeNames = emptyArray<String>()
+        var selectedName: String? = null
+        val finishedNames = mutableSetOf<String>()
+        fun reset() {
+            stockWrites = 0; resolvedWrites = 0; wearDays = 0; wakes.clear(); accountNumber = 0L
+            activeNames = emptyArray(); selectedName = null; finishedNames.clear()
+        }
         @JvmStatic @Implementation fun __staticInitializer__() {}
         @JvmStatic @Implementation fun setSensorWearDays(serial: String, days: Int) { wearDays = days }
         @JvmStatic @Implementation fun getlibreAccountIDnumber(): Long = accountNumber
@@ -380,6 +448,12 @@ class Libre3ReviewNatives {
         @JvmStatic @Implementation fun wakeNightscoutForLiveReading(source: String, at: Long): Boolean { wakes += at; return true }
         @JvmStatic @Implementation fun getSensorStreamCapacity(serial: String): Int = 32 * 24 * 60
         @JvmStatic @Implementation fun str2sensorptr(serial: String): Long = 1L
+        @JvmStatic @Implementation fun activeSensors(): Array<String> = activeNames.filterNot(::sensorFinishedById).toTypedArray()
+        @JvmStatic @Implementation fun lastsensorname(): String? = selectedName
+        @JvmStatic @Implementation fun currentsensorname(): String? = selectedName
+        @JvmStatic @Implementation fun setcurrentsensor(name: String) { selectedName = name.ifEmpty { null } }
+        @JvmStatic @Implementation fun finishSensorById(name: String): Boolean = finishedNames.add(name.removePrefix("E07A-"))
+        @JvmStatic @Implementation fun sensorFinishedById(name: String): Boolean = name.removePrefix("E07A-") in finishedNames
         @JvmStatic @Implementation fun getSensorStartmsecFromSensorptr(ptr: Long): Long = System.currentTimeMillis() - 86_400_000L
         @JvmStatic @Implementation fun addGlucoseStreamBatchWithRawTemp(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, serial: String): Int {
             stockWrites += t.size; return t.size

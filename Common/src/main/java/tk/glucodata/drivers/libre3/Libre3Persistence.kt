@@ -234,7 +234,8 @@ object Libre3Persistence {
         Libre3IdentitySource.parse(settings(context).getString(KEY_CUSTOM_SOURCE, null))
 
     fun setCustomIdentitySource(context: Context, source: Libre3IdentitySource?) {
-        settings(context).edit().apply { if (source == null) remove(KEY_CUSTOM_SOURCE) else putString(KEY_CUSTOM_SOURCE, source.toSpec()) }.apply()
+        // An explicit reset must also override a legacy value waiting for migration.
+        settings(context).edit().putString(KEY_CUSTOM_SOURCE, source?.toSpec().orEmpty()).apply()
     }
 
     /** The build's pinned source (Gradle property libre3IdentitySource), if it names one. */

@@ -36,6 +36,7 @@ excluded from settings import and export; Android application backup is disabled
 |---|---|---|
 | Fresh activation (A0) | Scan an unused test sensor, accept the dialog, wait for warmup. | Full authorization completes, current reading appears after warmup. Calendar offer initially checked. Record timing and status. |
 | Existing-sensor takeover (A8) | With the matching receiver ID, rescan a sensor started by the legacy driver. | One managed callback; legacy callback retired. Current and recovered history appear. Calendar offer initially unchecked. |
+| Takeover with two active sensors | Select the Libre 3, then rescan to switch drivers. Repeat in the opposite direction and with the other sensor selected. | The selected Libre 3 keeps the main role through either driver switch. If the other sensor is selected, it keeps the main role. |
 | Cached reconnect | Move out of range, return; then disconnect/reconnect once in settings. | Re-authorizes using cached kAuth without another NFC scan; no duplicate callbacks or duplicate Room rows. |
 | Bluetooth toggle | Turn Bluetooth off for two minutes and on again. | Driver recovers; missing minutes backfill without a cursor jump or an endless setup loop. |
 | Process death / reboot | After receiving readings, force-stop and reopen; repeat with reboot. | Sensor record survives, cached authorization reconnects, stored history remains. |

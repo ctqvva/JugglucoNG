@@ -30,8 +30,8 @@ class Libre3HandoverTest {
     @Test fun takeoverRetiresTheExactLegacyCallbackAfterAddingTheSuccessor() {
         val nfc = src("Common/src/main/java/tk/glucodata/drivers/libre3/Libre3ManagedNfc.kt")
         val add = nfc.substringAfter("fun addSensor(").substringBefore("internal fun isLegacyCallbackName")
-        assertTrue(add.indexOf("SensorBluetooth.gattcallbacks.add(callback)") < add.indexOf("retireLegacyCallbacks(legacy, id)\n        if (SensorBluetooth.blueone === blue)"))
-        assertTrue(nfc.contains("SensorBluetooth.retireCallback(cb, successor)"))
+        assertTrue(add.indexOf("SensorBluetooth.gattcallbacks.add(callback)") < add.lastIndexOf("finishLegacyHandover(legacy, handover, id)"))
+        assertTrue(nfc.contains("SensorBluetooth.retireCallback(cb)"))
         assertFalse(nfc.contains("SensorBluetooth.sensorEnded("))
     }
 
@@ -44,7 +44,7 @@ class Libre3HandoverTest {
         // Terminates the link, drops the pairing so a restart does not rebuild it, retires the object.
         assertTrue(body.contains("terminateManagedSensor(wipeData = false)"))
         assertTrue(body.contains("Libre3Persistence.removeSensor(context, serial)"))
-        assertTrue(body.contains("SensorBluetooth.retireCallback(it, name)"))
+        assertTrue(body.contains("SensorBluetooth.retireCallback(it)"))
     }
 
     private fun r(t: Long, v: Float) = Reading(timestampMs = t, glucoseMgdl = v)

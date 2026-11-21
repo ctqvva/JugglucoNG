@@ -10,6 +10,7 @@ import android.content.Context
 import android.nfc.Tag
 import tk.glucodata.AlgNfcV
 import tk.glucodata.Applic
+import tk.glucodata.CurrentSensorSelection
 import tk.glucodata.Libre3NfcSettings
 import tk.glucodata.Log
 import tk.glucodata.Natives
@@ -179,26 +180,27 @@ object Libre3Registry {
     @JvmStatic
     fun addSensor(context: Context, record: Libre3SensorRecord): String {
         val id = record.sensorId
+        val handover = CurrentSensorSelection.captureDriverHandover { isLegacyCallbackName(it, id) }
         // Finish the legacy native record before anything else can rebuild its callback.
         val legacy = finishLegacySensor(id)
         Libre3Persistence.saveSensor(context, record)
         SensorIdentity.invalidateCaches()
         val existing = findDriver(id)
         if (existing != null) {
-            retireLegacyCallbacks(legacy, id)
+            finishLegacyHandover(legacy, handover, id)
             existing.onNfcRecordUpdated()
             return id
         }
         val blue = SensorBluetooth.blueone
         if (blue == null) {
-            retireLegacyCallbacks(legacy, id)
+            finishLegacyHandover(legacy, handover, id)
             return id
         }
         val callback = Libre3BleManager(id)
         SensorBluetooth.gattcallbacks.add(callback)
         runCatching { Natives.setmaxsensors(SensorBluetooth.gattcallbacks.size) }
         // After the successor is in the list, so the current-sensor role can move to it.
-        retireLegacyCallbacks(legacy, id)
+        finishLegacyHandover(legacy, handover, id)
         if (SensorBluetooth.blueone === blue) callback.connectDevice(0)
         return id
     }
@@ -233,11 +235,16 @@ object Libre3Registry {
         return legacy
     }
 
-    private fun retireLegacyCallbacks(legacy: List<SuperGattCallback>, successor: String) {
+    private fun finishLegacyHandover(
+        legacy: List<SuperGattCallback>,
+        handover: CurrentSensorSelection.DriverHandover?,
+        successor: String,
+    ) {
         legacy.forEach { cb ->
             Log.i(TAG, "Retiring legacy Libre 3 callback ${cb.SerialNumber} for $successor")
-            runCatching { SensorBluetooth.retireCallback(cb, successor) }.onFailure { Log.stack(TAG, "retireCallback", it) }
+            runCatching { SensorBluetooth.retireCallback(cb) }.onFailure { Log.stack(TAG, "retireCallback", it) }
         }
+        if (legacy.isNotEmpty() || handover != null) SensorBluetooth.finishDriverHandover(handover, successor)
     }
 
     /**
@@ -250,6 +257,7 @@ object Libre3Registry {
     fun retireManagedForLegacyScan(context: Context, legacyName: String?) {
         val name = legacyName?.trim().takeIf { !it.isNullOrEmpty() } ?: return
         val serial = Libre3Persistence.sensorIds(context).firstOrNull { isLegacyCallbackName(name, it) } ?: return
+        val handover = CurrentSensorSelection.captureDriverHandover { SensorIdentity.matches(it, serial) }
         Log.i(TAG, "Legacy scan of $name takes $serial over from the Kotlin Libre 3 driver")
         val drivers = SensorBluetooth.gattcallbacks.filterIsInstance<Libre3BleManager>().filter { it.matchesManagedSensorId(serial) }
         // Stops the link and finishes the managed native mirror while its record still claims it.
@@ -257,6 +265,7 @@ object Libre3Registry {
         if (drivers.isEmpty()) runCatching { Natives.finishSensorById(serial) }
         Libre3Persistence.removeSensor(context, serial)
         SensorIdentity.invalidateCaches()
-        drivers.forEach { runCatching { SensorBluetooth.retireCallback(it, name) }.onFailure { e -> Log.stack(TAG, "retireCallback", e) } }
+        drivers.forEach { runCatching { SensorBluetooth.retireCallback(it) }.onFailure { e -> Log.stack(TAG, "retireCallback", e) } }
+        SensorBluetooth.finishDriverHandover(handover, name)
     }
 }

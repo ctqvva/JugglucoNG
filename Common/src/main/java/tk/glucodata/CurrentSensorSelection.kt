@@ -28,6 +28,27 @@ object CurrentSensorSelection {
 
     private val lock = Any()
 
+    class DriverHandover internal constructor(
+        val previous: String,
+        internal val managed: String?,
+        internal val native: String?,
+    )
+
+    internal fun captureDriverHandover(retires: (String) -> Boolean): DriverHandover? = synchronized(lock) {
+        val previous = SensorIdentity.resolveMainSensor()?.takeIf(retires) ?: return null
+        DriverHandover(previous, ManagedCurrentSensor.get(), NativeBackend.selectedNative())
+    }
+
+    @JvmStatic
+    fun completeDriverHandover(handover: DriverHandover, successor: String): Boolean = synchronized(lock) {
+        // Finishing the old record changes the resolved main, but keeps the selection
+        // slots. A separate selection made during NFC registration must take precedence.
+        if (ManagedCurrentSensor.get() != handover.managed || NativeBackend.selectedNative() != handover.native)
+            return false
+        select(successor, NativeBackend)
+        true
+    }
+
     @JvmStatic
     fun select(serial: String?): Unit = select(serial, NativeBackend)
 
