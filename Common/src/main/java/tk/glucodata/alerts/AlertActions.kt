@@ -44,6 +44,8 @@ object AlertActions {
             Notify.stopalarm()
             Notify.cancelAlertNotification()
         }
+        // Watchdrip clients (e.g. Gadgetbridge ringing a watch) stop too.
+        tk.glucodata.WearInt.cancelAlarm()
     }
 
     /** The snooze a plain "Snooze" uses: the alert's configured default, 15 minutes otherwise. */
@@ -64,6 +66,7 @@ object AlertActions {
             Notify.cancelAlertNotification()
         }
         AlarmActivityAccess.acknowledge(action.kind)
+        tk.glucodata.WearInt.cancelAlarm()
     }
 
     private fun applyState(action: WearAlertAcknowledgement) {

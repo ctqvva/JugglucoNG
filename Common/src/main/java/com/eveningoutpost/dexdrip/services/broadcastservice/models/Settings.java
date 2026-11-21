@@ -45,6 +45,26 @@ public class Settings implements Parcelable {
         parcel.writeInt(displayGraph ? 1 : 0);
     }
 
+    /** For saving registered clients; apkName goes last since it may contain the separator. */
+    public String serialize() {
+        return graphStart + "," + graphEnd + "," + (displayGraph ? 1 : 0) + "," + (apkName == null ? "" : apkName);
+    }
+
+    public static Settings deserialize(String value) {
+        try {
+            final String[] parts = value.split(",", 4);
+            if (parts.length != 4) return null;
+            final Settings settings = new Settings();
+            settings.graphStart = Long.parseLong(parts[0]);
+            settings.graphEnd = Long.parseLong(parts[1]);
+            settings.displayGraph = "1".equals(parts[2]);
+            settings.apkName = parts[3].isEmpty() ? null : parts[3];
+            return settings;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     //<editor-fold defaultstate="collapsed" desc="delombok">
     @SuppressWarnings("all")
     public long getGraphStart() {

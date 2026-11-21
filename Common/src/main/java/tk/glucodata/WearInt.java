@@ -29,9 +29,9 @@ import android.os.Bundle;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static tk.glucodata.Natives.getxDripTrendName;
 import static tk.glucodata.Notify.glucosetimeout;
@@ -43,7 +43,68 @@ public class  WearInt  {
 private static final String LOG_ID="WearInt";
 private static final String ACTION_WATCH_COMMUNICATION_SENDER = "com.eveningoutpost.dexdrip.watch.wearintegration.BROADCAST_SERVICE_SENDER";
 static private final long oldvalue=glucosetimeout;
-static final Map<String, Settings> mapsettings=new HashMap<>();
+// Written by the watchdrip receiver (main thread), read by senders on other threads.
+static final Map<String, Settings> mapsettings=new ConcurrentHashMap<>();
+
+// Registered clients are saved so that a restart doesn't lose them: an alarm that goes
+// off before a client registers again would otherwise never reach the watch.
+private static final String CLIENTS_PREFS="watchdrip_clients";
+
+static void registerClient(String pack,Settings settings) {
+    final boolean isNew=!mapsettings.containsKey(pack);
+    mapsettings.put(pack,settings);
+    try {
+        Applic.app.getSharedPreferences(CLIENTS_PREFS,0).edit().putString(pack,settings.serialize()).apply();
+        if(isNew) Log.i(LOG_ID,"saved watchdrip client "+pack);
+    } catch(Throwable th) {
+        Log.stack(LOG_ID,"registerClient",th);
+    }
+}
+
+static void loadClients() {
+    try {
+        for(var el:Applic.app.getSharedPreferences(CLIENTS_PREFS,0).getAll().entrySet()) {
+            if(!(el.getValue() instanceof String)) continue;
+            final Settings settings=Settings.deserialize((String)el.getValue());
+            if(settings!=null) mapsettings.putIfAbsent(el.getKey(),settings);
+        }
+        Log.i(LOG_ID,"loaded watchdrip clients "+mapsettings.keySet());
+    } catch(Throwable th) {
+        Log.stack(LOG_ID,"loadClients",th);
+    }
+}
+
+static void forgetClients() {
+    mapsettings.clear();
+    try {
+        Applic.app.getSharedPreferences(CLIENTS_PREFS,0).edit().clear().apply();
+    } catch(Throwable th) {
+        Log.stack(LOG_ID,"forgetClients",th);
+    }
+}
+
+// Type of the last alarm sent to clients; null when none is ringing there.
+private static volatile String alarmSentType=null;
+// The client whose own request is stopping the alarm: it already knows.
+static volatile String cancelOrigin=null;
+
+/** Tell clients the alarm was stopped or snoozed on the phone, if one was sent to them. */
+public static void cancelAlarm() {
+    final String type=alarmSentType;
+    if(type==null) return;
+    alarmSentType=null;
+    final String except=cancelOrigin;
+    Intent intent = new Intent(ACTION_WATCH_COMMUNICATION_SENDER);
+    intent.putExtra("FUNCTION","cancel_alarm");
+    intent.putExtra("type",type);
+    intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+    for(final var el:mapsettings.keySet()) {
+        if(el.equals(except)) continue;
+        intent.setPackage(el);
+        Applic.app.sendBroadcast(intent);
+        Log.i(LOG_ID,"cancel_alarm sent to "+el);
+    }
+}
 /*
 private static int getBatteryLevel() { //From xDrip
 
@@ -73,6 +134,7 @@ static void alarm(String value ) {
     bundle.putString("FUNCTION","alarm");
     bundle.putString("type","BG_ALERT_TYPE");
     bundle.putString("message",value);
+    if(!mapsettings.isEmpty()) alarmSentType="BG_ALERT_TYPE";
     intent.putExtras(bundle);
     intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
     for(final var el:mapsettings.keySet()) {
@@ -87,11 +149,22 @@ static void alarm(String value ) {
 
     }
 
+/** xDrip+-compatible reply to a client's command. */
+static void sendReply(String pack,String code) {
+    Intent intent = new Intent(ACTION_WATCH_COMMUNICATION_SENDER);
+    intent.putExtra("FUNCTION","reply_msg");
+    intent.putExtra("REPLY_CODE",code);
+    intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+    intent.setPackage(pack);
+    Applic.app.sendBroadcast(intent);
+    }
+
 static void missingalarm(long timmsec)  {
     Intent intent = new Intent(ACTION_WATCH_COMMUNICATION_SENDER);
     Bundle bundle=new Bundle();
     bundle.putString("FUNCTION","alarm");
     bundle.putString("type","bg_missed_alerts");
+    if(!mapsettings.isEmpty()) alarmSentType="bg_missed_alerts";
     SimpleDateFormat df = new SimpleDateFormat("HH:mm", Locale.US);
     String time = df.format(new Date(timmsec));
     bundle.putString("message","BG Readings Missed  (@"+time+")");
