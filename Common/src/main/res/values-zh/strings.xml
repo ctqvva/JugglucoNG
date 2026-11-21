@@ -3395,6 +3395,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="spanish">西班牙语</string>
     <string name="floating_layout_reading">读数</string>
     <string name="floating_layout_secondary">次要数值</string>
+    <string name="floating_layout_delta">增量</string>
     <string name="floating_layout_arrow">趋势箭头</string>
     <string name="floating_layout_camera">摄像头开孔</string>
     <string name="floating_layout_camera_desc">上方的项目位于摄像头之前，其余位于之后</string>

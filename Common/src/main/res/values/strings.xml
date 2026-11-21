@@ -3713,6 +3713,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="spanish">Spanish</string>
     <string name="floating_layout_reading">Reading</string>
     <string name="floating_layout_secondary">Secondary value</string>
+    <string name="floating_layout_delta">Delta</string>
     <string name="floating_layout_arrow">Trend arrow</string>
     <string name="floating_layout_camera">Camera cutout</string>
     <string name="floating_layout_camera_desc">Items above it sit before the camera, the rest after it</string>

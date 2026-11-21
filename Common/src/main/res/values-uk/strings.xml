@@ -3483,6 +3483,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="spanish">Іспанська</string>
     <string name="floating_layout_reading">Показник</string>
     <string name="floating_layout_secondary">Додаткове значення</string>
+    <string name="floating_layout_delta">Дельта</string>
     <string name="floating_layout_arrow">Стрілка тренду</string>
     <string name="floating_layout_camera">Виріз камери</string>
     <string name="floating_layout_camera_desc">Елементи вище стоять перед камерою, решта — після</string>

@@ -3432,6 +3432,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="spanish">Spaans</string>
     <string name="floating_layout_reading">Meting</string>
     <string name="floating_layout_secondary">Tweede waarde</string>
+    <string name="floating_layout_delta">Delta</string>
     <string name="floating_layout_arrow">Trendpijl</string>
     <string name="floating_layout_camera">Camera-uitsparing</string>
     <string name="floating_layout_camera_desc">Items erboven staan vóór de camera, de rest erna</string>

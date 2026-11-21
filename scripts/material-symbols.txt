@@ -40,6 +40,7 @@ bookmark_add fill
 bug_report fill
 calculate fill
 center_focus_strong fill
+change_history fill
 check fill
 check_circle fill
 chevron_right fill

@@ -3380,6 +3380,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="spanish">Spagnolo</string>
     <string name="floating_layout_reading">Lettura</string>
     <string name="floating_layout_secondary">Valore secondario</string>
+    <string name="floating_layout_delta">Delta</string>
     <string name="floating_layout_arrow">Freccia di tendenza</string>
     <string name="floating_layout_camera">Foro della fotocamera</string>
     <string name="floating_layout_camera_desc">Gli elementi sopra stanno prima della fotocamera, gli altri dopo</string>

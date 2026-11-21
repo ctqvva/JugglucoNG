@@ -3417,6 +3417,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="spanish">İspanyolca</string>
     <string name="floating_layout_reading">Okuma</string>
     <string name="floating_layout_secondary">İkincil değer</string>
+    <string name="floating_layout_delta">Delta</string>
     <string name="floating_layout_arrow">Eğilim oku</string>
     <string name="floating_layout_camera">Kamera kesiği</string>
     <string name="floating_layout_camera_desc">Üstündeki öğeler kameradan önce, diğerleri sonra yer alır</string>

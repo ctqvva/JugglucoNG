@@ -10,6 +10,7 @@ package tk.glucodata.ui.overlay
 enum class FloatingLayoutItem {
     VALUE,
     SECONDARY,
+    DELTA,
     ARROW,
     CUTOUT,
 }
@@ -21,10 +22,11 @@ data class FloatingLayoutSides(
 )
 
 object FloatingLayoutOrder {
-    /** The layout every version before #981 drew: reading and secondary, camera, arrow. */
+    /** The layout every version before #981 drew: reading and secondary over delta, camera, arrow. */
     val DEFAULT: List<FloatingLayoutItem> = listOf(
         FloatingLayoutItem.VALUE,
         FloatingLayoutItem.SECONDARY,
+        FloatingLayoutItem.DELTA,
         FloatingLayoutItem.CUTOUT,
         FloatingLayoutItem.ARROW,
     )
@@ -96,28 +98,45 @@ object FloatingLayoutOrder {
 
 /**
  * One drawn piece of a side. The reading and a secondary value right beside it make one
- * block, as they always have, so the delta line sits under both of them.
+ * block, as they always have. The delta has no block of its own while something shares its
+ * side: it goes under the block before it, or the one after it when it leads the side.
  */
 internal sealed interface FloatingLayoutBlock {
+    /** Whether the delta sits with this block. */
+    val withDelta: Boolean
+
     /** The reading, with the secondary value [secondaryFirst] or after it when [withSecondary]. */
-    data class Reading(val withSecondary: Boolean, val secondaryFirst: Boolean) : FloatingLayoutBlock
-    data object Secondary : FloatingLayoutBlock
-    data object Arrow : FloatingLayoutBlock
+    data class Reading(
+        val withSecondary: Boolean,
+        val secondaryFirst: Boolean,
+        override val withDelta: Boolean = false,
+    ) : FloatingLayoutBlock
+
+    data class Secondary(override val withDelta: Boolean = false) : FloatingLayoutBlock
+    data class Arrow(override val withDelta: Boolean = false) : FloatingLayoutBlock
+
+    /** The delta alone on its side. */
+    data object Delta : FloatingLayoutBlock {
+        override val withDelta: Boolean get() = false
+    }
 }
 
 /**
  * The blocks one side draws from [items], leaving out what is not shown: a secondary value
- * when [showSecondary] is false, the arrow when [showArrow] is false.
+ * when [showSecondary] is false, the arrow when [showArrow] is false, the delta when
+ * [showDelta] is false.
  */
 internal fun floatingLayoutBlocks(
     items: List<FloatingLayoutItem>,
     showSecondary: Boolean,
     showArrow: Boolean,
+    showDelta: Boolean,
 ): List<FloatingLayoutBlock> {
     val shown = items.filter {
         when (it) {
             FloatingLayoutItem.SECONDARY -> showSecondary
             FloatingLayoutItem.ARROW -> showArrow
+            FloatingLayoutItem.DELTA -> showDelta
             FloatingLayoutItem.VALUE -> true
             FloatingLayoutItem.CUTOUT -> false
         }
@@ -125,12 +144,28 @@ internal fun floatingLayoutBlocks(
     val valueAt = shown.indexOf(FloatingLayoutItem.VALUE)
     val secondaryAt = shown.indexOf(FloatingLayoutItem.SECONDARY)
     val joined = valueAt >= 0 && secondaryAt >= 0 && kotlin.math.abs(valueAt - secondaryAt) == 1
-    return shown.mapNotNull { item ->
+    val blocks = shown.mapNotNull { item ->
         when (item) {
             FloatingLayoutItem.VALUE -> FloatingLayoutBlock.Reading(withSecondary = joined, secondaryFirst = joined && secondaryAt < valueAt)
-            FloatingLayoutItem.SECONDARY -> if (joined) null else FloatingLayoutBlock.Secondary
-            FloatingLayoutItem.ARROW -> FloatingLayoutBlock.Arrow
-            FloatingLayoutItem.CUTOUT -> null
+            FloatingLayoutItem.SECONDARY -> if (joined) null else FloatingLayoutBlock.Secondary()
+            FloatingLayoutItem.ARROW -> FloatingLayoutBlock.Arrow()
+            FloatingLayoutItem.DELTA, FloatingLayoutItem.CUTOUT -> null
         }
+    }.toMutableList()
+    val deltaAt = shown.indexOf(FloatingLayoutItem.DELTA)
+    if (deltaAt < 0) return blocks
+    if (blocks.isEmpty()) return listOf(FloatingLayoutBlock.Delta)
+    // Blocks drawn from the items before the delta; it goes under the last of them.
+    val blocksBefore = shown.subList(0, deltaAt).count {
+        it == FloatingLayoutItem.VALUE || it == FloatingLayoutItem.ARROW ||
+            (it == FloatingLayoutItem.SECONDARY && !joined)
     }
+    val host = if (blocksBefore > 0) blocksBefore - 1 else 0
+    blocks[host] = when (val block = blocks[host]) {
+        is FloatingLayoutBlock.Reading -> block.copy(withDelta = true)
+        is FloatingLayoutBlock.Secondary -> block.copy(withDelta = true)
+        is FloatingLayoutBlock.Arrow -> block.copy(withDelta = true)
+        FloatingLayoutBlock.Delta -> block
+    }
+    return blocks
 }

@@ -3389,6 +3389,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="spanish">Spanska</string>
     <string name="floating_layout_reading">Mätvärde</string>
     <string name="floating_layout_secondary">Sekundärt värde</string>
+    <string name="floating_layout_delta">Delta</string>
     <string name="floating_layout_arrow">Trendpil</string>
     <string name="floating_layout_camera">Kamerautskärning</string>
     <string name="floating_layout_camera_desc">Objekt ovanför hamnar före kameran, resten efter</string>

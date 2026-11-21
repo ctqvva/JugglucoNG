@@ -3516,6 +3516,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="spanish">Испанский</string>
     <string name="floating_layout_reading">Показание</string>
     <string name="floating_layout_secondary">Дополнительное значение</string>
+    <string name="floating_layout_delta">Дельта</string>
     <string name="floating_layout_arrow">Стрелка тренда</string>
     <string name="floating_layout_camera">Вырез камеры</string>
     <string name="floating_layout_camera_desc">Элементы выше стоят перед камерой, остальные — после</string>

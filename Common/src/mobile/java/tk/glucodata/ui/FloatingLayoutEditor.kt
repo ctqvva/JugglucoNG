@@ -8,9 +8,11 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -28,6 +30,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -103,6 +106,7 @@ internal fun FloatingLayoutEditor(
                         shown = when (item) {
                             FloatingLayoutItem.SECONDARY -> showSecondary
                             FloatingLayoutItem.ARROW -> showArrow
+                            FloatingLayoutItem.DELTA -> showDelta
                             else -> true
                         },
                         index = index,
@@ -150,6 +154,8 @@ private fun FloatingLayoutPreview(
         trend = if (showArrow) TrendEngine.TrendResult(TrendEngine.TrendState.FortyFiveUp, 0.7f, 0f, 1f) else null,
     )
     val previewLabel = stringResource(R.string.preview)
+    // The island at the top stacks the delta only within the status bar's height, as it floats.
+    val barHeight = with(LocalDensity.current) { WindowInsets.statusBars.getTop(this).toDp() }
     val shape = cardShape(CardPosition.TOP)
     Surface(
         shape = shape,
@@ -176,6 +182,7 @@ private fun FloatingLayoutPreview(
                     style = style,
                     content = content,
                     modifier = Modifier.clip(style.shape),
+                    stackLimit = barHeight.takeIf { island && it > 0.dp } ?: Dp.Unspecified,
                 )
                 if (island) {
                     // The body is symmetric about the gap, so its centre is the camera's.
@@ -252,6 +259,7 @@ private fun FloatingLayoutRow(
 private fun FloatingLayoutItem.label(): Pair<String, ImageVector> = when (this) {
     FloatingLayoutItem.VALUE -> stringResource(R.string.floating_layout_reading) to Symbols.WaterDropFilled
     FloatingLayoutItem.SECONDARY -> stringResource(R.string.floating_layout_secondary) to Symbols.WaterDrop
+    FloatingLayoutItem.DELTA -> stringResource(R.string.floating_layout_delta) to Symbols.ChangeHistoryFilled
     FloatingLayoutItem.ARROW -> stringResource(R.string.floating_layout_arrow) to Symbols.TrendingUpFilled
     FloatingLayoutItem.CUTOUT -> stringResource(R.string.floating_layout_camera) to Symbols.PhotoCameraFilled
 }

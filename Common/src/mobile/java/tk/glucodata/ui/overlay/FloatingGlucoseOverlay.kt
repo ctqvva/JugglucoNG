@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.graphics.Shape
 import tk.glucodata.service.FloatingGlucoseService.CutoutData
 import tk.glucodata.service.FloatingGlucoseService.CutoutEdge
@@ -299,6 +300,7 @@ fun FloatingGlucoseOverlay(
                 style = style,
                 content = content,
                 modifier = pillModifier,
+                stackLimit = cutoutData.barHeight.takeIf { cutoutEdge == CutoutEdge.TOP && it > 0.dp } ?: Dp.Unspecified,
             )
         }
     } else {
@@ -420,6 +422,9 @@ internal fun rememberFloatingOverlayStyle(
  * The overlay itself, laid out in [order] (#981): one pill, or the items before the camera
  * on one side of a [gap] the camera's width and the rest on the other. The settings preview
  * draws this same body, so what it shows is what floats.
+ *
+ * The delta goes under its neighbour unless that would stand taller than [stackLimit] (the
+ * status bar, for an island at the top); then it goes beside it.
  */
 @Composable
 internal fun FloatingOverlayBody(
@@ -429,6 +434,7 @@ internal fun FloatingOverlayBody(
     style: FloatingOverlayStyle,
     content: FloatingOverlayContent,
     modifier: Modifier = Modifier,
+    stackLimit: Dp = Dp.Unspecified,
 ) {
     val fontSize = style.fontSize
     val inlineSpacing = (fontSize * 0.35f).coerceIn(4f, 10f).dp
@@ -442,6 +448,7 @@ internal fun FloatingOverlayBody(
         items,
         showSecondary = content.secondary != null,
         showArrow = content.trend != null,
+        showDelta = content.delta != null,
     )
 
     val stacked = mode == FloatingOverlayMode.ISLAND_COLUMN
@@ -451,14 +458,14 @@ internal fun FloatingOverlayBody(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(sideIslandSplitPadding)
             ) {
-                blocks(items).forEach { FloatingLayoutBlockContent(it, stacked = true, style, content) }
+                blocks(items).forEach { FloatingLayoutBlockContent(it, stacked = true, style, content, Dp.Unspecified, inlineSpacing) }
             }
         } else {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(inlineSpacing)
             ) {
-                blocks(items).forEach { FloatingLayoutBlockContent(it, stacked = false, style, content) }
+                blocks(items).forEach { FloatingLayoutBlockContent(it, stacked = false, style, content, stackLimit, inlineSpacing) }
             }
         }
     }
@@ -525,13 +532,18 @@ internal fun FloatingOverlayBody(
     }
 }
 
-/** One block: [stacked] beside a side cutout, where the pieces sit under each other. */
+/**
+ * One block: [stacked] beside a side cutout, where the pieces sit under each other. A block
+ * with the delta draws it underneath, or [inlineSpacing] beside it past [stackLimit].
+ */
 @Composable
 private fun FloatingLayoutBlockContent(
     block: FloatingLayoutBlock,
     stacked: Boolean,
     style: FloatingOverlayStyle,
     content: FloatingOverlayContent,
+    stackLimit: Dp,
+    inlineSpacing: Dp,
 ) {
     val fontSize = style.fontSize
     val secondaryFontSize = if (stacked) fontSize * 0.58f else fontSize * 0.7f
@@ -549,52 +561,98 @@ private fun FloatingLayoutBlockContent(
         )
     }
     val secondaryColor = style.textColor.copy(alpha = 0.7f)
-    when (block) {
-        is FloatingLayoutBlock.Reading -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            val secondary = content.secondary.takeIf { block.withSecondary }
-            if (stacked) {
-                val spacing = (fontSize * 0.08f).coerceIn(1f, 4f).dp
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (secondary != null && block.secondaryFirst) {
-                        text(secondary, secondaryFontSize, secondaryColor, TextAlign.Center)
-                        Spacer(Modifier.height(spacing))
+    val main: @Composable () -> Unit = {
+        when (block) {
+            is FloatingLayoutBlock.Reading -> {
+                val secondary = content.secondary.takeIf { block.withSecondary }
+                if (stacked) {
+                    val spacing = (fontSize * 0.08f).coerceIn(1f, 4f).dp
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        if (secondary != null && block.secondaryFirst) {
+                            text(secondary, secondaryFontSize, secondaryColor, TextAlign.Center)
+                            Spacer(Modifier.height(spacing))
+                        }
+                        text(content.primary, fontSize, style.textColor, TextAlign.Center)
+                        if (secondary != null && !block.secondaryFirst) {
+                            Spacer(Modifier.height(spacing))
+                            text(secondary, secondaryFontSize, secondaryColor, TextAlign.Center)
+                        }
                     }
-                    text(content.primary, fontSize, style.textColor, TextAlign.Center)
-                    if (secondary != null && !block.secondaryFirst) {
-                        Spacer(Modifier.height(spacing))
-                        text(secondary, secondaryFontSize, secondaryColor, TextAlign.Center)
-                    }
-                }
-            } else {
-                val spacing = (fontSize * 0.35f).coerceIn(4f, 10f).dp
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (secondary != null && block.secondaryFirst) {
-                        text(secondary, secondaryFontSize, secondaryColor, TextAlign.Start)
-                        Spacer(Modifier.width(spacing))
-                    }
-                    text(content.primary, fontSize, style.textColor, TextAlign.End)
-                    if (secondary != null && !block.secondaryFirst) {
-                        Spacer(Modifier.width(spacing))
-                        text(secondary, secondaryFontSize, secondaryColor, TextAlign.Start)
+                } else {
+                    val spacing = (fontSize * 0.35f).coerceIn(4f, 10f).dp
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (secondary != null && block.secondaryFirst) {
+                            text(secondary, secondaryFontSize, secondaryColor, TextAlign.Start)
+                            Spacer(Modifier.width(spacing))
+                        }
+                        text(content.primary, fontSize, style.textColor, TextAlign.End)
+                        if (secondary != null && !block.secondaryFirst) {
+                            Spacer(Modifier.width(spacing))
+                            text(secondary, secondaryFontSize, secondaryColor, TextAlign.Start)
+                        }
                     }
                 }
             }
-            content.delta?.let { delta ->
-                text("Δ $delta", fontSize * 0.65f, style.textColor, TextAlign.Center)
+            is FloatingLayoutBlock.Secondary -> content.secondary?.let { secondary ->
+                text(secondary, secondaryFontSize, secondaryColor, if (stacked) TextAlign.Center else TextAlign.Start)
             }
+            is FloatingLayoutBlock.Arrow -> content.trend?.let { trend ->
+                val arrowSize = if (stacked) (fontSize * 0.78f).coerceIn(10f, 34f) else (fontSize * 0.9f).coerceIn(12f, 42f)
+                TrendIndicator(
+                    trendResult = trend,
+                    modifier = Modifier.size(arrowSize.dp),
+                    color = style.textColor,
+                    outlineColor = style.arrowOutlineColor,
+                    shadowColor = style.arrowShadowColor
+                )
+            }
+            FloatingLayoutBlock.Delta -> Unit
         }
-        FloatingLayoutBlock.Secondary -> content.secondary?.let { secondary ->
-            text(secondary, secondaryFontSize, secondaryColor, if (stacked) TextAlign.Center else TextAlign.Start)
-        }
-        FloatingLayoutBlock.Arrow -> content.trend?.let { trend ->
-            val arrowSize = if (stacked) (fontSize * 0.78f).coerceIn(10f, 34f) else (fontSize * 0.9f).coerceIn(12f, 42f)
-            TrendIndicator(
-                trendResult = trend,
-                modifier = Modifier.size(arrowSize.dp),
-                color = style.textColor,
-                outlineColor = style.arrowOutlineColor,
-                shadowColor = style.arrowShadowColor
-            )
+    }
+    val delta = content.delta
+    val deltaText: @Composable () -> Unit = {
+        if (delta != null) text(delta, fontSize * 0.65f, style.textColor, TextAlign.Center)
+    }
+    when {
+        block == FloatingLayoutBlock.Delta -> deltaText()
+        block.withDelta && delta != null -> DeltaBeneath(stackLimit, inlineSpacing, main, deltaText)
+        else -> main()
+    }
+}
+
+/**
+ * [main] with [delta] centred under it, or beside it, [spacing] apart and centred on its
+ * height, when the two stacked would stand taller than [limit].
+ */
+@Composable
+private fun DeltaBeneath(
+    limit: Dp,
+    spacing: Dp,
+    main: @Composable () -> Unit,
+    delta: @Composable () -> Unit,
+) {
+    Layout(contents = listOf(main, delta)) { (mainMeasurables, deltaMeasurables), constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val top = mainMeasurables.firstOrNull()?.measure(loose)
+        val bottom = deltaMeasurables.firstOrNull()?.measure(loose)
+        val mainWidth = top?.width ?: 0
+        val mainHeight = top?.height ?: 0
+        val deltaWidth = bottom?.width ?: 0
+        val deltaHeight = bottom?.height ?: 0
+        val beside = limit.isSpecified && mainHeight + deltaHeight > limit.roundToPx()
+        if (beside) {
+            val gap = if (top != null && bottom != null) spacing.roundToPx() else 0
+            val height = maxOf(mainHeight, deltaHeight)
+            layout(mainWidth + gap + deltaWidth, height) {
+                top?.place(0, (height - mainHeight) / 2)
+                bottom?.place(mainWidth + gap, (height - deltaHeight) / 2)
+            }
+        } else {
+            val width = maxOf(mainWidth, deltaWidth)
+            layout(width, mainHeight + deltaHeight) {
+                top?.place((width - mainWidth) / 2, 0)
+                bottom?.place((width - deltaWidth) / 2, mainHeight)
+            }
         }
     }
 }

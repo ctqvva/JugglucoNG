@@ -3656,6 +3656,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
     <string name="spanish">Español</string>
     <string name="floating_layout_reading">Lectura</string>
     <string name="floating_layout_secondary">Valor secundario</string>
+    <string name="floating_layout_delta">Delta</string>
     <string name="floating_layout_arrow">Flecha de tendencia</string>
     <string name="floating_layout_camera">Recorte de la cámara</string>
     <string name="floating_layout_camera_desc">Los elementos de arriba van antes de la cámara; el resto, después</string>

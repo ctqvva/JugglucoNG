@@ -628,7 +628,7 @@ public class Floating extends View {
                             UiRefreshBus.INSTANCE.getRevision().getValue(), this::postInvalidate);
                     if (!deltaText.isEmpty()) {
                         floatPaint.setTextSize(floatfontsize * 0.35f);
-                        final String label = "Δ " + deltaText;
+                        final String label = deltaText;
                         final float available = floatCanvas.getWidth() - density * 2f;
                         final float width = floatPaint.measureText(label);
                         if (width > available && available > 0f)

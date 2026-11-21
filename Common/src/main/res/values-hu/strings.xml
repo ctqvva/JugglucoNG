@@ -3457,6 +3457,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="spanish">Spanyol</string>
     <string name="floating_layout_reading">Mérés</string>
     <string name="floating_layout_secondary">Másodlagos érték</string>
+    <string name="floating_layout_delta">Változás</string>
     <string name="floating_layout_arrow">Trendnyíl</string>
     <string name="floating_layout_camera">Kamerakivágás</string>
     <string name="floating_layout_camera_desc">A fölötte lévő elemek a kamera elé, a többi mögé kerül</string>
