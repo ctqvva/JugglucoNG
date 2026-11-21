@@ -1625,6 +1625,13 @@ public class Natives {
 
         public static native byte[] airGetPin(long dataptr);
 
+        public static native boolean airCanStartManaged(long dataptr);
+
+        public static native boolean airManagedSetStart(long dataptr, long startSeconds);
+
+        public static native long airManagedPublish(long dataptr, int sequence, long timestampSeconds,
+                                                    int glucoseMgdl, float rate, boolean live);
+
         /**
          * Pass as {@code trendByte} when the AiDex frame carried no trend field — the direct F003
          * live frame does not, only the 0x11 broadcast sample does. Native stores NaN for the rate

@@ -488,4 +488,56 @@ extern "C" JNIEXPORT jbyteArray JNICALL fromjava(airGetPin)(JNIEnv *env,
   return uit;
 }
 
+// The Kotlin collector owns calibration and its raw cursor. These entry points
+// only use the existing native CareSens identity, clock and poll storage.
+extern "C" JNIEXPORT jboolean JNICALL fromjava(airCanStartManaged)(
+    JNIEnv *, jclass, jlong dataptr) {
+  auto *stream = reinterpret_cast<airstream *>(dataptr);
+  const auto *sensor = stream ? stream->hist : nullptr;
+  return sensor && sensor->getLastAir() == 0 && sensor->pollcount() == 0;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL fromjava(airManagedSetStart)(
+    JNIEnv *, jclass, jlong dataptr, jlong start) {
+  auto *stream = reinterpret_cast<airstream *>(dataptr);
+  auto *sensor = stream ? stream->hist : nullptr;
+  if (!sensor || start <= 0 || start > UINT32_MAX)
+    return false;
+  const auto sensorStart = static_cast<uint32_t>(start);
+  if (sensor->getinfo()->starttime == sensorStart)
+    return true;
+  if (sensor->getLastAir() != 0 || sensor->pollcount() != 0 ||
+      !sensors->setSensorStarttime(sensor->sensorIndex, sensorStart))
+    return false;
+  sensor->getinfo()->starttime = sensorStart;
+  backup->resendResetDevices(&updateone::sendstream);
+  return true;
+}
+
+// 0: failed, 1: stored as history or sequence already present, other: live glucose response.
+extern "C" JNIEXPORT jlong JNICALL fromjava(airManagedPublish)(
+    JNIEnv *, jclass, jlong dataptr, jint sequence, jlong timestamp,
+    jint glucose, jfloat rate, jboolean live) {
+  auto *stream = reinterpret_cast<airstream *>(dataptr);
+  auto *sensor = stream ? stream->hist : nullptr;
+  if (!sensor || sequence <= 0 || sequence > maxdaysAir * 288 ||
+      timestamp < sensor->getinfo()->starttime || timestamp > UINT32_MAX ||
+      glucose < 35 || glucose > 505)
+    return 0;
+  const int id = sequence * 5;
+  const auto *last = sensor->lastpoll();
+  if (last && last->id >= id)
+    return 1;
+  const auto now = static_cast<uint32_t>(time(nullptr));
+  const auto sample = static_cast<uint32_t>(timestamp);
+  const int trend = rate2changeindex(rate);
+  if (live && sample <= now && now - sample < maxbluetoothage)
+    return mkres(sensor, now, sample, id, glucose, trend, rate);
+  if (!sensor->savestreamonly(sample, id, glucose, trend, rate))
+    return 0;
+  sensor->receivehistory = now;
+  backup->wakebackup(Backup::wakestream);
+  return 1;
+}
+
 #endif

@@ -34,11 +34,11 @@ class CareSensAirInfoAssemblerTests {
         assertEquals(40f, header.minGlucose, 0f)
         assertEquals(3, header.libraryVersion)
         assertArrayEquals(payload, result.payloadWithChecksum())
-        assertArrayEquals(intArrayOf(157, 205, 292), result.continuationPayloadSizes())
+        assertArrayEquals(intArrayOf(157, 205, 290), result.continuationDataSizes())
         result.payloadWithChecksum().fill(0)
-        result.continuationPayloadSizes().fill(0)
+        result.continuationDataSizes().fill(0)
         assertArrayEquals(payload, result.payloadWithChecksum())
-        assertArrayEquals(intArrayOf(157, 205, 292), result.continuationPayloadSizes())
+        assertArrayEquals(intArrayOf(157, 205, 290), result.continuationDataSizes())
         assertEquals(Result.Rejected(Failure.CLOSED), assembler.accept(END))
     }
 
@@ -66,6 +66,40 @@ class CareSensAirInfoAssemblerTests {
         assertEquals(
             Result.Rejected(Failure.CHECKSUM),
             receive(swapped, 327, 327).accept(END),
+        )
+    }
+
+    @Test
+    fun shortTransferCanSupplyChecksumInlineOrInTerminator() {
+        val payload = fixture().copyOf(434) + wireBytes("6cba")
+        val inline = receive(payload, 157, 207).accept(END) as Result.Verified
+        val terminal = receive(payload, 157, 205).accept(wireBytes("c2036cba")) as Result.Verified
+        for (result in listOf(inline, terminal)) {
+            assertArrayEquals(payload, result.payloadWithChecksum())
+            assertArrayEquals(intArrayOf(157, 205), result.continuationDataSizes())
+            val start = CareSensAirProtocol.StartInfo(0.10067f, 1.49594f, 0)
+            val packed = CareSensAirFactoryConfig.pack(result, start, 1_709_726_400L)
+            assertArrayEquals(payload.copyOfRange(72, 434), packed.copyOfRange(72, 434))
+            assertEquals(1800, packed.littleEndian().u16(53))
+            assertEquals(1.49594f, packed.littleEndian().getFloat(434), 0f)
+            assertEquals(0.10067f, packed.littleEndian().getFloat(438), 0f)
+            assertEquals(1_709_726_400L, packed.littleEndian().u32(442))
+        }
+    }
+
+    @Test
+    fun ignoresChecksumCoveredBytesBeyondThePackedHeader() {
+        val unpadded = fixture()
+        val assembler = CareSensAirInfoAssembler()
+        assertEquals(Result.Pending, assembler.accept(wireBytes("c201") + unpadded.copyOf(72) + 0x99.toByte()))
+        assertEquals(Result.Pending, assembler.accept(wireBytes("c202") + unpadded.copyOfRange(72, 229)))
+        assertEquals(Result.Pending, assembler.accept(wireBytes("c202") + unpadded.copyOfRange(229, 434)))
+        val transfer = assembler.accept(wireBytes("c203e17c")) as Result.Verified
+        assertEquals(73, transfer.headerPayloadSize)
+        val start = CareSensAirProtocol.StartInfo(0.1f, 1.5f, 0)
+        assertArrayEquals(
+            unpadded.copyOfRange(72, 434),
+            CareSensAirFactoryConfig.pack(transfer, start, 1_709_726_400L).copyOfRange(72, 434),
         )
     }
 
@@ -100,10 +134,6 @@ class CareSensAirInfoAssemblerTests {
             Result.Rejected(Failure.FRAME_SIZE),
             CareSensAirInfoAssembler().accept(header.copyOf(73)),
         )
-        assertEquals(
-            Result.Rejected(Failure.FRAME_SIZE),
-            CareSensAirInfoAssembler().accept(header.copyOf(75)),
-        )
         for ((badFrame, failure) in listOf(
             header to Failure.OUT_OF_ORDER,
             wireBytes("c202") to Failure.FRAME_SIZE,
@@ -118,7 +148,7 @@ class CareSensAirInfoAssemblerTests {
         }
 
         assertEquals(
-            Result.Rejected(Failure.INCOMPLETE),
+            Result.Rejected(Failure.CHECKSUM),
             receive(fixture(), 327, 326).accept(END),
         )
     }

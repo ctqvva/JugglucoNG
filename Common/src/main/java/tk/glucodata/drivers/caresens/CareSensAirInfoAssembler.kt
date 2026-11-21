@@ -12,6 +12,7 @@ internal class CareSensAirInfoAssembler {
     private val payload = ByteArray(TRANSFER_BYTES)
     private val continuationSizes = mutableListOf<Int>()
     private var written = 0
+    private var headerPayloadSize = 0
     private var closed = false
 
     fun accept(frame: ByteArray): Result {
@@ -19,8 +20,11 @@ internal class CareSensAirInfoAssembler {
         return when {
             frame.hasHeader(0xC2, 1) -> {
                 if (written != 0) reject(Failure.OUT_OF_ORDER)
-                else if (frame.size != HEADER_BYTES + 2) reject(Failure.FRAME_SIZE)
-                else append(frame)
+                else if (frame.size !in (HEADER_BYTES + 2)..(TRANSFER_BYTES + 2)) reject(Failure.FRAME_SIZE)
+                else {
+                    headerPayloadSize = frame.size - 2
+                    append(frame)
+                }
             }
             frame.hasHeader(0xC2, 2) -> {
                 if (written == 0) reject(Failure.OUT_OF_ORDER)
@@ -31,7 +35,7 @@ internal class CareSensAirInfoAssembler {
                     append(frame)
                 }
             }
-            frame.hasHeader(0xC2, 3) -> finish()
+            frame.hasHeader(0xC2, 3) -> finish(frame)
             else -> reject(Failure.UNEXPECTED_FRAME)
         }
     }
@@ -42,19 +46,37 @@ internal class CareSensAirInfoAssembler {
         return Result.Pending
     }
 
-    private fun finish(): Result {
-        if (written != payload.size) return reject(Failure.INCOMPLETE)
+    private fun finish(terminator: ByteArray): Result {
+        if (continuationSizes.isEmpty()) return reject(Failure.INCOMPLETE)
 
-        // AirGattCallback reads the CRC from the final two accumulated bytes, big endian.
-        // The C2/03 notification marks completion, and contributes no bytes to the checksum.
-        val expected = ((payload[CRC_OFFSET].toInt() and 0xFF) shl 8) or
-            (payload[CRC_OFFSET + 1].toInt() and 0xFF)
-        if (crc16(payload, CRC_OFFSET) != expected) return reject(Failure.CHECKSUM)
+        // The legacy buffer held up to 724 bytes plus the big-endian CRC. A shorter
+        // transfer can still provide the CRC after its data or in a two-byte terminator.
+        val inlineOffset = written - CRC_BYTES
+        val inlineMatches = inlineOffset >= headerPayloadSize &&
+            crc16(payload, inlineOffset) == crcWord(payload, inlineOffset)
+        val terminalMatches = terminator.size == 4 && written <= TRANSFER_BYTES - CRC_BYTES &&
+            crc16(payload, written) == crcWord(terminator, 2)
+        val dataSize = when {
+            inlineMatches && !terminalMatches -> inlineOffset
+            terminalMatches && !inlineMatches -> written
+            else -> return reject(Failure.CHECKSUM)
+        }
 
         val header = CareSensAirFactoryHeader.decode(payload)
         if (header == null) return reject(Failure.INVALID_HEADER)
         closed = true
-        return Result.Verified(header, payload, continuationSizes.toIntArray())
+        val sizes = continuationSizes.toIntArray()
+        var remaining = dataSize - headerPayloadSize
+        for (index in sizes.indices) {
+            sizes[index] = minOf(sizes[index], remaining)
+            remaining -= sizes[index]
+        }
+        return Result.Verified(
+            header,
+            if (inlineMatches) payload.copyOf(written) else payload.copyOf(written) + terminator.copyOfRange(2, 4),
+            headerPayloadSize,
+            sizes,
+        )
     }
 
     private fun reject(failure: Failure): Result.Rejected {
@@ -69,10 +91,11 @@ internal class CareSensAirInfoAssembler {
         class Verified(
             val header: CareSensAirFactoryHeader,
             private val payload: ByteArray,
+            val headerPayloadSize: Int,
             private val continuationSizes: IntArray,
         ) : Result {
             fun payloadWithChecksum(): ByteArray = payload.copyOf()
-            fun continuationPayloadSizes(): IntArray = continuationSizes.copyOf()
+            fun continuationDataSizes(): IntArray = continuationSizes.copyOf()
         }
     }
 
@@ -83,7 +106,10 @@ internal class CareSensAirInfoAssembler {
     private companion object {
         const val HEADER_BYTES = 72
         const val TRANSFER_BYTES = 726
-        const val CRC_OFFSET = TRANSFER_BYTES - 2
+        const val CRC_BYTES = 2
+
+        fun crcWord(bytes: ByteArray, offset: Int): Int =
+            ((bytes[offset].toInt() and 0xFF) shl 8) or (bytes[offset + 1].toInt() and 0xFF)
 
         // Both legacy implementations are CRC-16/CCITT-FALSE. The first uses a bytewise
         // update and the second expresses the same update as eight polynomial steps.
@@ -98,6 +124,7 @@ internal class CareSensAirInfoAssembler {
             return crc
         }
     }
+
 }
 
 /** The packed SensorInfo header from air/java.cpp, in on-wire units. */
