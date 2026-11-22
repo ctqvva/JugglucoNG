@@ -58,6 +58,38 @@ data class ICanHealthCeCalibrationResult(
 object ICanHealthCeCalibration {
 
     /**
+     * Blank `SdkCgmDeviceInfo.calFactor` → all six Kotlin defaults of `AlgParameterBean`.
+     * `l0.a` builds it with argument mask `0x3F`, which is a default-argument mask, not a field.
+     */
+    /**
+     * Reproduces the history window of RU SDK `l0.a`: `gluSn >= current-30 && gluSn <=
+     * current-interval`, ordered by `gluSn` ascending. The vendor stores calibrated glucose in
+     * `originCalGlu` for records with `calState`; JNG keeps only the decoded mg/dL value here.
+     */
+    fun vendorBgWindow(
+        recent: List<Pair<Int, Float>>,
+        currentSequence: Int,
+        intervalMinutes: Int,
+    ): List<Float> {
+        if (intervalMinutes <= 0 || currentSequence < 0) return emptyList()
+        val lower = currentSequence - 30
+        val upper = currentSequence - intervalMinutes
+        if (lower > upper) return emptyList()
+        return recent.filter { (sequence, _) -> sequence in lower..upper }
+            .sortedBy { (sequence, _) -> sequence }
+            .map { (_, glucose) -> glucose }
+    }
+
+    fun vendorDefaults() = ICanHealthCeCalibrationResult(
+        caliK = 1f,
+        caliAdjustBool = false,
+        caliAdjustNo = -1,
+        calibBg = -1f,
+        calik0 = 1f,
+        calikM = 1f,
+    )
+
+    /**
      * `AlgNamespace::planCalib` (`0x11b8b4`).
      *
      * [caliK] is accepted for signature parity with the vendor API; the binary does not read it in

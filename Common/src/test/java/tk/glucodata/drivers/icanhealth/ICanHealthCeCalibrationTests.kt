@@ -173,4 +173,66 @@ class ICanHealthCeCalibrationTests {
         assertEquals(1.08f, coefficientRamp, 0.0001f)
         assertEquals(48.6f, glucoseRamp, 0.0001f)
     }
+
+    @Test
+    fun vendorBgWindowMatchesDaoBoundsAndOrdering() {
+        val recent = (0..12).map { it * 3 to (100f + it) }
+        // Bounds [current-30, current-interval] with interval 3 => 10 readings, current excluded.
+        val window = ICanHealthCeCalibration.vendorBgWindow(recent, currentSequence = 30, intervalMinutes = 3)
+        assertEquals(10, window.size)
+        assertEquals(100f, window.first(), 0f)
+        assertEquals(109f, window.last(), 0f)
+        assertEquals(window.sorted(), window)
+    }
+
+    @Test
+    fun vendorBgWindowRejectsInvalidInputs() {
+        val recent = listOf(0 to 100f, 3 to 101f)
+        assertTrue(ICanHealthCeCalibration.vendorBgWindow(recent, -1, 3).isEmpty())
+        assertTrue(ICanHealthCeCalibration.vendorBgWindow(recent, 30, 0).isEmpty())
+        assertTrue(ICanHealthCeCalibration.vendorBgWindow(recent, 2, 3).isEmpty())
+    }
+
+    @Test
+    fun vendorDefaultsMatchBlankCalFactorBean() {
+        // RU SDK l0.a: AlgParameterBean(0,0,0,0,0,0, 0x3F, null) — 0x3F is Kotlin's
+        // default-argument mask, so the fields are 1,false,-1,-1,1,1.
+        val defaults = ICanHealthCeCalibration.vendorDefaults()
+        assertEquals(1f, defaults.caliK, 0f)
+        assertFalse(defaults.caliAdjustBool)
+        assertEquals(-1, defaults.caliAdjustNo)
+        assertEquals(-1f, defaults.calibBg, 0f)
+        assertEquals(1f, defaults.calik0, 0f)
+        assertEquals(1f, defaults.calikM, 0f)
+    }
+
+    @Test
+    fun planThenStartChainsThePersistedCoefficients() {
+        // l0.a sets SdkCgmDeviceInfo.calFactor from planCalib's JSON and b(...) feeds that same
+        // bean into startCalib; with unit defaults and a live sensor both products are sensorBg.
+        val finger = 110f
+        val sensorBg = 120f
+        val defaults = ICanHealthCeCalibration.vendorDefaults()
+        val planned = ICanHealthCeCalibration.planCalib(
+            algBg = finger,
+            newBg = sensorBg,
+            bgList = listOf(100f, 110f, 120f),
+            caliK = defaults.caliK,
+            calik0 = defaults.calik0,
+            calikM = defaults.calikM,
+        )
+        val started = ICanHealthCeCalibration.startCalib(
+            caliK = planned.caliK,
+            caliAdjustBool = planned.caliAdjustBool,
+            caliAdjustNo = planned.caliAdjustNo,
+            newBg = sensorBg,
+            calik0 = planned.calik0,
+        )
+        assertEquals(sensorBg, planned.calibBg, 0.0001f)
+        assertEquals(planned.caliK, started.caliK, 0f)
+        // startCalib ramps from the persisted coefficient, so its product is not exactly sensorBg.
+        val ramp = ((planned.caliK - 1f) * planned.caliAdjustNo) / 5f + 1f
+        assertEquals(sensorBg * planned.calik0 * ramp, started.calibBg, 0.0001f)
+        assertEquals(planned.caliAdjustNo + 1, started.caliAdjustNo)
+    }
 }
