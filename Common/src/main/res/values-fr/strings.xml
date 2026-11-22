@@ -2355,6 +2355,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="stats_duration_days">%1$d j</string>
+    <string name="stats_duration_days_hours">%1$d j %2$d h</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d semaine</item>
+        <item quantity="other">%1$d semaines</item>
+    </plurals>
     <string name="stats_tab_days">Jours</string>
     <string name="stats_tab_hours">Heures</string>
     <string name="stats_tab_weekdays">Jours de semaine</string>

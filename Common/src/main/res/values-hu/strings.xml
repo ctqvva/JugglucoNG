@@ -1811,6 +1811,12 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="stats_duration_days">%1$d n</string>
+    <string name="stats_duration_days_hours">%1$d n %2$d h</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d hét</item>
+        <item quantity="other">%1$d hét</item>
+    </plurals>
     <string name="stats_tab_days">Napok</string>
     <string name="stats_tab_hours">Órák</string>
     <string name="stats_tab_weekdays">A hét napjai</string>

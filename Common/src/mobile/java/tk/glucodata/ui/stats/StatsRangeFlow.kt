@@ -73,6 +73,7 @@ import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -805,7 +806,7 @@ private fun BandRow(
     // Hours with no readings have no split to show, rather than a row of zeroes.
     val percentText = if (noData) "–" else String.format(Locale.getDefault(), "%.1f%%", row.percent)
     val minutes = (row.percent.coerceIn(0f, 100f) / 100f * spanMinutes).roundToInt()
-    val time = if (row.empty || (multiDay && hero)) null else durationText(minutes)
+    val time = if (row.empty || (multiDay && hero)) null else bandDurationText(minutes)
     // An empty band steps right back: it has nothing to say beyond its threshold.
     val quiet = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
     val textColor = if (row.empty) quiet else MaterialTheme.colorScheme.onSurface
@@ -1125,5 +1126,26 @@ private fun InRangeDelta(delta: Float) {
             color = tone,
             maxLines = 1
         )
+    }
+}
+
+/**
+ * A band's time, coarser as it grows: "23 h 30 min" within a day, whole hours up to three
+ * days, then "3 d 20 h", and whole days from a week on, a whole number of weeks named so.
+ */
+@Composable
+private fun bandDurationText(minutes: Int): String {
+    val hours = minutes / 60
+    val days = hours / 24
+    return when {
+        hours < 24 -> durationText(minutes)
+        hours < 72 -> stringResource(R.string.stats_duration_hours, hours)
+        days < 7 -> if (hours % 24 == 0) {
+            stringResource(R.string.stats_duration_days, days)
+        } else {
+            stringResource(R.string.stats_duration_days_hours, days, hours % 24)
+        }
+        days % 7 == 0 -> pluralStringResource(R.plurals.stats_duration_weeks, days / 7, days / 7)
+        else -> stringResource(R.string.stats_duration_days, days)
     }
 }
