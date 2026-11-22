@@ -673,7 +673,7 @@ fun ExpressiveSettingsScreen(
                     SettingsItem(
                         title = stringResource(R.string.ican_health_title),
                         subtitle = stringResource(R.string.ican_health_desc),
-                        icon = Icons.Default.CloudUpload,
+                        icon = Symbols.CloudUploadFilled,
                         iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
                         onClick = { navController.navigate("settings/ican-health") }

@@ -14,10 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import tk.glucodata.ui.symbols.Symbols
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -208,7 +205,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                     save()
                     testMessage = null
                 },
-                icon = Icons.Default.CloudUpload
+                icon = Symbols.CloudUploadFilled
             )
 
             SectionLabel(text = stringResource(R.string.ican_health_section_account), topPadding = 0.dp)
@@ -235,7 +232,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                     PasswordVisualTransformation()
                 },
                 trailingIcon = {
-                    val image = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                    val image = if (showPassword) Symbols.VisibilityFilled else Symbols.VisibilityOffFilled
                     IconButtonTooltip(
                         if (showPassword) stringResource(R.string.ican_health_hide_password) else stringResource(R.string.ican_health_show_password)
                     ) {

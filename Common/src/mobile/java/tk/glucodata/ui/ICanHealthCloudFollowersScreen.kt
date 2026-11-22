@@ -13,8 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PersonAdd
+import tk.glucodata.ui.symbols.Symbols
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -142,7 +141,7 @@ internal fun ICanHealthCloudFollowersContent(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Default.PersonAdd, contentDescription = null)
+                Icon(Symbols.PersonAddFilled, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text(stringResource(R.string.ican_health_send_invite))
             }

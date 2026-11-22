@@ -584,6 +584,8 @@ internal object SettingsSearchIndex {
             condition = SettingsSearchCondition.APP_TREND, anchor = SettingsSearchAnchors.APP_TREND),
         SettingsSearchEntry(R.string.nightscout_settings_title, SHARING, Symbols.CloudUploadFilled, T, route("settings/nightscout"),
             keywords = listOf(R.string.nightscout_desc)),
+        SettingsSearchEntry(R.string.ican_health_title, SHARING, Symbols.CloudUploadFilled, T,
+            route("settings/ican-health"), terms = listOf("iCan", "cloud")),
         SettingsSearchEntry(R.string.nightscout_send_treatments, NIGHTSCOUT, Symbols.MedicationFilled, T,
             route("settings/nightscout"), terms = listOf("treatments"), condition = SettingsSearchCondition.JOURNAL,
             anchor = SettingsSearchAnchors.NIGHTSCOUT_SEND_TREATMENTS),
