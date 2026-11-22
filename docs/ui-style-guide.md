@@ -167,7 +167,7 @@ Reach for these before building a surface by hand.
 | A short wait with no progress to show | `LoadingIndicator` | material3 |
 | A progress bar | `LinearWavyProgressIndicator` | material3 |
 | An icon-only button | the button inside `IconButtonTooltip(label)`, label = its content description | `components/IconButtonTooltip.kt` |
-| A "+" that offers several kinds of thing | `FloatingActionButtonMenu` + `ToggleFloatingActionButton` | material3; journal items 44dp, 8dp apart, labelLarge, 16dp ends; FABs keep the spec 16dp corner and 16dp inset; bottom-centre on the dashboard with centred pills, between timestamps and right-aligned glucose values; primaryContainer/onPrimaryContainer at rest, surfaceContainerHighest/onSurface when open; opaque semantic tints over a dismissible bottom-up gradient scrim, transparent through the top 35%, 55% black at 70%, and 78% black at the bottom; use Glucose in action labels and entry-sheet titles; press and slide off the button, or hold it, and lift on an item to pick it, as in a menu (`JournalExpandableFab`) |
+| A "+" that offers several kinds of thing | `FloatingActionButtonMenu` + `ToggleFloatingActionButton` | material3; journal items 44dp, 8dp apart, labelLarge, 16dp ends; FABs keep the spec 16dp corner and 16dp inset; bottom-centre on the dashboard with centred pills, between timestamps and right-aligned glucose values; primaryContainer/onPrimaryContainer at rest, primary/onPrimary when open (the spec default); opaque semantic tints over a dismissible bottom-up scrim that fades into `surface`, never black (black over a light theme reads as a grey smear): transparent through the top 35%, 80% at 70%, and 92% at the bottom; use Glucose in action labels and entry-sheet titles; press and slide off the button, or hold it, and lift on an item to pick it, as in a menu (`JournalExpandableFab`) |
 | Add at a point on the chart | `JournalFloatingActionMenu` | One column of the FAB menu's 44dp items, one width, centred on the tapped time's dot (where the chart draws it, followed as the screen moves) and 24dp beside it, left past the middle, inside the plot (top to time chip) whenever it fits; only a column taller than the plot rises past it, never past the window. Items spring out of the dot, middle first, (`motionScheme.fastSpatialSpec`) and fold back into it; corners on the dot's side sharpen with nearness to it; the long-pressing finger can slide onto an item, pressed under it, and lift there to pick it |
 | Actions on a multi-selection | `HorizontalFloatingToolbar`; the screen keeps its top bar | material3 |
 | Pick one value from a short list | `DropdownMenuPopup` + `DropdownMenuGroup` + `SelectableDropdownMenuItem` | material3 |
@@ -296,8 +296,8 @@ settings row with a sheet behind it:
 - **Controls:** ordinary buttons in one row, 8dp apart: [QR code] [Edit] [Delete], Delete last
   and outlined in the error colour. Equal widths while the labels fit; icons give way before a
   label is cut; only when bare labels can't share a line does each take its own.
-- **Under the row:** what a control opens inline (a QR code), then a task only this device
-  offers (History recovery), full width.
+- **Under the row:** what a control opens inline (a QR code; a meter's name and code), then a task or setting only this device
+  has (History recovery; a Satellite's recheck wait), full width.
 - The 20dp status-card corner on the settings surface; paused, `surfaceContainerLow`. Cards stand
   8dp apart.
 

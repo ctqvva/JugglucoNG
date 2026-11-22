@@ -55,6 +55,7 @@ import androidx.annotation.NonNull;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import tk.glucodata.glucosemeter.MeterClockSync;
 import tk.glucodata.glucosemeter.MeterLinkOutcome;
 import tk.glucodata.glucosemeter.MeterLinkPacer;
 import tk.glucodata.glucosemeter.MeterSyncPacing;
@@ -203,6 +204,11 @@ private boolean discover(BluetoothGatt bluetoothGatt) {
     VerioWriteChar=null;
     VerioNotifyChar=null;
     verioSession.reset();
+    // Clock characteristics decide the sync path, so never carry them over from an
+    // earlier discovery.
+    TimeChar=null;
+    DateTimeChar=null;
+    IsensTimeChar=null;
     for(var ser:services) {
         if(doLog) Log.i(LOG_ID,"service: "+ser.getUuid().toString());
         final boolean satelliteService=ser.getUuid().equals(SatelliteMeterProtocol.SERVICE_UUID);
@@ -438,6 +444,10 @@ protected  final boolean enableIndication(BluetoothGatt bluetoothGatt1, Bluetoot
         return  enableIndicationnote(""+meterIndex, bluetoothGatt1, bluetoothGattCharacteristic) ;
         }
 private void tryer(Supplier<Boolean> worked) {
+        tryer(worked,null);
+        }
+// gaveUp runs when every attempt was refused while still connected.
+private void tryer(Supplier<Boolean> worked,Runnable gaveUp) {
         if(worked.get())
             return;
         Applic.scheduler.schedule(() -> { 
@@ -448,30 +458,58 @@ private void tryer(Supplier<Boolean> worked) {
                       }
                   if(worked.get()) return; 
                   sleep(20) ;
-                 } }, 20, TimeUnit.MILLISECONDS);
+                 }
+             if(gaveUp!=null && connected)
+                 gaveUp.run();
+             }, 20, TimeUnit.MILLISECONDS);
        } 
 private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
         if(doLog)
             Log.i(LOG_ID,"handleManufactory "+ manufacturer);
         if(manufacturer.startsWith("Roche")) {
                 allRecordsOnly=true;
-                if(doLog)
-                        Log.i(LOG_ID,"read DateTime");
-                tryer(()->gatt.readCharacteristic(DateTimeChar));
-                return;
                 }
         if(manufacturer.startsWith("TaiDoc")) {
                 firstRecordonly=true;
                 tryer(()->enableNotification(gatt, GlucoseChar));
                 return;
                 }
-        if(manufacturer.startsWith("i-SENS")) {
-               // newerRecords=true;
+        // Only touch clock characteristics the meter exposes: some i-SENS meters
+        // (CareSens, discussion #787) have no FFF1, and enabling notifications on the
+        // missing characteristic threw on every retry so no record was ever requested.
+        switch(MeterClockSync.step(manufacturer,DateTimeChar!=null,IsensTimeChar!=null,TimeChar!=null)) {
+            case READ_DATE_TIME:
+                if(doLog) Log.i(LOG_ID,"read DateTime");
+                readClock(gatt,DateTimeChar);
+                break;
+            case WRITE_ISENS_TIME:
                 tryer(()->enableNotification(gatt, IsensTimeChar));
-                return;
-                }
-        tryer(()->gatt.readCharacteristic(TimeChar));
+                break;
+            case READ_CURRENT_TIME:
+                readClock(gatt,TimeChar);
+                break;
+            default:
+                Log.i(LOG_ID,"no usable clock characteristic, records without clock");
+                enableRecordNotifications(gatt);
+                break;
+            }
        }
+// The clock only corrects record times, so a read Android will not queue still
+// leads on to the records.
+private void readClock(BluetoothGatt gatt,BluetoothGattCharacteristic clock) {
+        tryer(()->gatt.readCharacteristic(clock),()->{
+            Log.i(LOG_ID,"clock read not queued, records without clock");
+            enableRecordNotifications(gatt);
+            });
+        }
+private void enableRecordNotifications(BluetoothGatt gatt) {
+        if(ContextChar!=null) {
+            tryer(()->enableNotification(gatt, ContextChar));
+            }
+        else {
+            tryer(()->enableNotification(gatt, GlucoseChar));
+            }
+        }
     @Override
     public void onCharacteristicRead(@NonNull BluetoothGatt bluetoothGatt,@NonNull  BluetoothGattCharacteristic bluetoothGattCharacteristic, int status) {
         final var value=bluetoothGattCharacteristic.getValue();
@@ -479,6 +517,14 @@ private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
         if(doLog) {Log.d(LOG_ID, bluetoothGatt.getDevice().getAddress() + " onCharacteristicRead, status:" + status + " UUID:" + uuid);};;
 
       if(status!=GATT_SUCCESS) {
+            final boolean clock=uuid.equals(TimeCharUUID)||uuid.equals(DateTimeCharUUID);
+            final boolean bonded=bluetoothGatt.getDevice().getBondState()==BOND_BONDED;
+            if(clock && (bonded || status != GATT_INSUFFICIENT_AUTHENTICATION)) {
+                // Optional step: a meter that refuses its clock still hands over records.
+                Log.i(LOG_ID,"clock read failed status="+status+", records without clock");
+                enableRecordNotifications(bluetoothGatt);
+                return;
+                }
             if(status == GATT_INSUFFICIENT_AUTHENTICATION) { 
                 if(doLog)
                     Log.i(LOG_ID,"onCharacteristicRead GATT_INSUFFICIENT_AUTHENTICATION");
@@ -496,12 +542,7 @@ private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
             case DateTimeCharUUID: 
             case TimeCharUUID: 
                 Natives.GlucoseMeterSaveTime(meterIndex,value);
-                if(ContextChar!=null) {
-                    tryer(()->enableNotification(bluetoothGatt, ContextChar));
-                    }
-                else {
-                    tryer(()->enableNotification(bluetoothGatt, GlucoseChar));break;
-                    }
+                enableRecordNotifications(bluetoothGatt);
                 break;
                  
             default: Log.e(LOG_ID,"onCharacteristicRead: Unknown UUID "+uuid);break;

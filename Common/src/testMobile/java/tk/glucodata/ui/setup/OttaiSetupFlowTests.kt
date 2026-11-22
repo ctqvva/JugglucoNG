@@ -55,10 +55,6 @@ class OttaiSetupFlowTests {
                 signedIn = true,
             ),
         )
-        assertEquals(
-            false,
-            ottaiSetupPublishesManagedSensor(OttaiSetupConnectRoute.V3_CREDENTIAL_BOOTSTRAP),
-        )
     }
 
     @Test
@@ -116,11 +112,14 @@ class OttaiSetupFlowTests {
     }
 
     @Test
-    fun `sensor selection fetches only missing credentials and never implies connect`() {
-        assertEquals(false, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = true, signedIn = true))
-        assertEquals(false, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = true, signedIn = false))
-        assertEquals(true, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = false, signedIn = true))
-        assertEquals(false, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = false, signedIn = false))
+    fun `a cloud or session outage never causes a historical temporary bind`() {
+        val expired = OttaiCloudClient.CloudFailure("expired", OttaiCloudClient.BIZ_OUT_OF_PRODUCE_TIME, 200)
+        val unavailable = OttaiCloudClient.CloudFailure("gateway", "NET_SECURITY_SYSTEM_ERROR", 500)
+        val signedOut = OttaiCloudClient.CloudFailure("invalid", OttaiCloudClient.BIZ_TOKEN_INVALID, 401)
+        assertEquals(true, ottaiCanRecoverHistoricalCredentials(expired, null))
+        assertEquals(false, ottaiCanRecoverHistoricalCredentials(unavailable, null))
+        assertEquals(false, ottaiCanRecoverHistoricalCredentials(expired, unavailable))
+        assertEquals(false, ottaiCanRecoverHistoricalCredentials(signedOut, null))
     }
 
     @Test

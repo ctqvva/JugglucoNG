@@ -11,6 +11,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import tk.glucodata.ui.components.DeviceHeaderButtonDefaults
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SplitButtonLayout
@@ -121,7 +122,7 @@ private val SensorBadgeWidth = 50.dp
 private val SensorBadgeHeight = 40.dp
 
 /** The name pill and the button beside it are one height, so the header reads as one line. */
-private val SensorHeaderControlSize = 44.dp
+private val SensorHeaderControlSize = DeviceHeaderButtonDefaults.Height
 
 /**
  * One badge line, sized down until it fits the tile rather than being clipped or ellipsized.
@@ -321,12 +322,13 @@ private fun SensorNameText(
     modifier: Modifier = Modifier,
 ) {
     val measurer = rememberTextMeasurer()
-    val baseStyle = MaterialTheme.typography.titleLarge
+    // Theme roles only: the condensed title while it fits, then the emphasized 16sp one.
+    val typography = MaterialTheme.typography
+    val candidates = listOf(typography.titleLarge, typography.titleMediumEmphasized)
     val density = LocalDensity.current
     BoxWithConstraints(modifier = modifier) {
         val availablePx = with(density) { maxWidth.roundToPx() }
-        val style = remember(name, availablePx, baseStyle) {
-            val candidates = listOf(22.sp, 20.sp, 18.sp, 16.sp).map { baseStyle.copy(fontSize = it) }
+        val style = remember(name, availablePx, candidates) {
             candidates.firstOrNull { candidate ->
                 measurer.measure(name, candidate, softWrap = false).size.width <= availablePx
             } ?: candidates.last()
@@ -359,45 +361,74 @@ internal fun bleErrorValue(status: String, relativeAge: CharSequence?): String {
 }
 
 /**
- * The card's label and value pairs, laid out one way for the whole list: as a table, label at
- * the start and value at the end of one line, when every pair fits on a line; otherwise every
- * value goes under its label. Mixing the two in one list is what made it look broken at large
- * font sizes. Children come in pairs: a label, then its value.
+ * The card's label and value pairs as one table: label at the start, value at the end. A value
+ * too long for its line wraps inside the value column, its lines kept to the end edge, so one
+ * long figure no longer turns the whole list into a column. Only when a label and the longest
+ * word of its value cannot share a line (large font sizes) does every value go under its label;
+ * the two are never mixed in one list. Children come in pairs: a label, then its value. The
+ * content is told which of the two it is in, so values can align to match.
  */
 @Composable
-private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    androidx.compose.ui.layout.Layout(content = content, modifier = modifier) { measurables, constraints ->
+private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable (table: Boolean) -> Unit) {
+    var table by remember { mutableStateOf(true) }
+    androidx.compose.ui.layout.Layout(content = { content(table) }, modifier = modifier) { measurables, constraints ->
         val width = constraints.maxWidth
         val gap = 12.dp.roundToPx()
         val pairs = measurables.chunked(2).filter { it.size == 2 }
-        val table = pairs.all { (label, value) ->
-            label.maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity) + gap +
-                value.maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity) <= width
+        val labelWidths = pairs.map { (label, _) -> label.maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity) }
+        val fits = pairs.indices.all { i ->
+            labelWidths[i] <= width / 2 &&
+                labelWidths[i] + gap + pairs[i][1].minIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity) <= width
         }
+        if (fits != table) table = fits
         val loose = androidx.compose.ui.unit.Constraints(maxWidth = width)
-        val placed = pairs.map { (label, value) -> label.measure(loose) to value.measure(loose) }
-        val rowGap = (if (table) 8.dp else 12.dp).roundToPx()
+        val placed = pairs.mapIndexed { i, (label, value) ->
+            val labelPlaceable = label.measure(loose)
+            val valueConstraints = if (fits) {
+                androidx.compose.ui.unit.Constraints(maxWidth = (width - labelWidths[i] - gap).coerceAtLeast(0))
+            } else {
+                loose
+            }
+            labelPlaceable to value.measure(valueConstraints)
+        }
+        val rowGap = (if (fits) 8.dp else 12.dp).roundToPx()
         val stackGap = 2.dp.roundToPx()
         val heights = placed.map { (label, value) ->
-            if (table) maxOf(label.height, value.height) else label.height + stackGap + value.height
+            if (fits) maxOf(label.height, value.height) else label.height + stackGap + value.height
         }
         val height = heights.sum() + rowGap * (heights.size - 1).coerceAtLeast(0)
         layout(width, height) {
             var y = 0
-            placed.forEachIndexed { index, (label, value) ->
-                if (table) {
-                    // Both on the value's baseline row: the label is the smaller text.
-                    label.placeRelative(0, y + (heights[index] - label.height) / 2)
-                    value.placeRelative(width - value.width, y)
+            placed.forEach { (label, value) ->
+                if (fits) {
+                    // The label sits on the value's first line: on its baseline when both
+                    // report one, else centred on a single-line value.
+                    val labelBase = label[androidx.compose.ui.layout.FirstBaseline]
+                    val valueBase = value[androidx.compose.ui.layout.FirstBaseline]
+                    val labelY = if (labelBase != androidx.compose.ui.layout.AlignmentLine.Unspecified &&
+                        valueBase != androidx.compose.ui.layout.AlignmentLine.Unspecified
+                    ) {
+                        valueBase - labelBase
+                    } else {
+                        (value.height - label.height) / 2
+                    }
+                    val top = minOf(0, labelY)
+                    label.placeRelative(0, y + labelY - top)
+                    value.placeRelative(width - value.width, y - top)
                 } else {
                     label.placeRelative(0, y)
                     value.placeRelative(0, y + label.height + stackGap)
                 }
-                y += heights[index] + rowGap
+                y += if (fits) maxOf(label.height, value.height) else label.height + stackGap + value.height
+                y += rowGap
             }
         }
     }
 }
+
+/** The container of the card's quiet buttons (Pause, the link pill), apart from its labels. */
+@Composable
+private fun sensorQuietButtonContainer(): Color = MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
 
 private enum class SensorLinkState { UP, WAITING, DOWN }
 
@@ -410,7 +441,8 @@ private enum class SensorLinkState { UP, WAITING, DOWN }
 /**
  * The status line beside the reading. One line while it fits; when it does not, a trailing
  * "(qualifier)" drops to a supporting line under the state ("Connected" over "Broadcast
- * fallback"), and a status without one wraps to a second line instead of losing its end.
+ * fallback"), a status without one wraps between its words, and a single word shrinks on its
+ * line rather than break inside itself.
  */
 @Composable
 private fun SensorStatusText(status: String, color: Color, modifier: Modifier = Modifier) {
@@ -449,10 +481,33 @@ private fun SensorStatusText(status: String, color: Color, modifier: Modifier = 
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             )
         }
-    } else {
+    } else if (status.none { it.isWhitespace() }) {
+        // One word ("Подключено") has nowhere to wrap but mid-word: it steps down a size on
+        // its one line instead, and only past the smallest size loses its end.
+        val maxSize = MaterialTheme.typography.titleSmall.fontSize
+        val minSize = MaterialTheme.typography.labelMedium.fontSize
+        val autoSize = remember(minSize, maxSize) {
+            androidx.compose.foundation.text.TextAutoSize.StepBased(
+                minFontSize = minSize,
+                maxFontSize = maxSize,
+                stepSize = 1.sp,
+            )
+        }
         Text(
             text = status,
             style = MaterialTheme.typography.titleSmall,
+            color = color,
+            autoSize = autoSize,
+            maxLines = 1,
+            softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = modifier,
+        )
+    } else {
+        // Several words wrap between them, into two lines of about even length.
+        Text(
+            text = status,
+            style = MaterialTheme.typography.titleSmall.copy(lineBreak = androidx.compose.ui.text.style.LineBreak.Heading),
             color = color,
             maxLines = 2,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -462,9 +517,10 @@ private fun SensorStatusText(status: String, color: Color, modifier: Modifier = 
 }
 
 @Composable
-private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifier = Modifier) {
+private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, accent: Color, modifier: Modifier = Modifier) {
     val down = state == SensorLinkState.DOWN
-    val color = if (down) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    // The sensor's own colour, as on its name: down keeps the error colours.
+    val color = if (down) MaterialTheme.colorScheme.onErrorContainer else accent
     val waves = when {
         state != SensorLinkState.UP || rssi == null -> 0
         rssi >= -65 -> 3
@@ -484,11 +540,17 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
     } else {
         Modifier
     }
-    // The reading chip's own shape, height and padding: the line's two ends are a pair.
+    // The reading chip's own shape, height and padding: the line's two ends are a pair. When a
+    // tap shows the figure it is a button, so it wears the Pause button's container above it
+    // rather than the reading chip's, which is only a label.
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = if (down) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainer,
+        color = when {
+            down -> MaterialTheme.colorScheme.errorContainer
+            figure != null -> sensorQuietButtonContainer()
+            else -> MaterialTheme.colorScheme.surfaceContainer
+        },
         contentColor = color,
         tonalElevation = 1.dp,
     ) {
@@ -511,7 +573,7 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, modifier: Modifie
                 Text(
                     text = figure.orEmpty(),
                     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = color,
+                    color = if (down) color else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     modifier = Modifier.padding(end = 8.dp),
                 )
@@ -2191,8 +2253,8 @@ fun SensorCard(
                                 // container itself takes the press shape.
                                 FilledIconButton(
                                     onClick = { viewModel.returnSensorToPhone(sensor.serial) },
-                                    modifier = Modifier.size(SensorHeaderControlSize),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2227,8 +2289,8 @@ fun SensorCard(
                                             viewModel.handBackCloneSensor(sensor.serial)
                                         }
                                     },
-                                    modifier = Modifier.size(SensorHeaderControlSize),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2258,11 +2320,11 @@ fun SensorCard(
                                             viewModel.reconnectSensor(sensor.serial, false)
                                         }
                                     },
-                                    modifier = Modifier.size(SensorHeaderControlSize),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = if (isLocallyEnabled) {
-                                            MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+                                            sensorQuietButtonContainer()
                                         } else {
                                             MaterialTheme.colorScheme.primaryContainer
                                         },
@@ -2362,6 +2424,7 @@ fun SensorCard(
                                         else -> SensorLinkState.WAITING
                                     },
                                     rssi = sensor.rssi.takeIf { it in -120..-1 },
+                                    accent = sensorTint,
                                 )
                             }
                         }
@@ -2408,6 +2471,12 @@ fun SensorCard(
                             if (it.isEmpty() || it.startsWith("v", ignoreCase = true)) it else "v$it"
                         },
                     ).filter { it.isNotEmpty() }.joinToString(" · ").ifEmpty { sensor.deviceAddress }
+                    // The one figure worth seeing without opening: how much battery is left.
+                    val batterySummary = when {
+                        sensor.batteryPercent >= 0 -> "${sensor.batteryPercent}%"
+                        sensor.batteryMillivolts > 0 -> String.format(java.util.Locale.getDefault(), "%.2f V", sensor.batteryMillivolts / 1000.0)
+                        else -> null
+                    }
                     val detailsFadeIn = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                     val detailsFadeOut = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
                     val detailsResize = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.unit.IntSize>()
@@ -2441,11 +2510,26 @@ fun SensorCard(
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = detailSummary,
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
                         )
+                        if (batterySummary != null) {
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(R.string.sensor_battery_voltage),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = batterySummary,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                                maxLines = 1,
+                            )
+                        }
                         Spacer(modifier = Modifier.width(12.dp))
                         Icon(
                             imageVector = Symbols.ExpandMoreFilled,
@@ -2460,10 +2544,16 @@ fun SensorCard(
                             .fillMaxWidth()
                             .clickable(role = Role.Button) { setDetailsExpanded(false) }
                             .padding(horizontal = 12.dp, vertical = 12.dp),
-                    ) {
-                        // Clean Label-Value rows
+                    ) { table ->
+                        // Clean Label-Value rows. In the table a wrapped value keeps to the end edge.
                         val labelStyle = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        val valueStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)
+                        val valueStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = if (table) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start,
+                            // Balanced: a wrapped value splits into lines of about even length
+                            // instead of a full line and a stray word.
+                            lineBreak = androidx.compose.ui.text.style.LineBreak.Heading,
+                        )
                         var batteryRefreshAnimation by remember(sensor.serial) { mutableIntStateOf(0) }
 
                         @Composable
@@ -2708,7 +2798,7 @@ fun SensorCard(
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = stringResource(R.string.sensor_connection_log),
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f),
                         )
                         Icon(

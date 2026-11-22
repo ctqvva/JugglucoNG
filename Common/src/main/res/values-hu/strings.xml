@@ -425,20 +425,25 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="specifyblood">"Először a vércukor címkéjét kell kiválasztani"</string>
     <string name="meterlist">"Vércukormérők"</string>
     <string name="glucose_meters_desc">Bluetooth-vércukormérők csatlakoztatása</string>
-    <string name="glucose_meters_journal_desc">A mérések vércukor-bejegyzésként kerülnek a naplóba, és elküldhetők a Nightscout szolgáltatásba.</string>
+    <string name="glucose_meters_journal_desc">A mérések vércukor-bejegyzésként kerülnek a naplóba, és elküldhetők a Nightscout szolgáltatásba</string>
     <string name="satellite_meter_title">Satellite (Сателлит+) vércukormérő</string>
     <string name="satellite_meter_code_label">PIN vagy címkekód</string>
     <string name="satellite_meter_code_desc">A 3 számjegyű PIN vagy a mérő QR/DataMatrix-címkéje alá nyomtatott hosszabb kód megadása szükséges. Minden Bluetooth-kapcsolathoz ezt használja.</string>
     <string name="satellite_meter_code_missing">Satellite vércukormérő: először a mérő kódját kell megadni a Vércukormérők beállításaiban</string>
     <string name="glucose_meters_configured">Beállított mérők</string>
-    <string name="glucose_meters_none">Nincs beállított mérő</string>
-    <string name="glucose_meters_none_desc">Közeli mérő keresésével indítható a mérések importálása.</string>
     <string name="glucose_meters_nearby">Közeli mérők</string>
     <string name="glucose_meter_recheck">Mérő újbóli ellenőrzése</string>
     <string name="glucose_meter_recheck_now">Azonnal</string>
-    <string name="glucose_meter_recheck_hint">Bekapcsolva maradó mérőkhöz, mint a Satellite. Egy új mérés ennyivel később érkezhet meg</string>
-    <string name="glucose_meter_last_reading">Utolsó mérés: %1$s</string>
-    <string name="glucose_meter_no_readings">Még nincs importált mérés</string>
+    <string name="glucose_meter_recheck_hint">A Satellite soha nem kapcsol ki. A hosszabb várakozás kíméli az akkumulátort</string>
+    <string name="glucose_meter_name">Név</string>
+    <string name="glucose_meter_name_hint">Itt és az új naplóbejegyzésekben jelenik meg</string>
+    <string name="glucose_meters_find">Mérők keresése</string>
+    <string name="glucose_meters_none_found">Nem található mérő. Kapcsolja be a mérőt, és keressen újra</string>
+    <string name="glucose_meters_other">Egyéb Bluetooth-eszközök</string>
+    <string name="glucose_meters_other_desc">Ha a mérő nem szerepel a fenti listában</string>
+    <string name="glucose_meter_last_reading">Utolsó mérés</string>
+    <string name="glucose_meter_no_readings">Még nincs</string>
+    <string name="glucose_meter_device_name">Bluetooth-név</string>
     <string name="glucose_meter_forget">Elfelejtés</string>
     <string name="glucose_meter_forget_title">Mérő elfelejtése</string>
     <string name="glucose_meter_forget_desc">A(z) %1$s használatának leállítása és a telefonnal való párosítás megszüntetése? A naplóba már importált mérések megmaradnak.</string>
@@ -987,6 +992,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_login_request_suffix">\nreq=...%1$s</string>
     <string name="ottai_already_signed_in">Bejelentkezve</string>
     <string name="ottai_session_invalid">A felhős munkamenet már nem érvényes — ismételt bejelentkezés szükséges</string>
+    <string name="ottai_global_sign_in_again">A szenzor beállításához vagy a firmware ellenőrzéséhez jelentkezzen be újra az Ottai Global-fiókjába. A mentett szenzorok és az előzmények megmaradnak.</string>
+    <string name="ottai_ota_check_failed">A firmware ellenőrzése sikertelen.</string>
+    <string name="ottai_ota_disconnect_first">A firmware ellenőrzéséhez válassza le a szenzort.</string>
     <string name="ottai_sensor_mac_hint">Eszközazonosító, sorozatszám vagy QR</string>
     <string name="ottai_connect_saved">Csatlakozás</string>
     <string name="ottai_login_fail">Sikertelen bejelentkezés — ellenőrizze a telefonszámot/kódot</string>
@@ -1070,7 +1078,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_server_unreachable">Nem érhető el az Ottai szerver. Próbálja újra.</string>
     <string name="ottai_connect_failed">Nem sikerült elindítani a kapcsolatot. Próbálja újra.</string>
     <string name="ottai_already_binding_hint">A fiókjához még egy másik szenzor van kötve. Oldja fel a kötését a Mentett szenzorok alatt, majd próbálja újra.</string>
-    <string name="ottai_ota_upgrade_required">Az Ottai szolgáltatás firmware-frissítést kért a szenzor hozzárendelésekor. Próbálja újra a firmware beállítását, vagy importálja a mentett hitelesítő adatokat. A hivatalos Ottai alkalmazást is kipróbálhatja.</string>
+    <string name="ottai_ota_upgrade_required">Az Ottai firmware-frissítést kért.</string>
     <string name="ottai_retry">Újrapróbálás</string>
     <string name="ottai_setup_failed">A beállítás leállt. Próbálja újra, vagy zárja be, és importálja a mentett hitelesítő adatokat.</string>
     <string name="ottai_region_cn_full">Ottai Kína</string>
@@ -3208,7 +3216,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_ota_installing">Firmware telepítése…</string>
     <string name="ottai_ota_reconnecting">Újracsatlakozás és a telepített verzió ellenőrzése…</string>
     <string name="ottai_ota_preparing">Hitelesítő adatok frissítése és gyári paraméterek írása…</string>
-    <string name="ottai_ota_complete">Az előkészítés kész. Zárja be az ablakot, majd csatlakozzon a szokásos módon az aktiváláshoz.</string>
+    <string name="ottai_ota_complete">A gyári előkészítés kész</string>
     <string name="ottai_ota_failed">A beállítás leállt. Próbálja újra, vagy ellenőrizze a nyomkövetési naplót. A befejezetlen beállítás blokkolja az aktiválást.</string>
     <string name="ottai_ota_version">Érzékelő: %1$s · Frissítés: %2$s</string>
     <string name="ottai_ota_package">%1$d bájt · SHA-256: %2$s</string>
@@ -3237,7 +3245,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
 
     <string name="ottai_ota_discard">Befejezetlen beállítás elvetése</string>
     <string name="ottai_ota_discard_confirm">Törli a mentett frissítési és előkészítési állapotot a csatlakozás engedélyezéséhez? Ez nem állítja vissza a firmware-t vagy a beállításokat. A megszakított frissítés még helyreállítást igényelhet.</string>
-    <string name="ottai_ota_pending">A szenzor beállítása nem fejeződött be. Csatlakozzon újra, vagy nyissa meg a helyreállítást a befejezéshez vagy elvetéshez.</string>
+    <string name="ottai_ota_pending">A szenzor beállítása befejezetlen</string>
     <string name="ottai_ota_finish_preparation">A firmware ellenőrizve. A beállítás befejezéséhez erősítse meg a gyári paraméterek írását.</string>
     <string name="ottai_ota_discard_failed">A firmware-teszt nem vethető el. Próbálja újra.</string>
     <string name="prediction_analysis_section">Előrejelzés-elemzés</string>

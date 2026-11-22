@@ -161,6 +161,8 @@ class ApiGlucoseSourceManager(
 
     override fun supportsDisplayModes(): Boolean = true
 
+    override fun usesBluetoothDiscovery(): Boolean = false
+
     override fun connectDevice(delayMillis: Long): Boolean {
         stop = false
         scheduleRefresh(delayMillis.coerceAtLeast(0L))

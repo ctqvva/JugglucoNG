@@ -889,19 +889,24 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="median">Medyan</string>
     <string name="meterlist">Glukometreler</string>
     <string name="glucose_meters_desc">Bluetooth glikoz ölçerleri bağlayın</string>
-    <string name="glucose_meters_journal_desc">Ölçümler günlükte kan şekeri kaydı olarak saklanır ve Nightscout\'a gönderilebilir.</string>
+    <string name="glucose_meters_journal_desc">Ölçümler günlükte kan şekeri kaydı olarak saklanır ve Nightscout\'a gönderilebilir</string>
     <string name="satellite_meter_title">Satellite (Сателлит+) ölçüm cihazı</string>
     <string name="satellite_meter_code_label">PIN veya etiket kodu</string>
     <string name="satellite_meter_code_desc">3 haneli PIN’i veya cihazdaki QR/DataMatrix etiketinin altında yazan uzun kodu girin. Her Bluetooth bağlantısında kullanılır.</string>
     <string name="glucose_meters_configured">Yapılandırılmış ölçerler</string>
-    <string name="glucose_meters_none">Yapılandırılmış ölçer yok</string>
-    <string name="glucose_meters_none_desc">Ölçümleri içe aktarmak için yakındaki bir ölçeri bulun.</string>
     <string name="glucose_meters_nearby">Yakındaki ölçerler</string>
     <string name="glucose_meter_recheck">Cihazı tekrar kontrol etme aralığı</string>
     <string name="glucose_meter_recheck_now">Hemen</string>
-    <string name="glucose_meter_recheck_hint">Satellite gibi açık kalan ölçüm cihazları için. Yeni bir ölçüm bu kadar geç gelebilir</string>
-    <string name="glucose_meter_last_reading">Son ölçüm: %1$s</string>
-    <string name="glucose_meter_no_readings">Henüz ölçüm içe aktarılmadı</string>
+    <string name="glucose_meter_recheck_hint">Satellite hiç kapanmaz. Daha uzun bekleme pil tasarrufu sağlar</string>
+    <string name="glucose_meter_name">Ad</string>
+    <string name="glucose_meter_name_hint">Burada ve yeni günlük kayıtlarında gösterilir</string>
+    <string name="glucose_meters_find">Ölçer ara</string>
+    <string name="glucose_meters_none_found">Ölçer bulunamadı. Ölçeri açıp yeniden arayın</string>
+    <string name="glucose_meters_other">Diğer Bluetooth cihazları</string>
+    <string name="glucose_meters_other_desc">Ölçer yukarıdaki listede yoksa</string>
+    <string name="glucose_meter_last_reading">Son ölçüm</string>
+    <string name="glucose_meter_no_readings">Henüz yok</string>
+    <string name="glucose_meter_device_name">Bluetooth adı</string>
     <string name="satellite_meter_code_missing">Satellite ölçer: önce ölçer kodunu glikoz ölçer ayarlarında girin</string>
     <string name="glucose_meter_forget">Unut</string>
     <string name="glucose_meter_forget_title">Ölçeri unut</string>
@@ -2162,6 +2167,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Oturum açık</string>
     <string name="ottai_session_invalid">Bulut oturumunuz artık geçerli değil – yeniden oturum açın</string>
+    <string name="ottai_global_sign_in_again">Bir sensör kurmak veya ürün yazılımını kontrol etmek için Ottai Global hesabınıza yeniden giriş yapın. Kayıtlı sensörleriniz ve geçmişiniz korunur.</string>
+    <string name="ottai_ota_check_failed">Ürün yazılımı kontrolü başarısız oldu.</string>
+    <string name="ottai_ota_disconnect_first">Ürün yazılımını kontrol etmek için sensörün bağlantısını kesin.</string>
     <string name="ottai_sensor_mac_hint">Cihaz kimliği, seri numarası veya QR</string>
     <string name="ottai_connect_saved">Bağlan</string>
     <string name="ottai_login_fail">Oturum açılamadı - telefonu/kodu kontrol edin</string>
@@ -2515,7 +2523,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_server_unreachable">Ottai sunucusuna ulaşılamadı. Tekrar deneyin.</string>
     <string name="ottai_connect_failed">Bağlantı başlatılamadı. Tekrar deneyin.</string>
     <string name="ottai_already_binding_hint">Hesabınıza hâlâ başka bir sensör bağlı. Kayıtlı sensörler altında bağını kaldırın, sonra tekrar deneyin.</string>
-    <string name="ottai_ota_upgrade_required">Ottai hizmeti bu sensörü bağlarken bellenim güncellemesi istedi. Bellenim kurulumunu yeniden deneyin veya kayıtlı kimlik bilgilerini içe aktarın. Resmî Ottai uygulamasını da deneyebilirsiniz.</string>
+    <string name="ottai_ota_upgrade_required">Ottai ürün yazılımı güncellemesi istedi.</string>
     <string name="ottai_retry">Yeniden dene</string>
     <string name="ottai_setup_failed">Kurulum durdu. Yeniden deneyin veya kapatıp kayıtlı kimlik bilgilerini içe aktarın.</string>
     <string name="ottai_region_cn_full">Ottai Çin</string>
@@ -3167,7 +3175,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_ota_installing">Ürün yazılımı yükleniyor…</string>
     <string name="ottai_ota_reconnecting">Yeniden bağlanılıyor ve yüklü sürüm denetleniyor…</string>
     <string name="ottai_ota_preparing">Kimlik bilgileri yenileniyor ve fabrika parametreleri yazılıyor…</string>
-    <string name="ottai_ota_complete">Hazırlık tamamlandı. Bu pencereyi kapatıp sensörü etkinleştirmek için normal şekilde bağlanın.</string>
+    <string name="ottai_ota_complete">Fabrika hazırlığı tamamlandı</string>
     <string name="ottai_ota_failed">Kurulum durdu. Yeniden deneyin veya izleme günlüğüne bakın. Tamamlanmamış kurulum etkinleştirmeyi engeller.</string>
     <string name="ottai_ota_version">Sensör: %1$s · Güncelleme: %2$s</string>
     <string name="ottai_ota_package">%1$d bayt · SHA-256: %2$s</string>
@@ -3196,7 +3204,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
 
     <string name="ottai_ota_discard">Tamamlanmamış kurulumu sil</string>
     <string name="ottai_ota_discard_confirm">Bağlantıyı açmak için kayıtlı güncelleme ve hazırlık durumu silinsin mi? Bu işlem bellenimi veya ayarları geri yüklemez. Yarıda kesilen güncelleme hâlâ kurtarma gerektirebilir.</string>
-    <string name="ottai_ota_pending">Sensör kurulumu tamamlanmadı. Tamamlamak veya silmek için yeniden bağlanın ya da kurtarmayı açın.</string>
+    <string name="ottai_ota_pending">Sensör kurulumu tamamlanmadı</string>
     <string name="ottai_ota_finish_preparation">Firmware doğrulandı. Kurulumu bitirmek için fabrika parametrelerini onaylayın.</string>
     <string name="ottai_ota_discard_failed">Firmware testi iptal edilemedi. Tekrar deneyin.</string>
     <string name="prediction_analysis_section">Tahmin analizi</string>

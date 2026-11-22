@@ -774,19 +774,24 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="median">Mediano</string>
     <string name="meterlist">Glucometri</string>
     <string name="glucose_meters_desc">Collega glucometri Bluetooth</string>
-    <string name="glucose_meters_journal_desc">Le misurazioni vengono salvate come glicemie nel diario e possono essere inviate a Nightscout.</string>
+    <string name="glucose_meters_journal_desc">Le misurazioni vengono salvate come glicemie nel diario e possono essere inviate a Nightscout</string>
     <string name="satellite_meter_title">Glucometro Satellite (Сателлит+)</string>
     <string name="satellite_meter_code_label">PIN o codice etichetta</string>
     <string name="satellite_meter_code_desc">Inserisci il PIN di 3 cifre o il codice più lungo stampato sotto l’etichetta QR/DataMatrix del glucometro. Viene usato a ogni connessione Bluetooth.</string>
     <string name="glucose_meters_configured">Glucometri configurati</string>
-    <string name="glucose_meters_none">Nessun glucometro configurato</string>
-    <string name="glucose_meters_none_desc">Trova un glucometro nelle vicinanze per iniziare a importare le misurazioni.</string>
     <string name="glucose_meters_nearby">Glucometri nelle vicinanze</string>
     <string name="glucose_meter_recheck">Ricontrolla il glucometro dopo</string>
     <string name="glucose_meter_recheck_now">Subito</string>
-    <string name="glucose_meter_recheck_hint">Per i glucometri che restano accesi, come Satellite. Una nuova misura può arrivare con questo ritardo</string>
-    <string name="glucose_meter_last_reading">Ultima misurazione: %1$s</string>
-    <string name="glucose_meter_no_readings">Nessuna misurazione ancora importata</string>
+    <string name="glucose_meter_recheck_hint">Satellite non si spegne mai. Un\'attesa più lunga fa risparmiare batteria</string>
+    <string name="glucose_meter_name">Nome</string>
+    <string name="glucose_meter_name_hint">Mostrato qui e nelle nuove voci del diario</string>
+    <string name="glucose_meters_find">Cerca glucometri</string>
+    <string name="glucose_meters_none_found">Nessun glucometro trovato. Accendi il glucometro e cerca di nuovo</string>
+    <string name="glucose_meters_other">Altri dispositivi Bluetooth</string>
+    <string name="glucose_meters_other_desc">Se il glucometro non è nell\'elenco sopra</string>
+    <string name="glucose_meter_last_reading">Ultima misurazione</string>
+    <string name="glucose_meter_no_readings">Ancora nessuna</string>
+    <string name="glucose_meter_device_name">Nome Bluetooth</string>
     <string name="satellite_meter_code_missing">Glucometro Satellite: imposta prima il codice del glucometro nelle impostazioni dei glucometri</string>
     <string name="glucose_meter_forget">Dimentica</string>
     <string name="glucose_meter_forget_title">Dimentica glucometro</string>
@@ -2124,6 +2129,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Accesso effettuato</string>
     <string name="ottai_session_invalid">La sessione cloud non è più valida: accedi di nuovo</string>
+    <string name="ottai_global_sign_in_again">Accedi di nuovo a Ottai Global per configurare un sensore o controllarne il firmware. I sensori salvati e la cronologia saranno conservati.</string>
+    <string name="ottai_ota_check_failed">Impossibile controllare il firmware.</string>
+    <string name="ottai_ota_disconnect_first">Disconnetti il sensore per controllare il firmware.</string>
     <string name="ottai_sensor_mac_hint">ID dispositivo, numero di serie o QR</string>
     <string name="ottai_connect_saved">Connetti</string>
     <string name="ottai_login_fail">Accesso non riuscito - controlla telefono/codice</string>
@@ -2477,7 +2485,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_server_unreachable">Impossibile raggiungere il server Ottai. Riprova.</string>
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
-    <string name="ottai_ota_upgrade_required">Il servizio Ottai ha richiesto un aggiornamento del firmware durante l’associazione del sensore. Riprova la configurazione o importa le credenziali salvate. Puoi anche provare l’app ufficiale Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai ha richiesto un aggiornamento del firmware.</string>
     <string name="ottai_retry">Riprova</string>
     <string name="ottai_setup_failed">Configurazione interrotta. Riprova oppure chiudi e importa le credenziali salvate.</string>
     <string name="ottai_region_cn_full">Ottai Cina</string>
@@ -3130,7 +3138,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_installing">Installazione del firmware…</string>
     <string name="ottai_ota_reconnecting">Riconnessione e verifica della versione installata…</string>
     <string name="ottai_ota_preparing">Aggiornamento delle credenziali e scrittura dei parametri di fabbrica…</string>
-    <string name="ottai_ota_complete">Preparazione completata. Chiudi questa finestra e connettiti normalmente per attivare il sensore.</string>
+    <string name="ottai_ota_complete">Preparazione di fabbrica completata</string>
     <string name="ottai_ota_failed">Configurazione interrotta. Riprova o controlla il registro di traccia. La configurazione incompleta blocca l’attivazione.</string>
     <string name="ottai_ota_version">Sensore: %1$s · Aggiornamento: %2$s</string>
     <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
@@ -3159,7 +3167,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="ottai_ota_discard">Annulla configurazione incompleta</string>
     <string name="ottai_ota_discard_confirm">Eliminare lo stato salvato di aggiornamento e preparazione per consentire la connessione? Firmware e impostazioni non verranno ripristinati. Un aggiornamento interrotto potrebbe richiedere il recupero.</string>
-    <string name="ottai_ota_pending">La configurazione del sensore è incompleta. Connetti di nuovo o apri il recupero per completarla o annullarla.</string>
+    <string name="ottai_ota_pending">Configurazione del sensore incompleta</string>
     <string name="ottai_ota_finish_preparation">Firmware verificato. Conferma i parametri di fabbrica per completare la configurazione.</string>
     <string name="ottai_ota_discard_failed">Impossibile abbandonare il test firmware. Riprova.</string>
     <string name="prediction_analysis_section">Analisi delle previsioni</string>

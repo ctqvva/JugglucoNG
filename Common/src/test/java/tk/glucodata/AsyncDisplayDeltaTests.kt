@@ -10,8 +10,14 @@ class AsyncDisplayDeltaTests {
     private var loads = 0
     private var redraws = 0
     private val redraw = Runnable { redraws++ }
-    private val cache = AsyncDisplayDelta(executor) { _, interval -> loads++; "+$interval" }
-    private val shown = deltaSnapshot()
+    private var now = 1_800_000_000_000L
+    private val shown = deltaSnapshot(at = now)
+    private val cache = AsyncDisplayDelta(executor, { now }) { _, interval ->
+        loads++
+        result("+$interval")
+    }
+
+    private fun result(text: String) = DisplayDeltaSource.Result(text, shown.timeMillis + Notify.glucosetimeout)
 
     @Test fun drawingEnqueuesTheHistoryLoadAndOnlyReadsCompletedResults() {
         assertEquals("", cache.get(true, shown, 5, 0, redraw))
@@ -28,10 +34,10 @@ class AsyncDisplayDeltaTests {
     @Test fun aNewIntervalOrUnitNeverReusesThePreviousText() {
         cache.get(true, shown, 5, 0, redraw)
         tasks.removeFirst().run()
-        assertEquals("", cache.get(true, shown, 1, 0, redraw))
+        assertEquals("", cache.get(true, shown, 1, 1, redraw))
         tasks.removeFirst().run()
-        assertEquals("+1", cache.get(true, shown, 1, 0, redraw))
-        assertEquals("", cache.get(true, shown.copy(isMmol = true), 1, 0, redraw))
+        assertEquals("+1", cache.get(true, shown, 1, 1, redraw))
+        assertEquals("", cache.get(true, shown.copy(isMmol = true), 1, 2, redraw))
     }
 
     @Test fun supersededQueuedWorkDoesNotQueryHistoryOrPublishAnotherSensorsResult() {
@@ -58,7 +64,10 @@ class AsyncDisplayDeltaTests {
 
     @Test fun detachingDuringAnInFlightQueryPreventsPublication() {
         lateinit var inFlight: AsyncDisplayDelta
-        inFlight = AsyncDisplayDelta(executor) { _, _ -> inFlight.clear(); "+99" }
+        inFlight = AsyncDisplayDelta(executor, { now }) { _, _ ->
+            inFlight.clear()
+            result("+99")
+        }
         inFlight.get(true, shown, 5, 0, redraw)
         tasks.removeFirst().run()
         assertEquals(0, redraws)
@@ -66,11 +75,77 @@ class AsyncDisplayDeltaTests {
     }
 
     @Test fun aHistoryRefreshRetriesAnEmptyResultAfterPersistenceCatchesUp() {
-        val delayed = AsyncDisplayDelta(executor) { _, _ -> if (loads++ == 0) "" else "+10" }
+        val delayed = AsyncDisplayDelta(executor, { now }) { _, _ -> if (loads++ == 0) null else result("+10") }
         delayed.get(true, shown, 5, 0, redraw)
         tasks.removeFirst().run()
         assertEquals("", delayed.get(true, shown, 5, 1, redraw))
         tasks.removeFirst().run()
         assertEquals("+10", delayed.get(true, shown, 5, 1, redraw))
+    }
+
+    @Test fun aHistoryRefreshKeepsTheCompletedDeltaUntilTheReplacementIsReady() {
+        val replacements = listOf(result("+10"), result("+12"), null)
+        val refreshed = AsyncDisplayDelta(executor, { now }) { _, _ -> replacements[loads++] }
+        refreshed.get(true, shown, 5, 0, redraw)
+        tasks.removeFirst().run()
+
+        assertEquals("+10", refreshed.get(true, shown, 5, 1, redraw))
+        assertEquals("+10", refreshed.get(true, shown, 5, 2, redraw))
+        tasks.removeFirst().run()
+        assertEquals(1, loads)
+        tasks.removeFirst().run()
+        assertEquals("+12", refreshed.get(true, shown, 5, 2, redraw))
+
+        assertEquals("+12", refreshed.get(true, shown, 5, 3, redraw))
+        tasks.removeFirst().run()
+        assertEquals("", refreshed.get(true, shown, 5, 3, redraw))
+    }
+
+    @Test fun aCalibrationChangeClearsTheCompletedDeltaImmediately() {
+        var revision = 0L
+        CalibrationAccess.register(object : CalibrationProvider {
+            override fun hasActiveCalibration(isRawMode: Boolean, sensorId: String?) = false
+            override fun getCalibratedValue(
+                value: Float, timestamp: Long, isRawMode: Boolean, emitDiagnostics: Boolean, sensorId: String?
+            ) = value
+            override fun getRevision() = revision
+        })
+        try {
+            cache.get(true, shown, 5, 0, redraw)
+            tasks.removeFirst().run()
+            assertEquals("+5", cache.get(true, shown, 5, 0, redraw))
+
+            revision++
+            assertEquals("", cache.get(true, shown, 5, 1, redraw))
+            assertEquals(1, tasks.size)
+        } finally {
+            CalibrationAccess.unregisterForTests()
+        }
+    }
+
+    @Test fun aNewReadingClearsTheCompletedDeltaImmediately() {
+        cache.get(true, shown, 5, 0, redraw)
+        tasks.removeFirst().run()
+        now++
+        assertEquals("", cache.get(true, shown.copy(timeMillis = now), 5, 1, redraw))
+    }
+
+    @Test fun aMinuteRoundedDeltaExpiresWhileTheHistoryRefreshIsPending() {
+        val anchor = now
+        now += 25_000L
+        val live = shown.copy(timeMillis = now)
+        val measured = listOf(GlucosePoint(anchor - 5 * 60_000L, 100f), GlucosePoint(anchor, 110f))
+        val rounded = AsyncDisplayDelta(executor, { now }) { snapshot, interval ->
+            DisplayDeltaSource.resolveResult(snapshot, interval, { now }) { _, _, _ -> measured }
+        }
+        rounded.get(true, live, 5, 0, redraw)
+        tasks.removeFirst().run()
+
+        now = anchor + Notify.glucosetimeout
+        assertEquals("+10", rounded.get(true, live, 5, 1, redraw))
+        now++
+        assertEquals("", rounded.get(true, live, 5, 1, redraw))
+        tasks.removeFirst().run()
+        assertEquals("", rounded.get(true, live, 5, 1, redraw))
     }
 }

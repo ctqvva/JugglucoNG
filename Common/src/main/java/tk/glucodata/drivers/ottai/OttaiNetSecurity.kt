@@ -1,6 +1,9 @@
 package tk.glucodata.drivers.ottai
 
+import java.io.EOFException
 import java.math.BigInteger
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 import java.security.KeyFactory
 import java.security.KeyPair
 import java.security.MessageDigest
@@ -108,31 +111,40 @@ internal class OttaiNetSecurity(
     }
 
     private fun establish(): Secret {
-        val pair = keyPair()
-        val (x, y) = OttaiBleAuth.publicCoords(pair.public as ECPublicKey)
-        val publicX = encode(x)
-        val publicY = encode(y)
         var result: JSONObject? = null
+        var pair = keyPair()
         var clockCorrected = false
         var retried = false
         while (result == null) {
             checkCancellation()
+            val (x, y) = OttaiBleAuth.publicCoords(pair.public as ECPublicKey)
+            val publicX = encode(x)
+            val publicY = encode(y)
             val timestamp = now()
             val body = JSONObject().put("clientPubKeyX", publicX).put("clientPubKeyY", publicY)
                 .put("clientTimestamp", timestamp)
                 .put("clientSignature", sha256("$deviceId$publicX$publicY$timestamp"))
-            val reply = exchange(body)
-            val raw = reply.json
+            val reply = try {
+                exchange(body)
+            } catch (error: Exception) {
+                if (error !is ConnectException && error !is SocketTimeoutException && error !is EOFException) throw error
+                null
+            }
+            val raw = reply?.json
             if (!clockCorrected && raw?.optString("code") == "CLIENT_CLOCK_OFFSET" && raw.optLong("currentTime") > 0) {
                 clockCorrected = true
                 clockOffset = raw.getLong("currentTime") - clock()
-            } else if (!retried && transientExchangeRefusal(reply)) {
+            } else if (!retried && (reply == null || transientExchangeRefusal(reply))) {
                 // Field report: the gateway answered one exchange with a bare "Error" and the
                 // next attempt seconds later succeeded. A new key exchange is stateless, so one
                 // paced retry keeps a momentary refusal from reaching the user.
                 retried = true
                 pause(EXCHANGE_RETRY_MS)
-            } else result = protocol("ota_exchange_response") { checked(reply, "ota_exchange").getJSONObject("data") }
+                pair = keyPair()
+            } else {
+                if (reply == null) throw OttaiOtaCloudException("ota_exchange_network")
+                result = protocol("ota_exchange_response") { checked(reply, "ota_exchange").getJSONObject("data") }
+            }
         }
         return protocol("ota_exchange_crypto") {
             val data = requireNotNull(result)

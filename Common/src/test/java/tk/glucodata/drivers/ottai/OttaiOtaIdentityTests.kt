@@ -11,10 +11,15 @@ import org.junit.Test
 
 class OttaiOtaIdentityTests {
     @Test fun signedInGlobalAndSyaiAccountsAreEligibleAlongsideCnPhoneAccounts() {
-        for (base in listOf(OttaiConstants.API_BASE_GLOBAL, OttaiConstants.API_BASE_SYAI)) {
-            assertTrue(OttaiCloudClient.supportsOtaSession(base, OttaiRegistry.SessionProfile.WATCH, true))
-            assertFalse(OttaiCloudClient.supportsOtaSession(base, OttaiRegistry.SessionProfile.WATCH, false))
-        }
+        val phone = OttaiRegistry.SessionProfile.GLOBAL_PHONE
+        val watch = OttaiRegistry.SessionProfile.WATCH
+        assertTrue(OttaiCloudClient.supportsOtaSession(OttaiConstants.API_BASE_GLOBAL, phone, true))
+        assertFalse(OttaiCloudClient.supportsOtaSession(OttaiConstants.API_BASE_GLOBAL, phone, false))
+        assertFalse(OttaiCloudClient.supportsOtaSession(OttaiConstants.API_BASE_GLOBAL, watch, true))
+        assertTrue(OttaiCloudClient.requiresGlobalSignIn(OttaiConstants.API_BASE_GLOBAL, watch))
+        assertFalse(OttaiCloudClient.requiresGlobalSignIn(OttaiConstants.API_BASE_GLOBAL, phone))
+        assertFalse(OttaiCloudClient.requiresGlobalSignIn(OttaiConstants.API_BASE_SYAI, watch))
+        assertTrue(OttaiCloudClient.supportsOtaSession(OttaiConstants.API_BASE_SYAI, watch, true))
         assertTrue(OttaiCloudClient.supportsOtaSession(OttaiConstants.API_BASE, OttaiRegistry.SessionProfile.CN_PHONE, true))
         assertFalse(OttaiCloudClient.supportsOtaSession(OttaiConstants.API_BASE, OttaiRegistry.SessionProfile.WATCH, true))
         assertFalse(OttaiCloudClient.supportsOtaSession("https://example.invalid", OttaiRegistry.SessionProfile.WATCH, true))

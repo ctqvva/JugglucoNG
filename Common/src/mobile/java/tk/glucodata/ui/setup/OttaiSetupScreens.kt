@@ -327,8 +327,9 @@ internal fun OttaiSensorCard(
     onImport: () -> Unit,
     onSignIn: () -> Unit,
     onExport: (() -> Unit)? = null,
-    onFirmware: (() -> Unit)? = null,
     onSensorIdChange: ((String) -> Unit)? = null,
+    connecting: Boolean = false,
+    canEditSensor: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     // Keep only status text that explains what the user needs to do.
@@ -343,7 +344,7 @@ internal fun OttaiSensorCard(
     // A sensor not yet on the account is the normal case before Connect, and a failed account
     // check does not stop Connect, so neither earns a line here; Connect reports real failures.
     val bindingText = when (bindingState) {
-        OttaiCloudBindingUiState.CHECKING -> stringResource(R.string.ottai_cloud_binding_checking)
+        OttaiCloudBindingUiState.CHECKING -> if (connecting) null else stringResource(R.string.ottai_cloud_binding_checking)
         OttaiCloudBindingUiState.BOUND -> stringResource(R.string.ottai_cloud_binding_bound)
         else -> null
     }
@@ -364,7 +365,7 @@ internal fun OttaiSensorCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (onSensorIdChange != null) {
-                OttaiSensorIdEntry(value = sensorId, onValueChange = onSensorIdChange, enabled = !busy)
+                OttaiSensorIdEntry(value = sensorId, onValueChange = onSensorIdChange, enabled = !busy && canEditSensor)
             }
             if (meta.isNotEmpty()) {
                 Text(
@@ -408,26 +409,13 @@ internal fun OttaiSensorCard(
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) {
-                    if (busy) {
+                    if (connecting) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.connecting), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         Text(connectLabel)
                     }
-                }
-            }
-            if (!loading && onFirmware != null) {
-                OutlinedButton(
-                    onClick = onFirmware,
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) {
-                    Text(
-                        stringResource(R.string.ottai_ota_check),
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                    )
                 }
             }
             AdaptiveButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -444,7 +432,7 @@ internal fun OttaiSensorCard(
                     }
                     OutlinedButton(
                         onClick = onImport,
-                        enabled = !busy,
+                        enabled = !busy && canEditSensor,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
@@ -455,7 +443,7 @@ internal fun OttaiSensorCard(
                 } else {
                     OttaiImportButton(
                         onClick = onImport,
-                        enabled = !busy,
+                        enabled = !busy && canEditSensor,
                         label = stringResource(R.string.ottai_credentials_import),
                     )
                 }
@@ -554,6 +542,7 @@ internal fun OttaiAccountCard(
     // The wizard's scope, not this card's: leaving mid-request must not cancel the coroutine
     // after the cloud call has already stored a session, or onSignedIn never runs.
     scope: CoroutineScope,
+    signOutEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     if (signedIn) {
@@ -566,6 +555,7 @@ internal fun OttaiAccountCard(
                 trailingContent = {
                     OutlinedButton(
                         onClick = onSignOut,
+                        enabled = signOutEnabled,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) { Text(stringResource(R.string.ottai_sign_out)) }
