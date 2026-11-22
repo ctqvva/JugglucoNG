@@ -50,7 +50,7 @@ class RestrictedModeRoutesTests {
 
     @Test fun eachSettingsSwitchOpensOnlyItsOwnScreens() {
         val alarms = "settings/alerts"
-        val voice = "settings/alerts/talker"
+        val voice = listOf("settings/alerts/talker", "settings/alerts/talker/bluetooth-audio")
         val display = listOf(
             "settings/display-colors",
             "settings/notification-display",
@@ -62,7 +62,7 @@ class RestrictedModeRoutesTests {
 
         assertEquals(emptySet<String>(), opened(closed))
         assertEquals(setOf(alarms), opened(closed.copy(allowAlarmSettings = true)))
-        assertEquals(setOf(voice), opened(closed.copy(allowVoiceSettings = true)))
+        assertEquals(voice.toSet(), opened(closed.copy(allowVoiceSettings = true)))
         assertEquals(display.toSet(), opened(closed.copy(allowDisplaySettings = true)))
     }
 

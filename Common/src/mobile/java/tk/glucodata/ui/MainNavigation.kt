@@ -1255,6 +1255,7 @@ private fun NavGraphBuilder.appDestinations(
     gatedComposable("settings/app-updates") { AppUpdatesScreen(navController) }
     gatedComposable("settings/alerts") { tk.glucodata.ui.alerts.AlertSettingsScreen(navController) }
     gatedComposable("settings/alerts/talker") { tk.glucodata.ui.alerts.TalkerSettingsScreen(navController) }
+    gatedComposable("settings/alerts/talker/bluetooth-audio") { tk.glucodata.ui.alerts.VoiceBluetoothAudioScreen(navController) }
     gatedComposable("settings/journal") { JournalSettingsScreen(navController, dashboardViewModel) }
     gatedComposable("settings/journal/calculations") { JournalCalculationsSettingsScreen(navController, dashboardViewModel) }
     gatedComposable("settings/journal/entry-types") { JournalEntryTypesSettingsScreen(navController, dashboardViewModel) }

@@ -1,11 +1,16 @@
 package tk.glucodata
 
 import android.app.UiModeManager
+import android.content.ContentProvider
+import android.content.ContentValues
 import android.content.Context
 import android.content.res.Configuration
+import android.database.Cursor
+import android.database.MatrixCursor
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Looper
 import android.speech.tts.TextToSpeech
@@ -18,6 +23,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -318,6 +324,95 @@ class VoiceAudioTriggerTests {
             talker.speakConnectAnnouncement("5.9, stable", true, false),
         )
         assertNull(VoiceTriggerTestEngine.attributesAtSpeak)
+    }
+
+    @Test
+    fun switchingFromPausedHeadphonesToSelectedCar_clearsSessionPause() {
+        val budsMac = "11:22:33:44:55:01"
+        val carMac = "AA:BB:CC:DD:EE:99"
+        VoiceAudioTrigger.toggleSavedDevice(
+            app,
+            VoiceAudioPolicy.SavedDevice("mac:$budsMac", budsMac, "Pixel Buds", isCar = false),
+        )
+        VoiceAudioTrigger.toggleSavedDevice(
+            app,
+            VoiceAudioPolicy.SavedDevice("mac:$carMac", carMac, "Mazda Connect", isCar = true),
+        )
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        // Connect earbuds and pause speech.
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice(budsMac, "Pixel Buds")))
+        VoiceAudioTrigger.refreshState(app)
+        assertTrue(VoiceReadings.isActive(app))
+        VoiceReadings.setOn(app, false)
+        assertTrue(VoiceAudioTrigger.isSessionPaused(app))
+        assertFalse(VoiceReadings.isActive(app))
+
+        // Switch to car (while earbuds briefly overlap, then disconnect): car must NOT inherit earbuds' pause.
+        shadowOf(audio).setOutputDevices(
+            listOf(fakeBtDevice(budsMac, "Pixel Buds"), fakeBtDevice(carMac, "Mazda Connect"))
+        )
+        VoiceAudioTrigger.refreshState(app)
+        assertFalse("Switching to a different matched device must clear prior session pause", VoiceAudioTrigger.isSessionPaused(app))
+        assertTrue(VoiceReadings.isActive(app))
+        assertEquals("Mazda Connect", VoiceAudioTrigger.currentMatch(app).displayLabel)
+    }
+
+    @Test
+    fun androidAutoProjectionProvider_activatesEvenWithoutUiCarMode() {
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
+        Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
+            .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
+
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, true)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        // Confirm UiModeManager is NOT in car mode (Android 12+ behavior).
+        assertFalse(uiMode.currentModeType == Configuration.UI_MODE_TYPE_CAR)
+
+        // Run refresh off main thread (as BLE/alarm paths do) so provider is queried directly.
+        val worker = Thread { VoiceAudioTrigger.refreshState(app) }
+        worker.start()
+        worker.join(5_000L)
+
+        assertTrue("Android Auto CarConnection projection must activate voice", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+        assertEquals("car_mode", VoiceAudioTrigger.currentMatch(app).triggerKey)
+
+        // Disconnect projection -> immediately deactivates.
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED
+        val worker2 = Thread { VoiceAudioTrigger.refreshState(app) }
+        worker2.start()
+        worker2.join(5_000L)
+        assertFalse(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+    }
+}
+
+class FakeCarConnectionProvider : ContentProvider() {
+    override fun onCreate(): Boolean = true
+
+    override fun query(
+        uri: Uri,
+        projection: Array<out String>?,
+        selection: String?,
+        selectionArgs: Array<out String>?,
+        sortOrder: String?,
+    ): Cursor {
+        val cursor = MatrixCursor(arrayOf(VoiceAudioTrigger.CAR_CONNECTION_COLUMN))
+        cursor.addRow(arrayOf(state))
+        return cursor
+    }
+
+    override fun getType(uri: Uri): String? = null
+    override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0
+    override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int = 0
+
+    companion object {
+        @Volatile
+        var state: Int = VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED
     }
 }
 

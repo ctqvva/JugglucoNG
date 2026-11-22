@@ -61,7 +61,6 @@ internal object SettingsSearchAnchors {
     const val VOICE_CHIME = "talker/chime"
     const val VOICE_OVERRIDE_SILENT = "talker/override-silent"
     const val VOICE_SCHEDULE = "talker/schedule"
-    const val VOICE_BT_AUDIO = "talker/bluetooth-audio"
     const val JOURNAL_TAB = "journal/tab"
     const val JOURNAL_QUICK_ADD = "journal/quick-add"
     const val JOURNAL_INSULIN_CHART = "journal/insulin-chart"
@@ -357,10 +356,22 @@ internal object SettingsSearchIndex {
             anchor = row(R.string.talker_media_sound)),
         SettingsSearchEntry(R.string.voice_schedule_title, TALKER, Symbols.ScheduleFilled, E, route("settings/alerts/talker"),
             anchor = SettingsSearchAnchors.VOICE_SCHEDULE),
-        SettingsSearchEntry(R.string.voice_bt_audio_title, TALKER, Symbols.DirectionsCarFilled, E, route("settings/alerts/talker"),
-            keywords = listOf(R.string.voice_bt_devices_title, R.string.voice_bt_car_mode_title, R.string.voice_bt_speak_alarms_title),
-            terms = listOf("Bluetooth", "car", "driving", "vehicle", "Android Auto"),
-            anchor = SettingsSearchAnchors.VOICE_BT_AUDIO),
+        SettingsSearchEntry(R.string.voice_bt_audio_title, TALKER, Symbols.DirectionsCarFilled, E,
+            route("settings/alerts/talker/bluetooth-audio"),
+            keywords = listOf(R.string.voice_bt_devices_title, R.string.voice_bt_car_mode_title, R.string.voice_bt_interval_title),
+            terms = listOf("Bluetooth", "car", "driving", "vehicle", "Android Auto")),
+        SettingsSearchEntry(R.string.voice_bt_car_mode_title, TALKER + R.string.voice_bt_audio_title,
+            Symbols.DirectionsCarFilled, E, route("settings/alerts/talker/bluetooth-audio"),
+            terms = listOf("Android Auto", "car"), anchor = row(R.string.voice_bt_car_mode_title)),
+        SettingsSearchEntry(R.string.voice_bt_speak_alarms_title, TALKER + R.string.voice_bt_audio_title,
+            Symbols.NotificationsActiveFilled, E, route("settings/alerts/talker/bluetooth-audio"),
+            anchor = row(R.string.voice_bt_speak_alarms_title)),
+        SettingsSearchEntry(R.string.voice_bt_announce_connect_title, TALKER + R.string.voice_bt_audio_title,
+            Symbols.PlayArrowFilled, E, route("settings/alerts/talker/bluetooth-audio"),
+            anchor = row(R.string.voice_bt_announce_connect_title)),
+        SettingsSearchEntry(R.string.voice_bt_media_stream_title, TALKER + R.string.voice_bt_audio_title,
+            Symbols.MusicNoteFilled, E, route("settings/alerts/talker/bluetooth-audio"),
+            anchor = row(R.string.voice_bt_media_stream_title)),
         SettingsSearchEntry(R.string.voice_quick_dashboard, TALKER, Symbols.SpaceDashboardFilled, E,
             route("settings/alerts/talker"), anchor = row(R.string.voice_quick_dashboard)),
         SettingsSearchEntry(R.string.voice_quick_notification, TALKER, Symbols.NotificationsFilled, E,

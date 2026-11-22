@@ -41,6 +41,8 @@ object VoiceAudioPolicy {
         val name: String,
         val isBluetoothAudio: Boolean = true,
         val isCarAudio: Boolean = false,
+        /** True when [address] is unavailable and multiple paired devices share [name]. */
+        val ambiguousName: Boolean = false,
     )
 
     /** Persisted user configuration for Bluetooth & car audio voice announcements. */
@@ -84,7 +86,7 @@ object VoiceAudioPolicy {
     )
 
     /** Preset intervals offered in the Voice screen (0 = same as default Voice interval). */
-    val INTERVAL_PRESETS_SECONDS: List<Int> = listOf(0, 60, 300, 600, 900)
+    val INTERVAL_PRESETS_SECONDS: List<Int> = listOf(0, 60, 180, 300, 600, 900, 1800)
 
     /** Wait briefly after BT audio connects so car stereos finish opening A2DP before TTS starts. */
     const val CONNECT_SETTLE_DELAY_MS: Long = 4_000L
@@ -139,6 +141,11 @@ object VoiceAudioPolicy {
         if (savedMac != null && connMac != null) {
             return savedMac == connMac
         }
+        // Fail closed when the user selected a MAC-identified device and the connected output
+        // has no MAC while sharing a name with multiple paired devices (e.g. two "Car Multimedia").
+        if (savedMac != null && connMac == null && connected.ambiguousName) {
+            return false
+        }
         val savedName = normalizeName(saved.name)
         val connName = normalizeName(connected.name)
         return savedName.isNotEmpty() && savedName == connName
@@ -174,10 +181,12 @@ object VoiceAudioPolicy {
                 )
             } else {
                 val existing = merged[existingIndex]
+                val resolvedMac = existing.address ?: mac
                 merged[existingIndex] = existing.copy(
-                    address = existing.address ?: mac,
+                    address = resolvedMac,
                     name = existing.name.ifBlank { device.name.trim() },
                     isCarAudio = existing.isCarAudio || device.isCarAudio,
+                    ambiguousName = if (resolvedMac != null) false else (existing.ambiguousName || device.ambiguousName),
                 )
             }
         }
@@ -296,6 +305,7 @@ object VoiceAudioPolicy {
         var name = rawName?.trim().orEmpty()
         val normName = normalizeName(name)
         var isCar = false
+        var ambiguousName = false
 
         if (mac == null && normName.isNotEmpty()) {
             val matchingProfiles = profileConnected.filter {
@@ -322,8 +332,10 @@ object VoiceAudioPolicy {
                 if (unique.name.isNotBlank()) name = unique.name.trim()
                 isCar = isCar || unique.isCar
             } else if (nameMatches.size > 1) {
-                // Ambiguous paired name: never guess which MAC is connected.
+                // Ambiguous paired name: never guess which MAC is connected and mark ambiguous
+                // so MAC-identified saved devices fail closed instead of matching a sibling car.
                 isCar = isCar || nameMatches.any { it.isCar }
+                ambiguousName = true
             }
         }
 
@@ -334,7 +346,23 @@ object VoiceAudioPolicy {
             name = name.ifBlank { mac.orEmpty() },
             isBluetoothAudio = true,
             isCarAudio = isCar,
+            ambiguousName = ambiguousName,
         )
+    }
+
+    /**
+     * True when the active trigger moved from one matched device/session to a different one
+     * (e.g. headphones A -> car B), so a per-connection pause from A does not silence B.
+     *
+     * Treats a handoff between Android Auto (`car_mode`) and a car Bluetooth audio device as the
+     * same in-car session so pausing in the car stays paused across projection/BT handoffs.
+     */
+    fun isDistinctSessionSwitch(previous: ActiveMatch, current: ActiveMatch): Boolean {
+        if (!previous.matched || !current.matched) return false
+        if (previous.triggerKey == current.triggerKey) return false
+        val sameCarProjectionHandoff = previous.viaCarMode && current.viaCarMode &&
+            (previous.triggerKey == "car_mode" || current.triggerKey == "car_mode")
+        return !sameCarProjectionHandoff
     }
 
     /**

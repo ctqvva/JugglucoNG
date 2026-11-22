@@ -24,12 +24,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -40,7 +37,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,23 +58,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import java.util.Locale
-import kotlin.math.ceil
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.round
@@ -88,22 +80,18 @@ import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SpeakSchedule
 import tk.glucodata.Talker
-import tk.glucodata.VoiceAudioPolicy
 import tk.glucodata.VoiceAudioTrigger
 import tk.glucodata.VoiceReadings
-import tk.glucodata.ui.components.AdaptiveTrailingRow
 import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.CardPosition
-import tk.glucodata.ui.components.DisclosingSwitchCard
 import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.components.SettingsNavSwitchItem
 import tk.glucodata.ui.components.SettingsSwitchItem
-import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.components.SliderHeader
 import tk.glucodata.ui.components.SliderHeaderGap
-import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.findActivity
 import tk.glucodata.ui.symbols.Symbols
 
@@ -148,7 +136,6 @@ fun TalkerSettingsScreen(navController: NavController) {
     var showOnDashboard by remember { mutableStateOf(VoiceReadings.showOnDashboard(activity)) }
     var showInNotification by remember { mutableStateOf(VoiceReadings.showInNotification(activity)) }
     val btAudioState by VoiceAudioTrigger.state.collectAsStateWithLifecycle()
-    var showBtDevicesSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.separationSeconds) {
         separationText = uiState.separationSeconds.toString()
@@ -240,12 +227,6 @@ fun TalkerSettingsScreen(navController: NavController) {
                 SpeakSchedule.setEndMinutes(activity, mins)
                 showEndPicker = false
             }
-        )
-    }
-    if (showBtDevicesSheet) {
-        VoiceAudioDeviceSheet(
-            snapshot = btAudioState,
-            onDismiss = { showBtDevicesSheet = false },
         )
     }
 
@@ -518,150 +499,16 @@ fun TalkerSettingsScreen(navController: NavController) {
             }
 
             // Automatic voice announcements when connected to car or Bluetooth audio (#653, #1002).
-            val btConfig = btAudioState.config
-            val btStatusSubtitle = formatBtAudioStatus(context, btAudioState)
-            val btDevicesSummary = formatBtDevicesSummary(context, btAudioState)
-            val defaultIntervalLabel = formatIntervalLabel(context, uiState.separationSeconds)
-            val btIntervalLabel = formatBtIntervalLabel(context, btConfig.intervalSeconds, defaultIntervalLabel)
-            DisclosingSwitchCard(
+            SettingsNavSwitchItem(
                 title = stringResource(R.string.voice_bt_audio_title),
-                subtitle = btStatusSubtitle,
+                subtitle = formatBtAudioStatus(context, btAudioState),
+                checked = btAudioState.config.enabled,
+                onCheckedChange = { VoiceAudioTrigger.setEnabled(activity, it) },
+                onClick = { navController.navigate("settings/alerts/talker/bluetooth-audio") },
                 icon = Symbols.DirectionsCarFilled,
                 iconTint = MaterialTheme.colorScheme.primary,
-                checked = btConfig.enabled,
-                onCheckedChange = { VoiceAudioTrigger.setEnabled(activity, it) },
                 position = CardPosition.SINGLE,
-                searchAnchor = SettingsSearchAnchors.VOICE_BT_AUDIO,
-            ) {
-                if (btAudioState.activeMatch.matched && btAudioState.sessionMuted) {
-                    FilledTonalButton(
-                        onClick = { VoiceAudioTrigger.setSessionMuted(activity, false) },
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                        shapes = ButtonDefaults.shapes(),
-                    ) {
-                        Icon(Symbols.VolumeUpFilled, contentDescription = null)
-                        Spacer(Modifier.size(8.dp))
-                        Text(stringResource(R.string.voice_bt_resume_session))
-                    }
-                }
-
-                // Recessed audio-device picker row: reads clearly as a sub-control of this card.
-                Surface(
-                    onClick = { showBtDevicesSheet = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Icon(
-                            imageVector = if (btAudioState.activeMatch.viaCarMode) {
-                                Symbols.DirectionsCarFilled
-                            } else {
-                                Symbols.BluetoothAudioFilled
-                            },
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.voice_bt_devices_title),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = btDevicesSummary,
-                                style = MaterialTheme.typography.titleSmallEmphasized,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        Icon(
-                            imageVector = Symbols.ChevronRightFilled,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-
-                // Inline speak interval selector: one tap, no popup menu.
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AdaptiveTrailingRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingContent = {
-                            Text(
-                                text = btIntervalLabel,
-                                style = MaterialTheme.typography.labelLargeEmphasized,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                    ) {
-                        Text(
-                            text = stringResource(R.string.voice_bt_interval_title),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                    val presets = VoiceAudioPolicy.INTERVAL_PRESETS_SECONDS
-                    val chipLabels = presets.associateWith { sec ->
-                        if (sec <= 0) stringResource(R.string.defaultname)
-                        else stringResource(R.string.minutes_short_format, sec / 60)
-                    }
-                    ConnectedButtonGroup(
-                        options = presets,
-                        selectedOption = btConfig.intervalSeconds,
-                        onOptionSelected = { VoiceAudioTrigger.setIntervalSeconds(activity, it) },
-                        labelText = { chipLabels[it].orEmpty() },
-                        label = {
-                            Text(
-                                text = chipLabels[it].orEmpty(),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        itemHeight = 36.dp,
-                        unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    )
-                }
-
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                )
-
-                // Compact nested toggles without icon tiles so they sit clearly one level below the header.
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    NestedVoiceToggleRow(
-                        title = stringResource(R.string.voice_bt_speak_alarms_title),
-                        subtitle = stringResource(R.string.voice_bt_speak_alarms_desc),
-                        checked = btConfig.speakAlarms,
-                        onCheckedChange = { VoiceAudioTrigger.setSpeakAlarms(activity, it) },
-                    )
-                    NestedVoiceToggleRow(
-                        title = stringResource(R.string.voice_bt_announce_connect_title),
-                        subtitle = stringResource(R.string.voice_bt_announce_connect_desc),
-                        checked = btConfig.announceOnConnect,
-                        onCheckedChange = { VoiceAudioTrigger.setAnnounceOnConnect(activity, it) },
-                    )
-                    NestedVoiceToggleRow(
-                        title = stringResource(R.string.voice_bt_media_stream_title),
-                        subtitle = stringResource(R.string.voice_bt_media_stream_desc),
-                        checked = btConfig.useMediaStream,
-                        onCheckedChange = { VoiceAudioTrigger.setUseMediaStream(activity, it) },
-                    )
-                }
-            }
+            )
 
             // Where the one-tap on/off switch shows (#840); each can be turned off on its own.
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -957,123 +804,8 @@ private fun talkerSliderProgressToRatio(progress: Float): Float {
     return exp((progress - TALKER_SLIDER_CENTER) / TALKER_SLIDER_MULTIPLIER).toFloat()
 }
 
-@Composable
-private fun NestedVoiceToggleRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .toggleable(
-                value = checked,
-                role = Role.Switch,
-                onValueChange = onCheckedChange,
-            )
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        StyledSwitch(
-            checked = checked,
-            onCheckedChange = null,
-        )
-    }
-}
-
 private fun formatTalkerRatio(value: Float): String {
     return String.format(Locale.US, "%.2f", value)
-}
-
-private fun formatIntervalLabel(context: Context, seconds: Int): String {
-    if (seconds <= 60) return context.getString(R.string.voice_every_reading)
-    val minutes = ceil(seconds / 60.0).toInt()
-    return context.getString(R.string.voice_every_minutes, minutes)
-}
-
-private fun formatBtIntervalLabel(context: Context, seconds: Int, defaultLabel: String): String {
-    if (seconds <= 0) return context.getString(R.string.voice_bt_interval_same, defaultLabel)
-    return formatIntervalLabel(context, seconds)
-}
-
-private fun formatBtAudioStatus(context: Context, state: VoiceAudioTrigger.Snapshot): String {
-    val config = state.config
-    if (!config.enabled) return context.getString(R.string.voice_bt_audio_desc)
-    val match = state.activeMatch
-    if (match.matched) {
-        val label = match.displayLabel
-            ?: if (match.viaCarMode) context.getString(R.string.voice_bt_car_mode_label)
-            else context.getString(R.string.voice_bt_audio_fallback_label)
-        return if (state.sessionMuted) {
-            context.getString(R.string.voice_bt_status_paused, label)
-        } else {
-            context.getString(R.string.voice_bt_status_active, label)
-        }
-    }
-    return when {
-        config.scope == VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO ->
-            context.getString(R.string.voice_bt_status_waiting_any)
-        config.savedDevices.size == 1 ->
-            context.getString(R.string.voice_bt_status_waiting_device, config.savedDevices.first().name)
-        config.savedDevices.size > 1 ->
-            context.getString(R.string.voice_bt_status_waiting_count, config.savedDevices.size)
-        config.includeCarMode ->
-            context.getString(R.string.voice_bt_status_waiting_car_mode)
-        else ->
-            context.getString(R.string.voice_bt_status_no_devices)
-    }
-}
-
-private fun formatBtDevicesSummary(context: Context, state: VoiceAudioTrigger.Snapshot): String {
-    val config = state.config
-    if (config.scope == VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO) {
-        return if (config.includeCarMode) {
-            context.getString(R.string.voice_bt_devices_any_and_car)
-        } else {
-            context.getString(R.string.voice_bt_scope_any)
-        }
-    }
-    val saved = config.savedDevices
-    if (saved.isEmpty()) {
-        val connectedName = state.connectedDevices.firstOrNull()?.name?.takeIf { it.isNotBlank() }
-        if (connectedName != null) {
-            return context.getString(R.string.voice_bt_devices_connected_hint, connectedName)
-        }
-        return if (config.includeCarMode) {
-            context.getString(R.string.voice_bt_car_mode_label)
-        } else {
-            context.getString(R.string.voice_bt_devices_none_summary)
-        }
-    }
-    val base = if (saved.size == 1) {
-        saved.first().name
-    } else {
-        context.getString(R.string.voice_bt_devices_more_format, saved.first().name, saved.size - 1)
-    }
-    return if (config.includeCarMode) {
-        "$base · ${context.getString(R.string.voice_bt_car_mode_label)}"
-    } else {
-        base
-    }
 }
 
 @Composable

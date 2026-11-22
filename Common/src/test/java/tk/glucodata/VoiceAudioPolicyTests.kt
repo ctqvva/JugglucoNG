@@ -270,6 +270,12 @@ class VoiceAudioPolicyTests {
             VoiceAudioPolicy.BondedHint("AA:BB:CC:DD:EE:02", "Car Multimedia", isCar = true),
             VoiceAudioPolicy.BondedHint("11:22:33:44:55:66", "Unique Car", isCar = true),
         )
+        val savedFirstCar = VoiceAudioPolicy.SavedDevice(
+            id = "mac:AA:BB:CC:DD:EE:01",
+            address = "AA:BB:CC:DD:EE:01",
+            name = "Car Multimedia",
+            isCar = true,
+        )
         val savedSecondCar = VoiceAudioPolicy.SavedDevice(
             id = "mac:AA:BB:CC:DD:EE:02",
             address = "AA:BB:CC:DD:EE:02",
@@ -278,7 +284,8 @@ class VoiceAudioPolicyTests {
         )
 
         // Two paired devices share "Car Multimedia" and AudioManager omits MAC + no profile cache:
-        // must keep address null (so name fallback matches the selected car) instead of guessing MAC 01.
+        // must keep address null, mark ambiguousName = true, and fail closed for MAC-identified cars
+        // so Car B never falsely activates Car A's selection.
         val ambiguous = VoiceAudioPolicy.enrichConnectedAudioOutput(
             rawAddress = null,
             rawName = "Car Multimedia",
@@ -287,10 +294,13 @@ class VoiceAudioPolicyTests {
             looksLikeCarName = { false },
         )!!
         assertNull("Ambiguous paired name must not invent an arbitrary MAC", ambiguous.address)
+        assertTrue(ambiguous.ambiguousName)
         assertTrue(ambiguous.isCarAudio)
-        assertTrue(VoiceAudioPolicy.devicesMatch(savedSecondCar, ambiguous))
+        assertFalse("MAC-identified saved device must fail closed on ambiguous sibling name", VoiceAudioPolicy.devicesMatch(savedFirstCar, ambiguous))
+        assertFalse(VoiceAudioPolicy.devicesMatch(savedSecondCar, ambiguous))
 
-        // When the actual connected profile broadcast identifies MAC 02, prefer it over bonded list.
+        // When the actual connected profile broadcast identifies MAC 02, prefer it over bonded list:
+        // Car B matches and Car A does not.
         val fromProfile = VoiceAudioPolicy.enrichConnectedAudioOutput(
             rawAddress = null,
             rawName = "Car Multimedia",
@@ -301,7 +311,9 @@ class VoiceAudioPolicyTests {
             looksLikeCarName = { false },
         )!!
         assertEquals("AA:BB:CC:DD:EE:02", fromProfile.address)
+        assertFalse(fromProfile.ambiguousName)
         assertTrue(VoiceAudioPolicy.devicesMatch(savedSecondCar, fromProfile))
+        assertFalse(VoiceAudioPolicy.devicesMatch(savedFirstCar, fromProfile))
 
         // Unambiguous single paired device still enriches its MAC cleanly.
         val unique = VoiceAudioPolicy.enrichConnectedAudioOutput(
@@ -312,6 +324,21 @@ class VoiceAudioPolicyTests {
             looksLikeCarName = { false },
         )!!
         assertEquals("11:22:33:44:55:66", unique.address)
+        assertFalse(unique.ambiguousName)
+    }
+
+    @Test
+    fun isDistinctSessionSwitch_resetsAcrossDifferentDevicesButKeepsSameCarProjectionHandoff() {
+        val buds = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:11:22:33:44:55:66", "Earbuds", viaCarMode = false)
+        val carA = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:AA:BB:CC:DD:EE:01", "Car A", viaCarMode = true)
+        val carB = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:AA:BB:CC:DD:EE:02", "Car B", viaCarMode = true)
+        val carMode = VoiceAudioPolicy.ActiveMatch(true, "car_mode", null, viaCarMode = true)
+
+        assertTrue("Headphones -> Car is a distinct session", VoiceAudioPolicy.isDistinctSessionSwitch(buds, carA))
+        assertTrue("Car A -> Car B is a distinct session", VoiceAudioPolicy.isDistinctSessionSwitch(carA, carB))
+        assertFalse("Same device stays same session", VoiceAudioPolicy.isDistinctSessionSwitch(carA, carA))
+        assertFalse("Android Auto <-> Car BT handoff stays same in-car session", VoiceAudioPolicy.isDistinctSessionSwitch(carMode, carA))
+        assertFalse("Car BT <-> Android Auto handoff stays same in-car session", VoiceAudioPolicy.isDistinctSessionSwitch(carA, carMode))
     }
 
     @Test

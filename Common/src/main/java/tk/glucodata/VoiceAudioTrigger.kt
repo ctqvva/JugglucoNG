@@ -19,6 +19,7 @@ import android.content.res.Configuration
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -52,6 +53,18 @@ object VoiceAudioTrigger {
     private const val KEY_SPEAK_ALARMS = "voice_bt_audio_speak_alarms"
     private const val KEY_ANNOUNCE_CONNECT = "voice_bt_audio_announce_connect"
     private const val KEY_MEDIA_STREAM = "voice_bt_audio_media_stream"
+
+    /** AndroidX CarConnection content provider & update broadcast for Android Auto (Android 12+). */
+    internal const val CAR_CONNECTION_AUTHORITY = "androidx.car.app.connection"
+    internal const val CAR_CONNECTION_COLUMN = "CarConnectionState"
+    internal const val ACTION_CAR_CONNECTION_UPDATED = "androidx.car.app.connection.action.CAR_CONNECTION_UPDATED"
+    internal const val CONNECTION_TYPE_NOT_CONNECTED = 0
+    internal const val CONNECTION_TYPE_NATIVE = 1
+    internal const val CONNECTION_TYPE_PROJECTION = 2
+    private val CAR_CONNECTION_URI: Uri = Uri.Builder()
+        .scheme("content")
+        .authority(CAR_CONNECTION_AUTHORITY)
+        .build()
 
     data class Snapshot(
         val config: VoiceAudioPolicy.Config = VoiceAudioPolicy.Config(),
@@ -90,7 +103,9 @@ object VoiceAudioTrigger {
     private var monitoringRegistered = false
     private var uiMonitorCount = 0
     private var audioCallback: AudioDeviceCallback? = null
-    private var receiver: BroadcastReceiver? = null
+    private var bluetoothReceiver: BroadcastReceiver? = null
+    private var carModeReceiver: BroadcastReceiver? = null
+    private var carProjectionReceiver: BroadcastReceiver? = null
     private var pendingConnectTask: ScheduledFuture<*>? = null
 
     private var lastMatch: VoiceAudioPolicy.ActiveMatch = VoiceAudioPolicy.ActiveMatch.NONE
@@ -101,6 +116,8 @@ object VoiceAudioTrigger {
     private var lastDisconnectedAtMs: Long = 0L
     @Volatile
     private var lastSpokenAtMs: Long = 0L
+    @Volatile
+    private var carProjectionState: Int = CONNECTION_TYPE_NOT_CONNECTED
 
     /** Devices reported connected by BT A2DP/HFP broadcasts (helps MAC matching on API 26–27). */
     private val profileConnectedDevices = LinkedHashMap<String, VoiceAudioPolicy.ConnectedDevice>()
@@ -178,6 +195,7 @@ object VoiceAudioTrigger {
         prefs(app).edit().putBoolean(KEY_ENABLED, enabled).apply()
         if (enabled) {
             VoiceReadings.markUsed(app)
+            refreshCarProjectionAsync(app)
         } else {
             synchronized(lock) { connectGeneration++ }
             cancelPendingConnectAnnouncement()
@@ -199,6 +217,7 @@ object VoiceAudioTrigger {
         if (!isSupported()) return
         val app = context.applicationContext
         prefs(app).edit().putBoolean(KEY_CAR_MODE, include).apply()
+        if (include) refreshCarProjectionAsync(app)
         refreshState(app)
         VoiceReadings.changed()
     }
@@ -418,18 +437,21 @@ object VoiceAudioTrigger {
 
         val now = System.currentTimeMillis()
         val wasMatched: Boolean
+        val distinctSessionSwitch: Boolean
         val matchChanged: Boolean
         val scheduleAnnounce: Boolean
         val currentMuted: Boolean
         val generation: Long
 
         synchronized(lock) {
-            wasMatched = lastMatch.matched
-            matchChanged = lastMatch != newMatch
+            val previousMatch = lastMatch
+            wasMatched = previousMatch.matched
+            distinctSessionSwitch = VoiceAudioPolicy.isDistinctSessionSwitch(previousMatch, newMatch)
+            matchChanged = previousMatch != newMatch
             lastMatch = newMatch
 
-            if (!wasMatched && newMatch.matched) {
-                // New drive / connection starts unmuted.
+            if ((!wasMatched && newMatch.matched) || distinctSessionSwitch) {
+                // A brand-new connection or switching to a different matched device starts unmuted.
                 sessionMuted = false
                 connectGeneration++
             } else if (wasMatched && !newMatch.matched) {
@@ -440,12 +462,12 @@ object VoiceAudioTrigger {
             generation = connectGeneration
             currentMuted = sessionMuted
             scheduleAnnounce = VoiceAudioPolicy.shouldScheduleConnectAnnouncement(
-                wasMatched = wasMatched,
+                wasMatched = wasMatched && !distinctSessionSwitch,
                 nowMatched = newMatch.matched,
                 config = config,
                 sessionMuted = currentMuted,
                 nowMs = now,
-                lastDisconnectedAtMs = lastDisconnectedAtMs,
+                lastDisconnectedAtMs = if (distinctSessionSwitch) 0L else lastDisconnectedAtMs,
                 lastSpokenAtMs = lastSpokenAtMs,
             )
             stateFlow.value = Snapshot(
@@ -457,8 +479,9 @@ object VoiceAudioTrigger {
             )
         }
 
-        if (!wasMatched && newMatch.matched) {
-            Log.i(LOG_ID, "activated: key=${newMatch.triggerKey} label=${newMatch.displayLabel} car=${newMatch.viaCarMode}")
+        if ((!wasMatched && newMatch.matched) || distinctSessionSwitch) {
+            Log.i(LOG_ID, "activated: key=${newMatch.triggerKey} label=${newMatch.displayLabel} car=${newMatch.viaCarMode} switch=$distinctSessionSwitch")
+            cancelPendingConnectAnnouncement()
             Talker.nexttime = 0L
             if (SuperGattCallback.talker == null) {
                 SuperGattCallback.newtalker(app)
@@ -589,7 +612,9 @@ object VoiceAudioTrigger {
         val registerNow: Boolean
         val unregisterNow: Boolean
         val oldCallback: AudioDeviceCallback?
-        val oldReceiver: BroadcastReceiver?
+        val oldBtReceiver: BroadcastReceiver?
+        val oldCarModeReceiver: BroadcastReceiver?
+        val oldCarProjectionReceiver: BroadcastReceiver?
 
         synchronized(lock) {
             if (shouldMonitor && !monitoringRegistered) {
@@ -597,16 +622,23 @@ object VoiceAudioTrigger {
                 registerNow = true
                 unregisterNow = false
                 oldCallback = null
-                oldReceiver = null
+                oldBtReceiver = null
+                oldCarModeReceiver = null
+                oldCarProjectionReceiver = null
             } else if (!shouldMonitor && monitoringRegistered) {
                 monitoringRegistered = false
                 registerNow = false
                 unregisterNow = true
                 oldCallback = audioCallback
-                oldReceiver = receiver
+                oldBtReceiver = bluetoothReceiver
+                oldCarModeReceiver = carModeReceiver
+                oldCarProjectionReceiver = carProjectionReceiver
                 audioCallback = null
-                receiver = null
+                bluetoothReceiver = null
+                carModeReceiver = null
+                carProjectionReceiver = null
                 profileConnectedDevices.clear()
+                carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
             } else {
                 return
             }
@@ -622,33 +654,71 @@ object VoiceAudioTrigger {
                     refreshState(app)
                 }
             }
-            val rec = object : BroadcastReceiver() {
+            val btRec = object : BroadcastReceiver() {
                 override fun onReceive(ctx: Context, intent: Intent) {
-                    handleSystemBroadcast(app, intent)
+                    handleBluetoothBroadcast(app, intent)
                 }
             }
+            val carModeRec = object : BroadcastReceiver() {
+                override fun onReceive(ctx: Context, intent: Intent) {
+                    val action = intent.action
+                    if (action == UiModeManager.ACTION_ENTER_CAR_MODE ||
+                        action == UiModeManager.ACTION_EXIT_CAR_MODE
+                    ) {
+                        refreshState(app)
+                    }
+                }
+            }
+            val carProjRec = object : BroadcastReceiver() {
+                override fun onReceive(ctx: Context, intent: Intent) {
+                    if (intent.action == ACTION_CAR_CONNECTION_UPDATED) {
+                        refreshCarProjectionAsync(app)
+                    }
+                }
+            }
+
             try {
                 val audioManager = app.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
                 audioManager?.registerAudioDeviceCallback(cb, Handler(Looper.getMainLooper()))
             } catch (t: Throwable) {
                 Log.stack(LOG_ID, "registerAudioDeviceCallback", t)
             }
+            // Bluetooth connection broadcasts originate from the Bluetooth process (non-system UID),
+            // so Android 14+ requires RECEIVER_EXPORTED to deliver them reliably.
             try {
-                val filter = IntentFilter().apply {
+                val btFilter = IntentFilter().apply {
                     addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)
                     addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
                     addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+                }
+                ContextCompat.registerReceiver(app, btRec, btFilter, ContextCompat.RECEIVER_EXPORTED)
+            } catch (t: Throwable) {
+                Log.stack(LOG_ID, "registerBluetoothReceiver", t)
+            }
+            // UiModeManager car mode broadcasts originate from system_server.
+            try {
+                val carModeFilter = IntentFilter().apply {
                     addAction(UiModeManager.ACTION_ENTER_CAR_MODE)
                     addAction(UiModeManager.ACTION_EXIT_CAR_MODE)
                 }
-                ContextCompat.registerReceiver(app, rec, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+                ContextCompat.registerReceiver(app, carModeRec, carModeFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
             } catch (t: Throwable) {
-                Log.stack(LOG_ID, "registerReceiver", t)
+                Log.stack(LOG_ID, "registerCarModeReceiver", t)
+            }
+            // Android Auto projection updates originate from the Android Auto host app.
+            try {
+                val carProjFilter = IntentFilter(ACTION_CAR_CONNECTION_UPDATED)
+                ContextCompat.registerReceiver(app, carProjRec, carProjFilter, ContextCompat.RECEIVER_EXPORTED)
+            } catch (t: Throwable) {
+                Log.stack(LOG_ID, "registerCarProjectionReceiver", t)
             }
             synchronized(lock) {
                 audioCallback = cb
-                receiver = rec
+                bluetoothReceiver = btRec
+                carModeReceiver = carModeRec
+                carProjectionReceiver = carProjRec
             }
+            refreshCarProjectionAsync(app)
         } else if (unregisterNow) {
             if (oldCallback != null) {
                 try {
@@ -658,9 +728,9 @@ object VoiceAudioTrigger {
                     Log.stack(LOG_ID, "unregisterAudioDeviceCallback", t)
                 }
             }
-            if (oldReceiver != null) {
+            for (oldRec in listOfNotNull(oldBtReceiver, oldCarModeReceiver, oldCarProjectionReceiver)) {
                 try {
-                    app.unregisterReceiver(oldReceiver)
+                    app.unregisterReceiver(oldRec)
                 } catch (_: IllegalArgumentException) {
                     // Already unregistered.
                 } catch (t: Throwable) {
@@ -670,7 +740,7 @@ object VoiceAudioTrigger {
         }
     }
 
-    private fun handleSystemBroadcast(app: Context, intent: Intent) {
+    private fun handleBluetoothBroadcast(app: Context, intent: Intent) {
         when (intent.action) {
             BluetoothAdapter.ACTION_STATE_CHANGED -> {
                 val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
@@ -678,19 +748,25 @@ object VoiceAudioTrigger {
                     synchronized(lock) {
                         profileConnectedDevices.clear()
                     }
+                    refreshState(app)
+                } else if (state == BluetoothAdapter.STATE_ON) {
+                    refreshState(app)
                 }
             }
             BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED,
             BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED,
             -> {
-                val state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, BluetoothProfile.STATE_DISCONNECTED)
+                val state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
+                if (state != BluetoothProfile.STATE_CONNECTED && state != BluetoothProfile.STATE_DISCONNECTED) {
+                    return
+                }
                 val device = extractBluetoothDevice(intent)
                 if (device != null) {
                     updateProfileCache(app, device, state)
                 }
+                refreshState(app)
             }
         }
-        refreshState(app)
     }
 
     @Suppress("DEPRECATION")
@@ -705,6 +781,10 @@ object VoiceAudioTrigger {
     private fun updateProfileCache(app: Context, device: BluetoothDevice, state: Int) {
         if (!hasBluetoothConnectPermission(app)) return
         try {
+            // Defense-in-depth for the exported Bluetooth receiver: only cache bonded devices.
+            if (state == BluetoothProfile.STATE_CONNECTED && device.bondState != BluetoothDevice.BOND_BONDED) {
+                return
+            }
             val mac = VoiceAudioPolicy.normalizeAddress(device.address)
             val name = friendlyBluetoothName(device)
             val key = VoiceAudioPolicy.deviceId(mac, name)
@@ -732,7 +812,7 @@ object VoiceAudioTrigger {
     }
 
     // -------------------------------------------------------------------------
-    // Device discovery (AudioManager + Bonded Bluetooth devices + Car Mode)
+    // Device discovery (AudioManager + Bonded Bluetooth devices + Car Mode / Android Auto)
     // -------------------------------------------------------------------------
 
     fun hasBluetoothConnectPermission(context: Context): Boolean =
@@ -743,7 +823,61 @@ object VoiceAudioTrigger {
             true
         }
 
+    /**
+     * Queries the AndroidX CarConnection content provider (`content://androidx.car.app.connection`)
+     * off the main thread. On Android 12+, Android Auto no longer switches `UI_MODE_TYPE_CAR`, so
+     * this provider is the authoritative signal for wired and wireless Android Auto projection.
+     */
+    private fun refreshCarProjectionAsync(app: Context) {
+        try {
+            Applic.scheduler.execute {
+                val updated = queryCarProjectionProvider(app)
+                val changed = updated != carProjectionState
+                carProjectionState = updated
+                if (changed) {
+                    refreshState(app)
+                }
+            }
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "refreshCarProjectionAsync", t)
+        }
+    }
+
+    internal fun queryCarProjectionProvider(context: Context): Int {
+        return try {
+            context.contentResolver.query(
+                CAR_CONNECTION_URI,
+                arrayOf(CAR_CONNECTION_COLUMN),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                val idx = cursor.getColumnIndex(CAR_CONNECTION_COLUMN)
+                if (idx >= 0 && cursor.moveToFirst()) {
+                    cursor.getInt(idx)
+                } else {
+                    CONNECTION_TYPE_NOT_CONNECTED
+                }
+            } ?: CONNECTION_TYPE_NOT_CONNECTED
+        } catch (_: SecurityException) {
+            CONNECTION_TYPE_NOT_CONNECTED
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "queryCarProjectionProvider", t)
+            CONNECTION_TYPE_NOT_CONNECTED
+        }
+    }
+
     private fun queryInCarMode(context: Context): Boolean {
+        // Authoritative Android Auto / AAOS projection state (works on Android 12+).
+        val liveProjection = if (Looper.myLooper() != Looper.getMainLooper()) {
+            queryCarProjectionProvider(context).also { carProjectionState = it }
+        } else {
+            carProjectionState
+        }
+        if (liveProjection == CONNECTION_TYPE_PROJECTION || liveProjection == CONNECTION_TYPE_NATIVE) {
+            return true
+        }
+        // Retain UiModeManager car mode as a separate signal for car docks and Android 8–11.
         return try {
             val uiMode = context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
             uiMode?.currentModeType == Configuration.UI_MODE_TYPE_CAR
@@ -1061,13 +1195,16 @@ object VoiceAudioTrigger {
             monitoringRegistered = false
             uiMonitorCount = 0
             audioCallback = null
-            receiver = null
+            bluetoothReceiver = null
+            carModeReceiver = null
+            carProjectionReceiver = null
             appContext = null
             lastMatch = VoiceAudioPolicy.ActiveMatch.NONE
             connectGeneration = 0L
             sessionMuted = false
             lastDisconnectedAtMs = 0L
             lastSpokenAtMs = 0L
+            carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
             profileConnectedDevices.clear()
             stateFlow.value = Snapshot()
         }
