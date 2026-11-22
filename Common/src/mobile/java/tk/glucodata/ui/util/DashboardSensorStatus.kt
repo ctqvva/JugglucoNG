@@ -1,6 +1,7 @@
 package tk.glucodata.ui.util
 
 import tk.glucodata.Applic
+import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.ManagedSensorStatusPolicy
@@ -30,7 +31,19 @@ fun resolveDashboardSensorStatus(
     startMsec: Long,
     nativeStatus: String
 ): String {
-    val warmupStatus = getLegacyWarmupStatus(Applic.app, sensorKind, startMsec, nativeStatus)
+    // The native record carries the sensor's own warm-up (62 min for a 15-day
+    // G7). Look it up by name: str2sensorptr would also clear sensor-error
+    // flags, which this status refresh must not do.
+    val warmupMinutes = runCatching {
+        Natives.getSensorWarmupMinutesByName(serial)
+    }.getOrDefault(0)
+    val warmupStatus = getLegacyWarmupStatus(
+        Applic.app,
+        sensorKind,
+        startMsec,
+        nativeStatus,
+        dexcomWarmupMinutes = warmupMinutes,
+    )
     if (warmupStatus != null) {
         return warmupStatus
     }

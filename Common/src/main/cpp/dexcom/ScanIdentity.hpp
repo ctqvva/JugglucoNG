@@ -10,6 +10,19 @@ namespace dexcom {
 inline constexpr std::string_view manualPrefix = "JUGGLUCO-MANUAL-G7:";
 inline constexpr int maximumStorageDays = 17; // 15-day sensor plus storage slack.
 constexpr int wearMinutes(int days) { return (days == 15 ? 15 : 10) * 24 * 60; }
+// Warm-up length by sensor model, from the 0x52 answers these sensors report:
+// 3720 s for a 15-day G7, 1620 s for a 10-day one. The 10-day keeps the 30
+// minutes every record has carried; only the 15-day window was too short.
+constexpr int warmupMinutes(int days) { return days == 15 ? 62 : 30; }
+// A record written before the 15-day window was known still carries the
+// 10-day 30. Derive the model's window from the stored wear duration when the
+// value is exactly that default; any other value was reported by the sensor
+// and is kept.
+constexpr int upgradedWarmupMinutes(int storedWarmup, int storedWearMinutes) {
+    if (storedWarmup == warmupMinutes(10) && storedWearMinutes == wearMinutes(15))
+        return warmupMinutes(15);
+    return storedWarmup;
+}
 constexpr int maximumSeconds(int minutes) { return (minutes + 12 * 60 + 5) * 60; }
 constexpr int maximumCount(int minutes) { return (minutes + 12 * 60) / 5 + 1; }
 
