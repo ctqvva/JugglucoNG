@@ -1785,6 +1785,7 @@ class DashboardViewModel(
         _journalEnabled.value = enabled
         if (enabled) {
             ensureJournalEntriesObserved()
+            tk.glucodata.NightscoutUploadWake.afterJournalEnabled()
         } else {
             stopJournalEntriesObservation()
         }
