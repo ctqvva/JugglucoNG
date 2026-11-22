@@ -1,32 +1,37 @@
 package tk.glucodata.ui
 
 import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JournalReadingRowLayoutTests {
-    @Test fun chipsStayBesideTheValueWhileEachFitsAlone() {
-        // Two chips wider together than the gap still wrap there, as before.
-        assertFalse(journalChipsNeedOwnLine(listOf(60, 60), inlineWidth = 80))
-        assertFalse(journalChipsNeedOwnLine(listOf(80), inlineWidth = 80))
+    private fun pack(vararg widths: Int, beside: Int, below: Int) =
+        packJournalChipLines(widths, firstLineWidth = beside, otherLinesWidth = below, spacing = 6)
+
+    @Test fun chipsThatFitBesideTheValueStayThere() {
+        val lines = pack(30, 40, beside = 80, below = 200)
+        assertArrayEquals(intArrayOf(0, 0), lines.line)
+        assertArrayEquals(intArrayOf(0, 36), lines.x)
     }
 
-    @Test fun oneChipTooWideMovesThemToTheirOwnLine() {
-        // #990: a calibrated value beside its source value leaves too little room for a chip label.
-        assertTrue(journalChipsNeedOwnLine(listOf(40, 81), inlineWidth = 80))
-        assertTrue(journalChipsNeedOwnLine(listOf(40), inlineWidth = 0))
+    @Test fun overflowFillsTheWiderLinesBelowSideBySide() {
+        // The first chip fits beside the value; the rest share the full-width line under it
+        // instead of stacking one per line in the narrow gap.
+        val lines = pack(70, 70, 50, beside = 80, below = 200)
+        assertArrayEquals(intArrayOf(0, 1, 1), lines.line)
+        assertArrayEquals(intArrayOf(0, 0, 76), lines.x)
     }
 
-    @Test fun packingWrapsOnlyWhenTheNextChipDoesNotFit() {
-        val lines = packJournalChipLines(
-            widths = intArrayOf(50, 40, 30, 120),
-            heights = intArrayOf(20, 24, 20, 22),
-            availableWidth = 100,
-            spacing = 6
-        )
-        assertArrayEquals(intArrayOf(0, 56, 0, 0), lines.x)
-        assertArrayEquals(intArrayOf(0, 0, 1, 2), lines.line)
-        assertArrayEquals(intArrayOf(24, 20, 22), lines.lineHeights)
+    @Test fun aChipNeverSitsCutBesideTheValue() {
+        // #990: a calibrated value beside its source value leaves less than one chip's width.
+        val lines = pack(81, 40, beside = 80, below = 200)
+        assertArrayEquals(intArrayOf(1, 1), lines.line)
+        assertArrayEquals(intArrayOf(0, 87), lines.x)
+        assertArrayEquals(intArrayOf(1), pack(40, beside = 0, below = 200).line)
+    }
+
+    @Test fun linesBelowWrapWhenFull() {
+        val lines = pack(100, 100, 100, 300, beside = 50, below = 210)
+        assertArrayEquals(intArrayOf(1, 1, 2, 3), lines.line)
+        assertArrayEquals(intArrayOf(0, 106, 0, 0), lines.x)
     }
 }
