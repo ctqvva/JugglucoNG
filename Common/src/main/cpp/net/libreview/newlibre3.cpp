@@ -30,6 +30,8 @@
 #include  <inttypes.h>
 #include "managedlibre3history.hpp"
 #include <memory>
+#include <utility>
+#include <vector>
 #include "sensoren.hpp"
 #include "settings/settings.hpp"
 #include "SensorGlucoseData.hpp"
@@ -309,15 +311,15 @@ static int histpoll3_2str(const SensorGlucoseData *sens,const ScanData *el,int l
 	return historyformat(buf,gmttime,mkhistrecord(histor,lifeCount),timestr,
 	                     (float)libreviewExportedMgdl(sens,tim,el->getmgdL(),sens->getRawForPoll(el),el->hasResolvedGlucose()));
 	}
-//Five-minute slots not yet sent for a managed Libre 3 (see managedlibre3history.hpp).
-static int managedhistorypending(const SensorGlucoseData *sens) {
-	const int end=managed_libre3_history::endSlot(sens->managedLibre3Activation(),sens->newestPollTime());
-	return end-sens->getinfo()->libreviewnotsend;
+//One past the last five-minute slot a managed Libre 3 has stored (see managedlibre3history.hpp).
+static int managedendslot(const SensorGlucoseData *sens) {
+	return managed_libre3_history::endSlot(sens->managedLibre3Activation(),sens->newestPollTime());
 	}
-static int managedhistory(SensorGlucoseData *sens,char *buf,uint32_t *lasttime,int *nextnum) {
+//end is the slot counted when the buffer was sized: backfill on the driver thread can store
+//more minutes meanwhile, and writing past it would overrun the buffer.
+static int managedhistory(SensorGlucoseData *sens,const int end,char *buf,uint32_t *lasttime,int *nextnum) {
 	const uint32_t activation=sens->managedLibre3Activation();
 	const uint32_t newest=sens->newestPollTime();
-	const int end=managed_libre3_history::endSlot(activation,newest);
 	const int notsend=sens->getinfo()->libreviewnotsend;
 	LOGGER("managedhistory notsend=%d end=%d\n",notsend,end);
 	if(end<=notsend)
@@ -416,10 +418,19 @@ bool sendlibre3viewdata(bool hasnewcurrent,uint32_t nu) {
 	LOGGER("Start sendlibre3viewdata startlibre3view=%d lastsensor=%d from=%s",startsensor,lastsensor,ctime(&tim));
 #endif
     int usedsensors=0;
+	const int firstsensor=startsensor;
+	//Per sensor from firstsensor: the managed end slot this pass sized the buffer for.
+	std::vector<int> managedends(std::max(0,lastsensor-firstsensor+1),0);
 	for(int i=startsensor;i<=lastsensor;i++) {
 		SensorGlucoseData *sensdata=sensors->getSensorData(i);
 		if(sensdata->libreviewLibre3()) {
-			auto add=sensdata->isManagedLibre3()?managedhistorypending(sensdata):(sensdata->getScanendhistory()-sensdata->getinfo()->libreviewnotsend);
+			int add;
+			if(sensdata->isManagedLibre3()) {
+				const int end=managedends[i-firstsensor]=managedendslot(sensdata);
+				add=end-sensdata->getinfo()->libreviewnotsend;
+				}
+			else
+				add=sensdata->getScanendhistory()-sensdata->getinfo()->libreviewnotsend;
 			lastlibre3=i;
 			if(add<=0) {
 				if(sensdata->getstarttime()<oldtimer) {
@@ -575,15 +586,21 @@ if(uitptr>insulinstart) {
 	}
 addarray(afterinsulin);
 uint32_t lasthisttime=0;
-int nextnum=0,lastwrote=-1;
+int lastwrote=-1;
+//Every sensor that wrote history gets its cursor on success, not only the last one.
+std::vector<std::pair<int,int>> sentuntil;
 if(inhistory>0) { 
 	for(int i=startsensor;i<=lastsensor;i++) {
 		SensorGlucoseData *sens=sensors->getSensorData(i);
 		if(sens->libreviewLibre3()) {
-			int wrote=(sens->isManagedLibre3()?managedhistory:allhistory)(sens,uitptr,&lasthisttime,&nextnum);
+			int next=0;
+			const int wrote=sens->isManagedLibre3()
+				?managedhistory(sens,managedends[i-firstsensor],uitptr,&lasthisttime,&next)
+				:allhistory(sens,uitptr,&lasthisttime,&next);
 			if(wrote) {
 				uitptr+=wrote;
 				lastwrote=i;
+				sentuntil.emplace_back(i,next);
 				}
 			}
 		}
@@ -615,11 +632,19 @@ if(datasend) {
 	libreviewJournalCommit();
 //	int nextsensor=(wrotecurrent>0)?lastsensor:lastwrote;
 	if(nextsensor>=0) {
-		settings->data()->startlibre3view=nextsensor;
-		if(lastwrote>=0) {
-			SensorGlucoseData *sens=sensors->getSensorData(lastwrote);
-			sens->getinfo()->libreviewnotsend=nextnum;
+		//The earliest Libre 3 not finished with stays eligible: two can run at once, and
+		//one may still be holding a gap for its backfill.
+		int keep=nextsensor;
+		for(int i=startsensor;i<nextsensor;i++) {
+			const SensorGlucoseData *sens=sensors->getSensorData(i);
+			if(sens&&sens->libreviewLibre3()&&!sens->getinfo()->libreviewsendall) {
+				keep=i;
+				break;
+				}
 			}
+		settings->data()->startlibre3view=keep;
+		for(const auto &[index,next]:sentuntil)
+			sensors->getSensorData(index)->getinfo()->libreviewnotsend=next;
 		if(wrotecurrent>0) {
 #ifdef NOTALLVIES
 			extern time_t nexttimeviewed;
