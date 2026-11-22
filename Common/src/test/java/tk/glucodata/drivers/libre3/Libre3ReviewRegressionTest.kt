@@ -88,6 +88,15 @@ class Libre3ReviewRegressionTest {
     private fun history() = get("historicBackfill") as MutableList<VirtualGlucoseSensorBridge.Reading>
     private fun reading(time: Long = System.currentTimeMillis() - 60_000L) = VirtualGlucoseSensorBridge.Reading(time, 123f)
 
+    @Test fun failingLinkStepDropsTheLinkInsteadOfCrashingTheApp() {
+        val handler = get("liveHandler") as Handler
+        var ranAfter = false
+        // Uncaught on the driver thread, this would end the process and repeat on every start.
+        handler.dispatchMessage(android.os.Message.obtain(handler) { error("synthetic link failure") })
+        handler.dispatchMessage(android.os.Message.obtain(handler) { ranAfter = true })
+        assertTrue(ranAfter)
+    }
+
     @Test fun clinicalReplayUsesStockNativeSlotsEvenWhenRoomAlreadyHasTheMinute() {
         val r = reading()
         timestamps = longArrayOf(r.timestampMs)

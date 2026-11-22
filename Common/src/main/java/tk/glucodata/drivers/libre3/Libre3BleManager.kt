@@ -24,6 +24,8 @@ import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
+import android.os.Message
 import java.util.TreeSet
 import java.util.UUID
 import tk.glucodata.Applic
@@ -89,14 +91,30 @@ class Libre3BleManager(sensorId: String) :
 
     private val threadName = "Libre3-$sensorId"
     private var handlerThread = HandlerThread(threadName).also { it.start() }
-    private var liveHandler = Handler(handlerThread.looper)
+    /**
+     * Runs every link step. An exception here would otherwise kill the whole app, and the
+     * restored callback would crash it again on the next start; drop this link instead.
+     */
+    private inner class GuardedHandler(looper: Looper) : Handler(looper) {
+        override fun dispatchMessage(msg: Message) {
+            try {
+                super.dispatchMessage(msg)
+            } catch (t: Throwable) {
+                Log.stack(TAG, "$sensorId link step", t)
+                if (!stop) runCatching { dropLink("internal error: ${t.javaClass.simpleName}") }
+                    .onFailure { Log.stack(TAG, "$sensorId dropLink after error", it) }
+            }
+        }
+    }
+
+    private var liveHandler: Handler = GuardedHandler(handlerThread.looper)
     private var handlerQuit = false
 
     private val handler: Handler
         @Synchronized get() {
             if (handlerQuit && !stop) {
                 handlerThread = HandlerThread(threadName).also { it.start() }
-                liveHandler = Handler(handlerThread.looper)
+                liveHandler = GuardedHandler(handlerThread.looper)
                 handlerQuit = false
             }
             return liveHandler

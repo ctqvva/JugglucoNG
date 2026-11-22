@@ -481,7 +481,6 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     searchAnchor = SettingsSearchAnchors.LIBREVIEW_OFFICIAL_END
                 )
             }
-
         }
     }
 }

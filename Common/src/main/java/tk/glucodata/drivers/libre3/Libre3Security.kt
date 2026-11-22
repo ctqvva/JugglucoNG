@@ -139,10 +139,15 @@ object Libre3Auth {
     fun authKey(identity: Libre3AppIdentity, phoneEphemeral: ECPrivateKey, sensorEphemeral: ByteArray, sensorStatic: ByteArray): ByteArray {
         val ze = Libre3P256.ecdh(phoneEphemeral, Libre3P256.publicKey(sensorEphemeral))
         val zs = Libre3P256.ecdh(identity.privateKey(), Libre3P256.publicKey(sensorStatic))
+        return deriveAuthKey(ze, zs)
+    }
+
+    /** SHA-256(00000001 || Ze || Zs), first 16 bytes. */
+    internal fun deriveAuthKey(ephemeralSecret: ByteArray, staticSecret: ByteArray): ByteArray {
         val digest = MessageDigest.getInstance("SHA-256").run {
             update(byteArrayOf(0, 0, 0, 1))
-            update(ze)
-            update(zs)
+            update(ephemeralSecret)
+            update(staticSecret)
             digest()
         }
         return digest.copyOf(16)
