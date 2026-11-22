@@ -9,15 +9,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,10 +41,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.R
 import tk.glucodata.SensorHandoffUiState
 import tk.glucodata.SensorOwnershipRuntime
@@ -67,6 +65,8 @@ internal data class SensorReachState(
     val lastReadingMs: Long = 0L,
     /** A battery low enough to be the reason, null when it is not or is unknown. */
     val lowBatteryPercent: Int? = null,
+    /** Whether the driver holds its link right now; null where that is not this phone's to say. */
+    val linkUp: Boolean? = null,
 )
 
 private fun bluetoothOn(context: Context): Boolean = runCatching {
@@ -115,70 +115,53 @@ internal fun rememberSensorReach(serial: String, lastReadingMs: Long): SensorRea
             lastReadingMs = lastReadingMs,
             lowBatteryPercent = snapshot.batteryPercent
                 .takeIf { it in 0..SensorReachPolicy.LOW_BATTERY_PERCENT },
+            linkUp = linkUp,
         )
     }
 }
 
-/** Where the prompt sits: inside a sensor card, or on its own on the dashboard. */
+/** Where the out-of-range chip sits: at the end of a sensor card's status line, or alone on the dashboard. */
 internal enum class SensorReachPromptHost { SENSOR_CARD, DASHBOARD }
 
 /**
- * The status line of a sensor the phone cannot get to, turned into what to do about it.
- * The Bluetooth mark that sat at the line's end keeps looking for the sensor in the tile.
+ * The Bluetooth chip at the end of the status line, grown over the status text once the
+ * phone has not reached the sensor for a while: what is wrong and what to do about it,
+ * with the waves still looking for the sensor. The dashboard shows the same chip alone.
  */
 @Composable
-internal fun SensorOutOfReachPrompt(
+internal fun SensorOutOfReachChip(
     state: SensorReachState,
     host: SensorReachPromptHost,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
 ) {
-    val container = MaterialTheme.colorScheme.tertiaryContainer
     val content = MaterialTheme.colorScheme.onTertiaryContainer
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(if (host == SensorReachPromptHost.DASHBOARD) 20.dp else 16.dp),
-        color = container,
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = content,
+        tonalElevation = 1.dp,
     ) {
         Row(
             modifier = Modifier
                 .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
-                .padding(if (host == SensorReachPromptHost.DASHBOARD) 16.dp else 12.dp),
+                .heightIn(min = 56.dp)
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = if (host == SensorReachPromptHost.DASHBOARD) 12.dp else 8.dp,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(content.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                SearchingSignalGlyph(color = content)
-            }
+            SearchingSignalGlyph(color = content, iconSize = 16.dp)
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.sensor_out_of_reach_title),
-                        style = MaterialTheme.typography.titleSmallEmphasized,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (state.lastReadingMs > 0L) {
-                        SensorReadingAgeLabel(
-                            readingMillis = state.lastReadingMs,
-                            iconTint = content.copy(alpha = 0.72f),
-                            textColor = content.copy(alpha = 0.72f),
-                            // On the title's first line, not floating between its two.
-                            modifier = Modifier.padding(top = 2.dp),
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.sensor_out_of_reach_title),
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(
                     text = state.lowBatteryPercent?.let {
                         stringResource(R.string.sensor_out_of_reach_battery, it)
@@ -187,6 +170,44 @@ internal fun SensorOutOfReachPrompt(
                     color = content.copy(alpha = 0.86f),
                 )
             }
+        }
+    }
+}
+
+/**
+ * The reading chip beside [SensorOutOfReachChip], grown to its height: the last value, and
+ * under it how old it is, since that age is now the point.
+ */
+@Composable
+internal fun SensorLastReadingChip(
+    snapshot: CurrentDisplaySource.Snapshot,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        tonalElevation = 1.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = snapshot.primaryStr,
+                style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
+                maxLines = 1,
+                softWrap = false,
+            )
+            SensorReadingAgeLabel(
+                readingMillis = snapshot.timeMillis,
+                iconTint = accentColor.copy(alpha = 0.82f),
+                textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -229,7 +250,21 @@ internal fun SensorQuietChip(lastReadingMs: Long, modifier: Modifier = Modifier)
 
 /** The Bluetooth sign with its waves lighting one after another, as a radio that is looking. */
 @Composable
-private fun SearchingSignalGlyph(color: Color) {
+internal fun SearchingSignalGlyph(color: Color, iconSize: Dp) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = Symbols.BluetoothFilled,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(iconSize),
+        )
+        SearchingSignalWaves(color = color)
+    }
+}
+
+/** Just the waves of [SearchingSignalGlyph], for a mark that draws its own sign. */
+@Composable
+internal fun SearchingSignalWaves(color: Color) {
     val transition = rememberInfiniteTransition(label = "sensorSearching")
     val sweep by transition.animateFloat(
         initialValue = 0f,
@@ -238,31 +273,23 @@ private fun SearchingSignalGlyph(color: Color) {
         label = "sensorSearchingSweep",
     )
     val unlit = color.copy(alpha = 0.24f)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-            imageVector = Symbols.BluetoothFilled,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(16.dp),
-        )
-        Canvas(modifier = Modifier.size(width = 12.dp, height = 20.dp)) {
-            val rtl = layoutDirection == LayoutDirection.Rtl
-            val stroke = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
-            val centerX = if (rtl) size.width + 2.dp.toPx() else -2.dp.toPx()
-            for (wave in 0 until 3) {
-                // Each wave lights as the sweep reaches it and fades as it moves on.
-                val lit = (1f - kotlin.math.abs(sweep - 1f - wave)).coerceIn(0f, 1f)
-                val radius = (5 + wave * 4).dp.toPx()
-                drawArc(
-                    color = androidx.compose.ui.graphics.lerp(unlit, color, lit),
-                    startAngle = if (rtl) 140f else -40f,
-                    sweepAngle = 80f,
-                    useCenter = false,
-                    topLeft = Offset(centerX - radius, size.height / 2f - radius),
-                    size = Size(radius * 2, radius * 2),
-                    style = stroke,
-                )
-            }
+    Canvas(modifier = Modifier.size(width = 12.dp, height = 20.dp)) {
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        val stroke = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
+        val centerX = if (rtl) size.width + 2.dp.toPx() else -2.dp.toPx()
+        for (wave in 0 until 3) {
+            // Each wave lights as the sweep reaches it and fades as it moves on.
+            val lit = (1f - kotlin.math.abs(sweep - 1f - wave)).coerceIn(0f, 1f)
+            val radius = (5 + wave * 4).dp.toPx()
+            drawArc(
+                color = androidx.compose.ui.graphics.lerp(unlit, color, lit),
+                startAngle = if (rtl) 140f else -40f,
+                sweepAngle = 80f,
+                useCenter = false,
+                topLeft = Offset(centerX - radius, size.height / 2f - radius),
+                size = Size(radius * 2, radius * 2),
+                style = stroke,
+            )
         }
     }
 }

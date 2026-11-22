@@ -2141,14 +2141,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_chat_ids">允许的聊天 ID</string>
     <string name="api_source_telegram_note">Telegram 最多保留机器人更新 24 小时。输入一个或多个允许导入机器人消息的聊天 ID/用户名。</string>
     <string name="status_waiting_for_data">已连接，正在等待数据…</string>
-    <string name="status_reconnecting">正在重新连接…</string>
-    <string name="status_searching_for_sensor">正在搜索传感器…</string>
     <string name="status_sensor_not_found">附近未找到传感器</string>
     <string name="status_auth_failed">认证失败</string>
     <string name="status_sensor_not_responding">传感器无响应</string>
-    <string name="sensor_out_of_reach_title">传感器不在范围内</string>
-    <string name="sensor_out_of_reach_body">请将手机靠近传感器，它会自动重新连接</string>
-    <string name="sensor_out_of_reach_battery">请将手机靠近传感器，电量低（%1$d%%）</string>
+    <string name="sensor_out_of_reach_title">不在范围内</string>
+    <string name="sensor_out_of_reach_body">请将手机靠近传感器</string>
+    <string name="sensor_out_of_reach_battery">传感器电量低（%1$d%%）</string>
     <string name="sensor_waiting_for_reading">正在等待读数</string>
     <string name="status_raw_values_received">已连接，已收到原始值</string>
     <string name="status_invalid_glucose_from_sensor">传感器葡萄糖值无效</string>

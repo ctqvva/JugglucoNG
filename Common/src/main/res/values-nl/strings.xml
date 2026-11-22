@@ -2168,14 +2168,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="api_source_telegram_chat_ids">Toegestane chat-ID’s</string>
     <string name="api_source_telegram_note">Telegram bewaart botupdates tot 24 uur. Voer een of meer chat-ID’s of gebruikersnamen in waarvan botberichten mogen worden geïmporteerd.</string>
     <string name="status_waiting_for_data">Verbonden, wachten op gegevens…</string>
-    <string name="status_reconnecting">Opnieuw verbinden…</string>
-    <string name="status_searching_for_sensor">Sensor zoeken…</string>
     <string name="status_sensor_not_found">Sensor niet in de buurt gevonden</string>
     <string name="status_auth_failed">Authenticatie mislukt</string>
     <string name="status_sensor_not_responding">Sensor reageert niet</string>
-    <string name="sensor_out_of_reach_title">Sensor buiten bereik</string>
-    <string name="sensor_out_of_reach_body">Houd je telefoon dicht bij de sensor; hij maakt zelf opnieuw verbinding</string>
-    <string name="sensor_out_of_reach_battery">Houd je telefoon dicht bij de sensor; batterij bijna leeg (%1$d%%)</string>
+    <string name="sensor_out_of_reach_title">Buiten bereik</string>
+    <string name="sensor_out_of_reach_body">Houd je telefoon dicht bij de sensor</string>
+    <string name="sensor_out_of_reach_battery">Sensorbatterij bijna leeg (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Wachten op meting</string>
     <string name="status_raw_values_received">Verbonden, ruwe waarden ontvangen</string>
     <string name="status_invalid_glucose_from_sensor">Ongeldige glucosewaarde van sensor</string>

@@ -36,8 +36,7 @@ internal enum class SibionicsIdleReason {
 internal enum class SibionicsLinkView {
     DISCONNECTED,
     BLUETOOTH_OFF,
-    SEARCHING,
-    RECONNECTING,
+    /** Scanning, waiting for the next attempt or opening the link: all one "Connecting…". */
     CONNECTING,
     /** Inside a connection: the phase's own step text, unchanged from before. */
     PHASE_STEP,
@@ -143,9 +142,6 @@ internal object SibionicsLinkPolicy {
     /**
      * @param inHistoryTransfer a backlog download is under way; the sensor drops the link
      *   after every page, so the reconnect gaps between pages keep showing the progress.
-     * @param sensorMissing the last look for the sensor's advertisement came back empty
-     *   and no connection has been made since: the scan / wait part of the cycle is one
-     *   search from the user's side.
      */
     fun view(
         phase: SibionicsLinkPhase,
@@ -157,7 +153,6 @@ internal object SibionicsLinkPolicy {
         historyShowable: Boolean,
         hasLiveReading: Boolean,
         hasAnyReading: Boolean,
-        sensorMissing: Boolean,
     ): SibionicsLinkView {
         if (paused) return SibionicsLinkView.DISCONNECTED
         if (!bluetoothOn) return SibionicsLinkView.BLUETOOTH_OFF
@@ -167,13 +162,13 @@ internal object SibionicsLinkPolicy {
                 restoring -> SibionicsLinkView.CONNECTING
                 // Bluetooth is back; the adapter broadcast or the watchdog connects next.
                 idleReason == SibionicsIdleReason.BLUETOOTH_OFF -> SibionicsLinkView.CONNECTING
+                // Scan, wait and attempt flip every few seconds; to the user it is one
+                // connect that has not landed yet, and the out-of-reach chip takes over
+                // once it has gone on too long.
                 idleReason == SibionicsIdleReason.SEARCHING ||
-                    idleReason == SibionicsIdleReason.NEEDS_SCAN -> SibionicsLinkView.SEARCHING
-                idleReason == SibionicsIdleReason.RECONNECT_SCHEDULED -> when {
-                    history -> SibionicsLinkView.HISTORY
-                    sensorMissing -> SibionicsLinkView.SEARCHING
-                    else -> SibionicsLinkView.RECONNECTING
-                }
+                    idleReason == SibionicsIdleReason.NEEDS_SCAN -> SibionicsLinkView.CONNECTING
+                idleReason == SibionicsIdleReason.RECONNECT_SCHEDULED ->
+                    if (history) SibionicsLinkView.HISTORY else SibionicsLinkView.CONNECTING
                 else -> SibionicsLinkView.DISCONNECTED
             }
             SibionicsLinkPhase.CONNECTING,

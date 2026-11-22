@@ -3000,14 +3000,11 @@ class SibionicsBleManager(
         ),
         hasLiveReading = lastLiveIndexSeen >= 0,
         hasAnyReading = latestReadingTimeMs > 0L,
-        sensorMissing = linkNotice == SibionicsLinkNotice.NOT_FOUND,
     )
 
     private fun currentStatusText(): String = when (currentLinkView()) {
         SibionicsLinkView.DISCONNECTED -> disconnectedStatus()
         SibionicsLinkView.BLUETOOTH_OFF -> appString(R.string.status_bluetooth_off, "Bluetooth off")
-        SibionicsLinkView.SEARCHING -> appString(R.string.status_searching_for_sensor, "Searching for sensor…")
-        SibionicsLinkView.RECONNECTING -> appString(R.string.status_reconnecting, "Reconnecting…")
         SibionicsLinkView.CONNECTING -> connectingStatus()
         SibionicsLinkView.PHASE_STEP -> when (phase) {
             Phase.CONNECTING -> connectingStatus()

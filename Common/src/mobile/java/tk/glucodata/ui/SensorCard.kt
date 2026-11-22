@@ -402,12 +402,13 @@ private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable
     }
 }
 
-private enum class SensorLinkState { UP, WAITING, DOWN }
+private enum class SensorLinkState { UP, WAITING, SEARCHING, DOWN }
 
 /**
  * The Bluetooth link at a glance. Up: the sign with three waves leaving it, as many lit as the
  * signal is strong, and a tap puts the figure they are drawn from beside it for a moment.
- * Waiting (searching, warming up): the sign with its waves unlit. Down: the struck-through
+ * Searching (no link yet, the driver connecting): the waves light one after another.
+ * Waiting (warming up and the like): the sign with its waves unlit. Down: the struck-through
  * sign on the error container. It is a chip the size of the reading chip at the line's other end.
  */
 /**
@@ -528,7 +529,10 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, accent: Color, mo
                 tint = color,
                 modifier = Modifier.size(if (down) 16.dp else 12.dp),
             )
-            if (!down) {
+            if (state == SensorLinkState.SEARCHING) {
+                SearchingSignalWaves(color = color)
+            }
+            if (!down && state != SensorLinkState.SEARCHING) {
                 // Waves leaving the sign, nearest first: as many lit as the signal is strong.
                 androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 12.dp, height = 20.dp)) {
                     val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
@@ -2328,7 +2332,27 @@ fun SensorCard(
                             label = "sensorReachLine",
                         ) { lost ->
                         if (lost) {
-                            SensorOutOfReachPrompt(state = reachState, host = SensorReachPromptHost.SENSOR_CARD)
+                            // The line's two chips grown: the last reading with its age, and the
+                            // Bluetooth chip spread over the status text, saying what to do.
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(androidx.compose.foundation.layout.IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                currentSnapshot?.let { snapshot ->
+                                    SensorLastReadingChip(
+                                        snapshot = snapshot,
+                                        accentColor = sensorTint,
+                                        modifier = Modifier.fillMaxHeight(),
+                                    )
+                                }
+                                SensorOutOfReachChip(
+                                    state = reachState,
+                                    host = SensorReachPromptHost.SENSOR_CARD,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                )
+                            }
                         } else {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -2395,6 +2419,8 @@ fun SensorCard(
                                 SensorLinkMark(
                                     state = when {
                                         linkDown -> SensorLinkState.DOWN
+                                        // Between links the last signal level is history, not signal.
+                                        reachState.linkUp == false -> SensorLinkState.SEARCHING
                                         isStreaming -> SensorLinkState.UP
                                         else -> SensorLinkState.WAITING
                                     },

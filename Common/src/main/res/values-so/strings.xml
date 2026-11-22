@@ -1014,14 +1014,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sensor_error_code">Lambarka khaladka sensor-ka</string>
     <string name="status_disconnected">Go\'ay</string>
     <string name="status_waiting_for_data">Ku xidhan, sugitaanka xogta…</string>
-    <string name="status_reconnecting">Dib ayaa loo xiriirinayaa…</string>
-    <string name="status_searching_for_sensor">Raadinta sensor-ka…</string>
     <string name="status_sensor_not_found">Sensor-ka lagama helin agagaarka</string>
     <string name="status_auth_failed">Xaqiijintu way fashilantay</string>
     <string name="status_sensor_not_responding">Sensor-ku ma jawaabayo</string>
-    <string name="sensor_out_of_reach_title">Dareemuhu wuu ka fog yahay</string>
-    <string name="sensor_out_of_reach_body">Telefoonka u dhow dareemaha; si iskiis ah ayuu dib ugu xidhmi doonaa</string>
-    <string name="sensor_out_of_reach_battery">Telefoonka u dhow dareemaha; batarigu waa yar yahay (%1$d%%)</string>
+    <string name="sensor_out_of_reach_title">Wuu ka fog yahay</string>
+    <string name="sensor_out_of_reach_body">Telefoonka u dhow dareemaha</string>
+    <string name="sensor_out_of_reach_battery">Batariga dareemaha waa yar yahay (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Sugaya akhris</string>
     <string name="status_raw_values_received">Ku xidhan, qiyam cayriin ayaa la helay</string>
     <string name="status_invalid_glucose_from_sensor">Gulukoos aan sax ahayn oo ka timaadda dareemayaasha</string>

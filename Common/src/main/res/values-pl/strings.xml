@@ -2160,14 +2160,12 @@
     <string name="api_source_telegram_chat_ids">Dozwolone ID czatów</string>
     <string name="api_source_telegram_note">Telegram przechowuje aktualizacje bota do 24 godzin. Wprowadź co najmniej jedno ID czatu lub nazwę użytkownika, których wiadomości bota mogą być importowane.</string>
     <string name="status_waiting_for_data">Połączono, oczekiwanie na dane…</string>
-    <string name="status_reconnecting">Ponowne łączenie…</string>
-    <string name="status_searching_for_sensor">Wyszukiwanie czujnika…</string>
     <string name="status_sensor_not_found">Nie znaleziono czujnika w pobliżu</string>
     <string name="status_auth_failed">Uwierzytelnianie nie powiodło się</string>
     <string name="status_sensor_not_responding">Czujnik nie odpowiada</string>
-    <string name="sensor_out_of_reach_title">Sensor poza zasięgiem</string>
-    <string name="sensor_out_of_reach_body">Trzymaj telefon blisko sensora — połączy się ponownie sam</string>
-    <string name="sensor_out_of_reach_battery">Trzymaj telefon blisko sensora — słaba bateria (%1$d%%)</string>
+    <string name="sensor_out_of_reach_title">Poza zasięgiem</string>
+    <string name="sensor_out_of_reach_body">Trzymaj telefon blisko sensora</string>
+    <string name="sensor_out_of_reach_battery">Słaba bateria sensora (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Oczekiwanie na odczyt</string>
     <string name="status_raw_values_received">Połączono, odebrano wartości surowe</string>
     <string name="status_invalid_glucose_from_sensor">Nieprawidłowa glukoza z sensora</string>

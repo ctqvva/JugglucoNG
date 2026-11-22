@@ -2321,14 +2321,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="voice_schedule_from">Von</string>
     <string name="voice_schedule_until">Bis</string>
     <string name="status_waiting_for_data">Verbunden, warte auf Daten…</string>
-    <string name="status_reconnecting">Verbindung wird wiederhergestellt…</string>
-    <string name="status_searching_for_sensor">Sensor wird gesucht…</string>
     <string name="status_sensor_not_found">Sensor nicht in der Nähe gefunden</string>
     <string name="status_auth_failed">Authentifizierung fehlgeschlagen</string>
     <string name="status_sensor_not_responding">Sensor antwortet nicht</string>
-    <string name="sensor_out_of_reach_title">Sensor außer Reichweite</string>
-    <string name="sensor_out_of_reach_body">Halte das Telefon nah am Sensor – er verbindet sich von selbst neu</string>
-    <string name="sensor_out_of_reach_battery">Halte das Telefon nah am Sensor – Akku schwach (%1$d %%)</string>
+    <string name="sensor_out_of_reach_title">Außer Reichweite</string>
+    <string name="sensor_out_of_reach_body">Halte das Telefon nah am Sensor</string>
+    <string name="sensor_out_of_reach_battery">Sensorakku schwach (%1$d %%)</string>
     <string name="sensor_waiting_for_reading">Warte auf Messwert</string>
     <string name="status_raw_values_received">Verbunden, Rohwerte empfangen</string>
     <string name="status_invalid_glucose_from_sensor">Ungültiger Glukosewert vom Sensor</string>

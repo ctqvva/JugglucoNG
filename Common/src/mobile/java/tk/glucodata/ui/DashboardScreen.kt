@@ -1650,11 +1650,11 @@ fun DashboardScreen(
 
                     if (showSensorReachPrompt) {
                         item(key = "sensor-reach") {
-                            SensorOutOfReachPrompt(
+                            SensorOutOfReachChip(
                                 state = sensorReach,
                                 host = SensorReachPromptHost.DASHBOARD,
                                 onClick = onNavigateToSensors,
-                                modifier = Modifier.animateItem(),
+                                modifier = Modifier.fillMaxWidth().animateItem(),
                             )
                         }
                     }
@@ -1985,13 +1985,14 @@ fun DashboardScreen(
 
                 if (showSensorReachPrompt) {
                     item(key = "sensor-reach") {
-                        SensorOutOfReachPrompt(
+                        SensorOutOfReachChip(
                             state = sensorReach,
                             host = SensorReachPromptHost.DASHBOARD,
                             onClick = onNavigateToSensors,
                             modifier = Modifier
                                 .animateItem()
-                                .padding(horizontal = contentHorizontalPadding),
+                                .padding(horizontal = contentHorizontalPadding)
+                                .fillMaxWidth(),
                         )
                     }
                 }

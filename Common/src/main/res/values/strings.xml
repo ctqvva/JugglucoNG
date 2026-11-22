@@ -1069,14 +1069,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_error_code">Sensor error code</string>
     <string name="status_disconnected">Disconnected</string>
     <string name="status_waiting_for_data">Connected, waiting for data…</string>
-    <string name="status_reconnecting">Reconnecting…</string>
-    <string name="status_searching_for_sensor">Searching for sensor…</string>
     <string name="status_sensor_not_found">Sensor not found nearby</string>
     <string name="status_auth_failed">Authentication failed</string>
     <string name="status_sensor_not_responding">Sensor not responding</string>
-    <string name="sensor_out_of_reach_title">Sensor out of reach</string>
-    <string name="sensor_out_of_reach_body">Keep your phone close to the sensor; it reconnects on its own</string>
-    <string name="sensor_out_of_reach_battery">Keep your phone close to the sensor; its battery is low (%1$d%%)</string>
+    <string name="sensor_out_of_reach_title">Out of range</string>
+    <string name="sensor_out_of_reach_body">Keep your phone near the sensor</string>
+    <string name="sensor_out_of_reach_battery">Sensor battery low (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Waiting for a reading</string>
     <string name="status_raw_values_received">Connected, raw values received</string>
     <string name="status_invalid_glucose_from_sensor">Invalid glucose from sensor</string>

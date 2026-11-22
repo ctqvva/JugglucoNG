@@ -16,7 +16,6 @@ class SibionicsLinkPolicyTest {
         historyShowable: Boolean = false,
         hasLiveReading: Boolean = false,
         hasAnyReading: Boolean = false,
-        sensorMissing: Boolean = false,
     ) = SibionicsLinkPolicy.view(
         phase = phase,
         idleReason = idleReason,
@@ -27,7 +26,6 @@ class SibionicsLinkPolicyTest {
         historyShowable = historyShowable,
         hasLiveReading = hasLiveReading,
         hasAnyReading = hasAnyReading,
-        sensorMissing = sensorMissing,
     )
 
     private fun watchdog(
@@ -49,26 +47,16 @@ class SibionicsLinkPolicyTest {
     )
 
     @Test
-    fun waitingForTheNextAttemptIsReconnectingNotDisconnected() {
-        // The reported "Disconnected" header over a "Searching for sensors" row.
-        assertEquals(
-            SibionicsLinkView.RECONNECTING,
-            view(SibionicsLinkPhase.IDLE, SibionicsIdleReason.RECONNECT_SCHEDULED),
-        )
-    }
-
-    @Test
-    fun ownScanForTheSavedAddressIsSearching() {
-        assertEquals(SibionicsLinkView.SEARCHING, view(SibionicsLinkPhase.IDLE, SibionicsIdleReason.SEARCHING))
-        assertEquals(SibionicsLinkView.SEARCHING, view(SibionicsLinkPhase.IDLE, SibionicsIdleReason.NEEDS_SCAN))
-    }
-
-    @Test
-    fun aSensorThatWasNotFoundStaysSearchingBetweenAttempts() {
-        assertEquals(
-            SibionicsLinkView.SEARCHING,
-            view(SibionicsLinkPhase.IDLE, SibionicsIdleReason.RECONNECT_SCHEDULED, sensorMissing = true),
-        )
+    fun scanWaitAndNextAttemptAllReadConnecting() {
+        // The reported "Disconnected" header, then "Searching for sensor…" flipping with
+        // "Connecting…": one connect that has not landed yet, so one word for all of it.
+        for (reason in listOf(
+            SibionicsIdleReason.RECONNECT_SCHEDULED,
+            SibionicsIdleReason.SEARCHING,
+            SibionicsIdleReason.NEEDS_SCAN,
+        )) {
+            assertEquals(reason.name, SibionicsLinkView.CONNECTING, view(SibionicsLinkPhase.IDLE, reason))
+        }
     }
 
     @Test
@@ -100,7 +88,7 @@ class SibionicsLinkPolicyTest {
             assertEquals(
                 phase.name,
                 SibionicsLinkView.PHASE_STEP,
-                view(phase, inHistoryTransfer = true, historyShowable = true, sensorMissing = true),
+                view(phase, inHistoryTransfer = true, historyShowable = true),
             )
         }
     }
