@@ -64,29 +64,15 @@ class SibionicsLinkPolicyTest {
     }
 
     @Test
-    fun aSensorThatWasNotFoundStaysSearchingThroughTheRetryCycle() {
+    fun aSensorThatWasNotFoundStaysSearchingBetweenAttempts() {
         assertEquals(
             SibionicsLinkView.SEARCHING,
             view(SibionicsLinkPhase.IDLE, SibionicsIdleReason.RECONNECT_SCHEDULED, sensorMissing = true),
         )
-        assertEquals(SibionicsLinkView.SEARCHING, view(SibionicsLinkPhase.CONNECTING, sensorMissing = true))
-        // Once connected, setup reads as connecting again.
-        assertEquals(SibionicsLinkView.CONNECTING, view(SibionicsLinkPhase.DISCOVERING, sensorMissing = true))
     }
 
     @Test
     fun backlogPageGapsKeepShowingHistoryProgress() {
-        for (phase in listOf(
-            SibionicsLinkPhase.CONNECTING,
-            SibionicsLinkPhase.AUTHENTICATING,
-            SibionicsLinkPhase.REQUESTING_DATA,
-        )) {
-            assertEquals(
-                phase.name,
-                SibionicsLinkView.HISTORY,
-                view(phase, inHistoryTransfer = true, historyShowable = true),
-            )
-        }
         assertEquals(
             SibionicsLinkView.HISTORY,
             view(
@@ -99,7 +85,7 @@ class SibionicsLinkPolicyTest {
     }
 
     @Test
-    fun setupStepsCollapseIntoConnecting() {
+    fun phasesInsideAConnectionKeepTheirOwnStepText() {
         for (phase in listOf(
             SibionicsLinkPhase.CONNECTING,
             SibionicsLinkPhase.DISCOVERING,
@@ -108,10 +94,15 @@ class SibionicsLinkPolicyTest {
             SibionicsLinkPhase.AUTHENTICATING,
             SibionicsLinkPhase.ACTIVATING,
             SibionicsLinkPhase.SYNCING_TIME,
+            SibionicsLinkPhase.REQUESTING_DATA,
         )) {
-            assertEquals(phase.name, SibionicsLinkView.CONNECTING, view(phase))
+            assertEquals(phase.name, SibionicsLinkView.PHASE_STEP, view(phase))
+            assertEquals(
+                phase.name,
+                SibionicsLinkView.PHASE_STEP,
+                view(phase, inHistoryTransfer = true, historyShowable = true, sensorMissing = true),
+            )
         }
-        assertEquals(SibionicsLinkView.WAITING_FOR_DATA, view(SibionicsLinkPhase.REQUESTING_DATA))
     }
 
     @Test

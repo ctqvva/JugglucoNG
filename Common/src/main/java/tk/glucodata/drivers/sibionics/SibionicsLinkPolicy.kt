@@ -39,6 +39,8 @@ internal enum class SibionicsLinkView {
     SEARCHING,
     RECONNECTING,
     CONNECTING,
+    /** Inside a connection: the phase's own step text, unchanged from before. */
+    PHASE_STEP,
     WAITING_FOR_DATA,
     HISTORY,
     CONNECTED,
@@ -142,8 +144,8 @@ internal object SibionicsLinkPolicy {
      * @param inHistoryTransfer a backlog download is under way; the sensor drops the link
      *   after every page, so the reconnect gaps between pages keep showing the progress.
      * @param sensorMissing the last look for the sensor's advertisement came back empty
-     *   and no connection has been made since: the whole connect / scan / wait cycle is
-     *   one search from the user's side.
+     *   and no connection has been made since: the scan / wait part of the cycle is one
+     *   search from the user's side.
      */
     fun view(
         phase: SibionicsLinkPhase,
@@ -174,20 +176,15 @@ internal object SibionicsLinkPolicy {
                 }
                 else -> SibionicsLinkView.DISCONNECTED
             }
-            SibionicsLinkPhase.CONNECTING -> when {
-                history -> SibionicsLinkView.HISTORY
-                sensorMissing -> SibionicsLinkView.SEARCHING
-                else -> SibionicsLinkView.CONNECTING
-            }
+            SibionicsLinkPhase.CONNECTING,
             SibionicsLinkPhase.DISCOVERING,
             SibionicsLinkPhase.ENABLING_NOTIFY,
             SibionicsLinkPhase.PROBING_CHINESE,
             SibionicsLinkPhase.AUTHENTICATING,
             SibionicsLinkPhase.ACTIVATING,
             SibionicsLinkPhase.SYNCING_TIME,
-            -> if (history) SibionicsLinkView.HISTORY else SibionicsLinkView.CONNECTING
-            SibionicsLinkPhase.REQUESTING_DATA ->
-                if (history) SibionicsLinkView.HISTORY else SibionicsLinkView.WAITING_FOR_DATA
+            SibionicsLinkPhase.REQUESTING_DATA,
+            -> SibionicsLinkView.PHASE_STEP
             SibionicsLinkPhase.STREAMING -> when {
                 hasLiveReading -> SibionicsLinkView.CONNECTED
                 historyShowable -> SibionicsLinkView.HISTORY

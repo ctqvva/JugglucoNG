@@ -3038,6 +3038,17 @@ class SibionicsBleManager(
         SibionicsLinkView.SEARCHING -> appString(R.string.status_searching_for_sensor, "Searching for sensor…")
         SibionicsLinkView.RECONNECTING -> appString(R.string.status_reconnecting, "Reconnecting…")
         SibionicsLinkView.CONNECTING -> connectingStatus()
+        SibionicsLinkView.PHASE_STEP -> when (phase) {
+            Phase.CONNECTING -> connectingStatus()
+            Phase.DISCOVERING -> "Discovering"
+            Phase.ENABLING_NOTIFY -> "Subscribing"
+            Phase.PROBING_CHINESE -> "Probing"
+            Phase.AUTHENTICATING -> "Authenticating"
+            Phase.ACTIVATING -> "Activating"
+            Phase.SYNCING_TIME -> "Syncing time"
+            Phase.REQUESTING_DATA -> "Requesting data"
+            else -> connectingStatus()
+        }
         SibionicsLinkView.WAITING_FOR_DATA -> waitingForDataStatus()
         SibionicsLinkView.HISTORY -> historyProgressStatus()
         SibionicsLinkView.CONNECTED -> connectedStatus()
