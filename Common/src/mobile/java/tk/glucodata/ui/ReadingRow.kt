@@ -686,7 +686,9 @@ private fun JournalReadingRowLayout(
         // The lead fills the first line's height with its content centred; lines below clear the content.
         val leadContentHeight = leadMeasurable.maxIntrinsicHeight(leadPlaceable.width).coerceAtMost(leadPlaceable.height)
         val leadContentBottom = (leadPlaceable.height + leadContentHeight) / 2
-        val lineSpacing = 4.dp.roundToPx()
+        // Expanded chips keep their 48dp touch target, which already adds about 8dp of air between
+        // lines; compact chips measure at their visual size, so they get that air as spacing.
+        val lineSpacing = (if (expandedChips) 4.dp else 8.dp).roundToPx()
 
         val lineTops = IntArray(lineCount)
         val chipsBottom: Int
