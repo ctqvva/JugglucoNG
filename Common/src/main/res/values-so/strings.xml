@@ -3571,4 +3571,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="food_move_up">Kor u dhaqaaji</string>
     <string name="food_move_down">Hoos u dhaqaaji</string>
     <string name="spanish">Isbaanish</string>
+    <string name="floating_layout_reading">Akhris</string>
+    <string name="floating_layout_secondary">Qiimaha labaad</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Fallaadha isbeddelka</string>
+    <string name="floating_layout_camera">Godka kamarada</string>
+    <string name="floating_layout_camera_desc">Waxyaabaha ka sarreeya waxay ka horreeyaan kamarada, inta kalena way ka dambeeyaan</string>
+    <string name="floating_layout_hidden">Qarsoon</string>
+    <string name="floating_layout_order_desc">Jiid gacan si aad shay u guurto</string>
 </resources>

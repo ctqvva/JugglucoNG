@@ -3389,4 +3389,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_move_down">Mover para baixo</string>
     <string name="scan_sensor_qr">Digitalizar o código QR do sensor</string>
     <string name="spanish">Espanhol</string>
+    <string name="floating_layout_reading">Leitura</string>
+    <string name="floating_layout_secondary">Valor secundário</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Seta de tendência</string>
+    <string name="floating_layout_camera">Recorte da câmara</string>
+    <string name="floating_layout_camera_desc">Os itens acima ficam antes da câmara, os restantes depois</string>
+    <string name="floating_layout_hidden">Oculto</string>
+    <string name="floating_layout_order_desc">Arraste uma pega para mover um item</string>
 </resources>

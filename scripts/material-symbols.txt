@@ -40,6 +40,7 @@ bookmark_add fill
 bug_report fill
 calculate fill
 center_focus_strong fill
+change_history fill
 check fill
 check_circle fill
 chevron_right fill
@@ -139,6 +140,7 @@ people_alt fill
 person fill
 person_add fill
 phone_android fill
+photo_camera fill
 picture_in_picture fill
 play_arrow fill
 playlist_add fill mirrored
@@ -212,6 +214,7 @@ warning fill
 warning_amber fill
 watch fill
 water_drop fill
+water_drop outline
 wb_twilight fill
 webhook fill
 width_full fill

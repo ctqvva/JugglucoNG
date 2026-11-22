@@ -3487,4 +3487,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="food_move_up">Дээш зөөх</string>
     <string name="food_move_down">Доош зөөх</string>
     <string name="spanish">Испани</string>
+    <string name="floating_layout_reading">Үзүүлэлт</string>
+    <string name="floating_layout_secondary">Хоёрдогч утга</string>
+    <string name="floating_layout_delta">Дельта</string>
+    <string name="floating_layout_arrow">Чиг хандлагын сум</string>
+    <string name="floating_layout_camera">Камерын нүх</string>
+    <string name="floating_layout_camera_desc">Дээрх зүйлс камерын өмнө, бусад нь ард байрлана</string>
+    <string name="floating_layout_hidden">Нуугдсан</string>
+    <string name="floating_layout_order_desc">Зүйлийг зөөхийн тулд бариулаас чирнэ үү</string>
 </resources>

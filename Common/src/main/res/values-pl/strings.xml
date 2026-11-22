@@ -3447,4 +3447,12 @@
     <string name="food_move_down">Przenieś w dół</string>
     <string name="scan_sensor_qr">Zeskanuj kod QR sensora</string>
     <string name="spanish">Hiszpański</string>
+    <string name="floating_layout_reading">Odczyt</string>
+    <string name="floating_layout_secondary">Wartość dodatkowa</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Strzałka trendu</string>
+    <string name="floating_layout_camera">Wycięcie aparatu</string>
+    <string name="floating_layout_camera_desc">Elementy powyżej są przed aparatem, pozostałe za nim</string>
+    <string name="floating_layout_hidden">Ukryte</string>
+    <string name="floating_layout_order_desc">Przeciągnij uchwyt, aby przenieść element</string>
 </resources>

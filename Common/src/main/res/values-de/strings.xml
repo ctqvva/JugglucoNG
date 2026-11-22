@@ -3499,4 +3499,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="food_move_up">Nach oben</string>
     <string name="food_move_down">Nach unten</string>
     <string name="spanish">Spanisch</string>
+    <string name="floating_layout_reading">Messwert</string>
+    <string name="floating_layout_secondary">Zweitwert</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Trendpfeil</string>
+    <string name="floating_layout_camera">Kameraaussparung</string>
+    <string name="floating_layout_camera_desc">Elemente darüber stehen vor der Kamera, die übrigen danach</string>
+    <string name="floating_layout_hidden">Ausgeblendet</string>
+    <string name="floating_layout_order_desc">Zum Verschieben einen Griff ziehen</string>
 </resources>

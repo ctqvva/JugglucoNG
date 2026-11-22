@@ -139,7 +139,9 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     // State for Dynamic Island
     data class CutoutData(
         val size: androidx.compose.ui.unit.Dp,
-        val edge: CutoutEdge
+        val edge: CutoutEdge,
+        /** The status bar's height, 0 when unknown: how tall the island can grow at the top. */
+        val barHeight: androidx.compose.ui.unit.Dp = 0.dp,
     )
     private val cutoutData = kotlinx.coroutines.flow.MutableStateFlow(CutoutData(0.dp, CutoutEdge.NONE))
     private var dynamicIslandEnabled = false
@@ -156,7 +158,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
 
         val root = CutoutAwareContainer(this) { v, insets ->
             if (android.os.Build.VERSION.SDK_INT >= 28) {
-                cutoutData.value = resolveCutoutData(v, insets.displayCutout)
+                cutoutData.value = resolveCutoutData(v, insets.displayCutout, statusBarTop(insets))
                 if (dynamicIslandEnabled) {
                     applyOverlayPlacement()
                 }
@@ -311,10 +313,20 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         }
     }
 
+    /** The status bar's height in px, whether or not it is showing right now. */
+    @Suppress("DEPRECATION")
+    private fun statusBarTop(insets: WindowInsets): Int =
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            insets.getInsetsIgnoringVisibility(WindowInsets.Type.statusBars()).top
+        } else {
+            insets.stableInsetTop
+        }
+
     @Suppress("DEPRECATION")
     private fun resolveCutoutData(
         anchorView: View?,
-        cutout: android.view.DisplayCutout?
+        cutout: android.view.DisplayCutout?,
+        statusBarPx: Int,
     ): CutoutData {
         val density = resources.displayMetrics.density
         val edge = resolveIslandEdge(anchorView)
@@ -329,7 +341,8 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             ?: 0
         return CutoutData(
             size = if (gapPx > 0) (gapPx / density).dp else 0.dp,
-            edge = edge
+            edge = edge,
+            barHeight = (statusBarPx.coerceAtLeast(0) / density).dp,
         )
     }
 
