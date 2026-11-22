@@ -31,7 +31,10 @@ class FloatingSettingsRepository(context: Context) {
         const val KEY_CORNER_RADIUS = "floating_corner_radius" // Float dp
         const val KEY_OPACITY = "floating_opacity" // Float 0..1
         const val KEY_DYNAMIC_ISLAND = "floating_dynamic_island"
-        const val KEY_ISLAND_VERTICAL_OFFSET = "floating_island_vertical_offset"
+        // Absolute distance from the edge when display cutout geometry is unavailable.
+        const val KEY_ISLAND_MANUAL_OFFSET = "floating_island_vertical_offset"
+        // Signed adjustment from automatic cutout centring.
+        const val KEY_ISLAND_NUDGE = "floating_island_nudge"
         const val KEY_ISLAND_GAP = "floating_island_gap"
         const val KEY_NOTIFICATION_DOT = "floating_notification_dot"
         const val KEY_SUBTLE_OUTLINE = "floating_subtle_outline"
@@ -39,7 +42,8 @@ class FloatingSettingsRepository(context: Context) {
 
         const val DEFAULT_FONT_SIZE = 14f
         const val DEFAULT_BACKGROUND_OPACITY = 1.0f
-        const val DEFAULT_ISLAND_VERTICAL_OFFSET = 8f
+        const val DEFAULT_ISLAND_NUDGE = 0f
+        const val DEFAULT_ISLAND_MANUAL_OFFSET = 8f
     }
 
     // Modern Flow wrappers for SharedPreferences using a helper or manual callbackChannel would be best,
@@ -63,7 +67,8 @@ class FloatingSettingsRepository(context: Context) {
     val cornerRadius: Flow<Float> = prefFlow(KEY_CORNER_RADIUS, 28f)
     val backgroundOpacity: Flow<Float> = prefFlow(KEY_OPACITY, DEFAULT_BACKGROUND_OPACITY)
     val isDynamicIslandEnabled: Flow<Boolean> = prefFlow(KEY_DYNAMIC_ISLAND, false)
-    val islandVerticalOffset: Flow<Float> = prefFlow(KEY_ISLAND_VERTICAL_OFFSET, DEFAULT_ISLAND_VERTICAL_OFFSET)
+    val islandNudge: Flow<Float> = prefFlow(KEY_ISLAND_NUDGE, DEFAULT_ISLAND_NUDGE)
+    val islandManualOffset: Flow<Float> = prefFlow(KEY_ISLAND_MANUAL_OFFSET, DEFAULT_ISLAND_MANUAL_OFFSET)
     val islandGap: Flow<Float> = prefFlow(KEY_ISLAND_GAP, 0f) // 0 implies auto/default
     val showNotificationDot: Flow<Boolean> = prefFlow(KEY_NOTIFICATION_DOT, true)
     val useSubtleOutline: Flow<Boolean> = prefFlow(KEY_SUBTLE_OUTLINE, false)
@@ -75,7 +80,8 @@ class FloatingSettingsRepository(context: Context) {
     fun setEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_ENABLED, enabled).apply()
     fun setTransparent(transparent: Boolean) = prefs.edit().putBoolean(KEY_TRANSPARENT, transparent).apply()
     fun setDynamicIslandEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_DYNAMIC_ISLAND, enabled).apply()
-    fun setIslandVerticalOffset(offset: Float) = prefs.edit().putFloat(KEY_ISLAND_VERTICAL_OFFSET, offset).apply()
+    fun setIslandNudge(nudge: Float) = prefs.edit().putFloat(KEY_ISLAND_NUDGE, nudge).apply()
+    fun setIslandManualOffset(offset: Float) = prefs.edit().putFloat(KEY_ISLAND_MANUAL_OFFSET, offset).apply()
     fun setIslandGap(gap: Float) = prefs.edit().putFloat(KEY_ISLAND_GAP, gap).apply()
     fun setShowNotificationDot(show: Boolean) = prefs.edit().putBoolean(KEY_NOTIFICATION_DOT, show).apply()
     fun setUseSubtleOutline(use: Boolean) = prefs.edit().putBoolean(KEY_SUBTLE_OUTLINE, use).apply()

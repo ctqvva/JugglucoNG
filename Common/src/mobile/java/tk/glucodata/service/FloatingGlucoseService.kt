@@ -6,13 +6,17 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.graphics.Point
+import android.graphics.Rect
 import android.os.IBinder
+import android.view.Display
+import android.view.DisplayCutout
 import android.view.Gravity
 import android.view.Surface
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.FrameLayout
+import androidx.annotation.RequiresApi
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -42,11 +46,34 @@ import tk.glucodata.ui.overlay.OverlayScreenArea
 import tk.glucodata.ui.overlay.clampOverlayPixels
 import tk.glucodata.ui.overlay.overlayPixels
 import tk.glucodata.ui.overlay.overlayPosition
+import tk.glucodata.ui.overlay.FloatingIsland
 import tk.glucodata.Natives
 
 class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
-    private companion object {
+    companion object {
         private const val FLOATING_HISTORY_WINDOW_MS = 6L * 60L * 60L * 1000L
+
+        internal fun displayCutoutBounds(display: Display?): Rect? =
+            if (android.os.Build.VERSION.SDK_INT >= 29 && display != null) {
+                display.cutout?.boundsForEdge(islandEdge(display.rotation))
+            } else {
+                null
+            }
+
+        @RequiresApi(29)
+        private fun DisplayCutout.boundsForEdge(edge: CutoutEdge): Rect? = when (edge) {
+            CutoutEdge.LEFT -> boundingRectLeft
+            CutoutEdge.RIGHT -> boundingRectRight
+            CutoutEdge.BOTTOM -> boundingRectBottom
+            else -> boundingRectTop
+        }.takeUnless { it.isEmpty }
+
+        private fun islandEdge(rotation: Int?): CutoutEdge = when (rotation) {
+            Surface.ROTATION_90 -> CutoutEdge.LEFT
+            Surface.ROTATION_180 -> CutoutEdge.BOTTOM
+            Surface.ROTATION_270 -> CutoutEdge.RIGHT
+            else -> CutoutEdge.TOP
+        }
     }
 
     enum class CutoutEdge {
@@ -137,11 +164,15 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     override fun onBind(intent: Intent?): IBinder? = null
 
     // State for Dynamic Island
-    data class CutoutData(
+    internal data class CutoutData(
+        /** The cutout's extent along the docked edge: the gap between the pill's two labels. */
         val size: androidx.compose.ui.unit.Dp,
         val edge: CutoutEdge,
+        /** Distance from the docked edge to the middle of the cutout, 0 when not known. */
+        val centre: androidx.compose.ui.unit.Dp = 0.dp,
         /** The status bar's height, 0 when unknown: how tall the island can grow at the top. */
         val barHeight: androidx.compose.ui.unit.Dp = 0.dp,
+        val anchor: FloatingIsland.CutoutAnchor? = null,
     )
     private val cutoutData = kotlinx.coroutines.flow.MutableStateFlow(CutoutData(0.dp, CutoutEdge.NONE))
     private var dynamicIslandEnabled = false
@@ -157,18 +188,20 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         if (composeView != null) return
 
         val root = CutoutAwareContainer(this) { v, insets ->
-            if (android.os.Build.VERSION.SDK_INT >= 28) {
-                cutoutData.value = resolveCutoutData(v, insets.displayCutout, statusBarTop(insets))
-                if (dynamicIslandEnabled) {
-                    applyOverlayPlacement()
-                }
+            cutoutData.value = if (android.os.Build.VERSION.SDK_INT >= 28) {
+                resolveCutoutData(v, insets.displayCutout, statusBarTop(insets))
+            } else {
+                CutoutData(0.dp, resolveIslandEdge(v))
+            }
+            if (dynamicIslandEnabled) {
+                applyOverlayPlacement()
             }
         }.apply {
-            // A new value width, font size or secondary line resizes the pill; re-place
-            // it so it grows away from the edge it is docked to instead of over it.
+            // Keep a resized pill on screen, including an island docked near a corner.
             addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
                 val resized = right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop
-                if (resized && !dynamicIslandEnabled && !dragging) {
+                val needsPlacement = if (dynamicIslandEnabled) cutoutData.value.anchor != null else !dragging
+                if (resized && needsPlacement) {
                     applyOverlayPlacement()
                 }
             }
@@ -325,70 +358,88 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     @Suppress("DEPRECATION")
     private fun resolveCutoutData(
         anchorView: View?,
-        cutout: android.view.DisplayCutout?,
+        windowCutout: DisplayCutout?,
         statusBarPx: Int,
     ): CutoutData {
         val density = resources.displayMetrics.density
-        val edge = resolveIslandEdge(anchorView)
-        val cutoutRect = when (edge) {
-            CutoutEdge.LEFT -> cutout?.boundingRects?.minByOrNull { it.left }
-            CutoutEdge.RIGHT -> cutout?.boundingRects?.maxByOrNull { it.right }
-            CutoutEdge.BOTTOM -> cutout?.boundingRects?.maxByOrNull { it.bottom }
-            else -> cutout?.boundingRects?.minByOrNull { it.top }
+        val display = anchorView?.display ?: windowManager?.defaultDisplay
+        val edge = islandEdge(display?.rotation)
+        // Window insets are relative to the overlay window. Use them for the label gap
+        // when needed, and reserve automatic placement for display coordinates.
+        val displayBounds = displayCutoutBounds(display)
+        val gapBounds = displayBounds ?: if (android.os.Build.VERSION.SDK_INT >= 29) {
+            windowCutout?.boundsForEdge(edge)
+        } else {
+            when (edge) {
+                CutoutEdge.LEFT -> windowCutout?.boundingRects?.minByOrNull { it.left }
+                CutoutEdge.RIGHT -> windowCutout?.boundingRects?.maxByOrNull { it.right }
+                CutoutEdge.BOTTOM -> windowCutout?.boundingRects?.maxByOrNull { it.bottom }
+                else -> windowCutout?.boundingRects?.minByOrNull { it.top }
+            }
         }
-        val gapPx = cutoutRect?.width()?.takeIf { it > 0 }
-            ?: cutoutRect?.height()?.takeIf { it > 0 }
-            ?: 0
+        val gapPx = FloatingIsland.alongEdge(edge, gapBounds?.width() ?: 0, gapBounds?.height() ?: 0)
+        val displaySize = if (display != null && displayBounds != null) {
+            Point().also(display::getRealSize).takeIf { it.x > 0 && it.y > 0 }
+        } else {
+            null
+        }
+        val centrePx: Float
+        val anchor: FloatingIsland.CutoutAnchor?
+        if (displayBounds != null && displaySize != null) {
+            val centreX = displayBounds.exactCenterX()
+            val centreY = displayBounds.exactCenterY()
+            anchor = if (FloatingIsland.isSide(edge)) {
+                FloatingIsland.CutoutAnchor(centreY, displaySize.y)
+            } else {
+                FloatingIsland.CutoutAnchor(centreX, displaySize.x)
+            }
+            centrePx = FloatingIsland.cutoutCentre(edge, centreX, centreY, displaySize.x, displaySize.y)
+        } else {
+            anchor = null
+            centrePx = 0f
+        }
         return CutoutData(
             size = if (gapPx > 0) (gapPx / density).dp else 0.dp,
             edge = edge,
+            centre = (centrePx / density).dp,
             barHeight = (statusBarPx.coerceAtLeast(0) / density).dp,
+            anchor = anchor,
         )
     }
 
     @Suppress("DEPRECATION")
-    private fun resolveIslandEdge(anchorView: View? = composeView): CutoutEdge {
-        val rotation = anchorView?.display?.rotation
-            ?: windowManager?.defaultDisplay?.rotation
-            ?: Surface.ROTATION_0
-        return when (rotation) {
-            // Android ROTATION_90/270 are mirrored relative to the user's
-            // landscape left/right expectation on the Pixel punch-hole case.
-            Surface.ROTATION_90 -> CutoutEdge.LEFT
-            Surface.ROTATION_180 -> CutoutEdge.BOTTOM
-            Surface.ROTATION_270 -> CutoutEdge.RIGHT
-            else -> CutoutEdge.TOP
-        }
-    }
+    private fun resolveIslandEdge(anchorView: View? = composeView): CutoutEdge =
+        islandEdge(anchorView?.display?.rotation ?: windowManager?.defaultDisplay?.rotation)
 
+    @Suppress("DEPRECATION")
     private fun applyOverlayPlacement() {
-        if (overlayRoot == null || windowManager == null) return
+        val root = overlayRoot ?: return
+        if (windowManager == null) return
+
+        val cutout = cutoutData.value
+        val anchor = cutout.anchor.takeIf { dynamicIslandEnabled }
+        // The cutout and the window's centred gravity must share the full display frame.
+        // A bottom navigation bar otherwise shifts the landscape label gap up by half its height.
+        val layoutBehindNavigation = View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        root.systemUiVisibility = if (anchor != null) {
+            root.systemUiVisibility or layoutBehindNavigation
+        } else {
+            root.systemUiVisibility and layoutBehindNavigation.inv()
+        }
 
         if (dynamicIslandEnabled) {
-            val islandEdge = cutoutData.value.edge.takeIf { it != CutoutEdge.NONE }
+            val islandEdge = cutout.edge.takeIf { it != CutoutEdge.NONE }
                 ?: resolveIslandEdge()
-            when (islandEdge) {
-                CutoutEdge.LEFT -> {
-                    layoutParams.gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                    layoutParams.x = 0
-                    layoutParams.y = 0
-                }
-                CutoutEdge.RIGHT -> {
-                    layoutParams.gravity = Gravity.END or Gravity.CENTER_VERTICAL
-                    layoutParams.x = 0
-                    layoutParams.y = 0
-                }
-                CutoutEdge.BOTTOM -> {
-                    layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                    layoutParams.x = 0
-                    layoutParams.y = 0
-                }
-                else -> {
-                    layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                    layoutParams.x = 0
-                    layoutParams.y = 0
-                }
+            // The docked edge is physical, independent of the app's layout direction.
+            layoutParams.gravity = when (islandEdge) {
+                CutoutEdge.LEFT -> Gravity.LEFT or Gravity.CENTER_VERTICAL
+                CutoutEdge.RIGHT -> Gravity.RIGHT or Gravity.CENTER_VERTICAL
+                CutoutEdge.BOTTOM -> Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                else -> Gravity.TOP or Gravity.CENTER_HORIZONTAL
             }
+            val side = FloatingIsland.isSide(islandEdge)
+            layoutParams.x = if (side) 0 else anchor?.windowOffset(root.width) ?: 0
+            layoutParams.y = if (side) anchor?.windowOffset(root.height) ?: 0 else 0
         } else {
             layoutParams.gravity = Gravity.TOP or Gravity.START
             screenArea = currentScreenArea()
@@ -396,7 +447,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         }
 
         try {
-            windowManager?.updateViewLayout(overlayRoot, layoutParams)
+            windowManager?.updateViewLayout(root, layoutParams)
         } catch (e: Exception) {
             e.printStackTrace()
         }

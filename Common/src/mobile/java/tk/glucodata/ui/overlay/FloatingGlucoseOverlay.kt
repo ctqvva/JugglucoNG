@@ -17,6 +17,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +57,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.roundToInt
 import tk.glucodata.data.settings.FloatingSettingsRepository
 import tk.glucodata.ui.theme.MainFontFile
 import tk.glucodata.ui.GlucosePoint
@@ -74,12 +76,12 @@ import tk.glucodata.ui.PeerCurrentReading
 import tk.glucodata.ui.SecondarySensorDisplay
 
 @Composable
-fun FloatingGlucoseOverlay(
+internal fun FloatingGlucoseOverlay(
     repository: FloatingSettingsRepository,
     historyFlow: Flow<List<GlucosePoint>>,
     onUpdatePosition: (Int, Int) -> Unit,
     onDragFinished: () -> Unit,
-    cutoutDataFlow: Flow<tk.glucodata.service.FloatingGlucoseService.CutoutData>
+    cutoutDataFlow: Flow<CutoutData>
 ) {
     val context = LocalContext.current
 
@@ -95,7 +97,8 @@ fun FloatingGlucoseOverlay(
     val cornerRadius by repository.cornerRadius.collectAsState(initial = 28f)
     val opacity by repository.backgroundOpacity.collectAsState(initial = FloatingSettingsRepository.DEFAULT_BACKGROUND_OPACITY)
     val isDynamicIsland by repository.isDynamicIslandEnabled.collectAsState(initial = false)
-    val verticalOffset by repository.islandVerticalOffset.collectAsState(initial = FloatingSettingsRepository.DEFAULT_ISLAND_VERTICAL_OFFSET)
+    val islandNudge by repository.islandNudge.collectAsState(initial = FloatingSettingsRepository.DEFAULT_ISLAND_NUDGE)
+    val islandManualOffset by repository.islandManualOffset.collectAsState(initial = FloatingSettingsRepository.DEFAULT_ISLAND_MANUAL_OFFSET)
     val manualGap by repository.islandGap.collectAsState(initial = 0f)
     val useSubtleOutline by repository.useSubtleOutline.collectAsState(initial = false)
     val layoutOrder by repository.layoutOrder.collectAsState(initial = FloatingLayoutOrder.DEFAULT)
@@ -185,7 +188,7 @@ fun FloatingGlucoseOverlay(
     
     // Gap Calculation
     // Use manual gap if > 0, otherwise detected width. Default 70dp if all else fails.
-    val isVerticalIsland = cutoutEdge == CutoutEdge.LEFT || cutoutEdge == CutoutEdge.RIGHT
+    val isVerticalIsland = FloatingIsland.isSide(cutoutEdge)
     val finalGap = if (manualGap > 0f) {
         manualGap.dp
     } else if (cutoutSize > 0.dp) {
@@ -290,7 +293,9 @@ fun FloatingGlucoseOverlay(
     if (isDynamicIsland) {
         CutoutOffsetLayout(
             edge = cutoutEdge,
-            offset = verticalOffset.dp,
+            centre = cutoutData.centre,
+            nudge = islandNudge.dp,
+            manualOffset = islandManualOffset.dp,
             modifier = Modifier
                 .wrapContentSize()
                 .then(dragModifier)
@@ -298,11 +303,12 @@ fun FloatingGlucoseOverlay(
             FloatingOverlayBody(
                 order = layoutOrder,
                 mode = if (isVerticalIsland) FloatingOverlayMode.ISLAND_COLUMN else FloatingOverlayMode.ISLAND_ROW,
-                gap = finalGap,
+                gap = if (cutoutData.anchor != null) maxOf(finalGap, cutoutSize) else finalGap,
                 style = style,
                 content = content,
                 modifier = pillModifier,
                 stackLimit = cutoutData.barHeight.takeIf { cutoutEdge == CutoutEdge.TOP && it > 0.dp } ?: Dp.Unspecified,
+                anchor = cutoutData.anchor,
             )
         }
     } else {
@@ -438,6 +444,7 @@ internal fun FloatingOverlayBody(
     content: FloatingOverlayContent,
     modifier: Modifier = Modifier,
     stackLimit: Dp = Dp.Unspecified,
+    anchor: FloatingIsland.CutoutAnchor? = null,
 ) {
     val fontSize = style.fontSize
     val inlineSpacing = (fontSize * 0.35f).coerceIn(4f, 10f).dp
@@ -497,48 +504,40 @@ internal fun FloatingOverlayBody(
                 side(order)
             }
         }
-        FloatingOverlayMode.ISLAND_ROW -> {
+        FloatingOverlayMode.ISLAND_ROW, FloatingOverlayMode.ISLAND_COLUMN -> {
             val sides = FloatingLayoutOrder.sides(order)
-            AsymmetricCenteringRow(
-                modifier = modifier,
-                gap = gap,
-                verticalAlignment = Alignment.CenterVertically,
-                backgroundContent = background
-            ) {
-                Box(Modifier.padding(start = pillHorizontalPadding, top = pillVerticalPadding, bottom = pillVerticalPadding)) {
-                    side(sides.before)
-                }
-                Box(Modifier.padding(end = pillHorizontalPadding, top = pillVerticalPadding, bottom = pillVerticalPadding)) {
-                    side(sides.after)
-                }
+            val labelBounds = if (anchor != null) Modifier.clipToBounds() else Modifier
+            val beforePadding = if (stacked) {
+                Modifier.padding(
+                    start = sideIslandHorizontalPadding,
+                    end = sideIslandHorizontalPadding,
+                    top = sideIslandVerticalPadding + sideIslandSplitPadding,
+                    bottom = sideIslandSplitPadding
+                )
+            } else {
+                Modifier.padding(start = pillHorizontalPadding, top = pillVerticalPadding, bottom = pillVerticalPadding)
             }
-        }
-        FloatingOverlayMode.ISLAND_COLUMN -> {
-            val sides = FloatingLayoutOrder.sides(order)
-            AsymmetricCenteringColumn(
+            val afterPadding = if (stacked) {
+                Modifier.padding(
+                    start = sideIslandHorizontalPadding,
+                    end = sideIslandHorizontalPadding,
+                    top = sideIslandSplitPadding,
+                    bottom = sideIslandVerticalPadding + sideIslandSplitPadding
+                )
+            } else {
+                Modifier.padding(end = pillHorizontalPadding, top = pillVerticalPadding, bottom = pillVerticalPadding)
+            }
+            IslandLabels(
                 modifier = modifier,
                 gap = gap,
-                horizontalAlignment = Alignment.CenterHorizontally,
+                vertical = stacked,
+                anchor = anchor,
                 backgroundContent = background
             ) {
-                Box(
-                    modifier = Modifier.padding(
-                        start = sideIslandHorizontalPadding,
-                        end = sideIslandHorizontalPadding,
-                        top = sideIslandVerticalPadding + sideIslandSplitPadding,
-                        bottom = sideIslandSplitPadding
-                    )
-                ) {
+                Box(labelBounds.then(beforePadding)) {
                     side(sides.before)
                 }
-                Box(
-                    modifier = Modifier.padding(
-                        start = sideIslandHorizontalPadding,
-                        end = sideIslandHorizontalPadding,
-                        top = sideIslandSplitPadding,
-                        bottom = sideIslandVerticalPadding + sideIslandSplitPadding
-                    )
-                ) {
+                Box(labelBounds.then(afterPadding)) {
                     side(sides.after)
                 }
             }
@@ -752,162 +751,85 @@ internal fun FloatingStyledText(
 
 
 @Composable
-fun AsymmetricCenteringRow(
-    modifier: Modifier = Modifier,
-    gap: androidx.compose.ui.unit.Dp,
-    verticalAlignment: Alignment.Vertical,
+private fun IslandLabels(
+    modifier: Modifier,
+    gap: Dp,
+    vertical: Boolean,
+    anchor: FloatingIsland.CutoutAnchor?,
     backgroundContent: @Composable () -> Unit,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
-    // Layout that takes:
-    // 1. Background (as a composable)
-    // 2. Left and Right content
-    // Calculations:
-    // - Measure L, R.
-    // - SymmetricWidth = 2 * max(L, R) + Gap.
-    // - ActualContentWidth = L + Gap + R.
-    // - OffsetX = if (L < R) (SymmetricWidth - ActualContentWidth) / 2 else 0? 
-    //   Wait. Layout places children.
-    //   If L=50, R=100, Gap=10.
-    //   Max=100. SymW = 210.
-    //   Center of SymW = 105.
-    //   Gap must start at Center - Gap/2 = 100.
-    //   So Left must end at 100. Left Start = 100 - 50 = 50.
-    //   Gap ends at 110. Right starts at 110. Right ends at 210.
-    //   
-    //   Offset Calculation:
-    //   LeftX = max(L, R) - L.
-    //   RightX = max(L, R) + Gap.
-    //   BgX = LeftX. BgWidth = L + Gap + R.
-    
-    Layout(
-        contents = listOf(backgroundContent, content),
-        modifier = modifier
-    ) { (bgMeasurables, contentMeasurables), constraints ->
-        
-        // Measure Content first
-        val contentPlaceables = contentMeasurables.take(2).map { it.measure(constraints.copy(minWidth = 0)) }
-        val left = contentPlaceables.getOrNull(0)
-        val right = contentPlaceables.getOrNull(1)
-        
-        val leftW = left?.width ?: 0
-        val rightW = right?.width ?: 0
-        val leftH = left?.height ?: 0
-        val rightH = right?.height ?: 0
-        
+    Layout(contents = listOf(backgroundContent, content), modifier = modifier) { (background, labels), constraints ->
         val gapPx = gap.roundToPx()
-        val maxSideWidth = maxOf(leftW, rightW)
-        
-        // Report Symmetric Size
-        val totalWidth = maxSideWidth * 2 + gapPx
-        val totalHeight = maxOf(leftH, rightH)
-        
-        // Measure Background to fit TIGHTLY around content (L + G + R)
-        val bgWidth = leftW + gapPx + rightW
-        val bgPlaceable = bgMeasurables.firstOrNull()?.measure(Constraints.fixed(bgWidth, totalHeight))
-        
-        fun getY(height: Int): Int {
-             return when (verticalAlignment) {
-                 Alignment.CenterVertically -> (totalHeight - height) / 2
-                 Alignment.Bottom -> totalHeight - height
-                 else -> 0
-             }
+        val space = anchor?.labelSpace(gapPx)
+        val maxAlong = space?.maxLabelExtent ?: Constraints.Infinity
+        val labelConstraints = if (vertical) {
+            constraints.copy(minHeight = 0, maxHeight = minOf(constraints.maxHeight, maxAlong))
+        } else {
+            constraints.copy(minWidth = 0, maxWidth = minOf(constraints.maxWidth, maxAlong))
         }
-        
-        layout(totalWidth, totalHeight) {
-            val startX = maxSideWidth - leftW
-            
-            // Place Background
-            bgPlaceable?.place(x = startX, y = 0)
-            
-            // Place Left
-            left?.place(x = startX, y = getY(leftH))
-            
-            // Place Right
-            right?.place(x = maxSideWidth + gapPx, y = getY(rightH))
+        val before = labels[0].measure(labelConstraints)
+        val after = labels[1].measure(labelConstraints)
+        val beforeAlong = if (vertical) before.height else before.width
+        val afterAlong = if (vertical) after.height else after.width
+        val beforeAcross = if (vertical) before.width else before.height
+        val afterAcross = if (vertical) after.width else after.height
+        val placement = space?.place(beforeAlong, afterAlong)
+            ?: FloatingIsland.centreLabels(gapPx, beforeAlong, afterAlong)
+
+        val acrossExtent = if (placement.stacked) beforeAcross + afterAcross else maxOf(beforeAcross, afterAcross)
+        val backgroundStart = minOf(placement.before, placement.after)
+        val backgroundExtent = maxOf(placement.before + beforeAlong, placement.after + afterAlong) - backgroundStart
+        val backgroundConstraints = if (vertical) {
+            Constraints.fixed(acrossExtent, backgroundExtent)
+        } else {
+            Constraints.fixed(backgroundExtent, acrossExtent)
+        }
+        val backdrop = background.single().measure(backgroundConstraints)
+        val beforeCross = if (placement.stacked) 0 else (acrossExtent - beforeAcross) / 2
+        val afterCross = if (placement.stacked) beforeAcross else (acrossExtent - afterAcross) / 2
+        val width = if (vertical) acrossExtent else placement.extent
+        val height = if (vertical) placement.extent else acrossExtent
+        layout(width, height) {
+            if (vertical) {
+                backdrop.place(0, backgroundStart)
+                before.place(beforeCross, placement.before)
+                after.place(afterCross, placement.after)
+            } else {
+                backdrop.place(backgroundStart, 0)
+                before.place(placement.before, beforeCross)
+                after.place(placement.after, afterCross)
+            }
         }
     }
 }
 
+/**
+ * Puts the pill [content] a gap in from the screen edge it is docked to ([edge]), so that
+ * it is centred on the cutout [centre] from that edge (0 when not known), then moved by
+ * [nudge] away from the edge. The gap depends on the pill's own thickness across the edge,
+ * so it is worked out from the measured pill; see [FloatingIsland].
+ */
 @Composable
 private fun CutoutOffsetLayout(
     edge: CutoutEdge,
-    offset: androidx.compose.ui.unit.Dp,
+    centre: Dp,
+    nudge: Dp,
+    manualOffset: Dp,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    when (edge) {
-        CutoutEdge.LEFT -> Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-            if (offset > 0.dp) {
-                Spacer(modifier = Modifier.width(offset))
-            }
-            content()
-        }
-        CutoutEdge.RIGHT -> Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-            content()
-            if (offset > 0.dp) {
-                Spacer(modifier = Modifier.width(offset))
-            }
-        }
-        CutoutEdge.BOTTOM -> Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-            content()
-            if (offset > 0.dp) {
-                Spacer(modifier = Modifier.height(offset))
-            }
-        }
-        else -> Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-            if (offset > 0.dp) {
-                Spacer(modifier = Modifier.height(offset))
-            }
-            content()
-        }
-    }
-}
-
-@Composable
-private fun AsymmetricCenteringColumn(
-    modifier: Modifier = Modifier,
-    gap: androidx.compose.ui.unit.Dp,
-    horizontalAlignment: Alignment.Horizontal,
-    backgroundContent: @Composable () -> Unit,
-    content: @Composable () -> Unit
-) {
-    Layout(
-        contents = listOf(backgroundContent, content),
-        modifier = modifier
-    ) { (bgMeasurables, contentMeasurables), constraints ->
-        val contentPlaceables = contentMeasurables.take(2).map { it.measure(constraints.copy(minHeight = 0)) }
-        val top = contentPlaceables.getOrNull(0)
-        val bottom = contentPlaceables.getOrNull(1)
-
-        val topW = top?.width ?: 0
-        val bottomW = bottom?.width ?: 0
-        val topH = top?.height ?: 0
-        val bottomH = bottom?.height ?: 0
-
-        val gapPx = gap.roundToPx()
-        val maxSideHeight = maxOf(topH, bottomH)
-
-        val totalWidth = maxOf(topW, bottomW)
-        val totalHeight = maxSideHeight * 2 + gapPx
-
-        val bgHeight = topH + gapPx + bottomH
-        val bgPlaceable = bgMeasurables.firstOrNull()?.measure(Constraints.fixed(totalWidth, bgHeight))
-
-        fun getX(width: Int): Int {
-            return when (horizontalAlignment) {
-                Alignment.CenterHorizontally -> (totalWidth - width) / 2
-                Alignment.End -> totalWidth - width
-                else -> 0
-            }
-        }
-
-        layout(totalWidth, totalHeight) {
-            val startY = maxSideHeight - topH
-
-            bgPlaceable?.place(x = 0, y = startY)
-            top?.place(x = getX(topW), y = startY)
-            bottom?.place(x = getX(bottomW), y = maxSideHeight + gapPx)
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val pill = measurables.single().measure(constraints.copy(minWidth = 0, minHeight = 0))
+        val gap = FloatingIsland.edgeGap(
+            centre = centre.toPx(),
+            nudge = nudge.toPx(),
+            thickness = FloatingIsland.thickness(edge, pill.width, pill.height).toFloat(),
+            manualOffset = manualOffset.toPx()
+        ).roundToInt()
+        val placement = FloatingIsland.place(edge, pill.width, pill.height, gap)
+        layout(placement.width, placement.height) {
+            pill.place(placement.pillX, placement.pillY)
         }
     }
 }
