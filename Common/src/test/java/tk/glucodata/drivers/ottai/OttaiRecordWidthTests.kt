@@ -144,6 +144,17 @@ class OttaiRecordWidthTests {
         assertEquals(0, OttaiRecordWidthGatt.reads)
     }
 
+    @Test
+    fun historyArrivingWithoutAMethodIsDeferredNotCharged() {
+        // The real [5335,5352) page, with no method loaded: every record arrives, none can be
+        // judged. The window completes, and its records stay on the ledger with no attempt spent.
+        set("learnedRecordSize", 9) // the page's real width; at 8 it is (correctly) misframed
+        OttaiBleManager.HistoryWindowProgress(5335, 5352).also { set("historyWindow", it) }
+        deliver(lowCurrentPage, live = false, source = "notify")
+        assertNull(get("historyWindow"))
+        assertEquals(listOf(OttaiBleManager.HistoryHole(5335, 5352, 0)), get("historyHoles"))
+    }
+
     private fun hex(s: String) = s.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     private fun deliver(payload: ByteArray, live: Boolean, source: String) {
         OttaiBleManager::class.java.getDeclaredMethod("handleGlucosePayload", ByteArray::class.java,
