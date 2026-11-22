@@ -408,13 +408,27 @@ int main(){
     assert(old55.size()==55);
     auto legacyFull=dexcom::parseScan(old55);
     assert(legacyFull&&legacyFull->name==canonical.name&&legacyFull->days==15);
+    // 15-day G7 applicators append GS1 AI 94 (internal software version, X..90) after AI 240.
+    auto withAi94=dexcom::parseScan(old55+"\x1d" "94SW12345");
+    assert(withAi94&&withAi94->name==canonical.name&&withAi94->days==15&&withAi94->payload==canonical.payload);
+    auto ai94Max=dexcom::parseScan(old55+"\x1d" "94"+string(90,'A'));
+    assert(ai94Max&&ai94Max->name==canonical.name&&ai94Max->days==15&&ai94Max->payload==canonical.payload);
+    auto ai94Punct=dexcom::parseScan(old55+"\x1d" "94SW14758(REV2)");
+    assert(ai94Punct&&ai94Punct->name==canonical.name&&ai94Punct->days==15&&ai94Punct->payload==canonical.payload);
+    auto ai94MidPunct=dexcom::parseScan("010038627000457421ABC123456789\x1d" "94SW14758(REV2)\x1d" "2400012");
+    assert(ai94MidPunct&&ai94MidPunct->name==canonical.name&&ai94MidPunct->days==15&&ai94MidPunct->payload==canonical.payload);
+    auto labelledAi94=dexcom::parseScan("(01)00386270004574(21)ABC123456789(11)260101(17)280101(240)0012(94)"+string(90,'B'));
+    assert(labelledAi94&&labelledAi94->name==canonical.name&&labelledAi94->days==15);
     assert(dexcom::parseScan(barcode("4574","112401725021")));
     auto shortSerial=dexcom::parseScan(barcode("4574","ABC"));assert(shortSerial);
     assert(string(shortSerial->name.data(),16)=="ABC2700045740012");
     for(auto invalid:{barcode()+"\x1d" "2409999",barcode("4574","ABCDEFGHIJKLM"),
             "(01)00386270004574(21)ABC(240)12A4"s,"(01)99999999994574(21)ABC(240)0012"s,
             "(01)00386270004574(21)(240)0012"s,barcode().substr(0,barcode().size()-1),
-            string(513,'0'),"(01)00386270004574(21)ABC(99)UNKNOWN(240)0012"s}){
+            string(513,'0'),"(01)00386270004574(21)ABC(99)UNKNOWN(240)0012"s,
+            old55+"\x1d" "94",old55+"\x1d" "94SW1\x1d" "94SW2",
+            old55+"\x1d" "94"+string(91,'A'),
+            "(01)00386270004574(21)ABC123456789(240)0012(94)"+string(91,'B')}){
         assert(!dexcom::parseScan(invalid));
     }
     for(int days:{10,15}){

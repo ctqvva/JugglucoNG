@@ -74,14 +74,17 @@ inline std::optional<ScanIdentity> parseScan(std::string_view raw) {
         } else normalized.push_back(raw[i]);
     }
     const std::string_view text = normalized;
-    std::array<std::string_view, 7> values{};
-    constexpr std::array<std::string_view, 7> ais{"01", "11", "17", "10", "21", "240", "250"};
-    constexpr std::array<size_t, 7> fixed{14, 6, 6, 0, 0, 0, 0};
+    std::array<std::string_view, 8> values{};
+    // AI 94 (company internal info, GS1 X..90, e.g. SW14758) appears on Dexcom G7 15-day applicators.
+    constexpr std::array<std::string_view, 8> ais{"01", "11", "17", "10", "21", "240", "250", "94"};
+    constexpr std::array<size_t, 8> fixed{14, 6, 6, 0, 0, 0, 0, 0};
+    constexpr std::array<size_t, 8> maxLength{14, 6, 6, 30, 30, 30, 30, 90};
     size_t pos = 0;
     while (pos < text.size()) {
         if (text[pos] == '\x1d') { ++pos; continue; }
         size_t field = ais.size();
-        if (text[pos] == '(') {
+        const bool parenthesized = text[pos] == '(';
+        if (parenthesized) {
             const auto end = text.find(')', pos);
             if (end == std::string_view::npos) return std::nullopt;
             const auto ai = text.substr(pos + 1, end - pos - 1);
@@ -94,9 +97,12 @@ inline std::optional<ScanIdentity> parseScan(std::string_view raw) {
             if (field < ais.size()) pos += ais[field].size();
         }
         if (field == ais.size() || !values[field].empty()) return std::nullopt;
-        const auto end = fixed[field] ? pos + fixed[field] : text.find_first_of("\x1d(", pos);
+        // In raw scans, AI 94 allows CSET 82 punctuation including '(' and terminates only at GS or end of input.
+        const auto end = fixed[field]
+            ? pos + fixed[field]
+            : (ais[field] == "94" && !parenthesized ? text.find('\x1d', pos) : text.find_first_of("\x1d(", pos));
         const auto limit = end == std::string_view::npos ? text.size() : end;
-        if (limit > text.size() || limit <= pos || limit - pos > 30) return std::nullopt;
+        if (limit > text.size() || limit <= pos || limit - pos > maxLength[field]) return std::nullopt;
         values[field] = text.substr(pos, limit - pos);
         pos = limit;
         if (fixed[field] && !digits(values[field])) return std::nullopt;
