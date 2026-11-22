@@ -621,11 +621,11 @@ fun ReadingRow(
 
 /**
  * A reading row that carries journal chips: time (and the add button) at the start, the value
- * at the end, chips in between. Only the first chip line shares its width with the value; chips
- * that do not fit there at their full width, as beside a calibrated value and its source value,
- * flow onto lines below that run on under the value to its end edge. Those lines start where
- * the first one does, so every row's chips keep one left edge. When not even the first chip
- * fits beside the value, the first line holds the time and value alone.
+ * at the end, chips in between. Only the first chip line sits between the time and the value;
+ * chips that do not fit there at their full width, as beside a calibrated value and its source
+ * value, flow onto lines below that span the whole row, from the time's start edge to the value's
+ * end edge. When not even the first chip fits beside the value, the first line holds the time
+ * and value alone.
  */
 @Composable
 private fun JournalReadingRowLayout(
@@ -658,7 +658,7 @@ private fun JournalReadingRowLayout(
             Constraints(minWidth = valueMinWidth.roundToPx().coerceAtMost(valueMaxWidth), maxWidth = valueMaxWidth)
         )
         val besideValueWidth = (valueMaxWidth - valuePlaceable.width - INLINE_CHIPS_END_PADDING.roundToPx()).coerceAtLeast(0)
-        val belowValueWidth = (valueMaxWidth - BELOW_VALUE_CHIPS_END_PADDING.roundToPx()).coerceAtLeast(0)
+        val belowValueWidth = (width - startPadding - BELOW_VALUE_CHIPS_END_PADDING.roundToPx()).coerceAtLeast(0)
         val spacing = (if (expandedChips) 8.dp else 6.dp).roundToPx()
         val lines = packJournalChipLines(
             widths = IntArray(chipMeasurables.size) { chipMeasurables[it].maxIntrinsicWidth(Constraints.Infinity) },
@@ -683,6 +683,9 @@ private fun JournalReadingRowLayout(
         )
         val valueTop = ((lineMinHeight - valuePlaceable.height) / 2).coerceAtLeast(0)
         val valueBottom = valueTop + valuePlaceable.height
+        // The lead fills the first line's height with its content centred; lines below clear the content.
+        val leadContentHeight = leadMeasurable.maxIntrinsicHeight(leadPlaceable.width).coerceAtMost(leadPlaceable.height)
+        val leadContentBottom = (leadPlaceable.height + leadContentHeight) / 2
         val lineSpacing = 4.dp.roundToPx()
 
         val lineTops = IntArray(lineCount)
@@ -702,10 +705,10 @@ private fun JournalReadingRowLayout(
             )
             lineTops[0] = firstLineInset
             for (line in 1 until lineCount) {
-                // From here on the lines run under the value, so they clear it as well.
+                // From here on the lines run under the time and the value, so they clear both.
                 lineTops[line] = maxOf(
                     lineTops[line - 1] + lineHeights[line - 1],
-                    if (line == 1) valueBottom else 0
+                    if (line == 1) maxOf(valueBottom, leadContentBottom) else 0
                 ) + lineSpacing
             }
             val bottomInset = if (expandedChips) 8.dp.roundToPx() else firstLineInset
@@ -719,7 +722,8 @@ private fun JournalReadingRowLayout(
             chipPlaceables.forEachIndexed { index, placeable ->
                 val line = lines.line[index]
                 val inLine = if (expandedChips) 0 else (lineHeights[line] - placeable.height) / 2
-                placeable.placeRelative(chipsStart + lines.x[index], lineTops[line] + inLine)
+                val lineStart = if (line == 0) chipsStart else startPadding
+                placeable.placeRelative(lineStart + lines.x[index], lineTops[line] + inLine)
             }
         }
     }
@@ -727,7 +731,7 @@ private fun JournalReadingRowLayout(
 
 private val ROW_START_PADDING = 16.dp
 private val INLINE_CHIPS_END_PADDING = 8.dp
-/** The value's own end padding, so chip lines below the value end where the value does. */
+/** The value's own end padding, so full-width chip lines end where the value does. */
 private val BELOW_VALUE_CHIPS_END_PADDING = 16.dp
 private val OWN_LINE_FIRST_LINE_HEIGHT = 48.dp
 private val OWN_LINE_CHIPS_BOTTOM_PADDING = 12.dp
