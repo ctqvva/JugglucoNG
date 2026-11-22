@@ -2173,7 +2173,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="status_sensor_not_responding">Sensor reageert niet</string>
     <string name="sensor_out_of_reach_title">Geen signaal van sensor</string>
     <string name="sensor_out_of_reach_title_short">Geen signaal</string>
-    <string name="sensor_out_of_reach_body">Controleer of hij dichtbij is en niet leeg</string>
+    <string name="sensor_out_of_reach_body">Probeert nog steeds te verbinden</string>
     <string name="sensor_out_of_reach_battery">Sensorbatterij bijna leeg (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Wachten op meting</string>
     <string name="status_raw_values_received">Verbonden, ruwe waarden ontvangen</string>

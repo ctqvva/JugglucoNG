@@ -1073,7 +1073,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="status_sensor_not_responding">El sensor no responde</string>
      <string name="sensor_out_of_reach_title">Sin señal del sensor</string>
      <string name="sensor_out_of_reach_title_short">Sin señal</string>
-     <string name="sensor_out_of_reach_body">Comprueba que esté cerca y tenga batería</string>
+     <string name="sensor_out_of_reach_body">Seguimos intentando conectar</string>
      <string name="sensor_out_of_reach_battery">Batería del sensor baja (%1$d%%)</string>
      <string name="sensor_waiting_for_reading">Esperando una lectura</string>
      <string name="status_raw_values_received">Conectado, valores brutos recibidos</string>

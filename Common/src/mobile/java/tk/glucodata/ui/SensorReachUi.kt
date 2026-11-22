@@ -125,7 +125,8 @@ internal enum class SensorReachPromptHost { SENSOR_CARD, DASHBOARD }
 /**
  * The Bluetooth chip at the end of the status line, grown leftward over the status text once
  * no reading or link has come from the sensor for a while. It does not guess why (too far,
- * flat, failed); it says what to check. The dashboard shows the same chip alone.
+ * dead, failed): it says there is no signal and that the app keeps trying. The dashboard
+ * shows the same chip alone.
  */
 @Composable
 internal fun SensorOutOfReachChip(
@@ -138,8 +139,7 @@ internal fun SensorOutOfReachChip(
     val dashboard = host == SensorReachPromptHost.DASHBOARD
     Surface(
         modifier = modifier,
-        // The link mark's own shape on the card; the dashboard's rounder pills there.
-        shape = RoundedCornerShape(if (dashboard) 20.dp else 16.dp),
+        shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = content,
         tonalElevation = 1.dp,
@@ -147,8 +147,8 @@ internal fun SensorOutOfReachChip(
         Row(
             modifier = Modifier
                 .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
-                .heightIn(min = if (dashboard) 56.dp else 48.dp)
-                .padding(horizontal = if (dashboard) 16.dp else 12.dp, vertical = 8.dp),
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 16.dp, vertical = if (dashboard) 12.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -158,16 +158,14 @@ internal fun SensorOutOfReachChip(
                         if (dashboard) R.string.sensor_out_of_reach_title else R.string.sensor_out_of_reach_title_short,
                     ),
                     style = MaterialTheme.typography.titleMediumEmphasized,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = state.lowBatteryPercent?.let {
                         stringResource(R.string.sensor_out_of_reach_battery, it)
                     } ?: stringResource(R.string.sensor_out_of_reach_body),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        lineBreak = androidx.compose.ui.text.style.LineBreak.Heading,
-                    ),
+                    style = MaterialTheme.typography.bodySmall,
                     color = content.copy(alpha = 0.86f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -175,7 +173,41 @@ internal fun SensorOutOfReachChip(
             }
             Spacer(modifier = Modifier.width(12.dp))
             // The link mark stays where it always sits, at the line's end, still looking.
-            SearchingSignalGlyph(color = content, iconSize = 12.dp)
+            SearchingSignalGlyph(color = content, iconSize = 16.dp)
+        }
+    }
+}
+
+/**
+ * In place of the reading chip beside [SensorOutOfReachChip], grown to its height: only how
+ * long it has been. The old value would read as current, so it is not shown.
+ */
+@Composable
+internal fun SensorSilenceAgeChip(
+    lastReadingMs: Long,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        tonalElevation = 1.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SensorReadingAgeLabel(
+                readingMillis = lastReadingMs,
+                iconTint = accentColor.copy(alpha = 0.82f),
+                textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                textStyle = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
+                iconSize = 16.dp,
+            )
         }
     }
 }

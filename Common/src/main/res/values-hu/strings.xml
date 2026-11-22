@@ -964,7 +964,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="status_sensor_not_responding">A szenzor nem válaszol</string>
     <string name="sensor_out_of_reach_title">Nincs jel az érzékelőtől</string>
     <string name="sensor_out_of_reach_title_short">Nincs jel</string>
-    <string name="sensor_out_of_reach_body">Ellenőrizze, hogy közel van-e és nem merült-e le</string>
+    <string name="sensor_out_of_reach_body">Továbbra is próbál csatlakozni</string>
     <string name="sensor_out_of_reach_battery">Az érzékelő akkumulátora gyenge (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Várakozás mérésre</string>
     <string name="status_raw_values_received">Csatlakoztatva, nyers értékek fogadva</string>

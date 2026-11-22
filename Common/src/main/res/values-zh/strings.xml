@@ -2146,7 +2146,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_responding">传感器无响应</string>
     <string name="sensor_out_of_reach_title">未收到传感器信号</string>
     <string name="sensor_out_of_reach_title_short">无信号</string>
-    <string name="sensor_out_of_reach_body">请确认传感器在附近且电量未耗尽</string>
+    <string name="sensor_out_of_reach_body">正在继续尝试连接</string>
     <string name="sensor_out_of_reach_battery">传感器电量低（%1$d%%）</string>
     <string name="sensor_waiting_for_reading">正在等待读数</string>
     <string name="status_raw_values_received">已连接，已收到原始值</string>

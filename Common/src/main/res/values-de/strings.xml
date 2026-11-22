@@ -2326,7 +2326,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="status_sensor_not_responding">Sensor antwortet nicht</string>
     <string name="sensor_out_of_reach_title">Kein Signal vom Sensor</string>
     <string name="sensor_out_of_reach_title_short">Kein Signal</string>
-    <string name="sensor_out_of_reach_body">Prüfe, ob er in der Nähe und nicht leer ist</string>
+    <string name="sensor_out_of_reach_body">Verbindung wird weiter versucht</string>
     <string name="sensor_out_of_reach_battery">Sensorakku schwach (%1$d %%)</string>
     <string name="sensor_waiting_for_reading">Warte auf Messwert</string>
     <string name="status_raw_values_received">Verbunden, Rohwerte empfangen</string>
