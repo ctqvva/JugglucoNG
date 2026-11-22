@@ -88,9 +88,16 @@ public class Libre2GattCallback extends SuperGattCallback {
 	// moment. A connectGatt in that window lands on the old link within milliseconds, and the
 	// sensor, which never saw a disconnect, ignores the new login: in a tester trace 69 of 69
 	// such reconnects got no answer to the challenge request, until the link finally timed out.
-	// Waiting lets the link drop so the sensor starts a fresh session.
+	// Waiting lets the link drop so the sensor starts a fresh session. The earliest reconnect
+	// time outlives the closed GATT, so every path that closes a link that was up (our own
+	// disconnect, a pause, close()) holds the next connectGatt back, whatever delay it asks for.
 	private static final long RELINK_DELAY_MILLIS = 5_000L;
 	private boolean linkWasUp;
+	private long relinkNotBefore = -1L;
+
+	private void holdRelink() {
+		if (linkWasUp) relinkNotBefore = SystemClock.elapsedRealtime() + RELINK_DELAY_MILLIS;
+	}
 
 	private void streamPacketReceived() {
 		lastPacketAt = SystemClock.elapsedRealtime();
@@ -156,8 +163,8 @@ public class Libre2GattCallback extends SuperGattCallback {
 
 	private synchronized void retryAfterDisconnect(BluetoothGatt gatt) {
 		if (gatt != mBluetoothGatt) return;
-		final boolean droppedOwnLink = disconnectingGatt == gatt && linkWasUp;
-		final long delay = droppedOwnLink ? Math.max(reconnectDelayMillis, RELINK_DELAY_MILLIS) : reconnectDelayMillis;
+		if (disconnectingGatt == gatt) holdRelink();
+		final long delay = reconnectDelayMillis;
 		cancelDisconnectDeadline();
 		resetConnectionState();
 		logLinkEnd("closed");
@@ -206,7 +213,8 @@ public class Libre2GattCallback extends SuperGattCallback {
 		}
 		cancelDisconnectDeadline();
 		resetConnectionState();
-		return super.connectDevice(delayMillis);
+		final long relinkWait = relinkNotBefore - SystemClock.elapsedRealtime();
+		return super.connectDevice(Math.max(delayMillis, relinkWait));
 	}
 
 	@Override
@@ -994,6 +1002,7 @@ private void endBLEHandler() {
          disablenotification(gatt,BLELogincharacteristic);
          disablenotification(gatt, CompositeRawDatacharacteristic) ;
          }
+		holdRelink();
 		super.close();
 		resetConnectionState();
 		}

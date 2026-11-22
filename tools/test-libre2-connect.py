@@ -56,7 +56,7 @@ libre_methods = '\n'.join(method(libre, signature) for signature in [
     'public synchronized void onReadRemoteRssi(', 'public synchronized void close()',
     'private Runnable forCurrentGatt(', 'private void endBLEHandler(',
     'private void streamPacketReceived(', 'private synchronized void streamSilent(',
-    'private void logLinkEnd(',
+    'private void logLinkEnd(', 'private void holdRelink(',
 ])
 
 # Fields and all lifecycle/entry-point methods above come from production sources.
@@ -180,6 +180,7 @@ java += field(libre, 'private static final long STREAM_SILENCE_MILLIS', ';')
 java += field(libre, 'private final GattConnectDeadline<BluetoothGatt> streamDeadline', '}, this::streamSilent);')
 java += field(libre, 'private long linkConnectedAt', ';') + field(libre, 'private int linkPackets', ';')
 java += field(libre, 'private static final long RELINK_DELAY_MILLIS', ';') + field(libre, 'private boolean linkWasUp', ';')
+java += field(libre, 'private long relinkNotBefore', ';')
 java += r'''
     BluetoothGatt disconnectingGatt;
     long reconnectDelayMillis;
@@ -263,7 +264,8 @@ java += r'''
         cb.charcha[0]=nudgeNow-6_000L;
         cb.setPause(true);cb.close();cb.setPause(false);
         check(!cb.hasLocallyConnectedGatt(),"closed handoff retained a local connection");
-        cb.reconnect(nudgeNow);Applic.scheduler.advance(0);
+        // close() hung up a link that was up, so the nudge waits out the relink delay.
+        cb.reconnect(nudgeNow);Applic.scheduler.advance(RELINK_DELAY_MILLIS);
         check(cb.mActiveBluetoothDevice.calls==2,
                 "recent glucose suppressed idle ownership nudge after unpause");
         // A GATT reference whose attempt never connected is not a healthy link either.
@@ -363,6 +365,16 @@ java += r'''
         cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
         cb.onConnectionStateChange(current,8,0);Applic.scheduler.advance(0);
         check(cb.mActiveBluetoothDevice.calls==2,"remote drop waited for the relink delay");
+        // Manual Reconnect pauses first, so DISCONNECTED takes the stop -> close() path, then
+        // resumes after 500 ms and asks for a connect 200 ms later. The wait still holds.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
+        cb.onCharacteristicChanged(current,new BluetoothGattCharacteristic());
+        cb.setPause(true);cb.disconnect();cb.onConnectionStateChange(current,0,0);
+        check(current.closed==1,"paused hang-up not closed");
+        Applic.scheduler.advance(500);cb.setPause(false);cb.connectDevice(200);
+        Applic.scheduler.advance(RELINK_DELAY_MILLIS-501);
+        check(cb.mActiveBluetoothDevice.calls==1,"manual reconnect skipped the relink delay");
+        Applic.scheduler.advance(1);check(cb.mActiveBluetoothDevice.calls==2,"manual reconnect never connected");
 
         // A handshake that stalls after CONNECTED is bounded by the same deadline.
         cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
