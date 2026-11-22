@@ -1525,25 +1525,33 @@ private fun RingDial(
             MaterialTheme.typography.labelMedium,
             MaterialTheme.typography.labelSmall
         )
-        // The delta sits under the caption inside the hole, so the ring keeps its place in
-        // the row; its line is counted before the headline and caption are picked.
-        val deltaHeight = if (inRangeDelta == null) 0f else with(density) {
-            maxOf(16.dp.toPx(), MaterialTheme.typography.labelMedium.lineHeight.toPx())
-        }
-        // The largest headline and caption whose block fits inside the hole; the caption
-        // gives way first, since the number is what the ring is for.
-        val (valueStyle, captionStyle) = remember(value, caption, inner, density, styles, captions, deltaHeight) {
-            val room = with(density) { inner.toPx() }
+        // The change has a slot of its own above the number, held whether it shows or not
+        // and mirrored by an empty one under the caption: the number and "TIR" never move
+        // or resize when it appears.
+        val deltaStyle = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
+        val deltaSlot = with(density) { maxOf(16.dp, deltaStyle.lineHeight.toDp()) }
+        // The largest headline and caption that fit inside the hole with the change's slot
+        // above them; the caption gives way first, since the number is what the ring is for.
+        val (valueStyle, captionStyle) = remember(value, caption, inner, density, styles, captions, deltaStyle, deltaSlot) {
+            val radius = with(density) { inner.toPx() } / 2f
+            val slot = with(density) { deltaSlot.toPx() }
+            val slotWidth = measurer.measure("88", deltaStyle, maxLines = 1).size.width +
+                with(density) { 16.dp.toPx() }
             val pairs = styles.flatMap { style -> captions.map { style to it } }
             pairs.firstOrNull { (style, captionStyle) ->
                 val number = measurer.measure(value, style.copy(fontFeatureSettings = "tnum"), maxLines = 1).size
                 val label = measurer.measure(caption, captionStyle, maxLines = 1).size
-                val w = maxOf(number.width, label.width).toFloat()
-                val h = number.height + label.height + deltaHeight
-                kotlin.math.sqrt(w * w + h * h) <= room
+                val halfWidth = maxOf(number.width, label.width) / 2f
+                val halfHeight = (number.height + label.height) / 2f
+                // Both the block's corners and the slot's outer corners stay inside the hole.
+                kotlin.math.hypot(halfWidth, halfHeight) <= radius &&
+                    kotlin.math.hypot(slotWidth / 2f, halfHeight + slot) <= radius
             } ?: (styles.last() to captions.last())
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(modifier = Modifier.height(deltaSlot), contentAlignment = Alignment.Center) {
+                inRangeDelta?.let { InRangeDelta(it) }
+            }
             Text(
                 text = buildAnnotatedString {
                     append(value)
@@ -1564,7 +1572,7 @@ private fun RingDial(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.widthIn(max = inner)
             )
-            inRangeDelta?.let { InRangeDelta(it) }
+            Spacer(modifier = Modifier.height(deltaSlot))
         }
     }
 }
