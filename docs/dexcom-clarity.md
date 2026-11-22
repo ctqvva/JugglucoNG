@@ -89,3 +89,36 @@ final response; redirects are still the caller's decision).
 `tools/test-context-https.py` covers both. `tools/test-clarity-native.py` runs the
 outbox and storage on the host: sensor replacement, late backfill, which readings
 are resolved, interrupted checkpoint creation and truncated saved checkpoints.
+
+## Offline provider tests
+
+Run `python3 tools/test-clarity-provider.py` with a C++20 compiler, zlib headers and
+OpenSSL available through `pkg-config`. It builds the real `Engine` and `Provider`
+against synthetic fixture libraries. The tests check standard AES and HMAC vectors,
+application key selection, session-key import, preservation of the previous session
+when rekeying fails, and detection of a deliberately changed decoder.
+
+The provider ABI takes a 32-byte ciphertext, a writable copy of the 16-byte IV,
+the provider's context and format `1`. The engine treats a nonzero status as a
+failed import. After success it maps each output byte through the provider's
+decode row at `position % 16`. The fixture exercises that contract with a
+synthetic transform. A compatible implementation still needs the real decoder
+algorithm and appropriately licensed material. Uploading with a JugglucoNG
+identity also needs a Dexcom registration authorized for Clarity uploads.
+
+Compare two trusted ABI-compatible host libraries with
+`python3 tools/test-clarity-provider.py --compare /path/to/reference /path/to/candidate`.
+For Android libraries, use the NDK target compiler for the library's ABI. For
+example, with the NDK's `bin` directory on `PATH`:
+
+```sh
+python3 tools/test-clarity-provider.py \
+  --android-compiler aarch64-linux-android26-clang++ --output ./clarity-provider-test
+```
+
+Use `armv7a-linux-androideabi26-clang++` for `armeabi-v7a`. Run the executable
+on the matching Android ABI with the absolute paths to both libraries as its two
+arguments. Comparison uses 387 synthetic ciphertext and IV pairs and checks all
+three import operations. It reports counts or the first mismatch, and requires at
+least one successful import. The runner builds without OAuth or upload transport
+and emits no key values. A successful comparison covers those inputs only.
