@@ -92,7 +92,7 @@ internal fun rememberSensorReach(serial: String, lastReadingMs: Long): SensorRea
         val now = System.currentTimeMillis()
         val snapshot = if (serial.isBlank()) null else ManagedSensorRuntime.resolveUiSnapshot(serial, serial)
         if (snapshot == null ||
-            !SensorReachPolicy.holdsOwnLink(snapshot.uiFamily) ||
+            !SensorReachPolicy.holdsOwnLink(snapshot.uiFamily, snapshot.readsOverBluetooth) ||
             !snapshot.isUiEnabled ||
             snapshot.isSensorExpired ||
             SensorOwnershipRuntime.handoffUiState(serial) != SensorHandoffUiState.NONE ||

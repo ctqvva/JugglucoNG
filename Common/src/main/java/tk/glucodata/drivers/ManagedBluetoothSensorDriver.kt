@@ -105,6 +105,8 @@ data class ManagedSensorUiSnapshot(
     val resetCompensationStatus: String = "",
     /** A backlog is being fetched: readings are arriving, only older than "now". */
     val catchingUp: Boolean = false,
+    /** False for a cloud follower sharing a Bluetooth family (MQ via Glutec Cloud). */
+    val readsOverBluetooth: Boolean = true,
 )
 
 /**

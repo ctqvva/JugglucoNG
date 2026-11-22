@@ -70,9 +70,12 @@ class SensorReachPolicyTest {
 
     @Test
     fun followersHaveNoSensorToReach() {
-        assertFalse(SensorReachPolicy.holdsOwnLink(ManagedSensorUiFamily.NIGHTSCOUT))
-        assertFalse(SensorReachPolicy.holdsOwnLink(ManagedSensorUiFamily.GENERIC))
-        assertTrue(SensorReachPolicy.holdsOwnLink(ManagedSensorUiFamily.SIBIONICS))
-        assertTrue(SensorReachPolicy.holdsOwnLink(ManagedSensorUiFamily.AIDEX))
+        assertFalse(SensorReachPolicy.holdsOwnLink(ManagedSensorUiFamily.NIGHTSCOUT, readsOverBluetooth = true))
+        assertFalse(SensorReachPolicy.holdsOwnLink(ManagedSensorUiFamily.GENERIC, readsOverBluetooth = true))
+        // Glutec Cloud follower: an MQ family with no radio of its own.
+        assertFalse(SensorReachPolicy.holdsOwnLink(ManagedSensorUiFamily.MQ, readsOverBluetooth = false))
+        assertTrue(SensorReachPolicy.holdsOwnLink(ManagedSensorUiFamily.MQ, readsOverBluetooth = true))
+        assertTrue(SensorReachPolicy.holdsOwnLink(ManagedSensorUiFamily.SIBIONICS, readsOverBluetooth = true))
+        assertTrue(SensorReachPolicy.holdsOwnLink(ManagedSensorUiFamily.AIDEX, readsOverBluetooth = true))
     }
 }

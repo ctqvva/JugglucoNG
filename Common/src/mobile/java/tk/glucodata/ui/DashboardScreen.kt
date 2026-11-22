@@ -1080,9 +1080,21 @@ fun DashboardScreen(
             }
             // The sensor card's out-of-reach prompt, repeated here for the main sensor:
             // the hero only says the value is old, not that the phone cannot get to it.
+            // Only this sensor's own readings count: the chart's history and the current
+            // value can come from another sensor that is still sending.
+            val reachSensor = sensorName.ifBlank { activeSensorList.firstOrNull().orEmpty() }
+            val reachRoomSerial = remember(reachSensor, refreshRevision) {
+                tk.glucodata.drivers.ManagedSensorRuntime.resolveUiSnapshot(reachSensor, reachSensor)?.serial ?: reachSensor
+            }
+            val reachLatestReading by remember(reachRoomSerial) {
+                tk.glucodata.data.HistoryRepository().getLatestReadingFlowForSensor(reachRoomSerial)
+            }.collectAsStateWithLifecycle(initialValue = null)
+            val reachOwnCurrentMs = dashboardCurrentSnapshot
+                ?.takeIf { SensorIdentity.matches(it.sensorId, reachRoomSerial) }
+                ?.timeMillis ?: 0L
             val sensorReach = rememberSensorReach(
-                serial = sensorName.ifBlank { activeSensorList.firstOrNull().orEmpty() },
-                lastReadingMs = maxOf(dashboardCurrentSnapshot?.timeMillis ?: 0L, latestPoint?.timestamp ?: 0L),
+                serial = reachSensor,
+                lastReadingMs = maxOf(reachOwnCurrentMs, reachLatestReading?.timestamp ?: 0L),
             )
             val showSensorReachPrompt = hasSensorContext &&
                 sensorReach.reach == tk.glucodata.drivers.SensorReach.OUT_OF_REACH

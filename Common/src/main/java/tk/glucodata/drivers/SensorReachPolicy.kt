@@ -27,9 +27,13 @@ object SensorReachPolicy {
     /** At or under this, an out-of-reach sensor's battery is worth naming. */
     const val LOW_BATTERY_PERCENT = 20
 
-    /** Families that hold a Bluetooth link of their own; followers have no sensor to reach. */
-    fun holdsOwnLink(family: ManagedSensorUiFamily): Boolean =
-        family != ManagedSensorUiFamily.GENERIC && family != ManagedSensorUiFamily.NIGHTSCOUT
+    /**
+     * Whether the source holds a Bluetooth link of its own. Followers have no sensor to
+     * reach: Nightscout, API and Lumiflex by family, an MQ cloud follower by its own word.
+     */
+    fun holdsOwnLink(family: ManagedSensorUiFamily, readsOverBluetooth: Boolean): Boolean =
+        readsOverBluetooth &&
+            family != ManagedSensorUiFamily.GENERIC && family != ManagedSensorUiFamily.NIGHTSCOUT
 
     /**
      * @param lastReadingMs the newest reading's time, 0 when the sensor has none yet.
