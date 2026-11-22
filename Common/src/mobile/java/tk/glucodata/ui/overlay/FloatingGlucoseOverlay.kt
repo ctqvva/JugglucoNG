@@ -97,6 +97,7 @@ fun FloatingGlucoseOverlay(
     val opacity by repository.backgroundOpacity.collectAsState(initial = FloatingSettingsRepository.DEFAULT_BACKGROUND_OPACITY)
     val isDynamicIsland by repository.isDynamicIslandEnabled.collectAsState(initial = false)
     val islandNudge by repository.islandNudge.collectAsState(initial = FloatingSettingsRepository.DEFAULT_ISLAND_NUDGE)
+    val islandManualOffset by repository.islandManualOffset.collectAsState(initial = FloatingSettingsRepository.DEFAULT_ISLAND_MANUAL_OFFSET)
     val manualGap by repository.islandGap.collectAsState(initial = 0f)
     val useSubtleOutline by repository.useSubtleOutline.collectAsState(initial = false)
     val layoutOrder by repository.layoutOrder.collectAsState(initial = FloatingLayoutOrder.DEFAULT)
@@ -293,6 +294,7 @@ fun FloatingGlucoseOverlay(
             edge = cutoutEdge,
             centre = cutoutData.centre,
             nudge = islandNudge.dp,
+            manualOffset = islandManualOffset.dp,
             modifier = Modifier
                 .wrapContentSize()
                 .then(dragModifier)
@@ -842,6 +844,7 @@ private fun CutoutOffsetLayout(
     edge: CutoutEdge,
     centre: Dp,
     nudge: Dp,
+    manualOffset: Dp,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
@@ -851,7 +854,7 @@ private fun CutoutOffsetLayout(
             centre = centre.toPx(),
             nudge = nudge.toPx(),
             thickness = FloatingIsland.thickness(edge, pill.width, pill.height).toFloat(),
-            noCutoutGap = FloatingIsland.NO_CUTOUT_GAP_DP.dp.toPx()
+            manualOffset = manualOffset.toPx()
         ).roundToInt()
         val placement = FloatingIsland.place(edge, pill.width, pill.height, gap)
         layout(placement.width, placement.height) {

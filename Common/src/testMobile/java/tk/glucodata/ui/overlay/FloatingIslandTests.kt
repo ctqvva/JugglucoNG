@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tk.glucodata.data.settings.FloatingSettingsRepository
 import tk.glucodata.service.FloatingGlucoseService.CutoutEdge
 import tk.glucodata.ui.overlay.FloatingIsland.Placement
 
@@ -14,41 +15,38 @@ class FloatingIslandTests {
     // 111 px from the top edge in portrait; in landscape it sits on the left or right edge,
     // 111 px wide (across the edge) and 64 px tall (along it).
     private val density = 2.625f
-    private val noCutoutGap = FloatingIsland.NO_CUTOUT_GAP_DP * density
-    private val holeCentre = FloatingIsland.cutoutCentre(safeInset = 111, across = 111)
+    private val noCutoutGap = FloatingSettingsRepository.DEFAULT_ISLAND_MANUAL_OFFSET * density
+    private val holeCentre = FloatingIsland.cutoutCentre(CutoutEdge.TOP, 540f, 55.5f, 1080, 2340)
 
     // The cutout's middle
 
     @Test
-    fun theCutoutsMiddleIsHalfItsExtentBackFromWhereItEnds() {
-        assertEquals(55.5f, FloatingIsland.cutoutCentre(111, 111), eps)
-        // A hole 32 px in from the edge and 56 px across: it ends at 88, its middle is at 60.
-        assertEquals(60f, FloatingIsland.cutoutCentre(88, 56), eps)
+    fun galaxyS26CutoutKeepsItsDepthAndAlongEdgeCentreWhenRotated() {
+        // The PR author measured Rect(508, 0 - 572, 111) on a 1080 px wide display.
+        assertEquals(55.5f, holeCentre, eps)
+        assertEquals(55.5f, FloatingIsland.cutoutCentre(CutoutEdge.LEFT, 55.5f, 540f, 2340, 1080), eps)
+        assertEquals(55.5f, FloatingIsland.cutoutCentre(CutoutEdge.RIGHT, 2284.5f, 540f, 2340, 1080), eps)
+        assertEquals(55.5f, FloatingIsland.cutoutCentre(CutoutEdge.BOTTOM, 540f, 2284.5f, 1080, 2340), eps)
+        val anchor = FloatingIsland.CutoutAnchor(centre = 540f, displayExtent = 1080)
+        assertEquals(0, anchor.windowOffset(300))
     }
 
     @Test
-    fun anUnknownOrInconsistentCutoutHasNoMiddle() {
-        assertEquals(0f, FloatingIsland.cutoutCentre(0, 0), 0f)
-        assertEquals(0f, FloatingIsland.cutoutCentre(0, 64), 0f)
-        assertEquals(0f, FloatingIsland.cutoutCentre(111, 0), 0f)
-        // A clipped or malformed inset shallower than half the rect's extent never goes negative.
-        assertEquals(0f, FloatingIsland.cutoutCentre(20, 64), 0f)
+    fun cutoutDepthUsesTheRectangleCentreEvenWhenTheHoleStartsInsideTheEdge() {
+        // A hole 32 px in from the edge and 56 px deep has its centre at 60 px.
+        assertEquals(60f, FloatingIsland.cutoutCentre(CutoutEdge.TOP, 540f, 60f, 1080, 2340), eps)
     }
 
     @Test
     fun theCutoutsExtentsAlongAndAcrossTheEdgeSwapWithTheOrientation() {
         // Portrait: the rect is 64 wide, 111 tall; docked to the top, the width runs along the edge.
         assertEquals(64, FloatingIsland.alongEdge(CutoutEdge.TOP, 64, 111))
-        assertEquals(111, FloatingIsland.acrossEdge(CutoutEdge.TOP, 64, 111))
         assertEquals(64, FloatingIsland.alongEdge(CutoutEdge.BOTTOM, 64, 111))
-        assertEquals(111, FloatingIsland.acrossEdge(CutoutEdge.BOTTOM, 64, 111))
         assertEquals(64, FloatingIsland.alongEdge(CutoutEdge.NONE, 64, 111))
         // Landscape: 111 wide, 64 tall; on the left or right the height runs along the edge.
         // The label gap is 64 px there, not the 111 px of the width.
         assertEquals(64, FloatingIsland.alongEdge(CutoutEdge.LEFT, 111, 64))
-        assertEquals(111, FloatingIsland.acrossEdge(CutoutEdge.LEFT, 111, 64))
         assertEquals(64, FloatingIsland.alongEdge(CutoutEdge.RIGHT, 111, 64))
-        assertEquals(111, FloatingIsland.acrossEdge(CutoutEdge.RIGHT, 111, 64))
     }
 
     // The gap from the screen edge
@@ -93,12 +91,12 @@ class FloatingIslandTests {
     }
 
     @Test
-    fun withoutACutoutTheGapIsTheFixedGapPlusTheNudge() {
+    fun withoutReliableCutoutGeometryTheGapUsesTheSavedAbsoluteOffset() {
         assertEquals(8f * density, FloatingIsland.edgeGap(0f, 0f, 96f, noCutoutGap), eps)
-        // Whatever the pill's thickness.
-        assertEquals(8f * density, FloatingIsland.edgeGap(0f, 0f, 400f, noCutoutGap), eps)
-        assertEquals(8f * density + 5f, FloatingIsland.edgeGap(0f, 5f, 96f, noCutoutGap), eps)
-        assertEquals(0f, FloatingIsland.edgeGap(0f, -8f * density - 1f, 96f, noCutoutGap), 0f)
+        assertEquals(40f * density, FloatingIsland.edgeGap(0f, 5f, 400f, 40f * density), eps)
+        assertEquals(50f * density, FloatingIsland.edgeGap(0f, -5f, 96f, 50f * density), eps)
+        assertEquals(0f, FloatingIsland.edgeGap(0f, 5f, 96f, 0f), 0f)
+        assertEquals(7.5f, FloatingIsland.edgeGap(holeCentre, 0f, 96f, 40f * density), eps)
     }
 
     // The window

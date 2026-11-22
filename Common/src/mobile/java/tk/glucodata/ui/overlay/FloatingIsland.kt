@@ -15,21 +15,19 @@ import kotlin.math.roundToInt
  * works the gap out from the measured pill, and the setting is only a nudge from there.
  */
 internal object FloatingIsland {
-    /** The gap, in dp, between the screen edge and the pill where the device reports no cutout. */
-    const val NO_CUTOUT_GAP_DP = 8f
-
     /** True for the edges of an island standing upright beside the camera in landscape. */
     fun isSide(edge: CutoutEdge): Boolean = edge == CutoutEdge.LEFT || edge == CutoutEdge.RIGHT
 
     /**
-     * The distance from the docked screen edge to the middle of the cutout. [safeInset] is
-     * how far the cutout reaches in from that edge (where it ends), [across] its extent
-     * across the edge (its height on the top or bottom, its width on the left or right), so
-     * the middle is half of that back from where it ends. 0 when either is not known (no
-     * cutout) or inconsistent.
+     * The distance from the docked screen edge to the cutout's centre in display coordinates.
      */
-    fun cutoutCentre(safeInset: Int, across: Int): Float =
-        if (safeInset <= 0 || across <= 0) 0f else max(0f, safeInset - across / 2f)
+    fun cutoutCentre(edge: CutoutEdge, x: Float, y: Float, displayWidth: Int, displayHeight: Int): Float =
+        when (edge) {
+            CutoutEdge.LEFT -> x
+            CutoutEdge.RIGHT -> displayWidth - x
+            CutoutEdge.BOTTOM -> displayHeight - y
+            else -> y
+        }
 
     /** The cutout's position along its edge, in the same full-display frame as the window. */
     data class CutoutAnchor(val centre: Float, val displayExtent: Int) {
@@ -45,18 +43,15 @@ internal object FloatingIsland {
     /** The cutout's extent along the docked [edge]: its width on the top or bottom, its height on the left or right. */
     fun alongEdge(edge: CutoutEdge, width: Int, height: Int): Int = if (isSide(edge)) height else width
 
-    /** The cutout's extent across the docked [edge]: its height on the top or bottom, its width on the left or right. */
-    fun acrossEdge(edge: CutoutEdge, width: Int, height: Int): Int = if (isSide(edge)) width else height
-
     /**
      * The gap between the screen edge and the pill's near side, for a pill [thickness]
      * thick across the edge, to centre it on the cutout [centre] from the edge, then moved
      * by [nudge] (positive away from the edge). Never negative: a pill thicker than twice
-     * the distance sits against the edge. Without a cutout ([centre] 0) it is [noCutoutGap]
-     * plus the nudge.
+     * the distance sits against the edge. Without a reliable [centre], use the saved
+     * absolute [manualOffset].
      */
-    fun edgeGap(centre: Float, nudge: Float, thickness: Float, noCutoutGap: Float): Float =
-        if (centre <= 0f) max(0f, noCutoutGap + nudge) else max(0f, centre + nudge - thickness / 2f)
+    fun edgeGap(centre: Float, nudge: Float, thickness: Float, manualOffset: Float): Float =
+        if (centre <= 0f) max(0f, manualOffset) else max(0f, centre + nudge - thickness / 2f)
 
     /** The pill's thickness across the docked [edge]: its width on the left or right, its height otherwise. */
     fun thickness(edge: CutoutEdge, pillWidth: Int, pillHeight: Int): Int = if (isSide(edge)) pillWidth else pillHeight
