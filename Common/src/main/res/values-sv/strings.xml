@@ -2431,6 +2431,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Period</string>
     <string name="stats_arrange_width">Halv eller hel bredd</string>
+    <string name="stats_arrange_ring">Visa som ring</string>
     <string name="stats_window_3d">3D</string>
     <string name="stats_window_today">I dag</string>
     <string name="stats_window_24h">24H</string>

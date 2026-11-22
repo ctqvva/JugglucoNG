@@ -2562,6 +2562,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Период</string>
     <string name="stats_arrange_width">Половина или вся ширина</string>
+    <string name="stats_arrange_ring">Показывать кольцом</string>
     <string name="stats_window_3d">3Д</string>
     <string name="stats_window_today">Сегодня</string>
     <string name="stats_window_24h">24Ч</string>

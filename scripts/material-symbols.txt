@@ -65,6 +65,7 @@ directions_run fill mirrored
 dns fill
 do_not_disturb_on fill
 done_all fill
+donut_large fill
 doorbell fill
 download fill
 drag_handle fill

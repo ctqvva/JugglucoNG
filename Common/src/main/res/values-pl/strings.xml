@@ -2467,6 +2467,7 @@
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Okres</string>
     <string name="stats_arrange_width">Pół lub pełna szerokość</string>
+    <string name="stats_arrange_ring">Pokaż jako pierścień</string>
     <string name="stats_window_3d">3D</string>
     <string name="stats_window_today">Dziś</string>
     <string name="stats_window_24h">24H</string>

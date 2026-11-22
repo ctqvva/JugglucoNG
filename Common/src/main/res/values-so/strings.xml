@@ -2622,6 +2622,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Muddo</string>
     <string name="stats_arrange_width">Bar ama ballaadh buuxa</string>
+    <string name="stats_arrange_ring">U muuji sida giraan</string>
     <string name="stats_window_3d">3D</string>
     <string name="stats_window_today">Maanta</string>
     <string name="stats_window_24h">24H</string>

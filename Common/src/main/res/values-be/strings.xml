@@ -2497,6 +2497,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Перыяд</string>
     <string name="stats_arrange_width">Палова або ўся шырыня</string>
+    <string name="stats_arrange_ring">Паказваць кольцам</string>
     <string name="stats_window_3d">3Д</string>
     <string name="stats_window_today">Сёння</string>
     <string name="stats_window_24h">24Г</string>

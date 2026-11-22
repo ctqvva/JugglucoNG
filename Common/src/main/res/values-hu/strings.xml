@@ -1872,6 +1872,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="stats_arrange_drag">Átrendezés</string>
     <string name="stats_arrange_pin">Rögzítés az áttekintőn</string>
     <string name="stats_arrange_width">Fél vagy teljes szélesség</string>
+    <string name="stats_arrange_ring">Megjelenítés gyűrűként</string>
     <string name="stats_arrange_visibility">Megjelenítés vagy elrejtés</string>
     <string name="stats_custom_range_title">Egyéni időszak</string>
     <string name="stats_custom_range_hint">Egy nap kijelöléséhez koppintás, időszakhoz egy második nap kijelölése szükséges.</string>

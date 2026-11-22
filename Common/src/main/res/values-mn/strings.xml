@@ -2538,6 +2538,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Хугацаа</string>
     <string name="stats_arrange_width">Хагас эсвэл бүтэн өргөн</string>
+    <string name="stats_arrange_ring">Цагираг хэлбэрээр харуулах</string>
     <string name="stats_window_3d">3Ө</string>
     <string name="stats_window_today">Өнөөдөр</string>
     <string name="stats_window_24h">24Ц</string>

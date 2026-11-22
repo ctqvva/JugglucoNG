@@ -1984,6 +1984,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="stats_arrange_drag">Reordenar</string>
      <string name="stats_arrange_pin">Fijar en el panel</string>
      <string name="stats_arrange_width">Ancho medio o completo</string>
+     <string name="stats_arrange_ring">Mostrar como anillo</string>
      <string name="stats_arrange_visibility">Mostrar u ocultar</string>
      <string name="stats_custom_range_title">Rango personalizado</string>
      <string name="stats_custom_range_hint">Toca un día, o un segundo día para un intervalo.</string>

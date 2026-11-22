@@ -2041,6 +2041,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_arrange_drag">Reorder</string>
     <string name="stats_arrange_pin">Pin to Dashboard</string>
     <string name="stats_arrange_width">Half or full width</string>
+    <string name="stats_arrange_ring">Show as ring</string>
     <string name="stats_arrange_visibility">Show or hide</string>
     <string name="stats_custom_range_title">Custom range</string>
     <string name="stats_custom_range_hint">Tap a day, or a second day for a span.</string>

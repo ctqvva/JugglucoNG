@@ -132,6 +132,39 @@ class StatsPortraitLayoutTests {
         compose.onNodeWithText("Very high", useUnmergedTree = true).assertDoesNotExist()
     }
 
+    @Test fun ringCentreFollowsTheHighlightedBandAndTheHoleClearsIt() {
+        var scale by mutableFloatStateOf(1f)
+        var width by mutableIntStateOf(328)
+        var selected by mutableStateOf<TirBand?>(null)
+        val tir = TimeInRangeBreakdown(veryLowPercent = 14.6f, lowPercent = 8.2f, inRangePercent = 75.2f, highPercent = 1.9f)
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, scale)) {
+                MaterialTheme(typography = AppTypography) {
+                    Box(Modifier.width(width.dp)) {
+                        GlycemicOverviewCard(StatsSummary(tir = tir), StatsTargets(), GlucoseUnit.MMOL,
+                            StatsTimeRange.DAY_14, selected, { selected = it }, Modifier.testTag("overview"), ring = true)
+                    }
+                }
+            }
+        }
+        for (w in listOf(288, 328, 400)) for (s in listOf(1f, 1.3f)) {
+            compose.runOnIdle { width = w; scale = s }
+            val card = compose.onNodeWithTag("overview").fetchSemanticsNode().boundsInRoot
+            val dial = compose.onNodeWithContentDescription("75% In range", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            assertTrue("ring outside the card at $w/$s", dial.right <= card.right && dial.bottom <= card.bottom)
+            val percent = compose.onNodeWithText("75.2%", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            assertTrue("row percent outside the card at $w/$s: $percent $card", percent.right <= card.right + 0.5f)
+            assertFalse("row percent under the ring at $w/$s: $percent $dial", percent.overlaps(dial))
+        }
+        compose.onNodeWithText("Very low", useUnmergedTree = true).performClick()
+        compose.runOnIdle { assertEquals(TirBand.VERY_LOW, selected) }
+        compose.onNodeWithContentDescription("15% Very low", useUnmergedTree = true).assertExists()
+        // The hole in the middle clears the highlight, as tapping off the rows does.
+        compose.onNodeWithContentDescription("15% Very low", useUnmergedTree = true).performTouchInput { click(center) }
+        compose.runOnIdle { assertNull(selected) }
+        compose.onNodeWithText("Very high", useUnmergedTree = true).assertDoesNotExist()
+    }
+
     @Test fun dayPartsCombineIntoOneWindowWithItsOwnTimesAndClearBackToTheWholeDay() {
         // Evening is 40% in range, the rest 95%; the night block has no readings at all.
         val hourly = (0..23).map { hour ->
