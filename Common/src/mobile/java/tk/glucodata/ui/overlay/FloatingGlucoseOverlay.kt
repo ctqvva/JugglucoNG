@@ -35,6 +35,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -423,8 +425,9 @@ internal fun rememberFloatingOverlayStyle(
  * on one side of a [gap] the camera's width and the rest on the other. The settings preview
  * draws this same body, so what it shows is what floats.
  *
- * The delta goes under its neighbour unless that would stand taller than [stackLimit] (the
- * status bar, for an island at the top); then it goes beside it.
+ * In a row the delta goes under its neighbour only while the two stay about a line tall:
+ * at most [RowStackLines] reading lines, and no taller than [stackLimit] (the status bar,
+ * for an island at the top). Otherwise it goes beside it.
  */
 @Composable
 internal fun FloatingOverlayBody(
@@ -443,6 +446,15 @@ internal fun FloatingOverlayBody(
     val sideIslandHorizontalPadding = (fontSize * 0.55f).coerceIn(6f, 16f).dp
     val sideIslandVerticalPadding = (fontSize * 0.32f).coerceIn(3f, 8f).dp
     val sideIslandSplitPadding = (fontSize * 0.18f).coerceIn(2f, 6f).dp
+    val textMeasurer = rememberTextMeasurer()
+    val readingLine = remember(style.fontSize, style.fontFamily, style.fontWeight) {
+        textMeasurer.measure(
+            "0",
+            TextStyle(fontSize = style.fontSize.sp, fontFamily = style.fontFamily, fontWeight = style.fontWeight)
+        ).size.height
+    }
+    val rowStackLimit = with(LocalDensity.current) { (readingLine * RowStackLines).toDp() }
+        .let { lines -> if (stackLimit.isSpecified) minOf(lines, stackLimit) else lines }
 
     fun blocks(items: List<FloatingLayoutItem>) = floatingLayoutBlocks(
         items,
@@ -465,7 +477,7 @@ internal fun FloatingOverlayBody(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(inlineSpacing)
             ) {
-                blocks(items).forEach { FloatingLayoutBlockContent(it, stacked = false, style, content, stackLimit, inlineSpacing) }
+                blocks(items).forEach { FloatingLayoutBlockContent(it, stacked = false, style, content, rowStackLimit, inlineSpacing) }
             }
         }
     }
@@ -533,8 +545,15 @@ internal fun FloatingOverlayBody(
 }
 
 /**
+ * How tall, in reading lines, the delta and what it sits under may stand in a row. The
+ * smaller secondary value or the arrow over the delta fit; the reading over it does not.
+ */
+private const val RowStackLines = 1.5f
+
+/**
  * One block: [stacked] beside a side cutout, where the pieces sit under each other. A block
- * with the delta draws it underneath, or [inlineSpacing] beside it past [stackLimit].
+ * with the delta draws it underneath, or [inlineSpacing] beside it past [stackLimit]. In a
+ * row, a reading with its secondary value carries the delta under the smaller secondary.
  */
 @Composable
 private fun FloatingLayoutBlockContent(
@@ -561,6 +580,12 @@ private fun FloatingLayoutBlockContent(
         )
     }
     val secondaryColor = style.textColor.copy(alpha = 0.7f)
+    val delta = content.delta
+    val deltaText: @Composable () -> Unit = {
+        if (delta != null) text(delta, fontSize * 0.65f, style.textColor, TextAlign.Center)
+    }
+    val deltaUnderSecondary = !stacked && delta != null && block is FloatingLayoutBlock.Reading &&
+        block.withDelta && block.withSecondary && content.secondary != null
     val main: @Composable () -> Unit = {
         when (block) {
             is FloatingLayoutBlock.Reading -> {
@@ -580,15 +605,22 @@ private fun FloatingLayoutBlockContent(
                     }
                 } else {
                     val spacing = (fontSize * 0.35f).coerceIn(4f, 10f).dp
+                    val secondaryPart: @Composable (String) -> Unit = { value ->
+                        if (deltaUnderSecondary) {
+                            DeltaBeneath(stackLimit, inlineSpacing, { text(value, secondaryFontSize, secondaryColor, TextAlign.Center) }, deltaText)
+                        } else {
+                            text(value, secondaryFontSize, secondaryColor, TextAlign.Start)
+                        }
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (secondary != null && block.secondaryFirst) {
-                            text(secondary, secondaryFontSize, secondaryColor, TextAlign.Start)
+                            secondaryPart(secondary)
                             Spacer(Modifier.width(spacing))
                         }
                         text(content.primary, fontSize, style.textColor, TextAlign.End)
                         if (secondary != null && !block.secondaryFirst) {
                             Spacer(Modifier.width(spacing))
-                            text(secondary, secondaryFontSize, secondaryColor, TextAlign.Start)
+                            secondaryPart(secondary)
                         }
                     }
                 }
@@ -609,12 +641,9 @@ private fun FloatingLayoutBlockContent(
             FloatingLayoutBlock.Delta -> Unit
         }
     }
-    val delta = content.delta
-    val deltaText: @Composable () -> Unit = {
-        if (delta != null) text(delta, fontSize * 0.65f, style.textColor, TextAlign.Center)
-    }
     when {
         block == FloatingLayoutBlock.Delta -> deltaText()
+        deltaUnderSecondary -> main()
         block.withDelta && delta != null -> DeltaBeneath(stackLimit, inlineSpacing, main, deltaText)
         else -> main()
     }
