@@ -123,12 +123,17 @@ class SensorBluetoothScanRetryTests {
         timeout(generation()) // retry pending a minute out
         val retry = blue.scanFuture!!
 
-        blue.scanStarter(0L) // Forget in the Bluetooth diagnostics
-        val sooner = blue.scanFuture!!
-        assertNotSame(retry, sooner)
-        assertTrue("the old retry is retired, not left to start a second scan", retry.isCancelled)
-        assertTrue(sooner.getDelay(TimeUnit.MILLISECONDS) <= 1_000L)
-        assertTrue(SensorBluetooth.scanActiveOrPending())
+        // The zero-delay scan runs on Applic.scheduler right away and, with nothing in the
+        // roster, clears scanstart. runScan is synchronized on blue, so holding its monitor
+        // keeps the worker out until the pending state has been checked.
+        synchronized(blue) {
+            blue.scanStarter(0L) // Forget in the Bluetooth diagnostics
+            val sooner = blue.scanFuture!!
+            assertNotSame(retry, sooner)
+            assertTrue("the old retry is retired, not left to start a second scan", retry.isCancelled)
+            assertTrue(sooner.getDelay(TimeUnit.MILLISECONDS) <= 1_000L)
+            assertTrue(SensorBluetooth.scanActiveOrPending())
+        }
     }
 
     private fun roster(serial: String, bluetooth: Boolean) = object : SuperGattCallback(serial, 0L, 0) {
