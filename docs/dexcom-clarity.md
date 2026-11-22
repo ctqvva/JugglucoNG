@@ -152,9 +152,10 @@ the block routine at `0x2656270`, the output helper at `0x271e5f4`, and the
 ABI decode rows. Calling these stages separately reproduced `D` on 128
 single blocks. For both the input transform and the output helper composed
 with the ABI rows, exhaustive single-byte sweeps found 16 reversible affine
-byte maps, each affecting one output byte. Combining the byte maps matched
-all 128 full-block probes. The output helper's raw byte substitutions become
-affine after the ABI rows are applied.
+byte maps that preserve byte positions. Each composed map matched 1,024
+random blocks and 7,680 pairwise bit perturbations on random backgrounds.
+The output helper's raw byte substitutions become affine after the ABI rows
+are applied.
 
 The block routine reads 17 consecutive 16-byte regions of the context at
 offsets `0x10` through `0x11f`. Changing a context bit changed the decoded
@@ -175,15 +176,27 @@ set. It packs the resulting 24 bits as two 12-bit values, XORs them with the
 quotient and remainder of its tag divided by 93,139, and recombines them in
 that radix.
 
-The unresolved part is how the late helper uses that representation across
-the lookup groups at `0x2c489d5` and `0x2de907c`. Each has 4,096 distinct
-32-bit outputs with a 32-bit affine span. The last word lookup group in
-`0x2656270` and its 16 terminal byte substitutions are affine. The remaining
-work is to establish the nonlinear round boundaries through the late helper
-and relate the context masks and folded words to a standard key schedule.
-The measurements establish inverse AES structure within `D`. They leave the
-complete block equivalence, AES variant, and independently buildable
-single-block replacement unverified.
+Both 4,096-entry lookup groups at `0x2c489d5` and `0x2de907c` take four
+indices per column. They use the first projection's quotient from the current
+column and its remainder from the previous column, plus the second projection's
+quotient and remainder from the two other columns. The first lookup applies
+two sets of index tags and checks that the results agree. The second uses
+tags in the projections and XORs its result with the context and the last fold.
+
+[`block_decoder.cpp`](../Common/src/main/cpp/net/clarity/block_decoder.cpp)
+implements the complete single-block operation in standalone C++20. It takes
+`BlockMaterial` from the caller and matched the native ARM64 reference on
+19,970 blocks. The comparison used the verified library's material in memory.
+It exercised exhaustive single-byte values, pairwise perturbations and random
+full blocks. Both out-of-range indices and inconsistent redundant data were
+rejected.
+
+An implied AES key schedule and an independently authorized source for compatible
+material remain unverified. Neither 4,096-entry table has a nonzero input XOR
+direction that gives a constant output difference, so dropping four affine
+index bits cannot simplify either table in isolation. The standalone decoder
+keeps the table layout as caller-supplied data. The uploader's build still uses
+its current provider.
 
 ### Authorized Clarity upload registration
 
