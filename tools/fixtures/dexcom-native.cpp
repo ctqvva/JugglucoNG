@@ -80,8 +80,8 @@ struct SensorGlucoseData {
     Info metadata;
     string sensordir;
     bool haserror=false,sensorerror=false,missingInfo=false;
-    bool dexcomWarmingUp=false;
-    uint32_t sensorErrorTime=0;
+    bool dexcomWarmingUp=false,persistentSensorError=false;
+    uint32_t sensorErrorTime=0,lastPacketTime=0;
     int saved=0,lastSaved=-1,broadcast=10000;
     map<int,pair<int,float>> readings;
     string address="F0:00:00:00:00:01";
@@ -343,6 +343,14 @@ void livePublicationFilters(){
             return std::tuple<bool,bool,long long>{d->saved>before,d->sensorerror,timeres[1]};
         };
         const int afterWarmup=d->getWarmupSEC()+300;
+        const auto start=d->getstarttime();
+        const auto warmupEnd=start+d->getWarmupSEC();
+        // A packet early in warm-up can be followed by a deliberate wait to reconnect.
+        assert(!d->isDexcomWarmingUp(start+5*60));
+        attempt(5*60,0x02,0,true);
+        assert(!d->hasSensorError(warmupEnd-1));
+        assert(d->isDexcomWarmingUp(warmupEnd-1));
+        assert(!d->isDexcomWarmingUp(warmupEnd));
         // Measured states are published; every other state is not.
         for(int state:{0x00,0x06,0x07,0x0e}){
             auto [saved,error,res]=attempt(afterWarmup,state,0);
@@ -363,6 +371,7 @@ void livePublicationFilters(){
         for(int state:{0x19,0x1a}){
             auto [saved,error,res]=attempt(duringWarmup,state,0);
             assert(!saved&&error&&res==0);
+            assert(!d->isDexcomWarmingUp(start+duringWarmup));
         }
         // A display-only repeat keeps its timestamp for scheduling and stays out of history.
         auto [echo,echoError,echoRes]=attempt(afterWarmup,0x06,0x10,false,120);

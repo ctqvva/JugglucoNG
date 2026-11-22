@@ -3391,6 +3391,16 @@ public:
     }
     return (nu - sensorErrorTime) < (60 * (isDexcom() ? 15 : 10));
   }
+
+  bool isDexcomWarmingUp(uint32_t now) const {
+    if (!dexcomWarmingUp) return false;
+    // The driver may intentionally wait until the warm-up ends to reconnect.
+    const uint32_t start = getstarttime();
+    return (start && now >= start &&
+            now - start < static_cast<uint32_t>(getWarmupSEC())) ||
+           hasSensorError(now);
+  }
+
   std::vector<int> viewed;
   int getSiIndex() const { return getinfo()->lockcount; }
   void setSiIndex(int index) { getinfo()->lockcount = index; }
