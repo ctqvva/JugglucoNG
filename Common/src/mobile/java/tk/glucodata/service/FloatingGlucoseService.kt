@@ -164,7 +164,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     override fun onBind(intent: Intent?): IBinder? = null
 
     // State for Dynamic Island
-    data class CutoutData(
+    internal data class CutoutData(
         /** The cutout's extent along the docked edge: the gap between the pill's two labels. */
         val size: androidx.compose.ui.unit.Dp,
         val edge: CutoutEdge,
@@ -172,9 +172,9 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         val centre: androidx.compose.ui.unit.Dp = 0.dp,
         /** The status bar's height, 0 when unknown: how tall the island can grow at the top. */
         val barHeight: androidx.compose.ui.unit.Dp = 0.dp,
+        val anchor: FloatingIsland.CutoutAnchor? = null,
     )
     private val cutoutData = kotlinx.coroutines.flow.MutableStateFlow(CutoutData(0.dp, CutoutEdge.NONE))
-    private var cutoutAnchor: FloatingIsland.CutoutAnchor? = null
     private var dynamicIslandEnabled = false
     // Freeform placement is kept screen-relative and resolved against the current
     // screen area on every placement; see OverlayPosition.
@@ -200,7 +200,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             // Keep a resized pill on screen, including an island docked near a corner.
             addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
                 val resized = right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop
-                val needsPlacement = if (dynamicIslandEnabled) cutoutAnchor != null else !dragging
+                val needsPlacement = if (dynamicIslandEnabled) cutoutData.value.anchor != null else !dragging
                 if (resized && needsPlacement) {
                     applyOverlayPlacement()
                 }
@@ -384,17 +384,18 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             null
         }
         val centrePx: Float
+        val anchor: FloatingIsland.CutoutAnchor?
         if (displayBounds != null && displaySize != null) {
             val centreX = displayBounds.exactCenterX()
             val centreY = displayBounds.exactCenterY()
-            cutoutAnchor = if (FloatingIsland.isSide(edge)) {
+            anchor = if (FloatingIsland.isSide(edge)) {
                 FloatingIsland.CutoutAnchor(centreY, displaySize.y)
             } else {
                 FloatingIsland.CutoutAnchor(centreX, displaySize.x)
             }
             centrePx = FloatingIsland.cutoutCentre(edge, centreX, centreY, displaySize.x, displaySize.y)
         } else {
-            cutoutAnchor = null
+            anchor = null
             centrePx = 0f
         }
         return CutoutData(
@@ -402,6 +403,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             edge = edge,
             centre = (centrePx / density).dp,
             barHeight = (statusBarPx.coerceAtLeast(0) / density).dp,
+            anchor = anchor,
         )
     }
 
@@ -414,7 +416,8 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         val root = overlayRoot ?: return
         if (windowManager == null) return
 
-        val anchor = cutoutAnchor.takeIf { dynamicIslandEnabled }
+        val cutout = cutoutData.value
+        val anchor = cutout.anchor.takeIf { dynamicIslandEnabled }
         // The cutout and the window's centred gravity must share the full display frame.
         // A bottom navigation bar otherwise shifts the landscape label gap up by half its height.
         val layoutBehindNavigation = View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -425,7 +428,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         }
 
         if (dynamicIslandEnabled) {
-            val islandEdge = cutoutData.value.edge.takeIf { it != CutoutEdge.NONE }
+            val islandEdge = cutout.edge.takeIf { it != CutoutEdge.NONE }
                 ?: resolveIslandEdge()
             // The docked edge is physical, independent of the app's layout direction.
             layoutParams.gravity = when (islandEdge) {

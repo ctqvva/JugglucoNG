@@ -29,6 +29,7 @@ class FloatingIslandTests {
         assertEquals(55.5f, FloatingIsland.cutoutCentre(CutoutEdge.BOTTOM, 540f, 2284.5f, 1080, 2340), eps)
         val anchor = FloatingIsland.CutoutAnchor(centre = 540f, displayExtent = 1080)
         assertEquals(0, anchor.windowOffset(300))
+        assertEquals(FloatingIsland.centreLabels(64, 118, 75), anchor.labelSpace(64).place(118, 75))
     }
 
     @Test
@@ -130,6 +131,42 @@ class FloatingIslandTests {
         val nearEnd = FloatingIsland.CutoutAnchor(1030f, displayWidth)
         assertEquals(390, nearEnd.windowOffset(300))
         assertEquals(290, nearEnd.windowOffset(500))
+    }
+
+    @Test
+    fun clampingTheWindowKeepsTheGapOverTheCameraWhenBothLabelsFit() {
+        val anchor = FloatingIsland.CutoutAnchor(centre = 50f, displayExtent = 1080)
+        val labels = anchor.labelSpace(60).place(before = 20, after = 120)
+        val origin = (1080 - labels.extent) / 2 + anchor.windowOffset(labels.extent)
+        assertEquals(300, labels.extent)
+        assertEquals(0, origin)
+        assertEquals(20, origin + labels.before + 20)
+        assertEquals(80, origin + labels.after)
+    }
+
+    @Test
+    fun bothLabelsStayVisibleWhenOneCannotFitBetweenTheCameraAndCorner() {
+        val nearStart = FloatingIsland.CutoutAnchor(centre = 50f, displayExtent = 1080)
+        val startLabels = nearStart.labelSpace(60).place(before = 120, after = 120)
+        val startOrigin = (1080 - startLabels.extent) / 2 + nearStart.windowOffset(startLabels.extent)
+        assertEquals(80, startOrigin + startLabels.before)
+        assertEquals(200, startOrigin + startLabels.after)
+
+        val nearEnd = FloatingIsland.CutoutAnchor(centre = 1030f, displayExtent = 1080)
+        val endLabels = nearEnd.labelSpace(60).place(before = 120, after = 120)
+        val endOrigin = (1080 - endLabels.extent) / 2 + nearEnd.windowOffset(endLabels.extent)
+        assertEquals(760, endOrigin + endLabels.before)
+        assertEquals(1000, endOrigin + endLabels.after + 120)
+    }
+
+    @Test
+    fun labelsStackAcrossTheEdgeWhenNeitherSideCanFitBothInSequence() {
+        val anchor = FloatingIsland.CutoutAnchor(centre = 50f, displayExtent = 300)
+        val labels = anchor.labelSpace(60).place(before = 120, after = 120)
+        assertTrue(labels.stacked)
+        assertEquals(80, labels.before)
+        assertEquals(80, labels.after)
+        assertEquals(300, labels.extent)
     }
 
     @Test

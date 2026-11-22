@@ -31,13 +31,46 @@ internal object FloatingIsland {
 
     /** The cutout's position along its edge, in the same full-display frame as the window. */
     data class CutoutAnchor(val centre: Float, val displayExtent: Int) {
-        // The label gap is at the window's centre. Clamp when a camera near a corner
-        // would otherwise pull the pill partly off screen.
-        fun windowOffset(windowExtent: Int): Int {
-            val available = (displayExtent - windowExtent).coerceAtLeast(0)
-            val start = (centre - windowExtent / 2f).roundToInt().coerceIn(0, available)
-            return start - available / 2
+        private fun windowStart(windowExtent: Int): Int = (centre - windowExtent / 2f).roundToInt()
+            .coerceIn(0, (displayExtent - windowExtent).coerceAtLeast(0))
+
+        fun windowOffset(windowExtent: Int): Int =
+            windowStart(windowExtent) - (displayExtent - windowExtent).coerceAtLeast(0) / 2
+
+        fun labelSpace(gap: Int): LabelSpace {
+            val start = (centre - gap / 2f).roundToInt()
+            return LabelSpace(start.coerceAtLeast(0), (start + gap).coerceAtMost(displayExtent), gap)
         }
+
+        inner class LabelSpace(private val start: Int, private val end: Int, private val gap: Int) {
+            private val beforeSpace = start
+            private val afterSpace = displayExtent - end
+            val maxLabelExtent = maxOf(beforeSpace, afterSpace)
+
+            fun place(before: Int, after: Int): LabelPlacement {
+                if (before <= beforeSpace && after <= afterSpace) {
+                    val extent = (maxOf(before, after) * 2 + gap).coerceAtMost(displayExtent)
+                    val origin = windowStart(extent)
+                    return LabelPlacement(extent, start - origin - before, end - origin)
+                }
+
+                // Keep both groups readable on the roomier side of the camera. Stack
+                // across the edge if the groups cannot fit there in sequence.
+                val stacked = before + after > maxLabelExtent
+                val occupied = if (stacked) maxOf(before, after) else before + after
+                val extent = (occupied * 2 + gap).coerceAtMost(displayExtent)
+                val origin = windowStart(extent)
+                val first = if (beforeSpace > afterSpace) start - origin - occupied else end - origin
+                return LabelPlacement(extent, first, first + if (stacked) 0 else before, stacked)
+            }
+        }
+    }
+
+    data class LabelPlacement(val extent: Int, val before: Int, val after: Int, val stacked: Boolean = false)
+
+    fun centreLabels(gap: Int, before: Int, after: Int): LabelPlacement {
+        val middle = maxOf(before, after)
+        return LabelPlacement(middle * 2 + gap, middle - before, middle + gap)
     }
 
     /** The cutout's extent along the docked [edge]: its width on the top or bottom, its height on the left or right. */
