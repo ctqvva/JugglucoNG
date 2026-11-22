@@ -2464,6 +2464,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="stats_duration_minutes">%1$d мин</string>
     <string name="stats_duration_hours">%1$d ц</string>
     <string name="stats_duration_hours_minutes">%1$d ц %2$d мин</string>
+    <string name="stats_duration_days">%1$d ө</string>
+    <string name="stats_duration_days_hours">%1$d ө %2$d ц</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d долоо хоног</item>
+        <item quantity="other">%1$d долоо хоног</item>
+    </plurals>
     <string name="stats_tab_days">Өдөр</string>
     <string name="stats_tab_hours">Цаг</string>
     <string name="stats_tab_weekdays">Гараг</string>
@@ -2532,6 +2538,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Хугацаа</string>
     <string name="stats_arrange_width">Хагас эсвэл бүтэн өргөн</string>
+    <string name="stats_arrange_ring">Цагираг хэлбэрээр харуулах</string>
     <string name="stats_window_3d">3Ө</string>
     <string name="stats_window_today">Өнөөдөр</string>
     <string name="stats_window_24h">24Ц</string>

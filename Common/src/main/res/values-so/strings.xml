@@ -2548,6 +2548,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="stats_duration_minutes">%1$d daq</string>
     <string name="stats_duration_hours">%1$d saac</string>
     <string name="stats_duration_hours_minutes">%1$d saac %2$d daq</string>
+    <string name="stats_duration_days">%1$d maalin</string>
+    <string name="stats_duration_days_hours">%1$d maalin %2$d saac</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d toddobaad</item>
+        <item quantity="other">%1$d toddobaad</item>
+    </plurals>
     <string name="stats_tab_days">Maalmo</string>
     <string name="stats_tab_hours">Saacado</string>
     <string name="stats_tab_weekdays">Maalmaha toddobaadka</string>
@@ -2616,6 +2622,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Muddo</string>
     <string name="stats_arrange_width">Bar ama ballaadh buuxa</string>
+    <string name="stats_arrange_ring">U muuji sida giraan</string>
     <string name="stats_window_3d">3D</string>
     <string name="stats_window_today">Maanta</string>
     <string name="stats_window_24h">24H</string>

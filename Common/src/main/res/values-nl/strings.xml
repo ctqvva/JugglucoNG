@@ -2400,6 +2400,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d u</string>
     <string name="stats_duration_hours_minutes">%1$d u %2$d min</string>
+    <string name="stats_duration_days">%1$d d</string>
+    <string name="stats_duration_days_hours">%1$d d %2$d u</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d week</item>
+        <item quantity="other">%1$d weken</item>
+    </plurals>
     <string name="stats_tab_days">Dagen</string>
     <string name="stats_tab_hours">Uren</string>
     <string name="stats_tab_weekdays">Weekdagen</string>
@@ -2468,6 +2474,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Periode</string>
     <string name="stats_arrange_width">Halve of volle breedte</string>
+    <string name="stats_arrange_ring">Als ring tonen</string>
     <string name="stats_window_3d">3D</string>
     <string name="stats_window_today">Vandaag</string>
     <string name="stats_window_24h">24U</string>

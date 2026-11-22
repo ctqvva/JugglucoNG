@@ -2470,6 +2470,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="stats_duration_minutes">%1$d Min.</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d Min.</string>
+    <string name="stats_duration_days">%1$d T</string>
+    <string name="stats_duration_days_hours">%1$d T %2$d h</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d Woche</item>
+        <item quantity="other">%1$d Wochen</item>
+    </plurals>
     <string name="stats_tab_days">Tage</string>
     <string name="stats_tab_hours">Stunden</string>
     <string name="stats_tab_weekdays">Wochentage</string>
@@ -2538,6 +2544,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Zeitraum</string>
     <string name="stats_arrange_width">Halbe oder volle Breite</string>
+    <string name="stats_arrange_ring">Als Ring anzeigen</string>
     <string name="stats_window_3d">3 T</string>
     <string name="stats_window_today">Heute</string>
     <string name="stats_window_24h">24 h</string>

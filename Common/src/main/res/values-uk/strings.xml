@@ -2426,6 +2426,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d хв</string>
     <string name="stats_duration_hours">%1$d год</string>
     <string name="stats_duration_hours_minutes">%1$d год %2$d хв</string>
+    <string name="stats_duration_days">%1$d д</string>
+    <string name="stats_duration_days_hours">%1$d д %2$d год</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d тиждень</item>
+        <item quantity="few">%1$d тижні</item>
+        <item quantity="many">%1$d тижнів</item>
+        <item quantity="other">%1$d тижні</item>
+    </plurals>
     <string name="stats_tab_days">Дні</string>
     <string name="stats_tab_hours">Години</string>
     <string name="stats_tab_weekdays">Дні тижня</string>
@@ -2494,6 +2502,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Період</string>
     <string name="stats_arrange_width">Половина або вся ширина</string>
+    <string name="stats_arrange_ring">Показувати кільцем</string>
     <string name="stats_window_3d">3Д</string>
     <string name="stats_window_today">Сьогодні</string>
     <string name="stats_window_24h">24Г</string>
