@@ -321,28 +321,63 @@ object Libre3Registry {
     }
 
     private val provisioning = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val failedDownloads = java.util.concurrent.atomic.AtomicInteger(0)
+    private val credentialExecutor by lazy {
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor { r ->
+            Thread(r, "Libre3Credentials").apply { isDaemon = true }
+        }
+    }
+
+    /** Minutes before each retry of a failed automatic download; the last value repeats. */
+    internal val CREDENTIAL_RETRY_MINUTES = longArrayOf(1, 2, 5, 15, 30)
 
     /**
      * A driver found no connection credentials. Download them in the background (once at a
      * time) and wake every driver that was waiting, so a moved or handed-over sensor connects
-     * without anyone opening Settings.
+     * without anyone opening Settings. A failed download (offline, server down) is retried with
+     * backoff while a driver still waits; credentials the user removed are not fetched again.
      */
     @JvmStatic
     fun requestCredentials() {
         val context = Applic.app ?: return
         if (!provisioning.compareAndSet(false, true)) return
-        Thread({
-            try {
-                if (runCatching { Libre3Persistence.ensureIdentities(context) }
-                        .onFailure { Log.w(TAG, "credential download failed: ${it.message}") }
-                        .getOrDefault(false)) {
-                    SensorBluetooth.gattcallbacks.filterIsInstance<Libre3BleManager>()
-                        .filter { it.isWaitingForCredentials() }
-                        .forEach { it.softReconnect() }
-                }
-            } finally {
+        credentialExecutor.execute { downloadCredentials(context) }
+    }
+
+    private fun downloadCredentials(context: Context) {
+        var retryInMinutes = 0L
+        try {
+            val installed = runCatching { Libre3Persistence.ensureIdentities(context) }
+                .onFailure { Log.w(TAG, "credential download failed: ${it.message}") }
+                .getOrDefault(false)
+            if (installed) {
+                failedDownloads.set(0)
+                wakeDriversWaitingForCredentials()
+            } else if (waitingForCredentials().isNotEmpty() &&
+                !Libre3Persistence.autoProvisionBlocked(context) &&
+                Libre3Persistence.effectiveIdentitySource(context) != null
+            ) {
+                val attempt = failedDownloads.getAndIncrement()
+                retryInMinutes = CREDENTIAL_RETRY_MINUTES[minOf(attempt, CREDENTIAL_RETRY_MINUTES.size - 1)]
+            } else {
+                failedDownloads.set(0)
+            }
+        } finally {
+            if (retryInMinutes > 0L) {
+                Log.i(TAG, "credential download retry in $retryInMinutes min")
+                credentialExecutor.schedule({ downloadCredentials(context) }, retryInMinutes, java.util.concurrent.TimeUnit.MINUTES)
+            } else {
                 provisioning.set(false)
             }
-        }, "Libre3Credentials").start()
+        }
+    }
+
+    private fun waitingForCredentials(): List<Libre3BleManager> =
+        SensorBluetooth.gattcallbacks.filterIsInstance<Libre3BleManager>().filter { it.isWaitingForCredentials() }
+
+    /** Credentials were installed (download, file import, watch handoff): reconnect who waited. */
+    @JvmStatic
+    fun wakeDriversWaitingForCredentials() {
+        waitingForCredentials().forEach { it.softReconnect() }
     }
 }

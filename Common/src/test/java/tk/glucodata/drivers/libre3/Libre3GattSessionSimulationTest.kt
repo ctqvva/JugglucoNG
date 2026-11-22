@@ -36,6 +36,7 @@ import javax.crypto.spec.SecretKeySpec
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
@@ -196,6 +197,43 @@ class Libre3GattSessionSimulationTest {
         assertEquals(listOf(0x11, 0x08), sim.commands)
         assertEquals(Libre3BleManager.Phase.STREAMING, manager.phase)
         assertEquals(104f, field("lastReadingMgdl").get(manager) as Float)
+    }
+
+    @Test fun credentialsArrivingLaterWakeTheWaitingDriver() {
+        tk.glucodata.SensorBluetooth.gattcallbacks.add(manager)
+        try {
+            // Removed credentials: the handshake stops and waits instead of retrying.
+            Libre3Persistence.clearIdentities(context)
+            settle()
+            connect()
+            assertTrue(manager.isWaitingForCredentials())
+            assertTrue("no security command without credentials", sim.commands.isEmpty())
+            awaitCredentialWorker()
+
+            // Settings (download or file import) installs a set: the driver reconnects by itself.
+            val identity = Libre3AppIdentity.create("app", ByteArray(30) + byteArrayOf(0x44, 0x44), Libre3Bytes.parseHex(CERT_HEX)!!)
+            val json = Libre3AppIdentity.toJson(listOf(identity)).toByteArray()
+            Libre3Persistence.installIdentities(context, "sim2", Libre3IdentityProvisioning.sha256Hex(json), json, "test")
+            advance(300)
+            assertFalse(manager.isWaitingForCredentials())
+
+            connect()
+            assertEquals(listOf(0x01, 0x02, 0x03, 0x09, 0x0D, 0x0E, 0x11, 0x08), sim.commands)
+            assertEquals(Libre3BleManager.Phase.STREAMING, manager.phase)
+        } finally {
+            tk.glucodata.SensorBluetooth.gattcallbacks.remove(manager)
+        }
+    }
+
+    /** The background download started by the waiting driver; removed credentials end it at once. */
+    private fun awaitCredentialWorker() {
+        val busy = Libre3Registry::class.java.getDeclaredField("provisioning").apply { isAccessible = true }
+            .get(null) as java.util.concurrent.atomic.AtomicBoolean
+        val deadline = System.currentTimeMillis() + 5_000L
+        while (busy.get()) {
+            if (System.currentTimeMillis() > deadline) fail("credential download never finished")
+            Thread.sleep(10L)
+        }
     }
 
     companion object {

@@ -289,7 +289,11 @@ object Libre3Persistence {
         check(prefs(context).edit().putString(KEY_VERSIONS, array.toString()).putString(KEY_SELECTED, version).putBoolean(KEY_PROVISION_BLOCKED, false).commit()) {
             "could not persist identity selection"
         }
-        return relabel(version, parsed)
+        val installed = relabel(version, parsed)
+        // A driver stopped for missing credentials waits for these; Settings, a file import or a
+        // watch handoff would otherwise leave it disconnected until the user reconnects it.
+        Libre3Registry.wakeDriversWaitingForCredentials()
+        return installed
     }
 
     /** A user-picked file: its digest is computed here and becomes its version. */
