@@ -87,6 +87,9 @@ class Libre3BleManager(sensorId: String) :
 
     private val sensorId: String = sensorId
 
+    /** Patch-certificate signers. Only the GATT session simulation replaces them. */
+    internal var patchSigningKeys: List<ByteArray> = Libre3SensorCertificate.PATCH_SIGNING_KEYS
+
     // ---- thread ----
 
     private val threadName = "Libre3-$sensorId"
@@ -603,7 +606,7 @@ class Libre3BleManager(sensorId: String) :
             val identity = pickIdentity(ctx, identities)
             handshakeIdentity = identity
             Log.i(TAG, "$sensorId: full authorization with identity '${identity.label}'")
-            Libre3Handshake(Libre3Handshake.Mode.FULL, rec.blePin, identity, null)
+            Libre3Handshake(Libre3Handshake.Mode.FULL, rec.blePin, identity, null, signingKeys = patchSigningKeys)
         }
         handshake = hs
         phase = Phase.AUTHENTICATING
