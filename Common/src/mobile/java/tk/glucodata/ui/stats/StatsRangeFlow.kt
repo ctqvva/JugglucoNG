@@ -1235,6 +1235,8 @@ private val RingSpacing = 12.dp
  */
 private val RingRowsMin = 168.dp
 private const val RingDimmedAlpha = 0.32f
+/** Between the ring and the change when it sits outside, so the two do not touch. */
+private val RingDeltaGap = 8.dp
 
 @Composable
 private fun RangeRing(
@@ -1331,7 +1333,7 @@ private fun RangeRing(
         // The ring takes whatever the rows leave, so the two fill the card as one block.
         val size = (maxWidth - RingSpacing - rowsNeed).coerceIn(RingMin, RingMax)
         val stackedSize = RingMax.coerceAtMost(maxWidth)
-        val dial: @Composable (Modifier) -> Unit = { dialModifier ->
+        val dial: @Composable (Dp, Boolean) -> Unit = { ringSize, centred ->
             RingDial(
                 rows = ringRows,
                 inRange = inRange,
@@ -1341,18 +1343,19 @@ private fun RangeRing(
                 noData = noData,
                 selectedBand = selectedBand,
                 onBandSelected = onBandSelected,
-                modifier = dialModifier
+                ringSize = ringSize,
+                centred = centred
             )
         }
         if (stacked) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                dial(Modifier.size(stackedSize))
+                dial(stackedSize, false)
                 Spacer(modifier = Modifier.height(RingSpacing))
                 list(Modifier.fillMaxWidth(), true)
             }
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                dial(Modifier.size(size))
+                dial(size, true)
                 Spacer(modifier = Modifier.width(RingSpacing))
                 list(Modifier.weight(1f), timesFit)
             }
@@ -1400,7 +1403,8 @@ private fun RingDial(
     noData: Boolean,
     selectedBand: TirBand?,
     onBandSelected: (TirBand?) -> Unit,
-    modifier: Modifier = Modifier
+    ringSize: Dp,
+    centred: Boolean
 ) {
     val colors = rows.map { it.color }
     val bands = rows.map { it.band }
@@ -1424,155 +1428,170 @@ private fun RingDial(
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val change = inRangeDelta?.let { stringResource(R.string.gri_vs_previous, formatSignedNumber(it)) }
 
-    BoxWithConstraints(
-        modifier = modifier
-            .clearAndSetSemantics {
-                contentDescription = "$value $caption"
-                change?.let { stateDescription = it }
-            }
-            .drawBehind {
-                val stroke = RingStroke.toPx()
-                val radius = (size.minDimension - stroke) / 2f
-                if (radius <= 0f) return@drawBehind
-                val topLeft = Offset(center.x - radius, center.y - radius)
-                val arcSize = Size(radius * 2f, radius * 2f)
-                val toDegrees = 180f / Math.PI.toFloat()
-                val gap = RingGap.toPx() / radius * toDegrees
-                val corner = RingCorner.toPx()
-                val inner = radius - stroke / 2f
-                val outer = radius + stroke / 2f
-                // Small enough that 0.2% and 2% still differ; a sliver this thin rounds its
-                // corners less, below.
-                val minSweep = gap + FlowMinSegment.toPx() * 1.5f / inner * toDegrees
-                val slots = ringSlots(shares, presences, minSweep = minSweep)
-                val present = slots.count { it != null }
-                if (present == 0) {
-                    drawCircle(track, radius, center, style = Stroke(stroke))
-                    return@drawBehind
-                }
-                slots.forEachIndexed { i, slot ->
-                    if (slot == null) return@forEachIndexed
-                    val color = colors[i].copy(alpha = dims[i].value)
-                    if (present == 1) {
-                        drawCircle(color, radius, center, style = Stroke(stroke))
-                        return@forEachIndexed
-                    }
-                    // The sector, shrunk by the corner radius on every side, then filled and
-                    // stroked with a round join: that gives it corners of exactly that radius.
-                    val start = slot.first + gap / 2f
-                    val sweep = slot.second - gap
-                    // Never more than a third of the arc's narrow edge, so a sliver stays a sliver.
-                    val c = corner.coerceAtMost(sweep / toDegrees * inner / 3f)
-                    val ro = outer - c
-                    val ri = inner + c
-                    val co = c / ro * toDegrees
-                    val ci = c / ri * toDegrees
-                    val outerSweep = (sweep - co * 2f).coerceAtLeast(0.01f)
-                    val innerSweep = (sweep - ci * 2f).coerceAtLeast(0.01f)
-                    val mid = start + sweep / 2f
-                    val path = Path().apply {
-                        arcTo(
-                            Rect(center.x - ro, center.y - ro, center.x + ro, center.y + ro),
-                            mid - outerSweep / 2f, outerSweep, true
-                        )
-                        arcTo(
-                            Rect(center.x - ri, center.y - ri, center.x + ri, center.y + ri),
-                            mid + innerSweep / 2f, -innerSweep, false
-                        )
-                        close()
-                    }
-                    drawPath(path, color)
-                    drawPath(path, color, style = Stroke(width = c * 2f, join = StrokeJoin.Round))
-                }
-            }
-            .pointerInput(Unit) {
-                detectTapGestures { tap ->
-                    val stroke = RingStroke.toPx()
-                    val radius = (size.width.coerceAtMost(size.height) - stroke) / 2f
-                    val dx = tap.x - size.width / 2f
-                    val dy = tap.y - size.height / 2f
-                    val distance = kotlin.math.sqrt(dx * dx + dy * dy)
-                    // The ring and a finger's width either side of it; the hole clears.
-                    if (abs(distance - radius) > stroke / 2f + 12.dp.toPx()) {
-                        latestSelect(null)
-                        return@detectTapGestures
-                    }
-                    val angle = (kotlin.math.atan2(dy, dx) * 180f / Math.PI.toFloat() + 450f) % 360f
-                    val slots = ringSlots(shares, presences, minSweep = 0f)
-                    val hit = slots.indexOfFirst { slot ->
-                        slot != null && angle >= slot.first + 90f && angle < slot.first + 90f + slot.second
-                    }
-                    val band = latestBands.getOrNull(hit)
-                    latestSelect(if (band == null || band == latestSelected) null else band)
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        val inner = (minOf(maxWidth, maxHeight) - RingStroke * 2 - 4.dp).coerceAtLeast(0.dp)
-        // The old ring's sizes, stepping down only when this circle cannot hold them.
-        val styles = listOf(
-            MaterialTheme.typography.headlineLarge,
-            MaterialTheme.typography.headlineMedium,
-            MaterialTheme.typography.headlineSmall,
-            MaterialTheme.typography.titleLarge,
-            MaterialTheme.typography.titleMediumEmphasized
-        )
-        val measurer = rememberTextMeasurer()
-        val density = LocalDensity.current
-        val captions = listOf(
-            MaterialTheme.typography.titleMedium,
-            MaterialTheme.typography.labelLarge,
-            MaterialTheme.typography.labelMedium,
-            MaterialTheme.typography.labelSmall
-        )
-        // The change has a slot of its own above the number, held whether it shows or not
-        // and mirrored by an empty one under the caption: the number and "TIR" never move
-        // or resize when it appears.
-        val deltaStyle = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
-        val deltaSlot = with(density) { maxOf(16.dp, deltaStyle.lineHeight.toDp()) }
-        // The largest headline and caption that fit inside the hole with the change's slot
-        // above them; the caption gives way first, since the number is what the ring is for.
-        val (valueStyle, captionStyle) = remember(value, caption, inner, density, styles, captions, deltaStyle, deltaSlot) {
-            val radius = with(density) { inner.toPx() } / 2f
-            val slot = with(density) { deltaSlot.toPx() }
-            val slotWidth = measurer.measure("88", deltaStyle, maxLines = 1).size.width +
-                with(density) { 16.dp.toPx() }
-            val pairs = styles.flatMap { style -> captions.map { style to it } }
-            pairs.firstOrNull { (style, captionStyle) ->
-                val number = measurer.measure(value, style.copy(fontFeatureSettings = "tnum"), maxLines = 1).size
-                val label = measurer.measure(caption, captionStyle, maxLines = 1).size
-                val halfWidth = maxOf(number.width, label.width) / 2f
-                val halfHeight = (number.height + label.height) / 2f
-                // Both the block's corners and the slot's outer corners stay inside the hole.
-                kotlin.math.hypot(halfWidth, halfHeight) <= radius &&
-                    kotlin.math.hypot(slotWidth / 2f, halfHeight + slot) <= radius
-            } ?: (styles.last() to captions.last())
+    val inner = (ringSize - RingStroke * 2 - 4.dp).coerceAtLeast(0.dp)
+    // The old ring's sizes, stepping down only when this circle cannot hold them.
+    val styles = listOf(
+        MaterialTheme.typography.headlineLarge,
+        MaterialTheme.typography.headlineMedium,
+        MaterialTheme.typography.headlineSmall,
+        MaterialTheme.typography.titleLarge,
+        MaterialTheme.typography.titleMediumEmphasized
+    )
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val captions = listOf(
+        MaterialTheme.typography.titleMedium,
+        MaterialTheme.typography.labelLarge,
+        MaterialTheme.typography.labelMedium,
+        MaterialTheme.typography.labelSmall
+    )
+    val deltaStyle = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
+    val deltaSlot = with(density) { maxOf(16.dp, deltaStyle.lineHeight.toDp()) }
+    // The largest headline and caption whose block fits inside the hole; the caption gives
+    // way first, since the number is what the ring is for. The change never costs them a
+    // size: it sits above the number when there is room at that size, else under the ring.
+    // Its slot is held whether it shows or not, and decided by the ring's size alone, so
+    // nothing moves or resizes when it appears.
+    val centre = remember(value, caption, inner, density, styles, captions, deltaStyle, deltaSlot) {
+        val radius = with(density) { inner.toPx() } / 2f
+        val slot = with(density) { deltaSlot.toPx() }
+        val slotWidth = measurer.measure("88", deltaStyle, maxLines = 1).size.width +
+            with(density) { 16.dp.toPx() }
+        val pairs = styles.flatMap { style -> captions.map { style to it } }
+        val sizes = pairs.map { (style, captionStyle) ->
+            val number = measurer.measure(value, style.copy(fontFeatureSettings = "tnum"), maxLines = 1).size
+            val label = measurer.measure(caption, captionStyle, maxLines = 1).size
+            maxOf(number.width, label.width) / 2f to (number.height + label.height) / 2f
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(modifier = Modifier.height(deltaSlot), contentAlignment = Alignment.Center) {
-                inRangeDelta?.let { InRangeDelta(it) }
-            }
-            Text(
-                text = buildAnnotatedString {
-                    append(value)
-                    val at = if (number.isEmpty()) -1 else value.indexOf(number)
-                    if (at >= 0) addStyle(SpanStyle(color = tone), at, at + number.length)
+        val fit = sizes.indexOfFirst { (halfWidth, halfHeight) ->
+            kotlin.math.hypot(halfWidth, halfHeight) <= radius
+        }.takeIf { it >= 0 } ?: pairs.lastIndex
+        val halfHeight = sizes[fit].second
+        Triple(pairs[fit].first, pairs[fit].second, kotlin.math.hypot(slotWidth / 2f, halfHeight + slot) <= radius)
+    }
+    val (valueStyle, captionStyle, deltaInside) = centre
+    val deltaSlotContent: @Composable () -> Unit = {
+        Box(modifier = Modifier.height(deltaSlot), contentAlignment = Alignment.Center) {
+            inRangeDelta?.let { InRangeDelta(it) }
+        }
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Held above too when beside the rows, so the ring stays centred against them.
+        if (!deltaInside && centred) Spacer(modifier = Modifier.height(deltaSlot + RingDeltaGap))
+        Box(
+            modifier = Modifier
+                .size(ringSize)
+                .clearAndSetSemantics {
+                    contentDescription = "$value $caption"
+                    change?.let { stateDescription = it }
+                }
+                .drawBehind {
+                    val stroke = RingStroke.toPx()
+                    val radius = (size.minDimension - stroke) / 2f
+                    if (radius <= 0f) return@drawBehind
+                    val topLeft = Offset(center.x - radius, center.y - radius)
+                    val arcSize = Size(radius * 2f, radius * 2f)
+                    val toDegrees = 180f / Math.PI.toFloat()
+                    val gap = RingGap.toPx() / radius * toDegrees
+                    val corner = RingCorner.toPx()
+                    val inner = radius - stroke / 2f
+                    val outer = radius + stroke / 2f
+                    // Small enough that 0.2% and 2% still differ; a sliver this thin rounds its
+                    // corners less, below.
+                    val minSweep = gap + FlowMinSegment.toPx() * 1.5f / inner * toDegrees
+                    val slots = ringSlots(shares, presences, minSweep = minSweep)
+                    val present = slots.count { it != null }
+                    if (present == 0) {
+                        drawCircle(track, radius, center, style = Stroke(stroke))
+                        return@drawBehind
+                    }
+                    slots.forEachIndexed { i, slot ->
+                        if (slot == null) return@forEachIndexed
+                        val color = colors[i].copy(alpha = dims[i].value)
+                        if (present == 1) {
+                            drawCircle(color, radius, center, style = Stroke(stroke))
+                            return@forEachIndexed
+                        }
+                        // The sector, shrunk by the corner radius on every side, then filled and
+                        // stroked with a round join: that gives it corners of exactly that radius.
+                        val start = slot.first + gap / 2f
+                        val sweep = slot.second - gap
+                        // Never more than a third of the arc's narrow edge, so a sliver stays a sliver.
+                        val c = corner.coerceAtMost(sweep / toDegrees * inner / 3f)
+                        val ro = outer - c
+                        val ri = inner + c
+                        val co = c / ro * toDegrees
+                        val ci = c / ri * toDegrees
+                        val outerSweep = (sweep - co * 2f).coerceAtLeast(0.01f)
+                        val innerSweep = (sweep - ci * 2f).coerceAtLeast(0.01f)
+                        val mid = start + sweep / 2f
+                        val path = Path().apply {
+                            arcTo(
+                                Rect(center.x - ro, center.y - ro, center.x + ro, center.y + ro),
+                                mid - outerSweep / 2f, outerSweep, true
+                            )
+                            arcTo(
+                                Rect(center.x - ri, center.y - ri, center.x + ri, center.y + ri),
+                                mid + innerSweep / 2f, -innerSweep, false
+                            )
+                            close()
+                        }
+                        drawPath(path, color)
+                        drawPath(path, color, style = Stroke(width = c * 2f, join = StrokeJoin.Round))
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures { tap ->
+                        val stroke = RingStroke.toPx()
+                        val radius = (size.width.coerceAtMost(size.height) - stroke) / 2f
+                        val dx = tap.x - size.width / 2f
+                        val dy = tap.y - size.height / 2f
+                        val distance = kotlin.math.sqrt(dx * dx + dy * dy)
+                        // The ring and a finger's width either side of it; the hole clears.
+                        if (abs(distance - radius) > stroke / 2f + 12.dp.toPx()) {
+                            latestSelect(null)
+                            return@detectTapGestures
+                        }
+                        val angle = (kotlin.math.atan2(dy, dx) * 180f / Math.PI.toFloat() + 450f) % 360f
+                        val slots = ringSlots(shares, presences, minSweep = 0f)
+                        val hit = slots.indexOfFirst { slot ->
+                            slot != null && angle >= slot.first + 90f && angle < slot.first + 90f + slot.second
+                        }
+                        val band = latestBands.getOrNull(hit)
+                        latestSelect(if (band == null || band == latestSelected) null else band)
+                    }
                 },
-                style = valueStyle.copy(fontFeatureSettings = "tnum"),
-                color = muted,
-                maxLines = 1,
-                softWrap = false
-            )
-            Text(
-                text = caption,
-                style = captionStyle,
-                color = muted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(max = inner)
-            )
-            Spacer(modifier = Modifier.height(deltaSlot))
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (deltaInside) deltaSlotContent()
+                Text(
+                    text = buildAnnotatedString {
+                        append(value)
+                        val at = if (number.isEmpty()) -1 else value.indexOf(number)
+                        if (at >= 0) addStyle(SpanStyle(color = tone), at, at + number.length)
+                    },
+                    style = valueStyle.copy(fontFeatureSettings = "tnum"),
+                    color = muted,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                Text(
+                    text = caption,
+                    style = captionStyle,
+                    color = muted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(max = inner)
+                )
+                if (deltaInside) Spacer(modifier = Modifier.height(deltaSlot))
+            }
+        }
+        if (!deltaInside) {
+            Spacer(modifier = Modifier.height(RingDeltaGap))
+            deltaSlotContent()
         }
     }
 }
