@@ -66,6 +66,8 @@ import static tk.glucodata.util.sleep;
 public class DexGattCallback extends SuperGattCallback {
 private static final long DEXCOM_WARMUP_MSEC = 30L * 60L * 1000L;
 private static final long DEXCOM_WARMUP_RETRY_SLACK_MSEC = 15_000L;
+private static final long DEXCOM_RESULT_WARMUP = 1L;
+private static final long DEXCOM_RESULT_DISPLAY_ONLY = 2L;
 private static final long DEXCOM_CONNECT_ATTEMPT_TIMEOUT_MS = 45_000L;
 private static final long DEXCOM_RECONNECT_QUIET_MS = 5_000L;
 private static final String DEX_CONNECT_PREFS = "dex_connect";
@@ -844,8 +846,8 @@ private long warmupMsec() {
     final int minutes = dataptr == 0L ? 0 : Natives.getSensorWarmupMinutes(dataptr);
     return minutes > 0 ? minutes * 60_000L : DEXCOM_WARMUP_MSEC;
 }
-private boolean isWarmupReading(long readingTimeMsec, long res) {
-        if (res != 0L) {
+private boolean isWarmupReading(long readingTimeMsec, boolean warmingUp) {
+        if (!warmingUp) {
             return false;
         }
         final long refreshedStart = Natives.getSensorStartmsec(dataptr);
@@ -859,22 +861,25 @@ private    void getdata(byte[] value) {
         switch (value[0]) {
             case 0x4E: {
                 justdata=true;
-                long[] timeres={timmsec,0L};
+                long[] timeres={timmsec,0L,0L};
                 final boolean savename=Natives.dexcomProcessData(dataptr, value, timeres);
                 final long res= timeres[1];
                 final long newtime= timeres[0];
+                final long status = timeres[2];
                 if(doLog) {
                     final int glumgL = (int) (res & 0xFFFFFFFFL);
                     Log.i(LOG_ID, "dexcomProcessData newtime="+newtime+" res="+res+" "+glumgL/18+" mg/dL "+(glumgL/180.0)+ " mmol/L");                  
                     }
-                lastDataInvalidDuringWarmup = isWarmupReading(newtime, res);
+                lastDataInvalidDuringWarmup = isWarmupReading(newtime, status == DEXCOM_RESULT_WARMUP);
                 if (lastDataInvalidDuringWarmup) {
                     lastWarmupRetryAt = sensorstartmsec + warmupMsec() + DEXCOM_WARMUP_RETRY_SLACK_MSEC;
                     if(doLog) {
                         Log.i(LOG_ID, "Dexcom reading is still in warmup window; next retry at=" + lastWarmupRetryAt);
                     }
                 }
-                handleGlucoseResult(res, newtime);
+                if (status != DEXCOM_RESULT_DISPLAY_ONLY) {
+                    handleGlucoseResult(res, newtime);
+                }
                 Applic.scheduler.schedule(()->{
                   if(connected) askbackfill();}, 10, TimeUnit.MILLISECONDS);
                 datatime=timmsec;

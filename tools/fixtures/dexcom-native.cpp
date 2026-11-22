@@ -80,6 +80,7 @@ struct SensorGlucoseData {
     Info metadata;
     string sensordir;
     bool haserror=false,sensorerror=false,missingInfo=false;
+    bool dexcomWarmingUp=false;
     uint32_t sensorErrorTime=0;
     int saved=0,lastSaved=-1,broadcast=10000;
     map<int,pair<int,float>> readings;
@@ -215,7 +216,7 @@ string manual(int days=10,string_view serial="M00000000001"){
 void payload(Info& info,const string& text){assert(text.size()<=sizeof(info.siId));info.siIdlen=text.size();memcpy(info.siId,text.data(),text.size());}
 void live(SensorGlucoseData& d,int seconds,int age=0){
     glucoseinput value{};value.secsSinceStart=seconds;value.age=age;value.mgdL=100;value.predictedmgdL=110;
-    jlong timeres[]{(jlong(d.getstarttime())+seconds)*1000,0};
+    jlong timeres[]{(jlong(d.getstarttime())+seconds)*1000,0,0};
     value.actual(&d,timeres,0);
     assert((timeres[1]!=0)==!d.sensorerror);
 }
@@ -304,7 +305,7 @@ void batchedBackfill(){
     auto none=backfillPacket({{2700,0xFFFF,6,0}});
     assert(!dexbackfillInput(&env,0,ptr,none)&&d.saved==6);
     glucoseinput current{};current.secsSinceStart=3000;current.mgdL=107;current.trend=DEXNOTREND;current.predictedmgdL=110;
-    jlong timeres[]{(jlong(d.getstarttime())+3000)*1000,0};
+    jlong timeres[]{(jlong(d.getstarttime())+3000)*1000,0,0};
     current.actual(&d,timeres,0);
     assert(d.readings[10].first==107&&std::isnan(d.readings[10].second));
     assert(!dexbackfillInput(&env,0,0,single));
@@ -325,14 +326,20 @@ void livePublicationFilters(){
         // Documented 0x52 values: 62 minutes for a 15-day G7, 27 for a 10-day
         // one; every 10-day record keeps the 30 minutes it has always carried.
         assert(d->getWarmupSEC()==(days==15?62:30)*60);
-        auto attempt=[&](int seconds,int state,int flags){
+        auto attempt=[&](int seconds,int state,int flags,bool warmingUp=false,int age=0){
             glucoseinput value{};
-            value.secsSinceStart=seconds;value.age=0;value.mgdL=100;value.predictedmgdL=110;
+            value.secsSinceStart=seconds;value.age=age;value.mgdL=100;value.predictedmgdL=110;
             value.state=state;value.info=flags;
-            jlong timeres[]{(jlong(d->getstarttime())+seconds)*1000,0};
+            const jlong received=(jlong(d->getstarttime())+seconds)*1000;
+            jlong timeres[]{received,0,0};
             const int before=d->saved;
             d->sensorerror=false;
             value.actual(d,timeres,0);
+            const auto expectedStatus = (flags & 0x10) ? glucoseinput::displayOnlyRepeat :
+                (warmingUp ? glucoseinput::warmup : glucoseinput::noSpecialStatus);
+            assert(timeres[2]==expectedStatus);
+            assert(d->dexcomWarmingUp==warmingUp);
+            assert(timeres[0]==received-age*1000LL);
             return std::tuple<bool,bool,long long>{d->saved>before,d->sensorerror,timeres[1]};
         };
         const int afterWarmup=d->getWarmupSEC()+300;
@@ -342,16 +349,23 @@ void livePublicationFilters(){
             assert(saved&&!error&&res!=0);
         }
         for(int state:{0x01,0x02,0x03,0x04,0x05,0x08,0x0b,0x0f,0x18,0x19,0x1a}){
-            auto [saved,error,res]=attempt(afterWarmup,state,0);
+            auto [saved,error,res]=attempt(afterWarmup,state,0,state==0x02);
             assert(!saved&&error&&res==0);
         }
         // The time window still guards a sensor that never says it has finished.
-        auto [early,earlyError,earlyRes]=attempt(31*60,0x06,0);
+        auto [early,earlyError,earlyRes]=attempt(31*60,0x06,0,days==15);
         assert(early==(days==10));
         assert(earlyError==!early);
         assert((earlyRes!=0)==early);
-        // A display-only repeat is not a measurement and not a sensor error.
-        auto [echo,echoError,echoRes]=attempt(afterWarmup,0x06,0x10);
+        const int duringWarmup=d->getWarmupSEC()-5*60;
+        auto [warmingSaved,warmingError,warmingRes]=attempt(duringWarmup,0x02,0,true);
+        assert(!warmingSaved&&warmingError&&warmingRes==0);
+        for(int state:{0x19,0x1a}){
+            auto [saved,error,res]=attempt(duringWarmup,state,0);
+            assert(!saved&&error&&res==0);
+        }
+        // A display-only repeat keeps its timestamp for scheduling and stays out of history.
+        auto [echo,echoError,echoRes]=attempt(afterWarmup,0x06,0x10,false,120);
         assert(!echo&&!echoError&&echoRes==0);
         // Other flag bits say nothing about the value.
         auto [dots,dotError,dotRes]=attempt(afterWarmup,0x06,0x03);

@@ -3342,6 +3342,7 @@ public:
   uint32_t lastPacketTime = 0;
   bool persistentSensorError = false;
   bool replacesensor = false;
+  bool dexcomWarmingUp = false;
 
   /**
    * Start or refresh an error episode. Libre 2 errors are kept until a valid reading
@@ -3376,6 +3377,7 @@ public:
     sensorErrorCode = 0;
     persistentSensorError = false;
     replacesensor = false;
+    dexcomWarmingUp = false;
   }
 
   bool hasSensorError(uint32_t nu) const {

@@ -23,6 +23,7 @@ fun getLegacyWarmupStatus(
         startMs,
         System.currentTimeMillis(),
         dexcomWarmupMinutes,
+        nativeStatus,
     ) ?: return null
     if (nativeStatus.isBlank()) {
         return context.getString(R.string.status_waiting_for_connection)

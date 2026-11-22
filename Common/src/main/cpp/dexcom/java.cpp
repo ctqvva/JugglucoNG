@@ -64,6 +64,8 @@ extern jlong glucoseback(uint32_t nu, uint32_t glval, float drate,
 // extern jlong glucoseback(uint32_t glval,float drate,SensorGlucoseData *hist);
 extern void wakewithcurrent();
 struct glucoseinput {
+  enum ResultStatus : jlong { noSpecialStatus, warmup, displayOnlyRepeat };
+
   uint8_t type;
   int8_t status;
   int32_t secsSinceStart;
@@ -155,14 +157,25 @@ struct glucoseinput {
 #endif
     const auto wastime = nowsec - age;
 
-    const int dexmaxtime = sens->getDexMaxSecs();
     if (displayOnly()) {
       // The sensor repeats a fingerstick; this is neither a reading nor an error.
       LOGAR("display only value, not a measurement");
+      timeres[0] -= age * 1000LL; // The next BLE slot still follows the sample time.
       timeres[1] = 0LL;
-    } else if (secsSinceStart <= dexmaxtime && mgdL >= 39 && mgdL <= 501 &&
-               secsSinceStart >= sens->getWarmupSEC() && usableState() &&
-               index < sens->maxstreampos()) {
+      timeres[2] = displayOnlyRepeat;
+      return;
+    }
+
+    const int dexmaxtime = sens->getDexMaxSecs();
+    const bool usable = usableState();
+    const bool beforeWarmupEnd = secsSinceStart < sens->getWarmupSEC();
+    // The time guard also covers senders that omit the algorithm state.
+    // An explicit failure or ended state still takes precedence.
+    const bool warmingUp = state == 0x02 || (usable && beforeWarmupEnd);
+    sens->dexcomWarmingUp = warmingUp;
+    timeres[2] = warmingUp ? warmup : noSpecialStatus;
+    if (secsSinceStart <= dexmaxtime && mgdL >= 39 && mgdL <= 501 &&
+        !beforeWarmupEnd && usable && index < sens->maxstreampos()) {
       LOGAR("use value");
       save(sens, wastime, index);
       sens->saveDexFuture(index, wastime, getpredictedmgdL());

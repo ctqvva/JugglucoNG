@@ -1383,6 +1383,8 @@ public class Natives {
 
         public static native void dexResetKeys(long dataptr);
 
+        // timeres carries the timestamp, packed glucose result, and packet status
+        // (0 = ordinary response, 1 = warm-up, 2 = display-only repeat).
         public static native boolean dexcomProcessData(long dataptr, byte[] bluetoothdata, long[] timeres);
 
         public static native byte[] getDexbackfillcmd(long dataptr);

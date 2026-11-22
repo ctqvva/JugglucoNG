@@ -49,8 +49,10 @@ fun dexcomWarmupRemainingMinutes(
     startMs: Long,
     nowMs: Long,
     warmupMinutes: Int,
+    nativeStatus: String,
 ): Int? {
     if (sensorKind != DEXCOM_SENSOR_KIND || startMs <= 0L) return null
+    if (nativeStatus.isNotBlank() && nativeStatus != "Warming Up") return null
     // The sensor's own value (62 min for a 15-day G7, 30 for a 10-day one);
     // 30 is the value every older record carries.
     val minutes = if (warmupMinutes > 0) warmupMinutes else DEXCOM_DEFAULT_WARMUP_MINUTES
