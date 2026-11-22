@@ -25,6 +25,8 @@ struct CipherAPI {
   static void *load() {
 #ifdef __ANDROID__
     void *p = opencrypto();
+#elif defined(__APPLE__)
+    void *p = dlopen("libcrypto.dylib", RTLD_NOW | RTLD_LOCAL);
 #else
     void *p = dlopen("libcrypto.so", RTLD_NOW | RTLD_LOCAL);
     if (!p)
