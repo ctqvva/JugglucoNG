@@ -2428,6 +2428,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d хв</string>
     <string name="stats_duration_hours">%1$d гадз</string>
     <string name="stats_duration_hours_minutes">%1$d гадз %2$d хв</string>
+    <string name="stats_duration_days">%1$d дз</string>
+    <string name="stats_duration_days_hours">%1$d дз %2$d гадз</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d тыдзень</item>
+        <item quantity="few">%1$d тыдні</item>
+        <item quantity="many">%1$d тыдняў</item>
+        <item quantity="other">%1$d тыдні</item>
+    </plurals>
     <string name="stats_tab_days">Дні</string>
     <string name="stats_tab_hours">Гадзіны</string>
     <string name="stats_tab_weekdays">Дні тыдня</string>
@@ -2496,6 +2504,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Перыяд</string>
     <string name="stats_arrange_width">Палова або ўся шырыня</string>
+    <string name="stats_arrange_ring">Паказваць кольцам</string>
     <string name="stats_window_3d">3Д</string>
     <string name="stats_window_today">Сёння</string>
     <string name="stats_window_24h">24Г</string>
@@ -3483,4 +3492,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_move_up">Перамясціць вышэй</string>
     <string name="food_move_down">Перамясціць ніжэй</string>
     <string name="spanish">Іспанская</string>
+    <string name="floating_layout_reading">Паказанне</string>
+    <string name="floating_layout_secondary">Дадатковае значэнне</string>
+    <string name="floating_layout_delta">Дэльта</string>
+    <string name="floating_layout_arrow">Стрэлка трэнду</string>
+    <string name="floating_layout_camera">Выраз камеры</string>
+    <string name="floating_layout_camera_desc">Элементы вышэй стаяць перад камерай, астатнія — пасля</string>
+    <string name="floating_layout_hidden">Схавана</string>
+    <string name="floating_layout_order_desc">Перацягніце маркер, каб перамясціць элемент</string>
 </resources>

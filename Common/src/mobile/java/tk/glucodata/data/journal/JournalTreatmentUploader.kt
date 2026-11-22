@@ -283,7 +283,9 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
     override fun uploadAll(useV3: Boolean): Boolean = runBlocking {
         try {
             passLock.withLock {
-                uploadInternal(useV3, Natives.getpostTreatments(), getReceiveTreatments())
+                // Both switches are journal options, hidden while the journal is off.
+                val journal = tk.glucodata.JournalEnabled.isOn(Applic.app)
+                uploadInternal(useV3, journal && Natives.getpostTreatments(), journal && getReceiveTreatments())
             }
         } catch (th: Throwable) {
             Log.e(LOG_ID, "uploadAll failed: ${Log.stackline(th)}")
@@ -317,6 +319,7 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
 
     private suspend fun sendAsFollowerLocked() {
         if (!tk.glucodata.NightscoutUploadWake.followerSendsTreatments()) return
+        if (!tk.glucodata.JournalEnabled.isOn(Applic.app)) return
         val config = NightscoutFollowerRegistry.loadConfig(Applic.app)
         // The v3 write path authenticates with the uploader's URL and secret. The settings
         // screen keeps them the same as the follower's; if something else changed one, do not

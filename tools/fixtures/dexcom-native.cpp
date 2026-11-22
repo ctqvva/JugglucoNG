@@ -33,6 +33,7 @@ struct Info {
     bool dexcom=true;
     uint8_t days=12;
     uint16_t warmup=30,wearduration=14400,lastLifeCountReceived=1;
+    uint16_t warmup2=60;
     int pollcount=0;
     bool sibionics=false,notchinese=false;
     uint16_t wearduration2=0;
@@ -79,7 +80,8 @@ struct SensorGlucoseData {
     Info metadata;
     string sensordir;
     bool haserror=false,sensorerror=false,missingInfo=false;
-    uint32_t sensorErrorTime=0;
+    bool dexcomWarmingUp=false,persistentSensorError=false;
+    uint32_t sensorErrorTime=0,lastPacketTime=0;
     int saved=0,lastSaved=-1,broadcast=10000;
     map<int,pair<int,float>> readings;
     string address="F0:00:00:00:00:01";
@@ -100,7 +102,6 @@ struct SensorGlucoseData {
     int perhour()const{return 12;}int streamperhour()const{return 12;}
     array<char,11> dummyName{};
     const array<char,11>* shortsensorname()const{return &dummyName;}
-    int getWarmupSEC()const{return metadata.warmup*60;}
     uint32_t getstarttime()const{return metadata.starttime;}
     int pollcount()const{return metadata.pollcount;}
     Stream* getstream(int index){assert(index>=0&&index<int(stream.size()));return &stream[index];}
@@ -215,7 +216,7 @@ string manual(int days=10,string_view serial="M00000000001"){
 void payload(Info& info,const string& text){assert(text.size()<=sizeof(info.siId));info.siIdlen=text.size();memcpy(info.siId,text.data(),text.size());}
 void live(SensorGlucoseData& d,int seconds,int age=0){
     glucoseinput value{};value.secsSinceStart=seconds;value.age=age;value.mgdL=100;value.predictedmgdL=110;
-    jlong timeres[]{(jlong(d.getstarttime())+seconds)*1000,0};
+    jlong timeres[]{(jlong(d.getstarttime())+seconds)*1000,0,0};
     value.actual(&d,timeres,0);
     assert((timeres[1]!=0)==!d.sensorerror);
 }
@@ -267,6 +268,15 @@ jbyteArray backfillPacket(initializer_list<array<int,4>> records){
     }
     return packet;
 }
+jbyteArray backfillPacketFlags(initializer_list<array<int,5>> records){
+    auto packet=make_shared<Cmd>();
+    for(auto [seconds,glucose,type,flags,trend]:records){
+        for(int byte=0;byte<4;++byte)packet->bytes.push_back(uint32_t(seconds)>>(8*byte));
+        packet->bytes.push_back(glucose);packet->bytes.push_back(glucose>>8);
+        packet->bytes.push_back(type);packet->bytes.push_back(flags);packet->bytes.push_back(trend);
+    }
+    return packet;
+}
 void batchedBackfill(){
     JNIEnv env;
     SensorGlucoseData d;payload(d.metadata,manual());
@@ -295,15 +305,92 @@ void batchedBackfill(){
     auto none=backfillPacket({{2700,0xFFFF,6,0}});
     assert(!dexbackfillInput(&env,0,ptr,none)&&d.saved==6);
     glucoseinput current{};current.secsSinceStart=3000;current.mgdL=107;current.trend=DEXNOTREND;current.predictedmgdL=110;
-    jlong timeres[]{(jlong(d.getstarttime())+3000)*1000,0};
+    jlong timeres[]{(jlong(d.getstarttime())+3000)*1000,0,0};
     current.actual(&d,timeres,0);
     assert(d.readings[10].first==107&&std::isnan(d.readings[10].second));
     assert(!dexbackfillInput(&env,0,0,single));
     assert(!dexbackfillInput(&env,0,ptr,nullptr));
     transport.hist=nullptr;assert(!dexbackfillInput(&env,0,ptr,single));
 }
+// A G7/ONE+ 0x4E packet carries the sensor's algorithm state (byte 14) and a
+// flags byte (18) whose 0x10 bit marks a value that repeats a fingerstick after
+// a calibration. Only a measured value may reach the history.
+void livePublicationFilters(){
+    JNIEnv env;
+    for(int days:{10,15}){
+        registry=Sensoren{};
+        auto scan=dexcom::parseScan(barcode(days==15?"4581":"0071"));
+        assert(scan&&scan->days==days);
+        auto [id,d]=registry.makeDexComSensorindex(*scan,1700000001);
+        assert(d);
+        // Documented 0x52 values: 62 minutes for a 15-day G7, 27 for a 10-day
+        // one; every 10-day record keeps the 30 minutes it has always carried.
+        assert(d->getWarmupSEC()==(days==15?62:30)*60);
+        auto attempt=[&](int seconds,int state,int flags,bool warmingUp=false,int age=0){
+            glucoseinput value{};
+            value.secsSinceStart=seconds;value.age=age;value.mgdL=100;value.predictedmgdL=110;
+            value.state=state;value.info=flags;
+            const jlong received=(jlong(d->getstarttime())+seconds)*1000;
+            jlong timeres[]{received,0,0};
+            const int before=d->saved;
+            d->sensorerror=false;
+            value.actual(d,timeres,0);
+            const auto expectedStatus = (flags & 0x10) ? glucoseinput::displayOnlyRepeat :
+                (warmingUp ? glucoseinput::warmup : glucoseinput::noSpecialStatus);
+            assert(timeres[2]==expectedStatus);
+            assert(d->dexcomWarmingUp==warmingUp);
+            assert(timeres[0]==received-age*1000LL);
+            return std::tuple<bool,bool,long long>{d->saved>before,d->sensorerror,timeres[1]};
+        };
+        const int afterWarmup=d->getWarmupSEC()+300;
+        const auto start=d->getstarttime();
+        const auto warmupEnd=start+d->getWarmupSEC();
+        // A packet early in warm-up can be followed by a deliberate wait to reconnect.
+        assert(!d->isDexcomWarmingUp(start+5*60));
+        attempt(5*60,0x02,0,true);
+        assert(!d->hasSensorError(warmupEnd-1));
+        assert(d->isDexcomWarmingUp(warmupEnd-1));
+        assert(!d->isDexcomWarmingUp(warmupEnd));
+        // Measured states are published; every other state is not.
+        for(int state:{0x00,0x06,0x07,0x0e}){
+            auto [saved,error,res]=attempt(afterWarmup,state,0);
+            assert(saved&&!error&&res!=0);
+        }
+        for(int state:{0x01,0x02,0x03,0x04,0x05,0x08,0x0b,0x0f,0x18,0x19,0x1a}){
+            auto [saved,error,res]=attempt(afterWarmup,state,0,state==0x02);
+            assert(!saved&&error&&res==0);
+        }
+        // The time window still guards a sensor that never says it has finished.
+        auto [early,earlyError,earlyRes]=attempt(31*60,0x06,0,days==15);
+        assert(early==(days==10));
+        assert(earlyError==!early);
+        assert((earlyRes!=0)==early);
+        const int duringWarmup=d->getWarmupSEC()-5*60;
+        auto [warmingSaved,warmingError,warmingRes]=attempt(duringWarmup,0x02,0,true);
+        assert(!warmingSaved&&warmingError&&warmingRes==0);
+        for(int state:{0x19,0x1a}){
+            auto [saved,error,res]=attempt(duringWarmup,state,0);
+            assert(!saved&&error&&res==0);
+            assert(!d->isDexcomWarmingUp(start+duringWarmup));
+        }
+        // A display-only repeat keeps its timestamp for scheduling and stays out of history.
+        auto [echo,echoError,echoRes]=attempt(afterWarmup,0x06,0x10,false,120);
+        assert(!echo&&!echoError&&echoRes==0);
+        // Other flag bits say nothing about the value.
+        auto [dots,dotError,dotRes]=attempt(afterWarmup,0x06,0x03);
+        assert(dots&&!dotError&&dotRes!=0);
+    }
+    // Backfill byte 7 is the same flags byte and marks the same repeats.
+    registry=Sensoren{};
+    SensorGlucoseData b;payload(b.metadata,manual());
+    dexcomstream transport{&b};const auto ptr=reinterpret_cast<jlong>(&transport);
+    assert(dexbackfillInput(&env,0,ptr,backfillPacketFlags({{300,100,6,0x00,0}}))&&b.saved==1);
+    assert(!dexbackfillInput(&env,0,ptr,backfillPacketFlags({{600,101,6,0x10,0}}))&&b.saved==1);
+    assert(dexbackfillInput(&env,0,ptr,backfillPacketFlags({{900,102,6,0x01,0}}))&&b.saved==2);
+    assert(b.readings[1].first==100&&b.readings[3].first==102);
+}
 int main(){
-    flexDiscovery();batchedBackfill();
+    flexDiscovery();batchedBackfill();livePublicationFilters();
     for(auto model:{"4574","4581","0071"}){
         auto scan=dexcom::parseScan(barcode(model));assert(scan);
         assert(scan->days==(string_view(model)=="0071"?10:15));
@@ -321,13 +408,27 @@ int main(){
     assert(old55.size()==55);
     auto legacyFull=dexcom::parseScan(old55);
     assert(legacyFull&&legacyFull->name==canonical.name&&legacyFull->days==15);
+    // 15-day G7 applicators append GS1 AI 94 (internal software version, X..90) after AI 240.
+    auto withAi94=dexcom::parseScan(old55+"\x1d" "94SW12345");
+    assert(withAi94&&withAi94->name==canonical.name&&withAi94->days==15&&withAi94->payload==canonical.payload);
+    auto ai94Max=dexcom::parseScan(old55+"\x1d" "94"+string(90,'A'));
+    assert(ai94Max&&ai94Max->name==canonical.name&&ai94Max->days==15&&ai94Max->payload==canonical.payload);
+    auto ai94Punct=dexcom::parseScan(old55+"\x1d" "94SW14758(REV2)");
+    assert(ai94Punct&&ai94Punct->name==canonical.name&&ai94Punct->days==15&&ai94Punct->payload==canonical.payload);
+    auto ai94MidPunct=dexcom::parseScan("010038627000457421ABC123456789\x1d" "94SW14758(REV2)\x1d" "2400012");
+    assert(ai94MidPunct&&ai94MidPunct->name==canonical.name&&ai94MidPunct->days==15&&ai94MidPunct->payload==canonical.payload);
+    auto labelledAi94=dexcom::parseScan("(01)00386270004574(21)ABC123456789(11)260101(17)280101(240)0012(94)"+string(90,'B'));
+    assert(labelledAi94&&labelledAi94->name==canonical.name&&labelledAi94->days==15);
     assert(dexcom::parseScan(barcode("4574","112401725021")));
     auto shortSerial=dexcom::parseScan(barcode("4574","ABC"));assert(shortSerial);
     assert(string(shortSerial->name.data(),16)=="ABC2700045740012");
     for(auto invalid:{barcode()+"\x1d" "2409999",barcode("4574","ABCDEFGHIJKLM"),
             "(01)00386270004574(21)ABC(240)12A4"s,"(01)99999999994574(21)ABC(240)0012"s,
             "(01)00386270004574(21)(240)0012"s,barcode().substr(0,barcode().size()-1),
-            string(513,'0'),"(01)00386270004574(21)ABC(99)UNKNOWN(240)0012"s}){
+            string(513,'0'),"(01)00386270004574(21)ABC(99)UNKNOWN(240)0012"s,
+            old55+"\x1d" "94",old55+"\x1d" "94SW1\x1d" "94SW2",
+            old55+"\x1d" "94"+string(91,'A'),
+            "(01)00386270004574(21)ABC123456789(240)0012(94)"+string(91,'B')}){
         assert(!dexcom::parseScan(invalid));
     }
     for(int days:{10,15}){
@@ -374,11 +475,24 @@ int main(){
     assert(legacy->metadata.sharedKey[0]==42&&legacy->metadata.pollcount==100);
     assert(legacy->stream[99].timestamp==1700029701&&legacy->sensordir==oldPath);
 
+    // A legacy 30 is upgraded only for a 15-day record; reported values are kept.
+    assert(dexcom::upgradedWarmupMinutes(30,dexcom::wearMinutes(15))==62);
+    assert(dexcom::upgradedWarmupMinutes(30,dexcom::wearMinutes(10))==30);
+    assert(dexcom::upgradedWarmupMinutes(62,dexcom::wearMinutes(15))==62);
+    assert(dexcom::upgradedWarmupMinutes(27,dexcom::wearMinutes(10))==27);
+
     for(int days:{10,15}){
         SensorGlucoseData d;payload(d.metadata,manual(days));
         assert(d.initialHistoryBytes()==17*24*12*12);
         assert(d.pollStorageSize()==17*24*12);
         assert(d.getDexWearMinutes()==days*1440);
+        // The record mkdatabaseDex creates for this model.
+        d.metadata.warmup=dexcom::warmupMinutes(days);
+        const int warmup=d.getWarmupSEC();
+        // A record saved before the 15-day window was known still stores 30.
+        d.metadata.warmup=30;
+        assert(d.getWarmupSEC()==(days==15?62:30)*60);
+        d.metadata.warmup=dexcom::warmupMinutes(days);
         assert(d.getmaxdexcount()==(days==10?3025:4465));
         assert(d.getDexMaxSecs()==(days==10?907500:1339500));
         assert(d.officialendtime()==d.getstarttime()+days*86400);
@@ -392,7 +506,7 @@ int main(){
         assert((d.saved==1)==(days==15));
         live(d,d.getDexMaxSecs());assert(!d.sensorerror&&d.lastSaved==d.getmaxdexcount());
         int saved=d.saved;live(d,d.getDexMaxSecs()+1);assert(d.sensorerror&&d.saved==saved);
-        live(d,1799);assert(d.sensorerror&&d.saved==saved);live(d,1800);assert(!d.sensorerror);
+        live(d,warmup-1);assert(d.sensorerror&&d.saved==saved);live(d,warmup);assert(!d.sensorerror);
         // Backfill stores beyond day ten use the 15-day map, without altering five-minute indexing.
         dexbackfill back{};back.secsSinceStart=15*86400;back.mgdL=100;back.type=6;
         saved=d.saved;back.backfill(&d);assert((d.saved==saved+1)==(days==15));

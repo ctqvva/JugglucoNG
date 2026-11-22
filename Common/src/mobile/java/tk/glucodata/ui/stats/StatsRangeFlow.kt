@@ -73,11 +73,13 @@ import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
@@ -85,6 +87,20 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -126,10 +142,10 @@ import tk.glucodata.ui.util.ExpressiveMotion
 /** As wide as the card's own padding, so the bar sits in a margin of its own width. */
 private val FlowBarWidth = 16.dp
 private val FlowRibbonWidth = 28.dp
-private val FlowRowGap = 4.dp
-private val FlowSegmentGap = 2.dp
+private val FlowRowGap = 2.dp
+private val FlowSegmentGap = 1.5.dp
 /** A non-zero band never disappears from the bar. */
-private val FlowMinSegment = 4.dp
+private val FlowMinSegment = 2.dp
 private val FlowRowCorner = 12.dp
 private val FlowSegmentInnerCorner = 2.dp
 /** How far the smudge at the bar's edge reaches into the ribbon. */
@@ -178,7 +194,8 @@ internal fun GlycemicOverviewCard(
     selectedRange: StatsTimeRange?,
     selectedBand: TirBand?,
     onBandSelected: (TirBand?) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    ring: Boolean = false
 ) {
     var hourMask by rememberSaveable { mutableStateOf(0) }
     var editingWindow by rememberSaveable { mutableStateOf(false) }
@@ -188,6 +205,7 @@ internal fun GlycemicOverviewCard(
     val window = if (filtered) windowTir(hourly, hourMask) else null
     val noData = window != null && window.second == 0
     val tir = window?.first ?: summary.tir
+    val multiDay = summary.coverage.windowDays > 1.5f
 
     val rows = listOf(
         TirBandRow(
@@ -250,18 +268,40 @@ internal fun GlycemicOverviewCard(
             if (selectedBand != null && selectedBand !in visibleBands) onBandSelected(null)
         }
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            RangeFlow(
-                rows = shown,
-                // The comparison is for the whole window, so it only stands beside the whole.
-                inRangeDelta = if (window == null) summary.comparison?.inRangeDelta else null,
-                minutesPerDay = if (window == null) MinutesPerDay else Integer.bitCount(hourMask) * 60,
-                noData = noData,
-                selectedBand = selectedBand,
-                onBandSelected = onBandSelected,
-                modifier = Modifier.fillMaxWidth().animateContentSize()
-            )
+            // The comparison is for the whole window, so it only stands beside the whole.
+            val inRangeDelta = if (window == null) summary.comparison?.inRangeDelta else null
+            // One day: the time a typical day spends in each band. Over several days the
+            // out-of-range bands add up instead, the time actually measured there, and In
+            // range drops its hours, which only restate its percentage.
+            val spanMinutes = if (multiDay) {
+                val cadence = summary.coverage.cadenceMillis / 60_000f
+                ((window?.second ?: summary.coverage.readingCount) * cadence).roundToInt()
+            } else if (window == null) MinutesPerDay else Integer.bitCount(hourMask) * 60
+            if (ring) {
+                RangeRing(
+                    rows = shown,
+                    inRangeDelta = inRangeDelta,
+                    spanMinutes = spanMinutes,
+                    multiDay = multiDay,
+                    noData = noData,
+                    selectedBand = selectedBand,
+                    onBandSelected = onBandSelected,
+                    modifier = Modifier.fillMaxWidth().animateContentSize()
+                )
+            } else {
+                RangeFlow(
+                    rows = shown,
+                    inRangeDelta = inRangeDelta,
+                    spanMinutes = spanMinutes,
+                    multiDay = multiDay,
+                    noData = noData,
+                    selectedBand = selectedBand,
+                    onBandSelected = onBandSelected,
+                    modifier = Modifier.fillMaxWidth().animateContentSize()
+                )
+            }
             if (hoursAvailable) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 DayPartStrip(
                     hourly = hourly,
                     mask = hourMask,
@@ -550,48 +590,18 @@ private fun TimeWindowControl(
 private fun RangeFlow(
     rows: List<TirBandRow>,
     inRangeDelta: Float?,
-    minutesPerDay: Int,
+    spanMinutes: Int,
+    multiDay: Boolean,
     noData: Boolean,
     selectedBand: TirBand?,
     onBandSelected: (TirBand?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Read in the draw phase only: a range change re-pours the bar without recomposing.
-    val shares = rows.map { row -> key(row.band) {
-        animateFloatAsState(
-            targetValue = if (row.empty) 0f else row.percent.coerceIn(0f, 100f),
-            animationSpec = ExpressiveMotion.slowEffects(),
-            label = "flowShare"
-        )
-    } }
-    // Whether a band has a segment at all. Animated on its own, so a band arriving from 0%
-    // grows into its minimum height while a tiny share keeps the full minimum once there.
-    val presences = rows.map { row -> key(row.band) {
-        animateFloatAsState(
-            targetValue = if (row.empty) 0f else 1f,
-            animationSpec = ExpressiveMotion.slowEffects(),
-            label = "flowPresence"
-        )
-    } }
+    val shares = bandShares(rows)
+    val presences = bandPresences(rows)
     val interactions = rows.map { row -> key(row.band) { remember { MutableInteractionSource() } } }
-    val tints = rows.mapIndexed { index, row -> key(row.band) {
-        val pressed by interactions[index].collectIsPressedAsState()
-        // Squared, so the gap between a good and a poor share is plain at a glance: 95% in
-        // range keeps nearly the full tint, 47% gets about a quarter of it.
-        val fraction = row.percent.coerceIn(0f, 100f) / 100f
-        val share = TintMinAlpha + (TintMaxAlpha - TintMinAlpha) * fraction * fraction
-        val resting = when {
-            row.empty -> 0f
-            selectedBand == null -> share
-            selectedBand == row.band -> TintSelectedAlpha
-            else -> share / 2f
-        }
-        animateFloatAsState(
-            targetValue = if (pressed && !row.empty) resting + TintPressedBoost else resting,
-            animationSpec = ExpressiveMotion.fastEffects(),
-            label = "flowTint"
-        )
-    } }
+    val tints = bandTints(rows, selectedBand, interactions)
     val colors = rows.map { it.color }
     val geometry = remember { mutableStateOf<FlowGeometry?>(null) }
 
@@ -605,7 +615,8 @@ private fun RangeFlow(
                     row = row,
                     hero = row.band == TirBand.IN_RANGE,
                     inRangeDelta = inRangeDelta,
-                    minutesPerDay = minutesPerDay,
+                    spanMinutes = spanMinutes,
+                    multiDay = multiDay,
                     noData = noData,
                     selected = selectedBand == row.band,
                     interactionSource = interactions[index],
@@ -637,6 +648,56 @@ private fun RangeFlow(
             if (geometry.value != next) geometry.value = next
         }
     }
+}
+
+/** Each band's animated share of the time; zero for an empty band. */
+@Composable
+private fun bandShares(rows: List<TirBandRow>): List<State<Float>> = rows.map { row -> key(row.band) {
+    animateFloatAsState(
+        targetValue = if (row.empty) 0f else row.percent.coerceIn(0f, 100f),
+        animationSpec = ExpressiveMotion.slowEffects(),
+        label = "bandShare"
+    )
+} }
+
+/**
+ * Whether a band has a segment at all. Animated on its own, so a band arriving from 0%
+ * grows into its minimum size while a tiny share keeps the full minimum once there.
+ */
+@Composable
+private fun bandPresences(rows: List<TirBandRow>): List<State<Float>> = rows.map { row -> key(row.band) {
+    animateFloatAsState(
+        targetValue = if (row.empty) 0f else 1f,
+        animationSpec = ExpressiveMotion.slowEffects(),
+        label = "bandPresence"
+    )
+} }
+
+/** Each band row's tint, by its share of the time, the highlight and a press. */
+@Composable
+private fun bandTints(
+    rows: List<TirBandRow>,
+    selectedBand: TirBand?,
+    interactions: List<MutableInteractionSource>
+): List<State<Float>> {
+    return rows.mapIndexed { index, row -> key(row.band) {
+        val pressed by interactions[index].collectIsPressedAsState()
+        // Squared, so the gap between a good and a poor share is plain at a glance: 95% in
+        // range keeps nearly the full tint, 47% gets about a quarter of it.
+        val fraction = row.percent.coerceIn(0f, 100f) / 100f
+        val share = TintMinAlpha + (TintMaxAlpha - TintMinAlpha) * fraction * fraction
+        val resting = when {
+            row.empty -> 0f
+            selectedBand == null -> share
+            selectedBand == row.band -> TintSelectedAlpha
+            else -> share / 2f
+        }
+        animateFloatAsState(
+            targetValue = if (pressed && !row.empty) resting + TintPressedBoost else resting,
+            animationSpec = ExpressiveMotion.fastEffects(),
+            label = "flowTint"
+        )
+    } }
 }
 
 /** Each band's segment on the bar, top to bottom, or null for a band with no time. */
@@ -785,16 +846,21 @@ private fun BandRow(
     row: TirBandRow,
     hero: Boolean,
     inRangeDelta: Float?,
-    minutesPerDay: Int,
+    spanMinutes: Int,
+    multiDay: Boolean,
     noData: Boolean,
     selected: Boolean,
     interactionSource: MutableInteractionSource,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    inset: Dp = FlowRibbonWidth + 12.dp,
+    surface: Shape = RowSurface,
+    percentColor: Color? = null,
+    showTime: Boolean = true
 ) {
     // Hours with no readings have no split to show, rather than a row of zeroes.
     val percentText = if (noData) "–" else String.format(Locale.getDefault(), "%.1f%%", row.percent)
-    val minutes = (row.percent.coerceIn(0f, 100f) / 100f * minutesPerDay).roundToInt()
-    val time = if (row.empty) null else durationText(minutes)
+    val minutes = (row.percent.coerceIn(0f, 100f) / 100f * spanMinutes).roundToInt()
+    val time = if (!showTime || row.empty || (multiDay && row.band == TirBand.IN_RANGE)) null else bandDurationText(minutes)
     // An empty band steps right back: it has nothing to say beyond its threshold.
     val quiet = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
     val textColor = if (row.empty) quiet else MaterialTheme.colorScheme.onSurface
@@ -810,7 +876,7 @@ private fun BandRow(
     val padding = Modifier
         .heightIn(min = if (hero) 72.dp else 48.dp)
         .padding(
-            start = FlowRibbonWidth + 12.dp,
+            start = inset,
             end = 12.dp,
             top = if (hero) 12.dp else 4.dp,
             bottom = if (hero) 12.dp else 4.dp
@@ -848,7 +914,7 @@ private fun BandRow(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clip(RowSurface)
+                .clip(surface)
                 .indication(interactionSource, ripple())
         )
         if (hero) {
@@ -890,7 +956,7 @@ private fun BandRow(
                 Text(
                     text = percentText,
                     style = bandStyle.copy(fontFeatureSettings = "tnum"),
-                    color = textColor,
+                    color = percentColor ?: textColor,
                     maxLines = 1,
                     softWrap = false,
                     textAlign = TextAlign.End
@@ -1114,5 +1180,418 @@ private fun InRangeDelta(delta: Float) {
             color = tone,
             maxLines = 1
         )
+    }
+}
+
+/**
+ * A band's time, coarser as it grows: "23 h 30 min" within a day, whole hours up to three
+ * days, then "3 d 20 h", and whole days from a week on, a whole number of weeks named so.
+ */
+@Composable
+private fun bandDurationText(minutes: Int): String {
+    val hours = minutes / 60
+    val days = hours / 24
+    return when {
+        hours < 24 -> durationText(minutes)
+        hours < 72 -> stringResource(R.string.stats_duration_hours, hours)
+        days < 7 -> if (hours % 24 == 0) {
+            stringResource(R.string.stats_duration_days, days)
+        } else {
+            stringResource(R.string.stats_duration_days_hours, days, hours % 24)
+        }
+        days % 7 == 0 -> pluralStringResource(R.plurals.stats_duration_weeks, days / 7, days / 7)
+        else -> stringResource(R.string.stats_duration_days, days)
+    }
+}
+
+/*
+ * The ring, for people who would rather see the window as a dial. Same card, same rows,
+ * strip and hour window; only the bar and its ribbons give way to a circle.
+ *
+ * What the old ring got wrong, and this one does not:
+ * - Its rows were a 32dp list of label, range and band-coloured percent, too small to tap
+ *   and loud even at 0.0%. These are the flow's own rows: 48dp, tinted by share, and a band
+ *   with no time is left out.
+ * - Adjacent arcs were split by a hairline of a degree, so two reds ran together. Arcs now
+ *   keep a gap of fixed width and slightly rounded corners, like the bar's segments, and a
+ *   tiny share keeps a small block of its own.
+ * The ring itself stays the old one: "TIR" in the middle with its number in the heat
+ * colour, lows first clockwise from the top, and each band's percentage in its own colour.
+ * It takes whatever width the rows leave, so it is as large as the card allows; and a row
+ * never stacks to three lines: when range and time cannot share a line, the times go.
+ */
+
+private val RingStroke = 16.dp
+/** The visible gap between two arcs, whatever the ring's size; the bar's, a touch wider. */
+private val RingGap = 2.dp
+/** Each arc's corners, rounded like the bar's inner corners rather than capped into pills. */
+private val RingCorner = 3.dp
+private val RingMin = 104.dp
+private val RingMax = 168.dp
+private val RingSpacing = 12.dp
+/**
+ * Below this the rows would be squeezed, so the ring goes above them instead. Low on
+ * purpose: a ring alone on its own line was what people disliked about the old one.
+ */
+private val RingRowsMin = 168.dp
+private const val RingDimmedAlpha = 0.32f
+/** Between the ring and the change when it sits outside, so the two do not touch. */
+private val RingDeltaGap = 8.dp
+
+@Composable
+private fun RangeRing(
+    rows: List<TirBandRow>,
+    inRangeDelta: Float?,
+    spanMinutes: Int,
+    multiDay: Boolean,
+    noData: Boolean,
+    selectedBand: TirBand?,
+    onBandSelected: (TirBand?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // The ring runs clockwise from the top through the lows, in range and the highs, as it
+    // always did, so the two ends of the scale meet at twelve o'clock; the list reads high
+    // to low.
+    val ringRows = rows.reversed()
+    val shares = bandShares(ringRows)
+    val presences = bandPresences(ringRows)
+    val interactions = rows.map { row -> key(row.band) { remember { MutableInteractionSource() } } }
+    val tints = bandTints(rows, selectedBand, interactions)
+    val rowShape = RoundedCornerShape(FlowRowCorner)
+    val inRange = rows.firstOrNull { it.band == TirBand.IN_RANGE }?.percent ?: 0f
+
+    // Each band's percentage in its own colour, as on the old ring, nudged towards the text
+    // on a light surface, where yellow alone is unreadable.
+    val dark = isAppInDarkTheme()
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val quiet = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    val tones = rows.map { row ->
+        when {
+            noData || row.empty -> quiet
+            dark -> row.color
+            else -> lerp(row.color, onSurface, 0.2f)
+        }
+    }
+
+    // What each row needs on one line beside its percentage, to size the ring from.
+    val times = rows.map { row ->
+        val minutes = (row.percent.coerceIn(0f, 100f) / 100f * spanMinutes).roundToInt()
+        if (row.empty || (multiDay && row.band == TirBand.IN_RANGE)) null else bandDurationText(minutes)
+    }
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val labelStyle = MaterialTheme.typography.titleSmall
+    val detailStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum")
+    val separator = " · "
+    val needs = remember(rows, times, density, labelStyle, detailStyle) {
+        fun w(text: String, style: TextStyle) = measurer.measure(text, style, maxLines = 1, softWrap = false).size.width
+        val percentWidth = w(String.format(Locale.getDefault(), "%.1f%%", 100f), labelStyle.copy(fontFeatureSettings = "tnum"))
+        // The row's 12dp padding either side and the 12dp before its percentage.
+        val chrome = with(density) { 36.dp.roundToPx() }
+        fun need(withTimes: Boolean) = rows.indices.maxOf { i ->
+            val detail = times[i]?.takeIf { withTimes }?.let { rows[i].rangeLabel + separator + it } ?: rows[i].rangeLabel
+            maxOf(w(rows[i].label, labelStyle), w(detail, detailStyle)) + percentWidth + chrome
+        }
+        with(density) { need(true).toDp() to need(false).toDp() }
+    }
+
+    val list: @Composable (Modifier, Boolean) -> Unit = { listModifier, showTimes ->
+        Column(modifier = listModifier, verticalArrangement = Arrangement.spacedBy(FlowRowGap)) {
+            rows.forEachIndexed { index, row -> key(row.band) {
+                Box(
+                    modifier = Modifier.drawBehind {
+                        val outline = rowShape.createOutline(size, layoutDirection, this)
+                        drawOutline(outline, row.color.copy(alpha = tints[index].value))
+                    }
+                ) {
+                    BandRow(
+                        row = row,
+                        hero = false,
+                        inRangeDelta = null,
+                        spanMinutes = spanMinutes,
+                        multiDay = multiDay,
+                        noData = noData,
+                        selected = selectedBand == row.band,
+                        interactionSource = interactions[index],
+                        onClick = { onBandSelected(if (selectedBand == row.band) null else row.band) },
+                        inset = 12.dp,
+                        surface = rowShape,
+                        percentColor = tones[index],
+                        showTime = showTimes
+                    )
+                }
+            } }
+        }
+    }
+
+    BoxWithConstraints(modifier = modifier) {
+        val (withTimes, withoutTimes) = needs
+        // Times stay only if the rows can keep them on one line beside the smallest ring.
+        val timesFit = maxWidth - RingMin - RingSpacing >= withTimes
+        val rowsNeed = if (timesFit) withTimes else withoutTimes
+        val stacked = maxWidth - RingMin - RingSpacing < maxOf(rowsNeed, RingRowsMin)
+        // The ring takes whatever the rows leave, so the two fill the card as one block.
+        val size = (maxWidth - RingSpacing - rowsNeed).coerceIn(RingMin, RingMax)
+        val stackedSize = RingMax.coerceAtMost(maxWidth)
+        val dial: @Composable (Dp, Boolean) -> Unit = { ringSize, centred ->
+            RingDial(
+                rows = ringRows,
+                inRange = inRange,
+                inRangeDelta = inRangeDelta?.takeIf { !noData && abs(it) >= 1f },
+                shares = shares,
+                presences = presences,
+                noData = noData,
+                selectedBand = selectedBand,
+                onBandSelected = onBandSelected,
+                ringSize = ringSize,
+                centred = centred
+            )
+        }
+        if (stacked) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                dial(stackedSize, false)
+                Spacer(modifier = Modifier.height(RingSpacing))
+                list(Modifier.fillMaxWidth(), true)
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                dial(size, true)
+                Spacer(modifier = Modifier.width(RingSpacing))
+                list(Modifier.weight(1f), timesFit)
+            }
+        }
+    }
+}
+
+/** Each band's slot on the ring as start angle and sweep, clockwise from the top. */
+private fun ringSlots(
+    shares: List<State<Float>>,
+    presences: List<State<Float>>,
+    minSweep: Float
+): List<Pair<Float, Float>?> {
+    val values = shares.map { it.value.coerceAtLeast(0f) }
+    val presence = presences.map { it.value.coerceIn(0f, 1f) }
+    val shown = values.indices.map { values[it] > 0f || presence[it] > 0f }
+    if (shown.none { it }) return values.map { null }
+    // A floor, not an addition: a small band is lifted to the minimum and no further, so
+    // 0.2% and 2% still differ, and the larger bands give up the difference.
+    val total = values.sum().coerceAtLeast(0.0001f)
+    val raw = values.map { it / total * 360f }
+    val floors = presence.map { minSweep * it }
+    val lifted = raw.indices.filter { shown[it] && raw[it] < floors[it] }.toSet()
+    val free = raw.indices.filter { shown[it] && it !in lifted }
+    val room = (360f - lifted.sumOf { floors[it].toDouble() }.toFloat()).coerceAtLeast(0f)
+    val freeTotal = free.sumOf { raw[it].toDouble() }.toFloat().coerceAtLeast(0.0001f)
+    var start = -90f
+    return values.indices.map { i ->
+        if (!shown[i]) {
+            null
+        } else {
+            val sweep = if (i in lifted) floors[i] else raw[i] / freeTotal * room
+            (start to sweep).also { start += sweep }
+        }
+    }
+}
+
+@Composable
+private fun RingDial(
+    rows: List<TirBandRow>,
+    inRange: Float,
+    inRangeDelta: Float?,
+    shares: List<State<Float>>,
+    presences: List<State<Float>>,
+    noData: Boolean,
+    selectedBand: TirBand?,
+    onBandSelected: (TirBand?) -> Unit,
+    ringSize: Dp,
+    centred: Boolean
+) {
+    val colors = rows.map { it.color }
+    val bands = rows.map { it.band }
+    val dims = rows.map { row -> key(row.band) {
+        animateFloatAsState(
+            targetValue = if (selectedBand == null || selectedBand == row.band) 1f else RingDimmedAlpha,
+            animationSpec = ExpressiveMotion.fastEffects(),
+            label = "ringDim"
+        )
+    } }
+    val track = MaterialTheme.colorScheme.surfaceContainerHighest
+    val latestBands by rememberUpdatedState(bands)
+    val latestSelected by rememberUpdatedState(selectedBand)
+    val latestSelect by rememberUpdatedState(onBandSelected)
+
+    // The old ring's centre: time in range under "TIR", only the number in the heat colour.
+    val caption = stringResource(R.string.tir)
+    val value = if (noData) "–" else String.format(Locale.getDefault(), "%.0f%%", inRange)
+    val number = if (noData) "" else NumberFormat.getIntegerInstance().format(inRange.roundToInt())
+    val tone = tirHeatColor(inRange)
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val change = inRangeDelta?.let { stringResource(R.string.gri_vs_previous, formatSignedNumber(it)) }
+
+    val inner = (ringSize - RingStroke * 2 - 4.dp).coerceAtLeast(0.dp)
+    // The old ring's sizes, stepping down only when this circle cannot hold them.
+    val styles = listOf(
+        MaterialTheme.typography.headlineLarge,
+        MaterialTheme.typography.headlineMedium,
+        MaterialTheme.typography.headlineSmall,
+        MaterialTheme.typography.titleLarge,
+        MaterialTheme.typography.titleMediumEmphasized
+    )
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val captions = listOf(
+        MaterialTheme.typography.titleMedium,
+        MaterialTheme.typography.labelLarge,
+        MaterialTheme.typography.labelMedium,
+        MaterialTheme.typography.labelSmall
+    )
+    val deltaStyle = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
+    val deltaSlot = with(density) { maxOf(16.dp, deltaStyle.lineHeight.toDp()) }
+    // The largest headline and caption whose block fits inside the hole; the caption gives
+    // way first, since the number is what the ring is for. The change never costs them a
+    // size: it sits above the number when there is room at that size, else under the ring.
+    // Its slot is held whether it shows or not, and decided by the ring's size alone, so
+    // nothing moves or resizes when it appears.
+    val centre = remember(value, caption, inner, density, styles, captions, deltaStyle, deltaSlot) {
+        val radius = with(density) { inner.toPx() } / 2f
+        val slot = with(density) { deltaSlot.toPx() }
+        val slotWidth = measurer.measure("88", deltaStyle, maxLines = 1).size.width +
+            with(density) { 16.dp.toPx() }
+        val pairs = styles.flatMap { style -> captions.map { style to it } }
+        val sizes = pairs.map { (style, captionStyle) ->
+            val number = measurer.measure(value, style.copy(fontFeatureSettings = "tnum"), maxLines = 1).size
+            val label = measurer.measure(caption, captionStyle, maxLines = 1).size
+            maxOf(number.width, label.width) / 2f to (number.height + label.height) / 2f
+        }
+        val fit = sizes.indexOfFirst { (halfWidth, halfHeight) ->
+            kotlin.math.hypot(halfWidth, halfHeight) <= radius
+        }.takeIf { it >= 0 } ?: pairs.lastIndex
+        val halfHeight = sizes[fit].second
+        Triple(pairs[fit].first, pairs[fit].second, kotlin.math.hypot(slotWidth / 2f, halfHeight + slot) <= radius)
+    }
+    val (valueStyle, captionStyle, deltaInside) = centre
+    val deltaSlotContent: @Composable () -> Unit = {
+        Box(modifier = Modifier.height(deltaSlot), contentAlignment = Alignment.Center) {
+            inRangeDelta?.let { InRangeDelta(it) }
+        }
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Held above too when beside the rows, so the ring stays centred against them.
+        if (!deltaInside && centred) Spacer(modifier = Modifier.height(deltaSlot + RingDeltaGap))
+        Box(
+            modifier = Modifier
+                .size(ringSize)
+                .clearAndSetSemantics {
+                    contentDescription = "$value $caption"
+                    change?.let { stateDescription = it }
+                }
+                .drawBehind {
+                    val stroke = RingStroke.toPx()
+                    val radius = (size.minDimension - stroke) / 2f
+                    if (radius <= 0f) return@drawBehind
+                    val topLeft = Offset(center.x - radius, center.y - radius)
+                    val arcSize = Size(radius * 2f, radius * 2f)
+                    val toDegrees = 180f / Math.PI.toFloat()
+                    val gap = RingGap.toPx() / radius * toDegrees
+                    val corner = RingCorner.toPx()
+                    val inner = radius - stroke / 2f
+                    val outer = radius + stroke / 2f
+                    // Small enough that 0.2% and 2% still differ; a sliver this thin rounds its
+                    // corners less, below.
+                    val minSweep = gap + FlowMinSegment.toPx() * 1.5f / inner * toDegrees
+                    val slots = ringSlots(shares, presences, minSweep = minSweep)
+                    val present = slots.count { it != null }
+                    if (present == 0) {
+                        drawCircle(track, radius, center, style = Stroke(stroke))
+                        return@drawBehind
+                    }
+                    slots.forEachIndexed { i, slot ->
+                        if (slot == null) return@forEachIndexed
+                        val color = colors[i].copy(alpha = dims[i].value)
+                        if (present == 1) {
+                            drawCircle(color, radius, center, style = Stroke(stroke))
+                            return@forEachIndexed
+                        }
+                        // The sector, shrunk by the corner radius on every side, then filled and
+                        // stroked with a round join: that gives it corners of exactly that radius.
+                        val start = slot.first + gap / 2f
+                        val sweep = slot.second - gap
+                        // Never more than a third of the arc's narrow edge, so a sliver stays a sliver.
+                        val c = corner.coerceAtMost(sweep / toDegrees * inner / 3f)
+                        val ro = outer - c
+                        val ri = inner + c
+                        val co = c / ro * toDegrees
+                        val ci = c / ri * toDegrees
+                        val outerSweep = (sweep - co * 2f).coerceAtLeast(0.01f)
+                        val innerSweep = (sweep - ci * 2f).coerceAtLeast(0.01f)
+                        val mid = start + sweep / 2f
+                        val path = Path().apply {
+                            arcTo(
+                                Rect(center.x - ro, center.y - ro, center.x + ro, center.y + ro),
+                                mid - outerSweep / 2f, outerSweep, true
+                            )
+                            arcTo(
+                                Rect(center.x - ri, center.y - ri, center.x + ri, center.y + ri),
+                                mid + innerSweep / 2f, -innerSweep, false
+                            )
+                            close()
+                        }
+                        drawPath(path, color)
+                        drawPath(path, color, style = Stroke(width = c * 2f, join = StrokeJoin.Round))
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures { tap ->
+                        val stroke = RingStroke.toPx()
+                        val radius = (size.width.coerceAtMost(size.height) - stroke) / 2f
+                        val dx = tap.x - size.width / 2f
+                        val dy = tap.y - size.height / 2f
+                        val distance = kotlin.math.sqrt(dx * dx + dy * dy)
+                        // The ring and a finger's width either side of it; the hole clears.
+                        if (abs(distance - radius) > stroke / 2f + 12.dp.toPx()) {
+                            latestSelect(null)
+                            return@detectTapGestures
+                        }
+                        val angle = (kotlin.math.atan2(dy, dx) * 180f / Math.PI.toFloat() + 450f) % 360f
+                        val slots = ringSlots(shares, presences, minSweep = 0f)
+                        val hit = slots.indexOfFirst { slot ->
+                            slot != null && angle >= slot.first + 90f && angle < slot.first + 90f + slot.second
+                        }
+                        val band = latestBands.getOrNull(hit)
+                        latestSelect(if (band == null || band == latestSelected) null else band)
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (deltaInside) deltaSlotContent()
+                Text(
+                    text = buildAnnotatedString {
+                        append(value)
+                        val at = if (number.isEmpty()) -1 else value.indexOf(number)
+                        if (at >= 0) addStyle(SpanStyle(color = tone), at, at + number.length)
+                    },
+                    style = valueStyle.copy(fontFeatureSettings = "tnum"),
+                    color = muted,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                Text(
+                    text = caption,
+                    style = captionStyle,
+                    color = muted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(max = inner)
+                )
+                if (deltaInside) Spacer(modifier = Modifier.height(deltaSlot))
+            }
+        }
+        if (!deltaInside) {
+            Spacer(modifier = Modifier.height(RingDeltaGap))
+            deltaSlotContent()
+        }
     }
 }

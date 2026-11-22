@@ -191,6 +191,8 @@ class NightscoutFollowerManager(
             vendorModel = localizedString(R.string.nightscout_follow_title, "Nightscout follower"),
         )
 
+    override fun usesBluetoothDiscovery(): Boolean = false
+
     override fun connectDevice(delayMillis: Long): Boolean {
         stop = false
         scheduleRefresh(delayMillis.coerceAtLeast(0L))
@@ -783,6 +785,9 @@ class NightscoutFollowerManager(
     }
 
     private fun importRemoteTreatments(): Int {
+        // Both land in the journal; with it off they would fill a record nobody sees.
+        // Readings and devicestatus keep refreshing; the next poll after it is back imports.
+        if (!tk.glucodata.JournalEnabled.isOn(Applic.app)) return 0
         fun importBatch(label: String, body: () -> String): Int =
             runCatching {
                 val json = body()

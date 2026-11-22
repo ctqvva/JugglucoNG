@@ -1993,6 +1993,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="stats_duration_days">%1$d d</string>
+    <string name="stats_duration_days_hours">%1$d d %2$d h</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d week</item>
+        <item quantity="other">%1$d weeks</item>
+    </plurals>
     <!-- Statistics: patterns and day-by-day -->
     <string name="stats_tab_days">Days</string>
     <string name="stats_tab_hours">Hours</string>
@@ -2042,6 +2048,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_arrange_drag">Reorder</string>
     <string name="stats_arrange_pin">Pin to Dashboard</string>
     <string name="stats_arrange_width">Half or full width</string>
+    <string name="stats_arrange_ring">Show as ring</string>
     <string name="stats_arrange_visibility">Show or hide</string>
     <string name="stats_custom_range_title">Custom range</string>
     <string name="stats_custom_range_hint">Tap a day, or a second day for a span.</string>
@@ -3718,4 +3725,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_move_up">Move up</string>
     <string name="food_move_down">Move down</string>
     <string name="spanish">Spanish</string>
+    <string name="floating_layout_reading">Reading</string>
+    <string name="floating_layout_secondary">Secondary value</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Trend arrow</string>
+    <string name="floating_layout_camera">Camera cutout</string>
+    <string name="floating_layout_camera_desc">Items above it sit before the camera, the rest after it</string>
+    <string name="floating_layout_hidden">Hidden</string>
+    <string name="floating_layout_order_desc">Drag a handle to move an item</string>
 </resources>

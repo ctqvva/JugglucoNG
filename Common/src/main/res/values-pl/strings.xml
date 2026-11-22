@@ -2398,6 +2398,14 @@
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d godz.</string>
     <string name="stats_duration_hours_minutes">%1$d godz. %2$d min</string>
+    <string name="stats_duration_days">%1$d d</string>
+    <string name="stats_duration_days_hours">%1$d d %2$d godz.</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d tydzień</item>
+        <item quantity="few">%1$d tygodnie</item>
+        <item quantity="many">%1$d tygodni</item>
+        <item quantity="other">%1$d tygodnie</item>
+    </plurals>
     <string name="stats_tab_days">Dni</string>
     <string name="stats_tab_hours">Godziny</string>
     <string name="stats_tab_weekdays">Dni tygodnia</string>
@@ -2466,6 +2474,7 @@
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Okres</string>
     <string name="stats_arrange_width">Pół lub pełna szerokość</string>
+    <string name="stats_arrange_ring">Pokaż jako pierścień</string>
     <string name="stats_window_3d">3D</string>
     <string name="stats_window_today">Dziś</string>
     <string name="stats_window_24h">24H</string>
@@ -3454,4 +3463,12 @@
     <string name="food_move_down">Przenieś w dół</string>
     <string name="scan_sensor_qr">Zeskanuj kod QR sensora</string>
     <string name="spanish">Hiszpański</string>
+    <string name="floating_layout_reading">Odczyt</string>
+    <string name="floating_layout_secondary">Wartość dodatkowa</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Strzałka trendu</string>
+    <string name="floating_layout_camera">Wycięcie aparatu</string>
+    <string name="floating_layout_camera_desc">Elementy powyżej są przed aparatem, pozostałe za nim</string>
+    <string name="floating_layout_hidden">Ukryte</string>
+    <string name="floating_layout_order_desc">Przeciągnij uchwyt, aby przenieść element</string>
 </resources>

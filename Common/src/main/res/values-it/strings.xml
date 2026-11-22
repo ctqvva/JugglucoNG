@@ -2354,6 +2354,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="stats_duration_days">%1$d g</string>
+    <string name="stats_duration_days_hours">%1$d g %2$d h</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d settimana</item>
+        <item quantity="other">%1$d settimane</item>
+    </plurals>
     <string name="stats_tab_days">Giorni</string>
     <string name="stats_tab_hours">Ore</string>
     <string name="stats_tab_weekdays">Giorni della settimana</string>
@@ -2422,6 +2428,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Periodo</string>
     <string name="stats_arrange_width">Mezza o piena larghezza</string>
+    <string name="stats_arrange_ring">Mostra come anello</string>
     <string name="stats_window_3d">3G</string>
     <string name="stats_window_today">Oggi</string>
     <string name="stats_window_24h">24H</string>
@@ -3385,4 +3392,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_move_down">Sposta in basso</string>
     <string name="scan_sensor_qr">Scansiona il codice QR del sensore</string>
     <string name="spanish">Spagnolo</string>
+    <string name="floating_layout_reading">Lettura</string>
+    <string name="floating_layout_secondary">Valore secondario</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Freccia di tendenza</string>
+    <string name="floating_layout_camera">Foro della fotocamera</string>
+    <string name="floating_layout_camera_desc">Gli elementi sopra stanno prima della fotocamera, gli altri dopo</string>
+    <string name="floating_layout_hidden">Nascosto</string>
+    <string name="floating_layout_order_desc">Trascina una maniglia per spostare un elemento</string>
 </resources>

@@ -559,6 +559,21 @@ fromjava(getSensorStartmsecFromSensorptr)(JNIEnv *env, jclass cl,
     return 0LL;
   return sens->getstarttime() * 1000LL;
 }
+extern "C" JNIEXPORT jint JNICALL
+fromjava(getSensorWarmupMinutesByName)(JNIEnv *env, jclass cl,
+                                       jstring jsensor) {
+  if (!sensors || !jsensor)
+    return 0;
+  const char *name = env->GetStringUTFChars(jsensor, nullptr);
+  if (!name)
+    return 0;
+  const int index = sensors->sensorindexshort(name);
+  env->ReleaseStringUTFChars(jsensor, name);
+  if (index < 0)
+    return 0;
+  const SensorGlucoseData *sens = sensors->getSensorData(index);
+  return sens ? sens->getWarmupMIN() : 0;
+}
 extern "C" JNIEXPORT void JNICALL fromjava(updateUsedSensors)(JNIEnv *env,
                                                               jclass cl) {
   setusedsensors();
