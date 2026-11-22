@@ -309,6 +309,27 @@ class OttaiStreamRecoveryTests {
         assertEquals(start, (get("materials") as OttaiRegistry.DeviceMaterials).activeTimeMs)
     }
 
+    @Test
+    fun aWindowClosedByOneCallerIsNotChargedAgainByTheOther() {
+        // A response completes [100,130) while the watchdog gives up on it: whichever settles
+        // second must find the window gone, not settle an all-false copy as missing.
+        val window = OttaiBleManager.HistoryWindowProgress(100, 130).apply { mark((100 until 130).toList()) }
+        set("historyWindowProgress", window)
+        set("activeHistoryStart", 100)
+        set("activeHistoryEndExclusive", 130)
+        @Suppress("UNCHECKED_CAST")
+        val holes = get("historyHoles") as MutableList<OttaiBleManager.HistoryHole>
+        holes += OttaiBleManager.HistoryHole(100, 130, 0)
+
+        val first = invoke("settleHistoryWindow", 100, 130) as OttaiBleManager.HistoryWindowRuns
+        assertEquals(listOf(OttaiBleManager.MissingRange(100, 130)), first.settled)
+        assertTrue(holes.isEmpty())
+        assertEquals(-1, get("activeHistoryEndExclusive"))
+
+        assertNull("second settlement is a no-op", invoke("settleHistoryWindow", 100, 130))
+        assertTrue("completed records are not put back on the ledger", holes.isEmpty())
+    }
+
     private fun liveEmission(r: OttaiReading, arrival: Long): Triple<Long, Boolean, Boolean> {
         val emitted = invoke("emitReading", r, true, arrival, listOf(r), 0, false)!!
         fun field(name: String) = emitted.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(emitted)

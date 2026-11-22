@@ -3317,9 +3317,9 @@ class OttaiBleManager(
         if (activeHistoryEndExclusive <= 0) return
         val missedStart = activeHistoryStart
         val missedEnd = activeHistoryEndExclusive
+        settleHistoryWindow(missedStart, missedEnd) ?: return // already closed elsewhere
         cancelHistoryWatchdog()
         historyRetryCount = 0
-        settleHistoryWindow(missedStart, missedEnd)
         advanceHistoryChunkChain()
     }
 
@@ -4810,9 +4810,9 @@ class OttaiBleManager(
                 if (historyWindowProgress?.covers(start, start + count) != true) {
                     historyWindowProgress = HistoryWindowProgress(start, start + count)
                 }
+                activeHistoryStart = start
+                activeHistoryEndExclusive = start + count
             }
-            activeHistoryStart = start
-            activeHistoryEndExclusive = start + count
             armHistoryWatchdog()
             Log.i(TAG, "request history reason=$reason start=$start count=$count payload=${OttaiCrypto.bytesToHex(payload)}")
         }
@@ -4873,14 +4873,13 @@ class OttaiBleManager(
         // The sensor reached the end of the window. Only the records that actually arrived and
         // settled leave the ledger; a lost frame in the middle, or records that could not be
         // judged yet, stay on it and are charged one attempt, for the hole retry to fetch again.
-        val runs = settleHistoryWindow(activeStart, activeEndExclusive)
+        // The watchdog may have given up on this window a moment ago; it then owns the chain.
+        val runs = settleHistoryWindow(activeStart, activeEndExclusive) ?: return pendingHistoryReason != null
         if (runs.unsettled.isNotEmpty()) {
             Log.w(TAG, "history chunk [$activeStart,$activeEndExclusive) ended with unsettled " +
                 runs.unsettled.joinToString { "[${it.start},${it.endExclusive})" })
         }
         cancelHistoryWatchdog()
-        activeHistoryEndExclusive = -1
-        activeHistoryStart = -1
         if (pendingHistoryReason == null) {
             scheduleHoleRetry()
             return false
@@ -4903,10 +4902,11 @@ class OttaiBleManager(
         handler.removeCallbacks(historyWatchdogRunnable)
     }
 
-    /** Set the in-flight chunk to "done" and either fire the next pending chunk or finish. */
+    /**
+     * Fire the next pending chunk or finish. The in-flight window must already be closed
+     * (settleHistoryWindow claims it), so this never clears bounds a newer window just set.
+     */
     private fun advanceHistoryChunkChain() {
-        activeHistoryEndExclusive = -1
-        activeHistoryStart = -1
         if (pendingHistoryReason == null) {
             scheduleHoleRetry() // chain drained — let the ledger pick up any recorded misses
             return
@@ -4922,6 +4922,7 @@ class OttaiBleManager(
         if (end <= 0) return // nothing in flight
         if (start < 0 || end <= start) {
             historyRetryCount = 0
+            closeHistoryWindow()
             advanceHistoryChunkChain()
             return
         }
@@ -4930,15 +4931,14 @@ class OttaiBleManager(
             Log.w(TAG, "history page watchdog: no progress for chunk [$start,$end) — retry $historyRetryCount/$HISTORY_MAX_RETRIES")
             // Re-issue the same window (issueHistoryRequest re-arms the watchdog on success).
             if (!issueHistoryRequest("watchdog-retry", start, end - start, bypassCooldown = true)) {
-                settleHistoryWindow(start, end)
-                advanceHistoryChunkChain()
+                if (settleHistoryWindow(start, end) != null) advanceHistoryChunkChain()
             }
         } else {
             Log.e(TAG, "history page watchdog: chunk [$start,$end) failed after $historyRetryCount retries — " +
                 "recorded in the hole ledger for a later retry")
             historyRetryCount = 0
-            settleHistoryWindow(start, end)
-            advanceHistoryChunkChain()
+            // A response that completed the window just now already settled it and moved on.
+            if (settleHistoryWindow(start, end) != null) advanceHistoryChunkChain()
         }
     }
 
@@ -4951,13 +4951,11 @@ class OttaiBleManager(
         cancelHistoryWatchdog()
         historyRetryCount = 0
         historyChunkBestDataNo = -1
-        synchronized(historyWindowLock) { historyWindowProgress = null }
+        closeHistoryWindow()
         pendingHistoryReason = null
         pendingHistoryNextStart = 0
         pendingHistoryEndExclusive = 0
         historyChainStart = -1
-        activeHistoryEndExclusive = -1
-        activeHistoryStart = -1
         UiRefreshBus.requestStatusRefresh()
     }
 
@@ -5005,20 +5003,33 @@ class OttaiBleManager(
      * rest are charged one failed attempt. Used when the window completes and when it is given
      * up, so what did arrive before a stall is not fetched again.
      *
-     * The window is detached under the lock, so a frame that lands afterwards cannot mark it;
-     * its records count as unsettled and are fetched again, never the other way round.
+     * The window is claimed and closed under the lock, bounds and flags together, so exactly
+     * one caller settles it: a response completing it and the watchdog giving up on it can
+     * race (binder thread vs handler). The loser gets null and must leave the chain alone,
+     * which by then belongs to the winner. A frame that lands after the claim cannot mark the
+     * window; its records count as unsettled and are fetched again, never the other way round.
      */
-    private fun settleHistoryWindow(start: Int, endExclusive: Int): HistoryWindowRuns {
-        if (endExclusive <= start || start < 0) return HistoryWindowRuns(emptyList(), emptyList())
+    private fun settleHistoryWindow(start: Int, endExclusive: Int): HistoryWindowRuns? {
         val settled = synchronized(historyWindowLock) {
-            historyWindowProgress?.takeIf { it.covers(start, endExclusive) }
-                ?.also { historyWindowProgress = null }
-                ?.settled
-        } ?: BooleanArray(endExclusive - start)
+            val window = historyWindowProgress
+            if (window == null || !window.covers(start, endExclusive) ||
+                activeHistoryStart != start || activeHistoryEndExclusive != endExclusive) return null
+            closeHistoryWindowLocked()
+            window.settled
+        }
         val runs = historyWindowRuns(start, settled)
         for (run in runs.settled) trimHistoryHoles(run.start, run.endExclusive)
         noteHoleFailures(runs.unsettled)
         return runs
+    }
+
+    private fun closeHistoryWindow() = synchronized(historyWindowLock) { closeHistoryWindowLocked() }
+
+    /** Caller must hold [historyWindowLock]. */
+    private fun closeHistoryWindowLocked() {
+        historyWindowProgress = null
+        activeHistoryEndExclusive = -1
+        activeHistoryStart = -1
     }
 
     /** Records in [start,endExclusive) settled — the ONLY way a hole shrinks. */
