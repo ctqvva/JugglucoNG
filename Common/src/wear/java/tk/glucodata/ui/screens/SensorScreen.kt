@@ -17,9 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,6 +46,7 @@ import tk.glucodata.SensorBluetooth
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.ui.WearNavigationRow
 import tk.glucodata.ui.WearSectionTitle
+import tk.glucodata.ui.symbols.Symbols
 
 private const val SENSOR_TICK_MS = 60_000L
 
@@ -210,9 +208,9 @@ fun SensorScreen(onCalibrate: () -> Unit, onOpenSettings: (() -> Unit)? = null) 
                         if (selectable) {
                             androidx.wear.compose.material3.Icon(
                                 imageVector = if (row.isShown) {
-                                    Icons.Rounded.CheckCircle
+                                    Symbols.CheckCircleFilled
                                 } else {
-                                    Icons.Rounded.RadioButtonUnchecked
+                                    Symbols.RadioButtonUncheckedFilled
                                 },
                                 contentDescription = stringResource(
                                     if (row.isShown) R.string.sensor_display_selected

@@ -20,12 +20,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowRightAlt
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -55,6 +51,7 @@ import tk.glucodata.R
 import tk.glucodata.data.journal.JournalInsulinPreset
 import java.text.DateFormat
 import java.util.Date
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * A pen is tapped against the phone from wherever the user happens to be, so this hangs at
@@ -271,19 +268,19 @@ private fun DoseRow(
                     horizontalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.EditNote,
+                        imageVector = Symbols.EditNoteFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
                     )
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowRightAlt,
+                        imageVector = Symbols.ArrowRightAltFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp),
                     )
                     Icon(
-                        imageVector = Icons.Default.Nfc,
+                        imageVector = Symbols.NfcFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp),

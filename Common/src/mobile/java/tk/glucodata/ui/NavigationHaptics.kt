@@ -42,6 +42,20 @@ class NavigationTick internal constructor(context: Context) {
         }
     }
 
+    /** One light click, for the gentle end of something the user started, such as a hero's replay. */
+    fun playLight() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val vibrator = vibrator ?: return
+        runCatching {
+            vibrator.vibrate(
+                VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, LIGHT_SCALE)
+                    .compose(),
+                VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH)
+            )
+        }
+    }
+
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun capableVibrator(context: Context): Vibrator? = runCatching {
         context.getSystemService(VibratorManager::class.java)?.defaultVibrator
@@ -51,6 +65,7 @@ class NavigationTick internal constructor(context: Context) {
 
     private companion object {
         const val CLICK_SCALE = 0.5f
+        const val LIGHT_SCALE = 0.3f
     }
 }
 

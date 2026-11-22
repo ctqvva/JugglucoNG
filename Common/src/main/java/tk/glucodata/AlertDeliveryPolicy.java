@@ -1,5 +1,7 @@
 package tk.glucodata;
 
+import android.app.NotificationManager;
+
 import java.util.Locale;
 
 /**
@@ -48,6 +50,58 @@ public final class AlertDeliveryPolicy {
 
     public static boolean shouldUseAlarmAudioStream(String normalizedMode, boolean disturb) {
         return disturb || shouldAttemptAlarmWindow(normalizedMode);
+    }
+
+    // --- Do Not Disturb -----------------------------------------------------
+    //
+    // "Override silent mode" is one switch for everything an alert makes you
+    // hear or feel. Sound and vibration used to be gated apart: only the sound
+    // looked at Do Not Disturb, so a Low with the override off still buzzed a
+    // sleeping phone and, through it, a watch (#902). The notification, its
+    // episode, retries and acknowledgement are not effects and are not touched.
+
+    /**
+     * Do Not Disturb is on when the interruption filter is anything but "all".
+     * UNKNOWN means the system would not say; an unreadable state is not a
+     * reason to silence a glucose alert.
+     */
+    public static boolean isDoNotDisturbActive(int interruptionFilter) {
+        return interruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+                && interruptionFilter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN;
+    }
+
+    /** With Do Not Disturb on and no override, the alert makes no sound and does not vibrate. */
+    public static boolean dndBlocksEffects(boolean dndActive, boolean overrideDnd) {
+        return dndActive && !overrideDnd;
+    }
+
+    /**
+     * Vibration is cut by the quiet window's notification-only mode and by Do Not
+     * Disturb, each on its own. Nothing here looks at the kind: a hypo whose
+     * override is on is not blocked, and one whose override is off is.
+     */
+    public static boolean shouldVibrate(boolean vibrate, boolean quietSuppressesVibration, boolean dndBlocks) {
+        return vibrate && !quietSuppressesVibration && !dndBlocks;
+    }
+
+    /**
+     * "Vibrate first, audio after N seconds" only means something when both are on and
+     * nothing takes the sound away. A delay for a sound that will not play would still
+     * hold the alert's stop, and with it the next retry, back by N seconds.
+     */
+    public static boolean shouldDelaySound(boolean sound, boolean vibrate, boolean quietSilencesSound,
+            boolean dndBlocks) {
+        return sound && vibrate && !quietSilencesSound && !dndBlocks;
+    }
+
+    /**
+     * The override an alert fires with. The watch has no switch of its own and
+     * used to break through unconditionally; once the phone has reported its
+     * setting the watch follows it, and until then it keeps breaking through
+     * rather than going quiet on a setting it has never been told.
+     */
+    public static boolean effectiveOverrideDnd(boolean wearable, boolean phoneReported, boolean configuredOverride) {
+        return (wearable && !phoneReported) || configuredOverride;
     }
 
     /** Recovery is a message-only status event; its cue must not speak a glucose value. */

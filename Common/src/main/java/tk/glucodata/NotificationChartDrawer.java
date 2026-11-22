@@ -42,12 +42,21 @@ public class NotificationChartDrawer {
         public final int viewMode;
         public final int color;
         public final List<GlucosePoint> points;
+        /**
+         * Whether this peer's own lane carries an active calibration. Decided once,
+         * where the series is resolved, so the line (the chart model), its forecast
+         * and the y-range all agree about it. A calibrated peer's line is its
+         * calibrated value, and so is the forecast that continues it.
+         */
+        public final boolean hasCalibration;
 
-        public PeerSeries(String sensorId, int viewMode, int color, List<GlucosePoint> points) {
+        public PeerSeries(String sensorId, int viewMode, int color, List<GlucosePoint> points,
+                boolean hasCalibration) {
             this.sensorId = sensorId;
             this.viewMode = viewMode;
             this.color = color;
             this.points = points != null ? points : Collections.emptyList();
+            this.hasCalibration = hasCalibration;
         }
     }
 
@@ -1165,6 +1174,25 @@ public class NotificationChartDrawer {
         return CalibrationAccess.getCalibratedValue(baseVal, p.timestamp, isRawMode, false, calibrationSensorId);
     }
 
+    /**
+     * Whether a peer's line is still running, and so has a forecast to extend it.
+     * A series whose newest point is further behind than the chart would bridge is
+     * not producing readings; extrapolating it would project a curve out of the
+     * middle of the chart. The dashboard applies the same test to its peers.
+     */
+    static boolean peerPredictionEligible(PeerSeries series, long nowMs) {
+        if (series == null || series.points == null || series.points.size() < 2) {
+            return false;
+        }
+        long newest = 0L;
+        for (GlucosePoint point : series.points) {
+            if (point != null && point.timestamp > newest) {
+                newest = point.timestamp;
+            }
+        }
+        return newest > 0L && nowMs - newest <= GlucoseChartGap.THRESHOLD_MS;
+    }
+
     private static List<NotificationPredictionSeries> resolvePredictionOverlay(
             Context context, List<GlucosePoint> data, boolean isMmol, int viewMode,
             boolean hasCalibration, String calibrationSensorId, float targetLow, float targetHigh,
@@ -1446,47 +1474,36 @@ public class NotificationChartDrawer {
             }
         }
 
-        // Parse up to 3 parts: "Primary / Secondary · Tertiary" (hero card format)
+        // Parse up to 3 parts: "Primary · Secondary · Tertiary" (hero card format)
         String part1 = text;
-        String part2 = "";
-        String part3 = "";
-
-        // First split by " / " for primary vs rest
+        String part2 = null;
+        String part3 = null;
         if (text.contains(" · ")) {
             String[] mainSplit = text.split(" · ", 2);
             part1 = mainSplit[0];
             String rest = mainSplit.length > 1 ? mainSplit[1] : "";
-
-            // Then split rest by " · " for secondary vs tertiary
             if (rest.contains(" · ")) {
                 String[] subSplit = rest.split(" · ", 2);
-                part2 = " · " + subSplit[0];
-                part3 = " · " + subSplit[1];
+                part2 = subSplit[0];
+                part3 = subSplit[1];
             } else {
-                part2 = " · " + rest;
+                part2 = rest;
             }
         }
 
         // Measure Part 1 (Primary - full size)
         float width1 = paint.measureText(part1);
 
-        // Part 2 (Secondary - 0.7x size, gray)
+        // Part 2 (Secondary - 0.7x size, gray) and Part 3 (Tertiary - 0.6x size), each
+        // led by a drawn separator dot like the dashboard hero's.
         Paint paint2 = new Paint(paint);
-        float width2 = 0;
-        if (!part2.isEmpty()) {
-            paint2.setTextSize(textSize * 0.7f);
-            width2 = paint2.measureText(part2);
-        }
-
-        // Part 3 (Tertiary - 0.6x size, lighter gray)
+        paint2.setTextSize(textSize * 0.7f);
+        float width2 = part2 == null ? 0f : separatorWidth(paint2.getTextSize(), fontWeight) + paint2.measureText(part2);
         Paint paint3 = new Paint(paint);
-        float width3 = 0;
-        if (!part3.isEmpty()) {
-            paint3.setTextSize(textSize * 0.6f);
-            width3 = paint3.measureText(part3);
-        }
+        paint3.setTextSize(textSize * 0.6f);
+        float width3 = part3 == null ? 0f : separatorWidth(paint3.getTextSize(), fontWeight) + paint3.measureText(part3);
 
-        int totalWidth = (int) (width1 + width2 + width3 + 1);
+        int totalWidth = (int) Math.ceil(width1 + width2 + width3 + 1);
         int height = (int) (28 * density * fontSizeScale);
 
         if (totalWidth <= 0)
@@ -1507,20 +1524,50 @@ public class NotificationChartDrawer {
         canvas.drawText(part1, currentX, y, paint);
         currentX += width1;
 
-        // Draw Part 2 (Secondary)
-        if (!part2.isEmpty()) {
+        if (part2 != null) {
             paint2.setColor(secondaryColor);
-            canvas.drawText(part2, currentX, y, paint2);
-            currentX += width2;
+            currentX = drawSeparatedValue(canvas, part2, currentX, y, paint2, fontWeight);
         }
-
-        // Draw Part 3 (Tertiary)
-        if (!part3.isEmpty()) {
+        if (part3 != null) {
             paint3.setColor(tertiaryColor);
-            canvas.drawText(part3, currentX, y, paint3);
+            drawSeparatedValue(canvas, part3, currentX, y, paint3, fontWeight);
         }
 
         return bitmap;
+    }
+
+    // Separator dot, in em of the value it introduces. Sized to the dashboard as it
+    // looks on screen: about two digit strokes wide (0.16 em at weight 400; the
+    // hero's 0.24 em is of a smaller box), centred on the digits, a half-em gap
+    // each side. Heavier weights get a proportionally heavier dot.
+    private static final float SEPARATOR_DOT_EM = 0.16f;
+    private static final float SEPARATOR_CENTER_EM = 0.35f;
+    private static final float SEPARATOR_GAP_EM = 0.5f;
+    // The hero's dot is 0.72 alpha beside a 0.8 alpha value: a step quieter than the digits.
+    private static final float SEPARATOR_ALPHA = 0.85f;
+
+    private static float separatorDotEm(int fontWeight) {
+        float weight = Math.max(300, Math.min(700, fontWeight));
+        return SEPARATOR_DOT_EM * Math.max(1f, weight / 400f);
+    }
+
+    private static float separatorWidth(float size, int fontWeight) {
+        return size * (SEPARATOR_GAP_EM * 2f + separatorDotEm(fontWeight));
+    }
+
+    /** Draws "gap dot gap value" at x in paint's size and colour; returns the end x. */
+    private static float drawSeparatedValue(Canvas canvas, String value, float x, float baseline, Paint paint,
+            int fontWeight) {
+        float size = paint.getTextSize();
+        float diameter = size * separatorDotEm(fontWeight);
+        float centerX = x + size * SEPARATOR_GAP_EM + diameter / 2f;
+        int alpha = paint.getAlpha();
+        paint.setAlpha(Math.round(alpha * SEPARATOR_ALPHA));
+        canvas.drawCircle(centerX, baseline - size * SEPARATOR_CENTER_EM, diameter / 2f, paint);
+        paint.setAlpha(alpha);
+        float valueX = x + separatorWidth(size, fontWeight);
+        canvas.drawText(value, valueX, baseline, paint);
+        return valueX + paint.measureText(value);
     }
 
     public static Bitmap drawMultiGlucoseText(
@@ -1651,14 +1698,16 @@ public class NotificationChartDrawer {
 
         float layoutDensity = density * 2.0f;
         int gap = Math.max(1, (int) (8f * layoutDensity * fontSizeScale));
-        int arrowGap = Math.max(1, (int) (2.5f * layoutDensity * fontSizeScale));
+        // Gaps are measured up front: each bitmap is recycled once drawn.
+        int[] gaps = new int[bitmaps.size()];
         int totalWidth = 0;
         int maxHeight = 1;
         for (int i = 0; i < bitmaps.size(); i++) {
             Bitmap bitmap = bitmaps.get(i);
             totalWidth += bitmap.getWidth();
             if (i > 0) {
-                totalWidth += isArrow.get(i) ? arrowGap : gap;
+                gaps[i] = isArrow.get(i) ? arrowGap(bitmaps.get(i - 1)) : gap;
+                totalWidth += gaps[i];
             }
             maxHeight = Math.max(maxHeight, bitmap.getHeight());
         }
@@ -1668,7 +1717,7 @@ public class NotificationChartDrawer {
         for (int i = 0; i < bitmaps.size(); i++) {
             Bitmap bitmap = bitmaps.get(i);
             if (i > 0) {
-                x += isArrow.get(i) ? arrowGap : gap;
+                x += gaps[i];
             }
             float y = (maxHeight - bitmap.getHeight()) / 2.0f;
             canvas.drawBitmap(bitmap, x, y, null);
@@ -1678,6 +1727,14 @@ public class NotificationChartDrawer {
             }
         }
         return output;
+    }
+
+    /** Space before a trend arrow: a fraction of the value it follows, so it grows with the text. */
+    public static final float ARROW_GAP_EM = 0.3f;
+
+    /** Arrow gap for a value bitmap from drawGlucoseText (22 units of text in a 28-unit-high bitmap). */
+    private static int arrowGap(Bitmap valueBitmap) {
+        return Math.max(1, Math.round(valueBitmap.getHeight() * 22f / 28f * ARROW_GAP_EM));
     }
 
     /**
@@ -1804,8 +1861,9 @@ public class NotificationChartDrawer {
      * Draws from a resolved model. The primary line and every peer come from
      * {@code model} — values already decided, main/secondary look already
      * decided per minute — and this painter paints what it is handed. The raw
-     * {@code data} and {@code peerSeries} are still used for the axis, the
-     * source lanes behind a calibration, and the prediction overlay.
+     * {@code data} and {@code peerSeries} still feed the prediction overlay
+     * (each peer with its own calibration state); the axis is bounded by what
+     * is drawn, so a calibrated series' uncalibrated source never sizes it.
      */
     public static Bitmap drawChartWithPrediction(Context context, List<GlucosePoint> data, int widthHint, int heightHint,
             boolean isMmol, int viewMode, boolean showTargetRange, boolean hasCalibration, boolean compactMode,
@@ -1943,7 +2001,8 @@ public class NotificationChartDrawer {
                             series.sensorId,
                             series.viewMode,
                             series.color,
-                            visiblePeerPoints));
+                            visiblePeerPoints,
+                            series.hasCalibration));
                 }
             }
         }
@@ -2029,16 +2088,20 @@ public class NotificationChartDrawer {
                 : Collections.emptyList();
         // Peer prediction overlays — one per peer series, so the simulation
         // extends every drawn line (matching the dashboard), not just the primary.
+        // Each peer is forecast with its own calibration state: a calibrated peer
+        // is drawn at its calibrated value, and the forecast that continues that
+        // line is the CALIBRATED one. Passing a blanket "uncalibrated" here threw
+        // that forecast away, so a calibrated secondary sensor had no prediction.
         java.util.List<List<NotificationPredictionSeries>> peerPredictionSeries = new ArrayList<>();
         if (showPredictionOverlay && peerSeries != null) {
             for (PeerSeries ps : peerSeries) {
-                if (ps == null || ps.points == null || ps.points.size() < 2) {
+                if (!peerPredictionEligible(ps, now)) {
                     peerPredictionSeries.add(Collections.emptyList());
                     continue;
                 }
                 peerPredictionSeries.add(resolvePredictionOverlay(
-                        context, ps.points, isMmol, ps.viewMode, false, ps.sensorId, targetLow, targetHigh,
-                        predictionBatch));
+                        context, ps.points, isMmol, ps.viewMode, ps.hasCalibration, ps.sensorId,
+                        targetLow, targetHigh, predictionBatch));
             }
         }
 
@@ -2128,7 +2191,11 @@ public class NotificationChartDrawer {
                 maxY = Math.max(maxY, p.rawValue);
             }
         }
-        for (PeerSeries series : visiblePeerSeries) {
+        // The stored peer values only bound the chart when they are what gets drawn.
+        // With a model the peer lines are the model's (below), and a calibrated
+        // peer's stored value is its uncalibrated source — counting it stretched the
+        // axis to a level no line reaches.
+        if (!modelDrivesPeers) for (PeerSeries series : visiblePeerSeries) {
             boolean peerAuto = showsAuto(series.viewMode);
             boolean peerRaw = showsRaw(series.viewMode);
             for (GlucosePoint p : series.points) {
@@ -2139,6 +2206,19 @@ public class NotificationChartDrawer {
                 if (peerRaw && p.rawValue > 0) {
                     minY = Math.min(minY, p.rawValue);
                     maxY = Math.max(maxY, p.rawValue);
+                }
+            }
+        }
+        // Peer forecasts are drawn as plain lines (no band), so their values bound
+        // the chart the way the dashboard's do.
+        for (List<NotificationPredictionSeries> peerList : peerPredictionSeries) {
+            for (NotificationPredictionSeries series : peerList) {
+                if (series == null || series.points == null) continue;
+                for (NotificationPredictionPoint point : series.points) {
+                    if (point == null || point.timestamp < startTime || point.timestamp > chartEndTime) continue;
+                    if (!Float.isFinite(point.value) || point.value <= 0.1f) continue;
+                    minY = Math.min(minY, point.value);
+                    maxY = Math.max(maxY, point.value);
                 }
             }
         }
@@ -2709,7 +2789,7 @@ public class NotificationChartDrawer {
                         series,
                         isMmol,
                         peerSeries.get(peerIdx).viewMode,
-                        false,
+                        peerSeries.get(peerIdx).hasCalibration,
                         peerColor,
                         peerColor,
                         peerColor,

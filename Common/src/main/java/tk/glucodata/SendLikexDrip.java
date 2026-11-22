@@ -38,6 +38,9 @@ public class SendLikexDrip   {
 private static final String EXTRA_SENSOR_STARTED_AT = "com.eveningoutpost.dexdrip.Extras.SensorStartedAt";
     private static final String EXTRA_TIMESTAMP = "com.eveningoutpost.dexdrip.Extras.Time";
    private static final String EXTRA_DATA_SOURCE_INFO = "com.eveningoutpost.dexdrip.Extras.SourceInfo";
+    private static final String EXTRA_NOISE = "com.eveningoutpost.dexdrip.Extras.Noise";
+    private static final String EXTRA_NS_NOISE_LEVEL = "com.eveningoutpost.dexdrip.Extras.NsNoiseLevel";
+    private static final String EXTRA_NOISE_SIGMA = "tk.glucodata.Extras.NoiseSigmaMgdl";
 private static final String LOG_ID="SendLikexDrip";
 /*
 private static int getBatteryLevel() { 
@@ -59,7 +62,15 @@ private static int getBatteryLevel() {
             return 50;
             }   
     } */
-private static Bundle mkGlucosebundle(ExchangeGlucosePayload payload,long sensorStartmsec) {
+static void putNoiseExtras(Bundle extras, NoiseEstimate noise) {
+    if (noise == null) return;
+    final float variance = noise.getVarianceMgdl2();
+    extras.putDouble(EXTRA_NOISE, variance);
+    extras.putString(EXTRA_NS_NOISE_LEVEL, Integer.toString(noise.getNightscoutLevel()));
+    extras.putDouble(EXTRA_NOISE_SIGMA, noise.getSigmaMgdl());
+    }
+
+static Bundle mkGlucosebundle(ExchangeGlucosePayload payload,long sensorStartmsec) {
     Bundle extras = new Bundle();
     extras.putDouble(EXTRA_BG_ESTIMATE,payload.primaryMgdl);
     extras.putString(EXTRA_BG_SLOPE_NAME,payload.trendName);
@@ -68,6 +79,7 @@ private static Bundle mkGlucosebundle(ExchangeGlucosePayload payload,long sensor
     extras.putLong(EXTRA_TIMESTAMP,payload.timeMillis);
     extras.putLong(EXTRA_SENSOR_STARTED_AT,sensorStartmsec);
     extras.putString(EXTRA_DATA_SOURCE_INFO, SensorSourceResolver.resolveXdripSourceInfo(payload.sensorId, payload.sensorGen));
+    putNoiseExtras(extras, payload.noise);
 //        extras.putInt(EXTRA_SENSOR_BATTERY,100);
     return extras;
       }
@@ -88,6 +100,7 @@ static void broadcastglucose(ExchangeGlucosePayload payload,long sensorStartmsec
 public static void broadcastBackfill(String sensorId,int sensorGen,double mgdl,long timeMillis,float rateMgdlPerMinute,long sensorStartmsec) {
     if(names==null)
         return;
+    // Backfill carries no noise: the estimate describes the live window.
     final ExchangeTrend trend=ExchangeTrend.fromRate(rateMgdlPerMinute);
     Bundle extras = new Bundle();
     extras.putDouble(EXTRA_BG_ESTIMATE,mgdl);

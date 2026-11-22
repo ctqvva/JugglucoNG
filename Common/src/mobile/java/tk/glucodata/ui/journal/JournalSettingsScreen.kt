@@ -2,6 +2,19 @@
 
 package tk.glucodata.ui.journal
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.runtime.key
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import android.view.HapticFeedbackConstants
+import sh.calvin.reorderable.ReorderableColumn
+import tk.glucodata.data.journal.JournalActionOrder
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
+import tk.glucodata.ui.SettingsSearchAnchors
+import androidx.compose.foundation.lazy.rememberLazyListState
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
@@ -38,24 +51,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AreaChart
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Vaccines
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.History
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -145,6 +140,7 @@ import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.symbols.Symbols
 
 private data class JournalPresetDraft(
     val id: Long? = null,
@@ -205,7 +201,21 @@ fun JournalSettingsScreen(
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        RevealSettingsSearchAnchor(
+            listState,
+            setOf(
+                SettingsSearchAnchors.JOURNAL_TAB,
+                SettingsSearchAnchors.JOURNAL_QUICK_ADD,
+                SettingsSearchAnchors.forRow(R.string.journal_quickadd_always_now_title),
+                SettingsSearchAnchors.JOURNAL_INSULIN_CHART,
+                SettingsSearchAnchors.JOURNAL_DOSE_CALCULATOR,
+                SettingsSearchAnchors.JOURNAL_HEALTH_ACTIVITY,
+                SettingsSearchAnchors.JOURNAL_AAPS_IMPORT,
+            )
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -218,7 +228,7 @@ fun JournalSettingsScreen(
                     subtitle = stringResource(R.string.journal_gate_desc),
                     checked = journalEnabled,
                     onCheckedChange = { viewModel.setJournalEnabled(it) },
-                    icon = Icons.Default.Vaccines,
+                    icon = Symbols.VaccinesFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary
                 )
             }
@@ -235,7 +245,7 @@ fun JournalSettingsScreen(
                             keptFoods.size
                         ),
                         onClick = { navController.navigate("settings/journal/foods") },
-                        icon = Icons.Default.Restaurant,
+                        icon = Symbols.RestaurantFilled,
                         iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.TOP
                     )
@@ -243,7 +253,7 @@ fun JournalSettingsScreen(
                         title = stringResource(R.string.journal_insulin_library),
                         subtitle = stringResource(R.string.journal_insulin_library_count, activePresets.size, allPresets.size),
                         onClick = { navController.navigate("settings/journal/insulin") },
-                        icon = Icons.Default.Vaccines,
+                        icon = Symbols.VaccinesFilled,
                         iconTint = MaterialTheme.colorScheme.tertiary,
                         position = CardPosition.BOTTOM
                     )
@@ -270,20 +280,22 @@ fun JournalSettingsScreen(
                             subtitle = stringResource(R.string.journal_show_tab_desc),
                             checked = journalNavigationTabEnabled,
                             onCheckedChange = { viewModel.setJournalNavigationTabEnabled(it) },
-                            icon = Icons.Default.EditNote,
+                            icon = Symbols.EditNoteFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.TOP,
-                            enabled = journalEnabled
+                            enabled = journalEnabled,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_TAB
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.journal_dashboard_quickadd_title),
                             subtitle = stringResource(R.string.journal_dashboard_quickadd_desc),
                             checked = journalDashboardQuickAddButton,
                             onCheckedChange = { viewModel.setJournalDashboardQuickAddButton(it) },
-                            icon = Icons.Default.Add,
+                            icon = Symbols.AddFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.MIDDLE,
-                            enabled = journalEnabled
+                            enabled = journalEnabled,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_QUICK_ADD
                         )
                         AnimatedVisibility(
                             visible = showCurrentTimeOption,
@@ -292,10 +304,11 @@ fun JournalSettingsScreen(
                         ) {
                             SettingsSwitchItem(
                                 title = stringResource(R.string.journal_quickadd_always_now_title),
+                                searchAnchor = SettingsSearchAnchors.forRow(R.string.journal_quickadd_always_now_title),
                                 subtitle = stringResource(R.string.journal_quickadd_always_now_desc),
                                 checked = journalQuickAddAlwaysNow,
                                 onCheckedChange = { viewModel.setJournalQuickAddAlwaysNow(it) },
-                                icon = Icons.Default.History,
+                                icon = Symbols.HistoryFilled,
                                 iconTint = MaterialTheme.colorScheme.secondary,
                                 position = CardPosition.MIDDLE,
                                 enabled = journalEnabled
@@ -309,7 +322,7 @@ fun JournalSettingsScreen(
                             } else {
                                 null
                             },
-                            icon = Icons.Default.Visibility,
+                            icon = Symbols.VisibilityFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.MIDDLE
                         )
@@ -317,9 +330,10 @@ fun JournalSettingsScreen(
                             title = stringResource(R.string.journal_insulin_chart_title),
                             subtitle = stringResource(insulinChartStyle.labelRes()),
                             onClick = { showInsulinChartStyleDialog = true },
-                            icon = Icons.Default.AreaChart,
+                            icon = Symbols.AreaChartFilled,
                             iconTint = MaterialTheme.colorScheme.tertiary,
-                            position = CardPosition.BOTTOM
+                            position = CardPosition.BOTTOM,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_INSULIN_CHART
                         )
                     }
                 }
@@ -334,10 +348,11 @@ fun JournalSettingsScreen(
                             subtitle = stringResource(R.string.journal_dose_calculator_desc),
                             checked = journalDoseCalculatorEnabled,
                             onCheckedChange = { viewModel.setJournalDoseCalculatorEnabled(it) },
-                            icon = Icons.Default.Calculate,
+                            icon = Symbols.CalculateFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.TOP,
-                            enabled = journalEnabled
+                            enabled = journalEnabled,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_DOSE_CALCULATOR
                         )
                         // The profile, absorption, eIOB and the dose hints all live behind one
                         // row: they are calculations on the profile, not journal tools.
@@ -349,7 +364,7 @@ fun JournalSettingsScreen(
                             } else {
                                 null
                             },
-                            icon = Icons.Default.Schedule,
+                            icon = Symbols.ScheduleFilled,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             position = CardPosition.BOTTOM
                         )
@@ -366,20 +381,22 @@ fun JournalSettingsScreen(
                             subtitle = stringResource(R.string.journal_import_health_activity_desc),
                             checked = journalHealthConnectActivityEnabled,
                             onCheckedChange = { viewModel.setJournalHealthConnectActivityEnabled(it) },
-                            icon = Icons.AutoMirrored.Filled.DirectionsRun,
+                            icon = Symbols.DirectionsRunFilled,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             position = CardPosition.TOP,
-                            enabled = journalEnabled
+                            enabled = journalEnabled,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_HEALTH_ACTIVITY
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.journal_aaps_import_title),
                             subtitle = stringResource(R.string.journal_aaps_import_desc),
                             checked = aapsJournalImportEnabled,
                             onCheckedChange = { viewModel.setAapsJournalImportEnabled(it) },
-                            icon = Icons.Default.Restore,
+                            icon = Symbols.RestoreFilled,
                             iconTint = MaterialTheme.colorScheme.tertiary,
                             position = CardPosition.BOTTOM,
-                            enabled = journalEnabled
+                            enabled = journalEnabled,
+                            searchAnchor = SettingsSearchAnchors.JOURNAL_AAPS_IMPORT
                         )
                     }
                 }
@@ -391,7 +408,8 @@ fun JournalSettingsScreen(
 /** "All shown", "All hidden", or the hidden types by name, in the order the switches list them. */
 @Composable
 private fun journalEntryTypesSummary(hiddenTypes: Set<JournalEntryType>): String {
-    val hidden = JournalEntryType.entries.filter { it in hiddenTypes }
+    val actionOrder by JournalActionOrderStore.order.collectAsStateWithLifecycle()
+    val hidden = (actionOrder + JournalEntryType.TEMP_BASAL).filter { it in hiddenTypes }
     return when (hidden.size) {
         0 -> stringResource(R.string.journal_entry_types_all_shown)
         JournalEntryType.entries.size -> stringResource(R.string.journal_entry_types_all_hidden)
@@ -402,7 +420,12 @@ private fun journalEntryTypesSummary(hiddenTypes: Set<JournalEntryType>): String
     }
 }
 
-/** Which journal entry types the main chart and the reading list draw. */
+/**
+ * Which journal entry types the main chart and the reading list draw, and the order of the
+ * add menus: the rows a person adds by hand stand in the menus' order, top to bottom, and
+ * drag by their handles. Temp basals come from AAPS and are in no menu, so they keep a card
+ * of their own below.
+ */
 @Composable
 fun JournalEntryTypesSettingsScreen(
     navController: NavController,
@@ -410,6 +433,7 @@ fun JournalEntryTypesSettingsScreen(
 ) {
     val journalEnabled by viewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalDashboardHiddenTypes by viewModel.journalDashboardHiddenTypes.collectAsStateWithLifecycle()
+    val actionOrder by JournalActionOrderStore.order.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -419,44 +443,156 @@ fun JournalEntryTypesSettingsScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
+        JournalEntryTypesContent(
+            journalEnabled = journalEnabled,
+            hiddenTypes = journalDashboardHiddenTypes,
+            actionOrder = actionOrder,
+            onShownChange = viewModel::setJournalTypeShownOnDashboard,
+            onOrderChange = JournalActionOrderStore::set,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item(key = "dashboard_types") {
-                Column {
-                    SectionLabel(text = stringResource(R.string.journal_dashboard_types_title), topPadding = 8.dp)
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        JournalEntryType.entries.forEachIndexed { index, type ->
-                            SettingsSwitchItem(
-                                title = type.journalActionLabel(),
-                                subtitle = if (type == JournalEntryType.TEMP_BASAL) {
-                                    stringResource(R.string.journal_dashboard_temp_basal_desc)
-                                } else {
-                                    null
-                                },
-                                checked = type !in journalDashboardHiddenTypes,
-                                onCheckedChange = { viewModel.setJournalTypeShownOnDashboard(type, it) },
-                                icon = type.journalActionIcon(),
-                                iconTint = journalTypeColor(type),
-                                position = cardPosition(index, JournalEntryType.entries.size),
-                                enabled = journalEnabled
+                .padding(padding)
+        )
+    }
+}
+
+@Composable
+internal fun JournalEntryTypesContent(
+    journalEnabled: Boolean,
+    hiddenTypes: Set<JournalEntryType>,
+    actionOrder: List<JournalEntryType>,
+    onShownChange: (JournalEntryType, Boolean) -> Unit,
+    onOrderChange: (List<JournalEntryType>) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val view = LocalView.current
+    // The drop reads the order it lands on, not the one the gesture started from.
+    val currentOrder by rememberUpdatedState(actionOrder)
+    val currentOnOrderChange by rememberUpdatedState(onOrderChange)
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item(key = "dashboard_types") {
+            Column {
+                SectionLabel(text = stringResource(R.string.journal_dashboard_types_title), topPadding = 8.dp)
+                ReorderableColumn(
+                    list = actionOrder,
+                    onSettle = { from, to ->
+                        currentOnOrderChange(JournalActionOrder.moved(currentOrder, from, to))
+                    },
+                    onMove = { view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) },
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) { index, type, dragging ->
+                    key(type) {
+                        ReorderableItem {
+                            JournalEntryTypeOrderRow(
+                                type = type,
+                                index = index,
+                                count = actionOrder.size,
+                                shown = type !in hiddenTypes,
+                                enabled = journalEnabled,
+                                dragging = dragging,
+                                handle = Modifier.draggableHandle(
+                                    enabled = journalEnabled,
+                                    onDragStarted = {
+                                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                    }
+                                ),
+                                onShownChange = { onShownChange(type, it) },
+                                onMove = { to ->
+                                    onOrderChange(JournalActionOrder.moved(actionOrder, index, to))
+                                }
                             )
                         }
                     }
-                    Text(
-                        text = stringResource(R.string.journal_dashboard_types_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)
-                    )
                 }
+                SettingsSwitchItem(
+                    title = JournalEntryType.TEMP_BASAL.journalActionLabel(),
+                    subtitle = stringResource(R.string.journal_dashboard_temp_basal_desc),
+                    checked = JournalEntryType.TEMP_BASAL !in hiddenTypes,
+                    onCheckedChange = { onShownChange(JournalEntryType.TEMP_BASAL, it) },
+                    icon = JournalEntryType.TEMP_BASAL.journalActionIcon(),
+                    iconTint = journalTypeColor(JournalEntryType.TEMP_BASAL),
+                    enabled = journalEnabled,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                Text(
+                    text = stringResource(R.string.journal_dashboard_types_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)
+                )
+                Text(
+                    text = stringResource(R.string.journal_entry_types_order_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp, end = 16.dp)
+                )
             }
         }
     }
+}
+
+/**
+ * One menu type: its visibility switch, as on any settings row, with the drag handle just
+ * before it so the switches keep the right edge they share with the temp basal card. A tap on
+ * the handle does nothing rather than flip the switch beside it; talkback moves the row with
+ * the Move up and Move down actions.
+ */
+@Composable
+private fun JournalEntryTypeOrderRow(
+    type: JournalEntryType,
+    index: Int,
+    count: Int,
+    shown: Boolean,
+    enabled: Boolean,
+    dragging: Boolean,
+    handle: Modifier,
+    onShownChange: (Boolean) -> Unit,
+    onMove: (to: Int) -> Unit
+) {
+    val position = cardPosition(index, count)
+    val shape = cardShape(position)
+    val lift by animateDpAsState(if (dragging) 6.dp else 0.dp, label = "entryTypeLift")
+    val moveUp = stringResource(R.string.food_move_up)
+    val moveDown = stringResource(R.string.food_move_down)
+    val moves = buildList {
+        if (enabled && index > 0) add(CustomAccessibilityAction(moveUp) { onMove(index - 1); true })
+        if (enabled && index < count - 1) add(CustomAccessibilityAction(moveDown) { onMove(index + 1); true })
+    }
+    SettingsItem(
+        title = type.journalActionLabel(),
+        icon = type.journalActionIcon(),
+        iconTint = journalTypeColor(type),
+        onClick = if (enabled) {
+            { onShownChange(!shown) }
+        } else {
+            null
+        },
+        position = position,
+        animatePosition = true,
+        modifier = Modifier
+            .shadow(lift, shape)
+            .semantics { customActions = moves },
+        trailingContent = {
+            Box(
+                modifier = handle
+                    .size(40.dp)
+                    .pointerInput(Unit) { detectTapGestures { } },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Symbols.DragHandleFilled,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.38f)
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            StyledSwitch(checked = shown, onCheckedChange = null, enabled = enabled)
+        }
+    )
 }
 
 private fun InsulinChartStyle.labelRes(): Int = when (this) {
@@ -526,7 +662,7 @@ private fun JournalHistoryButton(onClick: () -> Unit) {
         shapes = ButtonDefaults.shapes()
     ) {
         Icon(
-            imageVector = Icons.Default.History,
+            imageVector = Symbols.HistoryFilled,
             contentDescription = null,
             modifier = Modifier.size(20.dp)
         )
@@ -850,7 +986,7 @@ private fun JournalInsulinPresetSheet(
                             shapes = ButtonDefaults.shapes()
                         ) {
                             Icon(
-                                imageVector = if (archived) Icons.Default.CheckCircle else Icons.Default.Block,
+                                imageVector = if (archived) Symbols.CheckCircleFilled else Symbols.BlockFilled,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -1069,7 +1205,7 @@ private fun JournalInsulinPresetSheet(
                                 shapes = ButtonDefaults.shapes()
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Restore,
+                                    imageVector = Symbols.RestoreFilled,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1190,7 +1326,7 @@ private fun JournalInsulinPresetSheet(
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Add,
+                            imageVector = Symbols.AddFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1363,7 +1499,7 @@ private fun SelectedCurvePointEditor(
                 IconButtonTooltip(stringResource(R.string.delete)) {
                     IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
+                            imageVector = Symbols.DeleteFilled,
                             contentDescription = stringResource(R.string.delete)
                         )
                     }

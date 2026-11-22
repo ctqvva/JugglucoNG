@@ -318,7 +318,7 @@ bool bindCloneRecoveryHostByAllIndex(int allindex,
   if (host.deactivated || host.wearos || !host.ICE || host.receivedatafrom() ||
       !host.haspass() || sendindex < 0 ||
       sendindex >= backup->getupdatedata()->sendnr ||
-      sendindex >= static_cast<int>(backup->con_vars.size())) {
+      sendindex >= static_cast<int>(backup->senderslots())) {
     return false;
   }
   updateone &sender = backup->getupdatedata()->tosend[sendindex];
@@ -482,13 +482,10 @@ std::string recoveryBytesToString(const std::vector<uint8_t> &bytes) {
 }
 
 void wakeCloneRecoverySender(int sendindex) {
-  if (!backup || sendindex < 0 ||
-      sendindex >= static_cast<int>(backup->con_vars.size())) {
+  if (!backup) {
     return;
   }
-  if (Backup::condvar_t *condition = backup->con_vars[sendindex]) {
-    condition->wakebackup(Backup::wakerecovery);
-  }
+  backup->wakesender(sendindex, Backup::wakerecovery);
 }
 
 bool wakeCloneRecoverySenderForLabel(std::string_view iceLabel) {
@@ -1354,9 +1351,8 @@ void updatedata::wakesender(uintptr_t kind,bool sourcesOnly) {
                     }
                     }
                 else {
-                    if(host.index>=0&&backup->con_vars[host.index])  {
+                    if(backup->wakesender(host.index,wakesend))  {
                         LOGGER("con_vars[%d]->wakebackup\n",host.index);
-                          backup->con_vars[host.index]->wakebackup(wakesend);
                           }
                           
                     }
@@ -1396,9 +1392,8 @@ void updatedata::wakestreamsender() {
                 makeWakeThread(i,&host);
                 }
             else {
-                if(host.index>=0&&backup->con_vars[host.index]) {
+                if(backup->wakesender(host.index,wakestreamsend)) {
                     LOGGER("host.index=%d\n",host.index);
-                      backup->con_vars[host.index]->wakebackup(wakestreamsend);
                       }
                       
                 }
@@ -1419,7 +1414,7 @@ void TCPConnect::passivesender(passhost_t *pass,int &recsock,int oldrecsock)  {
     int h=pass->index;
     updateone &host=backup->getupdatedata()->tosend[h];
     LOGAR("passivesender got host");
-    if(h>=0&&backup->con_vars[h]) {
+    if(backup->hassender(h)) {
         const bool haspas= pass->haspass();
         if(haspas) {
             LOGAR("passivesender  haspas true");
@@ -1438,7 +1433,7 @@ void TCPConnect::passivesender(passhost_t *pass,int &recsock,int oldrecsock)  {
         setSenderTimeouts();
 //        host.setsock(sock); 
         LOGGER("wakebackup con_vars[%d]\n",h);
-         backup->con_vars[h]->wakebackup(wakeall);
+         backup->wakesender(h,wakeall);
          }
      else {
          LOGGER("passivesender h>=0&&backup->con_vars[h] failed h=%d\n",h);

@@ -291,7 +291,7 @@
 <string name="settings">Einstellungen</string>
 <string name="aboutname">Über die App</string>
 <string name="export">Export</string>
-<string name="mirror">Klon</string>
+<string name="mirror">Spiegelung</string>
 <string name="new_amount">Neue Menge</string>
 <string name="list">Liste</string>
 <string name="statistics">Statistiken</string>
@@ -392,7 +392,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
  <string name="advanced">Extra</string>
 <string name="scantranstitle">TRANSMITTER-Datenmatrix scannen</string>
 <string name="scantransmessage">Sibionics 2 Sensor-Datenmatrix erfolgreich gescannt. \nScannen Sie jetzt die Transmitter-Datenmatrix.</string>
- <string name="mirrorscansucces">Verbindung zum linken mittleren Menü → Klon erfolgreich hinzugefügt.</string>
+ <string name="mirrorscansucces">Verbindung zum linken mittleren Menü → Spiegelung erfolgreich hinzugefügt.</string>
  <string name="calibration">Kalibrierung</string>
 <string name="exclude">Ausschließen</string>
 <string name="calibratepast">Auf Vergangenheit anwenden</string>
@@ -412,19 +412,24 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 <string name="specifyblood">Zuerst das Etikett für Blutzucker angeben</string>
 <string name="meterlist">"Blutzuckermessgeräte"</string>
 <string name="glucose_meters_desc">Bluetooth-Blutzuckermessgeräte verbinden</string>
-<string name="glucose_meters_journal_desc">Messwerte werden als Blutzuckereinträge im Tagebuch gespeichert und können an Nightscout gesendet werden.</string>
+<string name="glucose_meters_journal_desc">Messwerte werden als Blutzuckereinträge im Tagebuch gespeichert und können an Nightscout gesendet werden</string>
 <string name="satellite_meter_title">Satellite-Messgerät (Сателлит+)</string>
 <string name="satellite_meter_code_label">PIN oder Etikettencode</string>
 <string name="satellite_meter_code_desc">Gib die dreistellige PIN oder den längeren Code unter dem QR-/DataMatrix-Etikett am Messgerät ein. Er wird bei jeder Bluetooth-Verbindung verwendet.</string>
 <string name="glucose_meters_configured">Eingerichtete Messgeräte</string>
-<string name="glucose_meters_none">Keine Messgeräte eingerichtet</string>
-<string name="glucose_meters_none_desc">Ein Messgerät in der Nähe suchen, um Messwerte zu importieren.</string>
 <string name="glucose_meters_nearby">Messgeräte in der Nähe</string>
 <string name="glucose_meter_recheck">Messgerät erneut prüfen nach</string>
 <string name="glucose_meter_recheck_now">Sofort</string>
-<string name="glucose_meter_recheck_hint">Für Messgeräte, die eingeschaltet bleiben, wie Satellite. Ein neuer Messwert kann so viel später ankommen</string>
-<string name="glucose_meter_last_reading">Letzter Messwert: %1$s</string>
-<string name="glucose_meter_no_readings">Noch keine Messwerte importiert</string>
+<string name="glucose_meter_recheck_hint">Satellite schaltet sich nie aus. Eine längere Pause spart Akku</string>
+<string name="glucose_meter_name">Name</string>
+<string name="glucose_meter_name_hint">Wird hier und in neuen Tagebucheinträgen angezeigt</string>
+<string name="glucose_meters_find">Messgeräte suchen</string>
+<string name="glucose_meters_none_found">Kein Messgerät gefunden. Messgerät einschalten und erneut suchen</string>
+<string name="glucose_meters_other">Andere Bluetooth-Geräte</string>
+<string name="glucose_meters_other_desc">Falls das Messgerät oben fehlt</string>
+<string name="glucose_meter_last_reading">Letzter Messwert</string>
+<string name="glucose_meter_no_readings">Noch keine</string>
+<string name="glucose_meter_device_name">Bluetooth-Name</string>
 <string name="satellite_meter_code_missing">Satellite-Messgerät: Legen Sie zuerst den Messgerätecode in den Einstellungen für Blutzuckermessgeräte fest</string>
 <string name="glucose_meter_forget">Vergessen</string>
 <string name="glucose_meter_forget_title">Messgerät vergessen</string>
@@ -524,7 +529,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="continue_without_sensor_desc">Insulin, Essen und Blutzuckermessungen im Journal erfassen</string>
     <string name="get_started_desc">Zum Einstieg den Sensor hinzufügen</string>
     <string name="select_sensor">Sensortyp auswählen</string>
-    <string name="select_sibionics_type">Sibionics-Sensor auswählen</string>
+    <string name="select_sibionics_type">Sensorvariante auswählen</string>
     <string name="scan_transmitter">Transmitter scannen</string>
     <string name="connecting">Verbindung wird hergestellt…</string>
     <string name="setup_complete">Einrichtung abgeschlossen</string>
@@ -548,7 +553,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="select_gallery_button">Aus Galerie auswählen</string>
     <string name="skip_fake_sensor">Überspringen (simulierten Sensor verwenden)</string>
     <string name="enter_code_manually">Code manuell eingeben</string>
-    <string name="choose_sibionics_variant">Wählen Sie das Modell auf der Verpackung.</string>
     <string name="continue_action">Weiter</string>
     <string name="sensor_init_failed">Sensorinitialisierung fehlgeschlagen</string>
     <string name="sensor_lost_restart">Fehler: Sensor verloren. Bitte die Einrichtung neu starten.</string>
@@ -576,7 +580,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="import_no_glucose">Diese Datei enthält keine Glukosedaten</string>
     <string name="import_unsupported_file">Nicht unterstützte Datei. Wählen Sie einen JugglucoNG-Export oder eine CSV-Datei mit Glukoseverlauf.</string>
     <string name="delete_reading_title">Messwert löschen?</string>
-    <string name="delete_reading_confirmation">Diesen Glukosewert aus der lokalen Historie entfernen. Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="delete_reading_confirmation">Diesen Glukosewert aus der lokalen Historie entfernen.</string>
     <string name="alert_sound">Alarmton</string>
     <string name="vibrate_only">Nur Vibrieren</string>
     <string name="sound_vibrate">Ton &amp; Vibrieren</string>
@@ -711,6 +715,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="scan_sensor_qr">Sensor-QR-Code scannen</string>
     <string name="scan_sensor_qr_desc">Den Data-Matrix-Code auf der Sensorverpackung scannen</string>
     <string name="status_connected">Verbunden</string>
+    <string name="sensor_error">Sensorfehler</string>
+    <string name="sensor_replace">Sensor ersetzen</string>
+    <string name="sensor_ended">Sensor beendet</string>
+    <string name="sensor_warming_up">Aufwärmen</string>
+    <string name="sensor_error_code">Sensor-Fehlercode</string>
     <string name="status_disconnected">Getrennt</string>
     <string name="select_sensor_type">Sensortyp wählen</string>
     <string name="choose_theme">Design wählen</string>
@@ -861,7 +870,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="restart">Neu starten</string>
     <string name="caresens_air_scan_instruction">Scannen Sie den Sensorcode auf Ihrem CareSens Air-Paket</string>
     <string name="caresens_air_setup_title">CareSens Air einrichten</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 China</string>
     <string name="clean_history_confirm">Verlauf löschen?</string>
     <string name="clear_history_desc">Messwerte, Journaleinträge oder beides entfernen</string>
     <string name="clear_history_scope_readings">Entfernt alle Glukosewerte auf diesem Telefon und kann nicht rückgängig gemacht werden. Journal, Sensoren und Einstellungen bleiben erhalten.</string>
@@ -894,7 +903,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="disconnect_sensor_failed">Der Sensor konnte nicht entfernt werden und ist weiterhin aktiv. Versuchen Sie es erneut.</string>
     <string name="disconnect_sensor_title">Sensor trennen?</string>
     <string name="enabled_status">Aktiviert</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="expired">Abgelaufen</string>
     <string name="days_short">%1$d T</string>
     <string name="hours_short">%1$d h</string>
@@ -1095,7 +1104,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Hintergrunddeckkraft: %1$d%%</string>
+    <string name="background_opacity_label">Hintergrunddeckkraft</string>
     <string name="calibrate_sensor_desc">Zum Kalibrieren einen Blutzuckerwert in %1$s eingeben.</string>
     <string name="calibrate_sensor_timing_note">Vermeide eine Kalibrierung innerhalb von 2 Stunden nach Mahlzeiten oder Insulin.</string>
     <string name="calibration_with_mode">Kalibrierung (%1$s)</string>
@@ -1154,7 +1163,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="calibrations_deleted_count">%1$d Kalibrierungen gelöscht</string>
     <string name="calibrations_will_be_removed_count">%1$d Kalibrierungen werden entfernt</string>
     <string name="connection_number">Verbindung %1$d</string>
-    <string name="corner_radius_dp">Eckenradius: %1$d dp</string>
+    <string name="corner_radius_label">Eckenradius</string>
     <string name="custom_sound_prefix">Benutzerdefinierter Ton: %1$s</string>
     <string name="delete_calibrations_count">%1$d Kalibrierungen löschen</string>
     <string name="disabled_calibrations_cleared">%1$d deaktivierte Kalibrierungen gelöscht</string>
@@ -1163,7 +1172,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Ende: %1$s</string>
     <string name="export_failed_with_error">Export fehlgeschlagen: %1$s</string>
-    <string name="gap_width_value">Spaltbreite: %1$s</string>
+    <string name="gap_width_label">Spaltbreite</string>
     <string name="glucose_with_unit">Glukose (%1$s)</string>
     <string name="import_failed_with_error">Import fehlgeschlagen: %1$s</string>
     <string name="import_summary">Importiert: %1$d, übersprungen: %2$d, ersetzt: %3$d</string>
@@ -1253,7 +1262,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="font_app_plex">App (IBM Plex)</string>
     <string name="font_system_sans">Serifenlose Systemschrift</string>
     <string name="font_system_google_sans">System</string>
-    <string name="size_sp">Größe: %1$d sp</string>
+    <string name="size_label">Größe</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Schriftstärke</string>
     <string name="regular">Normal</string>
     <string name="medium">Mittel</string>
@@ -1300,6 +1310,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="anytime_calibration_noisy_status">Kalibrierung nicht verfügbar; Signalrauschen ist zu hoch</string>
     <string name="calibrate_sensor_title">Sensor kalibrieren</string>
     <string name="calibration_deleted">Kalibrierung gelöscht</string>
+    <string name="reading_deleted">Messwert gelöscht</string>
     <string name="calibration_profile_exported">Kalibrierungsprofil exportiert</string>
     <string name="calibrationhelp">Hilfe zur Kalibrierung</string>
     <string name="calibrationslist">Kalibrierungsliste</string>
@@ -1848,6 +1859,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_type_temp_basal">Temporäre Basalrate</string>
     <string name="journal_dashboard_types_title">Auf dem Hauptbildschirm zeigen</string>
     <string name="journal_dashboard_types_desc">Ausgeblendete Einträge verschwinden nur aus dem Hauptdiagramm und der Werteliste. Sie zählen weiter für IOB, COB, die Prognose und die Dosishinweise.</string>
+    <string name="journal_entry_types_order_desc">Das +-Menü und das Hinzufügen-Menü im Diagramm zeigen sie in dieser Reihenfolge. Zum Verschieben am Griff ziehen.</string>
     <string name="journal_import_health_activity_desc">Trainings und Schritte ins Journal eintragen</string>
     <string name="journal_section_main_screen">Hauptbildschirm</string>
     <string name="journal_section_dosing">Dosierung</string>
@@ -1879,6 +1891,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="notification_show_cob_title">Aktive Kohlenhydrate</string>
     <string name="notification_show_cob_desc">Journal-COB in der Statuszeile anzeigen</string>
     <string name="notification_show_delta_title">Delta (Δ) anzeigen</string>
+    <string name="display_show_delta_title">Delta (Δ) anzeigen</string>
+    <string name="widget_show_delta_title">Widget-Delta (Δ)</string>
     <string name="notification_show_delta_desc">Gemessene Änderung über das Delta-Intervall, neben dem Pfeil</string>
     <string name="dashboard_show_delta_title">Delta (Δ) auf der Startseite</string>
     <string name="dashboard_show_delta_desc">Gemessene Änderung über das Delta-Intervall, unter dem Trendpfeil</string>
@@ -1979,12 +1993,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="show_chart_collapsed_desc">Kompaktes Diagramm in der eingeklappten Ansicht</string>
     <string name="show_target_range">Zielbereich anzeigen</string>
     <string name="show_target_range_desc">Zielglukosebereich im Diagramm hervorheben</string>
-    <string name="font_size_percent">Schriftgröße: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Größe des Statusleistensymbols: %1$d%%</string>
-    <string name="arrow_size_percent">Pfeilgröße: %1$d%%</string>
-    <string name="opacity_percent">Deckkraft: %1$d%%</string>
-    <string name="text_size_percent">Textgröße: %1$d%%</string>
-    <string name="chart_size_percent">Diagrammgröße: %1$d%%</string>
+    <string name="font_size_label">Schriftgröße</string>
+    <string name="status_bar_icon_size_label">Größe des Statusleistensymbols</string>
+    <string name="arrow_size_label">Pfeilgröße</string>
+    <string name="opacity_label">Deckkraft</string>
+    <string name="text_size_label">Textgröße</string>
+    <string name="chart_size_label">Diagrammgröße</string>
     <string name="use_subtle_outline">Subtile Kontur verwenden</string>
     <string name="use_subtle_outline_desc">Feine Kantenhervorhebung um das Overlay</string>
     <string name="position_top">Oben</string>
@@ -2086,10 +2100,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_relay">Relais</string>
     <string name="mirror_turn_server_desc">TURN-Relais für entfernte Verbindungen</string>
     <string name="mirror_connections">Verbindungen</string>
-    <string name="mirror_clone_master">Klon</string>
     <string name="mirror_default_local_label">Lokaler Klon</string>
     <string name="mirror_default_hybrid_label">Hybrid-Klon</string>
-    <string name="mirror_clone_master_desc">Alle gespeicherten Klon-Verbindungen aktivieren</string>
     <string name="clone_history_recovery">Verlauf wiederherstellen</string>
     <string name="clone_history_direction_send">Senden</string>
     <string name="clone_history_direction_pull">Wiederherstellen</string>
@@ -2323,6 +2335,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_login_request_suffix">\nAnfrage=…%1$s</string>
     <string name="ottai_already_signed_in">Angemeldet</string>
     <string name="ottai_session_invalid">Ihre Cloud-Sitzung ist nicht mehr gültig – bitte erneut anmelden</string>
+    <string name="ottai_global_sign_in_again">Melde dich erneut bei Ottai Global an, um einen Sensor einzurichten oder seine Firmware zu prüfen. Gespeicherte Sensoren und der Verlauf bleiben erhalten.</string>
+    <string name="ottai_ota_check_failed">Firmwareprüfung fehlgeschlagen.</string>
+    <string name="ottai_ota_disconnect_first">Trenne den Sensor, um die Firmware zu prüfen.</string>
     <string name="ottai_sensor_mac_hint">Geräte-ID, Seriennummer oder QR</string>
     <string name="ottai_connect_saved">Verbinden</string>
     <string name="ottai_login_fail">Anmeldung fehlgeschlagen - Telefon/Code prüfen</string>
@@ -2455,6 +2470,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="stats_duration_minutes">%1$d Min.</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d Min.</string>
+    <string name="stats_duration_days">%1$d T</string>
+    <string name="stats_duration_days_hours">%1$d T %2$d h</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d Woche</item>
+        <item quantity="other">%1$d Wochen</item>
+    </plurals>
     <string name="stats_tab_days">Tage</string>
     <string name="stats_tab_hours">Stunden</string>
     <string name="stats_tab_weekdays">Wochentage</string>
@@ -2523,6 +2544,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Zeitraum</string>
     <string name="stats_arrange_width">Halbe oder volle Breite</string>
+    <string name="stats_arrange_ring">Als Ring anzeigen</string>
     <string name="stats_window_3d">3 T</string>
     <string name="stats_window_today">Heute</string>
     <string name="stats_window_24h">24 h</string>
@@ -2584,7 +2606,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_server_unreachable">Ottai-Server nicht erreichbar. Bitte erneut versuchen.</string>
     <string name="ottai_connect_failed">Die Verbindung konnte nicht gestartet werden. Versuche es erneut.</string>
     <string name="ottai_already_binding_hint">Dein Konto hat noch einen anderen Sensor gebunden. Löse ihn unter „Gespeicherte Sensoren“ und versuche es dann erneut.</string>
-    <string name="ottai_ota_upgrade_required">Der Ottai-Dienst hat beim Verknüpfen dieses Sensors ein Firmwareupdate angefordert. Wiederhole die Firmwareeinrichtung oder importiere gespeicherte Zugangsdaten. Du kannst auch die offizielle Ottai-App versuchen.</string>
+    <string name="ottai_ota_upgrade_required">Ottai hat ein Firmware-Update angefordert.</string>
     <string name="ottai_retry">Erneut versuchen</string>
     <string name="ottai_setup_failed">Einrichtung angehalten. Versuche es erneut oder schließe das Fenster und importiere gespeicherte Zugangsdaten.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
@@ -2994,8 +3016,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_connection_setup">Verbindungseinrichtung</string>
     <string name="turn_help_how_body">Der Rendezvous-Server stellt nur zwei Geräte einander vor: jedes hinterlegt dort seine möglichen Adressen und holt die des anderen ab. Glukosedaten laufen nie darüber. Eine direkte Route wird bevorzugt; TURN leitet den Verkehr nur weiter, wenn keine direkte Route funktioniert, und das Weitergeleitete bleibt verschlüsselt.\n\nSind beide Schalter aus, werden Rendezvous und Relais der App verwendet. Schalten Sie einen ein, wird nur dieser Teil zu Ihrem; bei beiden verlässt nur noch die Abfrage der öffentlichen Adresse Ihre Server, sofern „TURN für STUN“ diese nicht ebenfalls an Ihr Relais schickt.\n\nIm selben Netz verbindet „Gekoppelte Geräte in der Nähe finden“ beide direkt und überspringt das Rendezvous.</string>
     <string name="turn_credentials_too_long">Benutzername oder Passwort ist für diese TURN-Konfiguration zu lang.</string>
-    <string name="clone_sync_title">Synchronisierung</string>
     <string name="clone_network_title">Klon-Netzwerk</string>
+    <string name="clone_network_settings">Klon-Netzwerk-Einstellungen</string>
+    <string name="clone_add_custom_connection">Eigene Verbindung hinzufügen</string>
     <string name="clone_servers">Server</string>
     <string name="clone_server_default">App-Standard</string>
     <string name="clone_connection_options">Verbindung</string>
@@ -3017,13 +3040,17 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_pairing_waiting">Warten auf das andere Telefon…</string>
     <string name="clone_pairing_announced">Auch in diesem WLAN sichtbar als %1$s</string>
     <string name="clone_pairing_connected">Verbunden</string>
-    <string name="clone_add_manually_desc">Adresse und Optionen selbst eingeben</string>
     <string name="clone_send_readings">Werte senden</string>
     <string name="clone_on_this_wifi">In diesem WLAN</string>
     <string name="clone_nearby_empty">Telefone, die in diesem WLAN Werte senden, erscheinen hier</string>
     <string name="clone_sharing_readings">Sendet Werte</string>
     <string name="clone_network_summary">Server und lokale Suche</string>
     <string name="clone_background_desc">Erhöht den Akkuverbrauch</string>
+    <string name="clone_other_phone">Anderes Telefon</string>
+    <string name="clone_this_phone">Dieses Telefon</string>
+    <string name="clone_connected_since">Verbunden seit</string>
+    <string name="clone_phase">Phase</string>
+    <string name="clone_ice_state">ICE-Status</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d Eintrag</item>
@@ -3219,6 +3246,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <!-- Settings search -->
     <string name="settings_search_hint">Einstellungen durchsuchen</string>
     <string name="settings_search_no_results">Keine Einstellung passt zu „%1$s“</string>
+    <string name="settings_search_related">Verwandte Einstellungen</string>
     <string name="settings_search_clear">Suche löschen</string>
 
     <!-- Explicit firmware field test. -->
@@ -3233,7 +3261,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_ota_installing">Firmware wird installiert…</string>
     <string name="ottai_ota_reconnecting">Erneute Verbindung und Prüfung der installierten Version…</string>
     <string name="ottai_ota_preparing">Zugangsdaten werden aktualisiert und Werksparameter geschrieben…</string>
-    <string name="ottai_ota_complete">Vorbereitung abgeschlossen. Diesen Dialog schließen und den Sensor zur Aktivierung normal verbinden.</string>
+    <string name="ottai_ota_complete">Werkseinstellungen vorbereitet</string>
     <string name="ottai_ota_failed">Einrichtung angehalten. Versuche es erneut oder prüfe das Trace-Protokoll. Eine unfertige Einrichtung blockiert die Aktivierung.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
     <string name="ottai_ota_package">%1$d Bytes · SHA-256: %2$s</string>
@@ -3262,7 +3290,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 
     <string name="ottai_ota_discard">Unfertige Einrichtung verwerfen</string>
     <string name="ottai_ota_discard_confirm">Gespeicherten Update- und Vorbereitungsstand löschen, um die Verbindung freizugeben? Firmware und Einstellungen werden nicht wiederhergestellt. Ein abgebrochenes Flashen kann weiterhin eine Wiederherstellung erfordern.</string>
-    <string name="ottai_ota_pending">Die Sensoreinrichtung ist nicht abgeschlossen. Verbinde erneut oder öffne die Wiederherstellung, um sie abzuschließen oder zu verwerfen.</string>
+    <string name="ottai_ota_pending">Sensoreinrichtung nicht abgeschlossen</string>
     <string name="ottai_ota_finish_preparation">Firmware geprüft. Werksparameter bestätigen, um die Einrichtung abzuschließen.</string>
     <string name="ottai_ota_discard_failed">Firmwaretest konnte nicht verworfen werden. Erneut versuchen.</string>
     <string name="prediction_analysis_section">Prognoseanalyse</string>
@@ -3508,4 +3536,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="food_reorder">Lebensmittel umordnen</string>
     <string name="food_move_up">Nach oben</string>
     <string name="food_move_down">Nach unten</string>
+    <string name="spanish">Spanisch</string>
+    <string name="floating_layout_reading">Messwert</string>
+    <string name="floating_layout_secondary">Zweitwert</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Trendpfeil</string>
+    <string name="floating_layout_camera">Kameraaussparung</string>
+    <string name="floating_layout_camera_desc">Elemente darüber stehen vor der Kamera, die übrigen danach</string>
+    <string name="floating_layout_hidden">Ausgeblendet</string>
+    <string name="floating_layout_order_desc">Zum Verschieben einen Griff ziehen</string>
 </resources>

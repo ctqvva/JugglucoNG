@@ -1785,6 +1785,7 @@ class DashboardViewModel(
         _journalEnabled.value = enabled
         if (enabled) {
             ensureJournalEntriesObserved()
+            tk.glucodata.NightscoutUploadWake.afterJournalEnabled()
         } else {
             stopJournalEntriesObservation()
         }
@@ -1942,9 +1943,8 @@ class DashboardViewModel(
      */
     fun setDeltaIntervalMinutes(minutes: Int) {
         val context = tk.glucodata.Applic.app
-        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         val sanitized = tk.glucodata.GlucoseDelta.sanitizeIntervalMinutes(minutes)
-        prefs.edit().putInt(DELTA_INTERVAL_KEY, sanitized).apply()
+        tk.glucodata.settings.DisplayDeltaSettings(context).setIntervalMinutes(sanitized)
         _deltaIntervalMinutes.value = sanitized
         refreshNotificationPredictionSurfaces(context)
     }
@@ -2171,10 +2171,14 @@ class DashboardViewModel(
         } ?: return
 
         viewModelScope.launch {
-            historyRepository.deleteReading(
+            val deleted = historyRepository.deleteReading(
                 timestamp = point.timestamp,
                 sensorSerial = targetSerial
-            )
+            ) ?: return@launch
+            if (deleted.removedCount <= 0) return@launch
+            tk.glucodata.ui.UndoSnackbar.show(
+                tk.glucodata.Applic.app.getString(tk.glucodata.R.string.reading_deleted)
+            ) { historyRepository.restoreDeletedReading(deleted) }
         }
     }
 

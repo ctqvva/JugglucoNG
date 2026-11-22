@@ -1,9 +1,6 @@
 package tk.glucodata.ui.setup
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -12,6 +9,7 @@ import androidx.compose.ui.unit.dp
 import tk.glucodata.R
 import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.SectionLabel
+import tk.glucodata.ui.symbols.Symbols
 
 internal data class AiDexSavedKeySensor(val serial: String, val managed: Boolean, val connected: Boolean)
 
@@ -45,7 +43,7 @@ internal fun AiDexSavedSensorsSection(
                     }
                     OutlinedButton(onClick = { onExport(sensor.serial) }, enabled = enabled,
                         shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
-                        Icon(Icons.Default.FileUpload, null, Modifier.size(20.dp))
+                        Icon(Symbols.FileUploadFilled, null, Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.export))
                     }
@@ -56,7 +54,7 @@ internal fun AiDexSavedSensorsSection(
                         IconButtonTooltip(label) {
                             IconButton(onClick = { onDelete(sensor.serial) }, enabled = enabled,
                                 shapes = IconButtonDefaults.shapes()) {
-                                Icon(Icons.Default.Delete, label, tint = MaterialTheme.colorScheme.error)
+                                Icon(Symbols.DeleteFilled, label, tint = MaterialTheme.colorScheme.error)
                             }
                         }
                     }

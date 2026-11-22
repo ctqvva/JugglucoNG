@@ -189,13 +189,19 @@ def verify_apk(apk, flavor, build_type, expected_certificate=None):
         actual_abis = {n.split('/')[1] for n in z.namelist() if n.startswith('lib/') and n.endswith('.so')}
         if actual_abis != set(abis()):
             raise ValueError(f'APK ABI mismatch: {apk.name}: {actual_abis}')
-        for spec in inventory()['files']:
+        data = inventory()
+        active_entries = {input_entry(spec['path']) for spec in data['files']}
+        for spec in data['files']:
             path = spec['path'].split('/jniLibs/')[1]
             if path.split('/')[0] in abis() and digest(z.read('lib/' + path)) != spec['sha256']:
                 raise ValueError(f'APK JNI checksum mismatch: {apk.name}: {path}')
-        for path in inventory().get('removedFiles', []):
-            if input_entry(path) in z.namelist():
-                raise ValueError(f'Removed vendor input still packaged: {apk.name}: {path}')
+        # A retired name may be explicitly re-approved for one ABI only. Its
+        # active entry is hash-checked above; other copies remain forbidden.
+        removed_names = {Path(path).name for path in data.get('removedFiles', [])}
+        for entry in z.namelist():
+            if (entry.startswith('lib/') and Path(entry).name in removed_names
+                    and entry not in active_entries):
+                raise ValueError(f'Removed vendor input still packaged: {apk.name}: {entry}')
     print(f'Verified production signature, version and JNI payload: {apk.name}', file=sys.stderr)
 
 

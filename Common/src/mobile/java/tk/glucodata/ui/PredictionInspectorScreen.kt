@@ -14,9 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,6 +62,7 @@ import tk.glucodata.ui.viewmodel.PredictionAnalysisViewModel
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.roundToInt
+import tk.glucodata.ui.symbols.Symbols
 
 private const val MINUTE_MS = 60_000L
 private val InspectorCardShape = RoundedCornerShape(20.dp)
@@ -147,7 +145,7 @@ internal fun PredictionInspectorContent(
             val previous = stringResource(R.string.prediction_inspector_previous)
             IconButtonTooltip(previous) {
                 IconButton(onClick = { onSelect(selected - 1) }, enabled = selected > 0, shapes = IconButtonDefaults.shapes()) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = previous)
+                    Icon(Symbols.KeyboardArrowLeftFilled, contentDescription = previous)
                 }
             }
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -165,7 +163,7 @@ internal fun PredictionInspectorContent(
             val next = stringResource(R.string.prediction_inspector_next)
             IconButtonTooltip(next) {
                 IconButton(onClick = { onSelect(selected + 1) }, enabled = selected < list.lastIndex, shapes = IconButtonDefaults.shapes()) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = next)
+                    Icon(Symbols.KeyboardArrowRightFilled, contentDescription = next)
                 }
             }
         }

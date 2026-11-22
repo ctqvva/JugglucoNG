@@ -373,8 +373,8 @@
     <string name="humaninsulin">Humán inzulin/Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
     <string name="not">Nem</string>
-    <string name="eusibionics">Sibionics EU</string>
-    <string name="chsibionics">Sibionics kínai</string>
+    <string name="eusibionics">Sibionics GS1 Globális</string>
+    <string name="chsibionics">Sibionics GS1 Kína</string>
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2 osztott</string>
     <string name="gs3">Sibionics GS3</string>
@@ -425,20 +425,25 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="specifyblood">"Először a vércukor címkéjét kell kiválasztani"</string>
     <string name="meterlist">"Vércukormérők"</string>
     <string name="glucose_meters_desc">Bluetooth-vércukormérők csatlakoztatása</string>
-    <string name="glucose_meters_journal_desc">A mérések vércukor-bejegyzésként kerülnek a naplóba, és elküldhetők a Nightscout szolgáltatásba.</string>
+    <string name="glucose_meters_journal_desc">A mérések vércukor-bejegyzésként kerülnek a naplóba, és elküldhetők a Nightscout szolgáltatásba</string>
     <string name="satellite_meter_title">Satellite (Сателлит+) vércukormérő</string>
     <string name="satellite_meter_code_label">PIN vagy címkekód</string>
     <string name="satellite_meter_code_desc">A 3 számjegyű PIN vagy a mérő QR/DataMatrix-címkéje alá nyomtatott hosszabb kód megadása szükséges. Minden Bluetooth-kapcsolathoz ezt használja.</string>
     <string name="satellite_meter_code_missing">Satellite vércukormérő: először a mérő kódját kell megadni a Vércukormérők beállításaiban</string>
     <string name="glucose_meters_configured">Beállított mérők</string>
-    <string name="glucose_meters_none">Nincs beállított mérő</string>
-    <string name="glucose_meters_none_desc">Közeli mérő keresésével indítható a mérések importálása.</string>
     <string name="glucose_meters_nearby">Közeli mérők</string>
     <string name="glucose_meter_recheck">Mérő újbóli ellenőrzése</string>
     <string name="glucose_meter_recheck_now">Azonnal</string>
-    <string name="glucose_meter_recheck_hint">Bekapcsolva maradó mérőkhöz, mint a Satellite. Egy új mérés ennyivel később érkezhet meg</string>
-    <string name="glucose_meter_last_reading">Utolsó mérés: %1$s</string>
-    <string name="glucose_meter_no_readings">Még nincs importált mérés</string>
+    <string name="glucose_meter_recheck_hint">A Satellite soha nem kapcsol ki. A hosszabb várakozás kíméli az akkumulátort</string>
+    <string name="glucose_meter_name">Név</string>
+    <string name="glucose_meter_name_hint">Itt és az új naplóbejegyzésekben jelenik meg</string>
+    <string name="glucose_meters_find">Mérők keresése</string>
+    <string name="glucose_meters_none_found">Nem található mérő. Kapcsolja be a mérőt, és keressen újra</string>
+    <string name="glucose_meters_other">Egyéb Bluetooth-eszközök</string>
+    <string name="glucose_meters_other_desc">Ha a mérő nem szerepel a fenti listában</string>
+    <string name="glucose_meter_last_reading">Utolsó mérés</string>
+    <string name="glucose_meter_no_readings">Még nincs</string>
+    <string name="glucose_meter_device_name">Bluetooth-név</string>
     <string name="glucose_meter_forget">Elfelejtés</string>
     <string name="glucose_meter_forget_title">Mérő elfelejtése</string>
     <string name="glucose_meter_forget_desc">A(z) %1$s használatának leállítása és a telefonnal való párosítás megszüntetése? A naplóba már importált mérések megmaradnak.</string>
@@ -672,7 +677,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sibionics_setup_title">Sibionics beállítása</string>
     <string name="scan_sensor_qr">Szenzor QR-kódjának szkennelése</string>
     <string name="scan_sensor_qr_desc">A szenzor csomagolásán lévő Data Matrix kód szkennelése</string>
-    <string name="select_sibionics_type">Sibionics szenzor kiválasztása</string>
+    <string name="select_sibionics_type">Szenzorváltozat kiválasztása</string>
     <string name="scan_transmitter">Jeladó szkennelése</string>
     <string name="connecting">Csatlakozás...</string>
     <string name="setup_complete">Beállítás kész</string>
@@ -903,7 +908,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="select_gallery_button">Kiválasztás a Galériából</string>
     <string name="skip_fake_sensor">Kihagyás (tesztszenzor)</string>
     <string name="enter_code_manually">Kód kézi megadása</string>
-    <string name="choose_sibionics_variant">Válassza ki a csomagoláson szereplő modellt.</string>
     <string name="continue_action">Folytatás</string>
     <string name="sensor_init_failed">A szenzor inicializálása sikertelen</string>
     <string name="sensor_lost_restart">Hiba: a szenzor elveszett. Indítsa újra a beállítást.</string>
@@ -929,7 +933,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="import_history_title">Mérési előzmények importálása</string>
     <string name="import_history_sub">Glükózértékek visszaállítása JugglucoNG-exportból vagy CSV-fájlból</string>
     <string name="delete_reading_title">Mérés törlése?</string>
-    <string name="delete_reading_confirmation">A glükózérték eltávolítása a helyi előzményekből. A művelet nem vonható vissza.</string>
+    <string name="delete_reading_confirmation">A glükózérték eltávolítása a helyi előzményekből.</string>
     <string name="alert_sound">Riasztási hang</string>
     <string name="about_text">GPL-3.0 • Juggluco-változat</string>
     <string name="refreshing">Frissítés...</string>
@@ -948,6 +952,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="status_bluetooth_off">Bluetooth kikapcsolva</string>
     <string name="status_connection_failed">Sikertelen kapcsolódás</string>
     <string name="status_connected">Csatlakoztatva</string>
+    <string name="sensor_error">Szenzorhiba</string>
+    <string name="sensor_replace">Cserélje a szenzort</string>
+    <string name="sensor_ended">A szenzor lejárt</string>
+    <string name="sensor_warming_up">Bemelegedés</string>
+    <string name="sensor_error_code">Szenzor hibakód</string>
     <string name="status_disconnected">Leválasztva</string>
     <string name="status_waiting_for_data">Csatlakoztatva, várakozás az adatokra...</string>
     <string name="status_raw_values_received">Csatlakoztatva, nyers értékek fogadva</string>
@@ -983,6 +992,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_login_request_suffix">\nreq=...%1$s</string>
     <string name="ottai_already_signed_in">Bejelentkezve</string>
     <string name="ottai_session_invalid">A felhős munkamenet már nem érvényes — ismételt bejelentkezés szükséges</string>
+    <string name="ottai_global_sign_in_again">A szenzor beállításához vagy a firmware ellenőrzéséhez jelentkezzen be újra az Ottai Global-fiókjába. A mentett szenzorok és az előzmények megmaradnak.</string>
+    <string name="ottai_ota_check_failed">A firmware ellenőrzése sikertelen.</string>
+    <string name="ottai_ota_disconnect_first">A firmware ellenőrzéséhez válassza le a szenzort.</string>
     <string name="ottai_sensor_mac_hint">Eszközazonosító, sorozatszám vagy QR</string>
     <string name="ottai_connect_saved">Csatlakozás</string>
     <string name="ottai_login_fail">Sikertelen bejelentkezés — ellenőrizze a telefonszámot/kódot</string>
@@ -1066,7 +1078,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_server_unreachable">Nem érhető el az Ottai szerver. Próbálja újra.</string>
     <string name="ottai_connect_failed">Nem sikerült elindítani a kapcsolatot. Próbálja újra.</string>
     <string name="ottai_already_binding_hint">A fiókjához még egy másik szenzor van kötve. Oldja fel a kötését a Mentett szenzorok alatt, majd próbálja újra.</string>
-    <string name="ottai_ota_upgrade_required">Az Ottai szolgáltatás firmware-frissítést kért a szenzor hozzárendelésekor. Próbálja újra a firmware beállítását, vagy importálja a mentett hitelesítő adatokat. A hivatalos Ottai alkalmazást is kipróbálhatja.</string>
+    <string name="ottai_ota_upgrade_required">Az Ottai firmware-frissítést kért.</string>
     <string name="ottai_retry">Újrapróbálás</string>
     <string name="ottai_setup_failed">A beállítás leállt. Próbálja újra, vagy zárja be, és importálja a mentett hitelesítő adatokat.</string>
     <string name="ottai_region_cn_full">Ottai Kína</string>
@@ -1293,7 +1305,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="font_app_plex">Alkalmazás (IBM Plex)</string>
     <string name="font_system_sans">Rendszer Sans</string>
     <string name="font_system_google_sans">Rendszer</string>
-    <string name="size_sp">Méret: %1$d sp</string>
+    <string name="size_label">Méret</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Betűvastagság</string>
     <string name="regular">Normál</string>
     <string name="medium">Közepes</string>
@@ -1319,7 +1332,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="api_secret_label">API-titok</string>
     <string name="appearance">Megjelenés</string>
     <string name="apply_to_all_alerts">Alkalmazás minden riasztásra</string>
-    <string name="background_opacity_percent">Háttér fedettsége: %1$d%%</string>
+    <string name="background_opacity_label">Háttér fedettsége</string>
     <string name="battery">Akkumulátor</string>
     <string name="bias_correction">Eltolódáskorrekció</string>
     <string name="bias_correction_desc">Az alaphelyzetbe állítás utáni első 48 órában kompenzálja az alacsony mérési értékeket</string>
@@ -1343,6 +1356,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="calibrate_sensor_timing_note">Étkezés vagy inzulin beadása után 2 órán belül kerülje a kalibrálást.</string>
     <string name="calibrate_sensor_title">Szenzor kalibrálása</string>
     <string name="calibration_deleted">Kalibráció törölve</string>
+    <string name="reading_deleted">Érték törölve</string>
     <string name="calibration_profile_exported">Kalibrációs profil exportálva</string>
     <string name="calibration_with_mode">Kalibráció (%1$s)</string>
     <string name="calibration_model_table_action">Kalibrációs adatok megnyitása</string>
@@ -1410,7 +1424,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="conditions_optimal">Optimális körülmények</string>
     <string name="connection_number">%1$d. kapcsolat</string>
     <string name="connectionoverview">Kapcsolatok áttekintése</string>
-    <string name="corner_radius_dp">Saroksugár: %1$d dp</string>
+    <string name="corner_radius_label">Saroksugár</string>
     <string name="correcting">Korrekció</string>
     <string name="custom_sound_prefix">Egyéni hang: %1$s</string>
     <string name="dash">-</string>
@@ -1457,7 +1471,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="flashpermission">Vakuhasználati engedély</string>
     <string name="floating_permission_required">Lebegő ablak engedélyezése szükséges</string>
     <string name="floatingconfig">Lebegő ablak beállításai</string>
-    <string name="gap_width_value">Rés szélessége: %1$s</string>
+    <string name="gap_width_label">Rés szélessége</string>
     <string name="garminconfig">Garmin beállítások</string>
     <string name="getaccountidhelp">Fiókazonosító lekérésének súgója</string>
     <string name="getlib">Könyvtár letöltése</string>
@@ -1805,6 +1819,12 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="stats_duration_days">%1$d n</string>
+    <string name="stats_duration_days_hours">%1$d n %2$d h</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d hét</item>
+        <item quantity="other">%1$d hét</item>
+    </plurals>
     <string name="stats_tab_days">Napok</string>
     <string name="stats_tab_hours">Órák</string>
     <string name="stats_tab_weekdays">A hét napjai</string>
@@ -1852,6 +1872,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="stats_arrange_drag">Átrendezés</string>
     <string name="stats_arrange_pin">Rögzítés az áttekintőn</string>
     <string name="stats_arrange_width">Fél vagy teljes szélesség</string>
+    <string name="stats_arrange_ring">Megjelenítés gyűrűként</string>
     <string name="stats_arrange_visibility">Megjelenítés vagy elrejtés</string>
     <string name="stats_custom_range_title">Egyéni időszak</string>
     <string name="stats_custom_range_hint">Egy nap kijelöléséhez koppintás, időszakhoz egy második nap kijelölése szükséges.</string>
@@ -2085,6 +2106,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_type_temp_basal">Ideiglenes bázis</string>
     <string name="journal_dashboard_types_title">Megjelenítés a főképernyőn</string>
     <string name="journal_dashboard_types_desc">A rejtett bejegyzések csak a fő grafikonról és az értéklistáról tűnnek el. Az IOB, a COB, az előrejelzés és az adagjavaslatok továbbra is számolnak velük.</string>
+    <string name="journal_entry_types_order_desc">A + menü és a diagram hozzáadás menüje ebben a sorrendben mutatja őket. Áthelyezéshez húzza a fogantyút.</string>
     <string name="journal_import_health_activity_desc">Edzések és lépések hozzáadása a naplóhoz</string>
     <string name="journal_section_main_screen">Főképernyő</string>
     <string name="journal_section_dosing">Adagolás</string>
@@ -2116,6 +2138,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="notification_show_cob_title">Felszívódó szénhidrát</string>
     <string name="notification_show_cob_desc">A napló COB értékének megjelenítése az állapotsorban</string>
     <string name="notification_show_delta_title">Változás a nyíl mellett</string>
+    <string name="display_show_delta_title">Delta (Δ) megjelenítése</string>
+    <string name="widget_show_delta_title">Modulok deltája (Δ)</string>
     <string name="notification_show_delta_desc">Mért változás megjelenítése a trendnyíl mellett</string>
     <string name="notification_show_delta_minutes_desc">%1$d perces változás megjelenítése a trendnyíl mellett</string>
     <string name="dashboard_show_delta_title">Változás az áttekintőn</string>
@@ -2238,12 +2262,12 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="show_chart_collapsed_desc">Kompakt grafikon az összecsukott nézetben</string>
     <string name="show_target_range">Céltartomány megjelenítése</string>
     <string name="show_target_range_desc">Glükóz-céltartomány kiemelése a grafikonon</string>
-    <string name="font_size_percent">Betűméret: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Állapotsori ikon mérete: %1$d%%</string>
-    <string name="arrow_size_percent">Nyíl mérete: %1$d%%</string>
-    <string name="opacity_percent">Átlátszatlanság: %1$d%%</string>
-    <string name="text_size_percent">Szövegméret: %1$d%%</string>
-    <string name="chart_size_percent">Grafikonméret: %1$d%%</string>
+    <string name="font_size_label">Betűméret</string>
+    <string name="status_bar_icon_size_label">Állapotsori ikon mérete</string>
+    <string name="arrow_size_label">Nyíl mérete</string>
+    <string name="opacity_label">Átlátszatlanság</string>
+    <string name="text_size_label">Szövegméret</string>
+    <string name="chart_size_label">Grafikonméret</string>
     <string name="use_subtle_outline">Finom körvonal használata</string>
     <string name="use_subtle_outline_desc">Vékony szegélykiemelés az átfedő megjelenítés körül</string>
     <string name="position_top">Felül</string>
@@ -2345,10 +2369,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="mirror_relay">Közvetítő</string>
     <string name="mirror_turn_server_desc">TURN-közvetítő távoli kapcsolatokhoz</string>
     <string name="mirror_connections">Kapcsolatok</string>
-    <string name="mirror_clone_master">Klónozás</string>
     <string name="mirror_default_local_label">Helyi klón</string>
     <string name="mirror_default_hybrid_label">Hibrid klón</string>
-    <string name="mirror_clone_master_desc">Összes mentett klónkapcsolat engedélyezése</string>
     <string name="clone_history_recovery">Előzmények helyreállítása</string>
     <string name="clone_history_direction_send">Küldés</string>
     <string name="clone_history_direction_pull">Helyreállítás</string>
@@ -2955,8 +2977,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clone_source_local_ice_description">Clone közvetlen kapcsolaton keresztül</string>
     <string name="turn_help_how_body">A kapcsolatfelépítő kiszolgáló csak összeismerteti a két eszközt: mindegyik megadja a lehetséges címeit, és lekéri a másikét. Glükózadatokat soha nem továbbít. A közvetlen útvonal az előnyben részesített; a TURN csak akkor közvetíti a forgalmat, ha nincs működő közvetlen útvonal, és a továbbított adatok titkosítva maradnak.\n\nHa mindkét kapcsoló ki van kapcsolva, az alkalmazás saját kapcsolatfelépítő kiszolgálója és közvetítője működik. Egy kapcsoló bekapcsolásával csak az adott rész kerül a saját kiszolgálójára; mindkettő bekapcsolásakor már csak a nyilvános cím lekérdezése történik a saját kiszolgálókon kívül, kivéve, ha a TURN használata STUN-hoz ezt is a saját közvetítőre irányítja.\n\nAzonos hálózaton a Párosított eszközök keresése a közelben közvetlenül összekapcsolja a két eszközt, kihagyva a kapcsolatfelépítő kiszolgálót.</string>
     <string name="turn_credentials_too_long">A felhasználónév vagy a jelszó túl hosszú ehhez a TURN-konfigurációhoz.</string>
-    <string name="clone_sync_title">Szinkronizálás</string>
     <string name="clone_network_title">Clone-hálózat</string>
+    <string name="clone_network_settings">Clone-hálózat beállításai</string>
+    <string name="clone_add_custom_connection">Egyéni kapcsolat hozzáadása</string>
     <string name="clone_servers">Kiszolgálók</string>
     <string name="clone_server_default">Alkalmazás alapértelmezése</string>
     <string name="clone_connection_options">Kapcsolódási beállítások</string>
@@ -2978,13 +3001,17 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clone_pairing_waiting">Várakozás a másik telefonra…</string>
     <string name="clone_pairing_announced">Ezen a Wi-Fi-n is látható mint %1$s</string>
     <string name="clone_pairing_connected">Csatlakoztatva</string>
-    <string name="clone_add_manually_desc">Adja meg saját maga a címet és a beállításokat</string>
     <string name="clone_send_readings">Értékek küldése</string>
     <string name="clone_on_this_wifi">Ezen a Wi-Fi-n</string>
     <string name="clone_nearby_empty">Itt jelennek meg az ezen a Wi-Fi-n értékeket küldő telefonok</string>
     <string name="clone_sharing_readings">Értékeket küld</string>
     <string name="clone_network_summary">Kiszolgálók és helyi felderítés</string>
     <string name="clone_background_desc">Nagyobb akkumulátorfogyasztás</string>
+    <string name="clone_other_phone">Másik telefon</string>
+    <string name="clone_this_phone">Ez a telefon</string>
+    <string name="clone_connected_since">Kapcsolódás ideje</string>
+    <string name="clone_phase">Fázis</string>
+    <string name="clone_ice_state">ICE-állapot</string>
     <string name="watch_transport_section">Átvitel</string>
     <string name="watch_wearos_enable_desc">Wear OS-üzenetátvitel engedélyezése</string>
     <string name="watch_gms_unavailable">A Google Play-szolgáltatások nem érhetők el</string>
@@ -3175,6 +3202,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <!-- Settings search -->
     <string name="settings_search_hint">Keresés a beállításokban</string>
     <string name="settings_search_no_results">Nincs a(z) „%1$s” keresésnek megfelelő beállítás</string>
+    <string name="settings_search_related">Kapcsolódó beállítások</string>
     <string name="settings_search_clear">Keresés törlése</string>
 
     <!-- Explicit firmware field test. -->
@@ -3189,7 +3217,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_ota_installing">Firmware telepítése…</string>
     <string name="ottai_ota_reconnecting">Újracsatlakozás és a telepített verzió ellenőrzése…</string>
     <string name="ottai_ota_preparing">Hitelesítő adatok frissítése és gyári paraméterek írása…</string>
-    <string name="ottai_ota_complete">Az előkészítés kész. Zárja be az ablakot, majd csatlakozzon a szokásos módon az aktiváláshoz.</string>
+    <string name="ottai_ota_complete">A gyári előkészítés kész</string>
     <string name="ottai_ota_failed">A beállítás leállt. Próbálja újra, vagy ellenőrizze a nyomkövetési naplót. A befejezetlen beállítás blokkolja az aktiválást.</string>
     <string name="ottai_ota_version">Érzékelő: %1$s · Frissítés: %2$s</string>
     <string name="ottai_ota_package">%1$d bájt · SHA-256: %2$s</string>
@@ -3218,7 +3246,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
 
     <string name="ottai_ota_discard">Befejezetlen beállítás elvetése</string>
     <string name="ottai_ota_discard_confirm">Törli a mentett frissítési és előkészítési állapotot a csatlakozás engedélyezéséhez? Ez nem állítja vissza a firmware-t vagy a beállításokat. A megszakított frissítés még helyreállítást igényelhet.</string>
-    <string name="ottai_ota_pending">A szenzor beállítása nem fejeződött be. Csatlakozzon újra, vagy nyissa meg a helyreállítást a befejezéshez vagy elvetéshez.</string>
+    <string name="ottai_ota_pending">A szenzor beállítása befejezetlen</string>
     <string name="ottai_ota_finish_preparation">A firmware ellenőrizve. A beállítás befejezéséhez erősítse meg a gyári paraméterek írását.</string>
     <string name="ottai_ota_discard_failed">A firmware-teszt nem vethető el. Próbálja újra.</string>
     <string name="prediction_analysis_section">Előrejelzés-elemzés</string>
@@ -3464,4 +3492,13 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="food_reorder">Ételek átrendezése</string>
     <string name="food_move_up">Mozgatás fel</string>
     <string name="food_move_down">Mozgatás le</string>
+    <string name="spanish">Spanyol</string>
+    <string name="floating_layout_reading">Mérés</string>
+    <string name="floating_layout_secondary">Másodlagos érték</string>
+    <string name="floating_layout_delta">Változás</string>
+    <string name="floating_layout_arrow">Trendnyíl</string>
+    <string name="floating_layout_camera">Kamerakivágás</string>
+    <string name="floating_layout_camera_desc">A fölötte lévő elemek a kamera elé, a többi mögé kerül</string>
+    <string name="floating_layout_hidden">Rejtett</string>
+    <string name="floating_layout_order_desc">Húzzon egy fogantyút az elem áthelyezéséhez</string>
 </resources>

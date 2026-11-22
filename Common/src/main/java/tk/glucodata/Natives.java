@@ -832,6 +832,7 @@ public class Natives {
         public static native void setshownumbers(boolean val);
 
         public static native String getsensortext(long dataptr);
+        public static native int getSensorErrorCode(long dataptr);
 
         public static native void reenableStreaming();
 
@@ -1266,6 +1267,7 @@ public class Natives {
         public static native int getSensorWarmupMinutes(long dataptr);
 
         public static native long getSensorStartmsecFromSensorptr(long sensorptr);
+        public static native int getSensorWarmupMinutesByName(String sensor);
 
         // public static native void setnightscoutV3(boolean val);
         public static native boolean getnightscoutV3();
@@ -1381,6 +1383,8 @@ public class Natives {
 
         public static native void dexResetKeys(long dataptr);
 
+        // timeres carries the timestamp, packed glucose result, and packet status
+        // (0 = ordinary response, 1 = warm-up, 2 = display-only repeat).
         public static native boolean dexcomProcessData(long dataptr, byte[] bluetoothdata, long[] timeres);
 
         public static native byte[] getDexbackfillcmd(long dataptr);

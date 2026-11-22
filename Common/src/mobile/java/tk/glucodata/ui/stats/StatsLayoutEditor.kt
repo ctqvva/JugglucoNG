@@ -23,15 +23,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.WidthFull
-import androidx.compose.material.icons.filled.WidthNormal
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -72,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import tk.glucodata.R
 import kotlin.math.roundToInt
+import tk.glucodata.ui.symbols.Symbols
 
 private val EditorRowHeight = 56.dp
 private val EditorRowSpacing = 4.dp
@@ -111,7 +103,9 @@ internal fun StatsLayoutEditor(
                 handle = handle,
                 onToggleHidden = {
                     StatsLayoutStore.setCardHidden(card, card !in layout.hiddenCards)
-                }
+                },
+                ring = if (card == StatsCard.OVERVIEW) layout.overviewRing else null,
+                onToggleRing = { StatsLayoutStore.setOverviewRing(!layout.overviewRing) }
             )
         }
 
@@ -287,7 +281,9 @@ private fun EditorRow(
     pinEnabled: Boolean = true,
     onTogglePinned: () -> Unit = {},
     wide: Boolean? = null,
-    onToggleWide: () -> Unit = {}
+    onToggleWide: () -> Unit = {},
+    ring: Boolean? = null,
+    onToggleRing: () -> Unit = {}
 ) {
     val container by animateColorAsState(
         targetValue = when {
@@ -317,7 +313,7 @@ private fun EditorRow(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.DragHandle,
+                imageVector = Symbols.DragHandleFilled,
                 contentDescription = stringResource(R.string.stats_arrange_drag),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp)
@@ -351,9 +347,25 @@ private fun EditorRow(
             IconButtonTooltip(stringResource(R.string.stats_arrange_width)) {
                 IconButton(onClick = onToggleWide, modifier = Modifier.size(38.dp), shapes = IconButtonDefaults.shapes()) {
                     Icon(
-                        imageVector = if (wide) Icons.Default.WidthFull else Icons.Default.WidthNormal,
+                        imageVector = if (wide) Symbols.WidthFullFilled else Symbols.WidthNormalFilled,
                         contentDescription = stringResource(R.string.stats_arrange_width),
                         tint = if (wide) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+        if (ring != null) {
+            IconButtonTooltip(stringResource(R.string.stats_arrange_ring)) {
+                IconButton(onClick = onToggleRing, modifier = Modifier.size(38.dp), shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        imageVector = Symbols.DonutLargeFilled,
+                        contentDescription = stringResource(R.string.stats_arrange_ring),
+                        tint = if (ring) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -372,7 +384,7 @@ private fun EditorRow(
                     shapes = IconButtonDefaults.shapes()
                 ) {
                     Icon(
-                        imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                        imageVector = if (pinned) Symbols.PushPinFilled else Symbols.PushPin,
                         contentDescription = stringResource(R.string.stats_arrange_pin),
                         tint = when {
                             pinned -> MaterialTheme.colorScheme.primary
@@ -387,7 +399,7 @@ private fun EditorRow(
         IconButtonTooltip(stringResource(R.string.stats_arrange_visibility)) {
             IconButton(onClick = onToggleHidden, modifier = Modifier.size(38.dp), shapes = IconButtonDefaults.shapes()) {
                 Icon(
-                    imageVector = if (hidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    imageVector = if (hidden) Symbols.VisibilityOffFilled else Symbols.VisibilityFilled,
                     contentDescription = stringResource(R.string.stats_arrange_visibility),
                     tint = if (hidden) {
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -415,7 +427,7 @@ internal fun StatsEditLayoutButton(
     ) {
         TextButton(onClick = onClick, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
             Icon(
-                imageVector = Icons.Default.DragHandle,
+                imageVector = Symbols.DragHandleFilled,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp)
             )

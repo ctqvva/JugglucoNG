@@ -19,11 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,6 +56,7 @@ import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 /** What a food's numbers are written for. */
 internal enum class FoodBasis { PER_100, PER_SERVING }
@@ -182,7 +178,7 @@ internal fun FoodEditorForm(
                         shapes = ButtonDefaults.shapes()
                     ) {
                         Icon(
-                            imageVector = if (archived) Icons.Default.CheckCircle else Icons.Default.Block,
+                            imageVector = if (archived) Symbols.CheckCircleFilled else Symbols.BlockFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -411,7 +407,7 @@ private fun FoodEditorField(
                     shapes = IconButtonDefaults.shapes()
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Remove,
+                        imageVector = Symbols.RemoveFilled,
                         contentDescription = stringResource(R.string.outbound_api_decrease_value),
                         modifier = Modifier.size(20.dp)
                     )
@@ -471,7 +467,7 @@ private fun FoodEditorField(
                     shapes = IconButtonDefaults.shapes()
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Add,
+                        imageVector = Symbols.AddFilled,
                         contentDescription = stringResource(R.string.outbound_api_increase_value),
                         modifier = Modifier.size(20.dp)
                     )

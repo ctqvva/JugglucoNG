@@ -352,13 +352,16 @@ an APK does not grant approval authority. No signing job has `contents: write`.
 
 The initial `scripts/dist/build-inputs.json` inventories **32 files / 43,099,388 bytes**:
 17 `armeabi-v7a` and 15 `arm64-v8a` libraries under `Common/src/main/jniLibs`.
-These are the exact ignored inputs consumed by `build-dist.sh all` to reproduce
-its existing JNI payload, including legacy libraries that may no longer have an
-active sensor caller. This change does not remove or reinterpret those libraries.
+That original set included legacy libraries without active callers. The current
+inventory retains **13 files / 19,315,513 bytes**: six ARM64 and seven ARM32 inputs.
+See the [per-library retirement audit](obsolete-native-libraries.md) for the
+21 removed paths and the actively used Libre `libnative.so` executable retained
+after auditing its recovery/import consumers.
 
 Those initial files matched byte-for-byte the corresponding entries in **all four**
 1.2.2-Alpha APKs. The current baseline is the published **1.2.3-Alpha** primary phone
-APK, adding `libCALCULATION.so` for both ARM ABIs: **34 files / 44,216,417 bytes**.
+APK, which supplied `libCALCULATION.so` for both ARM ABIs and contained the former
+**34 files / 44,216,417 bytes** input set. Its pin remains unchanged after retirement.
 Restoration downloads that APK and checks its whole-file SHA-256 from the inventory,
 then extracts only explicitly named library entries and checks size/hash again.
 No dynamic library from dependency AARs or locally compiled `libg.so`/`libnative.so`
@@ -371,10 +374,14 @@ source fails closed. Use the lifecycle commands below when legitimate input vers
 edit hashes by hand or silently follow the latest release. File hashes
 are public metadata, not binary contents or credentials.
 
-The ARM inventory contains `libinit`, `libcalibrat2`, `libcalibrate` (v7a only),
-`liblibre3extension`, `libcrl_dp`, `libalgorithm-jni`, `libcgat-lib`, `libscannative`,
-`libmarsxlog`, `libmmkv`, `libobjectbox-jni`, `libmodpng`, `libmodft2`, `libmodpdfium`,
-`libjniPdfium`, `libc++_shared`, and `libgetuiext3` (v7a only). Neither x86 ABI is
+The ARM inventory contains `libCALCULATION`, `libinit`, `libcalibrat2`,
+`libcalibrate` (v7a only), `liblibre3extension`, `libcrl_dp`, and `libc++_shared`.
+`removedFiles` prevents restoration from bringing retired inputs back into a
+clean checkout; stale inputs fail distribution preflight. Gradle excludes retired
+names from all JNI sources, and APK verification rejects those names in any ABI,
+including libraries arriving from transitive AARs. An exact ABI/path explicitly
+re-added to the active inventory is exempt from retirement exclusions and must
+still match its inventoried hash; copies in other ABIs stay blocked. Neither x86 ABI is
 part of the distribution. The redundant `src/libre3/jniLibs` source is inactive;
 `src/wearSi/jniLibs` points to an empty old mobileSi directory locally. The Gradle
 Sibionics vendor exclusion patterns contribute no files in the active inventory.

@@ -151,7 +151,7 @@
     <string name="minimum">Минимум</string>
     <string name="minuteddeactivated">Минуты отключены:</string>
     <string name="minutes">Минуты</string>
-    <string name="mirror">Зеркало (клон)</string>
+    <string name="mirror">Зеркало</string>
 	<string name="modify">Изменить</string>
     <string name="multiply">Умножьте на:</string>
     <string name="name">Имя:</string>
@@ -520,7 +520,7 @@
     <string name="continue_without_sensor_desc">Записывайте инсулин, еду и пальцевые замеры в журнал</string>
     <string name="get_started_desc">Начните с добавления вашего сенсора</string>
     <string name="select_sensor">Выберите тип сенсора</string>
-    <string name="select_sibionics_type">Выберите сенсор Sibionics</string>
+    <string name="select_sibionics_type">Выберите вариант сенсора</string>
     <string name="or_divider">"  или  "</string>
     <string name="no_sensors_connected">Нет подключенных сенсоров</string>
     <string name="enter_sensor_codes">Введите коды сенсора</string>
@@ -541,7 +541,6 @@
     <string name="select_gallery_button">Выбрать из Галереи</string>
     <string name="skip_fake_sensor">Пропустить (Исп. фиктивный сенсор)</string>
     <string name="enter_code_manually">Ввести код вручную</string>
-    <string name="choose_sibionics_variant">Укажите модель с упаковки.</string>
     <string name="continue_action">Продолжить</string>
     <string name="sensor_init_failed">Инициализация сенсора не удалась</string>
     <string name="sensor_lost_restart">Ошибка: Сенсор потерян. Перезапустите настройку.</string>
@@ -567,7 +566,7 @@
     <string name="import_history_title">Импорт истории</string>
     <string name="import_history_sub">Восстановить показания глюкозы из экспорта JugglucoNG или CSV-файла</string>
     <string name="delete_reading_title">Удалить показание?</string>
-    <string name="delete_reading_confirmation">Удалить это показание глюкозы из локальной истории. Это действие необратимо.</string>
+    <string name="delete_reading_confirmation">Удалить это показание глюкозы из локальной истории.</string>
     <string name="alert_sound">Звук тревоги</string>
     <string name="vibrate_only">Только вибрация</string>
     <string name="sound_vibrate">Звук и вибрация</string>
@@ -703,6 +702,11 @@
     <string name="status_bluetooth_off">Bluetooth выкл.</string>
     <string name="status_connection_failed">Ошибка подключения</string>
     <string name="status_connected">Подключено</string>
+    <string name="sensor_error">Ошибка датчика</string>
+    <string name="sensor_replace">Замените датчик</string>
+    <string name="sensor_ended">Датчик завершил работу</string>
+    <string name="sensor_warming_up">Идёт прогрев</string>
+    <string name="sensor_error_code">Код ошибки датчика</string>
     <string name="status_disconnected">Отключено</string>
     
     <string name="select_sensor_type">Выберите тип сенсора</string>
@@ -844,7 +848,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Отсканируйте код датчика на упаковке CareSens Air.</string>
     <string name="caresens_air_setup_title">Настройка CareSens Air</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 Китай</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_history_confirm">Очистить историю?</string>
     <string name="clear_history_desc">Удалить показания, записи журнала или всё сразу</string>
@@ -871,7 +875,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="delete_calibration">Delete calibration?</string>
     <string name="dexfuture">Predict (Dexcom)</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exclude">Exclude</string>
     <string name="factory_reset_confirm">Сбросить к заводским настройкам?</string>
     <string name="factory_reset_message">Удаляет все показания, записи журнала, датчики и настройки, а также выданные разрешения, затем закрывает приложение. Мониторинг глюкозы и оповещения остановятся, пока вы снова не настроите датчик, и отменить это нельзя.</string>
@@ -911,19 +915,24 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="median">Медиана</string>
     <string name="meterlist">"Глюкометры"</string>
     <string name="glucose_meters_desc">Подключение Bluetooth-глюкометров</string>
-    <string name="glucose_meters_journal_desc">Измерения сохраняются в журнале как значения глюкозы крови и могут отправляться в Nightscout.</string>
+    <string name="glucose_meters_journal_desc">Измерения сохраняются в журнале как значения глюкозы крови и могут отправляться в Nightscout</string>
     <string name="satellite_meter_title">Глюкометр «Сателлит+»</string>
     <string name="satellite_meter_code_label">PIN или код с этикетки</string>
     <string name="satellite_meter_code_desc">Введите 3-значный PIN или более длинный код, напечатанный под QR/DataMatrix на глюкометре. Он используется при каждом Bluetooth-подключении.</string>
     <string name="glucose_meters_configured">Настроенные глюкометры</string>
-    <string name="glucose_meters_none">Нет настроенных глюкометров</string>
-    <string name="glucose_meters_none_desc">Найдите глюкометр поблизости, чтобы импортировать измерения.</string>
     <string name="glucose_meters_nearby">Глюкометры поблизости</string>
     <string name="glucose_meter_recheck">Повторная проверка глюкометра через</string>
     <string name="glucose_meter_recheck_now">Сразу</string>
-    <string name="glucose_meter_recheck_hint">Для глюкометров, которые не выключаются, как Satellite. Новое измерение может прийти с такой задержкой</string>
-    <string name="glucose_meter_last_reading">Последнее измерение: %1$s</string>
-    <string name="glucose_meter_no_readings">Измерения ещё не импортированы</string>
+    <string name="glucose_meter_recheck_hint">Satellite не выключается. Чем дольше пауза, тем меньше расход батареи</string>
+    <string name="glucose_meter_name">Название</string>
+    <string name="glucose_meter_name_hint">Показывается здесь и в новых записях журнала</string>
+    <string name="glucose_meters_find">Найти глюкометры</string>
+    <string name="glucose_meters_none_found">Глюкометр не найден. Включите его и повторите поиск</string>
+    <string name="glucose_meters_other">Другие устройства Bluetooth</string>
+    <string name="glucose_meters_other_desc">Если глюкометра нет в списке выше</string>
+    <string name="glucose_meter_last_reading">Последнее измерение</string>
+    <string name="glucose_meter_no_readings">Пока нет</string>
+    <string name="glucose_meter_device_name">Имя Bluetooth</string>
     <string name="satellite_meter_code_missing">Глюкометр Satellite: сначала укажите код глюкометра в настройках глюкометров</string>
     <string name="glucose_meter_forget">Забыть</string>
     <string name="glucose_meter_forget_title">Забыть глюкометр</string>
@@ -1029,7 +1038,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Непрозрачность фона: %1$d%%</string>
+    <string name="background_opacity_label">Непрозрачность фона</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Не калибруйте в течение 2 часов после еды или инсулина.</string>
     <string name="calibration_with_mode">Калибровка (%1$s)</string>
@@ -1088,7 +1097,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">Удалены калибровки %1$d.</string>
     <string name="calibrations_will_be_removed_count">Калибровки %1$d будут удалены.</string>
     <string name="connection_number">Соединение %1$d</string>
-    <string name="corner_radius_dp">Радиус угла: %1$d dp</string>
+    <string name="corner_radius_label">Радиус угла</string>
     <string name="custom_sound_prefix">Пользовательский звук: %1$s</string>
     <string name="delete_calibrations_count">Удалить калибровки %1$d</string>
     <string name="disabled_calibrations_cleared">Очищены отключенные калибровки %1$d.</string>
@@ -1097,7 +1106,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d дп</string>
     <string name="end_time_with_value">Конец: %1$s</string>
     <string name="export_failed_with_error">Не удалось экспортировать: %1$s</string>
-    <string name="gap_width_value">Ширина зазора: %1$s</string>
+    <string name="gap_width_label">Ширина зазора</string>
     <string name="glucose_with_unit">Глюкоза (%1$s)</string>
     <string name="import_failed_with_error">Не удалось импортировать: %1$s.</string>
     <string name="import_no_glucose">В файле нет данных глюкозы</string>
@@ -1184,7 +1193,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">Приложение (IBM Plex)</string>
     <string name="font_system_sans">Система Санс</string>
     <string name="font_system_google_sans">Система</string>
-    <string name="size_sp">Размер: %1$d сп</string>
+    <string name="size_label">Размер</string>
+    <string name="sp_value">%1$d сп</string>
     <string name="font_weight_label">Вес шрифта</string>
     <string name="regular">Обычный</string>
     <string name="medium">Средний</string>
@@ -1231,6 +1241,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_noisy_status">Калибровка недоступна: слишком высокий шум сигнала</string>
     <string name="calibrate_sensor_title">Калибровка датчика</string>
     <string name="calibration_deleted">Калибровка удалена</string>
+    <string name="reading_deleted">Показание удалено</string>
     <string name="calibration_profile_exported">Калибровочный профиль экспортирован.</string>
     <string name="calibrationhelp">Помощь по калибровке</string>
     <string name="calibrationslist">Список калибровок</string>
@@ -1762,6 +1773,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_rate_units_per_hour">%1$s ЕД/ч</string>
     <string name="journal_dashboard_types_title">Показывать на главной</string>
     <string name="journal_dashboard_types_desc">Скрытые записи пропадают только с графика и из списка показаний на главной. В IOB, COB, прогнозе и подсказках дозы они по-прежнему учитываются.</string>
+    <string name="journal_entry_types_order_desc">Меню + и меню добавления на графике показывают их в этом порядке. Перетащите маркер, чтобы переместить.</string>
     <string name="journal_import_health_activity_desc">Добавлять тренировки и шаги в журнал</string>
     <string name="journal_section_main_screen">Главный экран</string>
     <string name="journal_section_dosing">Дозирование</string>
@@ -1838,12 +1850,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Компактный график в свернутом виде</string>
     <string name="show_target_range">Показать целевой диапазон</string>
     <string name="show_target_range_desc">Подсветить целевой диапазон глюкозы на графике</string>
-    <string name="font_size_percent">Размер шрифта: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Размер значка строки состояния: %1$d%%</string>
-    <string name="arrow_size_percent">Размер стрелки: %1$d%%</string>
-    <string name="opacity_percent">Непрозрачность: %1$d%%</string>
-    <string name="text_size_percent">Размер текста: %1$d%%</string>
-    <string name="chart_size_percent">Размер графика: %1$d%%</string>
+    <string name="font_size_label">Размер шрифта</string>
+    <string name="status_bar_icon_size_label">Размер значка строки состояния</string>
+    <string name="arrow_size_label">Размер стрелки</string>
+    <string name="opacity_label">Непрозрачность</string>
+    <string name="text_size_label">Размер текста</string>
+    <string name="chart_size_label">Размер графика</string>
     <string name="use_subtle_outline">Использовать тонкий контур</string>
     <string name="use_subtle_outline_desc">Тонкая подсветка края вокруг наложения</string>
     <string name="position_top">Верх</string>
@@ -1945,10 +1957,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Ретранслятор</string>
     <string name="mirror_turn_server_desc">TURN-ретранслятор для удаленных подключений</string>
     <string name="mirror_connections">Соединения</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Локальный клон</string>
     <string name="mirror_default_hybrid_label">Гибридный клон</string>
-    <string name="mirror_clone_master_desc">Включить все сохранённые подключения Clone</string>
     <string name="clone_history_recovery">Восстановление истории</string>
     <string name="clone_history_direction_send">Отправить</string>
     <string name="clone_history_direction_pull">Восстановить</string>
@@ -2196,6 +2206,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Вход выполнен</string>
     <string name="ottai_session_invalid">Облачная сессия больше не действительна – войдите снова</string>
+    <string name="ottai_global_sign_in_again">Войдите в Ottai Global снова, чтобы настроить датчик или проверить прошивку. Сохранённые датчики и история останутся на телефоне.</string>
+    <string name="ottai_ota_check_failed">Не удалось проверить прошивку.</string>
+    <string name="ottai_ota_disconnect_first">Отключите датчик, чтобы проверить прошивку.</string>
     <string name="ottai_sensor_mac_hint">ID устройства, серийный номер или QR</string>
     <string name="ottai_connect_saved">Подключить</string>
     <string name="ottai_login_fail">Вход не выполнен - проверьте телефон/код</string>
@@ -2280,7 +2293,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_server_unreachable">Не удалось связаться с сервером Ottai. Попробуйте ещё раз.</string>
     <string name="ottai_connect_failed">Не удалось начать подключение. Попробуйте снова.</string>
     <string name="ottai_already_binding_hint">К аккаунту всё ещё привязан другой датчик. Отвяжите его в разделе «Сохранённые датчики» и попробуйте снова.</string>
-    <string name="ottai_ota_upgrade_required">При привязке датчика сервис Ottai запросил обновление прошивки. Повторите настройку прошивки или импортируйте сохранённые ключи. Также можно попробовать официальное приложение Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai запросил обновление прошивки.</string>
     <string name="ottai_retry">Повторить</string>
     <string name="ottai_setup_failed">Настройка остановлена. Повторите попытку или закройте окно и импортируйте сохранённые ключи.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
@@ -2349,6 +2362,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">Цвета глюкозы</string>
     <string name="notification_show_delta_desc">Измеренное изменение в интервале дельта, рядом со стрелкой.</string>
     <string name="notification_show_delta_title">Показать дельту (Δ)</string>
+    <string name="display_show_delta_title">Показать дельту (Δ)</string>
+    <string name="widget_show_delta_title">Дельта в виджетах (Δ)</string>
     <string name="rising_fast_explanation">Предупреждает после %1$d последовательных %2$d-минутных интервалов, каждый из которых увеличивается как минимум на %3$s (≈ %4$d мин устойчивого роста), когда значение равно или превышает %5$s. Никаких прогнозов, только чистая тенденция.</string>
     <string name="sensor_expiry_warnings_desc">Каждое выбранное время предупреждает один раз для каждого датчика</string>
     <string name="sensor_expiry_warnings_title">Предупреждать до истечения срока действия</string>
@@ -2471,6 +2486,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d мин</string>
     <string name="stats_duration_hours">%1$d ч</string>
     <string name="stats_duration_hours_minutes">%1$d ч %2$d мин</string>
+    <string name="stats_duration_days">%1$d д</string>
+    <string name="stats_duration_days_hours">%1$d д %2$d ч</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d неделя</item>
+        <item quantity="few">%1$d недели</item>
+        <item quantity="many">%1$d недель</item>
+        <item quantity="other">%1$d недели</item>
+    </plurals>
     <string name="stats_tab_days">Дни</string>
     <string name="stats_tab_hours">Часы</string>
     <string name="stats_tab_weekdays">Дни недели</string>
@@ -2539,6 +2562,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Период</string>
     <string name="stats_arrange_width">Половина или вся ширина</string>
+    <string name="stats_arrange_ring">Показывать кольцом</string>
     <string name="stats_window_3d">3Д</string>
     <string name="stats_window_today">Сегодня</string>
     <string name="stats_window_24h">24Ч</string>
@@ -2955,8 +2979,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_setup">Настройка подключения</string>
     <string name="turn_help_how_body">Сервер рандеву только знакомит два устройства: каждое оставляет там свои возможные адреса и забирает адреса другого. Данные глюкозы через него не идут. Предпочитается прямой маршрут; TURN передаёт трафик только когда прямой не работает, и передаваемое остаётся зашифрованным.\n\nЕсли оба переключателя выключены, используются рандеву и ретранслятор приложения. Включите один — своим станет только он; включите оба — ваши серверы будет покидать лишь запрос публичного адреса, если только «TURN для STUN» не направит и его на ваш ретранслятор.\n\nВ одной сети «Искать привязанные устройства рядом» соединяет их напрямую, минуя рандеву.</string>
     <string name="turn_credentials_too_long">Имя пользователя или пароль слишком длинные для этой конфигурации TURN.</string>
-    <string name="clone_sync_title">Синхронизация</string>
     <string name="clone_network_title">Сеть Clone</string>
+    <string name="clone_network_settings">Настройки сети Clone</string>
+    <string name="clone_add_custom_connection">Добавить своё соединение</string>
     <string name="clone_servers">Серверы</string>
     <string name="clone_server_default">Сервер приложения</string>
     <string name="clone_connection_options">Подключение</string>
@@ -2978,13 +3003,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_waiting">Ожидание другого телефона…</string>
     <string name="clone_pairing_announced">Также виден в этой сети Wi-Fi как %1$s</string>
     <string name="clone_pairing_connected">Подключено</string>
-    <string name="clone_add_manually_desc">Ввести адрес и параметры вручную</string>
     <string name="clone_send_readings">Отправлять показания</string>
     <string name="clone_on_this_wifi">В этой сети Wi-Fi</string>
     <string name="clone_nearby_empty">Здесь появятся телефоны, отправляющие показания в этой сети Wi-Fi</string>
     <string name="clone_sharing_readings">Отправляет показания</string>
     <string name="clone_network_summary">Серверы и локальный поиск</string>
     <string name="clone_background_desc">Повышает расход батареи</string>
+    <string name="clone_other_phone">Другой телефон</string>
+    <string name="clone_this_phone">Этот телефон</string>
+    <string name="clone_connected_since">Подключено с</string>
+    <string name="clone_phase">Фаза</string>
+    <string name="clone_ice_state">Состояние ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d запись</item>
@@ -3161,6 +3190,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Поиск по настройкам</string>
     <string name="settings_search_no_results">Нет настроек, подходящих под «%1$s»</string>
+    <string name="settings_search_related">Связанные настройки</string>
     <string name="settings_search_clear">Очистить поиск</string>
 
     <!-- Explicit firmware field test. -->
@@ -3175,7 +3205,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_installing">Установка прошивки…</string>
     <string name="ottai_ota_reconnecting">Переподключение и проверка установленной версии…</string>
     <string name="ottai_ota_preparing">Обновление учётных данных и запись заводских параметров…</string>
-    <string name="ottai_ota_complete">Подготовка завершена. Закройте окно и подключитесь обычным способом для активации сенсора.</string>
+    <string name="ottai_ota_complete">Заводская настройка завершена</string>
     <string name="ottai_ota_failed">Настройка остановлена. Повторите попытку или проверьте журнал трассировки. Незавершённая настройка блокирует активацию.</string>
     <string name="ottai_ota_version">Сенсор: %1$s · Обновление: %2$s</string>
     <string name="ottai_ota_package">%1$d байт · SHA-256: %2$s</string>
@@ -3204,7 +3234,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="ottai_ota_discard">Отменить незавершённую настройку</string>
     <string name="ottai_ota_discard_confirm">Удалить сохранённое состояние обновления и подготовки, чтобы разрешить подключение? Это не восстановит прошивку или параметры. После прерванной прошивки может потребоваться восстановление.</string>
-    <string name="ottai_ota_pending">Настройка датчика не завершена. Нажмите «Подключить» ещё раз или откройте восстановление, чтобы завершить или отменить её.</string>
+    <string name="ottai_ota_pending">Настройка датчика не завершена</string>
     <string name="ottai_ota_finish_preparation">Прошивка проверена. Подтвердите запись заводских параметров для завершения настройки.</string>
     <string name="ottai_ota_discard_failed">Не удалось отменить тест прошивки. Повторите попытку.</string>
     <string name="prediction_analysis_section">Анализ прогнозов</string>
@@ -3522,4 +3552,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Изменить порядок</string>
     <string name="food_move_up">Переместить выше</string>
     <string name="food_move_down">Переместить ниже</string>
+    <string name="scan_sensor_qr">Отсканируйте QR-код датчика</string>
+    <string name="spanish">Испанский</string>
+    <string name="floating_layout_reading">Показание</string>
+    <string name="floating_layout_secondary">Дополнительное значение</string>
+    <string name="floating_layout_delta">Дельта</string>
+    <string name="floating_layout_arrow">Стрелка тренда</string>
+    <string name="floating_layout_camera">Вырез камеры</string>
+    <string name="floating_layout_camera_desc">Элементы выше стоят перед камерой, остальные — после</string>
+    <string name="floating_layout_hidden">Скрыто</string>
+    <string name="floating_layout_order_desc">Перетащите маркер, чтобы переместить элемент</string>
 </resources>

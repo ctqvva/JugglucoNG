@@ -8,11 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Autorenew
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -33,6 +28,7 @@ import tk.glucodata.ui.components.RevealSettingsSearchAnchor
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * How the phone holds on to a sensor: handing over to the next one when the current one
@@ -77,7 +73,7 @@ fun SensorConnectionSettingsScreen(navController: NavController) {
                         title = stringResource(R.string.sensor_handover_title),
                         subtitle = stringResource(R.string.sensor_handover_desc),
                         checked = handoverEnabled,
-                        icon = Icons.Default.SwapHoriz,
+                        icon = Symbols.SwapHorizFilled,
                         iconTint = handoverColor,
                         position = if (handoverEnabled) CardPosition.TOP else CardPosition.SINGLE,
                         animatePosition = true,
@@ -97,7 +93,7 @@ fun SensorConnectionSettingsScreen(navController: NavController) {
                                     R.string.sensor_handover_action_deactivate
                                 }
                             ),
-                            icon = Icons.Default.DeleteSweep,
+                            icon = Symbols.DeleteSweepFilled,
                             iconTint = handoverColor,
                             position = CardPosition.BOTTOM,
                             onClick = { showHandoverActionDialog = true }
@@ -116,7 +112,7 @@ fun SensorConnectionSettingsScreen(navController: NavController) {
                         title = stringResource(R.string.settings_turbo_title),
                         subtitle = stringResource(R.string.settings_turbo_desc),
                         checked = highPriority,
-                        icon = Icons.Default.Speed,
+                        icon = Symbols.SpeedFilled,
                         iconTint = bluetoothColor,
                         position = CardPosition.TOP,
                         searchAnchor = SettingsSearchAnchors.TURBO,
@@ -126,7 +122,7 @@ fun SensorConnectionSettingsScreen(navController: NavController) {
                         title = stringResource(R.string.settings_autoconnect_title),
                         subtitle = stringResource(R.string.settings_autoconnect_desc),
                         checked = autoConnect,
-                        icon = Icons.Default.Autorenew,
+                        icon = Symbols.AutorenewFilled,
                         iconTint = bluetoothColor,
                         position = CardPosition.BOTTOM,
                         searchAnchor = SettingsSearchAnchors.AUTOCONNECT,

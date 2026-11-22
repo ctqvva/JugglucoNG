@@ -1,12 +1,11 @@
 package tk.glucodata.ui
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Said once, the first time a dose hint appears while no model profile has ever been saved:
@@ -33,7 +32,7 @@ fun StateDoseHintProfileBanner(
         title = stringResource(R.string.state_dose_hint_profile_notice_title),
         body = stringResource(R.string.state_dose_hint_profile_notice_body),
         modifier = modifier,
-        icon = Icons.Filled.Tune,
+        icon = Symbols.TuneFilled,
         // The X means the same as opening the profile: answered, do not ask again.
         onDismiss = onAcknowledge
     ) {

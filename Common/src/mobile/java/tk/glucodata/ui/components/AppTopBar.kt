@@ -3,8 +3,6 @@ package tk.glucodata.ui.components
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * The top bar of every pushed screen: a title and, when there is somewhere to go back to,
@@ -56,7 +55,7 @@ fun AppTopBar(
             IconButtonTooltip(navigationContentDescription) {
                 IconButton(onClick = onNavigateBack, shapes = IconButtonDefaults.shapes()) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = Symbols.ArrowBackFilled,
                         contentDescription = navigationContentDescription,
                     )
                 }

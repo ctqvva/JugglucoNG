@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.ui.components.*
+import tk.glucodata.ui.symbols.Symbols
 
 @Stable
 internal class FoodLibraryManagement {
@@ -168,7 +167,7 @@ private fun ManagedFoodRow(
                     else -> androidx.compose.ui.graphics.Color.Transparent
                 }).padding(horizontal = 24.dp),
                 contentAlignment = if (deleting) Alignment.CenterEnd else Alignment.CenterStart) {
-                Icon(if (deleting) Icons.Default.Delete else if (food.isArchived) Icons.Default.Check else Icons.Default.Close,
+                Icon(if (deleting) Symbols.DeleteFilled else if (food.isArchived) Symbols.CheckFilled else Symbols.CloseFilled,
                     contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
             }
         }
@@ -192,7 +191,7 @@ private fun ManagedFoodRow(
                 // Fixed slots keep both title wrapping and row height unchanged during selection.
                 Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
                     SelectionIndicator(management.selecting, selected, gap = 0.dp)
-                    if (!management.selecting) IconTile(Icons.Default.Restaurant,
+                    if (!management.selecting) IconTile(Symbols.RestaurantFilled,
                         tint = if (food.isArchived) MaterialTheme.colorScheme.onSurfaceVariant
                             else androidx.compose.ui.graphics.Color(food.accentColor))
                 }
@@ -204,7 +203,7 @@ private fun ManagedFoodRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Box(handle.size(48.dp), contentAlignment = Alignment.Center) {
-                    if (!management.selecting && handle != Modifier) Icon(Icons.Default.DragHandle,
+                    if (!management.selecting && handle != Modifier) Icon(Symbols.DragHandleFilled,
                         contentDescription = stringResource(R.string.food_reorder),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -222,13 +221,13 @@ internal fun FoodManagementToolbar(foods: List<JournalFood>, management: FoodLib
         IconButtonTooltip(stringResource(R.string.disable)) {
             IconButton(onClick = { actions.onArchive(management.selectedIds, true) {}; management.cancel() },
                 enabled = selected.any { !it.isArchived }, shapes = IconButtonDefaults.shapes()) {
-                Icon(Icons.Default.Block, contentDescription = stringResource(R.string.disable))
+                Icon(Symbols.BlockFilled, contentDescription = stringResource(R.string.disable))
             }
         }
         IconButtonTooltip(stringResource(R.string.enable)) {
             IconButton(onClick = { actions.onArchive(management.selectedIds, false) {}; management.cancel() },
                 enabled = selected.any { it.isArchived }, shapes = IconButtonDefaults.shapes()) {
-                Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.enable))
+                Icon(Symbols.CheckCircleFilled, contentDescription = stringResource(R.string.enable))
             }
         }
         IconButtonTooltip(stringResource(R.string.delete)) {
@@ -237,7 +236,7 @@ internal fun FoodManagementToolbar(foods: List<JournalFood>, management: FoodLib
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer)) {
-                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
+                Icon(Symbols.DeleteFilled, contentDescription = stringResource(R.string.delete))
             }
         }
     }

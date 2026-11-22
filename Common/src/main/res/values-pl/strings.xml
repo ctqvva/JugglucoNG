@@ -294,7 +294,7 @@
  <string name="settings">Ustawienia</string>
  <string name="aboutname">Informacje</string>
  <string name="export">Eksport</string>
- <string name="mirror">Klonowanie</string>
+ <string name="mirror">Kopia lustrzana</string>
  <string name="new_amount">Nowa wartość</string>
  <string name="list">Lista</string>
  <string name="statistics">Statystyka</string>
@@ -378,8 +378,8 @@
     <string name="humaninsulin">Insulina ludzka /Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
 
-    <string name="eusibionics">Sibionics GS1 EU</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
+    <string name="chsibionics">Sibionics GS1 Chiny</string>
     <string name="hematonix">Hematonix - com.sisensing.rusibionics</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
@@ -485,7 +485,7 @@
     <string name="stream">Strumień</string>
     
     <string name="exchanges">Wyślij/Odbierz</string>
-    <string name="duration_days">days</string>
+    <string name="duration_days">dni</string>
     <string name="sensor_state">Status</string>
 
     <!-- Newly Extracted Strings -->
@@ -495,7 +495,7 @@
     <string name="continue_without_sensor_desc">Zapisuj insulinę, jedzenie i pomiary z palca w dzienniku</string>
     <string name="get_started_desc">Rozpocznij, dodając swój sensor</string>
     <string name="select_sensor">Wybierz Typ Sensora</string>
-    <string name="select_sibionics_type">Wybierz sensor Sibionics</string>
+    <string name="select_sibionics_type">Wybierz wariant sensora</string>
     <string name="or_divider">"  lub  "</string>
     <string name="no_sensors_connected">Brak połączonych sensorów</string>
     <string name="enter_sensor_codes">Wprowadź Kody Sensora</string>
@@ -516,7 +516,6 @@
     <string name="select_gallery_button">Wybierz z Galerii</string>
     <string name="skip_fake_sensor">Pomiń (Użyj fałszywego sensora)</string>
     <string name="enter_code_manually">Wprowadź kod ręcznie</string>
-    <string name="choose_sibionics_variant">Wybierz model podany na opakowaniu.</string>
     <string name="continue_action">Kontynuuj</string>
     <string name="sensor_init_failed">Inicjalizacja sensora nie powiodła się</string>
     <string name="sensor_lost_restart">Błąd: Utracono sensor. Uruchom ponownie konfigurację.</string>
@@ -544,7 +543,7 @@
     <string name="import_no_glucose">Ten plik nie zawiera danych glukozy</string>
     <string name="import_unsupported_file">Nieobsługiwany plik. Wybierz eksport JugglucoNG lub plik CSV z historią glukozy.</string>
     <string name="delete_reading_title">Usunąć odczyt?</string>
-    <string name="delete_reading_confirmation">Usuń ten odczyt glukozy z lokalnej historii. Tej operacji nie można cofnąć.</string>
+    <string name="delete_reading_confirmation">Usuń ten odczyt glukozy z lokalnej historii.</string>
     <string name="alert_sound">Dźwięk Alarmu</string>
     <string name="vibrate_only">Tylko Wibracja</string>
     <string name="sound_vibrate">Dźwięk i Wibracja</string>
@@ -677,6 +676,11 @@
     <string name="status_bluetooth_off">Bluetooth wył.</string>
     <string name="status_connection_failed">Błąd połączenia</string>
     <string name="status_connected">Połączono</string>
+    <string name="sensor_error">Błąd czujnika</string>
+    <string name="sensor_replace">Wymień czujnik</string>
+    <string name="sensor_ended">Czujnik zakończył pracę</string>
+    <string name="sensor_warming_up">Nagrzewanie</string>
+    <string name="sensor_error_code">Kod błędu czujnika</string>
     <string name="status_disconnected">Rozłączono</string>
     <string name="select_sensor_type">Wybierz typ sensora</string>
     <string name="choose_theme">Wybierz motyw</string>
@@ -780,7 +784,7 @@
     <string name="allvalues">Wszystkie wartości</string>
     <string name="auto">Auto</string>
     <string name="auto_raw">Auto+Raw</string>
-    <string name="auto_reset_days">%1$d days</string>
+    <string name="auto_reset_days">%1$d dni</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="avg">Śr</string>
     <string name="bloodafter">"Dodaj tylko odczyty glukozy z okresu po: "</string>
@@ -903,19 +907,24 @@
     <string name="median">Mediana</string>
     <string name="meterlist">"Glukometry"</string>
     <string name="glucose_meters_desc">Połącz glukometry Bluetooth</string>
-    <string name="glucose_meters_journal_desc">Pomiary są zapisywane jako wpisy glikemii w dzienniku i mogą być wysyłane do Nightscout.</string>
+    <string name="glucose_meters_journal_desc">Pomiary są zapisywane jako wpisy glikemii w dzienniku i mogą być wysyłane do Nightscout</string>
     <string name="satellite_meter_title">Glukometr Satellite (Сателлит+)</string>
     <string name="satellite_meter_code_label">PIN lub kod z etykiety</string>
     <string name="satellite_meter_code_desc">Wpisz 3-cyfrowy PIN lub dłuższy kod wydrukowany pod etykietą QR/DataMatrix na glukometrze. Jest używany przy każdym połączeniu Bluetooth.</string>
     <string name="glucose_meters_configured">Skonfigurowane glukometry</string>
-    <string name="glucose_meters_none">Brak skonfigurowanych glukometrów</string>
-    <string name="glucose_meters_none_desc">Znajdź pobliski glukometr, aby rozpocząć import pomiarów.</string>
     <string name="glucose_meters_nearby">Glukometry w pobliżu</string>
     <string name="glucose_meter_recheck">Ponowne sprawdzenie glukometru po</string>
     <string name="glucose_meter_recheck_now">Od razu</string>
-    <string name="glucose_meter_recheck_hint">Dla glukometrów, które pozostają włączone, jak Satellite. Nowy pomiar może dotrzeć z takim opóźnieniem</string>
-    <string name="glucose_meter_last_reading">Ostatni pomiar: %1$s</string>
-    <string name="glucose_meter_no_readings">Nie zaimportowano jeszcze pomiarów</string>
+    <string name="glucose_meter_recheck_hint">Satellite nigdy się nie wyłącza. Dłuższa przerwa oszczędza baterię</string>
+    <string name="glucose_meter_name">Nazwa</string>
+    <string name="glucose_meter_name_hint">Widoczna tutaj i w nowych wpisach dziennika</string>
+    <string name="glucose_meters_find">Szukaj glukometrów</string>
+    <string name="glucose_meters_none_found">Nie znaleziono glukometru. Włącz glukometr i wyszukaj ponownie</string>
+    <string name="glucose_meters_other">Inne urządzenia Bluetooth</string>
+    <string name="glucose_meters_other_desc">Jeśli glukometru nie ma na liście powyżej</string>
+    <string name="glucose_meter_last_reading">Ostatni pomiar</string>
+    <string name="glucose_meter_no_readings">Jeszcze brak</string>
+    <string name="glucose_meter_device_name">Nazwa Bluetooth</string>
     <string name="satellite_meter_code_missing">Glukometr Satellite: najpierw ustaw kod glukometru w ustawieniach glukometrów</string>
     <string name="glucose_meter_forget">Zapomnij</string>
     <string name="glucose_meter_forget_title">Zapomnij glukometr</string>
@@ -1021,7 +1030,7 @@
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Nieprzezroczystość tła: %1$d%%</string>
+    <string name="background_opacity_label">Nieprzezroczystość tła</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Unikaj kalibracji w ciągu 2 godzin po posiłku lub insulinie.</string>
     <string name="calibration_with_mode">Kalibracja (%1$s)</string>
@@ -1080,7 +1089,7 @@
     <string name="calibrations_deleted_count">Usunięto kalibracje %1$d</string>
     <string name="calibrations_will_be_removed_count">Kalibracje %1$d zostaną usunięte</string>
     <string name="connection_number">Połączenie %1$d</string>
-    <string name="corner_radius_dp">Promień narożnika: %1$d dp</string>
+    <string name="corner_radius_label">Promień narożnika</string>
     <string name="custom_sound_prefix">Niestandardowy dźwięk: %1$s</string>
     <string name="delete_calibrations_count">Usuń kalibracje %1$d</string>
     <string name="disabled_calibrations_cleared">Wyczyszczono %1$d wyłączone kalibracje</string>
@@ -1089,7 +1098,7 @@
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Koniec: %1$s</string>
     <string name="export_failed_with_error">Eksport nie powiódł się: %1$s</string>
-    <string name="gap_width_value">Szerokość szczeliny: %1$s</string>
+    <string name="gap_width_label">Szerokość szczeliny</string>
     <string name="glucose_with_unit">Glukoza (%1$s)</string>
     <string name="import_failed_with_error">Import nie powiódł się: %1$s</string>
     <string name="import_summary">Zaimportowano: %1$d, pominięto: %2$d, zastąpiono: %3$d</string>
@@ -1179,7 +1188,8 @@
     <string name="font_app_plex">Aplikacja (IBM Plex)</string>
     <string name="font_system_sans">System bez</string>
     <string name="font_system_google_sans">Systemu</string>
-    <string name="size_sp">Rozmiar: %1$d sp</string>
+    <string name="size_label">Rozmiar</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Waga czcionki</string>
     <string name="regular">Regularne</string>
     <string name="medium">Średni</string>
@@ -1226,6 +1236,7 @@
     <string name="anytime_calibration_noisy_status">Kalibracja niedostępna; szum sygnału jest zbyt wysoki</string>
     <string name="calibrate_sensor_title">Kalibracja czujnika</string>
     <string name="calibration_deleted">Kalibracja usunięta</string>
+    <string name="reading_deleted">Odczyt usunięty</string>
     <string name="calibration_profile_exported">Wyeksportowano profil kalibracji</string>
     <string name="calibrationhelp">Pomoc dotycząca kalibracji</string>
     <string name="calibrationslist">Lista kalibracji</string>
@@ -1752,6 +1763,7 @@
     <string name="journal_type_temp_basal">Tymczasowa baza</string>
     <string name="journal_dashboard_types_title">Pokaż na ekranie głównym</string>
     <string name="journal_dashboard_types_desc">Ukryte wpisy znikają tylko z głównego wykresu i listy odczytów. Nadal liczą się do IOB, COB, prognozy i podpowiedzi dawki.</string>
+    <string name="journal_entry_types_order_desc">Menu + i menu dodawania na wykresie pokazują je w tej kolejności. Przeciągnij uchwyt, aby przenieść.</string>
     <string name="journal_import_health_activity_desc">Dodawaj treningi i kroki do dziennika</string>
     <string name="journal_section_main_screen">Ekran główny</string>
     <string name="journal_section_dosing">Dawkowanie</string>
@@ -1826,12 +1838,12 @@
     <string name="show_chart_collapsed_desc">Kompaktowy wykres w widoku zwiniętym</string>
     <string name="show_target_range">Pokaż zakres docelowy</string>
     <string name="show_target_range_desc">Podświetl docelowy zakres glukozy na wykresie</string>
-    <string name="font_size_percent">Rozmiar czcionki: %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Rozmiar ikony paska stanu: %1$d%%</string>
-    <string name="arrow_size_percent">Rozmiar strzałki: %1$d%%</string>
-    <string name="opacity_percent">Nieprzezroczystość: %1$d%%</string>
-    <string name="text_size_percent">Rozmiar tekstu: %1$d%%</string>
-    <string name="chart_size_percent">Rozmiar wykresu: %1$d%%</string>
+    <string name="font_size_label">Rozmiar czcionki</string>
+    <string name="status_bar_icon_size_label">Rozmiar ikony paska stanu</string>
+    <string name="arrow_size_label">Rozmiar strzałki</string>
+    <string name="opacity_label">Nieprzezroczystość</string>
+    <string name="text_size_label">Rozmiar tekstu</string>
+    <string name="chart_size_label">Rozmiar wykresu</string>
     <string name="use_subtle_outline">Użyj delikatnego obrysu</string>
     <string name="use_subtle_outline_desc">Delikatne podświetlenie krawędzi wokół nakładki</string>
     <string name="position_top">Góra</string>
@@ -1933,10 +1945,8 @@
     <string name="mirror_relay">Relay</string>
     <string name="mirror_turn_server_desc">Relay TURN dla połączeń zdalnych</string>
     <string name="mirror_connections">Połączenia</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Klon lokalny</string>
     <string name="mirror_default_hybrid_label">Klon hybrydowy</string>
-    <string name="mirror_clone_master_desc">Włącz wszystkie zapisane połączenia Clone</string>
     <string name="clone_history_recovery">Odzyskiwanie historii</string>
     <string name="clone_history_direction_send">Wyślij</string>
     <string name="clone_history_direction_pull">Odzyskaj</string>
@@ -2164,6 +2174,9 @@
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Zalogowano</string>
     <string name="ottai_session_invalid">Sesja w chmurze wygasła – zaloguj się ponownie</string>
+    <string name="ottai_global_sign_in_again">Zaloguj się ponownie do Ottai Global, aby skonfigurować czujnik lub sprawdzić jego oprogramowanie. Zapisane czujniki i historia zostaną zachowane.</string>
+    <string name="ottai_ota_check_failed">Sprawdzenie oprogramowania czujnika nie powiodło się.</string>
+    <string name="ottai_ota_disconnect_first">Odłącz czujnik, aby sprawdzić jego oprogramowanie.</string>
     <string name="ottai_sensor_mac_hint">ID urządzenia, numer seryjny lub QR</string>
     <string name="ottai_connect_saved">Połącz</string>
     <string name="ottai_login_fail">Logowanie nieudane - sprawdź telefon/kod</string>
@@ -2254,6 +2267,8 @@
     <string name="glucose_palette_title">Kolory glukozy</string>
     <string name="notification_show_delta_desc">Zmierzona zmiana w przedziale delta, obok strzałki</string>
     <string name="notification_show_delta_title">Pokaż deltę (Δ)</string>
+    <string name="display_show_delta_title">Pokaż deltę (Δ)</string>
+    <string name="widget_show_delta_title">Delta w widżetach (Δ)</string>
     <string name="rising_fast_explanation">Ostrzega po %1$d kolejnych %2$d-minutowych odstępach, każdy wzrost o co najmniej %3$s (≈ %4$d min ciągłego wzrostu), podczas gdy wartość jest równa lub wyższa od %5$s. Żadnych przewidywań, tylko surowy trend.</string>
     <string name="sensor_expiry_warnings_desc">Każdy wybrany czas ostrzega raz na czujnik</string>
     <string name="sensor_expiry_warnings_title">Ostrzegaj przed wygaśnięciem</string>
@@ -2376,6 +2391,14 @@
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d godz.</string>
     <string name="stats_duration_hours_minutes">%1$d godz. %2$d min</string>
+    <string name="stats_duration_days">%1$d d</string>
+    <string name="stats_duration_days_hours">%1$d d %2$d godz.</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d tydzień</item>
+        <item quantity="few">%1$d tygodnie</item>
+        <item quantity="many">%1$d tygodni</item>
+        <item quantity="other">%1$d tygodnie</item>
+    </plurals>
     <string name="stats_tab_days">Dni</string>
     <string name="stats_tab_hours">Godziny</string>
     <string name="stats_tab_weekdays">Dni tygodnia</string>
@@ -2444,6 +2467,7 @@
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Okres</string>
     <string name="stats_arrange_width">Pół lub pełna szerokość</string>
+    <string name="stats_arrange_ring">Pokaż jako pierścień</string>
     <string name="stats_window_3d">3D</string>
     <string name="stats_window_today">Dziś</string>
     <string name="stats_window_24h">24H</string>
@@ -2508,7 +2532,7 @@
     <string name="ottai_server_unreachable">Nie można połączyć się z serwerem Ottai. Spróbuj ponownie.</string>
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
-    <string name="ottai_ota_upgrade_required">Podczas wiązania sensora usługa Ottai zażądała aktualizacji firmware. Ponów konfigurację firmware lub zaimportuj zapisane dane uwierzytelniające. Możesz też spróbować oficjalnej aplikacji Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai zażądał aktualizacji oprogramowania czujnika.</string>
     <string name="ottai_retry">Spróbuj ponownie</string>
     <string name="ottai_setup_failed">Konfiguracja zatrzymana. Spróbuj ponownie lub zamknij okno i zaimportuj zapisane dane uwierzytelniające.</string>
     <string name="ottai_region_cn_full">Ottai Chiny</string>
@@ -2923,8 +2947,9 @@
     <string name="mirror_connection_setup">Konfiguracja połączenia</string>
     <string name="turn_help_how_body">Serwer rendezvous jedynie przedstawia sobie dwa urządzenia: każde zostawia tam swoje możliwe adresy i odbiera adresy drugiego. Dane glukozy nigdy przez niego nie przechodzą. Preferowana jest trasa bezpośrednia; TURN przekazuje ruch tylko wtedy, gdy żadna bezpośrednia nie działa, a to, co przekazuje, pozostaje zaszyfrowane.\n\nGdy oba przełączniki są wyłączone, używane są rendezvous i przekaźnik aplikacji. Włącz jeden, a tylko ta część stanie się twoja; włącz oba, a twoje serwery opuszcza już tylko zapytanie o adres publiczny, chyba że „TURN do STUN” wyśle je również do twojego przekaźnika.\n\nW jednej sieci „Znajdź sparowane urządzenia w pobliżu” łączy je bezpośrednio, pomijając rendezvous.</string>
     <string name="turn_credentials_too_long">Nazwa użytkownika lub hasło są zbyt długie dla tej konfiguracji TURN.</string>
-    <string name="clone_sync_title">Synchronizacja</string>
     <string name="clone_network_title">Sieć Clone</string>
+    <string name="clone_network_settings">Ustawienia sieci Clone</string>
+    <string name="clone_add_custom_connection">Dodaj własne połączenie</string>
     <string name="clone_servers">Serwery</string>
     <string name="clone_server_default">Serwer aplikacji</string>
     <string name="clone_connection_options">Połączenie</string>
@@ -2946,13 +2971,17 @@
     <string name="clone_pairing_waiting">Czekam na drugi telefon…</string>
     <string name="clone_pairing_announced">Widoczny też w tej sieci Wi-Fi jako %1$s</string>
     <string name="clone_pairing_connected">Połączono</string>
-    <string name="clone_add_manually_desc">Wpisz adres i opcje samodzielnie</string>
     <string name="clone_send_readings">Wysyłaj odczyty</string>
     <string name="clone_on_this_wifi">W tej sieci Wi-Fi</string>
     <string name="clone_nearby_empty">Tu pojawią się telefony wysyłające odczyty w tej sieci Wi-Fi</string>
     <string name="clone_sharing_readings">Wysyła odczyty</string>
     <string name="clone_network_summary">Serwery i wyszukiwanie lokalne</string>
     <string name="clone_background_desc">Zwiększa zużycie baterii</string>
+    <string name="clone_other_phone">Drugi telefon</string>
+    <string name="clone_this_phone">Ten telefon</string>
+    <string name="clone_connected_since">Połączono od</string>
+    <string name="clone_phase">Faza</string>
+    <string name="clone_ice_state">Stan ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d wpis</item>
@@ -3152,6 +3181,7 @@
     <!-- Settings search -->
     <string name="settings_search_hint">Szukaj w ustawieniach</string>
     <string name="settings_search_no_results">Brak ustawień pasujących do „%1$s”</string>
+    <string name="settings_search_related">Powiązane ustawienia</string>
     <string name="settings_search_clear">Wyczyść wyszukiwanie</string>
 
     <!-- Explicit firmware field test. -->
@@ -3166,7 +3196,7 @@
     <string name="ottai_ota_installing">Instalowanie oprogramowania…</string>
     <string name="ottai_ota_reconnecting">Ponowne łączenie i sprawdzanie zainstalowanej wersji…</string>
     <string name="ottai_ota_preparing">Odświeżanie danych dostępu i zapis parametrów fabrycznych…</string>
-    <string name="ottai_ota_complete">Przygotowanie zakończone. Zamknij okno, a następnie połącz się normalnie, aby aktywować sensor.</string>
+    <string name="ottai_ota_complete">Przygotowanie fabryczne zakończone</string>
     <string name="ottai_ota_failed">Konfiguracja zatrzymana. Spróbuj ponownie lub sprawdź dziennik śledzenia. Niedokończona konfiguracja blokuje aktywację.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Aktualizacja: %2$s</string>
     <string name="ottai_ota_package">%1$d bajtów · SHA-256: %2$s</string>
@@ -3195,7 +3225,7 @@
 
     <string name="ottai_ota_discard">Porzuć niedokończoną konfigurację</string>
     <string name="ottai_ota_discard_confirm">Usunąć zapisany stan aktualizacji i przygotowania, aby odblokować połączenie? Nie przywróci to firmware ani ustawień. Przerwana aktualizacja może nadal wymagać odzyskiwania.</string>
-    <string name="ottai_ota_pending">Konfiguracja sensora jest niedokończona. Połącz ponownie lub otwórz odzyskiwanie, aby ją zakończyć lub porzucić.</string>
+    <string name="ottai_ota_pending">Konfiguracja czujnika nieukończona</string>
     <string name="ottai_ota_finish_preparation">Oprogramowanie zweryfikowane. Potwierdź parametry fabryczne, aby zakończyć konfigurację.</string>
     <string name="ottai_ota_discard_failed">Nie udało się porzucić testu. Spróbuj ponownie.</string>
     <string name="prediction_analysis_section">Analiza prognoz</string>
@@ -3455,4 +3485,14 @@
     <string name="food_reorder">Zmień kolejność produktów</string>
     <string name="food_move_up">Przenieś w górę</string>
     <string name="food_move_down">Przenieś w dół</string>
+    <string name="scan_sensor_qr">Zeskanuj kod QR sensora</string>
+    <string name="spanish">Hiszpański</string>
+    <string name="floating_layout_reading">Odczyt</string>
+    <string name="floating_layout_secondary">Wartość dodatkowa</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Strzałka trendu</string>
+    <string name="floating_layout_camera">Wycięcie aparatu</string>
+    <string name="floating_layout_camera_desc">Elementy powyżej są przed aparatem, pozostałe za nim</string>
+    <string name="floating_layout_hidden">Ukryte</string>
+    <string name="floating_layout_order_desc">Przeciągnij uchwyt, aby przenieść element</string>
 </resources>

@@ -2,15 +2,6 @@ package tk.glucodata.ui.restricted
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.AddAlert
-import androidx.compose.material.icons.filled.ClearAll
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PictureInPicture
-import androidx.compose.material.icons.filled.ScreenLockPortrait
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -21,6 +12,7 @@ import tk.glucodata.R
 import tk.glucodata.RestrictedModeConfig
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.symbols.Symbols
 
 private class AllowedRow(
     val title: String,
@@ -59,7 +51,7 @@ internal fun RestrictedAllowedSettings(
                     subtitle = stringResource(
                         if (alertsEnabled) R.string.settings_alerts_desc else R.string.settings_alerts_off_desc
                     ),
-                    icon = Icons.Default.AddAlert,
+                    icon = Symbols.AddAlertFilled,
                     tint = alertColor,
                     onClick = { onOpen(RestrictedModeRoutes.ALARMS) },
                 )
@@ -70,7 +62,7 @@ internal fun RestrictedAllowedSettings(
                 AllowedRow(
                     title = stringResource(R.string.talker),
                     subtitle = stringResource(R.string.speakglucose) + " • " + stringResource(R.string.speakalarms),
-                    icon = Icons.AutoMirrored.Filled.VolumeUp,
+                    icon = Symbols.VolumeUpFilled,
                     tint = displayColor,
                     onClick = { onOpen(RestrictedModeRoutes.VOICE) },
                 )
@@ -81,7 +73,7 @@ internal fun RestrictedAllowedSettings(
                 AllowedRow(
                     title = stringResource(R.string.settings_dashboard_charts_title),
                     subtitle = stringResource(R.string.settings_dashboard_charts_desc),
-                    icon = Icons.Default.Palette,
+                    icon = Symbols.PaletteFilled,
                     tint = displayColor,
                     onClick = { onOpen(RestrictedModeRoutes.DISPLAY_CHARTS) },
                 )
@@ -90,7 +82,7 @@ internal fun RestrictedAllowedSettings(
                 AllowedRow(
                     title = stringResource(R.string.notification_settings_title),
                     subtitle = stringResource(R.string.notification_settings_subtitle),
-                    icon = Icons.Default.ClearAll,
+                    icon = Symbols.ClearAllFilled,
                     tint = displayColor,
                     onClick = { onOpen(RestrictedModeRoutes.DISPLAY_NOTIFICATION) },
                 )
@@ -102,7 +94,7 @@ internal fun RestrictedAllowedSettings(
                         if (floatingAllowed) R.string.settings_floating_desc
                         else R.string.settings_floating_permission_desc
                     ),
-                    icon = Icons.Default.PictureInPicture,
+                    icon = Symbols.PictureInPictureFilled,
                     tint = displayColor,
                     onClick = { onOpen(RestrictedModeRoutes.DISPLAY_FLOATING) },
                 )
@@ -114,19 +106,19 @@ internal fun RestrictedAllowedSettings(
                         if (lockScreenEnabled) R.string.settings_lock_screen_desc
                         else R.string.settings_lock_screen_off_desc
                     ),
-                    icon = Icons.Default.ScreenLockPortrait,
+                    icon = Symbols.ScreenLockPortraitFilled,
                     tint = displayColor,
                     onClick = { onOpen(RestrictedModeRoutes.DISPLAY_LOCK_SCREEN) },
                 )
             )
         }
         add(AllowedRow(stringResource(R.string.theme_title), themeLabel, themeIcon, generalColor, onTheme))
-        add(AllowedRow(stringResource(R.string.languagename), languageLabel, Icons.Default.Language, generalColor, onLanguage))
+        add(AllowedRow(stringResource(R.string.languagename), languageLabel, Symbols.LanguageFilled, generalColor, onLanguage))
         add(
             AllowedRow(
                 title = stringResource(R.string.cgm_readiness_title),
                 subtitle = stringResource(R.string.cgm_readiness_settings_desc),
-                icon = Icons.Default.Security,
+                icon = Symbols.SecurityFilled,
                 tint = generalColor,
                 onClick = { onOpen(RestrictedModeRoutes.READINESS) },
             )

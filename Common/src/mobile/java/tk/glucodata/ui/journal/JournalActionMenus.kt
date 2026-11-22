@@ -7,6 +7,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonMenuItem
@@ -33,14 +34,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bloodtype
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults
@@ -111,14 +104,7 @@ import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.ui.ChartActionAnchor
 import tk.glucodata.ui.components.CatchNavigationTaps
 import kotlin.math.roundToInt
-
-fun journalReachActionTypes(): List<JournalEntryType> = listOf(
-    JournalEntryType.NOTE,
-    JournalEntryType.ACTIVITY,
-    JournalEntryType.FINGERSTICK,
-    JournalEntryType.CARBS,
-    JournalEntryType.INSULIN
-)
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun JournalEntryType.journalActionLabel(): String = when (this) {
@@ -131,12 +117,12 @@ fun JournalEntryType.journalActionLabel(): String = when (this) {
 }
 
 fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
-    JournalEntryType.INSULIN -> Icons.Default.Vaccines
-    JournalEntryType.CARBS -> Icons.Default.Restaurant
-    JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
-    JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
-    JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
-    JournalEntryType.TEMP_BASAL -> Icons.Default.Vaccines
+    JournalEntryType.INSULIN -> Symbols.VaccinesFilled
+    JournalEntryType.CARBS -> Symbols.RestaurantFilled
+    JournalEntryType.FINGERSTICK -> Symbols.BloodtypeFilled
+    JournalEntryType.ACTIVITY -> Symbols.DirectionsRunFilled
+    JournalEntryType.NOTE -> Symbols.LabelFilled
+    JournalEntryType.TEMP_BASAL -> Symbols.VaccinesFilled
 }
 
 /**
@@ -160,8 +146,8 @@ fun JournalFloatingActionMenu(
 ) = FontScaleCap {
     // Position-based journal menus follow the chart and navigation font cap.
     val view = LocalView.current
-    // The FAB menu's order, top to bottom.
-    val actionTypes = remember { journalReachActionTypes() }
+    // The FAB menu's order, top to bottom, as arranged under Entry types.
+    val actionTypes by JournalActionOrderStore.order.collectAsStateWithLifecycle()
     val progress = remember { List(actionTypes.size) { Animatable(0f) } }
     val enterSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     val exitSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
@@ -481,7 +467,7 @@ fun BoxScope.JournalExpandableFab(
     horizontalAlignment: Alignment.Horizontal = Alignment.End
 ) = FontScaleCap {
     val view = LocalView.current
-    val actionTypes = remember { journalReachActionTypes() }
+    val actionTypes by JournalActionOrderStore.order.collectAsStateWithLifecycle()
     val itemCoordinates = remember { arrayOfNulls<LayoutCoordinates>(actionTypes.size) }
     var hoveredType by remember { mutableStateOf<JournalEntryType?>(null) }
     val currentExpanded by rememberUpdatedState(expanded)
@@ -490,6 +476,10 @@ fun BoxScope.JournalExpandableFab(
     var buttonCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     BackHandler(enabled = expanded) { onExpandedChange(false) }
     CatchNavigationTaps(active = expanded) { onExpandedChange(false) }
+    // The scrim fades the screen into its own surface, not into black: black over a light
+    // theme reads as a grey smear. Clear through the top 35% so the chart stays readable; the
+    // ends are the same colour at zero alpha, so the fade never passes through grey.
+    val scrimColor = MaterialTheme.colorScheme.surface
     AnimatedVisibility(
         visible = expanded,
         modifier = Modifier.matchParentSize(),
@@ -501,10 +491,10 @@ fun BoxScope.JournalExpandableFab(
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0.0f to Color.Transparent,
-                        0.35f to Color.Transparent,
-                        0.70f to Color.Black.copy(alpha = 0.55f),
-                        1.0f to Color.Black.copy(alpha = 0.78f)
+                        0.0f to scrimColor.copy(alpha = 0f),
+                        0.35f to scrimColor.copy(alpha = 0f),
+                        0.70f to scrimColor.copy(alpha = 0.80f),
+                        1.0f to scrimColor.copy(alpha = 0.92f)
                     )
                 )
                 .clickable(
@@ -528,7 +518,7 @@ fun BoxScope.JournalExpandableFab(
                 },
                 containerColor = ToggleFloatingActionButtonDefaults.containerColor(
                     initialColor = MaterialTheme.colorScheme.primaryContainer,
-                    finalColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    finalColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier
                     .onGloballyPositioned { buttonCoordinates = it }
@@ -578,7 +568,7 @@ fun BoxScope.JournalExpandableFab(
                     }
             ) {
                 val icon by remember {
-                    derivedStateOf { if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add }
+                    derivedStateOf { if (checkedProgress > 0.5f) Symbols.CloseFilled else Symbols.AddFilled }
                 }
                 Icon(
                     imageVector = icon,
@@ -587,7 +577,7 @@ fun BoxScope.JournalExpandableFab(
                         checkedProgress = { checkedProgress },
                         color = ToggleFloatingActionButtonDefaults.iconColor(
                             initialColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            finalColor = MaterialTheme.colorScheme.onSurface
+                            finalColor = MaterialTheme.colorScheme.onPrimary
                         )
                     )
                 )

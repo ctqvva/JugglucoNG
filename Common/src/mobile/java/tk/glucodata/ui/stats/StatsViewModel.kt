@@ -1053,7 +1053,12 @@ class StatsViewModel : ViewModel() {
         return toMgDl(primaryDisplayValue, unit)
     }
 
-    private fun maybeRefreshTemperaturePoints(serial: String, history: List<GlucosePoint>): List<TemperaturePoint> {
+    /**
+     * Runs on the history collector (main). The cache check is cheap and stays here; the
+     * read itself decodes up to thousands of serialized samples from the driver prefs, so
+     * it runs on IO and the cache fields are only written back on the collector.
+     */
+    private suspend fun maybeRefreshTemperaturePoints(serial: String, history: List<GlucosePoint>): List<TemperaturePoint> {
         val now = System.currentTimeMillis()
         val historyStartMs = history.firstOrNull()?.timestamp ?: Long.MAX_VALUE
         val historyEndMs = history.lastOrNull()?.timestamp ?: Long.MIN_VALUE
@@ -1071,7 +1076,7 @@ class StatsViewModel : ViewModel() {
             return cachedTemperaturePoints
         }
 
-        val refreshed = readTemperaturePoints(serial, history)
+        val refreshed = withContext(Dispatchers.IO) { readTemperaturePoints(serial, history) }
         cachedTemperatureSerial = serial
         cachedTemperaturePoints = refreshed
         cachedTemperatureHistoryStartMs = historyStartMs

@@ -3,23 +3,14 @@ package tk.glucodata.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.Font
@@ -32,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.R
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
+import tk.glucodata.ui.symbols.Symbols
 
 @OptIn(ExperimentalTextApi::class)
 private fun jugglucoBrandFamily(weight: Int, width: Float): FontFamily {
@@ -83,13 +75,12 @@ fun SensorSelectionCards(
         ) {
 
             sensorTypeOptions.filter { allowedTypes == null || it.type in allowedTypes }.forEach { option ->
-                val highlighted = option.type == SensorType.SIBIONICS
                 SensorCard(
-                    icon = option.icon,
+                    type = option.type,
                     title = stringResource(option.titleRes),
                     subtitle = stringResource(option.subtitleRes),
-                    containerColor = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                    // One tone for every sensor, the same as the wizard hero the row opens.
+                    containerColor = sensorBackdropColor(),
                     onClick = { onSensorSelected(option.type) },
                     compact = compact
                 )
@@ -99,55 +90,46 @@ fun SensorSelectionCards(
 }
 
 /**
- * Individual sensor type card with M3 Expressive styling.
- * Uses selection card pattern with surface tonality and filled tonal arrow.
+ * Individual sensor type card with M3 Expressive styling: the sensor itself leads, on a shape of
+ * its own that answers the press; the text and the filled tonal arrow keep their places.
  */
 @Composable
 private fun SensorCard(
-    icon: ImageVector,
+    type: SensorType,
     title: String,
     subtitle: String,
     containerColor: androidx.compose.ui.graphics.Color,
-    contentColor: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit,
     compact: Boolean
 ) {
-    val iconContainerSize = if (compact) 44.dp else 50.dp
-    val iconInnerPadding = if (compact) 11.dp else 13.dp
-    val rowPadding = if (compact) 12.dp else 15.dp
+    val tileSize = if (compact) 56.dp else 64.dp
+    val rowPadding = if (compact) 8.dp else 12.dp
     val arrowContainer = if (compact) 32.dp else 36.dp
     val arrowPadding = if (compact) 8.dp else 9.dp
+    val interactionSource = remember { MutableInteractionSource() }
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge, // More "bubbly" M3 Expressive
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 1.dp
+        tonalElevation = 1.dp,
+        interactionSource = interactionSource
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(rowPadding),
+                .padding(start = rowPadding, top = rowPadding, end = rowPadding + 4.dp, bottom = rowPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon container with larger, rounder shape
-            Surface(
-                shape = MaterialTheme.shapes.large, // Larger corner radius
-                color = containerColor,
-                modifier = Modifier.size(iconContainerSize)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(iconInnerPadding)
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(if (compact) 8.dp else 12.dp))
-            
+            SensorArtTile(
+                type = type,
+                containerColor = containerColor,
+                tileSize = tileSize,
+                interactionSource = interactionSource
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
             // Text content
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -172,7 +154,7 @@ private fun SensorCard(
                 modifier = Modifier.size(arrowContainer)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    imageVector = Symbols.ArrowForwardFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
@@ -193,7 +175,7 @@ fun ImportHistoryCard(
     modifier: Modifier = Modifier
 ) {
     SetupAlternativeCard(
-        icon = Icons.Default.Download,
+        icon = Symbols.DownloadFilled,
         title = stringResource(R.string.import_history),
         description = stringResource(R.string.import_history_desc),
         onClick = onClick,
@@ -355,7 +337,7 @@ fun DashboardEmptyState(
             if (onImportHistory != null) Spacer(modifier = Modifier.height(8.dp))
 
             SetupAlternativeCard(
-                icon = Icons.Default.EditNote,
+                icon = Symbols.EditNoteFilled,
                 title = stringResource(R.string.continue_without_sensor),
                 description = stringResource(R.string.continue_without_sensor_desc),
                 onClick = onContinueWithoutSensor,

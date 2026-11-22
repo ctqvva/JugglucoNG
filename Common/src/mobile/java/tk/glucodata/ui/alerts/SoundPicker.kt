@@ -22,10 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -48,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import tk.glucodata.Applic
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Special marker values for sound selection:
@@ -271,7 +268,7 @@ fun SoundPicker(
                     ) {
                         Spacer(Modifier.width(12.dp))
                         Icon(
-                            Icons.Default.Add, 
+                            Symbols.AddFilled, 
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -347,7 +344,7 @@ private fun SoundRow(
         IconButtonTooltip(if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.preview)) {
             IconButton(onClick = onPlay, shapes = IconButtonDefaults.shapes()) {
                 Icon(
-                    imageVector = if (isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                    imageVector = if (isPlaying) Symbols.StopFilled else Symbols.PlayArrowFilled,
                     contentDescription = if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.preview)
                 )
             }

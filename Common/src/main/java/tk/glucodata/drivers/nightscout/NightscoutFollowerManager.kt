@@ -35,8 +35,10 @@ import tk.glucodata.drivers.VirtualGlucoseSensorBridge
 
 class NightscoutFollowerManager(
     serial: String,
-    private val url: String,
-    private val secret: String,
+    // Settings can change under a running follower (same server id, new credentials or API
+    // version), so these are read fresh on every request. See [updateConfig].
+    @Volatile private var url: String,
+    @Volatile private var secret: String,
     @Volatile private var useV3: Boolean = false,
     dataptr: Long,
 ) : SuperGattCallback(serial, dataptr, SENSOR_GEN), ManagedBluetoothSensorDriver {
@@ -123,13 +125,25 @@ class NightscoutFollowerManager(
     override fun matchesManagedSensorId(sensorId: String?): Boolean =
         NightscoutFollowerRegistry.matchesSensorId(SerialNumber, sensorId)
 
-    /** Apply the persisted follower API choice to an already-running virtual sensor. */
-    internal fun updateApiVersion(useV3: Boolean) {
-        if (this.useV3 == useV3) return
-        this.useV3 = useV3
-        // A cached token belongs to the previous authentication mode/credentials. The next
-        // immediate refresh must negotiate from the newly selected mode instead.
-        NightscoutFollowerV3.clearToken()
+    /**
+     * Apply the persisted settings to an already-running virtual sensor.
+     *
+     * The sensor id is a hash of the lower-cased URL, so a changed secret, a changed API
+     * version or a URL that differs only in case all keep this instance. Without this the
+     * follower went on asking with the credentials it was built with until the process died.
+     */
+    internal fun updateConfig(url: String, secret: String, useV3: Boolean) {
+        if (this.url != url) {
+            this.url = url
+            mActiveDeviceAddress = url
+        }
+        if (this.secret != secret) this.secret = secret
+        if (this.useV3 != useV3) {
+            this.useV3 = useV3
+            // A cached token belongs to the previous authentication mode/credentials. The next
+            // immediate refresh must negotiate from the newly selected mode instead.
+            NightscoutFollowerV3.clearToken()
+        }
     }
 
     override fun mygetDeviceName(): String = localizedString(R.string.nightscout_follow_title, "Nightscout follower")
@@ -176,6 +190,8 @@ class NightscoutFollowerManager(
             isVendorConnected = phase == Phase.FOLLOWING,
             vendorModel = localizedString(R.string.nightscout_follow_title, "Nightscout follower"),
         )
+
+    override fun usesBluetoothDiscovery(): Boolean = false
 
     override fun connectDevice(delayMillis: Long): Boolean {
         stop = false
@@ -769,6 +785,9 @@ class NightscoutFollowerManager(
     }
 
     private fun importRemoteTreatments(): Int {
+        // Both land in the journal; with it off they would fill a record nobody sees.
+        // Readings and devicestatus keep refreshing; the next poll after it is back imports.
+        if (!tk.glucodata.JournalEnabled.isOn(Applic.app)) return 0
         fun importBatch(label: String, body: () -> String): Int =
             runCatching {
                 val json = body()

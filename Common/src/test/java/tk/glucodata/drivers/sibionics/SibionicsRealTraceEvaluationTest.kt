@@ -355,8 +355,9 @@ class SibionicsRealTraceEvaluationTest {
 
         /** Mean delay of a series' turning points behind raw's — what the eye reads. */
         fun turningPointDelay(target: (SibionicsReplayHarness.Row) -> Float): Double {
-            val raw = rows.map { it.rawMmol }
-            val other = rows.map(target)
+            fun displayed(value: Float): Float = kotlin.math.round(value * 10f) / 10f
+            val raw = rows.map { displayed(it.rawMmol) }
+            val other = rows.map { displayed(target(it)) }
             fun extrema(values: List<Float>, window: Int = 12): List<Int> =
                 (window until values.size - window).filter { i ->
                     val slice = values.subList(i - window, i + window + 1)

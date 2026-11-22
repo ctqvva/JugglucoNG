@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -26,6 +24,7 @@ import tk.glucodata.CloneIceNetworkConfig
 import tk.glucodata.R
 import tk.glucodata.ui.components.*
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.symbols.Symbols
 
 internal data class TurnEndpoint(
     val host: String,
@@ -148,11 +147,11 @@ internal fun HybridSettingsContent(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
-                title = stringResource(R.string.clone_network_title),
+                title = stringResource(R.string.clone_network_settings),
                 onNavigateBack = onBack,
                 actions = {
                     IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(Icons.Default.HelpOutline, stringResource(R.string.help))
+                        Icon(Symbols.Help, stringResource(R.string.help))
                     }
                 },
             )
@@ -193,8 +192,9 @@ internal fun HybridSettingsContent(
                     Spacer(Modifier.height(2.dp))
                     SettingsSwitchItem(
                         title = stringResource(R.string.clone_allow_fallback_servers),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.clone_allow_fallback_servers),
                         subtitle = stringResource(R.string.clone_allow_fallback_servers_desc),
-                        icon = Icons.Default.AltRoute,
+                        icon = Symbols.AltRouteFilled,
                         iconTint = accent,
                         checked = draft.allowFallbackServers,
                         onCheckedChange = { onDraftChange(draft.copy(allowFallbackServers = it)) },
@@ -206,8 +206,9 @@ internal fun HybridSettingsContent(
             SectionLabel(stringResource(R.string.clone_connection_options))
             SettingsSwitchItem(
                 title = stringResource(R.string.clone_local_short),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.clone_local_short),
                 subtitle = stringResource(R.string.clone_local_short_desc),
-                icon = Icons.Default.Lan,
+                icon = Symbols.LanFilled,
                 iconTint = accent,
                 checked = draft.useLocalDiscovery,
                 onCheckedChange = { onDraftChange(draft.copy(useLocalDiscovery = it)) },
@@ -217,8 +218,9 @@ internal fun HybridSettingsContent(
             val turnAvailable = draft.turnEndpoint != null
             SettingsSwitchItem(
                 title = stringResource(R.string.clone_stun_short),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.clone_stun_short),
                 subtitle = stringResource(if (turnAvailable) R.string.clone_stun_short_desc else R.string.clone_stun_needs_server),
-                icon = Icons.Default.Hub,
+                icon = Symbols.HubFilled,
                 iconTint = accent,
                 checked = draft.useTurnForStun && turnAvailable,
                 enabled = turnAvailable,
@@ -228,8 +230,9 @@ internal fun HybridSettingsContent(
             Spacer(Modifier.height(2.dp))
             SettingsSwitchItem(
                 title = stringResource(R.string.clone_prefer_ipv4),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.clone_prefer_ipv4),
                 subtitle = stringResource(R.string.clone_prefer_ipv4_summary),
-                icon = Icons.Default.SettingsEthernet,
+                icon = Symbols.SettingsEthernetFilled,
                 iconTint = accent,
                 checked = draft.preferIPv4,
                 onCheckedChange = { onDraftChange(draft.copy(preferIPv4 = it)) },
@@ -240,7 +243,7 @@ internal fun HybridSettingsContent(
     if (showHelp) {
         AlertDialog(
             onDismissRequest = { showHelp = false },
-            icon = { Icon(Icons.Default.Hub, null) },
+            icon = { Icon(Symbols.HubFilled, null) },
             title = { Text(stringResource(R.string.clone_network_title)) },
             text = {
                 Text(
@@ -267,7 +270,7 @@ private fun ApplyRow(visible: Boolean, onApply: () -> Unit) {
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Button(onClick = onApply, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
-                Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Symbols.SyncFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.clone_apply))
             }
@@ -292,9 +295,10 @@ private fun ColumnScope.RendezvousServerSetting(
 ) {
     DisclosingSwitchCard(
         title = stringResource(R.string.use_custom_rendezvous_server),
+        searchAnchor = SettingsSearchAnchors.forRow(R.string.use_custom_rendezvous_server),
         subtitle = formatNetworkEndpoint(saved.toConfig(CloneIceNetworkConfig()).rendezvousHost, saved.rendezvousPortValue ?: CloneIceNetworkConfig.DEFAULT_RENDEZVOUS_PORT)
             ?: stringResource(R.string.clone_server_default),
-        icon = Icons.Default.Dns,
+        icon = Symbols.DnsFilled,
         iconTint = accent,
         checked = draft.customRendezvous,
         onCheckedChange = { onDraftChange(draft.copy(customRendezvous = it)) },
@@ -325,9 +329,10 @@ private fun ColumnScope.RendezvousServerSetting(
             val verify = draft.verifyRendezvousCertificate
             SettingsSwitchItem(
                 title = stringResource(R.string.verify_rendezvous_certificate),
+                searchAnchor = SettingsSearchAnchors.forRow(R.string.verify_rendezvous_certificate),
                 subtitle = if (verify) null else stringResource(R.string.verify_rendezvous_certificate_summary),
                 subtitleStyle = if (verify) null else MaterialTheme.typography.bodySmall,
-                icon = Icons.Default.VerifiedUser,
+                icon = Symbols.VerifiedUserFilled,
                 iconTint = if (verify) accent else MaterialTheme.colorScheme.error,
                 checked = verify,
                 onCheckedChange = { onDraftChange(draft.copy(verifyRendezvousCertificate = it)) },
@@ -350,9 +355,10 @@ private fun TurnServerSetting(
     var visible by rememberSaveable { mutableStateOf(false) }
     DisclosingSwitchCard(
         title = stringResource(R.string.use_custom_turn_server),
+        searchAnchor = SettingsSearchAnchors.forRow(R.string.use_custom_turn_server),
         subtitle = saved.turnEndpoint?.let { formatNetworkEndpoint(it.host, it.port) }
             ?: stringResource(R.string.mirror_app_turn_server),
-        icon = Icons.Default.CloudQueue,
+        icon = Symbols.CloudQueueFilled,
         iconTint = accent,
         checked = draft.customTurn,
         onCheckedChange = { onDraftChange(draft.copy(customTurn = it)) },
@@ -387,7 +393,7 @@ private fun TurnServerSetting(
             trailingIcon = {
                 IconButton(onClick = { visible = !visible }, shapes = IconButtonDefaults.shapes()) {
                     Icon(
-                        if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        if (visible) Symbols.VisibilityOffFilled else Symbols.VisibilityFilled,
                         stringResource(if (visible) R.string.hide_password else R.string.show_password),
                     )
                 }

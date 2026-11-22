@@ -32,124 +32,117 @@ class OttaiFirmwareRecoveryUiTests {
         val output = File("build/outputs/layout-regressions/ottai-$name.png")
         output.parentFile?.mkdirs()
         output.outputStream().use {
-            compose.onAllNodes(isDialog()).onLast().captureToImage().asAndroidBitmap()
+            compose.onNode(isDialog()).captureToImage().asAndroidBitmap()
                 .compress(Bitmap.CompressFormat.PNG, 100, it)
         }
     }
 
-    @Test fun failedTestRequiresConfirmationBeforeDiscard() = failedDiscard(1f)
-    @Test fun largeFontFailureAndDiscardConfirmationRemainUsable() = failedDiscard(2f)
+    @Test fun modeChoicesAndManagedSensorUseACompactDialog() {
+        var managed by mutableStateOf(false)
+        var state by mutableStateOf<OttaiFirmwareState?>(null)
+        var selected: OttaiFirmwareMode? = null
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                OttaiFirmwareDialogContent(state = state, managed = managed, onMode = {
+                    selected = it
+                    state = OttaiFirmwareState(mode = it)
+                },
+                    onDiscard = {}, onLeave = {})
+            }
+        }
+        compose.onAllNodes(isDialog()).assertCountEquals(1)
+        val dialogId = compose.onNode(isDialog()).fetchSemanticsNode().id
+        compose.onNodeWithText(text(R.string.ottai_ota_started_mode)).assertIsDisplayed()
+        capture("firmware-mode-dialog")
+        compose.onNodeWithText(text(R.string.ottai_ota_started_mode)).performClick()
+        compose.onNodeWithText(text(R.string.connecting)).assertIsDisplayed()
+        assertEquals(dialogId, compose.onNode(isDialog()).fetchSemanticsNode().id)
+        compose.runOnIdle {
+            assertEquals(OttaiFirmwareMode.STARTED_SENSOR, selected)
+            managed = true
+            state = null
+        }
+        compose.onNodeWithText(text(R.string.ottai_ota_started_mode)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.ottai_ota_disconnect_first)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.close)).assertIsDisplayed()
+        capture("firmware-managed-dialog")
+    }
 
-    private fun failedDiscard(scale: Float) {
+    @Test fun failedCheckAndDiscardConfirmationShareOneDialog() = confirmDiscard(1f)
+    @Test fun largeFontDiscardConfirmationRemainsUsable() = confirmDiscard(2f)
+
+    private fun confirmDiscard(scale: Float) {
         RuntimeEnvironment.setFontScale(scale)
         var discarded = 0
-        var dismissed = 0
+        var left = 0
         compose.setContent {
             MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
-                    OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.FAILED,
-                        firmware = "E1.1.4(V1.8.S2600.1),STDRD", errorCode = "calibration_missing"), true,
-                        onInstall = { error("No install from failure") }, onPrepare = { error("No preparation from failure") },
-                        onDiscard = { done -> discarded++; done(Result.success(Unit)) }, onDismiss = { dismissed++ })
+                OttaiFirmwareDialogContent(OttaiFirmwareState(stage = OttaiFirmwareStage.FAILED,
+                    firmware = "E1.1.4(V1.8.S2600.1),STDRD", errorCode = "calibration_missing"), pending = true,
+                    onInstall = { error("No install from failure") }, onPrepare = { error("No preparation from failure") },
+                    onDiscard = { done -> discarded++; done(Result.success(Unit)) }, onLeave = { left++ })
             }
         }
-        compose.onNodeWithText(text(R.string.ottai_ota_discard)).assertIsDisplayed()
-        val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
-        compose.onNodeWithText(text(R.string.ottai_ota_title)).performSemanticsAction(
-            androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
-        assertEquals(scale, layouts.single().layoutInput.density.fontScale, 0f)
-        capture(if (scale == 1f) "recovery-failed" else "recovery-failed-large-font")
+        compose.onNodeWithText("calibration_missing", substring = true).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.ottai_ota_discard)).performClick()
-        compose.onNodeWithText(text(R.string.ottai_ota_discard_confirm)).assertIsDisplayed()
+        compose.onAllNodes(isDialog()).assertCountEquals(1)
+        compose.onNodeWithText(text(R.string.ottai_ota_discard_confirm)).performScrollTo().assertIsDisplayed()
         assertEquals(0, discarded)
-        capture(if (scale == 1f) "recovery-discard-confirm" else "recovery-discard-confirm-large-font")
+        capture("firmware-discard-dialog-$scale")
         compose.onAllNodesWithText(text(R.string.ottai_ota_discard)).onLast().performClick()
-        compose.runOnIdle { assertEquals(1, discarded); assertEquals(1, dismissed) }
+        compose.runOnIdle { assertEquals(1, discarded); assertEquals(1, left) }
     }
 
-    @Test fun verifiedFreshFirmwareWaitsForASeparatePreparationConfirmation() {
-        var prepared = 0
-        compose.setContent {
-            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
-                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.PREPARATION_READY,
-                    firmware = "V1.8.0", canPrepareParameters = true), true,
-                    onInstall = { error("Verified target cannot be flashed again") },
-                    onPrepare = { prepared++ }, onDiscard = {}, onDismiss = {})
-            }
-        }
-        compose.onNodeWithText(text(R.string.ottai_ota_finish_preparation)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.ottai_ota_install)).assertDoesNotExist()
-        assertEquals(0, prepared)
-        capture("recovery-awaiting-preparation")
-        compose.onNodeWithText(text(R.string.ottai_ota_parameters)).performClick()
-        assertEquals(0, prepared)
-        compose.onNodeWithText(text(R.string.ok)).performClick()
-        compose.runOnIdle { assertEquals(1, prepared) }
-    }
-
-    @Test fun unreadableRecoveryOffersOnlyConfirmedDiscardAndClose() {
-        var discarded = 0
-        var dismissed = 0
+    @Test fun pendingRecoveryRequiresAnExplicitRetry() {
+        var selected: OttaiFirmwareMode? = null
         compose.setContent {
             MaterialTheme {
-                OttaiFirmwareModeDialog(true, onMode = { error("No new experiment with a pending journal") },
-                    onDiscard = { done -> discarded++; done(Result.success(Unit)) }, onDismiss = { dismissed++ })
+                OttaiFirmwareDialogContent(pending = true, recoveryMode = OttaiFirmwareMode.STARTED_SENSOR,
+                    onMode = { selected = it }, onDiscard = {}, onLeave = {})
             }
         }
         compose.onNodeWithText(text(R.string.ottai_ota_fresh_mode)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.ottai_ota_started_mode)).assertDoesNotExist()
-        compose.onNodeWithText(text(R.string.ottai_ota_discard)).performClick()
-        assertEquals(0, discarded)
-        compose.onAllNodesWithText(text(R.string.ottai_ota_discard)).onLast().performClick()
-        compose.runOnIdle { assertEquals(1, discarded); assertEquals(1, dismissed) }
+        assertNull(selected)
+        compose.onNodeWithText(text(R.string.ottai_retry)).performClick()
+        compose.runOnIdle { assertEquals(OttaiFirmwareMode.STARTED_SENSOR, selected) }
     }
 
-    @Test fun freshExperimentsRemainAvailableWithoutAPendingJournal() {
-        var selected: OttaiFirmwareMode? = null
+    @Test fun unreadableRecoveryOffersDiscardWithoutTryingToConnect() {
         compose.setContent {
             MaterialTheme {
-                OttaiFirmwareModeDialog(false, onMode = { selected = it }, onDiscard = { error("No recovery") }, onDismiss = {})
+                OttaiFirmwareDialogContent(pending = true, onMode = { error("Unreadable recovery") },
+                    onDiscard = {}, onLeave = {})
             }
         }
-        compose.onNodeWithText(text(R.string.ottai_ota_fresh_mode)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.ottai_ota_started_mode)).performClick()
-        compose.runOnIdle { assertEquals(OttaiFirmwareMode.STARTED_SENSOR, selected) }
-        compose.onNodeWithText(text(R.string.ottai_ota_discard)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.ottai_ota_fresh_mode)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.ottai_retry)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.ottai_ota_discard)).assertIsDisplayed()
     }
 
-    @Test fun noOfferExposesAnExplicitCloudAuthRecheck() = cloudRecheck(1f)
-    @Test fun largeFontCloudAuthRecheckAndCloseRemainVisible() = cloudRecheck(2f)
-
-    private fun cloudRecheck(scale: Float) {
-        RuntimeEnvironment.setFontScale(scale)
+    @Test fun noOfferExposesAnExplicitCloudAuthRecheck() {
         var checked = 0
-        var closed = 0
         var stage by mutableStateOf(OttaiFirmwareStage.NO_UPDATE)
         compose.setContent {
-            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
-                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = stage, mode = OttaiFirmwareMode.STARTED_SENSOR,
-                    firmware = "E1.2.6(V1.7.SH2616.1),STDRD"), false,
-                    onInstall = { error("No automatic installation") }, onPrepare = { error("No preparation") },
-                    onDiscard = {}, onDismiss = { closed++ }, onCloudRecheck = {
+            MaterialTheme {
+                OttaiFirmwareDialogContent(OttaiFirmwareState(stage = stage, mode = OttaiFirmwareMode.STARTED_SENSOR),
+                    onDiscard = {}, onLeave = {}, onCloudRecheck = {
                         checked++
                         stage = OttaiFirmwareStage.CLOUD_AUTHENTICATING
                     })
             }
         }
-        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.close)).assertIsDisplayed()
-        capture(if (scale == 1f) "cloud-recheck" else "cloud-recheck-large-font")
         compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).performClick()
         compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertDoesNotExist()
-        compose.onNodeWithText(text(R.string.ottai_ota_cloud_authenticating)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.close)).performClick()
-        compose.runOnIdle { assertEquals(1, checked); assertEquals(1, closed) }
+        compose.onNodeWithText(text(R.string.ottai_ota_authenticating)).assertIsDisplayed()
+        compose.runOnIdle { assertEquals(1, checked) }
     }
 
     @Test fun pendingRecoveryDoesNotExposeANewCloudRecheck() {
         compose.setContent {
             MaterialTheme {
-                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.READY, recovery = true), true,
-                    onInstall = {}, onPrepare = {}, onDiscard = {}, onDismiss = {},
+                OttaiFirmwareDialogContent(OttaiFirmwareState(stage = OttaiFirmwareStage.READY, recovery = true),
+                    pending = true, onDiscard = {}, onLeave = {},
                     onCloudRecheck = { error("Recovery must use the saved package") })
             }
         }
@@ -158,91 +151,60 @@ class OttaiFirmwareRecoveryUiTests {
 
     @Test
     @Config(qualifiers = "ru-w400dp-h800dp-mdpi")
-    fun russianLargeFontFreshActionsRemainVisible() {
+    fun russianLargeFontFreshActionsRemainReachable() {
         RuntimeEnvironment.setFontScale(2f)
         compose.setContent {
             MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
-                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.READY,
-                    canPrepareParameters = true), false, onInstall = {}, onPrepare = {}, onDiscard = {},
-                    onDismiss = {}, onCloudRecheck = {})
+                OttaiFirmwareDialogContent(OttaiFirmwareState(stage = OttaiFirmwareStage.READY,
+                    firmware = "E1.2.3(V1.7.SH2542.1),STDRD", target = "E1.2.7(V1.7.SH2640.3)",
+                    canPrepareParameters = true), onDiscard = {}, onLeave = {})
             }
         }
         compose.onNodeWithText(text(R.string.ottai_ota_install)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.ottai_ota_parameters)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.close)).assertIsDisplayed()
-        capture("cloud-recheck-fresh-russian-large-font")
+        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_ota_parameters)).performScrollTo().assertIsDisplayed()
+        capture("firmware-actions-dialog-russian-large-font")
     }
 
-    @Test fun blockedConnectionExplainsRecoveryAndDiscardReleasesOnlyThatBlock() {
+    @Test fun blockedConnectionShowsPendingRecoveryAndDiscardReleasesTheBlock() {
         val id = "AABBCCDDEEFF"
         val file = File(context.filesDir, "ottai-ota/$id.bin.bak")
         file.parentFile!!.mkdirs()
-        file.writeBytes(byteArrayOf(1)) // Even an unreadable journal must be discardable.
+        file.writeBytes(byteArrayOf(1))
         assertEquals(text(R.string.ottai_ota_pending), ottaiConnectFailureMessage(context, id))
         assertNull(OttaiFirmwareSession.pendingMode(context, id, "AA:BB:CC:DD:EE:FF"))
         OttaiFirmwareSession.discardPendingTransfer(context, id)
-        assertEquals(text(R.string.ottai_connect_failed), ottaiConnectFailureMessage(context, id))
-    }
-    @Test
-    @Config(qualifiers = "ru-w400dp-h800dp-mdpi")
-    fun setupFailureHasRetryAndCloseWithoutClaimingAFlashIsPending() {
-        RuntimeEnvironment.setFontScale(2f)
-        var retries = 0
-        var closed = 0
-        compose.setContent {
-            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
-                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.FAILED,
-                    errorCode = "ota_request_http=200_biz=OTA_UPGRADE_REQUIRED"), false,
-                    onInstall = { error("No install from failure") }, onPrepare = { error("No preparation from failure") },
-                    onDiscard = {}, onDismiss = { closed++ }, prepareForSetup = true, onRetry = { retries++ })
-            }
-        }
-        compose.onNodeWithText(text(R.string.ottai_setup_title)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.ottai_retry)).assertIsDisplayed().performClick()
-        compose.onNodeWithText(text(R.string.close)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.ottai_ota_discard)).assertDoesNotExist()
-        compose.onNodeWithText(text(R.string.ottai_ota_failed)).assertDoesNotExist()
-        compose.onNodeWithText(text(R.string.ottai_ota_upgrade_required)).performScrollTo().assertIsDisplayed()
-        capture("setup-retry-russian-large-font")
-        compose.onNodeWithText(text(R.string.close)).performClick()
-        compose.runOnIdle { assertEquals(1, retries); assertEquals(1, closed) }
+        assertEquals(text(R.string.status_connection_failed), ottaiConnectFailureMessage(context, id))
     }
 
-    @Test fun ordinarySetupCannotInstallFirmwareWithoutItsOwnConfirmation() {
+    @Test fun installAndFactoryWritesStayInOneDialogAndRequireSeparateConfirmation() {
         var installed = 0
+        var prepared = 0
+        var stage by mutableStateOf(OttaiFirmwareStage.READY)
         compose.setContent {
             MaterialTheme {
-                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.READY,
-                    firmware = "V1.7", target = "V1.8", canPrepareParameters = true), false,
-                    onInstall = { installed++ }, onPrepare = {}, onDiscard = {}, onDismiss = {}, prepareForSetup = true)
+                OttaiFirmwareDialogContent(OttaiFirmwareState(stage = stage, firmware = "V1.7", target = "V1.8",
+                    totalBytes = 1_024, canPrepareParameters = stage == OttaiFirmwareStage.PREPARATION_READY),
+                    onInstall = { installed++; stage = OttaiFirmwareStage.INSTALLING },
+                    onPrepare = { prepared++; stage = OttaiFirmwareStage.PREPARING },
+                    onDiscard = {}, onLeave = {})
             }
         }
-        assertEquals(0, installed)
         compose.onNodeWithText(text(R.string.ottai_ota_install)).performClick()
         assertEquals(0, installed)
         compose.onNodeWithText(text(R.string.ottai_ota_confirm)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.ok)).performClick()
-        compose.runOnIdle { assertEquals(1, installed) }
+        compose.onAllNodes(isDialog()).assertCountEquals(1)
+        compose.onAllNodesWithText(text(R.string.ottai_ota_install)).onLast().performClick()
+        compose.onNodeWithText(text(R.string.close)).assertDoesNotExist()
+        compose.runOnIdle { assertEquals(1, installed); stage = OttaiFirmwareStage.RECONNECTING }
+        compose.onAllNodes(isDialog()).assertCountEquals(1)
+        compose.runOnIdle { stage = OttaiFirmwareStage.PREPARATION_READY }
+        compose.onNodeWithText(text(R.string.ottai_ota_install)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.ottai_ota_parameters)).performClick()
+        assertEquals(0, prepared)
+        compose.onAllNodesWithText(text(R.string.ottai_ota_parameters)).onLast().performClick()
+        compose.runOnIdle { assertEquals(1, prepared); stage = OttaiFirmwareStage.COMPLETE }
+        compose.onAllNodes(isDialog()).assertCountEquals(1)
+        compose.onNodeWithText(text(R.string.close)).assertIsDisplayed()
     }
-
-    @Test fun ordinarySetupDoesNotRepeatTheCloudAuthenticatedCheck() {
-        compose.setContent {
-            MaterialTheme {
-                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.READY,
-                    firmware = "V1.7", target = "V1.8", totalBytes = 1_024, sha256 = "00",
-                    canPrepareParameters = true), false,
-                    onInstall = {}, onPrepare = {}, onDiscard = {}, onDismiss = {},
-                    onCloudRecheck = { error("Setup already authenticated through the cloud") },
-                    prepareForSetup = true)
-            }
-        }
-        compose.onNodeWithText(text(R.string.ottai_ota_install)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertDoesNotExist()
-        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck_hint)).assertDoesNotExist()
-        // Nothing has been written yet, so no progress bar beside the unconfirmed install.
-        compose.onAllNodes(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo))
-            .assertCountEquals(0)
-    }
-
 }

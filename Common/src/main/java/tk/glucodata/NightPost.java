@@ -613,7 +613,7 @@ static public long getSensorStartTime(String sensorId, long nativeStartTime, int
 @Keep
 static public boolean maybeUploadIobDeviceStatus(String httpurl,String secret) {
     try {
-        if(!getUploadIob())
+        if(!getUploadIob() || !JournalEnabled.isOn(Applic.getContext()))
             return true;
         final long now=System.currentTimeMillis();
         if(!NightscoutIobDeviceStatus.fastIntervalElapsed(now, iobStatusUploadTime))

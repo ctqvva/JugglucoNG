@@ -77,6 +77,13 @@ internal fun decodeBleErrorEvents(encoded: String): List<BleErrorEvent> {
     }.toList()
 }
 
+/**
+ * A loss warning is a current-state signal, not a historical detail row. It is only shown
+ * while the driver reports it live; the retained event stays in Debug -> BLE error history.
+ */
+internal fun persistedBleErrorStillRelevant(status: String): Boolean =
+    status != "Loss of signal"
+
 /** Durable, bounded diagnostics for BLE failures. This is independent of trace recording. */
 object BleErrorHistory {
     private const val PREFS_NAME = "ble_error_history"

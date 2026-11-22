@@ -112,9 +112,17 @@ internal object OttaiOtaProtocol {
         return raw.substringBefore(',').takeIf { it.isNotEmpty() }
     }
 
-    /** A bare package V-profile can read back inside a full E(...),variant revision. */
+    /**
+     * A bare package V-profile can read back inside a full E(...),variant revision, and so can
+     * the cloud's variant-less composite name: Global names its package `E1.2.7(V1.7.SH2640.3).gbl`
+     * (offered 2026-11-13 for `E1.2.3(V1.7.SH2542.1)`), while the sensor reads back `…,STDRD`.
+     */
     fun matchesTarget(readback: String, target: String): Boolean {
         if (sameVersion(readback, target)) return true
+        val expectedSpelling = version(target)
+        if (expectedSpelling != null && ',' !in expectedSpelling &&
+            compositePattern.matchEntire(expectedSpelling) != null &&
+            withoutVariant(readback) == expectedSpelling) return true
         val actual = application(readback) ?: return false
         val expected = application(target) ?: return false
         return actual.composite && !expected.composite && compareVersions(actual, expected) == 0 &&

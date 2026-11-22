@@ -29,10 +29,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircleOutline
-import androidx.compose.material.icons.filled.DoNotDisturbOn
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -69,6 +65,7 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * The start presets, in minutes: a film or a lecture (30 min to 3 h), a night
@@ -122,7 +119,7 @@ fun QuietWindowCard(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconTile(icon = Icons.Default.DoNotDisturbOn, tint = accent)
+                IconTile(icon = Symbols.DoNotDisturbOnFilled, tint = accent)
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -141,7 +138,7 @@ fun QuietWindowCard(
                     )
                 }
                 Icon(
-                    Icons.Default.ExpandMore,
+                    Symbols.ExpandMoreFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.rotate(chevron)
@@ -360,7 +357,7 @@ private fun QuietWindowAdvanced() {
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
-                        Icon(Icons.Default.AddCircleOutline, contentDescription = null)
+                        Icon(Symbols.AddCircle, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.quiet_window_add_tile))
                     }

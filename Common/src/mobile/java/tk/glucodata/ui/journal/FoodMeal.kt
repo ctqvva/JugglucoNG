@@ -12,9 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -57,6 +54,7 @@ import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.ExpressiveMotion
+import tk.glucodata.ui.symbols.Symbols
 
 /** The portions offered beside the base unit; more would not fit one row of buttons. */
 private const val MAX_PORTION_UNITS = 3
@@ -138,7 +136,7 @@ private fun FoodMealRow(
                     IconButtonTooltip(stringResource(R.string.remove)) {
                         IconButton(onClick = onRemove, shapes = IconButtonDefaults.shapes()) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = Symbols.CloseFilled,
                                 contentDescription = stringResource(R.string.remove),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -146,7 +144,7 @@ private fun FoodMealRow(
                     }
                 } else {
                     Icon(
-                        imageVector = Icons.Default.ExpandMore,
+                        imageVector = Symbols.ExpandMoreFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

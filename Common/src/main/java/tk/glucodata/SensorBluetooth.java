@@ -271,22 +271,8 @@ public class SensorBluetooth {
                     ;
                 }
 
-                boolean ret = true;
                 cb.setDevice(device);
-                for (SuperGattCallback one : gattcallbacks) {
-                    if (one.mActiveBluetoothDevice == null) {
-                        {
-                            if (doLog) {
-                                Log.i(LOG_ID, one.SerialNumber + " not found");
-                            }
-                            ;
-                        }
-                        ;
-
-                        ret = false;
-                        break;
-                    }
-                }
+                final boolean ret = everyScanTargetFound(gattcallbacks);
                 if (ret)
                     SensorBluetooth.this.stopScan(false);
                 if (newdev) {
@@ -312,7 +298,7 @@ public class SensorBluetooth {
 
     long scantimeouttime = 0L;
 
-    boolean mScanning = false;
+    volatile boolean mScanning = false;
 
     class Scanner21 implements Scanner {
         final private ScanSettings mScanSettings;
@@ -447,6 +433,10 @@ public class SensorBluetooth {
                         Log.d(LOG_ID, "SCAN: preparing filters for " + gattcallbacks.size() + " devices");
                     }
                     for (var cb : gattcallbacks) {
+                        // A network follower has no service and is never advertised: letting its
+                        // null drop every filter would only make the scan unfiltered.
+                        if (!cb.usesBluetoothDiscovery())
+                            continue;
                         final var service = cb.getService();
                         if (service == null) {
                             if (doLog) {
@@ -557,17 +547,19 @@ public class SensorBluetooth {
 
     Scanner scanner = Build.VERSION.SDK_INT >= 21 ? new Scanner21() : new ArchScanner();
 
-    final private Runnable mScanTimeoutRunnable = () -> {
-        {
+    private synchronized void scanTimedOut(long generation) {
+        if (generation != scanGeneration || !mScanning) {
             if (doLog) {
-                Log.i(LOG_ID, "Timeout scanning");
+                Log.i(LOG_ID, "Timeout scanning: superseded");
             }
-            ;
+            return;
         }
-        ;
+        if (doLog) {
+            Log.i(LOG_ID, "Timeout scanning");
+        }
         scantimeouttime = System.currentTimeMillis();
-        SensorBluetooth.this.stopScan(true);
-    };
+        stopScan(true);
+    }
 
     static boolean bluetoothIsEnabled() {
         if (mBluetoothAdapter != null) {
@@ -596,7 +588,12 @@ public class SensorBluetooth {
             blueone.removeDevice(str);
     }
 
-    private boolean scanstart = false;
+    // Scan state below is only changed under this object's monitor. scanstart covers the span
+    // from scheduling a scan until it has stopped; scanGeneration names the current scheduling,
+    // so a scan or timeout task that was cancelled or superseded finds a newer generation and
+    // returns instead of starting (or stopping) a scan nobody owns.
+    private volatile boolean scanstart = false;
+    private long scanGeneration = 0L;
 
     /**
      * Whether the managed scan is running or about to run, the same condition scanStarter()
@@ -611,52 +608,125 @@ public class SensorBluetooth {
     }
 
     long scantime = 0L;
-    final private Runnable scanRunnable = new Runnable() {
-        @Override
-        public void run() {
-            try {
-                if (doLog) {
-                    Log.i(LOG_ID, "scanRunnable ENTRY");
+
+    private synchronized void runScan(long generation) {
+        if (generation != scanGeneration || !scanstart || mScanning) {
+            if (doLog) {
+                Log.i(LOG_ID, "scanRunnable superseded");
+            }
+            return;
+        }
+        try {
+            if (doLog) {
+                Log.i(LOG_ID, "scanRunnable ENTRY");
+            }
+            scantime = System.currentTimeMillis();
+            if (bluetoothIsEnabled() && hasScanTargets(gattcallbacks)) {
+                if (!scanner.init()) {
+                    Log.w(LOG_ID, "Scanner init failed, retrying in 2s...");
+                    scheduleScanLocked(2000);
+                    return;
                 }
-                scantime = System.currentTimeMillis();
-                if (bluetoothIsEnabled() && gattcallbacks.size() != 0) {
-                    if (!scanner.init()) {
-                        Log.w(LOG_ID, "Scanner init failed, retrying in 2s...");
-                        if (scanOnUI) {
-                            Applic.app.getHandler().postDelayed(scanRunnable, 2000);
-                        } else {
-                            scanFuture = Applic.scheduler.schedule(scanRunnable, 2000, TimeUnit.MILLISECONDS);
-                        }
-                        return;
-                    }
-                    if (scanner.start()) {
-                        mScanning = true;
-                        if (scanOnUI) {
-                            Applic.app.getHandler().postDelayed(mScanTimeoutRunnable, scantimeout);
-                        } else {
-                            timeoutFuture = Applic.scheduler.schedule(mScanTimeoutRunnable, scantimeout,
-                                    TimeUnit.MILLISECONDS);
-                        }
-                        Log.i(LOG_ID, "scanRunnable: Scanner STARTED");
+                if (scanner.start()) {
+                    mScanning = true;
+                    final Runnable timeout = () -> scanTimedOut(generation);
+                    if (scanOnUI) {
+                        pendingScanTimeout = timeout;
+                        Applic.app.getHandler().postDelayed(timeout, scantimeout);
                     } else {
-                        scanstart = false;
-                        Log.w(LOG_ID, "scanRunnable: Scanner START FAILED");
-                        return;
+                        timeoutFuture = Applic.scheduler.schedule(timeout, scantimeout,
+                                TimeUnit.MILLISECONDS);
                     }
+                    Log.i(LOG_ID, "scanRunnable: Scanner STARTED");
                 } else {
                     scanstart = false;
-                    Log.i(LOG_ID, "scanRunnable: nothing to scan (BT off or no callbacks)");
+                    Log.w(LOG_ID, "scanRunnable: Scanner START FAILED");
                 }
-            } catch (Exception e) {
+            } else {
                 scanstart = false;
-                Log.stack(LOG_ID, "scanRunnable EXCEPTION", e);
+                Log.i(LOG_ID, "scanRunnable: nothing to scan (BT off or no Bluetooth sensors)");
             }
+        } catch (Exception e) {
+            scanstart = false;
+            Log.stack(LOG_ID, "scanRunnable EXCEPTION", e);
         }
-
-    };
+    }
 
     static private final boolean scanOnUI = false;
     ScheduledFuture<?> scanFuture = null, timeoutFuture = null;
+    private Runnable pendingScan = null, pendingScanTimeout = null;
+    // When the pending scan task is due, on System.nanoTime(), the executor's clock.
+    private long pendingScanAtNanos = 0L;
+
+    /** Whether the roster holds anything the shared scan can find. */
+    static boolean hasScanTargets(Iterable<SuperGattCallback> callbacks) {
+        for (SuperGattCallback cb : callbacks) {
+            if (cb.usesBluetoothDiscovery())
+                return true;
+        }
+        return false;
+    }
+
+    /**
+     * Whether every callback the shared scan looks for has its device. Network followers share
+     * the roster but never get one; counting them kept every scan running to its timeout, and a
+     * timeout schedules the next scan, so a mixed roster scanned forever.
+     */
+    static boolean everyScanTargetFound(Iterable<SuperGattCallback> callbacks) {
+        for (SuperGattCallback one : callbacks) {
+            if (one.usesBluetoothDiscovery() && one.mActiveBluetoothDevice == null) {
+                if (doLog) {
+                    Log.i(LOG_ID, one.SerialNumber + " not found");
+                }
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Schedules a scan task for the current generation. Caller holds this object's monitor. */
+    private void scheduleScanLocked(long delayMillis) {
+        final long generation = scanGeneration;
+        final Runnable run = () -> runScan(generation);
+        pendingScanAtNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(Math.max(0L, delayMillis));
+        if (scanOnUI) {
+            pendingScan = run;
+            if (delayMillis > 0)
+                Applic.app.getHandler().postDelayed(run, delayMillis);
+            else
+                Applic.app.getHandler().post(run);
+        } else {
+            scanFuture = Applic.scheduler.schedule(run, delayMillis, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * Retires every scan and timeout task scheduled so far. Caller holds this object's monitor.
+     * Not interrupting: a task already past its generation check has the monitor, so the caller
+     * only gets here after it finished, and the task that called this may be the one running.
+     */
+    private void cancelScheduledScanLocked() {
+        ++scanGeneration;
+        if (scanOnUI) {
+            if (pendingScan != null) {
+                Applic.app.getHandler().removeCallbacks(pendingScan);
+                pendingScan = null;
+            }
+            if (pendingScanTimeout != null) {
+                Applic.app.getHandler().removeCallbacks(pendingScanTimeout);
+                pendingScanTimeout = null;
+            }
+        } else {
+            if (scanFuture != null) {
+                scanFuture.cancel(false);
+                scanFuture = null;
+            }
+            if (timeoutFuture != null) {
+                timeoutFuture.cancel(false);
+                timeoutFuture = null;
+            }
+        }
+    }
 
     public synchronized boolean scanStarter(long delayMillis) {
         {
@@ -678,11 +748,27 @@ public class SensorBluetooth {
             Applic.Toaster(R.string.bluetooth_is_turned_off);
             return false;
         }
-        if (mScanning || scanstart) {
+        if (mScanning) {
             if (doLog) {
-                Log.i(LOG_ID, "scanStarter skipped, scan already active/pending");
+                Log.i(LOG_ID, "scanStarter skipped, scan already active");
             }
             return false;
+        }
+        if (scanstart) {
+            // One scan stays scheduled. A request due sooner than it (Forget in the Bluetooth
+            // diagnostics, a reconnect, after a timeout retry waiting out its backoff) moves it
+            // earlier; a later one leaves it be.
+            final long requestedAtNanos =
+                    System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(Math.max(0L, delayMillis));
+            if (requestedAtNanos - pendingScanAtNanos >= 0L) {
+                if (doLog) {
+                    Log.i(LOG_ID, "scanStarter skipped, scan already pending sooner");
+                }
+                return false;
+            }
+            if (doLog) {
+                Log.i(LOG_ID, "scanStarter: moving the pending scan earlier");
+            }
         }
         for (SuperGattCallback cb : gattcallbacks) {
             if (cb.mBluetoothGatt == null) {
@@ -697,16 +783,9 @@ public class SensorBluetooth {
             }
         }
         Applic.updatescreen();
+        cancelScheduledScanLocked();
         scanstart = true;
-
-        if (scanOnUI) {
-            if (delayMillis > 0)
-                Applic.app.getHandler().postDelayed(scanRunnable, delayMillis);
-            else
-                Applic.app.getHandler().post(scanRunnable);
-        } else {
-            scanFuture = Applic.scheduler.schedule(scanRunnable, delayMillis, TimeUnit.MILLISECONDS);
-        }
+        scheduleScanLocked(delayMillis);
         return false;
     }
 
@@ -714,24 +793,15 @@ public class SensorBluetooth {
     private static final int startincreasedwait = 300000;
     private int increasedwait = startincreasedwait;
 
-    public void stopScan(boolean retry) {
+    public synchronized void stopScan(boolean retry) {
         if (doLog) {
             Log.d(LOG_ID, "Stop scanning " + (retry ? "retry" : "don't retry"));
         }
         ;
-        if (scanOnUI) {
-            Applic.app.getHandler().removeCallbacks(this.scanRunnable);
-            Applic.app.getHandler().removeCallbacks(this.mScanTimeoutRunnable);
-        } else {
-            if (scanFuture != null) {
-                scanFuture.cancel(true);
-                scanFuture = null;
-            }
-            if (timeoutFuture != null) {
-                timeoutFuture.cancel(true);
-                timeoutFuture = null;
-            }
-        }
+        // Retire the old scan before a retry is scheduled: the retry sets scanstart again,
+        // and that pending scan must stay guarded until it runs.
+        cancelScheduledScanLocked();
+        scanstart = false;
         if (this.mScanning) {
             stopscantime = System.currentTimeMillis();
             this.mScanning = false;
@@ -751,7 +821,6 @@ public class SensorBluetooth {
                 }
             }
         }
-        scanstart = false;
     }
 
     // Readers take snapshots without waiting for connection processing or teardown.
@@ -848,7 +917,19 @@ public class SensorBluetooth {
     }
 
     public static void setCurrentSensorSelection(String serial) {
+        final String previous = SensorIdentity.resolveMainSensor();
         CurrentSensorSelection.select(serial);
+        // A loss warning belongs to the sensor that owned the notification. Re-selecting
+        // the same sensor must keep it; selecting a different one retires it and lets the
+        // previous owner post again if it is still in the same outage.
+        final boolean sameSensor = previous != null && serial != null
+                && SensorIdentity.matches(previous, serial);
+        if (!sameSensor) {
+            Notify.clearSignalLoss();
+            Notify.stoplossalarm();
+            SuperGattCallback.resetLossNotificationLatches();
+            SuperGattCallback.repostLossForSelectedSensor(serial);
+        }
         if (serial == null || serial.isEmpty()) {
             onMainSensorCleared();
         }
@@ -945,9 +1026,10 @@ public class SensorBluetooth {
         // canonical, or 24-char vendor-padded form. Strict equality previously
         // logged "didn't remove" whenever any of those forms didn't byte-match
         // the live gattcallbacks SerialNumber, leaving stale gatts in the list.
+        final int target = findGattCallbackIndex(str);
         for (int i = 0; i < gattcallbacks.size(); i++) {
             var gatt = gattcallbacks.get(i);
-            if (callbackMatchesSensorId(gatt, str)) {
+            if (i == target) {
                 final String removedSerial = gatt.SerialNumber;
                 {
                     if (doLog) {
@@ -1395,7 +1477,10 @@ public class SensorBluetooth {
         if (callback == null || sensorId == null) {
             return false;
         }
-        if (SensorIdentity.matches(sensorId, callback.SerialNumber)) {
+        // SensorIdentity.matches() takes a blank expected id as "any sensor", so a callback
+        // without an identity of its own would match, and be removed or connected for, every id.
+        if (SensorIdentity.isUsableSensorId(callback.SerialNumber)
+                && SensorIdentity.matches(sensorId, callback.SerialNumber)) {
             return true;
         }
         if (callback instanceof ManagedBluetoothSensorDriver managed) {
@@ -1825,9 +1910,20 @@ public class SensorBluetooth {
         return new Libre2GattCallback(name, dataptr);
     }
 
+    /**
+     * The callback for this sensor. An exact serial comes first: the identity match also takes
+     * aliases, and the first callback it accepted is not necessarily this sensor's when another
+     * sensor's callback comes earlier in the list. Freeing that one would stop a live sensor
+     * and drop its bond.
+     */
     private int findGattCallbackIndex(String serial) {
         if (serial == null) {
             return -1;
+        }
+        for (int i = 0; i < gattcallbacks.size(); i++) {
+            if (serial.equals(gattcallbacks.get(i).SerialNumber)) {
+                return i;
+            }
         }
         for (int i = 0; i < gattcallbacks.size(); i++) {
             SuperGattCallback cb = gattcallbacks.get(i);

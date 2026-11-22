@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -41,7 +39,10 @@ import tk.glucodata.GlucoseRangeColors
 import tk.glucodata.GlucoseRangeColors.Band
 import tk.glucodata.GlucoseRangeColors.Palette
 import tk.glucodata.R
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
 import tk.glucodata.ui.components.ColorSwatchButton
+import tk.glucodata.ui.symbols.Symbols
 
 private val BASE_PRESETS =
     listOf(Palette.MUTED, Palette.VIBRANT, Palette.AURORA, Palette.GDH_LIKE)
@@ -256,12 +257,8 @@ fun ExpressiveColorPickerDialog(
                 )
                 if (showOpacity) {
                     LabeledColorSlider(
-                        label = stringResource(
-                            R.string.opacity_percent,
-                            (colorState.alpha * 100f).roundToInt()
-                        ),
+                        label = stringResource(R.string.opacity_label),
                         value = colorState.alpha,
-                        showTrailingValue = false,
                         onValueChange = { alpha ->
                             updateColorState(colorState.copy(alpha = alpha.coerceIn(0f, 1f)))
                         }
@@ -281,7 +278,7 @@ fun ExpressiveColorPickerDialog(
                     isError = parsedColor == null,
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Default.Palette,
+                            imageVector = Symbols.PaletteFilled,
                             contentDescription = null
                         )
                     },
@@ -328,24 +325,13 @@ fun ExpressiveColorPickerDialog(
 private fun LabeledColorSlider(
     label: String,
     value: Float,
-    showTrailingValue: Boolean = true,
     onValueChange: (Float) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.weight(1f)
-            )
-            if (showTrailingValue) {
-                Text(
-                    text = "${(value * 100f).roundToInt()}%",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(SliderHeaderGap)) {
+        SliderHeader(
+            label = label,
+            value = stringResource(R.string.percentage_format, (value * 100f).roundToInt())
+        )
         Slider(
             value = value,
             onValueChange = onValueChange,

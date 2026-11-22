@@ -21,10 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -67,6 +63,7 @@ import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.ui.journal.JournalInlineChip
 import tk.glucodata.ui.viewmodel.SensorColors
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun ReadingRow(
@@ -293,7 +290,7 @@ fun ReadingRow(
                     } else if (isNightscoutSource) {
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
-                            imageVector = Icons.Default.CloudDownload,
+                            imageVector = Symbols.CloudDownloadFilled,
                             contentDescription = stringResource(R.string.journal_source_nightscout),
                             tint = timeColor,
                             modifier = Modifier.size(14.dp),
@@ -321,7 +318,7 @@ fun ReadingRow(
 
                     if (tk.glucodata.data.calibration.CalibrationManager.hasCalibrationAt(point.timestamp, isRawModeRR)) {
                         Icon(
-                            imageVector = Icons.Filled.WaterDrop,
+                            imageVector = Symbols.WaterDropFilled,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.primary
@@ -482,7 +479,7 @@ fun ReadingRow(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Symbols.AddFilled,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(

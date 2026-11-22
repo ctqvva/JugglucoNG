@@ -448,6 +448,26 @@ object AlertRepository {
         )
     }
 
+    // The watch has no override switch; the phone's setting travels to it
+    // (WearToggleSync.SCOPE_ALERT_DND). The flag says the value in keyOverrideDND
+    // came from the phone and not from this device's own default.
+    private fun keyOverrideDndFromPhone(typeId: Int) = "alert_${typeId}_dnd_from_phone"
+
+    /** Watch: the phone has reported this alert's "Override silent mode" setting. */
+    fun isOverrideDndFromPhone(typeId: Int): Boolean =
+        runCatching { prefs.getBoolean(keyOverrideDndFromPhone(typeId), false) }.getOrDefault(false)
+
+    /**
+     * Watch: stores the phone's setting. Written to the same key the alert reads, so
+     * the watch's own copy of the config agrees with it, and marked as the phone's.
+     */
+    fun applyOverrideDndFromPhone(type: AlertType, overrideDnd: Boolean) {
+        prefs.edit {
+            putBoolean(keyOverrideDND(type), overrideDnd)
+            putBoolean(keyOverrideDndFromPhone(type.id), true)
+        }
+    }
+
     /**
      * Save configuration for an alert type.
      * For legacy types, writes to both SharedPreferences and Natives.

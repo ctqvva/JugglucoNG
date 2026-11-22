@@ -52,27 +52,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.Alarm
-import androidx.compose.material.icons.filled.BatterySaver
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DataSaverOff
-import androidx.compose.material.icons.filled.DoNotDisturbOn
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -119,6 +98,7 @@ import tk.glucodata.alerts.CustomAlertRepository
 import tk.glucodata.alerts.FullScreenIntentReadiness
 import tk.glucodata.data.settings.FloatingSettingsRepository
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.symbols.Symbols
 
 private const val CGM_READINESS_PREFS = "cgm_readiness"
 private const val DISMISS_SENSORS = "dismiss_sensors_signature"
@@ -202,7 +182,7 @@ fun CgmReadinessScreen(navController: NavController) {
                     IconButtonTooltip(stringResource(R.string.refresh)) {
                         IconButton(onClick = { refreshTick++ }, shapes = IconButtonDefaults.shapes()) {
                             Icon(
-                                Icons.Filled.Refresh,
+                                Symbols.RefreshFilled,
                                 contentDescription = stringResource(R.string.refresh)
                             )
                         }
@@ -393,7 +373,7 @@ private fun CgmReadinessHero(snapshot: CgmReadinessSnapshot) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             StatusIconSurface(
-                icon = if (ready) Icons.Filled.CheckCircle else Icons.Filled.Security,
+                icon = if (ready) Symbols.CheckCircleFilled else Symbols.SecurityFilled,
                 color = color
             )
             Spacer(Modifier.width(12.dp))
@@ -469,7 +449,7 @@ private fun CgmReadinessSummaryCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 StatusIconSurface(
-                    icon = if (criticalCount > 0) Icons.Filled.ErrorOutline else Icons.Filled.WarningAmber,
+                    icon = if (criticalCount > 0) Symbols.Error else Symbols.WarningAmberFilled,
                     color = primaryColor
                 )
                 Spacer(Modifier.width(12.dp))
@@ -492,7 +472,7 @@ private fun CgmReadinessSummaryCard(
                 IconButtonTooltip(stringResource(R.string.cgm_readiness_dismiss_action)) {
                     IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp), shapes = IconButtonDefaults.shapes()) {
                         Icon(
-                            Icons.Filled.Close,
+                            Symbols.CloseFilled,
                             contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
                             tint = supportingColor
                         )
@@ -569,7 +549,7 @@ private fun CgmReadinessDetailRow(
                         Text(stringResource(item.actionLabelRes))
                         Spacer(Modifier.width(8.dp))
                         Icon(
-                            Icons.AutoMirrored.Filled.OpenInNew,
+                            Symbols.OpenInNewFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -838,7 +818,7 @@ private fun bluetoothItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_bluetooth_detail
         },
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Critical,
-        icon = Icons.Filled.Bluetooth,
+        icon = Symbols.BluetoothFilled,
         action = if (ready) null else CgmReadinessAction.EnableBluetooth,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_enable_bluetooth_action
     )
@@ -866,7 +846,7 @@ private fun blePermissionItem(context: Context): CgmReadinessItem? {
         titleRes = titleRes,
         detailRes = detailRes,
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Critical,
-        icon = Icons.Filled.Security,
+        icon = Symbols.SecurityFilled,
         action = if (ready) null else CgmReadinessAction.RequestBlePermissions,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_allow_action
     )
@@ -884,7 +864,7 @@ private fun legacyLocationServicesItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_location_services_detail
         },
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Critical,
-        icon = Icons.Filled.LocationOn,
+        icon = Symbols.LocationOnFilled,
         action = if (ready) null else CgmReadinessAction.OpenLocationSettings,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_open_location_action
     )
@@ -905,7 +885,7 @@ private fun notificationPermissionItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_notification_permission_detail
         },
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Critical,
-        icon = Icons.Filled.NotificationsActive,
+        icon = Symbols.NotificationsActiveFilled,
         action = if (ready) null else CgmReadinessAction.RequestNotificationPermission,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_allow_action
     )
@@ -928,7 +908,7 @@ private fun appNotificationItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_notifications_detail
         },
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Critical,
-        icon = Icons.Filled.NotificationsActive,
+        icon = Symbols.NotificationsActiveFilled,
         action = if (ready) null else CgmReadinessAction.OpenNotificationSettings,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_open_notifications_action
     )
@@ -947,7 +927,7 @@ private fun exactAlarmItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_exact_alarm_detail
         },
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Critical,
-        icon = Icons.Filled.Alarm,
+        icon = Symbols.AlarmFilled,
         action = if (ready) null else CgmReadinessAction.OpenExactAlarmSettings,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_open_alarm_action
     )
@@ -972,7 +952,7 @@ private fun fullScreenIntentItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_full_screen_detail
         },
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Critical,
-        icon = Icons.Filled.Fullscreen,
+        icon = Symbols.FullscreenFilled,
         action = if (ready) null else CgmReadinessAction.OpenFullScreenIntentSettings,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_open_full_screen_action
     )
@@ -997,7 +977,7 @@ private fun batteryOptimizationItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_battery_detail
         },
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Critical,
-        icon = Icons.Filled.BatterySaver,
+        icon = Symbols.BatterySaverFilled,
         action = if (ready) null else CgmReadinessAction.OpenBatteryOptimization,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_open_battery_action
     )
@@ -1018,7 +998,7 @@ private fun dndItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_dnd_detail
         },
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Warning,
-        icon = Icons.Filled.DoNotDisturbOn,
+        icon = Symbols.DoNotDisturbOnFilled,
         action = if (ready) null else CgmReadinessAction.OpenDndSettings,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_open_dnd_action
     )
@@ -1040,7 +1020,7 @@ private fun overlayItem(context: Context): CgmReadinessItem? {
             titleRes = R.string.cgm_readiness_overlay_title,
             detailRes = R.string.cgm_readiness_overlay_not_needed_detail,
             status = CgmReadinessStatus.Ready,
-            icon = Icons.Filled.PhoneAndroid,
+            icon = Symbols.PhoneAndroidFilled,
             showInBanners = false
         )
     }
@@ -1054,7 +1034,7 @@ private fun overlayItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_overlay_detail
         },
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Warning,
-        icon = Icons.Filled.PhoneAndroid,
+        icon = Symbols.PhoneAndroidFilled,
         action = if (ready) null else CgmReadinessAction.OpenOverlaySettings,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_open_overlay_action
     )
@@ -1073,7 +1053,7 @@ private fun dataSaverItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_data_saver_ready_detail
         },
         status = if (restricted) CgmReadinessStatus.Advisory else CgmReadinessStatus.Ready,
-        icon = Icons.Filled.DataSaverOff,
+        icon = Symbols.DataSaverOffFilled,
         action = if (restricted) CgmReadinessAction.OpenDataSaverSettings else null,
         actionLabelRes = if (restricted) R.string.cgm_readiness_open_data_saver_action else null
     )
@@ -1091,7 +1071,7 @@ private fun nfcItem(context: Context): CgmReadinessItem? {
             R.string.cgm_readiness_nfc_detail
         },
         status = if (ready) CgmReadinessStatus.Ready else CgmReadinessStatus.Advisory,
-        icon = Icons.Filled.Nfc,
+        icon = Symbols.NfcFilled,
         action = if (ready) null else CgmReadinessAction.OpenNfcSettings,
         actionLabelRes = if (ready) null else R.string.cgm_readiness_open_nfc_action
     )
@@ -1103,7 +1083,7 @@ private fun manufacturerBackgroundItem(): CgmReadinessItem {
         titleRes = R.string.cgm_readiness_manufacturer_title,
         detailRes = R.string.cgm_readiness_manufacturer_detail,
         status = CgmReadinessStatus.Manual,
-        icon = Icons.Filled.Settings,
+        icon = Symbols.SettingsFilled,
         showInBanners = false
     )
 }

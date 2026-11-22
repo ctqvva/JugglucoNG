@@ -22,14 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -69,6 +61,7 @@ import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.components.cardShape
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun ApiSourceSettingsScreen(navController: NavController) {
@@ -269,7 +262,7 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                                             )
                                         )
                                     },
-                                    leadingIcon = { Icon(Icons.Filled.Key, contentDescription = null) },
+                                    leadingIcon = { Icon(Symbols.KeyFilled, contentDescription = null) },
                                     visualTransformation = if (showSecret) {
                                         VisualTransformation.None
                                     } else {
@@ -279,7 +272,7 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                                         IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
                                             IconButton(onClick = { showSecret = !showSecret }, shapes = IconButtonDefaults.shapes()) {
                                                 Icon(
-                                                    if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                                    if (showSecret) Symbols.VisibilityOffFilled else Symbols.VisibilityFilled,
                                                     contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
                                                 )
                                             }
@@ -357,7 +350,7 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 label = { Text(stringResource(R.string.api_source_url_label)) },
-                                leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
+                                leadingIcon = { Icon(Symbols.LinkFilled, contentDescription = null) },
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Uri,
                                     imeAction = ImeAction.Next
@@ -415,7 +408,7 @@ private fun SourceIcon(enabled: Boolean) {
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                imageVector = Icons.Filled.CloudDownload,
+                imageVector = Symbols.CloudDownloadFilled,
                 contentDescription = null,
                 tint = tint,
                 modifier = Modifier.size(24.dp)
@@ -519,7 +512,7 @@ private fun SourcePresetPickerSheet(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Symbols.AddFilled, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -540,19 +533,19 @@ private fun sourcePresetSpecs(): List<SourcePresetSpec> =
             id = ApiGlucoseSourceRegistry.PRESET_CUSTOM_JSON,
             titleRes = R.string.api_source_preset_custom_json,
             descriptionRes = R.string.api_source_preset_custom_json_desc,
-            icon = Icons.Filled.CloudDownload
+            icon = Symbols.CloudDownloadFilled
         ),
         SourcePresetSpec(
             id = ApiGlucoseSourceRegistry.PRESET_TELEGRAM_BOT,
             titleRes = R.string.api_source_preset_telegram,
             descriptionRes = R.string.api_source_preset_telegram_desc,
-            icon = Icons.AutoMirrored.Filled.Send
+            icon = Symbols.SendFilled
         ),
         SourcePresetSpec(
             id = ApiGlucoseSourceRegistry.PRESET_VK_DIRECT,
             titleRes = R.string.api_source_preset_vk_direct,
             descriptionRes = R.string.api_source_preset_vk_direct_desc,
-            icon = Icons.Filled.CloudDownload
+            icon = Symbols.CloudDownloadFilled
         )
     )
 

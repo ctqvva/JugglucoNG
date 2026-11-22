@@ -93,8 +93,12 @@ enum class StatsMetric(@param:StringRes val titleResId: Int) {
             STREAK
         )
 
-        /** Rows shown before the rest fold away behind the disclosure. */
-        const val DEFAULT_VISIBLE_ROWS = 4
+        /**
+         * Rows shown before the rest fold away behind the disclosure. Three since the
+         * overview became a band-by-band list: with it, a fourth row pushed the fold below
+         * the first screen on an ordinary phone.
+         */
+        const val DEFAULT_VISIBLE_ROWS = 3
 
         /**
          * Pinned to the dashboard out of the box.
@@ -134,7 +138,9 @@ data class StatsLayoutState(
      * the strip; true from then on, and on any edit, after which the list is the user's
      * and every entry is shown.
      */
-    val dashboardChosen: Boolean = false
+    val dashboardChosen: Boolean = false,
+    /** The overview as a ring instead of the bar and ribbons; off unless chosen in Arrange. */
+    val overviewRing: Boolean = false
 ) {
     val visibleCards: List<StatsCard> get() = cardOrder.filterNot { it in hiddenCards }
     val visibleMetrics: List<StatsMetric> get() = metricOrder.filterNot { it in hiddenMetrics }
@@ -154,6 +160,7 @@ object StatsLayoutStore {
     private const val KEY_METRIC_HIDDEN = "stats_layout_metric_hidden"
     private const val KEY_METRIC_WIDE = "stats_layout_metric_wide"
     private const val KEY_VERSION = "stats_layout_version"
+    private const val KEY_OVERVIEW_RING = "stats_layout_overview_ring"
 
     /**
      * Bumped whenever the default order changes meaningfully. A layout saved against an
@@ -279,6 +286,8 @@ object StatsLayoutStore {
         current.copy(dashboardMetrics = next.distinct().take(MAX_DASHBOARD_METRICS), dashboardChosen = true)
     }
 
+    fun setOverviewRing(ring: Boolean) = update { current -> current.copy(overviewRing = ring) }
+
     fun resetLayout() = update { StatsLayoutState() }
 
     private inline fun update(transform: (StatsLayoutState) -> StatsLayoutState) {
@@ -294,6 +303,7 @@ object StatsLayoutStore {
             ?.putInt(KEY_VERSION, LAYOUT_VERSION)
             ?.putInt(KEY_DASHBOARD_VERSION, DASHBOARD_VERSION)
             ?.putBoolean(KEY_DASHBOARD_CHOSEN, next.dashboardChosen)
+            ?.putBoolean(KEY_OVERVIEW_RING, next.overviewRing)
             ?.apply()
     }
 
@@ -307,7 +317,8 @@ object StatsLayoutStore {
             val stored = readPinned(store)
             return defaults.copy(
                 dashboardMetrics = stored.takeIf { it.isNotEmpty() } ?: defaults.dashboardMetrics,
-                dashboardChosen = readChosen(store, stored)
+                dashboardChosen = readChosen(store, stored),
+                overviewRing = store.getBoolean(KEY_OVERVIEW_RING, false)
             )
         }
         return StatsLayoutState(
@@ -324,7 +335,8 @@ object StatsLayoutStore {
             } else {
                 readPinned(store)
             },
-            dashboardChosen = readChosen(store, readPinned(store))
+            dashboardChosen = readChosen(store, readPinned(store)),
+            overviewRing = store.getBoolean(KEY_OVERVIEW_RING, false)
         )
     }
 

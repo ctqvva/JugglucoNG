@@ -14,6 +14,7 @@ import tk.glucodata.BleErrorHistory
 import tk.glucodata.Libre2GattCallback
 import tk.glucodata.MultiSensorSelection
 import tk.glucodata.NativeSensorTermination
+import tk.glucodata.persistedBleErrorStillRelevant
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SensorHandoffUiState
@@ -37,6 +38,8 @@ import tk.glucodata.drivers.anytime.AnytimeDriver
 import tk.glucodata.drivers.mq.MQBootstrapClient
 import tk.glucodata.drivers.mq.MQDriver
 import tk.glucodata.drivers.mq.MQRegistry
+import tk.glucodata.ui.LegacySensorStatusText
+import tk.glucodata.ui.classifyLegacySensorStatus
 import tk.glucodata.ui.util.getLegacyWarmupStatus
 
 /**
@@ -118,6 +121,8 @@ data class SensorInfo(
     val canTakeOverClone: Boolean = false,
     val dexcomBluetoothSlot: Int = 0,  // Dexcom G7: authentication slot 1-3, 0 = not a Dexcom callback
     val dexcomPairingCode: String = "",  // Dexcom G7: the 4-digit sensor code, blank = not stored
+    /** Libre 2: last quality/error code reported by the sensor algorithm, 0 = none. */
+    val sensorErrorCode: Int = 0,
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -155,6 +160,8 @@ class SensorViewModel : ViewModel() {
 
         /** Refresh cadence while the list is actually moving. */
         private const val ACTIVE_POLL_INTERVAL_MS = 2000L
+        /** How often the open Sensors screen asks each link for its signal level. */
+        private const val RSSI_REQUEST_INTERVAL_MS = 10_000L
 
         /** Refresh cadence once the list has been static for a while. */
         private const val IDLE_POLL_INTERVAL_MS = 5000L
@@ -283,7 +290,15 @@ class SensorViewModel : ViewModel() {
             // back off toward IDLE_POLL_INTERVAL_MS; any real change snaps straight back to
             // the responsive interval, so a visible screen still feels live.
             var idleTicks = 0
+            var lastRssiRequestElapsedMs = 0L
             while (true) {
+                // The card's signal bars: asked of the phone's controller only while the
+                // screen is open, and the answer is picked up by a later refresh.
+                val elapsedNow = SystemClock.elapsedRealtime()
+                if (elapsedNow - lastRssiRequestElapsedMs >= RSSI_REQUEST_INTERVAL_MS) {
+                    lastRssiRequestElapsedMs = elapsedNow
+                    runCatching { SensorBluetooth.mygatts()?.forEach { it.requestRssi() } }
+                }
                 val deviceListDirty = ManagedSensorUiSignals.consumeDeviceListDirty()
                 if (deviceListDirty) {
                     lastDeviceSyncElapsedMs = SystemClock.elapsedRealtime()
@@ -600,6 +615,14 @@ class SensorViewModel : ViewModel() {
     
                         // Get detailed status from native code
                         val nativeStatus = Natives.getsensortext(gatt.dataptr) ?: ""
+                        val nativeStatusClass = classifyLegacySensorStatus(nativeStatus)
+                        val sensorErrorActive = nativeStatusClass == LegacySensorStatusText.SensorError ||
+                            nativeStatusClass == LegacySensorStatusText.ReplaceSensor
+                        val sensorErrorCode = if (sensorErrorActive) {
+                            runCatching { Natives.getSensorErrorCode(gatt.dataptr) }.getOrDefault(0)
+                        } else {
+                            0
+                        }
                         val bleStatus = gatt.constatstatusstr ?: ""
                         val warmupStatus = getLegacyWarmupStatus(tk.glucodata.Applic.app, gatt.dataptr, nativeStatus)
                         
@@ -637,6 +660,19 @@ class SensorViewModel : ViewModel() {
                             else -> status
                         }
 
+                        fun mapNativeStatus(status: String): String =
+                            when (classifyLegacySensorStatus(status)) {
+                                LegacySensorStatusText.SensorError ->
+                                    tk.glucodata.Applic.app.getString(tk.glucodata.R.string.sensor_error)
+                                LegacySensorStatusText.ReplaceSensor ->
+                                    tk.glucodata.Applic.app.getString(tk.glucodata.R.string.sensor_replace)
+                                LegacySensorStatusText.SensorEnded ->
+                                    tk.glucodata.Applic.app.getString(tk.glucodata.R.string.sensor_ended)
+                                LegacySensorStatusText.WarmingUp ->
+                                    tk.glucodata.Applic.app.getString(tk.glucodata.R.string.sensor_warming_up)
+                                LegacySensorStatusText.Other -> status
+                            }
+
                         // Handed to the watch: the driver here is paused and its
                         // last connection event ("Loss of signal") describes how
                         // this device stopped reading, not what is happening to
@@ -651,7 +687,10 @@ class SensorViewModel : ViewModel() {
                             handoffUiState == SensorHandoffUiState.STREAMING_FROM_WATCH ->
                                 Applic.app.getString(tk.glucodata.R.string.status_watch_reading)
                             warmupStatus != null -> warmupStatus
-                            nativeStatus.isNotEmpty() -> nativeStatus
+                            nativeStatus.isNotEmpty() -> mapNativeStatus(nativeStatus)
+                            // Only when the sensor reports no status of its own: a dead link
+                            // is then more useful than the last transport code.
+                            bleStatus == "Loss of signal" && !bleStatusOutdated -> mapBleStatus(bleStatus)
                             // Pass through custom status strings from GATT callbacks (e.g., "Connected, waiting for data...", "Connected, raw values received")
                             bleStatus.isNotEmpty() && !bleStatus.startsWith("Status=") && !bleStatusOutdated -> mapBleStatus(bleStatus)
                             isActivelyReceiving -> tk.glucodata.Applic.app.getString(tk.glucodata.R.string.status_connected)
@@ -667,7 +706,8 @@ class SensorViewModel : ViewModel() {
                         val liveError = when {
                             isGattFailure ||
                                 (bleStatusOutdated && bleStatus.isNotEmpty() &&
-                                    !bleStatus.startsWith("Status=")) -> BleErrorEvent(
+                                    !bleStatus.startsWith("Status=") &&
+                                    bleStatus != "Loss of signal") -> BleErrorEvent(
                                 sensorId = sensorSerial,
                                 status = bleStatus,
                                 atMs = SensorBluetooth.connectionStatusChangedAt(gatt),
@@ -676,10 +716,12 @@ class SensorViewModel : ViewModel() {
                         }
                         // A newly constructed callback has no memory of the previous process.
                         // Once readings are flowing again, restore its latest retained failure so
-                        // the one-hour card window survives an app or APK restart.
+                        // the one-hour card window survives an app or APK restart. A loss warning
+                        // is never restored: it is a current-state signal, not history.
                         val displayedError = liveError
                             ?: persistedBleErrors.firstOrNull {
-                                SensorIdentity.matches(it.sensorId, sensorSerial)
+                                SensorIdentity.matches(it.sensorId, sensorSerial) &&
+                                    persistedBleErrorStillRelevant(it.status)
                             }.takeIf { isActivelyReceiving }
                         val sensorIndex = Natives.getSensorIndexFromDataPtr(gatt.dataptr)
                         val currentViewMode = nativeViewMode
@@ -729,6 +771,7 @@ class SensorViewModel : ViewModel() {
                             sensorIndex = sensorIndex,
                             dexcomBluetoothSlot = (gatt as? tk.glucodata.DexGattCallback)?.authSlot ?: 0,
                             dexcomPairingCode = (gatt as? tk.glucodata.DexGattCallback)?.pairingCode.orEmpty(),
+                            sensorErrorCode = sensorErrorCode,
                         )
                     }
                 } catch (e: Exception) {

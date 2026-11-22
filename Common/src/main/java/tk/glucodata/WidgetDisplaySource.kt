@@ -22,6 +22,33 @@ object WidgetDisplaySource {
         }
     }
 
+    data class Frame(val snapshot: CurrentDisplaySource.Snapshot?, val deltaText: String)
+
+    /** One worker-side history load supplies both the current value and its measured delta. */
+    @JvmStatic
+    fun resolveWidgetFrame(maxAgeMillis: Long, deltaEnabled: Boolean, intervalMinutes: Int): Frame = try {
+        resolveWidgetFrame(deltaEnabled, intervalMinutes, System::currentTimeMillis, maxAgeMillis) {
+            CurrentDisplaySource.resolveCurrentReading(maxAgeMillis, resolveActiveSensorSerial())
+        }
+    } catch (error: Throwable) {
+        Log.stack("WidgetDisplaySource", "load frame", error)
+        Frame(null, "")
+    }
+
+    internal fun resolveWidgetFrame(
+        deltaEnabled: Boolean,
+        intervalMinutes: Int,
+        clock: () -> Long,
+        maxAgeMillis: Long,
+        load: () -> CurrentDisplaySource.ResolvedReading?
+    ): Frame {
+        val reading = load() ?: return Frame(null, "")
+        val shown = reading.snapshot
+        val delta = DisplayDeltaSource.format(deltaEnabled, reading.measuredPoints, shown.sensorId,
+            shown.timeMillis, shown.viewMode, shown.isMmol, intervalMinutes, clock(), maxAgeMillis)
+        return Frame(shown, delta)
+    }
+
     @JvmStatic
     fun resolveViewMode(sensorName: String?): Int {
         if (sensorName.isNullOrEmpty()) {

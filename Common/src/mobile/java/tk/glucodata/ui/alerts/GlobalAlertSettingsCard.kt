@@ -19,10 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -52,6 +48,7 @@ import tk.glucodata.R
 import tk.glucodata.alerts.AlertConfig
 import tk.glucodata.alerts.AlertType
 import tk.glucodata.ui.components.StyledSwitch
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun GlobalAlertSettingsCard(
@@ -133,7 +130,7 @@ fun GlobalAlertSettingsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconTile(
-                    icon = Icons.Default.NotificationsActive,
+                    icon = Symbols.NotificationsActiveFilled,
                     tint = iconTint,
                     containerColor = iconContainerColor,
                 )
@@ -158,7 +155,7 @@ fun GlobalAlertSettingsCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.ExpandMore,
+                        imageVector = Symbols.ExpandMoreFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
@@ -209,7 +206,7 @@ fun GlobalAlertSettingsCard(
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = ButtonDefaults.ContentPadding
                         ) {
-                            Icon(Icons.Default.DoneAll, contentDescription = null)
+                            Icon(Symbols.DoneAllFilled, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(stringResource(R.string.apply_to_all_alerts))
                         }

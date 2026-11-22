@@ -64,6 +64,11 @@ public class Libre3GattCallback extends SuperGattCallback {
     static final private boolean doTEST=false; //TODO
     static private final String LOG_ID = "Libre3GattCallback";
     private boolean shouldenablegattCharCommandResponse = false;
+
+    /** This driver reads the level itself as a step of its connection; no extra reads. */
+    @Override
+    public void requestRssi() {
+    }
     private boolean isServicesDiscovered = false;
     private final long sensorptr;
 private final Queue<byte[]> sendqueue = new ConcurrentLinkedQueue<byte[]>();

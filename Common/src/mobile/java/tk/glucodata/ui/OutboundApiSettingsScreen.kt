@@ -28,20 +28,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Sms
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -106,6 +92,7 @@ import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.components.cardShape
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun OutboundApiSettingsScreen(navController: NavController) {
@@ -187,7 +174,7 @@ fun OutboundApiSettingsScreen(navController: NavController) {
     pendingDelete?.let { destination ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            icon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            icon = { Icon(Symbols.DeleteFilled, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text(stringResource(R.string.deletequestion)) },
             text = {
                 Text(
@@ -262,7 +249,7 @@ fun OutboundApiSettingsScreen(navController: NavController) {
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                         shapes = ButtonDefaults.shapes()
                     ) {
-                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Icon(Symbols.AddFilled, contentDescription = null)
                         Text(
                             text = stringResource(R.string.outbound_api_add_destination),
                             modifier = Modifier.padding(start = 12.dp)
@@ -276,7 +263,7 @@ fun OutboundApiSettingsScreen(navController: NavController) {
                 SettingsItem(
                     title = stringResource(R.string.api_source_settings_title),
                     subtitle = stringResource(R.string.api_source_desc),
-                    icon = Icons.Filled.CloudDownload,
+                    icon = Symbols.CloudDownloadFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.SINGLE,
                     onClick = { navController.navigate("settings/api-source") }
@@ -341,7 +328,7 @@ private fun DestinationCard(
             val recipientCount = destination.smsPolicy.numbers().size
             AlertDialog(
                 onDismissRequest = { confirmTestSms = false },
-                icon = { Icon(Icons.Filled.Sms, contentDescription = null) },
+                icon = { Icon(Symbols.SmsFilled, contentDescription = null) },
                 title = { Text(stringResource(R.string.sms_test_confirm_title)) },
                 text = {
                     Text(
@@ -378,7 +365,7 @@ private fun DestinationCard(
             contentPadding = ButtonDefaults.ContentPadding
         ) {
             Icon(
-                if (destination.isSms()) Icons.Filled.Sms else Icons.Filled.Send,
+                if (destination.isSms()) Symbols.SmsFilled else Symbols.SendFilled,
                 contentDescription = null
             )
             Text(
@@ -408,9 +395,9 @@ private fun DestinationIcon(preset: String, enabled: Boolean) {
                 imageVector = when (preset) {
                     OutboundApiSettings.PRESET_TELEGRAM_BOT,
                     OutboundApiSettings.PRESET_GLUCO_WATCH_VK,
-                    OutboundApiSettings.PRESET_VK_MESSAGES -> Icons.Filled.Send
-                    OutboundApiSettings.PRESET_SMS -> Icons.Filled.Sms
-                    else -> Icons.Filled.CloudUpload
+                    OutboundApiSettings.PRESET_VK_MESSAGES -> Symbols.SendFilled
+                    OutboundApiSettings.PRESET_SMS -> Symbols.SmsFilled
+                    else -> Symbols.CloudUploadFilled
                 },
                 contentDescription = null,
                 tint = tint,
@@ -487,13 +474,13 @@ private fun DestinationEditor(
                     )
                 )
             },
-            leadingIcon = { Icon(Icons.Filled.Key, contentDescription = null) },
+            leadingIcon = { Icon(Symbols.KeyFilled, contentDescription = null) },
             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
                     IconButton(onClick = { onShowSecretChange(!showSecret) }, shapes = IconButtonDefaults.shapes()) {
                         Icon(
-                            if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            if (showSecret) Symbols.VisibilityOffFilled else Symbols.VisibilityFilled,
                             contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
                         )
                     }
@@ -539,7 +526,7 @@ private fun DestinationEditor(
                 Text(stringResource(R.string.outbound_api_url_template_help))
             }
         },
-        leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
+        leadingIcon = { Icon(Symbols.LinkFilled, contentDescription = null) },
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Uri,
             imeAction = ImeAction.Next
@@ -942,7 +929,7 @@ internal fun NumberStepper(
                             shapes = IconButtonDefaults.shapes()
                         ) {
                             Icon(
-                                Icons.Filled.Remove,
+                                Symbols.RemoveFilled,
                                 contentDescription = stringResource(R.string.outbound_api_decrease_value)
                             )
                         }
@@ -962,7 +949,7 @@ internal fun NumberStepper(
                             shapes = IconButtonDefaults.shapes()
                         ) {
                             Icon(
-                                Icons.Filled.Add,
+                                Symbols.AddFilled,
                                 contentDescription = stringResource(R.string.outbound_api_increase_value)
                             )
                         }
@@ -1244,7 +1231,7 @@ private fun PresetSheetRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Symbols.AddFilled, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -1262,31 +1249,31 @@ private fun destinationPresetSpecs(): List<PresetSpec> =
             id = OutboundApiSettings.PRESET_CUSTOM_JSON,
             titleRes = R.string.outbound_api_preset_custom_json,
             descriptionRes = R.string.outbound_api_preset_custom_json_desc,
-            icon = Icons.Filled.CloudUpload
+            icon = Symbols.CloudUploadFilled
         ),
         PresetSpec(
             id = OutboundApiSettings.PRESET_TELEGRAM_BOT,
             titleRes = R.string.outbound_api_preset_telegram,
             descriptionRes = R.string.outbound_api_preset_telegram_desc,
-            icon = Icons.Filled.Send
+            icon = Symbols.SendFilled
         ),
         PresetSpec(
             id = OutboundApiSettings.PRESET_GLUCO_WATCH_VK,
             titleRes = R.string.outbound_api_preset_gluco_watch_vk,
             descriptionRes = R.string.outbound_api_preset_gluco_watch_vk_desc,
-            icon = Icons.Filled.Send
+            icon = Symbols.SendFilled
         ),
         PresetSpec(
             id = OutboundApiSettings.PRESET_VK_MESSAGES,
             titleRes = R.string.outbound_api_preset_vk,
             descriptionRes = R.string.outbound_api_preset_vk_desc,
-            icon = Icons.Filled.Send
+            icon = Symbols.SendFilled
         ),
         PresetSpec(
             id = OutboundApiSettings.PRESET_SMS,
             titleRes = R.string.outbound_api_preset_sms,
             descriptionRes = R.string.outbound_api_preset_sms_desc,
-            icon = Icons.Filled.Sms
+            icon = Symbols.SmsFilled
         )
     )
 

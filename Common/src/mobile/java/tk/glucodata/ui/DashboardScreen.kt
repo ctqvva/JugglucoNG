@@ -27,8 +27,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.material3.Slider
 import tk.glucodata.ui.components.StyledSwitch
@@ -63,9 +61,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.surfaceColorAtElevation
@@ -132,11 +127,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
 
-import androidx.compose.material.icons.automirrored.filled.LastPage
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Download
 import kotlinx.coroutines.launch
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.DataSmoothing
@@ -183,30 +173,12 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.compose.ui.res.stringResource
 import java.util.Locale
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.ui.platform.LocalUriHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.io.File
-import androidx.compose.material.icons.filled.ShowChart
-import androidx.compose.material.icons.outlined.ShowChart
-import androidx.compose.material.icons.filled.Sensors
-import androidx.compose.material.icons.outlined.Sensors
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.outlined.Insights
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.outlined.Analytics
-import androidx.compose.material.icons.outlined.LegendToggle
-import androidx.compose.material.icons.rounded.TrendingUp
-import androidx.compose.material.icons.rounded.TrendingDown
-import androidx.compose.material.icons.rounded.TrendingFlat
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.LifecycleEventObserver
 import tk.glucodata.ui.components.CardPosition
@@ -235,14 +207,10 @@ import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.animation.Crossfade
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -1054,12 +1022,9 @@ fun DashboardScreen(
         )
     }
 
-    // Snackbar state for undo actions
-    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
-
+    // Undo snackbars are shown from the app root (UndoSnackbar), above the navigation bar.
     Scaffold(
-        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top),
-        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) }
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
         // FAB removed - empty state now has inline cards
     ) { padding ->
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -1646,6 +1611,7 @@ fun DashboardScreen(
                                 quietWindowUntilMs = quietWindowUntilMs,
                                 onQuietWindowClick = onNavigateToQuietWindow,
                                 onAddSensorClick = onNavigateToSensors,
+                                onSensorCardClick = onNavigateToSensors,
                                 onHeroClick = {
                                     val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
                                     val rawVal = latestPoint?.rawValue ?: autoVal
@@ -1968,6 +1934,7 @@ fun DashboardScreen(
                                 quietWindowUntilMs = quietWindowUntilMs,
                                 onQuietWindowClick = onNavigateToQuietWindow,
                                 onAddSensorClick = onNavigateToSensors,
+                                onSensorCardClick = onNavigateToSensors,
                                 onHeroClick = {
                                     val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
                                     val rawVal = latestPoint?.rawValue ?: autoVal
@@ -2301,8 +2268,7 @@ fun DashboardScreen(
                             onEditCalibration = { cal ->
                                 triggerCalibrationIfEnabled(CalibrationSheetState.Edit(cal))
                             },
-                            onViewHistory = onNavigateToCalibrations,
-                            snackbarHostState = snackbarHostState
+                            onViewHistory = onNavigateToCalibrations
                         )
                     }
                 }

@@ -1,16 +1,10 @@
 package tk.glucodata.ui.journal
 
 import androidx.annotation.StringRes
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.HealthAndSafety
-import androidx.compose.material.icons.filled.Hub
-import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalEntrySource
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * How a journal entry's origin is shown: a small icon on the row, plain words in the detail.
@@ -31,13 +25,13 @@ internal data class JournalSourcePresentation(
  */
 internal fun JournalEntrySource.presentation(): JournalSourcePresentation? = when (this) {
     JournalEntrySource.MANUAL -> null
-    JournalEntrySource.PEN -> JournalSourcePresentation(Icons.Default.Nfc, R.string.journal_source_pen)
-    JournalEntrySource.NIGHTSCOUT -> JournalSourcePresentation(Icons.Default.CloudDownload, R.string.journal_source_nightscout)
-    JournalEntrySource.AAPS -> JournalSourcePresentation(Icons.Default.CloudDownload, R.string.journal_source_aaps)
-    JournalEntrySource.API -> JournalSourcePresentation(Icons.Default.CloudDownload, R.string.journal_source_api)
-    JournalEntrySource.HEALTH_CONNECT -> JournalSourcePresentation(Icons.Default.HealthAndSafety, R.string.journal_source_health_connect)
-    JournalEntrySource.METER -> JournalSourcePresentation(Icons.Default.WaterDrop, R.string.journal_source_meter)
-    JournalEntrySource.CLONE -> JournalSourcePresentation(Icons.Default.SwapHoriz, R.string.clone_source_label)
-    JournalEntrySource.CLONE_LOCAL_ICE -> JournalSourcePresentation(Icons.Default.SwapHoriz, R.string.clone_source_local_ice_description)
-    JournalEntrySource.CLONE_TURN -> JournalSourcePresentation(Icons.Default.Hub, R.string.clone_source_turn_description)
+    JournalEntrySource.PEN -> JournalSourcePresentation(Symbols.NfcFilled, R.string.journal_source_pen)
+    JournalEntrySource.NIGHTSCOUT -> JournalSourcePresentation(Symbols.CloudDownloadFilled, R.string.journal_source_nightscout)
+    JournalEntrySource.AAPS -> JournalSourcePresentation(Symbols.CloudDownloadFilled, R.string.journal_source_aaps)
+    JournalEntrySource.API -> JournalSourcePresentation(Symbols.CloudDownloadFilled, R.string.journal_source_api)
+    JournalEntrySource.HEALTH_CONNECT -> JournalSourcePresentation(Symbols.HealthAndSafetyFilled, R.string.journal_source_health_connect)
+    JournalEntrySource.METER -> JournalSourcePresentation(Symbols.WaterDropFilled, R.string.journal_source_meter)
+    JournalEntrySource.CLONE -> JournalSourcePresentation(Symbols.SwapHorizFilled, R.string.clone_source_label)
+    JournalEntrySource.CLONE_LOCAL_ICE -> JournalSourcePresentation(Symbols.SwapHorizFilled, R.string.clone_source_local_ice_description)
+    JournalEntrySource.CLONE_TURN -> JournalSourcePresentation(Symbols.HubFilled, R.string.clone_source_turn_description)
 }

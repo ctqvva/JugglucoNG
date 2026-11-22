@@ -472,9 +472,7 @@ static SensorGlucoseData *findSensorByName(JNIEnv *env, jstring jsensor) {
   if (!sens) {
     sens = sensors->gethistshort(sensorChars);
   }
-  if (sens) {
-    sens->sensorerror = false;
-  } else {
+  if (!sens) {
     LOGGER("ERROR: %s unknown sensor\n", sensorChars);
   }
   env->ReleaseStringUTFChars(jsensor, sensorChars);
@@ -560,6 +558,21 @@ fromjava(getSensorStartmsecFromSensorptr)(JNIEnv *env, jclass cl,
   if (!sens)
     return 0LL;
   return sens->getstarttime() * 1000LL;
+}
+extern "C" JNIEXPORT jint JNICALL
+fromjava(getSensorWarmupMinutesByName)(JNIEnv *env, jclass cl,
+                                       jstring jsensor) {
+  if (!sensors || !jsensor)
+    return 0;
+  const char *name = env->GetStringUTFChars(jsensor, nullptr);
+  if (!name)
+    return 0;
+  const int index = sensors->sensorindexshort(name);
+  env->ReleaseStringUTFChars(jsensor, name);
+  if (index < 0)
+    return 0;
+  const SensorGlucoseData *sens = sensors->getSensorData(index);
+  return sens ? sens->getWarmupMIN() : 0;
 }
 extern "C" JNIEXPORT void JNICALL fromjava(updateUsedSensors)(JNIEnv *env,
                                                               jclass cl) {
@@ -731,7 +744,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(str2sensorptr)(JNIEnv *env,
     return 0LL;
   }
   SensorGlucoseData *sens = sensors->getSensorData(sensorindex);
-  sens->sensorerror = false;
+  sens->clearSensorError();
   env->ReleaseStringUTFChars(jsensor, sensorChars);
   return reinterpret_cast<jlong>(sens);
 }
@@ -818,7 +831,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(getdataptr)(JNIEnv *env, jclass cl,
     env->ReleaseStringUTFChars(jsensor, sensor_chars);
     return 0LL;
   }
-  sens->sensorerror = false;
+  sens->clearSensorError();
   auto makeStreamData = [&]() -> streamdata * {
     streamdata *candidate = nullptr;
 #ifdef SIBIONICS
@@ -1157,6 +1170,15 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(getsensortext)(JNIEnv *envin,
   if (!usedhist)
     return envin->NewStringUTF("");
   return envin->NewStringUTF(getsensortext(usedhist).data());
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(getSensorErrorCode)(JNIEnv *envin,
+                                                              jclass cl,
+                                                              jlong dataptr) {
+  if (!dataptr) return 0;
+  const streamdata *str = reinterpret_cast<const streamdata *>(dataptr);
+  const SensorGlucoseData *usedhist = str->hist;
+  return usedhist ? static_cast<jint>(usedhist->sensorErrorCode) : 0;
 }
 
 extern "C" JNIEXPORT void JNICALL fromjava(resetbluetooth)(JNIEnv *envin,
@@ -1894,7 +1916,7 @@ static jlong ensureSensorShellInternal(const char *str, jlong startTimeSec,
   }
   seedDirectStreamStateIfMissing(hist, static_cast<time_t>(startTimeSec));
 
-  hist->sensorerror = false;
+  hist->clearSensorError();
   const int ind = hist->sensorIndex;
   // A Dexcom's slots are counted from the start the sensor reported; the
   // guess WearSync2 passes (first mirrored reading minus an hour) must not
@@ -2534,6 +2556,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
   //    jint index=sdata->index;
   data_t *bluedata = fromjbyteArray(envin, bluetoothdata);
   uint32_t nu = time(NULL);
+  sdata->hist->lastPacketTime = nu;
 #ifndef NORAWSTREAM
   const struct iovec iov[2]{
       {reinterpret_cast<void *>(&nu), sizeof(nu)},
@@ -2566,7 +2589,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
     const float drate = gluc.rate();
     if (jlong res = glucoseback(nu, glval, drate, sdata->hist)) {
       sensor *senso = sensors->getsensor(sdata->sensorindex);
-      sdata->hist->sensorerror = false;
+      sdata->hist->clearSensorError();
       if (senso->finished) {
         LOGGER("processTooth finished=%d\n", senso->finished);
         if (senso->reactivateFromData())
@@ -2580,8 +2603,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
     }
   } else
     delete newstate;
-  sdata->hist->sensorerror = true;
-  sdata->hist->sensorErrorTime = nu;
+  sdata->hist->setSensorError(nu);
   return 0LL;
 }
 

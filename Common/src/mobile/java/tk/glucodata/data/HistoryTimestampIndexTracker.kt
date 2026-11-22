@@ -1,5 +1,6 @@
 package tk.glucodata.data
 
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -31,7 +32,15 @@ class HistoryTimestampIndexTracker(private val dao: HistoryDao) {
     private val mutex = Mutex()
     private val index = HistoryTimestampIndex()
     private var lastMaxId = 0L
-    private var stale = true
+
+    /**
+     * Bumped by [invalidate], which writers call without the lock. A rebuild notes the value it
+     * started from, so an invalidate that lands while it is reading pages still counts: the
+     * rebuild may have read the table before that write, and the next refresh rebuilds again.
+     * A plain "stale" flag cleared at the end of the rebuild lost exactly that invalidate.
+     */
+    private val invalidations = AtomicLong(0L)
+    private var builtFrom = -1L
 
     private val _rebuilds = MutableStateFlow(0L)
 
@@ -44,7 +53,7 @@ class HistoryTimestampIndexTracker(private val dao: HistoryDao) {
 
     /** Marks the index stale so the next [refresh] rebuilds it. For writers that change rows in place. */
     fun invalidate() {
-        stale = true
+        invalidations.incrementAndGet()
     }
 
     /** Brings the index up to date and runs [block] against it under the lock. */
@@ -64,7 +73,7 @@ class HistoryTimestampIndexTracker(private val dao: HistoryDao) {
     private suspend fun refreshLocked() {
         val fingerprint = dao.getTableFingerprint()
         val maxId = fingerprint.maxId ?: 0L
-        if (!isReady || stale) {
+        if (!isReady || builtFrom != invalidations.get()) {
             rebuild(fingerprint)
             return
         }
@@ -91,6 +100,8 @@ class HistoryTimestampIndexTracker(private val dao: HistoryDao) {
             index.latest == fingerprint.maxTimestamp
 
     private suspend fun rebuild(fingerprint: HistoryTableFingerprint) {
+        // Before the first read: an invalidate after this point is not covered by this rebuild.
+        val generation = invalidations.get()
         index.clear()
         for (serial in dao.getAllSensorSerials()) {
             val timestamps = ArrayList<Long>()
@@ -105,7 +116,7 @@ class HistoryTimestampIndexTracker(private val dao: HistoryDao) {
             index.replaceSensor(serial, timestamps.toLongArray())
         }
         lastMaxId = fingerprint.maxId ?: 0L
-        stale = false
+        builtFrom = generation
         isReady = true
         _rebuilds.value = _rebuilds.value + 1
     }

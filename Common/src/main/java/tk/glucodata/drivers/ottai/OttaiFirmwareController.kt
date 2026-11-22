@@ -5,7 +5,7 @@ import java.security.interfaces.ECPublicKey
 import java.util.UUID
 
 internal enum class OttaiFirmwareStage {
-    CONNECTING, AUTHENTICATING, CLOUD_AUTHENTICATING, CHECKING, READY, NO_UPDATE, INSTALLING, RECONNECTING,
+    CONNECTING, AUTHENTICATING, CLOUD_AUTHENTICATING, CHECKING, READY, NO_UPDATE, CHECK_FAILED, INSTALLING, RECONNECTING,
     PREPARATION_READY, PREPARING, COMPLETE, FAILED, CLOSED,
 }
 
@@ -31,10 +31,14 @@ internal data class OttaiFirmwareState(
     val before: OttaiFirmwareObservation? = null,
     val after: OttaiFirmwareObservation? = null,
     val canPrepareParameters: Boolean = false,
+    val setupSensorAlreadyActive: Boolean = false,
 ) {
     val canRecheckWithCloudAuth: Boolean get() = !recovery && stage in setOf(OttaiFirmwareStage.READY, OttaiFirmwareStage.NO_UPDATE)
     val transferring: Boolean get() = stage in setOf(OttaiFirmwareStage.INSTALLING, OttaiFirmwareStage.RECONNECTING, OttaiFirmwareStage.PREPARING) ||
         (acknowledgedBytes > 0 && stage == OttaiFirmwareStage.AUTHENTICATING)
+    val canPrepareNow: Boolean get() = canPrepareParameters &&
+        stage in setOf(OttaiFirmwareStage.READY, OttaiFirmwareStage.NO_UPDATE, OttaiFirmwareStage.CHECK_FAILED,
+            OttaiFirmwareStage.PREPARATION_READY)
 }
 
 internal data class OttaiFirmwareImage(
@@ -43,18 +47,22 @@ internal data class OttaiFirmwareImage(
     val before: OttaiFirmwareObservation? = null,
 )
 internal data class OttaiFirmwareGatt(val mtu: Int, val bootloaderOnly: Boolean, val hasOta: Boolean)
+internal enum class OttaiOtaFinish { ACKNOWLEDGED, DISCONNECTED }
 
 /** All calls and completions belong to one serial owner (the session Handler). */
 internal interface OttaiFirmwareIo {
     fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit)
+    fun connectAfterUpdate(done: (Result<OttaiFirmwareGatt>) -> Unit)
     fun rediscover(done: (Result<OttaiFirmwareGatt>) -> Unit)
     fun read(service: UUID, characteristic: UUID, done: (Result<ByteArray>) -> Unit)
     fun readOptional(service: UUID, characteristic: UUID, done: (Result<ByteArray>) -> Unit) = read(service, characteristic, done)
     fun write(service: UUID, characteristic: UUID, value: ByteArray, done: (Result<Unit>) -> Unit)
+    fun finishUpdate(done: (Result<OttaiOtaFinish>) -> Unit)
     fun after(delayMs: Long, action: () -> Unit)
     fun prepareImage(version: String, done: (Result<OttaiFirmwareImage?>) -> Unit)
     fun verifyCloudAuth(param: ByteArray, signature: ByteArray, done: (Result<OttaiCloudClient.V3AuthMaterial>) -> Unit)
     fun refreshMaterials(version: String, done: (Result<OttaiRegistry.DeviceMaterials>) -> Unit)
+    fun persistMaterials(materials: OttaiRegistry.DeviceMaterials)
     fun savedImage(): OttaiFirmwareImage?
     fun preparationPending(): Boolean = false
     fun markPreparationStarted(version: String) {}
@@ -94,7 +102,7 @@ internal class OttaiFirmwareController(
     private fun update(stage: OttaiFirmwareStage, change: (OttaiFirmwareState) -> OttaiFirmwareState = { it }) {
         state = change(state.copy(stage = stage))
         // Setup may start the managed BLE owner as soon as COMPLETE is published.
-        if (stage == OttaiFirmwareStage.COMPLETE) retire()
+        if (stage == OttaiFirmwareStage.COMPLETE || stage == OttaiFirmwareStage.FAILED || stage == OttaiFirmwareStage.CLOSED) retire()
         io.log("mode=$mode stage=$stage source=${state.firmware} target=${state.target} ack=${state.acknowledgedBytes}/${state.totalBytes} recovery=${state.recovery} error=${state.errorCode}")
         publish(state)
     }
@@ -174,11 +182,11 @@ internal class OttaiFirmwareController(
         read(OttaiConstants.SERVICE_CGM, OttaiConstants.CHAR_COMMAND) { command ->
             val status = command.firstOrNull()?.toInt()?.and(255) ?: -1
             if (mode == OttaiFirmwareMode.PREACTIVATION) {
-                if (prepareForSetup && status == 3 && !afterInstall && io.savedImage() == null && materials.authKeys != null) {
-                    // Another client may have activated a previously interrupted setup. Verified
-                    // active credentials can stream; never rewrite its factory parameters.
-                    io.clearRecovery()
-                    update(OttaiFirmwareStage.COMPLETE)
+                if (prepareForSetup && status == 3 && !afterInstall && io.savedImage() == null) {
+                    // Official-app activation does not imply that this installation has keyA.
+                    // Recover it after cloud auth, without entering factory preparation.
+                    if (materials.authKeys == null) recoverActiveSetupCredentials()
+                    else completeActiveSetup()
                     return@read
                 }
                 require(OttaiConstants.commandNeedsActivation(status)) { "sensor_already_active_or_ended" }
@@ -194,6 +202,33 @@ internal class OttaiFirmwareController(
                 }
             }
         }
+    }
+
+    private fun completeActiveSetup() {
+        io.clearRecovery()
+        update(OttaiFirmwareStage.COMPLETE) { it.copy(setupSensorAlreadyActive = true) }
+    }
+
+    private fun recoverActiveSetupCredentials() {
+        io.log("setup_recovering_active_sensor_credentials")
+        update(OttaiFirmwareStage.AUTHENTICATING)
+        io.refreshMaterials(state.firmware, completion { fresh ->
+            require(OttaiOtaProtocol.materialsVersionMatches(state.firmware, fresh.deviceVersion) && fresh.authKeys != null) { "materials_version" }
+            materials = fresh
+            // The server owned the initial ECDH session. Prove the recovered keys against
+            // this sensor locally before handing it to the managed connection.
+            authenticate {
+                io.rediscover(completion { local ->
+                    require(!local.bootloaderOnly) { "post_auth_services" }
+                    read(OttaiConstants.SERVICE_CGM, OttaiConstants.CHAR_COMMAND) { command ->
+                        // A changed status must not fall through to fresh-sensor preparation.
+                        require(command.firstOrNull()?.toInt()?.and(255) == 3) { "started_sensor_status" }
+                        io.persistMaterials(fresh)
+                        completeActiveSetup()
+                    }
+                })
+            }
+        })
     }
 
     private fun continueAfterStatus(version: String, afterInstall: Boolean, resumed: Boolean) {
@@ -231,10 +266,18 @@ internal class OttaiFirmwareController(
                 update(OttaiFirmwareStage.PREPARATION_READY)
                 return
             }
-            update(OttaiFirmwareStage.CHECKING)
-            val done = completion<Result<OttaiFirmwareImage?>> { result -> acceptOffer(version, result) }
-            io.prepareImage(version) { done(Result.success(it)) }
+            requestOffer(version)
         }
+    }
+
+    fun retryOffer() {
+        if (!retired && state.stage == OttaiFirmwareStage.CHECK_FAILED) requestOffer(state.firmware)
+    }
+
+    private fun requestOffer(version: String) {
+        update(OttaiFirmwareStage.CHECKING) { it.copy(errorCode = "") }
+        val done = completion<Result<OttaiFirmwareImage?>> { result -> acceptOffer(version, result) }
+        io.prepareImage(version) { done(Result.success(it)) }
     }
 
     private fun acceptOffer(version: String, result: Result<OttaiFirmwareImage?>) {
@@ -242,33 +285,22 @@ internal class OttaiFirmwareController(
         require(error != "cancelled" && !error.contains(OttaiCloudClient.BIZ_TOKEN_INVALID, true)) {
             error
         }
-        if (result.isFailure && state.canPrepareParameters) {
-            // A firmware download is not a prerequisite for factory provisioning.
-            update(OttaiFirmwareStage.NO_UPDATE) {
-                it.copy(errorCode = diagnosticCode(result.exceptionOrNull()?.message ?: "cloud_or_package"))
+        if (result.isFailure) {
+            update(OttaiFirmwareStage.CHECK_FAILED) {
+                it.copy(errorCode = diagnosticCode(error.ifBlank { "cloud_or_package" }))
             }
-            prepareForSetupIfReady()
             return
         }
         val image = result.getOrThrow()
         packageForInstall = image?.copy(mode = mode, before = state.before)
         if (image == null) {
             update(OttaiFirmwareStage.NO_UPDATE)
-            prepareForSetupIfReady()
         }
         else {
             require(hasOta && image.source == version && OttaiOtaProtocol.isUpgrade(version, image.target)) { "ota_offer_mismatch" }
             update(OttaiFirmwareStage.READY) {
                 it.copy(target = image.target, totalBytes = image.image.size, sha256 = image.image.sha256)
             }
-        }
-    }
-
-    private fun prepareForSetupIfReady() {
-        // Connect authorizes ordinary provisioning, not a firmware transfer or silent recovery.
-        // A failed offer/download must not prevent binding/preparing the installed firmware.
-        if (prepareForSetup && mode == OttaiFirmwareMode.PREACTIVATION && !state.recovery && state.canPrepareParameters) {
-            prepareParameters()
         }
     }
 
@@ -438,11 +470,14 @@ internal class OttaiFirmwareController(
 
     private fun sendNext(transfer: OttaiOtaTransfer) {
         if (transfer.complete) {
-            write(OttaiConstants.SERVICE_OTA, OttaiConstants.CHAR_OTA_CONTROL, byteArrayOf(OttaiOtaProtocol.FINISH)) {
-                update(OttaiFirmwareStage.RECONNECTING)
-                io.disconnect()
-                // A successful finish write is not proof that the image booted.
-                later(3_000L) { io.connect(completion { connected(it, afterInstall = true) }) }
+            later(OttaiOtaProtocol.WRITE_DELAY_MS) {
+                io.finishUpdate(completion { result ->
+                    io.log("ota_finish=$result")
+                    update(OttaiFirmwareStage.RECONNECTING)
+                    io.disconnect()
+                    // Either finish outcome needs authenticated readback before reporting success.
+                    later(3_000L) { io.connectAfterUpdate(completion { connected(it, afterInstall = true) }) }
+                })
             }
         } else {
             val chunk = transfer.nextChunk()
@@ -459,8 +494,7 @@ internal class OttaiFirmwareController(
     }
 
     fun prepareOnly() {
-        if (retired || !state.canPrepareParameters ||
-            state.stage !in setOf(OttaiFirmwareStage.READY, OttaiFirmwareStage.NO_UPDATE, OttaiFirmwareStage.PREPARATION_READY)) return
+        if (retired || !state.canPrepareNow) return
         runCatching { prepareParameters() }.onFailure { fail(it.message ?: "parameters") }
     }
 
@@ -475,6 +509,7 @@ internal class OttaiFirmwareController(
         update(OttaiFirmwareStage.PREPARING) { it.copy(errorCode = "") }
         io.refreshMaterials(state.firmware, completion { fresh ->
             require(OttaiOtaProtocol.materialsVersionMatches(state.firmware, fresh.deviceVersion) && fresh.authKeys != null) { "materials_version" }
+            io.persistMaterials(fresh)
             materials = fresh
             if (sessionKey.isEmpty()) {
                 // The cloud owns the pre-bind ECDH key. Establish our own only AFTER the
@@ -521,7 +556,6 @@ internal class OttaiFirmwareController(
         if (retired) return
         // Only bounded machine codes enter logs/UI; transport never returns bodies, URLs or keys.
         update(OttaiFirmwareStage.FAILED) { it.copy(errorCode = diagnosticCode(code)) }
-        retire()
     }
 
     private fun diagnosticCode(code: String): String = code.take(80).replace(Regex("[^A-Za-z0-9_=-]"), "_")
@@ -537,7 +571,6 @@ internal class OttaiFirmwareController(
     fun close() {
         if (retired) return
         update(OttaiFirmwareStage.CLOSED)
-        retire()
     }
 
     /** Explicit abandonment releases the local setup block, never changes sensor state. */

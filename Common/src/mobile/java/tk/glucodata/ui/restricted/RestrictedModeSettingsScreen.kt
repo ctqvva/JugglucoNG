@@ -2,6 +2,9 @@
 
 package tk.glucodata.ui.restricted
 
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
+import androidx.compose.foundation.lazy.rememberLazyListState
+import tk.glucodata.ui.SettingsSearchAnchors
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,19 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.AddAlert
-import androidx.compose.material.icons.filled.AlarmOff
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChildCare
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Password
-import androidx.compose.material.icons.filled.Sensors
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -67,6 +57,7 @@ import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.sensorTypeOptions
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Settings → Advanced → Restricted mode. The adult's side of the feature: switch it on,
@@ -80,6 +71,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
     var showPinOptions by remember { mutableStateOf(false) }
     var handoverEnabled by remember { mutableStateOf(SensorConnectionSettings.handoverEnabled(context)) }
     val biometricsAvailable = remember(context) { RestrictedBiometrics.isAvailable(context) }
+    val journalEnabled = remember(context) { tk.glucodata.JournalEnabled.isOn(context) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -90,7 +82,19 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        RevealSettingsSearchAnchor(
+            listState,
+            setOf(
+                SettingsSearchAnchors.forRow(R.string.restricted_pin_title),
+                SettingsSearchAnchors.forRow(R.string.restricted_biometric_title),
+                SettingsSearchAnchors.forRow(R.string.restricted_allow_sensor_change),
+                SettingsSearchAnchors.forRow(R.string.restricted_allow_journal),
+                SettingsSearchAnchors.forRow(R.string.restricted_allow_alarm_stop),
+            )
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -102,7 +106,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                     subtitle = stringResource(R.string.restricted_mode_desc),
                     checked = config.enabled,
                     onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(enabled = on) } },
-                    icon = Icons.Default.ChildCare,
+                    icon = Symbols.ChildCareFilled,
                 )
             }
 
@@ -124,10 +128,11 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsItem(
                         title = stringResource(R.string.restricted_pin_title),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.restricted_pin_title),
                         subtitle = stringResource(
                             if (config.hasPin) R.string.restricted_pin_set else R.string.restricted_pin_not_set
                         ),
-                        icon = Icons.Default.Password,
+                        icon = Symbols.PasswordFilled,
                         iconTint = color,
                         position = if (biometricsAvailable) CardPosition.TOP else CardPosition.SINGLE,
                         onClick = {
@@ -138,6 +143,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                     if (biometricsAvailable) {
                         SettingsSwitchItem(
                             title = stringResource(R.string.restricted_biometric_title),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.restricted_biometric_title),
                             subtitle = stringResource(
                                 if (config.hasPin) R.string.restricted_biometric_desc
                                 else R.string.restricted_biometric_needs_pin
@@ -147,7 +153,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                             onCheckedChange = { on ->
                                 RestrictedMode.update(context) { it.copy(biometricUnlock = on) }
                             },
-                            icon = Icons.Default.Fingerprint,
+                            icon = Symbols.FingerprintFilled,
                             iconTint = color,
                             position = CardPosition.BOTTOM,
                         )
@@ -161,8 +167,9 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DisclosingSwitchCard(
                         title = stringResource(R.string.restricted_allow_sensor_change),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.restricted_allow_sensor_change),
                         subtitle = stringResource(R.string.restricted_allow_sensor_change_desc),
-                        icon = Icons.Default.Sensors,
+                        icon = Symbols.SensorsFilled,
                         iconTint = color,
                         checked = config.allowSensorChange,
                         onCheckedChange = { on ->
@@ -187,30 +194,34 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                             },
                         )
                     }
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.restricted_allow_journal),
-                        subtitle = stringResource(R.string.restricted_allow_journal_desc),
-                        checked = config.allowJournal,
-                        onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowJournal = on) } },
-                        icon = Icons.Default.EditNote,
-                        iconTint = color,
-                        position = CardPosition.MIDDLE,
-                    )
+                    if (journalEnabled) {
+                        SettingsSwitchItem(
+                            title = stringResource(R.string.restricted_allow_journal),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.restricted_allow_journal),
+                            subtitle = stringResource(R.string.restricted_allow_journal_desc),
+                            checked = config.allowJournal,
+                            onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowJournal = on) } },
+                            icon = Symbols.EditNoteFilled,
+                            iconTint = color,
+                            position = CardPosition.MIDDLE,
+                        )
+                    }
                     SettingsSwitchItem(
                         title = stringResource(R.string.settings_calibration_title),
                         subtitle = stringResource(R.string.restricted_allow_calibration_desc),
                         checked = config.allowCalibration,
                         onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowCalibration = on) } },
-                        icon = Icons.Default.WaterDrop,
+                        icon = Symbols.WaterDropFilled,
                         iconTint = color,
                         position = CardPosition.MIDDLE,
                     )
                     SettingsSwitchItem(
                         title = stringResource(R.string.restricted_allow_alarm_stop),
+                        searchAnchor = SettingsSearchAnchors.forRow(R.string.restricted_allow_alarm_stop),
                         subtitle = stringResource(R.string.restricted_allow_alarm_stop_desc),
                         checked = config.allowAlarmStop,
                         onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowAlarmStop = on) } },
-                        icon = Icons.Default.AlarmOff,
+                        icon = Symbols.AlarmOffFilled,
                         iconTint = color,
                         position = CardPosition.BOTTOM,
                     )
@@ -226,7 +237,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                         subtitle = stringResource(R.string.restricted_allow_alarm_settings_desc),
                         checked = config.allowAlarmSettings,
                         onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowAlarmSettings = on) } },
-                        icon = Icons.Default.AddAlert,
+                        icon = Symbols.AddAlertFilled,
                         iconTint = color,
                         position = CardPosition.TOP,
                     )
@@ -235,7 +246,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                         subtitle = stringResource(R.string.restricted_allow_voice_desc),
                         checked = config.allowVoiceSettings,
                         onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowVoiceSettings = on) } },
-                        icon = Icons.AutoMirrored.Filled.VolumeUp,
+                        icon = Symbols.VolumeUpFilled,
                         iconTint = color,
                         position = CardPosition.MIDDLE,
                     )
@@ -244,7 +255,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
                         subtitle = stringResource(R.string.restricted_allow_display_desc),
                         checked = config.allowDisplaySettings,
                         onCheckedChange = { on -> RestrictedMode.update(context) { it.copy(allowDisplaySettings = on) } },
-                        icon = Icons.Default.Palette,
+                        icon = Symbols.PaletteFilled,
                         iconTint = color,
                         position = CardPosition.BOTTOM,
                     )
@@ -317,7 +328,7 @@ private fun FullModeCard(onLock: () -> Unit, modifier: Modifier = Modifier) {
                 contentPadding = ButtonDefaults.ContentPadding,
                 modifier = Modifier.heightIn(min = 40.dp),
             ) {
-                Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Symbols.LockFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.size(8.dp))
                 Text(stringResource(R.string.restricted_lock_now))
             }
@@ -345,7 +356,7 @@ private fun SensorFamilyChoice(selected: Set<String>, onToggle: (String) -> Unit
                     onClick = { onToggle(name) },
                     label = { Text(stringResource(option.titleRes)) },
                     leadingIcon = if (isSelected) {
-                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        { Icon(Symbols.CheckFilled, contentDescription = null, modifier = Modifier.size(16.dp)) }
                     } else null,
                     shapes = FilterChipDefaults.shapes(),
                 )

@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -19,6 +15,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 /** The password control shared with the MQ account form. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,7 +42,7 @@ fun AccountPasswordField(
             val description = stringResource(if (visible) R.string.hide_password else R.string.show_password)
             IconButtonTooltip(description) {
                 IconButton(onClick = { visible = !visible }, shapes = IconButtonDefaults.shapes()) {
-                    Icon(if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility, description)
+                    Icon(if (visible) Symbols.VisibilityOffFilled else Symbols.VisibilityFilled, description)
                 }
             }
         },
@@ -99,7 +96,7 @@ fun AccountPhoneField(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(prefix)
-                if (onCountryClick != null) Icon(Icons.Default.ArrowDropDown, null, Modifier.size(20.dp))
+                if (onCountryClick != null) Icon(Symbols.ArrowDropDownFilled, null, Modifier.size(20.dp))
             }
         },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),

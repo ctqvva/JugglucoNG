@@ -94,11 +94,11 @@ class StatsLayoutTests {
     }
 
     @Test
-    fun fourRowsShowBeforeTheDisclosure() {
+    fun threeRowsShowBeforeTheDisclosure() {
         val rows = packMetricRows(StatsLayoutState().visibleMetrics, emptySet())
         val head = rows.take(StatsMetric.DEFAULT_VISIBLE_ROWS)
             .flatMap { listOfNotNull(it.first, it.second) }
-        assertEquals(8, head.size)
+        assertEquals(6, head.size)
         assertEquals(StatsMetric.AVERAGE, head.first())
         // One row left to fold away — a disclosure that reveals nothing is worse than none.
         assertTrue(rows.size > StatsMetric.DEFAULT_VISIBLE_ROWS)

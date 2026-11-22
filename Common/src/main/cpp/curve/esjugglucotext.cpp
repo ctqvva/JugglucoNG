@@ -122,12 +122,12 @@ jugglucotext estext{
     .unknownNFC = {"Error de escaneo NFC no reconocido", "Inténtelo de nuevo"},
     .nolibre3 =
         {"Sensor FreeStyle Libre 3",
-         .libre3zeroID =
-             {"Error, zero account ID?",
-              R"(Use Left menu->Settings->Exchange data->Libreview->"Get Account ID" to set a non-zero account ID.)"},
-         .needsandroid8 = "Needs minimally Android 8"sv,
          "Descargue la versión correcta de "
          "https://www.juggluco.nl/download.html"},
+    .libre3zeroID =
+        {"Error, zero account ID?",
+         R"(Use Left menu->Settings->Exchange data->Libreview->"Get Account ID" to set a non-zero account ID.)"},
+    .needsandroid8 = "Needs minimally Android 8"sv,
 #ifndef WEAROS
     .advancedstart = R"(<h1>Dispositivo modificado</h1>
 <p>Una de las bibliotecas utilizadas por esta aplicación tiene un ERROR que hace que
@@ -156,8 +156,8 @@ son necesarios. En tu caso tiene problemas con el siguiente archivo)",
     .unsupportedSibionics = "Sensor Sibionics no compatible"sv,
     .waitingforconnection = "Esperando conexión"sv,
     .deleted = "Deleted"sv,
-    .nolocationpermission = "Needs location permission"sv,
-    .nonearbydevicespermission = "Needs nearby devices permission"sv
+    .nolocationpermission = "Necesita permiso de ubicación"sv,
+    .nonearbydevicespermission = "Necesita permiso de dispositivos cercanos"sv
 
     ,
     .summarygraph = "Summary graph"sv,

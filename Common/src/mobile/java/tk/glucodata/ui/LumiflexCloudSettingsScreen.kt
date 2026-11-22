@@ -5,13 +5,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -31,6 +24,7 @@ import tk.glucodata.share.lumiflex.LumiflexCloudClient
 import tk.glucodata.share.lumiflex.LumiflexCloudSettings
 import tk.glucodata.ui.components.*
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun LumiflexCloudSettingsScreen(navController: NavController) {
@@ -87,7 +81,7 @@ internal fun LumiflexCloudSettingsContent(
         AppTopBar(stringResource(R.string.lumiflex_cloud_title), onBack, actions = {
             IconButtonTooltip(stringResource(R.string.lumiflex_help)) {
                 IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {
-                    Icon(Icons.Default.Info, stringResource(R.string.lumiflex_help))
+                    Icon(Symbols.InfoFilled, stringResource(R.string.lumiflex_help))
                 }
             }
         })
@@ -98,7 +92,7 @@ internal fun LumiflexCloudSettingsContent(
                 title = stringResource(R.string.lumiflex_cloud_title),
                 subtitle = stringResource(if (state.followMode) R.string.lumiflex_follow_subtitle else R.string.lumiflex_cloud_subtitle),
                 checked = state.enabled, onCheckedChange = onEnabled,
-                icon = if (state.followMode) Icons.Default.CloudDownload else Icons.Default.CloudUpload,
+                icon = if (state.followMode) Symbols.CloudDownloadFilled else Symbols.CloudUploadFilled,
                 enabled = signedIn && !setup && !state.busy,
             )
             if (signedIn) {
@@ -108,7 +102,7 @@ internal fun LumiflexCloudSettingsContent(
                     }
                 }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconTile(icon = Icons.Default.AccountCircle, tint = MaterialTheme.colorScheme.primary)
+                        IconTile(icon = Symbols.AccountCircleFilled, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text(lumiflexAccountLabel(state.session.account), style = MaterialTheme.typography.titleMedium)
@@ -246,7 +240,7 @@ internal fun LumiflexCloudSettingsContent(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
                     Column(Modifier.padding(16.dp)) {
                         Row {
-                            IconTile(icon = Icons.Default.Sync, tint = MaterialTheme.colorScheme.primary)
+                            IconTile(icon = Symbols.SyncFilled, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(syncTitle, style = MaterialTheme.typography.titleMediumEmphasized)
@@ -283,7 +277,7 @@ internal fun LumiflexCloudSettingsContent(
                     }
                 }
                 if (!state.followMode) SettingsItem(title = stringResource(R.string.lumiflex_manage_followers),
-                    icon = Icons.Default.Group, onClick = onFollowers)
+                    icon = Symbols.GroupFilled, onClick = onFollowers)
             }
         }
     }

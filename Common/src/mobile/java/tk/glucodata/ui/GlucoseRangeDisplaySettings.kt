@@ -1,6 +1,5 @@
 package tk.glucodata.ui
 
-import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -20,10 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ShowChart
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +46,9 @@ import java.util.Locale
 import kotlin.math.roundToInt
 import tk.glucodata.GlucoseRangeColors.Band
 import tk.glucodata.R
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
+import tk.glucodata.ui.components.SliderHeaderStyle
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.ExpandableSettingsCard
 import tk.glucodata.ui.components.cardShape
@@ -58,6 +56,7 @@ import tk.glucodata.ui.components.SettingsSearchReveal
 import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
+import tk.glucodata.ui.symbols.Symbols
 
 @Composable
 fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
@@ -138,7 +137,7 @@ fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
         ExpandableSettingsCard(
             title = stringResource(R.string.chart_limits_title),
             summary = chartSummary,
-            icon = Icons.AutoMirrored.Filled.ShowChart,
+            icon = Symbols.ShowChartFilled,
             expanded = chartExpanded,
             onExpandedChange = { chartExpanded = it },
             position = CardPosition.TOP
@@ -172,7 +171,7 @@ fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
         ExpandableSettingsCard(
             title = stringResource(R.string.glucose_range_title),
             summary = glucoseSummary,
-            icon = Icons.Default.TrackChanges,
+            icon = Symbols.TrackChangesFilled,
             expanded = glucoseExpanded,
             onExpandedChange = { glucoseExpanded = it },
             position = CardPosition.BOTTOM
@@ -323,24 +322,13 @@ private fun GlucoseRangeSliderRow(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(SliderHeaderGap)
         ) {
-            AdaptiveTrailingRow(
-                trailingContent = {
-                    Text(
-                        text = formatRangeValue(value, isMmol),
-                        style = MaterialTheme.typography.titleLargeEmphasized.copy(
-                            fontFeatureSettings = "tnum"
-                        )
-                    )
-                }
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            SliderHeader(
+                label = label,
+                value = formatRangeValue(value, isMmol),
+                style = SliderHeaderStyle.Glucose
+            )
             Slider(
                 value = value,
                 onValueChange = onValueChange,

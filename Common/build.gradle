@@ -31,10 +31,10 @@ ext {
     // Bump the app version here only. Wear releases use appVersionCode + 1000000
     // so Play accepts both APKs in one release (distinct versionCodes per form
     // factor). Scheme originates on the wearos branch — keep the two in step.
-    appVersionCode = 1032
+    appVersionCode = 1033
     // Base version, without the flavour/build-type suffix chain that gets appended
     // to versionName. Used for the APK filename so it stays readable.
-    appVersionName = '1.3.2-Alpha'
+    appVersionName = '1.3.3-Alpha'
 
     ndkver       = '29.0.14206865'
     CMAKEVERSION = '4.1.2'
@@ -296,6 +296,22 @@ android {
             ]
             // Preserve exact inventoried vendor bytes, including newly added library names.
             def vendorInputs = new groovy.json.JsonSlurper().parse(rootProject.file('scripts/dist/build-inputs.json'))
+            // Block retired names from stale sources/AARs, except exact ABI paths
+            // explicitly re-approved by the vendor inventory.
+            def activeVendorPaths = vendorInputs.files.collect { it.path }.toSet()
+            def retiredVendorNames = (vendorInputs.removedFiles ?: []).collect { new File(it).name }.toSet()
+            retiredVendorNames.each { name ->
+                if (vendorInputs.files.any { new File(it.path).name == name }) {
+                    android.defaultConfig.ndk.abiFilters.each { abi ->
+                        def path = "Common/src/main/jniLibs/${abi}/${name}".toString()
+                        if (!activeVendorPaths.contains(path)) {
+                            excludes += "**/${abi}/${name}"
+                        }
+                    }
+                } else {
+                    excludes += "**/${name}"
+                }
+            }
             vendorInputs.files.each { input ->
                 doNotStrip "**/${new File(input.path).name}"
             }
@@ -310,6 +326,12 @@ android {
     }
     testOptions {
         unitTests {
+            all {
+                systemProperty 'robolectric.dependency.repo.url',
+                    'https://maven-central.storage-download.googleapis.com/maven2/'
+                systemProperty 'robolectric.dependency.repo.id',
+                    'google-maven-central'
+            }
             // tk.glucodata.Log falls back to android.util.Log whenever Applic.Nativesloaded is
             // false, which it always is under plain JVM unit tests. Without this, any test that
             // reaches a logging statement dies with "Method i in android.util.Log not mocked"
@@ -318,6 +340,7 @@ android {
             // Room migration tests run under Robolectric (plan task H3), which needs the
             // merged resources and assets.
             includeAndroidResources = true
+            
         }
     }
     dependenciesInfo {
@@ -411,8 +434,6 @@ dependencies {
     implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'
     mobileImplementation 'sh.calvin.reorderable:reorderable:3.1.0'
-    implementation 'androidx.compose.material:material-icons-core'
-    implementation 'androidx.compose.material:material-icons-extended'
     implementation 'androidx.compose.ui:ui-text-google-fonts'
     implementation 'androidx.activity:activity-compose:1.13.0'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0'

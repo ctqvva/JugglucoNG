@@ -25,13 +25,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
@@ -65,12 +58,16 @@ import tk.glucodata.ui.components.RevealSettingsSearchAnchor
 import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StyledSwitch
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
+import tk.glucodata.ui.components.SliderHeaderStyle
 import tk.glucodata.ui.components.CardPosition as SettingsItemPosition
 import tk.glucodata.ui.theme.displayLargeExpressive
 import tk.glucodata.ui.theme.labelLargeExpressive
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.logic.CustomAlertManager
 import kotlinx.coroutines.delay
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * State-of-the-art Alert Settings Screen with Material 3 Expressive design.
@@ -208,7 +205,8 @@ fun AlertSettingsScreen(
             listState,
             setOf(
                 SettingsSearchAnchors.HIGH_ALERTS, SettingsSearchAnchors.LOW_ALERTS,
-                SettingsSearchAnchors.PREDICTIVE_ALERTS, SettingsSearchAnchors.OTHER_ALERTS
+                SettingsSearchAnchors.PREDICTIVE_ALERTS, SettingsSearchAnchors.OTHER_ALERTS,
+                SettingsSearchAnchors.forRow(R.string.preemptive_snooze),
             )
         )
         LazyColumn(
@@ -314,7 +312,7 @@ fun AlertSettingsScreen(
             item(key = "high-alerts-header") {
                 SectionHeader(
                     title = stringResource(R.string.high_alerts_title),
-                    icon = Icons.AutoMirrored.Filled.TrendingUp, // Using TrendingUp for Highs
+                    icon = Symbols.TrendingUpFilled, // Using TrendingUp for Highs
                     searchAnchor = SettingsSearchAnchors.HIGH_ALERTS
                 )
             }
@@ -392,7 +390,7 @@ fun AlertSettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 SectionHeader(
                     title = stringResource(R.string.low_alerts_title),
-                    icon = Icons.AutoMirrored.Filled.TrendingDown, // Using TrendingDown for Lows
+                    icon = Symbols.TrendingDownFilled, // Using TrendingDown for Lows
                     searchAnchor = SettingsSearchAnchors.LOW_ALERTS
                 )
             }
@@ -470,7 +468,7 @@ fun AlertSettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 SectionHeader(
                     title = stringResource(R.string.predictive_alerts),
-                    icon = Icons.AutoMirrored.Filled.TrendingDown,
+                    icon = Symbols.TrendingDownFilled,
                     searchAnchor = SettingsSearchAnchors.PREDICTIVE_ALERTS
                 )
             }
@@ -506,7 +504,7 @@ fun AlertSettingsScreen(
                 GroupFootnote(
                     title = stringResource(R.string.same_direction_suppression_title),
                     subtitle = stringResource(R.string.same_direction_suppression_summary),
-                    icon = Icons.Default.NotificationsPaused,
+                    icon = Symbols.NotificationsPausedFilled,
                     value = sameDirectionSuppressionText(sameDirectionSuppressionMinutes),
                     onClick = { showSameDirectionSuppression = true }
                 )
@@ -517,7 +515,7 @@ fun AlertSettingsScreen(
                 Spacer(Modifier.height(16.dp))
                 SectionHeader(
                     title = stringResource(R.string.other_alerts),
-                    icon = Icons.Default.NotificationsActive,
+                    icon = Symbols.NotificationsActiveFilled,
                     searchAnchor = SettingsSearchAnchors.OTHER_ALERTS
                 )
             }
@@ -552,8 +550,9 @@ fun AlertSettingsScreen(
                 Spacer(Modifier.height(24.dp))
                 SettingsItem(
                     title = stringResource(R.string.preemptive_snooze),
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.preemptive_snooze),
                     subtitle = stringResource(R.string.preemptive_snooze_desc),
-                    icon = Icons.Default.Snooze,
+                    icon = Symbols.SnoozeFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = if (voiceOpen) SettingsItemPosition.TOP else SettingsItemPosition.SINGLE,
                     onClick = { showPreemptiveSnooze = true }
@@ -565,7 +564,7 @@ fun AlertSettingsScreen(
                 SettingsItem(
                     title = stringResource(R.string.talker),
                     subtitle = stringResource(R.string.speakglucose) + " \u2022 " + stringResource(R.string.speakalarms),
-                    icon = Icons.AutoMirrored.Filled.VolumeUp,
+                    icon = Symbols.VolumeUpFilled,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = SettingsItemPosition.BOTTOM,
                     onClick = { navController.navigate("settings/alerts/talker") }
@@ -629,7 +628,7 @@ fun AddCustomAlertButton(text: String, onClick: () -> Unit) {
         shapes = ButtonDefaults.shapes(),
         contentPadding = ButtonDefaults.ContentPadding
     ) {
-        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+        Icon(Symbols.AddFilled, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(text)
     }
@@ -648,7 +647,7 @@ fun CustomAlertCard(
     onPickSound: (CustomAlertConfig) -> Unit
 ) {
     // Determine icon/color based on type to match AlertCard style
-    val icon = if (alert.type == CustomAlertType.HIGH) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown
+    val icon = if (alert.type == CustomAlertType.HIGH) Symbols.TrendingUpFilled else Symbols.TrendingDownFilled
     val isDark = tk.glucodata.ui.isAppInDarkTheme()
     val accentColor = if (alert.type == CustomAlertType.HIGH) {
         Color(GlucoseRangeColors.high(isDark))
@@ -734,7 +733,7 @@ fun CustomAlertCard(
 
                 // Chevron Indicator
                 Icon(
-                    imageVector = Icons.Default.ExpandMore,
+                    imageVector = Symbols.ExpandMoreFilled,
                     contentDescription = if (isExpanded) stringResource(R.string.collapse_action) else stringResource(R.string.expand_action),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -801,7 +800,7 @@ fun CustomAlertCard(
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
-                        Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+                        Icon(Symbols.DeleteFilled, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.delete_custom_alert))
                     }
@@ -1086,7 +1085,7 @@ private fun AlertCard(
 
                 // Chevron Indicator (Before Switch)
                 Icon(
-                    imageVector = Icons.Default.ExpandMore,
+                    imageVector = Symbols.ExpandMoreFilled,
                     contentDescription = if (isExpanded) stringResource(R.string.collapse_action) else stringResource(R.string.expand_action),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -1337,7 +1336,7 @@ private fun SensorExpiryThresholdSelector(
                         )
                     },
                     leadingIcon = if (isSelected) {
-                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        { Icon(Symbols.CheckFilled, contentDescription = null, modifier = Modifier.size(16.dp)) }
                     } else null,
                     shapes = FilterChipDefaults.shapes(),
                     colors = FilterChipDefaults.filterChipColors()
@@ -1504,29 +1503,13 @@ private fun ThresholdSlider(
             sliderValue = value
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                style = if (prominent) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                // A long (localised) label must wrap, not push the value out
-                // of the row.
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            )
-            Text(
-                // Use LOCAL sliderValue for real-time updates
-                formatThreshold(sliderValue, isMmol),
-                style = if (prominent) MaterialTheme.typography.headlineSmallEmphasized else MaterialTheme.typography.bodyMediumEmphasized,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        
+        SliderHeader(
+            label = label,
+            // Use LOCAL sliderValue for real-time updates
+            value = formatThreshold(sliderValue, isMmol),
+            style = if (prominent) SliderHeaderStyle.Glucose else SliderHeaderStyle.Compact
+        )
+        Spacer(Modifier.height(SliderHeaderGap))
         Slider(
             value = sliderValue,
             onValueChange = { sliderValue = it },
@@ -1576,26 +1559,12 @@ internal fun DurationSlider(
         // Calculate display value based on current slider position, rounded to step
         val displayValue = (kotlin.math.round(sliderValue / stepSize) * stepSize).toInt()
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                label,
-                style = MaterialTheme.typography.bodyMedium,
-                // A long (localised) label must wrap, not push the value out
-                // of the row.
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            )
-            Text(
-                valueText(displayValue),
-                style = MaterialTheme.typography.bodyMediumEmphasized,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        
+        SliderHeader(
+            label = label,
+            value = valueText(displayValue),
+            style = SliderHeaderStyle.Compact
+        )
+        Spacer(Modifier.height(SliderHeaderGap))
         Slider(
             value = sliderValue,
             onValueChange = { sliderValue = it },
@@ -1625,7 +1594,7 @@ private fun SameDirectionSuppressionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.NotificationsPaused, contentDescription = null) },
+        icon = { Icon(Symbols.NotificationsPausedFilled, contentDescription = null) },
         title = { Text(stringResource(R.string.same_direction_suppression_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1671,7 +1640,7 @@ private fun PreemptiveSnoozeDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Snooze, contentDescription = null) },
+        icon = { Icon(Symbols.SnoozeFilled, contentDescription = null) },
         title = { Text(stringResource(R.string.preemptive_snooze)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1690,7 +1659,7 @@ private fun PreemptiveSnoozeDialog(
                         onClick = { snoozeLow = !snoozeLow },
                         label = { Text(stringResource(R.string.low_alerts)) },
                         leadingIcon = if (snoozeLow) {
-                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                            { Icon(Symbols.CheckFilled, null, Modifier.size(16.dp)) }
                         } else null,
                         shapes = FilterChipDefaults.shapes(),
                         colors = FilterChipDefaults.filterChipColors()
@@ -1700,7 +1669,7 @@ private fun PreemptiveSnoozeDialog(
                         onClick = { snoozeHigh = !snoozeHigh },
                         label = { Text(stringResource(R.string.high_alerts)) },
                         leadingIcon = if (snoozeHigh) {
-                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                            { Icon(Symbols.CheckFilled, null, Modifier.size(16.dp)) }
                         } else null,
                         shapes = FilterChipDefaults.shapes(),
                         colors = FilterChipDefaults.filterChipColors()
@@ -1807,7 +1776,7 @@ internal fun TimeRangeSettings(
                     )
                     
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward,
+                        Symbols.ArrowForwardFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
@@ -2135,20 +2104,20 @@ internal fun RetrySettings(
 /** Glucose alerts wear their range colour; the rest take theme roles (system = secondary). */
 private fun getAlertIconAndColor(type: AlertType, isDark: Boolean, scheme: ColorScheme): Pair<ImageVector, Color> {
     return when (type) {
-        AlertType.VERY_LOW -> Icons.Default.Warning to Color(GlucoseRangeColors.veryLow(isDark))
-        AlertType.LOW -> Icons.Default.ArrowDownward to Color(GlucoseRangeColors.low(isDark))
-        AlertType.HIGH -> Icons.Default.ArrowUpward to Color(GlucoseRangeColors.high(isDark))
-        AlertType.VERY_HIGH -> Icons.Default.Warning to Color(GlucoseRangeColors.veryHigh(isDark))
-        AlertType.PRE_LOW -> Icons.AutoMirrored.Filled.TrendingDown to Color(GlucoseRangeColors.low(isDark))
-        AlertType.PRE_HIGH -> Icons.AutoMirrored.Filled.TrendingUp to Color(GlucoseRangeColors.high(isDark))
-        AlertType.FALLING_FAST -> Icons.AutoMirrored.Filled.TrendingDown to Color(GlucoseRangeColors.veryLow(isDark))
-        AlertType.RISING_FAST -> Icons.AutoMirrored.Filled.TrendingUp to Color(GlucoseRangeColors.veryHigh(isDark))
-        AlertType.PERSISTENT_HIGH -> Icons.Default.Timer to Color(GlucoseRangeColors.veryHigh(isDark))
-        AlertType.MISSED_READING -> Icons.Default.SignalWifiOff to scheme.secondary
-        AlertType.LOSS -> Icons.Default.BluetoothDisabled to scheme.secondary
-        AlertType.SIGNAL_RESTORED -> Icons.Default.BluetoothConnected to scheme.secondary
-        AlertType.SENSOR_EXPIRY -> Icons.Default.Schedule to scheme.tertiary
-        else -> Icons.Default.Notifications to scheme.primary
+        AlertType.VERY_LOW -> Symbols.WarningFilled to Color(GlucoseRangeColors.veryLow(isDark))
+        AlertType.LOW -> Symbols.ArrowDownwardFilled to Color(GlucoseRangeColors.low(isDark))
+        AlertType.HIGH -> Symbols.ArrowUpwardFilled to Color(GlucoseRangeColors.high(isDark))
+        AlertType.VERY_HIGH -> Symbols.WarningFilled to Color(GlucoseRangeColors.veryHigh(isDark))
+        AlertType.PRE_LOW -> Symbols.TrendingDownFilled to Color(GlucoseRangeColors.low(isDark))
+        AlertType.PRE_HIGH -> Symbols.TrendingUpFilled to Color(GlucoseRangeColors.high(isDark))
+        AlertType.FALLING_FAST -> Symbols.TrendingDownFilled to Color(GlucoseRangeColors.veryLow(isDark))
+        AlertType.RISING_FAST -> Symbols.TrendingUpFilled to Color(GlucoseRangeColors.veryHigh(isDark))
+        AlertType.PERSISTENT_HIGH -> Symbols.TimerFilled to Color(GlucoseRangeColors.veryHigh(isDark))
+        AlertType.MISSED_READING -> Symbols.SignalWifiOffFilled to scheme.secondary
+        AlertType.LOSS -> Symbols.BluetoothDisabledFilled to scheme.secondary
+        AlertType.SIGNAL_RESTORED -> Symbols.BluetoothConnectedFilled to scheme.secondary
+        AlertType.SENSOR_EXPIRY -> Symbols.ScheduleFilled to scheme.tertiary
+        else -> Symbols.NotificationsFilled to scheme.primary
     }
 }
 
@@ -2193,7 +2162,7 @@ internal fun SoundSelector(
                 modifier = Modifier.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.MusicNote, contentDescription = null)
+                Icon(Symbols.MusicNoteFilled, contentDescription = null)
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                    Text(

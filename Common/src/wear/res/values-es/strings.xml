@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+     <string name="libresetalllabels">Primero especifica (en el teléfono compañero) para cada etiqueta qué hacer con ella.</string>
+    <string name="watch_face_name" translatable="false">Juggluco</string>
+    <string name="colors_style_setting">@string/colors</string>
+    <!-- Subtitle for the menu option to select the watch face color theme [CHAR LIMIT=20] -->
+
+    <!-- Name of watchface style [CHAR LIMIT=20] -->
+    <string name="ambient_style_name">Estilo ambiente</string>
+
+    <!-- Name of watchface style [CHAR LIMIT=20] -->
+    <string name="red_style_name">Estilo rojo</string>
+
+    <!-- Name of watchface style [CHAR LIMIT=20] -->
+    <string name="green_style_name">Estilo verde</string>
+
+    <!-- Name of watchface style [CHAR LIMIT=20] -->
+    <string name="blue_style_name">Estilo azul</string>
+    <string name="gray_style_name">Estilo gris</string>
+    <string name="yellow_style_name">Estilo amarillo</string>
+
+    <!-- Name of watchface style [CHAR LIMIT=20] -->
+    <string name="white_style_name">Estilo blanco</string>
+
+    <string name="title_activity_watch_face_config">Configuración</string>
+    <string name="talkhelp" />
+    <string name="wear_sensor_day_label">Día</string>
+    <string name="wear_sensor_day_format">Día %1$s</string>
+    <string name="wear_return_sensor_to_phone">Devolver sensor al teléfono</string>
+    <string name="wear_claim_watch_owns">El reloj está leyendo el sensor</string>
+    <string name="wear_claim_waiting">Esperando conexión al sensor</string>
+    <string name="wear_calibration_on">Calibración activada</string>
+    <string name="wear_calibration_off">Calibración desactivada</string>
+    <string name="wear_calibration_clear">Borrar calibraciones</string>
+    <string name="wear_calibration_delete">Eliminar calibración</string>
+    <string name="wear_color_in_range">Colorear lecturas en rango</string>
+    <string name="wear_color_in_range_on">Todas las lecturas coloreadas</string>
+    <string name="wear_color_in_range_off">Solo altos y bajos coloreados</string>
+    <string name="wear_journal_disabled">Activa el diario en el teléfono para usarlo aquí.</string>
+    <string name="wear_journal_insulin">Insulina</string>
+    <string name="wear_journal_carbs">Carbohidratos</string>
+    <string name="wear_journal_add">Añadir elemento al diario</string>
+    <string name="wear_reading_actions_title">Lectura</string>
+    <string name="wear_calibration_edit">Editar calibración</string>
+    <string name="wear_journal_delete">Eliminar</string>
+    <!-- Not yet confirmed by the phone: saved on the watch only (#502). -->
+    <string name="wear_journal_pending">Esperando al teléfono</string>
+    <string name="wear_sensor_forget">Olvidar sensor</string>
+    <string name="wear_multi_sensor_complication">Valores de varios sensores</string>
+    <string name="wear_multi_sensor_arrow_complication">Valores de varios sensores + flechas</string>
+    <!-- Journal-derived, not the phone's device-status snapshot (#500). -->
+    <string name="wear_journal_derived_title">IOB / COB del diario</string>
+    <string name="wear_journal_iob">IOB %1$s</string>
+    <string name="wear_journal_cob">COB %1$s</string>
+</resources>

@@ -28,6 +28,7 @@ methods = [method(dex, x) for x in [
     'public synchronized void close(',
 ]]
 fields = [re.search(r'private long backfillRoomSyncFromMsec=0L;', dex).group(0)]
+fields += re.findall(r'private static final long DEXCOM_RESULT_\w+ = \d+L;', dex)
 # Every saved backfill notification must queue the Room copy, not only our own request.
 changed = method(dex, 'public void onCharacteristicChanged(@NonNull')
 assert re.search(r'saved\s*=\s*Natives\.dexbackfill\(dataptr,\s*value\);\s*\n\s*if\s*\(saved\)\s*noteBackfillRecords\(value\);', changed), 'backfill notifications must queue a Room sync'
@@ -71,7 +72,8 @@ class DexGattCallback extends Base {
     void tryer(Supplier<Boolean> worked){worked.get();}
     boolean write(int nr,byte[] data){writes.add(data);return true;}
     boolean enableNotification(Object gatt,Object c){return true;}
-    boolean isWarmupReading(long t,long res){return false;}
+    boolean isWarmupReading(long t,boolean warmingUp){return false;}
+    long warmupMsec(){return DEXCOM_WARMUP_MSEC;}
     void handleGlucoseResult(long res,long t){}
     void saveDeviceName(){}
     void releaselock(){}

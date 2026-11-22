@@ -20,18 +20,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,7 +41,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import tk.glucodata.ui.components.SensorArt
+import tk.glucodata.ui.components.SensorType
+import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 internal const val SENSOR_SETUP_SUCCESS_AUTO_ADVANCE_MS = 1400L
 
@@ -52,6 +57,7 @@ private enum class SensorSetupStatusTone {
 @Composable
 fun SensorSetupConnectingScreen(
     ui: WizardUiMetrics,
+    sensor: SensorType? = null,
     sensorLabel: String? = null,
     title: String = stringResource(R.string.connecting_to_sensor),
     supportingText: String = stringResource(R.string.connecting_to_sensor_wait)
@@ -59,6 +65,7 @@ fun SensorSetupConnectingScreen(
     SensorSetupStatusScreen(
         ui = ui,
         tone = SensorSetupStatusTone.Connecting,
+        sensor = sensor,
         sensorLabel = sensorLabel,
         title = title,
         supportingText = supportingText
@@ -68,12 +75,14 @@ fun SensorSetupConnectingScreen(
 @Composable
 fun SensorSetupSuccessScreen(
     ui: WizardUiMetrics,
+    sensor: SensorType? = null,
     sensorLabel: String? = null,
     title: String = stringResource(R.string.status_connected)
 ) {
     SensorSetupStatusScreen(
         ui = ui,
         tone = SensorSetupStatusTone.Success,
+        sensor = sensor,
         sensorLabel = sensorLabel,
         title = title,
         supportingText = null
@@ -84,6 +93,7 @@ fun SensorSetupSuccessScreen(
 private fun SensorSetupStatusScreen(
     ui: WizardUiMetrics,
     tone: SensorSetupStatusTone,
+    sensor: SensorType?,
     sensorLabel: String?,
     title: String,
     supportingText: String?
@@ -161,8 +171,8 @@ private fun SensorSetupStatusScreen(
     val heroSize = if (ui.compact) 120.dp else 148.dp
     val haloSize = if (ui.compact) 172.dp else 208.dp
     val icon = when (tone) {
-        SensorSetupStatusTone.Connecting -> Icons.Default.Bluetooth
-        SensorSetupStatusTone.Success -> Icons.Default.CheckCircle
+        SensorSetupStatusTone.Connecting -> Symbols.BluetoothFilled
+        SensorSetupStatusTone.Success -> Symbols.CheckCircleFilled
     }
 
     Column(
@@ -221,13 +231,42 @@ private fun SensorSetupStatusScreen(
                     modifier = Modifier.size(heroSize),
                     contentAlignment = Alignment.Center
                 ) {
-                    androidx.compose.material3.Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(if (ui.compact) 40.dp else 48.dp)
-                    )
+                    if (sensor != null) {
+                        SensorArt(sensor, Modifier.size(heroSize))
+                    } else {
+                        androidx.compose.material3.Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(if (ui.compact) 40.dp else 48.dp)
+                        )
+                    }
                 }
+            }
+
+            // With the sensor in the hero, the tick lands on it rather than replacing it.
+            if (sensor != null) {
+                // Starts hidden and lands once the screen is up, so the tick plays even on a
+                // screen that opens already successful.
+                val badge = remember { androidx.compose.animation.core.Animatable(0f) }
+                LaunchedEffect(tone) {
+                    badge.animateTo(if (tone == SensorSetupStatusTone.Success) 1f else 0f, ExpressiveMotion.fastSpatial())
+                }
+                val badgeScale = badge.value
+                Icon(
+                    imageVector = Symbols.CheckCircleFilled,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .offset(x = heroSize / 2 - 8.dp, y = heroSize / 2 - 8.dp)
+                        .size(40.dp)
+                        .graphicsLayer {
+                            scaleX = badgeScale
+                            scaleY = badgeScale
+                        }
+                        .background(MaterialTheme.colorScheme.surface, CircleShape)
+                )
             }
         }
 

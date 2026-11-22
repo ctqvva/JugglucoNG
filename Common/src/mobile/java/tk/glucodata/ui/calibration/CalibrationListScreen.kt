@@ -2,7 +2,6 @@ package tk.glucodata.ui.calibration
 
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.activity.compose.BackHandler
-import androidx.compose.material.icons.filled.Block
 import tk.glucodata.ui.components.IconButtonTooltip
 import android.content.Context
 import android.view.HapticFeedbackConstants
@@ -35,19 +34,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.ImportExport
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -72,6 +58,7 @@ import tk.glucodata.ui.components.IconTile
 import tk.glucodata.ui.components.IconTileDefaults
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.R
+import tk.glucodata.ui.UndoSnackbar
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.HistoryRepository
 import tk.glucodata.data.calibration.CalibrationEntity
@@ -82,27 +69,13 @@ import tk.glucodata.ui.components.StyledSwitch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import tk.glucodata.ui.symbols.Symbols
 
 private const val CalibrationDeleteSwipeThresholdFraction = 0.4f
 private const val CalibrationUiPrefsName = "tk.glucodata_preferences"
 // Bump the key so the previous broken one-shot behavior does not consume the discoverability pass.
 private const val CalibrationMasterCardSeenPref = "manual_calibration_master_card_seen_v2"
 
-private suspend fun SnackbarHostState.showCalibrationUndoSnackbar(
-    message: String,
-    actionLabel: String
-): SnackbarResult {
-    currentSnackbarData?.dismiss()
-    val result = showSnackbar(
-        message = message,
-        actionLabel = actionLabel,
-        duration = SnackbarDuration.Short
-    )
-    if (result == SnackbarResult.ActionPerformed) {
-        currentSnackbarData?.dismiss()
-    }
-    return result
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -283,7 +256,7 @@ fun CalibrationListScreen(
                         IconButtonTooltip(stringResource(R.string.calibration_model_table_action)) {
                             IconButton(onClick = onOpenModelTable, shapes = IconButtonDefaults.shapes()) {
                                 Icon(
-                                    imageVector = Icons.Default.Analytics,
+                                    imageVector = Symbols.AnalyticsFilled,
                                     contentDescription = stringResource(R.string.calibration_model_table_action)
                                 )
                             }
@@ -291,7 +264,7 @@ fun CalibrationListScreen(
                         IconButtonTooltip(stringResource(R.string.calibration_import_export_action)) {
                             IconButton(onClick = { showImportExportSheet = true }, shapes = IconButtonDefaults.shapes()) {
                                 Icon(
-                                    imageVector = Icons.Default.ImportExport,
+                                    imageVector = Symbols.ImportExportFilled,
                                     contentDescription = stringResource(R.string.calibration_import_export_action)
                                 )
                             }
@@ -413,18 +386,11 @@ fun CalibrationListScreen(
                                 selectedIds = setOf(cal.id)
                             }
                         },
-                        onDelete = { 
+                        onDelete = {
                             scope.launch {
-                                val backup = cal
                                 CalibrationManager.deleteCalibration(cal)
-                                
-                                val result = snackbarHostState.showCalibrationUndoSnackbar(
-                                    message = context.getString(R.string.calibration_deleted),
-                                    actionLabel = context.getString(R.string.undo)
-                                )
-                                
-                                if (result == SnackbarResult.ActionPerformed) {
-                                    CalibrationManager.restoreCalibration(backup)
+                                UndoSnackbar.show(context.getString(R.string.calibration_deleted)) {
+                                    CalibrationManager.restoreCalibration(cal)
                                 }
                             }
                         },
@@ -517,17 +483,11 @@ fun CalibrationListScreen(
                                 showBulkDeleteConfirmation = false
                                 scope.launch {
                                     val toDelete = calibrations.filter { selectedIds.contains(it.id) }
-                                    toDelete.forEach { CalibrationManager.deleteCalibration(it) }
-                                    
-                                    val result = snackbarHostState.showCalibrationUndoSnackbar(
-                                        message = context.getString(R.string.calibrations_deleted_count, toDelete.size),
-                                        actionLabel = context.getString(R.string.undo)
-                                    )
-                                    
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        CalibrationManager.restoreAll(toDelete)
-                                    }
-                                    
+                                    CalibrationManager.deleteCalibrations(toDelete)
+                                    UndoSnackbar.show(
+                                        context.getString(R.string.calibrations_deleted_count, toDelete.size)
+                                    ) { CalibrationManager.restoreAll(toDelete) }
+
                                     isSelectionMode = false
                                     selectedIds = emptySet()
                                 }
@@ -551,25 +511,16 @@ fun CalibrationListScreen(
             onClearDisabled = {
                 scope.launch {
                     val disabled = calibrations.filter { !it.isEnabled }
-                    disabled.forEach { CalibrationManager.deleteCalibration(it) }
-                    snackbarHostState.showSnackbar(
-                        message = context.getString(R.string.disabled_calibrations_cleared, disabled.size),
-                        duration = SnackbarDuration.Short
-                    )
+                    CalibrationManager.deleteCalibrations(disabled)
+                    UndoSnackbar.notice(context.getString(R.string.disabled_calibrations_cleared, disabled.size))
                 }
                 showClearConfirmation = false
             },
             onClearAll = {
                 scope.launch {
                     val backup = calibrations
-                    CalibrationManager.clearAll()
-                    
-                    val result = snackbarHostState.showCalibrationUndoSnackbar(
-                        message = context.getString(R.string.all_calibrations_cleared),
-                        actionLabel = context.getString(R.string.undo)
-                    )
-                    
-                    if (result == SnackbarResult.ActionPerformed) {
+                    CalibrationManager.deleteCalibrations(backup)
+                    UndoSnackbar.show(context.getString(R.string.all_calibrations_cleared)) {
                         CalibrationManager.restoreAll(backup)
                     }
                 }
@@ -666,7 +617,7 @@ private fun MasterCalibrationCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconTile(
-                    icon = Icons.Default.WaterDrop,
+                    icon = Symbols.WaterDropFilled,
                     tint = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     containerColor = IconTileDefaults.toggleContainerColor(MaterialTheme.colorScheme.primary, isEnabled),
                 )
@@ -686,7 +637,7 @@ private fun MasterCalibrationCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.ExpandMore,
+                        imageVector = Symbols.ExpandMoreFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
@@ -868,7 +819,7 @@ private fun CalibrationAlgorithmCard(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Default.Tune,
+                            imageVector = Symbols.TuneFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
@@ -889,7 +840,7 @@ private fun CalibrationAlgorithmCard(
                 }
 
                 Icon(
-                    imageVector = Icons.Default.ExpandMore,
+                    imageVector = Symbols.ExpandMoreFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -1147,6 +1098,8 @@ private fun SwipeableCalibrationRow(
     val view = LocalView.current
     var deleteArmHapticSent by remember(cal.id, cal.isEnabled) { mutableStateOf(false) }
     var rowWidthPx by remember(cal.id, cal.isEnabled) { mutableStateOf(0) }
+    // confirmValueChange is asked again while the swiped row settles; a row is deleted once.
+    var deleteSent by remember(cal.id) { mutableStateOf(false) }
     
     // In selection mode, just show the card without swipe
     if (isSelectionMode) {
@@ -1183,7 +1136,10 @@ private fun SwipeableCalibrationRow(
                 when (dismissValue) {
                     SwipeToDismissBoxValue.EndToStart -> {
                         // Swipe left = Delete
-                        onDelete()
+                        if (!deleteSent) {
+                            deleteSent = true
+                            onDelete()
+                        }
                         true
                     }
                     SwipeToDismissBoxValue.StartToEnd -> {
@@ -1232,9 +1188,9 @@ private fun SwipeableCalibrationRow(
                 else -> Alignment.Center
             }
             val icon = when (direction) {
-                SwipeToDismissBoxValue.EndToStart -> Icons.Filled.Delete
-                SwipeToDismissBoxValue.StartToEnd -> if (cal.isEnabled) Icons.Filled.Close else Icons.Filled.Check
-                else -> Icons.Filled.Delete
+                SwipeToDismissBoxValue.EndToStart -> Symbols.DeleteFilled
+                SwipeToDismissBoxValue.StartToEnd -> if (cal.isEnabled) Symbols.CloseFilled else Symbols.CheckFilled
+                else -> Symbols.DeleteFilled
             }
             
             Box(
@@ -1423,7 +1379,7 @@ private fun FloatingActionToolbar(
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             ) {
-                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Symbols.DeleteFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.clear), style = MaterialTheme.typography.labelLarge)
             }
@@ -1445,7 +1401,7 @@ private fun FloatingActionToolbar(
             ),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
         ) {
-            Icon(Icons.Filled.WaterDrop, contentDescription = null, modifier = Modifier.size(20.dp))
+            Icon(Symbols.WaterDropFilled, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(stringResource(R.string.calibrate_action), style = MaterialTheme.typography.titleMedium)
         }
@@ -1474,12 +1430,12 @@ private fun SelectionModeToolbar(
     ) {
         IconButtonTooltip(stringResource(R.string.disable)) {
             IconButton(onClick = onDisable, shapes = IconButtonDefaults.shapes()) {
-                Icon(Icons.Default.Block, contentDescription = stringResource(R.string.disable))
+                Icon(Symbols.BlockFilled, contentDescription = stringResource(R.string.disable))
             }
         }
         IconButtonTooltip(stringResource(R.string.enable)) {
             IconButton(onClick = onEnable, shapes = IconButtonDefaults.shapes()) {
-                Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.enable))
+                Icon(Symbols.CheckCircleFilled, contentDescription = stringResource(R.string.enable))
             }
         }
         IconButtonTooltip(stringResource(R.string.delete)) {
@@ -1491,7 +1447,7 @@ private fun SelectionModeToolbar(
                     contentColor = MaterialTheme.colorScheme.onErrorContainer
                 )
             ) {
-                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
+                Icon(Symbols.DeleteFilled, contentDescription = stringResource(R.string.delete))
             }
         }
     }
@@ -1537,7 +1493,7 @@ private fun CalibrationImportExportBottomSheet(
             CalibrationTransferAction(
                 title = stringResource(R.string.export_profile),
                 subtitle = stringResource(R.string.calibration_export_profile_desc),
-                icon = Icons.Default.FileUpload,
+                icon = Symbols.FileUploadFilled,
                 onClick = onExport
             )
 
@@ -1546,7 +1502,7 @@ private fun CalibrationImportExportBottomSheet(
             CalibrationTransferAction(
                 title = stringResource(R.string.import_profile_merge),
                 subtitle = stringResource(R.string.calibration_import_merge_desc),
-                icon = Icons.Default.FileDownload,
+                icon = Symbols.FileDownloadFilled,
                 onClick = onImportMerge
             )
 
@@ -1555,7 +1511,7 @@ private fun CalibrationImportExportBottomSheet(
             CalibrationTransferAction(
                 title = stringResource(R.string.import_profile_replace),
                 subtitle = stringResource(R.string.calibration_import_replace_desc),
-                icon = Icons.Default.FileDownload,
+                icon = Symbols.FileDownloadFilled,
                 onClick = onImportReplace,
                 isDestructive = true
             )
@@ -1676,7 +1632,7 @@ private fun ClearOptionsBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.Close,
+                            Symbols.CloseFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.secondary
                         )
@@ -1709,7 +1665,7 @@ private fun ClearOptionsBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        Icons.Default.Delete,
+                        Symbols.DeleteFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error
                     )

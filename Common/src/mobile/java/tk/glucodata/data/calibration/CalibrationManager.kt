@@ -1662,7 +1662,26 @@ object CalibrationManager {
         requestMirrorCalibrationSync(entity.sensorId)
         Log.i(TAG, "Deleted calibration: id=${entity.id}")
     }
-    
+
+    /**
+     * Deletes exactly [entities], in one write. The screens' "Clear all" means the calibrations
+     * they list (one sensor, one mode); [clearAll] wipes every sensor's, which their Undo,
+     * holding only what was listed, could never bring back.
+     */
+    suspend fun deleteCalibrations(entities: List<CalibrationEntity>) {
+        if (entities.isEmpty()) return
+        JournalCalibrationSync.betweenSyncs {
+            dismissJournalTimestamps(entities.map { it.timestamp })
+            withContext(Dispatchers.IO) { dao.deleteByIds(entities.map { it.id }) }
+            loadCalibrations()
+        }
+        deferGlucoseAlertsUntilNextReading()
+        if (entities.any { it.isRawMode }) refreshDiagnosticsPreview(isRawMode = true, force = true)
+        if (entities.any { !it.isRawMode }) refreshDiagnosticsPreview(isRawMode = false, force = true)
+        requestMirrorCalibrationSyncForSensors(entities.map { it.sensorId })
+        Log.i(TAG, "Deleted ${entities.size} calibrations")
+    }
+
     suspend fun updateCalibration(entity: CalibrationEntity) {
         JournalCalibrationSync.betweenSyncs {
             // A point moved in time leaves its entry behind, unclaimed.

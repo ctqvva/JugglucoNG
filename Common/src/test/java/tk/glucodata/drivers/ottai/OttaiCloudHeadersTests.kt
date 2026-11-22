@@ -234,6 +234,31 @@ class OttaiCloudHeadersTests {
     }
 
     @Test
+    fun globalPhoneSignsAsTheOttaiPhoneApp() {
+        // Live Ottai global 2026-11-15: appName "ottai" passes the device/bind gate, "ottai-watch" does not.
+        val globalPhone = OttaiCloudClient.signForProfile(
+            OttaiRegistry.SessionProfile.GLOBAL_PHONE,
+            "test-device",
+            123L,
+            "mac",
+        )
+        assertEquals("2eafe6b7007e1d80e323d2aa459bb873", globalPhone)
+    }
+
+    @Test
+    fun onlyGlobalUsesTheGlobalPhoneProfileAndOlderGlobalTokensStayWatch() {
+        val watch = OttaiRegistry.SessionProfile.WATCH
+        val cnPhone = OttaiRegistry.SessionProfile.CN_PHONE
+        val globalPhone = OttaiRegistry.SessionProfile.GLOBAL_PHONE
+        assertEquals(globalPhone, OttaiCloudClient.profileFor(OttaiConstants.API_BASE_GLOBAL, globalPhone))
+        assertEquals(watch, OttaiCloudClient.profileFor(OttaiConstants.API_BASE_GLOBAL, watch))
+        assertEquals(watch, OttaiCloudClient.profileFor(OttaiConstants.API_BASE_GLOBAL, cnPhone))
+        assertEquals(cnPhone, OttaiCloudClient.profileFor(OttaiConstants.API_BASE, cnPhone))
+        assertEquals(watch, OttaiCloudClient.profileFor(OttaiConstants.API_BASE, globalPhone))
+        assertEquals(watch, OttaiCloudClient.profileFor(OttaiConstants.API_BASE_SYAI, globalPhone))
+    }
+
+    @Test
     fun cgmAuthVerifyUsesRecoveredMd5Signer() {
         // CONFIRMED from live Frida capture and caller disassembly:
         // appName + deviceId + mac + paramStr + shaInfo + timestamp_ms + SEED.
@@ -354,7 +379,8 @@ class OttaiCloudHeadersTests {
         assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE, phone))
         assertFalse(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE, watch))
         assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE_SYAI, watch))
-        assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE_GLOBAL, watch))
+        assertFalse(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE_GLOBAL, watch))
+        assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE_GLOBAL, OttaiRegistry.SessionProfile.GLOBAL_PHONE))
         assertFalse(OttaiCloudClient.supportsActiveAuth("https://example.invalid", watch))
     }
 
@@ -364,7 +390,8 @@ class OttaiCloudHeadersTests {
         val retired = OttaiCloudClient.CloudFailure("http=404 biz=", "", 404)
         val watch = OttaiRegistry.SessionProfile.WATCH
         assertTrue(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_SYAI, watch, retired))
-        assertTrue(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_GLOBAL, watch, retired))
+        assertFalse(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_GLOBAL, watch, retired))
+        assertTrue(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_GLOBAL, OttaiRegistry.SessionProfile.GLOBAL_PHONE, retired))
     }
 
     @Test

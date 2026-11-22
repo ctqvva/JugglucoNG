@@ -24,7 +24,6 @@ package tk.glucodata;
 import static tk.glucodata.Log.doLog;
 import static tk.glucodata.Notify.glucosetimeout;
 import static tk.glucodata.Notify.penmutable;
-import static tk.glucodata.Notify.timef;
 
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
@@ -42,6 +41,7 @@ public class GlucoseWidget extends AppWidgetProvider {
     private static final String ACTION_GLUCOSE_UPDATE = "tk.glucodata.action.GLUCOSE_UPDATE";
     private static final Object widgetLock = new Object();
     private static final WidgetUpdateThrottle updateThrottle = new WidgetUpdateThrottle(1500L);
+    private static final WidgetWorkDispatcher worker = new WidgetWorkDispatcher();
     static RemoteGlucose remote = null;
     static int width=0;
 
@@ -60,21 +60,31 @@ private static void setWidth(int widthdip) {
 }
 @Override
 public void onAppWidgetOptionsChanged(Context context, AppWidgetManager appWidgetManager, int appWidgetId, Bundle widgetInfo) {
-   var widthdip=widgetInfo.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH);
-   {if(doLog) {Log.i(LOG_ID,"onAppWidgetOptionsChanged widthdip="+widthdip);};};
-   used=true;
-   if(widthdip!=0&&widthdip!=width) {
-       setWidth(widthdip);
-       updateAppWidget(context, appWidgetManager, appWidgetId);
-       }
+   worker.execute(() -> {
+      var widthdip=widgetInfo.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH);
+      {if(doLog) {Log.i(LOG_ID,"onAppWidgetOptionsChanged widthdip="+widthdip);};};
+      used=true;
+      if(widthdip!=0&&widthdip!=width) {
+          setWidth(widthdip);
+          updateAppWidget(context, appWidgetManager, appWidgetId, loadFrame());
+          }
+   });
    } 
 
 @Override
 public void onReceive(Context context, Intent intent) {
-   super.onReceive(context, intent);
-   if (intent != null && ACTION_GLUCOSE_UPDATE.equals(intent.getAction())) {
-      update(intent.getBooleanExtra(GlucoseUpdateBroadcaster.EXTRA_REDRAW_NOW, false));
-   }
+   final PendingResult pending = goAsync();
+   worker.execute(() -> {
+      try {
+         if (intent != null && ACTION_GLUCOSE_UPDATE.equals(intent.getAction())) {
+            update(intent.getBooleanExtra(GlucoseUpdateBroadcaster.EXTRA_REDRAW_NOW, false));
+         } else {
+            super.onReceive(context, intent);
+         }
+      } catch (Throwable error) {
+         Log.stack(LOG_ID, "onReceive", error);
+      }
+   }, () -> { if (pending != null) pending.finish(); });
 }
 
 static private RemoteViews remoteMessage(String message) {
@@ -99,7 +109,7 @@ static private void showviews(RemoteViews views,int rId,AppWidgetManager appWidg
         Log.stack(LOG_ID, "showviews(" + appWidgetId + ")", th);
     }
    }
-static private void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
+static private void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId, WidgetDisplaySource.Frame frame) {
    try {
    var widgetInfo=appWidgetManager.getAppWidgetOptions(appWidgetId);
    for(var key : widgetInfo.keySet()) {
@@ -120,18 +130,18 @@ static private void updateAppWidget(Context context, AppWidgetManager appWidgetM
       if (remote == null) {
          setWidth(widthdip == 0 ? 200 : widthdip);
       }
-	      final var current = WidgetDisplaySource.resolveWidgetSnapshot(glucosetimeout);
+	      final var current = frame.getSnapshot();
       if (current != null) {
          final var now = System.currentTimeMillis();
          final var time = current.getTimeMillis();
          if ((now - time) > oldage) {
-            final String tformat = timef.format(time);
+            final String tformat = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(new java.util.Date(time));
             String message = "\n  " + context.getString(R.string.nonewvalue) + tformat;
             views = remoteMessage(message);
             id = R.id.content;
          } else {
             GlucoseUpdateBroadcaster.armFreshnessDeadline(time);
-            views = remote.widgetRemote(current);
+            views = remote.widgetRemote(current, frame.getDeltaText());
          }
       } else {
          views = remoteMessage("\n  " + context.getString(R.string.novalue));
@@ -145,18 +155,26 @@ static private void updateAppWidget(Context context, AppWidgetManager appWidgetM
    }
     }
 
+static private WidgetDisplaySource.Frame loadFrame() {
+   final var prefs = Applic.app.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE);
+   return WidgetDisplaySource.resolveWidgetFrame(glucosetimeout,
+         prefs.getBoolean(DisplayDeltaSource.WIDGET_ENABLED, false),
+         prefs.getInt(DisplayDeltaSource.INTERVAL, GlucoseDelta.DEFAULT_INTERVAL_MINUTES));
+}
+
 static private void updateall(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
    if(appWidgetIds==null|| appWidgetIds.length == 0) {
       {if(doLog) {Log.i(LOG_ID,"updateall zero");};};
       return;
       }
    used=true;
+        final var frame = loadFrame();
         for (int appWidgetId : appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId);
+            updateAppWidget(context, appWidgetManager, appWidgetId, frame);
         }
    }
 
-static boolean used=true;
+static volatile boolean used=true;
 final    private static String LOG_ID="GlucoseWidget";
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
@@ -176,12 +194,15 @@ final    private static String LOG_ID="GlucoseWidget";
    used=false;
     }
 public static void oldvalue(long time) {
+   worker.execute(() -> showOldValue(time));
+}
+private static void showOldValue(long time) {
    final var cl= GlucoseWidget.class;
    final var manage= AppWidgetManager.getInstance(Applic.app);
    int ids[] = manage.getAppWidgetIds(new ComponentName(Applic.app, cl));
    if(ids.length>0) {
       {if(doLog) {Log.i(LOG_ID,"oldvalue widgets");};};
-      final String tformat= timef.format(time);
+      final String tformat= java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(new java.util.Date(time));
       String message = Applic.getContext().getString(R.string.nonewvalue) + tformat;
       var views=remoteMessage(message);
       for(var id:ids) {
@@ -194,7 +215,7 @@ public static void oldvalue(long time) {
 
    }
  public static void update() {
-    update(false);
+    worker.execute(() -> update(false));
     }
  private static void update(boolean force) {
     if (Applic.isWearable) {

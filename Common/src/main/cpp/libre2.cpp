@@ -1345,7 +1345,7 @@ return (AlgorithmResults *)outalgres.ptr;
 extern bool addStreamHistory(const jniHistory &hist,time_t nutime,int nuid, SensorGlucoseData &save) ;
 
 const AlgorithmResults *  libre2stream::processTooth(data_t * bluedata, scanstate *newstate,uint32_t nutime) {
-
+hist->lastPacketTime = nutime;
 const data_t *ident=getident();
 #ifdef HASP1
 const data_t *info=getinfo();
@@ -1376,6 +1376,7 @@ if(alg) {
         int gid=gl.getId();
         LOGGER("processStream %d %d %.1f\n",gid,qual,gluc/convfactordL);
         if(!qual&&gluc) {
+            hist->clearSensorError();
             if(hist->savepoll(nutime,gid,gluc,gl.trend(),gl.rate())) {
                 if(streamHistory()) {
                          addStreamHistory(alg->history(), nutime,gid, *hist) ;
@@ -1391,6 +1392,8 @@ if(alg) {
         else {
             delete alg;
             LOGSTRING("bad quality\n");
+            LOGGER("bad quality quality=%d value=%d\n", qual, gluc);
+            hist->setSensorError(nutime, qual);
             }
         }
 return nullptr;

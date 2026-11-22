@@ -29,11 +29,6 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Backspace
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +78,7 @@ import tk.glucodata.RestrictedMode
 import tk.glucodata.RestrictedModePin
 import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.util.findActivity
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * The way from restricted to full mode, at the top of the Settings tab while restricted.
@@ -124,7 +120,7 @@ internal fun RestrictedFullModeCard(modifier: Modifier = Modifier) {
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    Icons.Default.OpenInFull,
+                    Symbols.OpenInFullFilled,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -179,7 +175,7 @@ internal fun RestrictedFullModeCard(modifier: Modifier = Modifier) {
                                     contentPadding = ButtonDefaults.TextButtonContentPadding,
                                 ) {
                                     Icon(
-                                        Icons.Default.Fingerprint,
+                                        Symbols.FingerprintFilled,
                                         contentDescription = null,
                                         modifier = Modifier.size(ButtonDefaults.IconSize),
                                     )
@@ -391,7 +387,7 @@ private fun PinPad(
                             shapes = IconButtonDefaults.shapes(),
                             modifier = Modifier.size(56.dp),
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = deleteLabel)
+                            Icon(Symbols.BackspaceFilled, contentDescription = deleteLabel)
                         }
                     }
                 }
@@ -407,7 +403,7 @@ private fun PinPad(
                             shapes = IconButtonDefaults.shapes(),
                             modifier = Modifier.size(keySize),
                         ) {
-                            Icon(Icons.Default.Check, contentDescription = confirmLabel)
+                            Icon(Symbols.CheckFilled, contentDescription = confirmLabel)
                         }
                     }
                 }

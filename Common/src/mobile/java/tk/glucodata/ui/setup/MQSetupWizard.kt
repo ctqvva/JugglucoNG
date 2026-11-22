@@ -5,6 +5,8 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import android.bluetooth.BluetoothAdapter
@@ -29,9 +31,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -69,6 +68,7 @@ import kotlinx.coroutines.withContext
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.drivers.mq.MQBootstrapClient
 import tk.glucodata.drivers.mq.MQConstants
 import tk.glucodata.drivers.mq.MQRegistry
@@ -76,6 +76,7 @@ import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
+import tk.glucodata.ui.symbols.Symbols
 
 private const val MQ_QR_EXAMPLE = "ABC123"
 
@@ -251,6 +252,7 @@ fun MQSetupWizard(
                 ) {
                     SensorSetupConnectingScreen(
                         ui = ui,
+                        sensor = SensorType.MQ,
                         sensorLabel = selectedLabel.ifBlank { null }
                     )
                 }
@@ -260,6 +262,7 @@ fun MQSetupWizard(
                 ) {
                     SensorSetupSuccessScreen(
                         ui = ui,
+                        sensor = SensorType.MQ,
                         sensorLabel = selectedLabel.ifBlank { null }
                     )
                 }
@@ -393,6 +396,12 @@ private fun MQScanStep(
                 tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             }
             item {
+                SensorWizardHero(
+                    SensorType.MQ,
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+                    compact = rememberSensorHeroCompact(sharesScreen = true),
+                )
+                Spacer(Modifier.height(ui.spacerSmall))
                 ScanFilterHeader(
                     title = stringResource(R.string.mq_searching_sensors),
                     showAllDevices = showAllDevices,
@@ -409,7 +418,7 @@ private fun MQScanStep(
                 ListItem(
                     headlineContent = { Text(title) },
                     supportingContent = { Text(supporting) },
-                    leadingContent = { Icon(Icons.Default.Bluetooth, null) },
+                    leadingContent = { Icon(Symbols.BluetoothFilled, null) },
                     modifier = Modifier.clickable { onDeviceSelected(device) }
                 )
                 HorizontalDivider()
@@ -465,7 +474,7 @@ private fun MQScanStep(
                         SettingsItem(
                             title = stringResource(R.string.mq_account_title),
                             subtitle = accountSubtitle,
-                            icon = Icons.Default.Cloud,
+                            icon = Symbols.CloudFilled,
                             iconTint = MaterialTheme.colorScheme.primary,
                             position = CardPosition.SINGLE,
                             onClick = onManageAccount,

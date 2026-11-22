@@ -25,14 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -103,6 +95,7 @@ import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.setup.InlineQrScannerCard
 import tk.glucodata.ui.setup.PRODUCT_BARCODE_FORMATS
 import tk.glucodata.ui.util.ExpressiveMotion
+import tk.glucodata.ui.symbols.Symbols
 
 /** One food of the meal being entered: what it is, how much, and the amount as it was typed. */
 data class JournalDraftFoodItem(
@@ -444,7 +437,7 @@ internal fun FoodSearchField(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Default.Search,
+                imageVector = Symbols.SearchFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -486,7 +479,7 @@ internal fun FoodSearchField(
                         shapes = IconButtonDefaults.shapes()
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Symbols.CloseFilled,
                             contentDescription = stringResource(R.string.clear),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -502,7 +495,7 @@ internal fun FoodSearchField(
                         modifier = Modifier.semantics { contentDescription = label }) {
                         Crossfade(scanning, animationSpec = ExpressiveMotion.fastEffects(), label = "foodScanIcon",
                             modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = rotation }) { open ->
-                            Icon(if (open) Icons.Default.Close else Icons.Default.QrCodeScanner,
+                            Icon(if (open) Symbols.CloseFilled else Symbols.QrCodeScannerFilled,
                                 contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -546,7 +539,7 @@ private fun FoodRecentChips(
                 },
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.Add,
+                        imageVector = Symbols.AddFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -658,7 +651,7 @@ private fun FoodResultRow(
                 IconButtonTooltip(stringResource(R.string.remove)) {
                     IconButton(onClick = onRemove, modifier = Modifier.size(48.dp),
                         shapes = IconButtonDefaults.shapes()) {
-                        Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.remove),
+                        Icon(Symbols.RemoveFilled, contentDescription = stringResource(R.string.remove),
                             modifier = Modifier.size(20.dp))
                     }
                 }
@@ -676,7 +669,7 @@ private fun FoodResultRow(
                     }, colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = buttonColor, contentColor = buttonContent),
                         shapes = IconButtonDefaults.shapes()) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = stringResource(R.string.journal_add_food),
+                        Icon(imageVector = Symbols.AddFilled, contentDescription = stringResource(R.string.journal_add_food),
                             modifier = Modifier.size(20.dp))
                     }
                 }
@@ -738,7 +731,7 @@ private fun FoodSearchActions(
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Public,
+                            imageVector = Symbols.PublicFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -759,7 +752,7 @@ private fun FoodSearchActions(
             shapes = ButtonDefaults.shapes(),
             contentPadding = ButtonDefaults.ContentPadding
         ) {
-            Icon(imageVector = Icons.Default.EditNote, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(imageVector = Symbols.EditNoteFilled, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = stringResource(R.string.food_enter_values, query),
@@ -819,7 +812,7 @@ internal fun FoodBarcodeScanner(
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
-                    Icon(Icons.Default.EditNote, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Symbols.EditNoteFilled, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = stringResource(R.string.food_enter_label_values))
                 }

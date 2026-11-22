@@ -51,8 +51,10 @@ class FoodPickerActionsTests {
     }
     private fun search() {
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(label(R.string.journal_food_search)))
-        compose.onNodeWithText(label(R.string.journal_food_search)).performScrollTo().performClick()
-        compose.onAllNodes(hasSetTextAction())[0].performTextInput("Meal")
+        // A selected meal adds quantity editors to the lazy list. Its semantics order
+        // can put one before search, so address the search field itself when typing.
+        compose.onNodeWithText(label(R.string.journal_food_search))
+            .performScrollTo().performClick().performTextInput("Meal")
         settle()
     }
     private fun plus(name: String) {

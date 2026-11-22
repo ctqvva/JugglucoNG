@@ -23,16 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bloodtype
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Label
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.ShowChart
-import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -99,6 +89,7 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import tk.glucodata.ui.symbols.Symbols
 
 /** The viewport a freshly chosen range is loaded for before its chart can say where it is looking: TimeRange.H24, the screen's default. */
 private const val HISTORY_RANGE_FIRST_VIEWPORT_MS = 24L * 60L * 60L * 1000L
@@ -417,16 +408,16 @@ private fun buildTimelineRows(
 }
 
 private fun JournalEntryType.historyFilterIcon(): ImageVector = when (this) {
-    JournalEntryType.INSULIN -> Icons.Default.Vaccines
-    JournalEntryType.CARBS -> Icons.Default.Restaurant
-    JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
-    JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
-    JournalEntryType.NOTE -> Icons.Default.Label
-    JournalEntryType.TEMP_BASAL -> Icons.Default.Vaccines
+    JournalEntryType.INSULIN -> Symbols.VaccinesFilled
+    JournalEntryType.CARBS -> Symbols.RestaurantFilled
+    JournalEntryType.FINGERSTICK -> Symbols.BloodtypeFilled
+    JournalEntryType.ACTIVITY -> Symbols.DirectionsRunFilled
+    JournalEntryType.NOTE -> Symbols.LabelFilled
+    JournalEntryType.TEMP_BASAL -> Symbols.VaccinesFilled
 }
 
 private fun HistoryFilterOption.historyFilterIcon(): ImageVector = when (this) {
-    HistoryFilterOption.Readings -> Icons.Default.ShowChart
+    HistoryFilterOption.Readings -> Symbols.ShowChartFilled
     is HistoryFilterOption.Journal -> type.historyFilterIcon()
 }
 
@@ -676,7 +667,7 @@ fun HistoryBrowseScreen(
                                     shapes = IconButtonDefaults.shapes()
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.Add,
+                                        imageVector = Symbols.AddFilled,
                                         contentDescription = stringResource(R.string.additem)
                                     )
                                 }
@@ -685,7 +676,7 @@ fun HistoryBrowseScreen(
                         IconButtonTooltip(stringResource(R.string.export_data)) {
                             IconButton(onClick = { showExportSheet = true }, shapes = IconButtonDefaults.shapes()) {
                                 Icon(
-                                    imageVector = Icons.Filled.CloudUpload,
+                                    imageVector = Symbols.CloudUploadFilled,
                                     contentDescription = stringResource(R.string.export_data)
                                 )
                             }
@@ -693,7 +684,7 @@ fun HistoryBrowseScreen(
                         IconButtonTooltip(stringResource(R.string.import_data)) {
                             IconButton(onClick = { importLauncher.launch(arrayOf("text/csv", "text/tab-separated-values", "text/plain", "*/*")) }, shapes = IconButtonDefaults.shapes()) {
                                 Icon(
-                                    imageVector = Icons.Filled.FolderOpen,
+                                    imageVector = Symbols.FolderOpenFilled,
                                     contentDescription = stringResource(R.string.import_data)
                                 )
                             }

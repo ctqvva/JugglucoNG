@@ -428,7 +428,7 @@ class SibionicsAlgorithmContext(
         latestV2Estimate = estimate
         traceAdaptiveV2(observation, measurement, stockMmol, temperatureC, impedance, index, eventTimeMs)
         if (estimate == null || !estimate.isUsable) return nativeRound(measurement)
-        return nativeRound(estimate.glucoseMmol)
+        return estimate.glucoseMmol
     }
 
     /**

@@ -1042,9 +1042,14 @@ strconcat getsensortext(const SensorGlucoseData *hist) {
     return strconcat(std::string_view(""), std::string_view(buf, len));
   }
 
+  if (hist->isDexcomWarmingUp(nu))
+    return strconcat(std::string_view(""), std::string_view("Warming Up"));
+
   // Check for sensor errors
   if (hist->hasSensorError(nu)) {
-    return strconcat(std::string_view(""), std::string_view("Sensor Error"));
+    return strconcat(std::string_view(""),
+                     std::string_view(hist->replacesensor ? "Replace Sensor?"
+                                                          : "Sensor Error"));
   }
 
   // Check connection status

@@ -23,6 +23,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,10 +31,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FlashOff
-import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,6 +70,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import tk.glucodata.R
+import tk.glucodata.ui.symbols.Symbols
 
 private fun Context.hasCameraPermission(): Boolean {
     return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -418,17 +416,21 @@ fun InlineQrScannerCard(
                     )
             )
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(260.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .border(
-                        width = 2.dp,
-                        color = Color.White.copy(alpha = 0.88f),
-                        shape = RoundedCornerShape(20.dp)
-                    )
-            )
+            // The framing guide: 260 dp, or less where the card is shorter (240 dp on phones),
+            // so it always fits with a margin.
+            BoxWithConstraints(modifier = Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
+                val frame = minOf(260.dp, maxHeight - 24.dp, maxWidth - 24.dp).coerceAtLeast(0.dp)
+                Box(
+                    modifier = Modifier
+                        .size(frame)
+                        .clip(RoundedCornerShape(20.dp))
+                        .border(
+                            width = 2.dp,
+                            color = Color.White.copy(alpha = 0.88f),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                )
+            }
 
             if (hasPermission && camera?.cameraInfo?.hasFlashUnit() == true) {
                 Surface(
@@ -452,7 +454,7 @@ fun InlineQrScannerCard(
                             shapes = IconButtonDefaults.shapes()
                         ) {
                             Icon(
-                                imageVector = if (torchEnabled) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                                imageVector = if (torchEnabled) Symbols.FlashOnFilled else Symbols.FlashOffFilled,
                                 contentDescription = stringResource(R.string.flash),
                                 tint = Color.White
                             )
@@ -483,7 +485,7 @@ fun InlineQrScannerCard(
                         },
                         shapes = IconButtonDefaults.shapes()) {
                             Icon(
-                                imageVector = Icons.Filled.OpenInFull,
+                                imageVector = Symbols.OpenInFullFilled,
                                 contentDescription = stringResource(R.string.scan_qr_button),
                                 tint = Color.White
                             )

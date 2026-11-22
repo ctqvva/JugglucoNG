@@ -11,7 +11,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.*
+import tk.glucodata.ui.components.DeviceHeaderButtonDefaults
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SplitButtonLayout
@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -42,9 +43,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import tk.glucodata.ui.restricted.sensorLifeFill
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.inDisplayUnit
 import androidx.compose.foundation.layout.Box
@@ -77,11 +75,16 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.core.animateFloatAsState
 
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.BLE_ERROR_CARD_WINDOW_MS
 import tk.glucodata.Notify
 import tk.glucodata.R
+import tk.glucodata.ui.components.SliderHeader
+import tk.glucodata.ui.components.SliderHeaderGap
 import tk.glucodata.SensorHandoffUiState
 import tk.glucodata.SensorVendor
 import tk.glucodata.SensorVisuals
@@ -93,8 +96,6 @@ import tk.glucodata.drivers.ManagedSensorCalibrationSource
 import tk.glucodata.drivers.anytime.AnytimeCalibrationPolicy
 import tk.glucodata.drivers.sibionics.SibionicsSensitivity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.Icon
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -108,17 +109,20 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import java.util.Locale
 
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import tk.glucodata.ui.symbols.Symbols
 
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
 
 private val SensorBadgeWidth = 50.dp
 private val SensorBadgeHeight = 40.dp
+
+/** The name pill and the button beside it are one height, so the header reads as one line. */
+private val SensorHeaderControlSize = DeviceHeaderButtonDefaults.Height
 
 /**
  * One badge line, sized down until it fits the tile rather than being clipped or ellipsized.
@@ -178,7 +182,7 @@ internal fun SensorModelBadge(
     ) {
         when {
             badge.brand.isEmpty() -> Icon(
-                imageVector = Icons.Default.Sensors,
+                imageVector = Symbols.SensorsFilled,
                 contentDescription = null,
                 tint = color,
                 modifier = Modifier.size(20.dp),
@@ -227,7 +231,7 @@ private fun SensorIdentityControl(
     life: tk.glucodata.ui.restricted.SensorLife? = null,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier = modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier = modifier.height(SensorHeaderControlSize), verticalAlignment = Alignment.CenterVertically) {
         // Alone (no colour segment beside it) the name is a whole pill.
         val leadShape = if (colorPickable) ConnectedButtonShapes.Leading else RoundedCornerShape(percent = 50)
         Row(
@@ -263,9 +267,9 @@ private fun SensorIdentityControl(
             if (selectable) {
                 Icon(
                     imageVector = if (selected) {
-                        Icons.Rounded.CheckCircle
+                        Symbols.CheckCircleFilled
                     } else {
-                        Icons.Rounded.RadioButtonUnchecked
+                        Symbols.RadioButtonUncheckedFilled
                     },
                     contentDescription = stringResource(
                         if (selected) R.string.sensor_display_selected else R.string.sensor_display_select
@@ -297,7 +301,7 @@ private fun SensorIdentityControl(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Default.ShowChart,
+                    imageVector = Symbols.ShowChartFilled,
                     contentDescription = stringResource(R.string.sensor_color_title),
                     tint = color,
                     modifier = Modifier.size(18.dp),
@@ -318,12 +322,13 @@ private fun SensorNameText(
     modifier: Modifier = Modifier,
 ) {
     val measurer = rememberTextMeasurer()
-    val baseStyle = MaterialTheme.typography.titleLarge
+    // Theme roles only: the condensed title while it fits, then the emphasized 16sp one.
+    val typography = MaterialTheme.typography
+    val candidates = listOf(typography.titleLarge, typography.titleMediumEmphasized)
     val density = LocalDensity.current
     BoxWithConstraints(modifier = modifier) {
         val availablePx = with(density) { maxWidth.roundToPx() }
-        val style = remember(name, availablePx, baseStyle) {
-            val candidates = listOf(22.sp, 20.sp, 18.sp, 16.sp).map { baseStyle.copy(fontSize = it) }
+        val style = remember(name, availablePx, candidates) {
             candidates.firstOrNull { candidate ->
                 measurer.measure(name, candidate, softWrap = false).size.width <= availablePx
             } ?: candidates.last()
@@ -354,6 +359,260 @@ internal fun bleErrorValue(status: String, relativeAge: CharSequence?): String {
     val age = relativeAge?.toString()?.trim().orEmpty()
     return if (age.isEmpty()) status else "$status · $age"
 }
+
+/**
+ * The card's label and value pairs as one table: label at the start, value at the end. A value
+ * too long for its line wraps inside the value column, its lines kept to the end edge, so one
+ * long figure no longer turns the whole list into a column. Only when a label and the longest
+ * word of its value cannot share a line (large font sizes) does every value go under its label;
+ * the two are never mixed in one list. Children come in pairs: a label, then its value. The
+ * content is told which of the two it is in, so values can align to match.
+ */
+@Composable
+private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable (table: Boolean) -> Unit) {
+    var table by remember { mutableStateOf(true) }
+    androidx.compose.ui.layout.Layout(content = { content(table) }, modifier = modifier) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val gap = 12.dp.roundToPx()
+        val pairs = measurables.chunked(2).filter { it.size == 2 }
+        val labelWidths = pairs.map { (label, _) -> label.maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity) }
+        val fits = pairs.indices.all { i ->
+            labelWidths[i] <= width / 2 &&
+                labelWidths[i] + gap + pairs[i][1].minIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity) <= width
+        }
+        if (fits != table) table = fits
+        val loose = androidx.compose.ui.unit.Constraints(maxWidth = width)
+        val placed = pairs.mapIndexed { i, (label, value) ->
+            val labelPlaceable = label.measure(loose)
+            val valueConstraints = if (fits) {
+                androidx.compose.ui.unit.Constraints(maxWidth = (width - labelWidths[i] - gap).coerceAtLeast(0))
+            } else {
+                loose
+            }
+            labelPlaceable to value.measure(valueConstraints)
+        }
+        val rowGap = (if (fits) 8.dp else 12.dp).roundToPx()
+        val stackGap = 2.dp.roundToPx()
+        val heights = placed.map { (label, value) ->
+            if (fits) maxOf(label.height, value.height) else label.height + stackGap + value.height
+        }
+        val height = heights.sum() + rowGap * (heights.size - 1).coerceAtLeast(0)
+        layout(width, height) {
+            var y = 0
+            placed.forEach { (label, value) ->
+                if (fits) {
+                    // The label sits on the value's first line: on its baseline when both
+                    // report one, else centred on a single-line value.
+                    val labelBase = label[androidx.compose.ui.layout.FirstBaseline]
+                    val valueBase = value[androidx.compose.ui.layout.FirstBaseline]
+                    val labelY = if (labelBase != androidx.compose.ui.layout.AlignmentLine.Unspecified &&
+                        valueBase != androidx.compose.ui.layout.AlignmentLine.Unspecified
+                    ) {
+                        valueBase - labelBase
+                    } else {
+                        (value.height - label.height) / 2
+                    }
+                    val top = minOf(0, labelY)
+                    label.placeRelative(0, y + labelY - top)
+                    value.placeRelative(width - value.width, y - top)
+                } else {
+                    label.placeRelative(0, y)
+                    value.placeRelative(0, y + label.height + stackGap)
+                }
+                y += if (fits) maxOf(label.height, value.height) else label.height + stackGap + value.height
+                y += rowGap
+            }
+        }
+    }
+}
+
+/** The container of the card's quiet buttons (Pause, the link pill), apart from its labels. */
+@Composable
+private fun sensorQuietButtonContainer(): Color = MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+
+private enum class SensorLinkState { UP, WAITING, DOWN }
+
+/**
+ * The Bluetooth link at a glance. Up: the sign with three waves leaving it, as many lit as the
+ * signal is strong, and a tap puts the figure they are drawn from beside it for a moment.
+ * Waiting (searching, warming up): the sign with its waves unlit. Down: the struck-through
+ * sign on the error container. It is a chip the size of the reading chip at the line's other end.
+ */
+/**
+ * The status line beside the reading. One line while it fits; when it does not, a trailing
+ * "(qualifier)" drops to a supporting line under the state ("Connected" over "Broadcast
+ * fallback"), a status without one wraps between its words, and a single word shrinks on its
+ * line rather than break inside itself.
+ */
+@Composable
+private fun SensorStatusText(status: String, color: Color, modifier: Modifier = Modifier) {
+    var stacked by remember(status) { mutableStateOf(false) }
+    val open = status.lastIndexOf(" (")
+    val split = if (open > 0 && status.endsWith(")")) {
+        status.substring(0, open) to status.substring(open + 2, status.length - 1)
+            .replaceFirstChar { it.titlecase() }
+    } else {
+        null
+    }
+    if (!stacked) {
+        Text(
+            text = status,
+            style = MaterialTheme.typography.titleSmall,
+            color = color,
+            maxLines = 1,
+            softWrap = false,
+            onTextLayout = { if (it.hasVisualOverflow) stacked = true },
+            modifier = modifier,
+        )
+    } else if (split != null) {
+        Column(modifier = modifier) {
+            Text(
+                text = split.first,
+                style = MaterialTheme.typography.titleSmall,
+                color = color,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            Text(
+                text = split.second,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+        }
+    } else if (status.none { it.isWhitespace() }) {
+        // One word ("Подключено") has nowhere to wrap but mid-word: it steps down a size on
+        // its one line instead, and only past the smallest size loses its end.
+        val maxSize = MaterialTheme.typography.titleSmall.fontSize
+        val minSize = MaterialTheme.typography.labelMedium.fontSize
+        val autoSize = remember(minSize, maxSize) {
+            androidx.compose.foundation.text.TextAutoSize.StepBased(
+                minFontSize = minSize,
+                maxFontSize = maxSize,
+                stepSize = 1.sp,
+            )
+        }
+        Text(
+            text = status,
+            style = MaterialTheme.typography.titleSmall,
+            color = color,
+            autoSize = autoSize,
+            maxLines = 1,
+            softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = modifier,
+        )
+    } else {
+        // Several words wrap between them, into two lines of about even length.
+        Text(
+            text = status,
+            style = MaterialTheme.typography.titleSmall.copy(lineBreak = androidx.compose.ui.text.style.LineBreak.Heading),
+            color = color,
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, accent: Color, modifier: Modifier = Modifier) {
+    val down = state == SensorLinkState.DOWN
+    // The sensor's own colour, as on its name: down keeps the error colours.
+    val color = if (down) MaterialTheme.colorScheme.onErrorContainer else accent
+    val waves = when {
+        state != SensorLinkState.UP || rssi == null -> 0
+        rssi >= -65 -> 3
+        rssi >= -80 -> 2
+        else -> 1
+    }
+    val figure = if (state == SensorLinkState.UP && rssi != null) stringResource(R.string.ottai_rssi_dbm, rssi) else null
+    var showFigure by remember { mutableStateOf(false) }
+    LaunchedEffect(showFigure) {
+        if (showFigure) {
+            kotlinx.coroutines.delay(4_000L)
+            showFigure = false
+        }
+    }
+    val tap = if (figure != null) {
+        Modifier.clickable(role = Role.Button) { showFigure = !showFigure }
+    } else {
+        Modifier
+    }
+    // The reading chip's own shape, height and padding: the line's two ends are a pair. When a
+    // tap shows the figure it is a button, so it wears the Pause button's container above it
+    // rather than the reading chip's, which is only a label.
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = when {
+            down -> MaterialTheme.colorScheme.errorContainer
+            figure != null -> sensorQuietButtonContainer()
+            else -> MaterialTheme.colorScheme.surfaceContainer
+        },
+        contentColor = color,
+        tonalElevation = 1.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                // Named where it is tapped, so the button is not announced without a label.
+                .semantics { contentDescription = figure ?: "" }
+                .then(tap)
+                .heightIn(min = 32.dp)
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AnimatedVisibility(
+                visible = showFigure && figure != null,
+                enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                    fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                    fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            ) {
+                Text(
+                    text = figure.orEmpty(),
+                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                    color = if (down) color else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+            }
+            val unlit = MaterialTheme.colorScheme.outlineVariant
+            // The sign names what the waves measure, so it is the smaller of the two.
+            Icon(
+                imageVector = if (down) Symbols.BluetoothDisabledFilled else Symbols.BluetoothFilled,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(if (down) 16.dp else 12.dp),
+            )
+            if (!down) {
+                // Waves leaving the sign, nearest first: as many lit as the signal is strong.
+                androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 12.dp, height = 20.dp)) {
+                    val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
+                    val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = 1.5.dp.toPx(),
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    )
+                    val centerX = if (rtl) size.width + 2.dp.toPx() else -2.dp.toPx()
+                    for (wave in 0 until 3) {
+                        val radius = (5 + wave * 4).dp.toPx()
+                        drawArc(
+                            color = if (wave < waves) color else unlit,
+                            startAngle = if (rtl) 140f else -40f,
+                            sweepAngle = 80f,
+                            useCenter = false,
+                            topLeft = androidx.compose.ui.geometry.Offset(centerX - radius, size.height / 2f - radius),
+                            size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
+                            style = stroke,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun SensorCurrentValueChip(
@@ -1109,7 +1368,7 @@ fun SensorCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Tune,
+                            imageVector = Symbols.TuneFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.tertiary
                         )
@@ -1164,7 +1423,7 @@ fun SensorCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.RestartAlt,
+                            imageVector = Symbols.RestartAltFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error
                         )
@@ -1346,30 +1605,15 @@ fun SensorCard(
                             .fillMaxWidth()
                             .padding(horizontal = 4.dp),
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.sibionics_sensitivity),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Text(
-                                    stringResource(
-                                        R.string.sibionics_sensor_sensitivity,
-                                        formatSibionicsSensitivity(sensor.automaticAlgorithmSensitivity),
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Text(
-                                formatSibionicsSensitivity(sensitivityDraft),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
+                        SliderHeader(
+                            label = stringResource(R.string.sibionics_sensitivity),
+                            value = formatSibionicsSensitivity(sensitivityDraft),
+                            supportingText = stringResource(
+                                R.string.sibionics_sensor_sensitivity,
+                                formatSibionicsSensitivity(sensor.automaticAlgorithmSensitivity),
+                            ),
+                        )
+                        Spacer(Modifier.height(SliderHeaderGap))
                         Slider(
                             value = sensitivityDraft,
                             onValueChange = {
@@ -1414,7 +1658,7 @@ fun SensorCard(
                     subtitleStyle = MaterialTheme.typography.bodySmall,
                     checked = algorithmFeatures and 1 != 0,
                     onCheckedChange = ::setCalibration,
-                    icon = Icons.Default.Science,
+                    icon = Symbols.ScienceFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = if (showsUncertainty) CardPosition.TOP else CardPosition.SINGLE,
                     // Its bottom edge has to travel from a lone card to the head
@@ -1462,7 +1706,7 @@ fun SensorCard(
                                 // rebuild.
                                 GlucoseUncertaintyDisplay.setRibbonEnabled(context, enabled)
                             },
-                            icon = Icons.Default.Insights,
+                            icon = Symbols.InsightsFilled,
                             iconTint = MaterialTheme.colorScheme.tertiary,
                             position = CardPosition.BOTTOM,
                         )
@@ -1612,7 +1856,7 @@ fun SensorCard(
                 SettingsItem(
                     title = stringResource(R.string.mq_account_title),
                     subtitle = accountSubtitle,
-                    icon = Icons.Default.Cloud,
+                    icon = Symbols.CloudFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.SINGLE,
                     onClick = {
@@ -1939,38 +2183,10 @@ fun SensorCard(
         colors = CardDefaults.cardColors(containerColor = containerColor),
         shape = RoundedCornerShape(28.dp) 
     ) {
-        // --- Dynamic Background Logic ---
-        val now = System.currentTimeMillis()
-        val start = sensor.startMs
-        val end = sensor.lifetimeEndMs()
-        
-        val totalDuration = (end - start).coerceAtLeast(1) // Avoid div/0
-        val usedDuration = (now - start).coerceAtLeast(0)
-        val progress = (usedDuration.toFloat() / totalDuration).coerceIn(0f, 1f)
-        
-        // Color Shift: Safe -> Warning (80%) -> Critical (95%)
-        val fillColor = when {
-            progress > 0.95f -> MaterialTheme.colorScheme.error
-            progress > 0.80f -> MaterialTheme.colorScheme.tertiary 
-            else -> MaterialTheme.colorScheme.primary
-        }
-        val fillAlpha = 0.12f // Light tint
-
+        // The lifetime fill is not on the card itself: it lives in the name's pill
+        // (restricted) or the wear bar above the dates (full card).
         Box(modifier = Modifier.fillMaxSize()) {
-            // 1. Dynamic Fill Layer
-            // FIX: Only show fill if start date is valid (> Jan 1 2020)
-            // Prevents "100% Red Fill" bug when startMs is 0 or invalid (1970).
-            // Restricted, the fill lives in the name's pill instead.
-            if (sensor.startMs > 1577836800000L && !restricted) {
-                 Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(progress)
-                        .background(fillColor.copy(alpha = fillAlpha))
-                )
-            }
-
-            // 2. Content Layer with Color Indicator
+            // Content layer with the colour indicator
             Row(modifier = Modifier.fillMaxWidth().padding(0.dp).alpha(contentAlpha)) {
                 // Color indicator bar - shows sensor's assigned color
                 Box(
@@ -1991,7 +2207,8 @@ fun SensorCard(
                         sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand)
                     }
                     val canToggleEnabled = sensorCount > 1
-                    val restrictedLife = if (restricted) tk.glucodata.ui.restricted.sensorLife(sensor) else null
+                    // Null when the start is unset: nothing about the wear is shown then.
+                    val life = tk.glucodata.ui.restricted.sensorLife(sensor)
 
                     // Identity and the controls that belong to it stay together on the left; the
                     // pause button is the one thing pinned to the far edge.
@@ -2018,7 +2235,9 @@ fun SensorCard(
                             onToggle = { viewModel.toggleDisplaySelection(sensor.serial) },
                             onPickColor = { showColorSheet = true },
                             colorPickable = !restricted,
-                            life = restrictedLife,
+                            // Restricted, the pill has the room for the day of wear; with the
+                            // colour and pause controls beside it, the wear bar below carries it.
+                            life = life?.takeIf { restricted },
                             modifier = Modifier.weight(1f),
                         )
                         val cloneWithoutControl = sensor.isCloneSource && !sensor.canTakeOverClone
@@ -2034,15 +2253,15 @@ fun SensorCard(
                                 // container itself takes the press shape.
                                 FilledIconButton(
                                     onClick = { viewModel.returnSensorToPhone(sensor.serial) },
-                                    modifier = Modifier.size(48.dp),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                                     ),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.PhoneAndroid,
+                                        imageVector = Symbols.PhoneAndroidFilled,
                                         contentDescription = stringResource(R.string.return_sensor_to_phone),
                                         modifier = Modifier.size(24.dp),
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2070,15 +2289,15 @@ fun SensorCard(
                                             viewModel.handBackCloneSensor(sensor.serial)
                                         }
                                     },
-                                    modifier = Modifier.size(48.dp),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                                     ),
                                 ) {
                                     Icon(
-                                        imageVector = if (sensor.isCloneSource) Icons.Default.Bluetooth else Icons.Default.SwapHoriz,
+                                        imageVector = if (sensor.isCloneSource) Symbols.BluetoothFilled else Symbols.SwapHorizFilled,
                                         contentDescription = label,
                                         modifier = Modifier.size(24.dp),
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2101,18 +2320,18 @@ fun SensorCard(
                                             viewModel.reconnectSensor(sensor.serial, false)
                                         }
                                     },
-                                    modifier = Modifier.size(48.dp),
-                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.size(DeviceHeaderButtonDefaults.Width, DeviceHeaderButtonDefaults.Height),
+                                    shapes = IconButtonDefaults.shapes(shape = DeviceHeaderButtonDefaults.Shape),
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = if (isLocallyEnabled) {
-                                            MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+                                            sensorQuietButtonContainer()
                                         } else {
                                             MaterialTheme.colorScheme.primaryContainer
                                         },
                                     ),
                                 ) {
                                     Icon(
-                                        imageVector = if (isLocallyEnabled) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        imageVector = if (isLocallyEnabled) Symbols.PauseFilled else Symbols.PlayArrowFilled,
                                         contentDescription = stringResource(
                                             if (isLocallyEnabled) R.string.sensor_pause_streaming
                                             else R.string.sensor_resume_streaming
@@ -2169,19 +2388,43 @@ fun SensorCard(
                                 )
                             }
                             sensorStatusText?.let { status ->
-                                Text(
-                                    text = status,
-                                    style = MaterialTheme.typography.titleSmall,
+                                SensorStatusText(
+                                    status = status,
                                     color = if (sensor.isCloneSource && !cloneHasRecentData) {
                                         MaterialTheme.colorScheme.error
                                     } else if (isStreaming) {
                                         MaterialTheme.colorScheme.onSurface
+                                    } else if (!sensor.isCloneSource && !isHandedOff && isLocallyEnabled && (
+                                            status.equals(stringResource(R.string.status_disconnected), ignoreCase = true) ||
+                                                status.equals(stringResource(R.string.lossofsignal), ignoreCase = true)
+                                            )
+                                    ) {
+                                        // A dead link says so in the error colour, as its mark does.
+                                        MaterialTheme.colorScheme.error
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
+                                    modifier = Modifier.weight(1f)
+                                )
+                            } ?: Spacer(modifier = Modifier.weight(1f))
+                            // The link itself, at the far end of the line: up with its signal
+                            // level, down, or neither yet. Only for a sensor this phone's own
+                            // radio reads and has not been told to leave alone.
+                            if (!restricted && !sensor.isCloneSource && !isHandedOff && isLocallyEnabled) {
+                                // The driver's own word wins: an enabled sensor counts as
+                                // streaming even while its link is down.
+                                val linkDown = sensorStatusText != null && (
+                                    sensorStatusText.equals(stringResource(R.string.status_disconnected), ignoreCase = true) ||
+                                        sensorStatusText.equals(stringResource(R.string.lossofsignal), ignoreCase = true)
+                                    )
+                                SensorLinkMark(
+                                    state = when {
+                                        linkDown -> SensorLinkState.DOWN
+                                        isStreaming -> SensorLinkState.UP
+                                        else -> SensorLinkState.WAITING
+                                    },
+                                    rssi = sensor.rssi.takeIf { it in -120..-1 },
+                                    accent = sensorTint,
                                 )
                             }
                         }
@@ -2191,22 +2434,126 @@ fun SensorCard(
 //            } // Close Row (color indicator wrapper)
 //            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (!restricted) {
-            Spacer(modifier = Modifier.height(16.dp))
+            // The wear bar, Started and Ends sit on top of the details as one stacked group.
+            if (life != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                tk.glucodata.ui.restricted.SensorWear(life)
+                Spacer(modifier = Modifier.height(2.dp))
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+            // Open stays open: the choice is kept across sensors and restarts.
+            val detailsExpanded = SensorCardDetails.expanded(context, sensor.serial)
+            val setDetailsExpanded = { expanded: Boolean -> SensorCardDetails.setExpanded(context, sensor.serial, expanded) }
+            // Open, the rows sit a step back from the line they came out of.
+            val detailsColor by animateColorAsState(
+                targetValue = if (detailsExpanded) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainer,
+                animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+                label = "sensorDetailsColor",
+            )
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer // Tonal separation
+                shape = if (life != null) {
+                    RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+                } else {
+                    RoundedCornerShape(12.dp)
+                },
+                color = detailsColor,
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(
-                        modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    // The details are reference material, so they stay folded behind one line
+                    // that names the sensor's model and firmware until someone asks for them.
+                    val detailSummary = listOf(
+                        sensor.vendorModel,
+                        sensor.vendorFirmware.let {
+                            if (it.isEmpty() || it.startsWith("v", ignoreCase = true)) it else "v$it"
+                        },
+                    ).filter { it.isNotEmpty() }.joinToString(" · ").ifEmpty { sensor.deviceAddress }
+                    // The one figure worth seeing without opening: how much battery is left.
+                    val batterySummary = when {
+                        sensor.batteryPercent >= 0 -> "${sensor.batteryPercent}%"
+                        sensor.batteryMillivolts > 0 -> String.format(java.util.Locale.getDefault(), "%.2f V", sensor.batteryMillivolts / 1000.0)
+                        else -> null
+                    }
+                    val detailsFadeIn = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+                    val detailsFadeOut = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                    val detailsResize = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.unit.IntSize>()
+                    // The line and the rows are one thing in two states: the line turns into the
+                    // rows in place, and a tap anywhere on the rows turns them back.
+                    AnimatedContent(
+                        targetState = detailsExpanded,
+                        transitionSpec = {
+                            fadeIn(detailsFadeIn)
+                                .togetherWith(fadeOut(detailsFadeOut))
+                                .using(androidx.compose.animation.SizeTransform(clip = true) { _, _ -> detailsResize })
+                        },
+                        contentAlignment = Alignment.TopStart,
+                        label = "sensorDetails",
+                    ) { detailsOpen ->
+                    if (!detailsOpen) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) { setDetailsExpanded(true) }
+                            .heightIn(min = 48.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // Clean Label-Value rows
+                        Icon(
+                            imageVector = Symbols.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = detailSummary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (batterySummary != null) {
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(R.string.sensor_battery_voltage),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = batterySummary,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                                maxLines = 1,
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Icon(
+                            imageVector = Symbols.ExpandMoreFilled,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    } else {
+                    SensorDetailList(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) { setDetailsExpanded(false) }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                    ) { table ->
+                        // Clean Label-Value rows. In the table a wrapped value keeps to the end edge.
                         val labelStyle = MaterialTheme.typography.labelMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        val valueStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)
+                        val valueStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = if (table) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start,
+                            // Balanced: a wrapped value splits into lines of about even length
+                            // instead of a full line and a stray word.
+                            lineBreak = androidx.compose.ui.text.style.LineBreak.Heading,
+                        )
                         var batteryRefreshAnimation by remember(sensor.serial) { mutableIntStateOf(0) }
 
                         @Composable
@@ -2216,60 +2563,40 @@ fun SensorCard(
                             onClick: (() -> Unit)? = null,
                             valueAnimationKey: Int? = null,
                         ) {
-                            val rowModifier = if (onClick != null) {
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = onClick,
-                                    )
-                            } else {
-                                Modifier.fillMaxWidth()
-                            }
-                            Row(
-                                modifier = rowModifier,
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                Text(
-                                    text = label,
-                                    style = labelStyle,
-                                    maxLines = 2,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(0.42f)
+                            // A pair: the label, then its value. A tappable row answers on both.
+                            val tap = if (onClick != null) {
+                                Modifier.clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onClick,
                                 )
-                                if (valueAnimationKey == null) {
-                                    Text(
-                                        text = value,
-                                        style = valueStyle,
-                                        maxLines = 2,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                                        modifier = Modifier.weight(0.58f)
-                                    )
-                                } else {
-                                    AnimatedContent(
-                                        targetState = value to valueAnimationKey,
-                                        transitionSpec = {
-                                            (fadeIn(tween(180)) + slideInVertically(tween(180)) { it / 3 })
-                                                .togetherWith(
-                                                    fadeOut(tween(120)) + slideOutVertically(tween(120)) { -it / 3 },
-                                                )
-                                        },
-                                        contentAlignment = Alignment.CenterEnd,
-                                        label = "sensorBatteryValue",
-                                        modifier = Modifier.weight(0.58f),
-                                    ) { (animatedValue, _) ->
-                                        Text(
-                                            text = animatedValue,
-                                            style = valueStyle,
-                                            maxLines = 2,
-                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                                            modifier = Modifier.fillMaxWidth(),
-                                        )
-                                    }
+                            } else {
+                                Modifier
+                            }
+                            Text(
+                                text = label,
+                                style = labelStyle,
+                                modifier = tap,
+                            )
+                            if (valueAnimationKey == null) {
+                                Text(
+                                    text = value,
+                                    style = valueStyle,
+                                    modifier = tap,
+                                )
+                            } else {
+                                AnimatedContent(
+                                    targetState = value to valueAnimationKey,
+                                    transitionSpec = {
+                                        (fadeIn(tween(180)) + slideInVertically(tween(180)) { it / 3 })
+                                            .togetherWith(
+                                                fadeOut(tween(120)) + slideOutVertically(tween(120)) { -it / 3 },
+                                            )
+                                    },
+                                    label = "sensorBatteryValue",
+                                    modifier = tap,
+                                ) { (animatedValue, _) ->
+                                    Text(text = animatedValue, style = valueStyle)
                                 }
                             }
                         }
@@ -2307,30 +2634,28 @@ fun SensorCard(
                             // off after the one-hour card window.
                             DataRow(stringResource(R.string.last_ble_status), sensor.connectionStatus)
                         }
-                        // A mirrored sensor may never have resolved an address on this phone;
-                        // a row saying "Unknown" is a row saying nothing.
-                        if (!(sensor.isCloneSource && sensor.deviceAddress.equals("Unknown", ignoreCase = true))) {
-                            DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
-                        }
-                        if (sensor.dexcomPairingCode.isNotEmpty()) {
-                            DataRow(stringResource(R.string.dexcom_pairing_code), sensor.dexcomPairingCode)
-                        }
-                    
-                        // FIX: Use Long timestamp directly to avoid String Parsing Locale bugs in formatSensorTime
-                        // User reported "100% Fill / Red Color" bug in English Locale, likely due to startMs being 0 or parse fail.
-                        // We also ensure we only show valid dates.
-                        if (sensor.startMs > 1577836800000L) { // > Jan 1 2020
-                            DataRow(stringResource(R.string.sensor_started), formatSensorTime(sensor.startMs.toString()))
+                        if (sensor.isSensorExpired) {
+                            run {
+                                Text(stringResource(R.string.status), style = labelStyle)
+                                Text(
+                                    stringResource(R.string.sensor_expired_text),
+                                    style = MaterialTheme.typography.bodyMediumEmphasized.copy(
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                )
+                            }
                         }
 
-                        if (sensor.officialEndMs > 0) {
-                            DataRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEndMs.toString()))
-                        } else if (sensor.officialEnd.isNotEmpty()) {
-                            DataRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEnd))
+                        if (!sensor.isCloneSource && sensor.sensorErrorCode != 0) {
+                            DataRow(
+                                stringResource(R.string.sensor_error_code),
+                                sensor.sensorErrorCode.toString(),
+                            )
                         }
-
-                        // Only when it says something the official end does not: for most
-                        // sensors the two are the same timestamp, printed twice.
+                        // The tiles above the block say when the sensor started and ends, how long is
+                        // left and which day of wear this is. A row is kept only for an end date the
+                        // tiles do not show; with no usable start there are no tiles, and the sensor's
+                        // own figures stay as rows.
                         val officialEndText = when {
                             sensor.officialEndMs > 0 -> formatSensorTime(sensor.officialEndMs.toString())
                             sensor.officialEnd.isNotEmpty() -> formatSensorTime(sensor.officialEnd)
@@ -2341,8 +2666,52 @@ fun SensorCard(
                             sensor.expectedEnd.isNotEmpty() -> formatSensorTime(sensor.expectedEnd)
                             else -> null
                         }
-                        if (expectedEndText != null && expectedEndText != officialEndText) {
+                        val tileEndText = life?.let { formatSensorTime(it.endMs.toString()) }
+                        if (officialEndText != null && officialEndText != tileEndText) {
+                            DataRow(stringResource(R.string.sensor_ends_officially), officialEndText)
+                        }
+                        if (expectedEndText != null && expectedEndText != officialEndText && expectedEndText != tileEndText) {
                             DataRow(stringResource(R.string.sensor_expected_end), expectedEndText)
+                        }
+                        if (life == null) {
+                            if (sensor.sensorRemainingHours >= 0) {
+                                val remainText = when {
+                                    sensor.isSensorExpired -> stringResource(R.string.expired)
+                                    sensor.sensorRemainingHours <= 0 -> stringResource(R.string.expired)
+                                    // The row is labelled "Remaining", so the value is just the duration.
+                                    sensor.sensorRemainingHours <= 24 -> stringResource(R.string.sensor_age_hours, sensor.sensorRemainingHours)
+                                    else -> {
+                                        val days = sensor.sensorRemainingHours / 24
+                                        val hours = sensor.sensorRemainingHours % 24
+                                        stringResource(R.string.days_hours_remaining, days, hours)
+                                    }
+                                }
+                                val remainColor = when {
+                                    sensor.isSensorExpired || sensor.sensorRemainingHours <= 0 -> MaterialTheme.colorScheme.error
+                                    sensor.sensorRemainingHours <= 24 -> MaterialTheme.colorScheme.error
+                                    sensor.sensorRemainingHours <= 48 -> MaterialTheme.colorScheme.tertiary
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }
+                                run {
+                                    Text(stringResource(R.string.sensor_life), style = labelStyle)
+                                    Text(
+                                        remainText,
+                                        style = (if (sensor.sensorRemainingHours <= 24) MaterialTheme.typography.bodyMediumEmphasized else valueStyle)
+                                            .copy(color = remainColor)
+                                    )
+                                }
+                            }
+
+                            if (sensor.sensorAgeHours >= 0) {
+                                val ageText = if (sensor.sensorAgeHours < 24) {
+                                    stringResource(R.string.sensor_age_hours, sensor.sensorAgeHours)
+                                } else {
+                                    val days = sensor.sensorAgeHours / 24
+                                    val hours = sensor.sensorAgeHours % 24
+                                    stringResource(R.string.sensor_age_days_hours, days, hours)
+                                }
+                                DataRow(stringResource(R.string.sensor_age), ageText)
+                            }
                         }
 
                         if (sensor.isAnytime && sensor.batteryMillivolts > 0) {
@@ -2375,48 +2744,6 @@ fun SensorCard(
                             DataRow(stringResource(R.string.sensor_battery_voltage), String.format(java.util.Locale.getDefault(), "%.3f V", sensor.batteryMillivolts / 1000.0))
                         }
 
-                        if (sensor.sensorRemainingHours >= 0) {
-                            val remainText = when {
-                                sensor.isSensorExpired -> stringResource(R.string.expired)
-                                sensor.sensorRemainingHours <= 0 -> stringResource(R.string.expired)
-                                // The row is labelled "Remaining", so the value is just the duration.
-                                sensor.sensorRemainingHours <= 24 -> stringResource(R.string.sensor_age_hours, sensor.sensorRemainingHours)
-                                else -> {
-                                    val days = sensor.sensorRemainingHours / 24
-                                    val hours = sensor.sensorRemainingHours % 24
-                                    stringResource(R.string.days_hours_remaining, days, hours)
-                                }
-                            }
-                            val remainColor = when {
-                                sensor.isSensorExpired || sensor.sensorRemainingHours <= 0 -> MaterialTheme.colorScheme.error
-                                sensor.sensorRemainingHours <= 24 -> MaterialTheme.colorScheme.error
-                                sensor.sensorRemainingHours <= 48 -> MaterialTheme.colorScheme.tertiary
-                                else -> MaterialTheme.colorScheme.onSurface
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(stringResource(R.string.sensor_life), style = labelStyle)
-                                Text(
-                                    remainText,
-                                    style = (if (sensor.sensorRemainingHours <= 24) MaterialTheme.typography.bodyMediumEmphasized else valueStyle)
-                                        .copy(color = remainColor)
-                                )
-                            }
-                        }
-
-                        if (sensor.sensorAgeHours >= 0) {
-                            val ageText = if (sensor.sensorAgeHours < 24) {
-                                stringResource(R.string.sensor_age_hours, sensor.sensorAgeHours)
-                            } else {
-                                val days = sensor.sensorAgeHours / 24
-                                val hours = sensor.sensorAgeHours % 24
-                                stringResource(R.string.sensor_age_days_hours, days, hours)
-                            }
-                            DataRow(stringResource(R.string.sensor_age), ageText)
-                        }
-
                         if (sensor.vendorModel.isNotEmpty()) {
                             DataRow(stringResource(R.string.model), sensor.vendorModel)
                         }
@@ -2434,25 +2761,22 @@ fun SensorCard(
                             }
                             DataRow(stringResource(R.string.firmware), firmwareText)
                         }
-
-                        if (sensor.isSensorExpired) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(stringResource(R.string.status), style = labelStyle)
-                                Text(
-                                    stringResource(R.string.sensor_expired_text),
-                                    style = MaterialTheme.typography.bodyMediumEmphasized.copy(color = MaterialTheme.colorScheme.error)
-                                )
-                            }
+                        if (sensor.dexcomPairingCode.isNotEmpty()) {
+                            DataRow(stringResource(R.string.dexcom_pairing_code), sensor.dexcomPairingCode)
                         }
+                        // A mirrored sensor may never have resolved an address on this phone;
+                        // a row saying "Unknown" is a row saying nothing.
+                        if (!(sensor.isCloneSource && sensor.deviceAddress.equals("Unknown", ignoreCase = true))) {
+                            DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
+                        }
+                    }
+                    }
                     }
 
                     // Inset and softened: this separates two parts of one card, and at full
                     // strength edge to edge it read as a rule between two cards instead.
                     HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                     )
                     Row(
@@ -2462,11 +2786,11 @@ fun SensorCard(
                             // A whole-width row that only toggles one thing can afford the list
                             // item's own height, and it is the easiest thing on the card to hit.
                             .heightIn(min = 48.dp)
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            imageVector = Icons.Default.History,
+                            imageVector = Symbols.HistoryFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp),
@@ -2474,11 +2798,11 @@ fun SensorCard(
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = stringResource(R.string.sensor_connection_log),
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f),
                         )
                         Icon(
-                            imageVector = Icons.Default.ExpandMore,
+                            imageVector = Symbols.ExpandMoreFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
@@ -2493,7 +2817,7 @@ fun SensorCard(
                     ) {
                         // The taller header already spaces the log off the rows above, so the
                         // gap that matters is the one under it -- and Copy/Share bring their own.
-                        Box(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)) {
+                        Box(modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 4.dp)) {
                             SensorTraceLog(sensor)
                         }
                     }
@@ -2585,7 +2909,7 @@ fun SensorCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Tune,
+                                imageVector = Symbols.TuneFilled,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -2603,7 +2927,7 @@ fun SensorCard(
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Icon(
-                                imageVector = Icons.Default.KeyboardArrowRight,
+                                imageVector = Symbols.KeyboardArrowRightFilled,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -2638,7 +2962,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Bloodtype,
+                        imageVector = Symbols.BloodtypeFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -2753,7 +3077,7 @@ fun SensorCard(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Icon(
-                                        imageVector = if (calExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        imageVector = if (calExpanded) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
@@ -2796,7 +3120,7 @@ fun SensorCard(
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
-                            imageVector = Icons.Default.RestartAlt,
+                            imageVector = Symbols.RestartAltFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -2847,7 +3171,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.SettingsBackupRestore,
+                        imageVector = Symbols.SettingsBackupRestoreFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -2916,7 +3240,7 @@ fun SensorCard(
                                                 shapes = IconButtonDefaults.shapes(),
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Default.Remove,
+                                                    imageVector = Symbols.RemoveFilled,
                                                     contentDescription = stringResource(R.string.outbound_api_decrease_value),
                                                     modifier = Modifier.size(18.dp),
                                                 )
@@ -2946,7 +3270,7 @@ fun SensorCard(
                                                 shapes = IconButtonDefaults.shapes(),
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Default.Add,
+                                                    imageVector = Symbols.AddFilled,
                                                     contentDescription = stringResource(R.string.outbound_api_increase_value),
                                                     modifier = Modifier.size(18.dp),
                                                 )
@@ -2978,7 +3302,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.SettingsBackupRestore,
+                        imageVector = Symbols.SettingsBackupRestoreFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -2998,7 +3322,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Edit,
+                        imageVector = Symbols.EditFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3024,7 +3348,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Bloodtype,
+                        imageVector = Symbols.BloodtypeFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3060,7 +3384,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Bloodtype,
+                        imageVector = Symbols.BloodtypeFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3198,7 +3522,7 @@ fun SensorCard(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Icon(
-                                        imageVector = if (calExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        imageVector = if (calExpanded) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
@@ -3223,7 +3547,7 @@ fun SensorCard(
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
+                            imageVector = Symbols.DeleteFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -3260,7 +3584,7 @@ fun SensorCard(
                         shapes = ButtonDefaults.shapes(),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.RestartAlt,
+                            imageVector = Symbols.RestartAltFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
@@ -3285,7 +3609,7 @@ fun SensorCard(
                         shapes = ButtonDefaults.shapes(),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.History,
+                            imageVector = Symbols.HistoryFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
@@ -3310,7 +3634,7 @@ fun SensorCard(
                         shapes = ButtonDefaults.shapes(),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Key,
+                            imageVector = Symbols.KeyFilled,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
@@ -3342,7 +3666,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.SettingsBackupRestore,
+                        imageVector = Symbols.SettingsBackupRestoreFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3369,7 +3693,7 @@ fun SensorCard(
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Bluetooth,
+                        imageVector = Symbols.BluetoothFilled,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -3389,114 +3713,61 @@ fun SensorCard(
             // record does not have: the sensor is on the sending phone. Offering them
             // here only invites two phones onto one transmitter.
             if (!sensor.isCloneSource) {
-                // Edit 63b: All sensors get the same 2-button row: Reconnect | Disconnect.
-                // AiDex-specific behavior is handled in the dialogs (terminate dialog routes
-                // AiDex through disconnectSensor instead of terminateSensor).
-                // Edit 65c: Keep the old full-width 50/50 row when both labels fit, then let
-                // Disconnect keep priority only on genuinely tight localized layouts.
+                // Disconnect is the action this row is for, so it takes the width and the
+                // label. Reconnect is the occasional one: an icon at the start, named by its
+                // tooltip. AiDex-specific behaviour is handled in the dialogs.
                 val reconnectLabel = stringResource(R.string.reconnect)
-                val disconnectLabel = stringResource(R.string.disconnect)
-                val layoutDirection = LocalLayoutDirection.current
-                val density = LocalDensity.current
-                val textMeasurer = rememberTextMeasurer()
-                val buttonTextStyle = MaterialTheme.typography.labelLarge
-                // Icon (18) + gap (8) + the button's own padding.
-                val buttonIconWidth = 18.dp + 8.dp
-                val buttonChromeWidth = buttonIconWidth +
-                    ButtonDefaults.ContentPadding.calculateLeftPadding(layoutDirection) +
-                    ButtonDefaults.ContentPadding.calculateRightPadding(layoutDirection)
-                val reconnectPreferredWidth = with(density) {
-                    textMeasurer.measure(
-                        text = reconnectLabel,
-                        style = buttonTextStyle,
-                        maxLines = 1
-                    ).size.width.toDp() + buttonChromeWidth
-                }
-                val disconnectPreferredWidth = with(density) {
-                    textMeasurer.measure(
-                        text = disconnectLabel,
-                        style = buttonTextStyle,
-                        maxLines = 1
-                    ).size.width.toDp() + buttonChromeWidth
-                }
-
-                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val buttonSpacing = 8.dp
-                    val equalButtonWidth = (maxWidth - buttonSpacing) / 2
-                    fun fitsHalf(width: Dp, withIcon: Boolean) =
-                        (if (withIcon) width else width - buttonIconWidth) <= equalButtonWidth
-                    // At large text the icons go first, so both labels stay whole in the
-                    // 50/50 row; only if the words alone still don't fit does Disconnect
-                    // take its full width and Reconnect ellipsize.
-                    val showButtonIcons = fitsHalf(reconnectPreferredWidth, true) &&
-                        fitsHalf(disconnectPreferredWidth, true)
-                    val prioritizeDisconnect = !showButtonIcons && !(
-                        fitsHalf(reconnectPreferredWidth, false) &&
-                            fitsHalf(disconnectPreferredWidth, false)
-                        )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(buttonSpacing)
-                    ) {
-                        // Reconnect always stays flexible so it can either match the old 50/50
-                        // layout or yield first when Disconnect needs more room.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButtonTooltip(reconnectLabel) {
                         FilledTonalButton(
                             onClick = { showReconnectDialog = true },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.width(56.dp),
                             shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Leading, pressedShape = ConnectedButtonShapes.LeadingPressed),
-                            contentPadding = ButtonDefaults.ContentPadding,
+                            contentPadding = PaddingValues(0.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         ) {
-                            if (showButtonIcons) {
-                                Icon(
-                                    imageVector = Icons.Default.BluetoothConnected,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                            }
-                            Text(
-                                reconnectLabel,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            Icon(
+                                imageVector = Symbols.BluetoothConnectedFilled,
+                                contentDescription = reconnectLabel,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
+                    }
 
-                        FilledTonalButton(
-                            onClick = { showTerminateDialog = true },
-                            modifier = if (prioritizeDisconnect) Modifier else Modifier.weight(1f),
-                            shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Trailing, pressedShape = ConnectedButtonShapes.TrailingPressed),
-                            contentPadding = ButtonDefaults.ContentPadding,
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        ) {
-                            if (showButtonIcons) {
-                                Icon(
-                                    imageVector = Icons.Default.DeleteForever,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                            }
-                            Text(
-                                disconnectLabel,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                        }
+                    FilledTonalButton(
+                        onClick = { showTerminateDialog = true },
+                        modifier = Modifier.weight(1f),
+                        shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Trailing, pressedShape = ConnectedButtonShapes.TrailingPressed),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Symbols.DeleteForeverFilled,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.disconnect),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
             } else {
                 tk.glucodata.ui.restricted.RestrictedSensorDetails(
                     sensor = sensor,
-                    life = restrictedLife,
+                    life = life,
                     viewModel = viewModel,
                     allowDisconnect = allowDisconnect,
                 )
@@ -3542,7 +3813,7 @@ private fun AiDexPairSplitButton(
                 ),
             ) {
                 Icon(
-                    imageVector = if (paired) Icons.Default.LinkOff else Icons.Default.Link,
+                    imageVector = if (paired) Symbols.LinkOffFilled else Symbols.LinkFilled,
                     contentDescription = null,
                     modifier = Modifier.size(SplitButtonDefaults.leadingButtonIconSizeFor(height)),
                 )
@@ -3560,7 +3831,7 @@ private fun AiDexPairSplitButton(
                 elevation = ButtonDefaults.filledTonalButtonElevation(),
             ) {
                 Icon(
-                    imageVector = if (keyHeld) Icons.Default.Key else Icons.Default.KeyOff,
+                    imageVector = if (keyHeld) Symbols.KeyFilled else Symbols.KeyOffFilled,
                     contentDescription = stringResource(
                         if (keyHeld) R.string.aidex_pairing_key_backup else R.string.aidex_restore_pairing_key
                     ),

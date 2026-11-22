@@ -1,11 +1,17 @@
 package tk.glucodata.ui.journal
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -15,6 +21,8 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import tk.glucodata.Applic
+import tk.glucodata.R
+import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.prediction.StateDoseHint
@@ -22,15 +30,15 @@ import tk.glucodata.data.prediction.StateDoseHintKind
 import tk.glucodata.ui.JugglucoTheme
 import tk.glucodata.ui.ThemeMode
 
-/** Food the dashboard asked for is there to stop a low, so it gets no dose offered with it. */
+/** A dashboard carb hint must not override the person's calculator setting or pairing choice. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(
     sdk = [33],
-    application = JournalRescueCarbsSheetTests.TestApplication::class,
+    application = JournalCarbHintSheetTests.TestApplication::class,
     qualifiers = "en-w411dp-h900dp-night-xxhdpi"
 )
-class JournalRescueCarbsSheetTests {
+class JournalCarbHintSheetTests {
     class TestApplication : Applic() {
         override fun onCreate() = Unit
     }
@@ -64,23 +72,28 @@ class JournalRescueCarbsSheetTests {
         sortOrder = 0
     )
 
-    private fun showFoodSheet(hint: StateDoseHint?) {
+    private var savedEntries = emptyList<JournalEntryInput>()
+
+    private fun showFoodSheet(hint: StateDoseHint?, calculatorEnabled: Boolean = true) {
+        val timestamp = System.currentTimeMillis()
         compose.setContent {
             JugglucoTheme(ThemeMode.DARK) {
                 JournalEntrySheet(
                     unit = "mmol/L",
-                    selectedTimestamp = System.currentTimeMillis(),
+                    selectedTimestamp = timestamp,
                     suggestedDose = hint,
                     insulinPresets = listOf(rapid),
+                    foodLibraryEnabled = false,
                     doseProfile = JournalDoseProfile(
-                        enabled = true,
+                        enabled = calculatorEnabled,
                         carbRatioGramsPerUnit = 10f,
                         insulinSensitivityMgDlPerUnit = 40f,
                         targetMgDl = 100f
                     ),
                     initialType = JournalEntryType.CARBS,
                     onDismiss = {},
-                    onSave = {},
+                    onSave = { savedEntries = listOf(it) },
+                    onSaveEntries = { savedEntries = it },
                     sensorSerialProvider = { null }
                 )
             }
@@ -99,16 +112,21 @@ class JournalRescueCarbsSheetTests {
     }
 
     @Test
-    fun theHintedCarbsAreFilledInWithNoDoseOffered() {
+    fun hintedCarbsKeepTheCalculatorWithoutAutomaticallyPairingInsulin() {
         showFoodSheet(carbsHint)
 
         compose.onNodeWithText("Suggested").assertIsDisplayed()
-        compose.onNodeWithText("Dose calculator").assertDoesNotExist()
-        compose.onNodeWithText("Pair insulin").assertDoesNotExist()
+        compose.onNode(hasSetTextAction() and hasText("15")).assertExists()
+        compose.onNodeWithText("Dose calculator").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Pair insulin").assertIsEnabled()
+
+        save()
+        assertEquals(listOf(JournalEntryType.CARBS), savedEntries.map { it.type })
+        assertEquals(15f, savedEntries.single().amount)
     }
 
     @Test
-    fun steppingTheHintedCarbsStillOffersNoDose() {
+    fun editingHintedCarbsKeepsTheCalculator() {
         showFoodSheet(carbsHint)
 
         compose.onNodeWithContentDescription("Increase value").performClick()
@@ -116,6 +134,41 @@ class JournalRescueCarbsSheetTests {
         compose.waitForIdle()
 
         compose.onNodeWithText("Suggested").assertDoesNotExist()
+        compose.onNodeWithText("Dose calculator").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Pair insulin").assertIsEnabled()
+    }
+
+    @Test
+    fun aCarbHintDoesNotClearAnExplicitInsulinPairing() {
+        showFoodSheet(carbsHint)
+
+        compose.onNodeWithText("Pair insulin").performScrollTo().performClick()
+        compose.mainClock.advanceTimeBy(1_500)
+        compose.waitForIdle()
+
+        compose.onNode(hasSetTextAction() and hasText("15"))
+            .performScrollTo().performTextReplacement("30")
+        compose.mainClock.advanceTimeBy(1_500)
+        compose.waitForIdle()
+
+        save()
+        assertEquals(listOf(JournalEntryType.CARBS, JournalEntryType.INSULIN), savedEntries.map { it.type })
+        assertEquals(30f, savedEntries[0].amount)
+        assertEquals(3f, savedEntries[1].amount)
+        assertEquals(rapid.id, savedEntries[1].insulinPresetId)
+    }
+
+    @Test
+    fun aCarbHintDoesNotEnableADisabledCalculator() {
+        showFoodSheet(carbsHint, calculatorEnabled = false)
+
+        compose.onNodeWithText("Suggested").assertIsDisplayed()
         compose.onNodeWithText("Dose calculator").assertDoesNotExist()
+        compose.onNodeWithText("Pair insulin").assertDoesNotExist()
+    }
+
+    private fun save() {
+        compose.onNodeWithText(Applic.app.getString(R.string.save)).performScrollTo().performClick()
+        compose.waitForIdle()
     }
 }

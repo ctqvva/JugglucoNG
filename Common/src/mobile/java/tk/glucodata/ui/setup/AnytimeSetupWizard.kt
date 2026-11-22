@@ -10,6 +10,8 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.SensorWizardHero
+import tk.glucodata.ui.components.rememberSensorHeroCompact
 import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ButtonDefaults
@@ -34,10 +36,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -75,11 +73,13 @@ import kotlinx.coroutines.withContext
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.ui.components.SensorType
 import tk.glucodata.drivers.anytime.AnytimeAlgorithm
 import tk.glucodata.drivers.anytime.AnytimeConstants
 import tk.glucodata.drivers.anytime.AnytimeRegistry
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
+import tk.glucodata.ui.symbols.Symbols
 
 private enum class AnytimeSetupStep { SCAN, CONNECTING, SUCCESS }
 
@@ -224,6 +224,7 @@ fun AnytimeSetupWizard(
                 ) {
                     SensorSetupConnectingScreen(
                         ui = ui,
+                        sensor = SensorType.ANYTIME,
                         sensorLabel = selectedLabel.ifBlank { null }
                     )
                 }
@@ -233,6 +234,7 @@ fun AnytimeSetupWizard(
                 ) {
                     SensorSetupSuccessScreen(
                         ui = ui,
+                        sensor = SensorType.ANYTIME,
                         sensorLabel = selectedLabel.ifBlank { null }
                     )
                 }
@@ -374,6 +376,12 @@ private fun AnytimeScanStep(
                 tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             }
             item {
+                SensorWizardHero(
+                    SensorType.ANYTIME,
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+                    compact = rememberSensorHeroCompact(sharesScreen = true),
+                )
+                Spacer(Modifier.height(ui.spacerSmall))
                 ScanFilterHeader(
                     title = stringResource(R.string.anytime_searching_sensors),
                     showAllDevices = showAllDevices,
@@ -392,7 +400,7 @@ private fun AnytimeScanStep(
                 ListItem(
                     headlineContent = { Text(title) },
                     supportingContent = { Text(supporting) },
-                    leadingContent = { Icon(Icons.Default.Bluetooth, null) },
+                    leadingContent = { Icon(Symbols.BluetoothFilled, null) },
                     modifier = Modifier.clickable { onDeviceSelected(device) }
                 )
                 HorizontalDivider()
@@ -572,7 +580,7 @@ private fun AnytimeCt5CredentialsCard(
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
-                        Icon(Icons.Default.FileUpload, contentDescription = null)
+                        Icon(Symbols.FileUploadFilled, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.export))
                     }
@@ -584,7 +592,7 @@ private fun AnytimeCt5CredentialsCard(
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
-                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                        Icon(Symbols.FileDownloadFilled, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.ottai_credentials_replace))
                     }
@@ -598,7 +606,7 @@ private fun AnytimeCt5CredentialsCard(
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                    Icon(Symbols.FileDownloadFilled, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.ottai_credentials_import))
                 }

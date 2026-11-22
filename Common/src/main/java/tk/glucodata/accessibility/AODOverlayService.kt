@@ -635,6 +635,20 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         textImg?.setImageBitmap(textBitmap)
         textImg?.visibility = if (staleStatus == null) View.VISIBLE else View.GONE
 
+        val deltaText = tk.glucodata.DisplayDeltaSource.format(
+            prefs.getBoolean(tk.glucodata.DisplayDeltaSource.AOD_ENABLED, false),
+            chartPoints, activeSensorSerial, resolvedDisplay?.timeMillis ?: 0L, viewMode, isMmol,
+            prefs.getInt(tk.glucodata.DisplayDeltaSource.INTERVAL, tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES),
+            endT, Notify.glucosetimeout
+        )
+        val deltaImg = view.findViewById<ImageView>(R.id.aod_delta)
+        deltaImg?.visibility = if (deltaText.isNotEmpty()) View.VISIBLE else View.GONE
+        if (deltaText.isNotEmpty()) {
+            deltaImg?.setImageBitmap(NotificationChartDrawer.drawGlucoseText(
+                this, "Δ $deltaText", primaryDisplayColor, textScale * 0.5f, fontWeight, useSystemFont
+            ))
+        }
+
         // Pass combined scale to arrow
         val arrowImg = view.findViewById<ImageView>(R.id.notification_arrow)
         if (showArrow && !inlineMultiArrows && dataState.isFresh) {
@@ -646,6 +660,15 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
                 textScale * arrowScale
             )
             arrowImg?.setImageBitmap(arrowBitmap)
+            // Space before the arrow follows the value's size (a fixed 8dp shrank to a
+            // sliver at large AOD text): the same em as inline arrows.
+            (arrowImg?.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let { lp ->
+                val gap = Math.round(textBitmap.height * 22f / 28f * NotificationChartDrawer.ARROW_GAP_EM)
+                if (lp.marginStart != gap) {
+                    lp.marginStart = gap
+                    arrowImg.layoutParams = lp
+                }
+            }
             arrowImg?.visibility = View.VISIBLE
         } else {
             arrowImg?.visibility = View.GONE

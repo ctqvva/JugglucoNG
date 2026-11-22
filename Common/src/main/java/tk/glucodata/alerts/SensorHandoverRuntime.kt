@@ -5,6 +5,8 @@ import androidx.core.content.edit
 import java.util.concurrent.Executors
 import tk.glucodata.Applic
 import tk.glucodata.CurrentDisplaySource
+import tk.glucodata.DexGattCallback
+import tk.glucodata.Libre2GattCallback
 import tk.glucodata.Log
 import tk.glucodata.MultiSensorSelection
 import tk.glucodata.NativeSensorTermination
@@ -20,7 +22,8 @@ import tk.glucodata.drivers.ManagedBluetoothSensorDriver
 /**
  * Automatic sensor handover: when the primary sensor reaches its official end
  * time and exactly one successor is active, the successor becomes primary and
- * the expired sensor is deselected (optionally removed). Opt-in via
+ * the expired sensor is deselected (optionally removed). A sensor with a grace
+ * period (Dexcom, Libre 2) is kept through it while it still delivers readings. Opt-in via
  * [PREF_ENABLED]; with the switch off, [evaluate] returns before touching
  * anything, so default behaviour is identical to before.
  *
@@ -45,7 +48,7 @@ internal object SensorHandoverRuntime {
 
     private const val PREFS_NAME = "tk.glucodata_preferences"
 
-    /** A successor counts as delivering when it has a reading at most this old. */
+    /** A sensor counts as delivering when it has a reading at most this old. */
     private const val RECENT_READING_MAX_AGE_MS = 15L * 60_000L
 
     /** Side-effect thread; the alert lock is never held while a handover executes. */
@@ -146,6 +149,15 @@ internal object SensorHandoverRuntime {
                 0L
             }
             val endMs = if (nativeEnd > 0L) nativeEnd else snapshot?.officialEndMs ?: 0L
+            // Only Dexcom and Libre 2 keep reading through a grace period. Native's
+            // expected end also adds 12 h for AiDEX and the other managed shells,
+            // so it is read for those two kinds alone.
+            val hasGracePeriod = gatt is DexGattCallback || gatt is Libre2GattCallback
+            val expectedEndMs = if (hasGracePeriod && gatt.dataptr != 0L) {
+                runCatching { Natives.getSensorEndTime(gatt.dataptr, false) }.getOrDefault(0L)
+            } else {
+                0L
+            }
             val nativeStart = if (gatt.dataptr != 0L) {
                 runCatching { Natives.getSensorStartmsec(gatt.dataptr) }.getOrDefault(0L)
             } else {
@@ -154,7 +166,9 @@ internal object SensorHandoverRuntime {
             val startMs = if (nativeStart > 0L) nativeStart else snapshot?.startTimeMs ?: 0L
 
             allSerials.add(serial)
-            val sensor = HandoverSensor(serial, startMs, endMs) { hasRecentReading(serial) }
+            val sensor = HandoverSensor(serial, startMs, endMs, SensorHandoverState.graceEnd(hasGracePeriod, endMs, expectedEndMs)) {
+                hasRecentReading(serial)
+            }
             if (SensorIdentity.matches(serial, primarySerial)) {
                 if (primary == null) primary = sensor
             } else if (others.none { SensorIdentity.matches(it.serial, serial) }) {

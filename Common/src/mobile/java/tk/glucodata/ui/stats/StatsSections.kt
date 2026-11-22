@@ -26,10 +26,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -64,6 +60,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Expressive card shape used across the stats screen: the large radius sits on the
@@ -123,7 +120,7 @@ internal fun RiskIndexCard(
                             overflow = TextOverflow.Ellipsis
                         )
                         Icon(
-                            imageVector = Icons.Default.Info,
+                            imageVector = Symbols.InfoFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             modifier = Modifier.size(14.dp)
@@ -380,7 +377,7 @@ internal fun EpisodesCard(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Icon(
-                        imageVector = if (showAll) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        imageVector = if (showAll) Symbols.ExpandLessFilled else Symbols.ExpandMoreFilled,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)

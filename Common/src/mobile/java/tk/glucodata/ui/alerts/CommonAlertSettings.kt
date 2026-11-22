@@ -9,9 +9,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.animation.core.animateFloatAsState
@@ -30,6 +27,7 @@ import tk.glucodata.alerts.HapticProfile
 import tk.glucodata.alerts.maxSoundDelaySecondsFor
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * The body every alert shares: master, standard and custom.
@@ -81,7 +79,7 @@ fun CommonAlertSettings(
                 contentPadding = PaddingValues(vertical = 8.dp),
                 shapes = ButtonDefaults.shapes()
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(Symbols.PlayArrowFilled, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.test_alert))
             }
@@ -129,9 +127,9 @@ fun CommonAlertSettings(
                 },
                 icon = { mode ->
                     when(mode) {
-                         "Sound" -> if(selectedModes.contains(mode)) Icons.AutoMirrored.Filled.VolumeUp else Icons.Filled.VolumeOff
-                         "Vibrate" -> if(selectedModes.contains(mode)) Icons.Default.Vibration else Icons.Default.Smartphone
-                         "Flash" -> if(selectedModes.contains(mode)) Icons.Default.FlashOn else Icons.Default.FlashOff
+                         "Sound" -> if(selectedModes.contains(mode)) Symbols.VolumeUpFilled else Symbols.VolumeOffFilled
+                         "Vibrate" -> if(selectedModes.contains(mode)) Symbols.VibrationFilled else Symbols.SmartphoneFilled
+                         "Flash" -> if(selectedModes.contains(mode)) Symbols.FlashOnFilled else Symbols.FlashOffFilled
                          else -> null
                     }
                 },
@@ -161,7 +159,7 @@ fun CommonAlertSettings(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.MusicNote,
+                            Symbols.MusicNoteFilled,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
@@ -185,8 +183,9 @@ fun CommonAlertSettings(
             }
 
             // The two things people come back to: does it get through silent mode,
-            // and when is it allowed to fire at all.
-            AnimatedVisibility(visible = config.soundEnabled) {
+            // and when is it allowed to fire at all. Silent mode holds back the
+            // vibration as well as the sound, so a vibration-only alert keeps its switch.
+            AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled) {
                 ClickableToggleRow(
                     title = stringResource(R.string.override_silent_mode),
                     subtitle = stringResource(R.string.override_silent_mode_desc),
@@ -315,7 +314,7 @@ fun CommonAlertSettings(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             Icon(
-                                                Icons.Default.Warning,
+                                                Symbols.WarningFilled,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.error,
                                                 modifier = Modifier.size(18.dp)
@@ -377,7 +376,7 @@ fun CommonAlertSettings(
                         contentPadding = PaddingValues(vertical = 8.dp),
                         shapes = ButtonDefaults.shapes()
                     ) {
-                        Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Symbols.RestartAltFilled, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.alert_reset_defaults))
                     }
@@ -427,7 +426,7 @@ internal fun AdvancedSectionHeader(expanded: Boolean, onToggle: () -> Unit, modi
                 modifier = Modifier.weight(1f)
             )
             Icon(
-                Icons.Default.ExpandMore,
+                Symbols.ExpandMoreFilled,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.rotate(rotation)

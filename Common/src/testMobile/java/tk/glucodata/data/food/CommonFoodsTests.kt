@@ -55,6 +55,7 @@ class CommonFoodsTests {
         assertEquals("Гречка сухая", buckwheat.name)
         assertEquals("common:buckwheat_dry", buckwheat.key)
         assertEquals("Apfel", load("de").search("apf", 5).first().name)
+        assertEquals("Manzana", load("es").search("manzana", 5).first().name)
         assertEquals("苹果", load("zh").search("苹果", 5).first().name)
     }
 

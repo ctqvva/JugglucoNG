@@ -114,6 +114,14 @@ public class Notify {
 
     static final private String LOG_ID = "Notify";
     static Notify onenot = null;
+    /** True while a loss status owns the notification surface; reading refreshes must not replace it. */
+    private static volatile boolean signalLossActive = false;
+    /** Last reading timestamp shown in the active loss status, for re-posting. */
+    private static volatile long signalLossLastReadingMillis = 0L;
+    private static final Object signalLossLock = new Object();
+    private static long signalLossGeneration = 0L;
+    /** User disabled the glucose status notification. */
+    private static volatile boolean glucoseStatusDisabled = false;
 
     private static Handler makeGlucoseRefreshHandler() {
         HandlerThread thread = new HandlerThread("JugglucoNotifyRefresh", Process.THREAD_PRIORITY_BACKGROUND);
@@ -604,6 +612,7 @@ public class Notify {
 
     Notify(Context cont) {
         showalways = Natives.getshowalways();
+        glucoseStatusDisabled = !showalways;
         {
             if (doLog) {
                 Log.i(LOG_ID, "showalways=" + showalways);
@@ -876,6 +885,8 @@ public class Notify {
 
     static private final int glucosenotificationid = 81431;
     static private final int glucosealarmid = 81432;
+    /** Wear-only fallback slot when the ongoing activity cannot be recovered. */
+    static private final int signalLossNotificationId = 81433;
     static boolean alertwatch = false;
     static private boolean showalways = Natives.getshowalways();
 
@@ -885,6 +896,7 @@ public class Notify {
 
     static public void glucosestatus(boolean val) {
         showalways = val;
+        glucoseStatusDisabled = !val;
         Natives.setshowalways(val);
         if (!val) {
             if (onenot != null) {
@@ -955,6 +967,14 @@ public class Notify {
     }
 
     public static void showoldglucose() {
+        synchronized (signalLossLock) {
+            if (signalLossActive) {
+                // Re-enabling the glucose status during an outage must restore the loss
+                // notice, not leave the surface empty until the next reading.
+                repostSignalLoss(signalLossLastReadingMillis, signalLossGeneration);
+                return;
+            }
+        }
         var noti = onenot;
         if (noti == null)
             return;
@@ -965,6 +985,9 @@ public class Notify {
         final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
         if (current == null || current.getPrimaryValue() < 2.0f)
             return;
+        // Keep a fallback loss notification until there is actually a reading to
+        // replace it with; a restart must not silently erase a still-active outage.
+        noti.notificationManager.cancel(signalLossNotificationId);
         noti.postForegroundGlucoseNotification(
                 FOREGROUND_GLUCOSE_NOTIFICATION_KIND,
                 current.getPrimaryValue(),
@@ -1013,6 +1036,9 @@ public class Notify {
                 }
             }
         } else {
+            final var ongoing = OngoingNotificationAccess.get();
+            if (ongoing != null) ongoing.updateStatus(Applic.app, glucosenotificationid);
+            notificationManager.cancel(signalLossNotificationId);
             notificationManager.cancel(glucosealarmid);
         }
     }
@@ -1527,7 +1553,19 @@ public class Notify {
     }
 
     private void reconcileOngoingPhoneNotification(long generation, Service capturedService) {
-        if (isWearable || !shouldKeepForegroundGlucoseNotification()) {
+        if (isWearable) {
+            return;
+        }
+        if (glucoseStatusDisabled && signalLossActive) {
+            synchronized (foregroundPublicationLock) {
+                notificationManager.cancel(glucosenotificationid);
+                forgetPublishedContentLocked();
+            }
+        }
+        if (!shouldKeepForegroundGlucoseNotification()) {
+            return;
+        }
+        if (signalLossActive && !glucoseStatusDisabled) {
             return;
         }
         synchronized (foregroundPublicationLock) {
@@ -2592,6 +2630,18 @@ public class Notify {
         }
     }
 
+    /** Whether the system is in any Do Not Disturb mode; false where it cannot be read. */
+    private boolean isDoNotDisturbActive() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || notificationManager == null) {
+            return false;
+        }
+        final int filter = notificationManager.getCurrentInterruptionFilter();
+        if (doLog) {
+            Log.i(LOG_ID, "getCurrentInterruptionFilter()=" + filter);
+        }
+        return AlertDeliveryPolicy.isDoNotDisturbActive(filter);
+    }
+
     private synchronized void playringhier(Ringtone ring, int duration, boolean sound, boolean flash, boolean vibrate,
             boolean disturb, int kind) {
         playringhier(new AlertSoundHandle(ring, null, resolveSoundTitle(null, ring)),
@@ -2699,6 +2749,16 @@ public class Notify {
         final boolean quietSuppressesVibration = AlertDeliveryPolicy.shouldSuppressVibration(quietWindow,
                 quietMode, quietBreakThrough);
 
+        // Do Not Disturb: with it on and "Override silent mode" off, the alert makes no
+        // sound and does not vibrate. One decision for both, so one cannot slip past
+        // the other (#902). The notification itself is not an effect and stays.
+        final boolean dndActive = isDoNotDisturbActive();
+        final boolean dndBlocksEffects = AlertDeliveryPolicy.dndBlocksEffects(dndActive, disturb);
+        if (doLog) {
+            Log.i(LOG_ID, "dnd: active=" + dndActive + " override=" + disturb + " blocksEffects="
+                    + dndBlocksEffects + " kind=" + kind);
+        }
+
         // Stop the previous alarm before claiming focus for this one: its stop callback
         // clears notifyfocus and releases the previous alarm's request.
         stopalarm();
@@ -2706,9 +2766,10 @@ public class Notify {
         doTurnFocuson();
         // final int[] curfilter={-1};
         final boolean glucosealarm = AlertDeliveryPolicy.shouldSpeakGlucose(kind);
+        // Speech is sound: a quiet window and Do Not Disturb silence it too.
+        final boolean speechSilenced = quietSilencesSound || dndBlocksEffects;
         if (!DontTalk) {
-            // Speech is sound: a quiet window silences it too.
-            if (glucosealarm && Natives.speakalarms() && !quietSilencesSound) {
+            if (glucosealarm && Natives.speakalarms() && !speechSilenced) {
                 final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
                 // Read the static into a local before dereferencing it: endtalk() nulls
                 // SuperGattCallback.talker from another thread, and it is null until the first
@@ -2732,25 +2793,18 @@ public class Notify {
                     Log.w(LOG_ID, "playringhier: no playable sound handle");
                 }
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                int filt = notificationManager.getCurrentInterruptionFilter();
-                if (doLog) {
-                    Log.i(LOG_ID, "getCurrentInterruptionFilter()=" + filt + " disturb=" + disturb);
-                }
-
-                if (filt != NotificationManager.INTERRUPTION_FILTER_ALL) {
-                    // Phone is in some DND mode
-                    if (disturb) {
-                        // Override DND if we have permission
-                        if (notificationManager.isNotificationPolicyAccessGranted()) {
-                            notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL);
-                        }
-                    } else {
-                        // Don't disturb - skip sound
-                        doplaysound[0] = false;
-                        if (doLog) {
-                            Log.i(LOG_ID, "Skipping sound due to DND and disturb=false");
-                        }
+            if (dndActive) {
+                // Phone is in some DND mode
+                if (disturb) {
+                    // Override DND if we have permission
+                    if (notificationManager.isNotificationPolicyAccessGranted()) {
+                        notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL);
+                    }
+                } else {
+                    // Don't disturb - skip sound (the vibration is skipped by the same rule below)
+                    doplaysound[0] = false;
+                    if (doLog) {
+                        Log.i(LOG_ID, "Skipping sound due to DND and disturb=false");
                     }
                 }
             }
@@ -2797,7 +2851,7 @@ public class Notify {
                     stopvibratealarm();
                 }
                 final CurrentDisplaySource.Snapshot closingSpeech = !DontTalk && glucosealarm
-                        && Natives.speakalarms() && !quietSilencesSound
+                        && Natives.speakalarms() && !speechSilenced
                         ? resolveNotificationCurrentSnapshot() : null;
                 // Own continuing speech and the closing delay before releasing alarm focus.
                 // The reservation is distinct from utterance ownership, so late completion of
@@ -2869,8 +2923,9 @@ public class Notify {
         // and flash immediately; add the audible alarm only after the configured
         // delay. Only when both sound and vibration are on for this alert (else
         // there is either nothing to delay, or a silent gap with no signal).
-        // A sound the quiet window silences has nothing to delay.
-        final int soundDelaySeconds = (sound && vibrate && !quietSilencesSound) ? getSoundDelaySeconds(kind) : 0;
+        // A sound the quiet window or Do Not Disturb silences has nothing to delay.
+        final int soundDelaySeconds = AlertDeliveryPolicy.shouldDelaySound(sound, vibrate, quietSilencesSound,
+                dndBlocksEffects) ? getSoundDelaySeconds(kind) : 0;
         final long soundDelayMs = TimeUnit.SECONDS.toMillis(soundDelaySeconds);
         final boolean canPlaySound = sound && doplaysound[0] && hasSoundHandle && soundHandle != null;
 
@@ -2879,8 +2934,9 @@ public class Notify {
                 Flash.start(app, 200L);
             }
         }
-        // Quiet window in notification-only mode: no vibration either.
-        if (vibrate && !quietSuppressesVibration) {
+        // Quiet window in notification-only mode, or Do Not Disturb without the override:
+        // no vibration either.
+        if (AlertDeliveryPolicy.shouldVibrate(vibrate, quietSuppressesVibration, dndBlocksEffects)) {
             // The finite pattern must also span the silent delay phase
             // ("vibrate first"), else it runs out before the sound starts.
             vibratealarm(kind, resolvedHapticProfile, duration, soundDelaySeconds);
@@ -3032,8 +3088,13 @@ public class Notify {
         final boolean sound = p.getBoolean("alert_" + kind + "_sound", defSound);
         final boolean vibration = p.getBoolean("alert_" + kind + "_vibration", defVibrate);
 
-        final boolean dist = isWearable || p.getBoolean("alert_" + kind + "_dnd",
-                tk.glucodata.alerts.AlertSoundDefaults.hasNativeSlot(kind) && getalarmdisturb(kind));
+        // The watch has no override switch of its own. Until the phone has said what its
+        // setting is, the watch alert keeps breaking through; after that it follows it.
+        final boolean dist = AlertDeliveryPolicy.effectiveOverrideDnd(
+                isWearable,
+                tk.glucodata.alerts.AlertRepository.INSTANCE.isOverrideDndFromPhone(kind),
+                p.getBoolean("alert_" + kind + "_dnd",
+                        tk.glucodata.alerts.AlertSoundDefaults.hasNativeSlot(kind) && getalarmdisturb(kind)));
         final boolean useAlarmStream = shouldUseAlarmAudioStream(kind, dist);
         final AlertSoundHandle soundHandle = sound ? buildAlertSoundHandle(ringUri, kind, useAlarmStream) : null;
 
@@ -4325,8 +4386,6 @@ public class Notify {
         // 1. Determine Arrow
         float rate = glucose.rate;
 
-        // Delta (Current - Previous?) - omitted for now
-
         // 2. Build Chart
         long endT = System.currentTimeMillis();
         long startT = endT - 3 * 60 * 60 * 1000L;
@@ -4510,43 +4569,14 @@ public class Notify {
                         ? iobLine
                         : new android.text.SpannableStringBuilder(iobLine).append(" · ").append(sensorStatusText);
         }
-        // Signed change over the selected interval — a raw
-        // number to sanity-check the estimated arrow against. Leftmost, right
-        // next to the arrow. Walks back to the first point old enough for the
-        // window; the tail can hold near-duplicates (persisted vs live
-        // timestamp of the same reading), so never take blind indices.
-        if (showDelta && nativePoints.size() >= 2) {
-            final GlucosePoint newest = nativePoints.get(nativePoints.size() - 1);
-            final float newestValue = (isRawMode && newest.rawValue > 0f) ? newest.rawValue : newest.value;
-            GlucosePoint previous = null;
-            for (int i = nativePoints.size() - 2; i >= 0; i--) {
-                final GlucosePoint p = nativePoints.get(i);
-                final float value = (isRawMode && p.rawValue > 0f) ? p.rawValue : p.value;
-                if (value > 0.1f && newest.timestamp - p.timestamp >= GlucoseDelta.minGapMillis(deltaIntervalMinutes)) {
-                    previous = p;
-                    break;
-                }
-            }
-            final float previousValue = previous == null ? Float.NaN
-                    : (isRawMode && previous.rawValue > 0f) ? previous.rawValue : previous.value;
-            final String deltaText = previous == null ? "" : GlucoseDelta.format(
-                    GlucoseDelta.delta(newest.timestamp, newestValue, previous.timestamp, previousValue, deltaIntervalMinutes),
-                    isMmol);
-            if (doLog)
-                Log.i(LOG_ID, "notification delta=" + deltaText
-                        + " points=" + nativePoints.size()
-                        + " gap=" + (previous == null ? -1L : (newest.timestamp - previous.timestamp))
-                        + " mode=" + viewMode + " mmol=" + isMmol
-                        + " newest=" + newest.timestamp + ":" + newestValue
-                        + " previous=" + (previous == null ? -1L : previous.timestamp) + ":" + previousValue
-                        + " displayed=" + (fallbackDisplay == null ? -1L : fallbackDisplay.getTimeMillis())
-                        + ":" + displayGlucoseValue);
-            if (!deltaText.isEmpty()) {
-                newStatusText = (newStatusText == null || newStatusText.length() == 0)
-                        ? deltaText
-                        : new android.text.SpannableStringBuilder(deltaText)
-                                .append(" · ").append(newStatusText);
-            }
+        final String deltaText = DisplayDeltaSource.format(
+                showDelta, chartPoints, activeSensorSerial,
+                fallbackDisplay == null ? 0L : fallbackDisplay.getTimeMillis(), viewMode, isMmol,
+                deltaIntervalMinutes, endT, glucosetimeout);
+        if (!deltaText.isEmpty()) {
+            newStatusText = (newStatusText == null || newStatusText.length() == 0)
+                    ? deltaText
+                    : new android.text.SpannableStringBuilder(deltaText).append(" · ").append(newStatusText);
         }
 
         RemoteViews remoteViews;
@@ -5155,6 +5185,110 @@ public class Notify {
         placelargenotification(R.drawable.novalue, staleReadingStatus(time), GLUCOSENOTIFICATION, true);
     }
 
+    /**
+     * Status-only update for a link that stopped delivering packets, independent of the
+     * optional sound/vibration loss alarm. Same ongoing notification slot as
+     * {@link #oldnotification(long)}, so it replaces the reading in place and does not
+     * create a second channel or a second alert.
+     */
+    static void notifySignalLoss(long lastReadingMillis) {
+        synchronized (signalLossLock) {
+            signalLossLastReadingMillis = lastReadingMillis;
+            ++signalLossGeneration;
+            signalLossActive = true;
+            if (Applic.app == null) return;
+            init(Applic.app);
+            final Notify notify = onenot;
+            if (notify != null) notify.signalLoss(lastReadingMillis);
+        }
+    }
+
+    /**
+     * Re-post only the outage that was active when the caller observed it. A reading or
+     * sensor switch may have advanced the generation while the refresh was queued.
+     */
+    static void repostSignalLoss(long lastReadingMillis, long expectedGeneration) {
+        synchronized (signalLossLock) {
+            if (!signalLossActive || signalLossGeneration != expectedGeneration) return;
+            if (Applic.app == null) return;
+            init(Applic.app);
+            final Notify notify = onenot;
+            if (notify != null) notify.signalLoss(lastReadingMillis);
+        }
+    }
+
+    /** True while a loss status owns the notification surface. */
+    static boolean hasSignalLoss() {
+        return signalLossActive;
+    }
+
+    /**
+     * A complete packet or a valid reading ends the outage. On Wear restore the ongoing
+     * status immediately; on the phone queue the normal visual reconciliation so the
+     * loss text is replaced by the next reading/stale status.
+     */
+    static void clearSignalLoss() {
+        final boolean wasActive;
+        synchronized (signalLossLock) {
+            wasActive = signalLossActive;
+            signalLossActive = false;
+            ++signalLossGeneration;
+        }
+        if (Applic.app == null) return;
+        init(Applic.app);
+        final Notify notify = onenot;
+        if (notify == null) return;
+        // The Wear fallback has a dedicated id and can survive a process restart, when
+        // the in-memory latch starts false. Cancel it on every accepted reading.
+        notify.notificationManager.cancel(signalLossNotificationId);
+        if (!wasActive) return;
+        if (isWearable) {
+            final var ongoing = OngoingNotificationAccess.get();
+            if (ongoing != null) ongoing.updateStatus(Applic.app, glucosenotificationid);
+        } else if (notify.shouldKeepForegroundGlucoseNotification()) {
+            notify.scheduleVisualNotificationRefresh();
+        } else {
+            notify.notificationManager.cancel(glucosenotificationid);
+            Notify.forgetPublishedOngoingContent();
+        }
+    }
+
+    private void signalLoss(long lastReadingMillis) {
+        final String message = signalLossStatus(lastReadingMillis);
+        if (isWearable) {
+            // The watch owns its reading through the ongoing notification. Replace its
+            // status text instead of posting a second notification; the next reading
+            // calls updateStatus() and restores the normal value. If no ongoing activity
+            // can be recovered, fall back to the normal notification slot.
+            notificationManager.cancel(glucosealarmid);
+            boolean updated = false;
+            final var ongoing = OngoingNotificationAccess.get();
+            if (ongoing != null) {
+                updated = ongoing.updateStatusText(Applic.app, glucosenotificationid, message);
+            }
+            if (!updated) {
+                final Notification lossNotification = makenotification(
+                        R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
+                // The latch prevents a repost during the same outage, so the fallback
+                // must not be dismissible or auto-cancelled.
+                lossNotification.flags |= FLAG_ONGOING_EVENT;
+                lossNotification.flags &= ~Notification.FLAG_AUTO_CANCEL;
+                notificationManager.notify(signalLossNotificationId, lossNotification);
+            }
+        } else {
+            if (showalways && !glucoseStatusDisabled) {
+                placelargenotification(R.drawable.loss, message, GLUCOSENOTIFICATION, true, true);
+            }
+        }
+    }
+
+    static String signalLossStatus(long lastReadingMillis) {
+        final String loss = Applic.getContext().getString(R.string.lossofsignal);
+        if (lastReadingMillis <= 0L) return loss;
+        return loss + " (" + Applic.getContext().getString(R.string.nonewvalue)
+                + timef.format(lastReadingMillis) + ")";
+    }
+
     /** "No new value since 14:32": what the lock-screen overlay and widgets show in
      * place of a reading older than {@link #glucosetimeout}. */
     public static String staleReadingStatus(long lastReadingMillis) {
@@ -5163,6 +5297,11 @@ public class Notify {
 
     @SuppressWarnings("deprecation")
     private Notification makenotification(int draw, String message, String type, boolean once) {
+        return makenotification(draw, message, type, once, false);
+    }
+
+    @SuppressWarnings("deprecation")
+    private Notification makenotification(int draw, String message, String type, boolean once, boolean persistent) {
         var GluNotBuilder = mkbuilder(type);
 
         if (TargetSDK < 31 || Build.VERSION.SDK_INT < 31) {
@@ -5193,7 +5332,9 @@ public class Notify {
             GluNotBuilder.setVisibility(VISIBILITY_PUBLIC);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            GluNotBuilder.setTimeoutAfter(glucosetimeout);
+            // Status-only ("Loss of signal") must survive the whole outage; a reading
+            // notification keeps the normal 5.5-minute lifetime.
+            GluNotBuilder.setTimeoutAfter(persistent ? 0L : glucosetimeout);
         }
         if (isWearable) {
             GluNotBuilder.setAutoCancel(true);
@@ -5219,6 +5360,12 @@ public class Notify {
 
         Notification notif = GluNotBuilder.build();
         notif.when = System.currentTimeMillis();
+        if (persistent) {
+            // A status that must survive the whole outage cannot be swiped away; the
+            // latch prevents a repost until recovery.
+            notif.flags |= FLAG_ONGOING_EVENT;
+            notif.flags &= ~Notification.FLAG_AUTO_CANCEL;
+        }
         return notif;
 
     }
@@ -5566,9 +5713,12 @@ public class Notify {
     }
 
     public void placelargenotification(int draw, String message, String type, boolean once) {
-        hasvalue = true;
-        fornotify(makenotification(draw, message, type, once));
+        placelargenotification(draw, message, type, once, false);
+    }
 
+    public void placelargenotification(int draw, String message, String type, boolean once, boolean persistent) {
+        hasvalue = true;
+        fornotify(makenotification(draw, message, type, once, persistent));
     }
 
     static int testtimes = 1;

@@ -42,7 +42,7 @@ void setSensorptr(long sensorptr) {
     }
 void setSensorptrText(long sensorptr) {
    setSensorptr( sensorptr);
-    settext(Natives.sensortextfromSensorptr(sensorptr));
+    settext(SuperGattCallback.localizeSensorStatus(Natives.sensortextfromSensorptr(sensorptr)));
     }
 void settext(String text) {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {

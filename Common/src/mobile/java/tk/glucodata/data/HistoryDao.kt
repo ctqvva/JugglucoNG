@@ -261,6 +261,21 @@ interface HistoryDao {
     """)
     suspend fun deleteReadingsAtTimestamp(serials: List<String>, timestamp: Long): Int
 
+    @Query("SELECT * FROM history_readings WHERE sensorSerial IN (:serials) AND timestamp = :timestamp")
+    suspend fun getReadingsAtTimestamp(serials: List<String>, timestamp: Long): List<HistoryReading>
+
+    @Query("""
+        SELECT sensorSerial FROM history_deleted_readings
+        WHERE sensorSerial IN (:serials) AND timestamp = :timestamp
+    """)
+    suspend fun getDeletedSerialsAtTimestamp(serials: List<String>, timestamp: Long): List<String>
+
+    @Query("""
+        DELETE FROM history_deleted_readings
+        WHERE sensorSerial IN (:serials) AND timestamp = :timestamp
+    """)
+    suspend fun deleteTombstonesAtTimestamp(serials: List<String>, timestamp: Long): Int
+
     @Query("""
         DELETE FROM history_readings
         WHERE sensorSerial IN (:serials) AND timestamp > :timestampExclusive

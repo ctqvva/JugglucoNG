@@ -2,25 +2,51 @@
 
 package tk.glucodata.drivers.ottai
 
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.SystemClock
 import android.util.AtomicFile
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.util.UUID
 import java.util.concurrent.Executors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.logi
+
+/** How long the session looks for an unseen sensor's advertisement before connecting directly. */
+private const val ADVERTISEMENT_SCAN_MS = 20_000L
+private const val RETRY_ADVERTISEMENT_SCAN_MS = 10_000L
+private const val POST_UPDATE_SCAN_WINDOW_MS = 60_000L
+private const val POST_UPDATE_RESCAN_DELAY_MS = 1_500L
+// Android's GATT_CONNECTION_TIMEOUT (0x93), delivered before STATE_CONNECTED in the field trace.
+private const val GATT_CONNECTION_TIMEOUT = 0x93
+private const val OTTAI_SETUP_LINK_TIMEOUT = "setup_connect_timeout_status=147"
+
+/**
+ * Android only knows an LE device's address type after it has seen it advertise. Until then
+ * ([BluetoothDevice.DEVICE_TYPE_UNKNOWN]) a direct connect to the bare address can never link.
+ */
+internal fun ottaiFirmwareNeedsAdvertisement(deviceType: Int): Boolean =
+    deviceType == BluetoothDevice.DEVICE_TYPE_UNKNOWN
 
 /**
  * One dialog owns one serial BLE client. It is never registered as a managed sensor and cannot
@@ -36,6 +62,10 @@ internal class OttaiFirmwareSession private constructor(
     prepareForSetup: Boolean,
     publish: (OttaiFirmwareState) -> Unit,
 ) : OttaiFirmwareIo {
+    private class RebootVerification(val deadlineMs: Long) {
+        var canRetry = true
+        fun remainingMs() = deadlineMs - SystemClock.elapsedRealtime()
+    }
     private val thread = HandlerThread("OttaiFirmware").also { it.start() }
     private val handler = Handler(thread.looper)
     private val main = Handler(Looper.getMainLooper())
@@ -55,11 +85,17 @@ internal class OttaiFirmwareSession private constructor(
     private var connectCompletion: ((Result<OttaiFirmwareGatt>) -> Unit)? = null
     private var readCompletion: ((Result<ByteArray>) -> Unit)? = null
     private var writeCompletion: ((Result<Unit>) -> Unit)? = null
+    private var finishOnDisconnect: (() -> Unit)? = null
+    private var rebootVerification: RebootVerification? = null
     private var expected: UUID? = null
     private var expectedService: UUID? = null
     private var operationTimeout: Runnable? = null
     private var discoveryStarted = false
+    private var linkEstablished = false
+    private var retriedInitialConnect = false
     private var discoveryGate: OttaiFirmwareDiscovery? = null
+    private var advertisementScanner: BluetoothLeScanner? = null
+    private var advertisementScan: ScanCallback? = null
     private val recovery = AtomicFile(File(context.filesDir, "ottai-ota/$sensorId.bin"))
     private val controller = OttaiFirmwareController(sensorId, materials, this, mode, prepareForSetup) { state ->
         main.post { publish(state) }
@@ -67,8 +103,14 @@ internal class OttaiFirmwareSession private constructor(
 
     fun install() { handler.post { controller.install() } }
     fun prepareOnly() { handler.post { controller.prepareOnly() } }
+    fun retryOffer() { handler.post { controller.retryOffer() } }
     fun recheckWithCloudAuth() { handler.post { controller.recheckWithCloudAuth() } }
     fun dispose() { handler.post { controller.close() } }
+
+    suspend fun closeAndAwaitRelease() {
+        dispose()
+        withContext(Dispatchers.IO) { thread.join() }
+    }
 
     fun discardRecovery(done: (Result<Unit>) -> Unit) {
         synchronized(discardLock) {
@@ -130,8 +172,7 @@ internal class OttaiFirmwareSession private constructor(
 
         internal fun savePreparedMaterials(context: Context, sensorId: String,
             fresh: OttaiRegistry.DeviceMaterials): OttaiRegistry.DeviceMaterials {
-            // bindV3 echoes its request timestamp even for a sensor confirmed unactivated.
-            // Preparation cannot start warmup; only the subsequent activation can supply that.
+            // bindV3 can echo its request timestamp. The managed owner derives the start from BLE.
             val prepared = fresh.copy(activeTimeMs = 0L)
             require(OttaiRegistry.saveMaterials(context, sensorId, prepared)) { "materials_save" }
             return prepared
@@ -166,6 +207,11 @@ internal class OttaiFirmwareSession private constructor(
             require(!hasPendingTransfer(context, id)) { "recovery_discard" }
         }
 
+        fun hasManagedOwner(context: Context, sensorId: String): Boolean =
+            OttaiRegistry.findRecord(context, sensorId) != null || SensorBluetooth.mygatts().any { callback ->
+                callback is OttaiDriver && callback.matchesManagedSensorId(sensorId)
+            }
+
         fun start(context: Context, sensorId: String, address: String,
             mode: OttaiFirmwareMode = OttaiFirmwareMode.PREACTIVATION,
             prepareForSetup: Boolean = false,
@@ -173,6 +219,7 @@ internal class OttaiFirmwareSession private constructor(
             val id = OttaiConstants.canonicalSensorId(sensorId)
             val ble = OttaiConstants.normalizeBleAddress(address) ?: return null
             if (!OttaiConstants.looksLikeMac(id)) return null
+            if (prepareForSetup && (mode != OttaiFirmwareMode.PREACTIVATION || hasPendingTransfer(context, id))) return null
             val materials = OttaiRegistry.loadMaterials(context, id)
             // A validated saved package and local keys can recover without an available account.
             // New experiments still require the signed-in regional session.
@@ -181,9 +228,7 @@ internal class OttaiFirmwareSession private constructor(
             if (hasPendingPreparation(context, id) && !hasPendingTransfer(context, id) &&
                 pendingMode(context, id, ble) == null) return null
             // A managed owner could reconnect and consume activation intent in parallel.
-            if (OttaiRegistry.findRecord(context, id) != null || SensorBluetooth.mygatts().any { callback ->
-                    callback is OttaiDriver && callback.matchesManagedSensorId(id)
-                }) return null
+            if (hasManagedOwner(context, id)) return null
             // Setup no longer starts the wizard-owned legacy bootstrap, so this flag has no live
             // owner: it survives only from an older build killed mid-bootstrap. Nothing else can
             // clear it before keys exist, so refusing here would block this sensor indefinitely.
@@ -200,22 +245,123 @@ internal class OttaiFirmwareSession private constructor(
         }
     }
 
-    override fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit) {
+    override fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit) = connect(done, afterTimeout = false)
+
+    override fun connectAfterUpdate(done: (Result<OttaiFirmwareGatt>) -> Unit) {
+        val verification = RebootVerification(SystemClock.elapsedRealtime() + POST_UPDATE_SCAN_WINDOW_MS)
+        connect(done, afterTimeout = false, verification = verification)
+    }
+
+    private fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit, afterTimeout: Boolean,
+        verification: RebootVerification? = null) {
         if (closed) return
         disconnect()
+        rebootVerification = verification
         connectCompletion = done
         mtu = 23
         discoveryStarted = false
+        linkEstablished = false
         log("connect address=$address")
         val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
         if (adapter?.isEnabled != true) { controller.fail("bluetooth_off"); return }
+        val known = runCatching { adapter.getRemoteDevice(address) }.getOrNull()
+            ?: run { controller.fail("connect_start"); return }
+        val freshAdvertisementRequired = afterTimeout || verification != null
+        if (!freshAdvertisementRequired && !ottaiFirmwareNeedsAdvertisement(known.type)) { connectGatt(known); return }
+        // A QR-scanned or typed ID gives an address Android has never seen advertising. A direct
+        // connect then guesses the LE address type and waits out the stack's timeout, while the
+        // same sensor picked from the nearby list connects at once. Find the advertisement first
+        // and connect from it, as the list does.
+        fun scanUnavailable(code: String) {
+            when {
+                verification != null -> controller.fail(code)
+                afterTimeout -> controller.fail(OTTAI_SETUP_LINK_TIMEOUT)
+                else -> connectGatt(known)
+            }
+        }
+        val scanMs = verification?.remainingMs() ?: if (afterTimeout) RETRY_ADVERTISEMENT_SCAN_MS else ADVERTISEMENT_SCAN_MS
+        if (scanMs <= 0) { scanUnavailable("ota_reboot_advertisement_timeout"); return }
+        val scanner = adapter.bluetoothLeScanner ?: run { scanUnavailable("ota_reboot_scan_unavailable"); return }
+        val token = generation
+        lateinit var scan: ScanCallback
+        val finish: (BluetoothDevice?, String) -> Unit = { device, failure ->
+            if (advertisementScan === scan) {
+                stopAdvertisementScan()
+                if (token == generation && !closed) {
+                    if (device == null) scanUnavailable(failure)
+                    else if (verification != null && verification.remainingMs() <= 0) scanUnavailable("ota_reboot_advertisement_timeout")
+                    else connectGatt(device, afterTimeout)
+                }
+            }
+        }
+        scan = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                if (!result.device.address.equals(address, ignoreCase = true) || (freshAdvertisementRequired && !result.isConnectable)) return
+                handler.post {
+                    log("advertisement_seen rssi=${result.rssi}")
+                    finish(result.device, "")
+                }
+            }
+
+            override fun onScanFailed(errorCode: Int) {
+                handler.post {
+                    log("advertisement_scan_failed code=$errorCode")
+                    finish(null, "ota_reboot_scan_failed=$errorCode")
+                }
+            }
+        }
+        val started = runCatching {
+            scanner.startScan(
+                listOf(ScanFilter.Builder().setDeviceAddress(address).build()),
+                ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
+                scan,
+            )
+        }.isSuccess
+        if (!started) { scanUnavailable("ota_reboot_scan_start"); return }
+        advertisementScanner = scanner
+        advertisementScan = scan
+        log("advertisement_scan address=$address")
+        // The initial QR scan can fall back to a direct connect. A timeout recovery only
+        // tries a fresh connectable advertisement, even if Android still remembers the device.
+        handler.postDelayed({
+            if (advertisementScan === scan) log("advertisement_not_seen")
+            finish(null, "ota_reboot_advertisement_timeout")
+        }, scanMs)
+    }
+
+    private fun connectGatt(device: BluetoothDevice, afterTimeout: Boolean = false) {
+        log("connect_gatt type=${device.type}")
         runCatching {
             // This callback handler also serializes callbacks on pre-API-33 devices.
-            gatt = adapter.getRemoteDevice(address).connectGatt(context, false, callbacks,
-                android.bluetooth.BluetoothDevice.TRANSPORT_LE, android.bluetooth.BluetoothDevice.PHY_LE_1M_MASK, handler)
+            gatt = device.connectGatt(context, false, callbacks,
+                BluetoothDevice.TRANSPORT_LE, BluetoothDevice.PHY_LE_1M_MASK, handler)
             require(gatt != null) { "connect_start" }
-            armTimeout("connect_timeout", 60_000L)
-        }.onFailure { controller.fail("connect_start") }
+            if (rebootVerification != null) armTimeout("ota_reboot_link_timeout", 20_000L)
+            else if (afterTimeout) armTimeout(OTTAI_SETUP_LINK_TIMEOUT, 20_000L)
+            else armTimeout("connect_timeout", 60_000L)
+        }.onFailure { failConnection("connect_start") }
+    }
+
+    private fun failConnection(code: String) {
+        val verification = rebootVerification
+        val done = connectCompletion
+        if (verification != null && done != null && verification.canRetry &&
+            verification.remainingMs() > POST_UPDATE_RESCAN_DELAY_MS) {
+            verification.canRetry = false
+            log("ota_reboot_rescan reason=$code")
+            disconnect()
+            val owner = generation
+            handler.postDelayed({
+                if (!closed && generation == owner) connect(done, afterTimeout = false, verification = verification)
+            }, POST_UPDATE_RESCAN_DELAY_MS)
+        } else controller.fail(code)
+    }
+
+    private fun stopAdvertisementScan() {
+        val scan = advertisementScan ?: return
+        advertisementScan = null
+        runCatching { advertisementScanner?.stopScan(scan) }
+        advertisementScanner = null
     }
 
     override fun rediscover(done: (Result<OttaiFirmwareGatt>) -> Unit) {
@@ -234,15 +380,31 @@ internal class OttaiFirmwareSession private constructor(
         discoveryStarted = true
         val started = runCatching { current.discoverServices() }.getOrDefault(false)
         log("discovery_requested started=$started mtu=$mtu")
-        if (started) armTimeout("discovery_timeout") else controller.fail("discovery_start")
+        if (started) armTimeout("discovery_timeout") else failConnection("discovery_start")
     }
 
     private val callbacks = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(current: BluetoothGatt, status: Int, newState: Int) = dispatch(current) {
             log("connection status=$status state=$newState")
             if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED) {
-                controller.fail("disconnected_status=$status")
+                val finish = finishOnDisconnect
+                if (newState == BluetoothProfile.STATE_DISCONNECTED && finish != null) {
+                    finishOnDisconnect = null
+                    finish()
+                    return@dispatch
+                }
+                val done = connectCompletion
+                val initialTimeout = rebootVerification == null && status == GATT_CONNECTION_TIMEOUT && !linkEstablished &&
+                    controller.state.stage == OttaiFirmwareStage.CONNECTING
+                if (initialTimeout && !retriedInitialConnect && done != null) {
+                    retriedInitialConnect = true
+                    log("connection_timeout_retry=wait_for_advertisement")
+                    connect(done, afterTimeout = true)
+                } else {
+                    failConnection(if (initialTimeout) OTTAI_SETUP_LINK_TIMEOUT else "disconnected_status=$status")
+                }
             } else if (newState == BluetoothProfile.STATE_CONNECTED) {
+                linkEstablished = true
                 current.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
                 // Like the normal driver, defer discovery until the last MTU callback settles.
                 // Starting on the first of two callbacks can lose service discovery on Mi9T.
@@ -267,7 +429,7 @@ internal class OttaiFirmwareSession private constructor(
                 return@dispatch
             }
             log("discovery_callback status=$status")
-            if (status != BluetoothGatt.GATT_SUCCESS) { controller.fail("discovery_status=$status"); return@dispatch }
+            if (status != BluetoothGatt.GATT_SUCCESS) { failConnection("discovery_status=$status"); return@dispatch }
             current.services.forEach { service ->
                 log("service=${service.uuid} chars=${service.characteristics.joinToString { "${it.uuid}:${it.properties}" }}")
             }
@@ -276,7 +438,9 @@ internal class OttaiFirmwareSession private constructor(
             val normal = characteristic(OttaiConstants.SERVICE_DEVICE_INFO, OttaiConstants.CHAR_SOFTWARE_VERSION) != null &&
                 current.getService(OttaiConstants.SERVICE_AUTH) != null && current.getService(OttaiConstants.SERVICE_CGM) != null
             if (!normal && !hasOta) { controller.fail("services_missing"); return@dispatch }
+            if (!normal && rebootVerification != null) { failConnection("still_in_bootloader"); return@dispatch }
             cancelTimeout()
+            rebootVerification = null
             val done = connectCompletion
             connectCompletion = null
             done?.invoke(Result.success(OttaiFirmwareGatt(mtu, !normal, hasOta)))
@@ -294,6 +458,7 @@ internal class OttaiFirmwareSession private constructor(
         override fun onCharacteristicWrite(current: BluetoothGatt, ch: BluetoothGattCharacteristic, status: Int) = dispatch(current) {
             if (ch.uuid != expected || ch.service?.uuid != expectedService || writeCompletion == null) return@dispatch
             cancelTimeout()
+            finishOnDisconnect = null
             expected = null
             expectedService = null
             val done = writeCompletion
@@ -344,10 +509,15 @@ internal class OttaiFirmwareSession private constructor(
     }
 
     override fun write(service: UUID, characteristic: UUID, value: ByteArray, done: (Result<Unit>) -> Unit) {
-        if (closed) return
+        submitWrite(service, characteristic, value, done)
+    }
+
+    private fun submitWrite(service: UUID, characteristic: UUID, value: ByteArray, done: (Result<Unit>) -> Unit): Boolean {
+        if (closed) return false
         val ch = characteristic(service, characteristic)
         if (!idle() || ch == null || ch.properties and BluetoothGattCharacteristic.PROPERTY_WRITE == 0) {
-            controller.fail("write_unavailable"); return
+            controller.fail("write_unavailable")
+            return false
         }
         expected = characteristic
         expectedService = service
@@ -357,12 +527,31 @@ internal class OttaiFirmwareSession private constructor(
         armTimeout("write_timeout")
         // Firmware chunks and factory parameters are intentionally never dumped.
         if (characteristic != OttaiConstants.CHAR_OTA_DATA) log("write=$characteristic bytes=${value.size}")
-        if (!runCatching { gatt?.writeCharacteristic(ch) == true }.getOrDefault(false)) controller.fail("write_start")
+        val accepted = runCatching { gatt?.writeCharacteristic(ch) == true }.getOrDefault(false)
+        if (!accepted) controller.fail("write_start")
+        return accepted
+    }
+
+    override fun finishUpdate(done: (Result<OttaiOtaFinish>) -> Unit) {
+        val accepted = submitWrite(OttaiConstants.SERVICE_OTA, OttaiConstants.CHAR_OTA_CONTROL, byteArrayOf(OttaiOtaProtocol.FINISH)) { result ->
+            done(result.map { OttaiOtaFinish.ACKNOWLEDGED })
+        }
+        // GATT callbacks are queued on this owner. Only a write accepted by Android can
+        // be overtaken by a reboot. An explicit write failure still takes the error path.
+        if (accepted) {
+            finishOnDisconnect = {
+                cancelTimeout()
+                writeCompletion = null
+                expected = null
+                expectedService = null
+                done(Result.success(OttaiOtaFinish.DISCONNECTED))
+            }
+        }
     }
 
     private fun armTimeout(code: String, delayMs: Long = 20_000L) {
         cancelTimeout()
-        operationTimeout = Runnable { controller.fail(code) }.also { handler.postDelayed(it, delayMs) }
+        operationTimeout = Runnable { failConnection(code) }.also { handler.postDelayed(it, delayMs) }
     }
 
     private fun cancelTimeout() {
@@ -382,7 +571,7 @@ internal class OttaiFirmwareSession private constructor(
                     done(result.fold({ Result.success(it) }, { error ->
                         val safe = setOf("ota_session", "ota_judge", "ota_response", "ota_flags", "download_missing",
                             "download_url", "download_filename", "target_version", "not_an_upgrade", "download_status",
-                            "download_size", "download_redirects", "redirect", "gbl_size", "gbl_header", "gbl_truncated",
+                            "download_size", "download_redirects", "download_network", "redirect", "gbl_size", "gbl_header", "gbl_truncated",
                             "gbl_tag", "gbl_header_duplicate", "gbl_length", "gbl_end", "gbl_crc", "materials_refresh",
                             "materials_identity", "materials_decrypt", "cancelled", "cloud_auth_parameter", "cloud_auth_material")
                         Result.failure(IllegalStateException(if (error is OttaiOtaCloudException) error.diagnostic
@@ -411,7 +600,11 @@ internal class OttaiFirmwareSession private constructor(
                 val url = offer.downloadUrl ?: throw IllegalArgumentException("download_missing")
                 val target = OttaiOtaProtocol.targetVersion(url)
                 require(OttaiOtaProtocol.isUpgrade(version, target)) { "not_an_upgrade" }
-                val image = download(url)
+                val image = try {
+                    download(url)
+                } catch (_: IOException) {
+                    error("download_network")
+                }
                 log("downloaded bytes=${image.size} sha256=${image.sha256}")
                 OttaiFirmwareImage(version, target, image)
             }
@@ -464,12 +657,12 @@ internal class OttaiFirmwareSession private constructor(
                     OttaiOtaProtocol.materialsVersionMatches(version, resp.deviceVersion)) { "materials_identity" }
                 OttaiCloudClient.toMaterials(context, sensorId, resp)?.takeIf { it.authKeys != null } ?: error("materials_decrypt")
             }
-        }) { result ->
-            done(result.mapCatching { fresh ->
-                // Commit only on the still-current session's serial owner, never in a late worker.
-                savePreparedMaterials(context, sensorId, fresh)
-            })
-        }
+        }, done)
+    }
+
+    override fun persistMaterials(materials: OttaiRegistry.DeviceMaterials) {
+        // Runs on the current session's owner after the controller validates the result.
+        savePreparedMaterials(context, sensorId, materials)
     }
 
     override fun savedImage(): OttaiFirmwareImage? {
@@ -518,6 +711,7 @@ internal class OttaiFirmwareSession private constructor(
 
     override fun disconnect() {
         generation++
+        stopAdvertisementScan()
         discoveryGate?.close()
         discoveryGate = null
         cancelTimeout()
@@ -526,6 +720,8 @@ internal class OttaiFirmwareSession private constructor(
         connectCompletion = null
         readCompletion = null
         writeCompletion = null
+        finishOnDisconnect = null
+        rebootVerification = null
         expected = null
         expectedService = null
         runCatching { old?.disconnect() }

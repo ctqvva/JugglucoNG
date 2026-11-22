@@ -10,6 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -71,6 +73,15 @@ fun TabScreenHeader(
                 .weight(1f)
                 .semantics { heading() },
         )
-        actions()
+        // Actions centre on the title without adding height: a 48dp icon button made the
+        // Statistics header taller than the other tabs', so its content started lower.
+        Row(
+            modifier = Modifier.layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+                layout(placeable.width, 0) { placeable.place(0, -placeable.height / 2) }
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            content = actions,
+        )
     }
 }

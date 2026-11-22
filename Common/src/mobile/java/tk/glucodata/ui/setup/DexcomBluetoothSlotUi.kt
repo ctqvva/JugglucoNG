@@ -10,10 +10,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MedicalServices
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import tk.glucodata.DexcomBluetoothSlot
 import tk.glucodata.R
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.symbols.Symbols
 
 private val dexcomSlots = listOf(
     DexcomBluetoothSlot.RECEIVER_OR_PUMP,
@@ -62,9 +59,9 @@ private fun dexcomSlotLabel(slot: Int): String = stringResource(
 )
 
 private fun dexcomSlotIcon(slot: Int): ImageVector = when (slot) {
-    DexcomBluetoothSlot.RECEIVER_OR_PUMP -> Icons.Filled.MedicalServices
-    DexcomBluetoothSlot.SMART_WATCH -> Icons.Filled.Watch
-    else -> Icons.Filled.PhoneAndroid
+    DexcomBluetoothSlot.RECEIVER_OR_PUMP -> Symbols.MedicalServicesFilled
+    DexcomBluetoothSlot.SMART_WATCH -> Symbols.WatchFilled
+    else -> Symbols.PhoneAndroidFilled
 }
 
 /** Slot picker for the setup wizard: the choice applies to sensors paired from now on. */

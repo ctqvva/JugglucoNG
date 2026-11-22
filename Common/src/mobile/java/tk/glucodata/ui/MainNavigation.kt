@@ -12,22 +12,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LegendToggle
-import androidx.compose.material.icons.filled.Sensors
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.EditNote
-import androidx.compose.material.icons.outlined.LegendToggle
-import androidx.compose.material.icons.outlined.Sensors
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.NavigationItemIconPosition
 import androidx.compose.material3.ShortNavigationBar
@@ -73,7 +66,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.animation.AnimatedContentScope
-import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -101,6 +93,7 @@ import tk.glucodata.ui.journal.JournalEntryTypesSettingsScreen
 import tk.glucodata.ui.journal.JournalScreen
 import tk.glucodata.ui.journal.JournalSettingsScreen
 import tk.glucodata.ui.viewmodel.DashboardViewModel
+import tk.glucodata.ui.symbols.Symbols
 
 sealed class CalibrationSheetState {
     object Hidden : CalibrationSheetState()
@@ -957,13 +950,13 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
         val glyph: TabGlyph
     )
     val navItems = buildList {
-        add(NavItem("stats", stringResource(R.string.statistics_title), Icons.Filled.BarChart, Icons.Outlined.BarChart, TabGlyph.STATISTICS))
+        add(NavItem("stats", stringResource(R.string.statistics_title), Symbols.BarChartFilled, Symbols.BarChart, TabGlyph.STATISTICS))
         if (showJournalNav) {
-            add(NavItem("journal", stringResource(R.string.journal_title), Icons.Filled.EditNote, Icons.Outlined.EditNote, TabGlyph.JOURNAL))
+            add(NavItem("journal", stringResource(R.string.journal_title), Symbols.EditNoteFilled, Symbols.EditNote, TabGlyph.JOURNAL))
         }
-        add(NavItem("dashboard", stringResource(R.string.dashboard), Icons.Filled.LegendToggle, Icons.Outlined.LegendToggle, TabGlyph.DASHBOARD))
-        add(NavItem("sensors", stringResource(R.string.sensor), Icons.Filled.Sensors, Icons.Outlined.Sensors, TabGlyph.SENSORS))
-        add(NavItem("settings", stringResource(R.string.settings), Icons.Filled.Settings, Icons.Outlined.Settings, TabGlyph.SETTINGS))
+        add(NavItem("dashboard", stringResource(R.string.dashboard), Symbols.LegendToggleFilled, Symbols.LegendToggle, TabGlyph.DASHBOARD))
+        add(NavItem("sensors", stringResource(R.string.sensor), Symbols.SensorsFilled, Symbols.Sensors, TabGlyph.SENSORS))
+        add(NavItem("settings", stringResource(R.string.settings), Symbols.SettingsFilled, Symbols.Settings, TabGlyph.SETTINGS))
     }
     val selectedNavRoute = navItems.firstOrNull {
         it.route == currentRoute || it.route == getParentRoute(currentRoute)
@@ -988,8 +981,23 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     // (configChanges), so the composition survives it; two NavHosts — one beside a rail, one
     // above a bar — meant every rotation disposed the open screen and rebuilt it from scratch.
     // The rail or the bar comes and goes around it; the NavHost keeps its slot.
+    // Every deletion's Undo snackbar, from any screen or sheet (see UndoSnackbar).
+    val undoSnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+    UndoSnackbarEffect(undoSnackbarHostState)
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0), // Child screens apply their own insets.
+        snackbarHost = {
+            androidx.compose.material3.SnackbarHost(
+                hostState = undoSnackbarHostState,
+                // Portrait: the bar below already clears the gesture area. Landscape has no bar.
+                modifier = if (isLandscape) {
+                    Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                } else {
+                    Modifier
+                }
+            )
+        },
         bottomBar = {
             if (!isLandscape) {
                 Box {
@@ -1124,7 +1132,7 @@ private fun LockableTabIcon(locked: Boolean, icon: @Composable () -> Unit) {
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
                     Icon(
-                        Icons.Filled.OpenInFull,
+                        Symbols.OpenInFullFilled,
                         contentDescription = stringResource(R.string.restricted_unlock_title),
                         modifier = Modifier.size(12.dp),
                     )

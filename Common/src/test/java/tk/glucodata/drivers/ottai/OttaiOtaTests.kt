@@ -174,6 +174,24 @@ class OttaiOtaTests {
         assertFalse(OttaiOtaProtocol.matchesTarget("V1.7", TEST_OTTAI_COMPOSITE_REVISION))
     }
 
+    @Test fun globalVariantlessCompositePackageIsAnUpgradeAndVerifiesOnReadback() {
+        // Field offer 2026-11-13: judge("E1.2.3(V1.7.SH2542.1)") → required, this package; the
+        // official app then left the sensor on E1.2.7(V1.7.SH2640.3).
+        val source = "E1.2.3(V1.7.SH2542.1),STDRD"
+        val target = OttaiOtaProtocol.targetVersion("https://cdn.example.invalid/ota/E1.2.7%28V1.7.SH2640.3%29.gbl")
+        assertEquals("E1.2.7(V1.7.SH2640.3)", target)
+        assertTrue(OttaiOtaProtocol.isUpgrade(source, target))
+        assertEquals(7, OttaiOtaProtocol.minor(target))
+        assertTrue(OttaiOtaProtocol.matchesTarget("E1.2.7(V1.7.SH2640.3),STDRD", target))
+        assertTrue(OttaiOtaProtocol.matchesTarget("E1.2.7(V1.7.SH2640.3)", target))
+        // Still on the old build, or a different build/E-version: not verified.
+        assertFalse(OttaiOtaProtocol.matchesTarget(source, target))
+        assertFalse(OttaiOtaProtocol.matchesTarget("E1.2.7(V1.7.SH2640.4),STDRD", target))
+        assertFalse(OttaiOtaProtocol.matchesTarget("E1.2.8(V1.7.SH2640.3),STDRD", target))
+        // A target naming a variant must still match that variant exactly.
+        assertFalse(OttaiOtaProtocol.matchesTarget("E1.2.7(V1.7.SH2640.3),OTHER", "E1.2.7(V1.7.SH2640.3),STDRD"))
+    }
+
     @Test fun unfamiliarPrintableSourceRevisionsCanUseTheCloudOffer() {
         assertEquals(-1, OttaiOtaProtocol.minor("future-vendor-revision"))
         assertTrue(OttaiOtaProtocol.isUpgrade("future-vendor-revision", "V1.8.0"))
@@ -207,6 +225,8 @@ class OttaiFirmwareControllerTests {
         val scheduled = ArrayDeque<() -> Unit>()
         val logs = mutableListOf<String>()
         var connected: ((Result<OttaiFirmwareGatt>) -> Unit)? = null
+        var verificationConnections = 0
+        var finishResult = OttaiOtaFinish.ACKNOWLEDGED
         var ack: ((Result<Unit>) -> Unit)? = null
         var saved = false
         var closed = false
@@ -215,6 +235,7 @@ class OttaiFirmwareControllerTests {
         var fresh: OttaiRegistry.DeviceMaterials? = null
         var refresh: ((Result<OttaiRegistry.DeviceMaterials>) -> Unit)? = null
         val refreshVersions = mutableListOf<String>()
+        val persisted = mutableListOf<OttaiRegistry.DeviceMaterials>()
         var reported = false
         var cleared = false
         var pendingPreparation = false
@@ -237,6 +258,10 @@ class OttaiFirmwareControllerTests {
         var offerRequests = 0
         val offerVersions = mutableListOf<String>()
         override fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit) { connected = done }
+        override fun connectAfterUpdate(done: (Result<OttaiFirmwareGatt>) -> Unit) {
+            verificationConnections++
+            connected = done
+        }
         override fun rediscover(done: (Result<OttaiFirmwareGatt>) -> Unit) {
             done(Result.success(OttaiFirmwareGatt(247, bootloaderOnly = false, hasOta = true)))
         }
@@ -252,6 +277,11 @@ class OttaiFirmwareControllerTests {
             writes += characteristic to value.copyOf()
             onWrite(characteristic, value)
             ack = done
+        }
+        override fun finishUpdate(done: (Result<OttaiOtaFinish>) -> Unit) {
+            write(OttaiConstants.SERVICE_OTA, OttaiConstants.CHAR_OTA_CONTROL, byteArrayOf(OttaiOtaProtocol.FINISH)) {
+                done(it.map { finishResult })
+            }
         }
         fun acknowledge(result: Result<Unit> = Result.success(Unit)) {
             val callback = requireNotNull(ack)
@@ -276,6 +306,9 @@ class OttaiFirmwareControllerTests {
             refresh = done
             refreshVersions += version
             fresh?.let { done(Result.success(it)) }
+        }
+        override fun persistMaterials(materials: OttaiRegistry.DeviceMaterials) {
+            persisted += materials
         }
         override fun savedImage(): OttaiFirmwareImage? {
             journalFailure?.let { error(it) }
@@ -425,6 +458,98 @@ class OttaiFirmwareControllerTests {
         assertEquals(0, io.offerRequests)
         assertNull(io.refresh)
         assertEquals(2, io.writes.size) // Local identity proof only.
+    }
+
+    @Test fun officialAppStartedSensorRecoversMissingKeysWithoutFactoryPreparation() {
+        for (version in listOf("V1.5.S2530.1,STDRD", "V1.8.0")) {
+            var releasedBeforeComplete = false
+            val (controller, io) = normal(version = version, command = 3, withoutKeys = true,
+                prepareForSetup = true, onState = { state, owner ->
+                    if (state.stage == OttaiFirmwareStage.COMPLETE) releasedBeforeComplete = owner.closedSuccessfully
+                }) {
+                // Active credential recovery does not need factory coefficients/calibration.
+                it.fresh = materials.copy(deviceVersion = version, coefficient = "", activeTimeMs = 123L)
+            }
+            finishFreshCloudAuth(io)
+            assertEquals(listOf(version), io.refreshVersions)
+            assertFalse(io.pendingPreparation)
+            assertFalse(controller.state.canPrepareParameters)
+            assertTrue(io.persisted.isEmpty())
+            repeat(2) { io.tick(); io.acknowledge() } // Prove the recovered keys locally.
+            assertEquals(OttaiFirmwareStage.COMPLETE, controller.state.stage)
+            assertTrue(releasedBeforeComplete)
+            assertTrue(controller.state.setupSensorAlreadyActive)
+            assertEquals(requireNotNull(io.fresh), io.persisted.single())
+            assertEquals(0, io.offerRequests)
+            assertFalse(io.saved)
+            assertEquals(4, io.writes.size)
+            assertTrue(io.writes.all { it.first in setOf(OttaiConstants.CHAR_AUTH_APP_PARAM, OttaiConstants.CHAR_AUTH_SIGN) })
+        }
+    }
+
+    @Test fun activeCredentialRecoveryFailureCannotCompleteOrPrepareTheSensor() {
+        var releasedBeforeFailure = false
+        val (controller, io) = normal(command = 3, withoutKeys = true, prepareForSetup = true,
+            onState = { state, owner ->
+                if (state.stage == OttaiFirmwareStage.FAILED) releasedBeforeFailure = owner.closed
+            })
+        finishFreshCloudAuth(io)
+        assertNotNull(io.refresh)
+        io.refresh!!(Result.failure(IllegalStateException("ota_request_AuthFailed_TokenInvalid")))
+        assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+        assertTrue(controller.state.errorCode.contains("TokenInvalid"))
+        assertTrue(releasedBeforeFailure)
+        assertFalse(io.pendingPreparation)
+        assertEquals(2, io.writes.size)
+    }
+
+    @Test fun activeCredentialRecoveryRequiresMatchingUsableKeysAndLocalSensorProof() {
+        for (fresh in listOf(materials.copy(deviceVersion = "V1.8.0"), materials.copy(keyAHex = ""),
+            materials.copy(keyAHex = "11".repeat(96)))) {
+            val (controller, io) = normal(command = 3, withoutKeys = true, prepareForSetup = true) { it.fresh = fresh }
+            finishFreshCloudAuth(io)
+            assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+            assertFalse(io.closedSuccessfully)
+            assertTrue(io.persisted.isEmpty())
+            assertFalse(io.pendingPreparation)
+            assertEquals(2, io.writes.size)
+        }
+    }
+
+    @Test fun activeCredentialRecoveryRechecksStatusWithoutFallingBackToFreshPreparation() {
+        for (status in listOf(0, 4)) {
+            val (controller, io) = normal(command = 3, withoutKeys = true, prepareForSetup = true) { it.fresh = materials }
+            finishFreshCloudAuth(io)
+            io.commandStatus = status
+            repeat(2) { io.tick(); io.acknowledge() }
+            assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+            assertFalse(io.pendingPreparation)
+            assertEquals(4, io.writes.size)
+            assertTrue(io.writes.none { it.first == OttaiConstants.CHAR_DESTRUCTIVE || it.first == OttaiConstants.CHAR_COMMAND })
+        }
+    }
+
+    @Test fun closedActiveCredentialRecoveryIgnoresLateMaterials() {
+        val (controller, io) = normal(command = 3, withoutKeys = true, prepareForSetup = true)
+        finishFreshCloudAuth(io)
+        val late = requireNotNull(io.refresh)
+        controller.close()
+        late(Result.success(materials))
+        assertEquals(OttaiFirmwareStage.CLOSED, controller.state.stage)
+        assertEquals(2, io.writes.size)
+        assertFalse(io.closedSuccessfully)
+    }
+
+    @Test fun activeSetupCredentialRecoveryCannotBypassEndedStatusOrSavedTransfer() {
+        for ((status, journal) in listOf(4 to null, 3 to image)) {
+            val (controller, io) = normal(command = status, withoutKeys = true, prepareForSetup = true) { it.journal = journal }
+            finishFreshCloudAuth(io)
+            assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+            assertNull(io.refresh)
+            assertEquals(0, io.offerRequests)
+            assertEquals(2, io.writes.size)
+            assertSame(journal, io.journal)
+        }
     }
 
     @Test fun anExistingUnknownProfileCanFetchCredentialsWithoutGuessingFactoryPackets() {
@@ -822,7 +947,7 @@ class OttaiFirmwareControllerTests {
 
     @Test fun authenticatedParameterPreparationSurvivesDownloadFailure() {
         val (controller, io) = normal { it.offerFailure = "download_status" }
-        assertEquals(OttaiFirmwareStage.NO_UPDATE, controller.state.stage)
+        assertEquals(OttaiFirmwareStage.CHECK_FAILED, controller.state.stage)
         assertEquals("download_status", controller.state.errorCode)
         assertTrue(controller.state.canPrepareParameters)
         io.fresh = materials
@@ -836,10 +961,28 @@ class OttaiFirmwareControllerTests {
         val (controller, io) = normal(command = 3, mode = OttaiFirmwareMode.STARTED_SENSOR) {
             it.offerFailure = "download_status"
         }
-        assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+        assertEquals(OttaiFirmwareStage.CHECK_FAILED, controller.state.stage)
         assertFalse(controller.state.canPrepareParameters)
         controller.prepareOnly()
         assertNull(io.refresh)
+    }
+
+    @Test fun failedOfferCanBeRetriedOnTheSameAuthenticatedLinkWithoutAnySensorWrites() {
+        val (controller, io) = normal { it.offerFailure = "ota_exchange_http=200_biz=Error" }
+        assertEquals(OttaiFirmwareStage.CHECK_FAILED, controller.state.stage)
+        assertTrue(controller.state.canPrepareNow)
+        assertFalse(io.closed)
+        io.offerFailure = null
+        io.holdOffer = true
+        controller.retryOffer()
+        controller.retryOffer()
+        assertEquals(OttaiFirmwareStage.CHECKING, controller.state.stage)
+        assertEquals("", controller.state.errorCode)
+        assertEquals(2, io.offerRequests)
+        io.pendingOffer!!(Result.success(null))
+        assertEquals(OttaiFirmwareStage.NO_UPDATE, controller.state.stage)
+        assertEquals(2, io.writes.size) // Initial local authentication only.
+        assertFalse(io.saved)
     }
 
     private fun finishCloudWriteback(io: FakeIo) {
@@ -1218,6 +1361,43 @@ class OttaiFirmwareControllerTests {
         assertEquals(listOf(9.toByte(), 11.toByte()), factory.map { it.second[0] })
         assertFalse(io.writes.any { it.first in setOf(OttaiConstants.CHAR_COMMAND,
             OttaiConstants.CHAR_CURRENT_TIME, OttaiConstants.CHAR_MAX_ACTIVE_TIME) })
+    }
+
+    @Test fun disconnectBeforeFinishAckVerifiesTheTargetWithoutReplayingTheTransfer() {
+        val (controller, io) = normal()
+        io.finishResult = OttaiOtaFinish.DISCONNECTED
+        controller.install()
+        while (controller.state.stage == OttaiFirmwareStage.INSTALLING) { io.tick(); io.acknowledge() }
+        assertEquals(OttaiFirmwareStage.RECONNECTING, controller.state.stage)
+        assertFalse(io.reported)
+        val otaWriteCount = io.writes.count { it.first in setOf(OttaiConstants.CHAR_OTA_CONTROL, OttaiConstants.CHAR_OTA_DATA) }
+        val answer = requireNotNull(io.readAnswer)
+        io.readAnswer = { ch -> if (ch == OttaiConstants.CHAR_SOFTWARE_VERSION) "V1.8.1".toByteArray() else answer(ch) }
+        io.tick()
+        assertEquals(1, io.verificationConnections)
+        io.connected!!(Result.success(OttaiFirmwareGatt(247, bootloaderOnly = false, hasOta = true)))
+        assertFalse(io.reported)
+        repeat(2) { io.tick(); io.acknowledge() }
+        assertTrue(io.reported)
+        assertEquals(OttaiFirmwareStage.PREPARATION_READY, controller.state.stage)
+        assertEquals(otaWriteCount, io.writes.count { it.first in setOf(OttaiConstants.CHAR_OTA_CONTROL, OttaiConstants.CHAR_OTA_DATA) })
+    }
+
+    @Test fun explicitFinishWriteFailureKeepsTheJournalAndStops() {
+        val (controller, io) = recovery()
+        controller.install()
+        while (true) {
+            io.tick()
+            val (characteristic, value) = io.writes.last()
+            if (characteristic == OttaiConstants.CHAR_OTA_CONTROL && value.contentEquals(byteArrayOf(OttaiOtaProtocol.FINISH))) break
+            io.acknowledge()
+        }
+        io.acknowledge(Result.failure(IllegalStateException("write_status=128")))
+        assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+        assertEquals("write_status=128", controller.state.errorCode)
+        assertNotNull(io.journal)
+        assertTrue(io.scheduled.isEmpty())
+        assertFalse(io.reported)
     }
 
     @Test fun duplicateAckDoesNotQueueTwoChunks() {

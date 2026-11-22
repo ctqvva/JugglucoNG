@@ -105,6 +105,8 @@ in `ui/theme/Type.kt`, with `titleMedium` at 400 for the "sleek list" look.
 | `labelLarge` | Buttons, section labels |
 | `labelMedium` / `labelSmall` | Chips, metadata, chart axis (11sp minimum) |
 
+Slider headings have their own three-row table under Components › Sliders.
+
 ---
 
 ## 5. Colour
@@ -153,16 +155,19 @@ Reach for these before building a surface by hand.
 | A setting that reveals more | `ExpandableSettingsCard`, `DisclosingSwitchCard` | same |
 | A feature's on/off hero | `MasterSwitchCard` | same |
 | A setting with its own inline controls (slider, button group) | Control card, composed locally; see below | `DataSmoothingSettingsScreen.kt` |
+| The label and value over a slider | `SliderHeader` + `SliderHeaderStyle`; `SettingsSlider` in a `SettingsControlsCard`; see Sliders | `components/SliderHeader.kt` |
 | A destructive row | `DangerItem` | same |
+| A thing the app is connected to (Clone link, meter) | `DeviceCard` + `DevicePauseButton`; see Device cards | `components/DeviceCard.kt` |
 | Group label | `SectionLabel` (24 above, 8 below) | same |
 | Leading icon of a row/card | `IconTile` | `components/IconTile.kt` |
+| A sensor family, shown as itself | `SensorArtTile` in a list, `SensorWizardHero` at the top of every wizard's main step; see Sensor art and wizard heroes | `components/SensorArt.kt`, `components/SensorHeroDrawings.kt`, `components/SensorArtTile.kt` |
 | 2–5 exclusive choices | `ConnectedButtonGroup` (material3 `ToggleButton`s, connected shapes) | `util/ConnectedButtonGroup.kt` |
 | Two buttons as one control | `ConnectedButtonShapes` | `components/ConnectedButtonShapes.kt` |
 | An action with a related second action | `SplitButtonLayout` + `SplitButtonDefaults` | material3 |
 | A short wait with no progress to show | `LoadingIndicator` | material3 |
 | A progress bar | `LinearWavyProgressIndicator` | material3 |
 | An icon-only button | the button inside `IconButtonTooltip(label)`, label = its content description | `components/IconButtonTooltip.kt` |
-| A "+" that offers several kinds of thing | `FloatingActionButtonMenu` + `ToggleFloatingActionButton` | material3; journal items 44dp, 8dp apart, labelLarge, 16dp ends; FABs keep the spec 16dp corner and 16dp inset; bottom-centre on the dashboard with centred pills, between timestamps and right-aligned glucose values; primaryContainer/onPrimaryContainer at rest, surfaceContainerHighest/onSurface when open; opaque semantic tints over a dismissible bottom-up gradient scrim, transparent through the top 35%, 55% black at 70%, and 78% black at the bottom; use Glucose in action labels and entry-sheet titles; press and slide off the button, or hold it, and lift on an item to pick it, as in a menu (`JournalExpandableFab`) |
+| A "+" that offers several kinds of thing | `FloatingActionButtonMenu` + `ToggleFloatingActionButton` | material3; journal items 44dp, 8dp apart, labelLarge, 16dp ends; FABs keep the spec 16dp corner and 16dp inset; bottom-centre on the dashboard with centred pills, between timestamps and right-aligned glucose values; primaryContainer/onPrimaryContainer at rest, primary/onPrimary when open (the spec default); opaque semantic tints over a dismissible bottom-up scrim that fades into `surface`, never black (black over a light theme reads as a grey smear): transparent through the top 35%, 80% at 70%, and 92% at the bottom; use Glucose in action labels and entry-sheet titles; press and slide off the button, or hold it, and lift on an item to pick it, as in a menu (`JournalExpandableFab`) |
 | Add at a point on the chart | `JournalFloatingActionMenu` | One column of the FAB menu's 44dp items, one width, centred on the tapped time's dot (where the chart draws it, followed as the screen moves) and 24dp beside it, left past the middle, inside the plot (top to time chip) whenever it fits; only a column taller than the plot rises past it, never past the window. Items spring out of the dot, middle first, (`motionScheme.fastSpatialSpec`) and fold back into it; corners on the dot's side sharpen with nearness to it; the long-pressing finger can slide onto an item, pressed under it, and lift there to pick it |
 | Actions on a multi-selection | `HorizontalFloatingToolbar`; the screen keeps its top bar | material3 |
 | Pick one value from a short list | `DropdownMenuPopup` + `DropdownMenuGroup` + `SelectableDropdownMenuItem` | material3 |
@@ -174,6 +179,127 @@ Waiting: `LoadingIndicator` for a few seconds with nothing to count (a network c
 loading). Work that can run longer or knows its progress keeps a progress indicator. A spinner
 inside a button stays a small `CircularProgressIndicator`; the loading indicator's shapes don't
 read at 18dp.
+
+### Sensor art and wizard heroes
+
+A sensor family is shown as the device itself, never as a logo or a generic icon.
+
+**The drawings** (`SensorArt.kt`)
+
+- Drawn from the makers' photos and published dimensions, in theme roles, with no maker's
+  name. They are stylised, not photographs: one camera and one light for every drawing, white
+  or grey plastic in the theme's neutrals, the colour of what they lie on thrown back into the
+  shade.
+- The device alone, never its adhesive patch. A family with two current devices is drawn as a
+  pair at their true sizes against each other (Sibionics GS1 and Sibionics 2, iCan i3 and i6,
+  Anytime CT4 and 5 Pro).
+- Each drawing is built once per size and theme and kept, in memory and in the app's cache, so
+  nothing redraws or blinks when a screen opens. Add a `SensorType` and the compiler asks for
+  its drawing.
+
+**The list tile** (`SensorArtTile`)
+
+- One soft square for every row, the same in the launch cards and the picker sheet, so the
+  sensors' own outlines tell the rows apart. No family gets its own colour. Its colour is
+  `sensorBackdropColor`, the one the wizard heroes use, so the tile you tap and the hero it
+  opens match: `secondaryContainer`, opaque in light themes and 65% over the card in dark ones.
+- The sensor is drawn bigger than the square and lies across its upper edge a few degrees off
+  straight, clear of the title. Pressing the card rounds the square, pushes the sensor in and
+  squares it to the row.
+
+**The wizard hero** (`SensorWizardHero`)
+
+- Every wizard's main step opens with one, never a bespoke card. The sensor and a phone acting
+  out how the family connects stand in front of one shape, never tailored to a sensor:
+  - the shape is drawn fresh each time a hero is shown (`BackdropStyle`), one of: a soft hull
+    round the pieces' boxes, a capsule spanning the scene, a bean (a disc behind the sensor and
+    one behind the phone joined by tangents), or a superellipse, each at a random tilt within
+    5°. A tap trades it for a different style. No single style is the only face a wizard has;
+  - every style is built round the same boxes (one per piece: the sensor, the pack, the phone
+    at its lean), so each fits the scene it is given. A new style must be rendered against
+    every family before it ships;
+  - the pieces are drawn 1.1 times the size the shape is built for and stand 1.05 times as far
+    apart, so they extend out of it. Every piece stays inside the hero's own box (1.6 tile
+    high); nothing reaches into the top bar or a progress bar above it;
+  - fill: `sensorBackdropColor`, the list tiles' colour;
+  - the heading is 12dp under the hero's box.
+
+  Rules:
+  - The sensor stands free: nothing is centred under it (a disc or square under a sensor reads
+    as its adhesive patch).
+  - No strokes and no second shape.
+  - Rejected by the owner (2026-11-14/15): a cookie halo, a colour-blocked pill with a success
+    burst, a 3D stage, the list tile reused, rings drawn as lines, a fixed 280 x 148 box with
+    hand-drawn blobs, a free-form silhouette ("blobs of randomness"), one rounded rectangle per
+    family, a Medtrum mound cut flat (read as a doorstop), small grounding discs that left
+    tight `_|` corners round the phone, a shape fitted round the scene with the pieces inside
+    it, a shape shrunk to a floor under them (the pieces should grow, not the shape shrink), a
+    per-family lean and roundness (a slanted slab behind Glutec), and a 1.24x size-up that ran
+    the phone into the progress bar. The fix for a bad corner is the rule, not another disc.
+- The phone acts out how the family connects; its screen says it in one mark:
+
+  | Family connects by | Phone | Screen | Beside them |
+  |---|---|---|---|
+  | NFC (Libre; Ottai China and Syai) | Held over the sensor, arcs running from its edge to the sensor | The NFC mark, pulsing once | — |
+  | A printed code (Dexcom, iCan, Accu-Chek, CareSens Air, Sibionics) | Standing beside what the code is printed on | The viewfinder sweeping, then closing on the code | What the user points the camera at: the G7 applicator, the iCan i3 pack and i6 kit, the SmartGuide applicator turned cap up, the CareSens pouch. Sibionics has none: its code is on the box |
+  | Bluetooth (AiDEX, Anytime, MQ, Ottai Global, Medtrum) | Standing apart, arcs running from the sensor to it | The Bluetooth mark | — |
+
+  The phone has a rim in `outline`, a `surfaceContainerHighest` screen and `primary` marks in
+  both themes (a lit white screen in dark themes was rejected). Its marks are drawn at screen
+  pixels, never scaled up from drawing units, so they stay sharp.
+- A step whose choice changes the picture passes it in: `pairLead` brings the chosen sensor of
+  a pair to the front (Sibionics picker), `companion` swaps the phone's story (Ottai's region).
+  The change animates; it is never a cut.
+- Text: `title` is the step's instruction, kept short. The family's name is already in the
+  top bar, so a title that only names the family again ("Choose a Sibionics sensor") says
+  nothing; say what to do ("Choose sensor variant"). Option names keep the full product name
+  (Sibionics GS1 Europe). A subtitle only when the title can't
+  carry the instruction alone.
+  A step whose own header already says it shows the picture alone.
+- Room: `rememberSensorHeroCompact` folds the hero into a row (a small picture beside its
+  title) whenever the keyboard is up, the screen is under 600dp tall, or a camera or long list
+  shares a screen under 860dp. The fold animates on the spatial spring.
+- Size: 128dp per tile side on wide windows, 112dp on phones, 56dp folded. The stage is
+  2.1–2.75 tile sides wide, depending on how many pieces it holds.
+
+**Hero motion and touch**
+
+- The entrance plays the first time a hero opens after launch, and when a new companion comes
+  in (Ottai's region): the sensor springs up and the shape opens out from it on an
+  overshooting bounce (damping 0.45), the phone and what the code is printed on come in, and
+  the phone does its one beat. It is silent. Later visits, rotation, and the fold between sizes
+  find it already in place. Nothing runs at rest.
+- It is a toy, not a control, so it adds nothing for accessibility services. Under the finger
+  the sensor squares up and the shape gathers in a little. A tap never makes anything vanish
+  or jump:
+  - on release, one click (`NavigationTick.play`);
+  - the shape breathes out and melts into its next style over 420ms, the old one shrinking
+    and fading as the new one swells in;
+  - the sensor hops 7% and settles, and the phone leans in towards it and back, on a soft
+    spring (damping 0.55, stiffness 260);
+  - the signal plays again and ends on one light click (`NavigationTick.playLight`, 0.3).
+- In the hero, a pair is drawn 1.1 times larger with its two sensors 1.3 times further apart
+  than in the list, and the phone stands further off.
+- A pair trading places clicks once as they pass.
+
+### Device cards
+
+Everything the app is connected to (a Clone link, a meter) is one card (`DeviceCard`), never a
+settings row with a sheet behind it:
+
+- **Header:** the name, its state in words under it, and Pause / Play at the far edge
+  (`DevicePauseButton`; the way back to running is the filled one).
+- **Facts:** one quiet panel. What is checked most, and only this device has, is always in it
+  (a connected Hybrid link's route, the other phone's address and since when; a TCP link's
+  address); a tap on the panel adds the rest to the same table, and a
+  second tap folds it. The chevron sits centred under the facts, never in a column beside them.
+- **Controls:** ordinary buttons in one row, 8dp apart: [QR code] [Edit] [Delete], Delete last
+  and outlined in the error colour. Equal widths while the labels fit; icons give way before a
+  label is cut; only when bare labels can't share a line does each take its own.
+- **Under the row:** what a control opens inline (a QR code; a meter's name and code), then a task or setting only this device
+  has (History recovery; a Satellite's recheck wait), full width.
+- The 20dp status-card corner on the settings surface; paused, `surfaceContainerLow`. Cards stand
+  8dp apart.
 
 ### Row, card, dialog or sheet
 
@@ -209,6 +335,50 @@ read at 18dp.
 - **Dialog** — a decision that blocks: confirmation, short text entry, 2–4 exclusive options.
 - **Bottom sheet** — a task with its own content, or one that needs the screen behind it.
 
+### Sliders
+
+A slider has one heading: what it sets at the start, its current value at the end, on one
+line, and the slider 4dp under it (`SliderHeaderGap`). Build it with `SliderHeader`; in a
+`SettingsControlsCard`, `SettingsSlider` does it for you.
+
+| `SliderHeaderStyle` | Label | Value | Use |
+|---|---|---|---|
+| `Standard` (default) | `titleMedium`, `onSurface` | `titleMediumEmphasized`, `primary` | A slider among settings rows: control cards, grouped stacks, sheets, dialogs |
+| `Compact` | `bodyMedium`, `onSurface` | `bodyMediumEmphasized`, `primary` | Inside an alert card, whose own rows are set in `bodyMedium` (`DurationSlider`, a secondary threshold) |
+| `Glucose` | `titleMedium`, `onSurfaceVariant` | `titleLargeEmphasized`, `onSurface` | A glucose threshold that is the point of its card: Glucose range in Dashboard and charts, an alert's own threshold |
+
+The rule behind the table: the label takes the type of the rows beside it, so a slider reads
+as one more setting of its group, and the value is the same style made emphasized. Only
+`Glucose` lets the number outrank its label, because there the number is a reading.
+
+- **The value is never written into the label.** No "Opacity: 100%" strings: the label is
+  its own resource and the value is formatted on its own (`percentage_format`, `dp_value`,
+  `sp_value`, a plural). The value then sits at the same end of every slider in a card, and
+  translations don't have to place a colon.
+- Values are tabular (`tnum`) and rounded, not truncated: 1.4999 is 150%, not 149%.
+- A long translated label wraps. At large font sizes the value moves under the label
+  (`AdaptiveTrailingRow`) instead of squeezing it.
+- Pass the slider's `enabled` to the header, so the text dims with the track.
+- A supporting line under the label (`supportingText`, `bodyMedium` / `onSurfaceVariant`) is
+  for context the value alone doesn't give, like the sensor's own figure beside an override.
+- A slider in an icon row (Voice speed and pitch) puts the header beside the `IconTile`,
+  where a row's text would go, and the track spans the card under both.
+
+Deliberate exceptions, each an owner design:
+
+- **A control card that is one slider** (Smoothing window): the card heading carries the
+  title and its description in the control-card style, the value is a chip trailing the
+  heading, and the track's two ends are captioned under it. The Freeze displayed values
+  dialog has the same shape.
+- **A time range** (alert Active time range): a `RangeSlider` whose values are the Start and
+  End chips under it.
+- **A scrubber** (prediction inspector): no heading; what it picks is shown above it.
+
+Material 3 Expressive specifies the track, handle, stops and the value indicator shown while
+dragging, but says nothing about a label or value that stays on screen. This rule follows
+the list-item anatomy instead (headline at the start, trailing text at the end), which is
+what the rows around a slider already use.
+
 ### Actions
 
 - An action is a **button**, never a settings row. A row is a place or a setting.
@@ -218,9 +388,20 @@ read at 18dp.
   `OutlinedButton` for the rest, `TextButton` in dialogs. A screen-level action spans the
   width at 56dp.
 - Destructive actions confirm first, and say what they destroy.
+- A pair of actions that each open an inline panel (Clone's Send readings | Get readings)
+  stays the connected group, with the group's own shapes, colours and label size. Only at
+  rest is the icon larger (24dp) and over the label; opening one moves the icon back beside
+  the label on an arc, and the group returns to 56dp. Opening never scrolls the screen
+  (`ClonePairButtons`).
+- State is said in words with a plain glyph (linked, linking, off), never a coloured dot.
 
 ### Icons
 
+- The icon set is **Material Symbols Rounded**, as `Symbols.<Name>` (outlined) and
+  `Symbols.<Name>Filled`, in `ui/symbols/Symbols.kt`. The file is generated: add the glyph's
+  name and style to `scripts/material-symbols.txt` (with `mirrored` for anything directional)
+  and run `python3 scripts/material-symbols.py`. Browse names at fonts.google.com/icons. The
+  frozen `material-icons` libraries are not a dependency any more (guardrail `material_icons`).
 - One glyph per meaning. Repeating a glyph for things of the same kind is right; two
   adjacent things that mean different things must not share one.
 - Glyph sizes: 24 (default, tiles), 20, 18 (in buttons), 16 or 14 (inline with label text).
@@ -257,6 +438,9 @@ read at 18dp.
 - Navigation bar and rail keep the stock in-place indicator; the chosen icon acts out its
   glyph once (`TabIcon`), never on launch or rotation. A switch ticks with
   `NavigationTick`, one `PRIMITIVE_CLICK` at 0.5, only on vibrators that support it.
+- Haptics answer the user, never the app: a click when something they touched gives way
+  (`NavigationTick.play`), one light click when something they started finishes
+  (`NavigationTick.playLight`, 0.3). An entrance that plays by itself is silent.
 - Attention motion is brief and repeats with rest: the signal-quality glyph shakes in
   half-second bursts every four seconds, not continuously.
 - An animation that runs while nothing changes is a bug: it costs battery and frames.

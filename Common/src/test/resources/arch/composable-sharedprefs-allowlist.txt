@@ -3,7 +3,6 @@
 #
 # This list may only shrink: a new file added to it, or a stale line for one already fixed, fails
 # the build (ArchitectureGateTests.composablesDoNotGrowInDirectSharedPreferencesUse).
-src/mobile/java/tk/glucodata/ui/AlarmScreen.kt
 src/mobile/java/tk/glucodata/ui/CgmReadiness.kt
 src/mobile/java/tk/glucodata/ui/DashboardChart.kt
 src/mobile/java/tk/glucodata/ui/DashboardScreen.kt

@@ -16,6 +16,9 @@ import android.widget.RemoteViews;
 final class CustomGlucoseNotification {
     private CustomGlucoseNotification() { }
 
+    /** Same length as " · ", so offsets found in the plain text still hold. */
+    private static final String SEPARATOR = "\u2004\u2022\u2004";
+
     static RemoteViews values(Context context, boolean expanded, CharSequence primary,
             int primaryColor, int secondaryColor, int tertiaryColor,
             java.util.List<NotificationChartDrawer.ValueItem> peers, float rate, int arrowColor,
@@ -39,10 +42,10 @@ final class CustomGlucoseNotification {
         bindValue(context, views, R.id.notification_glucose, R.id.notification_glucose_image,
                 styledValue(primary, secondaryColor, tertiaryColor), primaryColor, textSize, textUnit,
                 textPixels, weight, systemFont);
-        // Preserve the old strip's optical spacing: 2.5 units beside arrows,
-        // 8 between sensors, relative to its 22-unit primary text. Fixed dp
-        // margins otherwise dominate the compact/small-font readout.
-        int arrowGap = Math.max(1, Math.round(textPixels * 2.5f / 22f));
+        // Spacing relative to a 22-unit primary text: 5 units beside arrows (2.5
+        // left the arrow closer than the separator dot's gaps), 8 between sensors.
+        // Fixed dp margins otherwise dominate the compact/small-font readout.
+        int arrowGap = Math.max(1, Math.round(textPixels * 5f / 22f));
         int sensorGap = Math.max(1, Math.round(textPixels * 8f / 22f));
         bindArrow(context, views, R.id.notification_arrow, rate, arrowColor,
                 textPixels * 0.8f * safeArrowScale, arrowGap, showArrow, largeArrow);
@@ -138,6 +141,12 @@ final class CustomGlucoseNotification {
         if (second < 0) return text;
         int third = plain.indexOf(" · ", second + 3);
         int secondEnd = third < 0 ? text.length() : third;
+        // The separator shrinks with the value it introduces; at that size "·" is
+        // a speck above the digits' centre and plain spaces crowd it. "•" sits on
+        // the centre; three-per-em spaces give ink gaps of about half an em, the
+        // hero's, in Plex and system fonts alike (en spaces measured 0.6+).
+        text.replace(second, second + 3, SEPARATOR);
+        if (third >= 0) text.replace(third, third + 3, SEPARATOR);
         text.setSpan(new RelativeSizeSpan(0.7f), second, secondEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         text.setSpan(new ForegroundColorSpan(secondary), second, secondEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         if (third >= 0) {

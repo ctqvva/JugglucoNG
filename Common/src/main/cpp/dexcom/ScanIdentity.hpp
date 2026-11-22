@@ -10,6 +10,19 @@ namespace dexcom {
 inline constexpr std::string_view manualPrefix = "JUGGLUCO-MANUAL-G7:";
 inline constexpr int maximumStorageDays = 17; // 15-day sensor plus storage slack.
 constexpr int wearMinutes(int days) { return (days == 15 ? 15 : 10) * 24 * 60; }
+// Warm-up length by sensor model, from the 0x52 answers these sensors report:
+// 3720 s for a 15-day G7, 1620 s for a 10-day one. The 10-day keeps the 30
+// minutes every record has carried; only the 15-day window was too short.
+constexpr int warmupMinutes(int days) { return days == 15 ? 62 : 30; }
+// A record written before the 15-day window was known still carries the
+// 10-day 30. Derive the model's window from the stored wear duration when the
+// value is exactly that default; any other value was reported by the sensor
+// and is kept.
+constexpr int upgradedWarmupMinutes(int storedWarmup, int storedWearMinutes) {
+    if (storedWarmup == warmupMinutes(10) && storedWearMinutes == wearMinutes(15))
+        return warmupMinutes(15);
+    return storedWarmup;
+}
 constexpr int maximumSeconds(int minutes) { return (minutes + 12 * 60 + 5) * 60; }
 constexpr int maximumCount(int minutes) { return (minutes + 12 * 60) / 5 + 1; }
 
@@ -61,14 +74,17 @@ inline std::optional<ScanIdentity> parseScan(std::string_view raw) {
         } else normalized.push_back(raw[i]);
     }
     const std::string_view text = normalized;
-    std::array<std::string_view, 7> values{};
-    constexpr std::array<std::string_view, 7> ais{"01", "11", "17", "10", "21", "240", "250"};
-    constexpr std::array<size_t, 7> fixed{14, 6, 6, 0, 0, 0, 0};
+    std::array<std::string_view, 8> values{};
+    // AI 94 (company internal info, GS1 X..90, e.g. SW14758) appears on Dexcom G7 15-day applicators.
+    constexpr std::array<std::string_view, 8> ais{"01", "11", "17", "10", "21", "240", "250", "94"};
+    constexpr std::array<size_t, 8> fixed{14, 6, 6, 0, 0, 0, 0, 0};
+    constexpr std::array<size_t, 8> maxLength{14, 6, 6, 30, 30, 30, 30, 90};
     size_t pos = 0;
     while (pos < text.size()) {
         if (text[pos] == '\x1d') { ++pos; continue; }
         size_t field = ais.size();
-        if (text[pos] == '(') {
+        const bool parenthesized = text[pos] == '(';
+        if (parenthesized) {
             const auto end = text.find(')', pos);
             if (end == std::string_view::npos) return std::nullopt;
             const auto ai = text.substr(pos + 1, end - pos - 1);
@@ -81,9 +97,12 @@ inline std::optional<ScanIdentity> parseScan(std::string_view raw) {
             if (field < ais.size()) pos += ais[field].size();
         }
         if (field == ais.size() || !values[field].empty()) return std::nullopt;
-        const auto end = fixed[field] ? pos + fixed[field] : text.find_first_of("\x1d(", pos);
+        // In raw scans, AI 94 allows CSET 82 punctuation including '(' and terminates only at GS or end of input.
+        const auto end = fixed[field]
+            ? pos + fixed[field]
+            : (ais[field] == "94" && !parenthesized ? text.find('\x1d', pos) : text.find_first_of("\x1d(", pos));
         const auto limit = end == std::string_view::npos ? text.size() : end;
-        if (limit > text.size() || limit <= pos || limit - pos > 30) return std::nullopt;
+        if (limit > text.size() || limit <= pos || limit - pos > maxLength[field]) return std::nullopt;
         values[field] = text.substr(pos, limit - pos);
         pos = limit;
         if (fixed[field] && !digits(values[field])) return std::nullopt;

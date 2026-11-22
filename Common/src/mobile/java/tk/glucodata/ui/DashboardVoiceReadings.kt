@@ -11,10 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,6 +35,7 @@ import kotlinx.coroutines.delay
 import tk.glucodata.R
 import tk.glucodata.SpeakSchedule
 import tk.glucodata.VoiceReadings
+import tk.glucodata.ui.symbols.Symbols
 
 /**
  * Voice readings as the dashboard shows them, or null when the switch is hidden: turned
@@ -117,10 +114,10 @@ fun VoiceReadingsChartPill(
     ) {
         Icon(
             imageVector = when {
-                !status.on -> Icons.AutoMirrored.Filled.VolumeOff
+                !status.on -> Symbols.VolumeOffFilled
                 // On, but the schedule keeps it quiet until the time beside it.
-                status.resumesAtMinutes != null -> Icons.Filled.Schedule
-                else -> Icons.AutoMirrored.Filled.VolumeUp
+                status.resumesAtMinutes != null -> Symbols.ScheduleFilled
+                else -> Symbols.VolumeUpFilled
             },
             contentDescription = null,
             tint = content,

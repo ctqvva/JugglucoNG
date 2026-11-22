@@ -372,7 +372,7 @@
     <string name="stream">Flux</string>
     
     <string name="exchanges">Envoyer/Recevoir</string>
-    <string name="duration_days">days</string>
+    <string name="duration_days">jours</string>
     <string name="sensor_state">Status</string>
 
     <!-- Newly Extracted Strings -->
@@ -381,7 +381,7 @@
     <string name="continue_without_sensor_desc">Notez insuline, aliments et mesures capillaires dans le journal</string>
     <string name="get_started_desc">Commencez par ajouter votre capteur</string>
     <string name="select_sensor">Sélectionner le type de capteur</string>
-    <string name="select_sibionics_type">Choisir un capteur Sibionics</string>
+    <string name="select_sibionics_type">Choisir la variante du capteur</string>
     <string name="or_divider">"  ou  "</string>
     <string name="no_sensors_connected">Aucun capteur connecté</string>
     <string name="enter_sensor_codes">Entrer les codes du capteur</string>
@@ -398,7 +398,6 @@
     <string name="select_gallery_button">Sélectionner depuis la Galerie</string>
     <string name="skip_fake_sensor">Ignorer (Utiliser faux capteur)</string>
     <string name="enter_code_manually">Entrer le code manuellement</string>
-    <string name="choose_sibionics_variant">Sélectionnez le modèle indiqué sur l’emballage.</string>
     <string name="continue_action">Continuer</string>
     <string name="sensor_init_failed">Initialisation du capteur échouée</string>
     <string name="sensor_lost_restart">Erreur: Capteur perdu. Veuillez recommencer la configuration.</string>
@@ -420,7 +419,7 @@
     <string name="import_no_glucose">Ce fichier ne contient aucune donnée de glucose</string>
     <string name="import_unsupported_file">Fichier non pris en charge. Choisissez une exportation JugglucoNG ou un historique de glucose CSV.</string>
     <string name="delete_reading_title">Supprimer la lecture ?</string>
-    <string name="delete_reading_confirmation">Supprimer cette lecture de glucose de l’historique local. Cette action est irréversible.</string>
+    <string name="delete_reading_confirmation">Supprimer cette lecture de glucose de l’historique local.</string>
     <string name="vibrate_only">Vibrer seulement</string>
     <string name="sound_vibrate">Son &amp; Vibration</string>
     <string name="graph_smoothing_title">Lissage des données</string>
@@ -552,6 +551,11 @@
     <string name="status_bluetooth_off">Bluetooth désactivé</string>
     <string name="status_connection_failed">Échec de connexion</string>
     <string name="status_connected">Connecté</string>
+    <string name="sensor_error">Erreur du capteur</string>
+    <string name="sensor_replace">Remplacer le capteur</string>
+    <string name="sensor_ended">Capteur terminé</string>
+    <string name="sensor_warming_up">Préchauffage</string>
+    <string name="sensor_error_code">Code d\'erreur du capteur</string>
     <string name="status_disconnected">Déconnecté</string>
     <string name="select_sensor_type">Choisir le type de capteur</string>
     <string name="choose_theme">Choisir le thème</string>
@@ -660,7 +664,7 @@
     <string name="aspart">Insulin Aspart/NovoRapid/NovoLog</string>
     <string name="auto">Auto</string>
     <string name="auto_raw">Auto+Raw</string>
-    <string name="auto_reset_days">%1$d days</string>
+    <string name="auto_reset_days">%1$d jours</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="autoqr">Auto QR</string>
     <string name="autoqrmessage">Send data from this phone to another phone on your home network.
@@ -681,7 +685,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="caresens_air_scan_instruction">Scannez le code du capteur sur votre forfait CareSens Air</string>
     <string name="caresens_air_setup_title">Configuration de CareSens Air</string>
     <string name="changestartbutton">Change start</string>
-    <string name="chsibionics">Sibionics GS1 CN</string>
+    <string name="chsibionics">Sibionics GS1 Chine</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_history_confirm">Effacer l\'historique ?</string>
     <string name="clear_history_desc">Supprimer les lectures, les entrées du journal ou les deux</string>
@@ -723,7 +727,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="endstime">" ends at this time"</string>
     <string name="enter_sensor_label_desc">Enter the codes printed on the sensor label</string>
     <string name="enter_transmitter_desc">Enter the transmitter ID from the label</string>
-    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="eusibionics">Sibionics GS1 Global</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="export_history_title">Export History</string>
@@ -820,19 +824,24 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="median">Médiane</string>
     <string name="meterlist">Lecteurs de glycémie</string>
     <string name="glucose_meters_desc">Connecter des lecteurs de glycémie Bluetooth</string>
-    <string name="glucose_meters_journal_desc">Les mesures sont enregistrées comme glycémies dans le journal et peuvent être envoyées à Nightscout.</string>
+    <string name="glucose_meters_journal_desc">Les mesures sont enregistrées comme glycémies dans le journal et peuvent être envoyées à Nightscout</string>
     <string name="satellite_meter_title">Lecteur Satellite (Сателлит+)</string>
     <string name="satellite_meter_code_label">PIN ou code de l’étiquette</string>
     <string name="satellite_meter_code_desc">Saisissez le PIN à 3 chiffres ou le code plus long imprimé sous l’étiquette QR/DataMatrix du lecteur. Il est utilisé à chaque connexion Bluetooth.</string>
     <string name="glucose_meters_configured">Lecteurs configurés</string>
-    <string name="glucose_meters_none">Aucun lecteur configuré</string>
-    <string name="glucose_meters_none_desc">Recherchez un lecteur à proximité pour importer des mesures.</string>
     <string name="glucose_meters_nearby">Lecteurs à proximité</string>
     <string name="glucose_meter_recheck">Revérifier le lecteur après</string>
     <string name="glucose_meter_recheck_now">Immédiatement</string>
-    <string name="glucose_meter_recheck_hint">Pour les lecteurs qui restent allumés, comme Satellite. Une nouvelle mesure peut arriver avec ce retard</string>
-    <string name="glucose_meter_last_reading">Dernière mesure : %1$s</string>
-    <string name="glucose_meter_no_readings">Aucune mesure importée</string>
+    <string name="glucose_meter_recheck_hint">Satellite ne s\'éteint jamais. Une attente plus longue économise la batterie</string>
+    <string name="glucose_meter_name">Nom</string>
+    <string name="glucose_meter_name_hint">Affiché ici et dans les nouvelles entrées du journal</string>
+    <string name="glucose_meters_find">Rechercher des lecteurs</string>
+    <string name="glucose_meters_none_found">Aucun lecteur trouvé. Allumez le lecteur et relancez la recherche</string>
+    <string name="glucose_meters_other">Autres appareils Bluetooth</string>
+    <string name="glucose_meters_other_desc">Si votre lecteur n\'apparaît pas ci-dessus</string>
+    <string name="glucose_meter_last_reading">Dernière mesure</string>
+    <string name="glucose_meter_no_readings">Aucune pour le moment</string>
+    <string name="glucose_meter_device_name">Nom Bluetooth</string>
     <string name="satellite_meter_code_missing">Lecteur Satellite : définissez d\'abord le code du lecteur dans les réglages des lecteurs de glycémie</string>
     <string name="glucose_meter_forget">Oublier</string>
     <string name="glucose_meter_forget_title">Oublier le lecteur</string>
@@ -894,7 +903,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scan_accuchek">Scanner Accu-Chek</string>
     <string name="scan_caresens_air">Scanner CareSens Air</string>
     <string name="schedules">Schedules</string>
-    <string name="seconds">" seconds"</string>
+    <string name="seconds">" secondes"</string>
     <string name="select_export_format">Select Export Format</string>
     <string name="sendfrom">"Send from: "</string>
     <string name="sensor_address">Address</string>
@@ -992,7 +1001,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
-    <string name="background_opacity_percent">Opacité de l\'arrière-plan : %1$d%%</string>
+    <string name="background_opacity_label">Opacité de l\'arrière-plan</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor.</string>
     <string name="calibrate_sensor_timing_note">Évitez d\'étalonner dans les 2 heures suivant un repas ou une dose d\'insuline.</string>
     <string name="calibration_with_mode">Étalonnage (%1$s)</string>
@@ -1051,7 +1060,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations_deleted_count">Étalonnages %1$d supprimés</string>
     <string name="calibrations_will_be_removed_count">Les étalonnages %1$d seront supprimés</string>
     <string name="connection_number">Connexion %1$d</string>
-    <string name="corner_radius_dp">Rayon d\'angle : %1$d dp</string>
+    <string name="corner_radius_label">Rayon d\'angle</string>
     <string name="custom_sound_prefix">Son personnalisé : %1$s</string>
     <string name="delete_calibrations_count">Supprimer les étalonnages %1$d</string>
     <string name="disabled_calibrations_cleared">Effacement des étalonnages désactivés %1$d</string>
@@ -1060,7 +1069,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dp_value">%1$d dp</string>
     <string name="end_time_with_value">Fin : %1$s</string>
     <string name="export_failed_with_error">Échec de l\'exportation : %1$s</string>
-    <string name="gap_width_value">Largeur de l\'espace : %1$s</string>
+    <string name="gap_width_label">Largeur de l\'espace</string>
     <string name="glucose_with_unit">Glucose (%1$s)</string>
     <string name="import_failed_with_error">Échec de l\'importation : %1$s</string>
     <string name="import_summary">Importé : %1$d, ignoré : %2$d, remplacé : %3$d</string>
@@ -1150,7 +1159,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="font_app_plex">Application (IBM Plex)</string>
     <string name="font_system_sans">Système Sans</string>
     <string name="font_system_google_sans">Système</string>
-    <string name="size_sp">Taille : %1$d sp</string>
+    <string name="size_label">Taille</string>
+    <string name="sp_value">%1$d sp</string>
     <string name="font_weight_label">Poids de la police</string>
     <string name="regular">Régulier</string>
     <string name="medium">Moyen</string>
@@ -1197,6 +1207,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_noisy_status">Étalonnage indisponible ; le bruit du signal est trop élevé</string>
     <string name="calibrate_sensor_title">Calibrer le capteur</string>
     <string name="calibration_deleted">Calibrage supprimé</string>
+    <string name="reading_deleted">Lecture supprimée</string>
     <string name="calibration_profile_exported">Profil d\'étalonnage exporté</string>
     <string name="calibrationhelp">Aide à l\'étalonnage</string>
     <string name="calibrationslist">Liste d\'étalonnages</string>
@@ -1723,6 +1734,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_temp_basal">Basal temporaire</string>
     <string name="journal_dashboard_types_title">Afficher sur l’écran principal</string>
     <string name="journal_dashboard_types_desc">Les entrées masquées quittent seulement le graphique principal et la liste des mesures. Elles restent comptées dans l’IOB, le COB, la prévision et les suggestions de dose.</string>
+    <string name="journal_entry_types_order_desc">Le menu + et le menu d’ajout du graphique les listent dans cet ordre. Faites glisser une poignée pour en déplacer un.</string>
     <string name="journal_import_health_activity_desc">Ajouter entraînements et pas au journal</string>
     <string name="journal_section_main_screen">Écran principal</string>
     <string name="journal_section_dosing">Dosage</string>
@@ -1797,12 +1809,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="show_chart_collapsed_desc">Graphique compact en vue réduite</string>
     <string name="show_target_range">Afficher la plage cible</string>
     <string name="show_target_range_desc">Mettre en évidence la plage cible de glucose sur le graphique</string>
-    <string name="font_size_percent">Taille de la police : %1$d%%</string>
-    <string name="status_bar_icon_size_percent">Taille de l\'icône de la barre d\'état : %1$d%%</string>
-    <string name="arrow_size_percent">Taille de la flèche : %1$d%%</string>
-    <string name="opacity_percent">Opacité : %1$d%%</string>
-    <string name="text_size_percent">Taille du texte : %1$d%%</string>
-    <string name="chart_size_percent">Taille du graphique : %1$d%%</string>
+    <string name="font_size_label">Taille de la police</string>
+    <string name="status_bar_icon_size_label">Taille de l\'icône de la barre d\'état</string>
+    <string name="arrow_size_label">Taille de la flèche</string>
+    <string name="opacity_label">Opacité</string>
+    <string name="text_size_label">Taille du texte</string>
+    <string name="chart_size_label">Taille du graphique</string>
     <string name="use_subtle_outline">Utiliser un contour discret</string>
     <string name="use_subtle_outline_desc">Fin liseré lumineux autour de la superposition</string>
     <string name="position_top">Haut</string>
@@ -1904,10 +1916,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_relay">Relais</string>
     <string name="mirror_turn_server_desc">Relais TURN pour les connexions distantes</string>
     <string name="mirror_connections">Connexions</string>
-    <string name="mirror_clone_master">Clone</string>
     <string name="mirror_default_local_label">Clone local</string>
     <string name="mirror_default_hybrid_label">Clone hybride</string>
-    <string name="mirror_clone_master_desc">Activer toutes les connexions Clone enregistrées</string>
     <string name="clone_history_recovery">Récupération de l’historique</string>
     <string name="clone_history_direction_send">Envoyer</string>
     <string name="clone_history_direction_pull">Récupérer</string>
@@ -2135,6 +2145,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Connecté</string>
     <string name="ottai_session_invalid">Votre session cloud n’est plus valide – reconnectez-vous</string>
+    <string name="ottai_global_sign_in_again">Reconnectez-vous à Ottai Global pour configurer un capteur ou vérifier son micrologiciel. Vos capteurs enregistrés et votre historique seront conservés.</string>
+    <string name="ottai_ota_check_failed">Échec de la vérification du micrologiciel.</string>
+    <string name="ottai_ota_disconnect_first">Déconnectez le capteur pour vérifier son micrologiciel.</string>
     <string name="ottai_sensor_mac_hint">ID, numéro de série ou QR</string>
     <string name="ottai_connect_saved">Connecter</string>
     <string name="ottai_login_fail">Connexion échouée - vérifiez le téléphone/code</string>
@@ -2226,6 +2239,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_palette_title">Couleurs du glucose</string>
     <string name="notification_show_delta_desc">Changement mesuré sur l\'intervalle delta, à côté de la flèche</string>
     <string name="notification_show_delta_title">Afficher le delta (Δ)</string>
+    <string name="display_show_delta_title">Afficher le delta (Δ)</string>
+    <string name="widget_show_delta_title">Delta des widgets (Δ)</string>
     <string name="rising_fast_explanation">Avertit après %1$d intervalles consécutifs de %2$d minutes, chacun augmentant d\'au moins %3$s (≈ %4$d min de hausse soutenue), lorsque la valeur est égale ou supérieure à %5$s. Aucune prédiction, seulement la tendance brute.</string>
     <string name="sensor_expiry_warnings_desc">Chaque heure sélectionnée avertit une fois par capteur</string>
     <string name="sensor_expiry_warnings_title">Avertir avant expiration</string>
@@ -2348,6 +2363,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="stats_duration_days">%1$d j</string>
+    <string name="stats_duration_days_hours">%1$d j %2$d h</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d semaine</item>
+        <item quantity="other">%1$d semaines</item>
+    </plurals>
     <string name="stats_tab_days">Jours</string>
     <string name="stats_tab_hours">Heures</string>
     <string name="stats_tab_weekdays">Jours de semaine</string>
@@ -2416,6 +2437,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Période</string>
     <string name="stats_arrange_width">Demi ou pleine largeur</string>
+    <string name="stats_arrange_ring">Afficher en anneau</string>
     <string name="stats_window_3d">3J</string>
     <string name="stats_window_today">Auj.</string>
     <string name="stats_window_24h">24H</string>
@@ -2480,7 +2502,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_server_unreachable">Impossible de joindre le serveur Ottai. Réessayez.</string>
     <string name="ottai_connect_failed">Impossible de démarrer la connexion. Réessayez.</string>
     <string name="ottai_already_binding_hint">Votre compte a encore un autre capteur lié. Déliez-le sous Capteurs enregistrés, puis réessayez.</string>
-    <string name="ottai_ota_upgrade_required">Le service Ottai a demandé une mise à jour du micrologiciel lors de la liaison du capteur. Réessayez la configuration ou importez les identifiants enregistrés. Vous pouvez aussi essayer l’application officielle Ottai.</string>
+    <string name="ottai_ota_upgrade_required">Ottai a demandé une mise à jour du micrologiciel.</string>
     <string name="ottai_retry">Réessayer</string>
     <string name="ottai_setup_failed">Configuration arrêtée. Réessayez ou fermez cette fenêtre et importez les identifiants enregistrés.</string>
     <string name="ottai_region_cn_full">Ottai Chine</string>
@@ -2887,8 +2909,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_setup">Configuration de la connexion</string>
     <string name="turn_help_how_body">Le serveur de rendez-vous ne fait que présenter deux appareils : chacun y dépose ses adresses possibles et récupère celles de l’autre. Aucune donnée de glycémie n’y transite. Une route directe est préférée ; TURN ne relaie le trafic que si aucune route directe ne fonctionne, et ce qu’il relaie reste chiffré.\n\nAvec les deux commutateurs désactivés, le rendez-vous et le relais de l’application sont utilisés. Activez-en un et seule cette partie devient la vôtre ; activez les deux et seule la recherche d’adresse publique quitte encore vos serveurs, sauf si « TURN pour STUN » l’envoie aussi à votre relais.\n\nSur un même réseau, « Trouver les appareils associés à proximité » les connecte directement et ignore le rendez-vous.</string>
     <string name="turn_credentials_too_long">Le nom d’utilisateur ou le mot de passe est trop long pour cette configuration TURN.</string>
-    <string name="clone_sync_title">Synchronisation</string>
     <string name="clone_network_title">Réseau Clone</string>
+    <string name="clone_network_settings">Paramètres du réseau Clone</string>
+    <string name="clone_add_custom_connection">Ajouter une connexion personnalisée</string>
     <string name="clone_servers">Serveurs</string>
     <string name="clone_server_default">Serveur de l’application</string>
     <string name="clone_connection_options">Connexion</string>
@@ -2910,13 +2933,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_waiting">En attente de l’autre téléphone…</string>
     <string name="clone_pairing_announced">Également visible sur ce Wi-Fi comme %1$s</string>
     <string name="clone_pairing_connected">Connecté</string>
-    <string name="clone_add_manually_desc">Saisir vous-même l’adresse et les options</string>
     <string name="clone_send_readings">Envoyer les valeurs</string>
     <string name="clone_on_this_wifi">Sur ce Wi-Fi</string>
     <string name="clone_nearby_empty">Les téléphones qui envoient des valeurs sur ce Wi-Fi apparaissent ici</string>
     <string name="clone_sharing_readings">Envoie des valeurs</string>
     <string name="clone_network_summary">Serveurs et recherche locale</string>
     <string name="clone_background_desc">Consomme plus de batterie</string>
+    <string name="clone_other_phone">Autre téléphone</string>
+    <string name="clone_this_phone">Ce téléphone</string>
+    <string name="clone_connected_since">Connecté depuis</string>
+    <string name="clone_phase">Phase</string>
+    <string name="clone_ice_state">État ICE</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
         <item quantity="one">%d entrée</item>
@@ -3113,6 +3140,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings search -->
     <string name="settings_search_hint">Rechercher dans les paramètres</string>
     <string name="settings_search_no_results">Aucun paramètre ne correspond à « %1$s »</string>
+    <string name="settings_search_related">Paramètres associés</string>
     <string name="settings_search_clear">Effacer la recherche</string>
 
     <!-- Explicit firmware field test. -->
@@ -3127,7 +3155,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_installing">Installation du micrologiciel…</string>
     <string name="ottai_ota_reconnecting">Reconnexion et vérification de la version installée…</string>
     <string name="ottai_ota_preparing">Actualisation des identifiants et écriture des paramètres d’usine…</string>
-    <string name="ottai_ota_complete">Préparation terminée. Fermez cette fenêtre, puis connectez-vous normalement pour activer le capteur.</string>
+    <string name="ottai_ota_complete">Préparation d’usine terminée</string>
     <string name="ottai_ota_failed">Configuration arrêtée. Réessayez ou consultez le journal de trace. Une configuration inachevée bloque l’activation.</string>
     <string name="ottai_ota_version">Capteur : %1$s · Mise à jour : %2$s</string>
     <string name="ottai_ota_package">%1$d octets · SHA-256 : %2$s</string>
@@ -3156,7 +3184,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="ottai_ota_discard">Abandonner la configuration inachevée</string>
     <string name="ottai_ota_discard_confirm">Supprimer l’état enregistré de mise à jour et de préparation pour autoriser la connexion ? Cela ne restaure ni le micrologiciel ni les réglages. Une mise à jour interrompue peut encore nécessiter une récupération.</string>
-    <string name="ottai_ota_pending">La configuration du capteur est inachevée. Reconnectez-vous ou ouvrez la récupération pour la terminer ou l’abandonner.</string>
+    <string name="ottai_ota_pending">Configuration du capteur inachevée</string>
     <string name="ottai_ota_finish_preparation">Micrologiciel vérifié. Confirmez les paramètres usine pour terminer la configuration.</string>
     <string name="ottai_ota_discard_failed">Impossible d’abandonner le test. Réessayez.</string>
     <string name="prediction_analysis_section">Analyse des prévisions</string>
@@ -3402,4 +3430,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Réorganiser les aliments</string>
     <string name="food_move_up">Monter</string>
     <string name="food_move_down">Descendre</string>
+    <string name="scan_sensor_qr">Scanner le code QR du capteur</string>
+    <string name="spanish">Espagnol</string>
+    <string name="floating_layout_reading">Mesure</string>
+    <string name="floating_layout_secondary">Valeur secondaire</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Flèche de tendance</string>
+    <string name="floating_layout_camera">Encoche de la caméra</string>
+    <string name="floating_layout_camera_desc">Les éléments au-dessus se placent avant la caméra, les autres après</string>
+    <string name="floating_layout_hidden">Masqué</string>
+    <string name="floating_layout_order_desc">Faites glisser une poignée pour déplacer un élément</string>
 </resources>
