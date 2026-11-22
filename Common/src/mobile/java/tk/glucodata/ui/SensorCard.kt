@@ -2391,25 +2391,20 @@ fun SensorCard(
                             label = "sensorReachLine",
                         ) { lost ->
                         if (lost) {
-                            // The line's two chips grown: the last reading with its age, and the
-                            // Bluetooth chip spread over the status text, saying what to do.
+                            // The reading chip as ever; the Bluetooth chip at the end grows over
+                            // the status text, saying what to check.
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(androidx.compose.foundation.layout.IntrinsicSize.Min),
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 currentSnapshot?.let { snapshot ->
-                                    SensorLastReadingChip(
-                                        snapshot = snapshot,
-                                        accentColor = sensorTint,
-                                        modifier = Modifier.fillMaxHeight(),
-                                    )
+                                    SensorCurrentValueChip(snapshot = snapshot, accentColor = sensorTint)
                                 }
                                 SensorOutOfReachChip(
                                     state = reachState,
                                     host = SensorReachPromptHost.SENSOR_CARD,
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    modifier = Modifier.weight(1f),
                                 )
                             }
                         } else {

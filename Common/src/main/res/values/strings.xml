@@ -1072,8 +1072,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_found">Sensor not found nearby</string>
     <string name="status_auth_failed">Authentication failed</string>
     <string name="status_sensor_not_responding">Sensor not responding</string>
-    <string name="sensor_out_of_reach_title">Out of range</string>
-    <string name="sensor_out_of_reach_body">Keep your phone near the sensor</string>
+    <string name="sensor_out_of_reach_title">No signal from sensor</string>
+    <string name="sensor_out_of_reach_title_short">No signal</string>
+    <string name="sensor_out_of_reach_body">Check it’s nearby and not out of battery</string>
     <string name="sensor_out_of_reach_battery">Sensor battery low (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Waiting for a reading</string>
     <string name="status_raw_values_received">Connected, raw values received</string>

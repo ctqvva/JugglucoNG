@@ -2128,8 +2128,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_found">Sensorn hittades inte i närheten</string>
     <string name="status_auth_failed">Autentiseringen misslyckades</string>
     <string name="status_sensor_not_responding">Sensorn svarar inte</string>
-    <string name="sensor_out_of_reach_title">Utom räckhåll</string>
-    <string name="sensor_out_of_reach_body">Håll telefonen nära sensorn</string>
+    <string name="sensor_out_of_reach_title">Ingen signal från sensorn</string>
+    <string name="sensor_out_of_reach_title_short">Ingen signal</string>
+    <string name="sensor_out_of_reach_body">Kontrollera att den är nära och inte urladdad</string>
     <string name="sensor_out_of_reach_battery">Låg batterinivå i sensorn (%1$d %%)</string>
     <string name="sensor_waiting_for_reading">Väntar på en mätning</string>
     <string name="status_raw_values_received">Ansluten, råvärden mottagna</string>

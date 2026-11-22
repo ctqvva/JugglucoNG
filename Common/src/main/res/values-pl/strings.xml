@@ -2163,8 +2163,9 @@
     <string name="status_sensor_not_found">Nie znaleziono czujnika w pobliżu</string>
     <string name="status_auth_failed">Uwierzytelnianie nie powiodło się</string>
     <string name="status_sensor_not_responding">Czujnik nie odpowiada</string>
-    <string name="sensor_out_of_reach_title">Poza zasięgiem</string>
-    <string name="sensor_out_of_reach_body">Trzymaj telefon blisko sensora</string>
+    <string name="sensor_out_of_reach_title">Brak sygnału z sensora</string>
+    <string name="sensor_out_of_reach_title_short">Brak sygnału</string>
+    <string name="sensor_out_of_reach_body">Sprawdź, czy jest blisko i nie jest rozładowany</string>
     <string name="sensor_out_of_reach_battery">Słaba bateria sensora (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Oczekiwanie na odczyt</string>
     <string name="status_raw_values_received">Połączono, odebrano wartości surowe</string>

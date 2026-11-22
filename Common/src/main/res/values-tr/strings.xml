@@ -2156,8 +2156,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="status_sensor_not_found">Sensör yakında bulunamadı</string>
     <string name="status_auth_failed">Kimlik doğrulama başarısız</string>
     <string name="status_sensor_not_responding">Sensör yanıt vermiyor</string>
-    <string name="sensor_out_of_reach_title">Menzil dışında</string>
-    <string name="sensor_out_of_reach_body">Telefonu sensöre yakın tutun</string>
+    <string name="sensor_out_of_reach_title">Sensörden sinyal yok</string>
+    <string name="sensor_out_of_reach_title_short">Sinyal yok</string>
+    <string name="sensor_out_of_reach_body">Yakında olduğunu ve pilinin bitmediğini kontrol edin</string>
     <string name="sensor_out_of_reach_battery">Sensör pili zayıf (%%%1$d)</string>
     <string name="sensor_waiting_for_reading">Okuma bekleniyor</string>
     <string name="status_raw_values_received">Bağlandı, ham değerler alındı</string>

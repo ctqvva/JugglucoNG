@@ -1017,8 +1017,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="status_sensor_not_found">Sensor-ka lagama helin agagaarka</string>
     <string name="status_auth_failed">Xaqiijintu way fashilantay</string>
     <string name="status_sensor_not_responding">Sensor-ku ma jawaabayo</string>
-    <string name="sensor_out_of_reach_title">Wuu ka fog yahay</string>
-    <string name="sensor_out_of_reach_body">Telefoonka u dhow dareemaha</string>
+    <string name="sensor_out_of_reach_title">Calaamad kama imanayso dareemaha</string>
+    <string name="sensor_out_of_reach_title_short">Calaamad ma jirto</string>
+    <string name="sensor_out_of_reach_body">Hubi inuu u dhow yahay oo batarigiisu aanu dhammaan</string>
     <string name="sensor_out_of_reach_battery">Batariga dareemaha waa yar yahay (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Sugaya akhris</string>
     <string name="status_raw_values_received">Ku xidhan, qiyam cayriin ayaa la helay</string>

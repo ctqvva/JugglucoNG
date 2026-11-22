@@ -2129,8 +2129,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_found">Sensor não encontrado nas proximidades</string>
     <string name="status_auth_failed">Falha na autenticação</string>
     <string name="status_sensor_not_responding">O sensor não responde</string>
-    <string name="sensor_out_of_reach_title">Fora de alcance</string>
-    <string name="sensor_out_of_reach_body">Mantenha o telefone perto do sensor</string>
+    <string name="sensor_out_of_reach_title">Sem sinal do sensor</string>
+    <string name="sensor_out_of_reach_title_short">Sem sinal</string>
+    <string name="sensor_out_of_reach_body">Verifique se está perto e com bateria</string>
     <string name="sensor_out_of_reach_battery">Bateria do sensor fraca (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Aguardando leitura</string>
     <string name="status_raw_values_received">Conectado, valores brutos recebidos</string>

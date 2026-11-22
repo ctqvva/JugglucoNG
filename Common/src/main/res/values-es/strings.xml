@@ -1071,8 +1071,9 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="status_sensor_not_found">No se encontró el sensor cerca</string>
      <string name="status_auth_failed">Error de autenticación</string>
      <string name="status_sensor_not_responding">El sensor no responde</string>
-     <string name="sensor_out_of_reach_title">Fuera de alcance</string>
-     <string name="sensor_out_of_reach_body">Mantén el teléfono cerca del sensor</string>
+     <string name="sensor_out_of_reach_title">Sin señal del sensor</string>
+     <string name="sensor_out_of_reach_title_short">Sin señal</string>
+     <string name="sensor_out_of_reach_body">Comprueba que esté cerca y tenga batería</string>
      <string name="sensor_out_of_reach_battery">Batería del sensor baja (%1$d%%)</string>
      <string name="sensor_waiting_for_reading">Esperando una lectura</string>
      <string name="status_raw_values_received">Conectado, valores brutos recibidos</string>

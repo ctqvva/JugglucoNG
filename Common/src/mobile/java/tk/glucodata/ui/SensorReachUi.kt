@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
-import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.R
 import tk.glucodata.SensorHandoffUiState
 import tk.glucodata.SensorOwnershipRuntime
@@ -124,9 +123,9 @@ internal fun rememberSensorReach(serial: String, lastReadingMs: Long): SensorRea
 internal enum class SensorReachPromptHost { SENSOR_CARD, DASHBOARD }
 
 /**
- * The Bluetooth chip at the end of the status line, grown over the status text once the
- * phone has not reached the sensor for a while: what is wrong and what to do about it,
- * with the waves still looking for the sensor. The dashboard shows the same chip alone.
+ * The Bluetooth chip at the end of the status line, grown leftward over the status text once
+ * no reading or link has come from the sensor for a while. It does not guess why (too far,
+ * flat, failed); it says what to check. The dashboard shows the same chip alone.
  */
 @Composable
 internal fun SensorOutOfReachChip(
@@ -136,9 +135,11 @@ internal fun SensorOutOfReachChip(
     onClick: (() -> Unit)? = null,
 ) {
     val content = MaterialTheme.colorScheme.onTertiaryContainer
+    val dashboard = host == SensorReachPromptHost.DASHBOARD
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
+        // The link mark's own shape on the card; the dashboard's rounder pills there.
+        shape = RoundedCornerShape(if (dashboard) 20.dp else 16.dp),
         color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = content,
         tonalElevation = 1.dp,
@@ -146,18 +147,16 @@ internal fun SensorOutOfReachChip(
         Row(
             modifier = Modifier
                 .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
-                .heightIn(min = 56.dp)
-                .padding(
-                    horizontal = 16.dp,
-                    vertical = if (host == SensorReachPromptHost.DASHBOARD) 12.dp else 8.dp,
-                ),
+                .heightIn(min = if (dashboard) 56.dp else 48.dp)
+                .padding(horizontal = if (dashboard) 16.dp else 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SearchingSignalGlyph(color = content, iconSize = 16.dp)
-            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
+                // On the card the sensor is the card's own, so the title need not name it.
                 Text(
-                    text = stringResource(R.string.sensor_out_of_reach_title),
+                    text = stringResource(
+                        if (dashboard) R.string.sensor_out_of_reach_title else R.string.sensor_out_of_reach_title_short,
+                    ),
                     style = MaterialTheme.typography.titleMediumEmphasized,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -166,48 +165,17 @@ internal fun SensorOutOfReachChip(
                     text = state.lowBatteryPercent?.let {
                         stringResource(R.string.sensor_out_of_reach_battery, it)
                     } ?: stringResource(R.string.sensor_out_of_reach_body),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        lineBreak = androidx.compose.ui.text.style.LineBreak.Heading,
+                    ),
                     color = content.copy(alpha = 0.86f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-    }
-}
-
-/**
- * The reading chip beside [SensorOutOfReachChip], grown to its height: the last value, and
- * under it how old it is, since that age is now the point.
- */
-@Composable
-internal fun SensorLastReadingChip(
-    snapshot: CurrentDisplaySource.Snapshot,
-    accentColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        tonalElevation = 1.dp,
-    ) {
-        Column(
-            modifier = Modifier
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = snapshot.primaryStr,
-                style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
-                maxLines = 1,
-                softWrap = false,
-            )
-            SensorReadingAgeLabel(
-                readingMillis = snapshot.timeMillis,
-                iconTint = accentColor.copy(alpha = 0.82f),
-                textColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Spacer(modifier = Modifier.width(12.dp))
+            // The link mark stays where it always sits, at the line's end, still looking.
+            SearchingSignalGlyph(color = content, iconSize = 12.dp)
         }
     }
 }
